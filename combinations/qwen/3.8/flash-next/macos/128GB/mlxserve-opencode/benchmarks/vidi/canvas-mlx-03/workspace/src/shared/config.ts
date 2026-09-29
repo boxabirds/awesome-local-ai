@@ -136,3 +136,19 @@ export const CLIPBOARD_WRITE_TIMEOUT_MS = 1500;
  * RECONNECT_MAX_BACKOFF_MS — the same ceiling the websocket reconnect uses.
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// ---- Story 7: selecting, moving and resizing several objects ----------------
+
+/**
+ * Size of a resize handle in *screen* CSS pixels: handles stay the same size on
+ * screen at any zoom, so this is never multiplied by the camera zoom.
+ */
+export const HANDLE_SIZE_PX = 8;
+/** Smallest sticky note, in board (world) units (sel.size_limits). */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Largest side of any board object, in board (world) units (sel.size_limits). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** One arrow-key nudge moves the selection this many board units (sel.nudge). */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift+arrow nudges this many board units (sel.nudge). */
+export const NUDGE_LARGE_STEP_WORLD = 10;

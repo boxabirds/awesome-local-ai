@@ -4,6 +4,14 @@
 // Nothing in here (Yjs doc, WebSocket, canvas) ever exists for a link that is not
 // a board, which is what share.not_found's "nothing is created there" means on
 // the client side.
+//
+// Story 7 added selection of several objects at once. What that changed here is
+// only *what is rendered*: the world layer now draws every object the document
+// holds, asking `objects/registry.tsx` which component belongs to which type, and
+// the toolbars come from the type's registration too. Selection, marquee, group
+// move, group resize, deletion and the keyboard commands live in `board/*` and
+// treat every object type the same way, so stories 9-12 (text, shape, connector,
+// frame) add a component and one registration instead of touching this file.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
@@ -11,11 +19,18 @@ import { BoardViewport } from '../canvas/BoardViewport.tsx';
 import { ZoomControls } from '../canvas/ZoomControls.tsx';
 import { NavigationHint } from '../canvas/NavigationHint.tsx';
 import { Toolbar } from './Toolbar.tsx';
-import { StickyNote } from '../objects/StickyNote.tsx';
-import { NoteToolbar } from '../objects/NoteToolbar.tsx';
+// Registers the 'sticky' object type; the renderer below asks the registry what to
+// draw, so the module must have been evaluated.
+import '../objects/StickyNote.tsx';
+import { getObjectType } from '../objects/registry.tsx';
 import { useCamera } from '../canvas/useCamera.ts';
 import { useBoardDoc } from './useBoardDoc.ts';
 import { useSelection } from './useSelection.ts';
+import { useTransformGesture, deleteSelection } from './useTransformGesture.ts';
+import { useMarquee, MarqueeRect } from './Marquee.tsx';
+import { useBoardKeys } from './useBoardKeys.ts';
+import { SelectionOverlay, selectionBounds } from './SelectionOverlay.tsx';
+import { SelectionBar } from './SelectionBar.tsx';
 import { ConnectionStatus, type ConnectionState } from './ConnectionStatus.tsx';
 import SharePanel from './SharePanel.tsx';
 import { isValidBoardId } from '../../shared/board-id.ts';
@@ -27,19 +42,9 @@ import {
   worldToScreen,
   type Size,
   type Point,
+  type Camera,
 } from '../canvas/camera.ts';
-import {
-  createSticky,
-  deleteObject,
-  setStickyColor,
-} from '../../shared/board-model.ts';
-import type { StickyColor } from '../../shared/config.ts';
-
-function isEditable(el: EventTarget | null): boolean {
-  if (!(el instanceof HTMLElement)) return false;
-  const tag = el.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
-}
+import { createSticky, objectBounds, type ObjectSnapshot } from '../../shared/board-model.ts';
 
 export interface BoardAppProps {
   /** Component tests inject their own document; production omits this. */
@@ -69,8 +74,8 @@ export function boardIdFromPath(path: string): string | null {
 
 /**
  * The board page's tree: camera (story 1), sticky notes (story 2), live
- * collaboration (story 3), persistence states (story 4) — and, since story 5, the
- * Share control in the header (share.copy).
+ * collaboration (story 3), persistence states (story 4), the Share control in the
+ * header (story 5) and multi-object selection (story 7).
  *
  * `BoardPage` mounts this only after the link has been checked, so nothing here
  * (Yjs doc, WebSocket, canvas) ever exists for a link that is not a board.
@@ -93,10 +98,11 @@ export default function BoardApp(props: BoardAppProps = {}) {
 
   const cam = useCamera(viewport);
   const boardId = props.boardId ?? boardIdFromPath(window.location.pathname);
-  const { doc, notes, connection } = useBoardDoc(props.doc, boardId, props.connection);
-  const sel = useSelection();
-  const selRef = useRef(sel);
-  selRef.current = sel;
+  const { doc, objects, connection } = useBoardDoc(props.doc, boardId, props.connection);
+  // The selection is local, and it follows the document: an object a colleague
+  // deleted cannot stay selected (TC-35), and selecting the same object as a
+  // colleague does not make it "mine".
+  const sel = useSelection(objects);
 
   // Editing gates read the state through a ref so the window-level handlers
   // registered once can never act on a stale state.
@@ -104,20 +110,21 @@ export default function BoardApp(props: BoardAppProps = {}) {
   const editableRef = useRef(editable);
   editableRef.current = editable;
 
-  const [dragId, setDragId] = useState<string | null>(null);
-
-  const onDragChange = useCallback((id: string, dragging: boolean) => {
-    setDragId((prev) => (dragging ? id : prev === id ? null : prev));
-  }, []);
+  // True between the start of a group move/resize and its end: it hides the
+  // floating toolbars so they do not jump around mid-gesture (F-05), and it is the
+  // only hook story 8 needs for "my selection is in use".
+  const [transforming, setTransforming] = useState(false);
 
   // Create a note centred on a world point, then select + edit it.
   const createAtWorld = useCallback(
     (world: Point) => {
       if (!editableRef.current) return; // a board we could not load is not editable
       const id = createSticky(doc, world);
-      selRef.current.startEdit(id);
+      sel.startEdit(id);
     },
-    [doc],
+    // `sel`'s actions are stable, but depend on it so a fresh board is never edited
+    // through a stale one.
+    [doc, sel],
   );
 
   // Toolbar button: centred in the visible board area.
@@ -128,49 +135,65 @@ export default function BoardApp(props: BoardAppProps = {}) {
 
   // Empty-space press clears selection (and any in-progress edit).
   const onBackgroundPointerDown = useCallback(() => {
-    selRef.current.select(null);
-  }, []);
+    sel.endEdit('unselected');
+  }, [sel]);
 
-  // Window shortcuts: Enter edits the selected note; Delete/Backspace deletes it.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const s = selRef.current;
-      if (e.key === 'Enter') {
-        if (!editableRef.current) return; // editing is locked while the board is unloadable
-        if (s.editingId != null || isEditable(e.target)) return;
-        if (s.selectedId) {
-          e.preventDefault();
-          s.startEdit(s.selectedId);
-        }
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        // While editing, these keys edit text — never delete the note.
-        if (s.editingId != null || isEditable(e.target)) return;
-        if (!editableRef.current) return; // deleting is an edit
-        if (s.selectedId) {
-          e.preventDefault();
-          deleteObject(doc, s.selectedId);
-          s.select(null);
-        }
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc]);
+  // Shift+drag on empty space draws a box; what it fully encloses is added to the
+  // selection (a box that catches nothing changes nothing).
+  const marquee = useMarquee(cam.camera, objects, (ids) => {
+    if (ids.length > 0) sel.setMany(ids, true);
+  });
+
+  // Drag an object: move the whole selection. Drag a handle: resize it.
+  const gesture = useTransformGesture({
+    doc,
+    camera: cam.camera,
+    selection: sel,
+    snapshot: objects,
+    canEdit: editable,
+    onGestureStart: () => setTransforming(true),
+    onGestureEnd: () => setTransforming(false),
+  });
+
+  // Ctrl/Cmd+A, Escape, arrow-key nudging and Delete/Backspace. All of them are
+  // suppressed while a text editor has the keyboard.
+  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable });
+
+  const onDelete = useCallback(() => {
+    deleteSelection(doc, sel, editable);
+  }, [doc, sel, editable]);
 
   const stop = (e: React.PointerEvent | React.MouseEvent | React.WheelEvent) =>
     e.stopPropagation();
 
-  const selectedNote = notes.find((n) => n.id === sel.selectedId) ?? null;
-  const showNoteToolbar =
-    selectedNote != null &&
-    sel.editingId !== selectedNote.id &&
-    dragId !== selectedNote.id;
+  // The objects in stacking order: the snapshot is already sorted by z, and DOM
+  // order is what paints on top.
+  const selected = objects.filter((o) => sel.ids.has(o.id));
+  // Exactly one selected object gets its own type's toolbar (a note's colours); two
+  // or more get the selection bar instead — never both.
+  const sole = selected.length === 1 ? selected[0]! : null;
+  const SoleToolbar = sole ? getObjectType(sole.type)?.toolbar : undefined;
+  const showSoleToolbar =
+    SoleToolbar != null && sole != null && sel.editingId !== sole.id && !transforming;
 
+  // Both toolbars float above the object's (or the selection's) top-centre, in
+  // screen space, so they keep a stable size at any zoom.
+  const solePoint = sole ? objectAnchor(cam.camera, sole) : null;
   let noteToolbarStyle: React.CSSProperties = { position: 'fixed', left: -9999, top: -9999 };
-  if (selectedNote) {
-    const s = worldToScreen(cam.camera, { x: selectedNote.x, y: selectedNote.y });
-    noteToolbarStyle = { position: 'fixed', left: s.x, top: Math.max(4, s.y - 46), zIndex: 30 };
+  if (solePoint) {
+    noteToolbarStyle = {
+      position: 'fixed',
+      left: solePoint.x,
+      top: Math.max(4, solePoint.y - 46),
+      zIndex: 30,
+    };
   }
+  // The bar floats above the top-centre of the box around the selection, in screen
+  // space, so it keeps a stable size at any zoom.
+  const barBox = sel.ids.size >= 2 ? selectionBounds(sel.ids, objects) : null;
+  const barPoint = barBox
+    ? worldToScreen(cam.camera, { x: barBox.x + barBox.width / 2, y: barBox.y })
+    : null;
 
   return (
     <div data-testid="app" className="vidi6-root">
@@ -178,29 +201,40 @@ export default function BoardApp(props: BoardAppProps = {}) {
         camera={cam.camera}
         viewportRef={viewportRef}
         api={cam}
+        marquee={marquee}
         onBackgroundPointerDown={onBackgroundPointerDown}
         onBackgroundDoubleClick={createAtWorld}
       >
-        {notes.map((n) => (
-          <StickyNote
-            key={n.id}
-            note={n}
-            doc={doc}
-            zoom={cam.camera.zoom}
-            selected={sel.selectedId === n.id}
-            editing={editable && sel.editingId === n.id}
-            canEdit={editable}
-            onSelect={sel.select}
-            onStartEdit={sel.startEdit}
-            onEndEdit={sel.endEdit}
-            onDragChange={onDragChange}
-          />
-        ))}
+        {objects.map((obj) => {
+          const spec = getObjectType(obj.type);
+          if (!spec) return null; // a type this build cannot draw is drawn by nobody
+          const ObjectType = spec.Component;
+          return (
+            <ObjectType
+              key={obj.id}
+              obj={obj}
+              doc={doc}
+              zoom={cam.camera.zoom}
+              selected={sel.ids.has(obj.id)}
+              editing={editable && sel.editingId === obj.id}
+              canEdit={editable}
+              onObjectPointerDown={gesture.onObjectPointerDown}
+              onObjectDoubleClick={(_e, id) => {
+                if (!editable) return; // double-clicking is an edit
+                sel.startEdit(id);
+              }}
+              onStartEdit={sel.startEdit}
+              onEndEdit={sel.endEdit}
+            />
+          );
+        })}
+        {/* The marquee box is drawn in board units, inside the zoomed layer. */}
+        <MarqueeRect rect={marquee.rect} camera={cam.camera} />
       </BoardViewport>
 
       <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
 
-      {showNoteToolbar && selectedNote ? (
+      {showSoleToolbar && sole && SoleToolbar ? (
         <div
           data-testid="note-toolbar-anchor"
           style={noteToolbarStyle}
@@ -208,20 +242,62 @@ export default function BoardApp(props: BoardAppProps = {}) {
           onDoubleClick={stop}
           onWheel={stop}
         >
-          <NoteToolbar
-            color={selectedNote.color}
-            onColor={(c: StickyColor) => {
-              if (!editable) return;
-              setStickyColor(doc, selectedNote.id, c); // keeps text/position/selection
-            }}
-            onDelete={() => {
-              if (!editable) return;
-              deleteObject(doc, selectedNote.id);
-              sel.select(null);
-            }}
+          <SoleToolbar doc={doc} obj={sole} canEdit={editable} onDelete={onDelete} />
+        </div>
+      ) : null}
+
+      {/* Two or more selected: "N selected" and one button that deletes them all. */}
+      {!transforming && barPoint ? (
+        <div
+          data-testid="selection-bar-anchor"
+          style={{
+            position: 'fixed',
+            left: barPoint.x,
+            top: Math.max(4, barPoint.y - 46),
+            zIndex: 30,
+          }}
+          onPointerDown={stop}
+          onDoubleClick={stop}
+          onWheel={stop}
+        >
+          <SelectionBar ids={sel.ids} snapshot={objects} onDelete={onDelete} />
+        </div>
+      ) : null}
+
+      {/* One box around the whole selection with eight handles, drawn in screen
+          space so a handle is the same size on screen whatever the zoom. The
+          wrapper passes pointer events through to the board; only the handles take
+          them. Handles are hidden while text is being edited. */}
+      {!sel.editingId ? (
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 25 }}>
+          <SelectionOverlay
+            ids={sel.ids}
+            snapshot={objects}
+            camera={cam.camera}
+            onHandlePointerDown={gesture.onHandlePointerDown}
           />
         </div>
       ) : null}
+
+      {/* Assistive technology is told how many objects are selected: the visible bar
+          cannot announce itself, since it appears and disappears with the count. */}
+      <span
+        data-testid="selection-live"
+        role="status"
+        aria-live="polite"
+        style={{
+          position: 'absolute',
+          width: 1,
+          height: 1,
+          padding: 0,
+          overflow: 'hidden',
+          clip: 'rect(0 0 0 0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
+      >
+        {selected.length > 1 ? `${selected.length} selected` : ''}
+      </span>
 
       <ZoomControls
         zoomPercent={zoomPercent(cam.camera)}
@@ -237,4 +313,10 @@ export default function BoardApp(props: BoardAppProps = {}) {
       <ConnectionStatus status={connection} />
     </div>
   );
+}
+
+/** Where a floating toolbar sits: above the top-centre of one object. */
+function objectAnchor(camera: Camera, obj: ObjectSnapshot): Point {
+  const r = objectBounds(obj);
+  return worldToScreen(camera, { x: r.x + r.width / 2, y: r.y });
 }

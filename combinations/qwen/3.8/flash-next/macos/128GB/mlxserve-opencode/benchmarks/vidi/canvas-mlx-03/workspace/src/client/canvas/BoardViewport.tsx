@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { screenToWorld, type Camera, type Point } from './camera.ts';
 import type { CameraApi } from './useCamera.ts';
+import type { MarqueeControls } from '../board/Marquee.tsx';
 import { GRID_SPACING_WORLD, WHEEL_LINE_HEIGHT_PX, WHEEL_PAGE_HEIGHT_PX } from '../../shared/config.ts';
 
 export interface BoardViewportProps {
@@ -12,6 +13,11 @@ export interface BoardViewportProps {
   onBackgroundPointerDown?(world: Point): void;
   /** A double-click on empty board space (world point). Used to create a note. */
   onBackgroundDoubleClick?(world: Point): void;
+  /**
+   * Box selection. When present, Shift+drag on empty space draws a marquee
+   * instead of panning the board, and does not clear the current selection.
+   */
+  marquee?: MarqueeControls;
 }
 
 interface GestureEventLike extends Event {
@@ -35,7 +41,7 @@ function wheelPixels(delta: number, deltaMode: number): number {
  * wheel (board-owned), and Safari gesture events. All input calls go through the
  * camera.math API so the board never zooms the page.
  */
-export function BoardViewport({ camera, viewportRef, api, children, onBackgroundPointerDown, onBackgroundDoubleClick }: BoardViewportProps) {
+export function BoardViewport({ camera, viewportRef, api, children, onBackgroundPointerDown, onBackgroundDoubleClick, marquee }: BoardViewportProps) {
   const apiRef = useRef(api);
   apiRef.current = api;
   const cameraRef = useRef(camera);
@@ -44,6 +50,10 @@ export function BoardViewport({ camera, viewportRef, api, children, onBackground
   bgDownRef.current = onBackgroundPointerDown;
   const bgDblRef = useRef(onBackgroundDoubleClick);
   bgDblRef.current = onBackgroundDoubleClick;
+  const marqueeRef = useRef(marquee);
+  marqueeRef.current = marquee;
+  // True while the pointer is drawing a selection box (not panning).
+  const marqueeActiveRef = useRef(false);
 
   // Non-passive wheel listener so we can always preventDefault over the board
   // (React's onWheel is passive and cannot stop page zoom / scroll).
@@ -113,11 +123,20 @@ export function BoardViewport({ camera, viewportRef, api, children, onBackground
     // grid / origin marker), never on a board object (later stories stopPropagation).
     if (e.target !== e.currentTarget) return;
     const rect = e.currentTarget.getBoundingClientRect();
+    const p = pointFrom(e, rect);
+    if (e.shiftKey && marqueeRef.current) {
+      // Shift+drag on empty space selects with a box: it neither pans the board nor
+      // clears the selection the way a plain press on empty space does.
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      marqueeActiveRef.current = true;
+      marqueeRef.current.begin(p);
+      return;
+    }
     // Empty-space press: let the shell clear the current selection first.
-    bgDownRef.current?.(screenToWorld(cameraRef.current, pointFrom(e, rect)));
+    bgDownRef.current?.(screenToWorld(cameraRef.current, p));
     e.currentTarget.setPointerCapture?.(e.pointerId);
     e.currentTarget.style.cursor = 'grabbing';
-    apiRef.current.beginPan(pointFrom(e, rect));
+    apiRef.current.beginPan(p);
   };
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Create a note only when the double-click landed on empty board space; a
@@ -128,9 +147,21 @@ export function BoardViewport({ camera, viewportRef, api, children, onBackground
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    apiRef.current.panMove(pointFrom(e, rect));
+    const p = pointFrom(e, rect);
+    if (marqueeActiveRef.current) {
+      marqueeRef.current?.move(p);
+      return;
+    }
+    apiRef.current.panMove(p);
   };
-  const finish = (e: React.PointerEvent<HTMLDivElement>) => {
+  // `cancelled` is a pointer that will never land (cancelled, capture stolen): the
+  // marquee draws nothing and selects nothing.
+  const finish = (e: React.PointerEvent<HTMLDivElement>, cancelled = false) => {
+    if (marqueeActiveRef.current) {
+      marqueeActiveRef.current = false;
+      if (cancelled) marqueeRef.current?.cancel();
+      else marqueeRef.current?.end();
+    }
     if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
       e.currentTarget.releasePointerCapture?.(e.pointerId);
     }
@@ -157,9 +188,9 @@ export function BoardViewport({ camera, viewportRef, api, children, onBackground
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
       onPointerMove={onPointerMove}
-      onPointerUp={finish}
-      onPointerCancel={finish}
-      onLostPointerCapture={finish}
+      onPointerUp={(e) => finish(e)}
+      onPointerCancel={(e) => finish(e, true)}
+      onLostPointerCapture={(e) => finish(e, true)}
     >
       <div
         data-testid="world-layer"

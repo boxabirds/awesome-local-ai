@@ -2,23 +2,31 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import * as Y from 'yjs';
 import {
   initDoc,
+  objectSnapshots,
   snapshot,
+  type ObjectSnapshot,
   type StickySnapshot,
 } from '../../shared/board-model.ts';
 import { connectBoard, type BoardConnection } from './connectBoard.ts';
 import { useConnectionBadge, type Subscribe } from './useConnectionBadge.ts';
 import type { ConnectionState, ConnectionStatusValue } from './useConnectionBadge.ts';
 
-export interface BoardDoc {
-  doc: Y.Doc;
+/** Everything the board renders: every registered object, and the notes among them. */
+export interface BoardDocStore {
+  objects: readonly ObjectSnapshot[];
   notes: readonly StickySnapshot[];
+}
+
+export interface BoardDoc extends BoardDocStore {
+  doc: Y.Doc;
   connection: ConnectionStatusValue;
 }
 
 /**
- * Owns one Y.Doc, initialises its schema, and exposes an immutable sticky-note
- * snapshot through useSyncExternalStore. The snapshot is memoised and only
- * recomputed when the objects map (deep) changes. Story 3 attaches a network
+ * Owns one Y.Doc, initialises its schema, and exposes immutable snapshots through
+ * useSyncExternalStore: every registered object (story 7 renders and selects
+ * whatever the object registry knows about) and the sticky notes among them. The
+ * snapshot is memoised and only recomputed when the objects map (deep) changes. Story 3 attaches a network
  * provider to the same doc; story 4 persists it — no change needed here.
  *
  * `injected` lets component tests supply their own document (defaults to a fresh
@@ -38,14 +46,14 @@ export function useBoardDoc(
   if (docRef.current === null) docRef.current = injected ?? new Y.Doc();
   const doc = docRef.current;
 
-  const cacheRef = useRef<readonly StickySnapshot[]>(snapshot(doc));
+  const cacheRef = useRef<BoardDocStore>({ objects: objectSnapshots(doc), notes: snapshot(doc) });
   const connRef = useRef<BoardConnection | null>(null);
   const [providerReady, setProviderReady] = useState(false);
 
   useEffect(() => {
     initDoc(doc);
     // Schema may have just been written; refresh the cache.
-    cacheRef.current = snapshot(doc);
+    cacheRef.current = { objects: objectSnapshots(doc), notes: snapshot(doc) };
   }, [doc]);
 
   // Own the network provider. The Y.Doc instance never changes across
@@ -119,7 +127,9 @@ export function useBoardDoc(
     (onStoreChange: () => void) => {
       const objects = doc.getMap<Y.Map<unknown>>('objects');
       const handler = () => {
-        cacheRef.current = snapshot(doc);
+        // Both lists are rebuilt together, so a component can never see a note in
+        // one list and a stale copy in the other.
+        cacheRef.current = { objects: objectSnapshots(doc), notes: snapshot(doc) };
         onStoreChange();
       };
       objects.observeDeep(handler);
@@ -132,6 +142,6 @@ export function useBoardDoc(
 
   const getSnapshot = useCallback(() => cacheRef.current, []);
 
-  const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return { doc, notes, connection };
+  const store = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return { doc, objects: store.objects, notes: store.notes, connection };
 }

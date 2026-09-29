@@ -16,6 +16,13 @@ vi.mock('../../src/shared/board-model.ts', async (importOriginal) => {
     setStickyColor: vi.fn(actual.setStickyColor),
     moveObject: vi.fn(actual.moveObject),
     bringToFront: vi.fn(actual.bringToFront),
+    // Story 7 acts on the whole selection, so these are the functions the shell
+    // calls now; the singular ones above are its thin wrappers. Both are spied on
+    // so no mutation route can escape the lock.
+    moveObjects: vi.fn(actual.moveObjects),
+    resizeObjects: vi.fn(actual.resizeObjects),
+    deleteObjects: vi.fn(actual.deleteObjects),
+    bringObjectsToFront: vi.fn(actual.bringObjectsToFront),
   };
 });
 
@@ -30,10 +37,24 @@ import {
   deleteObject,
   moveObject,
   bringToFront,
+  moveObjects,
+  resizeObjects,
+  deleteObjects,
+  bringObjectsToFront,
 } from '../../src/shared/board-model.ts';
 import type { ConnectionState } from '../../src/client/board/ConnectionStatus.tsx';
 
-const mutators = { createSticky, deleteObject, setStickyColor, moveObject, bringToFront };
+const mutators = {
+  createSticky,
+  deleteObject,
+  setStickyColor,
+  moveObject,
+  bringToFront,
+  moveObjects,
+  resizeObjects,
+  deleteObjects,
+  bringObjectsToFront,
+};
 
 function firePointer(el: Element, type: string, x: number, y: number) {
   act(() => {
@@ -191,7 +212,7 @@ describe('story 4 persist.client_status edit lock (TC-23)', () => {
     firePointer(noteEl(), 'pointerdown', 150, 150);
     firePointer(noteEl(), 'pointerup', 150, 150);
     fireKey('Delete');
-    expect(deleteObject).toHaveBeenCalledTimes(1);
+    expect(deleteObjects).toHaveBeenCalledTimes(1);
     // the selected note is gone (the one created above is still there)
     expect(snapshot(doc).find((n) => n.id === id)).toBeUndefined();
   });
