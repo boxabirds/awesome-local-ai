@@ -166,3 +166,12 @@ def test_dbench_sequence_numbers_decide_order_within_a_second():
                 "progress": {"combination": "qwen/3.8/27b/x/y/z"}, "state": {"status": "queued"}, "submitted_at": 5}
     q = B.queue_positions({"n": [job("aa-late", "r2", 2), job("zz-early", "r1", 1)]})
     assert q["zz-early"]["position"] == 1 and q["aa-late"]["position"] == 2
+
+
+def test_the_page_version_changes_when_the_page_or_server_code_changes(tmp_path):
+    page, server = tmp_path / "page.html", tmp_path / "benchmarker.py"
+    page.write_text("<p>a</p>"); server.write_text("x = 1")
+    v1 = B.code_version([page, server])
+    page.write_text("<p>b</p>")
+    assert B.code_version([page, server]) != v1
+    assert B.code_version([page, server]) == B.code_version([page, server])

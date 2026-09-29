@@ -20,7 +20,7 @@ Standard library only; it runs anywhere with a clone of this repo.
   (`~/.config/dbench/nodes.toml`): queued and running jobs, the current story, and the last log line.
   Without dbench the page shows the repo only.
 
-The page itself refreshes every 5 seconds and says when the repo and dbench were last read. If it can't refresh for 20 seconds (the server stopped, or an error), it greys out under a red bar saying how old the data is, so old data never passes for current.
+The page itself refreshes every 5 seconds and says when the repo and dbench were last read. A running story's live numbers (agent minutes, calls, tokens, tasks) come from the harness, which writes them about once a minute, so they move in steps. When the benchmarker is updated, open tabs reload themselves. If it can't refresh for 20 seconds (the server stopped, or an error), it greys out under a red bar saying how old the data is, so old data never passes for current.
 
 ## What each column means
 
