@@ -1,6 +1,6 @@
 # Technical Design
 
-D1 boards gain a normalised search column and a monotonically increasing title_version. GET /api/me/boards serves keyset-paginated, searchable lists; PATCH /api/boards/:id renames without authentication (link model), rate limited and Origin-checked, then pushes (title, version) to the BoardRoom which writes meta.title into the Y.Doc so everyone sees it live; rooms self-heal from D1 on load. Client adds the My boards dashboard, inline board title editing, rename dialog, search with debounce and a signed-out view built from the browser's board list.
+D1 boards gain a normalised search column and a monotonically increasing title_version. GET /api/me/boards serves keyset-paginated, searchable lists; PATCH /api/boards/:id renames without authentication (link model), Origin-checked, then pushes (title, version) to the BoardRoom which writes meta.title into the Y.Doc so everyone sees it live; rooms self-heal from D1 on load. Client adds the My boards dashboard, inline board title editing, rename dialog, search with debounce and a signed-out view built from the browser's board list.
 
 ## Overview
 
@@ -19,7 +19,6 @@ Builds on story 14 (D1 `boards`, `board_visits`, `src/worker/auth/*`, `src/clien
 | `src/worker/index.ts` | modified (story 5) | routes; `GET /api/boards/:id` returns `title`, `titleVersion` |
 | `src/worker/board-room.ts` | modified (stories 3–5) | RPC `setTitle(title, version)`; on load apply newer D1 title |
 | `src/worker/auth/board-memory.ts` | modified (story 14) | `recentBoards` delegates to `list.ts` |
-| `wrangler.jsonc` | modified | `ratelimits` binding `RENAME_LIMITER` |
 | `src/client/pages/DashboardPage.tsx` | added | `/boards` |
 | `src/client/dashboard/BoardList.tsx`, `BoardRow.tsx`, `RenameDialog.tsx`, `SearchBox.tsx`, `useBoardList.ts` | added | dashboard components and data hook |
 | `src/client/board/BoardTitle.tsx` | added | inline title + document.title |
@@ -38,8 +37,6 @@ export const SEARCH_RESULT_BUDGET_MS = 1000;
 export const SEARCH_QUERY_MAX_CHARS = 100;
 export const DASHBOARD_LOAD_BUDGET_MS = 2000;
 export const TITLE_LIVE_BUDGET_MS = 1000;
-export const RENAME_LIMIT = 30;                 // per visitor, mirrors wrangler ratelimits
-export const RENAME_PERIOD_SECONDS = 60;
 export const GUEST_BOARDS_META_MAX = 50;
 export const ROOM_TITLE_NOTIFY_ATTEMPTS = 2;
 export const TAB_TITLE_SUFFIX = ' – vidi6';
@@ -54,7 +51,7 @@ CREATE INDEX board_visits_page ON board_visits (user_id, last_opened_at DESC, bo
 ```
 
 ## Decisions
-1. **Rename is unauthenticated** (dash.rename_anyone): `PATCH /api/boards/:id` never reads the session. Abuse is limited by `RENAME_LIMITER` per `CF-Connecting-IP` and an `Origin` check (403) so other websites cannot rename via a visitor's browser.
+1. **Rename is unauthenticated** (dash.rename_anyone): `PATCH /api/boards/:id` never reads the session. An `Origin` check (403) ensures other websites cannot rename via a visitor's browser.
 2. **D1 is the source of truth; the Y.Doc carries the live copy.** `UPDATE boards SET title=?, title_search=?, title_version = title_version + 1, updated_at=? WHERE id=? RETURNING title_version`. D1 serialises writes, so versions increase in commit order. The Worker then calls `BoardRoom.setTitle(title, version)` (up to `ROOM_TITLE_NOTIFY_ATTEMPTS`), which writes `meta.title` and `meta.titleVersion` in the doc with `SERVER_ORIGIN` only if `version > meta.titleVersion`. Story 4 stores and broadcasts it like any update, so every connected client sees it (dash.title_live). Concurrent renames converge because both stores keep the highest version.
 3. **Self-healing.** If the room notification fails, the PATCH still returns 200 (D1 saved). On every room load (story 4 construct) the room reads `title, title_version` from D1 and applies them if newer. Clients display `displayTitle(docMeta, fetched)` = the higher version, so a stale doc never wins.
 4. **Renames are not undoable.** `SERVER_ORIGIN` is not in story 8's `trackedOrigins`; clients never write `meta.title` themselves.
@@ -85,7 +82,6 @@ flowchart TD
         Routes[index.ts] --> List[boards list.ts]
         Routes --> Rename[boards rename.ts]
         Routes --> Meta[boards meta.ts]
-        Rename --> Limiter[RENAME_LIMITER]
         Rename --> Shared2[board-title.ts]
         List --> D1[(D1)]
         Rename --> D1
@@ -175,7 +171,6 @@ sequenceDiagram
 sequenceDiagram
     participant C as BoardTitle or RenameDialog
     participant W as Worker rename.ts
-    participant L as RENAME_LIMITER
     participant D as D1
     participant R as BoardRoom
     participant O as Other clients
@@ -186,9 +181,6 @@ sequenceDiagram
         C->>W: PATCH api boards id title with Origin
         alt foreign Origin
             W-->>C: 403 restore previous
-        else rate limited
-            W->>L: limit visitor
-            W-->>C: 429 restore previous message
         else server validation fails
             W-->>C: 400 restore previous message
         else board unknown
@@ -292,7 +284,7 @@ Classes in each dimension are exhaustive for this story and non-overlapping.
 | TC-13 | dash.boards_api | not applicable: single board | none | signed-out | GET api boards id after rename | title and titleVersion returned | integration |
 | TC-14 | dash.rename | not applicable | not applicable | signed-out guest | PATCH valid title with no cookie while a WebSocket client is connected | 200; D1 title, title_search normalised, version 0 → 1; client doc meta.title updated within TITLE_LIVE_BUDGET_MS | integration |
 | TC-15 | dash.rename | not applicable | not applicable | signed-in non-creator | PATCH '', max + 1, control chars | 400 each; D1 row unchanged | integration |
-| TC-16 | dash.rename | not applicable | not applicable | foreign website, signed-in | PATCH unknown board; foreign Origin; RENAME_LIMIT + 1 from same IP | 404; 403 with no change; last 429 | integration |
+| TC-16 | dash.rename | not applicable | not applicable | foreign website, signed-in | PATCH unknown board; foreign Origin | 404; 403 with no change | integration |
 | TC-17 | dash.rename | not applicable | not applicable | two guests | concurrent PATCH 'Alpha' and 'Beta' | D1 final title has highest version; room meta equals D1; both WebSocket clients show that title | integration |
 | TC-18 | dash.rename | not applicable | not applicable | signed-in | inject setTitle RPC failure for all attempts; then reconstruct room | PATCH 200 and D1 updated; after room load doc meta equals D1 (self-heal) | integration |
 | TC-19 | dash.rename | not applicable | not applicable | not applicable: RPC direct | call setTitle(v2) after setTitle(v3) | meta stays v3; no update broadcast | integration |
@@ -305,7 +297,7 @@ Classes in each dimension are exhaustive for this story and non-overlapping.
 | TC-22 | dash.pages | D1 = 0 | render | "No boards yet" and New board button | ui-component |
 | TC-23 | dash.pages | D2 | type 'ret' then 'retro' within SEARCH_DEBOUNCE_MS; resolve responses out of order; no-match response; Clear search | one request for 'retro' after debounce; stale response ignored; "No boards match “retro”"; full list restored | ui-component |
 | TC-24 | dash.pages | not applicable | api error on load | "Couldn't load your boards." with Retry; New board enabled; Retry reloads | ui-component |
-| TC-25 | dash.pages | D4, D6 | BoardTitle: click, Enter valid; Escape; blur valid; blur unchanged; invalid; api 429; offline | saving then new title; previous restored no request; saved; no request; message and stays open; previous restored with failure message; not editable with "Renaming needs a connection." | ui-component |
+| TC-25 | dash.pages | D4, D6 | BoardTitle: click, Enter valid; Escape; blur valid; blur unchanged; invalid; api 500; offline | saving then new title; previous restored no request; saved; no request; message and stays open; previous restored with failure message; not editable with "Renaming needs a connection." | ui-component |
 | TC-26 | dash.pages | D4 | RenameDialog: opens with title selected; Save; Cancel; api 500 | row shows new title; no call; failure message and dialog stays with previous row title | ui-component |
 | TC-27 | dash.pages | D5 | doc meta.title changes remotely | BoardTitle text and document.title "<title> – vidi6" update | ui-component |
 | TC-28 | dash.pages | D3 signed-out | guest list with 2 boards; guest list empty; meta error | "On this browser" rows with titles and sign-in invitation; empty text; rows without titles and Retry | ui-component |
@@ -326,7 +318,6 @@ Classes in each dimension are exhaustive for this story and non-overlapping.
 - Title length: 0, 1, BOARD_TITLE_MAX_CHARS, BOARD_TITLE_MAX_CHARS + 1, trimmed to max (TC-02, TC-15).
 - Query length SEARCH_QUERY_MAX_CHARS + 1 (TC-10).
 - Debounce SEARCH_DEBOUNCE_MS (TC-23).
-- Rename rate RENAME_LIMIT and + 1 (TC-16).
 - Meta ids GUEST_BOARDS_META_MAX + 1 (TC-12).
 - Equal `last_opened_at` tie-break (TC-07).
 
@@ -348,8 +339,7 @@ Classes in each dimension are exhaustive for this story and non-overlapping.
 | 401 list while signed out | TC-10 |
 | 403 foreign Origin on rename | TC-16 |
 | 404 unknown board on rename | TC-16 |
-| 429 rename rate limit | TC-16, TC-25 |
-| 500 list or rename failure | TC-24, TC-26 |
+| 500 list or rename failure | TC-24, TC-25, TC-26 |
 | room notification failure | TC-18 |
 | offline editing | TC-25, TC-34 |
 
@@ -359,7 +349,6 @@ Classes in each dimension are exhaustive for this story and non-overlapping.
 | D1 | Real (migrations 0001 and 0002 applied) | Paging, search and versioning are the behaviour under test |
 | BoardRoom + WebSockets | Real | Live title propagation and self-heal require the real room |
 | Room RPC failure | Injected throwing stub (TC-18) | Real RPC failures cannot be produced on demand |
-| Rate limiter | Real binding if supported locally, else same-interface fake (as story 5) | Keeps handler logic identical |
 | api.ts in component tests | Mocked | Page state machines under test |
 | Timers | Fake in component tests | Debounce determinism |
 
@@ -373,7 +362,6 @@ Classes in each dimension are exhaustive for this story and non-overlapping.
 ## Not covered
 - Search performance beyond a few thousand boards per person.
 - Locale-specific case rules beyond Unicode default lower-casing (e.g. Turkish dotless i).
-- Vandalism beyond the per-visitor rename rate limit.
 - Deleting or hiding boards (out of scope, flagged).
 
 ## Board list, search and title lookup API
@@ -418,18 +406,18 @@ unit: TC-01, TC-03. integration: TC-06 to TC-13.
 export type TitleCheck = { ok: true; title: string } | { ok: false; reason: 'length' | 'control_chars' };
 export function validateTitle(raw: string): TitleCheck;       // trims, BOARD_TITLE_MIN_CHARS..BOARD_TITLE_MAX_CHARS
 // src/worker/boards/rename.ts
-PATCH /api/boards/:id { title } -> 200 { id, title, titleVersion } | 400 invalid_title | 403 foreign origin | 404 | 429 | 500
+PATCH /api/boards/:id { title } -> 200 { id, title, titleVersion } | 400 invalid_title | 403 foreign origin | 404 | 500
 // src/worker/board-room.ts (RPC)
 setTitle(title: string, version: number): Promise<'applied' | 'ignored'>;
 export function applyTitleIfNewer(meta: Y.Map<unknown>, title: string, version: number): boolean;
 ```
-- **Inputs:** raw title, board id, `Origin`, `CF-Connecting-IP`. No session is read (dash.rename_anyone).
+- **Inputs:** raw title, board id, `Origin`. No session is read (dash.rename_anyone).
 - **Outputs:** D1 row updated (title, title_search, title_version + 1, updated_at); room doc `meta.title`/`meta.titleVersion` updated with `SERVER_ORIGIN` and broadcast to everyone on the board (dash.title_live).
-- **Errors:** invalid → 400 (dash.title_rules: client also validates first and keeps the field open); foreign Origin → 403; unknown → 404; rate limit → 429; D1 failure → 500. Every non-200 means the client restores the previous title with a message (dash.rename_failure). Room notification failure is not an error to the caller (self-heal decision 3).
+- **Errors:** invalid → 400 (dash.title_rules: client also validates first and keeps the field open); foreign Origin → 403; unknown → 404; D1 failure → 500. Every non-200 means the client restores the previous title with a message (dash.rename_failure). Room notification failure is not an error to the caller (self-heal decision 3).
 - **Side effects:** D1 write; Yjs update stored and broadcast by story 4's room.
 
 ## Implementation
-- Handler order: Origin → rate limit → `validateTitle` → existence (`boards` row or `exists()` RPC, inserting a row for legacy boards) → `UPDATE ... RETURNING title_version` → `setTitle` up to `ROOM_TITLE_NOTIFY_ATTEMPTS`.
+- Handler order: Origin → `validateTitle` → existence (`boards` row or `exists()` RPC, inserting a row for legacy boards) → `UPDATE ... RETURNING title_version` → `setTitle` up to `ROOM_TITLE_NOTIFY_ATTEMPTS`.
 - Room load (story 4 modification) reads `title, title_version` from `env.DB` after storage load and calls `applyTitleIfNewer`.
 - Both entry points — inline board title (dash.rename_on_board) and dashboard dialog (dash.rename_from_dashboard) — call the same `api.renameBoard`.
 - Concurrency: highest D1 version wins in both D1 and doc (TC-17, TC-19).

@@ -1,16 +1,16 @@
 # Technical Design
 
-Images are stored in R2 via Worker routes POST /api/boards/:id/assets (board must exist, magic-byte type sniffing, 10 MB limit, per-IP rate limit, unguessable keys) and GET /api/assets/:boardId/:assetId (immutable caching, nosniff). The client validates files, measures dimensions, creates an image placeholder object in the Y.Doc (one undo step), uploads with XHR progress, then sets ready/failed status with an untracked origin. ImageObject renders uploading, ready, failed, unfinished and unavailable states and registers an aspect-locked resize.
+Images are stored in R2 via Worker routes POST /api/boards/:id/assets (board must exist, magic-byte type sniffing, 10 MB limit, unguessable keys) and GET /api/assets/:boardId/:assetId (immutable caching, nosniff). The client validates files, measures dimensions, creates an image placeholder object in the Y.Doc (one undo step), uploads with XHR progress, then sets ready/failed status with an untracked origin. ImageObject renders uploading, ready, failed, unfinished and unavailable states and registers an aspect-locked resize.
 
 ## Overview
 
 ## Context
-Builds on story 3 (`src/worker/index.ts`, `connectBoard` ConnectionState), story 4 (Durable Object storage), story 5 (`BoardRoom.exists()` RPC, `newBoardId()`, `ratelimits` pattern, `api.ts`), story 10 (`useActiveTool`), and conventions for story 7 (registry, generic move/resize/delete, aspect-locked resize) and story 8 (LOCAL_ORIGIN tracked by `Y.UndoManager`). Story 17 will read images from the same GET route to embed them.
+Builds on story 3 (`src/worker/index.ts`, `connectBoard` ConnectionState), story 4 (Durable Object storage), story 5 (`BoardRoom.exists()` RPC, `newBoardId()`, `api.ts`), story 10 (`useActiveTool`), and conventions for story 7 (registry, generic move/resize/delete, aspect-locked resize) and story 8 (LOCAL_ORIGIN tracked by `Y.UndoManager`). Story 17 will read images from the same GET route to embed them.
 
 ## Files
 | Path | Change | Purpose |
 |---|---|---|
-| `wrangler.jsonc` | modified | `r2_buckets: [{ binding: ASSETS_BUCKET, bucket_name: vidi6-assets }]`; `ratelimits` binding `ASSET_UPLOAD_LIMITER` |
+| `wrangler.jsonc` | modified | `r2_buckets: [{ binding: ASSETS_BUCKET, bucket_name: vidi6-assets }]` |
 | `src/worker/assets.ts` | added | upload and serve handlers |
 | `src/worker/index.ts` | modified | route `POST /api/boards/:id/assets`, `GET /api/assets/:boardId/:assetId` |
 | `src/shared/image-format.ts` | added | `sniffImageType` magic bytes, `ASSET_KEY_PATTERN`, `assetKeyFor` |
@@ -34,8 +34,6 @@ export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
 export const IMAGE_MIN_SIZE_WORLD = 16;
 export const IMAGE_LAYOUT_GAP_WORLD = 24;
 export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
-export const IMAGE_UPLOAD_LIMIT = 60;
-export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
 export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
 export const IMAGE_SNIFF_BYTES = 12;
 ```
@@ -43,7 +41,7 @@ export const IMAGE_SNIFF_BYTES = 12;
 ## HTTP contract
 | Method + path | Success | Errors |
 |---|---|---|
-| `POST /api/boards/:boardId/assets` (raw body, `Content-Type` ignored for decisions) | `201 {"assetKey": "<boardId>/<assetId>", "contentType": "image/png"}` | `404` board unknown/malformed; `413` body > IMAGE_MAX_BYTES; `415` sniffed type not accepted; `429` rate limited; `500` storage failure |
+| `POST /api/boards/:boardId/assets` (raw body, `Content-Type` ignored for decisions) | `201 {"assetKey": "<boardId>/<assetId>", "contentType": "image/png"}` | `404` board unknown/malformed; `413` body > IMAGE_MAX_BYTES; `415` sniffed type not accepted; `500` storage failure |
 | `GET /api/assets/:boardId/:assetId` | `200` bytes, `Content-Type` from stored metadata, `Cache-Control: public, max-age=ASSET_CACHE_MAX_AGE_SECONDS, immutable`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'` | `404` malformed key or missing object |
 
 Asset ids use story 5's `newBoardId()` (128 bits), so keys are unguessable. Decision: bodies are read fully into memory (≤ 10 MB) so type sniffing happens before anything is written; the size check uses `Content-Length` first and the actual byte length second.
@@ -72,7 +70,6 @@ flowchart TD
     subgraph Worker
         Routes[index.ts] --> Assets[assets.ts]
         Assets --> Sniff[image-format sniff]
-        Assets --> Limiter[ASSET_UPLOAD_LIMITER]
         Assets --> Room[BoardRoom exists RPC]
         Assets --> R2[ASSETS_BUCKET R2]
     end
@@ -129,9 +126,6 @@ sequenceDiagram
                     I->>M: markImageReady UPLOAD_ORIGIN
                 else 413 415 404 500 or network error
                     I->>M: markImageFailed UPLOAD_ORIGIN
-                else 429
-                    I->>M: markImageFailed
-                    I-->>U: rate limit toast
                 end
             end
         end
@@ -143,33 +137,27 @@ sequenceDiagram
 sequenceDiagram
     participant C as Client
     participant W as assets.ts
-    participant L as ASSET_UPLOAD_LIMITER
     participant R as BoardRoom
     participant B as R2
     C->>W: POST api boards boardId assets
     alt boardId malformed
         W-->>C: 404
     else
-        W->>L: limit key CF-Connecting-IP
-        alt over limit
-            W-->>C: 429
+        W->>R: exists RPC
+        alt board unknown
+            W-->>C: 404
+        else Content-Length or body over IMAGE_MAX_BYTES
+            W-->>C: 413
         else
-            W->>R: exists RPC
-            alt board unknown
-                W-->>C: 404
-            else Content-Length or body over IMAGE_MAX_BYTES
-                W-->>C: 413
-            else
-                W->>W: sniffImageType first IMAGE_SNIFF_BYTES
-                alt not accepted type
-                    W-->>C: 415
-                else accepted
-                    W->>B: put boardId slash newBoardId with contentType
-                    alt put throws
-                        W-->>C: 500
-                    else stored
-                        W-->>C: 201 assetKey
-                    end
+            W->>W: sniffImageType first IMAGE_SNIFF_BYTES
+            alt not accepted type
+                W-->>C: 415
+            else accepted
+                W->>B: put boardId slash newBoardId with contentType
+                alt put throws
+                    W-->>C: 500
+                else stored
+                    W-->>C: 201 assetKey
                 end
             end
         end
@@ -247,7 +235,7 @@ sequenceDiagram
 ## Dimensions crossed
 - **D1 Entry**: drop, paste, picker.
 - **D2 File class**: valid small, valid at limit, over limit, wrong type by content (renamed), SVG, corrupt image.
-- **D3 Service outcome**: 201, 404, 413, 415, 429, 500, network error, offline before start.
+- **D3 Service outcome**: 201, 404, 413, 415, 500, network error, offline before start.
 - **D4 Viewer**: uploader, other participant, later visitor.
 - **D5 Time**: before and after IMAGE_UPLOAD_STALE_MS.
 
@@ -269,13 +257,11 @@ D2 and D3 classes are exhaustive and non-overlapping.
 | TC-11 | assets.api | not applicable: direct request | valid small | 404 | uploader | POST to never-created board id; malformed id | 404; nothing in R2 | integration |
 | TC-12 | assets.api | not applicable: direct request | over limit | 413 | uploader | POST IMAGE_MAX_BYTES + 1 bytes; exactly IMAGE_MAX_BYTES valid JPEG | 413 nothing stored; 201 | integration |
 | TC-13 | assets.api | not applicable: direct request | wrong type by content and SVG | 415 | uploader | POST PDF with Content-Type image/png; POST SVG | 415 both; nothing stored | integration |
-| TC-14 | assets.api | not applicable: direct request | valid small | 429 | uploader | IMAGE_UPLOAD_LIMIT + 1 uploads same IP | last 429; different IP 201 | integration |
 | TC-15 | assets.api | not applicable: direct request | valid small | 500 | uploader | R2 put wrapped to throw | 500 | integration |
 | TC-16 | assets.api | not applicable: direct request | valid small | 201 | later visitor | GET stored key; GET missing key; GET '../x' | 200 with Content-Type, immutable Cache-Control, nosniff, CSP; 404; 404 | integration |
 | TC-17 | image.insert | drop | valid small | 201 | uploader | drop 3 files with mocked uploadImage emitting progress | 3 placeholders in a row; progress text updates; ready after resolve | ui-component |
 | TC-18 | image.insert | paste | valid small | not applicable | uploader | paste image while editing sticky text; paste while board focused | no image created; image created centred in view | ui-component |
 | TC-19 | image.insert | drop | valid small | offline before start | uploader | ConnectionState reconnecting then drop | offline toast; no objects; upload not called | ui-component |
-| TC-20 | image.insert | picker | valid small | 429 | uploader | mocked upload returns rate_limited | object failed; rate toast shown | ui-component |
 | TC-21 | image.object | not applicable: render | valid small | 500 | uploader and other participant | render failed object as uploader and as other identity | Retry and Remove vs Image unavailable | ui-component |
 | TC-22 | image.object | not applicable: render | valid small | not applicable | other participant | uploading with uploadStartedAt older than IMAGE_UPLOAD_STALE_MS | Image upload didn't finish + Remove; Remove deletes | ui-component |
 | TC-23 | image.object | not applicable: render | corrupt | not applicable | later visitor | img error event | Image unavailable box same size | ui-component |
@@ -290,7 +276,6 @@ D2 and D3 classes are exhaustive and non-overlapping.
 - Count: IMAGE_MAX_FILES_PER_ADD and + 1 (TC-09).
 - Placement: longest side below, at and above IMAGE_MAX_PLACE_SIZE_WORLD, portrait and landscape (TC-03).
 - Stale timeout: IMAGE_UPLOAD_STALE_MS ± 1 ms (TC-06).
-- Rate limit: IMAGE_UPLOAD_LIMIT + 1 (TC-14).
 - Minimum size on resize (TC-27).
 
 ## Negative scenarios
@@ -309,7 +294,6 @@ D2 and D3 classes are exhaustive and non-overlapping.
 | 404 board unknown / malformed | TC-11 |
 | 413 too large | TC-12, TC-08 |
 | 415 wrong type | TC-13, TC-01, TC-26 |
-| 429 rate limited | TC-14, TC-20 |
 | 500 storage failure | TC-15 |
 | network error | TC-28 |
 | image decode failure on client | TC-29: createImageBitmap rejects for corrupt file → type toast, no placeholder (ui-component) |
@@ -321,7 +305,6 @@ D2 and D3 classes are exhaustive and non-overlapping.
 |---|---|---|
 | R2 bucket | real Miniflare R2 in integration; local R2 in e2e | storage is part of the contract |
 | BoardRoom exists RPC | real | existence rule from story 5 |
-| Rate limiter | real binding if supported locally, otherwise fake with same `limit({key})` interface (documented in test file) | local runtime support to be verified |
 | R2 put failure | wrapped bucket throwing (TC-15) | cannot force real failure |
 | uploadImage in ui-component tests | mocked with controllable progress | flows under test, not network |
 | createImageBitmap in jsdom | stubbed returning fixture dimensions | jsdom lacks image decoding |
@@ -357,19 +340,19 @@ export function assetKeyFor(boardId: string, assetId: string): string;
 export function handleUpload(req: Request, env: Env, boardId: string): Promise<Response>;
 export function handleServe(env: Env, key: string): Promise<Response>;
 ```
-- **Inputs**: raw request body; board id; `CF-Connecting-IP`; asset key.
+- **Inputs**: raw request body; board id; asset key.
 - **Outputs**: per the HTTP contract table in the Overview; R2 object with `httpMetadata.contentType` = sniffed type.
-- **Errors**: 404 unknown/malformed board or key; 413 over IMAGE_MAX_BYTES; 415 unsupported sniffed type (including SVG and disguised files); 429 rate limited; 500 R2 failure.
+- **Errors**: 404 unknown/malformed board or key; 413 over IMAGE_MAX_BYTES; 415 unsupported sniffed type (including SVG and disguised files); 500 R2 failure.
 - **Side effects**: one R2 put per accepted upload; nothing written on any error.
 
 ## Implementation
-- Order of checks: id pattern → rate limit → `exists()` RPC → `Content-Length` > limit → read body → byte length > limit → sniff → put (image.size_limit, image.types, image.rate_limit).
+- Order of checks: id pattern → `exists()` RPC → `Content-Length` > limit → read body → byte length > limit → sniff → put (image.size_limit, image.types).
 - Type is decided from content only, never from the client header (image.types).
 - Serving adds `nosniff` and `Content-Security-Policy: default-src 'none'` so a stored file can never execute; immutable caching because keys never change (image.shared).
 - 404 on serve lets the client show "Image unavailable" (image.unavailable); upload errors map to the failed state on the client (image.upload_failure).
 
 ## Tests
-unit: TC-01, TC-02 in `tests/unit/image-format.test.ts`. integration: TC-10 to TC-16 in `tests/integration/assets.test.ts`. e2e: TC-25, TC-26, TC-28.
+unit: TC-01, TC-02 in `tests/unit/image-format.test.ts`. integration: TC-10 to TC-13, TC-15, TC-16 in `tests/integration/assets.test.ts`. e2e: TC-25, TC-26, TC-28.
 
 ## Image object model
 
@@ -410,9 +393,9 @@ unit: TC-03 to TC-07 in `tests/unit/image-model.test.ts`.
 // src/client/images/validateFiles.ts
 export type FileRejection = 'type' | 'size' | 'count';
 export function validateFiles(files: readonly File[]): { accepted: File[]; rejections: Set<FileRejection> };
-export const REJECTION_MESSAGES: Record<FileRejection | 'offline' | 'rate', string>;
+export const REJECTION_MESSAGES: Record<FileRejection | 'offline', string>;
 // src/client/images/uploadImage.ts
-export type UploadResult = { kind: 'ok'; assetKey: string } | { kind: 'rate_limited' } | { kind: 'failed'; status?: number };
+export type UploadResult = { kind: 'ok'; assetKey: string } | { kind: 'failed'; status?: number };
 export function uploadImage(boardId: string, file: File, onProgress: (fraction: number) => void): { promise: Promise<UploadResult>; abort(): void };
 // src/client/images/useImageInsert.ts
 export function useImageInsert(a: { doc: Y.Doc; boardId: string; camera: Camera; connection: ConnectionState; identityId: string }): {
@@ -422,18 +405,18 @@ export function useImageInsert(a: { doc: Y.Doc; boardId: string; camera: Camera;
 ```
 - **Inputs**: DataTransfer files on drop, clipboard files on paste (ignored while focus is in a text editor/input), `<input type=file accept=IMAGE_ACCEPTED_TYPES multiple>` for the picker (I key / Image button), connection state from story 3.
 - **Outputs**: toasts with exact PRD messages; placeholders via image.model; progress map (uploader only); ready/failed status updates.
-- **Errors**: invalid type (by `File.type` plus server sniff), size, count, decode failure, offline, 429, other failures — all surfaced as messages or failed state; never thrown.
+- **Errors**: invalid type (by `File.type` plus server sniff), size, count, decode failure, offline, other failures — all surfaced as messages or failed state; never thrown.
 - **Side effects**: XHR uploads (fetch lacks upload progress); in-memory map id → File for Retry (lost on reload).
 
 ## Implementation
 - Offline gate first: if connection is not `connected`/`confirmed`, show offline toast and stop (image.offline).
 - `validateFiles` applies count (first IMAGE_MAX_FILES_PER_ADD), type and size (image.types, image.size_limit, image.count_limit); dimensions from `createImageBitmap` (decode failure → type message).
 - Placeholders created in one transaction; uploads start in parallel with progress feeding `progress` (image.uploading).
-- Result mapping: ok → `markImageReady`; rate_limited → failed + rate toast (image.rate_limit); failed → `markImageFailed` (image.upload_failure). Retry uses `markImageRetrying` then re-uploads the kept File.
+- Result mapping: ok → `markImageReady`; failed → `markImageFailed` (image.upload_failure). Retry uses `markImageRetrying` then re-uploads the kept File.
 - Drop highlight shown between `dragenter` and `dragleave/drop` for file drags only (image.drop); paste and picker centre in view (image.paste, image.pick).
 
 ## Tests
-unit: TC-08, TC-09 in `tests/unit/validate-files.test.ts`. ui-component: TC-17 to TC-20, TC-29 in `tests/component/useImageInsert.test.tsx`. e2e: TC-25, TC-26, TC-28 in `tests/e2e/images.spec.ts`.
+unit: TC-08, TC-09 in `tests/unit/validate-files.test.ts`. ui-component: TC-17 to TC-19, TC-29 in `tests/component/useImageInsert.test.tsx`. e2e: TC-25, TC-26, TC-28 in `tests/e2e/images.spec.ts`.
 
 ## Image object rendering and states
 

@@ -61,7 +61,6 @@ Pain points:
 - **Upload fails** (network or service error): uploader sees Retry / Remove; others see "Image unavailable". Retry restarts the upload with the same file.
 - **Uploader reloads or closes the page mid-upload:** after 5 minutes everyone sees "Image upload didn't finish" with Remove.
 - **Offline or reconnecting:** image adding is disabled; toast "You're offline — images can be added when you reconnect."
-- **Adding too many images too quickly:** toast "You're adding images too quickly. Wait a minute and try again."
 - **Stored image cannot be loaded:** "Image unavailable" box of the same size; the rest of the board works.
 - **Empty state:** Image tool always available.
 
@@ -156,12 +155,6 @@ IF a stored image cannot be loaded THEN THE SYSTEM SHALL show an "Image unavaila
 
 WHILE the board is not connected THE SYSTEM SHALL NOT start image uploads, and WHEN a user tries to add images THE SYSTEM SHALL show "You're offline — images can be added when you reconnect."
 
-## Upload rate limit
-
-> Anchor: `image.rate_limit`
-
-IF a visitor uploads more than 60 images within one minute THEN THE SYSTEM SHALL NOT accept further uploads until the minute has passed and SHALL show "You're adding images too quickly. Wait a minute and try again."
-
 ## Constraints
 
 - **Security:** only raster image types are accepted (no SVG, which can carry scripts); served images must never be interpreted as anything other than images. Stored image addresses must be unguessable, consistent with board links (story 5), and only boards that exist can receive uploads.
@@ -169,7 +162,7 @@ IF a visitor uploads more than 60 images within one minute THEN THE SYSTEM SHALL
 - **Undo:** adding images is one undo step per add action (story 8); completion of an upload is not a separate undo step.
 - **Live collaboration:** placeholders and images follow story 3's delivery and capacity guarantees.
 - **Export:** images must be retrievable by the board page itself so board export (story 17) can embed them.
-- **Settings:** accepted types, size limit (10 MB), count limit (20), placement size (800), minimum size (16), gap (24), unfinished timeout (5 minutes) and rate limit (60 per minute) are named product settings.
+- **Settings:** accepted types, size limit (10 MB), count limit (20), placement size (800), minimum size (16), gap (24) and unfinished timeout (5 minutes) are named product settings.
 - **Performance:** a board with 100 images loads without blocking interaction; images load progressively.
 - **Accessibility:** Image button labelled; images announced as "Image"; status messages announced politely.
 

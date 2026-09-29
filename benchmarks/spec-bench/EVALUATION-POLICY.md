@@ -34,3 +34,7 @@ The held-out suite is the pack's acceptance tests, kept in the private repo and 
 ## Setting up held-out tests
 
 8. **A setup step that follows an undocumented alternate flow falls back to the documented flow.** Held-out tests put the app into the state their check needs (setup), then act and assert (the check). When a setup step reaches its state by a flow the spec implies should work but no design test case documents (an alternate flow: for example documented steps chained at machine speed, in an order no TC walks), it names its documented counterpart, the TC that reaches the same state. If the alternate flow fails, the step is redone by the documented flow and the resulting state is asserted to be exactly the intended one before the test goes on. The alternate-flow failure is recorded once, as a finding against the story that owns that behaviour, instead of failing every later test that merely passes through it. A step with no documented counterpart gets no fallback, and a test's own check never falls back. Added in vidi v1.2, after one such failure in story 7 of a run made most later tests fail in their setup.
+
+## What a spec asks for
+
+9. **No operational requirements.** Rate limits, abuse protection, quotas and similar operational settings are for a production deployment, not for a benchmark of building the product. They cost agents work that nothing scores, and they get in the way of scoring (vidi's board-creation limit made every held-out scoring wait 7.5 minutes). Specs leave them out; vidi v1.3 removed its four.

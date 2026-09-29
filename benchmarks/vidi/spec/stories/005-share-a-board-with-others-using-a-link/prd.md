@@ -11,7 +11,6 @@ Pain points:
 2. **Inviting people is awkward** — users must copy the address bar by hand and are unsure which part matters.
 3. **Guessable links are unsafe** — anyone who has a link can edit. If links were short or sequential, strangers could find and vandalise boards.
 4. **Mistyped or broken links look like empty boards** — a person following a truncated link sees a blank board, assumes the work was deleted, and may start adding content to the wrong place while colleagues work elsewhere.
-5. **Abuse** — without limits, one visitor could create unlimited boards and waste storage.
 
 ## Solution
 
@@ -19,7 +18,6 @@ Pain points:
 - **Awkward inviting → Share button.** A Share button on every board copies the board's link, with a clear confirmation; if copying is blocked by the browser, the link is shown ready to copy manually.
 - **Guessable links → unguessable links.** Every board link contains a long random code that cannot practically be guessed or derived from another board's link. Anyone with the link can join and edit without signing in.
 - **Broken links → Board not found page.** Links to boards that don't exist show a clear message and an offer to create a new board; nothing is created at a mistyped address.
-- **Abuse → creation rate limit.** A visitor creating boards unusually fast is asked to wait.
 
 ## User Experience
 
@@ -46,7 +44,6 @@ Pain points:
 ### Alternate flows
 - **Clipboard blocked by the browser:** Copy link selects the link text in the field and shows "Press Ctrl+C (Cmd+C on Mac) to copy".
 - **Creation fails (service unavailable):** home page shows "Couldn't create a board. Please try again." under the button; the button becomes available again.
-- **Creating too quickly:** after 10 boards within one minute from the same visitor, the home page shows "You're creating boards too quickly. Wait a minute and try again."
 - **Link to a board that doesn't exist** (typo, truncated, made up): Board not found page.
 - **Link check cannot reach the service:** "Couldn't reach vidi6. Retrying…" and automatic retry; the board opens when the service is reachable.
 - **Empty state:** a newly created board is empty; story 1's hint is the empty state.
@@ -111,12 +108,6 @@ WHEN a person opens a board link whose code does not belong to an existing board
 
 IF creating a board fails THEN THE SYSTEM SHALL keep the person on the home page and show "Couldn't create a board. Please try again." with the Create a board button available again.
 
-## Creation rate limit
-
-> Anchor: `share.rate_limit`
-
-IF a visitor tries to create more than 10 boards within one minute THEN THE SYSTEM SHALL NOT create the additional boards and SHALL show "You're creating boards too quickly. Wait a minute and try again."
-
 ## Service unreachable while opening a link
 
 > Anchor: `share.unreachable`
@@ -132,7 +123,7 @@ WHEN a person opens the address of a board that already has saved content from b
 ## Constraints
 
 - **Security model (interim, explicit):** possession of the link is the only access control. The Share panel must say so. This is acceptable until sign-in and permissions arrive (story 14).
-- **Settings:** creation limit (10 per minute per visitor), "Link copied" duration (2 seconds) and link code strength (128 bits) are named product settings.
+- **Settings:** "Link copied" duration (2 seconds) and link code strength (128 bits) are named product settings.
 - **Links in chat apps:** links contain only characters that chat and email apps do not break or re-encode (letters, digits, hyphen, underscore).
 - **Privacy:** board links must not be sent to third-party analytics or referrer headers from the board page.
 - **Browsers:** same as story 1; clipboard fallback required because clipboard permission behaviour differs between browsers.
