@@ -7,8 +7,7 @@
  * received messages.
  */
 import * as Y from 'yjs';
-import { SELF } from 'cloudflare:test';
-import { newBoardId } from '../../src/shared/board-id';
+import { env, SELF } from 'cloudflare:test';
 
 // ---- Binary encoding/decoding helpers (matching the room's framing) ----
 
@@ -147,11 +146,40 @@ export interface TestClient {
 }
 
 /**
+ * Initialize a board via POST /api/boards. Returns the new board id.
+ * Used by test helpers to create a board before connecting.
+ */
+export async function initializeBoard(): Promise<string> {
+  const req = new Request('http://localhost/api/boards', { method: 'POST' });
+  const res = await SELF.fetch(req);
+  if (res.status !== 201) {
+    throw new Error(`Failed to create board: ${res.status}`);
+  }
+  const body = await res.json() as { id: string };
+  return body.id;
+}
+
+/**
+ * Ensure a board with the given id exists (for tests that need a specific id).
+ * Uses the DO RPC directly.
+ */
+export async function ensureBoardExists(boardId: string): Promise<void> {
+  const ns = (env as Record<string, unknown>).BOARD_ROOM as DurableObjectNamespace;
+  const doId = ns.idFromName(boardId);
+  const stub = ns.get(doId);
+  await (stub as unknown as { initialize(): Promise<string> }).initialize();
+}
+
+/**
  * Open a WebSocket connection to the board room for the given boardId (or a
- * new one if not provided).
+ * new one if not provided). If no boardId is given, a new board is created.
  */
 export async function openRoomClient(boardId?: string): Promise<TestClient> {
-  const id = boardId ?? newBoardId();
+  let id = boardId ?? await initializeBoard();
+  // Ensure board exists (for tests that pass a pre-generated id)
+  if (boardId) {
+    await ensureBoardExists(id);
+  }
   const req = new Request(`http://localhost/api/rooms/${id}`, {
     headers: { Upgrade: 'websocket' },
   });
@@ -266,9 +294,10 @@ export async function openRoomClient(boardId?: string): Promise<TestClient> {
 
 /**
  * Connect two clients to the same board, perform initial sync, and return them.
+ * If no boardId is given, a new board is created.
  */
 export async function openTwoClients(boardId?: string): Promise<[TestClient, TestClient]> {
-  const id = boardId ?? newBoardId();
+  const id = boardId ?? await initializeBoard();
   const a = await openRoomClient(id);
   const b = await openRoomClient(id);
   // Wait for initial sync messages to be processed

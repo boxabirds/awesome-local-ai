@@ -43,7 +43,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
-  render(<App />);
+  render(<App boardId="test-board-00000000ab" />);
 });
 
 describe('creating and selecting a note', () => {

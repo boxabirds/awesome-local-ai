@@ -1,3 +1,40 @@
+commit 7b4125286334caee0fcc86cc1d2a16579055ebae
+vidi-agent  Tue Sep 29 23:54:49 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ index.html                                |   1 +
+ src/client/App.tsx                        |  29 +---
+ src/client/api.ts                         |  39 +++++
+ src/client/main.tsx                       |  19 ++-
+ src/client/pages/BoardPage.tsx            |  91 ++++++++++++
+ src/client/pages/HomePage.tsx             |  52 +++++++
+ src/client/pages/NotFoundPage.tsx         |  57 ++++++++
+ src/client/pages/state.ts                 |  41 ++++++
+ src/client/router.ts                      |  53 +++++++
+ src/client/share/SharePanel.tsx           | 186 +++++++++++++++++++++++
+ src/shared/config.ts                      |   9 ++
+ src/worker/board-room.ts                  |  68 ++++++++-
+ src/worker/board-store.ts                 |  88 ++++++++++-
+ src/worker/create-board.ts                |  27 ++++
+ src/worker/index.ts                       |  58 +++++++-
+ src/worker/test-hooks.ts                  |  14 ++
+ tests/component/BoardViewport.test.tsx    |  22 +--
+ tests/component/NavigationHint.test.tsx   |   6 +-
+ tests/component/SharePanel.test.tsx       | 145 ++++++++++++++++++
+ tests/component/StickyNote.test.tsx       |   2 +-
+ tests/component/StickyTextEditor.test.tsx |   2 +-
+ tests/component/Toolbars.test.tsx         |   2 +-
+ tests/component/pages.test.tsx            | 189 ++++++++++++++++++++++++
+ tests/e2e/helpers/board.ts                |   3 +
+ tests/e2e/helpers/participants.ts         |  24 ++-
+ tests/e2e/share.spec.ts                   | 137 +++++++++++++++++
+ tests/integration/board-api.test.ts       | 235 ++++++++++++++++++++++++++++++
+ tests/integration/worker.test.ts          |  10 +-
+ tests/integration/ws-client.ts            |  39 ++++-
+ tests/unit/create-board.test.ts           |  27 ++++
+ 30 files changed, 1615 insertions(+), 60 deletions(-)
 commit c31eb1057d00bb6c21e7210716613c0a2faa608c
 vidi-agent  Tue Sep 29 23:20:10 2026 +0000
 

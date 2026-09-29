@@ -4,7 +4,6 @@
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
-import { newBoardId } from '../../../src/shared/board-id';
 
 export interface Participant {
   context: BrowserContext;
@@ -17,13 +16,26 @@ export interface Participant {
  * Open N isolated browser contexts on the same board URL.
  * Each context is fully isolated (no shared cookies/storage/BroadcastChannel).
  * Waits for the viewport and the test hook to be ready on each page.
+ * If boardId is not provided, creates a new board via the API.
  */
 export async function openParticipants(
   browser: Browser,
   count: number,
   boardId?: string,
 ): Promise<Participant[]> {
-  const id = boardId ?? newBoardId();
+  // Create a board if not provided (POST /api/boards)
+  let id = boardId;
+  if (!id) {
+    const tmpContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const tmpPage = await tmpContext.newPage();
+    await tmpPage.goto('/');
+    id = await tmpPage.evaluate(async () => {
+      const res = await fetch('/api/boards', { method: 'POST' });
+      const body = await res.json();
+      return body.id as string;
+    });
+    await tmpContext.close();
+  }
   const participants: Participant[] = [];
 
   for (let i = 0; i < count; i++) {
@@ -59,6 +71,14 @@ export async function openParticipants(
   );
 
   return participants;
+}
+
+/**
+ * Open a specific board by id (join flow for E2E share tests).
+ */
+export async function joinBoard(browser: Browser, boardId: string): Promise<Participant> {
+  const [p] = await openParticipants(browser, 1, boardId);
+  return p;
 }
 
 /**

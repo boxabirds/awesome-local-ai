@@ -30,7 +30,7 @@ describe('NavigationHint (TC-22)', () => {
   });
 
   it('TC-22 goes visible → hidden on the first camera change and stays hidden', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     const surface = screen.getByTestId('viewport');
     expect(hint()).not.toBeNull();
 
@@ -49,14 +49,14 @@ describe('NavigationHint (TC-22)', () => {
   });
 
   it('is dismissed by zooming too, not only by dragging', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
     await settle();
     expect(hint()).toBeNull();
   });
 
   it('is dismissed by a plain scroll, and stays dismissed after a reset', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     const surface = screen.getByTestId('viewport');
     expect(hint()).not.toBeNull();
 

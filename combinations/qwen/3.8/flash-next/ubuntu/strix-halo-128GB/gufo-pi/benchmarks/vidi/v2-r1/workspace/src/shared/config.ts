@@ -50,6 +50,15 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Storage schema version for the board-store tables. */
 export const STORAGE_SCHEMA_VERSION = 1;
 
+// ---- Sharing (story 5: share a board with others using a link) ----
+
+/** PRD share.create: budget from click to board visible. */
+export const CREATE_BUDGET_MS = 2000;
+/** Duration "Link copied" is shown after a successful copy. */
+export const LINK_COPIED_MS = 2000;
+/** Base backoff interval when checking board existence (doubles each attempt). */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
 /** Zoom step values are snapped to `ZOOM_STEP_FACTOR^n` within this epsilon. */
 export const ZOOM_STEP_SNAP_EPSILON = 1e-9;
 

@@ -75,5 +75,19 @@ export async function handleTestHook(
     return res;
   }
 
+  // POST /__test/boards/:id/seed-legacy — seed a legacy board (updates rows, no created_at)
+  const seedLegacyMatch = url.pathname.match(/^\/__test\/boards\/([^/]+)\/seed-legacy$/);
+  if (seedLegacyMatch && request.method === 'POST') {
+    const boardId = seedLegacyMatch[1];
+    const doId = env.BOARD_ROOM.idFromName(boardId);
+    const stub = env.BOARD_ROOM.get(doId);
+    const body = await request.text();
+    const res = await stub.fetch(new Request('http://internal/__test/seed-legacy', {
+      method: 'POST',
+      body,
+    }));
+    return res;
+  }
+
   return null;
 }

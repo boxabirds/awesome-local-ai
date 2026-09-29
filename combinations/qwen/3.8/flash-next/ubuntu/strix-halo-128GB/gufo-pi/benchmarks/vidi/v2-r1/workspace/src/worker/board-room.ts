@@ -30,13 +30,32 @@ export class BoardRoom extends DurableObject {
   constructor(ctx: DurableObjectState, env: unknown) {
     super(ctx, env);
     this.store = new BoardStore(ctx.storage);
-    // Synchronous initialization: migrate and load
-    this.doInitialize();
+  }
+
+  /**
+   * RPC: initialize the board. Migrates tables and sets created_at.
+   * Returns 'created' if new, 'exists' if already initialized.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    const result = this.store.setCreatedAt();
+    // Also set up the doc for this instance
+    if (!this.initialized) {
+      this.doInitialize();
+    }
+    return result;
+  }
+
+  /**
+   * RPC: read-only existence check. Does not create any storage.
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
   }
 
   private doInitialize(): void {
     this.doc = new Y.Doc();
-    this.store.migrate();
+    // Don't migrate here - tables are created by initialize() or lazily by append()
     const result = this.store.load(this.doc);
     if (result.ok) {
       this.state = 'ready';
@@ -109,6 +128,16 @@ export class BoardRoom extends DurableObject {
     }
     if (url.pathname === '/__test/storage-stats' && request.method === 'GET') {
       return this.handleTestStorageStats();
+    }
+    if (url.pathname === '/__test/seed-legacy' && request.method === 'POST') {
+      return this.handleTestSeedLegacy(request);
+    }
+
+    // Check existence before accepting WebSocket: unknown boards get 404
+    // If the room is already initialized (from initialize() or from a prior session),
+    // it exists; only reject truly unknown boards.
+    if (!this.initialized && !this.store.existsReadOnly()) {
+      return new Response('Not Found', { status: 404 });
     }
 
     // Re-initialize if coming from storage-failed or load-failed with retry allowed
@@ -279,6 +308,39 @@ export class BoardRoom extends DurableObject {
         snapshotBytes,
         quarantineCount,
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    } catch (e) {
+      return new Response(`Error: ${e}`, { status: 500 });
+    }
+  }
+
+  /**
+   * Seed a legacy board: creates tables with updates rows but NO created_at.
+   * Body: JSON array of base64-encoded Yjs updates.
+   */
+  private async handleTestSeedLegacy(request: Request): Promise<Response> {
+    try {
+      const body = await request.text();
+      let updates: string[];
+      if (body) {
+        updates = JSON.parse(body);
+      } else {
+        // Default: seed with a legacy Yjs update containing a known marker
+        const doc = new Y.Doc();
+        const map = doc.getMap('objects');
+        map.set('legacy-seed-stroke', { type: 'stroke' });
+        const encoded = Y.encodeStateAsUpdate(doc);
+        updates = [btoa(String.fromCharCode(...encoded))];
+      }
+      // Migrate to create tables
+      this.store.migrate();
+      // Delete created_at so this looks like a legacy board
+      this.store.sqlForTest(`DELETE FROM storage_meta WHERE key = 'created_at'`);
+      // Insert updates
+      for (const u of updates) {
+        const bytes = Uint8Array.from(atob(u), (c) => c.charCodeAt(0));
+        this.store.append(bytes);
+      }
+      return new Response('Seeded', { status: 200 });
     } catch (e) {
       return new Response(`Error: ${e}`, { status: 500 });
     }

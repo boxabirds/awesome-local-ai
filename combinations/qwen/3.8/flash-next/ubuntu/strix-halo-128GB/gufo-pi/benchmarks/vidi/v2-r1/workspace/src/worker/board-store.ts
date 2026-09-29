@@ -68,6 +68,7 @@ export class BoardStore {
   private transactionSync: (fn: () => void) => void;
   private updateCount = 0;
   private updateBytes = 0;
+  private migrated = false;
 
   constructor(storage: DurableObjectStorage) {
     this.sql = storage.sql;
@@ -75,10 +76,68 @@ export class BoardStore {
   }
 
   /**
+   * Read-only existence check: returns true if the board has been initialized
+   * (created_at in storage_meta) OR has legacy data (rows in updates or
+   * snapshot_chunks). Never creates tables. Checks sqlite_master first.
+   */
+  existsReadOnly(): boolean {
+    // Check if tables exist at all
+    const tables = this.sql.exec<{ name: string }>(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_meta', 'updates', 'snapshot_chunks')`,
+    ).toArray();
+    if (tables.length === 0) return false;
+
+    const tableNames = new Set(tables.map((t) => t.name));
+
+    // Check for created_at in storage_meta
+    if (tableNames.has('storage_meta')) {
+      const rows = this.sql.exec<{ value: string }>(
+        `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+      ).toArray();
+      if (rows.length > 0) return true;
+    }
+
+    // Legacy: check for at least one row in updates
+    if (tableNames.has('updates')) {
+      const rows = this.sql.exec<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM updates LIMIT 1`,
+      ).toArray();
+      if (rows.length > 0 && rows[0].cnt > 0) return true;
+    }
+
+    // Legacy: check for at least one row in snapshot_chunks
+    if (tableNames.has('snapshot_chunks')) {
+      const rows = this.sql.exec<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM snapshot_chunks LIMIT 1`,
+      ).toArray();
+      if (rows.length > 0 && rows[0].cnt > 0) return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Set created_at timestamp in storage_meta if not already present.
+   * Returns 'created' if newly set, 'exists' if already present.
+   */
+  setCreatedAt(): 'created' | 'exists' {
+    const rows = this.sql.exec<{ value: string }>(
+      `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+    ).toArray();
+    if (rows.length > 0) return 'exists';
+    this.sql.exec(
+      `INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)`,
+      String(Date.now()),
+    );
+    return 'created';
+  }
+
+  /**
    * Create tables if they do not exist. Sets storage_schema_version if absent.
    * Writes no update rows.
    */
   migrate(): void {
+    this.migrated = true;
     this.sql.exec(
       `CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
     );
@@ -104,9 +163,27 @@ export class BoardStore {
   }
 
   /**
+   * Ensure tables exist before appending (for legacy boards that were loaded
+   * without tables, or when migrate() hasn't been called yet).
+   */
+  ensureMigrated(): void {
+    if (this.migrated) return;
+    // Check if tables already exist (legacy boards)
+    const tables = this.sql.exec<{ name: string }>(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name = 'updates'`,
+    ).toArray();
+    if (tables.length > 0) {
+      this.migrated = true;
+      return;
+    }
+    this.migrate();
+  }
+
+  /**
    * Append an update to the log. Throws on SQL failure.
    */
   append(update: Uint8Array): void {
+    this.ensureMigrated();
     const bytes = update.byteLength;
     this.sql.exec(
       `INSERT INTO updates (data, bytes) VALUES (?, ?)`,
@@ -119,10 +196,19 @@ export class BoardStore {
 
   /**
    * Load the board state into `doc` from snapshot + update log.
-   * Damaged log rows are quarantined. Returns a LoadResult.
+   * If tables do not exist (unknown board), returns ok with 0 quarantined (empty board).
+   * Damaged log rows are quarantined.
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // Check if tables exist (no-write: unknown boards have no tables)
+      const tables = this.sql.exec<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name = 'snapshot_chunks'`,
+      ).toArray();
+      if (tables.length === 0) {
+        // No tables: empty board, do not create them
+        return { ok: true, quarantined: 0 };
+      }
       // Load snapshot chunks
       const chunkRows = this.sql.exec<{ idx: number; data: Uint8Array }>(
         `SELECT idx, data FROM snapshot_chunks ORDER BY idx`,

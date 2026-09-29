@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
-  render(<App />);
+  render(<App boardId="test-board-00000000ab" />);
 });
 
 function swatch(color: StickyColor): HTMLElement {

@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
-  render(<App />);
+  render(<App boardId="test-board-00000000ab" />);
 });
 
 /** The shared text of a note, straight from the document. */

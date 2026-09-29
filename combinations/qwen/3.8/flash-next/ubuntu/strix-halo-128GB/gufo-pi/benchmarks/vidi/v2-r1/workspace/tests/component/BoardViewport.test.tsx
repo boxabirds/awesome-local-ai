@@ -55,7 +55,7 @@ function worldLayer(): HTMLElement {
 
 describe('BoardViewport: drag to pan (TC-13, TC-14, TC-29)', () => {
   it('TC-13 moves the board exactly with the pointer and returns to Idle', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     const start = initialCamera();
     expect(readCamera(surface())).toEqual(start);
     expect(worldTransform(worldLayer())).toBe(expectedTransform(start));
@@ -80,7 +80,7 @@ describe('BoardViewport: drag to pan (TC-13, TC-14, TC-29)', () => {
   });
 
   it('TC-14 freezes the camera at the moment of a pointercancel and ignores later moves', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     const start = initialCamera();
 
     fireEvent.pointerDown(surface(), { pointerId: 1, clientX: 0, clientY: 0, isPrimary: true });
@@ -99,7 +99,7 @@ describe('BoardViewport: drag to pan (TC-13, TC-14, TC-29)', () => {
   });
 
   it('ends the drag on lostpointercapture, keeping the last camera', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     const start = initialCamera();
 
     fireEvent.pointerDown(surface(), { pointerId: 1, clientX: 10, clientY: 10, isPrimary: true });
@@ -116,7 +116,7 @@ describe('BoardViewport: drag to pan (TC-13, TC-14, TC-29)', () => {
   });
 
   it('TC-29 leaves the camera and the hint alone for a click without movement', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     const start = initialCamera();
 
     fireEvent.pointerDown(surface(), { pointerId: 1, clientX: 123, clientY: 456, isPrimary: true });
@@ -130,7 +130,7 @@ describe('BoardViewport: drag to pan (TC-13, TC-14, TC-29)', () => {
 
 describe('BoardViewport: wheel and gestures (TC-15, TC-16, TC-17, TC-30)', () => {
   it('TC-15 pans with a plain wheel and prevents the page from scrolling', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     const start = initialCamera();
 
     // fireEvent returns false when the handler called preventDefault()
@@ -153,7 +153,7 @@ describe('BoardViewport: wheel and gestures (TC-15, TC-16, TC-17, TC-30)', () =>
   });
 
   it('pans horizontally with a trackpad scroll and converts LINE/PAGE deltas', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     const start = initialCamera();
 
     fireEvent.wheel(surface(), { deltaX: 60, deltaY: 0, deltaMode: 0 });
@@ -168,7 +168,7 @@ describe('BoardViewport: wheel and gestures (TC-15, TC-16, TC-17, TC-30)', () =>
   });
 
   it('TC-16 zooms around the pointer with a Ctrl wheel and keeps the page zoom', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     const start = initialCamera();
     const pointer = { x: 300, y: 200 };
 
@@ -191,7 +191,7 @@ describe('BoardViewport: wheel and gestures (TC-15, TC-16, TC-17, TC-30)', () =>
   });
 
   it('TC-17 zooms with a Safari gesture, clamped at the limits', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     const start = initialCamera();
     const pointer = { x: 300, y: 200 };
 
@@ -217,7 +217,7 @@ describe('BoardViewport: wheel and gestures (TC-15, TC-16, TC-17, TC-30)', () =>
   });
 
   it('TC-30 does not zoom the board for a Ctrl/Cmd wheel over the zoom controls', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     const start = initialCamera();
 
     // over the chrome the board does not suppress the browser default
@@ -235,7 +235,7 @@ describe('BoardViewport: wheel and gestures (TC-15, TC-16, TC-17, TC-30)', () =>
 
 describe('BoardViewport: keyboard shortcuts (TC-18)', () => {
   it('zooms with Ctrl/Cmd + = and -, and resets with Ctrl/Cmd + 0', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     expect(readCamera(surface())).toEqual(initialCamera());
 
     expect(fireEvent.keyDown(window, { key: '=', code: 'Equal', ctrlKey: true })).toBe(false);
@@ -257,7 +257,7 @@ describe('BoardViewport: keyboard shortcuts (TC-18)', () => {
   });
 
   it('ignores plain keys without Ctrl or Cmd', async () => {
-    render(<App />);
+    render(<App boardId="test-board-00000000ab" />);
     const start = initialCamera();
 
     expect(fireEvent.keyDown(window, { key: '=', code: 'Equal' })).toBe(true);

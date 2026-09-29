@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
@@ -12,28 +12,8 @@ import { isTextEntryTarget, useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
+import { SharePanel } from './share/SharePanel';
 import { createSticky, deleteObject, type StickySnapshot } from '../shared/board-model';
-import { newBoardId } from '../shared/board-id';
-
-/**
- * Extract board id from the URL path `/b/:boardId`, or redirect to a new board.
- */
-function useBoardId(): string {
-  const [boardId, setBoardId] = useState(() => {
-    const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]{22})$/);
-    return match ? match[1] : '';
-  });
-
-  useEffect(() => {
-    if (boardId) return;
-    // Redirect / to /b/<newBoardId()>
-    const id = newBoardId();
-    window.history.replaceState(null, '', `/b/${id}`);
-    setBoardId(id);
-  }, [boardId]);
-
-  return boardId;
-}
 
 /**
  * The board: an infinite canvas (story 1) holding sticky notes (story 2),
@@ -43,11 +23,11 @@ function useBoardId(): string {
  * hint share one camera; the document and the selection live here too, because
  * the toolbar, the notes and the keyboard shortcuts all act on them.
  */
-export function App() {
+export function App(props: { boardId: string }) {
+  const { boardId } = props;
   const viewport = useViewportSize();
   const cameraApi = useCamera(viewport);
   const { camera, hasNavigated } = cameraApi;
-  const boardId = useBoardId();
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const selection = useSelection();
   const editing = canEdit(connectionState);
@@ -169,6 +149,7 @@ export function App() {
       {/* The first-use hint is for an empty board; once there are notes, the
           user has clearly started working. */}
       <NavigationHint visible={!hasNavigated && notes.length === 0} />
+      <SharePanel boardId={boardId} />
     </>
   );
 }

@@ -9,7 +9,10 @@ export type { Camera };
 export const BOARD_SIZE = { width: 1280, height: 800 };
 
 export async function openBoard(page: Page): Promise<void> {
+  // Create a board via the API, then navigate to it
   await page.goto('/');
+  await page.getByTestId('new-board').click();
+  await page.waitForURL(/\/b\/[A-Za-z0-9_-]{22}/);
   await expect(page.getByTestId('viewport')).toBeVisible();
   // the e2e suite runs against a `--mode test` build, which is the only build
   // that carries the test hook
