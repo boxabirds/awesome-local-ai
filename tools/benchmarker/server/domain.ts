@@ -1,5 +1,5 @@
 // Pure logic: from repo paths, run records and dbench jobs to the rows the page shows. No I/O here.
-import type { Live, Machine, QueuePlace, Row, RunStatus, Score, Stages, Story } from "../shared/types.ts";
+import type { FlowsHealth, Live, Machine, QueuePlace, Row, RunStatus, Score, Stages, Story } from "../shared/types.ts";
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
 export const RECENT_S = 24 * 3600;
@@ -307,10 +307,14 @@ export function mergeRows(records: RunRecord[], jobs: Map<string, NodeJob>, now:
 }
 
 /** Everything the page needs, per row. */
-export function buildRows(records: RunRecord[], byNode: Record<string, DbenchJob[]>, suites: Record<string, string>, now: number): Row[] {
+export function buildRows(
+  records: RunRecord[], byNode: Record<string, DbenchJob[]>, suites: Record<string, string>, now: number,
+  flowCounts: Record<string, Record<string, number>> = {},
+): Row[] {
   const queue = queuePositions(byNode);
   return assignMachines(mergeRows(records, indexJobs(byNode), now).map(({ job, ...r }) => {
     const suite = suites[r.pack] ?? "";
+    const stories = job ? mergeStories(r.stories, job.progress?.stories) : r.stories;
     return {
       ...r,
       host: r.host ?? "",
@@ -319,9 +323,11 @@ export function buildRows(records: RunRecord[], byNode: Record<string, DbenchJob
       node: job?.node ?? null,
       family: rowFamily(r, suite),
       suite,
-      stories: job ? mergeStories(r.stories, job.progress?.stories) : r.stories,
+      stories,
+      flows: flowsHealth(stories),
       stages: stages(r, job, suite),
       ...(({ status, note }) => ({ status, statusNote: note }))(runStatus(r, job)),
+      flowsTotal: scopeFlows(flowCounts[r.packVersion || suite], (job?.progress?.stories ?? []).map((st) => String(st.id))),
       live: job ? liveFromJob(job, queue.get(job.id)) : null,
     };
   }));
@@ -365,4 +371,30 @@ export function machines(nodes: string[], rows: Row[]): Machine[] {
       queued: mine.filter((r) => r.live?.status === "queued").length,
     };
   });
+}
+
+// ---------- flows ----------
+
+/** Tests in one Playwright spec file: each test( / test.only( / test.fixme( / test.fail( call. */
+const TEST_CALL = /^\s*test(?:\.(?:only|fixme|fail))?\(/gm;
+export const countTests = (source: string) => source.match(TEST_CALL)?.length ?? 0;
+
+/** Flows in a scope: the counts of its stories, or of every story when the scope isn't known. */
+export function scopeFlows(counts: Record<string, number> | undefined, scope: string[]): number | null {
+  if (!counts) return null;
+  const ids = scope.length ? scope : Object.keys(counts);
+  const total = ids.reduce((t, id) => t + (counts[String(Number(id))] ?? 0), 0);
+  return total || null;
+}
+
+/** Whether the flows built so far work: all of them, some, fewer than before, or none. */
+export function flowsHealth(stories: Story[]): FlowsHealth {
+  const scored = stories.filter((s) => s.total !== null && s.passed !== null);
+  const last = scored.at(-1);
+  if (!last) return { state: "none", passed: null, after: null, was: null };
+  const best = Math.max(...scored.slice(0, -1).map((s) => s.passed!), -1);
+  const passed = last.passed!;
+  const was = best > passed ? best : null;
+  const state = passed === 0 && last.total! > 0 ? "broken" : was !== null ? "regressed" : passed === last.total ? "working" : "some failing";
+  return { state, passed, after: last.id, was };
 }

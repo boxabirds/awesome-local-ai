@@ -57,7 +57,7 @@ unless it is idle.
 | Story | the running story out of the job's scope ("story 4 of 11") and its title; one square per story, coloured by its own held-out tests (all passed, some, none); the running one pulses |
 | Time | running: agent minutes on this story and how long the run has gone; otherwise agent time over its stories |
 | Activity | the running story's calls, output tokens and tasks, and the agent's latest action. Claude runs count calls and tokens only at the end of a story, so they show none mid-story rather than a false zero |
-| Held-out | the whole held-out suite after the latest recorded story, as scored during the run (a progress signal; the score of record is the re-score) |
+| Flows working | how many of the scope's hidden flows (held-out tests, one user flow each) pass against the app as built so far, out of every flow in the scope (75 for vidi canvas), with a bar; then **working** (all built so far pass), **some failing**, **regressed** (fewer than before, "was N") or **broken** (none). Checked after each story, so it is the latest finished story. The total is counted from the private suite at the run's version (`--private`, default `../awesome-local-ai-bench-private`) |
 | Score | the run's re-scores (`rescore/<suite version>/`), each linking to its per-story table; otherwise what scoring is waiting for |
 | Judge | **Judge →** once the run is finished, re-scored with the pack's current version and has its `workspace.bundle`; otherwise what it is waiting for |
 | Links | the run's record and summary on GitHub |

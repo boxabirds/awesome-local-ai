@@ -8,7 +8,7 @@ import { extname, join, normalize, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { State } from "../shared/types.ts";
 import { buildRows, machines, webBase, type DbenchJob, type RunRecord } from "./domain.ts";
-import { BRANCH, git, loadJobs, loadRuns } from "./sources.ts";
+import { BRANCH, git, loadFlowCounts, loadJobs, loadRuns } from "./sources.ts";
 
 const HERE = import.meta.dirname;
 const DIST = resolve(HERE, "../dist");
@@ -25,6 +25,8 @@ const { values: args } = parseArgs({
     repo: { type: "string", default: resolve(HERE, "../../..") },
     port: { type: "string", default: String(DEFAULT_PORT) },
     "judge-url": { type: "string", default: "http://127.0.0.1:7800/review" },
+    // The private held-out suite, for the number of flows in each suite version (default: next to the repo).
+    private: { type: "string" },
     fixture: { type: "string" },
   },
 });
@@ -38,9 +40,10 @@ interface Sources {
   dbenchAt: number;
   dbenchError: string;
   web: string | null;
+  flowCounts: Record<string, Record<string, number>>;
 }
 
-const src: Sources = { records: [], suites: {}, jobs: {}, fetchedAt: 0, fetchError: "", dbenchAt: 0, dbenchError: "", web: null };
+const src: Sources = { records: [], suites: {}, jobs: {}, fetchedAt: 0, fetchError: "", dbenchAt: 0, dbenchError: "", web: null, flowCounts: {} };
 const now = () => Date.now() / 1000;
 const message = (e: unknown) => (e instanceof Error ? e.message.split("\n")[0] : String(e));
 
@@ -50,10 +53,15 @@ function buildId(): string {
   return existsSync(f) ? readFileSync(f, "utf8").trim() : "dev";
 }
 
-async function refreshRepo(repo: string) {
+async function refreshRepo(repo: string, privateRepo: string) {
   try {
     const { records, suites } = await loadRuns(repo);
-    Object.assign(src, { records, suites, fetchError: "", fetchedAt: now() });
+    const versions = [
+      ...records.map((r) => ({ pack: r.pack, version: r.packVersion })),
+      ...Object.entries(suites).map(([pack, version]) => ({ pack, version })),
+    ];
+    const flowCounts = await loadFlowCounts(privateRepo, versions);
+    Object.assign(src, { records, suites, flowCounts, fetchError: "", fetchedAt: now() });
   } catch (e) {
     src.fetchError = message(e);
   }
@@ -77,7 +85,7 @@ function every(ms: number, fn: () => Promise<void>) {
 
 function state(): State {
   const t = now();
-  const rows = buildRows(src.records, src.jobs, src.suites, t);
+  const rows = buildRows(src.records, src.jobs, src.suites, t, src.flowCounts);
   return {
     buildId: buildId(), now: t, fetchedAt: src.fetchedAt, fetchError: src.fetchError,
     dbenchAt: src.dbenchAt, dbenchError: src.dbenchError, suites: src.suites, web: src.web,
@@ -90,11 +98,12 @@ if (args.fixture) {
   const f = JSON.parse(readFileSync(resolve(args.fixture), "utf8"));
   // A job with no updated_at was just updated, so it counts as recent however old the fixture is.
   for (const jobs of Object.values(f.jobs as Record<string, DbenchJob[]>)) for (const j of jobs) j.updated_at ??= now();
-  Object.assign(src, { records: f.records, suites: f.suites, jobs: f.jobs, web: f.web ?? null, fetchedAt: now(), dbenchAt: now() });
+  Object.assign(src, { records: f.records, suites: f.suites, jobs: f.jobs, web: f.web ?? null, flowCounts: f.flowCounts ?? {}, fetchedAt: now(), dbenchAt: now() });
 } else {
   const repo = resolve(args.repo!);
   src.web = webBase(await git(repo, "remote", "get-url", "origin").catch(() => ""));
-  every(FETCH_EVERY_MS, () => refreshRepo(repo));
+  const privateRepo = resolve(args.private ?? join(repo, "../awesome-local-ai-bench-private"));
+  every(FETCH_EVERY_MS, () => refreshRepo(repo, privateRepo));
   every(DBENCH_EVERY_MS, refreshDbench);
 }
 

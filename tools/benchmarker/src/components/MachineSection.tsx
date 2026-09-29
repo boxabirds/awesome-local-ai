@@ -6,7 +6,7 @@ interface Props { group: MachineGroup; state: State; serverNow: number | null }
 
 const COLUMNS: [string, string][] = [
   ["Run", "14%"], ["Status", "10%"], ["Story", "14%"], ["Time", "10%"], ["Activity", "16%"],
-  ["Held-out", "11%"], ["Score", "10%"], ["Judge", "8%"], ["Links", "7%"],
+  ["Flows working", "11%"], ["Score", "10%"], ["Judge", "8%"], ["Links", "7%"],
 ];
 
 /** What a dbench node is doing now: its running job, or idle, and the length of its queue. */
