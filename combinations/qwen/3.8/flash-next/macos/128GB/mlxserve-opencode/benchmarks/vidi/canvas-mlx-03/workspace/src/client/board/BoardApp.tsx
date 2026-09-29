@@ -29,6 +29,13 @@ import '../objects/ShapeObject.tsx';
 import '../objects/ConnectorObject.tsx';
 // Story 11: registers the 'stroke' object type the same way.
 import '../objects/StrokeObject.tsx';
+// Story 12: registers the 'image' object type, and is imported for its component too — a
+// picture needs three facts about *this tab* (its identity, its upload progress and whether it
+// still holds the file) that no other object type has any use for.
+import { ImageObjectView, useImageClock } from '../objects/ImageObject.tsx';
+import { useImageInsert } from '../images/useImageInsert.ts';
+import { DropHighlight } from '../images/DropHighlight.tsx';
+import { ToastHost } from '../ui/Toast.tsx';
 import { getObjectType } from '../objects/registry.tsx';
 import { useActiveTool } from '../tools/useActiveTool.ts';
 import { ShapeTool } from '../tools/ShapeTool.tsx';
@@ -62,7 +69,7 @@ import {
   type Point,
   type Camera,
 } from '../canvas/camera.ts';
-import { createSticky, objectBounds, type ObjectSnapshot } from '../../shared/board-model.ts';
+import { createSticky, deleteObjects, objectBounds, type ObjectSnapshot } from '../../shared/board-model.ts';
 
 export interface BoardAppProps {
   /** Component tests inject their own document; production omits this. */
@@ -192,6 +199,54 @@ export default function BoardApp(props: BoardAppProps = {}) {
   // undo history, and a reload starts the pen at its defaults.
   const pen = usePenOptions();
 
+  // Story 12: the three ways a picture arrives — dropped, pasted, chosen — and the uploads they
+  // start. It is mounted here because it needs the document, the board's address, the camera to
+  // turn a drop point into board units, the connection to refuse an upload a disconnected board
+  // cannot finish, and this tab's identity to know which failed upload it may offer to retry.
+  const insert = useImageInsert({
+    doc,
+    boardId: boardId ?? '',
+    camera: cam.camera,
+    connection,
+    identityId: clientId,
+    viewport: { width: viewport.width, height: viewport.height },
+  });
+  // The clock the pictures are read against: it advances only while something on this board is
+  // still uploading, which is when a box's meaning is the thing that changes (image.unfinished).
+  const imageNow = useImageClock(objects);
+  // Paste is listened for on the window, so a picture can be pasted without first clicking the
+  // board; the handler is reached through a ref so the listener is registered once and never
+  // re-registered by an upload's progress.
+  const insertRef = useRef(insert);
+  insertRef.current = insert;
+  useEffect(() => {
+    const onWindowPaste = (event: ClipboardEvent) => insertRef.current.onPaste(event);
+    window.addEventListener('paste', onWindowPaste);
+    return () => window.removeEventListener('paste', onWindowPaste);
+  }, []);
+  // Remove on a picture's box deletes that one object, as one undo step: undoing the removal of
+  // a photograph should not undo the note typed beside it, and vice versa.
+  const onImageRemove = useCallback(
+    (id: string) => {
+      if (!editableRef.current) return; // a board that could not be loaded is not editable
+      undoController.boundary();
+      deleteObjects(doc, [id]);
+      undoController.boundary();
+    },
+    [doc, undoController],
+  );
+
+  // The four drag events, handed to the board's surface. React's synthetic event wraps the DOM's
+  // own DragEvent, which is what the insert hook is written against — the same object, so
+  // `preventDefault` and `dataTransfer` mean what they normally mean. Reading the hook through a
+  // ref keeps these four handlers stable across an upload's progress updates.
+  const drag = useCallback(
+    (which: 'onDragEnter' | 'onDragOver' | 'onDragLeave' | 'onDrop') =>
+      (event: React.DragEvent<HTMLDivElement>) =>
+        insertRef.current[which](event.nativeEvent),
+    [],
+  );
+
   // The rectangles every arrow resolves its attached ends against, built once per
   // render and handed to every object: an arrow follows a shape anybody moved because
   // it reads this map, not because anything was written about it.
@@ -228,6 +283,7 @@ export default function BoardApp(props: BoardAppProps = {}) {
     undo: undoController,
     setTool: active.setTool,
     onCreateSticky,
+    onAddImages: insert.openPicker,
   });
 
   // What the Undo/Redo buttons render from, and what the shortcuts act on: this
@@ -272,7 +328,14 @@ export default function BoardApp(props: BoardAppProps = {}) {
 
   return (
     <UndoControllerContext.Provider value={undoController}>
-      <div data-testid="app" className="vidi6-root">
+      <div
+        data-testid="app"
+        className="vidi6-root"
+        onDragEnter={drag('onDragEnter')}
+        onDragOver={drag('onDragOver')}
+        onDragLeave={drag('onDragLeave')}
+        onDrop={drag('onDrop')}
+      >
         <BoardViewport
           camera={cam.camera}
           viewportRef={viewportRef}
@@ -289,27 +352,45 @@ export default function BoardApp(props: BoardAppProps = {}) {
             const spec = getObjectType(obj.type);
             if (!spec) return null; // a type this build cannot draw is drawn by nobody
             const ObjectType = spec.Component;
-            return (
-              <ObjectType
-                key={obj.id}
-                obj={obj}
-                doc={doc}
-                zoom={cam.camera.zoom}
-                camera={cam.camera}
-                rects={rects}
-                objects={objects}
-                selected={sel.ids.has(obj.id)}
-                editing={editable && sel.editingId === obj.id}
-                canEdit={editable}
-                onObjectPointerDown={gesture.onObjectPointerDown}
-                onObjectDoubleClick={(_e, id) => {
-                  if (!editable) return; // double-clicking is an edit
-                  sel.startEdit(id);
-                }}
-                onStartEdit={sel.startEdit}
-                onEndEdit={sel.endEdit}
-              />
-            );
+            const common = {
+              obj,
+              doc,
+              zoom: cam.camera.zoom,
+              camera: cam.camera,
+              rects,
+              objects,
+              selected: sel.ids.has(obj.id),
+              editing: editable && sel.editingId === obj.id,
+              canEdit: editable,
+              onObjectPointerDown: gesture.onObjectPointerDown,
+              onObjectDoubleClick: (
+                _e: React.MouseEvent<HTMLElement>,
+                id: string,
+              ) => {
+                if (!editable) return; // double-clicking is an edit
+                sel.startEdit(id);
+              },
+              onStartEdit: sel.startEdit,
+              onEndEdit: sel.endEdit,
+            };
+            // A picture is the one type that is told about this tab: whose upload it is, how far
+            // that upload has got, whether the file is still here to send again, and what time it
+            // is. No other type is given any of it, and none of it changes how they render.
+            if (obj.type === 'image') {
+              return (
+                <ImageObjectView
+                  key={obj.id}
+                  {...common}
+                  imageProgress={insert.progress.get(obj.id)}
+                  imageIdentityId={clientId}
+                  imageCanRetry={insert.canRetry(obj.id)}
+                  imageNow={imageNow}
+                  onImageRetry={insert.retry}
+                  onImageRemove={onImageRemove}
+                />
+              );
+            }
+            return <ObjectType key={obj.id} {...common} />;
           })}
           {/* The marquee box is drawn in board units, inside the zoomed layer. */}
           <MarqueeRect rect={marquee.rect} camera={cam.camera} />
@@ -317,6 +398,7 @@ export default function BoardApp(props: BoardAppProps = {}) {
 
         <Toolbar
           onCreateSticky={onCreateSticky}
+          onAddImages={insert.openPicker}
           canEdit={editable}
           disabled={!editable}
           undo={undo}
@@ -465,6 +547,10 @@ export default function BoardApp(props: BoardAppProps = {}) {
         {/* Story 5: the board's link, one click away (share.copy). */}
         <SharePanel />
         <ConnectionStatus status={connection} />
+        {/* Story 12: the frame a dragged file is dropped inside, and the one place the board's
+            sentences about pictures are said. Both are above the board and take no part in it. */}
+        <DropHighlight shown={insert.dropHighlight} />
+        <ToastHost />
       </div>
     </UndoControllerContext.Provider>
   );

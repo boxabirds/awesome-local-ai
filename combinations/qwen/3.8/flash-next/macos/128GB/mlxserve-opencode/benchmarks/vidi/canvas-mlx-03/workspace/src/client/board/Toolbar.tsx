@@ -5,6 +5,12 @@ import { SHAPE_KINDS, type ShapeKind } from '../../shared/config.ts';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /**
+   * Story 12: the Image button. It is an immediate action like the sticky note, not a mode —
+   * it opens the file picker and leaves the board on Select, because a picture arrives from
+   * the files this tab has rather than from a gesture on the board.
+   */
+  onAddImages?(): void;
   /** True while the board cannot be edited (story 4: it failed to load). */
   disabled?: boolean;
   /** True when the board accepts edits; the tool buttons appear only then. */
@@ -202,6 +208,31 @@ export function Toolbar(props: ToolbarProps) {
       {/* Story 11: the Pen. Like every tool button it is named `Pen` — accessible name,
           not hint text — so a stroke can be drawn by test, screen reader and mouse. */}
       {hasTools ? toolButton('pen', 'Pen', '✎', 'Pen – draw freehand (P)', 'pen-tool') : null}
+
+      {/* Story 12: the Image button. An action, not a mode — it opens the picker and the board
+          stays on Select — so it is never pressed, never armed, and never swallows a click. */}
+      {props.onAddImages ? (
+        <button
+          type="button"
+          aria-label="Image"
+          data-testid="image-tool"
+          title="Image – choose pictures to add, or drag them onto the board (I)"
+          onClick={disabled ? undefined : props.onAddImages}
+          disabled={disabled}
+          aria-disabled={disabled || undefined}
+          style={{
+            ...buttonBase,
+            background: '#e8f0fe',
+            color: '#1c3d69',
+            fontSize: 18,
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            opacity: disabled ? 0.45 : 1,
+          }}
+        >
+          {/* a small picture glyph */}
+          <span aria-hidden>&#128247;</span>
+        </button>
+      ) : null}
 
       <button
         type="button"

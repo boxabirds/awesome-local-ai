@@ -19,6 +19,7 @@ import {
   STICKY_MIN_SIZE_WORLD,
   MAX_OBJECT_SIZE_WORLD,
   STICKY_SIZE_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
 } from '../../src/shared/config.ts';
 
 const r = (x: number, y: number, width: number, height: number): Rect => ({ x, y, width, height });
@@ -169,6 +170,39 @@ describe('geometry.resize', () => {
       x: 2,
       y: 2,
     });
+  });
+
+  it('an aspect-locked request stays one scale at the floor, even when the machine reads its two factors as different (story 12)', () => {
+    const start = r(0, 0, 799, 499);
+    // What the resize gesture hands over is a scale, recovered by dividing the box it asked for
+    // by the box it started from. In arithmetic those two divisions are the same number; for some
+    // requests the machine does not agree, and "the same number twice" is the only thing standing
+    // between a picture and a square of the same area.
+    const factors = (s: number) => ({
+      x: (start.width * s) / start.width,
+      y: (start.height * s) / start.height,
+    });
+    const deep = factors(0.0190001);
+    expect(deep.x === deep.y).toBe(false);
+
+    // Told the request is one scale, it is treated as one: the shorter side reaches its floor
+    // first, everything stops there, and the picture comes out the shape it came in as.
+    const stopped = clampScale(deep, [start], [IMAGE_MIN_SIZE_WORLD], MAX_OBJECT_SIZE_WORLD, true);
+    expect(stopped.x).toBe(stopped.y);
+    expect(start.height * stopped.y).toBeCloseTo(IMAGE_MIN_SIZE_WORLD, 6);
+    expect((start.width * stopped.x) / (start.height * stopped.y)).toBeCloseTo(799 / 499, 6);
+
+    // Told nothing, the two axes are clamped apart and each stops at its own floor — which is
+    // where a 799×499 photograph dragged deep into itself becomes a 16×16 square. Not a resize of
+    // a picture: a different picture, and one nobody dragged for.
+    const perAxis = clampScale(deep, [start], [IMAGE_MIN_SIZE_WORLD], MAX_OBJECT_SIZE_WORLD);
+    expect(start.width * perAxis.x).toBeCloseTo(IMAGE_MIN_SIZE_WORLD, 6);
+    expect(start.height * perAxis.y).toBeCloseTo(IMAGE_MIN_SIZE_WORLD, 6);
+
+    // A request the machine does read as one scale needs no telling.
+    expect(clampScale(factors(0.5), [start], [IMAGE_MIN_SIZE_WORLD], MAX_OBJECT_SIZE_WORLD)).toEqual(
+      { x: 0.5, y: 0.5 },
+    );
   });
 
   it('TC-04 two 200-unit notes 100 apart, box width x2 → each 400 wide with a 200 gap', () => {

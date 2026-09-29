@@ -11,6 +11,14 @@ export type CreateBoardResult =
   /** The request never got an answer (offline, DNS, abort). */
   | { ok: false; status: 0 };
 
+/**
+ * Where one of a board's pictures is uploaded. Board-scoped, because the board is what owns
+ * the bytes — the client names the board and never a path to write to.
+ */
+export function uploadUrl(boardId: string): string {
+  return `/api/boards/${encodeURIComponent(boardId)}/assets`;
+}
+
 export async function requestNewBoard(): Promise<CreateBoardResult> {
   let response: Response;
   try {

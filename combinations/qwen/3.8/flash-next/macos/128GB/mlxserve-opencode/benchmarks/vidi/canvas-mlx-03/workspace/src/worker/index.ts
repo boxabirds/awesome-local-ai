@@ -4,9 +4,12 @@
 // routing" (story 3) and "Board creation and existence API" (story 5).
 
 import { isValidBoardId } from '../shared/board-id.ts';
+import { handleServe, handleUpload } from './assets.ts';
 import { BoardRoom } from './board-room.ts';
 import { createBoard, type Limiter } from './create-board.ts';
+import { assetKeyFor } from '../shared/image-format.ts';
 import { parseTestHook, testHookNotFound, testHooksEnabled } from './test-hooks.ts';
+import { visitorKey } from './visitor.ts';
 
 export { BoardRoom } from './board-room.ts';
 export { testHooksEnabled, parseTestHook } from './test-hooks.ts';
@@ -23,6 +26,20 @@ export interface Env {
    */
   BOARD_CREATE_LIMITER: Limiter;
   /**
+   * The bucket every image's bytes live in (story 12, image.uploading). Keys are
+   * `<boardId>/<assetId>`, so one board is one prefix; nothing in this repo ever
+   * lists it — an asset is read by its address and written by the board that owns
+   * that address, and deleting a board's pictures is deleting one prefix.
+   */
+  ASSETS_BUCKET: R2Bucket;
+  /**
+   * Rate Limiting API binding for image uploads (image.rate_limit). A separate
+   * namespace from board creation on purpose: running out of picture allowance must
+   * not stop somebody from opening a board. `limit` and `period` mirror
+   * IMAGE_UPLOAD_LIMIT / IMAGE_UPLOAD_PERIOD_SECONDS in src/shared/config.ts.
+   */
+  ASSET_UPLOAD_LIMITER: Limiter;
+  /**
    * Set to '1' only by the e2E harnesses (`wrangler dev --var`). Enables the
    * /__test/boards/:id/… storage actions design TC-24 and TC-31 need; absent
    * everywhere else, where those routes answer 404. See `src/worker/test-hooks.ts`.
@@ -38,15 +55,11 @@ export interface Env {
 const ROOM_PATH = /^\/api\/rooms\/([^/]+)$/;
 const BOARDS_COLLECTION = '/api/boards';
 const BOARD_ITEM = /^\/api\/boards\/([^/]+)$/;
-
-/**
- * Visitor key for the creation rate limit. The platform sets `CF-Connecting-IP`
- * on every real request; a local `wrangler dev` has no such header, so requests
- * without one share a single bucket rather than escaping the limit.
- */
-function visitorKey(request: Request): string {
-  return request.headers.get('CF-Connecting-IP') ?? 'local-visitor';
-}
+// Story 12's two directions of one picture. Uploading happens *to a board* — the board is what
+// owns the bytes — and reading happens *by address*, which is why the read route carries the
+// board id again instead of trusting a single opaque key.
+const BOARD_ASSETS = /^\/api\/boards\/([^/]+)\/assets$/;
+const ASSET_ITEM = /^\/api\/assets\/([^/]+)\/([^/]+)$/;
 
 function json(body: unknown, status: number): Response {
   return Response.json(body, { status });
@@ -98,6 +111,26 @@ export default {
       return exists ? json({ id }, 200) : json({ error: 'not_found' }, 404);
     }
 
+    // -------------------------------------------------------- images (image.uploading)
+    const boardAssetsMatch = BOARD_ASSETS.exec(url.pathname);
+    if (boardAssetsMatch) {
+      if (request.method !== 'POST') {
+        return json({ error: 'method_not_allowed' }, 405);
+      }
+      return handleUpload(request, env, boardAssetsMatch[1]);
+    }
+
+    // ---------------------------------------------------------- (image.shared)
+    const assetMatch = ASSET_ITEM.exec(url.pathname);
+    if (assetMatch) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return json({ error: 'method_not_allowed' }, 405);
+      }
+      // The key is rebuilt from the two path segments and re-checked by the handler, so a
+      // request can only ever name the file its own path names.
+      return handleServe(env, assetKeyFor(assetMatch[1], assetMatch[2]), request.method);
+    }
+
     if (roomMatch) {
       const boardId = roomMatch[1];
       // Validate before touching the namespace so an invalid id can never
@@ -115,6 +148,14 @@ export default {
       // count check: an over-capacity joiner is never refused (live.over_capacity).
       const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
       return stub.fetch(request);
+    }
+
+    // Anything else under /api/ is an unknown API route, and is answered as one. Falling
+    // through to the app would return the board's own HTML with status 200 for a mistyped
+    // address — including a path a browser collapsed, like `/api/assets/../x` — which is a
+    // response that looks like a found file and is not one.
+    if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
+      return json({ error: 'not_found' }, 404);
     }
 
     return env.ASSETS.fetch(request);

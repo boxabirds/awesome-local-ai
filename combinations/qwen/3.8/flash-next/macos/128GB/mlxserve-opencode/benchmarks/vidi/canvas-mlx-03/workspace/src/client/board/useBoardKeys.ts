@@ -43,6 +43,13 @@ export interface BoardKeysOptions {
   setTool?: (tool: ToolId) => void;
   /** Story 2's `N`: create a sticky at the view centre. */
   onCreateSticky?: () => void;
+  /**
+   * Story 12's `I`: open the file picker. Not gated on the edit lock, because the hook behind it
+   * answers with the sentence the story asks for when the board cannot take an upload — a key
+   * that did nothing quietly on a board that was not connected would be the story's failure to
+   * say why.
+   */
+  onAddImages?: () => void;
 }
 
 const ARROWS = {
@@ -79,6 +86,8 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
   setToolRef.current = opts.setTool;
   const createStickyRef = useRef(opts.onCreateSticky);
   createStickyRef.current = opts.onCreateSticky;
+  const addImagesRef = useRef(opts.onAddImages);
+  addImagesRef.current = opts.onAddImages;
   // The step edges of the commands below. A command that is one model call is one
   // undo step, so a nudge followed 200 ms later by a delete does not merge into a
   // single step; the pause between two keystrokes is what groups typing instead
@@ -125,6 +134,10 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         const id = toolForShortcut(e.key);
         if (id === 'sticky') {
           if (canEditRef.current) createStickyRef.current?.();
+          return;
+        }
+        if (id === 'image') {
+          addImagesRef.current?.();
           return;
         }
         if (id) {

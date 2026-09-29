@@ -191,6 +191,14 @@ export function resizeRect(
  * is) the result is uniform too and stops at the *first* limit hit, so an
  * aspect-locked selection shrinks/grows as one.
  *
+ * `uniform` says so out loud, which is not the same as working it out: the
+ * factors an aspect-locked resize produces come from `(w * s) / w` and `(h * s) / h`,
+ * and those are equal in arithmetic and only very nearly equal in floating point.
+ * A caller that locked the aspect knows the request is one scale, and says so —
+ * otherwise a picture dragged past the floor of one of its own sides is clamped on
+ * that side alone, and the square that comes out the other end is a picture squashed
+ * by the rounding of a number nobody meant to compare.
+ *
  * A non-finite request returns the neutral scale {x: 1, y: 1}; a rect that is
  * not usable is skipped rather than clamping anybody.
  */
@@ -199,6 +207,7 @@ export function clampScale(
   rects: readonly Rect[],
   minSizes: readonly number[],
   maxSize: number,
+  uniform = false,
 ): Point {
   if (!finitePoint(scale) || !finite(maxSize) || maxSize <= 0) return { x: 1, y: 1 };
   let loX = 0;
@@ -218,7 +227,7 @@ export function clampScale(
   }
   const sx = hiX < loX ? 1 : clamp(scale.x, loX, hiX);
   const sy = hiY < loY ? 1 : clamp(scale.y, loY, hiY);
-  const requestedUniform = scale.x === scale.y;
+  const requestedUniform = uniform || scale.x === scale.y;
   if (!requestedUniform) return { x: sx, y: sy };
   // A uniform request stays uniform and stops at whichever limit bit first
   // (the factor closest to 1).

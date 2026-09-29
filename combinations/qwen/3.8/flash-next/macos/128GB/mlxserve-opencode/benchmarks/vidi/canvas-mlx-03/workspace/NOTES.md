@@ -468,3 +468,98 @@ silently.
   it, and `PenTool` draws a dot of `thickness * zoom` at the pointer. The pen toolbar is
   rendered as a sibling *outside* the viewport, so choosing a colour is never a stroke; the
   capture handler ignores presses that begin on a button or a text editor all the same.
+
+# Story 12 — Drop images onto the board (implementation notes)
+
+## Test totals (all passing)
+
+| Suite | Tests |
+| --- | --- |
+| `npm run test:unit` | 331 |
+| `npm run test:component` | 255 |
+| `npm run test:integration` | 68 |
+| `npm run test:e2e` | 186 (chromium, firefox, webkit) |
+
+`npm run build` and `npm run typecheck` are clean. Story 12 needed nothing from story 2's
+unfinished business: a picture is an object like any other, and it borrows the selection,
+the gesture and the document that stories 7 and 8 already finished.
+
+## Where a picture lives, and what the board remembers
+
+Bytes go to R2 through `POST /api/boards/:id/assets` (raw body, not multipart: the limit is on
+the bytes and there is no reason to parse a form in front of them) and come back through
+`GET /api/assets/:boardId/:assetId`, which is cached for a year and marked `nosniff` because it
+hands back whatever a person dropped. The document remembers only the *box*: a size, a content
+type, the natural size the uploader measured, and a status. What a viewer sees is derived from
+that status plus the clock — `displayStatus(image, now)` — so "Upload failed" and "Image
+unavailable" are two readings of one record rather than two records, and a reload cannot disagree
+with the screen that reloaded.
+
+Status changes are written with a second, untracked origin (`UPLOAD_ORIGIN`) while the
+placeholder is created under `LOCAL_ORIGIN`. That is the whole of the undo story: one Ctrl+Z
+removes the whole batch of boxes that one drop made, and it does not "undo" a failure that
+arrived afterwards, which would put the picture back to `uploading` and leave the person waiting
+for an upload nobody is doing.
+
+## Three fixes outside story 12's own files
+
+These are defects the images found in shared code and in the image box itself. Each is recorded
+here because it changes the behaviour of something another story owns.
+
+- **`clampScale` was handed one scale and read it as two.** The resize gesture asks `resizeRect`
+  for an aspect-locked box, then recovers the scale by dividing the box it asked for by the box it
+  started with — `(w · s) / w` and `(h · s) / h`, the same number twice in arithmetic and, for
+  some requests, not the same number twice in floating point. `clampScale` decided whether a
+  request was uniform by `scale.x === scale.y`, so for those requests it clamped each axis
+  against its own minimum. Mid-board the error is one unit in the last place and invisible;
+  dragged past the floor of a side, it stops the width at 16 and the height at 16, and a 799×499
+  photograph becomes a square. Firefox's drag delivers that request and Chromium's does not,
+  which is the only reason it was found now. `clampScale` takes a `uniform` flag now, the gesture
+  passes the aspect lock it already had, and `tests/unit/geometry.test.ts` holds the case with
+  both readings side by side. Strokes (story 11) are aspect-locked too and are the other winner.
+- **A picture has to ask for its clicks back.** The world layer (`BoardViewport`) is
+  `pointerEvents: 'none'` so that a press on empty board pans instead of hitting an object; every
+  object opts back in on its own root, and the image box did not. In jsdom nothing noticed — the
+  layering is not enforced there — while in a browser a dropped picture was simply not there for
+  the pointer: no selection, no move, no resize, no Retry button. The box sets
+  `pointerEvents: 'auto'` now, and a component test asserts it for all three states, since the
+  box in the middle of an upload is exactly the box a person reaches for.
+- **No `loading="lazy"`, on purpose.** A board is panned by moving a layer, not by scrolling a
+  document, so the browser's idea of "not needed yet" is a picture that sits outside the first
+  screen and stays unloaded however far the person pans to it. Firefox honoured the attribute and
+  left a dropped photograph blank in TC-25; Chromium's threshold let it through. The promise here
+  is that a picture on the board is a picture on the screen, so the element is eager (`decoding`
+  stays async). The immutable cache still does the work laziness was supposed to do.
+
+## The paste path is tested where a paste can be made
+
+Firefox does not accept `clipboardData` in a `ClipboardEvent` constructor, so a test cannot put a
+file on a clipboard it built itself — the event dispatches with `clipboardData` null and the
+board, correctly, sees a paste with nothing in it. That is a harness limitation and not a product
+bug, and the design does not ask for a paste e2e case anyway: TC-02 and TC-18 test the paste path
+as `ui-component`, and TC-27's own mechanism row says `picker`. The component suite drives paste
+through the same `onPaste` handler the board installs, with the same assertions about sizes,
+counts and messages, so the handler is covered; what is not covered anywhere is "a real Ctrl+V
+from a real system clipboard", which no browser under Playwright would have let us do twice in a
+row anyway.
+
+## Test-harness notes
+
+- **The fixtures are real images, not files named like images.** `tools/make-image-fixtures.mjs`
+  draws them in a Chromium canvas and reads the bytes back with `toDataURL`, so a PNG, JPEG and
+  WebP fixture will decode in every engine the suite runs on. Animated GIF is written by hand
+  (LZW with a clear code after every index, which is the simple correct version of the encoder),
+  because no browser will produce one on demand. The 10 MB JPEG is a real small JPEG padded to
+  the byte with JPEG comment segments — `FF FE len` is skipped by every decoder, so the file is
+  both exactly the limit and genuinely an image.
+- **Drops are dispatched as the three events a drop really is** (`dragenter`, `dragover`, `drop`)
+  on the app root, with `DataTransfer` built inside the page from base64, because Playwright
+  serialises a function and not its closure. `chooseFiles` makes the hidden picker input briefly
+  visible: Playwright will not load a file into an element it has decided a person cannot see.
+- **`clickImage(page, id, {dx, dy})` takes an offset for a reason.** A failed box offers Retry at
+  its centre, and Retry stops propagation — pressing the button is not pressing the box. The
+  default click is the centre, which is right for a picture that has arrived.
+- **Offline is forced with the test connection hooks, not `context.setOffline`.** `simulateDrop`
+  and `restoreConnection` put the socket down and leave it down until the test says otherwise;
+  the browser's own offline emulation starts reconnecting the moment it is lifted, and a test
+  about what a board says while it cannot be reached should not be racing that.

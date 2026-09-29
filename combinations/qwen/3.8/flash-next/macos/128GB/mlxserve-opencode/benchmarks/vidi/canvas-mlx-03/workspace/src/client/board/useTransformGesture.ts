@@ -344,6 +344,9 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         entries.map((entry) => entry.rect),
         entries.map((entry) => entry.min),
         MAX_OBJECT_SIZE_WORLD,
+        // The request is one scale whenever the shape is locked, and clamping it as two would be
+        // clamping one side of a picture and calling the result a resize.
+        aspect,
       );
       const to: Rect = {
         width: start.width * scale.x,

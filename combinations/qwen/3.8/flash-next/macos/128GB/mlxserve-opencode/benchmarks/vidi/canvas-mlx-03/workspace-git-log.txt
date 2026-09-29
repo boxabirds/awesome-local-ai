@@ -1,3 +1,91 @@
+commit b22796b59f86a7cad4030e9c3d976156d09fcec9
+vidi-agent  Tue Sep 29 17:27:31 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                |  95 +++++++
+ src/client/board/useTransformGesture.ts |   3 +
+ src/client/objects/ImageObject.tsx      |  11 +-
+ src/client/ui/Toast.tsx                 |   2 +-
+ src/shared/geometry.ts                  |  11 +-
+ tests/component/ImageObject.test.tsx    |  24 +-
+ tests/e2e/helpers/drop-files.ts         | 276 ++++++++++++++++++++
+ tests/e2e/images.spec.ts                | 430 ++++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts             |  34 +++
+ 9 files changed, 882 insertions(+), 4 deletions(-)
+commit 45cdd4a9f1b38276a07e675389d6c8f04162b4b4
+vidi-agent  Tue Sep 29 16:41:54 2026 +0100
+
+    story 12 task 5/6/7/8: the three ways a picture arrives, and what its box says
+
+
+ src/client/api.ts                       |   8 +
+ src/client/board/BoardApp.tsx           | 132 +++++--
+ src/client/board/Toolbar.tsx            |  31 ++
+ src/client/board/useBoardKeys.ts        |  13 +
+ src/client/images/DropHighlight.tsx     |  61 ++++
+ src/client/images/uploadImage.ts        |  92 +++++
+ src/client/images/useImageInsert.ts     | 418 +++++++++++++++++++++
+ src/client/images/validateFiles.ts      |  87 ++++-
+ src/client/objects/ImageObject.tsx      | 415 +++++++++++++++++++++
+ src/client/ui/Toast.tsx                 | 120 +++++++
+ tests/component/ImageObject.test.tsx    | 397 ++++++++++++++++++++
+ tests/component/useImageInsert.test.tsx | 618 ++++++++++++++++++++++++++++++++
+ tests/integration/assets.test.ts        |   6 +-
+ tests/unit/validate-files.test.ts       |  12 +-
+ 14 files changed, 2375 insertions(+), 35 deletions(-)
+commit 38cfceb2ff54b3ecc916412088429d3cd9b8f293
+vidi-agent  Tue Sep 29 16:05:36 2026 +0100
+
+    story 12 task 3/4: asset endpoints on real R2, with the limits that guard them
+
+
+ src/worker/assets.ts             | 217 +++++++++++++-----------------
+ src/worker/index.ts              |  37 ++++-
+ tests/integration/assets.test.ts | 282 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 402 insertions(+), 134 deletions(-)
+commit 69dd8590e4f845cb19b1c254f5296d324150e06e
+vidi-agent  Tue Sep 29 16:00:56 2026 +0100
+
+    story 12 task 2/3: image model to the design's contract, asset endpoints
+
+
+ src/shared/board-model.ts         |  17 +-
+ src/shared/config.ts              |   3 -
+ src/shared/objects/image.ts       | 397 ++++++++++++---------
+ src/worker/assets.ts              | 210 ++++++++++++
+ src/worker/index.ts               |  34 +-
+ src/worker/visitor.ts             |  13 +
+ tests/unit/image-model.test.ts    | 702 ++++++++++++++++++++------------------
+ tests/unit/image-settings.test.ts | 109 ++++++
+ wrangler.jsonc                    |  21 ++
+ 9 files changed, 990 insertions(+), 516 deletions(-)
+commit 9e9e9c5e7fe6ceddf6d043c4afc84545cbc59cad
+vidi-agent  Tue Sep 29 15:45:16 2026 +0100
+
+    story 12 task 2: the image object model, its states, and where undo stops
+
+
+ src/shared/board-model.ts      |  33 ++++
+ src/shared/objects/image.ts    | 414 +++++++++++++++++++++++++++++++++++++++
+ tests/unit/image-model.test.ts | 431 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 878 insertions(+)
+commit 8762a0417f60cba44d7ba4b2ef31846068d50115
+vidi-agent  Tue Sep 29 15:36:59 2026 +0100
+
+    story 12 task 1: name an image by its bytes, and refuse the files that are not
+
+
+ src/client/images/validateFiles.ts | 270 +++++++++++++++++++++++++++++++
+ src/shared/config.ts               |  60 +++++++
+ src/shared/image-format.ts         |  93 +++++++++++
+ tests/fixtures/images/files.ts     | 129 +++++++++++++++
+ tests/fixtures/images/index.ts     |  32 ++++
+ tests/unit/image-format.test.ts    | 165 +++++++++++++++++++
+ tests/unit/validate-files.test.ts  | 315 +++++++++++++++++++++++++++++++++++++
+ tools/make-image-fixtures.mjs      | 219 ++++++++++++++++++++++++++
+ 8 files changed, 1283 insertions(+)
 commit a2c7e968364c75ce4c2be52447bcae377cd9986c
 vidi-agent  Tue Sep 29 14:53:35 2026 +0100
 

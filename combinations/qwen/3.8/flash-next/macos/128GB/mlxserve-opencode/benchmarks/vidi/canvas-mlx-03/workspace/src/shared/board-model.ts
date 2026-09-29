@@ -84,6 +84,18 @@ export interface ObjectSnapshot {
   baseWidth?: number;
   baseHeight?: number;
   thickness?: PenThickness;
+  /** Story 12 image fields, present only for `image` objects. An image is the only object
+   * type whose picture lives outside the document, so these are an address into the asset
+   * bucket, the size the picture turned out to have, and whose tab is still working on it.
+   * `objects/image.ts` is what reads them into a usable image; nothing here decides what to
+   * show. */
+  assetKey?: string | null;
+  contentType?: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  status?: 'uploading' | 'ready' | 'failed';
+  uploadStartedAt?: number;
+  uploaderId?: string;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -556,6 +568,30 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
       if (baseHeight !== undefined) base.baseHeight = baseHeight;
       const thicknessVal = o.get('thickness');
       if (isPenThickness(thicknessVal)) base.thickness = thicknessVal;
+      base.createdBy = author;
+      base.createdAt = asNumber(o.get('createdAt'));
+    } else if (base.type === 'image') {
+      // Story 12: the address of the picture and the size it has, plus the upload's own
+      // clock. Nothing is guessed at here — an image missing its dimensions is left
+      // incomplete on purpose, and `objects/image.ts` is what refuses to render it.
+      // `assetKey` is present as null before the upload answers, which is a fact about
+      // the picture rather than a missing field.
+      if (typeof o.get('assetKey') === 'string') base.assetKey = o.get('assetKey') as string;
+      else if (o.get('assetKey') === null) base.assetKey = null;
+      if (typeof o.get('contentType') === 'string') base.contentType = o.get('contentType') as string;
+      const naturalWidth = positiveSize(o.get('naturalWidth'));
+      const naturalHeight = positiveSize(o.get('naturalHeight'));
+      if (naturalWidth !== undefined) base.naturalWidth = naturalWidth;
+      if (naturalHeight !== undefined) base.naturalHeight = naturalHeight;
+      const status = o.get('status');
+      if (status === 'uploading' || status === 'ready' || status === 'failed') {
+        base.status = status;
+      }
+      const uploadStartedAt = o.get('uploadStartedAt');
+      if (typeof uploadStartedAt === 'number' && Number.isFinite(uploadStartedAt)) {
+        base.uploadStartedAt = uploadStartedAt;
+      }
+      if (typeof o.get('uploaderId') === 'string') base.uploaderId = o.get('uploaderId') as string;
       base.createdBy = author;
       base.createdAt = asNumber(o.get('createdAt'));
     } else if (textVal instanceof Y.Text) {

@@ -276,3 +276,60 @@ export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 /** Smallest side a stroke may be resized to, in board units (pen.resize). */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// -----------------------------------------------------------------------------
+// Story 12 — images on the board (spec/stories/012-drop-images-onto-the-board).
+// Every limit the PRD states is a name here, in the units the board speaks: board
+// units for anything geometric, bytes for anything the wire carries.
+// -----------------------------------------------------------------------------
+
+/**
+ * The image types a board accepts, as MIME types. SVG is deliberately absent: it is
+ * an image format that can carry script, and the board serves stored images back to
+ * whoever holds the link (PRD constraints.security).
+ */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+export type AcceptedImageType = (typeof IMAGE_ACCEPTED_TYPES)[number];
+
+/** How much of the file the server reads to name its type: the longest signature (WebP's). */
+export const IMAGE_SNIFF_BYTES = 12;
+
+/** One image, at most (PRD size_limit). 10 MB of 1024·1024 bytes. */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Images added by one drop, paste or pick (PRD count_limit). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/** An image is placed no larger than this along its longest side (PRD placement_size). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** The shorter side of a resized image stops here (PRD aspect_resize). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** Gap between images laid out in a row (PRD image.drop). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/**
+ * How long an upload may stay "uploading" before everyone is told it did not finish
+ * (PRD image.unfinished). The uploader's own tab is the only thing that can finish an
+ * upload, so this is a wall clock on that tab being there.
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** Uploads accepted from one visitor per IMAGE_UPLOAD_PERIOD_SECONDS (PRD rate_limit). */
+export const IMAGE_UPLOAD_LIMIT = 60;
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+
+/** Stored images never change: an asset key belongs to one set of bytes forever. */
+export const ASSET_CACHE_MAX_AGE_S = 31536000;
+
+/** How often the uploader's screen re-derives "Uploading… 45%" while an upload runs. */
+export const IMAGE_PROGRESS_TICK_MS = 30 * 1000;
+
+/** How long a message about refused files stays on screen. */
+export const TOAST_DISMISS_MS = 6000;
+
+/** The toast wording for a visitor who has run out of upload allowance. */
+export const IMAGE_UPLOAD_LIMIT_MESSAGE =
+  "You're adding images too quickly. Wait a minute and try again.";
