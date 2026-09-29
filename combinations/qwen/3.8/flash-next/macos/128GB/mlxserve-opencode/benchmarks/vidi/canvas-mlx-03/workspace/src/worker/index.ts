@@ -4,12 +4,20 @@
 
 import { isValidBoardId } from '../shared/board-id.ts';
 import { BoardRoom } from './board-room.ts';
+import { parseTestHook, testHookNotFound, testHooksEnabled } from './test-hooks.ts';
 
 export { BoardRoom } from './board-room.ts';
+export { testHooksEnabled, parseTestHook } from './test-hooks.ts';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /**
+   * Set to '1' only by the persistence e2E harness (`wrangler dev --var`). Enables
+   * the /__test/boards/:id/… storage actions design TC-24 needs; absent everywhere
+   * else, where those routes answer 404. See `src/worker/test-hooks.ts`.
+   */
+  VIDI_TEST_HOOKS?: string;
 }
 
 const ROOM_PATH = /^\/api\/rooms\/([^/]+)$/;
@@ -18,6 +26,17 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const match = ROOM_PATH.exec(url.pathname);
+    const testHook = parseTestHook(url.pathname);
+
+    if (url.pathname.startsWith('/__test/')) {
+      // Anything under /__test/ that is not an enabled, well-formed hook call is
+      // simply not here — never the SPA fallback, so a mis-typed hook call can
+      // never look like a working route.
+      if (!testHook || !testHooksEnabled(env) || request.method !== 'POST') {
+        return testHookNotFound();
+      }
+      return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(testHook.boardId)).fetch(request);
+    }
 
     if (match) {
       const boardId = match[1];

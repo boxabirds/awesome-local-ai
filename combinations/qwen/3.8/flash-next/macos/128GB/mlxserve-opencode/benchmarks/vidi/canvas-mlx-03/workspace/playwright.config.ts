@@ -9,7 +9,9 @@ const BASE_URL = `http://localhost:${PORT}`;
 export default defineConfig({
   testDir: 'tests/e2e',
   // Long-running nightly specs (TC-29, TC-30) run only via test:e2e:nightly.
-  testIgnore: /\.nightly\.spec\.ts$/,
+  // persistence.spec.ts owns its own `wrangler dev` process (see
+  // playwright.persistence.config.ts) and must not run against this webServer.
+  testIgnore: [/\.nightly\.spec\.ts$/, /persistence\.spec\.ts/],
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],

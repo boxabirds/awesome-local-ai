@@ -2,8 +2,14 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
-import { connectBoard, wsServerUrl, type BoardConnection } from '../../src/client/board/connectBoard.ts';
+import {
+  connectBoard,
+  wsServerUrl,
+  type BoardConnection,
+} from '../../src/client/board/connectBoard.ts';
+import type { ProviderSignal } from '../../src/client/board/useConnectionBadge.ts';
 import { RECONNECT_MAX_BACKOFF_MS } from '../../src/shared/config.ts';
+import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from '../../src/shared/protocol.ts';
 
 // A transport stub injected via WebsocketProvider's WebSocketPolyfill option
 // (the real transport is the global WebSocket; injecting is the documented seam,
@@ -190,5 +196,57 @@ describe('connectBoard (URL, frames, status, backoff, close codes)', () => {
     // The remote note landed locally and the provider answered on the socket.
     expect(doc.getMap('objects').has('id-1')).toBe(true);
     expect(socket.sent.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('connectBoard close codes → badge signal (story 4, TC-22/TC-24 support)', () => {
+  const boardId = 'aaaaaaaaaaaaaaaaaaaaaa';
+
+  function connect() {
+    conn = connectBoard(boardId, new Y.Doc(), { WebSocketPolyfill: FakeSocket });
+    const signals: ProviderSignal[] = [];
+    conn.onCloseSignal((s) => signals.push(s));
+    FakeSocket.instances[0].serverOpen();
+    return { signals };
+  }
+
+  it('close 4500 is reported as a load failure and the client keeps retrying', () => {
+    vi.useFakeTimers();
+    const { signals } = connect();
+    FakeSocket.instances[FakeSocket.instances.length - 1].serverClose(CLOSE_BOARD_LOAD_FAILED);
+    expect(signals).toEqual(['load-failed']);
+    // The board is not abandoned: y-websocket keeps its reconnect machinery.
+    expect(conn!.provider.shouldConnect).toBe(true);
+    expect(conn!.provider.wsUnsuccessfulReconnects).toBe(1);
+    const before = FakeSocket.instances.length;
+    vi.advanceTimersByTime(RECONNECT_MAX_BACKOFF_MS * 2);
+    expect(FakeSocket.instances.length).toBeGreaterThan(before);
+  });
+
+  it('close 1011 (storage failure) and 1006 (network drop) are ordinary disconnects', () => {
+    for (const code of [CLOSE_STORAGE_FAILURE, 1006]) {
+      const { signals } = connect();
+      FakeSocket.instances[FakeSocket.instances.length - 1].serverClose(code);
+      expect(signals).toEqual(['disconnected']);
+      conn!.destroy();
+      conn = null;
+    }
+  });
+
+  it('a close we asked for is never read as a load failure', () => {
+    vi.useFakeTimers();
+    const { signals } = connect();
+    conn!.provider.disconnect(); // local close: y-websocket reports a null event
+    expect(signals).toEqual(['disconnected']);
+  });
+
+  it('onCloseSignal returns an unsubscribe function', () => {
+    conn = connectBoard(boardId, new Y.Doc(), { WebSocketPolyfill: FakeSocket });
+    const seen: ProviderSignal[] = [];
+    const off = conn.onCloseSignal((s) => seen.push(s));
+    FakeSocket.instances[0].serverOpen();
+    off();
+    FakeSocket.instances[0].serverClose(CLOSE_BOARD_LOAD_FAILED);
+    expect(seen).toEqual([]);
   });
 });

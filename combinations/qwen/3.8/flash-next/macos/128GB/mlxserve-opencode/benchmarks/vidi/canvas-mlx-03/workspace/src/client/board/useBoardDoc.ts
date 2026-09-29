@@ -7,7 +7,7 @@ import {
 } from '../../shared/board-model.ts';
 import { connectBoard, type BoardConnection } from './connectBoard.ts';
 import { useConnectionBadge, type Subscribe } from './useConnectionBadge.ts';
-import type { ConnectionStatusValue } from './useConnectionBadge.ts';
+import type { ConnectionState, ConnectionStatusValue } from './useConnectionBadge.ts';
 
 export interface BoardDoc {
   doc: Y.Doc;
@@ -24,7 +24,16 @@ export interface BoardDoc {
  * `injected` lets component tests supply their own document (defaults to a fresh
  * one so production code calls `useBoardDoc()` with no arguments).
  */
-export function useBoardDoc(injected?: Y.Doc, boardId?: string | null): BoardDoc {
+/**
+ * `connectionOverride` exists for component tests (TC-23) that need the shell in
+ * a particular connection state without a live provider; production omits it and
+ * the badge state machine supplies the value.
+ */
+export function useBoardDoc(
+  injected?: Y.Doc,
+  boardId?: string | null,
+  connectionOverride?: ConnectionState,
+): BoardDoc {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) docRef.current = injected ?? new Y.Doc();
   const doc = docRef.current;
@@ -70,7 +79,8 @@ export function useBoardDoc(injected?: Y.Doc, boardId?: string | null): BoardDoc
   // provider is (re)created so the listeners attach to the live provider.
   const subscribeBadge = useCallback<Subscribe>(
     (emit) => {
-      const provider = connRef.current?.provider;
+      const conn = connRef.current;
+      const provider = conn?.provider;
       if (!provider) return () => {};
       // 'connected' signal = socket open AND synced (y-websocket 'sync' true);
       // 'disconnected' signal = provider status disconnected.
@@ -80,9 +90,13 @@ export function useBoardDoc(injected?: Y.Doc, boardId?: string | null): BoardDoc
       const onStatus = (s: { status: string }) => {
         if (s.status === 'disconnected') emit('disconnected');
       };
+      // Story 4: the close code is interpreted by connectBoard; a load failure is
+      // the only signal that reaches the badge as anything but a drop.
+      const offCloseSignal = conn ? conn.onCloseSignal(emit) : () => {};
       provider.on('sync', onSync);
       provider.on('status', onStatus);
       return () => {
+        offCloseSignal();
         provider.off('sync', onSync);
         provider.off('status', onStatus);
       };
@@ -90,7 +104,8 @@ export function useBoardDoc(injected?: Y.Doc, boardId?: string | null): BoardDoc
     [providerReady],
   );
 
-  const connection = useConnectionBadge(subscribeBadge, providerReady);
+  const badge = useConnectionBadge(subscribeBadge, providerReady);
+  const connection = connectionOverride ?? badge;
 
   // Test build: mirror the mapped connection state so nightly e2e can assert it
   // never leaves `connected` while idle (design TC-29).

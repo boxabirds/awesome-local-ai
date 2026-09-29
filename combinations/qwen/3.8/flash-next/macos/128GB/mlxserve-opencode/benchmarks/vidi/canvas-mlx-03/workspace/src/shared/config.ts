@@ -82,3 +82,23 @@ export const RECONNECT_MAX_BACKOFF_MS = 10_000;
 export const CONNECTED_CONFIRMATION_MS = 2000;
 /** Outage length used by the offline catch-up e2e test (PRD live.catch_up). */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+// ---- Story 4: persistence ---------------------------------------------------
+
+/** Compact the update log once this many rows exist (design persist.board_store). */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** …or once this many log bytes exist. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/**
+ * Snapshot chunk size. Kept well under the per-row size limit of SQLite-backed
+ * Durable Objects so every row stays inside the platform limit.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A load-failed room retries loading its board at most this often (ms). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** Board size tested for the large-board open guarantee (PRD persist.large_board). */
+export const PERSIST_TESTED_NOTES = 2000;
+/** Time budget to show a PERSIST_TESTED_NOTES board (PRD persist.large_board). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version stamped into the storage tables so later stories can migrate them. */
+export const STORAGE_SCHEMA_VERSION = 1;

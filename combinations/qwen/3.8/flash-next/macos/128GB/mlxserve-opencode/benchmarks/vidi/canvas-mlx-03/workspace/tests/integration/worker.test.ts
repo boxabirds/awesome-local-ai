@@ -107,4 +107,27 @@ describe('worker fetch handler', () => {
     a.close();
     b.close();
   });
+
+  it('TC-24 gate: the storage-damage routes do not exist without the harness flag', async () => {
+    // This environment is built from wrangler.jsonc, which never sets
+    // VIDI_TEST_HOOKS — the same configuration a production deploy gets.
+    expect((env as unknown as { VIDI_TEST_HOOKS?: string }).VIDI_TEST_HOOKS).toBeUndefined();
+    const boardId = newBoardId();
+
+    for (const path of [
+      `/__test/boards/${boardId}/corrupt-snapshot`,
+      `/__test/boards/${boardId}/repair`,
+      `/__test/boards/not-a-board-id/corrupt-snapshot`,
+    ]) {
+      const post = await SELF.fetch(`http://localhost${path}`, { method: 'POST' });
+      expect(post.status).toBe(404);
+      const get = await SELF.fetch(`http://localhost${path}`);
+      expect(get.status).toBe(404);
+    }
+
+    // The real room route still answers as story 3 specified, so the 404s above
+    // are these routes being absent rather than the whole handler failing.
+    const plain = await SELF.fetch(`http://localhost/api/rooms/${boardId}`);
+    expect(plain.status).toBe(426);
+  });
 });

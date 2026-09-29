@@ -54,22 +54,7 @@ export class RoomClient {
     if (res.status !== 101) throw new Error(`upgrade failed with status ${res.status}`);
     const ws = (res as unknown as { webSocket?: WebSocket }).webSocket;
     if (!ws) throw new Error('no webSocket on upgrade response');
-    ws.accept();
-    ws.binaryType = 'arraybuffer';
-    client.ws = ws;
-
-    ws.addEventListener('message', (e: MessageEvent) => {
-      const data = e.data as ArrayBuffer;
-      client.log.push(data);
-      client.onMessage(data);
-    });
-    ws.addEventListener('close', (e: CloseEvent) => {
-      client.closed = true;
-      client.closeCode = e.code;
-    });
-    ws.addEventListener('error', () => {
-      client.closed = true;
-    });
+    client.attach(ws);
 
     // Transmit local edits. Mirrors y-websocket's guard exactly: send every
     // doc update EXCEPT the ones we applied from the socket ourselves (whose
@@ -82,6 +67,44 @@ export class RoomClient {
     // Kick off the handshake: request server state.
     client.sendSync((enc) => syncProtocol.writeSyncStep1(enc, client.doc));
     return client;
+  }
+
+  /**
+   * Open a fresh socket for the *same* document, as a real provider does when it
+   * reconnects: the local document (including edits the room never accepted) is
+   * offered back with SyncStep2.
+   */
+  async reconnect(): Promise<void> {
+    this.close();
+    const res = await upgradeFetch(this.boardId);
+    if (res.status !== 101) throw new Error(`re-upgrade failed with status ${res.status}`);
+    const ws = (res as unknown as { webSocket?: WebSocket }).webSocket;
+    if (!ws) throw new Error('no webSocket on upgrade response');
+    this.synced = false;
+    this.attach(ws);
+    this.sendSync((enc) => syncProtocol.writeSyncStep1(enc, this.doc));
+  }
+
+  /** Wire a just-accepted server socket to this client's document. */
+  private attach(ws: WebSocket): void {
+    ws.accept();
+    ws.binaryType = 'arraybuffer';
+    this.ws = ws;
+    this.closed = false;
+    this.closeCode = null;
+
+    ws.addEventListener('message', (e: MessageEvent) => {
+      const data = e.data as ArrayBuffer;
+      this.log.push(data);
+      this.onMessage(data);
+    });
+    ws.addEventListener('close', (e: CloseEvent) => {
+      this.closed = true;
+      this.closeCode = e.code;
+    });
+    ws.addEventListener('error', () => {
+      this.closed = true;
+    });
   }
 
   private sendSync(build: (enc: encoding.Encoder) => void): void {

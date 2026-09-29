@@ -42,3 +42,10 @@ button:focus-visible,
 .connection-status[data-status='reconnecting'] {
   color: #b26a00;
 }
+
+.connection-status[data-status='load_failed'] {
+  color: #b3261e;
+  background: rgba(179, 38, 30, 0.08);
+  border-color: rgba(179, 38, 30, 0.25);
+  pointer-events: auto;
+}

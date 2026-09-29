@@ -31,6 +31,9 @@ export interface StickyNoteProps {
   /** Reported when a drag starts/ends so the shell can hide the note toolbar
    *  while dragging (and, with it, the toolbar would re-sort the DOM). */
   onDragChange?(id: string, dragging: boolean): void;
+  /** False while the board may not be edited (story 4: it failed to load).
+   *  Selection still works; dragging and editing do not. */
+  canEdit?: boolean;
 }
 
 /**
@@ -47,6 +50,7 @@ export interface StickyNoteProps {
 export function StickyNote(props: StickyNoteProps) {
   const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit, onDragChange } =
     props;
+  const canEdit = props.canEdit ?? true;
 
   const measureRef = useRef<HTMLDivElement | null>(null);
   const [fit, setFit] = useState<{ fontPx: number; overflow: boolean }>({
@@ -72,6 +76,8 @@ export function StickyNote(props: StickyNoteProps) {
   const detachRef = useRef<null | (() => void)>(null);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom; // latest each render (a drag sees the live camera zoom)
+  const canEditRef = useRef(canEdit);
+  canEditRef.current = canEdit; // a drag already in flight stops mutating if editing is locked
 
   useEffect(
     () => () => {
@@ -89,6 +95,7 @@ export function StickyNote(props: StickyNoteProps) {
       rafRef.current = null;
       const t = pendingRef.current;
       if (!t || !mountedRef.current) return;
+      if (!canEditRef.current) return; // editing was locked mid-drag
       const ok = moveObject(doc, note.id, t.x, t.y);
       if (!ok) endDrag(); // note vanished mid-drag
     };
@@ -106,7 +113,7 @@ export function StickyNote(props: StickyNoteProps) {
     }
     const t = pendingRef.current;
     pendingRef.current = null;
-    if (t && mountedRef.current) moveObject(doc, note.id, t.x, t.y);
+    if (t && mountedRef.current && canEditRef.current) moveObject(doc, note.id, t.x, t.y);
   };
 
   // Ends the drag: drops any pending rAF and reports the drag stopped.
@@ -124,6 +131,7 @@ export function StickyNote(props: StickyNoteProps) {
 
   const onWindowMove = (e: PointerEvent) => {
     if (phaseRef.current === 'idle') return;
+    if (!canEditRef.current) return; // locked while the pointer was down
     if (phaseRef.current === 'pressed') {
       const d = Math.hypot(e.clientX - startClientRef.current.x, e.clientY - startClientRef.current.y);
       if (d < DRAG_THRESHOLD_PX) return; // still Pressed
@@ -169,6 +177,12 @@ export function StickyNote(props: StickyNoteProps) {
     if (editing) return; // the editor (textarea) owns its own pointer events
     if (e.button !== 0) return; // left button only
     e.stopPropagation(); // board must not pan
+    if (!canEdit) {
+      // Read-only board: selecting is allowed, moving is not (no window listeners,
+      // so no drag and no raise).
+      onSelect(note.id);
+      return;
+    }
     detachRef.current?.();
     const s = { x: e.clientX, y: e.clientY };
     startClientRef.current = s;
@@ -191,6 +205,7 @@ export function StickyNote(props: StickyNoteProps) {
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation(); // do not create a new note on the board
+    if (!canEdit) return; // editing is locked while the board could not be loaded
     onStartEdit(note.id);
   };
 

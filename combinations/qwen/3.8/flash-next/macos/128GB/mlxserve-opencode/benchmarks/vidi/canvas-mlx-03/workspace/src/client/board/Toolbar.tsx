@@ -1,5 +1,7 @@
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /** True while the board cannot be edited (story 4: it failed to load). */
+  disabled?: boolean;
 }
 
 /**
@@ -39,14 +41,17 @@ export function Toolbar(props: ToolbarProps) {
         aria-label="Sticky note"
         data-testid="sticky-note-tool"
         title="Sticky note – or double-click the board"
-        onClick={props.onCreateSticky}
+        onClick={props.disabled ? undefined : props.onCreateSticky}
+        disabled={props.disabled}
+        aria-disabled={props.disabled || undefined}
         style={{
           width: 40,
           height: 40,
           border: 'none',
           background: '#FFF59D',
           borderRadius: 8,
-          cursor: 'pointer',
+          cursor: props.disabled ? 'not-allowed' : 'pointer',
+          opacity: props.disabled ? 0.45 : 1,
           fontSize: 20,
           lineHeight: '40px',
           color: '#5a4b00',

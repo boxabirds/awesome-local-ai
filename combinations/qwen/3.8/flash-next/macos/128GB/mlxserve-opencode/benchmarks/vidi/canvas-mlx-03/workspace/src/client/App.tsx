@@ -9,7 +9,7 @@ import { NoteToolbar } from './objects/NoteToolbar.tsx';
 import { useCamera } from './canvas/useCamera.ts';
 import { useBoardDoc } from './board/useBoardDoc.ts';
 import { useSelection } from './board/useSelection.ts';
-import { ConnectionStatus } from './board/ConnectionStatus.tsx';
+import { ConnectionStatus, type ConnectionState } from './board/ConnectionStatus.tsx';
 import { isValidBoardId } from '../shared/board-id.ts';
 import {
   canZoomIn,
@@ -38,6 +38,18 @@ export interface AppProps {
   doc?: Y.Doc;
   /** Board id from the /b/:boardId route; component tests may omit it. */
   boardId?: string | null;
+  /** Component tests force a connection state (TC-23); production omits it. */
+  connection?: ConnectionState;
+}
+
+/**
+ * Whether the board may be edited. Everything except a board whose storage could
+ * not be read is editable: a reconnecting board still shows its last known state
+ * and its changes are retried (persist.save_failure), while a board that failed to
+ * load would silently write into an empty document.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
 }
 
 /** Read the board id from a /b/<valid id> path, or null (local board). */
@@ -70,10 +82,16 @@ export default function App(props: AppProps = {}) {
 
   const cam = useCamera(viewport);
   const boardId = props.boardId ?? boardIdFromPath(window.location.pathname);
-  const { doc, notes, connection } = useBoardDoc(props.doc, boardId);
+  const { doc, notes, connection } = useBoardDoc(props.doc, boardId, props.connection);
   const sel = useSelection();
   const selRef = useRef(sel);
   selRef.current = sel;
+
+  // Editing gates read the state through a ref so the window-level handlers
+  // registered once can never act on a stale state.
+  const editable = canEdit(connection);
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
 
   const [dragId, setDragId] = useState<string | null>(null);
 
@@ -84,6 +102,7 @@ export default function App(props: AppProps = {}) {
   // Create a note centred on a world point, then select + edit it.
   const createAtWorld = useCallback(
     (world: Point) => {
+      if (!editableRef.current) return; // a board we could not load is not editable
       const id = createSticky(doc, world);
       selRef.current.startEdit(id);
     },
@@ -106,6 +125,7 @@ export default function App(props: AppProps = {}) {
     const onKeyDown = (e: KeyboardEvent) => {
       const s = selRef.current;
       if (e.key === 'Enter') {
+        if (!editableRef.current) return; // editing is locked while the board is unloadable
         if (s.editingId != null || isEditable(e.target)) return;
         if (s.selectedId) {
           e.preventDefault();
@@ -114,6 +134,7 @@ export default function App(props: AppProps = {}) {
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         // While editing, these keys edit text — never delete the note.
         if (s.editingId != null || isEditable(e.target)) return;
+        if (!editableRef.current) return; // deleting is an edit
         if (s.selectedId) {
           e.preventDefault();
           deleteObject(doc, s.selectedId);
@@ -156,7 +177,8 @@ export default function App(props: AppProps = {}) {
             doc={doc}
             zoom={cam.camera.zoom}
             selected={sel.selectedId === n.id}
-            editing={sel.editingId === n.id}
+            editing={editable && sel.editingId === n.id}
+            canEdit={editable}
             onSelect={sel.select}
             onStartEdit={sel.startEdit}
             onEndEdit={sel.endEdit}
@@ -165,7 +187,7 @@ export default function App(props: AppProps = {}) {
         ))}
       </BoardViewport>
 
-      <Toolbar onCreateSticky={onCreateSticky} />
+      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
 
       {showNoteToolbar && selectedNote ? (
         <div
@@ -178,9 +200,11 @@ export default function App(props: AppProps = {}) {
           <NoteToolbar
             color={selectedNote.color}
             onColor={(c: StickyColor) => {
+              if (!editable) return;
               setStickyColor(doc, selectedNote.id, c); // keeps text/position/selection
             }}
             onDelete={() => {
+              if (!editable) return;
               deleteObject(doc, selectedNote.id);
               sel.select(null);
             }}

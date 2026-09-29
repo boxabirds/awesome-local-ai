@@ -19,6 +19,18 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code sent for malformed / undecodable traffic. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/**
+ * Close code sent by a room whose saved board could not be loaded. It is in the
+ * 4500-4599 "try again later" range, so the y-websocket provider keeps retrying
+ * with its normal backoff (design persist.client_status).
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/**
+ * Close code sent to every socket when the room's storage write failed. The
+ * board itself is still readable; unsaved changes are re-sent by the clients on
+ * reconnect (design persist.save_failure).
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }
