@@ -2,7 +2,7 @@ import * as Y from 'yjs';
 import * as syncProtocol from 'y-protocols/sync';
 import * as encoder from 'lib0/encoding';
 import * as decoder from 'lib0/decoding';
-import { decodeMessage, CLOSE_UNSUPPORTED_DATA, MESSAGE_SYNC, MESSAGE_AWARENESS } from '../shared/protocol';
+import { decodeMessage, encodeSyncFrame, encodeAwarenessFrame, CLOSE_UNSUPPORTED_DATA } from '../shared/protocol';
 import { initDoc } from '../shared/board-model';
 
 export class RoomCore {
@@ -35,18 +35,11 @@ export class RoomCore {
     };
   }
 
-  private wrapSync(innerBytes: Uint8Array): Uint8Array {
-    const frame = encoder.createEncoder();
-    encoder.writeVarInt(frame, MESSAGE_SYNC);
-    encoder.writeVarUint8Array(frame, innerBytes);
-    return encoder.toUint8Array(frame);
-  }
-
   private sendSyncStep1(ws: WorkersWebSocket): void {
     if (!this.doc) return;
     const inner = encoder.createEncoder();
     syncProtocol.writeSyncStep1(inner, this.doc);
-    ws.send(this.wrapSync(encoder.toUint8Array(inner)));
+    ws.send(encodeSyncFrame(encoder.toUint8Array(inner)));
   }
 
   private handleMessage(ws: WorkersWebSocket, data: ArrayBuffer | string): void {
@@ -57,18 +50,14 @@ export class RoomCore {
       return;
     }
 
-    if (decoded.kind === 'query-awareness') {
-      return;
-    }
-
     if (decoded.kind === 'sync') {
       if (!this.doc) return;
       try {
-        const dec = decoder.createDecoder(decoded.payload);
+        const dec = decoder.createDecoder(decoded.rest);
         const res = encoder.createEncoder();
         syncProtocol.readSyncMessage(dec, res, this.doc, ws);
         if (encoder.hasContent(res)) {
-          ws.send(this.wrapSync(encoder.toUint8Array(res)));
+          ws.send(encodeSyncFrame(encoder.toUint8Array(res)));
         }
       } catch (e) {
         ws.close(CLOSE_UNSUPPORTED_DATA);
@@ -77,10 +66,7 @@ export class RoomCore {
     }
 
     if (decoded.kind === 'awareness') {
-      const frame = encoder.createEncoder();
-      encoder.writeVarInt(frame, MESSAGE_AWARENESS);
-      encoder.writeVarUint8Array(frame, decoded.payload);
-      const bytes = encoder.toUint8Array(frame);
+      const bytes = encodeAwarenessFrame(decoded.awarenessBytes);
       for (const socket of this.sockets) {
         try {
           socket.send(bytes);
@@ -90,12 +76,17 @@ export class RoomCore {
       }
       return;
     }
+
+    if (decoded.kind === 'query-awareness') {
+      ws.send(encodeAwarenessFrame(new Uint8Array(0)));
+      return;
+    }
   }
 
   private broadcast(update: Uint8Array, origin: unknown): void {
     const inner = encoder.createEncoder();
     syncProtocol.writeUpdate(inner, update);
-    const bytes = this.wrapSync(encoder.toUint8Array(inner));
+    const bytes = encodeSyncFrame(encoder.toUint8Array(inner));
     for (const socket of this.sockets) {
       if (socket === origin) continue;
       try {

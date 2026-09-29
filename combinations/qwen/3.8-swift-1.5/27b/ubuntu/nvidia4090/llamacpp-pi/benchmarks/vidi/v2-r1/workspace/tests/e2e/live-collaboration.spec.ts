@@ -5,14 +5,23 @@ import { test, expect, Page } from '@playwright/test';
  * These tests use two browser contexts to simulate two users on the same board.
  */
 
-async function createBoardContext(browser: any, boardId: string): Promise<Page> {
+const BASE = 'http://localhost:8787';
+
+/** Story 5: boards are created server-side via POST /api/boards. */
+async function createBoard(): Promise<string> {
+  const resp = await fetch(`${BASE}/api/boards`, { method: 'POST' });
+  if (resp.status !== 201) throw new Error(`board creation failed: ${resp.status}`);
+  return ((await resp.json()) as { id: string }).id;
+}
+
+async function openBoardContext(browser: any, boardId: string): Promise<Page> {
   const context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
   });
   const page = await context.newPage();
-  await page.goto(`/${boardId}`);
-  // Wait for connection to establish
-  await page.waitForTimeout(500);
+  await page.goto(`${BASE}/b/${boardId}`);
+  // Wait for the board to open
+  await page.waitForSelector('[data-testid="board-viewport"]', { timeout: 15000 });
   return page;
 }
 
@@ -23,9 +32,9 @@ async function closeContext(page: Page): Promise<void> {
 
 test.describe('TC-22: live edit appears on other page', () => {
   test('note created on A appears on B within 3s', async ({ browser }) => {
-    const boardId = 'test-board-22';
-    const pageA = await createBoardContext(browser, boardId);
-    const pageB = await createBoardContext(browser, boardId);
+    const boardId = await createBoard();
+    const pageA = await openBoardContext(browser, boardId);
+    const pageB = await openBoardContext(browser, boardId);
 
     // Create a note on A
     await pageA.mouse.dblclick(400, 300);
@@ -44,9 +53,9 @@ test.describe('TC-22: live edit appears on other page', () => {
 
 test.describe('TC-23: text edit propagates', () => {
   test('text typed on A appears in B\'s note', async ({ browser }) => {
-    const boardId = 'test-board-23';
-    const pageA = await createBoardContext(browser, boardId);
-    const pageB = await createBoardContext(browser, boardId);
+    const boardId = await createBoard();
+    const pageA = await openBoardContext(browser, boardId);
+    const pageB = await openBoardContext(browser, boardId);
 
     // Create a note on A with text
     await pageA.mouse.dblclick(400, 300);
@@ -72,9 +81,9 @@ test.describe('TC-23: text edit propagates', () => {
 
 test.describe('TC-24: move propagates', () => {
   test('note moved on A appears at new position on B', async ({ browser }) => {
-    const boardId = 'test-board-24';
-    const pageA = await createBoardContext(browser, boardId);
-    const pageB = await createBoardContext(browser, boardId);
+    const boardId = await createBoard();
+    const pageA = await openBoardContext(browser, boardId);
+    const pageB = await openBoardContext(browser, boardId);
 
     // Create a note on A
     await pageA.mouse.dblclick(400, 300);
@@ -111,9 +120,9 @@ test.describe('TC-24: move propagates', () => {
 
 test.describe('TC-25: delete propagates', () => {
   test('note deleted on A disappears on B', async ({ browser }) => {
-    const boardId = 'test-board-25';
-    const pageA = await createBoardContext(browser, boardId);
-    const pageB = await createBoardContext(browser, boardId);
+    const boardId = await createBoard();
+    const pageA = await openBoardContext(browser, boardId);
+    const pageB = await openBoardContext(browser, boardId);
 
     // Create a note on A
     await pageA.mouse.dblclick(400, 300);
@@ -137,9 +146,9 @@ test.describe('TC-25: delete propagates', () => {
 
 test.describe('TC-26: concurrent edits converge', () => {
   test('both pages end up with same text after concurrent edits', async ({ browser }) => {
-    const boardId = 'test-board-26';
-    const pageA = await createBoardContext(browser, boardId);
-    const pageB = await createBoardContext(browser, boardId);
+    const boardId = await createBoard();
+    const pageA = await openBoardContext(browser, boardId);
+    const pageB = await openBoardContext(browser, boardId);
 
     // Create a note on A
     await pageA.mouse.dblclick(400, 300);
@@ -176,8 +185,8 @@ test.describe('TC-26: concurrent edits converge', () => {
 
 test.describe('TC-27: late joiner sees current board', () => {
   test('C connects after A and B created notes, sees all', async ({ browser }) => {
-    const boardId = 'test-board-27';
-    const pageA = await createBoardContext(browser, boardId);
+    const boardId = await createBoard();
+    const pageA = await openBoardContext(browser, boardId);
 
     // A creates 3 notes
     for (let i = 0; i < 3; i++) {
@@ -190,7 +199,7 @@ test.describe('TC-27: late joiner sees current board', () => {
     expect(await pageA.getByTestId('sticky-note').count()).toBe(3);
 
     // C connects late
-    const pageC = await createBoardContext(browser, boardId);
+    const pageC = await openBoardContext(browser, boardId);
 
     // C should see all 3 notes
     await expect(async () => {
@@ -205,12 +214,12 @@ test.describe('TC-27: late joiner sees current board', () => {
 
 test.describe('TC-28: 5 simultaneous editors converge', () => {
   test('5 pages all see the same final state', async ({ browser }) => {
-    const boardId = 'test-board-28';
+    const boardId = await createBoard();
     const pages: Page[] = [];
 
     // Create 5 pages on the same board
     for (let i = 0; i < 5; i++) {
-      pages.push(await createBoardContext(browser, boardId));
+      pages.push(await openBoardContext(browser, boardId));
     }
 
     // Each page creates a note

@@ -3,15 +3,15 @@ import { SELF } from 'cloudflare:test';
 import { newBoardId } from '@shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '@shared/config';
 
-describe('TC-04: invalid board id returns 400', () => {
-  it('GET /api/rooms/bad!id with Upgrade returns 400', async () => {
+describe('TC-04: invalid board id returns 404 (story 5: was 400)', () => {
+  it('GET /api/rooms/bad!id with Upgrade returns 404', async () => {
     const response = await SELF.fetch('http://localhost/api/rooms/bad!id', {
       headers: {
         'Upgrade': 'websocket',
         'Connection': 'Upgrade',
       },
     });
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
   });
 });
 

@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { setCamera } from './helpers/board';
+import { setCamera, openNewBoard } from './helpers/board';
 import { SHORT_TEXT, LONG_TEXT_1000 } from '../fixtures/texts';
 
 // Helper to get the bounding box of a sticky note
@@ -19,7 +19,7 @@ async function getNoteCentre(page: Page, index = 0): Promise<{ x: number; y: num
 
 test.describe('Sticky notes - Brainstorm golden path', () => {
   test('TC-30: create by double-click, type text, note centred at click point', async ({ page }) => {
-    await page.goto('/');
+    await openNewBoard(page);
     
     // Double-click at (400, 300)
     await page.mouse.dblclick(400, 300);
@@ -42,7 +42,7 @@ test.describe('Sticky notes - Brainstorm golden path', () => {
   });
 
   test('TC-31: drag at 50% zoom keeps grabbed point under pointer', async ({ page }) => {
-    await page.goto('/');
+    await openNewBoard(page);
     
     // Set camera to 50% zoom
     // At 50% zoom, the viewport centre shows world (0,0) at screen centre
@@ -83,7 +83,7 @@ test.describe('Sticky notes - Brainstorm golden path', () => {
   });
 
   test('TC-32: drag at 200% zoom, note drawn above overlapped note', async ({ page }) => {
-    await page.goto('/');
+    await openNewBoard(page);
     
     // Set camera to 200% zoom
     // For a 1280x800 viewport at 200% zoom: 
@@ -133,7 +133,7 @@ test.describe('Sticky notes - Brainstorm golden path', () => {
   });
 
   test('TC-33: long text - font fits then clips at minimum size', async ({ page }) => {
-    await page.goto('/');
+    await openNewBoard(page);
     
     // Create a note
     await page.mouse.dblclick(640, 400);
@@ -169,7 +169,7 @@ test.describe('Sticky notes - Brainstorm golden path', () => {
   });
 
   test('TC-34: pan far away, click Sticky note button, note visible at centre', async ({ page }) => {
-    await page.goto('/');
+    await openNewBoard(page);
     
     // Pan far away
     await setCamera(page, -5000, -5000, 1);
@@ -188,7 +188,7 @@ test.describe('Sticky notes - Brainstorm golden path', () => {
   });
 
   test('Golden path: create, type, move, recolour, delete', async ({ page }) => {
-    await page.goto('/');
+    await openNewBoard(page);
     
     // 1. Create by double-click
     await page.mouse.dblclick(400, 300);

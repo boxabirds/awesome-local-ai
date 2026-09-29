@@ -1,5 +1,22 @@
 import { Page, Locator } from '@playwright/test';
 
+/**
+ * Story 5: boards are created server-side. Create a fresh board via the
+ * public API and open its link; returns the board id.
+ */
+export async function openNewBoard(page: Page): Promise<string> {
+  const resp = await page.request.post('/api/boards');
+  if (resp.status() !== 201) {
+    throw new Error(`board creation failed: ${resp.status()}`);
+  }
+  const data = (await resp.json()) as { id: string };
+  await page.goto(`/b/${data.id}`);
+  // Wait until the board is interactive (doc connected, viewport mounted)
+  // so tests can immediately create notes / pan without racing the load.
+  await page.getByTestId('board-viewport').waitFor({ state: 'visible', timeout: 20_000 });
+  return data.id;
+}
+
 export async function getOriginMarker(page: Page): Promise<Locator> {
   return page.getByTestId('origin-marker');
 }

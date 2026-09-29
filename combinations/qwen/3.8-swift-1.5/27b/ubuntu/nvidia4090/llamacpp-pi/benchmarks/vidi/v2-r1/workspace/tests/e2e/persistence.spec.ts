@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { startWrangler, type WranglerProcess } from './helpers/wrangler-process';
-import { newBoardId } from '../../src/shared/board-id';
 
 let wrangler: WranglerProcess;
 
@@ -12,9 +11,16 @@ test.afterAll(async () => {
   await wrangler.kill();
 });
 
+/** Story 5: boards are created server-side via POST /api/boards. */
+async function createBoard(): Promise<string> {
+  const resp = await fetch(`http://127.0.0.1:${wrangler.port}/api/boards`, { method: 'POST' });
+  if (resp.status !== 201) throw new Error(`board creation failed: ${resp.status}`);
+  return ((await resp.json()) as { id: string }).id;
+}
+
 test.describe('TC-19: Reopen after leave', () => {
   test('create note in browser → close tab → new tab same URL → note visible', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const url = `http://127.0.0.1:${wrangler.port}/b/${boardId}`;
     
     // First tab: create a note
@@ -54,7 +60,7 @@ test.describe('TC-19: Reopen after leave', () => {
 
 test.describe('TC-20: Reopen after restart', () => {
   test('kill wrangler; restart with same --persist-to; open board → note visible', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const url = `http://127.0.0.1:${wrangler.port}/b/${boardId}`;
     
     // Create a note
@@ -91,7 +97,7 @@ test.describe('TC-20: Reopen after restart', () => {
 
 test.describe('TC-21: Large board load time', () => {
   test('1000-note board loads in under 5 seconds', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const url = `http://127.0.0.1:${wrangler.port}/b/${boardId}`;
     
     // First, create 1000 notes in a single session

@@ -79,6 +79,11 @@ interface DurableObjectNamespace<T = any> {
 interface DurableObjectStub {
   fetch(input: Request | string, init?: RequestInit): Promise<Response>;
   stub: any;
+  // Durable Object RPC methods (story 5: share.board_api)
+  initialize(): Promise<'created' | 'exists'>;
+  exists(): Promise<boolean>;
+  /** Re-load the live doc from storage (test hook: seed-legacy). */
+  reload(): Promise<void>;
 }
 
 interface Fetcher {

@@ -5,13 +5,22 @@ import { test, expect, Page } from '@playwright/test';
  * These are longer-running tests that verify sustained collaboration.
  */
 
-async function createBoardPage(browser: any, boardId: string): Promise<Page> {
+const BASE = 'http://localhost:8787';
+
+/** Story 5: boards are created server-side via POST /api/boards. */
+async function createBoard(): Promise<string> {
+  const resp = await fetch(`${BASE}/api/boards`, { method: 'POST' });
+  if (resp.status !== 201) throw new Error(`board creation failed: ${resp.status}`);
+  return ((await resp.json()) as { id: string }).id;
+}
+
+async function openBoardPage(browser: any, boardId: string): Promise<Page> {
   const context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
   });
   const page = await context.newPage();
-  await page.goto(`/${boardId}`);
-  await page.waitForTimeout(500);
+  await page.goto(`${BASE}/b/${boardId}`);
+  await page.waitForSelector('[data-testid="board-viewport"]', { timeout: 15000 });
   return page;
 }
 
@@ -21,9 +30,9 @@ async function closePage(page: Page): Promise<void> {
 
 test.describe('TC-29: sustained collaboration', () => {
   test('two editors collaborate for 30s without divergence', async ({ browser }) => {
-    const boardId = 'nightly-29';
-    const pageA = await createBoardPage(browser, boardId);
-    const pageB = await createBoardPage(browser, boardId);
+    const boardId = await createBoard();
+    const pageA = await openBoardPage(browser, boardId);
+    const pageB = await openBoardPage(browser, boardId);
 
     // Create initial notes
     for (let i = 0; i < 5; i++) {
@@ -73,8 +82,8 @@ test.describe('TC-29: sustained collaboration', () => {
 
 test.describe('TC-30: reconnect after network interruption', () => {
   test('editor reconnects and sees latest state', async ({ browser }) => {
-    const boardId = 'nightly-30';
-    const pageA = await createBoardPage(browser, boardId);
+    const boardId = await createBoard();
+    const pageA = await openBoardPage(browser, boardId);
 
     // A creates some notes
     for (let i = 0; i < 3; i++) {
@@ -87,7 +96,7 @@ test.describe('TC-30: reconnect after network interruption', () => {
     expect(await pageA.getByTestId('sticky-note').count()).toBe(3);
 
     // B connects, sees notes, then disconnects
-    const pageB = await createBoardPage(browser, boardId);
+    const pageB = await openBoardPage(browser, boardId);
     await expect(async () => {
       const count = await pageB.getByTestId('sticky-note').count();
       expect(count).toBe(3);
@@ -107,7 +116,7 @@ test.describe('TC-30: reconnect after network interruption', () => {
     expect(await pageA.getByTestId('sticky-note').count()).toBe(5);
 
     // B reconnects
-    const pageB2 = await createBoardPage(browser, boardId);
+    const pageB2 = await openBoardPage(browser, boardId);
 
     // B should see all 5 notes
     await expect(async () => {

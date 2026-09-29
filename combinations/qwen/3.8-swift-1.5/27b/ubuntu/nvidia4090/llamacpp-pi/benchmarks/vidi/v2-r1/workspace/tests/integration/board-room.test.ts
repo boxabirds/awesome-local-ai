@@ -7,7 +7,7 @@ import * as decoder from 'lib0/decoding';
 import { newBoardId } from '@shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '@shared/config';
 import { createSticky, moveObject, setStickyColor, deleteObject, snapshot, getStickyText, initDoc } from '@shared/board-model';
-import { decodeMessage, MESSAGE_SYNC, MESSAGE_AWARENESS } from '@shared/protocol';
+import { decodeMessage, encodeSyncFrame, encodeAwarenessFrame } from '@shared/protocol';
 import { RoomCore } from '../../src/worker/room-core';
 
 interface TestClient {
@@ -32,11 +32,9 @@ function connectClient(room: RoomCore, _boardId: string): TestClient {
 
   const REMOTE_ORIGIN = 'remote';
 
+  // y-websocket framing: varuint(0) + raw sync message.
   function wrapSync(innerBytes: Uint8Array): Uint8Array {
-    const frame = encoder.createEncoder();
-    encoder.writeVarInt(frame, MESSAGE_SYNC);
-    encoder.writeVarUint8Array(frame, innerBytes);
-    return encoder.toUint8Array(frame);
+    return encodeSyncFrame(innerBytes);
   }
 
   // Client receives messages from server
@@ -45,7 +43,7 @@ function connectClient(room: RoomCore, _boardId: string): TestClient {
     const decoded = decodeMessage(data);
 
     if (decoded.kind === 'sync') {
-      const dec = decoder.createDecoder(decoded.payload);
+      const dec = decoder.createDecoder(decoded.rest);
       const res = encoder.createEncoder();
       syncProtocol.readSyncMessage(dec, res, doc, REMOTE_ORIGIN);
       if (encoder.hasContent(res)) {
@@ -63,10 +61,7 @@ function connectClient(room: RoomCore, _boardId: string): TestClient {
   awareness.on('update', ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }) => {
     if (added.length > 0 || updated.length > 0 || removed.length > 0) {
       const bytes = awarenessProtocol.encodeAwarenessUpdate(awareness, added.concat(updated, removed));
-      const frame = encoder.createEncoder();
-      encoder.writeVarInt(frame, MESSAGE_AWARENESS);
-      encoder.writeVarUint8Array(frame, bytes);
-      clientWs.send(encoder.toUint8Array(frame));
+      clientWs.send(encodeAwarenessFrame(bytes));
     }
   });
 
@@ -365,7 +360,6 @@ describe('TC-15: malformed traffic', () => {
 
     const frame = encoder.createEncoder();
     encoder.writeVarInt(frame, 9);
-    encoder.writeVarUint8Array(frame, new Uint8Array([1, 2, 3]));
     a.ws.send(encoder.toUint8Array(frame));
 
     await TICK(100);
@@ -403,13 +397,11 @@ describe('TC-15: malformed traffic', () => {
     const b = connectClient(room, boardId);
     await TICK(100);
 
-    const frame = encoder.createEncoder();
-    encoder.writeVarInt(frame, 0);
-    const innerFrame = encoder.createEncoder();
-    encoder.writeVarInt(innerFrame, 2);
-    encoder.writeVarUint8Array(innerFrame, new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF]));
-    encoder.writeVarUint8Array(frame, encoder.toUint8Array(innerFrame));
-    a.ws.send(encoder.toUint8Array(frame));
+    // Sync frame (outer type 0) carrying an Update with a garbage payload
+    const inner = encoder.createEncoder();
+    encoder.writeVarInt(inner, 2);
+    encoder.writeVarUint8Array(inner, new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF]));
+    a.ws.send(encodeSyncFrame(encoder.toUint8Array(inner)));
 
     await TICK(100);
 
@@ -431,10 +423,7 @@ describe('TC-16: awareness relay', () => {
     await TICK(100);
 
     const awarenessBytes = new Uint8Array([1, 2, 3, 4, 5]);
-    const frame = encoder.createEncoder();
-    encoder.writeVarInt(frame, MESSAGE_AWARENESS);
-    encoder.writeVarUint8Array(frame, awarenessBytes);
-    a.ws.send(encoder.toUint8Array(frame));
+    a.ws.send(encodeAwarenessFrame(awarenessBytes));
 
     await TICK(100);
 

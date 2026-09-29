@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { startWrangler, type WranglerProcess } from './helpers/wrangler-process';
-import { newBoardId } from '../../src/shared/board-id';
 
 /**
  * TC-24: Broken board → red badge → repair → reload → editable.
@@ -12,16 +11,24 @@ import { newBoardId } from '../../src/shared/board-id';
 let wrangler: WranglerProcess;
 
 test.beforeAll(async () => {
-  wrangler = await startWrangler();
+  // TEST_HOOKS enables the /__test/boards/:id/* corrupt/repair routes.
+  wrangler = await startWrangler({ vars: { TEST_HOOKS: '1' } });
 });
 
 test.afterAll(async () => {
   await wrangler.kill();
 });
 
+/** Story 5: boards are created server-side via POST /api/boards. */
+async function createBoard(): Promise<string> {
+  const resp = await fetch(`http://127.0.0.1:${wrangler.port}/api/boards`, { method: 'POST' });
+  if (resp.status !== 201) throw new Error(`board creation failed: ${resp.status}`);
+  return ((await resp.json()) as { id: string }).id;
+}
+
 test.describe('TC-24: Broken board recovery', () => {
   test('broken board shows red badge; repair → reload → editable', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const url = `http://127.0.0.1:${wrangler.port}/b/${boardId}`;
     
     // Step 1: Create a board with a note
@@ -54,7 +61,7 @@ test.describe('TC-24: Broken board recovery', () => {
     // or fall back to directly corrupting the SQLite file.
     
     // Let's try to use the fetch API to hit the test endpoint
-    const corruptResp = await fetch(`http://127.0.0.1:${wrangler.port}/__test/corrupt/${boardId}`, {
+    const corruptResp = await fetch(`http://127.0.0.1:${wrangler.port}/__test/boards/${boardId}/corrupt-snapshot`, {
       method: 'POST',
     });
     
@@ -82,7 +89,7 @@ test.describe('TC-24: Broken board recovery', () => {
     await expect(createBtn).toBeDisabled();
     
     // Step 4: Repair the board via the test endpoint
-    const repairResp = await fetch(`http://127.0.0.1:${wrangler.port}/__test/repair/${boardId}`, {
+    const repairResp = await fetch(`http://127.0.0.1:${wrangler.port}/__test/boards/${boardId}/repair`, {
       method: 'POST',
     });
     expect(repairResp.ok).toBe(true);

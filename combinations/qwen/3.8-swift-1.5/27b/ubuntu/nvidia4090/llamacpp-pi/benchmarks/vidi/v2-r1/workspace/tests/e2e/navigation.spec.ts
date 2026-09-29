@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { getOriginMarker, getZoomLabel, setCamera, clickResetView } from './helpers/board';
+import { getOriginMarker, getZoomLabel, setCamera, clickResetView, openNewBoard } from './helpers/board';
 import { UNBOUNDED_PAN_TESTED_EXTENT, GRID_SPACING_WORLD } from '../../src/shared/config';
 
 test.describe('Story 1: Pan and zoom around an infinite board', () => {
@@ -7,7 +7,7 @@ test.describe('Story 1: Pan and zoom around an infinite board', () => {
   test.describe('Workflow 1: First visit navigation', () => {
 
     test('TC-28: hint visible on load, removed after drag', async ({ page }) => {
-      await page.goto('/');
+      await openNewBoard(page);
 
       // Hint should be visible
       const hint = page.getByTestId('navigation-hint');
@@ -29,7 +29,7 @@ test.describe('Story 1: Pan and zoom around an infinite board', () => {
     });
 
     test('TC-23: mouse drag moves origin marker by exact amount', async ({ page }) => {
-      await page.goto('/');
+      await openNewBoard(page);
 
       const origin = await getOriginMarker(page);
       const beforeBox = await origin.boundingBox();
@@ -59,7 +59,7 @@ test.describe('Story 1: Pan and zoom around an infinite board', () => {
     });
 
     test('TC-24: Ctrl+wheel over a dot keeps it under the pointer, page zoom unchanged', async ({ page }) => {
-      await page.goto('/');
+      await openNewBoard(page);
 
       const origin = await getOriginMarker(page);
       const beforeBox = await origin.boundingBox();
@@ -97,7 +97,7 @@ test.describe('Story 1: Pan and zoom around an infinite board', () => {
   test.describe('Workflow 2: Limits and recovery', () => {
 
     test('TC-25: click + until disabled, label ends at 400%', async ({ page }) => {
-      await page.goto('/');
+      await openNewBoard(page);
 
       const zoomIn = page.getByLabel('Zoom in');
 
@@ -118,7 +118,7 @@ test.describe('Story 1: Pan and zoom around an infinite board', () => {
     });
 
     test('TC-26: from far away at zoom 4, Reset view returns to 100% centred', async ({ page }) => {
-      await page.goto('/');
+      await openNewBoard(page);
 
       // Jump far away and set zoom to 4
       await setCamera(page, UNBOUNDED_PAN_TESTED_EXTENT, UNBOUNDED_PAN_TESTED_EXTENT, 4);
@@ -150,7 +150,7 @@ test.describe('Story 1: Pan and zoom around an infinite board', () => {
 
   test.describe('Workflow 3: Far travel', () => {
     test('TC-27: at 1,000,000 units, drag is exact and grid spacing is correct', async ({ page }) => {
-      await page.goto('/');
+      await openNewBoard(page);
 
       // Jump to 1,000,000 units away
       await setCamera(page, UNBOUNDED_PAN_TESTED_EXTENT, UNBOUNDED_PAN_TESTED_EXTENT, 1.0);
@@ -193,7 +193,7 @@ test.describe('Story 1: Pan and zoom around an infinite board', () => {
 
   test.describe('TC-31: Board gestures do not zoom the page', () => {
     test('Ctrl+wheel and Ctrl+=/-/0 do not change page zoom', async ({ page }) => {
-      await page.goto('/');
+      await openNewBoard(page);
 
       const scaleBefore = await page.evaluate(() => window.visualViewport?.scale ?? 1);
       const dprBefore = await page.evaluate(() => window.devicePixelRatio);

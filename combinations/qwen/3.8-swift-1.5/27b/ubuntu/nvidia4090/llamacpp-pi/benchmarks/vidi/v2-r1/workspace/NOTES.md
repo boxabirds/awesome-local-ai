@@ -1,5 +1,98 @@
 # NOTES
 
+## Story 5: Share a board with others using a link
+
+### Decisions made
+
+1. **y-websocket wire protocol framing (critical)**: The server speaks the
+   `y-websocket` binary framing, not a custom one. Outer frame = `varuint(type)`
+   where `0`=messageSync, `1`=messageAwareness, `2`=messageAuth, `3`=queryAwareness.
+   - **type 0 (sync)**: `varuint(0)` + the raw `y-protocols/sync` message
+     appended **directly** (NOT wrapped in a `varuint8array`). The raw sync
+     message is itself `varuint(syncType) + payload` (0=SyncStep1, 1=SyncStep2,
+     2=Update). The original code wrapped sync in an extra length prefix, which
+     `y-websocket` does not expect — this was the root cause of "Connecting…"
+     never resolving.
+   - **type 1 (awareness)**: `varuint(1)` + `varuint8array(awarenessBytes)`.
+   - **type 3 (query-awareness)**: empty payload; server answers with a type-1
+     frame carrying its awareness state.
+   `encodeSyncFrame`/`encodeAwarenessFrame` in `src/shared/protocol.ts` produce
+   exact-size `Uint8Array`s (so `.buffer` is safe to send).
+
+2. **WebSocket DO RPC pattern (workerd local mode)**: The `BoardRoom.fetch` 101
+   response must use `server.accept()` on the `WebSocketPair` and return
+   `new Response(null, { status: 101, webSocket: client })` (the *client* half,
+   `pair[0]`). `ctx.acceptWebSocket()` + returning the client half yields no
+   message flow; returning `body: client` throws `RangeError`; returning
+   `webSocket: server` (the accepted half) throws "Can't return WebSocket in a
+   Response after calling accept()".
+
+3. **`ctx.getWebSockets()` is unreliable in workerd local mode**: With the
+   client/server `WebSocketPair` split it returns `[]` (0 sockets), so broadcast
+   and awareness relay silently no-op. `BoardRoom` therefore maintains its own
+   `private sockets = new Set<WorkersWebSocket>()` (added on connect, removed on
+   close/error) and iterates that for broadcast/relay/fail-close.
+
+4. **lib0 `Decoder` uses `pos`, not `offset`**: The installed `lib0` `Decoder`
+   object exposes `arr` and `pos`. Code that tracks a read offset must cast
+   `(dec as unknown as { pos: number }).pos`.
+
+5. **`wrangler dev --var KEY=VALUE` does not reach the worker runtime** in
+   wrangler 4.14x: the binding is listed at startup but reads as `undefined` at
+   request time. `startWrangler` therefore writes a generated config file (a copy
+   of `wrangler.jsonc` with `vars` merged in, placed in the project root so its
+   relative `main`/`assets` paths resolve) and passes it via `--config`. This is
+   how `TEST_HOOKS=1` is enabled for the legacy-board e2e fixture.
+
+6. **`seed-legacy` needs a `reload()` RPC**: The seed's `stub.get(id)`
+   instantiates the DO and loads an (empty) doc *before* the seed writes its
+   `updates` row. A subsequent `stub.reload()` re-runs `loadDoc()` so the seeded
+   content is live when the client opens the board. `reload()` is gated behind
+   `TEST_HOOKS` (only the seed hook calls it).
+
+7. **BLOB SQL params crossing a JSON boundary arrive as `number[]`**: The
+   `__test/storage` `query`/`execute` ops pass params straight to
+   `ctx.storage.sql.exec`, but workerd SQLite needs `ArrayBuffer` for BLOB
+   bindings. `toSqlParams()` converts array params to `ArrayBuffer`; without it
+   the seeded update is stored corrupted and quarantined on load with
+   "Unexpected end of array".
+
+8. **`BoardPageState.checking` is bare (no boardId)**: Matches the design
+   contract exactly; `BoardPage` injects `boardId` on the `ready` transition.
+
+9. **Worker gates `/api/rooms/:id` with `stub.exists()`**: Prevents the
+   "Isolated storage failed" issue in `vitest-pool-workers` where a fresh DO
+   (no tables) touched on the main path leaves a `.sqlite-shm` file. Malformed
+   ids are rejected with 404 (was 400) before touching the namespace, so they
+   never instantiate a DO (TC-07).
+
+10. **Router URL scheme is `/b/:id`** (not `/boards/:id`): `parsePathname`
+    matches `/^\/b\/([^/]+)$/`. All e2e specs and the share link use this scheme.
+
+11. **`openNewBoard` waits for `board-viewport`**: Creating a board via the API
+    and navigating to `/b/:id` is async (existence check + doc connect). Tests
+    that immediately double-click to create a note race the load and see no
+    note. The helper now waits for the `board-viewport` testid to be visible
+    before returning. This fixed 8 sticky-notes/navigation regressions that the
+    routing change had introduced.
+
+### Test results
+
+- **Story 5 e2e (`share.spec.ts`)**: all pass on chromium (TC-26, 27, 28, 29,
+  31) and firefox (TC-27, 29; the rest are chromium-only). WebKit cannot launch
+  in this environment (missing `libavif13`, no sudo) — a pre-existing limitation.
+- **vitest**: unit 92 passed, component 64 passed, integration 48 passed / 3
+  skipped.
+- **typecheck** and **build** pass.
+- **Pre-existing e2e failures (not introduced by story 5)**: The story-4 baseline
+  had 12 failing e2e tests (live-collaboration ×7, nightly-collaboration ×2,
+  persistence ×3). Story 5's protocol/broadcast work fixed 6 of those (live-collab
+  TC-22/27/28, both nightly, persistence TC-19). The remaining 6 (live-collab
+  TC-23/24/25/26, persistence TC-20/21) are a strict subset of the baseline
+  failures and are out of scope for story 5. Notably, live-collab TC-23 asserts
+  `sticky-text-editor` on the *observer* page, whose note is in display mode
+  (`sticky-text`) — a test-authoring bug carried over from story 3.
+
 ## Story 2: Capture ideas on sticky notes and rearrange them
 
 ### Decisions made

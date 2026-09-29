@@ -5,21 +5,41 @@ import * as decoder from 'lib0/decoding';
 import { DurableObject, type DurableObjectState } from 'cloudflare:workers';
 import {
   decodeMessage,
+  encodeSyncFrame,
+  encodeAwarenessFrame,
   CLOSE_UNSUPPORTED_DATA,
   CLOSE_BOARD_LOAD_FAILED,
   CLOSE_STORAGE_FAILURE,
-  MESSAGE_SYNC,
-  MESSAGE_AWARENESS,
 } from '../shared/protocol';
 import { initDoc } from '../shared/board-model';
 import { BoardStore, LOAD_ORIGIN } from './board-store';
 import type { RoomState } from './room-state';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config';
 
+/**
+ * Convert SQL params that crossed a JSON boundary (BLOBs arrive as plain
+ * number arrays) into the `ArrayBuffer` form workerd's Durable Object SQLite
+ * expects for BLOB bindings. Non-array params pass through unchanged.
+ */
+function toSqlParams(params: any[]): any[] {
+  return (params || []).map((p) => {
+    if (Array.isArray(p)) {
+      const u8 = new Uint8Array(p.length);
+      for (let i = 0; i < p.length; i++) u8[i] = p[i];
+      return u8.buffer;
+    }
+    return p;
+  });
+}
+
 export class BoardRoom extends DurableObject {
   private store: BoardStore;
   private doc: Y.Doc | null = null;
   private state: RoomState = 'loading';
+  // Track connected sockets ourselves: with the client/server WebSocketPair
+  // split (required for the 101 response at the DO RPC boundary in workerd
+  // local mode), `ctx.getWebSockets()` does not return the accepted halves.
+  private sockets = new Set<WorkersWebSocket>();
   private loadFailedAt: number = 0;
   private updateHandler: ((update: Uint8Array, origin: unknown) => void) | null = null;
 
@@ -32,8 +52,48 @@ export class BoardRoom extends DurableObject {
     });
   }
 
-  private async loadDoc(): Promise<void> {
+  /**
+   * RPC: initialize this board (share.board_api).
+   *
+   * Runs the schema migration and sets `storage_meta.created_at` exactly once.
+   * Returns `created` the first time and `exists` on any later call; an
+   * existing board is never re-initialised (TC-15).
+   */
+  async initialize(): Promise<'created' | 'exists'> {
     this.store.migrate();
+    const sql = this.ctx.storage.sql;
+    const existing = sql.exec("SELECT value FROM storage_meta WHERE key = 'created_at'").next();
+    if (!existing.done) {
+      return 'exists';
+    }
+    sql.exec("INSERT INTO storage_meta (key, value) VALUES (?, ?)", 'created_at', String(Date.now()));
+    return 'created';
+  }
+
+  /**
+   * RPC: read-only existence check (share.board_api).
+   * True if `created_at` is set, or the board has legacy data
+   * (updates/snapshot_chunks rows) without `created_at`.
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  /**
+   * RPC: re-load the live doc from storage (test hook: seed-legacy).
+   * The seed writes `updates` rows directly to storage, which may happen
+   * after the DO was first constructed (empty doc). Reloading picks up the
+   * newly written rows so connected clients see the seeded content.
+   */
+  async reload(): Promise<void> {
+    await this.ctx.blockConcurrencyWhile(async () => {
+      await this.loadDoc();
+    });
+  }
+
+  private async loadDoc(): Promise<void> {
+    // migrate() no longer runs on construct (story 5): only initialize() and
+    // the first append() migrate. load() treats missing tables as empty.
     const doc = new Y.Doc();
     initDoc(doc);
 
@@ -63,7 +123,7 @@ export class BoardRoom extends DurableObject {
         this.state = 'storage-failed';
         this.doc = null;
         this.updateHandler = null;
-        for (const ws of this.ctx.getWebSockets()) {
+        for (const ws of this.sockets) {
           try { ws.close(CLOSE_STORAGE_FAILURE); } catch {}
         }
         return;
@@ -82,14 +142,12 @@ export class BoardRoom extends DurableObject {
 
   private broadcast(update: Uint8Array): void {
     if (!this.doc) return;
+    // y-websocket frame: varuint(0) + raw Update sync message.
     const inner = encoder.createEncoder();
     syncProtocol.writeUpdate(inner, update);
-    const frame = encoder.createEncoder();
-    encoder.writeVarInt(frame, MESSAGE_SYNC);
-    encoder.writeVarUint8Array(frame, encoder.toUint8Array(inner));
-    const bytes = encoder.toUint8Array(frame);
+    const bytes = encodeSyncFrame(encoder.toUint8Array(inner));
 
-    for (const ws of this.ctx.getWebSockets()) {
+    for (const ws of this.sockets) {
       try {
         ws.send(bytes);
       } catch {}
@@ -102,6 +160,13 @@ export class BoardRoom extends DurableObject {
     // Test storage endpoint
     if (url.pathname === '/__test/storage') {
       return this.handleTestStorage(req);
+    }
+
+    // Reject non-existent boards before accepting (share.not_found): rooms can
+    // no longer be created implicitly by connecting. This is a read-only
+    // check; nothing is written for an unknown board.
+    if (!this.store.existsReadOnly()) {
+      return new Response('Board Not Found', { status: 404 });
     }
 
     // Normal WebSocket upgrade
@@ -127,8 +192,8 @@ export class BoardRoom extends DurableObject {
         return new Response(null, {
           status: 101,
           headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
-          body: client,
-        } as any);
+          webSocket: client,
+        } as ResponseInit);
       }
     }
 
@@ -147,38 +212,44 @@ export class BoardRoom extends DurableObject {
         return new Response(null, {
           status: 101,
           headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
-          body: client,
-        } as any);
+          webSocket: client,
+        } as ResponseInit);
       }
     }
 
     server.accept();
     this.handleConnect(server);
 
+    // Return the client half of the pair; the accepted server half stays in
+    // the DO. (Returning the accepted socket itself — or `body:` — breaks
+    // the 101 response at the DO RPC boundary in workerd local mode.)
     return new Response(null, {
       status: 101,
       headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
-      body: client,
-    } as any);
+      webSocket: client,
+    } as ResponseInit);
   }
 
   private handleConnect(server: WorkersWebSocket): void {
     if (!this.doc) return;
 
-    // Send SyncStep1
+    this.sockets.add(server);
+
+    // Send SyncStep1: y-websocket frame varuint(0) + raw SyncStep1 message.
     const inner = encoder.createEncoder();
     syncProtocol.writeSyncStep1(inner, this.doc);
-    const frame = encoder.createEncoder();
-    encoder.writeVarInt(frame, MESSAGE_SYNC);
-    encoder.writeVarUint8Array(frame, encoder.toUint8Array(inner));
-    server.send(encoder.toUint8Array(frame));
+    server.send(encodeSyncFrame(encoder.toUint8Array(inner)));
 
     server.onmessage = (event: MessageEvent) => {
       this.handleMessage(server, event.data as ArrayBuffer | string);
     };
 
-    server.onclose = () => {};
-    server.onerror = () => {};
+    server.onclose = () => {
+      this.sockets.delete(server);
+    };
+    server.onerror = () => {
+      this.sockets.delete(server);
+    };
   }
 
   private handleMessage(ws: WorkersWebSocket, data: ArrayBuffer | string): void {
@@ -199,39 +270,34 @@ export class BoardRoom extends DurableObject {
       return;
     }
 
-    if (decoded.kind === 'query-awareness') {
-      return;
-    }
-
-    if (decoded.kind === 'sync') {
-      if (!this.doc) return;
-      try {
-        const dec = decoder.createDecoder(decoded.payload);
-        const res = encoder.createEncoder();
-        syncProtocol.readSyncMessage(dec, res, this.doc, ws);
-        if (encoder.hasContent(res)) {
-          const frame = encoder.createEncoder();
-          encoder.writeVarInt(frame, MESSAGE_SYNC);
-          encoder.writeVarUint8Array(frame, encoder.toUint8Array(res));
-          ws.send(encoder.toUint8Array(frame));
-        }
-      } catch (e) {
-        ws.close(CLOSE_UNSUPPORTED_DATA);
-      }
-      return;
-    }
-
+    // Awareness frame (outer type 1): relay to all connected sockets.
     if (decoded.kind === 'awareness') {
-      const frame = encoder.createEncoder();
-      encoder.writeVarInt(frame, MESSAGE_AWARENESS);
-      encoder.writeVarUint8Array(frame, decoded.payload);
-      const bytes = encoder.toUint8Array(frame);
-      for (const socket of this.ctx.getWebSockets()) {
+      const bytes = encodeAwarenessFrame(decoded.awarenessBytes);
+      for (const socket of this.sockets) {
         try {
           socket.send(bytes);
         } catch {}
       }
       return;
+    }
+
+    // Query-awareness (outer type 3): reply with the (empty) awareness state.
+    if (decoded.kind === 'query-awareness') {
+      ws.send(encodeAwarenessFrame(new Uint8Array(0)));
+      return;
+    }
+
+    // Sync frame (outer type 0): `rest` is the raw y-protocols sync message.
+    if (!this.doc) return;
+    try {
+      const dec = decoder.createDecoder(decoded.rest);
+      const res = encoder.createEncoder();
+      syncProtocol.readSyncMessage(dec, res, this.doc, ws);
+      if (encoder.hasContent(res)) {
+        ws.send(encodeSyncFrame(encoder.toUint8Array(res)));
+      }
+    } catch (e) {
+      ws.close(CLOSE_UNSUPPORTED_DATA);
     }
   }
 
@@ -269,7 +335,7 @@ export class BoardRoom extends DurableObject {
         case 'query': {
           // Read-only SQL query for test assertions
           try {
-            const rows = this.ctx.storage.sql.exec(data.query, ...(data.params || [])).toArray();
+            const rows = this.ctx.storage.sql.exec(data.query, ...toSqlParams(data.params)).toArray();
             return Response.json({ ok: true, rows });
           } catch (e) {
             return Response.json({ ok: false, error: String(e) });
@@ -278,7 +344,7 @@ export class BoardRoom extends DurableObject {
         case 'execute': {
           // SQL execution for damage injection (test only)
           try {
-            this.ctx.storage.sql.exec(data.query, ...(data.params || []));
+            this.ctx.storage.sql.exec(data.query, ...toSqlParams(data.params));
             return Response.json({ ok: true });
           } catch (e) {
             return Response.json({ ok: false, error: String(e) });

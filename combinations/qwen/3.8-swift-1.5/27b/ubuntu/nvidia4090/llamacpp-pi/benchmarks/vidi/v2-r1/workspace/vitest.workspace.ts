@@ -37,7 +37,7 @@ export default defineWorkspace([
       poolOptions: {
         workers: {
           main: 'src/worker/index.ts',
-          compatibilityDate: '2024-01-01',
+          compatibilityDate: '2025-01-01',
           wrangler: {
             configPath: 'wrangler.jsonc',
           },

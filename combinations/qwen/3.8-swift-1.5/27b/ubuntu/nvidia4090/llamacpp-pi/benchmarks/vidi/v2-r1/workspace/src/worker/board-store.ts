@@ -82,9 +82,39 @@ export class BoardStore {
   private storage: DurableObjectStorage;
   private rowCount = 0;
   private byteTotal = 0;
+  private migrated = false;
 
   constructor(storage: DurableObjectStorage) {
     this.storage = storage;
+  }
+
+  /**
+   * Read-only existence check (share.board_api).
+   *
+   * A board exists if `storage_meta.created_at` is set, **or** (legacy,
+   * share.legacy_boards) it has at least one row in `updates` or
+   * `snapshot_chunks`. This only reads: it queries `sqlite_master` first and
+   * never creates tables, so probing an unknown link leaves no storage behind.
+   */
+  existsReadOnly(): boolean {
+    const sql = this.storage.sql;
+    const tables = new Set(
+      sql.exec("SELECT name FROM sqlite_master WHERE type = 'table'").toArray().map((row: any) => row.name),
+    );
+
+    if (tables.has('storage_meta')) {
+      const row = sqlOne(sql, "SELECT value FROM storage_meta WHERE key = 'created_at'");
+      if (row) return true;
+    }
+    if (tables.has('updates')) {
+      const row = sqlOne(sql, 'SELECT COUNT(*) as cnt FROM updates');
+      if (row && row.cnt > 0) return true;
+    }
+    if (tables.has('snapshot_chunks')) {
+      const row = sqlOne(sql, 'SELECT COUNT(*) as cnt FROM snapshot_chunks');
+      if (row && row.cnt > 0) return true;
+    }
+    return false;
   }
 
   migrate(): void {
@@ -104,9 +134,16 @@ export class BoardStore {
     const countRow = sqlOne(sql, 'SELECT COUNT(*) as cnt, COALESCE(SUM(bytes), 0) as total FROM updates');
     this.rowCount = countRow ? countRow.cnt : 0;
     this.byteTotal = countRow ? countRow.total : 0;
+
+    this.migrated = true;
   }
 
   append(update: Uint8Array): void {
+    // migrate() no longer runs on construct; run it lazily before the first
+    // append (legacy boards already have tables, so this is a no-op for them).
+    if (!this.migrated) {
+      this.migrate();
+    }
     const sql = this.storage.sql;
     sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', toBuffer(update), update.length);
     this.rowCount++;
@@ -117,8 +154,20 @@ export class BoardStore {
     const sql = this.storage.sql;
 
     try {
-      // Load snapshot
-      const chunkRows = sql.exec('SELECT data FROM snapshot_chunks ORDER BY idx').toArray();
+      // Missing tables mean an empty board (a board that was never
+      // initialized and never had data). Treat as empty without creating
+      // tables, so read paths never write storage.
+      const tables = new Set(
+        sql.exec("SELECT name FROM sqlite_master WHERE type = 'table'").toArray().map((row: any) => row.name),
+      );
+      if (!tables.has('snapshot_chunks') && !tables.has('updates')) {
+        return { ok: true, quarantined: 0 };
+      }
+
+      // Load snapshot (table may be absent on legacy boards)
+      const chunkRows = tables.has('snapshot_chunks')
+        ? sql.exec('SELECT data FROM snapshot_chunks ORDER BY idx').toArray()
+        : [];
       const chunks: Uint8Array[] = chunkRows.map((row: any) => row.data as Uint8Array);
 
       if (chunks.length > 0) {
@@ -135,13 +184,17 @@ export class BoardStore {
         }
       }
 
-      // Get snapshot_through_seq
-      const throughRow = sqlOne(sql, "SELECT value FROM storage_meta WHERE key = 'snapshot_through_seq'");
+      // Get snapshot_through_seq (table may be absent on legacy boards)
+      const throughRow = tables.has('storage_meta')
+        ? sqlOne(sql, "SELECT value FROM storage_meta WHERE key = 'snapshot_through_seq'")
+        : null;
       const throughSeq = throughRow ? parseInt(throughRow.value, 10) : 0;
 
-      // Load and apply log rows after throughSeq
+      // Load and apply log rows after throughSeq (table may be absent)
       let quarantined = 0;
-      const updateRows = sql.exec('SELECT seq, data FROM updates WHERE seq > ? ORDER BY seq', throughSeq).toArray();
+      const updateRows = tables.has('updates')
+        ? sql.exec('SELECT seq, data FROM updates WHERE seq > ? ORDER BY seq', throughSeq).toArray()
+        : [];
 
       for (const row of updateRows) {
         const seq = row.seq;

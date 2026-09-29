@@ -1,5 +1,7 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { createBoard } from './create-board';
+import { handleSeedLegacyBoard } from './test-hooks';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
@@ -11,12 +13,20 @@ const worker = {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
 
+    // Board API: POST /api/boards, GET /api/boards/:id (share.board_api)
+    if (url.pathname === '/api/boards' || url.pathname.startsWith('/api/boards/')) {
+      return handleBoardApi(req, env);
+    }
+
     // Route /api/rooms/:boardId to the BoardRoom Durable Object
     if (url.pathname.startsWith('/api/rooms/')) {
       const boardId = url.pathname.slice('/api/rooms/'.length);
 
+      // Malformed ids are rejected with 404 (story 5: was 400) before
+      // touching the namespace, so malformed ids never instantiate a
+      // Durable Object (TC-07).
       if (!isValidBoardId(boardId)) {
-        return new Response('Bad Request', { status: 400 });
+        return new Response('Board Not Found', { status: 404 });
       }
 
       const upgradeHeader = req.headers.get('Upgrade');
@@ -26,6 +36,14 @@ const worker = {
 
       const id = env.BOARD_ROOM.idFromName(boardId);
       const stub = env.BOARD_ROOM.get(id);
+
+      // Unknown boards are rejected with 404 before the upgrade is handed to
+      // the room (share.not_found). BoardRoom.fetch re-checks existence as a
+      // second line of defence. Nothing is written for an unknown board.
+      const exists = await stub.exists();
+      if (!exists) {
+        return new Response('Board Not Found', { status: 404 });
+      }
       return stub.fetch(req);
     }
 
@@ -66,6 +84,12 @@ const worker = {
 
 async function handleTestHooks(req: Request, env: Env): Promise<Response> {
   const url = new URL(req.url);
+
+  // POST /__test/boards/:id/seed-legacy (story 5: share.legacy_boards fixture)
+  const seedMatch = url.pathname.match(/^\/__test\/boards\/([A-Za-z0-9_-]{22})\/seed-legacy$/);
+  if (seedMatch && req.method === 'POST') {
+    return handleSeedLegacyBoard(req, env, seedMatch[1]);
+  }
 
   // POST /__test/boards/:id/corrupt-snapshot
   const corruptMatch = url.pathname.match(/^\/__test\/boards\/([A-Za-z0-9_-]{22})\/corrupt-snapshot$/);
@@ -144,6 +168,60 @@ async function handleTestHooks(req: Request, env: Env): Promise<Response> {
   }
 
   return new Response('Not Found', { status: 404 });
+}
+
+/**
+ * Handle the board API (share.board_api).
+ *
+ * - POST /api/boards → 201 {"id"} / 500 {"error":"create_failed"}
+ * - GET  /api/boards/:id → 200 {"id"} / 404 {"error":"not_found"}
+ *   (unknown **and** malformed ids get the same 404; nothing is leaked)
+ * - any other method on /api/boards → 405
+ */
+async function handleBoardApi(req: Request, env: Env): Promise<Response> {
+  const url = new URL(req.url);
+
+  if (url.pathname === '/api/boards') {
+    if (req.method === 'POST') {
+      return handlePostBoards(env);
+    }
+    return new Response('Method Not Allowed', { status: 405 });
+  }
+
+  if (url.pathname.startsWith('/api/boards/')) {
+    if (req.method !== 'GET') {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
+    const boardId = decodeURIComponent(url.pathname.slice('/api/boards/'.length));
+
+    // Validate before touching the namespace: malformed ids never reach the
+    // Durable Object (TC-07).
+    if (!isValidBoardId(boardId)) {
+      return Response.json({ error: 'not_found' }, { status: 404 });
+    }
+
+    const id = env.BOARD_ROOM.idFromName(boardId);
+    const stub = env.BOARD_ROOM.get(id);
+    const exists = await stub.exists();
+    if (!exists) {
+      return Response.json({ error: 'not_found' }, { status: 404 });
+    }
+    return Response.json({ id: boardId }, { status: 200 });
+  }
+
+  return new Response('Method Not Allowed', { status: 405 });
+}
+
+/**
+ * POST /api/boards handler. Exported so tests can inject a failing RPC stub
+ * and verify the 500 create_failed mapping (TC-12).
+ */
+export async function handlePostBoards(env: Env): Promise<Response> {
+  const result = await createBoard(env);
+  if (result.ok) {
+    return Response.json({ id: result.id }, { status: 201 });
+  }
+  return Response.json({ error: result.reason }, { status: 500 });
 }
 
 export default worker;
