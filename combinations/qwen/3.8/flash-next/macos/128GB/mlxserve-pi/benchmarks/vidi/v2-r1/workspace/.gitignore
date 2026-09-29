@@ -1,0 +1,8 @@
+node_modules
+dist
+.wrangler
+.playwright-cache
+playwright-report
+test-results
+*.local
+.DS_Store

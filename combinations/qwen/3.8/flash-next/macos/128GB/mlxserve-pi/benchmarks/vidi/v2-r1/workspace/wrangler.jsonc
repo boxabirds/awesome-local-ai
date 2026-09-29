@@ -1,0 +1,11 @@
+// vidi6 static-asset serving. The Worker `main` (Durable Objects, yjs sync)
+// arrives in story 3; for now wrangler only serves the built client.
+{
+  "name": "vidi6",
+  "compatibility_date": "2025-09-17",
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": false
+  }
+}
