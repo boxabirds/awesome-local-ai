@@ -1,4 +1,5 @@
 import {
+  type MutableRefObject,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -8,7 +9,9 @@ import {
   useRef,
   useState,
 } from 'react';
+import type { ObjectSnapshot } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import { MarqueeRect, useMarquee } from '../board/Marquee';
 import {
   type Camera,
   type Point,
@@ -181,7 +184,13 @@ export interface BoardViewportProps {
   onEmptyDoubleClick?(world: Point): void;
   /** Press and release on empty board space without dragging. */
   onEmptyClick?(): void;
+  /** Enables Shift+drag selection on empty space: ids fully inside the rectangle are reported. */
+  marquee?: { snapshot: readonly ObjectSnapshot[]; onSelect(ids: string[]): void };
+  /** Kept up to date with the current camera (for gestures started outside the viewport). */
+  cameraRef?: MutableRefObject<Camera | null>;
 }
+
+const NO_OBJECTS: readonly ObjectSnapshot[] = [];
 
 export function BoardViewport(props: BoardViewportProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -191,22 +200,45 @@ export function BoardViewport(props: BoardViewportProps) {
   useNavigationListeners(surfaceRef, controls, viewport);
   const pressRef = useRef<Point | null>(null);
   const view: BoardView = { camera, viewport };
+  if (props.cameraRef) props.cameraRef.current = camera;
+  const marquee = useMarquee(
+    camera,
+    props.marquee?.snapshot ?? NO_OBJECTS,
+    (ids) => props.marquee?.onSelect(ids),
+  );
+  const marqueeActive = marquee.rect !== null;
+
+  const localPoint = (e: { clientX: number; clientY: number }) => {
+    const rect = surfaceRef.current!.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    // Only empty board space starts a pan; objects stop propagation.
+    // Only empty board space starts a pan or a marquee; objects stop propagation.
     if (e.target !== e.currentTarget || e.button !== PRIMARY_BUTTON) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    if (e.shiftKey && props.marquee) {
+      marquee.begin(localPoint(e));
+      return;
+    }
     pressRef.current = { x: e.clientX, y: e.clientY };
     beginPan({ x: e.clientX, y: e.clientY });
   };
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (isPanning) panMove({ x: e.clientX, y: e.clientY });
+    if (marqueeActive) marquee.move(localPoint(e));
+    else if (isPanning) panMove({ x: e.clientX, y: e.clientY });
   };
   const onPointerEnd = () => {
     pressRef.current = null;
+    marquee.cancel();
     if (isPanning) endPan();
   };
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeActive) {
+      marquee.move(localPoint(e));
+      marquee.end();
+      return;
+    }
     const press = pressRef.current;
     onPointerEnd();
     if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) < DRAG_THRESHOLD_PX) {
@@ -243,6 +275,7 @@ export function BoardViewport(props: BoardViewportProps) {
         >
           <div className="origin-marker" data-testid="origin-marker" aria-hidden="true" />
           {typeof props.children === 'function' ? props.children(view) : props.children}
+          <MarqueeRect rect={marquee.rect} camera={camera} />
         </div>
       </div>
       <NavigationHint visible={!controls.hasNavigated} />

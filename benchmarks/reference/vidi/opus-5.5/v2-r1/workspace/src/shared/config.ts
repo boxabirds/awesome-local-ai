@@ -71,3 +71,14 @@ export const CREATE_BUDGET_MS = 2000;
 export const LINK_COPIED_MS = 2000;
 /** First wait before re-checking a board link the service could not answer; doubles up to RECONNECT_MAX_BACKOFF_MS. */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+/** Side of a selection resize handle, in screen px (same size at every zoom). */
+export const HANDLE_SIZE_PX = 8;
+/** Smallest width/height a sticky note can be resized to, in world units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Largest width/height any object can be resized to, in world units (every type). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** Arrow key nudge, in world units. */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift+arrow key nudge, in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;

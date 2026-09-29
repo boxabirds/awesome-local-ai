@@ -1,42 +1,125 @@
-import { useCallback, useState } from 'react';
-
-interface SelectionState {
-  selectedId: string | null;
-  editingId: string | null;
-}
-
-export interface Selection extends SelectionState {
-  select(id: string | null): void;
-  startEdit(id: string): void;
-  endEdit(next: 'selected' | 'unselected'): void;
-}
-
-const NONE: SelectionState = { selectedId: null, editingId: null };
+import { useCallback, useEffect, useMemo, useReducer } from 'react';
+import type { ObjectSnapshot } from '../../shared/board-model';
 
 /** Local selection and editing state. Never stored in the board document. */
-export function useSelection(): Selection {
-  const [state, setState] = useState<SelectionState>(NONE);
+export interface SelectionState {
+  readonly ids: ReadonlySet<string>;
+  readonly editingId: string | null;
+  /** Ids present on the board at the last `prune`; null = not known yet (accept any id). */
+  readonly present: ReadonlySet<string> | null;
+}
 
-  const select = useCallback((id: string | null) => {
-    setState((s) => {
-      // Re-selecting the note being edited keeps editing it.
-      const editingId = id !== null && s.editingId === id ? id : null;
-      return s.selectedId === id && s.editingId === editingId ? s : { selectedId: id, editingId };
-    });
-  }, []);
+export type SelectionAction =
+  | { type: 'click'; id: string }
+  | { type: 'toggle'; id: string }
+  | { type: 'setMany'; ids: string[]; additive: boolean }
+  | { type: 'clear' }
+  | { type: 'prune'; presentIds: ReadonlySet<string> }
+  | { type: 'edit'; id: string | null };
 
-  const startEdit = useCallback((id: string) => {
-    setState((s) =>
-      s.selectedId === id && s.editingId === id ? s : { selectedId: id, editingId: id },
-    );
-  }, []);
+const EMPTY: ReadonlySet<string> = new Set();
 
-  const endEdit = useCallback((next: 'selected' | 'unselected') => {
-    setState((s) => {
-      if (next === 'unselected') return s === NONE ? s : NONE;
-      return { selectedId: s.editingId ?? s.selectedId, editingId: null };
-    });
-  }, []);
+export const INITIAL_SELECTION: SelectionState = { ids: EMPTY, editingId: null, present: null };
 
-  return { ...state, select, startEdit, endEdit };
+function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const id of a) if (!b.has(id)) return false;
+  return true;
+}
+
+function withSelection(
+  state: SelectionState,
+  ids: ReadonlySet<string>,
+  editingId: string | null,
+): SelectionState {
+  if (sameSet(ids, state.ids) && editingId === state.editingId) return state;
+  return { ...state, ids: ids.size === 0 ? EMPTY : ids, editingId };
+}
+
+export function selectionReducer(state: SelectionState, action: SelectionAction): SelectionState {
+  const exists = (id: string) => state.present === null || state.present.has(id);
+  switch (action.type) {
+    case 'click':
+      if (!exists(action.id)) return state;
+      // Clicking the object being edited keeps editing it.
+      return withSelection(
+        state,
+        new Set([action.id]),
+        state.editingId === action.id ? action.id : null,
+      );
+    case 'toggle': {
+      if (!exists(action.id)) return state;
+      const ids = new Set(state.ids);
+      if (ids.has(action.id)) ids.delete(action.id);
+      else ids.add(action.id);
+      return withSelection(state, ids, null);
+    }
+    case 'setMany': {
+      const ids = new Set(action.additive ? state.ids : EMPTY);
+      for (const id of action.ids) if (exists(id)) ids.add(id);
+      return withSelection(state, ids, null);
+    }
+    case 'clear':
+      return withSelection(state, EMPTY, null);
+    case 'prune': {
+      const present = action.presentIds;
+      const ids = new Set([...state.ids].filter((id) => present.has(id)));
+      const editingId = state.editingId !== null && present.has(state.editingId) ? state.editingId : null;
+      const next = withSelection(state, ids, editingId);
+      // Moves change the snapshot but not which objects exist: keep the same state then.
+      const samePresent = state.present !== null && sameSet(state.present, present);
+      return next === state && samePresent ? state : { ...next, present };
+    }
+    case 'edit':
+      if (action.id === null) return withSelection(state, state.ids, null);
+      // Not checked against `present`: a note is edited right after it is created, before the
+      // snapshot that contains it has been pruned against. A deleted id is pruned on the next change.
+      return withSelection(state, new Set([action.id]), action.id);
+  }
+}
+
+export interface Selection {
+  ids: ReadonlySet<string>;
+  editingId: string | null;
+  click(id: string): void;
+  toggle(id: string): void;
+  setMany(ids: string[], additive: boolean): void;
+  clear(): void;
+  startEdit(id: string): void;
+  /** Ends editing; the edited object stays selected unless `next` is 'unselected'. */
+  endEdit(next?: 'selected' | 'unselected'): void;
+}
+
+/**
+ * The set of selected objects and the one being edited. Objects that leave `snapshot` (deleted,
+ * possibly by someone else) leave the selection; editing a deleted object ends.
+ */
+export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
+  const [state, dispatch] = useReducer(selectionReducer, snapshot, (objects) => ({
+    ...INITIAL_SELECTION,
+    present: new Set(objects.map((o) => o.id)),
+  }));
+
+  useEffect(() => {
+    dispatch({ type: 'prune', presentIds: new Set(snapshot.map((o) => o.id)) });
+  }, [snapshot]);
+
+  const click = useCallback((id: string) => dispatch({ type: 'click', id }), []);
+  const toggle = useCallback((id: string) => dispatch({ type: 'toggle', id }), []);
+  const setMany = useCallback(
+    (ids: string[], additive: boolean) => dispatch({ type: 'setMany', ids, additive }),
+    [],
+  );
+  const clear = useCallback(() => dispatch({ type: 'clear' }), []);
+  const startEdit = useCallback((id: string) => dispatch({ type: 'edit', id }), []);
+  const endEdit = useCallback(
+    (next: 'selected' | 'unselected' = 'selected') =>
+      dispatch(next === 'selected' ? { type: 'edit', id: null } : { type: 'clear' }),
+    [],
+  );
+
+  return useMemo(
+    () => ({ ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit }),
+    [state.ids, state.editingId, click, toggle, setMany, clear, startEdit, endEdit],
+  );
 }

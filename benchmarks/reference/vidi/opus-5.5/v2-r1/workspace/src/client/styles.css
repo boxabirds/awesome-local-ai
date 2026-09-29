@@ -558,3 +558,95 @@ body,
   font-size: 13px;
   color: #57606a;
 }
+
+/* Story 7: selection box, handles, selection bar, marquee. */
+.selection-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.selection-box {
+  position: absolute;
+  border: 1px solid #1a73e8;
+  pointer-events: none;
+}
+
+.selection-handle {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #1a73e8;
+  border-radius: 1px;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* A larger invisible hit area around each small handle. */
+.selection-handle::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+}
+
+.handle-nw,
+.handle-se {
+  cursor: nwse-resize;
+}
+.handle-ne,
+.handle-sw {
+  cursor: nesw-resize;
+}
+.handle-n,
+.handle-s {
+  cursor: ns-resize;
+}
+.handle-e,
+.handle-w {
+  cursor: ew-resize;
+}
+
+.selection-bar-anchor {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: auto;
+}
+
+.selection-bar-count {
+  padding: 0 6px;
+  font-size: 13px;
+  white-space: nowrap;
+  color: #1f2328;
+}
+
+.selection-bar .note-toolbar-delete:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: transparent;
+  color: #57606a;
+}
+
+.marquee {
+  position: absolute;
+  border: 1px solid rgb(26 115 232 / 70%);
+  background: rgb(26 115 232 / 12%);
+  pointer-events: none;
+}
+
+.world-layer > .marquee {
+  pointer-events: none;
+  z-index: 2147483000;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

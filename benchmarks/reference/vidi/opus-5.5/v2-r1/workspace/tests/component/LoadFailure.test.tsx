@@ -30,6 +30,10 @@ vi.mock('../../src/shared/board-model', async (importOriginal) => {
     setStickyColor: vi.fn(actual.setStickyColor),
     deleteObject: vi.fn(actual.deleteObject),
     getStickyText: vi.fn(actual.getStickyText),
+    moveObjects: vi.fn(actual.moveObjects),
+    resizeObjects: vi.fn(actual.resizeObjects),
+    bringObjectsToFront: vi.fn(actual.bringObjectsToFront),
+    deleteObjects: vi.fn(actual.deleteObjects),
   };
 });
 
@@ -40,6 +44,10 @@ const MUTATIONS = [
   'setStickyColor',
   'deleteObject',
   'getStickyText',
+  'moveObjects',
+  'resizeObjects',
+  'bringObjectsToFront',
+  'deleteObjects',
 ] as const;
 
 function mutationCalls(): number {
@@ -208,7 +216,10 @@ describe('persist.client_status in the app', () => {
     note.focus();
     fireEvent.keyDown(window, { key: 'Delete' });
     fireEvent.keyDown(note, { key: 'Backspace' });
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
     expect(screen.queryByRole('toolbar', { name: 'Note toolbar' })).toBeNull();
+    // Story 7: the note can be selected for viewing, but not resized.
+    expect(screen.queryByRole('button', { name: 'Resize bottom-right' })).toBeNull();
     // Drag.
     fireEvent.pointerDown(note, { clientX: 100, clientY: 100, button: 0, pointerId: 2 });
     fireEvent.pointerMove(note, { clientX: 180, clientY: 160, pointerId: 2 });

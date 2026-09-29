@@ -204,3 +204,60 @@ Decisions made while implementing without anyone to ask.
   TC-27 and TC-29 in every configured browser. Firefox still cannot start in this environment
   (sandbox error); runs used `E2E_BROWSERS=chromium,webkit`.
 - **Red-phase commit skipped** (task 1), as in earlier stories: one story commit.
+
+## Story 7 — Select, move, resize and delete several objects at once
+
+- **Snapshot of every object.** `objectsSnapshot(doc)` returns all objects that have a type and a
+  position (including types this client does not know), with `width`/`height` read with the
+  STICKY_SIZE_WORLD fallback. `snapshot(doc)` still returns sticky notes only (story 2's TC-12).
+  `useBoardDoc` now exposes `objects`; `App` renders only registered types through the registry.
+  `ObjectSnapshot` is the common base interface; `StickySnapshot` extends it.
+- **New stickies store their size.** `createSticky` writes `width`/`height` = STICKY_SIZE_WORLD
+  (the design's "object created after this story → ExplicitSize"); old notes stay implicit until
+  their first resize.
+- **Unknown types in shared code.** `board-model` is framework-free and cannot see the client
+  registry, so `objectsInRect` and `allObjectIds` take an optional `isKnownType` predicate
+  (default: types the model reads, i.e. `sticky`); the client passes `isRegisteredType`.
+- **`clampScale` has an optional 5th argument `uniform`** (default: `scale.x === scale.y`) so an
+  aspect-locked resize stays uniform after clamping. `geometry.ts` also exports `handleScale` and
+  `scaleFromHandle` (resize = scale from the opposite side; the axis an edge handle does not move
+  scales around the centre when aspect-locked). Corners with aspect lock follow the axis the
+  pointer moved further, so TC-01's 200×200 + (100, 40) gives 300×300.
+- **Camera for gestures.** `BoardViewport` owns the camera (story 1), so `useTransformGesture`
+  accepts `camera` as a `Camera` or a getter; `App` passes a getter backed by a new
+  `cameraRef` prop of `BoardViewport` (no extra App render per camera frame). The marquee lives
+  inside `BoardViewport` (`marquee` prop) with the real camera; the rectangle is drawn in the world
+  layer. Escape during a marquee cancels it without also clearing the selection.
+- **Pointer model.** Pressing an unselected object selects it at pointerdown (then drags only it);
+  pressing a member of a multi-selection moves the group, and a click without a drag selects just
+  that member. Shift-press on an unselected object adds it immediately; Shift-click on a selected one
+  removes it on release (so Shift-dragging a selected object still moves the group). Gesture events
+  are followed on `window` after pointer capture; `lostpointercapture` cancels.
+- **Selection reducer and "absent ids".** The reducer keeps the ids present at the last `prune` and
+  ignores `click`/`toggle`/`setMany` for others. `edit` is not checked, because a new note is edited
+  before a snapshot containing it has been pruned against. `prune` keeps the same state object when
+  only positions changed, so drags do not cause extra renders.
+- **Locked board (story 4) and selection.** The PRD now allows selecting a board that failed to load
+  for viewing. Selection works; handles, the note toolbar, dragging, resizing, nudging, deleting
+  and Enter-to-edit do not (the bar's Delete button is disabled). Story 4's rule "selection is
+  cleared while locked" is replaced by this.
+- **Note toolbar placement.** The note toolbar (single sticky) and the "N selected" bar are both
+  rendered by `SelectionBar` in screen space above the selection's bounding box (the note toolbar
+  was a counter-scaled world-layer element in story 2). Both are hidden during a gesture or
+  while editing; the `aria-live="polite"` "N selected" announcement is always mounted.
+- **Bigger notes, bigger text.** A resized sticky lays its content out at STICKY_SIZE_WORLD wide and
+  scales it by `width / STICKY_SIZE_WORLD` (fit uses the width-derived box), so an enlarged
+  headline note shows larger text rather than more room at the same font size.
+- **Handles** are `role="button"` elements (`aria-label="Resize top-left"` …) that are not in the tab
+  order (resizing is a pointer interaction). A transparent pseudo-element enlarges their hit area
+  beyond HANDLE_SIZE_PX. A single selected object also gets the bounding box and handles.
+- **Test-only `testbox` type** lives in `tests/component/testbox.tsx`, not `tests/fixtures`:
+  `tests/fixtures` is typechecked with the Workers config (no DOM) and the type is a React
+  component. The unit registry test imports it too.
+- **Fixture.** `selectionBoard()` in `tests/fixtures/boards.ts`: a 4 × 3 grid cluster and 8
+  overlapping notes (20 notes), seeded through the room protocol.
+- **LoadFailure TC-23** now also spies the new group operations and checks that arrows and resize
+  handles do nothing on a locked board.
+- **E2E browsers.** TC-32 runs in every configured browser, the rest in Chromium only. Firefox still
+  cannot start in this environment; runs used `E2E_BROWSERS=chromium,webkit`.
+- **Red-phase commits skipped** (tasks 6, 7, 9), as in earlier stories: one story commit.
