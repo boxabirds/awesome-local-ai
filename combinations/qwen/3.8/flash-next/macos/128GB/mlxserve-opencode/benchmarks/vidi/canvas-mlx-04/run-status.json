@@ -1,0 +1,6 @@
+{
+  "state": "failed",
+  "reason": "exit 1: server exited; see ~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/canvas-mlx-04/server.log",
+  "at": "2026-09-29T16:38:39Z",
+  "host": "Quintus"
+}
