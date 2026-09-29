@@ -22,7 +22,12 @@ import { Toolbar } from './Toolbar.tsx';
 // Registers the 'sticky' object type; the renderer below asks the registry what to
 // draw, so the module must have been evaluated.
 import '../objects/StickyNote.tsx';
+// Story 9: registers the 'text' object type the same way.
+import '../objects/TextObject.tsx';
 import { getObjectType } from '../objects/registry.tsx';
+import { useTool } from './useTool.ts';
+import { useClientId } from './useClientId.ts';
+import { createText } from '../../shared/objects/text.ts';
 import { useCamera } from '../canvas/useCamera.ts';
 import { useBoardDoc } from './useBoardDoc.ts';
 import { useSelection } from './useSelection.ts';
@@ -154,6 +159,22 @@ export default function BoardApp(props: BoardAppProps = {}) {
     sel.endEdit('unselected');
   }, [sel]);
 
+  // Story 9: the Text tool. While it is active a click on the board (empty space or
+  // on top of an object) drops a text there, hands the tool back to Select and opens
+  // its editor with the caret at the end. The tool lives here (above the viewport)
+  // because placing a text also touches the selection.
+  const tool = useTool(editable);
+  const clientId = useClientId();
+  const onPlaceText = useCallback(
+    (world: Point) => {
+      if (!editableRef.current) return;
+      const id = createText(doc, world, clientId);
+      tool.setTool('select');
+      if (id) sel.startEdit(id);
+    },
+    [doc, clientId, sel, tool],
+  );
+
   // Shift+drag on empty space draws a box; what it fully encloses is added to the
   // selection (a box that catches nothing changes nothing).
   const marquee = useMarquee(cam.camera, objects, (ids) => {
@@ -183,6 +204,8 @@ export default function BoardApp(props: BoardAppProps = {}) {
     snapshot: objects,
     canEdit: editable,
     undo: undoController,
+    setTool: tool.setTool,
+    onCreateSticky,
   });
 
   // What the Undo/Redo buttons render from, and what the shortcuts act on: this
@@ -235,6 +258,8 @@ export default function BoardApp(props: BoardAppProps = {}) {
           marquee={marquee}
           onBackgroundPointerDown={onBackgroundPointerDown}
           onBackgroundDoubleClick={createAtWorld}
+          textPlacing={tool.tool === 'text'}
+          onPlaceText={onPlaceText}
         >
           {objects.map((obj) => {
             const spec = getObjectType(obj.type);
@@ -263,7 +288,14 @@ export default function BoardApp(props: BoardAppProps = {}) {
           <MarqueeRect rect={marquee.rect} camera={cam.camera} />
         </BoardViewport>
 
-        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undo} />
+        <Toolbar
+          onCreateSticky={onCreateSticky}
+          canEdit={editable}
+          disabled={!editable}
+          undo={undo}
+          tool={tool.tool}
+          onSelectTool={tool.setTool}
+        />
 
         {showSoleToolbar && sole && SoleToolbar ? (
           <div

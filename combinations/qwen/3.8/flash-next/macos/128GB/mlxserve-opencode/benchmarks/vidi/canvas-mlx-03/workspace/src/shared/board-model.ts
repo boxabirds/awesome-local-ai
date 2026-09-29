@@ -11,6 +11,7 @@ import {
   STICKY_SIZE_WORLD,
   STICKY_COLORS,
   DEFAULT_STICKY_COLOR,
+  DEFAULT_TEXT_SIZE,
   type StickyColor,
 } from './config.ts';
 import {
@@ -44,6 +45,10 @@ export interface ObjectSnapshot {
   color?: StickyColor;
   text?: string;
   createdAt?: number;
+  createdBy?: string;
+  /** Story 9 text objects: the size preset key and the width mode. */
+  size?: string;
+  widthMode?: 'auto' | 'fixed';
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -440,6 +445,12 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (base.type === 'sticky') {
       base.color = isStickyColor(colorVal) ? colorVal : DEFAULT_STICKY_COLOR;
       base.text = textVal instanceof Y.Text ? textVal.toString() : '';
+      base.createdAt = asNumber(o.get('createdAt'));
+    } else if (base.type === 'text') {
+      base.text = textVal instanceof Y.Text ? textVal.toString() : '';
+      base.size = typeof o.get('size') === 'string' ? (o.get('size') as string) : DEFAULT_TEXT_SIZE;
+      base.widthMode = o.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
+      base.createdBy = typeof o.get('createdBy') === 'string' ? (o.get('createdBy') as string) : '';
       base.createdAt = asNumber(o.get('createdAt'));
     } else if (textVal instanceof Y.Text) {
       base.text = textVal.toString();

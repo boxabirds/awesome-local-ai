@@ -51,6 +51,30 @@ export function selectionResizable(ids: ReadonlySet<string>, snapshot: readonly 
   return false;
 }
 
+/** The horizontal-only handles, in draw order. */
+const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
+
+/**
+ * Which handles a selection offers: the full eight, unless *every* selected object
+ * that can be resized is a horizontal-only type (story 9's text). A mixed selection
+ * (a text and a sticky, say) gets all eight, so the note can still be resized on any
+ * edge. Objects whose type cannot be resized at all do not influence the choice.
+ */
+export function selectionHandles(
+  ids: ReadonlySet<string>,
+  snapshot: readonly ObjectSnapshot[],
+): readonly Handle[] {
+  let sawResizable = false;
+  for (const o of snapshot) {
+    if (!ids.has(o.id)) continue;
+    const spec = getObjectType(o.type);
+    if (!spec?.resizable) continue;
+    sawResizable = true;
+    if ((spec.handles ?? 'all') !== 'horizontal') return HANDLES;
+  }
+  return sawResizable ? HORIZONTAL_HANDLES : HANDLES;
+}
+
 /**
  * The box around every selected object that is still in the document, in world
  * units; null when nothing selected is present. The overlay draws it and the
@@ -78,6 +102,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): ReactElement | n
   if (!box || !selectionResizable(props.ids, props.snapshot)) return null;
 
   const zoom = props.camera.zoom > 0 ? props.camera.zoom : 1;
+  const handles = selectionHandles(props.ids, props.snapshot);
   const topLeft = worldToScreen(props.camera, { x: box.x, y: box.y });
   const width = box.width * zoom;
   const height = box.height * zoom;
@@ -108,7 +133,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): ReactElement | n
           pointerEvents: 'none',
         }}
       />
-      {HANDLES.map((h) => {
+      {handles.map((h) => {
         const anchor = worldToScreen(props.camera, handleAnchor(box, h));
         return (
           <div

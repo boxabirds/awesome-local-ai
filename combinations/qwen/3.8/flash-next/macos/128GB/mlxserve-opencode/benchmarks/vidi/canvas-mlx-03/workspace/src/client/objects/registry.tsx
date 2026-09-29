@@ -15,8 +15,9 @@ import type * as Y from 'yjs';
 import type { ComponentType, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model.ts';
 import type { Point } from '../../shared/geometry.ts';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config.ts';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config.ts';
 import { StickyNote, StickyNoteToolbar } from './StickyNote.tsx';
+import { TextObject, TextObjectToolbar } from './TextObject.tsx';
 
 /** What an object component needs in order to render and edit itself. */
 export interface ObjectProps {
@@ -74,6 +75,13 @@ export interface ObjectTypeSpec {
    * (story 2's note toolbar), or nothing for types that have no per-object tools.
    */
   toolbar?: ComponentType<ObjectToolbarProps>;
+  /**
+   * Which resize handles the selection overlay offers for this type. `'all'` (the
+   * default) is the sticky note's eight handles; `'horizontal'` (story 9's text) is
+   * the east/west pair only, because a text's height follows its content and is
+   * never dragged directly.
+   */
+  handles?: 'all' | 'horizontal';
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -121,5 +129,19 @@ registerObjectType('sticky', {
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
   toolbar: StickyNoteToolbar,
+  hitTest: hitTestRect,
+});
+
+// Story 9: a free-text object. It resizes horizontally only (its height always follows
+// its content), never keeps a fixed aspect, and is text-editable — so selection, move,
+// marquee, delete, nudge and undo all work on it unchanged.
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+  toolbar: TextObjectToolbar,
   hitTest: hitTestRect,
 });

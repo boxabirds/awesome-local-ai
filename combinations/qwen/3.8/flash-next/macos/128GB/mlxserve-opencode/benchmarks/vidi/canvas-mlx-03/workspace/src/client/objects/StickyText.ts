@@ -1,8 +1,9 @@
-// Pure text helpers for sticky notes: length clamping, minimal Y.Text diff, the
-// character-counter visibility rule, and font auto-fit by measurement.
-// See design "Sticky note text editing and fit" contract.
+// Pure text helpers for sticky notes: the character-counter visibility rule and
+// font auto-fit by measurement, plus the shared clamp/diff re-exported so story
+// 2's callers and tests are unchanged. The shared primitives live in
+// `src/shared/text-edit.ts` (story 9), where both text objects and sticky notes
+// reach the same maths.
 
-import type * as Y from 'yjs';
 import {
   STICKY_TEXT_MAX_CHARS,
   STICKY_COUNTER_THRESHOLD_CHARS,
@@ -10,55 +11,12 @@ import {
   STICKY_FONT_MIN_PX,
 } from '../../shared/config.ts';
 
-function isHighSurrogate(code: number): boolean {
-  return code >= 0xd800 && code <= 0xdbff;
-}
+export { applyTextDiff } from '../../shared/text-edit.ts';
+import { clampToLimit as clampShared } from '../../shared/text-edit.ts';
 
-/**
- * Keep the first `max` characters; if that boundary would split a surrogate pair,
- * back off one so no lone surrogate is left at the end.
- */
+/** Story 2's signature: the sticky-note length limit is the default. */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (next.length <= max) return next;
-  let cut = max;
-  if (isHighSurrogate(next.charCodeAt(cut - 1))) cut -= 1;
-  return next.slice(0, cut);
-}
-
-/**
- * Apply the minimal edit (common prefix + common suffix) from `ytext` to `next`
- * inside a single transaction. This is deliberately not a full replace: a full
- * replace would destroy concurrent typing by others once story 3 ships.
- */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const cur = ytext.toString();
-  if (cur === next) return;
-
-  const minLen = Math.min(cur.length, next.length);
-
-  let p = 0;
-  while (p < minLen && cur[p] === next[p]) p++;
-  // Never split a surrogate pair at the prefix boundary.
-  if (p > 0 && isHighSurrogate(next.charCodeAt(p - 1))) p--;
-
-  let s = 0;
-  while (
-    s < minLen - p &&
-    cur[cur.length - 1 - s] === next[next.length - 1 - s]
-  ) {
-    s++;
-  }
-
-  const deleteLen = cur.length - p - s;
-  const insertStr = next.slice(p, next.length - s);
-
-  const doc = ytext.doc;
-  const run = () => {
-    if (deleteLen > 0) ytext.delete(p, deleteLen);
-    if (insertStr.length > 0) ytext.insert(p, insertStr);
-  };
-  if (doc) doc.transact(run, origin);
-  else run();
+  return clampShared(next, max);
 }
 
 /** The counter shows when the remaining characters drop to the threshold. */

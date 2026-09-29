@@ -296,3 +296,53 @@ so.
 - The e2e undo chord is sent as **Ctrl, not Cmd**, so the same file runs the same on every engine;
   the Cmd chord is TC-19's job, in jsdom, where the modifier is a property of an event rather than
   of a keyboard.
+
+# Story 9 — Write free text anywhere on the board (implementation notes)
+
+## Test totals (all passing)
+- Unit + component + integration: **420** (`npm run test`).
+- e2e: 21 in this story's spec (`tests/e2e/free-text.spec.ts`) across chromium, firefox, webkit;
+  45 total on chromium. `TC-26` (the auto-width/wrap one) is exercised on all three engines.
+
+## `useTool` is local UI state, and `canEdit` reverts Text → Select
+The tool mode lives only in this tab (`useTool`), never in the shared doc and never persisted.
+When the board turns read-only (`canEdit` goes false — a dropped connection) an active Text tool
+falls back to Select; a Text tool cannot survive the board locking. `Toolbar` gates its tool
+buttons on `props.canEdit && props.onSelectTool != null`, so a read-only board never offers one.
+
+## `createdBy` is a per-tab id for now (story 6 identity is not in this build)
+`createText` records `createdBy`; until story 6 lands a real collaborator identity, `useClientId`
+mints one random `g_…` id per tab and reuses it, so every text this tab creates shares an author.
+
+## One writer for the box, everyone renders it
+`useTextBoxSync(doc, id, measure)` exposes `remeasureAfterLocalChange()`, and it is the *only*
+place `setTextBox` is called. It fires on local typing, a size change and a fixed-width drag —
+never on a remote update. Five clients therefore never race to write dimensions: each renders the
+stored `width`/`height` and only the person who actually changed the text remeasures. The component
+test counts transactions with `LOCAL_ORIGIN` that touch `width` to prove a peer's edit writes zero
+local boxes.
+
+## Concurrent typing needed a remote observer in the editor (the e2e caught it)
+`TextEditor` writes with a minimal `applyTextDiff` against the *live* `Y.Text`, so a single edit
+never clobbers a colleague's. But two clients editing the same text at once (TC-29) still lost
+characters until the editor grew a `ytext.observe` handler: when a change arrives with an origin
+other than `LOCAL_ORIGIN`, it reseeds the textarea and parks the caret at the end. The next local
+keystroke then diffs against the already-merged text. Without it, B types `BBB` while its draft
+still says `start`, and the diff deletes A's just-landed `AAA`. IME composition is the one case the
+observer leaves alone — the composition-end handler resolves it.
+Because CRDT inserts interleave by position, TC-29 asserts on the *character multiset*, not a
+contiguous fragment: both screens agree, and every typed character is present exactly once.
+
+## Greedy wrap never character-breaks; auto width comes from source lines
+`layoutText` splits on explicit newlines first, measures each **source** line, and takes
+`min(longest, TEXT_MAX_AUTO_WIDTH_WORLD)` as the auto width; a line wider than that wraps word by
+word, and a single word too wide for the wrap width gets its own (visually overflowing) line rather
+than a mid-word break. `createCanvasMeasurer` falls back to a named glyph-ratio estimate where no
+canvas exists, so the unit tests and jsdom never depend on a real font.
+
+## Text is generic everywhere else
+Adding the `text` type touched only the registry and the handle filter: selection, move, delete,
+marquee, undo and z-ordering all work on it unchanged. Its registry entry is `resizable`, not
+aspect-locked, `minSize = TEXT_MIN_WIDTH_WORLD`, `handles: 'horizontal'`; `SelectionOverlay` shows
+only the e/w handles when every selected object is horizontal-only, and a single-text e/w drag is a
+`textwidth` write (`setTextWidthFixed` + one remeasure) rather than a free resize.

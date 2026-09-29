@@ -11,7 +11,9 @@ import {
   moveObject,
   deleteObject,
 } from '../../../src/shared/board-model.ts';
+import { createText, getTextContent } from '../../../src/shared/objects/text.ts';
 import type { StickyColor } from '../../../src/shared/config.ts';
+import type { TextSize } from '../../../src/shared/config.ts';
 import { wsBaseUrl } from './board.ts';
 
 const MSG_SYNC = 0;
@@ -100,6 +102,29 @@ export class RawClient {
 
   move(noteId: string, x: number, y: number): void {
     Y.transact(this.doc, () => moveObject(this.doc, noteId, x, y));
+  }
+
+  /** Seed a free-text object (story 9), optionally with content and a size. */
+  addText(seed: { x: number; y: number; text?: string; size?: TextSize }): string {
+    let id = '';
+    Y.transact(this.doc, () => {
+      id = createText(this.doc, { x: seed.x, y: seed.y }, 'peer')!;
+      const obj = this.doc.getMap('objects').get(id) as Y.Map<unknown>;
+      if (seed.size) obj.set('size', seed.size);
+      if (seed.text) getTextContent(this.doc, id)!.insert(0, seed.text);
+    });
+    return id;
+  }
+
+  /** The first text object's id, or undefined. */
+  textIdByText(text: string): string | undefined {
+    for (const [k, v] of this.doc.getMap('objects')) {
+      if (k === 'meta') continue;
+      const m = v as Y.Map<unknown>;
+      if ((m.get('type') as string) === 'text' && (m.get('text') as Y.Text).toString() === text)
+        return k;
+    }
+    return undefined;
   }
 
   remove(noteId: string): void {

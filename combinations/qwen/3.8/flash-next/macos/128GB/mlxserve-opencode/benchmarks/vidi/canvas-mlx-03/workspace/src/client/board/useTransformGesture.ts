@@ -54,6 +54,10 @@ import {
 import type { Camera } from '../canvas/camera.ts';
 import { getObjectType } from '../objects/registry.tsx';
 import type { Selection } from './useSelection.ts';
+import { setTextWidthFixed, setTextBox } from '../../shared/objects/text.ts';
+import { layoutText } from '../objects/textLayout.ts';
+import { textSnapshot } from '../../shared/objects/text.ts';
+import { textMeasure } from '../objects/measurer.ts';
 
 export interface TransformGestureOptions {
   doc: Y.Doc;
@@ -89,11 +93,15 @@ interface Entry {
   min: number;
   /** Whether its type refuses to change shape. */
   aspectLocked: boolean;
+  /** Story 9: a type whose height follows its content (text) resizes width only. */
+  horizontal: boolean;
 }
 
 type Write =
   | { kind: 'move'; positions: Map<string, Point> }
-  | { kind: 'resize'; rects: Map<string, Rect> };
+  | { kind: 'resize'; rects: Map<string, Rect> }
+  /** Story 9: a single horizontal (text) object dragged wider/narrower. */
+  | { kind: 'textwidth'; id: string; width: number };
 
 /** The four ways a pointer can leave a gesture. */
 const END_EVENTS = ['pointerup', 'pointercancel', 'lostpointercapture', 'blur'] as const;
@@ -170,6 +178,7 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         rect: objectBounds(obj),
         min: spec?.minSize ?? STICKY_MIN_SIZE_WORLD,
         aspectLocked: spec?.aspectLocked ?? false,
+        horizontal: (spec?.handles ?? 'all') === 'horizontal',
       });
     }
     return out;
@@ -186,6 +195,17 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       const positions = new Map<string, Point>();
       for (const [id, p] of pending.positions) if (present.has(id)) positions.set(id, p);
       return moveObjects(doc, positions);
+    }
+    if (pending.kind === 'textwidth') {
+      // The width is fixed by the drag; the height rewraps to the content. Both land
+      // as one undo step (the gesture owns the boundary).
+      setTextWidthFixed(doc, pending.id, pending.width);
+      const snap = textSnapshot(doc, pending.id);
+      if (snap) {
+        const box = layoutText(snap.text, snap.size, 'fixed', pending.width, textMeasure);
+        setTextBox(doc, pending.id, { width: box.width, height: box.height });
+      }
+      return 1;
     }
     return resizeObjects(doc, pending.rects);
   };
@@ -304,6 +324,17 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     if (phaseRef.current === 'resizing') {
       const start = startBoxRef.current;
       if (!start || start.width <= 0 || start.height <= 0) return;
+      // A single horizontal-only object (story 9's text): the drag sets its width and
+      // the height rewraps to the content; only the e/w handles are ever offered for
+      // it. The min side clamps the width; MAX_OBJECT_SIZE_WORLD clamps the max.
+      if (entries.length === 1 && entries[0]!.horizontal) {
+        const entry = entries[0]!;
+        const dx = handleWest(handleRef.current) ? -world.x : world.x;
+        let width = start.width + dx;
+        width = Math.min(Math.max(width, entry.min), MAX_OBJECT_SIZE_WORLD);
+        schedule({ kind: 'textwidth', id: entry.id, width });
+        return;
+      }
       // A type that locks its shape does; a type that does not is free. Holding
       // Shift asks an aspect-free type to keep the ratio anyway.
       const aspect = aspectRef.current || e.shiftKey;

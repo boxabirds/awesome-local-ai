@@ -34,6 +34,14 @@ export interface BoardKeysOptions {
   canEdit: boolean;
   /** This tab's undo history; absent means the board undoes nothing (TC-18). */
   undo?: UndoController;
+  /**
+   * Story 9: the tool setter, so V/T/Escape switch the active tool. Ignored keys are
+   * those addressed to a text field (handled above). Omitting it leaves the board
+   * with no tool shortcuts.
+   */
+  setTool?: (tool: 'select' | 'text') => void;
+  /** Story 2's `N`: create a sticky at the view centre. */
+  onCreateSticky?: () => void;
 }
 
 const ARROWS = {
@@ -66,6 +74,10 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
   canEditRef.current = opts.canEdit;
   const undoRef = useRef(opts.undo);
   undoRef.current = opts.undo;
+  const setToolRef = useRef(opts.setTool);
+  setToolRef.current = opts.setTool;
+  const createStickyRef = useRef(opts.onCreateSticky);
+  createStickyRef.current = opts.onCreateSticky;
   // The step edges of the commands below. A command that is one model call is one
   // undo step, so a nudge followed 200 ms later by a delete does not merge into a
   // single step; the pause between two keystrokes is what groups typing instead
@@ -98,7 +110,29 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       if (e.key === 'Escape') {
         // An active marquee has already swallowed this key before it got here.
         sel.clear();
+        // Story 9: Escape also drops any active tool back to Select.
+        setToolRef.current?.('select');
         return;
+      }
+
+      // Story 9 tool shortcuts, before the edit lock: choosing a tool changes no
+      // document, so T/V work even while the board is read-only — but T is refused
+      // when it cannot be edited (the tool itself reverts to Select).
+      if (!meta && !e.altKey && e.key.length === 1) {
+        const k = e.key.toLowerCase();
+        if (k === 'v') {
+          setToolRef.current?.('select');
+          return;
+        }
+        if (k === 't') {
+          if (canEditRef.current) setToolRef.current?.('text');
+          return;
+        }
+        if (k === 'n') {
+          // Story 2's sticky-at-centre, kept as a documented shortcut only.
+          if (canEditRef.current) createStickyRef.current?.();
+          return;
+        }
       }
 
       if (!canEditRef.current) return; // every key below changes the document

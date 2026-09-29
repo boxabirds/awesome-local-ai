@@ -169,3 +169,21 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * pinned forever, and the oldest step is the one that goes.
  */
 export const UNDO_MAX_STEPS = 200;
+
+// ---- Story 9: free text -----------------------------------------------------
+
+/** Largest width an auto-width text object grows to, in board (world) units. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Smallest width a fixed-width text object may be dragged to, in board units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Maximum characters in a text object. */
+export const TEXT_MAX_CHARS = 5000;
+/** Font sizes (px at 100% zoom) of the four text-size presets, in board units. */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** The size a freshly created text object starts with. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Line height multiplier for text objects. */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** The font family text objects render and measure with. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';

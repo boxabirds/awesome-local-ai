@@ -14,6 +14,13 @@ export interface BoardViewportProps {
   /** A double-click on empty board space (world point). Used to create a note. */
   onBackgroundDoubleClick?(world: Point): void;
   /**
+   * Story 9: when the Text tool is active, a single press on empty board space
+   * places a text there instead of starting a pan. `textPlacing` turns that on and
+   * shows a crosshair; `onPlaceText` receives the world point.
+   */
+  textPlacing?: boolean;
+  onPlaceText?(world: Point): void;
+  /**
    * Box selection. When present, Shift+drag on empty space draws a marquee
    * instead of panning the board, and does not clear the current selection.
    */
@@ -41,7 +48,7 @@ function wheelPixels(delta: number, deltaMode: number): number {
  * wheel (board-owned), and Safari gesture events. All input calls go through the
  * camera.math API so the board never zooms the page.
  */
-export function BoardViewport({ camera, viewportRef, api, children, onBackgroundPointerDown, onBackgroundDoubleClick, marquee }: BoardViewportProps) {
+export function BoardViewport({ camera, viewportRef, api, children, onBackgroundPointerDown, onBackgroundDoubleClick, textPlacing, onPlaceText, marquee }: BoardViewportProps) {
   const apiRef = useRef(api);
   apiRef.current = api;
   const cameraRef = useRef(camera);
@@ -50,10 +57,33 @@ export function BoardViewport({ camera, viewportRef, api, children, onBackground
   bgDownRef.current = onBackgroundPointerDown;
   const bgDblRef = useRef(onBackgroundDoubleClick);
   bgDblRef.current = onBackgroundDoubleClick;
+  const textPlacingRef = useRef(textPlacing);
+  textPlacingRef.current = textPlacing;
+  const placeTextRef = useRef(onPlaceText);
+  placeTextRef.current = onPlaceText;
   const marqueeRef = useRef(marquee);
   marqueeRef.current = marquee;
   // True while the pointer is drawing a selection box (not panning).
   const marqueeActiveRef = useRef(false);
+
+  // The Text tool: while it is active, a pointerdown ANYWHERE over the board —
+  // including on top of an existing object, whose own handler would otherwise
+  // swallow it — places a text there and creates nothing else. A capture-phase
+  // listener on the viewport sees it before any object does, and stops it there so
+  // no pan, marquee, drag or edit starts.
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el || !textPlacing) return;
+    const onCapture = (e: PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = el.getBoundingClientRect();
+      const p = pointFrom(e, rect);
+      placeTextRef.current?.(screenToWorld(cameraRef.current, p));
+    };
+    el.addEventListener('pointerdown', onCapture, true);
+    return () => el.removeEventListener('pointerdown', onCapture, true);
+  }, [viewportRef, textPlacing]);
 
   // Non-passive wheel listener so we can always preventDefault over the board
   // (React's onWheel is passive and cannot stop page zoom / scroll).
@@ -132,6 +162,9 @@ export function BoardViewport({ camera, viewportRef, api, children, onBackground
       marqueeRef.current.begin(p);
       return;
     }
+    // The Text tool is handled by the capture-phase listener above; the empty-space
+    // press there must not also pan or clear, so bail when placing text.
+    if (textPlacingRef.current) return;
     // Empty-space press: let the shell clear the current selection first.
     bgDownRef.current?.(screenToWorld(cameraRef.current, p));
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -183,7 +216,7 @@ export function BoardViewport({ camera, viewportRef, api, children, onBackground
         backgroundImage: 'radial-gradient(circle, #b8bcc4 1px, transparent 1.2px)',
         backgroundSize: `${gridPx}px ${gridPx}px`,
         backgroundPosition: `${bgX}px ${bgY}px`,
-        cursor: 'grab',
+        cursor: textPlacing ? 'text' : 'grab',
       }}
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
