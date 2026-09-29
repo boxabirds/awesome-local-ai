@@ -1,6 +1,8 @@
 import * as Y from 'yjs';
 import { StickyColor, STICKY_COLORS, STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR } from './config';
 import { Rect } from './geometry';
+import type { TextSnapshot } from './objects/text';
+import { snapshotText } from './objects/text';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
 
@@ -17,7 +19,7 @@ export interface StickySnapshot {
   height?: number;
 }
 
-export type ObjectSnapshot = StickySnapshot;
+export type ObjectSnapshot = StickySnapshot | TextSnapshot;
 
 function objectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects');
@@ -317,4 +319,13 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
   });
   result.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return result;
+}
+
+/** Immutable snapshot of all objects (stickies + text) sorted by (z, id). */
+export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const stickies: readonly StickySnapshot[] = snapshot(doc);
+  const texts: readonly TextSnapshot[] = snapshotText(doc);
+  const all = [...stickies, ...texts] as ObjectSnapshot[];
+  all.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return all;
 }

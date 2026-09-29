@@ -1,22 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, StickySnapshot } from '@shared/board-model';
+import { initDoc, snapshot, snapshotAll, StickySnapshot, ObjectSnapshot } from '@shared/board-model';
 import { connectBoard, type ConnectionState } from '@client/sync/connectBoard';
 
 export interface BoardDoc {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  allObjects: readonly ObjectSnapshot[];
   connectionState: ConnectionState;
 }
 
 /**
  * Owns one Y.Doc and, when a `boardId` is supplied, a live network provider.
- * Exposes an immutable snapshot via useSyncExternalStore, recomputed on
- * objects.observeDeep — which fires for both local edits and remote updates the
- * provider applies, so other people's changes re-render this board too.
+ * Recomputes immutable snapshots on objects.observeDeep — which fires for both
+ * local edits and remote updates the provider applies, so other people's changes
+ * re-render this board too.
  *
  * Selection and editing state are deliberately NOT held here: they are local to
- * each client and never written to the doc (live.local_selection).
+ * each client and never written to the doc.
  */
 export function useBoardDoc(boardId?: string): BoardDoc {
   const docRef = useRef<Y.Doc | null>(null);
@@ -42,58 +43,23 @@ export function useBoardDoc(boardId?: string): BoardDoc {
     return () => conn.destroy();
   }, [doc, boardId]);
 
-  const cacheRef = useRef<{ snap: readonly StickySnapshot[]; version: number }>({
-    snap: [],
-    version: -1,
-  });
+  // A monotonically increasing version bumped on any deep change to the objects
+  // map. Snapshots are derived with useMemo keyed on this version, which is the
+  // reliable way to re-render on both local and remote edits.
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    const observer = () => setVersion((v) => v + 1);
+    objects.observeDeep(observer);
+    // Recompute once on mount so we pick up changes that landed between render and subscribe.
+    setVersion((v) => v + 1);
+    return () => objects.unobserveDeep(observer);
+  }, [objects]);
 
-  const getSnapshot = useCallback((): readonly StickySnapshot[] => {
-    // Fall back to comparing content so React never sees a changing reference for
-    // equal data (an unrelated remote update must not force a re-render loop).
-    const next = snapshot(doc);
-    const cache = cacheRef.current;
-    if (cache.version === -1 || !snapshotsEqual(cache.snap, next)) {
-      cacheRef.current = { snap: next, version: cache.version + 1 };
-    }
-    return cacheRef.current.snap;
-  }, [doc]);
-
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      const observer = () => onStoreChange();
-      objects.observeDeep(observer);
-      return () => objects.unobserveDeep(observer);
-    },
-    [objects],
-  );
-
-  const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const notes = useMemo(() => snapshot(doc), [doc, version]);
+  const allObjects = useMemo(() => snapshotAll(doc), [doc, version]);
 
   return useMemo(
-    () => ({ doc, notes, connectionState }),
-    [doc, notes, connectionState],
+    () => ({ doc, notes, allObjects, connectionState }),
+    [doc, notes, allObjects, connectionState],
   );
-}
-
-function snapshotsEqual(a: readonly StickySnapshot[], b: readonly StickySnapshot[]): boolean {
-  if (a === b) return true;
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    const x = a[i];
-    const y = b[i];
-    if (
-      x.id !== y.id ||
-      x.x !== y.x ||
-      x.y !== y.y ||
-      x.color !== y.color ||
-      x.text !== y.text ||
-      x.z !== y.z ||
-      x.createdAt !== y.createdAt ||
-      x.width !== y.width ||
-      x.height !== y.height
-    ) {
-      return false;
-    }
-  }
-  return true;
 }

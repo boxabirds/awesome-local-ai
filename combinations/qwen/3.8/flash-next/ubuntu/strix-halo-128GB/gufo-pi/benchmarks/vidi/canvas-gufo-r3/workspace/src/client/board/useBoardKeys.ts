@@ -10,6 +10,7 @@ import {
 } from '@shared/board-model';
 import { SelectionApi } from './useSelection';
 import type { UndoController } from './undo';
+import type { Tool } from './useTool';
 
 export interface UseBoardKeysOpts {
   doc: Y.Doc;
@@ -17,6 +18,8 @@ export interface UseBoardKeysOpts {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undoController?: UndoController | null;
+  tool?: Tool;
+  setTool?(t: Tool): void;
 }
 
 function isTextInputTarget(target: EventTarget | null): boolean {
@@ -36,6 +39,10 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
   canEditRef.current = opts.canEdit;
   const undoRef = useRef(opts.undoController);
   undoRef.current = opts.undoController;
+  const toolRef = useRef(opts.tool);
+  toolRef.current = opts.tool;
+  const setToolRef = useRef(opts.setTool);
+  setToolRef.current = opts.setTool;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -75,9 +82,27 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         return;
       }
 
-      // Escape: clear selection
+      // Escape: return to select tool or clear selection
       if (e.key === 'Escape' && !editing) {
+        if (toolRef.current === 'text') {
+          setToolRef.current?.('select');
+          return;
+        }
         sel.clear();
+        return;
+      }
+
+      // T key: activate text tool (not while editing or in input)
+      if (e.key === 'T' && !editing && !isTextInputTarget(e.target) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (canEditRef.current) {
+          setToolRef.current?.('text');
+        }
+        return;
+      }
+
+      // V key: activate select tool (not while editing or in input)
+      if (e.key === 'V' && !editing && !isTextInputTarget(e.target) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setToolRef.current?.('select');
         return;
       }
 
@@ -129,7 +154,7 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         return;
       }
 
-      // Enter: edit single selected sticky
+      // Enter: edit single selected object (sticky or text)
       if (
         e.key === 'Enter' &&
         !editing &&
@@ -141,7 +166,7 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         e.preventDefault();
         const id = [...sel.ids][0];
         const obj = snapshotRef.current.find((o) => o.id === id);
-        if (obj && obj.type === 'sticky') {
+        if (obj && (obj.type === 'sticky' || obj.type === 'text')) {
           sel.startEdit(id);
         }
         return;

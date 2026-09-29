@@ -9,6 +9,7 @@ const PAGE_HEIGHT = 800;
 
 export interface BoardViewportProps {
   camera: Camera;
+  cursor?: string;
   children?: React.ReactNode;
   beginPan?(p: Point): void;
   panMove?(p: Point): void;
@@ -18,7 +19,7 @@ export interface BoardViewportProps {
   /** Double-click landed on empty board space (not on an object). */
   onDoubleClickEmpty?(screenPoint: Point): void;
   /** A press-and-release without dragging on empty board space. */
-  onClickEmpty?(): void;
+  onClickEmpty?(screenPoint: Point): void;
   /** Shift+pointerdown on empty board space (start marquee). */
   onMarqueeBegin?(screenPoint: Point): void;
   /** Marquee pointer move. */
@@ -31,6 +32,7 @@ export interface BoardViewportProps {
 
 export function BoardViewport({
   camera,
+  cursor = 'grab',
   children,
   beginPan,
   panMove,
@@ -144,12 +146,15 @@ export function BoardViewport({
       return;
     }
 
-    if (!beginPan) return;
+    // Track the pointer so a press-and-release can be detected as a click even when
+    // panning is disabled (e.g. the Text tool). Only start panning when beginPan is given.
     e.preventDefault();
     el.setPointerCapture(e.pointerId);
     pointerIdRef.current = e.pointerId;
-    isPanningRef.current = true;
-    beginPan({ x: e.clientX, y: e.clientY });
+    if (beginPan) {
+      isPanningRef.current = true;
+      beginPan({ x: e.clientX, y: e.clientY });
+    }
   }, [beginPan, onMarqueeBegin]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -183,7 +188,13 @@ export function BoardViewport({
     }
 
     if (downPointRef.current && !movedRef.current && isBoardBackground(e.target as HTMLElement)) {
-      if (onClickEmpty) onClickEmpty();
+      if (onClickEmpty) {
+        const el2 = viewportRef.current;
+        if (el2) {
+          const rect = el2.getBoundingClientRect();
+          onClickEmpty({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        }
+      }
     }
     downPointRef.current = null;
     movedRef.current = false;
@@ -249,7 +260,7 @@ export function BoardViewport({
         width: '100%',
         height: '100%',
         overflow: 'hidden',
-        cursor: 'grab',
+        cursor,
         touchAction: 'none',
       }}
       onPointerDown={handlePointerDown}

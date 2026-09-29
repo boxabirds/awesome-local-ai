@@ -3,6 +3,7 @@ import { ObjectSnapshot, objectBounds } from '@shared/board-model';
 import { Camera } from '@client/canvas/camera';
 import { Rect, Handle, unionRects } from '@shared/geometry';
 import { HANDLE_SIZE_PX } from '@shared/config';
+import { getObjectType } from '@client/objects/registry';
 
 const HANDLE_POSITIONS: Record<Handle, { x: number; y: number }> = {
   nw: { x: 0, y: 0 },
@@ -40,7 +41,17 @@ export function SelectionOverlay({ ids, snapshot, camera, showHandles, onHandleP
   const selected = snapshot.filter((o) => ids.has(o.id));
   if (selected.length === 0) return null;
 
-  // Draw per-object outlines (rendered as absolutely positioned divs in world space)
+  // Determine if all selected objects have horizontal-only handles
+  let allHorizontal = selected.length > 0;
+  for (const obj of selected) {
+    const spec = getObjectType(obj.type);
+    if (!spec || spec.handles !== 'horizontal') {
+      allHorizontal = false;
+      break;
+    }
+  }
+
+  // Draw per-object outlines
   const outlines = selected.map((obj) => {
     const b = objectBounds(obj);
     return (
@@ -74,6 +85,7 @@ export function SelectionOverlay({ ids, snapshot, camera, showHandles, onHandleP
         bbox={bbox}
         camera={camera}
         showHandles={showHandles}
+        horizontalOnly={allHorizontal}
         onHandlePointerDown={onHandlePointerDown}
       />
     </>
@@ -84,17 +96,20 @@ interface BoundingBoxProps {
   bbox: Rect;
   camera: Camera;
   showHandles: boolean;
+  horizontalOnly?: boolean;
   onHandlePointerDown(e: React.PointerEvent, handle: Handle): void;
 }
 
-function SelectionBoundingBox({ bbox, camera, showHandles, onHandlePointerDown }: BoundingBoxProps) {
+function SelectionBoundingBox({ bbox, camera, showHandles, horizontalOnly, onHandlePointerDown }: BoundingBoxProps) {
   // Convert world bbox to screen coordinates
   const sx = (bbox.x - camera.x) * camera.zoom;
   const sy = (bbox.y - camera.y) * camera.zoom;
   const sw = bbox.width * camera.zoom;
   const sh = bbox.height * camera.zoom;
 
-  const handles: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+  const handles: Handle[] = horizontalOnly
+    ? ['e', 'w']
+    : ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 
   return (
     <div

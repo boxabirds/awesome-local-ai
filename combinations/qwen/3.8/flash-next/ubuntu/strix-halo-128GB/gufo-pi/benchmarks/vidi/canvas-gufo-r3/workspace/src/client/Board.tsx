@@ -16,13 +16,38 @@ import { SelectionOverlay } from '@client/board/SelectionOverlay';
 import { SelectionBar } from '@client/board/SelectionBar';
 import { Toolbar } from '@client/board/Toolbar';
 import { StickyNote } from '@client/objects/StickyNote';
+import { TextObject } from '@client/objects/TextObject';
 import { ConnectionStatus } from '@client/sync/ConnectionStatus';
 import { canEdit } from '@client/sync/connectBoard';
 import { createSticky, deleteObjects } from '@shared/board-model';
+import { createText } from '@shared/objects/text';
+import { useTool, Tool } from '@client/board/useTool';
 
 // Register the sticky type at import time
 import { registerStickyType } from '@client/objects/registry';
 registerStickyType(StickyNote);
+
+// Register the text type at import time
+import { registerObjectType } from '@client/objects/registry';
+import { TEXT_MIN_WIDTH_WORLD } from '@shared/config';
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+  hitTest(obj, worldPoint) {
+    const w = (obj as any).width ?? 100;
+    const h = (obj as any).height ?? 20;
+    return (
+      worldPoint.x >= obj.x &&
+      worldPoint.x <= obj.x + w &&
+      worldPoint.y >= obj.y &&
+      worldPoint.y <= obj.y + h
+    );
+  },
+});
 
 export function Board({ boardId }: { boardId: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -30,8 +55,8 @@ export function Board({ boardId }: { boardId: string }) {
   const cameraState = useCamera(viewportSize);
   const { camera, hasNavigated, wheel, gestureZoom, zoomStep, reset, setCamera } = cameraState;
 
-  const { doc, notes, connectionState } = useBoardDoc(boardId);
-  const selection = useSelection(notes);
+  const { doc, notes, allObjects, connectionState } = useBoardDoc(boardId);
+  const selection = useSelection(allObjects);
 
   const cameraRef = useRef<Camera>(camera);
   cameraRef.current = camera;
@@ -44,6 +69,7 @@ export function Board({ boardId }: { boardId: string }) {
 
   const editable = canEdit(connectionState);
   const undoState = useUndo(undoController, editable);
+  const { tool, setTool } = useTool(editable);
 
   // ResizeObserver
   useEffect(() => {
@@ -64,8 +90,13 @@ export function Board({ boardId }: { boardId: string }) {
   }, []);
 
   // Test hooks
+  const testHookRef = useRef({ doc, boardId });
+  testHookRef.current = { doc, boardId };
   useEffect(() => {
-    setupTestHooks(setCamera, () => cameraRef.current);
+    setupTestHooks(setCamera, () => cameraRef.current, {
+      getDoc: () => testHookRef.current.doc,
+      getBoardId: () => testHookRef.current.boardId,
+    });
   }, [setCamera]);
 
   useEffect(() => {
@@ -80,14 +111,14 @@ export function Board({ boardId }: { boardId: string }) {
     doc,
     camera,
     selection,
-    snapshot: notes,
+    snapshot: allObjects,
     canEdit: editable,
     onGestureStart,
     onGestureEnd,
   });
 
   // Marquee
-  const marquee = useMarquee(camera, notes, useCallback((ids: string[]) => {
+  const marquee = useMarquee(camera, allObjects, useCallback((ids: string[]) => {
     selection.setMany(ids, false);
   }, [selection.setMany]));
 
@@ -95,9 +126,11 @@ export function Board({ boardId }: { boardId: string }) {
   useBoardKeys({
     doc,
     selection,
-    snapshot: notes,
+    snapshot: allObjects,
     canEdit: editable,
     undoController,
+    tool,
+    setTool,
   });
 
   // Delete selection callback
@@ -123,6 +156,7 @@ export function Board({ boardId }: { boardId: string }) {
   const handleDoubleClickEmpty = useCallback(
     (screenPoint: Point) => {
       if (!editable) return;
+      if (tool === 'text') return; // text tool handles click, not double-click
       undoController.boundary();
       const cam = cameraRef.current;
       const world = screenToWorld(cam, screenPoint);
@@ -130,60 +164,107 @@ export function Board({ boardId }: { boardId: string }) {
       undoController.boundary();
       if (id) selection.startEdit(id);
     },
-    [doc, editable, undoController],
+    [doc, editable, undoController, tool],
+  );
+
+  const handleClickEmpty = useCallback(
+    (screenPoint: Point) => {
+      if (!editable) {
+        selection.clear();
+        return;
+      }
+      if (tool === 'text') {
+        // Create text at clicked world point
+        undoController.boundary();
+        const cam = cameraRef.current;
+        const world = screenToWorld(cam, screenPoint);
+        const id = createText(doc, world, 'user');
+        undoController.boundary();
+        setTool('select');
+        if (id) selection.startEdit(id);
+        return;
+      }
+      selection.clear();
+    },
+    [doc, editable, undoController, tool, setTool, selection],
   );
 
   // Check if any selected type has resizable handles
   const showHandles = selection.ids.size > 0 && editable;
 
-  const renderOrder = [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const renderOrder = [...allObjects].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+  const cursorStyle = tool === 'text' ? 'text' : 'grab';
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
       <BoardViewport
         camera={camera}
-        beginPan={cameraState.beginPan}
+        cursor={cursorStyle}
+        beginPan={tool === 'text' ? undefined : cameraState.beginPan}
         panMove={cameraState.panMove}
         endPan={cameraState.endPan}
         wheel={wheel}
         gestureZoom={gestureZoom}
         onDoubleClickEmpty={handleDoubleClickEmpty}
-        onClickEmpty={() => selection.clear()}
-        onMarqueeBegin={marquee.begin}
+        onClickEmpty={handleClickEmpty}
+        onMarqueeBegin={tool === 'text' ? undefined : marquee.begin}
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
         onMarqueeCancel={marquee.cancel}
       >
-        {renderOrder.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={camera.zoom}
-            selected={selection.ids.has(note.id)}
-            editing={note.id === selection.editingId}
-            dragging={transform.draggingId === note.id}
-            readOnly={!editable}
-            onSelect={selection.click}
-            onToggle={selection.toggle}
-            onStartEdit={selection.startEdit}
-            onEndEdit={selection.endEdit}
-            onObjectPointerDown={transform.onObjectPointerDown}
-            undoController={undoController}
-          />
-        ))}
+        {renderOrder.map((obj) => {
+          if (obj.type === 'text') {
+            return (
+              <TextObject
+                key={obj.id}
+                note={obj}
+                doc={doc}
+                zoom={camera.zoom}
+                selected={selection.ids.has(obj.id)}
+                editing={obj.id === selection.editingId}
+                dragging={transform.draggingId === obj.id}
+                readOnly={!editable}
+                onSelect={selection.click}
+                onToggle={selection.toggle}
+                onStartEdit={selection.startEdit}
+                onEndEdit={selection.endEdit}
+                onObjectPointerDown={transform.onObjectPointerDown}
+                undoController={undoController}
+              />
+            );
+          }
+          return (
+            <StickyNote
+              key={obj.id}
+              note={obj}
+              doc={doc}
+              zoom={camera.zoom}
+              selected={selection.ids.has(obj.id)}
+              editing={obj.id === selection.editingId}
+              dragging={transform.draggingId === obj.id}
+              readOnly={!editable}
+              onSelect={selection.click}
+              onToggle={selection.toggle}
+              onStartEdit={selection.startEdit}
+              onEndEdit={selection.endEdit}
+              onObjectPointerDown={transform.onObjectPointerDown}
+              undoController={undoController}
+            />
+          );
+        })}
         <MarqueeRect rect={marquee.rect} camera={camera} />
       </BoardViewport>
       <SelectionOverlay
         ids={selection.ids}
-        snapshot={notes}
+        snapshot={allObjects}
         camera={camera}
         showHandles={showHandles}
         onHandlePointerDown={transform.onHandlePointerDown}
       />
       <SelectionBar
         ids={selection.ids}
-        snapshot={notes}
+        snapshot={allObjects}
         camera={camera}
         onDelete={handleDeleteSelection}
       />
@@ -191,6 +272,8 @@ export function Board({ boardId }: { boardId: string }) {
         onCreateSticky={createAtWorldCentre}
         disabled={!editable}
         undoState={undoState}
+        tool={tool}
+        onToolChange={setTool}
       />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

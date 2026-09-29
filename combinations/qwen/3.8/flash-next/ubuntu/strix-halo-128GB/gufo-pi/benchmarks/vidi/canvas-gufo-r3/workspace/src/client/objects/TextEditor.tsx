@@ -1,37 +1,40 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import * as Y from 'yjs';
-import { applyStickyTextDiff } from './StickyText';
-import { clampToLimit } from '@shared/text-edit';
+import { clampToLimit, applyTextDiff } from '@shared/text-edit';
 import { LOCAL_ORIGIN } from '@shared/board-model';
-import { STICKY_TEXT_MAX_CHARS } from '@shared/config';
 import type { UndoController } from '@client/board/undo';
 
-export interface StickyTextEditorProps {
+export interface TextEditorProps {
   ytext: Y.Text;
+  maxChars: number;
   fontPx: number;
-  padding: number;
+  width: number | 'auto';
+  onInput(): void;
   onEnd(next: 'selected' | 'unselected'): void;
   undoController?: UndoController | null;
+  /** Additional style for the textarea */
+  style?: React.CSSProperties;
 }
 
 /**
- * Transparent textarea overlaid on the note text while editing.
- * Every input event is written to the Y.Text immediately (minimal diff), so ending
- * editing needs no extra write and characters cannot be lost on unmount.
+ * Generalised text editor for text objects (and used by StickyTextEditor via a thin wrapper).
+ * Caret at end on mount, Enter inserts newline, Escape/outside click ends,
+ * minimal Y.Text diff, clamp to maxChars.
  */
-export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController }: StickyTextEditorProps) {
+export function TextEditor({ ytext, maxChars, fontPx, width, onInput, onEnd, undoController, style }: TextEditorProps) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const endedRef = useRef(false);
   const unmountedRef = useRef(false);
   const composingRef = useRef(false);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
+  const onInputRef = useRef(onInput);
+  onInputRef.current = onInput;
   const undoRef = useRef(undoController);
   undoRef.current = undoController;
 
-  // Mount: seed the value, focus, caret at the end of the text.
+  // Mount: seed value, focus, caret at end
   useEffect(() => {
-    // Boundary at edit start: prevents merging with the previous action
     undoRef.current?.boundary();
     const el = ref.current;
     if (!el) return;
@@ -41,16 +44,12 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController
     try {
       el.setSelectionRange(len, len);
     } catch {
-      // jsdom edge cases; caret placement is best-effort there
+      // jsdom edge cases
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reflect REMOTE changes (another client editing this note live) into the textarea.
-  // Without this, a local commit's minimal diff would recompute against a value that
-  // is missing the remote characters and erase them — concurrent typing would lose
-  // text. Local commits use LOCAL_ORIGIN and are ignored here. Caret goes to the end,
-  // which is the right behaviour for a short shared sticky.
+  // Reflect remote changes into the textarea
   useEffect(() => {
     const handler = (_event: Y.YTextEvent, origin: unknown) => {
       if (origin === LOCAL_ORIGIN) return;
@@ -63,7 +62,7 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController
         try {
           el.setSelectionRange(len, len);
         } catch {
-          /* caret placement is best-effort */
+          /* best-effort */
         }
       }
     };
@@ -71,8 +70,6 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController
     return () => ytext.unobserve(handler);
   }, [ytext]);
 
-  // Runs before the DOM node is removed: a blur caused by unmounting must not
-  // change selection (the caller has already moved selection elsewhere).
   useLayoutEffect(() => {
     unmountedRef.current = false;
     return () => {
@@ -83,7 +80,7 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController
   const commit = useCallback(() => {
     const el = ref.current;
     if (!el) return;
-    const clamped = clampToLimit(el.value, STICKY_TEXT_MAX_CHARS);
+    const clamped = clampToLimit(el.value, maxChars);
     if (clamped !== el.value) {
       el.value = clamped;
       const len = clamped.length;
@@ -93,16 +90,16 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController
         /* noop */
       }
     }
-    applyStickyTextDiff(ytext, el.value, LOCAL_ORIGIN);
-  }, [ytext]);
+    applyTextDiff(ytext, el.value, LOCAL_ORIGIN, maxChars);
+  }, [ytext, maxChars]);
 
   const handleInput = useCallback(() => {
     if (composingRef.current) return;
     commit();
+    onInputRef.current();
   }, [commit]);
 
   const endEdit = useCallback((next: 'selected' | 'unselected') => {
-    // Boundary at edit end: prevents merging typing with the next action
     undoRef.current?.boundary();
     endedRef.current = true;
     onEndRef.current(next);
@@ -110,28 +107,23 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // Ctrl/Cmd+Z inside editor: undo typing via controller (prevent browser native undo)
+      // Ctrl/Cmd+Z inside editor
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
         commit();
         undoRef.current?.undo();
-        // Sync textarea back to the ytext after undo
         const el = ref.current;
-        if (el) {
-          el.value = ytext.toString();
-        }
+        if (el) el.value = ytext.toString();
         return;
       }
-      // Ctrl/Cmd+Shift+Z or Ctrl+Y inside editor: redo typing
+      // Ctrl/Cmd+Shift+Z or Ctrl+Y inside editor
       if ((e.ctrlKey || e.metaKey) && ((e.key === 'z' && e.shiftKey) || e.key === 'y')) {
         e.preventDefault();
         e.stopPropagation();
         undoRef.current?.redo();
         const el = ref.current;
-        if (el) {
-          el.value = ytext.toString();
-        }
+        if (el) el.value = ytext.toString();
         return;
       }
       if (e.key === 'Escape') {
@@ -140,7 +132,7 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController
         commit();
         endEdit('selected');
       }
-      // Enter is not intercepted: it inserts a newline.
+      // Enter is not intercepted: inserts newline
       e.stopPropagation();
     },
     [commit, endEdit, ytext],
@@ -155,20 +147,15 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController
   return (
     <textarea
       ref={ref}
-      data-testid="sticky-textarea"
+      data-testid="text-editor"
       spellCheck={false}
       onChange={handleInput}
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
-      onCompositionStart={() => {
-        composingRef.current = true;
-      }}
-      onCompositionEnd={() => {
-        composingRef.current = false;
-        commit();
-      }}
+      onCompositionStart={() => { composingRef.current = true; }}
+      onCompositionEnd={() => { composingRef.current = false; commit(); onInputRef.current(); }}
       style={{
         position: 'absolute',
         inset: 0,
@@ -178,17 +165,17 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController
         outline: 'none',
         resize: 'none',
         background: 'transparent',
-        padding: `${padding}px`,
+        padding: 0,
         font: 'inherit',
         fontSize: `${fontPx}px`,
         lineHeight: 1.3,
         color: '#222',
-        textAlign: 'center',
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-word',
         overflow: 'hidden',
         boxSizing: 'border-box',
         caretColor: '#222',
+        ...style,
       }}
     />
   );

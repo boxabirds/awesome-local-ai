@@ -1,15 +1,18 @@
 import React from 'react';
 import type { UseUndoResult } from './useUndo';
 import { UndoButtons } from './UndoButtons';
+import type { Tool } from './useTool';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
   disabled?: boolean;
   undoState?: UseUndoResult;
+  tool?: Tool;
+  onToolChange?(t: Tool): void;
 }
 
 /** Fixed left-side vertical toolbar. */
-export function Toolbar({ onCreateSticky, disabled, undoState }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled, undoState, tool = 'select', onToolChange }: ToolbarProps) {
   return (
     <div
       data-testid="toolbar"
@@ -29,6 +32,52 @@ export function Toolbar({ onCreateSticky, disabled, undoState }: ToolbarProps) {
         zIndex: 100,
       }}
     >
+      <button
+        type="button"
+        aria-label="Select (V)"
+        title="Select (V)"
+        aria-pressed={tool === 'select'}
+        data-testid="tool-select"
+        onClick={() => onToolChange?.('select')}
+        style={{
+          width: '40px',
+          height: '40px',
+          border: tool === 'select' ? '2px solid #1976D2' : 'none',
+          borderRadius: '6px',
+          background: tool === 'select' ? '#E3F2FD' : 'transparent',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M4 2l12 10-5 1-2 5-1-5-4 1z" fill="#333" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        aria-label="Text (T)"
+        title="Text (T)"
+        aria-pressed={tool === 'text'}
+        data-testid="tool-text"
+        onClick={() => onToolChange?.('text')}
+        disabled={disabled}
+        style={{
+          width: '40px',
+          height: '40px',
+          border: tool === 'text' ? '2px solid #1976D2' : 'none',
+          borderRadius: '6px',
+          background: tool === 'text' ? '#E3F2FD' : 'transparent',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.5 : 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#333' }}>T</span>
+      </button>
       <button
         type="button"
         aria-label="Sticky note"

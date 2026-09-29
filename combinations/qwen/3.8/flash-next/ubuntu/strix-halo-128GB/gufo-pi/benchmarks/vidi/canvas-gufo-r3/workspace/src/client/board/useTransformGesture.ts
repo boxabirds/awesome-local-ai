@@ -12,6 +12,11 @@ import {
 import { Rect, Handle, unionRects, resizeRect, clampScale, scaleWithin } from '@shared/geometry';
 import { SelectionApi } from './useSelection';
 import { getObjectType } from '@client/objects/registry';
+import { setTextWidthFixed } from '@shared/objects/text';
+import { layoutText, createCanvasMeasurer } from '@client/objects/textLayout';
+import type { TextSize } from '@shared/config';
+
+const gestureMeasurer = createCanvasMeasurer();
 
 export interface UseTransformGestureOpts {
   doc: Y.Doc;
@@ -167,7 +172,29 @@ export function useTransformGesture(opts: UseTransformGestureOpts): UseTransform
 
     const rectsMap = new Map<string, Rect>();
     for (const [id, rect] of startRectsRef.current) {
-      rectsMap.set(id, scaleWithin(rect, bbox, finalBbox));
+      const scaled = scaleWithin(rect, bbox, finalBbox);
+      rectsMap.set(id, scaled);
+    }
+
+    // Text objects with horizontal-only handles: width is set as fixed, height follows
+    // the content (re-wrap). Font size never changes via handles.
+    for (const [id] of startRectsRef.current) {
+      const obj = snapshotRef.current.find((o) => o.id === id);
+      if (obj && obj.type === 'text') {
+        const spec = getObjectType('text');
+        if (spec?.handles === 'horizontal') {
+          const m = docRef.current.getMap('objects').get(id) as Y.Map<unknown> | undefined;
+          if (m && m instanceof Y.Map) {
+            const size = m.get('size') as TextSize;
+            const yt = m.get('text');
+            const text = yt instanceof Y.Text ? yt.toString() : '';
+            const newWidth = rectsMap.get(id)!.width;
+            const res = layoutText(text, size, 'fixed', newWidth, gestureMeasurer);
+            rectsMap.set(id, { x: rectsMap.get(id)!.x, y: rectsMap.get(id)!.y, width: res.width, height: res.height });
+            setTextWidthFixed(docRef.current, id, res.width);
+          }
+        }
+      }
     }
 
     if (rectsMap.size > 0) {

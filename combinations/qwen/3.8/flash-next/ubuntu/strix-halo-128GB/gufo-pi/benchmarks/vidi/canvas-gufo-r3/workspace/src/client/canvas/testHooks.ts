@@ -8,13 +8,29 @@ declare global {
       getCamera?(): Camera | undefined;
       /** Latest mapped connection state (test builds only; used by nightly TC-29). */
       connectionState?: ConnectionState;
+      /** Live board doc (test builds only). */
+      doc?: unknown;
+      boardId?: string | null;
     };
   }
 }
 
-export function setupTestHooks(setCamera: (cam: Camera) => void, getCamera?: () => Camera) {
+export function setupTestHooks(
+  setCamera: (cam: Camera) => void,
+  getCamera?: () => Camera,
+  getters?: { getDoc?: () => unknown; getBoardId?: () => string | null },
+) {
   if (import.meta.env.MODE === 'test') {
-    window.__vidi6 = { setCamera, getCamera };
+    window.__vidi6 = {
+      setCamera,
+      getCamera,
+      get doc() {
+        return getters?.getDoc?.();
+      },
+      get boardId() {
+        return getters?.getBoardId?.() ?? null;
+      },
+    };
   }
 }
 
