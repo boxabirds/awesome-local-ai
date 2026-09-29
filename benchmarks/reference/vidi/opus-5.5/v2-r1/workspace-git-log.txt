@@ -1,3 +1,46 @@
+commit 5891f0c746ccfe23e92376a0774cc604c2e5e912
+vidi-agent  Tue Sep 29 23:27:02 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                         |  44 +++++
+ index.html                                       |   2 +
+ src/client/App.tsx                               |  30 ++--
+ src/client/api.ts                                |  30 ++++
+ src/client/main.tsx                              |   4 +-
+ src/client/pages/BoardPage.tsx                   |  72 ++++++++
+ src/client/pages/HomePage.tsx                    |  11 ++
+ src/client/pages/NewBoardButton.tsx              |  23 +++
+ src/client/pages/NotFoundPage.tsx                |  21 +++
+ src/client/pages/state.ts                        |  41 +++++
+ src/client/pages/useCreateBoard.ts               |  39 ++++
+ src/client/router.ts                             |  51 ++++++
+ src/client/share/SharePanel.tsx                  | 145 +++++++++++++++
+ src/client/styles.css                            | 161 +++++++++++++++++
+ src/shared/config.ts                             |   7 +
+ src/worker/board-room.ts                         |  36 +++-
+ src/worker/board-store.ts                        |  53 +++++-
+ src/worker/create-board.ts                       |  25 +++
+ src/worker/index.ts                              |  50 +++++-
+ src/worker/test-hooks.ts                         |  11 +-
+ tests/component/SharePanel.test.tsx              | 149 ++++++++++++++++
+ tests/component/pages.test.tsx                   | 208 ++++++++++++++++++++++
+ tests/e2e/broken-board.spec.ts                   |   5 +-
+ tests/e2e/helpers/board.ts                       |   3 +
+ tests/e2e/helpers/participants.ts                |  11 +-
+ tests/e2e/helpers/seed.ts                        |  24 ++-
+ tests/e2e/persistence.spec.ts                    |  10 +-
+ tests/e2e/share.spec.ts                          | 216 +++++++++++++++++++++++
+ tests/integration/board-api.test.ts              | 179 +++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |  21 ++-
+ tests/integration/board-room.test.ts             |  13 +-
+ tests/integration/worker.test.ts                 |  14 +-
+ tests/integration/ws-client.ts                   |   7 +
+ tests/unit/create-board.test.ts                  |  87 +++++++++
+ tsconfig.json                                    |   3 +-
+ tsconfig.worker.json                             |   3 +-
+ 36 files changed, 1739 insertions(+), 70 deletions(-)
 commit 8a7583a33714c24f81585013fa313232c95f6597
 vidi-agent  Tue Sep 29 23:13:53 2026 +0100
 
