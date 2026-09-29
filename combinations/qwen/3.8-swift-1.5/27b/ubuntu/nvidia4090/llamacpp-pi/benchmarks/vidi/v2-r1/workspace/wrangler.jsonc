@@ -1,7 +1,15 @@
 {
   "name": "vidi6",
   "compatibility_date": "2024-01-01",
+  "main": "src/worker/index.ts",
+  "durable_objects": {
+    "bindings": [
+      { "name": "BOARD_ROOM", "class_name": "BoardRoom" }
+    ]
+  },
   "assets": {
-    "directory": "dist/client"
+    "directory": "dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
   }
 }

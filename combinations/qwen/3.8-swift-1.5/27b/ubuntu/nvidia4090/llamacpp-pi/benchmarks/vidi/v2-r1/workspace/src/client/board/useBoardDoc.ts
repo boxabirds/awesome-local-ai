@@ -1,8 +1,9 @@
-import { useRef, useSyncExternalStore, useCallback } from 'react';
+import { useRef, useSyncExternalStore, useCallback, useEffect, useState } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '@shared/board-model';
+import { connectBoard, type ConnectionState } from '@client/sync/connectBoard';
 
-export function useBoardDoc(): { doc: Y.Doc; objects: readonly StickySnapshot[] } {
+export function useBoardDoc(boardId: string | null): { doc: Y.Doc; objects: readonly StickySnapshot[]; connectionState: ConnectionState } {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     const doc = new Y.Doc();
@@ -32,5 +33,16 @@ export function useBoardDoc(): { doc: Y.Doc; objects: readonly StickySnapshot[] 
 
   const objects = useSyncExternalStore(subscribe, getSnapshot);
 
-  return { doc, objects };
+  // Connection state
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+
+  useEffect(() => {
+    if (!boardId) return;
+    const conn = connectBoard(doc, boardId, setConnectionState);
+    return () => {
+      conn.destroy();
+    };
+  }, [doc, boardId]);
+
+  return { doc, objects, connectionState };
 }

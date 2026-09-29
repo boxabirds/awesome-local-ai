@@ -29,4 +29,31 @@ export default defineWorkspace([
       },
     },
   },
+  {
+    test: {
+      name: 'integration',
+      include: ['tests/integration/**/*.test.ts'],
+      pool: '@cloudflare/vitest-pool-workers',
+      poolOptions: {
+        workers: {
+          main: 'src/worker/index.ts',
+          compatibilityDate: '2024-01-01',
+          durableObjects: {
+            BOARD_ROOM: 'BoardRoom',
+          },
+        },
+      },
+      server: {
+        deps: {
+          external: [/cloudflare:test/],
+        },
+      },
+    },
+    resolve: {
+      alias: {
+        '@shared': resolve(__dirname, 'src/shared'),
+        '@client': resolve(__dirname, 'src/client'),
+      },
+    },
+  },
 ]);

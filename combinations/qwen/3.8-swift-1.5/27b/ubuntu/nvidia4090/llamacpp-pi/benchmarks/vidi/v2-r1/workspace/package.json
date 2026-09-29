@@ -9,14 +9,20 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --config vitest.config.ts --project unit",
     "test:component": "vitest run --config vitest.config.ts --project component",
-    "test:e2e": "playwright test"
+    "test:integration": "vitest run --config vitest.config.ts --project integration",
+    "test:e2e": "playwright test",
+    "test:e2e:nightly": "playwright test --project=chromium --grep @nightly"
   },
   "dependencies": {
+    "lib0": "^0.2.119",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.0",
     "@playwright/test": "^1.45.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.0.0",

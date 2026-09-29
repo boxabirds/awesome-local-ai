@@ -11,13 +11,30 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createSticky, deleteObject, setStickyColor } from '@shared/board-model';
+import { newBoardId } from '@shared/board-id';
 import { STICKY_SIZE_WORLD } from '@shared/config';
 import type { Point } from './canvas/camera';
+
+function getBoardIdFromPath(): string | null {
+  const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]{22})$/);
+  return match ? match[1] : null;
+}
 
 export function App() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+
+  // Redirect / to /b/<newBoardId>
+  useEffect(() => {
+    if (window.location.pathname === '/') {
+      const id = newBoardId();
+      window.history.replaceState(null, '', `/b/${id}`);
+    }
+  }, []);
+
+  const boardId = getBoardIdFromPath();
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -32,7 +49,7 @@ export function App() {
   }, []);
 
   const cam = useCamera(size);
-  const { doc, objects } = useBoardDoc();
+  const { doc, objects, connectionState } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   // Set up test hooks
@@ -103,6 +120,13 @@ export function App() {
     }
   }, [doc, selectedId, select]);
 
+  // Clear selection/editing if the note was deleted remotely
+  useEffect(() => {
+    if (selectedId && !objects.find(n => n.id === selectedId)) {
+      select(null);
+    }
+  }, [objects, selectedId, select]);
+
   // Find the selected note for NoteToolbar positioning
   const selectedNote = objects.find(n => n.id === selectedId);
 
@@ -123,6 +147,7 @@ export function App() {
 
   return (
     <div ref={viewportRef} style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={cam.camera}
         beginPan={cam.beginPan}
