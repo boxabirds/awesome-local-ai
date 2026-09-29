@@ -59,6 +59,8 @@ export interface StickyNoteProps {
   onEndEdit(next: 'selected' | 'unselected'): void;
   /** CSS stacking layer: the note's rank in (z, id) order. DOM order stays stable while dragging. */
   layer?: number;
+  /** False while the board is locked: no drag, selection, editing, colour or delete. */
+  editable?: boolean;
 }
 
 /** A pre-wrap block shows no trailing empty line; a textarea does. Keep them the same height. */
@@ -68,6 +70,7 @@ function measurable(text: string): string {
 
 export function StickyNote(props: StickyNoteProps) {
   const { note, doc, zoom, selected, editing } = props;
+  const editable = props.editable ?? true;
   const noteRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const gestureRef = useRef<Gesture | null>(null);
@@ -131,7 +134,7 @@ export function StickyNote(props: StickyNoteProps) {
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     // Never let a press on a note reach the board (no pan, no deselect).
     e.stopPropagation();
-    if (e.button !== PRIMARY_BUTTON || editing) return;
+    if (e.button !== PRIMARY_BUTTON || editing || !editable) return;
     try {
       e.currentTarget.setPointerCapture?.(e.pointerId);
     } catch {
@@ -153,6 +156,11 @@ export function StickyNote(props: StickyNoteProps) {
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const g = gestureRef.current;
     if (!g || e.pointerId !== g.pointerId) return;
+    // The board was locked mid-gesture: stop without moving the note any further.
+    if (!editable) {
+      finish(false);
+      return;
+    }
     const dx = e.clientX - g.startX;
     const dy = e.clientY - g.startY;
     if (!g.dragging) {
@@ -196,7 +204,7 @@ export function StickyNote(props: StickyNoteProps) {
     if (next === 'selected') noteRef.current?.focus({ preventScroll: true });
   };
 
-  const showToolbar = selected && !editing && !dragging;
+  const showToolbar = editable && selected && !editing && !dragging;
   const invZoom = 1 / zoom;
   const style = {
     left: note.x,
@@ -232,11 +240,11 @@ export function StickyNote(props: StickyNoteProps) {
         onLostPointerCapture={onPointerCancel}
         onDoubleClick={(e) => {
           e.stopPropagation();
-          if (hasObject(doc, note.id)) props.onStartEdit(note.id);
+          if (editable && hasObject(doc, note.id)) props.onStartEdit(note.id);
         }}
         onFocus={(e) => {
           // Keyboard focus (Tab) selects; a pointer press selects on release instead.
-          if (e.target === e.currentTarget && !gestureRef.current && !selected)
+          if (editable && e.target === e.currentTarget && !gestureRef.current && !selected)
             props.onSelect(note.id);
         }}
       >

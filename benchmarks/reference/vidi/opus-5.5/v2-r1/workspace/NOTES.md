@@ -107,3 +107,56 @@ Decisions made while implementing without anyone to ask.
   `npm run test:e2e:nightly` (Chromium). In TC-30 each participant edits their own notes in their own area of
   the board, so UI gestures never collide; convergence across everyone's changes is still asserted.
 - **Red-phase commits skipped** (task 1), as in earlier stories: one story commit.
+
+## Story 4 — Return to a board and find everything as it was left
+
+- **Room state vs. `RoomState` in the contract.** The contract's room-level type is
+  `'ready' | 'load-failed' | 'storage-failed'`; the room actually tracks the full lifecycle from the
+  design's state diagram (`loading`, `ready`, `compacting`, `storage-failed`, `hibernated`,
+  `load-failed` with its failure time) through the pure `nextRoomState` in `src/worker/room-state.ts`
+  (TC-27). `hibernated` is never observed by code (the runtime evicts the object; the constructor
+  reloads), but the edge is modelled and tested.
+- **Damaged log rows and Yjs causality.** Yjs updates from one client form a chain: after a
+  quarantined row, every later change by that client would stay "pending" forever, losing far more
+  than one change. After quarantining, `load` bridges each gap with a garbage-collected range
+  (`bridgeMissing`), so later changes apply and only content built directly on the missing change is
+  dropped (PRD persist.partial_damage). TC-09 compares against a doc built from every other row.
+- **Updates are parsed completely before they are applied** (`Y.decodeUpdate`), both on load and in
+  `readSync`: Yjs can integrate part of a malformed update before throwing, which would otherwise
+  store or apply half of it.
+- **`compactIfNeeded(doc, force?)`.** The contract has one argument; an optional `force` compacts
+  regardless of thresholds. Tests use it for snapshot states without writing 500 rows, and the
+  TC-24 corruption hook uses it so there is a snapshot to damage.
+- **Per-row limit.** SQLite-backed Durable Objects allow 2 MB per row/BLOB (Cloudflare limits page
+  as of this build); `SNAPSHOT_CHUNK_BYTES` (512 KiB) stays well under it.
+- **Load-failed client state is sticky.** `connection-close` with 4500 → `load_failed`; later
+  closes with other codes (e.g. a network drop between retries) keep `load_failed` until a sync
+  succeeds, so the board is never presented as empty and editable. 1011/1003 map to `reconnecting`.
+  The provider's own backoff (up to `RECONNECT_MAX_BACKOFF_MS`) does the retrying.
+- **Edit lock.** `canEdit(state)` gates creation (double-click, Enter, the now-disabled Sticky note
+  button), Delete/Backspace, drag (also ended mid-gesture), text editing, and the note toolbar
+  (colour/delete). Selection is cleared while locked because a selected note shows the toolbar.
+- **Test hooks.** `src/worker/test-hooks.ts` routes (`POST /__test/boards/:id/corrupt-snapshot` and
+  `/repair`) exist only when `env.TEST_HOOKS === '1'`, which only e2e `wrangler dev` sets via
+  `--var TEST_HOOKS:1` (Playwright webServer). `/__test/*` was added to `run_worker_first`; without
+  the variable the Worker passes such requests to the assets (SPA), which an e2e test verifies.
+  Corrupt compacts, overwrites chunk 0 with 0xFF bytes (never a valid varint), reloads the room and
+  closes its sockets with 4500; the original chunk is kept in a test-only table for `repair`.
+- **E2E layout.** `tests/e2e/persistence.spec.ts` runs in its own `persistence` Playwright project
+  (Chromium) and starts, SIGKILLs and restarts its own `wrangler dev --persist-to <tmp>` processes
+  (`helpers/wrangler-process.ts`); it serves the test build the shared webServer produced.
+  `helpers/seed.ts` writes fixture boards over the room protocol from Node. TC-24 lives in
+  `tests/e2e/broken-board.spec.ts` against the shared server.
+- **Large-board render time.** First measurement of TC-21 was ~9.5 s, almost all of it client
+  render: every note's font fitting forces layouts, and with 2,000 absolutely positioned siblings
+  each forced layout was expensive. `.sticky-note` now has `contain: layout size style` (the note is
+  a fixed 200×200 box), which brought it to ~1.3 s alone and ~2.9 s with the whole suite running in
+  parallel (logged, not asserted, as the design says).
+- **Story 3 TC-18 assertion updated.** It asserted that a freshly started room has no doc at all
+  (`null`); rooms now load their (empty) saved board on construction, so it asserts an empty board.
+- **`FakeWebSocket`** moved from `ConnectionStatus.test.tsx` to `tests/component/fakeWebSocket.ts`
+  (with a close code) so the load-failure component tests share it.
+- **Typecheck split.** The two unit suites that import worker modules (`board-store-chunks`,
+  `room-state`) are typechecked with `tsconfig.worker.json` (Workers types), as is `tests/fixtures`.
+- **Red-phase commit skipped** (task 1), as in earlier stories: one story commit.
+- **Firefox e2e** still cannot start in this environment; runs used `E2E_BROWSERS=chromium,webkit`.

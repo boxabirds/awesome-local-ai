@@ -4,6 +4,7 @@ const LABELS: Record<Exclude<ConnectionState, 'connected'>, string> = {
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
   confirmed: 'Connected',
+  load_failed: "This board couldn't be loaded. Retrying…",
 };
 
 /** Connection badge, top centre. Hidden while normally connected. */

@@ -7,8 +7,9 @@
     "directory": "dist/client",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    // The Worker handles /api/*; everything else is served from assets without invoking it.
-    "run_worker_first": ["/api/*"]
+    // The Worker handles /api/* (and /__test/*, which only test builds answer; otherwise it
+    // falls through to the assets); everything else is served from assets without invoking it.
+    "run_worker_first": ["/api/*", "/__test/*"]
   },
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]

@@ -1,20 +1,29 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
 /**
  * `connecting`: first load, not yet synced. `connected`: synced (badge hidden).
  * `reconnecting`: lost after having connected. `confirmed`: synced again after reconnecting,
- * for CONNECTED_CONFIRMATION_MS, then `connected`.
+ * for CONNECTED_CONFIRMATION_MS, then `connected`. `load_failed`: the room closed with
+ * CLOSE_BOARD_LOAD_FAILED (its saved board cannot be loaded); retrying until a sync succeeds.
  */
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
 
 /** The provider events the state mapping listens to (a WebsocketProvider, or a fake in tests). */
 export interface ProviderEvents {
   on(event: 'status', listener: (e: { status: string }) => void): void;
   on(event: 'sync', listener: (synced: boolean) => void): void;
+  on(event: 'connection-close', listener: (e: { code: number } | null) => void): void;
   off(event: 'status', listener: (e: { status: string }) => void): void;
   off(event: 'sync', listener: (synced: boolean) => void): void;
+  off(event: 'connection-close', listener: (e: { code: number } | null) => void): void;
 }
 
 /**
@@ -39,7 +48,9 @@ export function trackConnectionState(
     confirmTimer = null;
   };
   const lost = () => {
-    if (!everSynced) return; // still the first load: stays `connecting`
+    // Still the first load: stays `connecting`. A board that cannot be loaded stays so until
+    // a sync succeeds, whatever ends the next attempts.
+    if (!everSynced || state === 'load_failed') return;
     clearConfirm();
     set('reconnecting');
   };
@@ -48,8 +59,9 @@ export function trackConnectionState(
       lost();
       return;
     }
-    if (!everSynced) {
+    if (!everSynced || state === 'load_failed') {
       everSynced = true;
+      clearConfirm();
       set('connected');
       return;
     }
@@ -63,14 +75,23 @@ export function trackConnectionState(
   const onStatus = ({ status }: { status: string }) => {
     if (status === 'disconnected') lost();
   };
+  // Emitted before the `disconnected` status. Other codes (e.g. 1011 storage failure, 1003)
+  // mean the board is readable: they are ordinary reconnections.
+  const onClose = (e: { code: number } | null) => {
+    if (e?.code !== CLOSE_BOARD_LOAD_FAILED) return;
+    clearConfirm();
+    set('load_failed');
+  };
 
   onState(state);
   provider.on('status', onStatus);
   provider.on('sync', onSync);
+  provider.on('connection-close', onClose);
   return () => {
     clearConfirm();
     provider.off('status', onStatus);
     provider.off('sync', onSync);
+    provider.off('connection-close', onClose);
   };
 }
 
@@ -81,8 +102,8 @@ function roomsUrl(): string {
 
 /**
  * Connects `doc` to the board's live room and keeps it connected (reconnecting with backoff up
- * to RECONNECT_MAX_BACKOFF_MS). The board stays editable in every state: edits go into the
- * local doc and are sent once connected.
+ * to RECONNECT_MAX_BACKOFF_MS). The board stays editable in every state except `load_failed`
+ * (see `canEdit`): edits go into the local doc and are sent once connected.
  */
 export function connectBoard(
   doc: Y.Doc,

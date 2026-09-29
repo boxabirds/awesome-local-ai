@@ -14,6 +14,10 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code for frames the room cannot understand. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/** WebSocket close code: the board's saved state cannot be loaded (client shows load failure). */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/** WebSocket close code: a change could not be saved; the room resets and clients reconnect. */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 export type Decoded =
   /** `payload` is the whole sync message after the MESSAGE_SYNC type (sync type + data). */
@@ -107,7 +111,10 @@ export function readSync(doc: Y.Doc, payload: Uint8Array, origin: unknown): Uint
     return encoding.toUint8Array(encoder);
   }
   if (syncType === syncProtocol.messageYjsSyncStep2 || syncType === syncProtocol.messageYjsUpdate) {
-    Y.applyUpdate(doc, decoding.readVarUint8Array(decoder), origin);
+    const update = decoding.readVarUint8Array(decoder);
+    // Parse it completely first: a malformed update throws before any part of it is applied.
+    Y.decodeUpdate(update);
+    Y.applyUpdate(doc, update, origin);
     return null;
   }
   throw new Error(`unknown sync type ${syncType}`);

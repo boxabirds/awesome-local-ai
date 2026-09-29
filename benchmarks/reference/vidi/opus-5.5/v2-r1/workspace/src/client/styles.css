@@ -166,8 +166,13 @@ body,
   cursor: pointer;
 }
 
-.toolbar-button:hover {
+.toolbar-button:hover:not(:disabled) {
   background: #eef1f4;
+}
+
+.toolbar-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .toolbar-button:focus-visible {
@@ -185,6 +190,8 @@ body,
     0 4px 10px rgb(0 0 0 / 10%);
   cursor: default;
   touch-action: none;
+  /* Fixed-size box: fitting one note's font re-lays out only that note (large boards). */
+  contain: layout size style;
 }
 
 .sticky-note:focus {
@@ -383,4 +390,10 @@ body,
   color: #135c1f;
   background: #c9efce;
   border-color: #6cc37a;
+}
+
+.connection-status[data-state='load_failed'] {
+  color: #8a1c1c;
+  background: #fdd8d8;
+  border-color: #e57373;
 }

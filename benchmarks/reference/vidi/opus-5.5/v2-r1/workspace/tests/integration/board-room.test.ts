@@ -227,7 +227,8 @@ describe('sync.room errors and relay', () => {
     createSticky(b.doc, { x: 900, y: 0 }, 'blue');
 
     const fresh = newBoardId();
-    expect(await roomSnapshot(fresh)).toBeNull();
+    // Story 4: a room loads its (here empty) saved board when constructed.
+    expect((await roomSnapshot(fresh))?.notes).toEqual([]);
     const a2 = await connect(fresh, a.doc);
     await expect.poll(async () => (await roomSnapshot(fresh))?.notes).toEqual(snapshot(a.doc));
     const b2 = await connect(fresh, b.doc);

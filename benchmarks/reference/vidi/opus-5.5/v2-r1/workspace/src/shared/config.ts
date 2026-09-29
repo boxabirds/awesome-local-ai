@@ -49,3 +49,18 @@ export const CONNECTED_CONFIRMATION_MS = 2000;
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
 /** Functional wait in e2e tests (all stories); latency is logged, not asserted. */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+/** Compact the board's update log once it has this many rows... */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ...or once its rows total this many bytes. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/** Snapshot row size: far below the platform's per-row size limit (2 MB for SQLite-backed Durable Objects). */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A board that failed to load retries loading at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** Board size a saved board is verified to open with (PRD persist.large_board). */
+export const PERSIST_TESTED_NOTES = 2000;
+/** Time to show a saved board of PERSIST_TESTED_NOTES notes (PRD persist.large_board); logged in e2e. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the board storage tables (not of the Yjs document schema). */
+export const STORAGE_SCHEMA_VERSION = 1;

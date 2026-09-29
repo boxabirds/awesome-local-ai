@@ -9,6 +9,7 @@ import { type Point, screenToWorld } from './canvas/camera';
 import { isEditableTarget } from './canvas/isEditableTarget';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import type * as Y from 'yjs';
 
 const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
@@ -26,6 +27,14 @@ export function boardIdFromLocation(location: Location = window.location): strin
 }
 
 /**
+ * Whether the board may be changed. Only a board that could not be loaded is locked: its
+ * saved content is unknown, so it must not be presented as an empty editable board.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
+/**
  * `boardId` connects the board to its live room; without it (component tests) the board is
  * local only. `doc` lets tests supply the board document; the app creates its own.
  */
@@ -33,9 +42,10 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
   const { doc, notes, connection } = useBoardDoc(props.boardId, props.doc);
   const selection = useSelection();
   const { select, startEdit, endEdit } = selection;
+  const editable = canEdit(connection);
 
-  // A note deleted meanwhile is neither selected nor edited.
-  const exists = (id: string | null) => id !== null && notes.some((n) => n.id === id);
+  // A note deleted meanwhile is neither selected nor edited; nothing is while the board is locked.
+  const exists = (id: string | null) => editable && id !== null && notes.some((n) => n.id === id);
   const selectedId = exists(selection.selectedId) ? selection.selectedId : null;
   const editingId = exists(selection.editingId) ? selection.editingId : null;
   const stale = selectedId !== selection.selectedId || editingId !== selection.editingId;
@@ -43,13 +53,14 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
     if (stale) select(null);
   }, [stale, select]);
 
-  const stateRef = useRef({ selectedId, editingId });
-  stateRef.current = { selectedId, editingId };
+  const stateRef = useRef({ selectedId, editingId, editable });
+  stateRef.current = { selectedId, editingId, editable };
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { selectedId: id, editingId: editing } = stateRef.current;
-      if (id === null || editing !== null || e.ctrlKey || e.metaKey || e.altKey) return;
+      const { selectedId: id, editingId: editing, editable: canChange } = stateRef.current;
+      if (!canChange || id === null || editing !== null) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (isEditableTarget(e.target)) return;
       if (e.key === 'Enter') {
         // Enter on a focused button activates the button instead.
@@ -73,6 +84,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
   );
 
   const createAt = (world: Point) => {
+    if (!editable) return;
     const id = createSticky(doc, world);
     if (id) startEdit(id);
   };
@@ -84,6 +96,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
         onEmptyClick={() => select(null)}
         overlay={({ camera, viewport }) => (
           <Toolbar
+            disabled={!editable}
             onCreateSticky={() =>
               createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }))
             }
@@ -100,6 +113,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
               zoom={camera.zoom}
               selected={note.id === selectedId}
               editing={note.id === editingId}
+              editable={editable}
               onSelect={select}
               onStartEdit={startEdit}
               onEndEdit={endEdit}
