@@ -68,3 +68,19 @@ def test_workers_follow_the_hosts_limits():
     assert auto_workers(cores=8 * CORES_PER_WORKER, free_gb=100) == min(8, MAX_WORKERS)
     assert auto_workers(cores=64, free_gb=3 * GB_PER_WORKER) == min(3, MAX_WORKERS)
     assert auto_workers(cores=1, free_gb=0.5) == 1
+
+
+def test_a_partial_repeat_counts_only_for_the_tests_it_reran():
+    """Repeat scorings rerun just the failed tests; every other test keeps its first result."""
+    from rescore import overlay, majority, failed_tests
+    a, b, c = ("story-02.spec.ts", "a"), ("story-02.spec.ts", "b"), ("story-07.spec.ts", "c")
+    first = _acc({a: "passed", b: "failed", c: "failed"})
+    for t, line in zip(first["tests"], (10, 20, 30)):
+        t["line"] = line
+    assert failed_tests(first) == [("story-02.spec.ts", 20), ("story-07.spec.ts", 30)]
+    rerun = _acc({b: "passed", c: "failed"})
+    full = overlay(first, rerun)
+    assert {t["title"]: t["status"] for t in full["tests"]} == {"a": "passed", "b": "passed", "c": "failed"}
+    m = majority([first, full, overlay(first, _acc({b: "passed", c: "failed"}))])
+    assert {t["title"]: t["status"] for t in m["tests"]} == {"a": "passed", "b": "passed", "c": "failed"}
+    assert m["flaky"] == ["story-02.spec.ts: b"]
