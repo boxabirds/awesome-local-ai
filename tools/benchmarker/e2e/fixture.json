@@ -1,51 +1,237 @@
 {
   "web": "https://github.com/boxabirds/awesome-local-ai",
-  "suites": { "vidi": "vidi-v2.0-pre1" },
+  "suites": {
+    "vidi": "vidi-v2.0-pre1"
+  },
   "records": [
-    { "pack": "vidi", "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi", "runId": "v2-r1",
+    {
+      "pack": "vidi",
+      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+      "runId": "v2-r1",
       "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1",
-      "rescores": [], "hasBundle": false, "packVersion": "vidi-v2.0-pre1", "state": "started", "stateAt": "",
-      "stories": [ { "id": "1", "title": "Pan and zoom", "status": "DONE", "passed": 6, "total": 6, "ownPassed": 6, "ownTotal": 6 } ],
-      "scores": {} },
-    { "pack": "vidi", "stack": "reference/opus-5.5", "runId": "run-9",
-      "dir": "benchmarks/reference/vidi/opus-5.5/run-9", "rescores": ["vidi-v2.0-pre1"], "hasBundle": true,
-      "packVersion": "vidi-v2.0-pre1", "state": "finished", "stateAt": "2026-09-29T10:00:00Z",
-      "stories": [ { "id": "1", "title": "Pan and zoom", "status": "DONE", "passed": 6, "total": 6, "ownPassed": 6, "ownTotal": 6 },
-                   { "id": "2", "title": "Sticky notes", "status": "DONE", "passed": 19, "total": 20, "ownPassed": 9, "ownTotal": 10 } ],
-      "scores": { "vidi-v2.0-pre1": { "passed": 74, "total": 75, "flaky": 0, "at": "2026-09-29T11:00:00Z" } } },
-    { "pack": "vidi", "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi", "runId": "canvas-gufo-r3",
+      "rescores": [],
+      "hasBundle": false,
+      "packVersion": "vidi-v2.0-pre1",
+      "state": "started",
+      "stateAt": "",
+      "stories": [
+        {
+          "id": "1",
+          "title": "Pan and zoom",
+          "status": "DONE",
+          "passed": 6,
+          "total": 6,
+          "ownPassed": 6,
+          "ownTotal": 6
+        }
+      ],
+      "scores": {}
+    },
+    {
+      "pack": "vidi",
+      "stack": "reference/opus-5.5",
+      "runId": "run-9",
+      "dir": "benchmarks/reference/vidi/opus-5.5/run-9",
+      "rescores": [
+        "vidi-v2.0-pre1"
+      ],
+      "hasBundle": true,
+      "packVersion": "vidi-v2.0-pre1",
+      "state": "finished",
+      "stateAt": "2026-09-29T10:00:00Z",
+      "stories": [
+        {
+          "id": "1",
+          "title": "Pan and zoom",
+          "status": "DONE",
+          "passed": 6,
+          "total": 6,
+          "ownPassed": 6,
+          "ownTotal": 6
+        },
+        {
+          "id": "2",
+          "title": "Sticky notes",
+          "status": "DONE",
+          "passed": 19,
+          "total": 20,
+          "ownPassed": 9,
+          "ownTotal": 10
+        }
+      ],
+      "scores": {
+        "vidi-v2.0-pre1": {
+          "passed": 74,
+          "total": 75,
+          "flaky": 0,
+          "at": "2026-09-29T11:00:00Z"
+        }
+      }
+    },
+    {
+      "pack": "vidi",
+      "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi",
+      "runId": "canvas-gufo-r3",
       "dir": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r3",
-      "rescores": [], "hasBundle": false, "packVersion": "vidi-v1.1", "state": "finished", "stateAt": "2026-09-29T14:02:31Z",
-      "stories": [ { "id": "1", "title": "Pan and zoom", "status": "DONE", "passed": 6, "total": 6, "ownPassed": 6, "ownTotal": 6 } ],
-      "scores": {} }
+      "rescores": [],
+      "hasBundle": false,
+      "packVersion": "vidi-v1.1",
+      "state": "finished",
+      "stateAt": "2026-09-29T14:02:31Z",
+      "stories": [
+        {
+          "id": "1",
+          "title": "Pan and zoom",
+          "status": "DONE",
+          "passed": 6,
+          "total": 6,
+          "ownPassed": 6,
+          "ownTotal": 6
+        }
+      ],
+      "scores": {}
+    }
   ],
   "jobs": {
     "gruntus": [
-      { "id": "vidi-v2b-swift15-r1", "spec": { "pack": "benchmarks/vidi", "run_id": "v2-r1" }, "seq": 0,
-        "progress": { "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi", "current_story": "3",
-          "log_tail": ["[story 3] See other people's edits appear live on the same board — agent starting"],
+      {
+        "id": "vidi-v2b-swift15-r1",
+        "spec": {
+          "pack": "benchmarks/vidi",
+          "run_id": "v2-r1"
+        },
+        "seq": 0,
+        "progress": {
+          "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+          "current_story": "3",
+          "log_tail": [
+            "[story 3] See other people's edits appear live on the same board \u2014 agent starting"
+          ],
           "stories": [
-            { "id": "1", "status": "DONE", "passed": 6, "total": 6, "title": "Pan and zoom" },
-            { "id": "2", "status": "DONE", "passed": 9, "total": 10, "title": "Sticky notes" },
-            { "id": "3", "status": "running", "agent_minutes": 4.0, "calls": 41, "output_tokens": 12000, "started_at": 1790714996,
-              "tasks": [{ "status": "written" }, { "status": "not-started" }], "recent_activity": ["write: /home/julian/.vidi-bench/work/x/workspace/src/shared/protocol.ts"] },
-            { "id": "4", "status": "pending" } ] },
-        "state": { "status": "running", "attempt": 1 }, "submitted_at": 100, "updated_at": 1790715296 },
-      { "id": "vidi-v2b-swift15-r2", "spec": { "pack": "benchmarks/vidi", "run_id": "v2-r2" }, "seq": 1,
-        "progress": { "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi" },
-        "state": { "status": "queued" }, "submitted_at": 200, "updated_at": 200 },
-      { "id": "vidi-v2b-27b-r1", "spec": { "pack": "benchmarks/vidi", "run_id": "v2-r1" }, "seq": 3,
-        "progress": { "combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi" },
-        "state": { "status": "queued" }, "submitted_at": 200, "updated_at": 200 },
-      { "id": "vidi-v2b-swift15-r3", "spec": { "pack": "benchmarks/vidi", "run_id": "v2-r3" }, "seq": 2,
-        "progress": { "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi" },
-        "state": { "status": "queued" }, "submitted_at": 200, "updated_at": 200 }
+            {
+              "id": "1",
+              "status": "DONE",
+              "passed": 6,
+              "total": 6,
+              "title": "Pan and zoom"
+            },
+            {
+              "id": "2",
+              "status": "DONE",
+              "passed": 9,
+              "total": 10,
+              "title": "Sticky notes"
+            },
+            {
+              "id": "3",
+              "status": "running",
+              "agent_minutes": 4.0,
+              "calls": 41,
+              "output_tokens": 12000,
+              "started_at": 1790714996,
+              "tasks": [
+                {
+                  "status": "written"
+                },
+                {
+                  "status": "not-started"
+                }
+              ],
+              "recent_activity": [
+                "write: /home/julian/.vidi-bench/work/x/workspace/src/shared/protocol.ts"
+              ]
+            },
+            {
+              "id": "4",
+              "status": "pending"
+            }
+          ]
+        },
+        "state": {
+          "status": "running",
+          "attempt": 1
+        },
+        "submitted_at": 100,
+        "updated_at": 1790715296
+      },
+      {
+        "id": "vidi-v2b-swift15-r2",
+        "spec": {
+          "pack": "benchmarks/vidi",
+          "run_id": "v2-r2"
+        },
+        "seq": 1,
+        "progress": {
+          "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"
+        },
+        "state": {
+          "status": "queued"
+        },
+        "submitted_at": 200,
+        "updated_at": 200
+      },
+      {
+        "id": "vidi-v2b-27b-r1",
+        "spec": {
+          "pack": "benchmarks/vidi",
+          "run_id": "v2-r1"
+        },
+        "seq": 3,
+        "progress": {
+          "combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi"
+        },
+        "state": {
+          "status": "queued"
+        },
+        "submitted_at": 200,
+        "updated_at": 200
+      },
+      {
+        "id": "vidi-v2b-swift15-r3",
+        "spec": {
+          "pack": "benchmarks/vidi",
+          "run_id": "v2-r3"
+        },
+        "seq": 2,
+        "progress": {
+          "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"
+        },
+        "state": {
+          "status": "queued"
+        },
+        "submitted_at": 200,
+        "updated_at": 200
+      }
     ],
     "quintus": [
-      { "id": "vidi-v2b-mlx-r1", "spec": { "pack": "benchmarks/vidi", "run_id": "v2-r1" }, "seq": 1,
-        "progress": { "combination": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi", "current_story": "1",
-          "stories": [ { "id": "1", "status": "running", "agent_minutes": 0.0, "calls": 0, "started_at": 1790715286 } ] },
-        "state": { "status": "running", "attempt": 1 }, "submitted_at": 300, "updated_at": 1790715296 }
-    ]
+      {
+        "id": "vidi-v2b-mlx-r1",
+        "spec": {
+          "pack": "benchmarks/vidi",
+          "run_id": "v2-r1"
+        },
+        "seq": 1,
+        "progress": {
+          "combination": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi",
+          "current_story": "1",
+          "stories": [
+            {
+              "id": "1",
+              "status": "running",
+              "agent_minutes": 0.0,
+              "calls": 0,
+              "started_at": 1790715286
+            }
+          ]
+        },
+        "state": {
+          "status": "running",
+          "attempt": 1
+        },
+        "submitted_at": 300,
+        "updated_at": 1790715296
+      }
+    ],
+    "tritus": []
   }
 }

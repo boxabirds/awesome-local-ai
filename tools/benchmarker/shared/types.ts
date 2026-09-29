@@ -70,6 +70,13 @@ export interface Row {
   live: Live | null;
 }
 
+/** One dbench node: the job it runs now (null: idle) and how many wait behind it. */
+export interface Machine {
+  node: string;
+  running: { stack: string; short: string; runId: string; story: string | null; agentMinutes: number | null } | null;
+  queued: number;
+}
+
 export interface State {
   buildId: string;
   now: number;
@@ -82,4 +89,6 @@ export interface State {
   judgeUrl: string;
   branch: string;
   rows: Row[];
+  /** Every node dbench answered for, idle ones included. */
+  machines: Machine[];
 }
