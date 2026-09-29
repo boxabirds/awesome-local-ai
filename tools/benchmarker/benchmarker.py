@@ -15,6 +15,7 @@ Standard library only.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -80,6 +81,15 @@ def version_family(v: str) -> str:
     """"vidi-v2.0-pre1" -> "vidi-v2": results compare only within one major version."""
     m = re.match(r"^(.*?-v\d+)", v or "")
     return m.group(1) if m else ""
+
+
+def code_version(files: list[Path]) -> str:
+    """A short hash of the page and server code. The page reloads itself when it changes, so an open
+    tab never keeps running old code after the server is updated."""
+    h = hashlib.sha256()
+    for f in files:
+        h.update(f.read_bytes())
+    return h.hexdigest()[:12]
 
 
 def row_family(row: dict, suite: str) -> str:
@@ -350,7 +360,7 @@ class State:
                 row["live"] = live_from_job(job) if job else None
                 if row["live"] and row["live"]["job_id"] in queue:
                     row["live"]["queue"] = queue[row["live"]["job_id"]]
-            return {"now": time.time(), "fetched_at": self.fetched_at, "fetch_error": self.fetch_error,
+            return {"version": CODE_VERSION, "now": time.time(), "fetched_at": self.fetched_at, "fetch_error": self.fetch_error,
                     "dbench_at": self.dbench_at, "dbench_error": self.dbench_error,
                     "suites": self.suites, "web": self.web, "judge_url": self.judge_url, "branch": BRANCH,
                     "rows": rows}
@@ -360,6 +370,9 @@ def loop(every: float, fn):
     while True:
         fn()
         time.sleep(every)
+
+
+CODE_VERSION = code_version([HERE / "page.html", Path(__file__).resolve()])
 
 
 def serve(state: State, port: int):
