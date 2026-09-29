@@ -10,7 +10,12 @@ body,
   margin: 0;
   height: 100%;
   overflow: hidden;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   color: #1f2328;
   background: #fafafa;
 }
@@ -129,4 +134,222 @@ body,
   font-size: 14px;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* Left toolbar */
+
+.toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+}
+
+.toolbar-button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #1f2328;
+  cursor: pointer;
+}
+
+.toolbar-button:hover {
+  background: #eef1f4;
+}
+
+.toolbar-button:focus-visible {
+  outline: 2px solid #0969da;
+  outline-offset: 1px;
+}
+
+/* Sticky notes (world units: everything scales with the board zoom) */
+
+.sticky-note {
+  position: absolute;
+  border-radius: 2px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 12%),
+    0 4px 10px rgb(0 0 0 / 10%);
+  cursor: default;
+  touch-action: none;
+}
+
+.sticky-note:focus {
+  outline: none;
+}
+
+.sticky-note:focus-visible,
+.sticky-note[data-selected='true'] {
+  outline: calc(2px * var(--inv-zoom, 1)) solid #1a73e8;
+  outline-offset: calc(2px * var(--inv-zoom, 1));
+}
+
+.sticky-note.is-dragging {
+  box-shadow:
+    0 2px 4px rgb(0 0 0 / 14%),
+    0 10px 24px rgb(0 0 0 / 18%);
+}
+
+.sticky-body {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.sticky-text,
+.sticky-measure,
+.sticky-editor {
+  line-height: 1.25;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Auto margins centre the text when it fits and pin it to the top when it overflows. */
+.sticky-text {
+  margin-block: auto;
+}
+
+.sticky-measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  padding: 16px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.sticky-editor {
+  display: block;
+  width: 100%;
+  min-height: 1.25em;
+  max-height: 100%;
+  margin-block: auto;
+  padding: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.sticky-note.is-overflowing .sticky-editor {
+  overflow-y: auto;
+}
+
+.sticky-note.is-overflowing:not(.is-editing) .sticky-body::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48px;
+  background: linear-gradient(to bottom, transparent, var(--note-fade, currentColor));
+  pointer-events: none;
+}
+
+.sticky-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 70%);
+  color: #57606a;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* Note toolbar: anchored at the note's top centre, counter-scaled to screen size. */
+
+.note-toolbar-anchor {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 1000000;
+  transform-origin: 0 0;
+}
+
+.note-toolbar {
+  position: absolute;
+  left: 0;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  white-space: nowrap;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 20%);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.swatch[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px #1a73e8;
+}
+
+.note-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: #d0d7de;
+}
+
+.note-toolbar-delete {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #57606a;
+  cursor: pointer;
+}
+
+.note-toolbar-delete:hover {
+  background: #ffebe9;
+  color: #cf222e;
+}
+
+.note-toolbar button:focus-visible {
+  outline: 2px solid #0969da;
+  outline-offset: 1px;
 }

@@ -1,20 +1,27 @@
+import type { StickySnapshot } from '../../shared/board-model';
 import type { Camera } from './camera';
 
 /** Test-only API exposed as `window.__vidi6` when built with `--mode test`. */
 export interface Vidi6TestHooks {
   setCamera(cam: Camera): void;
   getCamera(): Camera;
+  getNotes(): readonly StickySnapshot[];
 }
 
 declare global {
   interface Window {
-    __vidi6?: Vidi6TestHooks;
+    __vidi6?: Partial<Vidi6TestHooks>;
   }
 }
 
-export function installTestHooks(hooks: Vidi6TestHooks): () => void {
-  window.__vidi6 = hooks;
+/** Adds `hooks` to `window.__vidi6`; the returned function removes them again. */
+export function installTestHooks(hooks: Partial<Vidi6TestHooks>): () => void {
+  const target = (window.__vidi6 ??= {});
+  Object.assign(target, hooks);
   return () => {
-    if (window.__vidi6 === hooks) delete window.__vidi6;
+    for (const key of Object.keys(hooks) as (keyof Vidi6TestHooks)[]) {
+      if (target[key] === hooks[key]) delete target[key];
+    }
+    if (window.__vidi6 === target && Object.keys(target).length === 0) delete window.__vidi6;
   };
 }

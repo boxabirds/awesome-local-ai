@@ -10,7 +10,7 @@ export interface Camera {
 export async function openBoard(page: Page) {
   await page.goto('/');
   await expect(originMarker(page)).toBeAttached();
-  await page.waitForFunction(() => window.__vidi6 !== undefined);
+  await page.waitForFunction(() => !!window.__vidi6?.getCamera && !!window.__vidi6?.getNotes);
 }
 
 export const originMarker = (page: Page): Locator => page.getByTestId('origin-marker');
@@ -25,18 +25,15 @@ export async function originPosition(page: Page) {
 }
 
 export async function getCamera(page: Page): Promise<Camera> {
-  return page.evaluate(() => window.__vidi6!.getCamera());
+  return page.evaluate(() => window.__vidi6!.getCamera!());
 }
 
 export async function setCamera(page: Page, cam: Camera) {
-  await page.evaluate((c) => window.__vidi6!.setCamera(c), cam);
-  await page.waitForFunction(
-    (c) => {
-      const t = document.querySelector<HTMLElement>('[data-testid="world-layer"]')!.style.transform;
-      return t.includes(`scale(${c.zoom})`);
-    },
-    cam,
-  );
+  await page.evaluate((c) => window.__vidi6!.setCamera!(c), cam);
+  await page.waitForFunction((c) => {
+    const t = document.querySelector<HTMLElement>('[data-testid="world-layer"]')!.style.transform;
+    return t.includes(`scale(${c.zoom})`);
+  }, cam);
 }
 
 /** Grid spacing and the page position of the grid dot nearest the viewport's top-left. */
@@ -77,4 +74,32 @@ export async function drag(page: Page, from: { x: number; y: number }, dx: numbe
   await page.mouse.move(from.x + dx, from.y + dy, { steps: 4 });
   await page.mouse.up();
   await waitForFrame(page);
+}
+
+export async function getNotes(page: Page) {
+  return page.evaluate(() => window.__vidi6!.getNotes!());
+}
+
+export const notes = (page: Page): Locator => page.getByRole('group', { name: 'Sticky note' });
+export const noteEditor = (page: Page): Locator => page.getByRole('textbox', { name: 'Note text' });
+
+/** Page-pixel box of an element; throws when it is not rendered. */
+export async function boxOf(locator: Locator) {
+  const box = await locator.boundingBox();
+  if (!box) throw new Error('element not visible');
+  return box;
+}
+
+export function centreOf(box: { x: number; y: number; width: number; height: number }) {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/** The sticky note id drawn topmost at a page point. */
+export async function noteIdAt(page: Page, x: number, y: number) {
+  return page.evaluate(
+    ([px, py]) =>
+      document.elementFromPoint(px, py)?.closest<HTMLElement>('[data-sticky-id]')?.dataset
+        .stickyId ?? null,
+    [x, y] as const,
+  );
 }

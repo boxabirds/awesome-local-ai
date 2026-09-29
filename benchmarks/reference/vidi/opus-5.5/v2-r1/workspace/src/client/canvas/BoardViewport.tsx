@@ -1,4 +1,5 @@
 import {
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type RefObject,
@@ -7,8 +8,17 @@ import {
   useRef,
   useState,
 } from 'react';
-import { GRID_SPACING_WORLD } from '../../shared/config';
-import { type Camera, type Size, canZoomIn, canZoomOut, zoomPercent } from './camera';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import {
+  type Camera,
+  type Point,
+  type Size,
+  canZoomIn,
+  canZoomOut,
+  screenToWorld,
+  zoomPercent,
+} from './camera';
+import { isEditableTarget } from './isEditableTarget';
 import { NavigationHint } from './NavigationHint';
 import { type CameraControls, useCamera } from './useCamera';
 import { ZoomControls } from './ZoomControls';
@@ -72,11 +82,6 @@ function gridStyle(cam: Camera) {
     backgroundSize: `${spacing}px ${spacing}px`,
     backgroundPosition: `${offsetX}px ${offsetY}px`,
   };
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 }
 
 function useNavigationListeners(
@@ -161,24 +166,59 @@ function useNavigationListeners(
   }, [zoomStep, reset]);
 }
 
-export function BoardViewport(props: { children?: ReactNode }) {
+/** What board content needs to know about the current view. */
+export interface BoardView {
+  camera: Camera;
+  viewport: Size;
+}
+
+export interface BoardViewportProps {
+  /** World-layer content (scaled with the camera). */
+  children?: ReactNode | ((view: BoardView) => ReactNode);
+  /** Screen-space content drawn above the board (toolbars). */
+  overlay?: (view: BoardView) => ReactNode;
+  /** Double-click on empty board space, at a world point. */
+  onEmptyDoubleClick?(world: Point): void;
+  /** Press and release on empty board space without dragging. */
+  onEmptyClick?(): void;
+}
+
+export function BoardViewport(props: BoardViewportProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const viewport = useElementSize(surfaceRef);
   const controls = useCamera(viewport);
   const { camera, beginPan, panMove, endPan, isPanning } = controls;
   useNavigationListeners(surfaceRef, controls, viewport);
+  const pressRef = useRef<Point | null>(null);
+  const view: BoardView = { camera, viewport };
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    // Only empty board space starts a pan; objects added later stop propagation or are other targets.
+    // Only empty board space starts a pan; objects stop propagation.
     if (e.target !== e.currentTarget || e.button !== PRIMARY_BUTTON) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    pressRef.current = { x: e.clientX, y: e.clientY };
     beginPan({ x: e.clientX, y: e.clientY });
   };
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (isPanning) panMove({ x: e.clientX, y: e.clientY });
   };
   const onPointerEnd = () => {
+    pressRef.current = null;
     if (isPanning) endPan();
+  };
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const press = pressRef.current;
+    onPointerEnd();
+    if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) < DRAG_THRESHOLD_PX) {
+      props.onEmptyClick?.();
+    }
+  };
+  const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget || !props.onEmptyDoubleClick) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    props.onEmptyDoubleClick(
+      screenToWorld(camera, { x: e.clientX - rect.left, y: e.clientY - rect.top }),
+    );
   };
 
   return (
@@ -191,9 +231,10 @@ export function BoardViewport(props: { children?: ReactNode }) {
         style={gridStyle(camera)}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
-        onPointerUp={onPointerEnd}
+        onPointerUp={onPointerUp}
         onPointerCancel={onPointerEnd}
         onLostPointerCapture={onPointerEnd}
+        onDoubleClick={onDoubleClick}
       >
         <div
           className="world-layer"
@@ -201,10 +242,11 @@ export function BoardViewport(props: { children?: ReactNode }) {
           style={{ transform: `scale(${camera.zoom}) translate(${-camera.x}px, ${-camera.y}px)` }}
         >
           <div className="origin-marker" data-testid="origin-marker" aria-hidden="true" />
-          {props.children}
+          {typeof props.children === 'function' ? props.children(view) : props.children}
         </div>
       </div>
       <NavigationHint visible={!controls.hasNavigated} />
+      {props.overlay?.(view)}
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
