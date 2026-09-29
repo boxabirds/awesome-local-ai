@@ -19,6 +19,30 @@ edges:
 Board gestures never zoom the browser page: every input the board consumes calls
 `preventDefault`.
 
+## Story 2 — capture ideas on sticky notes and rearrange them
+
+Notes live in a `Y.Doc` held in memory (`useBoardDoc`), so everything on the
+board is one shared data structure already - collaboration is story 3.
+
+- **Create** by double-clicking empty board (centred on the pointer) or with the
+  `Sticky note` button on the left toolbar (centred on the middle of the view,
+  wherever the camera is). A new note opens for typing straight away.
+- **Type** into the note. Text is written to the shared document on every
+  keystroke, is clamped to `STICKY_TEXT_MAX_CHARS` (1,000) characters, shows a
+  counter when `STICKY_COUNTER_THRESHOLD_CHARS` (50) or fewer are left, and
+  shrinks its text from 24px down to a readable 10px to fit;
+  text still too long is clipped with a fade. `Enter` adds a newline, `Escape`
+  finishes editing.
+- **Select** by pressing a note; the selected note gets an outline and a floating
+  toolbar with six colours and a bin.
+- **Move** by dragging. A drag raises the note above the others, moves it by
+  `delta / zoom` world units (so the point that was grabbed stays under the
+  pointer at any zoom), and never pans the board.
+- **Delete** with the bin, or `Delete`/`Backspace` while the note is selected and
+  not being typed into.
+
+Nothing is persisted yet: a reload starts from an empty board.
+
 ## Requirements
 
 - Node 22+, npm.
@@ -38,9 +62,10 @@ npm run wrangler:dev  # serve dist/client the way Cloudflare does
 
 ```sh
 npm run typecheck
-npm run test:unit        # camera maths, node project
-npm run test:component   # viewport / controls / hint, jsdom project
+npm run test:unit        # camera maths, board model, text fitting - node project
+npm run test:component   # viewport, controls, hint, notes, toolbars - jsdom project
 npm run test:e2e         # Playwright: builds --mode test, serves it with wrangler dev
+npm run test:all         # vitest (unit + component) then Playwright
 ```
 
 `test:e2e` starts its own web server (`npm run build:test && wrangler dev --local`).

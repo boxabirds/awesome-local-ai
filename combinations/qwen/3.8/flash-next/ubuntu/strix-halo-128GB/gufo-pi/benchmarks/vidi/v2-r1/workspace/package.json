@@ -9,6 +9,7 @@
     "build:test": "vite build --mode test",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test:all": "vitest run && playwright test",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
     "test:e2e": "playwright test",
@@ -16,7 +17,8 @@
   },
   "dependencies": {
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

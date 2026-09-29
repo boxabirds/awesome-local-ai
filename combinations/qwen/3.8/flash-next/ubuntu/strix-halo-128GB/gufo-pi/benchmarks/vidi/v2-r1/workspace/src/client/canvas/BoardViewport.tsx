@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 
 import {
   GRID_SPACING_WORLD,
@@ -7,6 +14,8 @@ import {
   WHEEL_ZOOM_SENSITIVITY,
 } from '../../shared/config';
 import type { CameraApi } from './useCamera';
+import type { Point } from './camera';
+import { DRAG_THRESHOLD_PX } from '../../shared/config';
 
 export interface BoardViewportProps {
   children?: ReactNode;
@@ -15,6 +24,16 @@ export interface BoardViewportProps {
    * zoom controls and the navigation hint share the same camera.
    */
   camera: CameraApi;
+  /**
+   * A press on empty board space that was released without dragging. Used to
+   * clear the selection.
+   */
+  onEmptyClick?(point: Point): void;
+  /**
+   * A double-click on empty board space (not on a board object). Used to create
+   * something at that point.
+   */
+  onEmptyDblClick?(point: Point): void;
 }
 
 /** `deltaMode` values from the WheelEvent spec. */
@@ -44,11 +63,18 @@ function mod(value: number, period: number): number {
  * camera, a world layer holding board content in world coordinates, and the
  * board's starting point marked with a crosshair.
  */
-export function BoardViewport({ children, camera: cameraApi }: BoardViewportProps) {
+export function BoardViewport({
+  children,
+  camera: cameraApi,
+  onEmptyClick,
+  onEmptyDblClick,
+}: BoardViewportProps) {
   const { camera } = cameraApi;
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [panning, setPanning] = useState(false);
   const activePointerRef = useRef<number | null>(null);
+  /** Where the current press on the board started, to tell a click from a drag. */
+  const pressRef = useRef<Point | null>(null);
 
   // The listeners below are attached natively (React's onWheel is passive) and
   // must survive re-renders, so they read the camera API through a ref.
@@ -134,6 +160,7 @@ export function BoardViewport({ children, camera: cameraApi }: BoardViewportProp
       }
     }
     activePointerRef.current = event.pointerId;
+    pressRef.current = { x: event.clientX, y: event.clientY };
     setPanning(true);
     cameraApi.beginPan({ x: event.clientX, y: event.clientY });
   };
@@ -148,8 +175,25 @@ export function BoardViewport({ children, camera: cameraApi }: BoardViewportProp
     // pointerup, pointercancel and lostpointercapture all end the drag and leave
     // the board where it was at the moment of interruption.
     activePointerRef.current = null;
+    const press = pressRef.current;
+    pressRef.current = null;
     setPanning(false);
     cameraApi.endPan();
+    // A press on empty space with no real travel is a click on the board, and a
+    // click on the board clears the selection.
+    const travelled =
+      press === null
+        ? Number.POSITIVE_INFINITY
+        : Math.hypot(event.clientX - press.x, event.clientY - press.y);
+    if (travelled <= DRAG_THRESHOLD_PX && isBoardSurface(event.target)) {
+      onEmptyClick?.({ x: event.clientX, y: event.clientY });
+    }
+  };
+
+  const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    // Only empty board space: a double-click on a note is handled by the note.
+    if (!isBoardSurface(event.target)) return;
+    onEmptyDblClick?.({ x: event.clientX, y: event.clientY });
   };
 
   const spacing = GRID_SPACING_WORLD * camera.zoom;
@@ -175,6 +219,7 @@ export function BoardViewport({ children, camera: cameraApi }: BoardViewportProp
       onPointerUp={handleDragEnd}
       onPointerCancel={handleDragEnd}
       onLostPointerCapture={handleDragEnd}
+      onDoubleClick={handleDoubleClick}
     >
       <div
         className="board-world"

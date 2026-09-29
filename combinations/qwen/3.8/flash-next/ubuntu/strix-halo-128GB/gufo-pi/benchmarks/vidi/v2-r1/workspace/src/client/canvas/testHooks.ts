@@ -1,3 +1,5 @@
+import type * as Y from 'yjs';
+
 import { ZOOM_MAX, ZOOM_MIN } from '../../shared/config';
 import type { Camera } from './camera';
 
@@ -13,6 +15,12 @@ export const TEST_MODE = import.meta.env.MODE === 'test';
 export interface Vidi6TestHooks {
   setCamera(camera: Camera): void;
   getCamera(): Camera;
+  /**
+   * The in-memory board document, set by `App` in test builds so the component
+   * suite can assert on the model and drive model-only situations (a note
+   * deleted while it is being dragged).
+   */
+  getDoc?(): Y.Doc;
 }
 
 export function installTestHooks(hooks: Vidi6TestHooks | null): void {

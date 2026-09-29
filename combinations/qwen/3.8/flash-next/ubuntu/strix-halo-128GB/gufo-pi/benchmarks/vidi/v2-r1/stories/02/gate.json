@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.0,
+      "tail": "\nadded 142 packages, and audited 143 packages in 2s\n\n34 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: '@asamuzakjp/css-color@7.1.2',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: '@asamuzakjp/dom-selector@9.2.2',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: 'jsdom@30.1.1',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: 'w3c-xmlserializer@6.0.0',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.5,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 67 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-D3XBd6ML.css    4.95 kB \u2502 gzip:  1.52 kB\ndist/client/assets/index-hjl7DkLV.js   301.90 kB \u2502 gzip: 94.21 kB \u2502 map: 1,698.01 kB\n\n\u001b[32m\u2713 built in 98ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.4,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.7,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.2 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r1/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 28\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m24 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 18\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m68 passed\u001b[39m\u001b[22m\u001b[90m (68)\u001b[39m\n\u001b[2m   Start at \u001b[22m 21:46:18\n\u001b[2m   Duration \u001b[22m 209ms\u001b[2m (transform 52%, import 23%, tests 21%, worker 4%)\u001b[22m\n\n",
+      "passed": 68,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 2.1,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.2 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r1/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 123\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 275\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m20 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 275\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 334\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 377\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 991\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m77 passed\u001b[39m\u001b[22m\u001b[90m (77)\u001b[39m\n\u001b[2m   Start at \u001b[22m 21:46:19\n\u001b[2m   Duration \u001b[22m 1.67s\u001b[2m (tests 42%, environment 39%, transform 9%, setup 6%, import 3%)\u001b[22m\n\n",
+      "passed": 77,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 4.1,
+      "tail": "e2e\n> playwright test --project=chromium\n\n\nRunning 25 tests using 16 workers\n\n[1/25] [chromium] \u203a tests/e2e/navigation.spec.ts:171:3 \u203a workflow 2: limits and recovery \u203a TC-26 Reset view returns to 100% centred on the board start from far away\n[2/25] [chromium] \u203a tests/e2e/navigation.spec.ts:43:3 \u203a workflow 1: first visit navigation \u203a TC-28 shows the navigation hint until the first pan, then never again this visit\n[3/25] [chromium] \u203a tests/e2e/navigation.spec.ts:65:3 \u203a workflow 1: first visit navigation \u203a TC-23 dragging moves the origin marker and the dot grid by exactly the pointer delta\n[4/25] [chromium] \u203a tests/e2e/navigation.spec.ts:157:3 \u203a workflow 2: limits and recovery \u203a zooming out one step at a time ends at 10% with - disabled\n[5/25] [chromium] \u203a tests/e2e/navigation.spec.ts:244:3 \u203a workflow 3: far travel \u203a zooming far from the start keeps the pointer location fixed\n[6/25] [chromium] \u203a tests/e2e/navigation.spec.ts:192:3 \u203a workflow 2: limits and recovery \u203a keyboard zoom shortcuts zoom and reset the board, and never the page\n[7/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:88:3 \u203a creating a note where the pointer was \u203a the toolbar button creates a note in the middle of the view\n[8/25] [chromium] \u203a tests/e2e/navigation.spec.ts:110:3 \u203a workflow 1: first visit navigation \u203a pan.scroll: a plain scroll pans the board in the scroll direction\n[9/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:124:3 \u203a moving notes \u203a TC-31 at 50 % zoom the grabbed point stays under the pointer\n[10/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:100:3 \u203a creating a note where the pointer was \u203a TC-34 a note created after panning far away still appears in the middle of the view\n[11/25] [chromium] \u203a tests/e2e/navigation.spec.ts:130:3 \u203a workflow 2: limits and recovery \u203a TC-25 zooming in one step at a time ends at 400% with + disabled\n[12/25] [chromium] \u203a tests/e2e/navigation.spec.ts:86:3 \u203a workflow 1: first visit navigation \u203a TC-24 pinch/Ctrl-scroll zooms around the pointer without zooming the page\n[13/25] [chromium] \u203a tests/e2e/navigation.spec.ts:268:1 \u203a TC-31 every board gesture leaves the browser page zoom alone\n[14/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:157:3 \u203a moving notes \u203a TC-32 at 200 % zoom a drag moves half as many world units and brings the note to the front\n[15/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:67:3 \u203a creating a note where the pointer was \u203a TC-30 double-click creates a note centred on the pointer, ready for typing\n[16/25] [chromium] \u203a tests/e2e/navigation.spec.ts:218:3 \u203a workflow 3: far travel \u203a TC-27 a million units from the start still pans exactly, with an even grid\n[17/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:212:3 \u203a moving notes \u203a a drag at 100 % keeps the world delta equal to the pointer delta\n[18/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:226:3 \u203a moving notes \u203a a press under the movement threshold selects without moving the note\n[19/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:246:3 \u203a text that does not fit \u203a TC-33 one word is shown at the largest size; a full note shrinks and fades\n[20/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:301:3 \u203a text that does not fit \u203a a note that is merely long keeps the largest font it can read at\n[21/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:321:3 \u203a text that does not fit \u203a a note filled past the limit keeps 1,000 characters and says so\n[22/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:335:3 \u203a colour, duplication and deletion \u203a TC-30 golden path: brainstorm, recolour, delete one note\n[23/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:363:3 \u203a colour, duplication and deletion \u203a the note toolbar floats above the selected note and keeps its screen size\n[24/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:385:3 \u203a colour, duplication and deletion \u203a the bin button removes the note it belongs to\n[25/25] [chromium] \u203a tests/e2e/sticky-notes.spec.ts:397:3 \u203a colour, duplication and deletion \u203a selecting a note by pressing it does not start editing\n  25 passed (3.5s)\n",
+      "passed": 25,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}

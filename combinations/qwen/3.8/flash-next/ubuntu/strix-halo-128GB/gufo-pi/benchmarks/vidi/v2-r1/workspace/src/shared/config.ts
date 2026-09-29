@@ -26,6 +26,54 @@ export const WHEEL_LINE_HEIGHT_PX = 16;
 /** Multiplier turning a wheel `deltaMode === PAGE` delta into CSS pixels. */
 export const WHEEL_PAGE_HEIGHT_PX = 400;
 
+// ---- Sticky notes (story 2: capture ideas and rearrange them) ----
+
+/** Edge length of a new sticky note, in world units (a square). */
+export const STICKY_SIZE_WORLD = 200;
+/** Hard limit on the characters of text a note keeps. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+/** The character counter appears when this many characters (or fewer) remain. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+/** Largest note font size, in world units (so it scales with board zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+/**
+ * Smallest note font size the auto-fit can pick. Below this the text is no
+ * longer shrunk: the overflow is hidden and the note's bottom edge fades.
+ */
+export const STICKY_FONT_MIN_PX = 10;
+/** Padding between a note's edge and its text, in world units.
+ * (Not in design.md's settings list; needed so text auto-fit and the visible
+ * text box agree on one number.) */
+export const STICKY_PADDING_WORLD = 16;
+/** Line height of note text, as a multiple of the font size. */
+export const STICKY_LINE_HEIGHT = 1.3;
+/** Pointer travel that turns a press on a note into a drag, in screen pixels. */
+export const DRAG_THRESHOLD_PX = 3;
+
+/** The six preset note colours; the key is the name used in the document. */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+export type StickyColor = keyof typeof STICKY_COLORS;
+
+/** Colour of a freshly created note. */
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/** Display name of a note colour, for accessible labels and tooltips. */
+export function stickyColorLabel(color: StickyColor): string {
+  return color.charAt(0).toUpperCase() + color.slice(1);
+}
+
+/** True for one of the six preset colour names, false for anything else. */
+export function isStickyColor(value: unknown): value is StickyColor {
+  return typeof value === 'string' && Object.hasOwn(STICKY_COLORS, value);
+}
+
 // ---- Presentation of the zoom indicator ----
 
 /** Zoom is shown to the user as a whole-number percentage. */
