@@ -12,6 +12,7 @@
  *   Escape → Select tool (the selection is also cleared, as before),
  *   N → create a sticky note at the view centre (story 2 behaviour)
  * - Story 10: S → Shape tool, L → Connector tool (only when editable)
+ * - Story 11: P → Pen tool (only when editable)
  *
  * Shortcuts never fire while focus is inside a text input/textarea/content-
  * editable (typing a note), and never fire while an object is in editing
@@ -108,6 +109,13 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           if (!canEdit) return;
           e.preventDefault();
           setTool('connector');
+          return;
+        }
+        // Story 11: Pen tool (pen.tool_ui).
+        if (e.key === 'p' || e.key === 'P') {
+          if (!canEdit) return;
+          e.preventDefault();
+          setTool('pen');
           return;
         }
       }

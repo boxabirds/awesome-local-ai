@@ -56,3 +56,21 @@ Run via `npm run test:e2e:nightly` (project `nightly`, excluded from default `te
 
 - `window.__vidi6.dropSocket()` / `resumeSocket()` drive `provider.disconnect()` / `connect()`. Used by TC-27 because in headless browsers `context.setOffline(true)` does not reliably close an open WebSocket (the socket's `close` event is not fired), so the badge never flips to "Reconnecting…". `disconnect()` emits `disconnected` synchronously; `connect()` reconnects and re-syncs, exercising the real catch-up path.
 - `window.__vidi6.connectionState` exposes the mapped `ConnectionState` (used by TC-29/TC-30).
+
+## Story 11: Sketch freehand with a pen
+
+### Decisions
+
+1. **PenTool is a full-viewport overlay, not a routed pointer**: it captures every pointer while active (its own `fixed inset:0` layer above the viewport), so `BoardViewport` needs no per-tool routing changes. Wheel/pinch are re-implemented natively on the layer (non-passive listeners) and forwarded to the same `camera.wheel` path as the viewport, so pan/zoom keep working while sketching.
+2. **Dot test uses max path deviation, not the release position**: `page.mouse`/hand-drawn CLOSED shapes end where they started, so a down→up distance check classifies a full loop as a dot (caught by e2e TC-17). The tool tracks the furthest raw point from the press point; < 4 px → dot.
+3. **`scaledPoints` for resize, never stored-point rewrites**: the stroke's geometry is `points` (bbox-relative, stored once at creation) scaled by `width/baseWidth × height/baseHeight`. Aspect-locked resize therefore scales both axes by the same factor and the thickness (world-unit `stroke-width`) is untouched — the PRD's "resize scales the line, not the ink" rule falls out of the data layout.
+4. **Line-distance hit test with a wide invisible hit path**: the visible path stays 1 px thick at any zoom; an invisible `stroke`-hit path at `max(thickness, 2×tolerance/zoom)` carries the pointer events, so a 4-px line is still grabbable with a finger/cursor. The object div is `pointer-events:none` so only the ink itself is interactive.
+5. **`StrokeObject` d-string cache**: the path `d` is a pure function of (id, x, y, width, height); a small module-level cache skips rebuilding multi-thousand-point `d` strings on every unrelated re-render (the pen cursor tracking re-renders the App per move).
+6. **First preview frame is synchronous, the rest rAF-throttled**: a fully rAF-throttled preview makes the line invisible in jsdom (no rAF ticking) and adds a frame of lag on the press; the first frame renders immediately, subsequent moves coalesce to rAF.
+7. **Long-stroke split shares the join point**: when the raw buffer hits `STROKE_MAX_POINTS`, `slice(0, MAX)` is committed and the buffer restarts at its last point, so consecutive strokes are seamless (e2e TC-17's join assertion) and no point is lost.
+8. **Pen stays active after commit** (no `toolCreated`/return-to-select, unlike shape/connector) — sketching is a sustained activity; the toolbar (colour/thickness) stays visible next to the main toolbar.
+9. **`ObjectSnapshot` carries stroke fields** (`points`, `baseWidth/Height`, `color`, `thickness`) so `hitStrokeAt` and `StrokeObject` read the snapshot without a second doc pass; `toStrokeSnap` rebuilds the model object from them.
+
+### Test-only seams added (test-mode only)
+
+- None. The existing `window.__vidi6.doc` hook is enough: the pen e2e reads stored strokes (including the flattened bbox-relative `points`) straight from the Y.Map and verifies RDP fidelity with `distanceToPolyline` in the test process.

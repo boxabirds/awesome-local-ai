@@ -34,6 +34,17 @@ export interface ObjectSnapshot {
    * `allObjects` — the registry hit test and the selection overlay use it.
    */
   ends?: { from: Point; to: Point };
+  /**
+   * Story 11: stroke geometry. Present only on `stroke` snapshots — the
+   * flattened points (relative to the bbox origin, at the creation size)
+   * plus the creation bbox size and the named colour/thickness. The
+   * registry's line-distance hit test and StrokeObject use it.
+   */
+  points?: readonly number[];
+  baseWidth?: number;
+  baseHeight?: number;
+  color?: string;
+  thickness?: string;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -250,7 +261,7 @@ export function allObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (typeof x !== 'number' || typeof y !== 'number') return;
     const width = obj.get('width');
     const height = obj.get('height');
-    raw.push({
+    const snap: ObjectSnapshot = {
       id: key as string,
       type,
       x,
@@ -258,7 +269,30 @@ export function allObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
       z: (obj.get('z') as number) ?? 0,
       ...(typeof width === 'number' && Number.isFinite(width) ? { width } : {}),
       ...(typeof height === 'number' && Number.isFinite(height) ? { height } : {}),
-    });
+    };
+    // Story 11: carry the stroke's stored geometry on the snapshot so the
+    // registry hit test can line-hit-test without a second doc read.
+    if (type === 'stroke') {
+      const points = obj.get('points');
+      const baseWidth = obj.get('baseWidth');
+      const baseHeight = obj.get('baseHeight');
+      const color = obj.get('color');
+      const thickness = obj.get('thickness');
+      if (
+        Array.isArray(points) &&
+        typeof baseWidth === 'number' &&
+        typeof baseHeight === 'number' &&
+        typeof color === 'string' &&
+        typeof thickness === 'string'
+      ) {
+        snap.points = points;
+        snap.baseWidth = baseWidth;
+        snap.baseHeight = baseHeight;
+        snap.color = color;
+        snap.thickness = thickness;
+      }
+    }
+    raw.push(snap);
   });
 
   // Rects of the attach targets (non-connector objects) for endpoint

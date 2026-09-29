@@ -75,6 +75,22 @@ export const CONNECTOR_HIT_TOLERANCE_PX = 6; // click within this (screen px) se
 export const CONNECTOR_STROKE_WIDTH_WORLD = 2; // arrow line width (board units)
 export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10; // arrowhead length (board units)
 export const CONNECTOR_DOT_RADIUS_PX = 4; // connection-dot radius (screen px, constant at any zoom)
+// Story 11: freehand pen (pen.*)
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const; // board units
+export const DEFAULT_PEN_COLOR = 'black';
+export const DEFAULT_PEN_THICKNESS = 'medium';
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1; // screen px, divided by zoom (pen.smooth)
+export const STROKE_MAX_POINTS = 5000; // raw points per stroke part (pen.long_stroke)
+export const STROKE_HIT_TOLERANCE_PX = 6; // screen px from the line selects a stroke (pen.select)
+export const STROKE_MIN_SIZE_WORLD = 4; // smallest stroke bbox side (board units)
 // Story 5: share a board with others using a link
 export const BOARD_CREATE_LIMIT = 10;              // per visitor, per period (PRD share.rate_limit)
 export const BOARD_CREATE_PERIOD_SECONDS = 60;     // must match wrangler.jsonc ratelimits (TC-03 asserts equality)

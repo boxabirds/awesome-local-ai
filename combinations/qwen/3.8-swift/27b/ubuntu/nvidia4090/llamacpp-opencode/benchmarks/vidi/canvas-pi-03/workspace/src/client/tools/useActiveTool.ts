@@ -46,6 +46,7 @@ export const AVAILABLE_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>([
   'text',
   'shape',
   'connector',
+  'pen',
 ]);
 
 export interface ActiveToolOptions {

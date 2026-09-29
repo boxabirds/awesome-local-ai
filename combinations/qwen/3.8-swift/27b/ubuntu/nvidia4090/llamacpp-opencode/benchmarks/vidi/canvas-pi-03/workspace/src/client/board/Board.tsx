@@ -22,13 +22,16 @@ import { canEdit } from '../sync/connectBoard';
 import { Toolbar } from './Toolbar';
 import { createUndo } from './undo';
 import { useUndo } from './useUndo';
-import { getObjectType, hitConnectorAt } from '../objects/registry';
+import { getObjectType, hitConnectorAt, hitStrokeAt } from '../objects/registry';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
 import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { BoardContext } from './context';
 import { seedCheckoutFlow as seedCheckoutFlowFixture } from '../../../tests/fixtures/checkout-flow';
 import {
@@ -87,6 +90,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
 
   // Story 10: the active board tool (Select / Text / Shape / Connector),
   // generalising story 9's useTool — reverts to Select on a locked board.
+  const penOptions = usePenOptions();
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
     canEdit: editable,
     select: sel.select,
@@ -284,7 +288,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   // board-level test. Other empty clicks clear the selection (story 2).
   const handleEmptyClick = useCallback(
     (world: { x: number; y: number }) => {
-      const id = hitConnectorAt(doc, world, cam.camera.zoom);
+      const id = hitConnectorAt(doc, world, cam.camera.zoom) ?? hitStrokeAt(doc, world, cam.camera.zoom);
       if (id) sel.click(id);
       else sel.clear();
     },
@@ -445,6 +449,28 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           identity={identityId}
           undo={undoController}
           onCreated={toolCreated}
+        />
+      )}
+      {/* Story 11: the Pen tool layer captures every pointer while active;
+          the tool STAYS active after a commit (keep sketching). The options
+          panel floats to the left of the main toolbar (pen.options). */}
+      {tool === 'pen' && editable && (
+        <PenTool
+          camera={cam.camera}
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          doc={doc}
+          identityId={identityId}
+          undo={undoController}
+          onWheel={cam.wheel}
+        />
+      )}
+      {tool === 'pen' && editable && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
         />
       )}
       <Toolbar

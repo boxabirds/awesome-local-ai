@@ -17,7 +17,7 @@ import {
   registerKnownObjectType,
   type ObjectSnapshot,
 } from 'src/shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from 'src/shared/config';
+import { STICKY_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from 'src/shared/config';
 import { distanceToPolyline } from 'src/shared/geometry/polyline';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
@@ -25,6 +25,8 @@ import { TextObject } from './TextObject';
 import { TEXT_MIN_WIDTH_WORLD } from 'src/shared/config';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
+import { scaledPoints, type StrokeSnap } from 'src/shared/objects/stroke';
 import { useBoardContext } from '../board/context';
 
 /**
@@ -205,3 +207,68 @@ registerObjectType('connector', {
   editableText: false,
   hitTest: connectorHitTest,
 });
+
+// Story 11: strokes — resizable with aspect locked (the line scales, the
+// thickness does not), never smaller than STROKE_MIN_SIZE_WORLD, no editable
+// text. Hit = within max(thickness/2, STROKE_HIT_TOLERANCE_PX / zoom) of the
+// (scaled) line (pen.select).
+function strokeHitTest(obj: ObjectSnapshot, p: { x: number; y: number }, zoom = 1): boolean {
+  const snap = toStrokeSnap(obj);
+  if (!snap) return false;
+  const tolerance = Math.max(
+    PEN_THICKNESS_WORLD[snap.thickness] / 2,
+    STROKE_HIT_TOLERANCE_PX / Math.max(zoom, 0.01),
+  );
+  return distanceToPolyline(scaledPoints(snap), p) <= tolerance;
+}
+
+/** Rebuilds the full stroke snap from the snapshot's carried geometry. */
+function toStrokeSnap(obj: ObjectSnapshot): StrokeSnap | undefined {
+  if (obj.type !== 'stroke') return undefined;
+  if (!obj.points || obj.baseWidth === undefined || obj.baseHeight === undefined) return undefined;
+  if (obj.color === undefined || obj.thickness === undefined) return undefined;
+  return {
+    id: obj.id,
+    type: 'stroke',
+    x: obj.x,
+    y: obj.y,
+    z: obj.z,
+    width: obj.width,
+    height: obj.height,
+    points: obj.points,
+    baseWidth: obj.baseWidth,
+    baseHeight: obj.baseHeight,
+    color: obj.color as StrokeSnap['color'],
+    thickness: obj.thickness as StrokeSnap['thickness'],
+  };
+}
+
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: strokeHitTest,
+});
+
+/**
+ * The topmost STROKE hit by a world point (pen.select, story 11).
+ * Empty-space board clicks are routed through this, like connectors: a click
+ * within the line's screen tolerance that lands on the board background
+ * (the wide SVG hit path covers the real-browser case; jsdom cannot target
+ * SVG strokes, so the board hit-tests in world units).
+ */
+export function hitStrokeAt(
+  doc: Y.Doc,
+  worldPoint: { x: number; y: number },
+  zoom = 1,
+): string | null {
+  const objects = allObjects(doc);
+  for (let i = objects.length - 1; i >= 0; i--) {
+    if (objects[i].type !== 'stroke') continue;
+    const spec = specs.get('stroke');
+    if (spec && spec.hitTest(objects[i], worldPoint, zoom)) return objects[i].id;
+  }
+  return null;
+}

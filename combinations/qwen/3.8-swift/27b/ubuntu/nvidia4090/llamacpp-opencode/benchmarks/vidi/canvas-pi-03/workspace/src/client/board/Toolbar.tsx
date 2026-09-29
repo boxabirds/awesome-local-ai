@@ -170,6 +170,28 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           <polyline points="9,4 15,4 15,10" fill="none" stroke="#333" strokeWidth="1.5" />
         </svg>
       </button>
+      {/* Story 11: Pen tool (pen.tool_ui). */}
+      <button
+        type="button"
+        aria-label="Pen (P)"
+        title="Pen – P, then draw"
+        aria-pressed={props.tool === 'pen'}
+        data-testid="pen-tool-button"
+        disabled={props.disabled}
+        onClick={() => props.onToolChange('pen')}
+        style={toolButtonStyle(props.tool === 'pen')}
+      >
+        {/* Pencil glyph */}
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <path
+            d="M4 16l1-4 9-9 3 3-9 9-4 1z"
+            fill="none"
+            stroke="#333"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
       <button
         type="button"
         aria-label="Sticky note"
