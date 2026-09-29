@@ -68,6 +68,9 @@ test.describe('Sticky notes', () => {
     expect(grabOffset.x).toBeGreaterThan(0);
 
     // Recolour: select note B, choose Green
+    // Click empty area to deselect first (A's selection handles may overlap B)
+    await page.mouse.click(100, 600);
+    await page.waitForTimeout(50);
     const boxB = await getNoteScreenBox(page, idB);
     await page.mouse.click(boxB.x + boxB.width / 2, boxB.y + boxB.height / 2);
     const toolbar = getNoteToolbarFor(page, idB);
@@ -83,6 +86,9 @@ test.describe('Sticky notes', () => {
     expect(bAfter.y).toBe(bBefore.y);
 
     // Delete note A with the Delete key
+    // Click empty area first to deselect (B's handles may overlap A)
+    await page.mouse.click(100, 600);
+    await page.waitForTimeout(50);
     const boxA2 = await getNoteScreenBox(page, idA);
     await page.mouse.click(boxA2.x + boxA2.width / 2, boxA2.y + boxA2.height / 2);
     await page.keyboard.press('Delete');

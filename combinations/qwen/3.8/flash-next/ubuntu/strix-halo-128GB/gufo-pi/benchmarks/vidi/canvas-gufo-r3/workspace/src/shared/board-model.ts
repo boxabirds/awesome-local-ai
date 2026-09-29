@@ -1,5 +1,6 @@
 import * as Y from 'yjs';
 import { StickyColor, STICKY_COLORS, STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR } from './config';
+import { Rect } from './geometry';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
 
@@ -12,7 +13,11 @@ export interface StickySnapshot {
   text: string;
   z: number;
   createdAt: number;
+  width?: number;
+  height?: number;
 }
+
+export type ObjectSnapshot = StickySnapshot;
 
 function objectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects');
@@ -123,6 +128,159 @@ export function deleteObject(doc: Y.Doc, id: string): boolean {
   return true;
 }
 
+// --- Story 7: group operations ---
+
+function getObjectMap(doc: Y.Doc, id: string): Y.Map<unknown> | undefined {
+  const m = objectsMap(doc).get(id);
+  if (!m || !(m instanceof Y.Map)) return undefined;
+  return m;
+}
+
+/** Returns the bounds rect for an object snapshot (width/height fallback to STICKY_SIZE_WORLD). */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  return {
+    x: obj.x,
+    y: obj.y,
+    width: obj.width ?? STICKY_SIZE_WORLD,
+    height: obj.height ?? STICKY_SIZE_WORLD,
+  };
+}
+
+/** Returns ids of objects entirely inside the given rect. */
+export function objectsInRect(snapshots: readonly ObjectSnapshot[], rect: Rect): string[] {
+  const result: string[] = [];
+  for (const obj of snapshots) {
+    const b = objectBounds(obj);
+    if (
+      b.x >= rect.x &&
+      b.y >= rect.y &&
+      b.x + b.width <= rect.x + rect.width &&
+      b.y + b.height <= rect.y + rect.height
+    ) {
+      result.push(obj.id);
+    }
+  }
+  return result;
+}
+
+/** Returns all object ids from the snapshot (already filtered to registered types by snapshot()). */
+export function allObjectIds(snapshots: readonly ObjectSnapshot[]): string[] {
+  return snapshots.map((s) => s.id);
+}
+
+/**
+ * Move multiple objects to absolute positions. Skips missing ids and non-finite values.
+ * Returns the count of objects actually moved. Emits at most one transaction.
+ */
+export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, { x: number; y: number }>): number {
+  if (positions.size === 0) return 0;
+  // Validate: if any non-finite value is in the map, reject the whole operation
+  for (const pos of positions.values()) {
+    if (!isFiniteNumber(pos.x) || !isFiniteNumber(pos.y)) return 0;
+  }
+  // Gather valid maps first
+  const valid: Array<{ m: Y.Map<unknown>; x: number; y: number }> = [];
+  for (const [id, pos] of positions) {
+    const m = getObjectMap(doc, id);
+    if (m) valid.push({ m, x: pos.x, y: pos.y });
+  }
+  if (valid.length === 0) return 0;
+  doc.transact(() => {
+    for (const { m, x, y } of valid) {
+      m.set('x', x);
+      m.set('y', y);
+    }
+  }, LOCAL_ORIGIN);
+  return valid.length;
+}
+
+/**
+ * Resize multiple objects to absolute rects. Skips missing ids and non-finite values.
+ * Returns the count of objects actually resized. Emits at most one transaction.
+ */
+export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): number {
+  if (rects.size === 0) return 0;
+  // Validate all values are finite
+  for (const r of rects.values()) {
+    if (!isFiniteNumber(r.x) || !isFiniteNumber(r.y) || !isFiniteNumber(r.width) || !isFiniteNumber(r.height)) return 0;
+  }
+  const valid: Array<{ m: Y.Map<unknown>; r: Rect }> = [];
+  for (const [id, r] of rects) {
+    const m = getObjectMap(doc, id);
+    if (m) valid.push({ m, r });
+  }
+  if (valid.length === 0) return 0;
+  doc.transact(() => {
+    for (const { m, r } of valid) {
+      m.set('x', r.x);
+      m.set('y', r.y);
+      m.set('width', r.width);
+      m.set('height', r.height);
+    }
+  }, LOCAL_ORIGIN);
+  return valid.length;
+}
+
+/**
+ * Bring multiple objects to front. All selected objects are placed above all unselected
+ * objects while preserving their relative z-order among themselves.
+ * Returns the count of objects actually changed. Emits at most one transaction.
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const idSet = new Set(ids);
+  let maxUnselectedZ = 0;
+  const selected: Array<{ m: Y.Map<unknown>; z: number }> = [];
+
+  objectsMap(doc).forEach((m, id) => {
+    if (!(m instanceof Y.Map)) return;
+    const z = m.get('z');
+    if (!isFiniteNumber(z)) return;
+    if (idSet.has(id)) {
+      selected.push({ m, z });
+    } else {
+      if (z > maxUnselectedZ) maxUnselectedZ = z;
+    }
+  });
+
+  if (selected.length === 0) return 0;
+
+  // Sort selected by their current z to preserve relative order
+  selected.sort((a, b) => a.z - b.z);
+
+  // Check if any actually need to change
+  let changed = 0;
+  doc.transact(() => {
+    for (let i = 0; i < selected.length; i++) {
+      const newZ = maxUnselectedZ + i + 1;
+      if (selected[i].z !== newZ) {
+        selected[i].m.set('z', newZ);
+        changed++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+  return changed;
+}
+
+/**
+ * Delete multiple objects. Skips missing ids.
+ * Returns the count actually deleted. Emits at most one transaction.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const existing: string[] = [];
+  for (const id of ids) {
+    if (objectsMap(doc).has(id)) existing.push(id);
+  }
+  if (existing.length === 0) return 0;
+  doc.transact(() => {
+    for (const id of existing) {
+      objectsMap(doc).delete(id);
+    }
+  }, LOCAL_ORIGIN);
+  return existing.length;
+}
+
 export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   const m = getStickyMap(doc, id);
   if (!m) return undefined;
@@ -142,6 +300,8 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
     const z = m.get('z');
     const createdAt = m.get('createdAt');
     if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(z)) return;
+    const width = m.get('width');
+    const height = m.get('height');
     result.push({
       id,
       type: 'sticky',
@@ -151,6 +311,8 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
       text: text instanceof Y.Text ? text.toString() : '',
       z,
       createdAt: isFiniteNumber(createdAt) ? createdAt : 0,
+      ...(isFiniteNumber(width) ? { width } : {}),
+      ...(isFiniteNumber(height) ? { height } : {}),
     });
   });
   result.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

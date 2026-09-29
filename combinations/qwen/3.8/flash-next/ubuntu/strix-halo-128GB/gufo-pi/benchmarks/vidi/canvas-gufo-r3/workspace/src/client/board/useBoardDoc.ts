@@ -88,7 +88,9 @@ function snapshotsEqual(a: readonly StickySnapshot[], b: readonly StickySnapshot
       x.color !== y.color ||
       x.text !== y.text ||
       x.z !== y.z ||
-      x.createdAt !== y.createdAt
+      x.createdAt !== y.createdAt ||
+      x.width !== y.width ||
+      x.height !== y.height
     ) {
       return false;
     }

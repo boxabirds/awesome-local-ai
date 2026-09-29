@@ -2,11 +2,11 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import * as Y from 'yjs';
 import {
   StickySnapshot,
-  moveObject,
   bringToFront,
   getStickyText,
   setStickyColor,
   deleteObject,
+  objectBounds,
 } from '@shared/board-model';
 import { STICKY_SIZE_WORLD, STICKY_COLORS, DRAG_THRESHOLD_PX, StickyColor } from '@shared/config';
 import { fitFontSize, counterVisible } from './StickyText';
@@ -25,10 +25,13 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  dragging?: boolean;
   readOnly?: boolean;
   onSelect(id: string): void;
+  onToggle?(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  onObjectPointerDown?(e: React.PointerEvent, id: string): void;
 }
 
 export function StickyNote({
@@ -37,181 +40,61 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  dragging = false,
   readOnly,
   onSelect,
+  onToggle,
   onStartEdit,
   onEndEdit,
+  onObjectPointerDown,
 }: StickyNoteProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
   const [fontPx, setFontPx] = useState<number>(24);
   const [overflow, setOverflow] = useState<boolean>(false);
-  const [dragging, setDragging] = useState<boolean>(false);
-  const [pressed, setPressed] = useState<boolean>(false);
 
-  const draggingRef = useRef(false);
-  const pointerIdRef = useRef<number | null>(null);
-  const dragOriginRef = useRef({ screenX: 0, screenY: 0, worldX: 0, worldY: 0 });
-  const pendingRef = useRef<{ x: number; y: number } | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
+  const state: NoteInteraction = editing ? 'editing' : dragging ? 'dragging' : selected ? 'selected' : 'unselected';
 
-  const state: NoteInteraction = editing ? 'editing' : dragging ? 'dragging' : pressed ? 'pressed' : selected ? 'selected' : 'unselected';
+  const bounds = objectBounds(note);
+  const noteWidth = bounds.width;
+  const noteHeight = bounds.height;
 
   // --- text auto-fit (zoom scales world units uniformly, so fit is zoom-independent) ---
   useLayoutEffect(() => {
     const el = measureRef.current;
     if (!el) return;
-    const result = fitFontSize(el, STICKY_SIZE_WORLD);
+    const result = fitFontSize(el, noteWidth);
     setFontPx((prev) => (prev === result.fontPx ? prev : result.fontPx));
     setOverflow((prev) => (prev === result.overflow ? prev : result.overflow));
-  }, [note.text]);
-
-  const cleanupDrag = useCallback(() => {
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    pendingRef.current = null;
-  }, []);
-
-  const applyPosition = useCallback(
-    (clientX: number, clientY: number): boolean => {
-      const origin = dragOriginRef.current;
-      const z = zoomRef.current > 0 ? zoomRef.current : 1;
-      const wx = origin.worldX + (clientX - origin.screenX) / z;
-      const wy = origin.worldY + (clientY - origin.screenY) / z;
-      return moveObject(doc, note.id, wx, wy);
-    },
-    [doc, note.id],
-  );
-
-  const applyFrame = useCallback(() => {
-    rafRef.current = null;
-    const p = pendingRef.current;
-    pendingRef.current = null;
-    if (!p) return;
-    const ok = applyPosition(p.x, p.y);
-    if (!ok) {
-      // Note disappeared mid-drag (stale id): end the interaction silently.
-      cleanupDrag();
-      draggingRef.current = false;
-      pointerIdRef.current = null;
-      setDragging(false);
-      setPressed(false);
-    }
-  }, [applyPosition, cleanupDrag]);
-
-  const scheduleDrag = useCallback(
-    (x: number, y: number) => {
-      pendingRef.current = { x, y };
-      if (rafRef.current === null) {
-        rafRef.current = requestAnimationFrame(applyFrame);
-      }
-    },
-    [applyFrame],
-  );
-
-  useEffect(() => cleanupDrag, [cleanupDrag]);
-
-  const finishInteraction = useCallback(() => {
-    cleanupDrag();
-    draggingRef.current = false;
-    pointerIdRef.current = null;
-    setDragging(false);
-    setPressed(false);
-  }, [cleanupDrag]);
+  }, [note.text, noteWidth]);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (readOnly) return;
       if (e.button !== 0) return;
-      // The board must not pan when a note is grabbed.
       e.stopPropagation();
       if (editing) return;
       e.preventDefault();
-      onSelect(note.id);
-      const el = rootRef.current;
-      if (el) {
-        try {
-          el.setPointerCapture(e.pointerId);
-        } catch {
-          /* not supported (jsdom) */
-        }
+
+      // If shift is held, toggle selection
+      if (e.shiftKey && onToggle) {
+        onToggle(note.id);
+        return;
       }
-      pointerIdRef.current = e.pointerId;
-      draggingRef.current = false;
-      dragOriginRef.current = {
-        screenX: e.clientX,
-        screenY: e.clientY,
-        worldX: note.x,
-        worldY: note.y,
-      };
-      setPressed(true);
-    },
-    [editing, note.id, note.x, note.y, onSelect],
-  );
 
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (readOnly) return;
-      if (pointerIdRef.current !== e.pointerId) return;
-      e.stopPropagation();
-      const origin = dragOriginRef.current;
-      const dx = e.clientX - origin.screenX;
-      const dy = e.clientY - origin.screenY;
-      if (!draggingRef.current) {
-        if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
-        draggingRef.current = true;
-        setDragging(true);
-        bringToFront(doc, note.id);
+      // Delegate to transform gesture (handles selection + drag)
+      if (onObjectPointerDown) {
+        onObjectPointerDown(e, note.id);
+      } else {
+        onSelect(note.id);
       }
-      scheduleDrag(e.clientX, e.clientY);
     },
-    [doc, note.id, scheduleDrag],
-  );
-
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      if (readOnly) return;
-      if (pointerIdRef.current !== e.pointerId) return;
-      e.stopPropagation();
-      if (draggingRef.current && pendingRef.current) {
-        // Apply the trailing position synchronously so the note ends under the pointer.
-        const p = pendingRef.current;
-        const ok = applyPosition(p.x, p.y);
-        if (!ok) {
-          finishInteraction();
-          return;
-        }
-      }
-      finishInteraction();
-    },
-    [applyPosition, finishInteraction],
-  );
-
-  const handlePointerCancel = useCallback(
-    (e: React.PointerEvent) => {
-      if (pointerIdRef.current !== e.pointerId) return;
-      // The note stays where it was last shown.
-      finishInteraction();
-    },
-    [finishInteraction],
-  );
-
-  const handleLostPointerCapture = useCallback(
-    (e: React.PointerEvent) => {
-      if (pointerIdRef.current !== e.pointerId) return;
-      finishInteraction();
-    },
-    [finishInteraction],
+    [editing, note.id, onSelect, onToggle, onObjectPointerDown],
   );
 
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
       if (readOnly) return;
-      // The viewport must not create a new note when a note is double-clicked.
       e.stopPropagation();
       if (editing) return;
       onSelect(note.id);
@@ -222,7 +105,7 @@ export function StickyNote({
 
   const ytext = editing ? getStickyText(doc, note.id) : undefined;
 
-  // Note deleted while editing (or dragging) → end the interaction silently.
+  // Note deleted while editing → end the interaction silently.
   useEffect(() => {
     if (editing && !ytext) onEndEdit('unselected');
   }, [editing, ytext, onEndEdit]);
@@ -241,7 +124,7 @@ export function StickyNote({
   }, [doc, note.id, readOnly]);
 
   const color = STICKY_COLORS[note.color];
-  const showToolbar = selected && !editing && !dragging;
+  const showToolbar = selected && !editing;
 
   return (
     <div
@@ -250,12 +133,14 @@ export function StickyNote({
       data-x={note.x}
       data-y={note.y}
       data-z={note.z}
+      data-width={noteWidth}
+      data-height={noteHeight}
       style={{
         position: 'absolute',
         left: note.x,
         top: note.y,
-        width: STICKY_SIZE_WORLD,
-        height: STICKY_SIZE_WORLD,
+        width: noteWidth,
+        height: noteHeight,
         zIndex: note.z,
       }}
     >
@@ -269,13 +154,8 @@ export function StickyNote({
         data-interaction={state}
         tabIndex={0}
         onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerCancel}
-        onLostPointerCapture={handleLostPointerCapture}
         onDoubleClick={handleDoubleClick}
         onFocus={() => {
-          // Tab reaches the note: make it the selected note so Enter/Delete apply to it.
           if (!editing) onSelect(note.id);
         }}
         style={{
@@ -285,12 +165,12 @@ export function StickyNote({
           boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
           borderRadius: '2px',
           outline: selected ? '2px solid #1976D2' : 'none',
-          cursor: dragging ? 'grabbing' : 'grab',
+          cursor: 'grab',
           touchAction: 'none',
           overflow: 'hidden',
         }}
       >
-        {/* hidden measuring element for auto-fit (same width and padding as the text layer) */}
+        {/* hidden measuring element for auto-fit */}
         <div
           ref={measureRef}
           aria-hidden="true"
@@ -298,7 +178,7 @@ export function StickyNote({
             position: 'absolute',
             left: 0,
             top: 0,
-            width: STICKY_SIZE_WORLD,
+            width: noteWidth,
             visibility: 'hidden',
             pointerEvents: 'none',
             whiteSpace: 'pre-wrap',
@@ -381,8 +261,6 @@ export function StickyNote({
             position: 'absolute',
             left: 0,
             top: 0,
-            // Screen-space placement: translate by world units above the note, then
-            // counter-scale so the toolbar keeps a constant pixel size at any zoom.
             transform: `scale(${1 / (zoom > 0 ? zoom : 1)}) translate(0px, ${-NOTE_TOOLBAR_OFFSET}px)`,
             transformOrigin: '0 0',
             zIndex: 10,

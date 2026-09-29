@@ -7,8 +7,17 @@ import { useBoardDoc } from '@client/board/useBoardDoc';
 import { useSelection, SelectionApi } from '@client/board/useSelection';
 import { Toolbar } from '@client/board/Toolbar';
 import { StickyNote } from '@client/objects/StickyNote';
-import { createSticky, deleteObject, getStickyText, StickySnapshot } from '@shared/board-model';
+import { SelectionOverlay } from '@client/board/SelectionOverlay';
+import { SelectionBar } from '@client/board/SelectionBar';
+import { useTransformGesture } from '@client/board/useTransformGesture';
+import { useMarquee, MarqueeRect } from '@client/board/Marquee';
+import { createSticky, deleteObject, deleteObjects, getStickyText, StickySnapshot, moveObjects } from '@shared/board-model';
+import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '@shared/config';
 import { act } from '@testing-library/react';
+
+// Register sticky type
+import { registerStickyType } from '@client/objects/registry';
+registerStickyType(StickyNote);
 
 export const VIEWPORT: Size = { width: 1280, height: 800 };
 
@@ -30,7 +39,7 @@ function isTextInputTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
 }
 
-/** Mirrors src/client/App.tsx wiring so component tests exercise the real handlers. */
+/** Mirrors src/client/Board.tsx wiring so component tests exercise the real handlers. */
 export function TestBoard({
   handle,
   initialNotes = [],
@@ -39,8 +48,7 @@ export function TestBoard({
   initialNotes?: { x: number; y: number; text?: string; color?: 'yellow' | 'orange' | 'green' | 'blue' | 'pink' | 'violet' }[];
 }) {
   const { doc, notes } = useBoardDoc();
-  const selection = useSelection();
-  const { selectedId, editingId, select, startEdit, endEdit } = selection;
+  const selection = useSelection(notes);
   const cameraState = useCamera(VIEWPORT);
   const { camera } = cameraState;
 
@@ -56,55 +64,127 @@ export function TestBoard({
     }
   }
 
-  const selectionRef = useRef(selection);
-  selectionRef.current = selection;
   const cameraRef = useRef<Camera>(camera);
   cameraRef.current = camera;
 
   handle.current = { doc, selection, camera, cameraState, notes };
 
+  // Transform gesture
+  const transform = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: notes,
+    canEdit: true,
+  });
+
+  // Marquee
+  const marquee = useMarquee(camera, notes, useCallback((ids: string[]) => {
+    selection.setMany(ids, true);
+  }, [selection.setMany]));
+
+  // Keyboard commands
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const { selectedId: sel, editingId: ed } = selectionRef.current;
-      if (e.key === 'Enter') {
-        if (ed !== null || sel === null) return;
+      const sel = selection;
+      const editing = sel.editingId !== null;
+
+      // Ctrl/Cmd+A: select all
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !editing) {
         if (isTextInputTarget(e.target)) return;
         e.preventDefault();
-        startEdit(sel);
+        sel.setMany(notes.map((n) => n.id), false);
         return;
       }
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (ed !== null || sel === null) return;
-        if (isTextInputTarget(e.target)) return;
+
+      // Escape: clear selection
+      if (e.key === 'Escape' && !editing) {
+        sel.clear();
+        return;
+      }
+
+      // Arrow keys: nudge
+      if (
+        sel.ids.size > 0 &&
+        !editing &&
+        !isTextInputTarget(e.target) &&
+        (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')
+      ) {
         e.preventDefault();
-        deleteObject(doc, sel);
-        select(null);
+        const step = e.shiftKey ? NUDGE_LARGE_STEP_WORLD : NUDGE_STEP_WORLD;
+        let dx = 0, dy = 0;
+        if (e.key === 'ArrowRight') dx = step;
+        if (e.key === 'ArrowLeft') dx = -step;
+        if (e.key === 'ArrowDown') dy = step;
+        if (e.key === 'ArrowUp') dy = -step;
+        const positions = new Map<string, { x: number; y: number }>();
+        for (const obj of notes) {
+          if (sel.ids.has(obj.id)) {
+            positions.set(obj.id, { x: obj.x + dx, y: obj.y + dy });
+          }
+        }
+        if (positions.size > 0) {
+          moveObjects(doc, positions);
+        }
+        return;
+      }
+
+      // Delete/Backspace
+      if (
+        sel.ids.size > 0 &&
+        !editing &&
+        !isTextInputTarget(e.target) &&
+        (e.key === 'Delete' || e.key === 'Backspace')
+      ) {
+        e.preventDefault();
+        deleteObjects(doc, [...sel.ids]);
+        sel.clear();
+        return;
+      }
+
+      // Enter: edit single sticky
+      if (
+        e.key === 'Enter' &&
+        !editing &&
+        !isTextInputTarget(e.target) &&
+        sel.ids.size === 1 &&
+        !e.ctrlKey && !e.metaKey
+      ) {
+        e.preventDefault();
+        const id = [...sel.ids][0];
+        const obj = notes.find((o) => o.id === id);
+        if (obj && obj.type === 'sticky') {
+          sel.startEdit(id);
+        }
+        return;
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [doc, startEdit, select]);
+  }, [doc, notes, selection]);
 
-  useEffect(() => {
-    if (selectedId !== null && !notes.some((n) => n.id === selectedId)) select(null);
-  }, [notes, selectedId, select]);
+  // Delete selection callback
+  const handleDeleteSelection = useCallback(() => {
+    deleteObjects(doc, [...selection.ids]);
+    selection.clear();
+  }, [doc, selection.ids, selection.clear]);
 
   const createAtWorldCentre = useCallback(() => {
     const world = screenToWorld(cameraRef.current, { x: VIEWPORT.width / 2, y: VIEWPORT.height / 2 });
     const id = createSticky(doc, world);
-    if (id) startEdit(id);
-  }, [doc, startEdit]);
+    if (id) selection.startEdit(id);
+  }, [doc, selection.startEdit]);
 
   const handleDoubleClickEmpty = useCallback(
     (screenPoint: Point) => {
       const world = screenToWorld(cameraRef.current, screenPoint);
       const id = createSticky(doc, world);
-      if (id) startEdit(id);
+      if (id) selection.startEdit(id);
     },
-    [doc, startEdit],
+    [doc, selection.startEdit],
   );
 
-  // Mirror App.tsx: stable DOM order by id, stacking via CSS z-index.
+  const showHandles = selection.ids.size > 0;
   const renderOrder = [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
   return (
@@ -117,7 +197,11 @@ export function TestBoard({
         wheel={cameraState.wheel}
         gestureZoom={cameraState.gestureZoom}
         onDoubleClickEmpty={handleDoubleClickEmpty}
-        onClickEmpty={() => select(null)}
+        onClickEmpty={() => selection.clear()}
+        onMarqueeBegin={marquee.begin}
+        onMarqueeMove={marquee.move}
+        onMarqueeEnd={marquee.end}
+        onMarqueeCancel={marquee.cancel}
       >
         {renderOrder.map((note) => (
           <StickyNote
@@ -125,14 +209,31 @@ export function TestBoard({
             note={note}
             doc={doc}
             zoom={camera.zoom}
-            selected={note.id === selectedId}
-            editing={note.id === editingId}
-            onSelect={select}
-            onStartEdit={startEdit}
-            onEndEdit={endEdit}
+            selected={selection.ids.has(note.id)}
+            editing={note.id === selection.editingId}
+            dragging={transform.draggingId === note.id}
+            onSelect={selection.click}
+            onToggle={selection.toggle}
+            onStartEdit={selection.startEdit}
+            onEndEdit={selection.endEdit}
+            onObjectPointerDown={transform.onObjectPointerDown}
           />
         ))}
+        <MarqueeRect rect={marquee.rect} camera={camera} />
       </BoardViewport>
+      <SelectionOverlay
+        ids={selection.ids}
+        snapshot={notes}
+        camera={camera}
+        showHandles={showHandles}
+        onHandlePointerDown={transform.onHandlePointerDown}
+      />
+      <SelectionBar
+        ids={selection.ids}
+        snapshot={notes}
+        camera={camera}
+        onDelete={handleDeleteSelection}
+      />
       <Toolbar onCreateSticky={createAtWorldCentre} />
     </div>
   );

@@ -19,6 +19,14 @@ export interface BoardViewportProps {
   onDoubleClickEmpty?(screenPoint: Point): void;
   /** A press-and-release without dragging on empty board space. */
   onClickEmpty?(): void;
+  /** Shift+pointerdown on empty board space (start marquee). */
+  onMarqueeBegin?(screenPoint: Point): void;
+  /** Marquee pointer move. */
+  onMarqueeMove?(screenPoint: Point): void;
+  /** Marquee pointer up. */
+  onMarqueeEnd?(): void;
+  /** Marquee cancelled. */
+  onMarqueeCancel?(): void;
 }
 
 export function BoardViewport({
@@ -31,9 +39,14 @@ export function BoardViewport({
   gestureZoom,
   onDoubleClickEmpty,
   onClickEmpty,
+  onMarqueeBegin,
+  onMarqueeMove,
+  onMarqueeEnd,
+  onMarqueeCancel,
 }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
+  const isMarqueeRef = useRef(false);
   const pointerIdRef = useRef<number | null>(null);
   const downPointRef = useRef<Point | null>(null);
   const movedRef = useRef(false);
@@ -101,7 +114,7 @@ export function BoardViewport({
     };
   }, [gestureZoom]);
 
-  // Pointer events for panning
+  // Pointer events for panning / marquee
   const isBoardBackground = (target: HTMLElement): boolean => {
     const el = viewportRef.current;
     if (!el) return false;
@@ -116,17 +129,28 @@ export function BoardViewport({
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const el = viewportRef.current;
     if (!el) return;
-    // Only start pan if target is viewport or world layer or grid
     if (!isBoardBackground(e.target as HTMLElement)) return;
     downPointRef.current = { x: e.clientX, y: e.clientY };
     movedRef.current = false;
+
+    // Shift+drag on empty space = marquee
+    if (e.shiftKey && onMarqueeBegin) {
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      pointerIdRef.current = e.pointerId;
+      isMarqueeRef.current = true;
+      const rect = el.getBoundingClientRect();
+      onMarqueeBegin({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      return;
+    }
+
     if (!beginPan) return;
     e.preventDefault();
     el.setPointerCapture(e.pointerId);
     pointerIdRef.current = e.pointerId;
     isPanningRef.current = true;
     beginPan({ x: e.clientX, y: e.clientY });
-  }, [beginPan]);
+  }, [beginPan, onMarqueeBegin]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (downPointRef.current) {
@@ -134,30 +158,54 @@ export function BoardViewport({
       const dy = e.clientY - downPointRef.current.y;
       if (Math.hypot(dx, dy) > 0) movedRef.current = true;
     }
-    if (!isPanningRef.current || e.pointerId !== pointerIdRef.current) return;
+    if (e.pointerId !== pointerIdRef.current) return;
+    if (isMarqueeRef.current && onMarqueeMove) {
+      const el = viewportRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      onMarqueeMove({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      return;
+    }
+    if (!isPanningRef.current) return;
     if (panMove) panMove({ x: e.clientX, y: e.clientY });
-  }, [panMove]);
+  }, [panMove, onMarqueeMove]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (e.pointerId !== pointerIdRef.current) return;
+
+    if (isMarqueeRef.current) {
+      isMarqueeRef.current = false;
+      pointerIdRef.current = null;
+      downPointRef.current = null;
+      movedRef.current = false;
+      if (onMarqueeEnd) onMarqueeEnd();
+      return;
+    }
+
     if (downPointRef.current && !movedRef.current && isBoardBackground(e.target as HTMLElement)) {
       if (onClickEmpty) onClickEmpty();
     }
     downPointRef.current = null;
     movedRef.current = false;
-    if (e.pointerId !== pointerIdRef.current) return;
     isPanningRef.current = false;
     pointerIdRef.current = null;
     if (endPan) endPan();
-  }, [endPan, onClickEmpty]);
+  }, [endPan, onClickEmpty, onMarqueeEnd]);
 
   const handlePointerCancel = useCallback((e: React.PointerEvent) => {
+    if (e.pointerId !== pointerIdRef.current) return;
     downPointRef.current = null;
     movedRef.current = false;
-    if (e.pointerId !== pointerIdRef.current) return;
+    if (isMarqueeRef.current) {
+      isMarqueeRef.current = false;
+      pointerIdRef.current = null;
+      if (onMarqueeCancel) onMarqueeCancel();
+      return;
+    }
     isPanningRef.current = false;
     pointerIdRef.current = null;
     if (endPan) endPan();
-  }, [endPan]);
+  }, [endPan, onMarqueeCancel]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     if (!isBoardBackground(e.target as HTMLElement)) return;
