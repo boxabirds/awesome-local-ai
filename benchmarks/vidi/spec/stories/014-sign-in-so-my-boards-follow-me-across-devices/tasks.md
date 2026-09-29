@@ -4,10 +4,10 @@
 |---|-------|--------|------|------------|
 | 1 | Write auth server unit tests first: mode guard, config parity, token claims, origin/cookie/refresh, claim merge (TC-01 to TC-07) | proposed | test:unit | auth.mode_guard, auth.google_verify, auth.sessions, auth.board_memory |
 | 2 | Implement D1 auth schema, auth mode guard, config endpoint and local email sign-in route | proposed | implementation | auth.mode_guard |
-| 3 | Implement Google ID token verification and POST /api/auth/google with rate limiting | proposed | implementation | auth.google_verify |
+| 3 | Implement Google ID token verification and POST /api/auth/google | proposed | implementation | auth.google_verify |
 | 4 | Implement sessions: hashed tokens in D1, /api/me with sliding refresh and expiry, sign-out, same-origin middleware | proposed | implementation | auth.sessions |
 | 5 | Implement board visits, guest board claiming, recent boards API and boards rows on creation | proposed | implementation | auth.board_memory |
-| 6 | Integration tests: mode guard, Google verification route, sessions and cross-site refusal against real D1 (TC-09 to TC-21) | proposed | test:integration | auth.mode_guard, auth.google_verify, auth.sessions |
+| 6 | Integration tests: mode guard, Google verification route, sessions and cross-site refusal against real D1 (TC-09 to TC-16, TC-18 to TC-21) | proposed | test:integration | auth.mode_guard, auth.google_verify, auth.sessions |
 | 7 | Integration tests: visits, guest claiming, recent boards and unauthenticated board access (TC-22 to TC-27) | proposed | test:integration | auth.board_memory |
 | 8 | Write guest board list unit tests first (TC-08) | proposed | test:unit | auth.client |
 | 9 | Implement client auth: useAuth, Google sign-in with One Tap on home only, local email form, account menu, identity switch, recent boards, sign-in page | proposed | implementation | auth.client |
@@ -22,7 +22,7 @@
 Test-first unit suites for the pure parts of four server capabilities, with stub exports throwing `not implemented`.
 
 ## Setup
-- Add `jose`. Add story 14 named settings to `config.ts` (SESSION_TTL_DAYS, SESSION_REFRESH_INTERVAL_HOURS, SESSION_TOKEN_BYTES, SESSION_COOKIE, RECENT_BOARDS_LIMIT, GUEST_BOARDS_MAX, GIS_LOAD_TIMEOUT_MS, SIGN_IN_BUDGET_MS, IDENTITY_PROPAGATION_BUDGET_MS, AUTH_ATTEMPT_LIMIT, AUTH_ATTEMPT_PERIOD_SECONDS, TOKEN_CLOCK_SKEW_SECONDS, DEFAULT_BOARD_TITLE, GOOGLE_ISSUERS).
+- Add `jose`. Add story 14 named settings to `config.ts` (SESSION_TTL_DAYS, SESSION_REFRESH_INTERVAL_HOURS, SESSION_TOKEN_BYTES, SESSION_COOKIE, RECENT_BOARDS_LIMIT, GUEST_BOARDS_MAX, GIS_LOAD_TIMEOUT_MS, SIGN_IN_BUDGET_MS, IDENTITY_PROPAGATION_BUDGET_MS, TOKEN_CLOCK_SKEW_SECONDS, DEFAULT_BOARD_TITLE, GOOGLE_ISSUERS).
 - `tests/fixtures/google-tokens.ts`: per-run RSA key pair, `JwksProvider` fake, factory for Google-shaped claims (sub, email, email_verified, name, picture, iss, aud, exp, iat).
 
 ## auth.mode_guard — `resolveAuthMode(env, url)` contract
@@ -50,7 +50,7 @@ Implement auth.mode_guard per contract so the email-only mode can only ever run 
 
 ## Approach
 - `migrations/0001_auth.sql`: users, sessions, boards, board_visits tables + `board_visits_recent` index (design schema).
-- `wrangler.jsonc`: D1 binding `DB`; `ratelimits` `AUTH_LIMITER` (AUTH_ATTEMPT_LIMIT / AUTH_ATTEMPT_PERIOD_SECONDS); top-level vars `AUTH_MODE=google`, `ENVIRONMENT=production`, `GOOGLE_CLIENT_ID`; `env.local.vars` `AUTH_MODE=dev-email`, `ENVIRONMENT=local`. `npm run dev` uses `--env local`; deploy script never does.
+- `wrangler.jsonc`: D1 binding `DB`; top-level vars `AUTH_MODE=google`, `ENVIRONMENT=production`, `GOOGLE_CLIENT_ID`; `env.local.vars` `AUTH_MODE=dev-email`, `ENVIRONMENT=local`. `npm run dev` uses `--env local`; deploy script never does.
 - `vitest.config.ts` integration project applies D1 migrations.
 - `mode.ts`: `resolveAuthMode(env, url)` = `dev-email` only when AUTH_MODE is dev-email AND ENVIRONMENT is local AND hostname is `localhost`/`127.0.0.1`; else `google`.
 - `routes.ts`: `GET /api/auth/config` → `{mode:'google', googleClientId}` or `{mode:'dev-email'}`. `POST /api/auth/dev-sign-in`: first `resolveAuthMode` → not dev-email → 404 before reading body; Origin check → 403; invalid email → 400; else `upsertUser('dev', lowercased email, {name: local part})` + session via auth.sessions → 200 with cookie.
@@ -59,17 +59,17 @@ Implement auth.mode_guard per contract so the email-only mode can only ever run 
 ## Done when
 TC-01 and TC-02 pass; integration TC-09 to TC-12 (task 14.6) pass.
 
-### 3. Implement Google ID token verification and POST /api/auth/google with rate limiting
+### 3. Implement Google ID token verification and POST /api/auth/google
 
 ## Goal
 Implement auth.google_verify per contract: one server path for both the Sign in with Google button and One Tap credentials.
 
 ## Approach
 - `google.ts`: `JwksProvider` interface; production provider wraps `createRemoteJWKSet('https://www.googleapis.com/oauth2/v3/certs')`. `verifyGoogleToken` = `jwtVerify(token, getKey, { issuer: GOOGLE_ISSUERS, audience: clientId, clockTolerance: TOKEN_CLOCK_SKEW_SECONDS, algorithms: ['RS256'], currentDate })`, then require `email_verified === true`. Map failures to `AuthError.reason`; JWKS fetch failure → `keys_unavailable`.
-- Route `POST /api/auth/google { credential }`: Origin check (403) → `AUTH_LIMITER.limit({key: CF-Connecting-IP})` (429) → verify → `keys_unavailable` → 503 `google_keys_unavailable`; any other AuthError → 401 `sign_in_failed` (generic; reason logged server-side only) → `upsertUser('google', sub, {email, name, avatarUrl: picture})` (refreshes name/picture) → `createSession` → 200 `{user}` with cookie.
+- Route `POST /api/auth/google { credential }`: Origin check (403) → verify → `keys_unavailable` → 503 `google_keys_unavailable`; any other AuthError → 401 `sign_in_failed` (generic; reason logged server-side only) → `upsertUser('google', sub, {email, name, avatarUrl: picture})` (refreshes name/picture) → `createSession` → 200 `{user}` with cookie.
 
 ## Done when
-TC-03 passes; integration TC-13 to TC-17 (task 14.6) pass.
+TC-03 passes; integration TC-13 to TC-16 (task 14.6) pass.
 
 ### 4. Implement sessions: hashed tokens in D1, /api/me with sliding refresh and expiry, sign-out, same-origin middleware
 
@@ -104,7 +104,7 @@ Implement auth.board_memory per contract: boards follow the account across devic
 ## Done when
 TC-07 passes; integration TC-22 to TC-27 (task 14.7) pass.
 
-### 6. Integration tests: mode guard, Google verification route, sessions and cross-site refusal against real D1 (TC-09 to TC-21)
+### 6. Integration tests: mode guard, Google verification route, sessions and cross-site refusal against real D1 (TC-09 to TC-16, TC-18 to TC-21)
 
 ## Goal
 Exercise the route contracts of auth.mode_guard, auth.google_verify and auth.sessions through the real Worker with real D1 (migrations applied), fake `JwksProvider`, injected clock.
@@ -123,7 +123,6 @@ Exercise the route contracts of auth.mode_guard, auth.google_verify and auth.ses
 - TC-14 same `sub` with new name/picture → same user id, fields updated.
 - TC-15 expired / wrong aud / unverified → 401 each, no session (error paths).
 - TC-16 JwksProvider throws → 503 `google_keys_unavailable`, no session.
-- TC-17 AUTH_ATTEMPT_LIMIT + 1 requests same CF-Connecting-IP → last 429 (boundary).
 
 ## auth.sessions (`GET /api/me`, `POST /api/auth/sign-out`, middleware)
 - TC-18 fresh session → user; clock past `expires_at` → null, clearing cookie, row deleted.
@@ -173,7 +172,7 @@ Implement auth.client per contract and requirement mapping.
 
 ## Approach
 - `guestBoards.ts`: pass TC-08 (localStorage key `vidi6.guestBoards`, cap GUEST_BOARDS_MAX, tolerate corrupt/throwing storage).
-- `useAuth`: load `/api/auth/config` and `/api/me`; states loading → guest | signedIn; `signInWithGoogle(credential)` / `signInWithEmail(email)` → signingIn → on 200 enter claiming: post `readGuestBoards()` to `/api/me/claim-guest-boards`, clear on success, keep on failure → signedIn. 401/403/429/503/network → guest with error `sign_in_failed`. `signOut()` → route, `google.accounts.id.disableAutoSelect()`, new guest identity; network failure keeps signedIn with `sign_out_failed`. `wasSignedIn` marker drives the one-time expiry notice.
+- `useAuth`: load `/api/auth/config` and `/api/me`; states loading → guest | signedIn; `signInWithGoogle(credential)` / `signInWithEmail(email)` → signingIn → on 200 enter claiming: post `readGuestBoards()` to `/api/me/claim-guest-boards`, clear on success, keep on failure → signedIn. 401/403/503/network → guest with error `sign_in_failed`. `signOut()` → route, `google.accounts.id.disableAutoSelect()`, new guest identity; network failure keeps signedIn with `sign_out_failed`. `wasSignedIn` marker drives the one-time expiry notice.
 - `GoogleSignIn({page})`: inject `https://accounts.google.com/gsi/client` once; wait up to GIS_LOAD_TIMEOUT_MS for `google.accounts.id` else show unavailable message; `initialize({client_id, callback, auto_select:false, cancel_on_tap_outside:true})`; `renderButton` always; `prompt()` only when `page === 'home'` (never on boards).
 - `DevEmailSignIn`: email input with validation and note "Local build only — no verification"; rendered only when config mode is dev-email.
 - `AccountMenu` (every page, top-right): signed out → GoogleSignIn or DevEmailSignIn inline (no navigation on board pages); signed in → avatar (`referrerpolicy="no-referrer"`), name, email, Sign out; error messages.

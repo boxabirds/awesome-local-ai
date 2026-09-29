@@ -169,7 +169,7 @@ IF a request to sign in, sign out, claim boards or record a board visit is sent 
 ## Constraints
 
 - **Settings:** session lifetime (30 days since last use), recent boards shown (10), Google load timeout (8 seconds), sign-in time target (3 seconds), and guest boards remembered per browser (200) are named product settings.
-- **Security:** session identifiers are never readable by page scripts; sessions can be ended server-side; email-only sign-in is impossible outside local builds even if misconfigured; repeated sign-in attempts from one visitor are rate limited.
+- **Security:** session identifiers are never readable by page scripts; sessions can be ended server-side; email-only sign-in is impossible outside local builds even if misconfigured.
 - **Privacy:** only name, email, picture and Google account identifier are stored. Board links must not be sent to Google (story 5 privacy constraint still holds): Google may learn that vidi6 is being used, never which board.
 - **Compatibility:** boards created before this story keep working and are claimable. Guest names from story 6 remain for signed-out people.
 - **Browsers:** same as story 1. Google's one-click prompt may be suppressed by the browser or Google (e.g. after dismissals); the Sign in with Google button must always be available as the fallback.

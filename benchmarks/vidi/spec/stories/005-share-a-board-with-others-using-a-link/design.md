@@ -1,6 +1,6 @@
 # Technical Design
 
-Board creation moves server-side: POST /api/boards generates a 128-bit id, initialises the board's Durable Object via RPC (retrying on collision) behind a Workers rate limiter. GET /api/boards/:id and the WebSocket route reject unknown boards with 404 without writing storage; legacy boards with saved content count as existing. Client gains a tiny router with Home, Board (existence check with retry) and Board not found pages, plus a Share panel with clipboard fallback.
+Board creation moves server-side: POST /api/boards generates a 128-bit id, initialises the board's Durable Object via RPC (retrying on collision). GET /api/boards/:id and the WebSocket route reject unknown boards with 404 without writing storage; legacy boards with saved content count as existing. Client gains a tiny router with Home, Board (existence check with retry) and Board not found pages, plus a Share panel with clipboard fallback.
 
 ## Overview
 
@@ -11,10 +11,10 @@ Builds on story 3 (`src/worker/index.ts`, `src/shared/board-id.ts` with 16-byte 
 | Path | Change | Purpose |
 |---|---|---|
 | `src/worker/index.ts` | modified | `POST /api/boards`, `GET /api/boards/:id`, 404 for unknown boards on `/api/rooms/:id` |
-| `src/worker/create-board.ts` | added | `createBoard` with collision retries and rate limiting |
+| `src/worker/create-board.ts` | added | `createBoard` with collision retries |
 | `src/worker/board-room.ts` | modified | RPC methods `initialize()` and `exists()`; `fetch` rejects non-existent boards before accepting |
 | `src/worker/board-store.ts` | modified | read-only existence query; `migrate()` no longer runs on construct, only on `initialize()` or first `append()` |
-| `wrangler.jsonc` | modified | `ratelimits` binding `BOARD_CREATE_LIMITER` (limit and period mirror the named settings); `compatibility_date` at or after the date Durable Object RPC requires |
+| `wrangler.jsonc` | modified | `compatibility_date` at or after the date Durable Object RPC requires |
 | `src/shared/config.ts` | modified | settings below |
 | `src/client/router.ts` | added | minimal pathname router (`/`, `/b/:id`, anything else → not found) using History API |
 | `src/client/pages/HomePage.tsx` | added | Create a board |
@@ -27,8 +27,6 @@ Builds on story 3 (`src/worker/index.ts`, `src/shared/board-id.ts` with 16-byte 
 
 ## Named settings added
 ```ts
-export const BOARD_CREATE_LIMIT = 10;              // per visitor
-export const BOARD_CREATE_PERIOD_SECONDS = 60;     // must match wrangler.jsonc ratelimits (test TC-03 asserts equality)
 export const CREATE_ID_MAX_ATTEMPTS = 3;
 export const CREATE_BUDGET_MS = 2000;              // PRD share.create
 export const LINK_COPIED_MS = 2000;
@@ -39,7 +37,7 @@ export const BOARD_CHECK_RETRY_BASE_MS = 1000;     // backoff doubles up to RECO
 ## HTTP contract
 | Method + path | Success | Errors |
 |---|---|---|
-| `POST /api/boards` | `201 {"id": string}` | `429 {"error":"rate_limited"}`; `500 {"error":"create_failed"}` |
+| `POST /api/boards` | `201 {"id": string}` | `500 {"error":"create_failed"}` |
 | `GET /api/boards/:id` | `200 {"id": string}` | `404 {"error":"not_found"}` for unknown **and** malformed ids (no distinction, nothing leaked) |
 | `GET /api/rooms/:id` (WebSocket) | `101` as story 3 | `404` for unknown or malformed id (story 3's 400 for malformed becomes 404); `426` without upgrade |
 | other methods on `/api/boards` | — | `405` |
@@ -62,7 +60,6 @@ flowchart TD
     end
     subgraph Worker
         Entry[index.ts] --> Create[create-board.ts]
-        Create --> Limiter[BOARD_CREATE_LIMITER]
         Create --> Ids[board-id.ts]
     end
     subgraph DurableObject
@@ -93,9 +90,7 @@ stateDiagram-v2
     Idle --> Creating : click Create a board
     Creating --> [*] : 201 navigate to b id
     Creating --> CreateFailed : 500 or network error
-    Creating --> RateLimited : 429
     CreateFailed --> Creating : click again
-    RateLimited --> Creating : click again
 ```
 Board page (client, not persisted):
 ```mermaid
@@ -128,32 +123,24 @@ sequenceDiagram
     participant U as User
     participant H as HomePage
     participant W as Worker
-    participant L as Rate limiter
     participant R as BoardRoom
     U->>H: click Create a board
     H->>W: POST api boards
-    W->>L: limit key CF-Connecting-IP
-    alt limit exceeded
-        L-->>W: success false
-        W-->>H: 429
-        H-->>U: creating too quickly message
-    else allowed
-        loop up to CREATE_ID_MAX_ATTEMPTS
-            W->>W: newBoardId
-            W->>R: RPC initialize
-            alt returns exists collision
-                W->>W: try next id
-            else returns created
-                W-->>H: 201 id
-            end
+    loop up to CREATE_ID_MAX_ATTEMPTS
+        W->>W: newBoardId
+        W->>R: RPC initialize
+        alt returns exists collision
+            W->>W: try next id
+        else returns created
+            W-->>H: 201 id
         end
-        alt all attempts collided or RPC threw
-            W-->>H: 500 create_failed
-            H-->>U: could not create message button enabled
-        else created
-            H->>H: history pushState b id
-            H-->>U: empty board opens
-        end
+    end
+    alt all attempts collided or RPC threw
+        W-->>H: 500 create_failed
+        H-->>U: could not create message button enabled
+    else created
+        H->>H: history pushState b id
+        H-->>U: empty board opens
     end
     alt network error before response
         H-->>U: could not create message
@@ -230,7 +217,7 @@ sequenceDiagram
 ## Dimensions crossed
 - **D1 Entry**: home create, open link, share copy, WebSocket connect.
 - **D2 Board state**: unknown valid id, malformed id, initialized, legacy (data but no created_at).
-- **D3 Service condition**: healthy, rate limited, id collision, RPC failure, unreachable.
+- **D3 Service condition**: healthy, id collision, RPC failure, unreachable.
 - **D4 Clipboard**: allowed, rejected, missing API (share entry only).
 
 Classes are exhaustive and non-overlapping within each dimension.
@@ -240,7 +227,6 @@ Classes are exhaustive and non-overlapping within each dimension.
 |---|---|---|---|---|---|---|---|---|
 | TC-01 | share.board_api | home create | not applicable: pure function | id collision | not applicable: server | createWithRetries(generator yields taken, taken, free) | returns third id; 3 initialize calls | unit |
 | TC-02 | share.board_api | home create | not applicable: pure function | id collision | not applicable: server | generator yields taken CREATE_ID_MAX_ATTEMPTS times | returns failure after exactly CREATE_ID_MAX_ATTEMPTS attempts | unit |
-| TC-03 | share.board_api | home create | not applicable: config | healthy | not applicable: server | parse wrangler.jsonc ratelimits | limit == BOARD_CREATE_LIMIT and period == BOARD_CREATE_PERIOD_SECONDS | unit |
 | TC-04 | share.board_api | home create | not applicable: generator | healthy | not applicable: server | 10,000 newBoardId(); first-4-char prefix counts | all unique; all 22 chars; max prefix bucket within chi-square bound (p > 0.001) | unit |
 | TC-05 | share.board_api | home create | unknown valid id | healthy | not applicable: server | POST /api/boards | 201 with id matching pattern; GET that id 200; storage created_at set | integration |
 | TC-06 | share.board_api | open link | unknown valid id | healthy | not applicable: server | GET /api/boards/<fresh id> | 404; runInDurableObject shows no tables in sqlite_master | integration |
@@ -250,12 +236,10 @@ Classes are exhaustive and non-overlapping within each dimension.
 | TC-10 | share.board_api | WebSocket connect | initialized | healthy | not applicable: server | upgrade after POST | 101 and story 3 sync works | integration |
 | TC-11 | share.board_api | home create | initialized | id collision | not applicable: server | inject generator returning an existing id then a fresh one | 201 with the fresh id; existing board's created_at unchanged | integration |
 | TC-12 | share.board_api | home create | not applicable: no board | RPC failure | not applicable: server | inject initialize throwing | 500 create_failed | integration |
-| TC-13 | share.board_api | home create | not applicable: no board | rate limited | not applicable: server | BOARD_CREATE_LIMIT + 1 POSTs from same CF-Connecting-IP within period | first BOARD_CREATE_LIMIT → 201; next → 429; a different IP still 201 | integration |
 | TC-14 | share.board_api | home create | not applicable | healthy | not applicable: server | PUT /api/boards | 405 | integration |
 | TC-15 | share.board_api | home create | initialized | healthy | not applicable: server | initialize() twice on same object | first created, second exists; created_at unchanged | integration |
 | TC-16 | share.pages | home create | not applicable: mocked api | healthy | not applicable: page | click Create a board (api resolves id) | button shows Creating… and is disabled; then navigate to /b/id | ui-component |
 | TC-17 | share.pages | home create | not applicable: mocked api | RPC failure (500) and network error (2 runs) | not applicable: page | click | message "Couldn't create a board. Please try again."; button enabled; route still / | ui-component |
-| TC-18 | share.pages | home create | not applicable: mocked api | rate limited | not applicable: page | click | rate-limit message; button enabled | ui-component |
 | TC-19 | share.pages | open link | malformed id | healthy | not applicable: page | render /b/bad | NotFoundPage; api.getBoard not called | ui-component |
 | TC-20 | share.pages | open link | unknown valid id | healthy | not applicable: page | api returns 404 | "Opening board…" then NotFoundPage with Create a new board button | ui-component |
 | TC-21 | share.pages | open link | initialized | unreachable then healthy | not applicable: page | api rejects twice then 200; fake timers advance BOARD_CHECK_RETRY_BASE_MS then 2x | "Couldn't reach vidi6. Retrying…" → board rendered; 3 calls | ui-component |
@@ -267,11 +251,9 @@ Classes are exhaustive and non-overlapping within each dimension.
 | TC-27 | share.pages | open link | unknown valid id | healthy | not applicable | open /b/<newBoardId()> never created | Board not found; click Create a new board → new empty board | e2e |
 | TC-28 | share.pages | open link | initialized | unreachable then healthy | not applicable | page.route abort /api/boards/* then unroute | retry message then board opens without reload | e2e |
 | TC-29 | share.share_panel | share copy | initialized | healthy | rejected (init script stubs writeText to reject) | click Copy link | manual-copy message; selection equals full link | e2e |
-| TC-30 | share.pages | home create | not applicable | rate limited | not applicable | click Create BOARD_CREATE_LIMIT + 1 times (navigating back each time) | last attempt shows rate-limit message | e2e |
 | TC-31 | share.pages | open link | legacy | healthy | not applicable | seed legacy board via test hook; open its link | board with seeded notes, not Board not found | e2e |
 
 ## Boundary values
-- Rate limit: exactly BOARD_CREATE_LIMIT allowed, BOARD_CREATE_LIMIT + 1 rejected (TC-13, TC-30).
 - Collision attempts: success on last allowed attempt, failure after CREATE_ID_MAX_ATTEMPTS (TC-01, TC-02).
 - Id length: 21, 22, 23 characters (TC-07 plus story 3 TC-01).
 - Copied confirmation: LINK_COPIED_MS - 1 and exactly LINK_COPIED_MS (TC-22).
@@ -283,14 +265,12 @@ Classes are exhaustive and non-overlapping within each dimension.
 | TC-06, TC-09 | probing an unknown link must not create storage or a board | integration |
 | TC-07, TC-19 | malformed ids must not reach the Durable Object | integration, ui-component |
 | TC-11, TC-15 | an existing board must never be re-initialised or handed out as new | integration |
-| TC-13 | rate-limited requests must not create boards | integration |
 | TC-17 | failed creation must not navigate away | ui-component |
 | TC-32 | board page must not send the board link as a Referer to external origins: assert meta referrer no-referrer present in served index.html | integration |
 
 ## Error paths (every contract error has a case)
 | Contract error | TC |
 |---|---|
-| 429 rate_limited | TC-13, TC-18, TC-30 |
 | 500 create_failed (RPC throws / collisions exhausted) | TC-12, TC-02, TC-17 |
 | 404 unknown or malformed id (HTTP and WebSocket) | TC-06, TC-07, TC-09, TC-20, TC-27 |
 | 405 wrong method | TC-14 |
@@ -303,7 +283,6 @@ Classes are exhaustive and non-overlapping within each dimension.
 | Durable Object RPC + SQLite | Real in integration and e2e | Existence rule and no-write guarantee depend on real storage |
 | Id generator | Injected deterministic generator only in collision tests (TC-01, TC-02, TC-11) | Real 128-bit collisions cannot be produced |
 | RPC failure | Injected throwing stub (TC-12) | Cannot force real RPC failure on demand |
-| Rate limiter binding | Real binding if the pinned local runtime supports it; otherwise a fake implementing the same `limit({key})` interface, documented in the test file | Keeps the worker logic identical; local runtime support is verified at implementation time |
 | `api.ts` in ui-component tests | Mocked | Page state machines are under test, not the network |
 | Clipboard | Stubbed in ui-component and TC-29; real (granted) in TC-26 Chromium | Permission behaviour is engine-specific |
 | Network outage | Playwright request routing abort (TC-28) | Deterministic |
@@ -313,16 +292,13 @@ Classes are exhaustive and non-overlapping within each dimension.
 2. **Bad link recovery** (TC-27): not found page, then create a fresh board from it.
 3. **Flaky service on open** (TC-28): retry message then board opens without reload.
 4. **Clipboard blocked** (TC-29): manual copy fallback.
-5. **Abuse guard** (TC-30): creation limit message.
-6. **Pre-existing board** (TC-31): legacy board still opens.
+5. **Pre-existing board** (TC-31): legacy board still opens.
 
 ## Fixtures
 - Ids always from `newBoardId()` except explicit malformed cases (`abc`, 21 and 23 character strings, a string containing `/`).
 - Legacy board fixture: real Yjs updates from `tests/fixtures/boards.ts` (story 4) written as `updates` rows with no `created_at`.
-- Distinct `CF-Connecting-IP` header values per simulated visitor in integration tests.
 
 ## Not covered
-- Production rate limiter accuracy and cross-location consistency (platform behaviour).
 - Clipboard behaviour in real Safari and Firefox (manual check; e2e forces the fallback path deterministically instead).
 - Brute-force probing of the id space: made infeasible by 128-bit ids, not tested.
 - Chat-app link rendering (manual check that links survive Slack and email unchanged).
@@ -334,23 +310,22 @@ Classes are exhaustive and non-overlapping within each dimension.
 ## Contract
 ```ts
 // src/worker/create-board.ts
-export interface Limiter { limit(opts: { key: string }): Promise<{ success: boolean }> }
-export type CreateResult = { ok: true; id: string } | { ok: false; reason: 'rate_limited' | 'create_failed' };
+export type CreateResult = { ok: true; id: string } | { ok: false; reason: 'create_failed' };
 export async function createWithRetries(
   generate: () => string,
   tryInitialize: (id: string) => Promise<'created' | 'exists'>,
   maxAttempts?: number,          // default CREATE_ID_MAX_ATTEMPTS
 ): Promise<{ ok: true; id: string } | { ok: false }>;
-export async function createBoard(env: Env, visitorKey: string): Promise<CreateResult>;
+export async function createBoard(env: Env): Promise<CreateResult>;
 // src/worker/board-room.ts (RPC, callable on the stub)
 initialize(): Promise<'created' | 'exists'>;   // migrate + set created_at if absent
 exists(): Promise<boolean>;                     // read-only: created_at, or any updates/snapshot rows
 // src/worker/board-store.ts
 existsReadOnly(): boolean;                      // queries sqlite_master first; never creates tables
 ```
-- **Inputs**: HTTP requests per the Overview contract; `CF-Connecting-IP` as the visitor key.
+- **Inputs**: HTTP requests per the Overview contract.
 - **Outputs**: responses per the HTTP contract; `created_at` (epoch ms) written once per board.
-- **Errors**: limiter rejects → 429; collisions exhausted or RPC throws → 500; unknown/malformed id → 404 on GET and on WebSocket upgrade.
+- **Errors**: collisions exhausted or RPC throws → 500; unknown/malformed id → 404 on GET and on WebSocket upgrade.
 - **Side effects**: storage writes only in `initialize()`; none for GET or rejected WebSocket.
 
 ## Implementation
@@ -361,7 +336,7 @@ existsReadOnly(): boolean;                      // queries sqlite_master first; 
 - The story 3 client redirect from `/` to a random id is deleted.
 
 ## Tests
-unit: TC-01 to TC-04 (`tests/unit/create-board.test.ts`). integration: TC-05 to TC-15, TC-32 (`tests/integration/board-api.test.ts`). e2e: TC-26, TC-27, TC-30, TC-31.
+unit: TC-01, TC-02, TC-04 (`tests/unit/create-board.test.ts`). integration: TC-05 to TC-12, TC-14, TC-15, TC-32 (`tests/integration/board-api.test.ts`). e2e: TC-26, TC-27, TC-31.
 
 ## Home, board and not-found pages
 
@@ -370,7 +345,7 @@ unit: TC-01 to TC-04 (`tests/unit/create-board.test.ts`). integration: TC-05 to 
 ## Contract
 ```ts
 // src/client/api.ts
-export type CreateResponse = { kind: 'created'; id: string } | { kind: 'rate_limited' } | { kind: 'failed' };
+export type CreateResponse = { kind: 'created'; id: string } | { kind: 'failed' };
 export type CheckResponse = { kind: 'exists' } | { kind: 'not_found' } | { kind: 'unreachable' };
 export function createBoardRequest(): Promise<CreateResponse>;   // network errors -> failed
 export function checkBoard(id: string): Promise<CheckResponse>;  // network errors and 5xx -> unreachable
@@ -384,7 +359,7 @@ export function NotFoundPage(): JSX.Element;
 ```
 - **Inputs**: pathname; API responses.
 - **Outputs**: page states per the Overview state diagrams, with the exact PRD copy for each message; `BoardPage` mounts the stories 1–4 board (and its `connectBoard`) only in `Ready`.
-- **Errors**: create failure / rate limit / unreachable handled as page states, never thrown to the user.
+- **Errors**: create failure / unreachable handled as page states, never thrown to the user.
 - **Side effects**: `history.pushState` on successful create; retry timers cleared on unmount.
 
 ## Implementation
@@ -393,7 +368,7 @@ export function NotFoundPage(): JSX.Element;
 - No router library: three routes do not justify a dependency.
 
 ## Tests
-ui-component: TC-16 to TC-21 (`tests/component/pages.test.tsx`). e2e: TC-26 to TC-28, TC-30, TC-31 (`tests/e2e/share.spec.ts`).
+ui-component: TC-16, TC-17, TC-19 to TC-21 (`tests/component/pages.test.tsx`). e2e: TC-26 to TC-28, TC-31 (`tests/e2e/share.spec.ts`).
 
 ## Share panel
 

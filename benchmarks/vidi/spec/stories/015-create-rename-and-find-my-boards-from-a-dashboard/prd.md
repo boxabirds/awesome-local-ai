@@ -54,7 +54,7 @@ Pain points:
 - **No search results:** "No boards match “xyz”" with a Clear search link.
 - **Signed out:** the dashboard shows "On this browser" boards (opened here while signed out) with titles, plus "Sign in to see your boards on every device" and the Sign in with Google button; if there are none, "Boards you open will appear here."
 - **List fails to load:** "Couldn't load your boards." with **Retry**; New board still works.
-- **Rename fails** (service error or too many renames): previous title restored with "Couldn't rename the board. Please try again."
+- **Rename fails** (service error): previous title restored with "Couldn't rename the board. Please try again."
 - **Empty or too-long title:** "Titles need 1–100 characters."; the field stays open.
 - **Offline on a board:** the title can't be edited; hovering shows "Renaming needs a connection."
 
@@ -153,12 +153,12 @@ IF the board list cannot be loaded THEN THE SYSTEM SHALL show "Couldn't load you
 
 > Anchor: `dash.rename_failure`
 
-IF a rename cannot be saved (service error, too many renames, or no connection) THEN THE SYSTEM SHALL NOT show the new title as saved; THE SYSTEM SHALL restore the previous title and show "Couldn't rename the board. Please try again.", and WHILE a board page has no connection THE SYSTEM SHALL prevent title editing and explain "Renaming needs a connection."
+IF a rename cannot be saved (service error or no connection) THEN THE SYSTEM SHALL NOT show the new title as saved; THE SYSTEM SHALL restore the previous title and show "Couldn't rename the board. Please try again.", and WHILE a board page has no connection THE SYSTEM SHALL prevent title editing and explain "Renaming needs a connection."
 
 ## Constraints
 
-- **Settings:** page size (50), title length (1–100), search pause (250 ms), list load target (2 seconds), live title target (1 second), renames per visitor per minute (30) and boards looked up for the signed-out view (50) are named product settings.
-- **Access model:** renaming follows story 5's model — possession of the link is the only access control; repeated renames from one visitor are rate limited to limit vandalism.
+- **Settings:** page size (50), title length (1–100), search pause (250 ms), list load target (2 seconds), live title target (1 second) and boards looked up for the signed-out view (50) are named product settings.
+- **Access model:** renaming follows story 5's model — possession of the link is the only access control.
 - **Consistency:** the dashboard and the board must agree on the final title after concurrent renames.
 - **Privacy:** the list shows only the person's own boards; other people's visits are never revealed.
 - **International text:** case-insensitive search must work for non-English letters (e.g. "Équipe" matches "équipe").

@@ -11,7 +11,7 @@ Builds on story 5 (`src/worker/index.ts`, `src/worker/create-board.ts`, `src/cli
 | Path | Change | Purpose |
 |---|---|---|
 | `migrations/0001_auth.sql` | added | D1 tables `users`, `sessions`, `boards`, `board_visits` |
-| `wrangler.jsonc` | modified | D1 binding `DB`; `ratelimits` binding `AUTH_LIMITER`; top-level vars `AUTH_MODE=google`, `ENVIRONMENT=production`, `GOOGLE_CLIENT_ID`; `env.local.vars` `AUTH_MODE=dev-email`, `ENVIRONMENT=local` (used by `wrangler dev --env local`) |
+| `wrangler.jsonc` | modified | D1 binding `DB`; top-level vars `AUTH_MODE=google`, `ENVIRONMENT=production`, `GOOGLE_CLIENT_ID`; `env.local.vars` `AUTH_MODE=dev-email`, `ENVIRONMENT=local` (used by `wrangler dev --env local`) |
 | `src/worker/auth/mode.ts` | added | `resolveAuthMode` guard |
 | `src/worker/auth/google.ts` | added | Google ID token verification |
 | `src/worker/auth/sessions.ts` | added | session tokens, cookies, Origin check, sliding expiry |
@@ -43,8 +43,6 @@ export const GUEST_BOARDS_MAX = 200;
 export const GIS_LOAD_TIMEOUT_MS = 8000;
 export const SIGN_IN_BUDGET_MS = 3000;
 export const IDENTITY_PROPAGATION_BUDGET_MS = 2000;
-export const AUTH_ATTEMPT_LIMIT = 20;              // per visitor, mirrors wrangler ratelimits
-export const AUTH_ATTEMPT_PERIOD_SECONDS = 60;
 export const TOKEN_CLOCK_SKEW_SECONDS = 60;
 export const DEFAULT_BOARD_TITLE = 'Untitled board';
 export const GOOGLE_ISSUERS = ['accounts.google.com', 'https://accounts.google.com'] as const;
@@ -92,7 +90,6 @@ flowchart TD
         Routes --> Sessions[sessions.ts]
         Routes --> Users[users.ts]
         Routes --> Memory[board-memory.ts]
-        Routes --> Limiter[AUTH_LIMITER]
         Create[create-board.ts story 5] --> Memory
         Verify --> JWKS[Google JWKS]
     end
@@ -115,7 +112,7 @@ stateDiagram-v2
     Loading --> SignedIn : user returned
     Guest --> SigningIn : credential or email submitted
     SigningIn --> Claiming : 200
-    SigningIn --> Guest : 401 403 429 503 or network error with message
+    SigningIn --> Guest : 401 403 503 or network error with message
     Claiming --> SignedIn : claim ok list cleared
     Claiming --> SignedIn : claim failed list kept
     SignedIn --> Guest : sign out new guest identity
@@ -156,8 +153,6 @@ sequenceDiagram
         C->>W: POST api auth google with Origin
         alt Origin mismatch
             W-->>C: 403
-        else rate limit exceeded
-            W-->>C: 429
         else JWKS fetch fails
             W->>J: fetch keys
             W-->>C: 503 google_keys_unavailable
@@ -342,7 +337,6 @@ Each dimension's classes are exhaustive for this story and non-overlapping.
 | TC-14 | auth.google_verify | google, production | valid | same | second sign-in same subject, new name and picture | same user id; name and avatar_url updated | integration |
 | TC-15 | auth.google_verify | google, production | none | same | expired, wrong aud, unverified email tokens | 401 each; sessions unchanged | integration |
 | TC-16 | auth.google_verify | google, production | none | same | JwksProvider throws | 503 google_keys_unavailable; no session | integration |
-| TC-17 | auth.google_verify | google, production | none | same | AUTH_ATTEMPT_LIMIT + 1 posts same CF-Connecting-IP | first AUTH_ATTEMPT_LIMIT processed; next 429 | integration |
 | TC-18 | auth.sessions | google | valid fresh / expired | same | GET me | user / null with cookie cleared and row deleted | integration |
 | TC-19 | auth.sessions | google | valid needing refresh | same | GET me | expires_at extended by SESSION_TTL_DAYS from now; last_refreshed_at updated | integration |
 | TC-20 | auth.sessions | google | valid | same | POST sign-out then GET me | 204; row deleted; me null | integration |
@@ -382,7 +376,6 @@ Each dimension's classes are exhaustive for this story and non-overlapping.
 - Token expiry at and beyond TOKEN_CLOCK_SKEW_SECONDS (TC-03).
 - Guest list GUEST_BOARDS_MAX and +1 (TC-07, TC-08, TC-25).
 - Recent boards exactly RECENT_BOARDS_LIMIT when more exist (TC-26).
-- Auth attempts AUTH_ATTEMPT_LIMIT and +1 (TC-17).
 - GIS load timeout −1 ms / exactly (TC-30).
 
 ## Negative scenarios
@@ -402,7 +395,6 @@ Each dimension's classes are exhaustive for this story and non-overlapping.
 | 401 invalid token / signed-out visit | TC-15, TC-23 |
 | 403 foreign Origin | TC-21 |
 | 404 dev route outside local / unknown board visit | TC-10, TC-11, TC-23 |
-| 429 rate limited | TC-17 |
 | 503 JWKS unavailable | TC-16, TC-31 |
 | GIS script unavailable | TC-30 |
 | expired session | TC-18, TC-35 |
@@ -415,7 +407,6 @@ Each dimension's classes are exhaustive for this story and non-overlapping.
 | BoardRoom `exists` RPC | Real | Claim skipping depends on real existence rule |
 | Google JWKS | Fake `JwksProvider` serving test public keys | Real Google cannot issue tokens for tests |
 | Google Identity Services script | Stubbed `window.google.accounts.id` in component tests; not loaded in e2e (dev-email mode) | Third-party script is non-deterministic and needs registered origins |
-| Rate limiter | Real binding if supported locally, else fake with the same interface (as story 5) | Keeps route logic identical |
 | Clock | Injected `now()` in unit and integration tests | Deterministic expiry and refresh |
 
 ## E2E workflows
@@ -435,7 +426,6 @@ Each dimension's classes are exhaustive for this story and non-overlapping.
 - Real Google sign-in, One Tap/FedCM suppression rules and cooldowns: manual check on staging with a registered client id.
 - Secure cookie behaviour on http://localhost across all browsers.
 - Session theft scenarios beyond HttpOnly and server-side deletion.
-- Load and abuse beyond the per-visitor rate limit.
 
 ## Auth mode guard and local email sign-in
 
@@ -477,18 +467,18 @@ export function verifyGoogleToken(token: string, jwks: JwksProvider, clientId: s
 // src/worker/auth/users.ts
 export function upsertUser(db: D1Database, provider: 'google' | 'dev', subject: string, profile: { email: string; name: string; avatarUrl?: string }, now: number): Promise<User>;
 // route
-POST /api/auth/google { credential } -> 200 { user } + Set-Cookie | 401 { error: 'sign_in_failed' } | 403 | 429 | 503 { error: 'google_keys_unavailable' }
+POST /api/auth/google { credential } -> 200 { user } + Set-Cookie | 401 { error: 'sign_in_failed' } | 403 | 503 { error: 'google_keys_unavailable' }
 ```
 - **Inputs:** Google credential JWT from either the button or One Tap (same callback; auth.one_tap and auth.google_sign_in share this path).
 - **Outputs:** user (stable id per Google `sub`, name/avatar refreshed on each sign-in) and a session.
-- **Errors:** any claim or signature failure → 401 with a single generic error (auth.failure: the person stays signed out; details only in server logs); JWKS fetch failure → 503; rate limit → 429.
+- **Errors:** any claim or signature failure → 401 with a single generic error (auth.failure: the person stays signed out; details only in server logs); JWKS fetch failure → 503.
 - **Side effects:** user upsert, session insert.
 
 ## Implementation
-`jose` `jwtVerify(token, jwks.getKey, { issuer: GOOGLE_ISSUERS, audience: clientId, clockTolerance: TOKEN_CLOCK_SKEW_SECONDS, algorithms: ['RS256'] })` then `email_verified === true`. Production `JwksProvider` wraps `createRemoteJWKSet` (key caching per Google cache headers). Rate limiting by `CF-Connecting-IP` via `AUTH_LIMITER` before verification. Response time within SIGN_IN_BUDGET_MS is dominated by one cached JWKS lookup and two D1 writes.
+`jose` `jwtVerify(token, jwks.getKey, { issuer: GOOGLE_ISSUERS, audience: clientId, clockTolerance: TOKEN_CLOCK_SKEW_SECONDS, algorithms: ['RS256'] })` then `email_verified === true`. Production `JwksProvider` wraps `createRemoteJWKSet` (key caching per Google cache headers). Response time within SIGN_IN_BUDGET_MS is dominated by one cached JWKS lookup and two D1 writes.
 
 ## Tests
-unit: TC-03. integration: TC-13 to TC-17.
+unit: TC-03. integration: TC-13 to TC-16.
 
 ## Sessions, sign-out, expiry and cross-site protection
 
