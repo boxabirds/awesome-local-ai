@@ -12,8 +12,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 2 | 10/10 | 0 | 0 | 19/20 |
 | 3 | 0/7 | 0 | 0 | 19/27 |
 | 4 | 1/4 | 0 | 0 | 20/31 |
+| 5 | 1/5 | 20 | 0 | 1/36 |
 
-**New work** 17/27, **regressions** 0, **repairs** 0, **cumulative** 20/31.
+**New work** 18/32, **regressions** 20, **repairs** 0, **cumulative** 1/36.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -21,14 +22,16 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 2 | Capture ideas on sticky notes and rearrange them | PARTIAL (amber) | 53.0 | None | None | None | — | — | green | 19/20 |  | 0 / 5 | 1 | — | throttled 89%, server peak 91 GB |
 | 3 | See other people's edits appear live on the same board | DONE, on partial 2 | 102.2 | None | None | None | — | — | green | 19/27 |  | 0 / 0 | 3 | — | throttled 83%, server peak 94 GB |
 | 4 | Return to a board and find everything as it was left | DONE, on partial 2 | 138.8 | None | None | None | — | — | green | 20/31 |  | 0 / 0 | 5 | — | DEGRADED (power) throttled 89%, server peak 94 GB |
+| 5 | Share a board with others using a link | DONE, on partial 2 | 92.6 | None | None | None | — | — | green | 1/36 |  | 0 / 0 | 3 | — | throttled 61%, server peak 94 GB |
 
-**Totals:** 4 stories, 328 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/4, final acceptance 20/31, stalled 0, partial 1, 10111 lines in src+tests.
+**Totals:** 5 stories, 421 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/5, final acceptance 1/36, stalled 0, partial 1, 12627 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 2 PARTIAL**, ended by the operator (harness (cap)): story cap: 5 nudges without committing (cap 5). Verdict **amber**: gate green, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8] (implementation: [2, 4, 5, 6]), held-out 10/10 (floor 0.0).
 - Story 3, built on partial 2: held-out tests on the partial base 13/21; partial story's tests fixed 0, regressed 0; 2 stub-like lines added to src/.
 - Story 4, built on partial 2: held-out tests on the partial base 14/25; partial story's tests fixed 0, regressed 0; 1 stub-like lines added to src/.
+- Story 5, built on partial 2: held-out tests on the partial base 1/30; partial story's tests fixed 0, regressed 10; 2 stub-like lines added to src/.
 
 > Stories 4 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
 
@@ -42,10 +45,14 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 2 | harness snapshot (agent left work uncommitted) | 2201 / 13 | `StickyNote.tsx` (304), `board-model.ts` (186), `App.tsx` (152), `StickyTextEditor.tsx` (140), `StickyText.ts` (100), `NoteToolbar.tsx` (87), +8 more |
 | 3 | 3 by the agent | 3698 / 165 | `NOTES.md` (179), `board-room.ts` (145), `useBoardDoc.ts` (109), `connectBoard.ts` (90), `protocol.ts` (75), `ConnectionStatus.tsx` (63), +15 more |
 | 4 | 7 by the agent | 4075 / 180 | `board-store.ts` (447), `board-room.ts` (373), `room-state.ts` (135), `useConnectionBadge.ts` (68), `connectBoard.ts` (48), `index.ts` (47), +12 more |
+| 5 | 3 by the agent | 3102 / 421 | `SharePanel.tsx` (346), `App.tsx` (244), `BoardApp.tsx` (240), `styles.css` (134), `BoardPage.tsx` (111), `create-board.ts` (94), +18 more |
 
 ### Earlier stories broken or fixed
 
-No story changed an earlier story's held-out results.
+- **Story 5 broke 20, fixed 0** earlier held-out tests (docs(5): NOTES.md — test totals, why each suite creates boards the way it does, two product gaps the tests found, clipboard permissions on firefox/webkit, the socket-no-longer-creates rule; test(5): pages, share panel and end-to-end share workflows; feat(5): board API (POST/GET /api/boards), room creation + existence through the BoardRoom, link-only entry rules (404 without creating) + client router, board page check and Share panel). Source files it changed most: `SharePanel.tsx` (346), `App.tsx` (244), `BoardApp.tsx` (240), `styles.css` (134), `BoardPage.tsx` (111), `create-board.ts` (94), +18 more.
+  - story 1: 9/10 → 0/10; broke 9.
+  - story 2: 10/10 → 0/10; broke 10.
+  - story 4: 1/4 → 0/4; broke 1.
 
 ### Interruptions and dead time
 
