@@ -7,11 +7,13 @@ benchmark host another machine can drive over SSH through Tailscale.
 Run once, at the keyboard, in PowerShell opened with "Run as administrator".
 Safe to run again: every step checks before it changes anything.
 
-  1. Installs Tailscale (winget) and joins your tailnet. A browser window asks you to sign in,
+  1. Installs Tailscale (the official MSI, silently) and joins your tailnet. A browser window asks you to sign in,
      unless -TailscaleAuthKey is given. Unattended mode keeps it connected at boot with nobody logged in.
   2. Installs and starts the Windows OpenSSH server, starting at boot, with PowerShell as its shell.
   3. Authorises the SSH public keys you pass (key login for those keys).
-  4. Allows SSH and the model server port(s) from Tailscale addresses only.
+  4. Allows SSH, the model server port(s) and dbench's port from Tailscale addresses only.
+     Installs WSL2 with Ubuntu (mirrored networking, systemd on, a Linux user with no password)
+     for the Linux benchmark harness. The first run may ask for a restart: then run it again.
   5. Stops the PC sleeping or hibernating on mains power.
   6. Shows the GPU and driver, then opens Windows Update so you can pause updates
      (an update restart would kill a long run).
@@ -28,8 +30,23 @@ One or more SSH public key lines, e.g. 'ssh-ed25519 AAAA... me@laptop'.
 .PARAMETER ModelServerPorts
 Ports the inference server will listen on, opened to Tailscale addresses only. Default 8080.
 
+.PARAMETER DbenchPort
+Port dbench serve listens on (inside WSL), opened to Tailscale addresses only. Default 7717.
+
 .PARAMETER TailscaleAuthKey
 Optional Tailscale auth key, to join without the browser sign-in.
+
+.PARAMETER WslDistro
+WSL distribution to install. Default Ubuntu-24.04.
+
+.PARAMETER WslUser
+Linux user created inside WSL (no password). Default julian.
+
+.PARAMETER WslMemoryPercent
+Share of the PC's memory WSL may use. Default 75.
+
+.PARAMETER SkipWsl
+Do not install or configure WSL.
 
 .EXAMPLE
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 -AuthorizedKeysUrl https://github.com/boxabirds.keys
@@ -39,7 +56,12 @@ param(
     [string]   $AuthorizedKeysUrl,
     [string[]] $AuthorizedKey = @(),
     [int[]]    $ModelServerPorts = @(8080),
-    [string]   $TailscaleAuthKey
+    [int]      $DbenchPort = 7717,
+    [string]   $TailscaleAuthKey,
+    [string]   $WslDistro = 'Ubuntu-24.04',
+    [string]   $WslUser = 'julian',
+    [int]      $WslMemoryPercent = 75,
+    [switch]   $SkipWsl
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,6 +76,11 @@ $SshCapability = 'OpenSSH.Server~~~~0.0.1.0'
 $AdminKeysFile = 'C:\ProgramData\ssh\administrators_authorized_keys'
 $NeverTimeout  = 0                        # powercfg: 0 means never
 $KeyPattern    = '^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp\d+|sk-\S+) \S+'
+$TailscaleMsiUrl = 'https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi'
+$BytesPerGB    = 1GB
+$PercentScale  = 100
+$UserPattern   = '^[a-z_][a-z0-9_-]{0,31}$'   # a valid Linux user name
+$RebootNeededExit = 3010                      # Windows "success, reboot required"
 
 $LogFile = Join-Path (Get-Location) ("bench-host-setup-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
 Start-Transcript -Path $LogFile | Out-Null
@@ -81,10 +108,12 @@ try {
     # ---- 1. Tailscale -------------------------------------------------------
     Step 'Tailscale'
     if (-not (Test-Path $TailscaleExe)) {
-        if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-            throw 'winget is not available. Install Tailscale from https://tailscale.com/download, then run this again.'
-        }
-        winget install --id Tailscale.Tailscale --exact --silent --accept-package-agreements --accept-source-agreements
+        # The official MSI, installed silently: works with or without winget.
+        $msi = Join-Path $env:TEMP 'tailscale-setup.msi'
+        Write-Host "    downloading $TailscaleMsiUrl"
+        Invoke-WebRequest -Uri $TailscaleMsiUrl -OutFile $msi -UseBasicParsing
+        $p = Start-Process msiexec.exe -ArgumentList @('/i', "`"$msi`"", '/qn', '/norestart') -Wait -PassThru
+        if ($p.ExitCode -ne 0 -and $p.ExitCode -ne $RebootNeededExit) { throw "Tailscale installer failed (exit $($p.ExitCode))." }
         if (-not (Test-Path $TailscaleExe)) { throw "Tailscale was installed but $TailscaleExe is missing." }
         Ok 'installed'
     } else { Ok 'already installed' }
@@ -141,14 +170,57 @@ try {
         New-NetFirewallRule -Name $SshRuleName -DisplayName 'OpenSSH Server (Tailscale only)' -Direction Inbound `
             -Protocol TCP -LocalPort $SshPort -RemoteAddress $TailnetRange -Action Allow | Out-Null
     }
-    foreach ($port in $ModelServerPorts) {
+    $benchPorts = @($ModelServerPorts) + @($DbenchPort)
+    foreach ($port in $benchPorts) {
         $name = "$ModelRulePrefix-$port"
         if (-not (Get-NetFirewallRule -Name $name -ErrorAction SilentlyContinue)) {
-            New-NetFirewallRule -Name $name -DisplayName "Benchmark model server $port (Tailscale only)" -Direction Inbound `
+            New-NetFirewallRule -Name $name -DisplayName "Benchmark port $port (Tailscale only)" -Direction Inbound `
                 -Protocol TCP -LocalPort $port -RemoteAddress $TailnetRange -Action Allow | Out-Null
         }
     }
-    Ok "ports $SshPort and $($ModelServerPorts -join ', ') open to $TailnetRange only"
+    Ok "ports $SshPort and $($benchPorts -join ', ') open to $TailnetRange only"
+
+    # ---- 4b. WSL2 with Ubuntu, for the Linux benchmark harness --------------
+    if (-not $SkipWsl) {
+        Step "WSL2 ($WslDistro)"
+        if ($WslUser -notmatch $UserPattern) { throw "-WslUser '$WslUser' is not a valid Linux user name." }
+
+        # Windows-side WSL settings: mirrored networking (WSL shares the Tailscale address), memory cap.
+        $totalGB = [math]::Floor((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / $BytesPerGB)
+        $memGB   = [math]::Floor($totalGB * $WslMemoryPercent / $PercentScale)
+        $wslConfig = @(
+            '[wsl2]'
+            "memory=${memGB}GB"
+            'networkingMode=mirrored'
+            'vmIdleTimeout=-1'
+        ) -join "`r`n"
+        Set-Content -Path (Join-Path $env:USERPROFILE '.wslconfig') -Value $wslConfig -Encoding ascii
+        Ok "WSL settings: ${memGB} GB of ${totalGB} GB, mirrored networking"
+
+        $installed = (wsl.exe --list --quiet 2>$null) -replace "`0", '' | Where-Object { $_.Trim() -eq $WslDistro }
+        if (-not $installed) {
+            wsl.exe --install --distribution $WslDistro --no-launch
+            $installed = (wsl.exe --list --quiet 2>$null) -replace "`0", '' | Where-Object { $_.Trim() -eq $WslDistro }
+            if (-not $installed) {
+                Write-Host "`nWSL was just enabled and Windows needs a RESTART. Restart, then run this script again;" -ForegroundColor Yellow
+                Write-Host 'the finished steps are skipped the second time.' -ForegroundColor Yellow
+                exit 0
+            }
+        }
+
+        # Inside Ubuntu, as root: the user (no password; root is reached from Windows with wsl -u root),
+        # systemd on (the harness's process containment needs it), that user as the default.
+        $linuxSetup = @"
+set -e
+id -u $WslUser >/dev/null 2>&1 || useradd -m -s /bin/bash -G sudo $WslUser
+printf '[boot]\nsystemd=true\n\n[user]\ndefault=$WslUser\n' > /etc/wsl.conf
+loginctl enable-linger $WslUser 2>/dev/null || true
+"@ -replace "`r", ''
+        wsl.exe -d $WslDistro -u root -- bash -c $linuxSetup
+        if ($LASTEXITCODE -ne 0) { throw 'Setting up the Linux user inside WSL failed.' }
+        wsl.exe --shutdown   # applies .wslconfig and wsl.conf on the next start
+        Ok "Linux user '$WslUser', systemd on; reach it with: wsl -d $WslDistro"
+    }
 
     # ---- 5. never sleep on mains power --------------------------------------
     Step 'Power'
@@ -168,6 +240,7 @@ try {
 
     Write-Host "`nDONE. This machine's Tailscale name: $tsName ($tsIp)" -ForegroundColor Green
     Write-Host "Test from the other machine:  ssh $env:USERNAME@$tsName"
+    if (-not $SkipWsl) { Write-Host "Linux inside it:              ssh $env:USERNAME@$tsName wsl -d $WslDistro -- uname -a" }
     Write-Host "Log: $LogFile"
 }
 catch {
