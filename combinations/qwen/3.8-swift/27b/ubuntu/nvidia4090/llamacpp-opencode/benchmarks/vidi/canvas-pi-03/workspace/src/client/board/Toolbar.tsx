@@ -16,6 +16,8 @@ export interface ToolbarProps {
   /** Story 10: the Shape button's kind (Rectangle / Ellipse / Diamond). */
   shapeKind: ShapeKind;
   onShapeKindChange: (k: ShapeKind) => void;
+  /** Story 12: open the image file picker (image.pick). */
+  onOpenImagePicker: () => void;
 }
 
 /**
@@ -190,6 +192,34 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
             strokeWidth="1.5"
             strokeLinejoin="round"
           />
+        </svg>
+      </button>
+      {/* Story 12: Image button (opens the system file picker). */}
+      <button
+        type="button"
+        aria-label="Image (I)"
+        title="Image – I, or drop / paste an image"
+        data-testid="image-tool-button"
+        disabled={props.disabled}
+        onClick={props.onOpenImagePicker}
+        style={{
+          width: 40,
+          height: 40,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#E8F0FE',
+          border: '1px solid #aecbfa',
+          borderRadius: 6,
+          cursor: 'pointer',
+          padding: 0,
+        }}
+      >
+        {/* Picture glyph */}
+        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+          <rect x="3" y="4" width="16" height="14" rx="2" fill="#ffffff" stroke="#1A73E8" strokeWidth="1.5" />
+          <circle cx="8" cy="9" r="1.8" fill="#1A73E8" />
+          <path d="M5 16l4.5-4.5 3.5 3.5 2.5-2.5 1.5 1.5" fill="none" stroke="#1A73E8" strokeWidth="1.5" strokeLinejoin="round" />
         </svg>
       </button>
       <button

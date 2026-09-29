@@ -45,6 +45,19 @@ export interface ObjectSnapshot {
   baseHeight?: number;
   color?: string;
   thickness?: string;
+  /**
+   * Story 12: image fields. Present only on `image` snapshots:
+   * the immutable R2 asset key (null while uploading), the sniffed content
+   * type, the natural size, the upload status, its start clock and the
+   * uploader's identity.
+   */
+  assetKey?: string | null;
+  contentType?: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  status?: 'uploading' | 'ready' | 'failed';
+  uploadStartedAt?: number;
+  uploaderId?: string;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -290,6 +303,34 @@ export function allObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
         snap.baseHeight = baseHeight;
         snap.color = color;
         snap.thickness = thickness;
+      }
+    }
+    // Story 12: carry the image's stored fields on the snapshot so the
+    // registry component can render upload states without a second read.
+    if (type === 'image') {
+      const assetKey = obj.get('assetKey');
+      const contentType = obj.get('contentType');
+      const naturalWidth = obj.get('naturalWidth');
+      const naturalHeight = obj.get('naturalHeight');
+      const status = obj.get('status');
+      const uploadStartedAt = obj.get('uploadStartedAt');
+      const uploaderId = obj.get('uploaderId');
+      if (
+        (assetKey === null || typeof assetKey === 'string') &&
+        typeof contentType === 'string' &&
+        typeof naturalWidth === 'number' &&
+        typeof naturalHeight === 'number' &&
+        (status === 'uploading' || status === 'ready' || status === 'failed') &&
+        typeof uploadStartedAt === 'number' &&
+        typeof uploaderId === 'string'
+      ) {
+        snap.assetKey = assetKey;
+        snap.contentType = contentType;
+        snap.naturalWidth = naturalWidth;
+        snap.naturalHeight = naturalHeight;
+        snap.status = status;
+        snap.uploadStartedAt = uploadStartedAt;
+        snap.uploaderId = uploaderId;
       }
     }
     raw.push(snap);

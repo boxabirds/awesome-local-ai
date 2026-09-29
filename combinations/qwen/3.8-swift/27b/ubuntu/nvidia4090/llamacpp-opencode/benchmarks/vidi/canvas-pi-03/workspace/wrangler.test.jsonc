@@ -30,7 +30,18 @@
       "name": "BOARD_CREATE_LIMITER",
       "namespace_id": "00000000-0000-0000-0000-000000000000",
       "simple": { "limit": 10, "period": 60 }
+    },
+    // Story 12: mirrors wrangler.jsonc (local runtime falls back to the
+    // in-memory limiter; see src/worker/assets.ts).
+    {
+      "name": "ASSET_UPLOAD_LIMITER",
+      "namespace_id": "00000000-0000-0000-0000-000000000000",
+      "simple": { "limit": 60, "period": 60 }
     }
+  ],
+  // Story 12: R2 bucket (workerd emulates it locally).
+  "r2_buckets": [
+    { "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }
   ],
   // Enables the /__test/ ops routes for the integration + e2e suites. This is
   // ONLY in the test config — the production wrangler.jsonc never sets it, so

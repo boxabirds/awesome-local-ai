@@ -33,6 +33,10 @@ import { PenTool } from '../tools/PenTool';
 import { PenToolbar } from '../tools/PenToolbar';
 import { usePenOptions } from '../tools/usePenOptions';
 import { BoardContext } from './context';
+import { useImageInsert } from '../images/useImageInsert';
+import { ToastHost } from '../ui/Toast';
+import { DropHighlight } from '../images/DropHighlight';
+import { IMAGE_UPLOAD_STALE_MS } from 'src/shared/config';
 import { seedCheckoutFlow as seedCheckoutFlowFixture } from '../../../tests/fixtures/checkout-flow';
 import {
   getShapeKind,
@@ -229,6 +233,44 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     if (id) sel.startEdit(id);
   }, [cam.camera, size, doc, sel, editable, undoController]);
 
+  // Story 12: image insertion (drop / paste / picker → upload → states).
+  // One add action is exactly one undo step: the placeholder transaction is
+  // the only LOCAL_ORIGIN write (status updates ride UPLOAD_ORIGIN).
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera: cam.camera,
+    viewSize: size,
+    connection: connectionState,
+    identityId,
+    boundary: () => undoController.boundary(),
+  });
+
+  // Story 12: the 5-minute stale clock (image.unfinished). Ticks every 30 s
+  // only while any image is uploading (the placeholder is the live case);
+  // a fresh render re-baselines `now` so the flip happens on the next tick
+  // after the deadline.
+  const hasUploading = objects.some((o) => o.type === 'image' && o.status === 'uploading');
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!hasUploading) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), IMAGE_UPLOAD_STALE_MS / 10);
+    return () => clearInterval(t);
+  }, [hasUploading]);
+
+  // Story 12: removing a failed/stale image (story 7's deleteObjects, one
+  // undo step). No-op when the board is locked.
+  const handleImageRemove = useCallback(
+    (id: string): void => {
+      if (!editable) return;
+      undoController.boundary();
+      if (deleteObjects(doc, [id]) > 0 && sel.ids.has(id)) sel.clear();
+      undoController.boundary();
+    },
+    [doc, editable, sel, undoController],
+  );
+
   // Story 7: Ctrl+A / Escape / arrows / Delete / Enter (sel.keyboard).
   // Story 8: + Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl+Y undo and redo.
   // Story 9: + V (Select tool), T (Text tool), N (sticky at centre),
@@ -243,6 +285,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     tool,
     setTool,
     onCreateStickyCentred: handleCreateStickyCentred,
+    onOpenImagePicker: imageInsert.openPicker,
   });
 
   // Story 9: Text tool click (empty space OR on top of an object) → create a
@@ -366,13 +409,24 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   // sufficient; kept for the contract).
   const onEndsChanged = useCallback(() => {}, []);
   const boardContext = useMemo(
-    () => ({ camera: cam.camera, identity: identityId, onEndsChanged }),
-    [cam.camera, identityId, onEndsChanged],
+    () => ({
+      camera: cam.camera,
+      identity: identityId,
+      onEndsChanged,
+      now,
+      imageProgress: imageInsert.progress,
+      canRetryImage: imageInsert.canRetry,
+      onImageRetry: imageInsert.retry,
+      onImageRemove: handleImageRemove,
+    }),
+    [cam.camera, identityId, onEndsChanged, now, imageInsert, handleImageRemove],
   );
 
   return (
     <BoardContext.Provider value={boardContext}>
       <ConnectionStatus state={connectionState} />
+      <ToastHost />
+      {imageInsert.dragActive && <DropHighlight />}
       <BoardViewport
         camera={cam.camera}
         beginPan={cam.beginPan}
@@ -387,6 +441,10 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         onEmptyClick={handleEmptyClick}
         tool={tool}
         onCreateTextAt={handleCreateTextAt}
+        onImageDragEnter={imageInsert.onDragEnter}
+        onImageDragOver={imageInsert.onDragOver}
+        onImageDragLeave={imageInsert.onDragLeave}
+        onImageDrop={imageInsert.onDrop}
         marquee={{
           active: marquee.rect !== null,
           begin: marquee.begin,
@@ -481,6 +539,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         onToolChange={setTool}
         shapeKind={shapeKind}
         onShapeKindChange={setShapeKind}
+        onOpenImagePicker={imageInsert.openPicker}
       />
       <SelectionOverlay
         ids={sel.ids}

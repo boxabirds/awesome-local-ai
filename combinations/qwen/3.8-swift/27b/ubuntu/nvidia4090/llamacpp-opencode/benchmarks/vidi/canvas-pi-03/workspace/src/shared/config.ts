@@ -99,6 +99,20 @@ export const CREATE_BUDGET_MS = 2000;              // PRD share.create: board op
 export const LINK_COPIED_MS = 2000;                // PRD share.copy: "Link copied" duration
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;     // backoff doubles up to RECONNECT_MAX_BACKOFF_MS (story 3)
 
+// Story 12: images (image.*)
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+export type ImageAcceptedType = (typeof IMAGE_ACCEPTED_TYPES)[number];
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024; // 10 MB (image.size_limit)
+export const IMAGE_MAX_FILES_PER_ADD = 20; // images per drop/paste/pick action (image.count_limit)
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800; // longest side of the placement size (image.placement_size)
+export const IMAGE_MIN_SIZE_WORLD = 16; // smallest allowed image side on resize (image.aspect_resize)
+export const IMAGE_LAYOUT_GAP_WORLD = 24; // gap between images in a row (image.drop)
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000; // uploading → unfinished after this (image.unfinished)
+export const IMAGE_UPLOAD_LIMIT = 60; // per visitor, per period (image.rate_limit)
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60; // must match wrangler.jsonc ratelimits
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000; // immutable asset caching (one year)
+export const IMAGE_SNIFF_BYTES = 12; // head bytes read for magic-byte sniffing
+
 export const STICKY_COLORS = {
   yellow: '#FFF59D',
   orange: '#FFCC80',

@@ -13,6 +13,16 @@ export interface BoardContextValue {
   identity: string;
   /** Keeps the board in sync after a connector re-attach. */
   onEndsChanged(): void;
+  /**
+   * Story 12: image extras the registry bridge can't carry in ObjectProps —
+   * the stale clock, this tab's upload progress, and the retry/remove
+   * actions (the file lives in the insert hook's memory).
+   */
+  now: number;
+  imageProgress: ReadonlyMap<string, number>;
+  canRetryImage(id: string): boolean;
+  onImageRetry(id: string): boolean;
+  onImageRemove(id: string): void;
 }
 
 export const BoardContext = createContext<BoardContextValue | null>(null);

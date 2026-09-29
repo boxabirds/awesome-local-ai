@@ -27,6 +27,9 @@ import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
 import { scaledPoints, type StrokeSnap } from 'src/shared/objects/stroke';
+import { IMAGE_MIN_SIZE_WORLD } from 'src/shared/config';
+import { ImageObject } from '../images/ImageObject';
+import type { ImageSnap } from 'src/shared/objects/image';
 import { useBoardContext } from '../board/context';
 
 /**
@@ -37,6 +40,55 @@ import { useBoardContext } from '../board/context';
 function ConnectorObjectBridge(props: ObjectProps): React.JSX.Element {
   const { camera, identity, onEndsChanged } = useBoardContext();
   return <ConnectorObject {...props} camera={camera} identity={identity} onEndsChanged={onEndsChanged} />;
+}
+
+/** Rebuilds the full image snap from the snapshot's carried fields. */
+function toImageSnap(obj: ObjectSnapshot): ImageSnap | undefined {
+  if (obj.type !== 'image') return undefined;
+  if (obj.width === undefined || obj.height === undefined) return undefined;
+  if (obj.assetKey === undefined || typeof obj.contentType !== 'string') return undefined;
+  if (obj.naturalWidth === undefined || obj.naturalHeight === undefined) return undefined;
+  if (obj.status === undefined || obj.uploadStartedAt === undefined) return undefined;
+  if (typeof obj.uploaderId !== 'string') return undefined;
+  return {
+    id: obj.id,
+    type: 'image',
+    x: obj.x,
+    y: obj.y,
+    z: obj.z,
+    width: obj.width,
+    height: obj.height,
+    assetKey: obj.assetKey,
+    contentType: obj.contentType,
+    naturalWidth: obj.naturalWidth,
+    naturalHeight: obj.naturalHeight,
+    status: obj.status,
+    uploadStartedAt: obj.uploadStartedAt,
+    uploaderId: obj.uploaderId,
+  };
+}
+
+/**
+ * Story 12: bridges the image's board-level extras (the stale clock, this
+ * tab's upload progress, the retry/remove actions — carried in BoardContext)
+ * into the registered component.
+ */
+function ImageObjectBridge(props: ObjectProps): React.JSX.Element | null {
+  const { identity, now, imageProgress, canRetryImage, onImageRetry, onImageRemove } = useBoardContext();
+  const snap = toImageSnap(props.obj);
+  if (!snap) return null;
+  return (
+    <ImageObject
+      image={snap}
+      isUploader={snap.uploaderId === identity}
+      progress={imageProgress.get(snap.id)}
+      canRetry={canRetryImage(snap.id)}
+      now={now}
+      onRetry={() => onImageRetry(snap.id)}
+      onRemove={() => onImageRemove(snap.id)}
+      onPointerDown={(e) => props.onPointerDown(e, snap.id)}
+    />
+  );
 }
 
 /**
@@ -250,6 +302,17 @@ registerObjectType('stroke', {
   minSize: STROKE_MIN_SIZE_WORLD,
   editableText: false,
   hitTest: strokeHitTest,
+});
+
+// Story 12: images — resizable with aspect locked (image.aspect_resize),
+// never smaller than IMAGE_MIN_SIZE_WORLD on either side, no editable text.
+registerObjectType('image', {
+  Component: ImageObjectBridge,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: stickyHitTest,
 });
 
 /**

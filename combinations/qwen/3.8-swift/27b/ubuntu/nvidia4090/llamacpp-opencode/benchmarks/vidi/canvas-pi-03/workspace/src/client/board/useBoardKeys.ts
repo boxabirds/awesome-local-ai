@@ -13,6 +13,7 @@
  *   N → create a sticky note at the view centre (story 2 behaviour)
  * - Story 10: S → Shape tool, L → Connector tool (only when editable)
  * - Story 11: P → Pen tool (only when editable)
+ * - Story 12: I → open the image file picker (only when editable)
  *
  * Shortcuts never fire while focus is inside a text input/textarea/content-
  * editable (typing a note), and never fire while an object is in editing
@@ -51,6 +52,8 @@ export interface BoardKeysOptions {
   setTool: (t: ToolId) => void;
   /** Story 9 (N): create a sticky note at the view centre (story 2). */
   onCreateStickyCentred: () => void;
+  /** Story 12 (I): open the image file picker (image.pick). */
+  onOpenImagePicker: () => void;
 }
 
 export function useBoardKeys(opts: BoardKeysOptions): void {
@@ -116,6 +119,13 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           if (!canEdit) return;
           e.preventDefault();
           setTool('pen');
+          return;
+        }
+        // Story 12: image picker (image.pick).
+        if (e.key === 'i' || e.key === 'I') {
+          if (!canEdit) return;
+          e.preventDefault();
+          optsRef.current.onOpenImagePicker();
           return;
         }
       }

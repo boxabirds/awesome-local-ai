@@ -4,6 +4,10 @@
  * Routes:
  *   POST /api/boards         → create a board (rate-limited; 201/429/500)
  *   GET  /api/boards/:id     → board existence (200/404; read-only, no writes)
+ *   POST /api/boards/:id/assets → upload an image asset (story 12;
+ *                              201/404/413/415/429/500, R2 storage)
+ *   GET  /api/assets/:boardId/:assetId → serve an image asset (story 12;
+ *                              immutable cache headers; 404)
  *   GET  /api/rooms/:id      → WebSocket upgrade to the board's BoardRoom
  *                              (404 for unknown or malformed ids; 426 without
  *                              the Upgrade header)
@@ -17,18 +21,25 @@
 import { isValidBoardId } from 'src/shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
+import { handleUpload, handleServe, handleAssetTestOp } from './assets';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** Story 12: R2 bucket for image assets (wrangler.jsonc). */
+  ASSETS_BUCKET: R2Bucket;
   /** Production: the platform rate-limiter binding (wrangler.jsonc). */
   BOARD_CREATE_LIMITER?: RateLimit;
+  /** Story 12: per-visitor image upload rate limit (wrangler.jsonc). */
+  ASSET_UPLOAD_LIMITER?: RateLimit;
   /** '1' in test/e2e environments only; enables the /__test/ ops routes. */
   TEST_HOOKS?: string;
 }
 
 const ROOMS_PREFIX = '/api/rooms/';
 const BOARDS_PREFIX = '/api/boards';
+const ASSETS_ROUTE_PREFIX = '/api/assets/';
+const ASSET_TEST_PREFIX = '/__test/assets/';
 const TEST_PREFIX = '/__test/boards/';
 
 function json(body: unknown, status = 200): Response {
@@ -41,6 +52,11 @@ function json(body: unknown, status = 200): Response {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    if (env.TEST_HOOKS === '1' && url.pathname.startsWith(ASSET_TEST_PREFIX)) {
+      // Story 12: R2 inspection ops for the integration suite (inspect/list/
+      // deletePrefix). Test config only — never present in production.
+      return handleAssetTestOp(req, env, url.pathname.slice(ASSET_TEST_PREFIX.length));
+    }
     if (env.TEST_HOOKS === '1' && url.pathname.startsWith(TEST_PREFIX)) {
       // Route a test op to the board's Durable Object; it runs the op against
       // its storage and returns JSON. Never enabled in production config.
@@ -59,6 +75,14 @@ export default {
         if (result.reason === 'rate_limited') return json({ error: 'rate_limited' }, 429);
         return json({ error: 'create_failed' }, 500);
       }
+      // Story 12: image upload for an existing board (before the generic
+      // GET/405 handling below).
+      if (req.method === 'POST') {
+        const boardId = url.pathname.slice(BOARDS_PREFIX.length + 1).split('/')[0] ?? '';
+        if (url.pathname === `${BOARDS_PREFIX}/${boardId}/assets`) {
+          return handleUpload(req, env, boardId);
+        }
+      }
       if (req.method === 'GET' && url.pathname !== BOARDS_PREFIX) {
         const boardId = url.pathname.slice(BOARDS_PREFIX.length + 1).split('/')[0] ?? '';
         // Unknown and malformed ids are indistinguishable: 404, no namespace
@@ -69,6 +93,11 @@ export default {
         return exists ? json({ id: boardId }, 200) : json({ error: 'not_found' }, 404);
       }
       return json({ error: 'method_not_allowed' }, 405);
+    }
+    // Story 12: serve stored image assets (the key is <boardId>/<assetId>,
+    // validated inside handleServe — traversal/malformed keys 404).
+    if (req.method === 'GET' && url.pathname.startsWith(ASSETS_ROUTE_PREFIX)) {
+      return handleServe(env, url.pathname.slice(ASSETS_ROUTE_PREFIX.length));
     }
     if (url.pathname.startsWith(ROOMS_PREFIX)) {
       const boardId = url.pathname.slice(ROOMS_PREFIX.length).split('/')[0] ?? '';

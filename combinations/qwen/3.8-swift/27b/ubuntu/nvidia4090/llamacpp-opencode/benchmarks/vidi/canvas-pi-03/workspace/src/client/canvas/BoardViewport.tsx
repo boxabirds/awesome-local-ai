@@ -56,6 +56,15 @@ export interface BoardViewportProps {
    * directly from the board).
    */
   onCreateTextAt?: (world: Point) => void;
+  /**
+   * Story 12: file-drag handlers for the drop highlight and drop placement
+   * (image.drop). Bound to the viewport container; the handlers no-op for
+   * non-file drags.
+   */
+  onImageDragEnter?: (e: React.DragEvent) => void;
+  onImageDragOver?: (e: React.DragEvent) => void;
+  onImageDragLeave?: (e: React.DragEvent) => void;
+  onImageDrop?: (e: React.DragEvent) => void;
 }
 
 export interface MarqueeController {
@@ -326,6 +335,10 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       onPointerCancel={handlePointerCancel}
       onLostPointerCapture={handlePointerCancel}
       onDoubleClick={handleDoubleClick}
+      onDragEnter={props.onImageDragEnter}
+      onDragOver={props.onImageDragOver}
+      onDragLeave={props.onImageDragLeave}
+      onDrop={props.onImageDrop}
     >
       <div
         ref={worldRef}
