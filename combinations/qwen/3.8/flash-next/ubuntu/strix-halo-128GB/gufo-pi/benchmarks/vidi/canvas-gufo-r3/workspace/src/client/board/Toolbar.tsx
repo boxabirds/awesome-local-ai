@@ -213,6 +213,33 @@ export function Toolbar({ onCreateSticky, disabled, undoState, tool = 'select', 
       </button>
       <button
         type="button"
+        aria-label="Image (I)"
+        title="Image (I)"
+        aria-pressed={tool === 'image'}
+        data-testid="tool-image"
+        onClick={() => onToolChange?.('image')}
+        disabled={disabled}
+        style={{
+          width: '40px',
+          height: '40px',
+          border: tool === 'image' ? '2px solid #1976D2' : 'none',
+          borderRadius: '6px',
+          background: tool === 'image' ? '#E3F2FD' : 'transparent',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.5 : 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="#333" strokeWidth="1.5" />
+          <circle cx="7.5" cy="7.5" r="1.5" fill="#333" />
+          <path d="M17 13l-4-4-8 8" fill="none" stroke="#333" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </button>
+      <button
+        type="button"
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
         data-testid="create-sticky-button"

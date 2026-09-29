@@ -35,6 +35,9 @@ import { StrokeObject } from '@client/objects/StrokeObject';
 import { PenTool } from '@client/tools/PenTool';
 import { PenToolbar } from '@client/tools/PenToolbar';
 import { usePenOptions } from '@client/tools/usePenOptions';
+import { useImageInsert } from '@client/images/useImageInsert';
+import { DropHighlight } from '@client/images/DropHighlight';
+import { ToastContainer } from '@client/ui/Toast';
 
 // Register the sticky type at import time
 import { registerStickyType } from '@client/objects/registry';
@@ -114,6 +117,27 @@ registerObjectType('stroke', {
   },
 });
 
+// Register the image type at import time
+import { ImageObject } from '@client/objects/ImageObject';
+import { IMAGE_MIN_SIZE_WORLD } from '@shared/config';
+registerObjectType('image', {
+  Component: ImageObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest(obj, worldPoint) {
+    const w = (obj as any).width ?? 100;
+    const h = (obj as any).height ?? 100;
+    return (
+      worldPoint.x >= obj.x &&
+      worldPoint.x <= obj.x + w &&
+      worldPoint.y >= obj.y &&
+      worldPoint.y <= obj.y + h
+    );
+  },
+});
+
 export function Board({ boardId }: { boardId: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState<Size>({ width: 1280, height: 800 });
@@ -140,6 +164,30 @@ export function Board({ boardId }: { boardId: string }) {
     onSelect: selectCreated,
   });
   const penOptions = usePenOptions();
+
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    connection: connectionState,
+    identityId: 'user',
+    viewportSize,
+  });
+
+  // Paste handler
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => imageInsert.onPaste(e);
+    window.addEventListener('paste', handler);
+    return () => window.removeEventListener('paste', handler);
+  }, [imageInsert.onPaste]);
+
+  // Handle image openPicker when tool changes to 'image'
+  useEffect(() => {
+    if (tool === 'image') {
+      imageInsert.openPicker();
+      setTool('select');
+    }
+  }, [tool, imageInsert.openPicker, setTool]);
 
   // ResizeObserver
   useEffect(() => {
@@ -291,7 +339,15 @@ export function Board({ boardId }: { boardId: string }) {
     ) : null;
 
   return (
-    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div
+      ref={containerRef}
+      style={{ width: '100%', height: '100%', position: 'relative' }}
+      onDragEnter={(e) => imageInsert.onDragEnter(e.nativeEvent)}
+      onDragOver={(e) => imageInsert.onDragOver(e.nativeEvent)}
+      onDragLeave={(e) => imageInsert.onDragLeave(e.nativeEvent)}
+      onDrop={(e) => imageInsert.onDrop(e.nativeEvent)}
+    >
+      {imageInsert.isDragging && <DropHighlight />}
       <BoardViewport
         camera={camera}
         cursor={cursorStyle}
@@ -379,6 +435,20 @@ export function Board({ boardId }: { boardId: string }) {
               />
             );
           }
+          if (obj.type === 'image') {
+            return (
+              <ImageObject
+                key={obj.id}
+                image={obj}
+                isUploader={true}
+                progress={imageInsert.progress.get(obj.id)}
+                canRetry={imageInsert.canRetry(obj.id)}
+                now={Date.now()}
+                onRetry={() => imageInsert.retry(obj.id)}
+                onRemove={() => { deleteObjects(doc, [obj.id]); }}
+              />
+            );
+          }
           return (
             <StickyNote
               key={obj.id}
@@ -434,6 +504,7 @@ export function Board({ boardId }: { boardId: string }) {
       <ConnectionStatus state={connectionState} />
       {tool === 'pen' && <PenToolbar color={penOptions.color} thickness={penOptions.thickness} onColor={penOptions.setColor} onThickness={penOptions.setThickness} />}
       {activeToolOverlay}
+      <ToastContainer />
     </div>
   );
 }

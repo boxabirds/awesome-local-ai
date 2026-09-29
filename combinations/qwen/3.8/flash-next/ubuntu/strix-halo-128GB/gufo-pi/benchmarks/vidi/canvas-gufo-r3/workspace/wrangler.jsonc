@@ -14,6 +14,20 @@
         "limit": 10,
         "period": 60
       }
+    },
+    {
+      "name": "ASSET_UPLOAD_LIMITER",
+      "namespace_id": "asset_upload",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
     }
   ],
   "assets": {

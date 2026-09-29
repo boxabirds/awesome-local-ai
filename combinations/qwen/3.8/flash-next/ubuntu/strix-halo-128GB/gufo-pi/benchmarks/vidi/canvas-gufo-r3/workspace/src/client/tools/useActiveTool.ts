@@ -104,7 +104,7 @@ export function useActiveTool(opts: UseActiveToolOptions = {}): UseActiveToolRes
       const key = e.key.toLowerCase();
       const target = TOOL_SHORTCUTS[key];
       // Only tools actually implemented as overlays/selection act on their key.
-      if (target === 'select' || target === 'text' || target === 'shape' || target === 'connector' || target === 'pen') {
+      if (target === 'select' || target === 'text' || target === 'shape' || target === 'connector' || target === 'pen' || target === 'image') {
         e.preventDefault();
         setToolState(target);
       }

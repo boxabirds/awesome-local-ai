@@ -2,18 +2,22 @@ import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { handleTestRoute } from './test-hooks';
+import { handleUpload, handleServe } from './assets';
 import type { Env } from './env';
 
 const ROOM_PREFIX = '/api/rooms/';
 const BOARDS_PREFIX = '/api/boards';
+const ASSETS_SERVE_PREFIX = '/api/assets/';
 const TEST_PREFIX = '/api/test/';
 
 /**
  * Worker entry. Routes:
- *   POST /api/boards          → create a new board
- *   GET  /api/boards/:id      → check board existence
- *   /api/rooms/:id            → WebSocket to that board's Durable Object
- *   everything else           → static SPA assets
+ *   POST /api/boards              → create a new board
+ *   GET  /api/boards/:id          → check board existence
+ *   POST /api/boards/:id/assets   → upload an image asset
+ *   GET  /api/assets/:boardId/:assetId → serve an image asset
+ *   /api/rooms/:id                → WebSocket to that board's Durable Object
+ *   everything else               → static SPA assets
  */
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -41,6 +45,17 @@ export default {
       return Response.json({ error: 'create_failed' }, { status: 500 });
     }
 
+    // POST /api/boards/:id/assets — upload image asset
+    if (
+      url.pathname.startsWith(BOARDS_PREFIX + '/') &&
+      url.pathname.endsWith('/assets') &&
+      request.method === 'POST'
+    ) {
+      const rest = url.pathname.slice(BOARDS_PREFIX.length + 1, -'/assets'.length);
+      const boardId = decodeURIComponent(rest);
+      return handleUpload(request, env, boardId);
+    }
+
     // GET /api/boards/:id — check existence
     if (url.pathname.startsWith(BOARDS_PREFIX + '/')) {
       if (request.method !== 'GET') {
@@ -57,6 +72,15 @@ export default {
         return Response.json({ error: 'not_found' }, { status: 404 });
       }
       return Response.json({ id: boardId }, { status: 200 });
+    }
+
+    // GET /api/assets/:boardId/:assetId — serve an image
+    if (url.pathname.startsWith(ASSETS_SERVE_PREFIX)) {
+      if (request.method !== 'GET') {
+        return Response.json({ error: 'method_not_allowed' }, { status: 405 });
+      }
+      const key = url.pathname.slice(ASSETS_SERVE_PREFIX.length);
+      return handleServe(env, key);
     }
 
     if (url.pathname.startsWith(ROOM_PREFIX)) {
