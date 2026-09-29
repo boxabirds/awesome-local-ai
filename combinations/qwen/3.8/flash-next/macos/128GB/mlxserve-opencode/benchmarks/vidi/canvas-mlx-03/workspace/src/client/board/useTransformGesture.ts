@@ -65,6 +65,13 @@ export interface TransformGestureOptions {
   onGestureStart?(): void;
   /** It finished, was cancelled or could not continue. Fires exactly once. */
   onGestureEnd?(): void;
+  /**
+   * Story 8: close the undo capture window. Called once when a gesture starts and
+   * once when it ends, so the dozens of per-frame writes in between stay one undo
+   * step (design Key decision 2) and a drag never merges with the click before or
+   * after it. Absent for a caller that is not undoing anything.
+   */
+  boundary?(): void;
 }
 
 export interface TransformGestureHandlers {
@@ -122,6 +129,8 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
   onStartRef.current = opts.onGestureStart;
   const onEndRef = useRef(opts.onGestureEnd);
   onEndRef.current = opts.onGestureEnd;
+  const boundaryRef = useRef(opts.boundary);
+  boundaryRef.current = opts.boundary;
 
   const phaseRef = useRef<'idle' | 'pressed' | 'moving' | 'resizing'>('idle');
   const startedRef = useRef(false); // onGestureStart fired, onGestureEnd owed
@@ -201,6 +210,9 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     if (pending) write(pending);
     detachRef.current?.();
     detachRef.current = null;
+    // The step this gesture wrote is finished — including the last frame, which is
+    // applied just above. Whatever comes next is a different action.
+    boundaryRef.current?.();
     notifyEnd();
   };
 
@@ -216,6 +228,8 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     startBoxRef.current = null;
     detachRef.current?.();
     detachRef.current = null;
+    // A gesture that stopped early still wrote frames: close that step too.
+    boundaryRef.current?.();
     notifyEnd();
   };
 
@@ -265,7 +279,11 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       entriesRef.current = entries;
       phaseRef.current = 'moving';
       startedRef.current = true;
-      onStartRef.current?.(); // story 8's boundary; a plain click never gets here
+      // Story 8's boundary: a plain click never gets here, so a click that selects
+      // does not open a step. Everything from here — the raise below included — is
+      // one action.
+      boundaryRef.current?.();
+      onStartRef.current?.();
       // The selection moves above anything it does not contain (TC-09).
       bringObjectsToFront(docRef.current, entries.map((entry) => entry.id));
     }
@@ -372,6 +390,7 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     startClientRef.current = { x: e.clientX, y: e.clientY };
     phaseRef.current = 'resizing';
     startedRef.current = true;
+    boundaryRef.current?.(); // a resize is its own step as well
     onStartRef.current?.();
     attach();
   };

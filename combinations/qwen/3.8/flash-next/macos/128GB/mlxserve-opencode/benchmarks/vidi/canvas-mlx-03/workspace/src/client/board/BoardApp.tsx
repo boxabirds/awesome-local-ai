@@ -13,7 +13,7 @@
 // treat every object type the same way, so stories 9-12 (text, shape, connector,
 // frame) add a component and one registration instead of touching this file.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { BoardViewport } from '../canvas/BoardViewport.tsx';
 import { ZoomControls } from '../canvas/ZoomControls.tsx';
@@ -29,6 +29,8 @@ import { useSelection } from './useSelection.ts';
 import { useTransformGesture, deleteSelection } from './useTransformGesture.ts';
 import { useMarquee, MarqueeRect } from './Marquee.tsx';
 import { useBoardKeys } from './useBoardKeys.ts';
+import { createUndo, type UndoController } from './undo.ts';
+import { UndoControllerContext, useUndo } from './useUndo.ts';
 import { SelectionOverlay, selectionBounds } from './SelectionOverlay.tsx';
 import { SelectionBar } from './SelectionBar.tsx';
 import { ConnectionStatus, type ConnectionState } from './ConnectionStatus.tsx';
@@ -53,6 +55,8 @@ export interface BoardAppProps {
   boardId?: string | null;
   /** Component tests force a connection state (TC-23); production omits it. */
   connection?: ConnectionState;
+  /** Component tests inject their own undo controller (undo.controls); production omits it. */
+  undo?: UndoController;
 }
 
 /**
@@ -99,6 +103,18 @@ export default function BoardApp(props: BoardAppProps = {}) {
   const cam = useCamera(viewport);
   const boardId = props.boardId ?? boardIdFromPath(window.location.pathname);
   const { doc, objects, connection } = useBoardDoc(props.doc, boardId, props.connection);
+
+  // Story 8: one undo history per board document, made here because this is where
+  // the document is, and disposed with it. Switching to another board link builds a
+  // new document and a new controller, so a history is never carried from one board
+  // to another, and nothing about it is ever saved (undo.session_only).
+  const ownUndo = useMemo(
+    () => (props.undo ? null : createUndo(doc)),
+    [props.undo, doc],
+  );
+  useEffect(() => () => ownUndo?.destroy(), [ownUndo]);
+  const undoController = props.undo ?? ownUndo!;
+
   // The selection is local, and it follows the document: an object a colleague
   // deleted cannot stay selected (TC-35), and selecting the same object as a
   // colleague does not make it "mine".
@@ -153,11 +169,25 @@ export default function BoardApp(props: BoardAppProps = {}) {
     canEdit: editable,
     onGestureStart: () => setTransforming(true),
     onGestureEnd: () => setTransforming(false),
+    // Story 8: one gesture, one undo step. The hook puts this at both ends of the
+    // gesture itself, so the frames in between merge and a drag is never merged
+    // with the click that selected it or the colour chosen right after it.
+    boundary: undoController.boundary,
   });
 
   // Ctrl/Cmd+A, Escape, arrow-key nudging and Delete/Backspace. All of them are
   // suppressed while a text editor has the keyboard.
-  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable });
+  useBoardKeys({
+    doc,
+    selection: sel,
+    snapshot: objects,
+    canEdit: editable,
+    undo: undoController,
+  });
+
+  // What the Undo/Redo buttons render from, and what the shortcuts act on: this
+  // tab's two stacks. A colleague's activity never changes them.
+  const undo = useUndo(undoController, editable);
 
   const onDelete = useCallback(() => {
     deleteSelection(doc, sel, editable);
@@ -196,122 +226,124 @@ export default function BoardApp(props: BoardAppProps = {}) {
     : null;
 
   return (
-    <div data-testid="app" className="vidi6-root">
-      <BoardViewport
-        camera={cam.camera}
-        viewportRef={viewportRef}
-        api={cam}
-        marquee={marquee}
-        onBackgroundPointerDown={onBackgroundPointerDown}
-        onBackgroundDoubleClick={createAtWorld}
-      >
-        {objects.map((obj) => {
-          const spec = getObjectType(obj.type);
-          if (!spec) return null; // a type this build cannot draw is drawn by nobody
-          const ObjectType = spec.Component;
-          return (
-            <ObjectType
-              key={obj.id}
-              obj={obj}
-              doc={doc}
-              zoom={cam.camera.zoom}
-              selected={sel.ids.has(obj.id)}
-              editing={editable && sel.editingId === obj.id}
-              canEdit={editable}
-              onObjectPointerDown={gesture.onObjectPointerDown}
-              onObjectDoubleClick={(_e, id) => {
-                if (!editable) return; // double-clicking is an edit
-                sel.startEdit(id);
-              }}
-              onStartEdit={sel.startEdit}
-              onEndEdit={sel.endEdit}
+    <UndoControllerContext.Provider value={undoController}>
+      <div data-testid="app" className="vidi6-root">
+        <BoardViewport
+          camera={cam.camera}
+          viewportRef={viewportRef}
+          api={cam}
+          marquee={marquee}
+          onBackgroundPointerDown={onBackgroundPointerDown}
+          onBackgroundDoubleClick={createAtWorld}
+        >
+          {objects.map((obj) => {
+            const spec = getObjectType(obj.type);
+            if (!spec) return null; // a type this build cannot draw is drawn by nobody
+            const ObjectType = spec.Component;
+            return (
+              <ObjectType
+                key={obj.id}
+                obj={obj}
+                doc={doc}
+                zoom={cam.camera.zoom}
+                selected={sel.ids.has(obj.id)}
+                editing={editable && sel.editingId === obj.id}
+                canEdit={editable}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+                onObjectDoubleClick={(_e, id) => {
+                  if (!editable) return; // double-clicking is an edit
+                  sel.startEdit(id);
+                }}
+                onStartEdit={sel.startEdit}
+                onEndEdit={sel.endEdit}
+              />
+            );
+          })}
+          {/* The marquee box is drawn in board units, inside the zoomed layer. */}
+          <MarqueeRect rect={marquee.rect} camera={cam.camera} />
+        </BoardViewport>
+
+        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undo} />
+
+        {showSoleToolbar && sole && SoleToolbar ? (
+          <div
+            data-testid="note-toolbar-anchor"
+            style={noteToolbarStyle}
+            onPointerDown={stop}
+            onDoubleClick={stop}
+            onWheel={stop}
+          >
+            <SoleToolbar doc={doc} obj={sole} canEdit={editable} onDelete={onDelete} />
+          </div>
+        ) : null}
+
+        {/* Two or more selected: "N selected" and one button that deletes them all. */}
+        {!transforming && barPoint ? (
+          <div
+            data-testid="selection-bar-anchor"
+            style={{
+              position: 'fixed',
+              left: barPoint.x,
+              top: Math.max(4, barPoint.y - 46),
+              zIndex: 30,
+            }}
+            onPointerDown={stop}
+            onDoubleClick={stop}
+            onWheel={stop}
+          >
+            <SelectionBar ids={sel.ids} snapshot={objects} onDelete={onDelete} />
+          </div>
+        ) : null}
+
+        {/* One box around the whole selection with eight handles, drawn in screen
+            space so a handle is the same size on screen whatever the zoom. The
+            wrapper passes pointer events through to the board; only the handles take
+            them. Handles are hidden while text is being edited. */}
+        {!sel.editingId ? (
+          <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 25 }}>
+            <SelectionOverlay
+              ids={sel.ids}
+              snapshot={objects}
+              camera={cam.camera}
+              onHandlePointerDown={gesture.onHandlePointerDown}
             />
-          );
-        })}
-        {/* The marquee box is drawn in board units, inside the zoomed layer. */}
-        <MarqueeRect rect={marquee.rect} camera={cam.camera} />
-      </BoardViewport>
+          </div>
+        ) : null}
 
-      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
-
-      {showSoleToolbar && sole && SoleToolbar ? (
-        <div
-          data-testid="note-toolbar-anchor"
-          style={noteToolbarStyle}
-          onPointerDown={stop}
-          onDoubleClick={stop}
-          onWheel={stop}
-        >
-          <SoleToolbar doc={doc} obj={sole} canEdit={editable} onDelete={onDelete} />
-        </div>
-      ) : null}
-
-      {/* Two or more selected: "N selected" and one button that deletes them all. */}
-      {!transforming && barPoint ? (
-        <div
-          data-testid="selection-bar-anchor"
+        {/* Assistive technology is told how many objects are selected: the visible bar
+            cannot announce itself, since it appears and disappears with the count. */}
+        <span
+          data-testid="selection-live"
+          role="status"
+          aria-live="polite"
           style={{
-            position: 'fixed',
-            left: barPoint.x,
-            top: Math.max(4, barPoint.y - 46),
-            zIndex: 30,
+            position: 'absolute',
+            width: 1,
+            height: 1,
+            padding: 0,
+            overflow: 'hidden',
+            clip: 'rect(0 0 0 0)',
+            whiteSpace: 'nowrap',
+            border: 0,
           }}
-          onPointerDown={stop}
-          onDoubleClick={stop}
-          onWheel={stop}
         >
-          <SelectionBar ids={sel.ids} snapshot={objects} onDelete={onDelete} />
-        </div>
-      ) : null}
+          {selected.length > 1 ? `${selected.length} selected` : ''}
+        </span>
 
-      {/* One box around the whole selection with eight handles, drawn in screen
-          space so a handle is the same size on screen whatever the zoom. The
-          wrapper passes pointer events through to the board; only the handles take
-          them. Handles are hidden while text is being edited. */}
-      {!sel.editingId ? (
-        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 25 }}>
-          <SelectionOverlay
-            ids={sel.ids}
-            snapshot={objects}
-            camera={cam.camera}
-            onHandlePointerDown={gesture.onHandlePointerDown}
-          />
-        </div>
-      ) : null}
-
-      {/* Assistive technology is told how many objects are selected: the visible bar
-          cannot announce itself, since it appears and disappears with the count. */}
-      <span
-        data-testid="selection-live"
-        role="status"
-        aria-live="polite"
-        style={{
-          position: 'absolute',
-          width: 1,
-          height: 1,
-          padding: 0,
-          overflow: 'hidden',
-          clip: 'rect(0 0 0 0)',
-          whiteSpace: 'nowrap',
-          border: 0,
-        }}
-      >
-        {selected.length > 1 ? `${selected.length} selected` : ''}
-      </span>
-
-      <ZoomControls
-        zoomPercent={zoomPercent(cam.camera)}
-        canZoomIn={canZoomIn(cam.camera)}
-        canZoomOut={canZoomOut(cam.camera)}
-        onZoomIn={() => cam.zoomStep('in')}
-        onZoomOut={() => cam.zoomStep('out')}
-        onReset={cam.reset}
-      />
-      <NavigationHint visible={!cam.hasNavigated} />
-      {/* Story 5: the board's link, one click away (share.copy). */}
-      <SharePanel />
-      <ConnectionStatus status={connection} />
-    </div>
+        <ZoomControls
+          zoomPercent={zoomPercent(cam.camera)}
+          canZoomIn={canZoomIn(cam.camera)}
+          canZoomOut={canZoomOut(cam.camera)}
+          onZoomIn={() => cam.zoomStep('in')}
+          onZoomOut={() => cam.zoomStep('out')}
+          onReset={cam.reset}
+        />
+        <NavigationHint visible={!cam.hasNavigated} />
+        {/* Story 5: the board's link, one click away (share.copy). */}
+        <SharePanel />
+        <ConnectionStatus status={connection} />
+      </div>
+    </UndoControllerContext.Provider>
   );
 }
 

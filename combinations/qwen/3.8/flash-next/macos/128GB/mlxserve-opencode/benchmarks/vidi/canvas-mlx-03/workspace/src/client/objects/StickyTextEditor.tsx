@@ -3,6 +3,7 @@ import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model.ts';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config.ts';
 import { clampToLimit, applyTextDiff, counterVisible } from './StickyText.ts';
+import { useUndoBoundary, useUndoController } from '../board/useUndo.ts';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -22,6 +23,10 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
   const [len, setLen] = useState(() => ytext.toString().length);
+  // Story 8. `boundary` is stable; the controller is read through a ref-free value
+  // because the key handler below is rebuilt every render anyway.
+  const boundary = useUndoBoundary();
+  const undo = useUndoController();
 
   // Mount: seed value, focus, caret at end of the existing text.
   useEffect(() => {
@@ -36,6 +41,13 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
     } catch {
       /* jsdom may not support selection ranges */
     }
+    // Opening a note is the start of an action, and closing it — by Escape, by a
+    // click elsewhere, by the note being deleted or the board unmounting — is the
+    // end of one. Without this, a line typed right after a drag would be undone
+    // *with* the drag (TC-16) and recolouring straight after typing would be the
+    // same step.
+    boundary();
+    return boundary;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -57,6 +69,23 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
     setLen(clamped.length);
   };
 
+  /**
+   * The document moved underneath the textarea (an undo, a redo, a colleague's
+   * edit): show what is in the document now, caret at the end.
+   */
+  const reseed = () => {
+    const ta = ref.current;
+    if (!ta) return;
+    const value = ytext.toString();
+    ta.value = value;
+    setLen(value.length);
+    try {
+      ta.setSelectionRange(value.length, value.length);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const onInput = () => {
     if (composingRef.current) return;
     commit();
@@ -68,8 +97,27 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
       e.stopPropagation();
       commit();
       onEnd('selected');
+      return;
     }
     // Enter intentionally falls through: it inserts a newline in the textarea.
+    //
+    // Ctrl/Cmd+Z inside a note means *the board's* undo. Left alone, the textarea
+    // would undo its own last keystrokes from browser history — leaving the
+    // document holding something else entirely — and the window-level shortcut
+    // never sees the key, because a focused textarea is an editable target. So the
+    // chord is taken here: commit first (a pending IME line is part of what I
+    // typed), then reverse one step of my own history and show the result.
+    const chord = (e.ctrlKey || e.metaKey) && !e.altKey;
+    const key = e.key.toLowerCase();
+    if (!chord || (key !== 'z' && key !== 'y')) return;
+    const direction = key === 'y' ? 'redo' : e.shiftKey ? 'redo' : 'undo';
+    if (!undo) return;
+    e.preventDefault();
+    e.stopPropagation();
+    commit();
+    if (direction === 'redo') undo.redo();
+    else undo.undo();
+    reseed();
   };
 
   return (

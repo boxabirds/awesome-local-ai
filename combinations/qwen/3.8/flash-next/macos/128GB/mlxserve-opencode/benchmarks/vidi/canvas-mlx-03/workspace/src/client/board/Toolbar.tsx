@@ -1,7 +1,15 @@
+import { UndoButtons } from './UndoButtons.tsx';
+import { useUndoBoundary, type UndoActions } from './useUndo.ts';
+
 export interface ToolbarProps {
   onCreateSticky(): void;
   /** True while the board cannot be edited (story 4: it failed to load). */
   disabled?: boolean;
+  /**
+   * This tab's undo state (story 8): two booleans and two actions, from `useUndo`.
+   * Omitted by a board that is not undoing anything.
+   */
+  undo?: UndoActions;
 }
 
 /**
@@ -13,6 +21,13 @@ export function Toolbar(props: ToolbarProps) {
   const stop = (
     e: React.PointerEvent | React.MouseEvent | React.WheelEvent,
   ) => e.stopPropagation();
+  // One click of a tool is one undo step, whatever the tool's own transaction does.
+  const boundary = useUndoBoundary();
+  const createSticky = () => {
+    boundary();
+    props.onCreateSticky();
+    boundary();
+  };
   return (
     <div
       data-testid="toolbar"
@@ -41,7 +56,7 @@ export function Toolbar(props: ToolbarProps) {
         aria-label="Sticky note"
         data-testid="sticky-note-tool"
         title="Sticky note – or double-click the board"
-        onClick={props.disabled ? undefined : props.onCreateSticky}
+        onClick={props.disabled ? undefined : createSticky}
         disabled={props.disabled}
         aria-disabled={props.disabled || undefined}
         style={{
@@ -60,6 +75,16 @@ export function Toolbar(props: ToolbarProps) {
         {/* a small sticky-note glyph */}
         <span aria-hidden>&#128221;</span>
       </button>
+      {/* Story 8: undo and redo, below the one tool. They report this tab's history
+          only, so on a shared board two people can be looking at different buttons. */}
+      {props.undo ? (
+        <UndoButtons
+          canUndo={props.undo.canUndo}
+          canRedo={props.undo.canRedo}
+          onUndo={props.undo.undo}
+          onRedo={props.undo.redo}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { STICKY_COLORS, type StickyColor } from '../../shared/config.ts';
+import { useUndoBoundary } from '../board/useUndo.ts';
 
 export interface NoteToolbarProps {
   color: StickyColor;
@@ -29,6 +30,20 @@ export function NoteToolbar(props: NoteToolbarProps) {
   const stop = (
     e: React.PointerEvent | React.MouseEvent | React.WheelEvent,
   ) => e.stopPropagation();
+  // Each click here is one command, so each one is fenced in: picking a second
+  // colour two hundred milliseconds after the first is a second undo step, not an
+  // extension of the first (undo.boundaries).
+  const boundary = useUndoBoundary();
+  const pick = (name: StickyColor) => {
+    boundary();
+    props.onColor(name);
+    boundary();
+  };
+  const remove = () => {
+    boundary();
+    props.onDelete();
+    boundary();
+  };
   return (
     <div
       data-testid="note-toolbar"
@@ -55,7 +70,7 @@ export function NoteToolbar(props: NoteToolbarProps) {
           aria-label={`${colorLabel(name)} colour`}
           aria-pressed={props.color === name}
           title={`${colorLabel(name)} colour`}
-          onClick={() => props.onColor(name)}
+          onClick={() => pick(name)}
           style={{
             ...SWATCH,
             background: STICKY_COLORS[name],
@@ -68,7 +83,7 @@ export function NoteToolbar(props: NoteToolbarProps) {
         type="button"
         aria-label="Delete note"
         title="Delete note"
-        onClick={props.onDelete}
+        onClick={remove}
         style={{
           width: 22,
           height: 22,

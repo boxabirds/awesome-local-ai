@@ -1,3 +1,83 @@
+commit e2e22c817ebc135a0308abe1e651d14ad53bd443
+vidi-agent  Tue Sep 29 09:47:25 2026 +0100
+
+    docs(8): notes — the controller lives with the doc in BoardApp and comes back down as an option to the two hooks the board itself mounts (a component cannot read context it renders), why undo() means a step was consumed when TC-23 showed yjs popping stack items until one lands, the lib0/time mock that makes the capture window testable, and the world x zoom measurement the e2e fixtures are built on
+
+
+ NOTES.md | 125 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 125 insertions(+)
+commit 9dffa81b30b1afab5a5cfb56054524da46cd1172
+vidi-agent  Tue Sep 29 09:43:13 2026 +0100
+
+    test(8): e2e undo — TC-22 eight deleted notes come back on both screens with text, colour, size and position while a colleague's note stays and Redo removes them again, TC-23 undoing my change to a note a colleague deleted is silent and my history still works afterwards, TC-24 five editors all undoing at once each revert their own two steps and the boards end identical
+
+
+ tests/e2e/undo.spec.ts | 540 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 540 insertions(+)
+commit d5c96913acbd5bf1693a8b133475d2cd6889bda9
+vidi-agent  Tue Sep 29 09:31:46 2026 +0100
+
+    feat(8): undo controls — UndoButtons in the tool bar (aria-disabled, this tab's stacks), Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y on the window through useBoardKeys behind the story 4 edit lock, and boundary() around the one-call commands (nudge, delete, new note, colour) so each is its own step; useBoardKeys and useTransformGesture take the controller as an option because the board that mounts them is the one that provides it
+
+
+ src/client/board/BoardApp.tsx            |  16 +-
+ src/client/board/Toolbar.tsx             |  27 ++-
+ src/client/board/UndoButtons.tsx         |  87 ++++++++++
+ src/client/board/useBoardKeys.ts         |  35 ++++
+ src/client/objects/NoteToolbar.tsx       |  19 ++-
+ tests/component/undo-boundaries.test.tsx |  75 +++++++--
+ tests/component/undo-controls.test.tsx   | 281 +++++++++++++++++++++++++++++++
+ tests/unit/undo-capture-window.test.ts   |   2 +-
+ 8 files changed, 524 insertions(+), 18 deletions(-)
+commit ea5a56b266eb59da41e095b727bcf4b594fdb8a1
+vidi-agent  Tue Sep 29 09:19:05 2026 +0100
+
+    feat(8): undo boundaries — useTransformGesture takes boundary() and calls it where a gesture starts and where it ends (both gestures, and on the cancelled path too), so thirty frame writes are one step; StickyTextEditor calls it on edit start and on every way out of editing, and takes Ctrl/Cmd+Z and Ctrl/Cmd+Y for the board's own history instead of leaving the textarea to browser undo
+
+
+ src/client/board/BoardApp.tsx           |  4 +++
+ src/client/board/useTransformGesture.ts | 21 ++++++++++++++-
+ src/client/objects/StickyTextEditor.tsx | 48 +++++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 1 deletion(-)
+commit 37350e956a1d9adfe58b52693796260079aedee7
+vidi-agent  Tue Sep 29 09:10:36 2026 +0100
+
+    test(8): undo.boundaries component tests first, on the real board with the tab's controller injected — TC-14 a 30-frame drag is one step, TC-15 a move and a colour are two, TC-16 Ctrl+Z inside the editor reverses the typing only, TC-17 a cancelled drag is one step, plus two-drags and select-all-delete step counts; failing: nothing closes a capture window yet
+
+
+ tests/component/undo-boundaries.test.tsx | 183 ++++++++++++++++++++-----------
+ tests/unit/undo-capture-window.test.ts   | 169 ++++++++++++++++++++++++++++
+ vitest.workspace.ts                      |   1 +
+ 3 files changed, 292 insertions(+), 61 deletions(-)
+commit 8b4892aa542432f982e984d85149c895f0f5a217
+vidi-agent  Tue Sep 29 09:07:06 2026 +0100
+
+    test(8): undo.boundaries component tests first, on the real board with the tab's controller injected (TC-14 to TC-17) — failing: a drag, a delete, a colour and a line of typing are not yet one undo step each
+
+
+ tests/component/undo-boundaries.test.tsx | 256 +++++++++++++++++++++++++++++++
+ 1 file changed, 256 insertions(+)
+commit a4ee88f8685068106698d44e22dec1f7875cd2e5
+vidi-agent  Tue Sep 29 09:01:43 2026 +0100
+
+    feat(8): UndoController (Y.UndoManager scoped to 'objects' with trackedOrigins: LOCAL_ORIGIN, captureTimeout UNDO_CAPTURE_TIMEOUT_MS, oldest step dropped past UNDO_MAX_STEPS) in client/board/undo.ts, created once per board doc by the board that owns the doc and destroyed with it; useUndo.ts adds the React binding and the context object components reach for
+
+
+ src/client/board/BoardApp.tsx | 238 +++++++++++++++++++++++-------------------
+ src/client/board/undo.ts      | 129 +++++++++++++++++++++--
+ src/client/board/useUndo.ts   |  89 ++++++++++++++++
+ 3 files changed, 340 insertions(+), 116 deletions(-)
+commit a9c43d209d447267681fd079b0d85bba6ec12263
+vidi-agent  Tue Sep 29 09:01:27 2026 +0100
+
+    test(8): undo.history unit tests first, against the controller contract (TC-01 to TC-11, plus the rest of the interface) — failing; tests/unit/helpers/peer.ts is the second real Y.Doc whose updates arrive with a non-local origin, the way the provider delivers a colleague's
+
+
+ src/client/board/undo.ts        |  39 +++++
+ src/shared/config.ts            |  17 ++
+ tests/unit/helpers/peer.ts      | 108 ++++++++++++
+ tests/unit/undo-history.test.ts | 360 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 524 insertions(+)
 commit 40dc619797e8ccd34a725b1b4862b3ef57905374
 vidi-agent  Tue Sep 29 08:14:56 2026 +0100
 

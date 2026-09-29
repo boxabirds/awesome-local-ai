@@ -152,3 +152,20 @@ export const MAX_OBJECT_SIZE_WORLD = 20_000;
 export const NUDGE_STEP_WORLD = 1;
 /** Shift+arrow nudges this many board units (sel.nudge). */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// ---- Story 8: undo and redo my own changes ---------------------------------
+
+/**
+ * How long a pause in typing must be before the next keystroke starts a new undo
+ * step (undo.boundaries). Keystrokes closer together than this are one step, so
+ * "hello" is undone in one go rather than letter by letter. Every other action
+ * (a drag, a delete, a colour) is closed by an explicit `boundary()` instead of
+ * by waiting, so unrelated clicks never merge no matter how fast they follow.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/**
+ * How many undo steps one tab remembers (undo.limit). The history lives in this
+ * tab's memory only; the ceiling keeps a long session's Yjs items from being
+ * pinned forever, and the oldest step is the one that goes.
+ */
+export const UNDO_MAX_STEPS = 200;

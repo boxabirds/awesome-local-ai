@@ -24,6 +24,7 @@ import {
 } from '../../shared/config.ts';
 import { registeredTypes, getObjectType } from '../objects/registry.tsx';
 import type { Selection } from './useSelection.ts';
+import type { UndoController } from './undo.ts';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -31,6 +32,8 @@ export interface BoardKeysOptions {
   snapshot: readonly ObjectSnapshot[];
   /** False while the board could not be loaded: no key may change the doc. */
   canEdit: boolean;
+  /** This tab's undo history; absent means the board undoes nothing (TC-18). */
+  undo?: UndoController;
 }
 
 const ARROWS = {
@@ -61,6 +64,18 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
   snapshotRef.current = opts.snapshot;
   const canEditRef = useRef(opts.canEdit);
   canEditRef.current = opts.canEdit;
+  const undoRef = useRef(opts.undo);
+  undoRef.current = opts.undo;
+  // The step edges of the commands below. A command that is one model call is one
+  // undo step, so a nudge followed 200 ms later by a delete does not merge into a
+  // single step; the pause between two keystrokes is what groups typing instead
+  // (undo.boundaries). This hook is mounted by the board itself, which is the
+  // component that *provides* the controller to everything under it — a component
+  // cannot read context it renders, so the controller comes in as an option here,
+  // exactly as it does for the gesture hook.
+  const boundary = () => {
+    undoRef.current?.boundary();
+  };
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -88,6 +103,22 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
 
       if (!canEditRef.current) return; // every key below changes the document
 
+      // Story 8: Ctrl/Cmd+Z reverses one step of *my own* history, Ctrl/Cmd+Shift+Z
+      // and Ctrl/Cmd+Y put it back. Two of the three guards on this are already in
+      // place: the keystroke is not the board's while a note is being edited, and it
+      // is not the board's when it started in a field — the note's own editor takes
+      // Ctrl+Z itself, because it has to re-read its textarea afterwards (TC-21).
+      // Alt is left alone: Ctrl+Alt+Z is somebody else's shortcut.
+      const letter = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      if (meta && !e.altKey && (letter === 'z' || letter === 'y')) {
+        const undo = undoRef.current;
+        if (!undo) return;
+        e.preventDefault();
+        if (letter === 'y' || e.shiftKey) undo.redo();
+        else undo.undo();
+        return;
+      }
+
       if (e.key === 'Enter') {
         // Story 2's route into the editor: one selected object that holds text.
         if (sel.ids.size !== 1) return;
@@ -111,7 +142,9 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           const r = objectBounds(o);
           positions.set(o.id, { x: r.x + arrow.x * step, y: r.y + arrow.y * step });
         }
+        boundary();
         moveObjects(docRef.current, positions);
+        boundary();
         return;
       }
 
@@ -121,7 +154,9 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         // walk the browser back out of the board.
         e.preventDefault();
         if (sel.ids.size === 0) return; // nothing to remove
+        boundary();
         deleteObjects(docRef.current, [...sel.ids]);
+        boundary();
         sel.clear();
       }
     };

@@ -13,6 +13,7 @@ export default defineWorkspace([
       name: 'unit',
       environment: 'node',
       include: ['tests/unit/**/*.test.ts'],
+      server: { deps: { inline: ['yjs'] } },
     },
   },
   {
