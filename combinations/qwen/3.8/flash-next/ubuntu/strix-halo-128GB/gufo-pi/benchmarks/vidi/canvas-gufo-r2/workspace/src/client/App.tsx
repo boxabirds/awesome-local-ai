@@ -18,6 +18,9 @@ import { useBoardKeys } from './board/useBoardKeys';
 import { useActiveTool, type ToolId } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { createUndo, type UndoController } from './board/undo';
 import { useUndo } from './board/useUndo';
 import { getObjectType } from './objects/registry';
@@ -352,6 +355,9 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
     toolCreated(id);
   }, [undoController, toolCreated]);
 
+  // Pen options (session-only)
+  const penOptions = usePenOptions();
+
   // Selected toolbars
   const selectedSticky: ObjectSnapshot | null =
     canEditBoard && selection.ids.size === 1 && selection.editingId === null
@@ -410,7 +416,7 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
             />
             {selectedSticky && selectedSticky.color && (
               <NoteToolbar
-                color={selectedSticky.color}
+                color={selectedSticky.color as StickyColor}
                 onColor={handleColor}
                 onDelete={handleDeleteSelection}
               />
@@ -457,6 +463,26 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
                 canEdit={canEditBoard}
                 onCreated={handleConnectorCreated}
                 getBoardRect={getBoardRect}
+              />
+            )}
+            {tool === 'pen' && (
+              <PenTool
+                camera={getCamera()}
+                color={penOptions.color}
+                thickness={penOptions.thickness}
+                doc={doc}
+                identityId="user"
+                canEdit={canEditBoard}
+                undo={undoController}
+                getBoardRect={getBoardRect}
+              />
+            )}
+            {tool === 'pen' && (
+              <PenToolbar
+                color={penOptions.color}
+                thickness={penOptions.thickness}
+                onColor={penOptions.setColor}
+                onThickness={penOptions.setThickness}
               />
             )}
           </>

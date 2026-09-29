@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState, type JSX } from 'react';
 import * as Y from 'yjs';
-import { STICKY_COLORS, STICKY_FONT_MAX_PX, DEFAULT_STICKY_COLOR } from '../../shared/config';
+import { STICKY_COLORS, STICKY_FONT_MAX_PX, DEFAULT_STICKY_COLOR, type StickyColor } from '../../shared/config';
 import { objectBounds } from '../../shared/board-model';
 import { StickyTextEditor } from './StickyTextEditor';
 import { fitFontSize } from './StickyText';
@@ -42,7 +42,7 @@ export function StickyNote(props: ObjectProps): JSX.Element {
     top: `${obj.y}px`,
     width: `${width}px`,
     height: `${height}px`,
-    backgroundColor: STICKY_COLORS[obj.color ?? DEFAULT_STICKY_COLOR],
+    backgroundColor: STICKY_COLORS[(obj.color as StickyColor) ?? DEFAULT_STICKY_COLOR],
     zIndex: obj.z,
     pointerEvents: 'auto',
     touchAction: 'none',

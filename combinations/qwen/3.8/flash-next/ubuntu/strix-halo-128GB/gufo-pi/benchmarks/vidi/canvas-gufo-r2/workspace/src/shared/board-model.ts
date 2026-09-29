@@ -14,6 +14,8 @@ import {
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  type PenColor,
+  type PenThickness,
   type StickyColor,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
@@ -33,8 +35,8 @@ export interface ObjectSnapshot {
   /** Explicit size (story 7). Absent for objects created before this story. */
   width?: number;
   height?: number;
-  /** Sticky-specific; present only for sticky notes. */
-  color?: StickyColor;
+  /** Sticky-specific or stroke-specific colour; present for those types. */
+  color?: string;
   text?: string;
   /** Text-object-specific (story 9). */
   size?: string;
@@ -48,6 +50,11 @@ export interface ObjectSnapshot {
   /** Connector-specific (story 10). */
   from?: Endpoint;
   to?: Endpoint;
+  /** Stroke-specific (story 11). */
+  points?: readonly number[];
+  baseWidth?: number;
+  baseHeight?: number;
+  thickness?: PenThickness;
 }
 
 export interface StickySnapshot extends Omit<ObjectSnapshot, 'type' | 'color' | 'text'> {
@@ -388,6 +395,14 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
       const toEp = endpointFromPlain(toRaw);
       if (fromEp) snap.from = fromEp;
       if (toEp) snap.to = toEp;
+      snap.createdBy = obj.get('createdBy') as string | undefined;
+    } else if (type === 'stroke') {
+      const pts = obj.get('points');
+      if (Array.isArray(pts)) snap.points = pts as number[];
+      snap.baseWidth = obj.get('baseWidth') as number;
+      snap.baseHeight = obj.get('baseHeight') as number;
+      snap.color = obj.get('color') as PenColor;
+      snap.thickness = obj.get('thickness') as PenThickness;
       snap.createdBy = obj.get('createdBy') as string | undefined;
     }
     result.push(snap);

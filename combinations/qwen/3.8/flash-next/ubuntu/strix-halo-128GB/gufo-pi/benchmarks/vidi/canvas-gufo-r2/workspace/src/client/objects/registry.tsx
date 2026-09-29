@@ -40,7 +40,7 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** Handle set: 'all' (default) shows 8 handles; 'horizontal' shows only e/w. */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -64,8 +64,11 @@ import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
-import { TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
+import { StrokeObject } from './StrokeObject';
+import { TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD } from '../../shared/config';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { scaledPoints } from '../../shared/objects/stroke';
+import type { StrokeSnap } from '../../shared/objects/stroke';
 
 registerObjectType('sticky', {
   Component: StickyNote,
@@ -132,5 +135,25 @@ registerObjectType('connector', {
     if (!fromPt || !toPt) return false;
     const dist = distanceToPolyline([fromPt, toPt], worldPoint);
     return dist <= CONNECTOR_HIT_TOLERANCE_PX;
+  },
+});
+
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest(obj, worldPoint, zoom) {
+    const stroke = obj as unknown as StrokeSnap;
+    if (!stroke.points || stroke.points.length === 0) return false;
+    const pts = scaledPoints(stroke);
+    if (pts.length < 2) {
+      // Single-point dot: hit if within half-thickness or hit tolerance
+      const d = Math.hypot(worldPoint.x - pts[0].x, worldPoint.y - pts[0].y);
+      return d <= Math.max(PEN_THICKNESS_WORLD[stroke.thickness] / 2, STROKE_HIT_TOLERANCE_PX / (zoom || 1));
+    }
+    const dist = distanceToPolyline(pts, worldPoint);
+    return dist <= Math.max(PEN_THICKNESS_WORLD[stroke.thickness] / 2, STROKE_HIT_TOLERANCE_PX / (zoom || 1));
   },
 });

@@ -86,7 +86,7 @@ export function useActiveTool(opts?: {
       const mapped = TOOL_SHORTCUTS[lower];
       if (mapped) {
         // Only set tools we support
-        if (mapped === 'shape' || mapped === 'connector' || mapped === 'select' || mapped === 'text' || mapped === 'sticky') {
+        if (mapped === 'shape' || mapped === 'connector' || mapped === 'select' || mapped === 'text' || mapped === 'sticky' || mapped === 'pen') {
           setTool(mapped);
         }
         return;

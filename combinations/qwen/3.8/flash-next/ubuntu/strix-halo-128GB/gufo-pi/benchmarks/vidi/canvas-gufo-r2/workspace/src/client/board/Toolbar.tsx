@@ -114,6 +114,20 @@ export function Toolbar(props: {
           <polygon points="17,3 17,9 11,6" fill="currentColor" />
         </svg>
       </button>
+      <button
+        type="button"
+        className="toolbar-button"
+        aria-label="Pen (P)"
+        title="Pen tool – or press P"
+        aria-pressed={props.tool === 'pen'}
+        disabled={props.disabled === true}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => props.onToolChange('pen')}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M3 17l2-6L14 2l4 4L9 15l-6 2z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+      </button>
       {props.undoState && <UndoButtons {...props.undoState} />}
     </div>
   );
