@@ -53,3 +53,13 @@ def test_recompute_redoes_backfilled_stories_and_any_whose_parts_overran_the_wal
     assert backfill_timing.backfill(run) == ["1"]               # plain backfill: only the missing one
     assert backfill_timing.backfill(run, recompute=True) == ["1", "2"]
     assert json.loads((run / "metrics.json").read_text())["stories"]["2"]["time_split"]["other_s"] >= 0
+
+
+def test_recompute_redoes_any_story_made_by_an_older_version_of_the_accounting(tmp_path):
+    import accounting
+    run = run_with(tmp_path)
+    m = json.loads((run / "metrics.json").read_text())
+    m["stories"]["2"]["time_split"]["accounting"] = {"version": accounting.VERSION - 1, "ok": True, "problems": []}
+    (run / "metrics.json").write_text(json.dumps(m))
+    assert "2" in backfill_timing.backfill(run, recompute=True)
+    assert json.loads((run / "metrics.json").read_text())["stories"]["2"]["time_split"]["accounting"]["version"] == accounting.VERSION

@@ -86,19 +86,25 @@ tool call the engine returned as text instead of running it; see gufo-org/gufo#3
 
 ### `time_split`: where the story's wall time went
 
-From the stamped session events and llama-server's own log (no proxy in the request path):
+`harness/accounting.py` (tests: `test_accounting.py`). The story's window, agent start to agent done, is laid out
+as one timeline and every second has exactly one owner: a compaction, a tool call, the model's prefill, its
+decode, or other. Where things overlap the higher owns the second (compaction > tool > prefill > decode), and
+anything outside the window (an earlier attempt of a restarted story) doesn't count. So the parts never overlap,
+never go negative, and always sum to `wall_s`.
 
 | Field | What |
 |---|---|
 | `wall_s` | agent start to agent done |
-| `model` | the agent's model calls, compaction calls excluded: `requests`, `prefill_s`, `prefill_tokens` (tokens actually processed, i.e. not served from the prompt cache), `prefill_tok_s`, `decode_s`, `decode_tokens`, `decode_tok_s`, `draft_acceptance` (MTP drafts accepted / drafted), `mean_accepted_len` (tokens per verification step, weighted by tokens generated) |
-| `tools_s`, `tools_by_kind` | time inside tool calls, by kind: `e2e`, `unit`, `build`, `bash` (other shell), `read`, `edit`, `write` |
+| `model` | the agent's model calls: `source` (`llama-log`: llama-server's own log, used when it has requests in the window; `client-stream`: the agent's own streamed events, request sent, first chunk, last chunk, which match the server's log to within 0.5% where both exist), `requests`, `prefill_s` and `decode_s` (the seconds each owns on the timeline), `prefill_tokens` (tokens actually processed, not served from the prompt cache), `cached_tokens`, `prefill_tok_s` and `decode_tok_s` (from the counted calls' own durations), `decode_tokens`, `draft_acceptance` (MTP drafts accepted / drafted), `mean_accepted_len` (tokens per verification step, weighted by tokens generated). A call is counted in `requests`, tokens and rates when it lies wholly inside the window and isn't a compaction's own call |
+| `tools_s`, `tools_by_kind` | time inside tool calls, by kind: `e2e`, `unit`, `build` (the agent's own tests and builds), `bash` (any other shell command), `read`, `edit`, `write` |
 | `compaction_s`, `compactions` | time spent compacting the context, including the compaction's own model call |
 | `other_s` | the rest: the client's own overhead, and gaps |
+| `accounting` | the checks recorded with the split: `version` of the calculation, `ok`, `problems` (a tool call or compaction that never ended or ended without starting, parts not summing to the wall, tools by kind not summing to tools, the wall disagreeing with the agent's own clock by more than 1%), `abandoned_calls` (model calls cut off before they ended: a session killed mid-reply) |
 
-`model` is null when there is no llama-server log with a start marker (cloud and MTPLX backends,
-and runs before the marker existed). `python3 harness/llama_log.py <server.log> [from to]` prints the
-same model summary for any window.
+`model` is null when neither source has a model call: a cloud model (Claude Code logs no stream), or a record
+made before the accounting timed every engine and not yet backfilled. `harness/backfill_timing.py` recomputes a
+finished run's splits with the current calculation from the full event logs its machine kept.
+`python3 harness/llama_log.py <server.log> [from to]` prints llama-server's own summary for any window.
 
 ### `requests`: the server's own request log (MTPLX only)
 

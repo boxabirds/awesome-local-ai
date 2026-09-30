@@ -649,16 +649,7 @@ def stamp(line: str, t: float) -> str:
 
 
 # What a tool call was for, from its command: the first match wins.
-TOOL_KINDS = [("e2e", re.compile(r"playwright|test:e2e")),
-              ("unit", re.compile(r"vitest|test:unit|test:component|test:integration|npm (run )?test")),
-              ("build", re.compile(r"npm (ci|install|i\b)|npm run build|vite build|\btsc\b|typecheck"))]
-
-
-def _tool_kind(e: dict) -> str:
-    if e.get("toolName") != "bash":
-        return e.get("toolName") or "other"
-    cmd = (e.get("args") or {}).get("command", "")
-    return next((k for k, rx in TOOL_KINDS if rx.search(cmd)), "bash")
+from accounting import TOOL_KINDS, tool_kind as _tool_kind  # noqa: E402  (one definition, shared)
 
 
 def _stamped_events(events: Path):
@@ -679,48 +670,9 @@ def _stamped_events(events: Path):
 
 
 def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> dict:
-    """Where a story's wall time went: the model (prefill, decode: from llama-server's log, else from the
-    agent's own streamed events), tools
-    (by kind), compaction, and the rest (the agent's own overhead, gaps). From "_rx" stamps."""
-    import llama_log
-    starts: dict[str, dict] = {}
-    tools: dict[str, float] = {}
-    comp, comp_open = [], None
-    # A restarted story's log also holds the earlier attempt: only what ran inside this story's window
-    # (t_from..t_to) counts, or its parts add up to more than its wall time.
-    inside = lambda a, b: max(0.0, min(b, t_to) - max(a, t_from))
-    for e in _stamped_events(events):
-        kind, t = e.get("type"), e["_rx"]
-        if kind == "tool_execution_start":
-            starts[e.get("toolCallId")] = e
-        elif kind == "tool_execution_end" and (st := starts.pop(e.get("toolCallId"), None)):
-            k = _tool_kind(st)
-            tools[k] = tools.get(k, 0.0) + inside(st["_rx"], t)
-        elif kind == "compaction_start":
-            comp_open = t
-        elif kind == "compaction_end" and comp_open is not None:
-            if inside(comp_open, t) > 0:
-                comp.append((max(comp_open, t_from), min(t, t_to)))
-            comp_open = None
-    reqs = llama_log.parse(server_log.read_text(errors="replace")) if server_log.exists() else []
-    # A compaction's own model call is counted in compaction, not twice.
-    reqs = [r for r in reqs if not any(a <= r["end"] <= b for a, b in comp)]
-    model = llama_log.summarise(reqs, t_from, t_to) if reqs else None
-    if model is None:
-        # No server log (every server but llama.cpp): time the model from the client's own streamed events,
-        # which match llama.cpp's log to within 0.5% where both exist (stream_timing.py).
-        import stream_timing
-        calls = [c for c in stream_timing.calls(events)
-                 if t_from <= c.end - c.prefill_s - c.decode_s and c.end <= t_to and not any(a <= c.end <= b for a, b in comp)]
-        model = stream_timing.summary(calls)
-    wall = t_to - t_from
-    tools_s = sum(tools.values())
-    comp_s = sum(b - a for a, b in comp)
-    model_s = (model["prefill_s"] + model["decode_s"]) if model else 0.0
-    return {"wall_s": round(wall, 1), "model": model, "tools_s": round(tools_s, 1),
-            "tools_by_kind": {k: round(v, 1) for k, v in sorted(tools.items(), key=lambda x: -x[1])},
-            "compaction_s": round(comp_s, 1), "compactions": len(comp),
-            "other_s": round(wall - tools_s - comp_s - model_s, 1)}
+    """Where a story's wall time went: accounting.py (a partition of the window, with its checks)."""
+    import accounting
+    return accounting.time_split(events, server_log, t_from, t_to)
 
 
 # The running story's containment (containment.StoryContainment; tools/agent-containment/PROPOSAL.md):
@@ -1508,6 +1460,12 @@ def main() -> None:
         rec["requests"] = server_stats(a.server_log, rec["started"], rec["agent_finished"])
         rec["time_split"] = time_split(sdir / "agent-events.jsonl", run / "server.log", rec["started"],
                                        rec["agent_finished"])
+        # The wall should agree with the agent's own clock; a disagreement is recorded with the other checks.
+        import accounting
+        acc = rec["time_split"]["accounting"]
+        clock = accounting.check(rec["time_split"], agent_seconds=(rec.get("agent") or {}).get("seconds"))
+        acc["problems"] += [p for p in clock if p not in acc["problems"]]
+        acc["ok"] = not acc["problems"]
         rec["loc"] = loc(ws)
         mirror(ws, run / "workspace")
         rec["finished"] = time.time()

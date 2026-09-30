@@ -10,24 +10,29 @@ import json
 import sys
 from pathlib import Path
 
+import accounting
 import drive
 
 
 def backfill(run: Path, recompute: bool = False) -> list[str]:
-    """Fill stories with no model time. With recompute, also redo stories filled before (marked "backfilled") and
-    any whose parts added up to more than its wall time (other_s < 0), with the current calculation."""
+    """Fill stories with no model time. With recompute, also redo stories filled before (marked "backfilled"), any
+    whose parts added up to more than its wall time (other_s < 0), and any made by an older accounting version."""
     path = run / "metrics.json"
     metrics = json.loads(path.read_text())
     filled = []
     for sid, rec in sorted(metrics.get("stories", {}).items(), key=lambda kv: int(kv[0])):
         ts = rec.get("time_split")
         raw = run / "stories" / sid.zfill(2) / "agent-events.jsonl"
-        wanted = ts and (ts.get("model") is None or (recompute and (ts.get("backfilled") or ts.get("other_s", 0) < 0)))
+        stale = (ts or {}).get("accounting", {}).get("version", 0) < accounting.VERSION
+        wanted = ts and (ts.get("model") is None or (recompute and (ts.get("backfilled") or ts.get("other_s", 0) < 0 or stale)))
         if not wanted or not raw.is_file() or "started" not in rec or "agent_finished" not in rec:
             continue
         new = drive.time_split(raw, run / "server.log", rec["started"], rec["agent_finished"])
         if new.get("model") is None:
             continue
+        clock = accounting.check(new, agent_seconds=(rec.get("agent") or {}).get("seconds"))
+        new["accounting"]["problems"] += [p for p in clock if p not in new["accounting"]["problems"]]
+        new["accounting"]["ok"] = not new["accounting"]["problems"]
         rec["time_split"] = {**new, "backfilled": True}
         filled.append(sid)
     if filled:
