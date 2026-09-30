@@ -1,3 +1,49 @@
+commit 79501dff673525189ec0abada669f3c1aa81a5b8
+vidi-agent  Wed Sep 30 09:46:53 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                |  87 ++++++
+ src/client/board/Board.tsx              | 117 ++++++--
+ src/client/board/SelectionBar.tsx       |  31 +-
+ src/client/board/SelectionOverlay.tsx   |  27 +-
+ src/client/board/Toolbar.tsx            |  68 ++++-
+ src/client/board/localIdentity.ts       |  55 ++++
+ src/client/board/useBoardKeys.ts        |  58 +++-
+ src/client/board/useTool.ts             |  59 ++++
+ src/client/board/useTransformGesture.ts |  70 +++++
+ src/client/canvas/BoardViewport.tsx     |  29 +-
+ src/client/objects/StickyTextEditor.tsx | 289 +++---------------
+ src/client/objects/TextEditor.tsx       | 368 +++++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 207 +++++++++++++
+ src/client/objects/TextToolbar.tsx      | 110 +++++++
+ src/client/objects/registry.tsx         | 105 ++++++-
+ src/client/objects/useTextBoxSync.ts    |  80 +++++
+ src/client/styles.css                   |   9 +
+ src/shared/geometry.ts                  |   6 +
+ tests/component/TextBoxSync.test.tsx    | 157 ++++++++++
+ tests/component/TextObject.test.tsx     | 358 +++++++++++++++++++++++
+ tests/component/TextTool.test.tsx       | 257 ++++++++++++++++
+ tests/component/helpers/text-ui.tsx     | 300 +++++++++++++++++++
+ tests/e2e/helpers/text.ts               | 263 +++++++++++++++++
+ tests/e2e/text.spec.ts                  | 503 ++++++++++++++++++++++++++++++++
+ 24 files changed, 3321 insertions(+), 292 deletions(-)
+commit 45604623f937f23c14a4fb9081db1a0f04bfcc4f
+vidi-agent  Wed Sep 30 09:46:39 2026 +0100
+
+    story 9: text object model, measurement, and their unit tests (TC-01 to TC-13)
+
+
+ src/client/objects/StickyText.ts |  72 +++-------
+ src/client/objects/textLayout.ts | 252 ++++++++++++++++++++++++++++++++
+ src/shared/board-model.ts        |  29 ++++
+ src/shared/config.ts             |  37 +++++
+ src/shared/objects/text.ts       | 301 +++++++++++++++++++++++++++++++++++++++
+ src/shared/text-edit.ts          |  76 ++++++++++
+ tests/unit/text-layout.test.ts   | 297 ++++++++++++++++++++++++++++++++++++++
+ tests/unit/text-model.test.ts    | 274 +++++++++++++++++++++++++++++++++++
+ 8 files changed, 1283 insertions(+), 55 deletions(-)
 commit 2fafb2a36948ceb8a52bc84536d49317e8ab439c
 vidi-agent  Wed Sep 30 08:05:37 2026 +0100
 

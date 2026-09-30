@@ -15,12 +15,13 @@ import type { BoardObject } from '../../shared/board-model';
 import {
   allObjectIds,
   deleteObjects,
-  isStickySnapshot,
   moveObjects,
   objectBounds,
 } from '../../shared/board-model';
 import type { Point } from '../../shared/geometry';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
+import { getObjectType } from '../objects/registry';
+import type { Tool } from './useTool';
 import type { UseSelectionResult } from './useSelection';
 import type { UndoController } from './undo';
 
@@ -35,6 +36,15 @@ export interface BoardKeyOptions {
    * call. Absent: the board is not undoable and those keys do what they did before.
    */
   undo?: UndoController;
+  /**
+   * The tool that is up, and the way to change it (`text.tool_ui`). One-letter keys are
+   * how a tool is picked without hunting the rail, and `Escape` is how it is put back.
+   * Absent: the board has one tool, which is what it had until story 9.
+   */
+  tool?: Tool;
+  onTool?(tool: Tool): void;
+  /** `N`: the rail's sticky note button, from the keyboard. */
+  onCreateSticky?(): void;
 }
 
 /** Where typing belongs to a control rather than to the board. */
@@ -76,14 +86,26 @@ export function useBoardKeys(options: BoardKeyOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      const { doc, selection, snapshot, canEdit, undo } = live.current;
+      const { doc, selection, snapshot, canEdit, undo, tool, onTool, onCreateSticky } =
+        live.current;
       // A board that could not be read has no selection to command, so the keyboard
       // does not answer for it either (TC-22, TC-25).
       if (!canEdit) return;
 
       // A text editor owns the keyboard. The check is on the focus as much as on our
-      // own editing state, because the toolbar's buttons are focusable too.
-      if (selection.editingId !== null || isTypingTarget(event.target)) return;
+      // own editing state, because the toolbar's buttons are focusable too — but a
+      // focused button is a control that was last clicked, not somebody typing, so
+      // Escape still gets them out of whatever the board is in (text.tool_ui).
+      const editing = selection.editingId !== null;
+      if (event.key === 'Escape' && !editing) {
+        event.preventDefault();
+        // A tool that is up comes back before anything else does: the first thing a
+        // person reaching for Escape wants is out of the mode they are in.
+        if (tool !== undefined && tool !== 'select') onTool?.('select');
+        selection.clear();
+        return;
+      }
+      if (editing || isTypingTarget(event.target)) return;
 
       const selectAll = (event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'a';
       if (selectAll) {
@@ -110,10 +132,24 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         return;
       }
 
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        selection.clear();
-        return;
+      // The tools (`text.tool_ui`). Only bare letters, with nothing held: Cmd+T is a new
+      // browser tab and Ctrl+N is a new window, and neither of them is a board command.
+      if (!mod && !event.altKey && !event.shiftKey) {
+        if (lower === 'v') {
+          event.preventDefault();
+          onTool?.('select');
+          return;
+        }
+        if (lower === 't') {
+          event.preventDefault();
+          onTool?.('text');
+          return;
+        }
+        if (lower === 'n') {
+          event.preventDefault();
+          onCreateSticky?.();
+          return;
+        }
       }
 
       const step = arrowStep(event.key, event.shiftKey);
@@ -146,10 +182,12 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       }
 
       if (event.key === 'Enter') {
-        // Story 2's Enter-to-edit, kept: one sticky note selected opens its text.
+        // Story 2's Enter-to-edit, kept and widened: one object selected opens its text,
+        // whatever kind of object it is — a note or a piece of text edits the same way.
         if (selection.ids.size !== 1) return;
         const object = snapshot.find((candidate) => selection.ids.has(candidate.id));
-        if (!object || !isStickySnapshot(object)) return;
+        if (!object) return;
+        if (!(getObjectType(object.type)?.editableText ?? false)) return;
         event.preventDefault();
         selection.startEdit(object.id);
       }

@@ -14,10 +14,14 @@ import type { CSSProperties, ReactNode } from 'react';
 import type * as Y from 'yjs';
 import type { BoardObject } from '../../shared/board-model';
 import { isStickySnapshot, selectionBounds, setStickyColor } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
+import { isTextSnapshot } from '../../shared/objects/text';
 import { worldToScreen } from '../canvas/camera';
 import { useBoardCamera } from '../canvas/BoardViewport';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
+import { boardMeasurer } from '../objects/textLayout';
+import { applyTextSize } from '../objects/useTextBoxSync';
 import type { UndoController } from './undo';
 
 export interface SelectionBarProps {
@@ -38,6 +42,7 @@ export const selectionCountLabel = (count: number): string =>
 // to measure in a test environment, and being roughly right is enough: what matters is
 // that it is never placed off the edge of the screen where nothing can reach it.
 const TOOLBAR_WIDTH_PX = 200;
+const TEXT_TOOLBAR_WIDTH_PX = 190;
 const BAR_WIDTH_PX = 160;
 const BAR_HEIGHT_PX = 28;
 const EDGE_INSET_PX = 8;
@@ -53,12 +58,14 @@ export function SelectionBar({ ids, snapshot, doc, onDelete, undo }: SelectionBa
   if (selected.length === 0) return null;
 
   // One sticky note gets its own tools — the colour swatches and the bin — rather than
-  // a count of one. Anything else, and anything from two objects up, gets the bar.
+  // a count of one. A single piece of text gets its four sizes and the bin. Anything
+  // else, and anything from two objects up, gets the bar.
   const loneSticky = selected.length === 1 && isStickySnapshot(selected[0]) ? selected[0] : undefined;
+  const loneText = selected.length === 1 && isTextSnapshot(selected[0]) ? selected[0] : undefined;
 
   const box = selectionBounds(snapshot, [...ids]);
   const anchor = box ? worldToScreen(camera, { x: box.x, y: box.y }) : { x: 0, y: 0 };
-  const width = loneSticky ? TOOLBAR_WIDTH_PX : BAR_WIDTH_PX;
+  const width = loneSticky ? TOOLBAR_WIDTH_PX : loneText ? TEXT_TOOLBAR_WIDTH_PX : BAR_WIDTH_PX;
   const view = windowSize();
   const left = Math.min(
     Math.max(EDGE_INSET_PX, anchor.x),
@@ -86,6 +93,24 @@ export function SelectionBar({ ids, snapshot, doc, onDelete, undo }: SelectionBa
             // A recolour is one undo step, closed around the single model call.
             undo?.boundary();
             setStickyColor(doc, loneSticky.id, color);
+            undo?.boundary();
+          }}
+          onDelete={onDelete}
+        />
+      </div>
+    );
+  }
+
+  if (loneText) {
+    return (
+      <div data-testid="selection-bar" style={style}>
+        <TextToolbar
+          size={loneText.size}
+          onSize={(size: TextSize): void => {
+            // A size change and the box it forces are one undo step: bigger text that
+            // gets undone comes back as the size it was, not as a box still too tall.
+            undo?.boundary();
+            applyTextSize(doc, loneText.id, size, boardMeasurer);
             undo?.boundary();
           }}
           onDelete={onDelete}

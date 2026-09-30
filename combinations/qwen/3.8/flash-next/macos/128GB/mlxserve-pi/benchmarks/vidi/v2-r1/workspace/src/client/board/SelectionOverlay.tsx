@@ -13,7 +13,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from
 import type { BoardObject } from '../../shared/board-model';
 import { objectBounds, selectionBounds } from '../../shared/board-model';
 import type { Handle } from '../../shared/geometry';
-import { HANDLES, HANDLE_LABELS, handlePosition } from '../../shared/geometry';
+import { HANDLES, HANDLE_LABELS, HORIZONTAL_HANDLES, handlePosition } from '../../shared/geometry';
 import { HANDLE_SIZE_PX } from '../../shared/config';
 import type { Camera } from '../canvas/camera';
 import { worldToScreen } from '../canvas/camera';
@@ -40,6 +40,28 @@ export function selectionIsResizable(
   return false;
 }
 
+/**
+ * Which handles to draw. Everything is dragged by its eight corners and edges except
+ * a selection made only of types whose height is not their own — a piece of text is
+ * as tall as its lines — which are dragged wider or narrower by two handles, and
+ * nothing else (`text.resize`). A mixed selection keeps the eight: dragging a corner
+ * there scales the group, which is a different thing and a story 7 one.
+ */
+export function selectionHandles(
+  ids: ReadonlySet<string>,
+  snapshot: readonly BoardObject[],
+): readonly Handle[] {
+  const types = new Set<string>();
+  for (const object of snapshot) {
+    if (ids.has(object.id)) types.add(object.type);
+  }
+  if (types.size === 0) return HANDLES;
+  for (const type of types) {
+    if (getObjectType(type)?.handles !== 'horizontal') return HANDLES;
+  }
+  return HORIZONTAL_HANDLES;
+}
+
 const OUTLINE: CSSProperties = {
   position: 'fixed',
   boxSizing: 'border-box',
@@ -59,6 +81,7 @@ export function SelectionOverlay({
   const box = selectionBounds(snapshot, [...ids]);
   const where = box ? screenOf(box, camera) : null;
   const resizable = selectionIsResizable(ids, snapshot);
+  const handles = selectionHandles(ids, snapshot);
 
   return (
     <>
@@ -92,7 +115,7 @@ export function SelectionOverlay({
       ) : null}
 
       {box && resizable
-        ? HANDLES.map((handle) => {
+        ? handles.map((handle) => {
             const point = worldToScreen(camera, handlePosition(box, handle));
             return (
               <div

@@ -105,6 +105,43 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** How many undo steps one person's history keeps; older steps are dropped. */
 export const UNDO_MAX_STEPS = 200;
 
+// --- Free text (story 9) -----------------------------------------------------
+
+/**
+ * The widest a text object that is sizing itself to its content may get. A line
+ * longer than this wraps; the box never stretches across the whole board.
+ */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** The narrowest a text object may be given by dragging a side handle. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Hard limit on a text object's length, in characters. */
+export const TEXT_MAX_CHARS = 5000;
+
+/**
+ * The four text sizes, in board units (the font size at 100% zoom). The keys are
+ * the persisted size names and the button labels.
+ */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** The size a freshly created text object gets. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Line boxes are this many times the font size tall — the same everywhere. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/**
+ * The board's standard sans-serif, spelled the way a measurement context can be
+ * told: the element and the canvas are both given exactly this, so the width a
+ * client lays out with is the width it draws with. A stack a canvas could not
+ * resolve would silently measure at its own default face, and that is a different
+ * box on every machine.
+ */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
 // --- Live collaboration (story 3) --------------------------------------------
 
 /**

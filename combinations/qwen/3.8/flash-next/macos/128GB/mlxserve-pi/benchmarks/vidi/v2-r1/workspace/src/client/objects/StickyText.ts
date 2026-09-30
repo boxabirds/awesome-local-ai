@@ -6,6 +6,10 @@ import {
   STICKY_TEXT_MAX_CHARS,
   STICKY_COUNTER_THRESHOLD_CHARS,
 } from '../../shared/config';
+import {
+  applyTextDiff as applyTextDiffShared,
+  clampToLimit as clampToLimitShared,
+} from '../../shared/text-edit';
 
 /**
  * Pure text helpers for sticky notes: length clamping, the minimal Y.Text diff,
@@ -27,68 +31,26 @@ export const STICKY_TEXT_PADDING_WORLD = 16;
 export const stickyTextContentBox = (noteHeight?: number): number =>
   noteHeight !== undefined && noteHeight > 0 ? noteHeight : STICKY_SIZE_WORLD;
 
-const isHighSurrogate = (code: number): boolean =>
-  code >= 0xd800 && code <= 0xdbff;
-const isLowSurrogate = (code: number): boolean =>
-  code >= 0xdc00 && code <= 0xdfff;
-
 /**
- * Keep at most `max` characters (default STICKY_TEXT_MAX_CHARS). Typing or
- * pasting past the limit adds nothing beyond the limit. Never splits a surrogate
- * pair at the cut.
+ * Keep at most `max` characters (default STICKY_TEXT_MAX_CHARS). Story 9 moved the
+ * maths to `src/shared/text-edit.ts` so a sticky note and a text object clamp the
+ * same way; this is the note's own default over the shared function, so every
+ * story 2 caller and test is unchanged.
  */
-export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (next.length <= max) return next;
-  let cut = max;
-  // If the cut lands right after a high surrogate, drop it so we do not leave a
-  // lone high surrogate behind.
-  if (cut > 0 && isHighSurrogate(next.charCodeAt(cut - 1))) cut -= 1;
-  return next.slice(0, cut);
+export function clampToLimit(
+  next: string,
+  max: number = STICKY_TEXT_MAX_CHARS,
+): string {
+  return clampToLimitShared(next, max);
 }
 
 /**
- * Write `next` into `ytext` with the smallest change (common prefix + common
- * suffix kept), so a concurrent typist (story 3) never loses their edits. Surrogate
- * pairs are never split. Does nothing (no transaction) when unchanged.
+ * Write `next` into `ytext` with the smallest change, so a concurrent typist
+ * (story 3) never loses their edits. The shared implementation; re-exported for
+ * story 2's callers.
  */
 export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const doc = ytext.doc;
-  if (!doc) return;
-  const current = ytext.toString();
-  if (current === next) return;
-
-  let start = 0;
-  const maxStart = Math.min(current.length, next.length);
-  while (start < maxStart && current.charCodeAt(start) === next.charCodeAt(start)) {
-    start += 1;
-  }
-  // Do not end the common prefix in the middle of a surrogate pair.
-  if (start > 0 && isHighSurrogate(current.charCodeAt(start - 1))) start -= 1;
-
-  let endCur = current.length;
-  let endNext = next.length;
-  while (
-    endCur > start &&
-    endNext > start &&
-    current.charCodeAt(endCur - 1) === next.charCodeAt(endNext - 1)
-  ) {
-    endCur -= 1;
-    endNext -= 1;
-  }
-  // Do not begin the common suffix in the middle of a surrogate pair.
-  if (endCur > start && isLowSurrogate(current.charCodeAt(endCur))) {
-    endCur -= 1;
-    endNext -= 1;
-  }
-
-  const deleteLength = endCur - start;
-  const inserted = next.slice(start, endNext);
-  if (deleteLength === 0 && inserted.length === 0) return;
-
-  doc.transact(() => {
-    if (deleteLength > 0) ytext.delete(start, deleteLength);
-    if (inserted.length > 0) ytext.insert(start, inserted);
-  }, origin);
+  applyTextDiffShared(ytext, next, origin);
 }
 
 /** The counter is shown when this many characters or fewer remain. */

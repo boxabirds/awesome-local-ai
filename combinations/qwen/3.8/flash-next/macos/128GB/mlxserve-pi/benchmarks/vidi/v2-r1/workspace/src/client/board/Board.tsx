@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type * as Y from 'yjs';
 import { createSticky, deleteObjects } from '../../shared/board-model';
+import { createText } from '../../shared/objects/text';
 import type { BoardObject } from '../../shared/board-model';
 import { BoardViewport, type MarqueeHandlers } from '../canvas/BoardViewport';
 import { useBoardCamera } from '../canvas/BoardViewport';
@@ -24,6 +25,8 @@ import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
 import { useUndo, type UseUndoResult } from './useUndo';
 import { createUndo, type UndoController } from './undo';
+import { TOOL_SELECT, TOOL_TEXT, useTool, type Tool } from './useTool';
+import { createLocalIdentity } from './localIdentity';
 import { reportConnectionState } from '../canvas/testHooks';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -73,6 +76,13 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
     undoController.boundary();
   }, [undoController]);
 
+  // Which tool is up (`text.tool_ui`). A board that cannot be edited neither gets the
+  // tool that writes nor keeps it.
+  const { tool, setTool } = useTool(canEdit);
+  // Who this tab is, for the `createdBy` a text object carries. Story 6 (who is here)
+  // is not built, so it is a per-tab id and nothing more than that.
+  const identity = useMemo(createLocalIdentity, []);
+
   const gesture = useTransformGesture({
     doc,
     camera,
@@ -86,7 +96,6 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
     selection.setMany(ids, true);
   });
 
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit, undo: undoController });
   const undoState = useUndo(undoController, canEdit);
 
   /** Delete what is selected, and stop selecting it. */
@@ -106,20 +115,82 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
     [selection],
   );
 
+  /**
+   * Write something at a point (`text.create`): top-left under the click, size M,
+   * above everything, in the editor's hands before the pointer comes up again. That
+   * feels like one action and is several writes; the undo boundary is what makes it one
+   * to undo, so a click made by mistake takes the object back with it.
+   */
+  const placeText = useCallback(
+    (screen: Point): void => {
+      if (!canEdit) return;
+      undoController.boundary();
+      const id = createText(doc, screenToWorld(camera, screen), identity.id);
+      undoController.boundary();
+      // The tool is done: it asked what goes here, and it went. Staying on Text would
+      // make the next click another one, which is what a stamp does.
+      setTool(TOOL_SELECT);
+      if (id === null) return;
+      onCreated(id);
+    },
+    [canEdit, camera, doc, identity, onCreated, setTool, undoController],
+  );
+
+  /** A sticky at the middle of what is on screen: the rail's button, and `N`. */
+  const createStickyCentre = useCallback((): void => {
+    if (!canEdit) return;
+    const world = screenToWorld(camera, {
+      x: typeof window === 'undefined' ? 640 : window.innerWidth / 2,
+      y: typeof window === 'undefined' ? 400 : window.innerHeight / 2,
+    });
+    // A new note is one undo step, closed before and after the single model call.
+    undoController.boundary();
+    const id = createSticky(doc, world);
+    undoController.boundary();
+    if (id) onCreated(id);
+  }, [canEdit, camera, doc, onCreated, undoController]);
+
+  // The keyboard is given the tool as well as the selection: `V`, `T` and `N` are three
+  // of the rail's buttons, and Escape puts the tool back.
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit,
+    undo: undoController,
+    tool,
+    onTool: setTool,
+    onCreateSticky: createStickyCentre,
+  });
+
   const onEmptyDoubleClick = useCallback(
     (screen: Point): void => {
       if (!canEdit) return;
+      // The tool says what a click means: a double-click with Text up writes text
+      // rather than slapping a note down where the person meant to type.
+      if (tool === TOOL_TEXT) {
+        placeText(screen);
+        return;
+      }
       const id = createSticky(doc, screenToWorld(camera, screen));
       if (id) onCreated(id);
     },
-    [canEdit, camera, doc, onCreated],
+    [canEdit, camera, doc, onCreated, tool, placeText],
   );
 
   // A click on empty board space clears the selection. (When editing, the editor
-  // already ended on the same pointerdown, so this is a no-op then.)
-  const onEmptyClick = useCallback((): void => {
-    selection.clear();
-  }, [selection]);
+  // already ended on the same pointerdown, so this is a no-op then.) With the Text tool
+  // up it means something else entirely: *here* is where the text goes.
+  const onEmptyClick = useCallback(
+    (screen: Point): void => {
+      if (tool === TOOL_TEXT) {
+        placeText(screen);
+        return;
+      }
+      selection.clear();
+    },
+    [selection, tool, placeText],
+  );
 
   // Closing a note's text editor: 'selected' is Escape (the note keeps the selection),
   // 'unselected' is a press somewhere else (that press decides the selection).
@@ -164,7 +235,9 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
           gesture={gesture}
           marquee={marquee}
           onCamera={setCamera}
-          onCreated={onCreated}
+          onCreateSticky={createStickyCentre}
+          tool={tool}
+          onTool={setTool}
           onDeleteSelection={deleteSelection}
           connectionState={connectionState}
           canEdit={canEdit}
@@ -175,6 +248,7 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
       onEmptyClick={onEmptyClick}
       onEmptyDoubleClick={onEmptyDoubleClick}
       marquee={marqueeForViewport}
+      textToolActive={tool === TOOL_TEXT}
     >
       <BoardObjects
         doc={doc}
@@ -198,7 +272,9 @@ function BoardChrome({
   gesture,
   marquee,
   onCamera,
-  onCreated,
+  onCreateSticky,
+  tool,
+  onTool,
   onDeleteSelection,
   connectionState,
   canEdit,
@@ -212,7 +288,9 @@ function BoardChrome({
   gesture: TransformGestureHandlers;
   marquee: MarqueeState;
   onCamera(camera: Camera): void;
-  onCreated(id: string): void;
+  onCreateSticky(): void;
+  tool: Tool;
+  onTool(tool: Tool): void;
   onDeleteSelection(): void;
   connectionState: ConnectionState;
   canEdit: boolean;
@@ -227,22 +305,15 @@ function BoardChrome({
     onCamera(camera);
   }, [camera, onCamera]);
 
-  const createStickyCentre = (): void => {
-    if (!canEdit) return;
-    const world = screenToWorld(camera, {
-      x: window.innerWidth / 2,
-      y: window.innerHeight / 2,
-    });
-    // A new note is one undo step, closed before and after the single model call.
-    undoController.boundary();
-    const id = createSticky(doc, world);
-    undoController.boundary();
-    if (id) onCreated(id);
-  };
-
   return (
     <>
-      <Toolbar onCreateSticky={createStickyCentre} disabled={!canEdit} undo={undo} />
+      <Toolbar
+        onCreateSticky={onCreateSticky}
+        tool={tool}
+        onTool={onTool}
+        disabled={!canEdit}
+        undo={undo}
+      />
       <SharePanel boardId={boardId} />
       <ConnectionStatus state={connectionState} />
       <ZoomControls

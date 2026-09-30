@@ -143,6 +143,31 @@ export const registerObjectTypeModel = (type: string, minSize = 0): void => {
   minSizes.set(type, Math.max(0, num(minSize) ?? 0));
 };
 
+/**
+ * Reads one object of one type out of its `Y.Map`, beyond the fields every object
+ * carries. Filled in by the module that owns the type, which is also how
+ * `minSizes` gets filled — so `board-model` never imports a type module and never
+ * learns what a text object's extra fields are.
+ */
+export type ObjectSnapshotReader = (
+  id: string,
+  object: Y.Map<unknown>,
+) => BoardObject | null;
+
+const readers = new Map<string, ObjectSnapshotReader>();
+
+/**
+ * Say how a kind of object is read. Without a reader its snapshot is the shared
+ * base — position, size and draw order — which is everything a note needs and
+ * nothing like enough for a kind that carries text of its own.
+ */
+export const registerObjectTypeReader = (
+  type: string,
+  read: ObjectSnapshotReader,
+): void => {
+  readers.set(type, read);
+};
+
 export const isKnownObjectType = (type: unknown): boolean =>
   typeof type === 'string' && minSizes.has(type);
 
@@ -192,6 +217,10 @@ export function objectBounds(object: ObjectSnapshot): Rect {
 function readObject(id: string, object: Y.Map<unknown>): BoardObject | null {
   const type = object.get('type');
   if (!isKnownObjectType(type)) return null;
+  // A kind that reads itself gets the whole map, because the fields below are not
+  // all it has (a text object carries its own text, size and width mode).
+  const read = typeof type === 'string' ? readers.get(type) : undefined;
+  if (read) return read(id, object);
   const base: ObjectSnapshot = {
     id,
     type: type as string,

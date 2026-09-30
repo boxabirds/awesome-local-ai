@@ -79,7 +79,22 @@ interface GestureState {
   handle: Handle;
   /** True when any selected type keeps its proportions. */
   aspectLocked: boolean;
+  /**
+   * Set for a handle drag of the single object whose type is `handles:
+   * 'horizontal'` — one that measures its own box. The gesture then writes nothing
+   * itself: it hands the width to the type and asks it to re-measure at the end
+   * (`text.resize`).
+   */
+  horizontal: string | null;
   frame: number | null;
+}
+
+/**
+ * The corner of a box the pointer did not move, in board units: the box grows away
+ * from here. An east handle holds the left edge, a west handle the right one.
+ */
+function anchorOf(rect: Rect, handle: Handle): Point {
+  return handle === 'w' ? { x: rect.x + rect.width, y: rect.y } : { x: rect.x, y: rect.y };
 }
 
 /** Rectangles of the selected objects that are actually there, by id. */
@@ -122,6 +137,7 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
     startBox: null,
     handle: 'se',
     aspectLocked: false,
+    horizontal: null,
     frame: null,
   });
 
@@ -133,6 +149,20 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
   const minSizeOf = (id: string): number => {
     const object = live.current.snapshot.find((candidate) => candidate.id === id);
     return object ? objectMinSize(object.type) : 0;
+  };
+
+  /**
+   * The one selected object whose type drags by its sides only, or null. A drag of a
+   * mixed selection is the generic group resize, whatever is in it.
+   */
+  const horizontalTarget = (): string | null => {
+    const g = state.current;
+    const { snapshot, selection } = live.current;
+    if (g.start.size !== 1 || selection.ids.size !== 1) return null;
+    const id = [...g.start.keys()][0];
+    const object = snapshot.find((candidate) => candidate.id === id);
+    if (!object) return null;
+    return getObjectType(object.type)?.handles === 'horizontal' ? id : null;
   };
 
   /** Write the selection at its start plus the newest delta. Idempotent. */
@@ -160,6 +190,35 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
 
     const box = g.startBox;
     if (!box) return;
+
+    // A type that owns its box: the gesture works out the width the pointer asked
+    // for — never below that type's own minimum, never above the global maximum —
+    // and hands it over. The height is not this gesture's business, and neither is
+    // the position: the edge the pointer did not grab is the type's to hold still.
+    const horizontal = g.horizontal;
+    if (horizontal !== null) {
+      const rect = g.start.get(horizontal);
+      const type = live.current.snapshot.find((object) => object.id === horizontal)?.type;
+      const spec = type === undefined ? undefined : getObjectType(type);
+      if (!rect || !spec?.onHorizontalResize) return;
+      const asked = askedResizeScale(rect, g.handle, world, false);
+      const scale = clampScale(
+        asked,
+        [rect],
+        [objectMinSize(type as string)],
+        MAX_OBJECT_SIZE_WORLD,
+      );
+      const to = scaleRectByFactor(rect, g.handle, scale);
+      spec.onHorizontalResize({
+        doc,
+        id: horizontal,
+        handle: g.handle,
+        anchor: anchorOf(rect, g.handle),
+        width: to.width,
+      });
+      return;
+    }
+
     // Resize: the scale the pointer asked for, then the largest scale every object
     // can actually take (sel.size_limits), so the group stops the moment the first
     // object reaches its limit and the layout inside the selection stays as it was.
@@ -224,9 +283,17 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
     // The last delta is applied synchronously so the objects stop under the pointer
     // rather than one frame behind it.
     apply();
+    // A type that measures its own box is asked for the box it ended up with: it is
+    // the only one who knows how tall the rewrapped text became.
+    const horizontal = g.horizontal;
+    if (horizontal !== null) {
+      const type = live.current.snapshot.find((object) => object.id === horizontal)?.type;
+      getObjectType(type ?? '')?.remeasureAfterResize?.(live.current.doc, [horizontal]);
+    }
     g.phase = 'idle';
     g.start.clear();
     g.startBox = null;
+    g.horizontal = null;
     live.current.onGestureEnd?.();
   };
 
@@ -336,6 +403,9 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
     g.start = start;
     g.startBox = box;
     g.aspectLocked = anySelected(ids, snapshot, (type) => getObjectType(type)?.aspectLocked ?? false);
+    // Decided once, at the start: a selection that changes mid-drag does not turn
+    // this gesture into another kind.
+    g.horizontal = horizontalTarget();
     onGestureStart?.();
   };
 

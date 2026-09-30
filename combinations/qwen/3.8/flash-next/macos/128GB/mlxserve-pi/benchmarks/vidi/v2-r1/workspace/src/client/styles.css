@@ -64,3 +64,12 @@ button:focus-visible,
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
 }
+
+/* The Text tool places with a click anywhere on the board — including on top of
+   something else, which is the point of the tool and the reason this rule exists.
+   A press that lands on an object can never reach the board under it, so while the
+   tool is up the objects are taken out of the pointer's way. Nothing else may do
+   this: it is scoped to the tool, and the tool leaves Select the moment it places. */
+[data-testid='board-world'][data-placing='true'] * {
+  pointer-events: none !important;
+}

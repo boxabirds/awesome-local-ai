@@ -75,6 +75,20 @@ interface BoardViewportProps {
    * selection box instead of panning; without Shift, nothing here changes.
    */
   marquee?: MarqueeHandlers;
+  /**
+   * The Text tool is up (`text.tool_ui`). Three things follow, all of them about
+   * not doing what the pointer would otherwise do:
+   *
+   *   - the cursor says *text*, so the mode is visible without looking at the rail;
+   *   - a press does not pan and does not marquee: dragging here creates nothing and
+   *     moves nothing, and you leave the tool to get the board's motion back;
+   *   - a click *anywhere* creates the text — including on top of another object,
+   *     which the tool is meant to write over rather than nudge.
+   *
+   * The last one is what `[data-placing]` in the stylesheet is for: it takes the
+   * objects out of the pointer's way so a press over one is a press on the board.
+   */
+  textToolActive?: boolean;
 }
 
 /** The four moments of a marquee drag, driven by the viewport's own pointer events. */
@@ -99,6 +113,7 @@ export function BoardViewport({
   onEmptyClick,
   onEmptyDoubleClick,
   marquee,
+  textToolActive = false,
 }: BoardViewportProps): ReactNode {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<Size>(measureWindow);
@@ -243,8 +258,14 @@ export function BoardViewport({
       // board objects can stop propagation from story 2 onwards.
       if (event.target !== event.currentTarget) return;
       if (event.button !== 0) return;
-      event.currentTarget.setPointerCapture?.(event.pointerId);
       const point = { x: event.clientX, y: event.clientY };
+      if (textToolActive) {
+        // Nothing to write down but the press itself: the release decides whether it
+        // was a click, and a drag that went anywhere is not.
+        emptyDownRef.current = { x: event.clientX, y: event.clientY, moved: false };
+        return;
+      }
+      event.currentTarget.setPointerCapture?.(event.pointerId);
       // Shift on empty space is the selection box; without it, exactly the story 1 pan.
       if (event.shiftKey && marquee) {
         marqueeDownRef.current = true;
@@ -254,7 +275,7 @@ export function BoardViewport({
       emptyDownRef.current = { x: event.clientX, y: event.clientY, moved: false };
       beginPan(point);
     },
-    [beginPan, marquee],
+    [beginPan, marquee, textToolActive],
   );
 
   const onPointerMove = useCallback(
@@ -334,7 +355,7 @@ export function BoardViewport({
     inset: 0,
     overflow: 'hidden',
     touchAction: 'none',
-    cursor: mode === 'panning' ? 'grabbing' : 'grab',
+    cursor: textToolActive ? 'text' : mode === 'panning' ? 'grabbing' : 'grab',
     backgroundColor: '#fbfbf9',
     backgroundImage: `radial-gradient(circle, ${DOT_COLOR} ${DOT_RADIUS_PX - 1}px, transparent ${DOT_RADIUS_PX}px)`,
     backgroundSize: `${spacingScreen}px ${spacingScreen}px`,
@@ -370,7 +391,7 @@ export function BoardViewport({
         onLostPointerCapture={onLostPointerCapture}
         onDoubleClick={onDoubleClick}
       >
-        <div data-testid="board-world" style={worldStyle}>
+        <div data-testid="board-world" data-placing={textToolActive ? 'true' : 'false'} style={worldStyle}>
           <div
             data-testid="origin-marker"
             aria-hidden="true"

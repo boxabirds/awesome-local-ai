@@ -330,3 +330,90 @@ the text editor.
     land every note on its exact pre-edit geometry; with everyone undoing their own last
     change, every screen converges and every owner's own typing is gone — the personal-scope
     signal. Personal scope on a move and on a delete is shown directly by TC-22 and TC-23.
+
+# Story 9 — Write free text anywhere on the board
+
+The object lives in `src/shared/objects/text.ts` (model, Y.Text content, size, box), its
+component in `src/client/objects/TextObject.tsx`, the toolbar in `TextToolbar.tsx`, the
+shared editor in `TextEditor.tsx`, the measurement in `textLayout.ts` + `useTextBoxSync.ts`,
+and the tool itself in `src/client/board/useTool.ts`.
+
+31. **`registerObjectTypeReader(type, read)` in `board-model.ts`.** `snapshotObjects` is the
+    one place that turns the document into what the screen draws, and the screen needs a
+    text object's `text`, `size` and `widthMode` on it (the `data-size` a test reads, the
+    size the toolbar shows, the placeholder). Reading those fields inside `readObject` would
+    mean importing `objects/text.ts` from `board-model.ts`, which `objects/text.ts` already
+    imports — a cycle. So the type *pushes* its reader into a registry at module load, exactly
+    the way `registerObjectTypeModel` already does, and `readObject` delegates when a reader
+    is registered. `BoardObject` is the union `StickySnapshot | ObjectSnapshot`; the narrowing
+    predicate is `isTextSnapshot`.
+32. **`TextEditor` is story 2's editor, generalised; `StickyTextEditor` is now a wrapper.**
+    The rules that were load-bearing for a note — commit every keystroke as the smallest
+    prefix/suffix diff, never write through a composition, pull a remote change in rather
+    than writing the stale local value back, keep Ctrl/Cmd+Z off the textarea's own history,
+    clamp at the character limit — are the same rules for free text, so they exist once.
+    What differs per object type is passed in: `maxChars`, `paddingPx`, `lineHeight`,
+    `fontFamily`, class names, `testId`, `containerSelector`, and an optional
+    `fit(element)` callback (a note passes `fitFontSize` + `stickyTextContentBox`; free text
+    passes nothing and keeps the size it was given). `onInput` fires after each local
+    keystroke and `onClosing` once before the editor goes away. `clampToLimit` and
+    `applyTextDiff` moved to `src/shared/text-edit.ts` so they compile under
+    `tsconfig.worker.json` (DOM-free); `objects/StickyText.ts` re-exports them so story 2's
+    module surface and its default limit are unchanged. `data-overflow` is on the textarea of
+    both editors, always, not behind a prop.
+33. **Measurement is a real canvas, with an honest fallback.** `createCanvasMeasurer()` uses
+    `measureText` on a 2d context with the *same* CSS font stack the element is rendered with
+    (`TEXT_FONT_FAMILY`), so what is measured is what is drawn. A canvas that cannot be had
+    (jsdom, unit runs) falls back to `length × fontPx × TEXT_ESTIMATED_GLYPH_RATIO`; the
+    fallback is a guess and is named as one. `boardMeasurer` is one lazy singleton. Auto
+    width is `clamp(longest line + 2 × TEXT_LAYOUT_PADDING_WORLD, TEXT_MIN_WIDTH_WORLD,
+    TEXT_MAX_AUTO_WIDTH_WORLD)`, and a line longer than the maximum is *wrapped* at the
+    maximum rather than allowed to run on.
+34. **Escape is answered even when a toolbar button holds the focus.** `useBoardKeys` has
+    always treated a focused `BUTTON` as a control rather than the board, so the keys are not
+    read while one has the focus — which is fine for letters and is wrong for Escape: a
+    person who clicked the Text tool and reaches for Escape means "get me out". Escape is
+    therefore handled above that check (and still not while a text editor is open, which is
+    `selection.editingId`). The e2e `TC-29b` is what found it: the keyboard route to the tool
+    worked and the button-then-Escape route did not.
+35. **An empty text object is thrown away on the way out, not on the way in.** Placing the
+    tool makes the object at once (the caret needs somewhere to live, and the box is placed
+    where the click was), and `deleteIfEmpty` runs in `onClosing`, which both Escape and blur
+    go through — so a box that came to nothing leaves no invisible object behind for either
+    route. It happens *inside* the same undo step as its creation, so one Ctrl/Cmd+Z puts the
+    whole thing back (e2e `TC-28`).
+36. **A type that measures its own box is asked for it; the gesture does not guess.**
+    `ObjectTypeSpec` gained `handles?: 'all' | 'horizontal'`, `onHorizontalResize(notice)` and
+    `remeasureAfterResize(doc, ids)`. For a `horizontal` type the resize gesture writes no
+    geometry of its own: it works out the width the pointer asked for, clamps it between that
+    type's own minimum and the global maximum, hands it over in a `ResizeNotice`, and at
+    release calls `remeasureAfterResize` so the height the rewrapped text needs is the height
+    that stays. The notice carries `doc` because these callbacks live in the module-level
+    registry and have no document of their own. Dragging a side handle also sets
+    `widthMode: 'fixed'`: after you have told the box how wide it is, it stays that wide
+    (`text.wrap`). `SelectionOverlay` shows `e`/`w` only when everything selected is of a
+    horizontal type (`selectionHandles`).
+37. **While the Text tool is up the board's contents are transparent to the pointer**
+    (`[data-testid='board-world'][data-placing='true'] * { pointer-events: none }`), so a click
+    over an existing object is still a click *on the board* and makes a new object there. It is
+    scoped to the tool, which flips back to Select the moment it places something, so nothing
+    else about clicking is affected.
+38. **`localIdentity.ts`** gives each tab a random id, kept in `sessionStorage` so it survives a
+    reload but not a second tab. Story 9 records `createdBy` and there are no identities yet
+    (story 6 was not built); a per-tab id is the honest version of "who made this" until there
+    are.
+39. **e2e caveats this story found, all of them in `helpers/text.ts`:**
+    - Firefox reports a pointer that has left the 1280×800 viewport as being at `(0, -133)`, so
+      a drag that would leave the window is taken to its edge instead. This is a driver
+      artefact, not the app: the app behaved correctly and clamped the width to the object's
+      own minimum at the nonsense coordinates.
+    - Double-clicking an object to edit it selects the word under the caret, which is the
+      browser doing what browsers do. A test that means "two people typing into one object"
+      selects it and presses Enter instead, which is the board's own way in and puts the caret
+      at the end.
+    - Line counts are asserted as *more lines* / *fewer lines*, never as a number: how many
+      lines a given string needs is the machine's font's business. The one numeric assertion
+      is that the height is a whole number of lines of the size that is set.
+    - `design.md` and `tasks.md` number the e2e cases differently. The test titles follow
+      `design.md`; the three that only `tasks.md` asks for say "Task case TC-28 / TC-29 / TC-30"
+      in the comment above them.

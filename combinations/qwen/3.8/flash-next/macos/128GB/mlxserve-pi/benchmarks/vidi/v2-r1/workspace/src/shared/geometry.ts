@@ -33,6 +33,12 @@ export type Handle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 /** Draw order of the handles. */
 export const HANDLES: readonly Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 
+/**
+ * The handles of a type whose height is not its own — a piece of text is as tall as
+ * its lines — so the only thing to drag is how wide it is (`text.resize`).
+ */
+export const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
+
 /** Screen names of the handles, for their accessible labels. */
 export const HANDLE_LABELS: Readonly<Record<Handle, string>> = {
   nw: 'top-left',
