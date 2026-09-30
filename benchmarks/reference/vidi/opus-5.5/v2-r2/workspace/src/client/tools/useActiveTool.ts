@@ -18,19 +18,22 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 
 /**
  * Tools that are modes in this build. `sticky` is an action (a note at the view
- * centre, story 2); pen, image and comment belong to stories not built here.
+ * centre, story 2); image and comment belong to stories not built here.
  */
-export const MODE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+export const MODE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
 /** Tools that create objects: unavailable while the board cannot be edited. */
-const EDITING_TOOLS: readonly ToolId[] = ['text', 'shape', 'connector'];
+export const EDITING_TOOLS: readonly ToolId[] = ['text', 'shape', 'connector', 'pen'];
 
 export interface ActiveTool {
   tool: ToolId;
   shapeKind: ShapeKind;
   setTool(t: ToolId): void;
   setShapeKind(k: ShapeKind): void;
-  /** A tool created `id`: it becomes the only selected object and the tool returns to Select. */
+  /**
+   * A tool created `id`: it becomes the only selected object and the tool returns to Select.
+   * (The Pen does not call this: it stays active after each stroke.)
+   */
   toolCreated(id: string): void;
 }
 

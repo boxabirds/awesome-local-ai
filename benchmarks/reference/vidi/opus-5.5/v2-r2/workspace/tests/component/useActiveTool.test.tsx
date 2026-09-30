@@ -49,7 +49,7 @@ describe('tools.active_tool', () => {
     expect(onSelect).toHaveBeenCalledWith('new-id');
     expect(result.current.tool).toBe('select');
     // Tools of stories not in this build are ignored.
-    act(() => result.current.setTool('pen'));
+    act(() => result.current.setTool('image'));
     expect(result.current.tool).toBe('select');
     rerender({ canEdit: false });
     act(() => result.current.setTool('connector'));

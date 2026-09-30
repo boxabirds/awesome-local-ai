@@ -154,3 +154,28 @@ export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
 export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 /** Radius of the connection dots shown with the Connector tool (screen px). */
 export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+/** Pen colours (story 11), in toolbar order. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+/** Pen thicknesses in world units (strokes scale with zoom like everything else). */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenColor = keyof typeof PEN_COLORS;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+/** Colour and thickness the Pen starts with after a page load. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+/** A finished stroke stays within this many screen px (at the drawing zoom) of the drawn path. */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/** A stroke being drawn is finished and continued as a new stroke at this many recorded points. */
+export const STROKE_MAX_POINTS = 5000;
+/** A click this close to a stroke's line (screen px, any zoom) selects it (or half its thickness if larger). */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** Smallest resize of a stroke (either side), world units. */
+export const STROKE_MIN_SIZE_WORLD = 4;

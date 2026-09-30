@@ -52,7 +52,10 @@ export function BoardViewport(props: {
   marquee?: { begin(screen: Point): void; move(screen: Point): void; end(): void; cancel(): void };
   /** The active tool; with 'text' a press anywhere on the board (even on an object) places text. */
   tool?: ToolId;
-  /** Screen-space layer above the objects (the Shape and Connector tools own every press there). */
+  /**
+   * Screen-space layer above the objects: the Shape, Connector and Pen tools own every
+   * press there (a Pen drag never pans or moves objects); wheel and pinch still navigate.
+   */
   overlay?: ReactNode;
   /** Text tool press, with the point in world units. */
   onPlaceText?(world: Point): void;
@@ -213,7 +216,9 @@ export function BoardViewport(props: {
   return (
     <div
       ref={ref}
-      className={['board-viewport', panning && 'is-panning', props.tool === 'text' && 'is-text-tool'].filter(Boolean).join(' ')}
+      className={['board-viewport', panning && 'is-panning', props.tool === 'text' && 'is-text-tool', props.tool === 'pen' && 'is-pen-tool']
+        .filter(Boolean)
+        .join(' ')}
       data-testid="board-viewport"
       data-state={panning ? 'panning' : selecting ? 'selecting' : 'idle'}
       data-tool={props.tool ?? 'select'}

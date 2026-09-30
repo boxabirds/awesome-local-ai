@@ -432,3 +432,46 @@ Decisions made where the spec was open or self-contradictory:
 - **E2E** `tests/e2e/shapes.spec.ts` (TC-23, TC-24, fixture render) and `tests/e2e/connectors.spec.ts` (TC-25–TC-27).
   Chromium only: Firefox and WebKit are not installed here, so TC-23 was not run in them.
 - **Red phase** not committed separately (single story commit), as in earlier stories.
+
+## Story 11 — Sketch freehand with a pen
+
+- **Pen is a mode now.** `pen` joined `MODE_TOOLS` and the editing tools, so P and the new "Pen (P)" button
+  (after Connector) select it; story 10's note that "P does nothing" no longer holds (I and C still do nothing).
+  The `useActiveTool` unit test that used `pen` as the "tool of a story not in this build" now uses `image`.
+  Unlike Shape/Connector, the Pen never calls `toolCreated`: it stays active and selects nothing after a stroke.
+- **Routing.** `PenTool` is a screen-space tool layer (the `BoardViewport` `overlay`, as story 10 does for
+  Shape/Connector). It owns every press, including presses on objects, so a Pen drag never pans or moves
+  anything; wheel/pinch listeners on the viewport are untouched, so scrolling pans and Ctrl/Cmd+scroll zooms.
+  `BoardViewport` only gained an `is-pen-tool` class and doc comment.
+- **Gesture.** Points (coalesced events when `getCoalescedEvents` exists) are recorded in world units, so
+  scrolling mid-stroke is harmless. The preview (`data-testid="pen-preview"`, screen-space SVG, colour and
+  `thickness × zoom`) is recomputed once per `requestAnimationFrame`, not per pointer event. A press whose
+  pointer never moves `DRAG_THRESHOLD_PX` from the press point commits a dot. Escape (unmounting the layer)
+  drops an unfinished stroke; `pointercancel`/`lostpointercapture` commit it. When a long stroke is split and
+  the remaining part is only the shared join point at release, no extra dot is created.
+- **Simplify tolerance** uses the zoom at the moment each part is committed (`STROKE_SIMPLIFY_TOLERANCE_PX / zoom`).
+- **Model.** `stroke` is a built-in known type in board-model (like shape/connector). `ObjectSnapshot.color` is
+  now `StickyColor | PenColor` and gained `points/baseWidth/baseHeight/thickness`. Stored point arrays are
+  validated and frozen once per stored array (WeakMap cache), because snapshots are rebuilt on every change and
+  strokes can hold thousands of numbers. A stroke without usable points is not shown. `PenColor`/`PenThickness`
+  types live in `config.ts` (next to the palettes) and are re-exported from `objects/stroke.ts`.
+- **Hit test.** `strokeHitTest` lives in `src/client/objects/strokeHitTest.ts` (re-exported from the registry)
+  so `StrokeObject` can use it without importing the registry (circular import). In the DOM the stroke's box
+  has `pointer-events: none`; a transparent hit path along the smoothed line, `2 × max(thickness/2, 6/zoom)`
+  wide with round caps/joins, takes presses and its handler re-checks the registry test (jsdom and browsers
+  agree). Clicks elsewhere in the box reach whatever is underneath.
+- **Components follow the registry props.** `StrokeObject` takes `ObjectProps` (as stories 9/10 did) rather than
+  `{ stroke, selected }`; `PenTool` also takes an optional `undo` (boundary before/after each commit = one step).
+- **UI text.** Pen toolbar: role `toolbar` "Pen" beside the left toolbar, swatches "Black pen", "Blue pen",
+  "Red pen", "Green pen", "Orange pen", "Purple pen" and "Thin", "Medium", "Thick" (all with `aria-pressed`).
+  Strokes are `role="img"` named "Drawing". A single selected stroke shows a toolbar "Drawing" with
+  "Delete drawing" (same pattern as story 10's arrow toolbar). The round cursor (`data-testid="pen-cursor"`)
+  replaces the pointer (`cursor: none`) over the board.
+- **Fixtures.** `tests/fixtures/pen-paths.ts` generates the "recorded" paths deterministically (seeded jitter)
+  rather than storing captured data. Test hook `seedStrokes` added (test builds only).
+- **TC-16 in jsdom** cannot do real hit testing: it checks the stroke's box ignores presses (`pointer-events`),
+  that a press on the hit path far from the line does not select, that the registry picks the note as the
+  topmost hit, and that a press on the note selects it. The real-browser fall-through is covered in TC-20.
+- **E2E** `tests/e2e/pen.spec.ts` (TC-17–TC-20), Chromium only: Firefox and WebKit are not installed here, so
+  TC-17 was not run in them.
+- **Red phase** not committed separately (single story commit), as in earlier stories.

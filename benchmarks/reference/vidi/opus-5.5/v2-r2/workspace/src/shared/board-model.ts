@@ -7,8 +7,11 @@
 //   (`width`/`height` are written by the first resize; absent means STICKY_SIZE_WORLD.)
 //   Text objects (story 9): see src/shared/objects/text.ts.
 //   Shapes and connectors (story 10): see src/shared/objects/shape.ts and connector.ts.
+//   Pen strokes (story 11): see src/shared/objects/stroke.ts.
 import * as Y from 'yjs';
 import {
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
   DEFAULT_SHAPE_FILL,
   DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
@@ -20,6 +23,8 @@ import {
   STICKY_SIZE_WORLD,
   TEXT_SIZES,
   type FillColor,
+  type PenColor,
+  type PenThickness,
   type StickyColor,
   type StrokeColor,
   type TextSize,
@@ -27,6 +32,7 @@ import {
 import { type Point, type Rect, isFiniteRect, rectContains } from './geometry';
 import { type Endpoint, connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 import { connectorEnds, detachConnectorsTo, translateConnector } from './objects/connector';
+import { isPenColor, isPenThickness, isStrokePoints } from './objects/stroke';
 
 /** Current document schema version, stored in `meta.schemaVersion`. */
 export const SCHEMA_VERSION = 1;
@@ -44,7 +50,8 @@ export interface ObjectSnapshot {
   height: number;
   z: number;
   createdAt: number;
-  color?: StickyColor;
+  /** Sticky notes: a sticky colour; strokes (story 11): a pen colour. */
+  color?: StickyColor | PenColor;
   text?: string;
   /** Text objects (story 9). */
   size?: TextSize;
@@ -58,6 +65,11 @@ export interface ObjectSnapshot {
   from?: Endpoint;
   to?: Endpoint;
   ends?: { from: Point; to: Point };
+  /** Pen strokes (story 11): flattened points relative to the bbox at base size. */
+  points?: readonly number[];
+  baseWidth?: number;
+  baseHeight?: number;
+  thickness?: PenThickness;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -71,11 +83,11 @@ export function isSticky(obj: ObjectSnapshot): obj is StickySnapshot {
 }
 
 /**
- * Object types the board understands. `sticky`, `text`, `shape` and `connector` are built in; the client object
+ * Object types the board understands. `sticky`, `text`, `shape`, `connector` and `stroke` are built in; the client object
  * registry adds the others. Objects of any other type are kept in the document
  * but never shown, selected or changed by group operations.
  */
-const knownTypes = new Set<string>(['sticky', 'text', 'shape', 'connector']);
+const knownTypes = new Set<string>(['sticky', 'text', 'shape', 'connector', 'stroke']);
 
 export function markObjectTypeKnown(type: string): void {
   knownTypes.add(type);
@@ -205,6 +217,19 @@ function hasKey(obj: object, key: unknown): boolean {
   return typeof key === 'string' && Object.prototype.hasOwnProperty.call(obj, key);
 }
 
+/** Stored point arrays are never edited in place: copy and freeze each one once. */
+const frozenPointArrays = new WeakMap<object, readonly number[] | null>();
+/** A frozen copy of a stored point list; null when unusable (validated once per stored array). */
+function frozenPoints(points: unknown): readonly number[] | null {
+  if (typeof points !== 'object' || points === null) return null;
+  let frozen = frozenPointArrays.get(points);
+  if (frozen === undefined) {
+    frozen = isStrokePoints(points) ? Object.freeze([...points]) : null;
+    frozenPointArrays.set(points, frozen);
+  }
+  return frozen;
+}
+
 /** Snapshot of one object of a known type other than connector; undefined when unusable. */
 function plainSnapshot(id: string, obj: Y.Map<unknown>, type: string): ObjectSnapshot | undefined {
   const x = obj.get('x');
@@ -241,6 +266,19 @@ function plainSnapshot(id: string, obj: Y.Map<unknown>, type: string): ObjectSna
     base.fill = hasKey(SHAPE_FILL_COLORS, fill) ? (fill as FillColor) : DEFAULT_SHAPE_FILL;
     base.stroke = hasKey(SHAPE_STROKE_COLORS, stroke) ? (stroke as StrokeColor) : DEFAULT_SHAPE_STROKE;
     base.label = label instanceof Y.Text ? label.toString() : '';
+  } else if (type === 'stroke') {
+    const points = frozenPoints(obj.get('points'));
+    const baseWidth = obj.get('baseWidth');
+    const baseHeight = obj.get('baseHeight');
+    const color = obj.get('color');
+    const thickness = obj.get('thickness');
+    // A stroke without usable points cannot be drawn or hit: it is not shown.
+    if (!points) return undefined;
+    base.points = points;
+    base.baseWidth = isFiniteNumber(baseWidth) && baseWidth > 0 ? baseWidth : base.width;
+    base.baseHeight = isFiniteNumber(baseHeight) && baseHeight > 0 ? baseHeight : base.height;
+    base.color = isPenColor(color) ? color : DEFAULT_PEN_COLOR;
+    base.thickness = isPenThickness(thickness) ? thickness : DEFAULT_PEN_THICKNESS;
   }
   return base;
 }

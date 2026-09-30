@@ -22,7 +22,7 @@ const ARROWS: Record<string, { x: number; y: number }> = {
  * arrows nudge, Delete/Backspace delete, Enter edits a single text object,
  * Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (undo.controls),
  * V Select tool, T Text tool, N new sticky note (text.tool_ui), S Shape and L Connector
- * tools (tools.active_tool); Escape leaves any tool for Select.
+ * tools (tools.active_tool), P Pen (pen.stay_active); Escape leaves any tool for Select.
  * Never while editing text (the editor handles its own undo) or typing in a
  * field; mutating keys need `canEdit`. Each change is its own undo step.
  */
@@ -32,7 +32,7 @@ export function useBoardKeys(opts: {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undo?: UndoController;
-  /** Tool shortcuts: V → Select, T/S/L → Text/Shape/Connector (need canEdit), Escape → Select. */
+  /** Tool shortcuts: V → Select, T/S/L/P → Text/Shape/Connector/Pen (need canEdit), Escape → Select. */
   tool?: { tool: Tool; setTool(t: Tool): void };
   /** N: the Sticky note button's action (a note at the view centre). */
   onCreateSticky?(): void;
@@ -71,7 +71,7 @@ export function useBoardKeys(opts: {
           tool.setTool('select');
           return;
         }
-        if ((shortcut === 'text' || shortcut === 'shape' || shortcut === 'connector') && tool) {
+        if ((shortcut === 'text' || shortcut === 'shape' || shortcut === 'connector' || shortcut === 'pen') && tool) {
           e.preventDefault();
           if (canEdit) tool.setTool(shortcut);
           return;

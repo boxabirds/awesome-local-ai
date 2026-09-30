@@ -2,6 +2,7 @@ import { type ObjectSnapshot, isSticky, objectBounds } from '../../shared/board-
 import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
 import { isConnector } from '../../shared/objects/connector';
 import { isShape } from '../../shared/objects/shape';
+import { isStroke } from '../../shared/objects/stroke';
 import { isText } from '../../shared/objects/text';
 import { unionRects } from '../../shared/geometry';
 import { type Camera, worldToScreen } from '../canvas/camera';
@@ -17,7 +18,7 @@ export function selectionLabel(count: number): string {
  * The bar above the selection: "N selected" + Delete for two or more objects,
  * story 2's note toolbar for exactly one sticky note, the text toolbar (sizes)
  * for exactly one text object, the shape toolbar (fill and outline) for exactly
- * one shape, and Delete for exactly one arrow. The count is always
+ * one shape, and Delete for exactly one arrow or drawing (pen stroke). The count is always
  * announced to screen readers through a polite live region.
  */
 export function SelectionBar(props: {
@@ -88,17 +89,18 @@ export function SelectionBar(props: {
         onDelete={props.onDelete}
       />
     );
-  } else if (!props.hidden && single && isConnector(single)) {
+  } else if (!props.hidden && single && (isConnector(single) || isStroke(single))) {
+    const name = isStroke(single) ? 'Drawing' : 'Arrow';
     content = (
       <div
         className="note-toolbar"
         role="toolbar"
-        aria-label="Arrow"
+        aria-label={name}
         onPointerDown={(e) => e.stopPropagation()}
         onDoubleClick={(e) => e.stopPropagation()}
         onWheel={(e) => e.stopPropagation()}
       >
-        <button type="button" className="note-toolbar-delete" aria-label="Delete arrow" title="Delete arrow" onClick={props.onDelete}>
+        <button type="button" className="note-toolbar-delete" aria-label={`Delete ${name.toLowerCase()}`} title={`Delete ${name.toLowerCase()}`} onClick={props.onDelete}>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
             <path
               d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-3 6h12l-1 12H7L6 9Zm4 2v8h1.5v-8H10Zm3.5 0v8H15v-8h-1.5Z"

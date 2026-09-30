@@ -18,6 +18,8 @@ export interface Vidi6TestHooks {
   seedShapes?(shapes: readonly { kind: string; x: number; y: number; width: number; height: number; label?: string }[]): string[];
   /** Adds arrows between endpoints (`{ kind: 'attached', objectId, fallback }` or `{ kind: 'free', x, y }`); returns ids. */
   seedConnectors?(arrows: readonly { from: unknown; to: unknown }[]): string[];
+  /** Adds pen strokes from world points (story 11 e2e fixtures); returns their ids. */
+  seedStrokes?(strokes: readonly { points: readonly { x: number; y: number }[]; color?: string; thickness?: string }[]): string[];
   /** Deletes objects as the Delete key does (arrows attached to them stay, freed). */
   deleteObjects?(ids: string[]): number;
   /** Current live connection state, and every state since the page loaded. */

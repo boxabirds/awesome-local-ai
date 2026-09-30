@@ -8,6 +8,7 @@ import {
   CONNECTOR_HIT_TOLERANCE_PX,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import { type Point, type Rect, rectContains } from '../../shared/geometry';
@@ -16,11 +17,14 @@ import { scaleConnector } from '../../shared/objects/connector';
 import { ConnectorObject } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeObject } from './StrokeObject';
+import { strokeHitTest } from './strokeHitTest';
 import { TextObject } from './TextObject';
 import { applyTextResize } from './useTextBoxSync';
 import type { ObjectProps } from './types';
 
 export type { ObjectProps } from './types';
+export { strokeHitTest } from './strokeHitTest';
 
 export interface ObjectTypeSpec {
   Component: ComponentType<ObjectProps>;
@@ -103,4 +107,14 @@ registerObjectType('connector', {
     scaleConnector(doc, obj, to);
   },
   hitTest: connectorHitTest,
+});
+
+// Pen strokes (story 11): selected by their line only; resizing keeps their proportions.
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: strokeHitTest,
 });

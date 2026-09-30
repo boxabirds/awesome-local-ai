@@ -13,6 +13,7 @@ import {
 import { STICKY_SIZE_WORLD } from '../shared/config';
 import { type Endpoint, createConnector } from '../shared/objects/connector';
 import { type ShapeKind, createShape, getShapeLabel, setShapeStyle } from '../shared/objects/shape';
+import { type PenColor, type PenThickness, createStroke } from '../shared/objects/stroke';
 import { createText, setTextSize } from '../shared/objects/text';
 import { MarqueeRect, useMarquee } from './board/Marquee';
 import { SelectionBar } from './board/SelectionBar';
@@ -36,8 +37,11 @@ import { remeasureTextBox } from './objects/useTextBoxSync';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
 import { ShapeTool } from './tools/ShapeTool';
 import { useActiveTool } from './tools/useActiveTool';
+import { usePenOptions } from './tools/usePenOptions';
 
 function initialViewportSize(): Size {
   return { width: window.innerWidth, height: window.innerHeight };
@@ -121,6 +125,8 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
   // A shape or arrow just created becomes the selection and the tool returns to Select.
   const tools = useActiveTool({ canEdit: editable, onSelect: selection.selectNew });
+  // Pen colour and thickness last for the session (until the page is reloaded).
+  const pen = usePenOptions();
 
   useEffect(
     () =>
@@ -152,6 +158,16 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
         seedConnectors: (arrows) =>
           arrows.map((a) => {
             const id = createConnector(doc, a.from as Endpoint, a.to as Endpoint, LOCAL_AUTHOR_ID);
+            if (id === null) throw new Error('seed rejected');
+            return id;
+          }),
+        seedStrokes: (strokes) =>
+          strokes.map((st) => {
+            const id = createStroke(
+              doc,
+              { points: st.points, color: (st.color ?? 'black') as PenColor, thickness: (st.thickness ?? 'medium') as PenThickness },
+              LOCAL_AUTHOR_ID,
+            );
             if (id === null) throw new Error('seed rejected');
             return id;
           }),
@@ -238,6 +254,17 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
         undo={undoController}
       />
     );
+  } else if (tools.tool === 'pen') {
+    toolLayer = (
+      <PenTool
+        camera={camera}
+        color={pen.color}
+        thickness={pen.thickness}
+        doc={doc}
+        identityId={LOCAL_AUTHOR_ID}
+        undo={undoController}
+      />
+    );
   }
 
   return (
@@ -302,6 +329,9 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
               shapeKind={tools.shapeKind}
               onShapeKind={tools.setShapeKind}
             />
+            {tools.tool === 'pen' && (
+              <PenToolbar color={pen.color} thickness={pen.thickness} onColor={pen.setColor} onThickness={pen.setThickness} />
+            )}
             {props.boardId && <ConnectionStatus state={connection} />}
             <NavigationHint visible={!board.hasNavigated} />
             <ZoomControls

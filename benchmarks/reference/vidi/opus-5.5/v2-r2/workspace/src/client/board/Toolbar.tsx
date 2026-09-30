@@ -15,7 +15,7 @@ const KIND_ICONS: Record<ShapeKind, React.JSX.Element> = {
 
 /**
  * Fixed left-side vertical toolbar: Select, Text, Shape (with its kind menu
- * while active) and Connector tools, Sticky note, then Undo and Redo.
+ * while active), Connector and Pen tools, Sticky note, then Undo and Redo.
  */
 export function Toolbar(props: {
   onCreateSticky(): void;
@@ -108,6 +108,19 @@ export function Toolbar(props: {
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
           <path d="M5 19 17.5 6.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           <path d="M19.5 4.5 18 11l-4.5-4.5 6-2Z" fill="currentColor" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        aria-label="Pen (P)"
+        title="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        disabled={props.disabled}
+        onClick={() => props.onTool?.('pen')}
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+          <path d="M4 20l1.2-4.6L15.6 5a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.6 18.8 4 20Z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M14 6.6l3.4 3.4" stroke="currentColor" strokeWidth="1.6" />
         </svg>
       </button>
       <button

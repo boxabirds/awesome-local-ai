@@ -832,3 +832,114 @@ body,
   border-width: 3px;
   border-style: solid;
 }
+
+/* Story 11: pen */
+
+.pen-toolbar {
+  position: fixed;
+  left: 76px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
+}
+
+.pen-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.pen-swatch[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px #2f6fed;
+}
+
+.pen-toolbar-divider {
+  width: 24px;
+  height: 1px;
+  background: #dcdfe6;
+}
+
+.pen-thickness {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: #1f2330;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.pen-thickness:hover {
+  background: #eef0f4;
+}
+
+.pen-thickness[aria-pressed='true'] {
+  color: #2f5fc4;
+  background: #e3ebfb;
+}
+
+.pen-swatch:focus-visible,
+.pen-thickness:focus-visible {
+  outline: 2px solid #3b6fd8;
+  outline-offset: 1px;
+}
+
+.tool-layer.pen-tool {
+  cursor: none;
+}
+
+.pen-preview-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.pen-cursor {
+  position: absolute;
+  box-sizing: border-box;
+  min-width: 2px;
+  min-height: 2px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.9), 0 0 0 2px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+}
+
+.stroke-object {
+  position: absolute;
+  pointer-events: none;
+  outline: none;
+}
+
+.stroke-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+
+.stroke-hit {
+  cursor: pointer;
+}
+
+.stroke-object:focus-visible:not(.is-selected) .stroke-line {
+  stroke-dasharray: 4 3;
+}
