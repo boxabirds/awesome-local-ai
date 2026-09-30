@@ -1,3 +1,34 @@
+commit a7f15cb8b6645f80a13616bbb4851bfaf9b2a09d
+vidi-agent  Wed Sep 30 03:37:06 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ .gitignore                                       |   1 +
+ src/client/App.tsx                               |  26 +-
+ src/client/board/Toolbar.tsx                     |  10 +-
+ src/client/objects/StickyNote.tsx                |  14 +-
+ src/client/sync/ConnectionStatus.tsx             |  22 +-
+ src/client/sync/connectBoard.ts                  |  57 ++-
+ src/shared/config.ts                             |  38 ++
+ src/shared/protocol.ts                           |  15 +
+ src/worker/board-room.ts                         | 506 ++++++++++++++++-----
+ src/worker/board-store.ts                        | 389 ++++++++++++++++
+ src/worker/index.ts                              |  19 +-
+ src/worker/room-state.ts                         | 121 +++++
+ src/worker/test-hooks.ts                         | 203 +++++++++
+ tests/component/BoardUnavailable.test.tsx        | 395 ++++++++++++++++
+ tests/component/ConnectionStatus.test.tsx        |  98 +---
+ tests/component/helpers/fake-provider.ts         |  90 ++++
+ tests/e2e/board-persistence.spec.ts              | 256 +++++++++++
+ tests/e2e/helpers/participants.ts                |  32 +-
+ tests/e2e/helpers/persistent-server.ts           | 276 ++++++++++++
+ tests/integration/board-room-persistence.test.ts | 494 ++++++++++++++++++++
+ tests/integration/board-room.test.ts             |  48 +-
+ tests/integration/board-store.test.ts            | 548 +++++++++++++++++++++++
+ tests/unit/board-store-chunks.test.ts            |  79 ++++
+ tests/unit/room-state.test.ts                    | 240 ++++++++++
+ 24 files changed, 3758 insertions(+), 219 deletions(-)
 commit fac3fc008097961efee1fd9a81c1b3d2d53c4267
 vidi-agent  Wed Sep 30 01:37:23 2026 +0100
 
