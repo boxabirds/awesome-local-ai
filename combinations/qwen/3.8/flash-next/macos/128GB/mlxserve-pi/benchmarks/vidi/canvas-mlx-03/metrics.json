@@ -431,7 +431,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 2065.7,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 107,
+          "prefill_s": 158.4,
+          "prefill_tokens": 100586,
+          "prefill_tok_s": 635.0,
+          "decode_s": 1403.8,
+          "decode_tokens": 71599,
+          "decode_tok_s": 51.0,
+          "cached_tokens": 5735726
+        },
         "tools_s": 499.2,
         "tools_by_kind": {
           "e2e": 435.0,
@@ -444,7 +454,8 @@
         },
         "compaction_s": 0,
         "compactions": 0,
-        "other_s": 1566.5
+        "other_s": 4.3,
+        "backfilled": true
       },
       "loc": {
         "files": 18,
@@ -1288,7 +1299,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 3178.5,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 100,
+          "prefill_s": 232.7,
+          "prefill_tokens": 205544,
+          "prefill_tok_s": 883.3,
+          "decode_s": 2335.7,
+          "decode_tokens": 108469,
+          "decode_tok_s": 46.4,
+          "cached_tokens": 4256283
+        },
         "tools_s": 517.3,
         "tools_by_kind": {
           "e2e": 497.9,
@@ -1301,7 +1322,8 @@
         },
         "compaction_s": 87.5,
         "compactions": 1,
-        "other_s": 2573.6
+        "other_s": 5.2,
+        "backfilled": true
       },
       "loc": {
         "files": 33,
@@ -2642,7 +2664,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 6130.2,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 299,
+          "prefill_s": 552.6,
+          "prefill_tokens": 427434,
+          "prefill_tok_s": 773.5,
+          "decode_s": 4048.4,
+          "decode_tokens": 213666,
+          "decode_tok_s": 52.8,
+          "cached_tokens": 19657268
+        },
         "tools_s": 1216.7,
         "tools_by_kind": {
           "unit": 713.0,
@@ -2655,7 +2687,8 @@
         },
         "compaction_s": 300.2,
         "compactions": 3,
-        "other_s": 4613.3
+        "other_s": 12.3,
+        "backfilled": true
       },
       "loc": {
         "files": 55,
@@ -4448,7 +4481,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 8330.4,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 345,
+          "prefill_s": 748.9,
+          "prefill_tokens": 618737,
+          "prefill_tok_s": 826.2,
+          "decode_s": 5793.2,
+          "decode_tokens": 311420,
+          "decode_tok_s": 53.8,
+          "cached_tokens": 23935002
+        },
         "tools_s": 1200.5,
         "tools_by_kind": {
           "bash": 592.3,
@@ -4461,7 +4504,8 @@
         },
         "compaction_s": 572.8,
         "compactions": 5,
-        "other_s": 6557.1
+        "other_s": 15.0,
+        "backfilled": true
       },
       "loc": {
         "files": 69,
@@ -5463,7 +5507,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 5554.6,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 233,
+          "prefill_s": 432.6,
+          "prefill_tokens": 384117,
+          "prefill_tok_s": 887.9,
+          "decode_s": 2988.6,
+          "decode_tokens": 167768,
+          "decode_tok_s": 56.1,
+          "cached_tokens": 16066177
+        },
         "tools_s": 1837.2,
         "tools_by_kind": {
           "e2e": 1714.8,
@@ -5476,7 +5530,8 @@
         },
         "compaction_s": 286.3,
         "compactions": 3,
-        "other_s": 3431.0
+        "other_s": 9.8,
+        "backfilled": true
       },
       "loc": {
         "files": 86,
@@ -6838,7 +6893,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 5698.8,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 207,
+          "prefill_s": 540.1,
+          "prefill_tokens": 520471,
+          "prefill_tok_s": 963.6,
+          "decode_s": 4014.1,
+          "decode_tokens": 223038,
+          "decode_tok_s": 55.6,
+          "cached_tokens": 13522162
+        },
         "tools_s": 695.7,
         "tools_by_kind": {
           "e2e": 636.4,
@@ -6851,7 +6916,8 @@
         },
         "compaction_s": 440.9,
         "compactions": 4,
-        "other_s": 4562.1
+        "other_s": 7.9,
+        "backfilled": true
       },
       "loc": {
         "files": 103,
@@ -8212,7 +8278,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 5223.9,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 212,
+          "prefill_s": 527.9,
+          "prefill_tokens": 453913,
+          "prefill_tok_s": 859.8,
+          "decode_s": 4010.9,
+          "decode_tokens": 196902,
+          "decode_tok_s": 49.1,
+          "cached_tokens": 13884727
+        },
         "tools_s": 301.4,
         "tools_by_kind": {
           "e2e": 225.0,
@@ -8225,7 +8301,8 @@
         },
         "compaction_s": 374.4,
         "compactions": 3,
-        "other_s": 4548.0
+        "other_s": 9.2,
+        "backfilled": true
       },
       "loc": {
         "files": 112,
@@ -9473,7 +9550,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 4193.1,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 319,
+          "prefill_s": 578.4,
+          "prefill_tokens": 411586,
+          "prefill_tok_s": 711.6,
+          "decode_s": 2920.0,
+          "decode_tokens": 148806,
+          "decode_tok_s": 51.0,
+          "cached_tokens": 22502087
+        },
         "tools_s": 348.4,
         "tools_by_kind": {
           "e2e": 246.9,
@@ -9486,7 +9573,8 @@
         },
         "compaction_s": 329.2,
         "compactions": 3,
-        "other_s": 3515.5
+        "other_s": 17.1,
+        "backfilled": true
       },
       "loc": {
         "files": 128,
@@ -11151,7 +11239,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 7155.9,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 330,
+          "prefill_s": 815.0,
+          "prefill_tokens": 780479,
+          "prefill_tok_s": 957.7,
+          "decode_s": 5106.2,
+          "decode_tokens": 301048,
+          "decode_tok_s": 59.0,
+          "cached_tokens": 21704371
+        },
         "tools_s": 587.6,
         "tools_by_kind": {
           "e2e": 499.4,
@@ -11164,7 +11262,8 @@
         },
         "compaction_s": 635.8,
         "compactions": 6,
-        "other_s": 5932.6
+        "other_s": 11.4,
+        "backfilled": true
       },
       "loc": {
         "files": 146,
@@ -12251,7 +12350,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 5586.6,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 225,
+          "prefill_s": 498.8,
+          "prefill_tokens": 441998,
+          "prefill_tok_s": 886.1,
+          "decode_s": 2849.6,
+          "decode_tokens": 160291,
+          "decode_tok_s": 56.3,
+          "cached_tokens": 14774256
+        },
         "tools_s": 1982.0,
         "tools_by_kind": {
           "e2e": 1885.6,
@@ -12264,7 +12373,8 @@
         },
         "compaction_s": 247.0,
         "compactions": 3,
-        "other_s": 3357.6
+        "other_s": 9.2,
+        "backfilled": true
       },
       "loc": {
         "files": 157,
@@ -14139,7 +14249,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 8584.9,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 436,
+          "prefill_s": 1088.3,
+          "prefill_tokens": 961082,
+          "prefill_tok_s": 883.1,
+          "decode_s": 5730.4,
+          "decode_tokens": 310780,
+          "decode_tok_s": 54.2,
+          "cached_tokens": 30080590
+        },
         "tools_s": 870.8,
         "tools_by_kind": {
           "e2e": 406.0,
@@ -14152,7 +14272,8 @@
         },
         "compaction_s": 877.9,
         "compactions": 8,
-        "other_s": 6836.2
+        "other_s": 17.5,
+        "backfilled": true
       },
       "loc": {
         "files": 178,
