@@ -71,3 +71,18 @@ def test_a_compactions_own_model_call_counts_as_compaction_not_model(tmp_path):
     p.write_text("\n".join(lines) + "\n")
     ts = drive.time_split(p, tmp_path / "no-server.log", 0.0, 60.0)
     assert ts["model"]["requests"] == 1 and ts["compactions"] == 1
+
+
+def test_only_what_falls_inside_the_story_s_window_counts(tmp_path):
+    """A restarted story's log also holds the earlier attempt; the time split covers started..agent_finished only,
+    or its parts add up to more than its wall time."""
+    import drive
+    p = events(tmp_path, [(10.0, 12.0, 20.0, 2000, 0, 800), (130.0, 131.0, 140.0, 100, 0, 400)])
+    lines = p.read_text().splitlines()
+    lines += [json.dumps({"_rx": 30.0, "type": "tool_execution_start", "toolCallId": "old", "toolName": "bash", "args": {"command": "npm test"}}),
+              json.dumps({"_rx": 90.0, "type": "tool_execution_end", "toolCallId": "old", "toolName": "bash"})]
+    p.write_text("\n".join(lines) + "\n")
+    ts = drive.time_split(p, tmp_path / "no-server.log", 100.0, 160.0)   # the story (re)started at 100
+    assert ts["model"]["requests"] == 1 and ts["model"]["decode_s"] == 9.0
+    assert ts["tools_s"] == 0.0            # the 60 s npm test ran in the earlier attempt, before the window
+    assert ts["other_s"] >= 0

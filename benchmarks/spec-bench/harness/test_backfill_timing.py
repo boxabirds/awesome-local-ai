@@ -43,3 +43,13 @@ def test_running_it_twice_changes_nothing_the_second_time(tmp_path):
     run = run_with(tmp_path)
     backfill_timing.backfill(run)
     assert backfill_timing.backfill(run) == []
+
+
+def test_recompute_redoes_backfilled_stories_and_any_whose_parts_overran_the_wall(tmp_path):
+    run = run_with(tmp_path)
+    m = json.loads((run / "metrics.json").read_text())
+    m["stories"]["2"]["time_split"]["other_s"] = -500            # parts that added up to more than the wall
+    (run / "metrics.json").write_text(json.dumps(m))
+    assert backfill_timing.backfill(run) == ["1"]               # plain backfill: only the missing one
+    assert backfill_timing.backfill(run, recompute=True) == ["1", "2"]
+    assert json.loads((run / "metrics.json").read_text())["stories"]["2"]["time_split"]["other_s"] >= 0
