@@ -2,11 +2,14 @@ import type { ComponentType } from 'react';
 import type * as Y from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds, registerKnownType } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
 import type { Point } from '../canvas/camera';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
 import { TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
 
 /**
  * Props passed to every board-object component (story 7, sel.registry).
@@ -108,5 +111,40 @@ registerObjectType('text', {
   hitTest: (obj, p) => {
     const b = objectBounds(obj);
     return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+  },
+});
+
+// Shapes (story 10)
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: (obj, p) => {
+    const b = objectBounds(obj);
+    return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+  },
+});
+
+// Connectors (story 10)
+registerObjectType('connector', {
+  Component: ConnectorObject as ComponentType<ObjectProps>,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest: (obj, p) => {
+    // Use the connector's stored endpoints for hit testing
+    const conn = obj as unknown as { from: { kind: string; objectId?: string; fallback?: Point; x?: number; y?: number }; to: { kind: string; objectId?: string; fallback?: Point; x?: number; y?: number } };
+    // For hit testing, we use the connector's bounding box as a quick check,
+    // then refine with distanceToPolyline using resolved endpoints.
+    // Since we don't have the full rects map here, we use the stored x/y/width/height
+    // as a bounding box approximation, and check distance to the line.
+    const from = conn.from;
+    const to = conn.to;
+    const fromPt: Point = from.kind === 'free' ? { x: from.x!, y: from.y! } : (from.fallback ?? { x: obj.x, y: obj.y });
+    const toPt: Point = to.kind === 'free' ? { x: to.x!, y: to.y! } : (to.fallback ?? { x: obj.x + (obj.width ?? 0), y: obj.y + (obj.height ?? 0) });
+    return distanceToPolyline([fromPt, toPt], p) <= CONNECTOR_HIT_TOLERANCE_PX;
   },
 });

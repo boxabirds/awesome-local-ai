@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react';
 import type { Tool } from './useTool';
+import type { ToolId } from '../tools/useActiveTool';
+import type { ShapeKind } from '../../shared/config';
 
 interface ToolbarProps {
   onCreateSticky(): void;
@@ -10,6 +12,11 @@ interface ToolbarProps {
   onRedo?: () => void;
   tool?: Tool;
   onToolChange?: (t: Tool) => void;
+  // Story 10: extended tool support
+  activeToolId?: ToolId;
+  onActiveToolChange?: (t: ToolId) => void;
+  shapeKind?: ShapeKind;
+  onShapeKindChange?: (k: ShapeKind) => void;
 }
 
 const buttonStyle: React.CSSProperties = {
@@ -40,7 +47,20 @@ export function Toolbar({
   onRedo,
   tool = 'select',
   onToolChange,
+  activeToolId,
+  onActiveToolChange,
+  shapeKind = 'rect',
+  onShapeKindChange,
 }: ToolbarProps): ReactElement {
+  // Use the extended tool system if available
+  const currentTool = activeToolId ?? tool;
+  const handleToolChange = (t: ToolId) => {
+    onActiveToolChange?.(t);
+    if (t === 'select' || t === 'text') {
+      onToolChange?.(t as Tool);
+    }
+  };
+
   return (
     <div
       role="toolbar"
@@ -62,9 +82,9 @@ export function Toolbar({
       <button
         type="button"
         aria-label="Select (V)"
-        aria-pressed={tool === 'select'}
-        style={tool === 'select' ? activeButtonStyle : buttonStyle}
-        onClick={() => onToolChange?.('select')}
+        aria-pressed={currentTool === 'select'}
+        style={currentTool === 'select' ? activeButtonStyle : buttonStyle}
+        onClick={() => handleToolChange('select')}
         title="Select (V)"
       >
         ↖
@@ -72,10 +92,10 @@ export function Toolbar({
       <button
         type="button"
         aria-label="Text (T)"
-        aria-pressed={tool === 'text'}
+        aria-pressed={currentTool === 'text'}
         disabled={disabled}
-        style={tool === 'text' ? activeButtonStyle : buttonStyle}
-        onClick={() => onToolChange?.('text')}
+        style={currentTool === 'text' ? activeButtonStyle : buttonStyle}
+        onClick={() => handleToolChange('text')}
         title="Text (T)"
       >
         T
@@ -89,6 +109,105 @@ export function Toolbar({
         title="Sticky note (N)"
       >
         +
+      </button>
+      {/* Story 10: Shape button with kind menu */}
+      <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          aria-label="Shape (S)"
+          aria-pressed={currentTool === 'shape'}
+          disabled={disabled}
+          style={currentTool === 'shape' ? activeButtonStyle : buttonStyle}
+          onClick={() => handleToolChange('shape')}
+          title="Shape (S)"
+        >
+          □
+        </button>
+        {currentTool === 'shape' && (
+          <div
+            data-testid="shape-kind-menu"
+            role="menu"
+            aria-label="Shape kind"
+            style={{
+              position: 'absolute',
+              top: 44,
+              left: 0,
+              background: '#ffffff',
+              border: '1px solid #d1d5db',
+              borderRadius: 6,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              padding: 4,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              zIndex: 30,
+            }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              aria-label="Rectangle"
+              aria-pressed={shapeKind === 'rect'}
+              style={{
+                padding: '4px 12px',
+                border: 'none',
+                background: shapeKind === 'rect' ? '#dbeafe' : 'transparent',
+                cursor: 'pointer',
+                fontSize: 13,
+                textAlign: 'left',
+              }}
+              onClick={() => onShapeKindChange?.('rect')}
+            >
+              Rectangle
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              aria-label="Ellipse"
+              aria-pressed={shapeKind === 'ellipse'}
+              style={{
+                padding: '4px 12px',
+                border: 'none',
+                background: shapeKind === 'ellipse' ? '#dbeafe' : 'transparent',
+                cursor: 'pointer',
+                fontSize: 13,
+                textAlign: 'left',
+              }}
+              onClick={() => onShapeKindChange?.('ellipse')}
+            >
+              Ellipse
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              aria-label="Diamond"
+              aria-pressed={shapeKind === 'diamond'}
+              style={{
+                padding: '4px 12px',
+                border: 'none',
+                background: shapeKind === 'diamond' ? '#dbeafe' : 'transparent',
+                cursor: 'pointer',
+                fontSize: 13,
+                textAlign: 'left',
+              }}
+              onClick={() => onShapeKindChange?.('diamond')}
+            >
+              Diamond
+            </button>
+          </div>
+        )}
+      </div>
+      {/* Story 10: Connector button */}
+      <button
+        type="button"
+        aria-label="Connector (L)"
+        aria-pressed={currentTool === 'connector'}
+        disabled={disabled}
+        style={currentTool === 'connector' ? activeButtonStyle : buttonStyle}
+        onClick={() => handleToolChange('connector')}
+        title="Connector (L)"
+      >
+        →
       </button>
       <button
         type="button"

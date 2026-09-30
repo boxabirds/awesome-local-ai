@@ -32,7 +32,7 @@ describe('sel.registry (unit)', () => {
   });
 
   it('TC-12: unknown types → undefined (forward compatibility: no throw)', () => {
-    expect(getObjectType('shape')).toBeUndefined();
+    expect(getObjectType('pen')).toBeUndefined();
     expect(getObjectType('does-not-exist')).toBeUndefined();
   });
 

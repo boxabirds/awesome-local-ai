@@ -1,7 +1,11 @@
 import * as Y from 'yjs';
-import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR, STICKY_COLORS, type StickyColor, TEXT_SIZES, type TextSize } from './config';
+import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR, STICKY_COLORS, type StickyColor, TEXT_SIZES, type TextSize, SHAPE_FILL_COLORS, SHAPE_STROKE_COLORS, type FillColor, type StrokeColor, type ShapeKind } from './config';
 import { rectContains, type Rect, type Point } from './geometry';
 import type { TextSnapshot } from './objects/text';
+import type { ShapeSnap } from './objects/shape';
+import type { ConnectorSnap } from './objects/connector';
+import { detachConnectorsTo } from './objects/connector';
+import { resolveEndpoints as resolveEndpointsGeo, connectorBBox, type ConnectorEndpointSnap } from './geometry/connector-geometry';
 
 // Origin used for all local transactions (story 8 undo and story 3 echo suppression).
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
@@ -31,7 +35,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 // Board-model-known object types. The client registry registers its types
 // here (registerObjectType → registerKnownType) so the worker-safe shared
 // model never imports client code.
-const KNOWN_TYPES = new Set<string>(['sticky']);
+const KNOWN_TYPES = new Set<string>(['sticky', 'shape', 'connector']);
 
 /** Marks `type` as a known board-object type (idempotent). */
 export function registerKnownType(type: string): void {
@@ -160,6 +164,8 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const objs = objects(doc);
   let count = 0;
   doc.transact(() => {
+    // Detach connector endpoints that reference deleted objects (story 10).
+    detachConnectorsTo(doc, [...ids]);
     for (const id of ids) {
       const obj = objs.get(id);
       if (!obj) continue;
@@ -312,6 +318,43 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       (entry as StickySnapshot).color = color as StickyColor;
       (entry as StickySnapshot).text = text instanceof Y.Text ? text.toString() : '';
       (entry as StickySnapshot).createdAt = typeof createdAt === 'number' ? createdAt : 0;
+    } else if (type === 'shape') {
+      const kind = obj.get('kind');
+      const fill = obj.get('fill');
+      const stroke = obj.get('stroke');
+      const label = obj.get('label');
+      if (typeof kind !== 'string') return;
+      (entry as ShapeSnap).kind = kind as ShapeKind;
+      (entry as ShapeSnap).fill = (typeof fill === 'string' && fill in SHAPE_FILL_COLORS ? fill : 'white') as FillColor;
+      (entry as ShapeSnap).stroke = (typeof stroke === 'string' && stroke in SHAPE_STROKE_COLORS ? stroke : 'dark') as StrokeColor;
+      (entry as ShapeSnap).label = label instanceof Y.Text ? label.toString() : '';
+    } else if (type === 'connector') {
+      const from = obj.get('from') as ConnectorEndpointSnap | undefined;
+      const to = obj.get('to') as ConnectorEndpointSnap | undefined;
+      if (!from || !to) return;
+      // Resolve endpoints using current object rects for the bounding box
+      const rects = new Map<string, Rect>();
+      objects(doc).forEach((o, oid) => {
+        const ox = o.get('x');
+        const oy = o.get('y');
+        const ow = o.get('width');
+        const oh = o.get('height');
+        if (typeof ox === 'number' && typeof oy === 'number') {
+          rects.set(oid, {
+            x: ox, y: oy,
+            width: typeof ow === 'number' && Number.isFinite(ow) ? ow : 200,
+            height: typeof oh === 'number' && Number.isFinite(oh) ? oh : 200,
+          });
+        }
+      });
+      const { from: fp, to: tp } = resolveEndpointsGeo({ from, to }, rects);
+      const bbox = connectorBBox(fp, tp);
+      (entry as ConnectorSnap).from = from;
+      (entry as ConnectorSnap).to = to;
+      (entry as ConnectorSnap).x = bbox.x;
+      (entry as ConnectorSnap).y = bbox.y;
+      (entry as ConnectorSnap).width = bbox.width;
+      (entry as ConnectorSnap).height = bbox.height;
     } else if (type === 'text') {
       const size = obj.get('size');
       if (typeof size !== 'string' || !(size in TEXT_SIZES)) return;
