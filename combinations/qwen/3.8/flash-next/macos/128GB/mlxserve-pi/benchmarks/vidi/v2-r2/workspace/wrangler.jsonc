@@ -1,0 +1,10 @@
+{
+  // vidi6 static client. The Worker `main` (Durable Objects sync) arrives in
+  // story 3; for now this is an assets-only Worker serving the built client.
+  "name": "vidi6",
+  "compatibility_date": "2026-09-17",
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application"
+  }
+}

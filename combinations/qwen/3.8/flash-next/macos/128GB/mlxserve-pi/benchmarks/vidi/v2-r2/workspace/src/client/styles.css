@@ -1,0 +1,161 @@
+/* Full-window board. The board area holds the viewport (dot grid + world layer)
+   and the fixed-position UI. */
+
+:root {
+  color-scheme: light;
+  --board-bg: #fbfbfd;
+  --ui-bg: rgba(255, 255, 255, 0.94);
+  --ui-border: rgba(20, 20, 30, 0.14);
+  --ui-text: #1c1c24;
+  --hint-bg: rgba(28, 28, 36, 0.88);
+  --focus: #2563eb;
+  --marker: rgba(198, 60, 50, 0.8);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  font: 14px/1.45 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--board-bg);
+  color: var(--ui-text);
+}
+
+.board-area {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  background-color: var(--board-bg);
+  cursor: grab;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+.board-viewport.is-panning {
+  cursor: grabbing;
+}
+
+/* World layer: CSS-transformed with the camera; children use world coordinates.
+   It never receives pointer events itself, so a drag on empty space always
+   reaches the board surface. */
+.board-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* The board's starting point: a small crosshair centred on world (0, 0). */
+.origin-marker {
+  position: absolute;
+  left: -12px;
+  top: -12px;
+  width: 24px;
+  height: 24px;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: '';
+  position: absolute;
+  background: var(--marker);
+}
+
+.origin-marker::before {
+  left: 11px;
+  top: 0;
+  width: 2px;
+  height: 24px;
+}
+
+.origin-marker::after {
+  left: 0;
+  top: 11px;
+  width: 24px;
+  height: 2px;
+}
+
+/* Zoom control, bottom-right corner. */
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.zoom-button,
+.zoom-reset {
+  font: inherit;
+  color: inherit;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.zoom-button {
+  min-width: 32px;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.zoom-button:hover:not(:disabled),
+.zoom-reset:hover {
+  background: rgba(20, 20, 30, 0.08);
+}
+
+.zoom-button:disabled {
+  color: #b3b3bc;
+  cursor: default;
+}
+
+.zoom-percent {
+  min-width: 3.6rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+button:focus-visible,
+.zoom-controls:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* First-use navigation hint, bottom centre. */
+.nav-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--hint-bg);
+  color: #fff;
+  white-space: nowrap;
+  pointer-events: none;
+}
