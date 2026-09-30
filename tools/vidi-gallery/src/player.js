@@ -70,41 +70,58 @@ const SCRUB_MS = 1000;        // - and =: a second of the recording per press (h
 const FINE_SCRUB_MS = 100;    // with shift: a tenth of that
 const TENTHS = 10;            // digits jump to tenths of the recording
 
-// What a key press does in the review, or null to leave it to the browser. By key position (code) for
-// digits and - = , . so shift and keyboard layouts don't change them.
-function keyAction(e) {
+// The review has three panes, left to right: the stories, a story's held-out tests, and the browser steps
+// of the test being played. Each pane's up/down moves within it; Tab and shift-Tab (or Esc) move between
+// panes; left/right go into the tests from the stories and scrub the recording in the other two.
+const PANES = ["stories", "tests", "steps"];
+
+function paneMove(pane, dir) {
+  const i = PANES.indexOf(pane) + dir;
+  return i >= 0 && i < PANES.length ? { do: "pane", to: PANES[i] } : { do: "none" };
+}
+
+// What a key press does in the review, given the pane with focus, or null to leave it to the browser. By key
+// position (code) for digits and - = , . so shift and keyboard layouts don't change them.
+function keyAction(e, pane) {
   if (e.metaKey || e.ctrlKey || e.altKey) return null;  // reload, zoom, tabs: the browser's
-  const shift = e.shiftKey, code = e.code;
+  const shift = e.shiftKey, code = e.code, scrub = dir => ({ do: "scrub", ms: dir * (shift ? FINE_SCRUB_MS : SCRUB_MS) });
   const digit = /^(Digit|Numpad)(\d)$/.exec(code);
   if (digit) return { do: "jump", frac: Number(digit[2]) / TENTHS };
+  // Moving within and between panes.
+  if (code === "Tab") return paneMove(pane, shift ? -1 : 1);
+  if (code === "Escape") return pane === "stories" ? { do: "escape" } : paneMove(pane, -1);
+  if (code === "ArrowUp" || code === "ArrowDown") {
+    const dir = code === "ArrowDown" ? 1 : -1;
+    return { do: pane === "stories" ? "story" : pane === "tests" ? "path" : "step", dir };
+  }
+  if (code === "ArrowRight" || code === "ArrowLeft") {
+    if (pane === "stories") return code === "ArrowRight" ? { do: "pane", to: "tests" } : { do: "none" };
+    return scrub(code === "ArrowRight" ? 1 : -1);
+  }
+  if (code === "Enter") {
+    if (pane === "stories") return { do: "pane", to: "tests" };
+    return shift ? { do: "verdict", v: "disagree", note: true } : { do: "verdict", v: "agree", next: true };
+  }
+  // The same in every pane.
   switch (code) {
-    case "ArrowDown": return { do: "path", dir: 1 };
-    case "ArrowUp": return { do: "path", dir: -1 };
-    case "Tab": return { do: "path", dir: shift ? -1 : 1 };
-    case "KeyJ": return { do: "path", dir: 1 };
-    case "KeyK": return { do: "path", dir: -1 };
     case "BracketRight": case "PageDown": return { do: "story", dir: 1 };
     case "BracketLeft": case "PageUp": return { do: "story", dir: -1 };
     case "Space": return { do: "play" };
-    case "ArrowRight": return { do: shift ? "step" : "check", dir: 1 };
-    case "ArrowLeft": return { do: shift ? "step" : "check", dir: -1 };
     case "Period": return shift ? { do: "speed", dir: 1 } : { do: "frame", dir: 1 };
     case "Comma": return shift ? { do: "speed", dir: -1 } : { do: "frame", dir: -1 };
-    case "Equal": return { do: "scrub", ms: shift ? FINE_SCRUB_MS : SCRUB_MS };
-    case "Minus": return { do: "scrub", ms: -(shift ? FINE_SCRUB_MS : SCRUB_MS) };
+    case "Equal": return scrub(1);
+    case "Minus": return scrub(-1);
     case "Home": return { do: "jump", frac: 0 };
     case "End": return { do: "jump", frac: 1 };
-    case "Enter": return shift ? { do: "verdict", v: "disagree", note: true } : { do: "verdict", v: "agree", next: true };
     case "KeyA": return { do: "verdict", v: "agree" };
     case "KeyD": return { do: "verdict", v: "disagree" };
     case "KeyS": return { do: "verdict", v: "skip" };
     case "KeyN": return { do: "note" };
     case "KeyO": return { do: "open" };
     case "KeyW": return { do: "waits" };
-    case "Escape": return { do: "escape" };
     case "Slash": return shift ? { do: "help" } : null;
     default: return null;
   }
 }
 
-if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, nextFrame, keyAction, SCRUB_MS, FINE_SCRUB_MS };
+if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, nextFrame, keyAction, PANES, SCRUB_MS, FINE_SCRUB_MS };

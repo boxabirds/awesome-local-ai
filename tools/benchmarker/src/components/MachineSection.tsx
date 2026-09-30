@@ -10,7 +10,7 @@ interface Props {
 
 const COLUMNS: [string, string][] = [
   ["Run", "12%"], ["Status", "9%"], ["Story", "11%"], ["Time", "9%"], ["Activity", "11%"],
-  ["Stories working", "11%"], ["Tokens", "8%"], ["tok/s", "8%"], ["Score", "7%"], ["Judge", "7%"], ["Links", "7%"],
+  ["Stories passing held-out tests", "11%"], ["Tokens", "8%"], ["tok/s", "8%"], ["Score", "7%"], ["Judge", "7%"], ["Links", "7%"],
 ];
 
 /** What a dbench node is doing now: its running job, or idle, and the length of its queue. */

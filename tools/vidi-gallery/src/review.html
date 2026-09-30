@@ -78,6 +78,8 @@ kbd { background:var(--chip); border-radius:3px; padding:0 4px; font:11px ui-mon
 .reveal { margin-top:8px; }
 .fail { color:var(--fail); }
 a { color:var(--accent); }
+#nav:focus-visible, #builds:focus-visible, #steps:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
+#nav:focus, #builds:focus, #steps:focus { outline-color:var(--accent); }
 #help { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:10; }
 .helpbox { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 18px; max-height:90vh; overflow:auto; min-width:min(520px, 92vw); }
 .helpbox h2 { margin:0 0 8px; font-size:15px; } .helpbox td { padding:3px 8px; border:0; font-size:13px; } .helpbox td:first-child { white-space:nowrap; }
@@ -91,7 +93,7 @@ a { color:var(--accent); }
   <span id="saved" class="muted small"></span>
 </header>
 <div class="layout">
-  <nav id="nav"></nav>
+  <nav id="nav" tabindex="0" aria-label="Stories"></nav>
   <main id="main">Loading…</main>
 </div>
 <script src="/review/player.js"></script>
@@ -99,6 +101,18 @@ a { color:var(--accent); }
 let S = null, story = 0, status = {};
 // ?setup=…&run=… (the benchmarker's Judge link): judge that one build; null shows every build.
 let focus = null;
+// The pane with the keyboard: "stories", "tests" (a story's held-out tests) or "steps" (the browser steps
+// of the test being played). keyAction (player.js) reads keys by pane; the focused pane shows a ring.
+let pane = "stories";
+const paneEl = p => ({stories: $("nav"), tests: $("builds"), steps: $("steps")})[p];
+function focusPane() {
+  const el = paneEl(pane);
+  if (el && !el.contains(document.activeElement)) el.focus({preventScroll: true});
+}
+document.addEventListener("focusin", e => {
+  const p = e.target.closest?.("#nav") ? "stories" : e.target.closest?.("#builds") ? "tests" : e.target.closest?.("#steps") ? "steps" : null;
+  if (p) pane = p;
+});
 const builds = () => focus === null ? S.builds : S.builds.filter(b => b.key === focus);
 let cur = null;  // the selected path: {key, idx}
 const NOTE_SAVE_MS = 700, POLL_MS = 3000;
@@ -142,7 +156,7 @@ function renderNav() {
     const c = counts(s.id);
     return `<a href="#" data-i="${i}" class="${i === story ? "on" : ""}"><span>${s.id}. ${esc(s.title)}</span><span class="n ${c === n ? "done" : ""}">${c}/${n}</span></a>`;
   }).join("");
-  document.querySelectorAll("nav a").forEach(a => a.onclick = e => { e.preventDefault(); go(+a.dataset.i); });
+  document.querySelectorAll("nav a").forEach(a => { a.tabIndex = -1; a.onclick = e => { e.preventDefault(); go(+a.dataset.i); }; });
   const sid = sidNow();
   let total = 0, done = 0;
   builds().forEach(b => paths(sid, b.key).forEach(p => { total++; if (review(sid, b.key, p.title)?.verdict) done++; }));
@@ -184,6 +198,7 @@ function renderBuilds() {
   document.querySelectorAll(".prow").forEach(r => r.onclick = () => select(+r.dataset.key, +r.dataset.idx));
   document.querySelectorAll("[data-bv]").forEach(b => b.onclick = () => post(+b.dataset.key, b.dataset.bv, review(sid, +b.dataset.key)?.notes || "", "").then(() => { renderNav(); renderBuilds(); renderReveal(); }));
   renderReveal();
+  focusPane();
 }
 
 function renderReveal() {
@@ -215,8 +230,8 @@ function renderStory() {
     </div>
     <section style="margin-top:8px"><h2>Requirements (${s.requirements.length})</h2><ul>${s.requirements.map(r => `<li><b>${esc(r.title)}</b> <span class="muted small">${esc(r.anchor)}</span></li>`).join("")}</ul></section>
     </details>
-    <div class="work"><div><div id="builds"></div><div class="reveal" id="reveal"></div></div><div id="player"><section class="muted">Pick a path on the left (or press <kbd>j</kbd>) to play its recording.</section></div></div>
-    <div class="keys"><kbd>↓</kbd><kbd>↑</kbd> path · <kbd>Space</kbd> play · <kbd>→</kbd><kbd>←</kbd> check · <kbd>-</kbd><kbd>=</kbd> scrub (<kbd>⇧</kbd> finer) · <kbd>1</kbd>…<kbd>9</kbd> jump · <kbd>Return</kbd> agree and next · <kbd>⇧Return</kbd> disagree and say why · <kbd>?</kbd> all keys<br>
+    <div class="work"><div><div id="builds" tabindex="0" aria-label="Held-out tests"></div><div class="reveal" id="reveal"></div></div><div id="player"><section class="muted">Pick a path on the left (or press <kbd>j</kbd>) to play its recording.</section></div></div>
+    <div class="keys"><kbd>Tab</kbd> / <kbd>⇧Tab</kbd> move between stories, held-out tests and browser steps · <kbd>↑</kbd><kbd>↓</kbd> within one · <kbd>←</kbd><kbd>→</kbd> scrub · <kbd>Space</kbd> play · <kbd>Return</kbd> agree and next · <kbd>⇧Return</kbd> disagree and say why · <kbd>?</kbd> all keys<br>
     A verdict says whether <b>you agree with the automated result</b> of that path, having watched it. Each build opens as it was after story ${s.review_build}. Reviews save to <code>${esc(S.file)}</code>.</div>`;
   renderBuilds();
 }
@@ -317,7 +332,7 @@ function renderPlayer(tasks) {
       ${SPEEDS.map(x => `<button data-speed="${x}" class="${x === P.speed ? "on" : ""}">${x}×</button>`).join("")}
       <label><input type="checkbox" id="skipw" ${P.skipWaits ? "checked" : ""}> skip long waits</label>
       <span id="clock" class="muted"></span><span id="frames" class="muted"></span></div>`;
-  const stepsHtml = !w ? "" : `<div class="steps" id="steps">${w.steps.map((s, i) => `<div class="step ${s.kind === "check" ? "check" : s.kind === "wait" ? "wait" : "act"}" data-s="${i}">
+  const stepsHtml = !w ? "" : `<div class="steps" id="steps" tabindex="0" aria-label="Browser steps">${w.steps.map((s, i) => `<div class="step ${s.kind === "check" ? "check" : s.kind === "wait" ? "wait" : "act"}" data-s="${i}">
       <span class="${s.error ? "bad" : "ok"}">${s.kind === "check" || s.error ? (s.error ? "✗" : "✓") : ""}</span>
       <span>${esc(s.title)}${s.person != null && w.people.length > 1 ? ` <span class="muted">· ${esc(w.people[s.person].label)}</span>` : ""}</span>
       <span class="muted">${((s.end - w.start) / 1000).toFixed(1)}s</span>
@@ -364,6 +379,7 @@ function renderPlayer(tasks) {
     timers[id] = setTimeout(() => post(key, review(sid, key, p.title)?.verdict || "", e.target.value, p.title), NOTE_SAVE_MS);
   };
   if (w) show();
+  focusPane();
 }
 
 function show() {
@@ -383,7 +399,7 @@ function show() {
   let curStep = -1;
   w.steps.forEach((s, i) => { if (s.start <= t + EPS_MS) curStep = i; });
   document.querySelectorAll("[data-s]").forEach(el => el.classList.toggle("cur", +el.dataset.s === curStep));
-  if (P.playing) document.querySelector(`[data-s="${curStep}"]`)?.scrollIntoView({block: "nearest"});
+  if (P.playing || pane === "steps") document.querySelector(`[data-s="${curStep}"]`)?.scrollIntoView({block: "nearest"});
 }
 
 function seek(t) { if (!P?.w) return; P.t = Math.max(P.w.start, Math.min(t, P.w.end)); show(); }
@@ -470,24 +486,26 @@ async function poll() {
 
 // ---------- the keyboard layer (keyAction in player.js says what each key does) ----------
 const KEYS = [
-  ["↓ ↑ · Tab ⇧Tab · j k", "next / previous path (on through builds and stories)"],
-  ["] [ · PgDn PgUp", "next / previous story"],
+  ["Three panes", "stories · held-out tests · browser steps (the focused one has a ring)"],
+  ["Tab · ⇧Tab Esc", "next pane · previous pane"],
+  ["Stories: ↑ ↓", "previous / next story"],
+  ["Stories: → Return", "into the story's held-out tests"],
+  ["Tests: ↑ ↓", "previous / next held-out test"],
+  ["Steps: ↑ ↓", "previous / next browser step"],
+  ["Tests, steps: ← →", "scrub a second (⇧: a tenth)"],
   ["Space", "play / pause"],
-  ["→ ←", "next / previous check"],
-  ["⇧→ ⇧←", "next / previous step"],
+  ["= -", "scrub a second forward / back (⇧: a tenth)"],
   [". ,", "next / previous frame"],
-  ["= -", "scrub a second forward / back (hold to keep going)"],
-  ["⇧= ⇧-", "scrub a tenth of a second"],
   ["1 … 9 · 0", "jump to 10% … 90% · the start"],
   ["Home End", "start / end"],
   ["> <", "faster / slower"],
-  ["Return", "agree, and on to the next path"],
+  ["] [ · PgDn PgUp", "next / previous story, from any pane"],
+  ["Return", "agree, and on to the next test"],
   ["⇧Return", "disagree, and write why"],
   ["a d s", "agree / disagree / skip (stay here)"],
   ["n", "write a note (Esc or Return to leave it)"],
   ["o", "open this build"],
   ["w", "skip long waits on / off"],
-  ["Esc", "leave the note, pause, close this"],
   ["?", "show / hide these keys"],
 ];
 
@@ -496,16 +514,21 @@ function toggleHelp(show = !$("help")) {
   if ($("help")) return;
   const d = document.createElement("div");
   d.id = "help"; d.setAttribute("role", "dialog"); d.setAttribute("aria-label", "Keys");
-  d.innerHTML = `<div class="helpbox"><h2>Keys</h2><table>${KEYS.map(([k, what]) => `<tr><td>${k.split(" ").map(x => x === "·" || x === "…" ? x : `<kbd>${esc(x)}</kbd>`).join(" ")}</td><td>${esc(what)}</td></tr>`).join("")}</table>
+  const keyCell = k => { const [where, keys] = k.includes(": ") ? k.split(": ") : ["", k];
+    return (where ? `<span class="muted">${esc(where)}:</span> ` : "") + (keys === "Three panes" ? `<b>${esc(keys)}</b>` : keys.split(" ").map(x => x === "·" || x === "…" ? x : `<kbd>${esc(x)}</kbd>`).join(" ")); };
+  d.innerHTML = `<div class="helpbox"><h2>Keys</h2><table>${KEYS.map(([k, what]) => `<tr><td>${keyCell(k)}</td><td>${esc(what)}</td></tr>`).join("")}</table>
     <div class="small muted">Press <kbd>?</kbd> or <kbd>Esc</kbd> to close.</div></div>`;
   d.onclick = e => { if (e.target === d) toggleHelp(false); };
   document.body.appendChild(d);
 }
 
-function stepAny(dir) {  // the next or previous step of any kind
+function stepAny(dir) {  // the next or previous browser step, whatever its kind
   if (!P?.w) return;
-  const t = nextCheck(P.w.steps.map(s => s.end), P.t, dir, EPS_MS);
-  if (t !== null) { pause(); seek(t); document.querySelector(".step.cur")?.scrollIntoView({block: "nearest"}); }
+  const steps = P.w.steps;
+  let i = -1;
+  steps.forEach((st, j) => { if (st.start <= P.t + EPS_MS) i = j; });
+  const j = Math.max(0, Math.min(steps.length - 1, i + dir));
+  pause(); seek(steps[j].start + EPS_MS);
 }
 
 function pause() { if (P?.playing) togglePlay(); }
@@ -519,6 +542,11 @@ function setSpeed(dir) {
 
 async function act(a) {
   switch (a.do) {
+    case "none": return;
+    case "pane":
+      if (a.to === "tests" && !cur) { const f = flat(); if (f.length) await select(f[0].key, f[0].idx); }
+      if (a.to === "steps" && !$("steps")) return;  // nothing playing yet
+      pane = a.to; paneEl(pane)?.focus({preventScroll: true}); return;
     case "path": return movePath(a.dir);
     case "story": return go(story + a.dir);
     case "play": return togglePlay();
@@ -538,7 +566,7 @@ async function act(a) {
     case "note": return $("pnote")?.focus();
     case "open": if (cur) openTab(cur.key); return;
     case "help": return toggleHelp();
-    case "escape": if ($("help")) toggleHelp(false); else pause(); return;
+    case "escape": return pause();
   }
 }
 
@@ -548,7 +576,8 @@ document.addEventListener("keydown", e => {
     if (e.key === "Escape" || e.key === "Enter") { e.preventDefault(); e.target.blur(); }
     return;
   }
-  const a = keyAction(e);
+  if ($("help") && (e.code === "Escape" || (e.code === "Slash" && e.shiftKey))) { e.preventDefault(); toggleHelp(false); return; }
+  const a = keyAction(e, pane);
   if (!a) return;
   e.preventDefault();  // Tab, Space, Return, arrows and the rest are ours here, not the focused button's
   act(a);
