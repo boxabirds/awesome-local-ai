@@ -10,6 +10,9 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
+import { newBoardId } from '../shared/board-id';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 
 declare global {
   interface Window {
@@ -17,13 +20,34 @@ declare global {
       setCamera(cam: Camera): void;
       doc?: Y.Doc;
       snapshot?(): readonly import('../shared/board-model').StickySnapshot[];
+      connectionState?: ConnectionState;
     };
   }
+}
+
+/**
+ * Reads the board id from the URL path.
+ * /b/:boardId → boardId
+ * / → redirect to /b/<newBoardId()>
+ */
+function getBoardIdFromPath(): string | null {
+  const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]{22})$/);
+  return match ? match[1] : null;
 }
 
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 1280, height: 800 });
+
+  // Resolve board id from URL; redirect if at /
+  const [boardId] = useState<string>(() => {
+    const id = getBoardIdFromPath();
+    if (id) return id;
+    // Redirect to a new board
+    const newId = newBoardId();
+    window.history.replaceState(null, '', `/b/${newId}`);
+    return newId;
+  });
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -42,7 +66,7 @@ export default function App() {
 
   const { camera, hasNavigated, beginPan, panMove, endPan, wheel, zoomStepFn, reset, setCamera } =
     useCamera(size);
-  const { doc, notes } = useBoardDoc();
+  const { doc, notes, connectionState } = useBoardDoc(boardId);
   const selection = useSelection();
 
   const [isPanning, setIsPanning] = useState(false);
@@ -81,8 +105,6 @@ export default function App() {
   }, [createStickyAtScreenPoint, size]);
 
   // Keyboard: Enter edits the selected note; Delete/Backspace delete it.
-  // Both are ignored while editing text (keys go to the textarea) or while
-  // focus is in any input field.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -123,14 +145,15 @@ export default function App() {
 
   // Expose test hook for e2e / component tests
   useEffect(() => {
-    window.__vidi6 = { setCamera, doc, snapshot: () => snapshot(doc) };
+    window.__vidi6 = { setCamera, doc, snapshot: () => snapshot(doc), connectionState };
     return () => {
       delete window.__vidi6;
     };
-  }, [setCamera, doc]);
+  }, [setCamera, doc, connectionState]);
 
   return (
     <div ref={containerRef} style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={camera}
         isPanning={isPanning}
@@ -145,9 +168,6 @@ export default function App() {
         onEmptyClick={() => selection.select(null)}
         onCreateSticky={createStickyAtScreenPoint}
       >
-        {/* Stable DOM order (by id) so z-order changes never re-insert a
-            note's element mid-drag (which would release pointer capture);
-            stacking is done with CSS zIndex. */}
         {[...notes]
           .sort((a, b) => a.id.localeCompare(b.id))
           .map((note) => (
