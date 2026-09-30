@@ -11,6 +11,8 @@ export interface Story {
   /** This story's own held-out tests. */
   ownPassed: number | null;
   ownTotal: number | null;
+  /** Every story's own tests against the build after this story, keyed "1", "2", …; null if not recorded. */
+  byStory?: Record<string, { passed: number | null; total: number | null }> | null;
 }
 
 export interface QueuePlace {
@@ -83,9 +85,7 @@ export interface Row {
   state: string;
   stateAt: string;
   status: RunStatus;
-  /** Hidden flows (held-out tests) in the run's whole scope for its suite version; null if unknown. */
-  flowsTotal: number | null;
-  flows: FlowsHealth;
+  storiesWorking: StoriesWorking;
   /** Why or how: a failure's reason, "finishing story 3", "attempt 2"; "" if nothing to add. */
   statusNote: string;
   stories: Story[];
@@ -104,14 +104,20 @@ export interface Machine {
   queued: number;
 }
 
-/** Whether the flows built so far work, from the whole-suite result after the latest recorded story. */
-export interface FlowsHealth {
-  state: "none" | "working" | "some failing" | "regressed" | "broken";
+/** One story in the run's scope, against the latest build: all its flows pass, some, none, not built yet, or being built. */
+export interface StorySquare {
+  id: string;
+  state: "ok" | "part" | "bad" | "unbuilt" | "running";
   passed: number | null;
-  /** The story that result is after. */
-  after: string | null;
-  /** The best earlier result, when this one is lower. */
-  was: number | null;
+  total: number | null;
+}
+
+export interface StoriesWorking {
+  /** Stories whose flows all pass against the latest build. */
+  working: number;
+  /** Stories in the run's scope. */
+  scope: number;
+  squares: StorySquare[];
 }
 
 export interface State {

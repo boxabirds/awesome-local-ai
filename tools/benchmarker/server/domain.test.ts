@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
-  mergeStories, stages, mergeRows, machines, assignMachines, runStatus, countTests, flowsHealth, RECENT_S, type DbenchJob,
+  mergeStories, stages, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, RECENT_S, type DbenchJob,
 } from "./domain.ts";
 import type { Row } from "../shared/types.ts";
 
@@ -262,7 +262,7 @@ describe("runStatus", () => {
   });
 });
 
-describe("flows", () => {
+describe("stories working", () => {
   it("counts a spec file's tests: test( and its variants, not describe blocks or loops inside tests", () => {
     const src = [
       "test.describe('story 3 @s3', () => {",
@@ -279,16 +279,32 @@ describe("flows", () => {
     expect(countTests(src)).toBe(3);
   });
 
-  const s = (id: string, passed: number | null, total: number | null) =>
-    ({ id, title: "", status: "DONE", passed, total, ownPassed: null, ownTotal: null });
+  const st = (id: string, byStory: Record<string, [number, number]> | null, own: [number, number] | null = null) => ({
+    id, title: "", status: "DONE", passed: null, total: null,
+    ownPassed: own?.[0] ?? null, ownTotal: own?.[1] ?? null,
+    byStory: byStory && Object.fromEntries(Object.entries(byStory).map(([k, [p, t]]) => [k, { passed: p, total: t }])),
+  });
+  const SCOPE = ["1", "2", "3", "4", "5", "7", "8", "9", "10", "11", "12"];
 
-  it("says whether the flows built so far work", () => {
-    expect(flowsHealth([])).toEqual({ state: "none", passed: null, after: null, was: null });
-    expect(flowsHealth([s("1", 6, 6)])).toEqual({ state: "working", passed: 6, after: "1", was: null });
-    expect(flowsHealth([s("1", 6, 6), s("2", 19, 20)])).toEqual({ state: "some failing", passed: 19, after: "2", was: null });
-    expect(flowsHealth([s("1", 6, 6), s("2", 19, 20), s("3", 12, 27)])).toEqual({ state: "regressed", passed: 12, after: "3", was: 19 });
-    expect(flowsHealth([s("1", 6, 6), s("2", 19, 20), s("3", 0, 27)])).toEqual({ state: "broken", passed: 0, after: "3", was: 19 });
-    // A story dbench reports finished whose whole-suite result isn't recorded yet doesn't count.
-    expect(flowsHealth([s("1", 6, 6), s("2", null, null)])).toEqual({ state: "working", passed: 6, after: "1", was: null });
+  it("colours every story in scope by how it does against the latest build; a story that broke later turns red", () => {
+    const sw = storiesWorking([
+      st("1", { "1": [10, 10] }),
+      st("2", { "1": [10, 10], "2": [9, 10] }),
+      st("3", { "1": [0, 10], "2": [0, 10], "3": [0, 7] }), // story 3 broke everything
+    ], SCOPE, null);
+    expect(sw.scope).toBe(11);
+    expect(sw.working).toBe(0);
+    expect(sw.squares.slice(0, 4).map((q) => q.state)).toEqual(["bad", "bad", "bad", "unbuilt"]);
+    expect(sw.squares[0]).toMatchObject({ id: "1", passed: 0, total: 10 });
+  });
+
+  it("counts stories whose flows all pass now; the running story pulses; one dbench reports done ahead of git uses its own result", () => {
+    const sw = storiesWorking([
+      st("1", { "1": [10, 10] }),
+      st("2", { "1": [10, 10], "2": [9, 10] }),
+      st("3", null, [7, 7]), // dbench says done, the record hasn't got it yet
+    ], SCOPE, "4");
+    expect(sw.working).toBe(2);
+    expect(sw.squares.slice(0, 5).map((q) => q.state)).toEqual(["ok", "part", "ok", "running", "unbuilt"]);
   });
 });
