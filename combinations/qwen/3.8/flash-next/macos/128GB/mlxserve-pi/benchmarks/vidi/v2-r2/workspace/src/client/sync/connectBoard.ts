@@ -16,26 +16,45 @@ import {
   CONNECTED_CONFIRMATION_MS,
   RECONNECT_MAX_BACKOFF_MS,
 } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 import { COLLAB_ENDPOINT } from './endpoint';
 
 /**
  * What the badge can show. `connected` is the steady live state and renders no
  * badge; `confirmed` is the brief green "Connected" shown right after a
- * reconnect settles; `connecting` is first load; `reconnecting` is a lost link.
+ * reconnect settles; `connecting` is first load; `reconnecting` is a lost link;
+ * `load_failed` is the room telling us it could not read this board at all,
+ * which is a different thing from a link being down and says so.
  */
 export type ConnectionState =
   | 'connecting'
   | 'connected'
   | 'reconnecting'
-  | 'confirmed';
+  | 'confirmed'
+  | 'load_failed';
+
+/** Whether the board takes edits. Only a board that could not be read refuses
+ *  them: a link that is down keeps taking edits into the local document, which is
+ *  what makes catching up afterwards possible. */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
+/** The one field of a close event the badge reads, named so a test can hand over
+ *  a plain object instead of a browser event. */
+export interface CloseEventLike {
+  code: number;
+}
 
 /** The slice of the provider `mapConnectionState` observes, kept minimal so the
  *  pure state machine can be driven by a fake emitter in a component test. */
 export interface ConnectionEmitter {
   on(name: 'status', handler: (event: { status: string }) => void): void;
   on(name: 'sync', handler: (state: boolean) => void): void;
+  on(name: 'connection-close', handler: (event: CloseEventLike | null) => void): void;
   off(name: 'status', handler: (event: { status: string }) => void): void;
   off(name: 'sync', handler: (state: boolean) => void): void;
+  off(name: 'connection-close', handler: (event: CloseEventLike | null) => void): void;
 }
 
 /**
@@ -48,6 +67,18 @@ export interface ConnectionEmitter {
  *   disconnected once we were synced  -> "reconnecting"
  *   a reconnect that resyncs          -> "confirmed" for CONNECTED_CONFIRMATION_MS
  *                                        then "connected"
+ *   closed with CLOSE_BOARD_LOAD_FAILED -> "load_failed"
+ *
+ * `load_failed` is held until a sync succeeds, and nothing else replaces it. The
+ * provider keeps trying in the background - the room's own close code is in the
+ * range that says "worth another go" - and a page that flickered back to
+ * "Reconnecting…" between attempts would be claiming the board might arrive at any
+ * moment, when the room has just said it could not read it. The first successful
+ * sync is what ends it: the board is there, so the badge goes away.
+ *
+ * A close code in 4400-4499 is the provider's own signal to stop reconnecting (it
+ * treats that range as permanent and emits `closed`); this app never sends one, so
+ * the only close code with a meaning here is the load-failure one.
  *
  * The confirmation timeout is a plain `setTimeout`, so a test can drive the
  * whole badge with fake timers.
@@ -62,6 +93,7 @@ export function mapConnectionState(
 
   const emit = (next: ConnectionState): void => {
     if (next === state) return;
+    if (state === 'load_failed' && next !== 'connected') return; // held until the board arrives
     state = next;
     onState(next);
   };
@@ -80,6 +112,16 @@ export function mapConnectionState(
       confirmTimer = null;
       emit('connected');
     }, CONNECTED_CONFIRMATION_MS);
+  };
+
+  const onClose = (event: CloseEventLike | null): void => {
+    if (event !== null && event.code === CLOSE_BOARD_LOAD_FAILED) {
+      // Told to us in as many words by the room: this board could not be read.
+      clearConfirmation();
+      emit('load_failed');
+    }
+    // Any other code is an ordinary disconnect; the provider decides whether to go
+    // on trying and the `status` events say what it is doing.
   };
 
   const onStatus = ({ status }: { status: string }): void => {
@@ -103,6 +145,13 @@ export function mapConnectionState(
 
   const onSync = (synced: boolean): void => {
     if (!synced) return;
+    if (state === 'load_failed') {
+      // The board is here after all - the room read it on a retry. Go straight to
+      // the quiet state rather than celebrating a reconnect we were never told about.
+      everSynced = true;
+      emit('connected');
+      return;
+    }
     if (!everSynced) {
       everSynced = true;
       emit('connected');
@@ -113,12 +162,14 @@ export function mapConnectionState(
 
   emitter.on('status', onStatus);
   emitter.on('sync', onSync);
+  emitter.on('connection-close', onClose);
   emit('connecting');
 
   return () => {
     clearConfirmation();
     emitter.off('status', onStatus);
     emitter.off('sync', onSync);
+    emitter.off('connection-close', onClose);
   };
 }
 

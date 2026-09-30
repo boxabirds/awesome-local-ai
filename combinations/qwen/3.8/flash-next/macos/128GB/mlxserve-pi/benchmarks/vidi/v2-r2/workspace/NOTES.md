@@ -251,3 +251,177 @@ Decisions, deviations from the design's file list, and things the next story
 - **`VITE_COLLAB_ENDPOINT` is unset in e2e**: the client derives the room URL from its
   own origin (`ws(s)://host/api/rooms`), so the e2e `wrangler dev` server (which
   serves the built client AND runs the Worker/DO) is the whole stack.
+
+---
+
+# Story 4 — return to a board and find everything as it was left
+
+## What is here (story 4)
+
+- `src/worker/board-store.ts` — the room's own storage: its schema (created at
+  `migrate()`, versioned row in `storage_meta`), append, load, and chunked
+  compaction. Takes a structural `BoardDatabase` (not the global
+  `DurableObjectStorage`) so it compiles in the DOM tsconfig program and unit-tests
+  against a fake.
+- `src/worker/room-state.ts` — the room's six states and `nextRoomState`, pure, no
+  SQLite, sockets or clock.
+- `src/worker/board-room.ts` — hibernation accept, one storage write per update,
+  refusal while a board cannot be read, the retry of a load.
+- `src/worker/test-hooks.ts` (+ routing in `index.ts`) — `diagnostics`,
+  `corrupt-snapshot`, `repair-snapshot` under `/__test/boards/:boardId/*`, answered only
+  when `TEST_HOOKS=1`, which nothing but `WranglerProcess.start({ testHooks: true })` in
+  the e2e harness ever sets (the integration tests reach the same objects through
+  `runInDurableObject` and SQL directly, and need no route).
+- `src/client/sync/connectBoard.ts` — `load_failed` in `ConnectionState`, `canEdit`,
+  `CloseEventLike`.
+- `ConnectionStatus.tsx`, `App.tsx`, `Toolbar.tsx`, `StickyNote.tsx`, `styles.css` —
+  the message and the edit lock.
+- tests: unit 120, component 93, integration 52, e2e 84 (+3 `@nightly`).
+
+## Deviations from the design's file list
+
+1. **`src/worker/room-state.ts` is an extra file.** The design keeps the room's states
+   in prose (its own state diagram) and in `board-room.ts`. "A storage failure is not a
+   load failure" and "an unreadable board refuses connections" are decisions about the
+   *same* state, so the state lives in one module: `RoomState`, a `RoomEvent`
+   discriminated union, `nextRoomState`, `isServing`, `mayRetryLoad`. Pure, so the whole
+   table is unit-tested (TC-27) with no SQLite, no sockets and no fake clock, and the
+   room itself holds no state decision that a test cannot reach.
+2. **`src/worker/test-hooks.ts` is an extra file, and `src/worker/index.ts` is modified
+   without being listed.** A test cannot break a stored snapshot without a way in, and
+   `repair-snapshot` has to exist in the same place so a broken board is shown recovering
+   rather than only broken. Every route is answered only when `env.TEST_HOOKS === '1'`,
+   which the production configuration never sets; an e2e test asserts that a server
+   started without it serves the SPA HTML for those paths instead.
+3. **Three client files are modified beyond the list**: `objects/StickyNote.tsx`
+   (`editable`, so a note on a board that cannot be saved does not take a pointer),
+   `board/Toolbar.tsx` (`disabled` + `disabledReason`), `styles.css`. Gating `App.tsx`
+   alone leaves a note that looks editable and a toolbar button that says nothing about
+   why it does nothing.
+4. **`BoardStore` takes a structural `BoardDatabase`, not `DurableObjectStorage`.**
+   The type is what the store actually uses (`exec`, `transactionSync`), so the store
+   compiles under the DOM tsconfig program and unit-tests against a fake (TC-01, TC-02),
+   while the integration tests give it the real thing.
+5. **Test files the list implies but does not name**: `tests/unit/board-store-chunks.test.ts`,
+   `tests/unit/room-state.test.ts`, `tests/integration/board-store.test.ts`,
+   `tests/integration/board-room-persistence.test.ts`, `tests/integration/helpers/store.ts`,
+   `tests/integration/helpers/room.ts`, `tests/component/BoardLoadFailure.test.tsx`,
+   `tests/e2e/persistence.spec.ts`, `tests/e2e/helpers/wrangler-process.ts`.
+
+## Implementation decisions
+
+- **The hibernation API is in use**, which supersedes story 3's deviation 3:
+  `ctx.acceptWebSocket(server)`, `ctx.getWebSockets()`, and the class-level
+  `webSocketMessage` / `webSocketClose` / `webSocketError`. It works in the vitest
+  workerd pool too: `runInDurableObject` reaches the instance,
+  `state.getWebSockets()` hands back `SerializableWebSocket` stubs, and a test can
+  deliver a frame by calling `room.webSocketMessage(ws, data)` from inside the object,
+  which is how a hibernation-shaped wake is exercised (TC-18).
+- **The load runs in the constructor inside `ctx.blockConcurrencyWhile`, as the design
+  has it**, so nothing is served and no socket accepted before the board is back in
+  memory. `admit()` — called from `fetch` before the upgrade — owns the *other* edges
+  into `loading` (a retry after a load failure, a wake after a storage failure) and
+  `load()` asserts it was entered in `loading`, so the room never presents a board it
+  has not read. Story 3's `room.doc` stays public for its integration tests but is now
+  `Y.Doc | null`.
+- **`ctx.waitUntil(store.pending())` before a socket is accepted**, so an update that
+  arrives seconds after a socket opened is in storage before the room repeats it to
+  anybody else (TC-12); without it a room hibernated mid-write loses exactly the change
+  another client was told about.
+- **Two failures, two behaviours, as the design's error list states.** A board that
+  could not be *read* has nothing to serve: its sockets are closed with 4500, upgrades
+  are refused outright (a `WebSocketPair` accepted and closed immediately, 101 returned,
+  so the client's own retry loop keeps working), and the next attempt is allowed only
+  after `LOAD_RETRY_MIN_INTERVAL_MS`. A board that could not be *written* is not called
+  unreadable: every socket is closed with `CLOSE_STORAGE_FAILURE` (1011), the document
+  is discarded — the room will not keep serving from memory it could not save — and
+  because 1011 is outside the 4xxx range every provider reconnects at once and re-sends
+  what the room lacks. 4500 sits in y-websocket's "retry anyway" band (4500-4599) rather
+  than in the 4400-4499 band the provider treats as permanent: a board that had one bad
+  moment must not be left broken because the client stopped trying.
+- **Quarantine is not a report.** The design gives it no surface, so there is no table,
+  no counter and no field in `diagnostics()`: the unreadable row is skipped and logged
+  (`board_load_quarantined`, and `quarantined` on the `board_loaded` line), which is what
+  the integration tests capture and assert (TC-08, TC-09, TC-25).
+- **`load_failed` on the client is sticky**, cleared only by a successful sync and not
+  by the provider's `status: connecting`. The retry is the provider's and comes every
+  200 ms to 10 s; a badge that followed status would flicker `Reconnecting…` over a
+  board that is still unreadable. `canEdit(state)` (exported next to the state) is the
+  single gate `App`, `Toolbar` and `StickyNote` consult.
+- **`BOARD_LOAD_FAILED_MESSAGE`** lives in `src/shared/protocol.ts` as the single source
+  of the design's exact sentence; one component test reads the constant and another
+  pins the literal string, so changing the constant cannot move the message unnoticed.
+- **The overlay is `pointer-events: none`.** It is a notice over the board, not a
+  dialog: it must not swallow the double-clicks and pans of the board underneath it
+  (it did, and an e2e test timed out on a double-click that never arrived).
+
+## DO SQLite facts (story 5 and 13 will want these)
+
+- `state.storage.sql.exec`; every write statement commits by itself, so a pair of
+  writes needs `sql.transactionSync(fn)` — and `transactionSync` allows no `await`.
+- A cursor must be consumed to the end before the next write in the same transaction;
+  the code materialises rows with `[...]` first.
+- A blob parameter must be a `Uint8Array` (binding an `ArrayBuffer` is rejected);
+  reads come back as `Uint8Array`/`ArrayBuffer` and are copied on the way out.
+- The pool gives DO SQLite from the `new_sqlite_classes` migration already declared
+  inline in `wrangler.jsonc` (`v1`); no `migrations_dir` is needed, because
+  `BoardStore.migrate()` creates its tables with `CREATE TABLE IF NOT EXISTS`.
+  The pool's bundled workerd caps `compatibility_date` at `2026-08-22`.
+
+## Test decisions
+
+- **`beforeStatement` on `BoardStore` is the seam that makes SQL fail where it really
+  runs.** A test sets `store.beforeStatement = (sql) => {…throw…}` for one statement
+  matched by pattern (TC-14's mid-compaction failure, TC-26's load read failure); the
+  armed flag disarms itself *before* it throws, so the room can recover immediately
+  after the one failure the test wanted.
+- **`runInDurableObject(stub, (instance, state) => …)`** passes `DurableObjectState` as
+  the second argument and takes no extra parameters, so room helpers cannot thread
+  arguments in; `onRoom` casts through `unknown`/`never` because the generic is not
+  tied to `BoardRoom`.
+- **"no reload was attempted" is proved by a number that only goes up**:
+  `sinceLoadFailureMs` strictly increasing across refused connections. Any new load —
+  successful or not — resets `loadFailedAt` and would drop it to ~0.
+- **The e2e harness starts its own `wrangler dev`** (`WranglerProcess`), one state
+  directory per test under `tmp/` (gitignored), and `restart()` reuses the directory
+  and both ports so the address is unchanged. Ports come from two separate
+  `freePort()` calls: `port + 1000` walks out of the address range when the OS hands
+  out a high port (observed as workerd's `parseAddress: Port number too large`).
+- **`storedByRoom` is what a test does before it kills the process.** A second page
+  that has come to hold the same content proves the room wrote it down, because the
+  room stores before it repeats; a page compared with itself proves nothing, since a
+  page always holds what it was just typed.
+- **`__createNotes` is async on purpose.** A page merges everything it changed in one
+  turn of the event loop into a single update, so the hook lets a turn pass between
+  edits; without that, TC-21's 560 notes reach the room as one message and a test
+  about the update log has no log to test.
+- **Measured on this machine, for future reference**: TC-21 compacts mid-use at the
+  500-row threshold (diagnostics `updates: 60, snapshotThrough: 500`); a 2000-note
+  board stores ~389 KB. TC-20 logs its own number (`[load] 2000 notes on screen:
+  121ms (budget 3000ms)`) in the same shape as story 3's `[latency]` lines, and reports
+  120-170 ms here. It is the one timing the suite *asserts*, because the design's
+  "open within `BOARD_LOAD_BUDGET_MS`" is that case's expected outcome: without the
+  assertion the case would only prove the board eventually arrives.
+- **`playwright.config.ts` gives the persistence file its own projects**
+  (`persistence-chromium`, …), listed after the browser projects, and
+  `test:e2e:nightly` runs `chromium` *and* `persistence-chromium`. The order is
+  scheduling only — those projects deliberately have no `dependencies`, because a
+  dependency would both re-run the depended-on projects and skip these 12 tests when
+  an unrelated test fails. Story 1 and 3 tests assert convergence within 1000 ms and
+  pixel offsets within 1 px; a machine running enough workerd runtimes and browsers at
+  once makes them miss, and a failure that depends on what else is running says nothing
+  about the product.
+- **This repo has no prettier configuration**, and prettier's defaults (80 columns,
+  double quotes) disagree with the existing files. Do not run `prettier --write` over
+  repo files.
+
+## Known flakiness on this machine
+
+- Firefox logs `sandbox_init(): Operation not permitted` in the e2e output (already
+  noted for story 3) - the content process runs unsandboxed, which is why the run still
+  works. Two tests were sensitive to how loaded the machine was: story 3's TC-26 (five
+  editors dragging notes, a 1000 ms convergence budget) timed out, and story 4's TC-19
+  read back a note whose typing had been cut short by the restart. Both are addressed -
+  the persistence projects are scheduled apart from the browsers', and a persistence
+  test now waits for the room to hold the board before it kills the process - and both
+  have passed every run since; neither was made less strict to get there.

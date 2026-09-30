@@ -13,29 +13,7 @@ import {
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 
-/** A hand-driven stand-in for the provider's status/sync event surface. */
-class FakeEmitter implements ConnectionEmitter {
-  private statusHandlers: ((e: { status: string }) => void)[] = [];
-  private syncHandlers: ((s: boolean) => void)[] = [];
-
-  on(name: 'status' | 'sync', handler: (arg: never) => void): void {
-    (name === 'status' ? this.statusHandlers : this.syncHandlers).push(handler as never);
-  }
-
-  off(name: 'status' | 'sync', handler: (arg: never) => void): void {
-    const list = name === 'status' ? this.statusHandlers : this.syncHandlers;
-    const i = list.indexOf(handler as never);
-    if (i >= 0) list.splice(i, 1);
-  }
-
-  emitStatus(status: string): void {
-    for (const handler of [...this.statusHandlers]) handler({ status });
-  }
-
-  emitSync(synced: boolean): void {
-    for (const handler of [...this.syncHandlers]) handler(synced);
-  }
-}
+import { FakeConnectionEmitter as FakeEmitter } from './helpers';
 
 function badgeText(): string | null {
   return screen.queryByTestId('connection-status')?.textContent ?? null;

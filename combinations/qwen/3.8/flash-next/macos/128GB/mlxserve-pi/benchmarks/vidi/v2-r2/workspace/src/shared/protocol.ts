@@ -83,3 +83,28 @@ export function decodeMessage(data: ArrayBuffer | string): Decoded {
       return { kind: 'invalid', reason: `unknown message type ${type.value}` };
   }
 }
+
+/**
+ * Close code for "this board's storage could not be loaded". The client shows
+ * "This board couldn't be loaded. Retrying…" and keeps retrying; it must never
+ * present the board as an empty editable one (persist.load_failure). It is in
+ * y-websocket's retry-anyway range (4500-4599), so the provider keeps the board
+ * retrying on its own backoff.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/**
+ * Close code for "the room could not save". The board itself is readable and the
+ * change is still in every open page, so clients show "Reconnecting…" and their
+ * unsaved changes are re-sent (and saved) when the connection is re-established
+ * (persist.save_failure).
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
+/**
+ * What a person is told when their board's storage could not be read. It is here,
+ * beside the code that causes it, because the sentence and the code are the same
+ * promise: the board is not gone, and it is being tried again. The wording is the
+ * product's (persist.load_failure) and is said once, in the badge and over the
+ * board itself.
+ */
+export const BOARD_LOAD_FAILED_MESSAGE = "This board couldn't be loaded. Retrying…";

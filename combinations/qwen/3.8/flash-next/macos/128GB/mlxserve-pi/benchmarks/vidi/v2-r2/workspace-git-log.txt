@@ -1,3 +1,86 @@
+commit a70b6ca5cda07bc982ede58d123e2b5c145c50b9
+vidi-agent  Wed Sep 30 23:10:44 2026 +0100
+
+    test(e2e): TC-20 reads its size and budget from the named settings and reports the load time
+
+
+ NOTES.md                      |  6 +++++-
+ tests/e2e/persistence.spec.ts | 34 ++++++++++++++++++++++++----------
+ 2 files changed, 29 insertions(+), 11 deletions(-)
+commit 5cbd65ac61499963e905a8c41b73584f58779bbf
+vidi-agent  Wed Sep 30 22:56:05 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                  | 170 ++++++++++++
+ package.json                              |   2 +-
+ playwright.config.ts                      |  30 +-
+ src/client/App.tsx                        |  42 ++-
+ src/client/board/Toolbar.tsx              |  21 +-
+ src/client/board/useBoardDoc.ts           |  13 +-
+ src/client/canvas/testHooks.ts            |  35 ++-
+ src/client/objects/StickyNote.tsx         |  14 +-
+ src/client/styles.css                     |  49 ++++
+ src/client/sync/ConnectionStatus.tsx      |   6 +
+ src/client/sync/connectBoard.ts           |  55 +++-
+ src/shared/protocol.ts                    |   9 +
+ tests/component/BoardLoadFailure.test.tsx | 440 ++++++++++++++++++++++++++++++
+ tests/component/ConnectionStatus.test.tsx |  24 +-
+ tests/component/helpers.tsx               |  62 +++++
+ tests/e2e/helpers/wrangler-process.ts     |  54 +++-
+ tests/e2e/persistence.spec.ts             | 161 ++++++++---
+ 17 files changed, 1097 insertions(+), 90 deletions(-)
+commit 80cdcdae83387e3a0e48962c4a55f47f56d4f3d3
+vidi-agent  Wed Sep 30 21:04:21 2026 +0100
+
+    story 4: end-to-end persistence tests against a wrangler process the test kills
+
+
+ .gitignore                            |   1 +
+ src/client/canvas/testHooks.ts        |  42 +++++-
+ src/worker/test-hooks.ts              |  17 ++-
+ tests/e2e/helpers/wrangler-process.ts | 200 ++++++++++++++++++++++++++++
+ tests/e2e/persistence.spec.ts         | 236 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 492 insertions(+), 4 deletions(-)
+commit 3896121ae52b6a45f3fe3c0bd95da0e5127eaa05
+vidi-agent  Wed Sep 30 20:49:05 2026 +0100
+
+    story 4: BoardRoom persists to its own SQLite storage and survives hibernation
+
+
+ env.d.ts                                         |   6 +
+ src/worker/board-room.ts                         | 496 +++++++++++++++++++----
+ src/worker/board-store.ts                        |  76 +++-
+ src/worker/index.ts                              |  24 ++
+ src/worker/test-hooks.ts                         | 117 ++++++
+ tests/integration/board-room-persistence.test.ts | 289 +++++++++++++
+ tests/integration/board-store.test.ts            |   2 +-
+ tests/integration/helpers/room.ts                | 251 ++++++++++++
+ 8 files changed, 1172 insertions(+), 89 deletions(-)
+commit 6a516a601e3a799f6981432773c3d4ced0420f80
+vidi-agent  Wed Sep 30 20:16:25 2026 +0100
+
+    story 4: BoardStore (schema, append, load with quarantine, chunked compaction) + unit and SQLite integration tests (TC-01..TC-11, TC-25, TC-27)
+
+
+ src/worker/board-store.ts             | 298 ++++++++++++++++++++
+ src/worker/room-state.ts              |  96 +++++++
+ tests/fixtures/boards.ts              | 247 +++++++++++++++++
+ tests/integration/board-store.test.ts | 498 ++++++++++++++++++++++++++++++++++
+ tests/integration/helpers/store.ts    | 151 +++++++++++
+ tests/unit/board-store-chunks.test.ts | 112 ++++++++
+ tests/unit/room-state.test.ts         | 117 ++++++++
+ 7 files changed, 1519 insertions(+)
+commit bd06767381d4c3763dcf59f9dd3415b424318f9d
+vidi-agent  Wed Sep 30 19:49:01 2026 +0100
+
+    wip: story 4 settings and close codes
+
+
+ src/shared/config.ts   | 32 ++++++++++++++++++++++++++++++++
+ src/shared/protocol.ts | 16 ++++++++++++++++
+ 2 files changed, 48 insertions(+)
 commit 816e61e7a9ec6ad72d68d2112ce2c0cf9e2cf24b
 vidi-agent  Wed Sep 30 19:33:56 2026 +0100
 

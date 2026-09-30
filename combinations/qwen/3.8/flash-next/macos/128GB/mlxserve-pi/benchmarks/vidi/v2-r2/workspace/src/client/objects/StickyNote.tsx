@@ -46,6 +46,12 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * Whether this note takes gestures. A board the room could not read is shown
+   * read-only: nothing on it can be grabbed, edited, recoloured or deleted, so
+   * that a person cannot make changes that have nowhere to be kept.
+   */
+  editable: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: EndEditNext): void;
@@ -80,6 +86,7 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  editable,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -150,6 +157,7 @@ export function StickyNote({
   }, [stopFrame]);
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (!editable) return; // a board that could not be read takes no gestures at all
     // The board must never start panning from a note (sticky.no_pan).
     event.stopPropagation();
     if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -213,6 +221,7 @@ export function StickyNote({
   };
 
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if (!editable) return; // nothing to open for editing on a board that is not there
     // Editing this note, not creating a new one on top of it (sticky.edit_start).
     event.stopPropagation();
     if (isOwnUi(event.target)) return;
@@ -232,8 +241,11 @@ export function StickyNote({
 
   return (
     <div
-      className={`sticky-note${dragging ? ' is-dragging' : ''}${font.overflow ? ' has-overflow' : ''}`}
+      className={`sticky-note${dragging ? ' is-dragging' : ''}${font.overflow ? ' has-overflow' : ''}${
+        editable ? '' : ' is-locked'
+      }`}
       data-testid="sticky-note"
+      data-editable={editable}
       data-note-id={note.id}
       data-note-x={note.x}
       data-note-y={note.y}

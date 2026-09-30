@@ -8,5 +8,11 @@ declare namespace Cloudflare {
   interface Env {
     BOARD_ROOM: DurableObjectNamespace<import('./src/worker/index').BoardRoom>;
     ASSETS: Fetcher;
+    /**
+     * Set to `'1'` only in the e2e test environment. It turns on the room's
+     * `/__test/...` storage hooks (see `src/worker/test-hooks.ts`); no production
+     * configuration defines it, so those routes answer 404 there.
+     */
+    TEST_HOOKS?: string;
   }
 }

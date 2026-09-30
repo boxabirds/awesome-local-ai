@@ -20,8 +20,10 @@ import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { BOARD_LOAD_FAILED_MESSAGE } from '../shared/protocol';
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 
 export interface AppProps {
@@ -84,6 +86,13 @@ function Board({ doc: injected, boardId }: { doc?: Y.Doc; boardId?: string }): J
   const { doc, notes, connection } = useBoardDoc(injected, boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
+  // A board the room could not read is shown, not edited: there is nowhere for a
+  // change to go, and a note that looks fine but was never stored is worse than a
+  // board that says it is not there. Everything else - a link that is down, a board
+  // still arriving - keeps taking edits, because those changes are kept locally and
+  // sent when the link returns.
+  const editable = canEdit(connection);
+
   // Expose the live document to end-to-end tests (no-op outside the test build).
   useEffect(() => {
     registerBoardDoc(doc);
@@ -92,11 +101,12 @@ function Board({ doc: injected, boardId }: { doc?: Y.Doc; boardId?: string }): J
   /** New note centred on a world point, ready for typing straight away. */
   const createAt = useCallback(
     (world: { x: number; y: number }): void => {
+      if (!editable) return;
       const id = createSticky(doc, world);
       if (id === '') return;
       startEdit(id);
     },
-    [doc, startEdit],
+    [doc, startEdit, editable],
   );
 
   /** Double-click on empty board space: the note appears centred on the point. */
@@ -114,6 +124,7 @@ function Board({ doc: injected, boardId }: { doc?: Y.Doc; boardId?: string }): J
   // is typing: Delete and Backspace then edit characters, not notes.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!editable) return; // the board takes no changes, so neither do its keys
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isTypingTarget(event.target)) return;
       if (event.key === 'Enter') {
@@ -131,7 +142,7 @@ function Board({ doc: injected, boardId }: { doc?: Y.Doc; boardId?: string }): J
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selectedId, editingId, startEdit]);
+  }, [doc, selectedId, editingId, startEdit, editable]);
 
   // A note that is no longer on the board cannot stay selected, so the outline
   // and the note toolbar go away with it.
@@ -152,13 +163,18 @@ function Board({ doc: injected, boardId }: { doc?: Y.Doc; boardId?: string }): J
             zoom={camera.zoom}
             selected={note.id === selectedId}
             editing={note.id === editingId}
+            editable={editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtCentre} />
+      <Toolbar
+        onCreateSticky={createAtCentre}
+        disabled={!editable}
+        disabledReason={BOARD_LOAD_FAILED_MESSAGE}
+      />
       <NavigationHint visible={!hasNavigated} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
@@ -168,7 +184,25 @@ function Board({ doc: injected, boardId }: { doc?: Y.Doc; boardId?: string }): J
         onZoomOut={() => zoomStep('out')}
         onReset={reset}
       />
-      {boardId !== undefined ? <ConnectionStatus state={connection} /> : null}
+      {/* A board with no connection at all - the standalone board of a component
+          test - has nothing to report, and its state never leaves `connecting`.
+          Every state that did arrive came from a room, including `load_failed`,
+          which is why that one is shown even here: it is news about the board, and
+          news about the board is not allowed to go unreported. */}
+      {boardId !== undefined || connection === 'load_failed' ? (
+        <ConnectionStatus state={connection} />
+      ) : null}
+      {connection === 'load_failed' ? (
+        // Said once more in the middle of the board, where the board would be: the
+        // badge is small, and an empty board needs explaining.
+        <div className="board-load-failed" data-testid="board-load-failed" role="alert">
+          {BOARD_LOAD_FAILED_MESSAGE}
+          <p>
+            Nothing you type now would be kept. Try again in a moment - the board
+            retries by itself - or ask for the board again later.
+          </p>
+        </div>
+      ) : null}
     </>
   );
 }

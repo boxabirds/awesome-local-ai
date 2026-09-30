@@ -5,9 +5,20 @@ import type { JSX } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /**
+   * Tools that change the board are switched off - a board the room could not read
+   * takes no edits. `disabledReason` is why, and is what the button says, so the
+   * person at the keyboard is told rather than left clicking a dead button.
+   */
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
-export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
+export function Toolbar({
+  onCreateSticky,
+  disabled = false,
+  disabledReason,
+}: ToolbarProps): JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -24,7 +35,13 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
         className="board-tool"
         data-testid="create-sticky"
         aria-label="Sticky note"
-        title="Sticky note – or double-click the board"
+        aria-disabled={disabled || undefined}
+        disabled={disabled}
+        title={
+          disabled
+            ? (disabledReason ?? 'Not available right now')
+            : 'Sticky note – or double-click the board'
+        }
         onClick={onCreateSticky}
       >
         <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">

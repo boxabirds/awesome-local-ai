@@ -5,7 +5,13 @@
 
 import type { Camera } from './camera';
 import type * as Y from 'yjs';
-import { snapshotByCreation, type StickySnapshot } from '../../shared/board-model';
+import {
+  createSticky,
+  getStickyText,
+  snapshotByCreation,
+  type StickySnapshot,
+} from '../../shared/board-model';
+import type { StickyColor } from '../../shared/config';
 import { COLLAB_ENDPOINT } from '../sync/endpoint';
 import type { ConnectionState } from '../sync/connectBoard';
 
@@ -24,14 +30,18 @@ interface MutableApi {
   __reconnectCount?(): number;
   __stateLog?(): readonly string[];
   __destroy?(): void;
+  __createNotes?(count: number, withTextEvery?: number, perTransaction?: number): Promise<number>;
+  __forceConnectionState?(state: ConnectionState): void;
   connectionState?: string;
 }
 
 /** Merge into the single `window.__vidi6` object without clobbering other keys. */
 function patch(next: MutableApi): void {
   if (import.meta.env.MODE !== 'test' || typeof window === 'undefined') return;
-  window.__vidi6 = { ...(window.__vidi6 as MutableApi | undefined), ...next } as unknown as
-    typeof window.__vidi6;
+  window.__vidi6 = {
+    ...(window.__vidi6 as MutableApi | undefined),
+    ...next,
+  } as unknown as typeof window.__vidi6;
 }
 
 /** Called by `useCamera` on mount (and cleared on unmount). */
@@ -55,6 +65,63 @@ export function registerBoardDoc(doc: Y.Doc | null): void {
     doc,
     snapshot: () => snapshotByCreation(doc),
     __serverMode: COLLAB_ENDPOINT !== '',
+    /**
+     * Create `count` notes, giving every `withTextEvery`th one some text, and
+     * return how many were made. This is the bulk-edit affordance the persistence
+     * tests need - two thousand double-clicks is not a test anyone can wait for -
+     * and each note goes through the same model the toolbar uses, so the updates
+     * that reach the room are the ones a person typing would produce.
+     *
+     * `perTransaction` says how many notes one edit covers: the default of one is
+     * what a person does (one note, one undo, one update the room has to write
+     * down), which is what a test that counts stored updates needs; a large value
+     * makes a big board cheap to build when the number of updates does not matter.
+     *
+     * It is async because a page merges everything it changed in one turn of the
+     * event loop into a single update: a turn is let pass between the edits so that
+     * they stay separate edits, which is the whole difference between a board that
+     * arrives as one message and one that arrives as 560.
+     */
+    __createNotes: async (
+      count: number,
+      withTextEvery = 2,
+      perTransaction = 1,
+    ): Promise<number> => {
+      for (let start = 0; start < count; start += Math.max(1, Math.floor(perTransaction))) {
+        doc.transact(() => {
+          for (
+            let index = start;
+            index < Math.min(count, start + Math.max(1, Math.floor(perTransaction)));
+            index++
+          ) {
+            const id = createSticky(
+              doc,
+              { x: (index % 40) * 220, y: Math.floor(index / 40) * 200 },
+              NOTE_COLORS[index % NOTE_COLORS.length] as StickyColor,
+            );
+            if (index % withTextEvery === 0) getStickyText(doc, id)?.insert(0, `note ${index}`);
+          }
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      return count;
+    },
+  });
+}
+
+const NOTE_COLORS: readonly string[] = ['yellow', 'orange', 'green', 'blue', 'pink', 'violet'];
+
+/**
+ * Put the app into a connection state it was not told about, for the component
+ * tests of what the app *does* with a state (see `canEdit`). The mapping from what
+ * the room sends to the state is tested separately, against the provider's own
+ * events; what is under test here is the gate, so the state is what a test names.
+ */
+export function registerConnectionForcer(forcer: ((state: ConnectionState) => void) | null): void {
+  patch({
+    __forceConnectionState: (state: ConnectionState) => {
+      forcer?.(state);
+    },
   });
 }
 

@@ -197,9 +197,25 @@ button:focus-visible,
   background: rgba(20, 20, 30, 0.08);
 }
 
+/* A tool that cannot be used says so, rather than sitting there doing nothing. */
+.board-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.board-tool:disabled:hover {
+  background: transparent;
+}
+
 /* The note itself. Its own box is the world-space square; the text is laid out
    inside the padding box and clipped there, so nothing of a long idea ever draws
    outside the note. */
+/* A board that could not be read is read-only: the note cannot be grabbed, opened,
+   recoloured or deleted, and a press on it belongs to the board behind it. */
+.sticky-note.is-locked {
+  pointer-events: none;
+}
+
 .sticky-note {
   position: absolute;
   box-sizing: border-box;
@@ -386,4 +402,37 @@ button:focus-visible,
 .connection-status--confirmed {
   background: #2e7d32;
   color: #fff;
+}
+
+/* The room could not read this board. Red, because it is not a delay: nothing is
+   coming back with the contents, and the board stops taking edits. */
+.connection-status--load_failed {
+  background: #b3261e;
+  color: #fff;
+}
+
+/* Told in the middle of the board as well, because an empty board that is simply
+   missing its contents looks like a board with nothing on it. */
+.board-load-failed {
+  /* A notice, not a dialog: it says what is wrong without standing between a person
+     and the board they are looking at. */
+  pointer-events: none;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 34ch;
+  padding: 14px 18px;
+  border-radius: 10px;
+  background: var(--ui-bg);
+  border: 1px solid #b3261e;
+  color: var(--ink);
+  font: 500 14px/1.45 var(--font-ui, system-ui, sans-serif);
+  text-align: center;
+}
+
+.board-load-failed p {
+  margin: 8px 0 0;
+  font-weight: 400;
+  opacity: 0.75;
 }

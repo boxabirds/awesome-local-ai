@@ -99,3 +99,35 @@ export const SOAK_DURATION_MS = 60_000;
  * LIVE_UPDATE_LATENCY_BUDGET_MS instead of failing on it.
  */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+// --- Board persistence (story 4) ---
+
+/**
+ * Compact the stored update log once this many log rows exist. Compaction keeps
+ * a board's load work bounded to one snapshot plus fewer than this many rows,
+ * which is what makes `BOARD_LOAD_BUDGET_MS` reachable for a long-lived board.
+ */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ...or once the log rows reach this many bytes. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/**
+ * Snapshot chunk size. Every stored row stays well under the platform's per-row
+ * size limit for SQLite-backed Durable Objects by keeping chunks at 512 KiB.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/**
+ * A board whose storage could not be loaded is retried by the next arriving
+ * connection at most this often, so a broken board is not hammered and the
+ * "Retrying…" message is a promise, not a stall.
+ */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** Board size the large-board open case is tested at (PRD persist.large_board). */
+export const PERSIST_TESTED_NOTES = 2000;
+/**
+ * How long a saved board of `PERSIST_TESTED_NOTES` notes may take to show all of
+ * its notes on a typical broadband connection. e2e reports the measured time
+ * against this budget rather than failing on it (shared machine).
+ */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the *storage* tables (the Yjs document schema is versioned separately in `meta.schemaVersion`). */
+export const STORAGE_SCHEMA_VERSION = 1;

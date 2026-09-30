@@ -31,11 +31,31 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${PORT}`,
     viewport: VIEWPORT,
   },
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: VIEWPORT } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: VIEWPORT, launchOptions: firefoxLaunch } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: VIEWPORT } },
-  ],
+  // Story 4's persistence tests start and stop their own `wrangler dev` processes -
+  // that is the thing under test - and they are given their own projects, listed last,
+  // so that a machine runs its dev servers and its browsers a little further apart.
+  // Enough workerd runtimes and browsers at once is enough load to make a test that
+  // measures convergence in milliseconds miss its budget, and a test that fails only
+  // when other tests happen to be running on the same machine says nothing about the
+  // product. Nothing in the tests depends on this ordering; it is scheduling, not
+  // correctness, and a run with `--project persistence-chromium` works on its own.
+  projects: (() => {
+    const uses = {
+      chromium: { ...devices['Desktop Chrome'], viewport: VIEWPORT },
+      firefox: { ...devices['Desktop Firefox'], viewport: VIEWPORT, launchOptions: firefoxLaunch },
+      webkit: { ...devices['Desktop Safari'], viewport: VIEWPORT },
+    };
+    const browsers = Object.keys(uses) as (keyof typeof uses)[];
+    const persistence = /persistence\.spec\.ts$/;
+    return [
+      ...browsers.map((name) => ({ name, testIgnore: persistence, use: uses[name] })),
+      ...browsers.map((name) => ({
+        name: `persistence-${name}`,
+        testMatch: persistence,
+        use: uses[name],
+      })),
+    ];
+  })(),
   webServer: {
     command: `npm run build:test && npx wrangler dev --config wrangler.jsonc --ip 127.0.0.1 --port ${PORT}`,
     url: `http://127.0.0.1:${PORT}`,

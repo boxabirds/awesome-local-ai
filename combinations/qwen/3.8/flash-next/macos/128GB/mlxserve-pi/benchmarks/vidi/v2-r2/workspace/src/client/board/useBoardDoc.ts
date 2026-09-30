@@ -11,7 +11,11 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshotByCreation, type StickySnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
-import { registerConnectionControl, registerConnectionState } from '../canvas/testHooks';
+import {
+  registerConnectionControl,
+  registerConnectionForcer,
+  registerConnectionState,
+} from '../canvas/testHooks';
 
 export interface BoardDocApi {
   /** The document every mutation is applied to. */
@@ -80,7 +84,11 @@ export function useBoardDoc(injected?: Y.Doc, boardId?: string): BoardDocApi {
 
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   useEffect(() => {
-    if (boardId === undefined) return;
+    // Registered whether or not there is a network: a component test that wants to
+    // know what the board does while the room cannot read it says so, rather than
+    // standing up a server that fails on purpose.
+    registerConnectionForcer(setConnection);
+    if (boardId === undefined) return () => registerConnectionForcer(null);
     // Record every mapped state into the page-level log (a plain JS value the
     // badge's MutationObserver cannot watch), then surface it to React.
     const onState = (state: ConnectionState): void => {
@@ -97,6 +105,7 @@ export function useBoardDoc(injected?: Y.Doc, boardId?: string): BoardDocApi {
     });
     return () => {
       registerConnectionControl(null);
+      registerConnectionForcer(null);
       live.destroy();
     };
   }, [store, boardId]);

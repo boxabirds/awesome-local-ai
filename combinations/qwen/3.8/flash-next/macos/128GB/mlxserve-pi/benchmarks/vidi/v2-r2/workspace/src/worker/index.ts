@@ -20,6 +20,8 @@ export { BoardRoom };
 export type Env = Cloudflare.Env;
 
 const ROOM_PREFIX = '/api/rooms/';
+/** TEST-ONLY prefix; routed only when `TEST_HOOKS` is `'1'` (see `src/worker/test-hooks.ts`). */
+const TEST_PREFIX = '/__test/boards/';
 
 /** The board id in `/api/rooms/:boardId`, or null when the path is not a room. */
 function boardIdOf(pathname: string): string | null {
@@ -30,9 +32,31 @@ function boardIdOf(pathname: string): string | null {
   return decodeURIComponent(rest);
 }
 
+/** The board id and hook name in `/__test/boards/:boardId/<action>`. */
+function testHookOf(pathname: string): { boardId: string; action: string } | null {
+  if (!pathname.startsWith(TEST_PREFIX)) return null;
+  const rest = pathname.slice(TEST_PREFIX.length);
+  const slash = rest.indexOf('/');
+  if (slash <= 0 || rest.indexOf('/', slash + 1) !== -1 || rest.length === slash + 1) return null;
+  return { boardId: decodeURIComponent(rest.slice(0, slash)), action: rest.slice(slash + 1) };
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    // TEST-ONLY: hand a storage hook to that board's room. Without `TEST_HOOKS`
+    // (which is set only in the e2e environment) this block is skipped and the
+    // path is served from assets like any unknown address.
+    if (env.TEST_HOOKS === '1') {
+      const hook = testHookOf(url.pathname);
+      if (hook !== null) {
+        if (!isValidBoardId(hook.boardId)) return new Response('Invalid board id', { status: 400 });
+        const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(hook.boardId));
+        return stub.fetch(new Request(`http://room/__test/${hook.action}`, request));
+      }
+    }
+
     const boardId = boardIdOf(url.pathname);
     if (boardId === null) return env.ASSETS.fetch(request);
 

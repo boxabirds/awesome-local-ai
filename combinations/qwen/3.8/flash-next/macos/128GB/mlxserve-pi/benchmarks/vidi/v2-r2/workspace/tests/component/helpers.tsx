@@ -7,6 +7,11 @@ import { afterEach, beforeEach, vi } from 'vitest';
 import * as Y from 'yjs';
 import App from '../../src/client/App';
 import { initDoc, createSticky, getStickyText } from '../../src/shared/board-model';
+import type {
+  CloseEventLike,
+  ConnectionEmitter,
+  ConnectionState,
+} from '../../src/client/sync/connectBoard';
 import { resetCamera, type Camera, type Point, type Size } from '../../src/client/canvas/camera';
 
 function number(value: string | undefined): number {
@@ -497,4 +502,61 @@ export function screenCentre(): { x: number; y: number } {
     x: size.width / 2 / camera.zoom + camera.x,
     y: size.height / 2 / camera.zoom + camera.y,
   };
+}
+
+// --------------------------------------------------------------------------------
+// Connection badge helpers (story 4)
+// --------------------------------------------------------------------------------
+
+/**
+ * A hand-driven stand-in for the provider's event surface, so a test can say
+ * exactly what the connection did: `emitStatus`, `emitSync`, `emitClose`.
+ */
+export class FakeConnectionEmitter implements ConnectionEmitter {
+  private statusHandlers: ((e: { status: string }) => void)[] = [];
+  private syncHandlers: ((s: boolean) => void)[] = [];
+  private closeHandlers: ((e: CloseEventLike | null) => void)[] = [];
+
+  on(name: 'status' | 'sync' | 'connection-close', handler: (arg: never) => void): void {
+    (name === 'status' ? this.statusHandlers : name === 'sync' ? this.syncHandlers : this.closeHandlers).push(
+      handler as never,
+    );
+  }
+
+  off(name: 'status' | 'sync' | 'connection-close', handler: (arg: never) => void): void {
+    const list =
+      name === 'status' ? this.statusHandlers : name === 'sync' ? this.syncHandlers : this.closeHandlers;
+    const i = list.indexOf(handler as never);
+    if (i >= 0) list.splice(i, 1);
+  }
+
+  emitStatus(status: string): void {
+    for (const handler of [...this.statusHandlers]) handler({ status });
+  }
+
+  emitSync(synced: boolean): void {
+    for (const handler of [...this.syncHandlers]) handler(synced);
+  }
+
+  /** A close the server sent. `null` is a connection closed locally. */
+  emitClose(code: number | null): void {
+    for (const handler of [...this.closeHandlers]) handler(code === null ? null : { code });
+  }
+}
+
+/**
+ * Say what the connection state is, for tests of what the board *does* with a
+ * state (the edit lock, the message it shows). The mapping from the room's close
+ * codes to a state is tested against the provider's events, not here.
+ */
+export function forceConnectionState(state: ConnectionState): void {
+  const api = window.__vidi6 as unknown as
+    | { __forceConnectionState?(next: ConnectionState): void }
+    | undefined;
+  if (typeof api?.__forceConnectionState !== 'function') {
+    throw new Error('the test build is missing __forceConnectionState');
+  }
+  act(() => {
+    api.__forceConnectionState?.(state);
+  });
 }

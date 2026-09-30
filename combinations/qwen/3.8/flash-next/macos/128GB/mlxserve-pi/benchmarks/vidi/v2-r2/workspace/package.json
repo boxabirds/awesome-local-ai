@@ -13,7 +13,7 @@
     "test:component": "vitest run --project component",
     "test:integration": "vite build && vitest run --project integration",
     "test:e2e": "playwright test --grep-invert @nightly",
-    "test:e2e:nightly": "playwright test --grep @nightly --project chromium"
+    "test:e2e:nightly": "playwright test --grep @nightly --project chromium --project persistence-chromium"
   },
   "dependencies": {
     "react": "^19.3.0",
