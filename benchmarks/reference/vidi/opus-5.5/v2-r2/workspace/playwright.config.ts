@@ -3,6 +3,7 @@ import { chromium, defineConfig, devices, firefox, webkit } from '@playwright/te
 
 const PORT = 8787;
 const VIEWPORT = { width: 1280, height: 800 };
+const NIGHTLY_SPECS = /\.nightly\.spec\.ts$/;
 
 // Chromium, Firefox and WebKit per the design; browsers that are not installed
 // locally are skipped (Chromium is always required).
@@ -22,7 +23,17 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${PORT}`,
     viewport: VIEWPORT,
   },
-  projects: browsers.map((b) => ({ name: b.name, use: { ...b.device, viewport: VIEWPORT } })),
+  projects: [
+    ...browsers.map((b) => ({
+      name: b.name,
+      use: { ...b.device, viewport: VIEWPORT },
+      testIgnore: NIGHTLY_SPECS,
+    })),
+    // Long-running checks (TC-29, TC-30): only with `npm run test:e2e:nightly`.
+    ...(process.env.VIDI6_NIGHTLY
+      ? [{ name: 'nightly', use: { ...devices['Desktop Chrome'], viewport: VIEWPORT }, testMatch: NIGHTLY_SPECS }]
+      : []),
+  ],
   webServer: {
     // Test-mode build exposes window.__vidi6; served by wrangler like production.
     command: `npm run build:test && npx wrangler dev --port ${PORT} --ip 127.0.0.1`,

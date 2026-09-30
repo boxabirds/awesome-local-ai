@@ -3,10 +3,11 @@ import type { Camera } from '../../../src/client/canvas/camera';
 
 export const HINT_TEXT = 'Drag to move around · Ctrl/Cmd + scroll or pinch to zoom';
 
-export async function openBoard(page: Page) {
-  await page.goto('/');
+/** Opens `path` (default `/`, which redirects to a new board) and waits until it is live. */
+export async function openBoard(page: Page, path = '/') {
+  await page.goto(path);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
-  await page.waitForFunction(() => !!window.__vidi6);
+  await page.waitForFunction(() => window.__vidi6?.connectionState === 'connected');
 }
 
 /** Centre of the origin crosshair (world 0,0) in page pixels. */
@@ -17,7 +18,12 @@ export async function originMarkerCentre(page: Page) {
 }
 
 export function zoomLabel(page: Page) {
-  return page.getByRole('status');
+  return page.locator('.zoom-controls').getByRole('status');
+}
+
+/** The connection badge (top centre); absent while connected normally. */
+export function connectionBadge(page: Page) {
+  return page.locator('.connection-status');
 }
 
 export async function setCamera(page: Page, camera: Camera) {

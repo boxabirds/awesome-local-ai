@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { STICKY_SIZE_WORLD } from '../shared/config';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -13,6 +14,8 @@ import { installTestHooks } from './canvas/testHooks';
 import { BoardCameraContext, useCamera } from './canvas/useCamera';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 
 function initialViewportSize(): Size {
   return { width: window.innerWidth, height: window.innerHeight };
@@ -22,13 +25,30 @@ function byId(a: { id: string }, b: { id: string }): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-/** `doc` lets tests supply the board document; the app creates its own. */
-export function App(props: { doc?: Y.Doc } = {}): React.JSX.Element {
+const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
+
+/**
+ * The board id from `/b/:boardId`. Any other address (e.g. `/`) is replaced with
+ * a new board address — temporary until story 5 creates boards on the server.
+ */
+export function boardIdFromLocation(): string {
+  const match = BOARD_PATH.exec(window.location.pathname);
+  if (match?.[1] && isValidBoardId(match[1])) return match[1];
+  const id = newBoardId();
+  window.history.replaceState(null, '', `/b/${id}`);
+  return id;
+}
+
+/**
+ * `boardId` connects the board to its live room; without it the board stays
+ * local. `doc` lets tests supply the board document; the app creates its own.
+ */
+export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React.JSX.Element {
   const [viewportSize, setViewportSize] = useState<Size>(initialViewportSize);
   const board = useCamera(viewportSize);
   const context = useMemo(() => ({ ...board, setViewportSize }), [board]);
   const { camera } = board;
-  const { doc, notes } = useBoardDoc(props.doc);
+  const { doc, notes, connection } = useBoardDoc(props.boardId, props.doc);
   const selection = useSelection();
   const { selectedId, editingId, select, startEdit, endEdit } = selection;
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -40,6 +60,12 @@ export function App(props: { doc?: Y.Doc } = {}): React.JSX.Element {
   }, [notes, selectedId, select]);
 
   useEffect(() => installTestHooks({ getNotes: () => [...notes] }), [notes]);
+  const connectionStates = useRef<ConnectionState[]>([]);
+  useEffect(() => {
+    if (!props.boardId) return;
+    connectionStates.current.push(connection);
+    return installTestHooks({ connectionState: connection, connectionStates: connectionStates.current });
+  }, [props.boardId, connection]);
 
   const createAt = useCallback(
     (world: Point) => {
@@ -112,6 +138,7 @@ export function App(props: { doc?: Y.Doc } = {}): React.JSX.Element {
           </div>
         )}
         <Toolbar onCreateSticky={createAtViewportCentre} />
+        {props.boardId && <ConnectionStatus state={connection} />}
         <NavigationHint visible={!board.hasNavigated} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}

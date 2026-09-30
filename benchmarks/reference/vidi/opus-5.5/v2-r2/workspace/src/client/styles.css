@@ -313,3 +313,32 @@ body,
   background: #fdecec;
   color: #c62828;
 }
+
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1px solid #dcdfe6;
+  background: #fff;
+  color: #4a5060;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
+  pointer-events: none;
+}
+
+.connection-status--reconnecting {
+  background: #fff4d6;
+  border-color: #f0b429;
+  color: #7a4d00;
+}
+
+.connection-status--confirmed {
+  background: #e3f6e5;
+  border-color: #3fa452;
+  color: #1e5b29;
+}

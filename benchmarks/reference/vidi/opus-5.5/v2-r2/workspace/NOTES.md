@@ -62,3 +62,58 @@ Decisions made where the spec was open or self-contradictory:
 - **Red phase.** As in story 1, test-first phases were not committed separately (single story commit).
 - **Not verified manually:** IME (e.g. Japanese) input; the editor skips `input` during composition and
   commits on `compositionend`. E2E ran in Chromium only (Firefox/WebKit not installed).
+
+## Story 3 — See other people's edits appear live on the same board
+
+- **Vitest 4.1 instead of 5.** `@cloudflare/vitest-pool-workers` (0.22, the latest) only supports
+  `vitest ^4.1` and fails to start under vitest 5, so the repo is on `vitest@^4.1.11` (unit and component
+  suites are unchanged and pass). Revisit when the pool supports vitest 5.
+- **Compatibility date 2026-08-22.** The workerd bundled with the Workers test pool rejects newer dates
+  than 2026-08-22, so `wrangler.jsonc` uses that date (was 2026-09-01; nothing in the app depends on it).
+- **`binaryType = 'arraybuffer'`.** With current compatibility dates workerd delivers binary WebSocket
+  frames as `Blob` by default; the room (and the integration test client) set `arraybuffer`.
+- **`assets.run_worker_first: ["/api/*"]`** so room connections always reach the Worker and never the
+  SPA fallback. Any `/api/rooms/<anything>` that is not a valid id gets 400 (including nested paths).
+- **Two tsconfigs.** `tsconfig.worker.json` type-checks `src/worker`, `src/shared` and
+  `tests/integration` against `@cloudflare/workers-types` (no DOM); `npm run typecheck` runs both.
+  `test:integration` runs `vite build` first because the assets binding needs `dist/client`.
+- **Routing.** `main.tsx` resolves the board from `/b/:boardId` via `boardIdFromLocation()` (in `App.tsx`)
+  and passes it to `<App boardId>`; `/` and any address that is not a valid `/b/<id>` are replaced
+  (`history.replaceState`) with `/b/<newBoardId()>` until story 5. `App` without `boardId` (component
+  tests) keeps a local, unconnected doc and shows no badge. `useBoardDoc(boardId, doc?)` now also
+  returns the `connection` state.
+- **Status mapping** lives in `trackConnectionState(providerEvents, onState)` (exported from
+  `connectBoard.ts`) so component tests drive it with a fake emitter. The first sync after
+  `connecting` → `connected` (no green badge on first load); failed first attempts stay "Connecting…".
+- **Browser offline/online events.** `connectBoard` also drops the socket on `window` `offline` and
+  reconnects immediately on `online`, so the amber badge appears at once instead of after y-websocket's
+  30 s silence timeout, and recovery does not wait for the backoff.
+- **Remote typing while editing.** Story 2's editor only read the Y.Text when editing started and wrote
+  textarea-vs-Y.Text diffs, which would have erased someone else's simultaneous typing. The editor now
+  observes non-local Y.Text changes, updates the textarea immediately and maps the caret/selection
+  through the change (a remote insert exactly at the caret goes after it). Limitation: a remote change
+  arriving mid-IME-composition updates the textarea and may cancel the composition (not verified).
+  Concurrent typing can push a note past `STICKY_TEXT_MAX_CHARS`; the limit is only enforced per local edit.
+- **Delete during edit/drag** relies on story 2's behaviour: `App` clears a selection whose note is gone
+  (which also ends editing), and `StickyNote` unmounting ends a drag; no extra `useSelection` change.
+- **Test hooks.** `window.__vidi6.connectionState` and `connectionStates` (history) are installed in
+  test builds only. The e2e `zoomLabel` helper is now scoped to `.zoom-controls` (the badge is also a
+  `role=status`), and `openBoard` waits for `connectionState === 'connected'`.
+- **E2E.** `tests/e2e/live-collaboration.spec.ts` (TC-22–TC-28) runs in `npm run test:e2e`;
+  `tests/e2e/live-collaboration.nightly.spec.ts` (TC-29, TC-30) runs only via `npm run test:e2e:nightly`
+  (a `nightly` Playwright project that exists only when `VIDI6_NIGHTLY=1`). Latency is logged against
+  `LIVE_UPDATE_LATENCY_BUDGET_MS`, never asserted. In TC-30, per-change latency is measured for creates
+  and typed text (unique tokens, matched as an in-order subsequence because others may type into the same
+  note); moves and recolours are only checked through final convergence. TC-29 checks "no reconnect"
+  by counting WebSocket constructions in the page; destroy-on-unmount is covered by a component test,
+  because nothing is observable in a page after its context is closed.
+- **TC-18 restart** is simulated with a fresh board id (a fresh room instance), per the design.
+- E2E ran in Chromium only (Firefox/WebKit not installed).
+- **TC-30 driving details.** The soak creates notes with a synthetic `dblclick` on the empty board and edits
+  with focus + Enter (story 2's keyboard path). With real double-clicks, the first click could select a
+  note that someone else is dragging, and that note's toolbar (which follows it) could catch the second
+  click on "Delete note". That is a real but harmless user-level race, not a sync fault. Text that cannot
+  land because a busy note hit `STICKY_TEXT_MAX_CHARS` is not tracked as a delivery.
+- **Stale e2e server.** `playwright.config.ts` keeps story 1's `reuseExistingServer` outside CI. A
+  leftover `wrangler dev` on port 8787 serves whatever is in `dist/client`. If `npm run build`
+  (production, no test hooks) ran last, every e2e test times out. Stop the old server first.

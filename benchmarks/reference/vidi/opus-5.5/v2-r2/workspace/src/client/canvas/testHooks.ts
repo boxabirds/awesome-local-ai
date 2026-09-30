@@ -1,4 +1,5 @@
 import type { StickySnapshot } from '../../shared/board-model';
+import type { ConnectionState } from '../sync/connectBoard';
 import type { Camera } from './camera';
 
 export interface Vidi6TestHooks {
@@ -7,6 +8,9 @@ export interface Vidi6TestHooks {
   getCamera(): Camera;
   /** Current sticky notes in the board document. */
   getNotes?(): readonly StickySnapshot[];
+  /** Current live connection state, and every state since the page loaded. */
+  connectionState?: ConnectionState;
+  connectionStates?: readonly ConnectionState[];
 }
 
 declare global {

@@ -7,4 +7,8 @@ export default defineConfig({
     outDir: 'dist/client',
     emptyOutDir: true,
   },
+  server: {
+    // `npm run dev` talks to the Worker running under `wrangler dev` for live rooms.
+    proxy: { '/api': { target: 'http://127.0.0.1:8787', ws: true } },
+  },
 });
