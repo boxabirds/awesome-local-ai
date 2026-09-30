@@ -192,16 +192,16 @@ function EntityPage({ route, state, serverNow, family }: { route: Exclude<Return
       // The family chosen in the header when this combination has runs in it; else (or with "all") its newest.
       const fam = family !== ALL && all.some((r) => r.family === family) ? family : newestFamily(all);
       const scoped = comparable(state, route.pack, fam);
-      return <CombinationPage stack={route.stack} runs={scoped.rows.filter((r) => r.stack === route.stack)} state={scoped} serverNow={serverNow} />;
+      return <CombinationPage stack={route.stack} runs={scoped.rows.filter((r) => r.stack === route.stack)} state={scoped} serverNow={serverNow} params={route.params} />;
     }
     case "run":
     case "storyRun": {
       const run = state.rows.find((r) => r.pack === route.pack && r.stack === route.stack && r.runId === route.runId);
       if (!run) return <NotFound what={`run ${route.runId} of ${route.stack}`} />;
       const scoped = comparable(state, run.pack, run.family);
-      if (route.page === "run") return <RunPage run={run} state={scoped} serverNow={serverNow} />;
+      if (route.page === "run") return <RunPage run={run} state={scoped} serverNow={serverNow} params={route.params} />;
       const story = run.stories.find((s) => s.id === route.story) ?? null;
-      return <StoryRunPage run={run} story={story} storyId={route.story} state={scoped} serverNow={serverNow} />;
+      return <StoryRunPage run={run} story={story} storyId={route.story} state={scoped} serverNow={serverNow} params={route.params} />;
     }
     case "story": {
       const all = state.rows.filter((r) => r.pack === route.pack);

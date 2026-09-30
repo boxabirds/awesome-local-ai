@@ -27,7 +27,7 @@ function Kpi({ term, s, fmt }: { term: TermId; s: Spread | null; fmt: (n: number
   );
 }
 
-export function CombinationPage({ stack, runs, state }: { stack: string; runs: Row[]; state: State; serverNow: number | null }) {
+export function CombinationPage({ stack, runs, state }: { stack: string; runs: Row[]; state: State; serverNow: number | null; params?: Record<string, string> }) {
   const [metric, setMetric] = useState<Metric>(DEFAULT_METRIC);
   const c = summarise(stack, runs);
   const matrix = buildMatrix(runs, metric);

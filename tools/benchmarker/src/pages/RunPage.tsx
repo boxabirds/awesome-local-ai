@@ -11,7 +11,7 @@ import "./run.css";
 
 /** Everything about one run, in reading order: identity, outcome, where the time went, cost, evidence, provenance
  * (plan section 4.3). */
-export function RunPage({ run, state }: { run: Row; state: State; serverNow: number | null }) {
+export function RunPage({ run, state }: { run: Row; state: State; serverNow: number | null; params?: Record<string, string> }) {
   const others = otherRuns(run, state.rows);
   return (
     <div className="page run-page" data-page="run">
