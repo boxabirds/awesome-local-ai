@@ -335,7 +335,7 @@ describe("finalScore", () => {
 describe("tokens and speed", () => {
   const raw = (out: number, inp: number, decodeS: number | null, prefillS: number | null) => ({
     title: "t", status: "DONE",
-    agent: { seconds: 600, tool_calls: 100, tokens: { input: inp, output: out, cache_read: 1000 } },
+    agent: { seconds: 600, tool_calls: 100, tokens: { input: inp, output: out, cache_read: 1000, cache_write: 10 } },
     time_split: decodeS === null ? undefined : { model: {
       decode_tokens: out, decode_s: decodeS, decode_tok_s: out / decodeS,
       prefill_tokens: inp, prefill_s: prefillS, prefill_tok_s: inp / prefillS!, draft_acceptance: 0.85 } },
@@ -346,6 +346,12 @@ describe("tokens and speed", () => {
     expect(st.usage).toMatchObject({ outTokens: 55968, inTokens: 45179, cacheRead: 1000, calls: 100, agentSeconds: 600 });
     expect(st.usage!.decodeTokS).toBeCloseTo(98.9, 1);
     expect(st.usage!.draftAcceptance).toBe(0.85);
+  });
+
+  it("read is everything the model read: fresh input plus cache reads and writes, however the client splits it", () => {
+    // Claude Code reports almost all input as cache reads; llama.cpp clients mostly as fresh input.
+    expect(storyEntry("1", raw(5000, 40, null, null)).usage!.readTokens).toBe(40 + 1000 + 10);
+    expect(runUsage([storyEntry("1", raw(5000, 40, null, null)), storyEntry("2", raw(5000, 60, null, null))]).readTokens).toBe(2 * 1010 + 100);
   });
 
   it("a run's tok/s is weighted by tokens, not an average of the stories' rates", () => {

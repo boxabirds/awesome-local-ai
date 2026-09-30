@@ -216,7 +216,7 @@ export function normaliseByStory(by: Record<string, { passed?: number; total?: n
  * `ownTotal` are that story's own tests (accept.json's by_story, keyed "01", "02", …). */
 /** metrics.json's per-story agent and time-split sections, as far as usage goes. */
 export interface RawUsage {
-  agent?: { seconds?: number; tool_calls?: number; tokens?: { input?: number; output?: number; cache_read?: number } };
+  agent?: { seconds?: number; tool_calls?: number; tokens?: { input?: number; output?: number; cache_read?: number; cache_write?: number } };
   time_split?: { model?: {
     decode_tokens?: number; decode_s?: number; decode_tok_s?: number;
     prefill_tokens?: number; prefill_s?: number; prefill_tok_s?: number; draft_acceptance?: number | null;
@@ -228,6 +228,7 @@ function usageOf(raw: RawUsage): Usage | null {
   if (!a && !m) return null;
   return {
     outTokens: a?.tokens?.output ?? null, inTokens: a?.tokens?.input ?? null, cacheRead: a?.tokens?.cache_read ?? null,
+    readTokens: a?.tokens ? (a.tokens.input ?? 0) + (a.tokens.cache_read ?? 0) + (a.tokens.cache_write ?? 0) : null,
     calls: a?.tool_calls ?? null, agentSeconds: a?.seconds ?? null,
     tokS: a?.tokens?.output != null && a?.seconds ? a.tokens.output / a.seconds : null,
     decodeTokens: m?.decode_tokens ?? null, decodeSeconds: m?.decode_s ?? null, decodeTokS: m?.decode_tok_s ?? null,
@@ -248,7 +249,8 @@ export function runUsage(stories: Story[]): RunUsage {
     return s > 0 ? timed.reduce((t, u) => t + tok(u)!, 0) / s : null;
   };
   return {
-    outTokens: sum((u) => u.outTokens), inTokens: sum((u) => u.inTokens),
+    outTokens: sum((u) => u.outTokens), inTokens: sum((u) => u.inTokens), readTokens: sum((u) => u.readTokens),
+    calls: sum((u) => u.calls),
     tokS: rate((u) => u.outTokens, (u) => u.agentSeconds),
     decodeTokS: rate((u) => u.decodeTokens, (u) => u.decodeSeconds),
     prefillTokS: rate((u) => u.prefillTokens, (u) => u.prefillSeconds),

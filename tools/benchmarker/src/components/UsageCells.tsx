@@ -23,7 +23,8 @@ export function TokensCell({ row }: { row: Row }) {
   return (
     <>
       <div>{short(u.outTokens)} out</div>
-      <div className="small">{short(u.inTokens)} in</div>
+      <div className="small" title="everything the model read: fresh input plus cache reads and writes">{short(u.readTokens)} read</div>
+      {u.calls ? <div className="small">{short(u.calls)} calls</div> : null}
     </>
   );
 }
@@ -44,8 +45,8 @@ export function StoryUsageTable({ stories, squares }: { stories: Story[]; square
     <table className="usage">
       <thead>
         <tr>
-          <th>Story</th><th title="Its hidden flows passing against the latest build, as the squares show">Flows now</th><th>Agent min</th><th>Calls</th><th>Out tokens</th><th>In tokens</th>
-          <th>Cache read</th><th title="output tokens ÷ the time the story took">tok/s</th>
+          <th>Story</th><th title="Its hidden flows passing against the latest build, as the squares show">Flows now</th><th>Agent min</th><th>Calls</th><th>Out tokens</th><th title="everything the model read: fresh input plus cache reads and writes">Read tokens</th>
+          <th title="the share of what it read that came from the prompt cache">Cached</th><th title="output tokens ÷ the time the story took">tok/s</th>
           <th title="the model alone, where the harness timed it">Decode tok/s</th><th title="the model alone, where the harness timed it">Prefill tok/s</th><th>Draft accepted</th>
         </tr>
       </thead>
@@ -59,8 +60,8 @@ export function StoryUsageTable({ stories, squares }: { stories: Story[]; square
               <td>{u?.agentSeconds != null ? Math.round(u.agentSeconds / 60) : "—"}</td>
               <td>{full(u?.calls ?? null)}</td>
               <td>{full(u?.outTokens ?? null)}</td>
-              <td>{full(u?.inTokens ?? null)}</td>
-              <td>{short(u?.cacheRead ?? null)}</td>
+              <td>{short(u?.readTokens ?? null)}</td>
+              <td>{u?.readTokens && u.cacheRead != null ? `${Math.round((u.cacheRead / u.readTokens) * PERCENT)}%` : "—"}</td>
               <td>{speed(u?.tokS ?? null)}</td>
               <td>{speed(u?.decodeTokS ?? null)}</td>
               <td>{speed(u?.prefillTokS ?? null)}</td>

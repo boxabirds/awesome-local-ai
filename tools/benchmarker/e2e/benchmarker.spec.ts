@@ -72,6 +72,7 @@ test("tokens and tok/s per run, and per story on click", async ({ page }) => {
   const stack = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi";
   const r = row(page, stack, "canvas-gufo-r3");
   await expect(r.locator("td.tokens")).toContainText("56k out");
+  await expect(r.locator("td.tokens")).toContainText("6.3M read"); // 45,179 fresh + 6,230,043 cached
   await expect(r.locator("td.speed")).toContainText("74 tok/s"); // 55,968 output tokens over the story's 760.3 s
   await r.locator("td").first().click();
   const detail = page.locator(`tr.detail[data-stack="${stack}"][data-run="canvas-gufo-r3"]`);
