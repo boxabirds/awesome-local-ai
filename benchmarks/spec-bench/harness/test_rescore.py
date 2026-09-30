@@ -3,6 +3,7 @@ story's recorded code, without touching the run's own scores."""
 import json
 from pathlib import Path
 
+import rescore
 from rescore import checkpoints, out_dir
 
 
@@ -84,3 +85,47 @@ def test_a_partial_repeat_counts_only_for_the_tests_it_reran():
     m = majority([first, full, overlay(first, _acc({b: "passed", c: "failed"}))])
     assert {t["title"]: t["status"] for t in m["tests"]} == {"a": "passed", "b": "passed", "c": "failed"}
     assert m["flaky"] == ["story-02.spec.ts: b"]
+
+
+class FakeNpm:
+    """Stands in for subprocess.run over `npm ci`: exit codes in the order they're asked for."""
+    def __init__(self, *codes):
+        self.codes, self.calls = list(codes), []
+
+    def __call__(self, cmd, **kw):
+        self.calls.append(cmd)
+        import subprocess
+        return subprocess.CompletedProcess(cmd, self.codes.pop(0), stdout="", stderr="npm error ERESOLVE could not resolve")
+
+
+def test_a_clean_install_is_the_first_try(tmp_path):
+    (tmp_path / "package-lock.json").write_text("{}")
+    npm = FakeNpm(0)
+    assert rescore.install(tmp_path, npm) == {"ok": True, "command": "npm ci --no-audit --no-fund", "fallback": False}
+    assert len(npm.calls) == 1
+
+
+def test_a_lockfile_that_needs_legacy_peer_deps_installs_that_way_and_says_so(tmp_path):
+    """30 Sep 2026: Swift v2-r2's agent installed with --legacy-peer-deps (the spec never asks for a clean
+    `npm ci`); the re-score's plain `npm ci` failed unchecked, the build found no vite (exit 127), and every
+    held-out test got "connection refused": 0/75 against a live 63/75."""
+    (tmp_path / "package-lock.json").write_text("{}")
+    npm = FakeNpm(1, 0)
+    got = rescore.install(tmp_path, npm)
+    assert got == {"ok": True, "command": "npm ci --no-audit --no-fund --legacy-peer-deps", "fallback": True}
+    assert "--legacy-peer-deps" in npm.calls[1]
+
+
+def test_an_install_that_fails_every_way_says_why(tmp_path):
+    (tmp_path / "package-lock.json").write_text("{}")
+    got = rescore.install(tmp_path, FakeNpm(1, 1))
+    assert got["ok"] is False and "ERESOLVE" in got["error"]
+
+
+def test_without_a_lockfile_there_is_nothing_to_install(tmp_path):
+    assert rescore.install(tmp_path, FakeNpm()) == {"ok": True, "command": None, "fallback": False}
+
+
+def test_a_failed_install_is_a_fault_not_a_score():
+    assert rescore.install_fault({"ok": False, "error": "npm error ERESOLVE"}).startswith("scoring interrupted:")
+    assert rescore.install_fault({"ok": True}) is None

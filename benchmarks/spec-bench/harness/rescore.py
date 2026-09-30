@@ -136,6 +136,32 @@ def majority(accs: list[dict]) -> dict:
             "scores": [a.get("passed") for a in accs], "flaky": flaky}
 
 
+NPM_CI = ["npm", "ci", "--no-audit", "--no-fund"]
+# The spec never asks for a clean `npm ci`, and agents do install with --legacy-peer-deps when peers conflict,
+# leaving a lockfile a plain `npm ci` refuses. Install as the agent could have; say when it took the fallback.
+NPM_CI_FALLBACKS = [NPM_CI, NPM_CI + ["--legacy-peer-deps"]]
+ERROR_TAIL_CHARS = 600
+
+
+def install(ws: Path, run=subprocess.run) -> dict:
+    """The checkpoint's dependencies from its lockfile: {"ok", "command", "fallback"}, or {"ok": False, "error"}."""
+    if not (ws / "package-lock.json").exists():
+        return {"ok": True, "command": None, "fallback": False}
+    err = ""
+    for i, cmd in enumerate(NPM_CI_FALLBACKS):
+        r = run(cmd, cwd=ws, capture_output=True, text=True, timeout=NPM_CI_TIMEOUT_S)
+        if r.returncode == 0:
+            return {"ok": True, "command": " ".join(cmd), "fallback": i > 0}
+        err = ((r.stderr or "") + (r.stdout or ""))[-ERROR_TAIL_CHARS:]
+    return {"ok": False, "command": " ".join(NPM_CI_FALLBACKS[-1]), "fallback": True, "error": err}
+
+
+def install_fault(inst: dict) -> str | None:
+    """A checkpoint whose dependencies didn't install can't be scored: its tests would say nothing about the app."""
+    import gates
+    return None if inst.get("ok") else f"{gates.SCORING_INTERRUPTED} the app's dependencies didn't install ({inst.get('error', '')[-200:]})"
+
+
 def out_dir(run: Path, version: str) -> Path:
     return run / "rescore" / version
 
@@ -150,11 +176,14 @@ def _score_one(cp: dict, base_repo: str, work_root: str, out: str, port: int, pa
                    check=True, capture_output=True)
     t0 = time.time()
     try:
-        if (ws / "package-lock.json").exists():
-            subprocess.run(["npm", "ci", "--no-audit", "--no-fund"], cwd=ws, capture_output=True,
-                           timeout=NPM_CI_TIMEOUT_S)
+        inst = install(ws)
         sdir = Path(out) / "stories" / f"{cp['story']:02d}"
-        acc = gates.accept(ws, cp["processed"], sdir, drive.PK.acceptance)
+        if fault := install_fault(inst):
+            sdir.mkdir(parents=True, exist_ok=True)
+            acc = {"skipped": False, "passed": 0, "total": 0, "tests": [], "by_story": {}, "harness_fault": fault}
+        else:
+            acc = gates.accept(ws, cp["processed"], sdir, drive.PK.acceptance)
+        acc["install"] = inst
         if needs_repeats(acc) and not acc.get("harness_fault"):
             accs = [acc]
             again = failed_tests(acc)
