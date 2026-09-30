@@ -76,3 +76,59 @@ Decisions made where the spec was silent or ambiguous:
   covered by a jsdom composition test and drag accuracy at 50%/200% by Chromium e2e.
 - **Commits.** The whole story went into a single commit (per the session instructions) rather
   than separate test-first commits for tasks 1 and 3.
+
+## Story 3 — See other people's edits appear live on the same board
+
+- **Integration toolchain.** `@cloudflare/vitest-pool-workers` (latest 0.22) supports only
+  vitest ^4.1, and fails to start under the app's vitest 5. The integration suite therefore has
+  its own toolchain in `tests/integration/package.json` (vitest 4 + the pool), installed by the
+  root `postinstall`, with its own `tests/integration/vitest.config.ts` (root = that directory so
+  `vitest` resolves to v4). `npm run test:integration` builds the client first (the Worker's
+  assets binding needs `dist/client`). It is not a project inside the root `vitest.config.ts`
+  as the task suggests.
+- **Compatibility date in integration.** The pool's bundled workerd supports dates up to
+  2026-08-22, older than `wrangler.jsonc`'s 2026-09-17, so the integration config overrides
+  `compatibilityDate` for tests only. `wrangler dev` (e2e) uses the real date.
+- **Worker typecheck.** Worker code (`src/worker`, `tests/integration`) is checked by
+  `tsconfig.worker.json` with `@cloudflare/workers-types` (no DOM). `npm run typecheck` runs both configs.
+- **`binaryType = 'arraybuffer'`** is set on the room's server sockets: with the current
+  compatibility date workerd delivers binary frames as `Blob` by default.
+- **Invalid updates.** `y-protocols`' `readSyncMessage` swallows `applyUpdate` errors (it only
+  logs them), so the room handles SyncStep1 itself and applies SyncStep2/Update with
+  `Y.applyUpdate` directly. That way an invalid Yjs update closes the sender with 1003 (TC-15).
+  `decodeMessage` also rejects a length prefix that runs past the end of the frame, unknown sync
+  subtypes, and trailing bytes. For sync frames `payload` is the body after the message type.
+- **`run_worker_first: ["/api/*"]`** in `wrangler.jsonc`, so room requests never hit the SPA
+  fallback.
+- **Routing.** `/b/:boardId` with a valid id opens that board. Any other address, including `/`
+  and `/b/<invalid id>`, is replaced (history `replaceState`) with `/b/<newBoardId()>`. Story 5
+  replaces this.
+- **Remote typing while editing.** Story 2's editor read the `Y.Text` only when editing started,
+  so its next local diff would have deleted text other people typed meanwhile. The editor now
+  observes the `Y.Text`. It applies remote changes to the textarea and moves the caret and selection
+  with them (`transformIndex`). During an IME composition, remote changes are held back; when the
+  composition ends, they are merged and the composed edit is rebased onto them.
+- **Delete during edit/drag** relies on story 2's App effect (a vanished selected note clears
+  selection/editing; an unmounted `StickyNote` ends its drag silently). This is not a new
+  `useSelection` hook.
+- **Connection-state mapping.** Failures before the first sync keep "Connecting…". y-websocket
+  emits `disconnected` only for a socket that had opened. `connectBoard` takes an optional
+  4th argument (provider factory) so component tests can drive a fake provider. Component tests
+  replace `WebSocket` with an inert stub (`tests/component/setup.ts`), so App-level tests never
+  touch the network.
+- **Test hooks (test mode only).** `window.__vidi6.connectionState` and
+  `window.__vidi6Unmount()` (used by the TC-29 teardown check). The production build was
+  re-checked with grep.
+- **E2E latency** is measured in the pages. An init script records when each note property
+  first shows a value on each screen, and latency is receiver time minus sender time. It is logged
+  against `LIVE_UPDATE_LATENCY_BUDGET_MS` and never asserted. The zoom-label e2e helper and one
+  component test now select the status role by name (`Zoom level`), because the connection badge
+  is also `role="status"`.
+- **Nightly.** TC-29/TC-30 are tagged `@nightly`. They run with `npm run test:e2e:nightly` and
+  are excluded from `npm run test:e2e`. The 45 s idle and 60 s soak durations are test-local
+  constants taken from the design. TC-30 participants edit only their own notes, each in its own
+  screen band. This matches the design's "two writers different notes" class and keeps UI clicks
+  deterministic.
+- **E2E browsers:** only Chromium is installed here, so e2e (including TC-22/TC-23) ran in
+  Chromium only.
+- **Commits.** The whole story went into a single commit, per the session instructions.

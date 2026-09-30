@@ -7,17 +7,24 @@
     "dev": "vite",
     "build": "vite build",
     "build:test": "vite build --mode test",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:e2e": "playwright test"
+    "test:integration": "vite build && node tests/integration/node_modules/vitest/vitest.mjs run --config tests/integration/vitest.config.ts",
+    "test:e2e": "playwright test --grep-invert @nightly",
+    "test:e2e:nightly": "playwright test --grep @nightly",
+    "postinstall": "npm --prefix tests/integration install --no-audit --no-fund"
   },
   "dependencies": {
+    "lib0": "^0.2.119",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260930.1",
     "@playwright/test": "^1.63.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",

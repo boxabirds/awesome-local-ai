@@ -45,3 +45,18 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 /** Current board document schema version (meta.schemaVersion). */
 export const BOARD_SCHEMA_VERSION = 1;
+
+// Story 3 — live collaboration.
+
+/** Soft capacity: design and test target for simultaneous editors, never enforced. */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** PRD live.propagate: a change reaches every other screen within this time. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Passed to WebsocketProvider maxBackoffTime. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** Green "Connected" badge duration after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** PRD live.catch_up verification outage. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/** Functional wait in e2e (all stories); latency is logged, not asserted. */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;

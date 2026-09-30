@@ -1,3 +1,50 @@
+commit 210e7494fcd4d24412da35172d875ac429179062
+vidi-agent  Wed Sep 30 06:07:40 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                  |   56 +
+ package-lock.json                         |   53 +
+ package.json                              |   11 +-
+ src/client/App.tsx                        |   31 +-
+ src/client/board/useBoardDoc.ts           |   30 +-
+ src/client/main.tsx                       |    4 +-
+ src/client/objects/StickyText.ts          |   71 +-
+ src/client/objects/StickyTextEditor.tsx   |   53 +-
+ src/client/styles.css                     |   29 +
+ src/client/sync/ConnectionStatus.tsx      |   17 +
+ src/client/sync/connectBoard.ts           |   87 +
+ src/client/testHooks.ts                   |    5 +
+ src/shared/board-id.ts                    |   16 +
+ src/shared/config.ts                      |   15 +
+ src/shared/protocol.ts                    |   86 +
+ src/worker/board-room.ts                  |  123 ++
+ src/worker/index.ts                       |   33 +
+ tests/component/ConnectionStatus.test.tsx |  137 ++
+ tests/component/LiveBoard.test.tsx        |   60 +
+ tests/component/StickyTextEditor.test.tsx |   38 +
+ tests/component/ZoomControls.test.tsx     |    2 +-
+ tests/component/setup.ts                  |   31 +-
+ tests/e2e/helpers/board.ts                |    2 +-
+ tests/e2e/helpers/participants.ts         |  226 +++
+ tests/e2e/live-collaboration.spec.ts      |  276 +++
+ tests/e2e/live-nightly.spec.ts            |  207 +++
+ tests/fixtures/random-ops.ts              |   85 +
+ tests/integration/board-room.test.ts      |  266 +++
+ tests/integration/env.d.ts                |    8 +
+ tests/integration/package-lock.json       | 2788 +++++++++++++++++++++++++++++
+ tests/integration/package.json            |   10 +
+ tests/integration/vitest.config.ts        |   27 +
+ tests/integration/worker.test.ts          |   91 +
+ tests/integration/ws-client.ts            |  165 ++
+ tests/unit/board-id.test.ts               |   31 +
+ tests/unit/protocol.test.ts               |   81 +
+ tests/unit/sticky-text.test.ts            |   31 +-
+ tsconfig.json                             |    4 +-
+ tsconfig.worker.json                      |   18 +
+ wrangler.jsonc                            |   14 +-
+ 40 files changed, 5280 insertions(+), 38 deletions(-)
 commit cd485e84d248cbededc7393c9ae6a17c4b4b0564
 vidi-agent  Wed Sep 30 05:48:44 2026 +0100
 

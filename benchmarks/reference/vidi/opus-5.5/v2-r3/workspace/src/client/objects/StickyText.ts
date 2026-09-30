@@ -37,24 +37,7 @@ export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS):
 export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
   const prev = ytext.toString();
   if (prev === next) return;
-  const minLen = Math.min(prev.length, next.length);
-  let start = 0;
-  while (start < minLen && prev.charCodeAt(start) === next.charCodeAt(start)) start++;
-  // Do not split a surrogate pair at the start of the change.
-  if (start > 0 && isHigh(prev.charCodeAt(start - 1))) start--;
-  let endPrev = prev.length;
-  let endNext = next.length;
-  while (endPrev > start && endNext > start && prev.charCodeAt(endPrev - 1) === next.charCodeAt(endNext - 1)) {
-    endPrev--;
-    endNext--;
-  }
-  // Nor at the end of the change.
-  if (endPrev < prev.length && isLow(prev.charCodeAt(endPrev))) {
-    endPrev++;
-    endNext++;
-  }
-  const deleteCount = endPrev - start;
-  const insert = next.slice(start, endNext);
+  const { start, deleteCount, insert } = diffText(prev, next);
   const apply = () => {
     if (deleteCount > 0) ytext.delete(start, deleteCount);
     if (insert.length > 0) ytext.insert(start, insert);
@@ -124,4 +107,56 @@ export function limitEdit(
   const allowed = clampToLimit(inserted, Math.max(0, max - kept));
   const text = next.slice(0, start) + allowed + next.slice(next.length - suffix);
   return { text, caret: start + allowed.length };
+}
+
+/** One entry of a Y.Text change delta. */
+export type TextDelta = { retain?: number; insert?: unknown; delete?: number };
+
+/**
+ * Maps an index in the text before a change to the text after it (story 3:
+ * keeping the caret in place while someone else types). An insert exactly at
+ * `index` stays after the index unless `stickRight` (then the index moves past it).
+ */
+export function transformIndex(index: number, delta: readonly TextDelta[], stickRight = false): number {
+  let oldPos = 0; // position in the old text
+  let shift = 0;
+  for (const op of delta) {
+    if (op.retain !== undefined) {
+      oldPos += op.retain;
+      if (oldPos > index) break;
+    } else if (op.insert !== undefined) {
+      const len = typeof op.insert === 'string' ? op.insert.length : 1;
+      if (oldPos < index || (oldPos === index && stickRight)) shift += len;
+      else break;
+    } else if (op.delete !== undefined) {
+      const end = oldPos + op.delete;
+      if (end <= index) shift -= op.delete;
+      else if (oldPos < index) shift -= index - oldPos;
+      else break;
+      oldPos = end;
+    }
+  }
+  return index + shift;
+}
+
+/**
+ * The single edit that turns `prev` into `next`: `deleteCount` characters at
+ * `start` replaced by `insert` (common prefix and suffix kept).
+ */
+export function diffText(prev: string, next: string): { start: number; deleteCount: number; insert: string } {
+  const minLen = Math.min(prev.length, next.length);
+  let start = 0;
+  while (start < minLen && prev.charCodeAt(start) === next.charCodeAt(start)) start++;
+  if (start > 0 && isHigh(prev.charCodeAt(start - 1))) start--;
+  let endPrev = prev.length;
+  let endNext = next.length;
+  while (endPrev > start && endNext > start && prev.charCodeAt(endPrev - 1) === next.charCodeAt(endNext - 1)) {
+    endPrev--;
+    endNext--;
+  }
+  if (endPrev < prev.length && isLow(prev.charCodeAt(endPrev))) {
+    endPrev++;
+    endNext++;
+  }
+  return { start, deleteCount: endPrev - start, insert: next.slice(start, endNext) };
 }

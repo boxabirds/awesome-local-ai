@@ -76,7 +76,7 @@ describe('ZoomControls wired to the board', () => {
     const { viewport } = renderApp();
     const zoomIn = screen.getByRole('button', { name: 'Zoom in' });
     const zoomOut = screen.getByRole('button', { name: 'Zoom out' });
-    const label = screen.getByRole('status');
+    const label = screen.getByRole('status', { name: 'Zoom level' });
     expect(label).toHaveTextContent('100%');
 
     zoomIn.click();

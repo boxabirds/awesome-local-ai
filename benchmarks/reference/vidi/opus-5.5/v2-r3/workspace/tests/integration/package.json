@@ -1,0 +1,10 @@
+{
+  "name": "vidi6-integration-tests",
+  "private": true,
+  "type": "module",
+  "description": "Isolated toolchain: @cloudflare/vitest-pool-workers requires vitest 4 while the app uses vitest 5 (see NOTES.md).",
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "vitest": "^4.1.0"
+  }
+}

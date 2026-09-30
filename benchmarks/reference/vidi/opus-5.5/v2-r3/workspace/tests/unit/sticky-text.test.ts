@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../src/shared/board-model';
 import { STICKY_COUNTER_THRESHOLD_CHARS, STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
-import { applyTextDiff, clampToLimit, counterVisible, limitEdit } from '../../src/client/objects/StickyText';
+import {
+  applyTextDiff,
+  clampToLimit,
+  counterVisible,
+  diffText,
+  limitEdit,
+  transformIndex,
+} from '../../src/client/objects/StickyText';
 import { LONG_PARAGRAPH_1000, LONG_PARAGRAPH_1200, SHORT_PHRASE, proseOfLength } from '../fixtures/texts';
 
 function textWith(initial: string): { doc: Y.Doc; ytext: Y.Text } {
@@ -133,5 +140,27 @@ describe('limitEdit (sticky.text_limit, caret handling)', () => {
       text: prev.slice(0, 5) + 'ABCDE' + prev.slice(5),
       caret: 10,
     });
+  });
+});
+
+describe('transformIndex / diffText (story 3: remote typing while editing)', () => {
+  it('shifts an index by inserts before it and keeps it before an insert at it', () => {
+    expect(transformIndex(5, [{ insert: 'red ' }])).toBe(9);
+    expect(transformIndex(0, [{ insert: 'red ' }])).toBe(0);
+    expect(transformIndex(0, [{ insert: 'red ' }], true)).toBe(4);
+    expect(transformIndex(3, [{ retain: 5 }, { insert: ' blue' }])).toBe(3);
+    expect(transformIndex(5, [{ retain: 5 }, { insert: ' blue' }])).toBe(5);
+  });
+
+  it('pulls an index back over deletions before it and clamps inside a deleted range', () => {
+    expect(transformIndex(10, [{ retain: 2 }, { delete: 3 }])).toBe(7);
+    expect(transformIndex(3, [{ retain: 2 }, { delete: 3 }])).toBe(2);
+    expect(transformIndex(1, [{ retain: 2 }, { delete: 3 }])).toBe(1);
+  });
+
+  it('diffText finds the single replaced range', () => {
+    expect(diffText('green', 'green blue')).toEqual({ start: 5, deleteCount: 0, insert: ' blue' });
+    expect(diffText('red green', 'green')).toEqual({ start: 0, deleteCount: 4, insert: '' });
+    expect(diffText('same', 'same')).toEqual({ start: 4, deleteCount: 0, insert: '' });
   });
 });

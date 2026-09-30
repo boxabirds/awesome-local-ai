@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
 import { STICKY_SIZE_WORLD, type StickyColor } from '../shared/config';
 import { Toolbar } from './board/Toolbar';
@@ -11,6 +12,7 @@ import { canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Point, type Siz
 import { CameraContext, useCamera, type CameraContextValue } from './canvas/useCamera';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { installTestHooks } from './testHooks';
 
 const HALF = 2;
@@ -27,20 +29,44 @@ function isInputTarget(target: EventTarget | null): boolean {
   );
 }
 
+const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
+
+/**
+ * The board id from `/b/:boardId`. Any other address (including `/`) is
+ * redirected to a new board; story 5 replaces this with server-side creation.
+ */
+function boardIdFromLocation(): string {
+  const match = BOARD_PATH.exec(window.location.pathname);
+  if (match && isValidBoardId(match[1])) return match[1];
+  const id = newBoardId();
+  window.history.replaceState(null, '', `/b/${id}`);
+  return id;
+}
+
 export function App() {
+  const [boardId] = useState(boardIdFromLocation);
   const [viewport, setViewport] = useState<Size>(windowSize);
   const api = useCamera(viewport);
   const { camera } = api;
-  const { doc, notes } = useBoardDoc();
+  const { doc, notes, connection } = useBoardDoc(boardId);
   const selection = useSelection();
   const { selectedId, editingId, select, startEdit, endEdit } = selection;
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const cameraRef = useRef(camera);
   cameraRef.current = camera;
+  const connectionRef = useRef(connection);
+  connectionRef.current = connection;
   useEffect(() => {
     if (import.meta.env.MODE !== 'test') return;
-    return installTestHooks({ setCamera: api.setCamera, getCamera: () => cameraRef.current, doc });
+    return installTestHooks({
+      setCamera: api.setCamera,
+      getCamera: () => cameraRef.current,
+      doc,
+      get connectionState() {
+        return connectionRef.current;
+      },
+    });
   }, [api.setCamera, doc]);
 
   const ctx = useMemo<CameraContextValue>(() => ({ api, onViewportResize: setViewport }), [api]);
@@ -150,6 +176,7 @@ export function App() {
           onReset={api.reset}
         />
         <NavigationHint visible={!api.hasNavigated} />
+        <ConnectionStatus state={connection} />
       </main>
     </CameraContext.Provider>
   );

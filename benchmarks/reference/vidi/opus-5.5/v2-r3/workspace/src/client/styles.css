@@ -314,3 +314,32 @@ body {
 .note-delete:hover {
   background: #efefec;
 }
+
+.connection-status {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+  background: #fff;
+  border: 1px solid #d8d8d4;
+  color: #57606a;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+}
+
+.connection-status.is-reconnecting {
+  background: #fff4d6;
+  border-color: #e3b341;
+  color: #7a4f01;
+}
+
+.connection-status.is-confirmed {
+  background: #e3f5e1;
+  border-color: #6fbf73;
+  color: #1a5e20;
+}

@@ -168,3 +168,41 @@ describe('StickyTextEditor standalone (length limit and counter)', () => {
     expect(ytext.toString()).toBe('日本');
   });
 });
+
+describe('StickyTextEditor with remote typing (story 3 live.concurrent_text)', () => {
+  const REMOTE = Symbol('remote');
+
+  function remote(ytext: Y.Text, fn: () => void) {
+    act(() => ytext.doc!.transact(fn, REMOTE));
+  }
+
+  it('shows remote inserts while editing, keeps the caret, and keeps both people\'s words', () => {
+    const { el, ytext } = setupWithText('green');
+    press(el);
+    keyDown(el, 'Enter');
+    const ta = textbox();
+    ta.setSelectionRange(5, 5);
+    remote(ytext, () => ytext.insert(0, 'red '));
+    expect(ta.value).toBe('red green');
+    expect(ta.selectionStart).toBe(9); // caret stayed after "green"
+    // Local typing at the caret keeps the remote words.
+    ta.value = 'red green blue';
+    ta.setSelectionRange(14, 14);
+    fireEvent.input(ta);
+    expect(ytext.toString()).toBe('red green blue');
+  });
+
+  it('holds remote changes during an IME composition and merges them when it ends', () => {
+    const { el, ytext } = setupWithText('green');
+    press(el);
+    keyDown(el, 'Enter');
+    const ta = textbox();
+    fireEvent.compositionStart(ta);
+    ta.value = 'green 青';
+    remote(ytext, () => ytext.insert(0, 'red '));
+    expect(ta.value).toBe('green 青'); // untouched mid-composition
+    fireEvent.compositionEnd(ta);
+    expect(ytext.toString()).toBe('red green 青');
+    expect(ta.value).toBe('red green 青');
+  });
+});

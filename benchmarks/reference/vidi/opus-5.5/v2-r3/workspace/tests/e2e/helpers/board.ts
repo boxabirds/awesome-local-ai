@@ -10,7 +10,7 @@ export function originMarker(page: Page): Locator {
 }
 
 export function zoomLabel(page: Page): Locator {
-  return page.getByRole('status');
+  return page.getByRole('status', { name: 'Zoom level' });
 }
 
 export async function openBoard(page: Page): Promise<void> {
