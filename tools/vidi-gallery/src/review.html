@@ -238,7 +238,7 @@ function renderStory() {
     <section style="margin-top:8px"><h2>Requirements (${s.requirements.length})</h2><ul>${s.requirements.map(r => `<li><b>${esc(r.title)}</b> <span class="muted small">${esc(r.anchor)}</span></li>`).join("")}</ul></section>
     </details>
     <div class="work"><div><div id="builds" tabindex="0" aria-label="Held-out tests"></div><div class="reveal" id="reveal"></div></div><div id="player"><section class="muted">Pick a path on the left (or press <kbd>j</kbd>) to play its recording.</section></div></div>
-    <div class="keys"><kbd>Tab</kbd> / <kbd>⇧Tab</kbd> move between stories, held-out tests and browser steps · <kbd>↑</kbd><kbd>↓</kbd> within one · <kbd>←</kbd><kbd>→</kbd> scrub, and on to the next test at the end · <kbd>=</kbd> agree / <kbd>-</kbd> disagree and on to the next test · <kbd>Space</kbd> play · <kbd>?</kbd> all keys<br>
+    <div class="keys"><kbd>Tab</kbd> / <kbd>⇧Tab</kbd> move between stories, held-out tests and browser steps · <kbd>↑</kbd><kbd>↓</kbd> within one · <kbd>→</kbd>/<kbd>Space</kbd> scrub, and on to the next test at the end · <kbd>=</kbd>/<kbd>Return</kbd> agree, <kbd>-</kbd> disagree, and on · <kbd>Esc</kbd> clear the verdict · <kbd>p</kbd> play · <kbd>?</kbd> all keys<br>
     A verdict says whether <b>you agree with the automated result</b> of that path, having watched it. Each build opens as it was after story ${s.review_build}. Reviews save to <code>${esc(S.file)}</code>.</div>`;
   renderBuilds();
 }
@@ -496,27 +496,28 @@ async function poll() {
 // ---------- the keyboard layer (keyAction in player.js says what each key does) ----------
 const KEYS = [
   ["Three panes", "stories · held-out tests · browser steps (the focused one has a ring)"],
-  ["Tab · ⇧Tab Esc", "next pane · previous pane"],
+  ["Tab · ⇧Tab", "next pane · previous pane"],
   ["Stories: ↑ ↓", "previous / next story"],
-  ["Stories: → Return", "into the story's held-out tests"],
+  ["Stories: → Space Return", "into the story's held-out tests"],
   ["Tests: ↑ ↓", "previous / next held-out test"],
-  ["Steps: ↑ ↓", "previous / next browser step"],
-  ["Tests: ← →", "scrub 5% (⇧: 1%); at an end, on to the next / previous test: hold → to fly through"],
-  ["Steps: ← →", "scrub 5% (⇧: 1%)"],
-  ["Space", "play / pause"],
-  ["= -", "agree / disagree, and on to the next test"],
+  ["Tests: → Space · ←", "scrub 5% (⇧: 1%); at an end, on to the next / previous test: hold to fly through"],
+  ["Tests: = Return · -", "agree · disagree, and on to the next test"],
+  ["Tests: ⇧Return", "disagree, and write why"],
+  ["Tests: Esc", "clear the verdict back to “to review”"],
+  ["Steps: ↑ ↓ Return", "previous / next browser step"],
+  ["Steps: → Space · ←", "scrub 5% (⇧: 1%)"],
+  ["Steps: Esc", "back to the held-out tests"],
+  ["p", "play / pause"],
   [". ,", "next / previous frame"],
   ["1 … 9 · 0", "jump to 10% … 90% · the start"],
   ["Home End", "start / end"],
   ["> <", "faster / slower"],
   ["] [ · PgDn PgUp", "next / previous story, from any pane"],
-  ["Return", "agree, and on to the next test"],
-  ["⇧Return", "disagree, and write why"],
   ["a d s", "agree / disagree / skip, and on to the next test"],
   ["n", "write a note (Esc or Return to leave it)"],
   ["o", "open this build"],
   ["w", "skip long waits on / off"],
-  ["?", "show / hide these keys"],
+  ["?", "show / hide these keys (Esc closes)"],
 ];
 
 function toggleHelp(show = !$("help")) {
@@ -577,7 +578,8 @@ async function act(a) {
     case "verdict":
       if (!P) return;
       // Holding = or - passes the same verdict many times: save it once.
-      if (review(sidNow(), P.key, P.p.title)?.verdict !== a.v) await judge(a.v);
+      // Save only a change: holding = passes the same verdict many times, and clearing an unjudged test is a no-op.
+      if ((review(sidNow(), P.key, P.p.title)?.verdict || "") !== a.v) await judge(a.v);
       if (a.note) return $("pnote")?.focus();
       if (a.scrub) return act({do: "scrub", ...a.scrub});
       if (a.next) return movePath(1);
