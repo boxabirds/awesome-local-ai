@@ -95,13 +95,16 @@ function state(): State {
 }
 
 let ops: Ops;
-if (args.fixture) {
-  // Fixed inputs for tests: run records, dbench jobs and suites, timestamps made current.
-  const f = JSON.parse(readFileSync(resolve(args.fixture), "utf8"));
+/** Fixture mode: load the fixed inputs afresh (each test starts from them, whatever the last one queued or stopped). */
+function loadFixture() {
+  const f = JSON.parse(readFileSync(resolve(args.fixture!), "utf8"));
   // A job with no updated_at was just updated, so it counts as recent however old the fixture is.
   for (const jobs of Object.values(f.jobs as Record<string, DbenchJob[]>)) for (const j of jobs) j.updated_at ??= now();
   Object.assign(src, { records: f.records, suites: f.suites, jobs: f.jobs, web: f.web ?? null, flowCounts: f.flowCounts ?? {}, fetchedAt: now(), dbenchAt: now() });
   ops = fakeOps(src.jobs, f.machines ?? {});
+}
+if (args.fixture) {
+  loadFixture();
 } else {
   const repo = resolve(args.repo!);
   src.web = webBase(await git(repo, "remote", "get-url", "origin").catch(() => ""));
@@ -166,6 +169,7 @@ async function machinesApi(req: import("node:http").IncomingMessage, res: import
 
 createServer(async (req, res) => {
   const path = new URL(req.url ?? "/", "http://x").pathname;
+  if (args.fixture && path === "/api/test/reset" && req.method === "POST") { loadFixture(); res.writeHead(204).end(); return; }
   if (await machinesApi(req, res, path)) return;
   if (path === "/api/state") {
     res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });

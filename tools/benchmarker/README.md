@@ -80,6 +80,12 @@ unless it is idle.
 
 ## Combinations
 
+At the top of Runs, one row per combination over the runs the filters show, whichever machines they ran
+on: its machines, its runs by status, held-out quality, the mean score of record (n = runs that have one),
+hours per story, tok/s, calls and read tokens per story. Click a heading to sort by it (again to reverse);
+every heading explains itself on hover. Sorted by held-out quality to start.
+
+
 In each machine's table, every combination's runs sit under a heading line with two numbers over the
 runs the filters show (hover the **?** for what each means):
 

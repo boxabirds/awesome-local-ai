@@ -113,3 +113,7 @@ tr.combo-head td > span { margin-right: 16px; }
 tr.combo-head .stack-label { font-size: 13px; color: var(--ink); font-weight: 600; }
 .explain { display: inline-block; width: 15px; height: 15px; line-height: 15px; text-align: center; border-radius: 50%; border: 1px solid var(--muted); color: var(--muted); font-size: 10px; cursor: help; }
 th[title] { cursor: help; }
+section.combinations h2 { display: flex; gap: 12px; align-items: baseline; font-family: inherit; font-size: 14px; }
+table.combos { min-width: 0; table-layout: auto; }
+table.combos th { cursor: pointer; }
+table.combos td.combo .stack-label { font-size: 13px; color: var(--ink); font-weight: 600; }
