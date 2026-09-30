@@ -1,3 +1,48 @@
+commit d10757d22dc602332a0520c63ff9a0a80818885b
+vidi-agent  Wed Sep 30 06:40:48 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                         |  38 ++++
+ index.html                                       |   1 +
+ playwright.config.ts                             |   2 +-
+ src/client/App.tsx                               | 225 ++---------------------
+ src/client/api.ts                                |  31 ++++
+ src/client/board/Board.tsx                       | 199 ++++++++++++++++++++
+ src/client/pages/BoardPage.tsx                   |  61 ++++++
+ src/client/pages/HomePage.tsx                    |  14 ++
+ src/client/pages/NewBoardButton.tsx              |  16 ++
+ src/client/pages/NotFoundPage.tsx                |  24 +++
+ src/client/pages/state.ts                        |  42 +++++
+ src/client/pages/useCreateBoard.ts               |  37 ++++
+ src/client/router.ts                             |  44 +++++
+ src/client/share/SharePanel.tsx                  | 150 +++++++++++++++
+ src/client/styles.css                            | 150 +++++++++++++++
+ src/shared/config.ts                             |   9 +
+ src/worker/board-room.ts                         |  17 +-
+ src/worker/board-store.ts                        |  56 +++++-
+ src/worker/create-board.ts                       |  19 ++
+ src/worker/index.ts                              |  60 ++++--
+ src/worker/test-hooks.ts                         |  29 ++-
+ tests/component/LiveBoard.test.tsx               |  14 +-
+ tests/component/SharePanel.test.tsx              | 134 ++++++++++++++
+ tests/component/helpers.tsx                      |  10 +-
+ tests/component/pages.test.tsx                   | 187 +++++++++++++++++++
+ tests/e2e/broken-board.spec.ts                   |   4 +-
+ tests/e2e/helpers/board.ts                       |   4 +-
+ tests/e2e/helpers/participants.ts                |   7 +-
+ tests/e2e/helpers/seed.ts                        |  12 ++
+ tests/e2e/helpers/server.ts                      |  10 +
+ tests/e2e/persistence.spec.ts                    |   8 +-
+ tests/e2e/share.spec.ts                          | 159 ++++++++++++++++
+ tests/integration/board-api.test.ts              | 194 +++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |  16 +-
+ tests/integration/board-room.test.ts             |   9 +-
+ tests/integration/worker.test.ts                 |  20 +-
+ tests/integration/ws-client.ts                   |   7 +
+ tests/unit/create-board.test.ts                  |  45 +++++
+ 38 files changed, 1791 insertions(+), 273 deletions(-)
 commit e430f9de720c01b9023233d320aa1cebed40e6b4
 vidi-agent  Wed Sep 30 06:28:21 2026 +0100
 
