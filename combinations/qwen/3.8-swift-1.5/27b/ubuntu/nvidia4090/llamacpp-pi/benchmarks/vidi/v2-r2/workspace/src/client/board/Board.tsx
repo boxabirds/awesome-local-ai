@@ -15,6 +15,7 @@ import { SelectionBar } from './SelectionBar';
 import { Toolbar } from './Toolbar';
 import { getObjectType } from '../objects/registry';
 import { createSticky, deleteObjects, objectSnapshot, snapshot } from '../../shared/board-model';
+import { ImageObject } from '../objects/ImageObject';
 import { createText } from '../../shared/objects/text';
 import { createShape, setShapeStyle } from '../../shared/objects/shape';
 import { createConnector } from '../../shared/objects/connector';
@@ -30,7 +31,11 @@ import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { PenTool } from '../tools/PenTool';
 import { PenToolbar } from '../tools/PenToolbar';
 import { usePenOptions } from '../tools/usePenOptions';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { useToast, ToastContainer } from '../ui/Toast';
 import type { StickyColor, FillColor, StrokeColor, ShapeKind } from '../../shared/config';
+import type { ImageSnap } from '../../shared/objects/image';
 
 /** Stable per-client identity for object attribution (story 6 is out of scope). */
 const CLIENT_ID =
@@ -49,6 +54,7 @@ declare global {
       createShape?(x: number, y: number, kind?: ShapeKind): string | null;
       createConnector?(fromId: string, toId: string): string | null;
       getCamera?(): import('../canvas/camera').Camera;
+      dropFilesAt?(files: { name: string; data: number[] | Uint8Array; type: string }[], worldX: number, worldY: number): void;
     };
   }
 }
@@ -141,6 +147,25 @@ export function Board({ boardId }: { boardId: string }) {
 
   // Story 11: pen options (session-only colour/thickness state)
   const penOptions = usePenOptions();
+
+  // Story 12: image insertion (drop, paste, picker)
+  const { toasts, showToast } = useToast();
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera: cameraRef.current,
+    connection: connectionState,
+    identityId: CLIENT_ID,
+    showToast,
+    viewportSize: size,
+  });
+
+  // Story 12: paste event listener
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => imageInsert.onPaste(e);
+    window.addEventListener('paste', handler);
+    return () => window.removeEventListener('paste', handler);
+  }, [imageInsert.onPaste]);
 
   // Shared move/resize gesture for the selection.
   const gesture = useTransformGesture({
@@ -264,11 +289,18 @@ export function Board({ boardId }: { boardId: string }) {
         return createConnector(doc, from, to, CLIENT_ID);
       },
       getCamera: () => cameraRef.current,
+      dropFilesAt: (files: { name: string; data: number[] | Uint8Array; type: string }[], worldX: number, worldY: number) => {
+        const fileObjs = files.map((f) => {
+          const bytes = f.data instanceof Uint8Array ? f.data : new Uint8Array(f.data);
+          return new File([bytes as unknown as BlobPart], f.name, { type: f.type });
+        });
+        imageInsert.addFiles(fileObjs, 'top-left', { x: worldX, y: worldY });
+      },
     };
     return () => {
       delete window.__vidi6;
     };
-  }, [setCamera, doc, connectionState]);
+  }, [setCamera, doc, connectionState, imageInsert.addFiles]);
 
   // Object pointer-down: start a move/resize gesture. In the text tool (story
   // 9) a click on an object instead creates text on top of it at that point.
@@ -298,7 +330,14 @@ export function Board({ boardId }: { boardId: string }) {
     : null;
 
   return (
-    <div ref={containerRef} style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+    <div
+      ref={containerRef}
+      style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}
+      onDragOver={imageInsert.onDragOver}
+      onDragEnter={imageInsert.onDragEnter}
+      onDragLeave={imageInsert.onDragLeave}
+      onDrop={imageInsert.onDrop}
+    >
       <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={camera}
@@ -326,6 +365,39 @@ export function Board({ boardId }: { boardId: string }) {
           .map((obj) => {
             const spec = getObjectType(obj.type);
             if (!spec) return null;
+
+            // Story 12: Image objects need extra props
+            if (obj.type === 'image') {
+              const img = obj as ImageSnap;
+              return (
+                <div
+                  key={obj.id}
+                  style={{
+                    position: 'absolute',
+                    left: (img.x - camera.x) * camera.zoom,
+                    top: (img.y - camera.y) * camera.zoom,
+                    transform: `scale(${camera.zoom})`,
+                    transformOrigin: 'top left',
+                    zIndex: obj.z,
+                  }}
+                  onPointerDown={(e) => handleObjectPointerDown(e, obj.id)}
+                >
+                  <ImageObject
+                    image={img}
+                    isUploader={img.uploaderId === CLIENT_ID}
+                    progress={imageInsert.progress.get(obj.id)}
+                    canRetry={imageInsert.canRetry(obj.id)}
+                    now={Date.now()}
+                    onRetry={() => imageInsert.retry(obj.id)}
+                    onRemove={() => {
+                      deleteObjects(doc, [obj.id]);
+                      selection.clear();
+                    }}
+                  />
+                </div>
+              );
+            }
+
             const Component = spec.Component;
             return (
               <Component
@@ -436,6 +508,7 @@ export function Board({ boardId }: { boardId: string }) {
         }}
         shapeKind={activeTool.shapeKind}
         onShapeKindChange={activeTool.setShapeKind}
+        onOpenImagePicker={imageInsert.openPicker}
       />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
@@ -446,6 +519,12 @@ export function Board({ boardId }: { boardId: string }) {
         onReset={reset}
       />
       <NavigationHint visible={!hasNavigated} />
+
+      {/* Story 12: Drop highlight */}
+      {imageInsert.isDragging && <DropHighlight />}
+
+      {/* Story 12: Toast notifications */}
+      <ToastContainer toasts={toasts} />
     </div>
   );
 }

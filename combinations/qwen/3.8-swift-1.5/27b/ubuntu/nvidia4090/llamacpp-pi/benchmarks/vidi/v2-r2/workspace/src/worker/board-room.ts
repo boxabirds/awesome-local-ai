@@ -11,6 +11,7 @@ import { nextRoomState, type RoomState, type RoomEvent } from './room-state';
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   TEST_HOOKS?: string;
 }
 

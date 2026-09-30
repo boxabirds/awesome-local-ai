@@ -10,8 +10,9 @@ import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
 import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
-import { TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { TEXT_MIN_WIDTH_WORLD, IMAGE_MIN_SIZE_WORLD } from '../../shared/config';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { ImageObject } from './ImageObject';
 
 /**
  * Props passed to every board-object component (story 7, sel.registry).
@@ -147,6 +148,19 @@ registerObjectType('stroke', {
     const s = obj as StrokeSnap;
     const tol = Math.max(PEN_THICKNESS_WORLD[s.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom);
     return distanceToPolyline(scaledPoints(s), p) <= tol;
+  },
+});
+
+// Images (story 12)
+registerObjectType('image', {
+  Component: ImageObject as unknown as ComponentType<ObjectProps>,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, p) => {
+    const b = objectBounds(obj);
+    return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
   },
 });
 

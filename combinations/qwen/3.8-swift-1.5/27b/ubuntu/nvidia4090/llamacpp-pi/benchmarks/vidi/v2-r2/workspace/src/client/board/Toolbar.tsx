@@ -17,6 +17,8 @@ interface ToolbarProps {
   onActiveToolChange?: (t: ToolId) => void;
   shapeKind?: ShapeKind;
   onShapeKindChange?: (k: ShapeKind) => void;
+  // Story 12: image picker
+  onOpenImagePicker?: () => void;
 }
 
 const buttonStyle: React.CSSProperties = {
@@ -51,6 +53,7 @@ export function Toolbar({
   onActiveToolChange,
   shapeKind = 'rect',
   onShapeKindChange,
+  onOpenImagePicker,
 }: ToolbarProps): ReactElement {
   // Use the extended tool system if available
   const currentTool = activeToolId ?? tool;
@@ -220,6 +223,17 @@ export function Toolbar({
         title="Pen (P)"
       >
         ✎
+      </button>
+      {/* Story 12: Image button */}
+      <button
+        type="button"
+        aria-label="Image (I)"
+        disabled={disabled}
+        style={buttonStyle}
+        onClick={onOpenImagePicker}
+        title="Image (I)"
+      >
+        🖼
       </button>
       <button
         type="button"

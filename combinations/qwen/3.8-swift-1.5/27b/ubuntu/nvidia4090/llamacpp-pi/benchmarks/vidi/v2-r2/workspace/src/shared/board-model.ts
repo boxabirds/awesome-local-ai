@@ -7,6 +7,7 @@ import type { ConnectorSnap } from './objects/connector';
 import type { StrokeSnap } from './objects/stroke';
 import { detachConnectorsTo } from './objects/connector';
 import { resolveEndpoints as resolveEndpointsGeo, connectorBBox, type ConnectorEndpointSnap } from './geometry/connector-geometry';
+import type { ImageSnap } from './objects/image';
 
 // Origin used for all local transactions (story 8 undo and story 3 echo suppression).
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
@@ -36,7 +37,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 // Board-model-known object types. The client registry registers its types
 // here (registerObjectType → registerKnownType) so the worker-safe shared
 // model never imports client code.
-const KNOWN_TYPES = new Set<string>(['sticky', 'shape', 'connector']);
+const KNOWN_TYPES = new Set<string>(['sticky', 'shape', 'connector', 'image']);
 
 /** Marks `type` as a known board-object type (idempotent). */
 export function registerKnownType(type: string): void {
@@ -387,6 +388,31 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       (entry as StrokeSnap).baseHeight = baseHeight;
       (entry as StrokeSnap).color = color as PenColor;
       (entry as StrokeSnap).thickness = thickness as PenThickness;
+    } else if (type === 'image') {
+      const assetKey = obj.get('assetKey');
+      const contentType = obj.get('contentType');
+      const naturalWidth = obj.get('naturalWidth');
+      const naturalHeight = obj.get('naturalHeight');
+      const status = obj.get('status');
+      const uploadStartedAt = obj.get('uploadStartedAt');
+      const uploaderId = obj.get('uploaderId');
+      if (
+        (assetKey !== null && typeof assetKey !== 'string') ||
+        typeof contentType !== 'string' ||
+        typeof naturalWidth !== 'number' || typeof naturalHeight !== 'number' ||
+        (status !== 'uploading' && status !== 'ready' && status !== 'failed') ||
+        typeof uploadStartedAt !== 'number' ||
+        typeof uploaderId !== 'string'
+      ) {
+        return;
+      }
+      (entry as ImageSnap).assetKey = assetKey as string | null;
+      (entry as ImageSnap).contentType = contentType;
+      (entry as ImageSnap).naturalWidth = naturalWidth;
+      (entry as ImageSnap).naturalHeight = naturalHeight;
+      (entry as ImageSnap).status = status;
+      (entry as ImageSnap).uploadStartedAt = uploadStartedAt;
+      (entry as ImageSnap).uploaderId = uploaderId;
     }
     result.push(entry);
   });

@@ -2,6 +2,7 @@ import { BoardRoom, type Env } from './board-room';
 import { handleTestHooks } from './test-hooks';
 import { createBoard } from './create-board';
 import { isValidBoardId } from '../shared/board-id';
+import { handleUpload, handleServe } from './assets';
 
 export { Env };
 
@@ -43,10 +44,18 @@ export default {
     }
 
     if (url.pathname.startsWith('/api/boards/')) {
-      const boardId = url.pathname.substring('/api/boards/'.length);
+      const rest = url.pathname.substring('/api/boards/'.length);
+
+      // Story 12: POST /api/boards/:id/assets (upload)
+      if (rest.endsWith('/assets') && request.method === 'POST') {
+        const boardId = rest.substring(0, rest.length - '/assets'.length);
+        return handleUpload(request, env, boardId);
+      }
+
       if (request.method !== 'GET') {
         return jsonError('method_not_allowed', 405);
       }
+      const boardId = rest;
       // Unknown AND malformed ids both get 404: no distinction, nothing
       // leaked. Malformed ids are rejected here so they never touch the
       // Durable Object namespace at all.
@@ -62,6 +71,12 @@ export default {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+
+    // Story 12: GET /api/assets/:boardId/:assetId (serve)
+    if (url.pathname.startsWith('/api/assets/') && request.method === 'GET') {
+      const key = url.pathname.substring('/api/assets/'.length);
+      return handleServe(env, key);
     }
 
     // API routes for rooms
