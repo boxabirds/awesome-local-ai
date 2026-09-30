@@ -1,3 +1,33 @@
+commit 21a427f7df8b825a98bee7bd4a9ede49f27e58f7
+vidi-agent  Wed Sep 30 18:49:54 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                   |   37 +
+ package-lock.json                          | 1992 ++++++++++++----------------
+ package.json                               |    2 +-
+ playwright.config.ts                       |    5 +-
+ src/client/App.tsx                         |   18 +-
+ src/client/board/Toolbar.tsx               |    9 +-
+ src/client/sync/ConnectionStatus.tsx       |    1 +
+ src/client/sync/connectBoard.ts            |   37 +-
+ src/shared/config.ts                       |    9 +
+ src/shared/protocol.ts                     |    2 +
+ src/types/cloudflare-test.d.ts             |    7 +
+ src/worker/board-room.ts                   |  212 ++-
+ src/worker/board-store.ts                  |  143 ++
+ src/worker/index.ts                        |    6 +
+ src/worker/room-state.ts                   |   77 ++
+ src/worker/test-hooks.ts                   |   39 +
+ tests/component/connection-status.test.tsx |   49 +
+ tests/e2e/persistence.spec.ts              |  263 ++++
+ tests/fixtures/boards.ts                   |  144 ++
+ tests/unit/board-store-chunks.test.ts      |   94 ++
+ tests/unit/room-state.test.ts              |   95 ++
+ vitest.workspace.ts                        |    4 +-
+ wrangler.jsonc                             |    5 +-
+ 23 files changed, 2079 insertions(+), 1171 deletions(-)
 commit 6ac47fbdc86b46113df0fc635ee4f942176383d6
 vidi-agent  Wed Sep 30 18:02:33 2026 +0100
 
