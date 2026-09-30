@@ -31,6 +31,9 @@ import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
 import { installTestHooks } from './canvas/testHooks';
 import { BoardCameraContext, useCamera } from './canvas/useCamera';
+import { DropHighlight } from './images/DropHighlight';
+import { ImageInsertContext, type ImageInsertInfo } from './images/ImageInsertContext';
+import { useImageInsert } from './images/useImageInsert';
 import { BoardObjectsContext } from './objects/BoardObjectsContext';
 import { getObjectType } from './objects/registry';
 import { remeasureTextBox } from './objects/useTextBoxSync';
@@ -42,6 +45,7 @@ import { PenToolbar } from './tools/PenToolbar';
 import { ShapeTool } from './tools/ShapeTool';
 import { useActiveTool } from './tools/useActiveTool';
 import { usePenOptions } from './tools/usePenOptions';
+import { Toast } from './ui/Toast';
 
 function initialViewportSize(): Size {
   return { width: window.innerWidth, height: window.innerHeight };
@@ -51,11 +55,26 @@ function byId(a: { id: string }, b: { id: string }): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
+const GUEST_ID_KEY = 'vidi6-guest-id';
+
+/** A random guest id kept for the tab's session, so a reload keeps it (the uploader of an image stays its uploader). */
+function tabGuestId(): string {
+  try {
+    const stored = sessionStorage.getItem(GUEST_ID_KEY);
+    if (stored) return stored;
+    const id = `g_${crypto.randomUUID()}`;
+    sessionStorage.setItem(GUEST_ID_KEY, id);
+    return id;
+  } catch {
+    return `g_${crypto.randomUUID()}`;
+  }
+}
+
 /**
- * Author id stored in `createdBy` for this tab. Identity (story 6) is not part
- * of this build, so each tab gets a random guest id.
+ * Author id stored in `createdBy` (and an image's `uploaderId`) for this tab.
+ * Identity (story 6) is not part of this build, so each tab gets a guest id.
  */
-const LOCAL_AUTHOR_ID = `g_${crypto.randomUUID()}`;
+const LOCAL_AUTHOR_ID = tabGuestId();
 
 /** Whether the board may be edited: never while its saved state cannot be loaded. */
 export function canEdit(state: ConnectionState): boolean {
@@ -204,6 +223,7 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
     undo: undoController,
     tool: tools,
     onCreateSticky: createAtViewportCentre,
+    onImage: () => openImagePicker(),
   });
 
   /**
@@ -223,6 +243,39 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
     asStep(() => {
       if (setTextSize(doc, id, size)) remeasureTextBox(doc, id);
     });
+
+  const images = useImageInsert({
+    doc,
+    boardId: props.boardId ?? '',
+    camera,
+    // A local board (no room, component tests) has no connection to wait for.
+    connection: props.boardId ? connection : 'connected',
+    identityId: LOCAL_AUTHOR_ID,
+    viewportSize,
+    undo: undoController,
+    canEdit: editable,
+    editing: editingId !== null,
+  });
+  const { progress: imageProgress, canRetry, retry } = images;
+  const imageInfo = useMemo<ImageInsertInfo>(
+    () => ({
+      identityId: LOCAL_AUTHOR_ID,
+      progress: imageProgress,
+      canRetry,
+      retry,
+      remove: (id) => {
+        undoController.boundary();
+        deleteObjects(doc, [id]);
+        undoController.boundary();
+      },
+    }),
+    [imageProgress, canRetry, retry, doc, undoController],
+  );
+  /** Image tool (button or I): opens the file picker; the tool is Select again. */
+  const openImagePicker = () => {
+    tools.setTool('select');
+    images.openPicker();
+  };
 
   const deleteSelection = () => {
     asStep(() => deleteObjects(doc, [...selectedIds]));
@@ -270,80 +323,86 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
   return (
     <BoardCameraContext.Provider value={context}>
       <UndoContext.Provider value={undoController}>
-        <BoardObjectsContext.Provider value={objects}>
-          <main className="app">
-            <BoardViewport
-              onEmptyDoubleClick={createAt}
-              onEmptyClick={selection.clear}
-              marquee={marquee}
-              tool={tools.tool}
-              onPlaceText={placeText}
-              overlay={toolLayer}
-            >
-              {[...objects].sort(byId).map((obj) => {
-                const spec = getObjectType(obj.type);
-                if (!spec) return null;
-                const selected = selectedIds.has(obj.id);
-                return (
-                  <spec.Component
-                    key={obj.id}
-                    object={obj}
-                    doc={doc}
-                    zoom={camera.zoom}
-                    selected={selected}
-                    editing={obj.id === editingId}
-                    editable={editable}
-                    transforming={transforming && selected}
-                    onPointerDown={gesture.onObjectPointerDown}
-                    onSelect={selection.click}
-                    onStartEdit={startEdit}
-                    onEndEdit={endEdit}
-                  />
-                );
-              })}
-              <MarqueeRect rect={marquee.rect} camera={camera} />
-            </BoardViewport>
-            <SelectionOverlay
-              ids={selectedIds}
-              snapshot={objects}
-              camera={camera}
-              onHandlePointerDown={gesture.onHandlePointerDown}
-              showHandles={editable && editingId === null}
-            />
-            <SelectionBar
-              ids={selectedIds}
-              snapshot={objects}
-              camera={camera}
-              onDelete={deleteSelection}
-              onColor={(id, color) => asStep(() => setStickyColor(doc, id, color))}
-              onTextSize={changeTextSize}
-              onShapeStyle={(id, style) => asStep(() => setShapeStyle(doc, id, style))}
-              hidden={!editable || editingId !== null || transforming}
-            />
-            <Toolbar
-              onCreateSticky={createAtViewportCentre}
-              disabled={!editable}
-              undo={undoControls}
-              tool={tools.tool}
-              onTool={tools.setTool}
-              shapeKind={tools.shapeKind}
-              onShapeKind={tools.setShapeKind}
-            />
-            {tools.tool === 'pen' && (
-              <PenToolbar color={pen.color} thickness={pen.thickness} onColor={pen.setColor} onThickness={pen.setThickness} />
-            )}
-            {props.boardId && <ConnectionStatus state={connection} />}
-            <NavigationHint visible={!board.hasNavigated} />
-            <ZoomControls
-              zoomPercent={zoomPercent(camera)}
-              canZoomIn={canZoomIn(camera)}
-              canZoomOut={canZoomOut(camera)}
-              onZoomIn={() => board.zoomStep('in')}
-              onZoomOut={() => board.zoomStep('out')}
-              onReset={board.reset}
-            />
-          </main>
-        </BoardObjectsContext.Provider>
+        <ImageInsertContext.Provider value={imageInfo}>
+          <BoardObjectsContext.Provider value={objects}>
+            <main className="app">
+              <BoardViewport
+                onEmptyDoubleClick={createAt}
+                onEmptyClick={selection.clear}
+                marquee={marquee}
+                tool={tools.tool}
+                onPlaceText={placeText}
+                overlay={toolLayer}
+                drop={images}
+                highlight={<DropHighlight active={images.dropActive} />}
+              >
+                {[...objects].sort(byId).map((obj) => {
+                  const spec = getObjectType(obj.type);
+                  if (!spec) return null;
+                  const selected = selectedIds.has(obj.id);
+                  return (
+                    <spec.Component
+                      key={obj.id}
+                      object={obj}
+                      doc={doc}
+                      zoom={camera.zoom}
+                      selected={selected}
+                      editing={obj.id === editingId}
+                      editable={editable}
+                      transforming={transforming && selected}
+                      onPointerDown={gesture.onObjectPointerDown}
+                      onSelect={selection.click}
+                      onStartEdit={startEdit}
+                      onEndEdit={endEdit}
+                    />
+                  );
+                })}
+                <MarqueeRect rect={marquee.rect} camera={camera} />
+              </BoardViewport>
+              <SelectionOverlay
+                ids={selectedIds}
+                snapshot={objects}
+                camera={camera}
+                onHandlePointerDown={gesture.onHandlePointerDown}
+                showHandles={editable && editingId === null}
+              />
+              <SelectionBar
+                ids={selectedIds}
+                snapshot={objects}
+                camera={camera}
+                onDelete={deleteSelection}
+                onColor={(id, color) => asStep(() => setStickyColor(doc, id, color))}
+                onTextSize={changeTextSize}
+                onShapeStyle={(id, style) => asStep(() => setShapeStyle(doc, id, style))}
+                hidden={!editable || editingId !== null || transforming}
+              />
+              <Toolbar
+                onCreateSticky={createAtViewportCentre}
+                disabled={!editable}
+                undo={undoControls}
+                tool={tools.tool}
+                onTool={tools.setTool}
+                shapeKind={tools.shapeKind}
+                onShapeKind={tools.setShapeKind}
+                onImage={openImagePicker}
+              />
+              {tools.tool === 'pen' && (
+                <PenToolbar color={pen.color} thickness={pen.thickness} onColor={pen.setColor} onThickness={pen.setThickness} />
+              )}
+              {props.boardId && <ConnectionStatus state={connection} />}
+              <Toast messages={images.messages} />
+              <NavigationHint visible={!board.hasNavigated} />
+              <ZoomControls
+                zoomPercent={zoomPercent(camera)}
+                canZoomIn={canZoomIn(camera)}
+                canZoomOut={canZoomOut(camera)}
+                onZoomIn={() => board.zoomStep('in')}
+                onZoomOut={() => board.zoomStep('out')}
+                onReset={board.reset}
+              />
+            </main>
+          </BoardObjectsContext.Provider>
+        </ImageInsertContext.Provider>
       </UndoContext.Provider>
     </BoardCameraContext.Provider>
   );

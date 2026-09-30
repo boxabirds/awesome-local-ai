@@ -24,3 +24,15 @@ if (typeof window.PointerEvent === 'undefined') {
 // jsdom has no canvas (and logs "not implemented" when asked for one): text
 // measurement falls back to its character-count estimate.
 HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext'];
+
+// jsdom has no DragEvent; without it Testing Library drops clientX/clientY from drag and drop events.
+if (typeof window.DragEvent === 'undefined') {
+  class DragEventPolyfill extends MouseEvent {
+    dataTransfer: DataTransfer | null;
+    constructor(type: string, init: DragEventInit = {}) {
+      super(type, init);
+      this.dataTransfer = init.dataTransfer ?? null;
+    }
+  }
+  window.DragEvent = DragEventPolyfill as unknown as typeof DragEvent;
+}

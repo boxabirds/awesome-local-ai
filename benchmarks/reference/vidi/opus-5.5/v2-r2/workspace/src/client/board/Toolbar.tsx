@@ -15,7 +15,7 @@ const KIND_ICONS: Record<ShapeKind, React.JSX.Element> = {
 
 /**
  * Fixed left-side vertical toolbar: Select, Text, Shape (with its kind menu
- * while active), Connector and Pen tools, Sticky note, then Undo and Redo.
+ * while active), Connector and Pen tools, Image (file picker), Sticky note, then Undo and Redo.
  */
 export function Toolbar(props: {
   onCreateSticky(): void;
@@ -27,6 +27,8 @@ export function Toolbar(props: {
   /** Kind drawn by the Shape tool (shown selected in its menu). */
   shapeKind?: ShapeKind;
   onShapeKind?(k: ShapeKind): void;
+  /** Image tool: opens the file picker (story 12). */
+  onImage?(): void;
 }): React.JSX.Element {
   const tool = props.tool ?? 'select';
   const shapeKind = props.shapeKind ?? 'rect';
@@ -121,6 +123,19 @@ export function Toolbar(props: {
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
           <path d="M4 20l1.2-4.6L15.6 5a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.6 18.8 4 20Z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
           <path d="M14 6.6l3.4 3.4" stroke="currentColor" strokeWidth="1.6" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        aria-label="Image (I)"
+        title="Image (I)"
+        disabled={props.disabled}
+        onClick={props.onImage}
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+          <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <circle cx="9" cy="9.5" r="1.8" fill="currentColor" />
+          <path d="M4 18l5-5 3.5 3.5L15 14l5 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
         </svg>
       </button>
       <button

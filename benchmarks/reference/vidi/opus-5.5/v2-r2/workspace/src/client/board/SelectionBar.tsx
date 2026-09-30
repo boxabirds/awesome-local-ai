@@ -1,6 +1,7 @@
 import { type ObjectSnapshot, isSticky, objectBounds } from '../../shared/board-model';
 import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
 import { isConnector } from '../../shared/objects/connector';
+import { isImage } from '../../shared/objects/image';
 import { isShape } from '../../shared/objects/shape';
 import { isStroke } from '../../shared/objects/stroke';
 import { isText } from '../../shared/objects/text';
@@ -18,7 +19,7 @@ export function selectionLabel(count: number): string {
  * The bar above the selection: "N selected" + Delete for two or more objects,
  * story 2's note toolbar for exactly one sticky note, the text toolbar (sizes)
  * for exactly one text object, the shape toolbar (fill and outline) for exactly
- * one shape, and Delete for exactly one arrow or drawing (pen stroke). The count is always
+ * one shape, and Delete for exactly one arrow, drawing (pen stroke) or image. The count is always
  * announced to screen readers through a polite live region.
  */
 export function SelectionBar(props: {
@@ -89,8 +90,8 @@ export function SelectionBar(props: {
         onDelete={props.onDelete}
       />
     );
-  } else if (!props.hidden && single && (isConnector(single) || isStroke(single))) {
-    const name = isStroke(single) ? 'Drawing' : 'Arrow';
+  } else if (!props.hidden && single && (isConnector(single) || isStroke(single) || isImage(single))) {
+    const name = isStroke(single) ? 'Drawing' : isImage(single) ? 'Image' : 'Arrow';
     content = (
       <div
         className="note-toolbar"

@@ -6,6 +6,7 @@ import type * as Y from 'yjs';
 import { type ObjectSnapshot, markObjectTypeKnown, objectBounds } from '../../shared/board-model';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   STROKE_MIN_SIZE_WORLD,
@@ -15,6 +16,7 @@ import { type Point, type Rect, rectContains } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { scaleConnector } from '../../shared/objects/connector';
 import { ConnectorObject } from './ConnectorObject';
+import { RegisteredImageObject } from './ImageObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { StrokeObject } from './StrokeObject';
@@ -117,4 +119,14 @@ registerObjectType('stroke', {
   minSize: STROKE_MIN_SIZE_WORLD,
   editableText: false,
   hitTest: strokeHitTest,
+});
+
+// Images (story 12): always keep their proportions when resized, never below IMAGE_MIN_SIZE_WORLD.
+registerObjectType('image', {
+  Component: RegisteredImageObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: boundsHitTest,
 });

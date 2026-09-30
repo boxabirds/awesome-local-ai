@@ -22,7 +22,7 @@ const ARROWS: Record<string, { x: number; y: number }> = {
  * arrows nudge, Delete/Backspace delete, Enter edits a single text object,
  * Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (undo.controls),
  * V Select tool, T Text tool, N new sticky note (text.tool_ui), S Shape and L Connector
- * tools (tools.active_tool), P Pen (pen.stay_active); Escape leaves any tool for Select.
+ * tools (tools.active_tool), P Pen (pen.stay_active), I Image picker (image.pick); Escape leaves any tool for Select.
  * Never while editing text (the editor handles its own undo) or typing in a
  * field; mutating keys need `canEdit`. Each change is its own undo step.
  */
@@ -36,13 +36,15 @@ export function useBoardKeys(opts: {
   tool?: { tool: Tool; setTool(t: Tool): void };
   /** N: the Sticky note button's action (a note at the view centre). */
   onCreateSticky?(): void;
+  /** I: the Image tool (opens the file picker, story 12). */
+  onImage?(): void;
 }): void {
   const latest = useRef(opts);
   latest.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, undo, tool, onCreateSticky } = latest.current;
+      const { doc, selection, snapshot, canEdit, undo, tool, onCreateSticky, onImage } = latest.current;
       if (e.defaultPrevented || selection.editingId !== null || isEditableTarget(e.target)) return;
       const mod = e.ctrlKey || e.metaKey;
       const history = undoShortcut(e);
@@ -63,7 +65,7 @@ export function useBoardKeys(opts: {
         else if (selection.ids.size > 0) selection.clear();
         return;
       }
-      if (!mod && !e.altKey && (tool || onCreateSticky)) {
+      if (!mod && !e.altKey && (tool || onCreateSticky || onImage)) {
         const key = e.key.toLowerCase();
         const shortcut = TOOL_SHORTCUTS[key];
         if (shortcut === 'select' && tool) {
@@ -74,6 +76,11 @@ export function useBoardKeys(opts: {
         if ((shortcut === 'text' || shortcut === 'shape' || shortcut === 'connector' || shortcut === 'pen') && tool) {
           e.preventDefault();
           if (canEdit) tool.setTool(shortcut);
+          return;
+        }
+        if (shortcut === 'image' && onImage) {
+          e.preventDefault();
+          if (canEdit) onImage();
           return;
         }
         if (shortcut === 'sticky' && onCreateSticky) {

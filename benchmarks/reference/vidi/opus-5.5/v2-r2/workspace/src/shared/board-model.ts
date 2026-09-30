@@ -8,6 +8,7 @@
 //   Text objects (story 9): see src/shared/objects/text.ts.
 //   Shapes and connectors (story 10): see src/shared/objects/shape.ts and connector.ts.
 //   Pen strokes (story 11): see src/shared/objects/stroke.ts.
+//   Images (story 12): see src/shared/objects/image.ts.
 import * as Y from 'yjs';
 import {
   DEFAULT_PEN_COLOR,
@@ -32,6 +33,7 @@ import {
 import { type Point, type Rect, isFiniteRect, rectContains } from './geometry';
 import { type Endpoint, connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 import { connectorEnds, detachConnectorsTo, translateConnector } from './objects/connector';
+import { type ImageStatus, isImageStatus } from './objects/image';
 import { isPenColor, isPenThickness, isStrokePoints } from './objects/stroke';
 
 /** Current document schema version, stored in `meta.schemaVersion`. */
@@ -70,6 +72,14 @@ export interface ObjectSnapshot {
   baseWidth?: number;
   baseHeight?: number;
   thickness?: PenThickness;
+  /** Images (story 12). */
+  assetKey?: string | null;
+  contentType?: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  status?: ImageStatus;
+  uploadStartedAt?: number;
+  uploaderId?: string;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -83,11 +93,11 @@ export function isSticky(obj: ObjectSnapshot): obj is StickySnapshot {
 }
 
 /**
- * Object types the board understands. `sticky`, `text`, `shape`, `connector` and `stroke` are built in; the client object
+ * Object types the board understands. `sticky`, `text`, `shape`, `connector`, `stroke` and `image` are built in; the client object
  * registry adds the others. Objects of any other type are kept in the document
  * but never shown, selected or changed by group operations.
  */
-const knownTypes = new Set<string>(['sticky', 'text', 'shape', 'connector', 'stroke']);
+const knownTypes = new Set<string>(['sticky', 'text', 'shape', 'connector', 'stroke', 'image']);
 
 export function markObjectTypeKnown(type: string): void {
   knownTypes.add(type);
@@ -279,6 +289,22 @@ function plainSnapshot(id: string, obj: Y.Map<unknown>, type: string): ObjectSna
     base.baseHeight = isFiniteNumber(baseHeight) && baseHeight > 0 ? baseHeight : base.height;
     base.color = isPenColor(color) ? color : DEFAULT_PEN_COLOR;
     base.thickness = isPenThickness(thickness) ? thickness : DEFAULT_PEN_THICKNESS;
+  } else if (type === 'image') {
+    const assetKey = obj.get('assetKey');
+    const contentType = obj.get('contentType');
+    const naturalWidth = obj.get('naturalWidth');
+    const naturalHeight = obj.get('naturalHeight');
+    const status = obj.get('status');
+    const uploadStartedAt = obj.get('uploadStartedAt');
+    const uploaderId = obj.get('uploaderId');
+    base.assetKey = typeof assetKey === 'string' ? assetKey : null;
+    base.contentType = typeof contentType === 'string' ? contentType : '';
+    base.naturalWidth = isFiniteNumber(naturalWidth) ? naturalWidth : base.width;
+    base.naturalHeight = isFiniteNumber(naturalHeight) ? naturalHeight : base.height;
+    // An unknown status cannot be shown as an image: it renders as unavailable.
+    base.status = isImageStatus(status) ? status : 'failed';
+    base.uploadStartedAt = isFiniteNumber(uploadStartedAt) ? uploadStartedAt : 0;
+    base.uploaderId = typeof uploaderId === 'string' ? uploaderId : '';
   }
   return base;
 }

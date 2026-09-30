@@ -10,6 +10,8 @@
     "run_worker_first": ["/api/*", "/__test/*"],
     "not_found_handling": "single-page-application"
   },
+  // Uploaded images (story 12).
+  "r2_buckets": [{ "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }],
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
   },

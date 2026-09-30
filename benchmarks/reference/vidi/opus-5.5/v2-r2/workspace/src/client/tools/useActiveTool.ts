@@ -18,7 +18,8 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 
 /**
  * Tools that are modes in this build. `sticky` is an action (a note at the view
- * centre, story 2); image and comment belong to stories not built here.
+ * centre, story 2), and so is `image` (opens the file picker, story 12); comment
+ * belongs to a story not built here.
  */
 export const MODE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 

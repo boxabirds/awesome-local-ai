@@ -1,4 +1,4 @@
-import { type ReactNode, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react';
+import { type DragEvent as ReactDragEvent, type ReactNode, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD, WHEEL_LINE_HEIGHT_PX } from '../../shared/config';
 import type { ToolId } from '../tools/useActiveTool';
 import { type Camera, type Point, screenToWorld } from './camera';
@@ -59,6 +59,15 @@ export function BoardViewport(props: {
   overlay?: ReactNode;
   /** Text tool press, with the point in world units. */
   onPlaceText?(world: Point): void;
+  /** Files dragged onto the board (story 12: images are dropped at the pointer). */
+  drop?: {
+    onDragEnter(e: ReactDragEvent<HTMLElement>): void;
+    onDragOver(e: ReactDragEvent<HTMLElement>): void;
+    onDragLeave(e: ReactDragEvent<HTMLElement>): void;
+    onDrop(e: ReactDragEvent<HTMLElement>): void;
+  };
+  /** Screen-space layer drawn over the board without taking presses (drop highlight). */
+  highlight?: ReactNode;
 }): React.JSX.Element {
   const board = useBoardCamera();
   const { camera, setViewportSize } = board;
@@ -235,6 +244,10 @@ export function BoardViewport(props: {
       onPointerUp={(e) => stopPan(e.pointerId, localPoint(e.clientX, e.clientY))}
       onPointerCancel={(e) => stopPan(e.pointerId)}
       onLostPointerCapture={(e) => stopPan(e.pointerId)}
+      onDragEnter={props.drop?.onDragEnter}
+      onDragOver={props.drop?.onDragOver}
+      onDragLeave={props.drop?.onDragLeave}
+      onDrop={props.drop?.onDrop}
       onDoubleClick={(e) => {
         // Only empty board space creates; notes handle their own double-click.
         if (e.target !== e.currentTarget) return;
@@ -253,6 +266,7 @@ export function BoardViewport(props: {
         {props.children}
       </div>
       {props.overlay}
+      {props.highlight}
     </div>
   );
 }

@@ -179,3 +179,26 @@ export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 /** Smallest resize of a stroke (either side), world units. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+/** Image types that can be added to a board (story 12), judged by content. Raster only: no SVG. */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+/** Largest image file that can be added (10 MB). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** Most images added by one drop, paste or pick. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/** A new image's longest side is scaled down to at most this (world units; 1 px = 1 unit). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** Smallest resize of an image (either side), world units. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** Gap between images added together in a row, world units. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/** An upload that has not completed after this long is shown as unfinished. */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/** Stored images never change: browsers may cache them for a year. */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** Bytes read from the start of an upload to decide its type. */
+export const IMAGE_SNIFF_BYTES = 12;
+/** How often image placeholders re-check whether an upload has become unfinished. */
+export const IMAGE_STATUS_TICK_MS = 30_000;
+/** How long a status toast (refused files, offline) stays visible. */
+export const TOAST_DURATION_MS = 5000;

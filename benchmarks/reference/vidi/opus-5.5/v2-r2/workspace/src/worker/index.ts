@@ -1,4 +1,5 @@
 import { isValidBoardId } from '../shared/board-id';
+import { handleServe, handleUpload } from './assets';
 import type { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { routeTestHook } from './test-hooks';
@@ -8,6 +9,8 @@ export { BoardRoom } from './board-room';
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** Uploaded images (story 12), keyed `<boardId>/<assetId>`. */
+  ASSETS_BUCKET: R2Bucket;
   /** '1' only in the e2e `wrangler dev` (enables src/worker/test-hooks.ts); never in production. */
   TEST_HOOKS?: string;
 }
@@ -15,6 +18,8 @@ export interface Env {
 const ROOM_PATH = /^\/api\/rooms\/(.*)$/;
 const BOARDS_PATH = /^\/api\/boards\/?$/;
 const BOARD_PATH = /^\/api\/boards\/(.+)$/;
+const UPLOAD_PATH = /^\/api\/boards\/([^/]*)\/assets\/?$/;
+const ASSET_PATH = /^\/api\/assets\/(.*)$/;
 
 function json(body: unknown, status: number, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -27,6 +32,21 @@ const notFound = () => json({ error: 'not_found' }, 404);
 
 function room(env: Env, boardId: string): DurableObjectStub<BoardRoom> {
   return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+}
+
+/** Image upload and serving routes (story 12); null when the path is not one of them. */
+async function handleAssets(request: Request, env: Env, pathname: string): Promise<Response | null> {
+  const upload = UPLOAD_PATH.exec(pathname);
+  if (upload) {
+    if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, { Allow: 'POST' });
+    return handleUpload(request, env, upload[1] ?? '');
+  }
+  const asset = ASSET_PATH.exec(pathname);
+  if (!asset) return null;
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return json({ error: 'method_not_allowed' }, 405, { Allow: 'GET' });
+  }
+  return handleServe(env, asset[1] ?? '');
 }
 
 async function handleBoards(request: Request, env: Env, pathname: string): Promise<Response | null> {
@@ -56,6 +76,8 @@ export default {
     const url = new URL(request.url);
     const hook = routeTestHook(request, env);
     if (hook) return hook;
+    const assets = await handleAssets(request, env, url.pathname);
+    if (assets) return assets;
     const boards = await handleBoards(request, env, url.pathname);
     if (boards) return boards;
     const match = ROOM_PATH.exec(url.pathname);

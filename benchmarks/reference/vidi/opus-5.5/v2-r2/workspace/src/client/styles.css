@@ -943,3 +943,119 @@ body,
 .stroke-object:focus-visible:not(.is-selected) .stroke-line {
   stroke-dasharray: 4 3;
 }
+
+/* ---- Images (story 12) ---------------------------------------------------- */
+
+.image-object {
+  position: absolute;
+  outline: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.image-object:focus-visible:not(.is-selected) {
+  outline: 2px dashed #1e88e5;
+  outline-offset: 2px;
+}
+
+.image-object-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+}
+
+.image-object-box {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  overflow: hidden;
+  background: #eceff1;
+  border: 1px solid #cfd8dc;
+  color: #546e7a;
+  font-size: 14px;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.image-object-box.is-error {
+  border: 2px solid #e53935;
+  background: #fdecea;
+  color: #b71c1c;
+}
+
+.image-object-progress {
+  width: min(70%, 240px);
+  height: 6px;
+  border-radius: 3px;
+  background: #cfd8dc;
+  overflow: hidden;
+}
+
+.image-object-progress-fill {
+  height: 100%;
+  background: #1e88e5;
+  transition: width 120ms linear;
+}
+
+.image-object-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.image-object-actions button {
+  font: inherit;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid #b0bec5;
+  background: #fff;
+  color: #263238;
+  cursor: pointer;
+}
+
+.image-object-actions button:hover {
+  background: #f5f5f5;
+}
+
+.drop-highlight {
+  position: absolute;
+  inset: 8px;
+  border: 3px dashed #1e88e5;
+  border-radius: 12px;
+  background: rgba(30, 136, 229, 0.06);
+  pointer-events: none;
+  z-index: 50;
+}
+
+.toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  z-index: 200;
+  pointer-events: none;
+}
+
+.toast {
+  background: #263238;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  font-size: 14px;
+}
+
+.toast p {
+  margin: 0;
+}
+
+.toast p + p {
+  margin-top: 4px;
+}

@@ -475,3 +475,58 @@ Decisions made where the spec was open or self-contradictory:
 - **E2E** `tests/e2e/pen.spec.ts` (TC-17–TC-20), Chromium only: Firefox and WebKit are not installed here, so
   TC-17 was not run in them.
 - **Red phase** not committed separately (single story commit), as in earlier stories.
+
+## Story 12 — Drop images onto the board
+
+- **`image` is a built-in known type in board-model** (like shape/stroke), so shared code and unit tests see images
+  without the client registry. `ObjectSnapshot` gained the image fields; `ImageSnap`, `isImage` and `getImageStatus`
+  live in `src/shared/objects/image.ts`. An unknown stored status is shown as failed ("Image unavailable" for others).
+- **Undo.** `createImagePlaceholders` is one LOCAL_ORIGIN transaction between two `boundary()` calls (one step per add
+  action); `markImageReady/Failed/Retrying` use the untracked `UPLOAD_ORIGIN`. Confirmed in TC-05: redo after undoing
+  an insertion brings the images back *with* their later `ready` state. If an upload finishes while its placeholder is
+  undone, the result is remembered in memory and applied (untracked) if redo brings the placeholder back.
+- **Layout.** `layoutRow(..., 'centre')` centres the row's bounding box on the point (tops aligned, like the drop row).
+  A drop point that cannot be computed falls back to the view centre.
+- **Uploader identity.** Identity (story 6) is not built, so the tab's guest id (`createdBy`, `uploaderId`) is now kept
+  in `sessionStorage` (`vidi6-guest-id`): after a reload the uploader still sees their failed upload as "Upload failed",
+  with only Remove (the file is gone), as the design's retry sequence describes. A duplicated browser tab shares the id.
+- **Image tool is an action, not a mode.** The Image (I) button (after Pen) and the I key set the tool to Select and open
+  the picker straight away, so "returns to Select" holds whether files are chosen or the picker is cancelled (no
+  dependency on the input's `cancel` event). Disabled while the board cannot be edited (story 4).
+- **`useImageInsert` extras** beyond the contract: options `viewportSize`, `undo`, `canEdit`, `editing`; results
+  `onDragEnter`, `onDragLeave`, `dropActive` (drop highlight, counted enter/leave so child elements do not flicker it) and
+  `messages` (toast lines, cleared after the new named setting `TOAST_DURATION_MS`). The hook owns the hidden
+  `<input type=file multiple accept=…>` (`data-testid="image-file-input"`), the window `paste` listener, and a window
+  `dragover/drop` guard so files dropped on a toolbar never make the browser open them.
+- **Validation order.** Type and size are checked per file; the 20-file limit counts supported files only (PRD "more than
+  20 supported files"). The browser's `File.type` is the first gate; a file that claims an image type but cannot be
+  decoded by `createImageBitmap` (renamed PDF, truncated PNG) gets the type message; the server's magic-byte sniff is
+  the final gate. Several refusals in one action show one toast with one line per message.
+- **Offline gate.** Only `connected`/`confirmed` allow adding. A local board without a room (component tests) counts as
+  connected. `uploadImage` failures of every kind (non-201, network, abort) mark the image failed.
+- **Registry component.** `ImageObject` keeps the design's presentational props; the registry entry is
+  `RegisteredImageObject` (the fixed `ObjectProps`), which reads progress/retry/remove and the uploader identity from
+  `ImageInsertContext` and uses one shared clock (`IMAGE_STATUS_TICK_MS`, 30 s, only while an image is uploading) so
+  "Image upload didn't finish" appears without interaction. `ImageObject` also takes an optional `editable` (Retry/Remove
+  hidden on a board that cannot be edited). Remove is one undo step. A single selected image shows the "Image" toolbar
+  with "Delete image" (same pattern as drawings/arrows). Uploader progress is a `progressbar` "Upload progress" + "NN%".
+- **Toast.** The polite live region (`aria-live`) is always rendered; the visible toast inside it has `role=status`
+  (an always-present second `role=status` would clash with story 1's zoom label queries). It sits above the
+  navigation hint.
+- **Worker.** `/api/boards/:id/assets` is routed before story 5's `/api/boards/:id`; other methods get 405. A failing
+  existence RPC answers 500 (`check_failed`), not 404. Served images also carry `Content-Length` and `ETag`. URLs like
+  `/api/assets/../x` are normalised by the URL parser before routing, so TC-16 checks encoded `..%2F` keys through the
+  Worker and the raw `../x` key through `handleServe`.
+- **Fixtures.** `tests/fixtures/images/` holds the real files (generated with ImageMagick: 1440×900 PNG screenshot,
+  4032×3024 JPEG photo (~1.9 MB rather than ~3 MB), animated GIF, WebP, SVG with a script, PDF renamed .png,
+  truncated PNG, plus small 300×200 / 200×400 PNGs). `bytes.ts` embeds a PNG and JPEG and builds the
+  exactly-10 MB JPEG and 10 MB + 1 byte payloads in memory, because the Workers test pool has no file system.
+  The 11 MB JPEG for TC-26 is built in the test.
+- **jsdom.** The component setup adds a `DragEvent` polyfill (otherwise Testing Library drops `clientX/Y` from drops).
+- **E2E** `tests/e2e/images.spec.ts` (TC-25–TC-28) with `helpers/drop-files.ts`. TC-25 holds Leo's upload requests
+  with `page.route` until Sam has seen the "Uploading…" placeholders, then releases them. Chromium only: Firefox and
+  WebKit are not installed here, so TC-26 was not run in them. Clipboard paste is covered by component test TC-18 only.
+- **Not built:** offline device copies (story 13) and export (story 17) hooks; nothing garbage-collects stored files.
+- **Red phase** not committed separately (single story commit), as in earlier stories.
+- **Nightly suite** (`npm run test:e2e:nightly`) passes when run alone. It fails if two runs overlap, because they share
+  port 8787 and the reused server.
