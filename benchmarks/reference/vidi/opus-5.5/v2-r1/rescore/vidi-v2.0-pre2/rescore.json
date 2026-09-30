@@ -1,0 +1,26 @@
+{
+  "pack_version": "vidi-v2.0-pre2",
+  "harness_commit": "9db907ae",
+  "host": "Julians-MacBook-Air.local",
+  "held_out_workers": 4,
+  "host_limits": {
+    "cores": 8,
+    "memory_gb": 16.0,
+    "free_gb": 12.8
+  },
+  "finished_at": "2026-09-30T02:28:16Z",
+  "results": [
+    {
+      "story": 12,
+      "passed": 75,
+      "total": 75,
+      "fallbacks": 0,
+      "scores": [
+        75
+      ],
+      "flaky": 0,
+      "harness_fault": null,
+      "seconds": 45
+    }
+  ]
+}
