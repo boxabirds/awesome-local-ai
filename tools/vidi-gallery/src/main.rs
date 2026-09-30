@@ -53,8 +53,11 @@ struct App {
     builds: Builds,
     cache: PathBuf,
     blind: bool,
-    /// The builds under story review, in their (shuffled, when blind) order: key i is letter i.
-    review_builds: Vec<runs::Run>,
+    /// The builds under story review, in their (shuffled, when blind) order: key i is letter i. Runs
+    /// that become reviewable later are appended (see rescan), so a key never changes meaning.
+    review_builds: std::sync::RwLock<Vec<runs::Run>>,
+    /// The spec version family under review ("vidi-v2"): the private checkout's; only its runs are reviewed.
+    family: String,
     reviews: reviews::Store,
     /// The stories in review order, each with its prerequisites and the build it's reviewed on.
     stories: Vec<stories::Story>,
@@ -78,6 +81,8 @@ struct App {
 const REC_PORT_BASE: u16 = 19811;
 /// A recording that fails (e.g. an agent on this machine killed its server) is retried this often.
 const REC_ATTEMPTS: usize = 3;
+/// How often the story review looks for runs that have become reviewable.
+const RESCAN_EVERY: std::time::Duration = std::time::Duration::from_secs(60);
 
 fn rec_key(run: &runs::Run, story: u64) -> String {
     format!("{}#{story:02}", run.slug)
@@ -136,7 +141,7 @@ const PREPARE_PARALLEL: usize = 3;
 
 /// Check out and build every (story, build) the review can open, story 1 first, a few at a time,
 /// so that opening one only starts its server.
-async fn prepare_all(app: Arc<App>) {
+async fn prepare_all(app: Arc<App>, runs: Vec<runs::Run>) {
     let stories = app.stories.clone();
     let mut jobs = Vec::new();
     let mut builds_needed: Vec<u64> = Vec::new();
@@ -146,12 +151,12 @@ async fn prepare_all(app: Arc<App>) {
         }
     }
     for s in &stories {
-        for r in &app.review_builds {
+        for r in &runs {
             app.rec.lock().await.insert(rec_key(r, s.id), "queued".into());
         }
     }
     for b in builds_needed {
-        for r in &app.review_builds {
+        for r in &runs {
             jobs.push((b, r.clone()));
             app.prep.lock().await.insert(story_slug(r, b), "queued".into());
         }
@@ -180,7 +185,7 @@ async fn prepare_all(app: Arc<App>) {
     // Then record walkthroughs in review order, story by story, so the story you start with has
     // every build's recordings first.
     for s in &stories {
-        for run in &app.review_builds {
+        for run in &runs {
             let slug = story_slug(run, s.review_build);
             if app.prep.lock().await.get(&slug).map(String::as_str) != Some("ready") {
                 app.rec.lock().await.insert(rec_key(run, s.id), "failed: its build could not be prepared".into());
@@ -195,6 +200,41 @@ async fn prepare_all(app: Arc<App>) {
 
 fn private_repo(repo: &std::path::Path) -> PathBuf {
     repo.parent().map(|p| p.join("awesome-local-ai-bench-private")).unwrap_or_default()
+}
+
+/// The private checkout's pack version ("vidi-v2.0-pre2"): its nearest tag.
+fn private_version(private: &std::path::Path) -> String {
+    std::process::Command::new("git")
+        .arg("-C").arg(private).args(["describe", "--tags", "--abbrev=0"])
+        .output().ok().filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default()
+}
+
+/// Runs that became reviewable since the list was made: those in `now` not yet in `have`, in `now`'s order.
+fn newly_reviewable(have: &[runs::Run], now: Vec<runs::Run>) -> Vec<runs::Run> {
+    now.into_iter().filter(|r| !have.iter().any(|h| h.slug == r.slug)).collect()
+}
+
+/// Every RESCAN_EVERY, add runs that have become reviewable (finished, scored, with their bundle) to the
+/// end of the list, so a run judged from the benchmarker's link appears without restarting the gallery,
+/// and prepare them like the rest.
+async fn rescan(app: Arc<App>) {
+    loop {
+        tokio::time::sleep(RESCAN_EVERY).await;
+        let (repo, family) = (app.repo.clone(), app.family.clone());
+        let Ok(now) = tokio::task::spawn_blocking(move || reviewable(&repo, &family)).await else { continue };
+        let added = {
+            let mut list = app.review_builds.write().expect("review builds lock");
+            let added = newly_reviewable(&list, now);
+            list.extend(added.iter().cloned());
+            added
+        };
+        if !added.is_empty() {
+            println!("story review: {} more build(s): {}", added.len(), added.iter().map(|r| r.slug.as_str()).collect::<Vec<_>>().join(", "));
+            tokio::spawn(prepare_all(app.clone(), added));
+        }
+    }
 }
 
 /// Whether a run is a whole build worth reviewing story by story: every story in scope done (an
@@ -236,9 +276,11 @@ async fn story_checkout(cache: &std::path::Path, run: &runs::Run, story: u64) ->
     Ok(dir)
 }
 
-/// Finished, validly scored runs: the builds a story review compares.
-fn reviewable(repo: &std::path::Path) -> Vec<runs::Run> {
-    let mut list: Vec<runs::Run> = runs::load(repo).into_iter().filter(is_reviewable).collect();
+/// Finished, validly scored runs of one spec version family: the builds a story review compares.
+/// Builds made from different specs can't be judged against one story's spec.
+fn reviewable(repo: &std::path::Path, family: &str) -> Vec<runs::Run> {
+    let mut list: Vec<runs::Run> =
+        runs::load(repo).into_iter().filter(|r| is_reviewable(r) && runs::family(&r.pack_version) == family).collect();
     list.sort_by(|a, b| a.slug.cmp(&b.slug));
     list
 }
@@ -325,6 +367,16 @@ async fn api_stop(State(app): State<Arc<App>>, UrlPath(slug): UrlPath<String>) -
     StatusCode::NO_CONTENT
 }
 
+impl App {
+    /// The review builds now (a copy: the list can grow while a request uses it).
+    fn rbs(&self) -> Vec<runs::Run> {
+        self.review_builds.read().expect("review builds lock").clone()
+    }
+    fn rb(&self, key: usize) -> Option<runs::Run> {
+        self.review_builds.read().expect("review builds lock").get(key).cloned()
+    }
+}
+
 // ---------- story review ----------
 
 async fn review_page() -> Html<&'static str> {
@@ -336,14 +388,14 @@ async fn player_js() -> impl IntoResponse {
 }
 
 fn build_label(app: &App, i: usize) -> String {
-    let r = &app.review_builds[i];
+    let Some(r) = app.rb(i) else { return String::new() };
     if app.blind { format!("Build {}", letter(i)) } else { format!("{} · {}", r.setup, r.run) }
 }
 
 async fn api_review_state(State(app): State<Arc<App>>) -> impl IntoResponse {
     let stories = app.stories.clone();
-    let index: std::collections::HashMap<&str, usize> =
-        app.review_builds.iter().enumerate().map(|(i, r)| (r.slug.as_str(), i)).collect();
+    let rbs = app.rbs();
+    let index: std::collections::HashMap<&str, usize> = rbs.iter().enumerate().map(|(i, r)| (r.slug.as_str(), i)).collect();
     // Reviews are stored by slug; the page only ever sees keys, so blind stays blind.
     let reviews: Vec<serde_json::Value> = app
         .reviews
@@ -354,10 +406,20 @@ async fn api_review_state(State(app): State<Arc<App>>) -> impl IntoResponse {
             Some(serde_json::json!({"story": r.story, "key": key, "path": r.path, "verdict": r.verdict, "notes": r.notes}))
         })
         .collect();
-    let builds: Vec<serde_json::Value> =
-        (0..app.review_builds.len()).map(|i| serde_json::json!({"key": i, "label": build_label(&app, i)})).collect();
+    // Labelled reviews also say which setup and run each build is, so a link can open one run.
+    let builds: Vec<serde_json::Value> = rbs
+        .iter()
+        .enumerate()
+        .map(|(i, r)| {
+            if app.blind {
+                serde_json::json!({"key": i, "label": build_label(&app, i)})
+            } else {
+                serde_json::json!({"key": i, "label": build_label(&app, i), "setup": r.setup, "run": r.run})
+            }
+        })
+        .collect();
     Json(serde_json::json!({
-        "blind": app.blind, "stories": stories, "builds": builds, "reviews": reviews,
+        "blind": app.blind, "family": app.family, "stories": stories, "builds": builds, "reviews": reviews,
         "file": app.reviews.path().display().to_string(),
     }))
 }
@@ -367,7 +429,7 @@ async fn api_review_status(State(app): State<Arc<App>>, UrlPath(story): UrlPath<
     let states = app.builds.states().await;
     let prep = app.prep.lock().await.clone();
     let by_key: Vec<serde_json::Value> = app
-        .review_builds
+        .rbs()
         .iter()
         .enumerate()
         .map(|(i, r)| {
@@ -392,7 +454,7 @@ async fn api_review_status(State(app): State<Arc<App>>, UrlPath(story): UrlPath<
 /// hold ports and memory at a time.
 async fn api_review_story(State(app): State<Arc<App>>, UrlPath(story): UrlPath<u64>) -> impl IntoResponse {
     let story = review_build(&app, story);
-    let keep: std::collections::HashSet<String> = app.review_builds.iter().map(|r| story_slug(r, story)).collect();
+    let keep: std::collections::HashSet<String> = app.rbs().iter().map(|r| story_slug(r, story)).collect();
     for slug in app.builds.states().await.into_keys() {
         if slug.contains('@') && !keep.contains(&slug) {
             app.builds.stop(&slug).await;
@@ -402,11 +464,12 @@ async fn api_review_story(State(app): State<Arc<App>>, UrlPath(story): UrlPath<u
 }
 
 async fn api_review_open(State(app): State<Arc<App>>, UrlPath((story, key)): UrlPath<(u64, usize)>) -> impl IntoResponse {
-    let Some(run) = app.review_builds.get(key) else {
+    let Some(run) = app.rb(key) else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such build"}))).into_response();
     };
     let reviewed = story;
     let story = review_build(&app, story);
+    let run = &run;
     let workspace = match story_checkout(&app.cache, run, story).await {
         Ok(dir) => dir,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"state": "failed", "error": e.to_string()}))).into_response(),
@@ -441,7 +504,7 @@ struct ReviewIn {
 }
 
 async fn api_review_set(State(app): State<Arc<App>>, Json(body): Json<ReviewIn>) -> impl IntoResponse {
-    let Some(run) = app.review_builds.get(body.key) else {
+    let Some(run) = app.rb(body.key) else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such build"}))).into_response();
     };
     let now = utc_now();
@@ -455,15 +518,15 @@ async fn api_review_set(State(app): State<Arc<App>>, Json(body): Json<ReviewIn>)
 /// seeing names earlier would bias the rest of that story's review.
 async fn api_review_reveal(State(app): State<Arc<App>>, UrlPath(story): UrlPath<u64>) -> impl IntoResponse {
     let mut builds = Vec::new();
-    for run in &app.review_builds {
+    let rbs = app.rbs();
+    for run in &rbs {
         let titles = recorded_paths(&app, run, story).await.into_iter().map(|p| p.title).collect();
         builds.push((run.slug.clone(), titles));
     }
     if !reviews::story_reviewed(story, &builds, &app.reviews.all()) {
         return (StatusCode::CONFLICT, Json(serde_json::json!({"error": "give every path of every build a verdict on this story first"}))).into_response();
     }
-    let names: Vec<serde_json::Value> = app
-        .review_builds
+    let names: Vec<serde_json::Value> = rbs
         .iter()
         .enumerate()
         .map(|(i, r)| serde_json::json!({"key": i, "setup": r.setup, "run": r.run}))
@@ -480,8 +543,8 @@ async fn recorded_paths(app: &App, run: &runs::Run, story: u64) -> Vec<record::P
 
 /// The trace zip of one recorded path (by its index in the build's paths).
 async fn trace_zip(app: &App, story: u64, key: usize, idx: usize) -> Option<PathBuf> {
-    let run = app.review_builds.get(key)?;
-    let rel = recorded_paths(app, run, story).await.into_iter().nth(idx)?.trace?;
+    let run = app.rb(key)?;
+    let rel = recorded_paths(app, &run, story).await.into_iter().nth(idx)?.trace?;
     Some(app.recordings.join(rel))
 }
 
@@ -509,7 +572,7 @@ async fn api_review_frame(State(app): State<Arc<App>>, UrlPath((story, key, idx,
 /// build, the commits that name each task, and all of the story's commits. The spec doesn't say
 /// which task implements which requirement, so this is the story's tasks, not a requirement's.
 async fn api_review_tasks(State(app): State<Arc<App>>, UrlPath((story, key)): UrlPath<(u64, usize)>) -> impl IntoResponse {
-    let Some(run) = app.review_builds.get(key) else {
+    let Some(run) = app.rb(key) else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such build"}))).into_response();
     };
     let spec_tasks = app.stories.iter().find(|s| s.id == story).map(|s| s.tasks.clone()).unwrap_or_default();
@@ -518,7 +581,7 @@ async fn api_review_tasks(State(app): State<Arc<App>>, UrlPath((story, key)): Ur
     let base = std::fs::read_to_string(run.path.join(format!("stories/{story:02}/base-commit"))).unwrap_or_default().trim().to_string();
     let head = run.story_commits.get(&story).cloned().unwrap_or_default();
     // The review build's checkout holds the whole history up to (at least) this story.
-    let checkout = app.cache.join("checkouts").join(story_slug(run, review_build(&app, story)));
+    let checkout = app.cache.join("checkouts").join(story_slug(&run, review_build(&app, story)));
     let mut commits: Vec<(String, String)> = Vec::new();
     if !head.is_empty() && checkout.join(".git").is_dir() {
         let range = if base.is_empty() { head.clone() } else { format!("{base}..{head}") };
@@ -542,11 +605,11 @@ async fn api_review_tasks(State(app): State<Arc<App>>, UrlPath((story, key)): Ur
 
 /// One build's recorded walkthroughs of a story: each path (held-out test) with its result and links.
 async fn api_review_paths(State(app): State<Arc<App>>, UrlPath((story, key)): UrlPath<(u64, usize)>) -> impl IntoResponse {
-    let Some(run) = app.review_builds.get(key) else {
+    let Some(run) = app.rb(key) else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such build"}))).into_response();
     };
-    let state = app.rec.lock().await.get(&rec_key(run, story)).cloned().unwrap_or_else(|| "not recorded".into());
-    let paths = recorded_paths(&app, run, story).await;
+    let state = app.rec.lock().await.get(&rec_key(&run, story)).cloned().unwrap_or_else(|| "not recorded".into());
+    let paths = recorded_paths(&app, &run, story).await;
     Json(serde_json::json!({"state": state, "paths": paths})).into_response()
 }
 
@@ -604,7 +667,8 @@ async fn main() -> anyhow::Result<()> {
     let cache = home().join(".cache/awesome-local-ai/vidi-gallery");
     let builds = Builds::new(cache.clone());
     let blind = cli.blind;
-    let mut review_builds = reviewable(&repo);
+    let family = runs::family(&private_version(&private_repo(&repo)));
+    let mut review_builds = reviewable(&repo, &family);
     if blind {
         shuffle(&mut review_builds);
     }
@@ -618,11 +682,12 @@ async fn main() -> anyhow::Result<()> {
     let record_config = record::write_config(&acceptance, &cache)?;
     let rec_ports = vec![REC_PORT_BASE]; // one recording at a time
     let app = Arc::new(App {
-        repo: repo.clone(), builds: builds.clone(), cache, blind, review_builds, reviews, stories,
+        repo: repo.clone(), builds: builds.clone(), cache, blind, review_builds: std::sync::RwLock::new(review_builds), family, reviews, stories,
         prep: Default::default(), acceptance, recordings, rec_secret, record_config, rec: Default::default(),
         rec_ports: tokio::sync::Mutex::new(rec_ports), build_order,
     });
-    tokio::spawn(prepare_all(app.clone()));
+    tokio::spawn(prepare_all(app.clone(), app.rbs()));
+    tokio::spawn(rescan(app.clone()));
     let router = Router::new()
         .route("/", get(page))
         .route("/api/runs", get(api_runs))
@@ -648,7 +713,7 @@ async fn main() -> anyhow::Result<()> {
     let addr = SocketAddr::from(([127, 0, 0, 1], cli.port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     println!("vidi-gallery: http://{addr}/  (repo {})", repo.display());
-    println!("story review: http://{addr}/review  ({} builds, {})", app.review_builds.len(), if blind { "blind" } else { "labelled" });
+    println!("story review: http://{addr}/review  ({} {} builds, {})", app.rbs().len(), app.family, if blind { "blind" } else { "labelled" });
     // Ctrl-C or a plain `kill` (SIGTERM): either way, stop every build first, or their wrangler
     // processes outlive the gallery and hold its ports.
     let shutdown = async {
@@ -664,4 +729,17 @@ async fn main() -> anyhow::Result<()> {
     // A recording cut off here leaves the suite's detached app server behind.
     record::reap_listeners(&[REC_PORT_BASE, REC_PORT_BASE + 1], &owned(&app_for_shutdown)).await;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_rescan_adds_only_runs_not_already_under_review_keeping_the_order() {
+        let run = |slug: &str| runs::Run { slug: slug.into(), ..Default::default() };
+        let have = vec![run("a"), run("b")];
+        let added = newly_reviewable(&have, vec![run("b"), run("c"), run("a"), run("d")]);
+        assert_eq!(added.iter().map(|r| r.slug.as_str()).collect::<Vec<_>>(), ["c", "d"]);
+    }
 }

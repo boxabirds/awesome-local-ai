@@ -57,4 +57,54 @@ function nextSpot(n, i, dir) {
   return j >= 0 && j < n ? {path: j} : {story: dir};
 }
 
-if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot };
+// The time of the next (dir 1) or previous (dir -1) frame on anyone's screen, or null at either end.
+function nextFrame(people, t, dir) {
+  const times = people.flatMap(frames => frames.map(f => f[0]));
+  const x = dir > 0 ? Math.min(...times.filter(f => f > t)) : Math.max(...times.filter(f => f < t));
+  return Number.isFinite(x) ? x : null;
+}
+
+// ---------- the keyboard layer ----------
+
+const SCRUB_MS = 1000;        // - and =: a second of the recording per press (hold to keep going)
+const FINE_SCRUB_MS = 100;    // with shift: a tenth of that
+const TENTHS = 10;            // digits jump to tenths of the recording
+
+// What a key press does in the review, or null to leave it to the browser. By key position (code) for
+// digits and - = , . so shift and keyboard layouts don't change them.
+function keyAction(e) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return null;  // reload, zoom, tabs: the browser's
+  const shift = e.shiftKey, code = e.code;
+  const digit = /^(Digit|Numpad)(\d)$/.exec(code);
+  if (digit) return { do: "jump", frac: Number(digit[2]) / TENTHS };
+  switch (code) {
+    case "ArrowDown": return { do: "path", dir: 1 };
+    case "ArrowUp": return { do: "path", dir: -1 };
+    case "Tab": return { do: "path", dir: shift ? -1 : 1 };
+    case "KeyJ": return { do: "path", dir: 1 };
+    case "KeyK": return { do: "path", dir: -1 };
+    case "BracketRight": case "PageDown": return { do: "story", dir: 1 };
+    case "BracketLeft": case "PageUp": return { do: "story", dir: -1 };
+    case "Space": return { do: "play" };
+    case "ArrowRight": return { do: shift ? "step" : "check", dir: 1 };
+    case "ArrowLeft": return { do: shift ? "step" : "check", dir: -1 };
+    case "Period": return shift ? { do: "speed", dir: 1 } : { do: "frame", dir: 1 };
+    case "Comma": return shift ? { do: "speed", dir: -1 } : { do: "frame", dir: -1 };
+    case "Equal": return { do: "scrub", ms: shift ? FINE_SCRUB_MS : SCRUB_MS };
+    case "Minus": return { do: "scrub", ms: -(shift ? FINE_SCRUB_MS : SCRUB_MS) };
+    case "Home": return { do: "jump", frac: 0 };
+    case "End": return { do: "jump", frac: 1 };
+    case "Enter": return shift ? { do: "verdict", v: "disagree", note: true } : { do: "verdict", v: "agree", next: true };
+    case "KeyA": return { do: "verdict", v: "agree" };
+    case "KeyD": return { do: "verdict", v: "disagree" };
+    case "KeyS": return { do: "verdict", v: "skip" };
+    case "KeyN": return { do: "note" };
+    case "KeyO": return { do: "open" };
+    case "KeyW": return { do: "waits" };
+    case "Escape": return { do: "escape" };
+    case "Slash": return shift ? { do: "help" } : null;
+    default: return null;
+  }
+}
+
+if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, nextFrame, keyAction, SCRUB_MS, FINE_SCRUB_MS };

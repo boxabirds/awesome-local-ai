@@ -55,8 +55,34 @@ requirements and its **must-nots**. Below, one row per finished build:
   as you type to the private repo's `analysis/story-reviews.csv` (one row per story, build and path,
   by run name). A build's line sums its paths ("3 agree · 1 disagree · 1 to review"); a build with
   no recorded paths takes a pass / fail / skip of its own.
-- Keys: `j`/`k` next/previous path, space play/pause, `←`/`→` check, `a` agree, `d` disagree,
-  `s` skip, `n` note (`Esc` to leave), `o` open the build, `[`/`]` story.
+- **Keys** (press `?` on the page for the sheet; the map is `keyAction` in `src/player.js`, tested in
+  `tests/player.test.cjs`):
+
+  | Keys | Does |
+  |---|---|
+  | `↓` `↑`, `Tab` `⇧Tab`, `j` `k` | next / previous path, on through builds and stories |
+  | `]` `[`, `PgDn` `PgUp` | next / previous story |
+  | `Space` | play / pause |
+  | `→` `←` · `⇧→` `⇧←` | next / previous check · step |
+  | `.` `,` | next / previous frame |
+  | `=` `-` · `⇧=` `⇧-` | scrub a second · a tenth of a second (hold to keep going) |
+  | `1`…`9` · `0` · `Home` `End` | jump to 10%…90% · the start · the ends |
+  | `>` `<` | faster / slower |
+  | `Return` · `⇧Return` | agree and on to the next path · disagree and write why |
+  | `a` `d` `s` | agree / disagree / skip, staying on the path |
+  | `n` · `Esc` | write a note · leave it (it saves as you type), pause, close the sheet |
+  | `o` · `w` | open the build · skip long waits on / off |
+
+  Keys go by position for digits and `-` `=` `,` `.`, so shift and keyboard layouts don't change them.
+  Cmd, Ctrl and Alt combinations are left to the browser.
+- **One run:** `/review?setup=<setup>&run=<run>` (the benchmarker's **Judge →** link) shows only that
+  build, with a link to all of them. If the run isn't under review yet, the page waits for it.
+
+**One spec version at a time.** The review takes the version family of the private checkout
+(`vidi-v2.0-pre2` → `vidi-v2`) and only runs recorded under it: builds made from different specs
+can't be judged against one story's spec. Every minute it adds runs that have since become reviewable
+(finished, scored, with a `workspace.bundle`) to the end of the list, and prepares them, so a new run
+needs no restart.
 
 **Labelled by default.** Each build is named by its combination and run (e.g.
 `qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi · canvas-pi-03`), so the reviewer sees what they
