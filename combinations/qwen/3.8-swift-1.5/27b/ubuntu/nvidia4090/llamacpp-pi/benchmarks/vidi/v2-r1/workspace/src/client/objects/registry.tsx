@@ -16,7 +16,11 @@ import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '@shared/config';
 import { registerKnownType } from '@shared/known-types';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
 import type { TextSnapshot } from '@shared/objects/text';
+import { distanceToPolyline } from '@shared/geometry/polyline';
+import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD } from '@shared/config';
 
 /** Props handed to every object component by the board renderer. */
 export interface ObjectProps {
@@ -95,5 +99,48 @@ registerObjectType('text', {
   hitTest: (obj, p) => {
     const b = objectBounds(obj);
     return p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;
+  },
+});
+
+// Story 10: shapes
+const ShapeObjectAdapter: ComponentType<ObjectProps> = (props) => (
+  <ShapeObject {...props} />
+);
+
+registerObjectType('shape', {
+  Component: ShapeObjectAdapter,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: (obj, p) => {
+    const b = objectBounds(obj);
+    return p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;
+  },
+});
+
+// Story 10: connectors
+const ConnectorObjectAdapter: ComponentType<ObjectProps> = (props) => (
+  <ConnectorObject {...props} />
+);
+
+registerObjectType('connector', {
+  Component: ConnectorObjectAdapter,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest: (obj, p) => {
+    // Hit test: distance to the line <= tolerance
+    const connector = obj as any;
+    if (!connector.from || !connector.to) return false;
+    // For hit testing, we use the stored endpoints as approximate points
+    const from: Point = connector.from.kind === 'free'
+      ? { x: connector.from.x, y: connector.from.y }
+      : { x: connector.from.fallback?.x ?? obj.x, y: connector.from.fallback?.y ?? obj.y };
+    const to: Point = connector.to.kind === 'free'
+      ? { x: connector.to.x, y: connector.to.y }
+      : { x: connector.to.fallback?.x ?? obj.x + obj.width, y: connector.to.fallback?.y ?? obj.y };
+    return distanceToPolyline([from, to], p) <= CONNECTOR_HIT_TOLERANCE_PX;
   },
 });

@@ -16,8 +16,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 7 | 0/8 | 0 | 0 | 0/44 |
 | 8 | 0/7 | 0 | 0 | 0/51 |
 | 9 | 6/6 | 0 | 47 | 53/57 |
+| 10 | 3/8 | 0 | 0 | 56/65 |
 
-**New work** 21/53, **regressions** 19, **repairs** 47, **cumulative** 53/57.
+**New work** 24/61, **regressions** 19, **repairs** 47, **cumulative** 56/65.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -29,8 +30,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 7 | Select, move, resize and delete several objects at once | DONE | 63.0 | None | None | None | — | — | red | 0/44 |  | 0 / 0 | 3 | — | throttled 0%, server peak 26 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 17.1 | None | None | None | — | — | red | 0/51 |  | 0 / 0 | 1 | — | throttled 0%, server peak 26 GB |
 | 9 | Write free text anywhere on the board | DONE | 80.8 | None | None | None | — | — | red | 53/57 |  | 0 / 0 | 4 | — | throttled 0%, server peak 26 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 23.7 | None | None | None | — | — | red | 56/65 |  | 0 / 0 | 1 | — | throttled 0%, server peak 26 GB |
 
-**Totals:** 8 stories, 347 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/8, final acceptance 53/57, stalled 0, partial 0, 16086 lines in src+tests.
+**Totals:** 9 stories, 371 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/9, final acceptance 56/65, stalled 0, partial 0, 18912 lines in src+tests.
 
 ## How it happened
 
@@ -46,6 +48,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | 1 by the agent | 3674 / 474 | `useTransformGesture.ts` (338), `board-model.ts` (232), `Board.tsx` (214), `geometry.ts` (197), `StickyNote.tsx` (163), `useSelection.ts` (147), +12 more |
 | 8 | 1 by the agent | 1547 / 10 | `undo.ts` (93), `UndoButtons.tsx` (61), `Board.tsx` (60), `StickyTextEditor.tsx` (35), `useUndo.ts` (32), `useBoardKeys.ts` (30), +5 more |
 | 9 | 1 by the agent | 2395 / 221 | `TextEditor.tsx` (188), `text.ts` (172), `StickyTextEditor.tsx` (164), `TextObject.tsx` (129), `textLayout.ts` (125), `Board.tsx` (100), +16 more |
+| 10 | 1 by the agent | 2883 / 222 | `NOTES.md` (251), `ConnectorTool.tsx` (251), `connector.ts` (239), `ShapeObject.tsx` (183), `shape.ts` (166), `ShapeTool.tsx` (152), +11 more |
 
 ### Earlier stories broken or fixed
 

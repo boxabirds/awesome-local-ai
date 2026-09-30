@@ -1,6 +1,10 @@
 import * as Y from 'yjs';
-import { STICKY_SIZE_WORLD, STICKY_COLORS, DEFAULT_STICKY_COLOR, type StickyColor, type TextSize } from './config';
+import { STICKY_SIZE_WORLD, STICKY_COLORS, DEFAULT_STICKY_COLOR, type StickyColor, type TextSize, type ShapeKind, type FillColor, type StrokeColor } from './config';
 import type { TextSnapshot } from './objects/text';
+import type { ShapeSnap } from './objects/shape';
+import type { ConnectorSnap, Endpoint } from './objects/connector';
+import { resolveEndpoints, connectorBBox } from './objects/connector';
+import { detachConnectorsTo } from './objects/connector';
 import { isKnownType } from './known-types';
 import { rectContains, type Rect, type Point } from './geometry';
 
@@ -188,6 +192,7 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 /**
  * Delete objects by id. One LOCAL_ORIGIN transaction; returns the number of
  * objects removed. Missing ids are skipped; empty list → 0, no transaction.
+ * Story 10: detaches connector ends attached to deleted objects.
  */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
@@ -195,6 +200,7 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const toDelete = ids.filter((id) => objects.has(id));
   if (toDelete.length === 0) return 0;
   doc.transact(() => {
+    detachConnectorsTo(doc, toDelete);
     for (const id of toDelete) objects.delete(id);
   }, LOCAL_ORIGIN);
   return toDelete.length;
@@ -305,6 +311,36 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       const size = (obj.get('size') as TextSize) ?? 'M';
       const widthMode = obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
       result.push({ ...base, text, size, widthMode } as TextSnapshot);
+    } else if (type === 'shape') {
+      const kind = (obj.get('kind') as ShapeKind) ?? 'rect';
+      const fill = (obj.get('fill') as FillColor) ?? 'white';
+      const stroke = (obj.get('stroke') as StrokeColor) ?? 'dark';
+      const labelObj = obj.get('label');
+      const label = labelObj instanceof Y.Text ? labelObj.toString() : '';
+      result.push({ ...base, kind, fill, stroke, label } as ShapeSnap);
+    } else if (type === 'connector') {
+      const from = obj.get('from') as Endpoint;
+      const to = obj.get('to') as Endpoint;
+      if (from && to) {
+        // Compute derived bbox from resolved endpoints
+        const rects = new Map<string, Rect>();
+        objects.forEach((o, oid) => {
+          const ox = o.get('x') as number;
+          const oy = o.get('y') as number;
+          const ow = o.get('width') as number;
+          const oh = o.get('height') as number;
+          if (Number.isFinite(ox) && Number.isFinite(oy) && Number.isFinite(ow) && Number.isFinite(oh)) {
+            rects.set(oid, { x: ox, y: oy, width: ow, height: oh });
+          }
+        });
+        const { from: fp, to: tp } = resolveEndpoints({ from, to }, rects);
+        const bbox = connectorBBox(fp, tp);
+        result.push({
+          id, type: 'connector',
+          x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height,
+          z, createdAt, from, to,
+        } as ConnectorSnap);
+      }
     } else {
       result.push(base);
     }

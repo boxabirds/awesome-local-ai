@@ -1,17 +1,21 @@
 import type { CSSProperties } from 'react';
 import { UndoButtons } from './UndoButtons';
-import type { Tool } from './useTool';
+import type { ToolId } from '../tools/useActiveTool';
+import type { ShapeKind } from '@shared/config';
 
 interface ToolbarProps {
-  /** Story 9: the active tool (Select / Text). */
-  tool: Tool;
-  onToolChange: (t: Tool) => void;
+  /** The active tool. */
+  tool: ToolId;
+  onToolChange: (t: ToolId) => void;
   onCreateSticky: () => void;
   disabled?: boolean;
   canUndo?: boolean;
   canRedo?: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
+  /** Story 10: shape kind for the Shape tool menu. */
+  shapeKind?: ShapeKind;
+  onShapeKindChange?: (k: ShapeKind) => void;
 }
 
 function toolButtonStyle(active: boolean, disabled: boolean): CSSProperties {
@@ -97,6 +101,28 @@ export function Toolbar({ tool, onToolChange, onCreateSticky, disabled, canUndo,
         }}
       >
         +
+      </button>
+      <button
+        aria-label="Shape (S)"
+        aria-pressed={tool === 'shape'}
+        data-testid="tool-shape"
+        title="Shape (S) – drag to draw a shape"
+        disabled={disabled}
+        onClick={() => onToolChange('shape')}
+        style={toolButtonStyle(tool === 'shape', Boolean(disabled))}
+      >
+        ⬜
+      </button>
+      <button
+        aria-label="Connector (L)"
+        aria-pressed={tool === 'connector'}
+        data-testid="tool-connector"
+        title="Connector (L) – drag from one object to another"
+        disabled={disabled}
+        onClick={() => onToolChange('connector')}
+        style={toolButtonStyle(tool === 'connector', Boolean(disabled))}
+      >
+        →
       </button>
       {onUndo && onRedo && (
         <UndoButtons

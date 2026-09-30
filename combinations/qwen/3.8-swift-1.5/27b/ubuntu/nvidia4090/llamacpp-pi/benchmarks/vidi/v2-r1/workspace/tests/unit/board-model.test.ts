@@ -198,7 +198,7 @@ describe('board.model', () => {
     // Add an unknown type object
     const objects = doc.getMap('objects');
     const unknownObj = new Y.Map();
-    unknownObj.set('type', 'shape');
+    unknownObj.set('type', 'unknown-thing');
     unknownObj.set('x', 0);
     unknownObj.set('y', 0);
     doc.transact(() => {

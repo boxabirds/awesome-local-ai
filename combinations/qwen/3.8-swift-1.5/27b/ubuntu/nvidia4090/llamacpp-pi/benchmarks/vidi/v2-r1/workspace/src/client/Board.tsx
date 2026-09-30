@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import * as Y from 'yjs';
 import { BoardViewport } from './canvas/BoardViewport';
 import { ZoomControls } from './canvas/ZoomControls';
@@ -12,10 +12,13 @@ import { useSelection } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { useBoardKeys } from './board/useBoardKeys';
-import { useTool } from './board/useTool';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
+import { ShapeToolbar } from './objects/ShapeToolbar';
 import { createUndo, type UndoController } from './board/undo';
 import { useUndo } from './board/useUndo';
 import { getObjectType } from './objects/registry';
@@ -26,9 +29,10 @@ import { canEdit } from './sync/connectBoard';
 import {
   createSticky, deleteObjects, setStickyColor,
 } from '@shared/board-model';
+import { setShapeStyle } from '@shared/objects/shape';
 import { createText, setTextSize } from '@shared/objects/text';
-import type { StickyColor, TextSize } from '@shared/config';
-import type { Point } from './canvas/camera';
+import type { StickyColor, TextSize, FillColor, StrokeColor } from '@shared/config';
+import type { Point, Rect } from '@shared/geometry';
 
 // Story 6 (presence/identity) is out of scope for this build; the text
 // model's `createdBy` needs a stable per-tab session id, so we generate one
@@ -67,8 +71,11 @@ export function Board(props: { boardId: string }) {
 
   const editAllowed = canEdit(connectionState);
 
-  // Story 9: active tool (Select / Text).
-  const toolState = useTool(editAllowed);
+  // Story 10: active tool with shortcuts and return-to-Select.
+  const toolState = useActiveTool({
+    onSelect: (id) => selection.click(id),
+    canEdit: editAllowed,
+  });
 
   // Story 8: create one undo controller per board doc.
   const undoCtrlRef = useRef<UndoController | null>(null);
@@ -171,7 +178,7 @@ export function Board(props: { boardId: string }) {
     onUndo: () => undoController?.undo(),
     onRedo: () => undoController?.redo(),
     isEditing: () => selection.editingId !== null,
-    onToolChange: toolState.setTool,
+    onToolChange: (t: any) => toolState.setTool(t),
     onCreateStickyAtCentre: handleCreateSticky,
   });
 
@@ -184,10 +191,17 @@ export function Board(props: { boardId: string }) {
     const id = createText(doc, worldPoint, SESSION_ID);
     if (id) {
       undoController?.boundary();
-      toolState.setTool('select');
+      toolState.toolCreated(id);
       selection.startEdit(id);
     }
   }, [cam.camera, doc, selection, connectionState, toolState, undoController]);
+
+  // Story 10: shape/connector creation callback
+  const handleToolCreated = useCallback((id: string) => {
+    undoController?.boundary();
+    toolState.toolCreated(id);
+    undoController?.boundary();
+  }, [toolState, undoController]);
 
   // Story 9: size preset from the single-text toolbar (PRD text.size).
   // x/y are untouched; the box is re-measured in the same capture window.
@@ -211,6 +225,23 @@ export function Board(props: { boardId: string }) {
     }
   }, [doc, selection, editAllowed, undoController]);
 
+  // Story 10: shape style handlers
+  const handleShapeFill = useCallback((fill: FillColor) => {
+    if (selection.ids.size !== 1 || !editAllowed) return;
+    const [id] = selection.ids;
+    undoController?.boundary();
+    setShapeStyle(doc, id, { fill });
+    undoController?.boundary();
+  }, [doc, selection, editAllowed, undoController]);
+
+  const handleShapeStroke = useCallback((stroke: StrokeColor) => {
+    if (selection.ids.size !== 1 || !editAllowed) return;
+    const [id] = selection.ids;
+    undoController?.boundary();
+    setShapeStyle(doc, id, { stroke });
+    undoController?.boundary();
+  }, [doc, selection, editAllowed, undoController]);
+
   // Handle delete from the selection bar / single-note toolbar
   const handleDelete = useCallback(() => {
     if (selection.ids.size === 0 || !editAllowed) return;
@@ -218,6 +249,15 @@ export function Board(props: { boardId: string }) {
     deleteObjects(doc, [...selection.ids]);
     undoController?.boundary();
   }, [doc, selection, editAllowed, undoController]);
+
+  // Story 10: build a rects map for connector endpoint resolution
+  const rectsMap = useMemo(() => {
+    const m = new Map<string, Rect>();
+    for (const obj of objects) {
+      m.set(obj.id, { x: obj.x, y: obj.y, width: obj.width, height: obj.height });
+    }
+    return m;
+  }, [objects]);
 
   // Object props for the registry components
   const onObjectPointerDown = useCallback(
@@ -228,6 +268,8 @@ export function Board(props: { boardId: string }) {
         handleTextCreate({ x: e.clientX, y: e.clientY });
         return;
       }
+      // Story 10: Shape and Connector tools own the gesture; don't move objects.
+      if (toolState.tool === 'shape' || toolState.tool === 'connector') return;
       gesture.onObjectPointerDown(e, id);
     },
     [gesture, toolState.tool, connectionState, handleTextCreate],
@@ -282,11 +324,49 @@ export function Board(props: { boardId: string }) {
               onUndoBoundary={onUndoBoundary}
               onUndo={onUndo}
               onRedo={onRedo}
+              {...(obj.type === 'connector' ? { rects: rectsMap } : {})}
             />
           );
         })}
         <MarqueeRect rect={marquee.rect} camera={cam.camera} />
       </BoardViewport>
+      {/* Story 10: Shape tool overlay */}
+      {toolState.tool === 'shape' && editAllowed && (
+        <ShapeTool
+          kind={toolState.shapeKind}
+          camera={cam.camera}
+          doc={doc!}
+          createdBy={SESSION_ID}
+          onCreated={handleToolCreated}
+        />
+      )}
+      {/* Story 10: Connector tool overlay */}
+      {toolState.tool === 'connector' && editAllowed && (
+        <ConnectorTool
+          camera={cam.camera}
+          doc={doc!}
+          snapshot={objects}
+          createdBy={SESSION_ID}
+          onCreated={handleToolCreated}
+        />
+      )}
+      {/* Story 10: Shape toolbar (when exactly one shape is selected) */}
+      {selection.ids.size === 1 && (() => {
+        const id = [...selection.ids][0];
+        const obj = objects.find((o) => o.id === id);
+        if (!obj || obj.type !== 'shape') return null;
+        const shape = obj as any;
+        return (
+          <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 1002 }}>
+            <ShapeToolbar
+              fill={shape.fill ?? 'white'}
+              stroke={shape.stroke ?? 'dark'}
+              onFill={handleShapeFill}
+              onStroke={handleShapeStroke}
+            />
+          </div>
+        );
+      })()}
       <SelectionOverlay
         ids={selection.ids}
         snapshot={objects}
@@ -311,6 +391,8 @@ export function Board(props: { boardId: string }) {
         canRedo={undoState.canRedo}
         onUndo={undoState.undo}
         onRedo={undoState.redo}
+        shapeKind={toolState.shapeKind}
+        onShapeKindChange={toolState.setShapeKind}
       />
       <ZoomControls
         zoomPercent={zoomPercent(cam.camera)}
