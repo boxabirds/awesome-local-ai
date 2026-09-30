@@ -122,3 +122,43 @@ export function randomBytesLike(bytes: Uint8Array, seed = 7): Uint8Array {
   const rand = rng(seed);
   return Uint8Array.from(bytes, () => Math.floor(rand() * 256));
 }
+
+const SELECTION_TEXTS_A = [
+  'Went well: shipping on Friday', 'Pairing helped', 'Great onboarding docs', 'Deploys are fast now',
+  'Kudos to Sam', 'Keep Friday demos', 'Celebrate the launch!', 'Café-style planning worked',
+  'More customer calls', 'Limit WIP to 3', 'Design review earlier', 'Start: weekly tech talk',
+];
+const SELECTION_TEXTS_B = [
+  'Standups ran long', 'Too many meetings', 'Flaky CI 😬', 'Unclear ownership of billing',
+  'Scope creep in sprint 2', 'Monitoring gaps at night', 'Hard to find the staging URL', 'Fewer Slack pings',
+];
+
+/** Top-left corners (world units) of the story 7 selection board's cluster A: 4 columns × 3 rows. */
+export const CLUSTER_A_COLUMNS = [0, 250, 500, 750];
+export const CLUSTER_A_ROWS = [0, 250, 500];
+
+/**
+ * The story 7 retro board: 20 notes in two clusters. Cluster A is a 4×3 grid
+ * of 200-unit notes 50 apart (top-lefts CLUSTER_A_COLUMNS × CLUSTER_A_ROWS);
+ * cluster B (8 notes from x = 1400) overlaps its neighbours with explicit stacking.
+ * `a[row][col]` and `b[i]` are the note ids.
+ */
+export function selectionBoard(doc: Y.Doc = new Y.Doc()): { doc: Y.Doc; a: string[][]; b: string[] } {
+  initDoc(doc);
+  const half = 100;
+  const a = CLUSTER_A_ROWS.map((y, row) =>
+    CLUSTER_A_COLUMNS.map((x, col) => {
+      const id = createSticky(doc, { x: x + half, y: y + half }, COLORS[(row + col) % COLORS.length]);
+      getStickyText(doc, id)!.insert(0, SELECTION_TEXTS_A[row * CLUSTER_A_COLUMNS.length + col]);
+      return id;
+    }),
+  );
+  const b = SELECTION_TEXTS_B.map((text, i) => {
+    const id = createSticky(doc, { x: 1400 + (i % 4) * 150 + half, y: Math.floor(i / 4) * 150 + half }, COLORS[i % COLORS.length]);
+    getStickyText(doc, id)!.insert(0, text);
+    return id;
+  });
+  bringToFront(doc, b[1]);
+  bringToFront(doc, b[5]);
+  return { doc, a, b };
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { getObjectsMap, initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { getObjectsMap, initDoc, objectsSnapshot, type ObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 /**
@@ -9,18 +9,18 @@ import { connectBoard, type ConnectionState } from '../sync/connectBoard';
  */
 class BoardStore {
   readonly doc: Y.Doc;
-  private current: readonly StickySnapshot[];
+  private current: readonly ObjectSnapshot[];
   private readonly listeners = new Set<() => void>();
 
   constructor(doc: Y.Doc) {
     this.doc = doc;
     initDoc(doc);
-    this.current = snapshot(doc);
+    this.current = objectsSnapshot(doc);
     getObjectsMap(doc).observeDeep(this.onChange);
   }
 
   private onChange = () => {
-    this.current = snapshot(this.doc);
+    this.current = objectsSnapshot(this.doc);
     for (const l of this.listeners) l();
   };
 
@@ -36,7 +36,8 @@ class BoardStore {
 
 export interface BoardDoc {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  /** Every renderable object, sorted by (z, id). */
+  objects: readonly ObjectSnapshot[];
   connection: ConnectionState;
 }
 
@@ -54,7 +55,7 @@ export function useBoardDoc(boardId: string): BoardDoc {
     store = new BoardStore(new Y.Doc());
     setCurrent({ boardId, store });
   }
-  const notes = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const objects = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   useEffect(() => {
@@ -62,5 +63,5 @@ export function useBoardDoc(boardId: string): BoardDoc {
     return () => conn.destroy();
   }, [store, boardId]);
 
-  return { doc: store.doc, notes, connection };
+  return { doc: store.doc, objects, connection };
 }

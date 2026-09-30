@@ -16,6 +16,10 @@ vi.mock('../../src/shared/board-model', async (importOriginal) => {
     bringToFront: vi.fn(actual.bringToFront),
     setStickyColor: vi.fn(actual.setStickyColor),
     deleteObject: vi.fn(actual.deleteObject),
+    moveObjects: vi.fn(actual.moveObjects),
+    resizeObjects: vi.fn(actual.resizeObjects),
+    bringObjectsToFront: vi.fn(actual.bringObjectsToFront),
+    deleteObjects: vi.fn(actual.deleteObjects),
   };
 });
 
@@ -28,7 +32,17 @@ vi.mock('../../src/client/sync/connectBoard', () => ({
   },
 }));
 
-const MUTATIONS = ['createSticky', 'moveObject', 'bringToFront', 'setStickyColor', 'deleteObject'] as const;
+const MUTATIONS = [
+  'createSticky',
+  'moveObject',
+  'bringToFront',
+  'setStickyColor',
+  'deleteObject',
+  'moveObjects',
+  'resizeObjects',
+  'bringObjectsToFront',
+  'deleteObjects',
+] as const;
 
 function mutationCalls(): number {
   return MUTATIONS.reduce((n, name) => n + vi.mocked(boardModel[name]).mock.calls.length, 0);
@@ -80,6 +94,9 @@ describe('App while the board could not be loaded (persist.load_failure)', () =>
     keyDown(note, 'Delete');
     keyDown(note, 'Backspace');
     keyDown(note, 'Enter');
+    // Story 7: nudging does nothing and there are no resize handles.
+    keyDown(note, 'ArrowRight');
+    expect(screen.queryByRole('button', { name: /^Resize / })).toBeNull();
     // Drag it.
     fireEvent.pointerDown(note, { pointerId: 2, button: 0, clientX: 100, clientY: 100 });
     fireEvent.pointerMove(note, { pointerId: 2, clientX: 180, clientY: 160 });

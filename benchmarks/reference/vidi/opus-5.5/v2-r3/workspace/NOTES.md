@@ -232,3 +232,67 @@ Decisions made where the spec was silent or ambiguous:
   supports RPC.
 - **E2E browsers:** only Chromium is installed here. TC-26 and TC-31 are skipped on other
   browsers by design; TC-27 and TC-29 could not be run on Firefox or WebKit.
+
+## Story 7 — Select, move, resize and delete several objects at once
+
+- **Board lives in `Board.tsx`.** The design names `App.tsx` for wiring. Since story 5 the board
+  is `src/client/board/Board.tsx`, so the overlay, bar, keys and marquee are wired there. The old
+  Delete/Enter handler moved from `Board.tsx` into `useBoardKeys`.
+- **Snapshots.** `ObjectSnapshot` is the common shape (`id, type, x, y, width, height, z,
+  createdAt`). `StickySnapshot` extends it. `snapshot(doc)` still returns only stickies (story 2
+  contract, used by existing tests). The new `objectsSnapshot(doc)` returns every known-type
+  object, and the board renders from it. The model's "known types" start with `sticky`.
+  `registerObjectType` (client registry) also calls the new `registerModelType`, so a registered
+  type (for example the test-only `testbox`) shows up in `objectsSnapshot`, `allObjectIds` and
+  `objectsInRect`. Unknown types are still skipped (TC-08).
+- **New stickies store `width`/`height`** (200) explicitly. Notes from before this story keep
+  implicit 200×200 until their first resize writes both fields (TC-10).
+- **Bigger notes, bigger text.** A sticky's content is laid out at the base size
+  (STICKY_SIZE_WORLD) and scaled by `width / STICKY_SIZE_WORLD`. Font fitting therefore never
+  depends on size, and a note enlarged for emphasis shows larger text (PRD pain point 3).
+- **Selection hides deleted ids at once.** `useSelection(snapshot)` exposes only ids present in
+  the snapshot being rendered, and it also dispatches `prune` on every snapshot change. This is
+  how "actions referring to absent ids are ignored" is met. A reducer that knows the snapshot
+  would ignore `startEdit` for a note created in the same event.
+- **`useSelection().endEdit()` takes no argument** (per contract). The editor's
+  `onEnd('unselected')` maps to `clear()`.
+- **Gesture API extras.** `useTransformGesture` also returns `phase` and `activeIds`, which drive
+  each object's `data-state` (`idle|pressed|dragging`) and hide the bar while moving or resizing.
+  Pointer listeners go on the pressed element (with pointer capture), not on React props.
+- **Click semantics.** Pressing an unselected object selects only it immediately. Pressing a
+  selected object keeps the selection (so a drag moves the group), and releasing without a drag
+  then selects only that object. Shift+press toggles. When the toggle adds the object, a drag
+  moves the whole selection. When it removes it, nothing is dragged.
+- **Clamping.** `clampScale` takes an optional 5th argument `uniform` (default
+  `scale.x === scale.y`). The gesture passes the aspect flag. An object that is already beyond a
+  limit (for example a tiny legacy object) is never pushed further past it, and never forced back.
+  Non-resizable types in a mixed selection keep their size and follow the layout. `resizeRect`
+  never flips (sizes clamp at 0), and an edge handle with aspect lock scales the other axis about
+  its centre.
+- **Extra geometry export:** `scaleRectFrom(start, handle, scale)` (the anchored box for a
+  clamped scale) and `HANDLES`.
+- **Overlay.** `BoardViewport` got two optional props: `marquee` (Shift+pointerdown on empty
+  space; `data-state="marquee"`) and `overlay` (a screen-space layer above the world). The
+  bounding box, handles (`role="button"`, `aria-label="Resize top-left"` … `"Resize left"`) and
+  the selection bar / note toolbar render there. The note toolbar therefore now sits above the
+  selection box in screen space, not in the world layer. Selected objects keep a
+  `data-selected` outline that is 1.5 screen px at any zoom (`--zoom` CSS variable).
+- **Handles and bar are hidden** while a note is being edited and when the board failed to load.
+  Selection still works for viewing then. For a single selected non-sticky object no bar is shown.
+- **Announcements.** A persistent visually hidden `aria-live="polite"` region
+  (`data-testid="selection-announcer"`) reads "N selected" (empty when nothing is selected). It is
+  not `role="status"`, so existing `getByRole('status')` queries still match only one element.
+- **Keys.** Ctrl/Cmd+A, Escape, arrows, Delete/Backspace and Enter are ignored while editing or
+  in text fields. Unlike story 2, Delete/Backspace also act when focus is on a toolbar button,
+  such as after clicking a swatch. Enter on a button is still left to the button. A note focused
+  with Tab but not selected is still the target of Enter/Delete/arrows. Escape during a marquee
+  cancels only the marquee (capture-phase listener).
+- **LoadFailure test** now also spies on the new group mutations and checks that arrow keys and
+  handles do nothing (this adds coverage; nothing was weakened).
+- **Fixtures.** `tests/fixtures/testbox.tsx` registers the test-only `testbox` type (resizable,
+  not aspect-locked, minSize 10). `selectionBoard()` in `tests/fixtures/boards.ts` is the 20-note,
+  two-cluster retro board used by `tests/e2e/selection.spec.ts`.
+- **Stories 6/8 hooks left out.** There is no presence publishing of selected ids. The
+  `onGestureStart/End` options exist (story 8 will use them), but the board passes none.
+- **E2E browsers:** only Chromium is installed here, so TC-32 did not run on Firefox or WebKit.
+- **Commits.** The whole story went into a single commit, per the session instructions.

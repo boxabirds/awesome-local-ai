@@ -5,6 +5,7 @@ import {
   GRID_SPACING_WORLD,
   WHEEL_LINE_HEIGHT_PX,
 } from '../../shared/config';
+import type { Marquee } from '../board/Marquee';
 import { screenToWorld, type Camera, type Point } from './camera';
 import { useCameraContext } from './useCamera';
 
@@ -49,11 +50,17 @@ export function BoardViewport(props: {
   onEmptyDoubleClick?(world: Point): void;
   /** Press and release on empty board space without dragging. */
   onEmptyClick?(): void;
+  /** Shift+drag on empty board space draws this box selection instead of panning (story 7). */
+  marquee?: Marquee;
+  /** Screen-space layer above the world (selection box, handles, selection bar). */
+  overlay?: ReactNode;
 }) {
   const { api, onViewportResize } = useCameraContext();
   const { camera } = api;
   const ref = useRef<HTMLDivElement>(null);
   const [panning, setPanning] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const modeRef = useRef<'pan' | 'marquee'>('pan');
   const pointerIdRef = useRef<number | null>(null);
   const downPointRef = useRef<Point | null>(null);
   const lastHoverRef = useRef<Point | null>(null);
@@ -150,6 +157,10 @@ export function BoardViewport(props: {
   const endPan = () => {
     if (pointerIdRef.current === null) return;
     pointerIdRef.current = null;
+    if (modeRef.current === 'marquee') {
+      setSelecting(false);
+      return;
+    }
     api.endPan();
     setPanning(false);
   };
@@ -166,6 +177,13 @@ export function BoardViewport(props: {
     }
     pointerIdRef.current = e.pointerId;
     downPointRef.current = toLocal(e);
+    if (e.shiftKey && props.marquee) {
+      modeRef.current = 'marquee';
+      props.marquee.begin(downPointRef.current);
+      setSelecting(true);
+      return;
+    }
+    modeRef.current = 'pan';
     api.beginPan(downPointRef.current);
     setPanning(true);
   };
@@ -174,14 +192,25 @@ export function BoardViewport(props: {
     const p = toLocal(e);
     lastHoverRef.current = p;
     if (pointerIdRef.current !== e.pointerId) return;
-    api.panMove(p);
+    if (modeRef.current === 'marquee') props.marquee?.move(p);
+    else api.panMove(p);
   };
 
   const onPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== e.pointerId) return;
     const down = downPointRef.current;
     downPointRef.current = null;
+    const mode = modeRef.current;
     endPan();
+    if (mode === 'marquee') {
+      if (e.type === 'pointerup') {
+        props.marquee?.move(toLocal(e));
+        props.marquee?.end();
+      } else {
+        props.marquee?.cancel();
+      }
+      return;
+    }
     if (e.type !== 'pointerup' || !down) return;
     const p = toLocal(e);
     if (Math.hypot(p.x - down.x, p.y - down.y) < DRAG_THRESHOLD_PX) props.onEmptyClick?.();
@@ -202,7 +231,7 @@ export function BoardViewport(props: {
       ref={ref}
       className={`board-viewport${panning ? ' is-panning' : ''}`}
       data-testid="board-viewport"
-      data-state={panning ? 'panning' : 'idle'}
+      data-state={panning ? 'panning' : selecting ? 'marquee' : 'idle'}
       data-camera-x={camera.x}
       data-camera-y={camera.y}
       data-camera-zoom={camera.zoom}
@@ -227,11 +256,17 @@ export function BoardViewport(props: {
         style={{
           transform: `scale(${camera.zoom}) translate(${-camera.x}px, ${-camera.y}px)`,
           transformOrigin: '0 0',
+          ['--zoom' as string]: camera.zoom,
         }}
       >
         <div className="origin-marker" data-testid="origin-marker" aria-hidden="true" />
         {props.children}
       </div>
+      {props.overlay !== undefined && (
+        <div className="board-overlay" data-testid="board-overlay">
+          {props.overlay}
+        </div>
+      )}
     </div>
   );
 }
