@@ -4,7 +4,7 @@ import { short } from "./UsageCells.tsx";
 const SECONDS_PER_MINUTE = 60;
 const PERCENT = 100;
 
-type Seg = keyof Omit<TimeSplit, "wall">;
+type Seg = keyof Omit<TimeSplit, "wall" | "toolsByKind" | "check">;
 
 /** The parts of a story's time, in the order drawn, with what each is. */
 const SEGMENTS: { seg: Seg; name: string; what: string }[] = [
@@ -13,6 +13,7 @@ const SEGMENTS: { seg: Seg; name: string; what: string }[] = [
   { seg: "modelUnsplit", name: "Model, not split", what: "a model whose time wasn't split into reading and writing (a cloud model), together with the agent's own time" },
   { seg: "compaction", name: "Compaction", what: "the model summarising its own conversation to make room" },
   { seg: "tools", name: "Tools", what: "the agent waiting on its own tool calls: its test runs (npm run test, vitest, playwright), builds, file reads and edits, and any other command (dev servers, scripts)" },
+  { seg: "betweenSessions", name: "Between sessions", what: "the harness starting the agent's next session after one ended: it waits a minute before resuming an agent whose session ended in an error, and nudges one that stopped without committing" },
   { seg: "other", name: "Other", what: "the agent's own overhead between steps" },
 ];
 
@@ -26,6 +27,7 @@ function tip(seg: Seg, s: number, u: Usage): string {
     case "modelUnsplit": return `Model and agent ${m}: not split into reading and writing (a cloud model, or a run not timed)`;
     case "compaction": return `Compaction ${m}, over ${u.compactions ?? "?"} compactions`;
     case "tools": return `Tools ${m} over ${u.calls ?? "?"} calls: ${toolKinds(u.split?.toolsByKind ?? {})}`;
+    case "betweenSessions": return `Between sessions ${m}: the harness restarting the agent after its session ended (${u.nudges ?? 0} nudges)`;
     case "other": return `Other ${m}: the agent's own overhead`;
   }
 }
@@ -44,6 +46,15 @@ function toolKinds(kinds: Record<string, number>): string {
   return parts.toSorted((a, b) => b[0] - a[0]).map(([, s]) => s).join(", ") + " min";
 }
 
+/** A split that failed its own checks is flagged with why; one recorded before there were checks says so. */
+function CheckMark({ check }: { check: TimeSplit["check"] }) {
+  if (check.status === "ok") return null;
+  if (check.status === "unchecked") {
+    return <span className="check-unchecked" tabIndex={0} data-tip="Unchecked: recorded before the harness checked its accounting (or a cloud model, whose calls aren't logged), so these parts weren't verified to add up">unchecked</span>;
+  }
+  return <span className="check-flag" tabIndex={0} role="img" aria-label="accounting check failed" data-tip={`This split failed its checks, so treat its parts with care: ${check.problems.join("; ")}`}>⚠</span>;
+}
+
 /** A bar per job for one story, all on one minutes scale, coloured by where the time went. */
 export function TimeBars({ storyId, jobs }: { storyId: string; jobs: { r: Row; u: Usage | null | undefined }[] }) {
   const withSplit = jobs.filter((j) => j.u?.split);
@@ -59,7 +70,11 @@ export function TimeBars({ storyId, jobs }: { storyId: string; jobs: { r: Row; u
         const sp = u!.split!;
         return (
           <div className="bar-row" key={`${r.stack}:${r.runId}`} data-job={`${r.stack}|${r.runId}`}>
-            <span className="bar-label"><span className="stack-label">{r.label}</span> <b>{r.runId}</b></span>
+            <span className="bar-label">
+              <span className="bar-machine">{r.machine}</span>
+              <span className="stack-label">{r.label}</span> <b>{r.runId}</b>
+              <CheckMark check={sp.check} />
+            </span>
             <span className="bar-track">
               <span className="bar" style={{ width: `${(sp.wall / max) * PERCENT}%` }}>
                 {SEGMENTS.filter((s) => sp[s.seg] > 0).map((s) => (

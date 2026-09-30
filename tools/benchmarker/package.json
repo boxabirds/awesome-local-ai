@@ -5,13 +5,13 @@
   "description": "Live status of every benchmark run: build, score, judge.",
   "scripts": {
     "build": "vite build",
-    "start": "node server/main.ts",
+    "start": "bun server/main.ts",
     "dev": "vite",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },
   "engines": {
-    "node": ">=22.18"
+    "bun": ">=1.2"
   },
   "dependencies": {
     "react": "^19.3.0",

@@ -8,12 +8,12 @@ TypeScript directly.
 
 ```bash
 cd tools/benchmarker
-npm install && npm run build
-npm start                                    # then open http://127.0.0.1:7760
-node server/main.ts --repo /path/to/awesome-local-ai --port 7760 --judge-url http://127.0.0.1:7800/review
+bun install && bun run build
+bun start                                    # then open http://127.0.0.1:7760
+bun server/main.ts --repo /path/to/awesome-local-ai --port 7760 --judge-url http://127.0.0.1:7800/review
 ```
 
-Tests: `npm test` (the domain logic, Vitest) and `npm run test:e2e` (Playwright against fixed data in
+Tests: `bun run test` (the domain logic, Vitest) and `bun run test:e2e` (Playwright against fixed data in
 `e2e/fixture.json`: running and queued rows, stories, the version filter, width at 1000 px, the stale
 warning, reload on a new build).
 

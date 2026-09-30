@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
+const GUFO = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi";
 const QWEN_27B = "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi";
 
 const row = (page: Page, stack: string, run: string) => page.locator(`tr:not(.detail)[data-stack="${stack}"][data-run="${run}"]`);
@@ -365,4 +366,24 @@ test("by story: a bar per job on one scale, coloured by where the time went, eac
   // Tools says what the agent was waiting on: its own tests, and other commands (dev servers, scripts).
   await swift.locator('[data-seg="tools"]').hover();
   await expect(page.getByRole("tooltip")).toContainText("the agent's tests 1.0 (end-to-end 1.0), other commands 0.5 min");
+});
+
+test("by story: each bar names its machine, shows the wait between agent sessions, and flags a split that failed its checks", async ({ page }) => {
+  await page.getByLabel("Version").selectOption("all");                  // gufo canvas-gufo-r3 is a v1 run
+  await page.getByRole("button", { name: "By story" }).click();
+  await page.getByRole("button", { name: /^1\. / }).click();
+  const bars = page.getByRole("figure", { name: "Where story 1's time went, by job" });
+  const swift = bars.locator(`[data-job="${SWIFT}|v2-r1"]`);
+  const gufo = bars.locator(`[data-job="${GUFO}|canvas-gufo-r3"]`);
+  const opus = bars.locator(`[data-job="reference/opus-5.5|run-9"]`);
+  await expect(swift.locator(".bar-machine")).toHaveText("gruntus");
+  await expect(gufo.locator(".bar-machine")).toHaveText("AMD Ryzen AI Max+ 395 128GB");
+  await gufo.locator('[data-seg="betweenSessions"]').hover();
+  await expect(page.getByRole("tooltip")).toContainText("Between sessions 1 min");
+  await expect(bars).toContainText("Between sessions");                  // in the legend
+  // Swift's split failed a check: flagged, with the reason on hover. gufo's passed: no flag. Opus's was never checked.
+  await swift.locator(".check-flag").hover();
+  await expect(page.getByRole("tooltip")).toContainText("tool call t9 never ended");
+  await expect(gufo.locator(".check-flag")).toHaveCount(0);
+  await expect(opus.locator(".check-unchecked")).toBeVisible();
 });
