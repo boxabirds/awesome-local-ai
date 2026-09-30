@@ -7,10 +7,32 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-/// A path's verdict is whether the reviewer agrees with its automated result; "skip" defers it.
+/// A path's verdict is whether the reviewer agrees with its automated result; "skip" defers it. The
+/// reviewer gives it without seeing that result: see OWN.
 /// "pass"/"fail" are the earlier build-level verdicts, still read and accepted.
 pub const VERDICTS: [&str; 5] = ["agree", "disagree", "skip", "pass", "fail"];
 const HEADER: &str = "story,build,path,verdict,notes,updated_at";
+
+/// What the judge says of a held-out test while its automated result is hidden: whether it works as
+/// they see it. Saved as agree / disagree with the automated result (from_own), so the file keeps
+/// one meaning.
+pub const OWN: [&str; 2] = ["pass", "fail"];
+/// The automated result that counts as a pass; failed, timedOut, interrupted and skipped do not.
+const AUTOMATED_PASS: &str = "passed";
+
+/// Whether a verdict is the judge's own judgement of the test. Until it is, the page is not told the
+/// test's automated result (a skip defers the test; an empty verdict is a note alone).
+pub fn answered(verdict: &str) -> bool {
+    matches!(verdict, "agree" | "disagree" | "pass" | "fail")
+}
+
+/// The judge's own pass / fail as the verdict the file keeps: agree when it matches the automated result.
+pub fn from_own(own: &str, automated: &str) -> anyhow::Result<&'static str> {
+    if !OWN.contains(&own) {
+        anyhow::bail!("the judge's own verdict must be one of {OWN:?}");
+    }
+    Ok(if (own == "pass") == (automated == AUTOMATED_PASS) { "agree" } else { "disagree" })
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Review {
@@ -198,6 +220,33 @@ mod tests {
         let builds = vec![("a".to_string(), vec![])];
         assert!(!story_reviewed(5, &builds, &[]));
         assert!(story_reviewed(5, &builds, &[row(5, "a", "", "skip")]));
+    }
+
+    #[test]
+    fn only_a_judgement_of_the_judges_own_counts_as_answered() {
+        for v in ["agree", "disagree", "pass", "fail"] {
+            assert!(answered(v), "{v} is the judge's own verdict");
+        }
+        for v in ["", "skip", "maybe"] {
+            assert!(!answered(v), "{v:?} leaves the test to review: its automated result stays hidden");
+        }
+    }
+
+    #[test]
+    fn the_judges_own_pass_or_fail_becomes_agree_or_disagree_against_the_hidden_result() {
+        let cases = [
+            ("pass", "passed", "agree"), ("fail", "passed", "disagree"),
+            ("pass", "failed", "disagree"), ("fail", "failed", "agree"),
+            // a timeout, an interruption or a skip is not a pass
+            ("pass", "timedOut", "disagree"), ("fail", "timedOut", "agree"),
+            ("fail", "interrupted", "agree"), ("pass", "skipped", "disagree"), ("fail", "skipped", "agree"),
+        ];
+        for (own, automated, stored) in cases {
+            assert_eq!(from_own(own, automated).unwrap(), stored, "judge says {own}, automation said {automated}");
+        }
+        for not_own in ["agree", "disagree", "skip", "", "passed"] {
+            assert!(from_own(not_own, "passed").is_err(), "{not_own:?} is not the judge's own pass or fail");
+        }
     }
 
     #[test]

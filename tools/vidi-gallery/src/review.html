@@ -44,10 +44,10 @@ details > summary { cursor:pointer; color:var(--muted); font-size:12px; text-tra
 button { border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:6px; padding:3px 9px; cursor:pointer; font:inherit; }
 button:disabled { opacity:.5; cursor:default; } button.on { outline:2px solid var(--accent); }
 .pill { font-size:11px; border-radius:9px; padding:0 6px; text-align:center; background:var(--chip); }
-.pill.passed { color:var(--pass); } .pill.failed, .pill.timedOut { color:var(--fail); }
+.pill.passed { color:var(--pass); } .pill.failed, .pill.timedOut { color:var(--fail); } .pill.hidden { color:var(--muted); }
 #player { position:sticky; top:52px; }
 .phead { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
-.auto { font-weight:700; font-size:15px; } .auto.passed { color:var(--pass); } .auto.failed, .auto.timedOut { color:var(--fail); }
+.auto { font-weight:700; font-size:15px; } .auto.passed { color:var(--pass); } .auto.failed, .auto.timedOut { color:var(--fail); } .auto.hidden { font-weight:400; color:var(--muted); }
 .req { margin:6px 0; padding:6px 8px; border-left:3px solid var(--accent); background:var(--bg); border-radius:4px; font-size:13px; white-space:pre-wrap; }
 .stage { display:flex; gap:8px; background:var(--stage); border-radius:6px; padding:6px; margin-top:6px; }
 .pane { flex:1 1 0; min-width:0; } .pane .who { font-size:12px; color:var(--muted); margin-bottom:2px; }
@@ -57,6 +57,7 @@ button:disabled { opacity:.5; cursor:default; } button.on { outline:2px solid va
 .seek { position:relative; height:26px; touch-action:none; user-select:none; background:var(--chip); border-radius:4px; margin-top:6px; cursor:pointer; }
 .seek .tick { position:absolute; top:3px; bottom:3px; width:3px; margin-left:-1px; border-radius:1px; cursor:pointer; }
 .seek .tick.ok { background:var(--pass); } .seek .tick.bad { background:var(--fail); width:5px; margin-left:-2px; }
+.seek .tick.chk { background:var(--accent); }
 .seek .tick.act { background:var(--muted); opacity:.35; top:9px; bottom:9px; width:2px; }
 .seek .wait { position:absolute; top:0; bottom:0; background:repeating-linear-gradient(45deg, transparent 0 4px, var(--line) 4px 6px); }
 .seek .head { position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--accent); }
@@ -66,10 +67,10 @@ button:disabled { opacity:.5; cursor:default; } button.on { outline:2px solid va
 .step { display:grid; grid-template-columns:14px minmax(0,1fr) auto; gap:6px; padding:2px 6px; cursor:pointer; border-bottom:1px solid var(--line); }
 .step:hover { background:var(--chip); } .step.cur { background:var(--sel); }
 .step.act, .step.wait { color:var(--muted); } .step.check { font-weight:600; }
-.step .ok { color:var(--pass); } .step .bad { color:var(--fail); }
+.step .ok { color:var(--pass); } .step .bad { color:var(--fail); } .step .hid { color:var(--accent); }
 .step .err { grid-column:2 / -1; color:var(--fail); font-weight:400; white-space:pre-wrap; }
 .verdict { display:flex; gap:6px; align-items:center; margin-top:8px; flex-wrap:wrap; }
-.verdict .agree.on { background:var(--pass); color:#fff; } .verdict .disagree.on { background:var(--fail); color:#fff; } .verdict .skip.on { background:var(--skip); color:#fff; }
+.verdict .pv.on { background:var(--accent); color:#fff; }  /* the judge's own pass / fail / skip: one neutral colour, no hint */ 
 .verdict input { flex:1 1 200px; min-width:0; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:3px 7px; font:inherit; }
 table { border-collapse:collapse; width:100%; font-size:12px; } td, th { border-bottom:1px solid var(--line); padding:2px 4px; text-align:left; vertical-align:top; }
 .st-verified, .st-committed { color:var(--pass); } .st-not-started, .st-written { color:var(--skip); }
@@ -155,6 +156,11 @@ function buildSummary(sid, key) {
   const todo = ps.length - c.agree - c.disagree - c.skip;
   return [c.agree && `${c.agree} agree`, c.disagree && `${c.disagree} disagree`, c.skip && `${c.skip} skipped`, todo && `${todo} to review`].filter(Boolean).join(" · ");
 }
+// The judge's own verdict on a test as the buttons show it: pass / fail once answered, else skip or "".
+function ownNow(sid, key, p) {
+  const v = review(sid, key, p.title)?.verdict || "";
+  return answered(v) ? (pathView(p, v).own || "") : v;
+}
 function counts(sid) { return builds().filter(b => buildDone(sid, b.key)).length; }
 
 function renderNav() {
@@ -186,12 +192,12 @@ function renderBuilds() {
   $("builds").innerHTML = builds().map((b, i) => {
     const [st, cls] = statusText(b.key), ps = paths(sid, b.key);
     const rows = ps.map((p, j) => {
-      const v = review(sid, b.key, p.title)?.verdict || "";
+      const view = pathView(p, review(sid, b.key, p.title)?.verdict);  // no result until the judge answers
       const on = cur && cur.key === b.key && cur.idx === j;
       return `<div class="prow ${on ? "on" : ""}" data-key="${b.key}" data-idx="${j}">
-        <span class="pill ${esc(p.status)}">${esc(p.status)}</span>
+        <span class="pill ${esc(view.pillClass)}">${esc(view.pill)}</span>
         <span class="t" title="${esc(p.title)}">${esc(shortTitle(p.title))}</span>
-        <span class="mark ${v || "todo"}">${v || "to review"}</span></div>`;
+        <span class="mark ${esc(view.markClass)}">${esc(view.mark)}</span></div>`;
     }).join("");
     const noPaths = !ps.length ? `<div class="small muted">no recorded paths (${esc(pathsCache[`${sid}:${b.key}`]?.state || "loading")}); verdict on the build itself:
         ${["pass", "fail", "skip"].map(v => `<button data-bv="${v}" data-key="${b.key}" class="${review(sid, b.key)?.verdict === v ? "on" : ""}">${v}</button>`).join(" ")}</div>` : "";
@@ -238,8 +244,8 @@ function renderStory() {
     <section style="margin-top:8px"><h2>Requirements (${s.requirements.length})</h2><ul>${s.requirements.map(r => `<li><b>${esc(r.title)}</b> <span class="muted small">${esc(r.anchor)}</span></li>`).join("")}</ul></section>
     </details>
     <div class="work"><div><div id="builds" tabindex="0" aria-label="Held-out tests"></div><div class="reveal" id="reveal"></div></div><div id="player"><section class="muted">Pick a path on the left (or press <kbd>j</kbd>) to play its recording.</section></div></div>
-    <div class="keys"><kbd>Space</kbd> play / stop (a test plays by itself at 2× when you move to it) · <kbd>Tab</kbd> / <kbd>⇧Tab</kbd> move between stories, held-out tests and browser steps · <kbd>↑</kbd><kbd>↓</kbd> within one · <kbd>→</kbd> scrub, and on to the next test at the end · <kbd>=</kbd>/<kbd>Return</kbd> agree, <kbd>-</kbd> disagree, and on · <kbd>Esc</kbd> clear the verdict · <kbd>?</kbd> all keys<br>
-    A verdict says whether <b>you agree with the automated result</b> of that path, having watched it. Each build opens as it was after story ${s.review_build}. Reviews save to <code>${esc(S.file)}</code>.</div>`;
+    <div class="keys"><kbd>Space</kbd> play / stop (a test plays by itself at 2× when you move to it) · <kbd>Tab</kbd> / <kbd>⇧Tab</kbd> move between stories, held-out tests and browser steps · <kbd>↑</kbd><kbd>↓</kbd> within one · <kbd>→</kbd> scrub, and on to the next test at the end · <kbd>=</kbd>/<kbd>Return</kbd> passes, <kbd>-</kbd> fails, and on · <kbd>Esc</kbd> clear the verdict · <kbd>?</kbd> all keys<br>
+    Say whether <b>the test passes as you see it</b>, having watched it: its automated result stays hidden until you do, then shows beside yours as agree or disagree. Each build opens as it was after story ${s.review_build}. Reviews save to <code>${esc(S.file)}</code>.</div>`;
   renderBuilds();
 }
 
@@ -324,7 +330,9 @@ function renderPlayer(tasks) {
   const sid = sidNow(), {w, p, key, idx} = P;
   const anchors = anchorsOf(p.title);
   const v = review(sid, key, p.title) || {};
-  const details = p.trace ? `/trace/index.html?trace=${encodeURIComponent(location.origin + "/recordings/" + p.trace)}` : "";
+  const view = pathView(p, v.verdict), shown = view.automated !== null;
+  // The trace viewer lists each check's result: linked only once the result is shown.
+  const details = shown && p.trace ? `/trace/index.html?trace=${encodeURIComponent(location.origin + "/recordings/" + p.trace)}` : "";
   const label = S.builds.find(b => b.key === key)?.label || "";
   const reqHtml = anchors.length ? anchors.map(a => {
       const req = S.stories[story].requirements.find(r => r.anchor === a);
@@ -334,17 +342,17 @@ function renderPlayer(tasks) {
   const stageHtml = !w ? `<div class="muted small">no trace for this path</div>` : `
     <div class="stage">${w.people.map((pp, i) => `<div class="pane"><div class="who">${esc(pp.label)}</div><div class="screen" style="aspect-ratio:${pp.width || 16}/${pp.height || 10}"><img id="img${i}" alt=""><span id="none${i}">not on screen yet</span></div></div>`).join("") || `<div class="muted small">no screen frames in this trace</div>`}</div>
     <div class="seek" id="seek">${P.waits.map(([a, b]) => `<div class="wait" style="left:${pos(a) * 100}%;width:${(pos(b) - pos(a)) * 100}%" title="waits ${((b - a) / 1000).toFixed(1)} s"></div>`).join("")}
-      ${w.steps.map((s, i) => `<div class="tick ${s.error ? "bad" : s.kind === "check" ? "ok" : "act"}" data-tick="${i}" style="left:${pos(s.end) * 100}%" title="${esc(s.title)}"></div>`).join("")}<div class="head" id="head"></div></div>
+      ${w.steps.map((s, i) => `<div class="tick ${stepMark(s, shown).tick}" data-tick="${i}" style="left:${pos(s.end) * 100}%" title="${esc(s.title)}"></div>`).join("")}<div class="head" id="head"></div></div>
     <div class="controls"><button id="play">▶ play</button>
       ${SPEEDS.map(x => `<button data-speed="${x}" class="${x === P.speed ? "on" : ""}">${x}×</button>`).join("")}
       <label><input type="checkbox" id="skipw" ${P.skipWaits ? "checked" : ""}> skip long waits</label>
       <span id="clock" class="muted"></span><span id="frames" class="muted"></span></div>`;
   const stepsHtml = !w ? "" : `<div class="steps" id="steps" tabindex="0" aria-label="Browser steps">${w.steps.map((s, i) => `<div class="step ${s.kind === "check" ? "check" : s.kind === "wait" ? "wait" : "act"}" data-s="${i}">
-      <span class="${s.error ? "bad" : "ok"}">${s.kind === "check" || s.error ? (s.error ? "✗" : "✓") : ""}</span>
+      ${(m => `<span class="${m.cls}">${m.sym}</span>`)(stepMark(s, shown))}
       <span>${esc(s.title)}${s.person != null && w.people.length > 1 ? ` <span class="muted">· ${esc(w.people[s.person].label)}</span>` : ""}</span>
       <span class="muted">${((s.end - w.start) / 1000).toFixed(1)}s</span>
-      ${s.error ? `<div class="err">${esc(s.error.split("\n").filter(Boolean).slice(0, 3).join("\n"))}</div>` : ""}</div>`).join("")}
-      ${w.error ? `<div class="step"><span class="bad">✗</span><span class="err" style="grid-column:2/-1">${esc(w.error)}</span></div>` : ""}</div>`;
+      ${shown && s.error ? `<div class="err">${esc(s.error.split("\n").filter(Boolean).slice(0, 3).join("\n"))}</div>` : ""}</div>`).join("")}
+      ${shown && w.error ? `<div class="step"><span class="bad">✗</span><span class="err" style="grid-column:2/-1">${esc(w.error)}</span></div>` : ""}</div>`;
   const t = tasks || {};
   const tasksHtml = `<details style="margin-top:8px"><summary>Tasks of this story in this build (the spec doesn't say which task implements this requirement)</summary>
     <table><tr><th>#</th><th>task</th><th>type</th><th>status</th><th>commits naming it</th></tr>
@@ -352,13 +360,13 @@ function renderPlayer(tasks) {
     <div class="small muted" style="margin-top:6px">This build's commits for story ${sid}:</div>
     <ul class="small">${(t.commits || []).map(c => `<li><code>${esc(c.hash)}</code> ${esc(c.subject)}</li>`).join("") || `<li class="muted">none found</li>`}</ul></details>`;
   $("player").innerHTML = `<section>
-    <div class="phead"><span class="auto ${esc(p.status)}">Automated: ${esc(p.status.toUpperCase())}</span><b>${esc(shortTitle(p.title))}</b>
+    <div class="phead"><span class="auto ${esc(view.headerClass)}">${esc(view.header)}</span><b>${esc(shortTitle(p.title))}</b>
       <span class="muted small">${esc(label)} · path ${idx + 1} of ${paths(sid, key).length}</span>
-      ${details ? `<a class="small" href="${details}" target="_blank">details (trace viewer)</a>` : ""}${p.video ? ` <a class="small" href="/recordings/${encodeURI(p.video)}" target="_blank">video</a>` : ""}</div>
+      ${details ? `<a class="small" href="${details}" target="_blank">details (trace viewer)</a>` : ""}${p.video ? ` <a class="small" href="/api/review/video/${sid}/${key}/${idx}" target="_blank">video</a>` : ""}</div>
     ${reqHtml}
     <div class="pbody"><div>${stageHtml}</div><div>${stepsHtml}</div></div>
-    <div class="verdict"><span class="small">Do you agree with <b>${esc(p.status)}</b>?</span>
-      ${["agree", "disagree", "skip"].map(x => `<button class="${x} ${v.verdict === x ? "on" : ""}" data-pv="${x}">${x}</button>`).join("")}
+    <div class="verdict"><span class="small">${shown ? `You said it <b>${view.own === "pass" ? "passes" : "fails"}</b>; the automated result is <b>${esc(view.automated)}</b>: you <b>${esc(view.markClass)}</b>. Change it?` : "As you see it, does this test pass?"}</span>
+      ${["pass", "fail", "skip"].map(x => `<button class="pv ${ownNow(sid, key, p) === x ? "on" : ""}" data-pv="${x}">${x}</button>`).join("")}
       <input id="pnote" value="${esc(v.notes || "")}" placeholder="why — what the recording shows, what the test missed…"></div>
     ${tasksHtml}</section>`;
   if (w) {
@@ -450,12 +458,16 @@ async function movePath(dir) {
   if (g.length) { const p = dir > 0 ? g[0] : g[g.length - 1]; return select(p.key, p.idx); }
 }
 
+// The judge's own pass / fail / skip (or "" to clear) on the test in the player. The server saves it as
+// agree / disagree and only then says what the automated result was.
 async function judge(v) {
-  if (!P) return;
+  if (!P) return false;
   const sid = sidNow(), note = $("pnote")?.value ?? review(sid, P.key, P.p.title)?.notes ?? "";
-  if (!(await post(P.key, v, note, P.p.title))) return;
-  document.querySelectorAll("[data-pv]").forEach(b => b.classList.toggle("on", b.dataset.pv === v));
+  if (!(await post(P.key, v, note, P.p.title))) return false;
+  const own = ownNow(sid, P.key, P.p);  // an agree / disagree lights the pass / fail it amounts to
+  document.querySelectorAll("[data-pv]").forEach(b => b.classList.toggle("on", b.dataset.pv === own));
   renderNav(); renderBuilds();
+  return true;
 }
 
 // ---------- building tabs, saving, reveal ----------
@@ -477,8 +489,13 @@ async function post(key, verdict, notes, path = "") {
   const sid = sidNow();
   const r = await fetch("/api/review/set", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({story: sid, key, path, verdict, notes})});
   if (!r.ok) { $("saved").textContent = "NOT SAVED: " + (await r.text()); return false; }
+  const d = await r.json(), stored = d.verdict ?? verdict;  // a pass / fail comes back as agree / disagree
   const row = review(sid, key, path);
-  if (row) { row.verdict = verdict; row.notes = notes; } else S.reviews.push({story: sid, key, path, verdict, notes});
+  if (row) { row.verdict = stored; row.notes = notes; } else S.reviews.push({story: sid, key, path, verdict: stored, notes});
+  // Answered: the reply carries the test's result, error and trace. Otherwise the test is hidden again.
+  const ps = paths(sid, key), i = ps.findIndex(p => p.title === path);
+  if (i >= 0) ps[i] = d.path || {title: ps[i].title, answered: false, video: ps[i].video};
+  if (P && P.key === key && P.p.title === path && i >= 0) P.p = ps[i];
   $("saved").textContent = "saved " + new Date().toLocaleTimeString();
   return true;
 }
@@ -494,32 +511,7 @@ async function poll() {
 }
 
 // ---------- the keyboard layer (keyAction in player.js says what each key does) ----------
-const KEYS = [
-  ["Three panes", "stories · held-out tests · browser steps (the focused one has a ring)"],
-  ["Tab · ⇧Tab", "next pane · previous pane"],
-  ["Stories: ↑ ↓", "previous / next story"],
-  ["Space p", "play / stop, in any pane (a test plays by itself when you move to it, at 2×)"],
-  ["Stories: → Return", "into the story's held-out tests"],
-  ["Tests: ↑ ↓", "previous / next held-out test"],
-  ["Tests: → · ←", "scrub 5% (⇧: 1%); at an end, on to the next / previous test: hold to fly through"],
-  ["Tests: = Return · -", "agree · disagree, and on to the next test"],
-  ["Tests: ⇧Return", "disagree, and write why"],
-  ["Tests: Esc", "clear the verdict back to “to review”"],
-  ["Steps: ↑ ↓ Return", "previous / next browser step"],
-  ["Steps: → · ←", "scrub 5% (⇧: 1%)"],
-  ["Steps: Esc", "back to the held-out tests"],
-  [". ,", "next / previous frame"],
-  ["1 … 9 · 0", "jump to 10% … 90% · the start"],
-  ["Home End", "start / end"],
-  ["> <", "faster / slower"],
-  ["] [ · PgDn PgUp", "next / previous story, from any pane"],
-  ["a d s", "agree / disagree / skip, and on to the next test"],
-  ["⌘= ⌘Return · ⌘- · ⌘Esc", "the whole story: agree with every test · disagree with every test · all back to “to review” (Ctrl on Windows and Linux)"],
-  ["n", "write a note (Esc or Return to leave it)"],
-  ["o", "open this build"],
-  ["w", "skip long waits on / off"],
-  ["?", "show / hide these keys (Esc closes)"],
-];
+// The keys sheet (KEYS) is in player.js, where its tests check it.
 
 function toggleHelp(show = !$("help")) {
   if (!show) { $("help")?.remove(); return; }
@@ -527,7 +519,7 @@ function toggleHelp(show = !$("help")) {
   const d = document.createElement("div");
   d.id = "help"; d.setAttribute("role", "dialog"); d.setAttribute("aria-label", "Keys");
   const keyCell = k => { const [where, keys] = k.includes(": ") ? k.split(": ") : ["", k];
-    return (where ? `<span class="muted">${esc(where)}:</span> ` : "") + (keys === "Three panes" ? `<b>${esc(keys)}</b>` : keys.split(" ").map(x => x === "·" || x === "…" ? x : `<kbd>${esc(x)}</kbd>`).join(" ")); };
+    return (where ? `<span class="muted">${esc(where)}:</span> ` : "") + (["Three panes", "Hidden"].includes(keys) ? `<b>${esc(keys)}</b>` : keys.split(" ").map(x => x === "·" || x === "…" ? x : `<kbd>${esc(x)}</kbd>`).join(" ")); };
   d.innerHTML = `<div class="helpbox"><h2>Keys</h2><table>${KEYS.map(([k, what]) => `<tr><td>${keyCell(k)}</td><td>${esc(what)}</td></tr>`).join("")}</table>
     <div class="small muted">Press <kbd>?</kbd> or <kbd>Esc</kbd> to close.</div></div>`;
   d.onclick = e => { if (e.target === d) toggleHelp(false); };
@@ -552,19 +544,18 @@ function setSpeed(dir) {
   document.querySelectorAll("[data-speed]").forEach(x => x.classList.toggle("on", +x.dataset.speed === P.speed));
 }
 
-// One verdict for every held-out test of the story, in the builds on show. Only changes are saved; notes stay.
+// One verdict for every held-out test of the story, in the builds on show (bulkTargets, player.js): agree or
+// disagree with each (hidden) automated result, which the server then sends, or all back to review.
+// Overwrites earlier verdicts; only changes are saved; notes stay.
 async function judgeAll(v) {
   const sid = sidNow();
-  let changed = 0, tests = 0;
-  for (const b of builds()) for (const pth of paths(sid, b.key)) {
-    tests++;
-    const r = review(sid, b.key, pth.title);
-    if ((r?.verdict || "") === v) continue;
-    if (await post(b.key, v, r?.notes || "", pth.title)) changed++;
-  }
-  if (P) document.querySelectorAll("[data-pv]").forEach(x => x.classList.toggle("on", x.dataset.pv === (review(sid, P.key, P.p.title)?.verdict || "")));
+  const tests = builds().flatMap(b => paths(sid, b.key).map(p => ({key: b.key, title: p.title})));
+  const todo = bulkTargets(tests.map(t => review(sid, t.key, t.title)?.verdict || ""), v).map(i => tests[i]);
+  let changed = 0;
+  for (const t of todo) if (await post(t.key, v, review(sid, t.key, t.title)?.notes || "", t.title)) changed++;
   renderNav(); renderBuilds();
-  $("saved").textContent = `story ${sid}: ${v ? `${v} with` : "back to review:"} all ${tests} tests (${changed} changed)`;
+  if (P && todo.some(t => t.key === P.key && t.title === P.p.title)) await select(P.key, P.idx, false);  // show (or hide) its result
+  $("saved").textContent = `story ${sid}: ${v ? `${v} with` : "back to review:"} all ${tests.length} tests (${changed} changed)`;
 }
 
 async function act(a) {
@@ -596,7 +587,12 @@ async function act(a) {
       if (!P) return;
       // Holding = or - passes the same verdict many times: save it once.
       // Save only a change: holding = passes the same verdict many times, and clearing an unjudged test is a no-op.
-      if ((review(sidNow(), P.key, P.p.title)?.verdict || "") !== a.v) await judge(a.v);
+      const was = a.v === "agree" || a.v === "disagree" ? (review(sidNow(), P.key, P.p.title)?.verdict || "") : ownNow(sidNow(), P.key, P.p);
+      if (was !== a.v) {
+        if (!(await judge(a.v))) return;
+        // Staying on the test (to write why, or a clear): redraw the player with its result shown, or hidden again.
+        if (a.note || !a.next) await select(P.key, P.idx, false);
+      }
       if (a.note) return $("pnote")?.focus();
       if (a.scrub) return act({do: "scrub", ...a.scrub});
       if (a.next) return movePath(1);

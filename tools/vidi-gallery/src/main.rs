@@ -514,11 +514,45 @@ async fn api_review_set(State(app): State<Arc<App>>, Json(body): Json<ReviewIn>)
     let Some(run) = app.rb(body.key) else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such build"}))).into_response();
     };
+    // A held-out test's own verdict: the judge's pass / fail becomes agree / disagree here, against the
+    // result the page was never sent. A build with no recorded paths keeps its own pass / fail.
+    let recorded = if body.path.is_empty() { None } else { recorded_paths(&app, &run, body.story).await.into_iter().find(|p| p.title == body.path) };
+    let verdict = if !body.path.is_empty() && reviews::OWN.contains(&body.verdict.as_str()) {
+        let Some(p) = &recorded else {
+            return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no recording of this path"}))).into_response();
+        };
+        match reviews::from_own(&body.verdict, &p.status) {
+            Ok(v) => v.to_string(),
+            Err(e) => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
+        }
+    } else {
+        body.verdict.clone()
+    };
     let now = utc_now();
-    match app.reviews.set(body.story, &run.slug, &body.path, &body.verdict, &body.notes, &now) {
-        Ok(_) => Json(serde_json::json!({"saved": now})).into_response(),
+    match app.reviews.set(body.story, &run.slug, &body.path, &verdict, &body.notes, &now) {
+        // Answered: the reply shows the automated result beside the judge's; otherwise it says nothing of it.
+        Ok(_) => {
+            let path = recorded.filter(|_| reviews::answered(&verdict)).map(|p| path_json(&p, &verdict));
+            Json(serde_json::json!({"saved": now, "verdict": verdict, "path": path})).into_response()
+        }
         Err(e) => (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
     }
+}
+
+/// One recorded path as the page may see it. Until the judge has given their own verdict, only its
+/// title and whether it has a video: no result, no error, and no path into the recordings (a failing
+/// test's folder also holds test-failed-1.png and error-context.md).
+fn path_json(p: &record::Path_, verdict: &str) -> serde_json::Value {
+    if reviews::answered(verdict) {
+        serde_json::json!({"title": p.title, "answered": true, "status": p.status, "error": p.error, "trace": p.trace, "video": p.video.is_some()})
+    } else {
+        serde_json::json!({"title": p.title, "answered": false, "video": p.video.is_some()})
+    }
+}
+
+/// The stored verdict of one path of one build.
+fn verdict_of(app: &App, run: &runs::Run, story: u64, path: &str) -> String {
+    app.reviews.all().into_iter().find(|r| r.story == story && r.build == run.slug && r.path == path).map(|r| r.verdict).unwrap_or_default()
 }
 
 /// Which build is which, for one story, only once every path of every build has a verdict on it:
@@ -548,22 +582,40 @@ async fn recorded_paths(app: &App, run: &runs::Run, story: u64) -> Vec<record::P
     if state == "done" { record::paths(&rec_dir(app, run, story), &app.recordings) } else { Vec::new() }
 }
 
-/// The trace zip of one recorded path (by its index in the build's paths).
-async fn trace_zip(app: &App, story: u64, key: usize, idx: usize) -> Option<PathBuf> {
+/// One recorded path (by its index in the build's paths), with its build.
+async fn recorded_path(app: &App, story: u64, key: usize, idx: usize) -> Option<(runs::Run, record::Path_)> {
     let run = app.rb(key)?;
-    let rel = recorded_paths(app, &run, story).await.into_iter().nth(idx)?.trace?;
-    Some(app.recordings.join(rel))
+    let p = recorded_paths(app, &run, story).await.into_iter().nth(idx)?;
+    Some((run, p))
 }
 
-/// One recorded path as the player needs it: steps and each person's frames (trace::Walkthrough).
+/// The trace zip of one recorded path (by its index in the build's paths).
+async fn trace_zip(app: &App, story: u64, key: usize, idx: usize) -> Option<PathBuf> {
+    Some(app.recordings.join(recorded_path(app, story, key, idx).await?.1.trace?))
+}
+
+/// One recorded path as the player needs it: steps and each person's frames (trace::Walkthrough),
+/// without its errors until the judge has given their own verdict.
 async fn api_review_walkthrough(State(app): State<Arc<App>>, UrlPath((story, key, idx)): UrlPath<(u64, usize, usize)>) -> impl IntoResponse {
-    let Some(zip) = trace_zip(&app, story, key, idx).await else {
+    let Some((run, p)) = recorded_path(&app, story, key, idx).await else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no recording of this path"}))).into_response();
     };
+    let Some(zip) = p.trace.as_ref().map(|t| app.recordings.join(t)) else {
+        return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no recording of this path"}))).into_response();
+    };
+    let answered = reviews::answered(&verdict_of(&app, &run, story, &p.title));
     match tokio::task::spawn_blocking(move || trace::load(&zip)).await {
-        Ok(Ok(w)) => Json(serde_json::json!(w)).into_response(),
-        Ok(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
+        Ok(Ok(w)) => Json(serde_json::json!(if answered { w } else { w.hidden() })).into_response(),
+        // The error text is the test's; it would say how the test ended.
+        Ok(Err(_)) | Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": "the trace could not be read"}))).into_response(),
+    }
+}
+
+/// A recorded path's video, by its position: the page is never given its path in the recordings.
+async fn api_review_video(State(app): State<Arc<App>>, UrlPath((story, key, idx)): UrlPath<(u64, usize, usize)>) -> impl IntoResponse {
+    match recorded_path(&app, story, key, idx).await.and_then(|(_, p)| p.video) {
+        Some(rel) => serve_under(&app.recordings, &rel).await,
+        None => StatusCode::NOT_FOUND.into_response(),
     }
 }
 
@@ -610,13 +662,15 @@ async fn api_review_tasks(State(app): State<Arc<App>>, UrlPath((story, key)): Ur
     Json(serde_json::json!({"tasks": tasks, "commits": commits, "status_recorded": !status.is_empty()})).into_response()
 }
 
-/// One build's recorded walkthroughs of a story: each path (held-out test) with its result and links.
+/// One build's recorded walkthroughs of a story: each path (held-out test), with its result and trace
+/// once the judge has given it their own verdict (path_json).
 async fn api_review_paths(State(app): State<Arc<App>>, UrlPath((story, key)): UrlPath<(u64, usize)>) -> impl IntoResponse {
     let Some(run) = app.rb(key) else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such build"}))).into_response();
     };
     let state = app.rec.lock().await.get(&rec_key(&run, story)).cloned().unwrap_or_else(|| "not recorded".into());
-    let paths = recorded_paths(&app, &run, story).await;
+    let paths: Vec<serde_json::Value> =
+        recorded_paths(&app, &run, story).await.iter().map(|p| path_json(p, &verdict_of(&app, &run, story, &p.title))).collect();
     Json(serde_json::json!({"state": state, "paths": paths})).into_response()
 }
 
@@ -712,6 +766,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/review/reveal/{story}", get(api_review_reveal))
         .route("/api/review/paths/{story}/{key}", get(api_review_paths))
         .route("/api/review/walkthrough/{story}/{key}/{idx}", get(api_review_walkthrough))
+        .route("/api/review/video/{story}/{key}/{idx}", get(api_review_video))
         .route("/api/review/frame/{story}/{key}/{idx}/{name}", get(api_review_frame))
         .route("/api/review/tasks/{story}/{key}", get(api_review_tasks))
         .route("/recordings/{*path}", get(recordings_file))
@@ -749,5 +804,226 @@ mod tests {
         let have = vec![run("a"), run("b")];
         let added = newly_reviewable(&have, vec![run("b"), run("c"), run("a"), run("d")]);
         assert_eq!(added.iter().map(|r| r.slug.as_str()).collect::<Vec<_>>(), ["c", "d"]);
+    }
+
+    // ---------- the automated result stays hidden until the judge has answered ----------
+
+    use std::io::Write;
+
+    const STORY: u64 = 4;
+    const KEY: usize = 0;
+    const PASSING: &str = "a note can be dragged @ref prd:notes.drag";
+    const FAILING: &str = "two people see the same note @ref prd:live.sync";
+    /// Only the failing test's error, trace and sibling files carry these: finding one in a payload
+    /// sent before the judge answers is a leak.
+    const ERROR_MARK: &str = "SENTINEL-ERROR expect(locator).toBeVisible() failed";
+    const FAILING_DIR: &str = "artifacts/story-04-two-people-chromium";
+    const PASSING_DIR: &str = "artifacts/story-04-a-note-chromium";
+    const VIDEO: &[u8] = b"WEBM";
+    /// What must never reach the page for an unanswered test: the result, its error, and any path
+    /// into the recordings folder (whose failing-test folders also hold test-failed-1.png and error-context.md).
+    const TELLS: [&str; 7] = ["passed", "failed", "timedOut", "SENTINEL-ERROR", "artifacts/", "trace.zip", "video.webm"];
+
+    struct Fixture {
+        app: Arc<App>,
+        dir: PathBuf,
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    fn trace_zip_with(path: &std::path::Path, error: Option<&str>) {
+        let l = |v: serde_json::Value| v.to_string() + "\n";
+        let mut test = l(serde_json::json!({"type": "before", "callId": "expect@1", "stepId": "expect@1", "startTime": 1.0, "method": "expect", "title": "Expect \"toBeVisible\""}));
+        test += &match error {
+            Some(e) => l(serde_json::json!({"type": "after", "callId": "expect@1", "endTime": 2.0, "error": {"message": e}})) + &l(serde_json::json!({"type": "error", "message": e})),
+            None => l(serde_json::json!({"type": "after", "callId": "expect@1", "endTime": 2.0})),
+        };
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let mut z = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
+        z.start_file("test.trace", zip::write::SimpleFileOptions::default()).unwrap();
+        z.write_all(test.as_bytes()).unwrap();
+        z.finish().unwrap();
+    }
+
+    /// One labelled build whose story 4 recording is done: PASSING passed (with a video), FAILING failed.
+    fn fixture() -> Fixture {
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("vidi-gallery-hidden-{}-{n}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let run = runs::Run { slug: "setup__run-1".into(), setup: "setup".into(), run: "run-1".into(), ..Default::default() };
+        let recordings = dir.join("recordings");
+        let secret = "test-secret".to_string();
+        let out = recordings.join(record::blind_name(&secret, &run.slug, STORY));
+        trace_zip_with(&out.join(PASSING_DIR).join("trace.zip"), None);
+        trace_zip_with(&out.join(FAILING_DIR).join("trace.zip"), Some(ERROR_MARK));
+        std::fs::write(out.join(PASSING_DIR).join("video.webm"), VIDEO).unwrap();
+        std::fs::write(out.join(FAILING_DIR).join("test-failed-1.png"), b"PNG").unwrap();
+        let attach = |name: &str, d: &str, f: &str| serde_json::json!({"name": name, "path": out.join(d).join(f)});
+        let report = serde_json::json!({"suites": [{"specs": [
+            {"title": PASSING, "tests": [{"results": [{"status": "passed", "attachments": [attach("trace", PASSING_DIR, "trace.zip"), attach("video", PASSING_DIR, "video.webm")]}]}]},
+            {"title": FAILING, "tests": [{"results": [{"status": "failed", "error": {"message": ERROR_MARK}, "attachments": [attach("trace", FAILING_DIR, "trace.zip")]}]}]},
+        ]}]});
+        std::fs::write(out.join("report.json"), report.to_string()).unwrap();
+        let rec = std::collections::HashMap::from([(rec_key(&run, STORY), "done".to_string())]);
+        let app = Arc::new(App {
+            repo: dir.clone(), builds: Builds::new(dir.join("cache")), cache: dir.join("cache"), blind: false,
+            review_builds: std::sync::RwLock::new(vec![run]), family: "vidi-v2".into(), started: "t0".into(),
+            reviews: reviews::Store::new(dir.join("analysis/story-reviews.csv")), stories: Vec::new(), prep: Default::default(),
+            acceptance: dir.join("acceptance"), recordings, rec_secret: secret, record_config: dir.join("record.config.ts"),
+            rec: tokio::sync::Mutex::new(rec), rec_ports: tokio::sync::Mutex::new(Vec::new()), build_order: Vec::new(),
+        });
+        Fixture { app, dir }
+    }
+
+    async fn body(r: axum::response::Response) -> (StatusCode, String) {
+        let status = r.status();
+        let bytes = axum::body::to_bytes(r.into_body(), usize::MAX).await.unwrap();
+        (status, String::from_utf8_lossy(&bytes).into_owned())
+    }
+    fn json(s: &str) -> serde_json::Value {
+        serde_json::from_str(s).unwrap_or_else(|e| panic!("not JSON ({e}): {s}"))
+    }
+    async fn paths(f: &Fixture) -> String {
+        body(api_review_paths(State(f.app.clone()), UrlPath((STORY, KEY))).await.into_response()).await.1
+    }
+    async fn walkthrough(f: &Fixture, idx: usize) -> String {
+        body(api_review_walkthrough(State(f.app.clone()), UrlPath((STORY, KEY, idx))).await.into_response()).await.1
+    }
+    async fn set(f: &Fixture, path: &str, verdict: &str) -> (StatusCode, String) {
+        let input = ReviewIn { story: STORY, key: KEY, path: path.into(), verdict: verdict.into(), notes: String::new() };
+        body(api_review_set(State(f.app.clone()), Json(input)).await.into_response()).await
+    }
+    fn assert_no_tells(what: &str, payload: &str) {
+        for tell in TELLS {
+            assert!(!payload.contains(tell), "{what} gives away the automated result with {tell:?}: {payload}");
+        }
+    }
+    fn stored(f: &Fixture, path: &str) -> String {
+        f.app.reviews.all().into_iter().find(|r| r.path == path).map(|r| r.verdict).unwrap_or_default()
+    }
+
+    #[tokio::test]
+    async fn unanswered_tests_are_listed_by_title_only() {
+        let f = fixture();
+        let p = paths(&f).await;
+        assert_no_tells("the paths of an unanswered story", &p);
+        let v = json(&p);
+        assert_eq!(v["state"], "done");
+        assert_eq!(v["paths"], serde_json::json!([
+            {"title": PASSING, "answered": false, "video": true},
+            {"title": FAILING, "answered": false, "video": false},
+        ]));
+    }
+
+    #[tokio::test]
+    async fn a_skipped_test_or_a_note_alone_keeps_the_result_hidden() {
+        let f = fixture();
+        assert_eq!(set(&f, FAILING, "skip").await.0, StatusCode::OK);
+        assert_eq!(set(&f, PASSING, "").await.0, StatusCode::OK);
+        assert_no_tells("the paths after a skip and a note", &paths(&f).await);
+        assert_no_tells("the failing test's walkthrough after a skip", &walkthrough(&f, 1).await);
+    }
+
+    #[tokio::test]
+    async fn an_answered_test_shows_its_automated_result_error_and_trace_the_others_stay_hidden() {
+        let f = fixture();
+        set(&f, FAILING, "fail").await;
+        let v = json(&paths(&f).await);
+        let failing = &v["paths"][1];
+        assert_eq!((failing["answered"].as_bool(), failing["status"].as_str(), failing["error"].as_str()), (Some(true), Some("failed"), Some(ERROR_MARK)));
+        assert!(failing["trace"].as_str().unwrap().ends_with(&format!("{FAILING_DIR}/trace.zip")));
+        assert_eq!(v["paths"][0], serde_json::json!({"title": PASSING, "answered": false, "video": true}), "one answer reveals one test");
+    }
+
+    #[tokio::test]
+    async fn an_unanswered_walkthrough_has_its_steps_but_no_errors_until_answered() {
+        let f = fixture();
+        let before = walkthrough(&f, 1).await;
+        assert_no_tells("the failing test's walkthrough", &before);
+        assert_eq!(json(&before)["steps"][0]["title"], "Expect \"toBeVisible\"", "the judge still sees what the test checks");
+        set(&f, FAILING, "pass").await;
+        assert!(walkthrough(&f, 1).await.contains("SENTINEL-ERROR"), "once answered, the failing step shows its error as before");
+    }
+
+    #[tokio::test]
+    async fn the_judges_own_pass_or_fail_is_saved_as_agree_or_disagree_and_answered_with_the_result() {
+        let f = fixture();
+        for (path, own, want, automated) in [(FAILING, "fail", "agree", "failed"), (FAILING, "pass", "disagree", "failed"), (PASSING, "pass", "agree", "passed"), (PASSING, "fail", "disagree", "passed")] {
+            let (code, b) = set(&f, path, own).await;
+            assert_eq!(code, StatusCode::OK, "{b}");
+            assert_eq!(stored(&f, path), want, "{own} on a test that {automated}");
+            let r = json(&b);
+            assert_eq!((r["verdict"].as_str(), r["path"]["status"].as_str()), (Some(want), Some(automated)), "the reply reveals the result: {b}");
+        }
+    }
+
+    #[tokio::test]
+    async fn an_agree_or_disagree_given_blind_is_saved_as_it_is_and_only_then_reveals_the_result() {
+        // What a d and the whole-story keys send: a verdict on a test whose result the page hasn't seen.
+        let f = fixture();
+        assert_no_tells("the paths before", &paths(&f).await);
+        for (path, v, automated) in [(FAILING, "agree", "failed"), (PASSING, "disagree", "passed")] {
+            let (code, b) = set(&f, path, v).await;
+            assert_eq!((code, stored(&f, path)), (StatusCode::OK, v.to_string()));
+            assert_eq!(json(&b)["path"]["status"], automated, "the reply reveals it: {b}");
+        }
+        let v = json(&paths(&f).await);
+        assert_eq!((v["paths"][0]["status"].as_str(), v["paths"][1]["status"].as_str()), (Some("passed"), Some("failed")));
+        // and back to review hides them again
+        set(&f, FAILING, "").await;
+        set(&f, PASSING, "").await;
+        assert_no_tells("the paths after clearing", &paths(&f).await);
+    }
+
+    #[tokio::test]
+    async fn skip_clear_and_a_note_are_saved_as_they_are_and_reveal_nothing() {
+        let f = fixture();
+        for v in ["skip", ""] {
+            let (code, b) = set(&f, FAILING, v).await;
+            assert_eq!((code, stored(&f, FAILING)), (StatusCode::OK, v.to_string()));
+            assert_no_tells(&format!("the reply to {v:?}"), &b);
+            assert!(json(&b)["path"].is_null());
+        }
+        // A note saved on an answered test resends its stored verdict unchanged.
+        set(&f, FAILING, "fail").await;
+        assert_eq!(set(&f, FAILING, "agree").await.0, StatusCode::OK);
+        assert_eq!(stored(&f, FAILING), "agree");
+    }
+
+    #[tokio::test]
+    async fn a_pass_or_fail_on_a_test_with_no_recording_is_refused_and_the_build_itself_takes_pass_or_fail_as_before() {
+        let f = fixture();
+        let (code, b) = set(&f, "a test that was never recorded", "pass").await;
+        assert_eq!(code, StatusCode::NOT_FOUND, "{b}");
+        assert!(f.app.reviews.all().is_empty(), "nothing saved");
+        assert_eq!(set(&f, "", "fail").await.0, StatusCode::OK);
+        assert_eq!(stored(&f, ""), "fail", "a build with no recorded paths keeps its own pass / fail");
+    }
+
+    #[tokio::test]
+    async fn the_video_is_served_by_the_tests_position_not_by_a_path_into_the_recordings() {
+        let f = fixture();
+        let (code, got) = body(api_review_video(State(f.app.clone()), UrlPath((STORY, KEY, 0))).await.into_response()).await;
+        assert_eq!((code, got.as_bytes()), (StatusCode::OK, VIDEO));
+        assert_eq!(api_review_video(State(f.app.clone()), UrlPath((STORY, KEY, 1))).await.into_response().status(), StatusCode::NOT_FOUND, "the failing test has no video");
+        assert_eq!(api_review_video(State(f.app.clone()), UrlPath((STORY, KEY, 9))).await.into_response().status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn nothing_the_page_loads_before_an_answer_gives_the_result_away() {
+        let f = fixture();
+        set(&f, FAILING, "").await;  // a note-only row: in the state, but unanswered
+        let page = review_page().await.0;
+        assert!(!page.contains("SENTINEL") && !page.contains("artifacts/"), "the page is static");
+        assert_no_tells("the review state", &body(api_review_state(State(f.app.clone())).await.into_response()).await.1);
+        assert_no_tells("the story's paths", &paths(&f).await);
+        for idx in [0, 1] {
+            assert_no_tells(&format!("walkthrough {idx}"), &walkthrough(&f, idx).await);
+        }
+        assert_no_tells("the builds' status", &body(api_review_status(State(f.app.clone()), UrlPath(STORY)).await.into_response()).await.1);
     }
 }

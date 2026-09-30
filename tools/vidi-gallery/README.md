@@ -41,9 +41,9 @@ requirements and its **must-nots**. Below, one row per finished build:
   "ready". Restarting the gallery skips what is already prepared.
 - **Open** only starts the prepared build's server (a few seconds) and opens it in its own tab;
   after that the button goes to that tab, so you can switch between implementations.
-- **One row per path** (a held-out test of the story), with its automated result. Picking one
+- **One row per path** (a held-out test of the story); its automated result shows once you have judged it (below). Picking one
   opens the **player**: every person's screen side by side (from the test's Playwright trace), a
-  seek bar with a tick per check (green passed, red failed), and the test's steps beside it; the
+  seek bar with a tick per check (green passed, red failed, once judged), and the test's steps beside it; the
   current step is highlighted as it plays. Drag or click the bar, click a tick or a step, or use
   `←`/`→` for the previous/next check; every frame is decoded when the path opens, so scrubbing
   doesn't wait. Long timed waits are drawn narrow and skipped in playback; every test plays by itself at 2× when you move to it,
@@ -52,9 +52,16 @@ requirements and its **must-nots**. Below, one row per finished build:
   with their text; below it, the story's tasks with the status the harness recorded for this
   build, the commits that name each task, and all of the build's commits for the story. The spec
   doesn't say which task implements which requirement, so the page doesn't pretend to.
-- **The verdict is per path: agree / disagree / skip** with the automated result, and a note, saved
-  as you type to the private repo's `analysis/story-reviews.csv` (one row per story, build and path,
-  by run name). A build's line sums its paths ("3 agree · 1 disagree · 1 to review"); a build with
+- **The verdict is per path, given blind: pass / fail as you see it, or skip.** The automated result is
+  hidden until you give your own, so it can't anchor you: not in the row, the player, the ticks, the
+  steps' ✓/✗ and errors, the trace-viewer link, nor in anything `/api/review/…` sends (an unanswered
+  path is its title and whether it has a video; its walkthrough has no errors; the video comes from
+  `/api/review/video/…` by position, never a path into the recordings). The server turns your pass /
+  fail into **agree / disagree** with the automated result (passed is a pass; failed, timedOut,
+  interrupted and skipped are not), saves that, and only then shows the result beside yours. A skip or a
+  note alone keeps it hidden; clearing a verdict hides it again. `a` / `d` and the whole-story keys
+  still agree or disagree directly, without seeing the result; that is a verdict, so the result then shows. Saved with a note, as you type, to the
+  private repo's `analysis/story-reviews.csv` (one row per story, build and path, by run name). A build's line sums its paths ("3 agree · 1 disagree · 1 to review"); a build with
   no recorded paths takes a pass / fail / skip of its own.
 - **Keys** (press `?` on the page for the sheet; the map is `keyAction` in `src/player.js`, tested in
   `tests/player.test.cjs`):
@@ -69,16 +76,17 @@ requirements and its **must-nots**. Below, one row per finished build:
   | stories: `↑` `↓` · `→` `Return` | previous / next story · into its held-out tests |
   | tests: `↑` `↓` | previous / next held-out test |
   | tests: `→` · `←` (`⇧` finer) | scrub 5% (1%); at an end, on to the next / previous test (hold to fly through the story) |
-  | tests: `=` `Return` · `-` | agree · disagree, and on to the next test |
-  | tests: `⇧Return` · `Esc` | disagree and write why · clear the verdict back to "to review" |
+  | tests: `=` `Return` · `-` | passes · fails, as you see it, and on to the next test |
+  | tests: `⇧Return` · `Esc` | fails and write why · clear the verdict back to "to review" (the result hides again) |
   | steps: `↑` `↓` `Return` · `→` `←` | previous / next browser step · scrub 5% (`⇧`: 1%) |
   | steps: `Esc` | back to the held-out tests |
   | `.` `,` | next / previous frame |
   | `1`…`9` · `0` · `Home` `End` | jump to 10%…90% · the start · the ends |
   | `>` `<` | faster / slower |
   | `]` `[`, `PgDn` `PgUp` | next / previous story, from any pane |
-  | `a` `d` `s`, or the buttons | agree / disagree / skip, and on to the next test |
-  | `⌘=` `⌘Return` · `⌘-` · `⌘Esc` | the whole story (every test of the builds on show): agree · disagree · back to "to review". Ctrl on Windows and Linux; they replace the browser's zoom keys on this page, and overwrite earlier verdicts (notes stay) |
+  | `a` `d` `s` | agree / disagree with the automated result (without seeing it; it then shows) / skip, and on to the next test |
+  | the buttons | pass / fail / skip, as you see it, and on to the next test |
+  | `⌘=` `⌘Return` · `⌘-` · `⌘Esc` | the whole story (every test of the builds on show): agree · disagree with every test's automated result, whatever it is (the results then show) · back to "to review" (hidden again). Ctrl on Windows and Linux; they replace the browser's zoom keys on this page, and overwrite earlier verdicts (notes stay) |
   | `n` · `o` · `w` | write a note · open the build · skip long waits on / off |
 
   `Return` is `=` in the tests, the right arrow in the stories and
