@@ -49,6 +49,10 @@ export function BoardViewport(props: {
   onEmptyClick?(): void;
   /** Shift+drag on empty board space draws this selection rectangle instead of panning. */
   marquee?: { begin(screen: Point): void; move(screen: Point): void; end(): void; cancel(): void };
+  /** The active tool; with 'text' a press anywhere on the board (even on an object) places text. */
+  tool?: 'select' | 'text';
+  /** Text tool press, with the point in world units. */
+  onPlaceText?(world: Point): void;
 }): React.JSX.Element {
   const board = useBoardCamera();
   const { camera, setViewportSize } = board;
@@ -163,6 +167,14 @@ export function BoardViewport(props: {
     board.endPan();
   };
 
+  // Text tool: the press never pans, marquees or reaches an object; it places text there.
+  const onPointerDownCapture = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (props.tool !== 'text' || e.button !== PRIMARY_BUTTON || activePointer.current !== null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    props.onPlaceText?.(screenToWorld(camera, localPoint(e.clientX, e.clientY)));
+  };
+
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     // Only empty board space starts a pan; objects (later stories) stop propagation.
     if (e.target !== e.currentTarget) return;
@@ -198,9 +210,10 @@ export function BoardViewport(props: {
   return (
     <div
       ref={ref}
-      className={panning ? 'board-viewport is-panning' : 'board-viewport'}
+      className={['board-viewport', panning && 'is-panning', props.tool === 'text' && 'is-text-tool'].filter(Boolean).join(' ')}
       data-testid="board-viewport"
       data-state={panning ? 'panning' : selecting ? 'selecting' : 'idle'}
+      data-tool={props.tool ?? 'select'}
       tabIndex={0}
       aria-label="Board"
       role="application"
@@ -208,6 +221,7 @@ export function BoardViewport(props: {
         backgroundSize: `${grid.size}px ${grid.size}px`,
         backgroundPosition: `${grid.offsetX}px ${grid.offsetY}px`,
       }}
+      onPointerDownCapture={onPointerDownCapture}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(e) => stopPan(e.pointerId, localPoint(e.clientX, e.clientY))}

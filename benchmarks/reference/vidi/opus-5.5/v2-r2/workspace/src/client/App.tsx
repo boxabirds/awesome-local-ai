@@ -11,6 +11,7 @@ import {
   stickiesOf,
 } from '../shared/board-model';
 import { STICKY_SIZE_WORLD } from '../shared/config';
+import { createText, setTextSize } from '../shared/objects/text';
 import { MarqueeRect, useMarquee } from './board/Marquee';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
@@ -19,6 +20,7 @@ import { type UndoController, createUndo } from './board/undo';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useSelection } from './board/useSelection';
+import { useTool } from './board/useTool';
 import { useTransformGesture } from './board/useTransformGesture';
 import { NO_UNDO, UndoContext, useUndo } from './board/useUndo';
 import { type Point, type Size, canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
@@ -28,6 +30,7 @@ import { ZoomControls } from './canvas/ZoomControls';
 import { installTestHooks } from './canvas/testHooks';
 import { BoardCameraContext, useCamera } from './canvas/useCamera';
 import { getObjectType } from './objects/registry';
+import { remeasureTextBox } from './objects/useTextBoxSync';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
 
@@ -38,6 +41,12 @@ function initialViewportSize(): Size {
 function byId(a: { id: string }, b: { id: string }): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
+
+/**
+ * Author id stored in `createdBy` for this tab. Identity (story 6) is not part
+ * of this build, so each tab gets a random guest id.
+ */
+const LOCAL_AUTHOR_ID = `g_${crypto.randomUUID()}`;
 
 /** Whether the board may be edited: never while its saved state cannot be loaded. */
 export function canEdit(state: ConnectionState): boolean {
@@ -105,12 +114,13 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
     },
   });
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoController });
+  const tools = useTool(editable);
 
   useEffect(
     () =>
       installTestHooks({
         getNotes: () => stickiesOf(objects),
+        getObjects: () => objects,
         getSelection: () => [...selectedIds],
         seedNotes: (notes) =>
           notes.map((n) => {
@@ -146,6 +156,34 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
   const createAtViewportCentre = () =>
     createAt(screenToWorld(camera, { x: viewportSize.width / 2, y: viewportSize.height / 2 }));
 
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undo: undoController,
+    tool: tools,
+    onCreateSticky: createAtViewportCentre,
+  });
+
+  /**
+   * Text tool press: a new text at `world` (top-left), edited at once, and back
+   * to Select. No boundary after creating: the new text's edit continues the
+   * creation step, so abandoning it empty leaves nothing to undo.
+   */
+  const placeText = (world: Point) => {
+    tools.setTool('select');
+    if (!editableRef.current) return;
+    undoController.boundary();
+    const id = createText(doc, world, LOCAL_AUTHOR_ID);
+    if (id !== null) startEdit(id);
+  };
+
+  const changeTextSize = (id: string, size: Parameters<typeof setTextSize>[2]) =>
+    asStep(() => {
+      if (setTextSize(doc, id, size)) remeasureTextBox(doc, id);
+    });
+
   const deleteSelection = () => {
     asStep(() => deleteObjects(doc, [...selectedIds]));
     selection.clear();
@@ -157,7 +195,13 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
     <BoardCameraContext.Provider value={context}>
       <UndoContext.Provider value={undoController}>
         <main className="app">
-          <BoardViewport onEmptyDoubleClick={createAt} onEmptyClick={selection.clear} marquee={marquee}>
+          <BoardViewport
+            onEmptyDoubleClick={createAt}
+            onEmptyClick={selection.clear}
+            marquee={marquee}
+            tool={tools.tool}
+            onPlaceText={placeText}
+          >
             {[...objects].sort(byId).map((obj) => {
               const spec = getObjectType(obj.type);
               if (!spec) return null;
@@ -194,9 +238,16 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
             camera={camera}
             onDelete={deleteSelection}
             onColor={(id, color) => asStep(() => setStickyColor(doc, id, color))}
+            onTextSize={changeTextSize}
             hidden={!editable || editingId !== null || transforming}
           />
-          <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} undo={undoControls} />
+          <Toolbar
+            onCreateSticky={createAtViewportCentre}
+            disabled={!editable}
+            undo={undoControls}
+            tool={tools.tool}
+            onTool={tools.setTool}
+          />
           {props.boardId && <ConnectionStatus state={connection} />}
           <NavigationHint visible={!board.hasNavigated} />
           <ZoomControls

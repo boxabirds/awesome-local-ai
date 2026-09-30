@@ -1,8 +1,10 @@
 import { type ObjectSnapshot, isSticky, objectBounds } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
+import { isText } from '../../shared/objects/text';
 import { unionRects } from '../../shared/geometry';
 import { type Camera, worldToScreen } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 
 export function selectionLabel(count: number): string {
   return `${count} selected`;
@@ -10,7 +12,8 @@ export function selectionLabel(count: number): string {
 
 /**
  * The bar above the selection: "N selected" + Delete for two or more objects,
- * story 2's note toolbar for exactly one sticky note. The count is always
+ * story 2's note toolbar for exactly one sticky note, the text toolbar (sizes)
+ * for exactly one text object. The count is always
  * announced to screen readers through a polite live region.
  */
 export function SelectionBar(props: {
@@ -21,6 +24,8 @@ export function SelectionBar(props: {
   camera?: Camera;
   /** Colour change for a single selected sticky note. */
   onColor?(id: string, color: StickyColor): void;
+  /** Size change for a single selected text object. */
+  onTextSize?(id: string, size: TextSize): void;
   /** Hides the visible bar (while dragging, editing, or when the board cannot be edited). */
   hidden?: boolean;
 }): React.JSX.Element | null {
@@ -62,6 +67,10 @@ export function SelectionBar(props: {
   } else if (!props.hidden && single && isSticky(single)) {
     content = (
       <NoteToolbar color={single.color} onColor={(c) => props.onColor?.(single.id, c)} onDelete={props.onDelete} />
+    );
+  } else if (!props.hidden && single && isText(single)) {
+    content = (
+      <TextToolbar size={single.size} onSize={(s) => props.onTextSize?.(single.id, s)} onDelete={props.onDelete} />
     );
   }
 

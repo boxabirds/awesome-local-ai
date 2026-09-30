@@ -27,6 +27,14 @@ const CURSORS: Record<Handle, string> = {
   w: 'ew-resize',
 };
 
+const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
+
+/** Handles for a selection: only left and right when every selected type has horizontal handles (text). */
+export function handlesFor(selected: readonly ObjectSnapshot[]): readonly Handle[] {
+  const horizontal = selected.length > 0 && selected.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+  return horizontal ? HORIZONTAL_HANDLES : HANDLES;
+}
+
 function toScreen(camera: Camera, r: Rect): Rect {
   const tl = worldToScreen(camera, { x: r.x, y: r.y });
   return { x: tl.x, y: tl.y, width: r.width * camera.zoom, height: r.height * camera.zoom };
@@ -40,7 +48,8 @@ function handleCentre(box: Rect, h: Handle): { x: number; y: number } {
 
 /**
  * Screen-space selection chrome (same for every object type): an outline per
- * selected object, one bounding box, and 8 resize handles of HANDLE_SIZE_PX.
+ * selected object, one bounding box, and 8 resize handles of HANDLE_SIZE_PX
+ * (only left and right when every selected type is horizontal-only, e.g. text).
  * Handles are hidden when no selected type can be resized (or `showHandles` is false).
  */
 export function SelectionOverlay(props: {
@@ -76,7 +85,7 @@ export function SelectionOverlay(props: {
         style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
       />
       {showHandles &&
-        HANDLES.map((h) => {
+        handlesFor(selected).map((h) => {
           const c = handleCentre(box, h);
           return (
             <div

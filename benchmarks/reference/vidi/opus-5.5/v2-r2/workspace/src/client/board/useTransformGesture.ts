@@ -39,6 +39,8 @@ interface Press {
   active: boolean;
   startRects: Map<string, Rect>;
   types: Map<string, string>;
+  /** Snapshot of each object at the gesture start. */
+  objects: Map<string, ObjectSnapshot>;
   box: Rect | null;
   shift: boolean;
   /** Latest pointer position not yet written. */
@@ -109,7 +111,9 @@ export function useTransformGesture(opts: {
       const handle = p.handle;
       if (!box || !handle) return;
       const specs = live.map(([id]) => getObjectType(p.types.get(id) ?? ''));
-      const aspect = p.shift || specs.some((s) => s?.aspectLocked);
+      // Only left/right handles (text): width changes, height follows the content.
+      const horizontalOnly = specs.every((s) => s?.handles === 'horizontal');
+      const aspect = !horizontalOnly && (p.shift || specs.some((s) => s?.aspectLocked));
       const to = resizeRect(box, handle, delta, aspect);
       let scale: Point;
       if (aspect) {
@@ -118,19 +122,30 @@ export function useTransformGesture(opts: {
       } else {
         scale = { x: box.width > 0 ? to.width / box.width : 1, y: box.height > 0 ? to.height / box.height : 1 };
       }
-      const resizable = live.filter((_, i) => specs[i]?.resizable);
+      // Limits: horizontal-only types limit the width only, and only when their width scales.
+      const limited: [Rect, number][] = [];
+      live.forEach(([id, r], i) => {
+        const spec = specs[i];
+        if (!spec?.resizable) return;
+        if (spec.handles !== 'horizontal') limited.push([r, spec.minSize]);
+        else if (horizontalOnly || p.objects.get(id)?.widthMode === 'fixed') limited.push([{ ...r, height: 0 }, spec.minSize]);
+      });
       const clamped = clampScale(
         scale,
-        resizable.map(([, r]) => r),
-        resizable.map(([id]) => getObjectType(p.types.get(id) ?? '')?.minSize ?? 0),
+        limited.map(([r]) => r),
+        limited.map(([, min]) => min),
         MAX_OBJECT_SIZE_WORLD,
         aspect,
       );
       const finalBox = scaleFromHandle(box, handle, clamped);
       const rects = new Map<string, Rect>();
+      const custom: [ObjectSnapshot, Rect, NonNullable<(typeof specs)[number]>][] = [];
       live.forEach(([id, r], i) => {
         const scaled = scaleWithin(r, box, finalBox);
-        if (specs[i]?.resizable) rects.set(id, scaled);
+        const spec = specs[i];
+        const obj = p.objects.get(id);
+        if (spec?.applyResize && obj) custom.push([obj, scaled, spec]);
+        else if (spec?.resizable) rects.set(id, scaled);
         else {
           // Fixed-size objects keep their size and follow their scaled centre.
           const cx = scaled.x + scaled.width / 2;
@@ -139,6 +154,7 @@ export function useTransformGesture(opts: {
         }
       });
       resizeObjects(doc, rects);
+      for (const [obj, scaled, spec] of custom) spec.applyResize?.(doc, obj, scaled, { horizontalOnly });
     },
     [end],
   );
@@ -149,6 +165,7 @@ export function useTransformGesture(opts: {
     if (current.length === 0) return false;
     p.startRects = new Map(current.map((o) => [o.id, objectBounds(o)]));
     p.types = new Map(current.map((o) => [o.id, o.type]));
+    p.objects = new Map(current.map((o) => [o.id, o]));
     p.box = unionRects([...p.startRects.values()]);
     p.active = true;
     setActive(p.kind);
@@ -167,6 +184,7 @@ export function useTransformGesture(opts: {
       active: false,
       startRects: new Map(),
       types: new Map(),
+      objects: new Map(),
       box: null,
       shift: e.shiftKey,
       pending: null,

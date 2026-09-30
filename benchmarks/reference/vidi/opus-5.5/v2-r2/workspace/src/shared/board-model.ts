@@ -5,8 +5,17 @@
 //   meta:    Y.Map { schemaVersion: 1 }
 //   objects: Y.Map<id, Y.Map { type, x, y, width?, height?, color, text: Y.Text, z, createdAt }>
 //   (`width`/`height` are written by the first resize; absent means STICKY_SIZE_WORLD.)
+//   Text objects (story 9): see src/shared/objects/text.ts.
 import * as Y from 'yjs';
-import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
+import {
+  DEFAULT_STICKY_COLOR,
+  DEFAULT_TEXT_SIZE,
+  STICKY_COLORS,
+  STICKY_SIZE_WORLD,
+  TEXT_SIZES,
+  type StickyColor,
+  type TextSize,
+} from './config';
 import { type Point, type Rect, isFiniteRect, rectContains } from './geometry';
 
 /** Current document schema version, stored in `meta.schemaVersion`. */
@@ -27,6 +36,9 @@ export interface ObjectSnapshot {
   createdAt: number;
   color?: StickyColor;
   text?: string;
+  /** Text objects (story 9). */
+  size?: TextSize;
+  widthMode?: 'auto' | 'fixed';
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -40,11 +52,11 @@ export function isSticky(obj: ObjectSnapshot): obj is StickySnapshot {
 }
 
 /**
- * Object types the board understands. `sticky` is built in; the client object
+ * Object types the board understands. `sticky` and `text` are built in; the client object
  * registry adds the others. Objects of any other type are kept in the document
  * but never shown, selected or changed by group operations.
  */
-const knownTypes = new Set<string>(['sticky']);
+const knownTypes = new Set<string>(['sticky', 'text']);
 
 export function markObjectTypeKnown(type: string): void {
   knownTypes.add(type);
@@ -66,11 +78,15 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+export function isTextSize(value: unknown): value is TextSize {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, value);
+}
+
 export function isStickyColor(value: unknown): value is StickyColor {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(STICKY_COLORS, value);
 }
 
-function getObject(doc: Y.Doc, id: string): Y.Map<unknown> | undefined {
+export function getObject(doc: Y.Doc, id: string): Y.Map<unknown> | undefined {
   const obj = objectsMap(doc).get(id);
   return obj instanceof Y.Map ? obj : undefined;
 }
@@ -80,7 +96,7 @@ function zOf(obj: Y.Map<unknown>): number {
   return isFiniteNumber(z) ? z : 0;
 }
 
-function maxZ(doc: Y.Doc, exceptId?: string): number {
+export function maxZ(doc: Y.Doc, exceptId?: string): number {
   let max = 0;
   for (const [id, obj] of objectsMap(doc)) {
     if (id === exceptId || !(obj instanceof Y.Map)) continue;
@@ -188,6 +204,12 @@ export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       const text = obj.get('text');
       base.color = isStickyColor(color) ? color : DEFAULT_STICKY_COLOR;
       base.text = text instanceof Y.Text ? text.toString() : '';
+    } else if (type === 'text') {
+      const text = obj.get('text');
+      const size = obj.get('size');
+      base.text = text instanceof Y.Text ? text.toString() : '';
+      base.size = isTextSize(size) ? size : DEFAULT_TEXT_SIZE;
+      base.widthMode = obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
     }
     objects.push(Object.freeze(base));
   }

@@ -148,7 +148,7 @@ describe('ConnectionStatus', () => {
     const doc = new Y.Doc();
     render(<App doc={doc} boardId="AAAAAAAAAAAAAAAAAAAAAA" />);
     const onState = connectCalls.at(-1)!;
-    const create = () => fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    const create = () => fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     for (const state of ['connecting', 'connected', 'reconnecting', 'confirmed'] as const) {
       act(() => onState(state));
       const before = doc.getMap('objects').size;

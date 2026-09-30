@@ -5,6 +5,7 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { isEditableTarget } from '../canvas/BoardViewport';
 import { getObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
+import type { Tool } from './useTool';
 import { undoShortcut } from './useUndo';
 import type { Selection } from './useSelection';
 
@@ -18,7 +19,8 @@ const ARROWS: Record<string, { x: number; y: number }> = {
 /**
  * Board keyboard commands (sel.keyboard): Ctrl/Cmd+A select all, Escape clear,
  * arrows nudge, Delete/Backspace delete, Enter edits a single text object,
- * Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (undo.controls).
+ * Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (undo.controls),
+ * V Select tool, T Text tool, N new sticky note (text.tool_ui).
  * Never while editing text (the editor handles its own undo) or typing in a
  * field; mutating keys need `canEdit`. Each change is its own undo step.
  */
@@ -28,13 +30,17 @@ export function useBoardKeys(opts: {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undo?: UndoController;
+  /** Tool shortcuts: V → Select, T → Text (needs canEdit), Escape → Select. */
+  tool?: { tool: Tool; setTool(t: Tool): void };
+  /** N: the Sticky note button's action (a note at the view centre). */
+  onCreateSticky?(): void;
 }): void {
   const latest = useRef(opts);
   latest.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, undo } = latest.current;
+      const { doc, selection, snapshot, canEdit, undo, tool, onCreateSticky } = latest.current;
       if (e.defaultPrevented || selection.editingId !== null || isEditableTarget(e.target)) return;
       const mod = e.ctrlKey || e.metaKey;
       const history = undoShortcut(e);
@@ -51,8 +57,27 @@ export function useBoardKeys(opts: {
         return;
       }
       if (e.key === 'Escape') {
-        if (selection.ids.size > 0) selection.clear();
+        if (tool && tool.tool !== 'select') tool.setTool('select');
+        else if (selection.ids.size > 0) selection.clear();
         return;
+      }
+      if (!mod && !e.altKey && (tool || onCreateSticky)) {
+        const key = e.key.toLowerCase();
+        if (key === 'v' && tool) {
+          e.preventDefault();
+          tool.setTool('select');
+          return;
+        }
+        if (key === 't' && tool) {
+          e.preventDefault();
+          if (canEdit) tool.setTool('text');
+          return;
+        }
+        if (key === 'n' && onCreateSticky) {
+          e.preventDefault();
+          if (canEdit) onCreateSticky();
+          return;
+        }
       }
       if (mod || e.altKey || selection.ids.size === 0) return;
       const selected = snapshot.filter((o) => selection.ids.has(o.id));

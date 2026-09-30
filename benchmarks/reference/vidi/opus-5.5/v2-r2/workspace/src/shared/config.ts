@@ -90,3 +90,21 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Most recent undo steps kept per person (per tab); the oldest is dropped beyond this. */
 export const UNDO_MAX_STEPS = 200;
+
+/** Auto-width text grows up to this width (world units), then wraps. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Narrowest fixed width a text object can be given with a side handle. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Maximum number of characters in one text object. */
+export const TEXT_MAX_CHARS = 5000;
+/** Text size presets: font size in board units (px at 100% zoom). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Size of text created with the Text tool. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Unitless line height of text objects (layout and rendering must match). */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** The board's standard sans-serif font for text objects. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/** Average glyph width as a fraction of the font size, used when text cannot be measured (no canvas). */
+export const TEXT_ESTIMATE_GLYPH_WIDTH_RATIO = 0.55;

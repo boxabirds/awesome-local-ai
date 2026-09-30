@@ -574,3 +574,83 @@ body,
   white-space: nowrap;
   border: 0;
 }
+
+/* Story 9: tools and text objects */
+
+.board-toolbar button[aria-pressed='true'] {
+  color: #2f5fc4;
+  background: #e3ebfb;
+}
+
+.board-viewport.is-text-tool,
+.board-viewport.is-text-tool * {
+  cursor: text;
+}
+
+.text-object {
+  position: absolute;
+  color: #1f2330;
+  outline: none;
+  cursor: default;
+}
+
+.text-object:focus-visible:not(.is-selected) {
+  outline: 2px dashed #2f6fed;
+}
+
+.text-object.is-dragging {
+  cursor: grabbing;
+}
+
+.text-object-content,
+.text-editor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+.text-object-content {
+  pointer-events: none;
+}
+
+.text-editor {
+  display: block;
+  border: 0;
+  background: transparent;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  user-select: text;
+  cursor: text;
+}
+
+.text-toolbar-size {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.text-toolbar-size:hover {
+  background: #eef0f4;
+}
+
+.text-toolbar-size[aria-pressed='true'] {
+  color: #2f5fc4;
+  background: #e3ebfb;
+}

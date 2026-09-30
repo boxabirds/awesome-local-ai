@@ -80,7 +80,14 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   const presentRef = useRef(present);
   presentRef.current = present;
 
-  useEffect(() => dispatch({ type: 'prune', presentIds: present }), [present]);
+  // Only when something selected (or edited) is gone: a dispatch on every snapshot
+  // change would leave React an update pending after each commit, and a burst of
+  // live edits (five people typing) would then trip React's nested-update limit.
+  useEffect(() => {
+    const stale =
+      [...state.ids].some((id) => !present.has(id)) || (state.editingId !== null && !present.has(state.editingId));
+    if (stale) dispatch({ type: 'prune', presentIds: present });
+  }, [present, state]);
 
   const click = useCallback((id: string) => {
     if (presentRef.current.has(id)) dispatch({ type: 'click', id });

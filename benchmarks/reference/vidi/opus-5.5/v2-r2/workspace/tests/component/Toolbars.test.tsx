@@ -43,9 +43,9 @@ describe('sticky.toolbar', () => {
   it('TC-28 the Sticky note button creates one note centred in the view, editing', () => {
     const doc = new Y.Doc();
     renderApp(doc);
-    const button = screen.getByRole('button', { name: 'Sticky note' });
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
     expect(button.getAttribute('title')).toBe(STICKY_BUTTON_TOOLTIP);
-    expect(STICKY_BUTTON_TOOLTIP).toBe('Sticky note – or double-click the board');
+    expect(STICKY_BUTTON_TOOLTIP).toBe('Sticky note (N) – or double-click the board');
     fireEvent.click(button);
     flushFrame();
     const notes = snapshot(doc);
@@ -61,7 +61,7 @@ describe('sticky.toolbar', () => {
     renderApp(doc);
     window.__vidi6?.setCamera({ x: 5000, y: -3000, zoom: 0.5 });
     flushFrame();
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     const [note] = snapshot(doc);
     expect(note.x + STICKY_SIZE_WORLD / 2).toBe(5000 + CENTRE.x / 0.5);
     expect(note.y + STICKY_SIZE_WORLD / 2).toBe(-3000 + CENTRE.y / 0.5);
@@ -69,7 +69,7 @@ describe('sticky.toolbar', () => {
 
   it('a new note goes on top of existing notes', () => {
     const { doc } = setupSelected();
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     const notes = snapshot(doc);
     expect(notes.map((n) => n.z)).toEqual([1, 2]);
   });

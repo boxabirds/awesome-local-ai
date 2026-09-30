@@ -82,7 +82,7 @@ test.describe('story 2: sticky notes', () => {
     await openBoard(page);
     await expect(page.getByRole('button', { name: 'Sticky note' })).toHaveAttribute(
       'title',
-      'Sticky note – or double-click the board',
+      'Sticky note (N) – or double-click the board',
     );
 
     // TC-30: double-click at (400, 300) and type straight away.

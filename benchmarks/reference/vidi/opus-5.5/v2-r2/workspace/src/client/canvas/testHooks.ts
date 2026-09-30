@@ -1,4 +1,4 @@
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
 import type { ConnectionState } from '../sync/connectBoard';
 import type { Camera } from './camera';
 
@@ -8,6 +8,8 @@ export interface Vidi6TestHooks {
   getCamera(): Camera;
   /** Current sticky notes in the board document. */
   getNotes?(): readonly StickySnapshot[];
+  /** Every object of a known type in the board document (story 9: text objects). */
+  getObjects?(): readonly ObjectSnapshot[];
   /** Ids of the objects selected by this client (story 7). */
   getSelection?(): string[];
   /** Adds sticky notes (top-left, optional size) in one go; returns their ids (e2e fixtures). */

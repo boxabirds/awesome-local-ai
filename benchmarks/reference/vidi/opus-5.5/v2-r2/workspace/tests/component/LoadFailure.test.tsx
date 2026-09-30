@@ -162,7 +162,7 @@ describe('edit lock while the board cannot be loaded (TC-23, TC-28)', () => {
     render(<App doc={doc} boardId="AAAAAAAAAAAAAAAAAAAAAA" />);
     const onState = connectCalls.at(-1)!;
     const note = () => stickyNotes()[0]!;
-    const stickyButton = () => screen.getByRole('button', { name: 'Sticky note' }) as HTMLButtonElement;
+    const stickyButton = () => screen.getByRole('button', { name: 'Sticky note (N)' }) as HTMLButtonElement;
     return { doc, id, onState, note, stickyButton };
   }
 

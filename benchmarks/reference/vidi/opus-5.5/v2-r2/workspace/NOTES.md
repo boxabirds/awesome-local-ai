@@ -316,3 +316,59 @@ Decisions made where the spec was open or self-contradictory:
 - **E2E** (`tests/e2e/undo.spec.ts`, fixture `tests/fixtures/undo-board.ts`): the board is seeded by the other
   participant (Raj), so the seed is not in Mia's history. Chromium only (Firefox/WebKit not installed).
 - **Red phase** not committed separately (single story commit), as in earlier stories.
+
+## Story 9 — Write free text anywhere on the board
+
+- **`text` is a built-in known type in board-model** (like `sticky`), not only marked by the client registry, so shared
+  code (and unit tests without the registry) see text objects. `objectsSnapshot` adds `text`, `size` and `widthMode`
+  for them (`ObjectSnapshot.size?/widthMode?`); `TextSnapshot`/`isText` live in `src/shared/objects/text.ts`.
+- **Shared text helpers.** `src/shared/text-edit.ts` holds `diffText`, `clampToLimit(next, max)`, `clampEdit(prev, next,
+  max)` and `applyTextDiff`; `StickyText.ts` re-exports them with STICKY_TEXT_MAX_CHARS defaults, so story 2 callers and
+  tests are unchanged.
+- **Layout.** Auto width = the longest *unwrapped* paragraph + `TEXT_BOX_PADDING_WORLD` (4 units of caret room), capped
+  at TEXT_MAX_AUTO_WIDTH_WORLD, so a paragraph that wraps makes the box exactly 600 wide (TC-08, TC-26) and a line of
+  exactly 600 stays one line, 600 wide (TC-09). Words wider than the box break between characters (like CSS
+  `overflow-wrap: anywhere`, which the renderer uses). Without a canvas (Node, jsdom) the measurer estimates with the
+  named setting `TEXT_ESTIMATE_GLYPH_WIDTH_RATIO` (0.55 × font size per character). The component test setup stubs
+  `HTMLCanvasElement.getContext` to null so jsdom does not log "not implemented".
+- **Box writes.** `remeasureTextBox(doc, id)` (in `useTextBoxSync.ts`, which the hook wraps) runs only after local
+  typing, a size change or a width drag. The editor writes the text diff and the box in **one transaction**. A new text
+  starts with a TEXT_MIN_WIDTH_WORLD × one-line box until the first measurement.
+- **Resize.** The registry spec gained two optional fields: `handles?: 'all' | 'horizontal'` (as designed) and
+  `applyResize?(doc, obj, rect, { horizontalOnly })` (a type-specific write for the generic gesture). Text uses
+  `applyTextResize`: when every selected object is text (only e/w handles, never aspect-locked, even with Shift), the
+  dragged width becomes a fixed width (min 40) and y stays. In a mixed selection, text moves with its scaled top-left.
+  Only a fixed width scales, and the height is always re-measured. For clamping, text limits the width only (height is
+  derived), and auto-width text does not limit the scale at all.
+- **Undo.** A text placed with the Text tool continues its creation step: `TextEditor` got an optional `joinStep`
+  (used when the text is empty at edit start), and the tool does not add a boundary after `createText`. Removing an
+  empty text on edit end runs under `holdCapture(true)`, so it joins the last edit's step. Result: abandoning a new
+  text leaves nothing that undo could turn into an invisible object (create + delete undo to nothing), and emptying
+  an existing text then undoing brings it back with its characters. Side effect: Ctrl/Cmd+Z *inside* the editor of a
+  brand-new text does nothing until a typing pause has started a new step.
+- **`TextEditor` props** beyond the contract (all optional): `label`, `className`, `style`, `container` (selector of
+  the object element for "press outside ends editing"), `joinStep`, `onLength` (the sticky counter).
+  `StickyTextEditor` is now a thin wrapper around it.
+- **`TextObject` takes `ObjectProps`** (the registry's fixed component props) and reads `object` as a `TextSnapshot`,
+  instead of a separate `note` prop.
+- **`createdBy`.** Identity (story 6) is not in this build, so each tab uses a random guest id `g_<uuid>`
+  (`LOCAL_AUTHOR_ID` in `App.tsx`).
+- **UI text / accessible names** (the design fixes only the tool buttons): tool buttons "Select (V)", "Text (T)",
+  "Sticky note (N)" (tooltip "Sticky note (N) – or double-click the board"), all with `aria-pressed` where they are
+  tools. Text toolbar: role `toolbar` "Text", buttons labelled "Size S" … "Size XL" (visible text S/M/L/XL, tooltips
+  "Small (S)" … "Extra large (XL)") with `aria-pressed`, and "Delete text". A text object is `role="group"` named by
+  its content ("Text" while empty) and reachable with Tab. Its editor textarea is named "Text".
+- **Shortcuts.** V/T/N work only without Ctrl/Cmd/Alt (Ctrl+V stays paste) and never while typing. Escape with the
+  Text tool active returns to Select without clearing the selection. T and N do nothing while the board cannot be edited.
+- **Text tool press** is handled in the viewport's capture phase: it works on empty space and on top of objects (text
+  created on top there), never pans, marquees or selects. It returns to Select even if creation is refused.
+- **Story 7 fix: `useSelection` prunes only when needed.** Its prune effect used to dispatch on *every* snapshot change.
+  That left React an update pending after each commit. With five people typing text at once (TC-30), React's
+  nested-update limit tripped ("Maximum update depth exceeded" in a Yjs observer). The effect now dispatches only when
+  a selected or edited id is really gone.
+- **Test hook.** `window.__vidi6.getObjects()` returns every known object (e2e reads text objects through it).
+- **Existing tests updated** for the specified label change: component tests look up "Sticky note (N)" (Testing
+  Library matches names exactly), and story 2's e2e tooltip assertion now expects the "(N)" tooltip.
+- **E2E** `tests/e2e/text.spec.ts` (TC-26–TC-31 plus the 5,001-character paste), fixture `tests/fixtures/text-board.ts`.
+  Chromium only: Firefox and WebKit are not installed here, so TC-26 was not run in them.
+- **Red phase** not committed separately (single story commit), as in earlier stories.

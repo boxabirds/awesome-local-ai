@@ -20,3 +20,7 @@ if (typeof window.PointerEvent === 'undefined') {
   }
   window.PointerEvent = PointerEventPolyfill as unknown as typeof PointerEvent;
 }
+
+// jsdom has no canvas (and logs "not implemented" when asked for one): text
+// measurement falls back to its character-count estimate.
+HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext'];
