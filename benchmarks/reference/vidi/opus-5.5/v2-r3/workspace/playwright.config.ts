@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { chromium, defineConfig, devices, firefox, webkit, type BrowserType } from '@playwright/test';
+import { E2E_PORT as PORT } from './tests/e2e/helpers/server';
 
-const PORT = 8787;
 const VIEWPORT = { width: 1280, height: 800 };
 
 function installed(browser: BrowserType): boolean {

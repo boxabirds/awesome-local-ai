@@ -83,3 +83,15 @@ export async function testHook(baseURL: string, boardId: string, action: 'compac
   if (!res.ok) throw new Error(`${action}: ${res.status} ${await res.text()}`);
   return (await res.json()) as Record<string, unknown>;
 }
+
+/**
+ * Stores `doc` as a board saved before story 5 (an `updates` row and no created_at)
+ * through the TEST_HOOKS-only seed-legacy route (TC-31).
+ */
+export async function seedLegacyBoard(baseURL: string, boardId: string, doc: Y.Doc): Promise<void> {
+  const res = await fetch(`${baseURL}/__test/boards/${boardId}/seed-legacy`, {
+    method: 'POST',
+    body: Y.encodeStateAsUpdate(doc) as Uint8Array<ArrayBuffer>,
+  });
+  if (!res.ok) throw new Error(`seed-legacy: ${res.status} ${await res.text()}`);
+}

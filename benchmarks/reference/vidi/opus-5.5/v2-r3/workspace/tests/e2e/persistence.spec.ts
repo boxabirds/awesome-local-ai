@@ -2,11 +2,11 @@
 // Runs in its own Playwright project: every test owns a wrangler process with
 // its own --persist-to directory and kills/restarts it.
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
 import { BOARD_LOAD_BUDGET_MS, E2E_EVENTUAL_TIMEOUT_MS, PERSIST_TESTED_NOTES } from '../../src/shared/config';
 import { largeBoard } from '../fixtures/boards';
 import { createByDoubleClick, editor, noteStates, notes, type NoteState } from './helpers/notes';
 import { seedBoard, testHook } from './helpers/seed';
+import { createBoardId } from './helpers/server';
 import { WranglerProcess } from './helpers/wrangler-process';
 
 const VIEWPORT = { width: 1280, height: 800 };
@@ -54,7 +54,7 @@ const COLOURS = ['Orange', 'Green', 'Blue', 'Pink', 'Violet'];
 test('TC-19: overnight return — 25 varied notes are identical after everyone leaves and the service restarts', async ({
   browser,
 }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(server.url);
   const page = await openBoard(browser, boardId);
   // Zoom out so a 5×5 grid of notes fits on screen.
   for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Zoom out' }).click();
@@ -107,7 +107,7 @@ test('TC-19: overnight return — 25 varied notes are identical after everyone l
 });
 
 test('TC-20: leave immediately — a note Sam saw survives both leaving within 1 s and a crash', async ({ browser }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(server.url);
   const alex = await openBoard(browser, boardId);
   const sam = await openBoard(browser, boardId);
   const created = await createByDoubleClick(alex, { x: 640, y: 400 });
@@ -130,7 +130,7 @@ test('TC-20: leave immediately — a note Sam saw survives both leaving within 1
 });
 
 test('TC-21: big board open — a saved PERSIST_TESTED_NOTES board shows every note (time logged)', async ({ browser }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId(server.url);
   const doc = largeBoard(PERSIST_TESTED_NOTES);
   await seedBoard(server.url, boardId, doc);
   expect(await testHook(server.url, boardId, 'compact')).toEqual({ compacted: true });

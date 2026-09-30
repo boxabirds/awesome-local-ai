@@ -17,7 +17,7 @@ import {
 import type { BoardRoom } from '../../src/worker/board-room';
 import { BoardStore } from '../../src/worker/board-store';
 import { retroBoard } from '../fixtures/boards';
-import { TestClient, waitFor, waitForConvergence } from './ws-client';
+import { TestClient, createBoardId, waitFor, waitForConvergence } from './ws-client';
 
 /** The room's private state, reached through runInDurableObject. */
 interface RoomInternals {
@@ -75,7 +75,7 @@ async function closeAndWait(...cs: TestClient[]): Promise<void> {
 
 /** A board with the 25-note retro fixture, written by one client, compacted into a snapshot. */
 async function snapshottedRetroBoard(): Promise<{ boardId: string; original: ReturnType<typeof snapshot>; chunk0: ArrayBuffer }> {
-  const boardId = newBoardId();
+  const boardId = await createBoardId();
   const a = await connect(boardId);
   retroBoard(a.doc);
   const observer = await connect(boardId);
@@ -105,7 +105,7 @@ function syncStep2Frame(doc: Y.Doc): Uint8Array {
 
 describe('BoardRoom durability (persist.room)', () => {
   it('TC-12: a change another client received is already stored; a fresh load contains it', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     const b = await connect(boardId);
     const before = await inRoom(boardId, (_r, state) => count(state.storage, 'updates'));
@@ -120,7 +120,7 @@ describe('BoardRoom durability (persist.room)', () => {
   });
 
   it('TC-13: after everyone leaves and the object restarts, a new client gets the whole board', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     const b = await connect(boardId);
     retroBoard(a.doc);
@@ -135,7 +135,7 @@ describe('BoardRoom durability (persist.room)', () => {
   });
 
   it('TC-14: a failed save is not broadcast; sockets close 1011; reconnecting re-sends and delivers it', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     const b = await connect(boardId);
     createSticky(a.doc, { x: 0, y: 0 }, 'blue');
@@ -172,7 +172,7 @@ describe('BoardRoom durability (persist.room)', () => {
   });
 
   it('TC-17: a garbage update closes the sender 1003 and stores nothing', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     const before = await inRoom(boardId, (_r, state) => count(state.storage, 'updates'));
     const e = encoding.createEncoder();
@@ -230,7 +230,7 @@ describe('BoardRoom load failure (persist.load_failure)', () => {
   });
 
   it('TC-26: an SQL error while loading puts the room in load-failed; new sockets close 4500', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     createSticky(a.doc, { x: 0, y: 0 });
     await a.barrier();
@@ -259,7 +259,7 @@ describe('BoardRoom load failure (persist.load_failure)', () => {
 
 describe('BoardRoom hibernation', () => {
   it('TC-18: after the object is evicted with sockets hibernated, messages still reach every socket', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     const b = await connect(boardId);
     retroBoard(a.doc);

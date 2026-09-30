@@ -4,6 +4,10 @@
 //
 // Sockets use the hibernation API, so an idle board costs no compute; on wake the
 // constructor reloads the doc from storage.
+//
+// Boards exist only once created through initialize() (story 5), or when they
+// already hold saved content (legacy boards). Unknown boards are refused with 404
+// and nothing is written for them.
 import { DurableObject } from 'cloudflare:workers';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
@@ -48,6 +52,16 @@ export class BoardRoom extends DurableObject<Env> {
     return this.lifecycle === 'loading' ? 'loading' : 'ready';
   }
 
+  /** RPC (board creation): creates the tables and sets created_at once. */
+  async initialize(): Promise<'created' | 'exists'> {
+    return new BoardStore(this.ctx.storage).initialize();
+  }
+
+  /** RPC: read-only existence check (created_at, or legacy saved content). */
+  async exists(): Promise<boolean> {
+    return new BoardStore(this.ctx.storage).existsReadOnly();
+  }
+
   async fetch(req: Request): Promise<Response> {
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       const path = new URL(req.url).pathname;
@@ -63,6 +77,8 @@ export class BoardRoom extends DurableObject<Env> {
       }
       return new Response('Upgrade Required', { status: 426, headers: { Upgrade: 'websocket' } });
     }
+    // Connecting never creates a board (share.not_found).
+    if (!new BoardStore(this.ctx.storage).existsReadOnly()) return new Response('Not Found', { status: 404 });
     if (this.lifecycle === 'load-failed' || this.lifecycle === 'storage-failed') {
       // A load-failed room retries at most every LOAD_RETRY_MIN_INTERVAL_MS.
       const next = nextRoomState(this.lifecycle, { type: 'connection', sinceLoadFailureMs: Date.now() - this.loadFailedAt });
@@ -152,7 +168,6 @@ export class BoardRoom extends DurableObject<Env> {
     let result: LoadResult;
     try {
       store = this.createStore(this.ctx.storage);
-      store.migrate();
       result = store.load(doc);
     } catch (e) {
       result = { ok: false, reason: 'sql-error', error: e instanceof Error ? e.message : String(e) };

@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import type { Camera, Point } from '../../../src/client/canvas/camera';
+import { createBoardId } from './server';
 
 export function viewport(page: Page): Locator {
   return page.getByTestId('board-viewport');
@@ -13,8 +14,9 @@ export function zoomLabel(page: Page): Locator {
   return page.getByRole('status', { name: 'Zoom level' });
 }
 
+/** Opens a new board (created through the API, story 5). */
 export async function openBoard(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto(`/b/${await createBoardId()}`);
   await expect(viewport(page)).toBeVisible();
   await page.waitForFunction(() => window.__vidi6 !== undefined);
 }

@@ -1,7 +1,6 @@
 import { act, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConnectionState } from '../../src/client/sync/connectBoard';
-import { BOARD_ID_PATTERN } from '../../src/shared/board-id';
 import { createSticky } from '../../src/shared/board-model';
 import { model, noteElements, renderApp } from './helpers';
 
@@ -27,18 +26,9 @@ describe('App live board wiring (sync.client)', () => {
   });
   afterEach(() => window.history.replaceState(null, '', '/'));
 
-  it('redirects / to /b/<new board id> and connects to that board', () => {
-    renderApp();
-    const match = /^\/b\/(.+)$/.exec(window.location.pathname);
-    expect(match?.[1]).toMatch(BOARD_ID_PATTERN);
-    expect(current().boardId).toBe(match?.[1]);
-  });
-
-  it('opens the board named in /b/:boardId', () => {
+  it('connects to the board it was given', () => {
     const id = 'AbCdEfGhIjKlMnOpQr_-09';
-    window.history.replaceState(null, '', `/b/${id}`);
-    renderApp();
-    expect(window.location.pathname).toBe(`/b/${id}`);
+    renderApp(id);
     expect(current().boardId).toBe(id);
   });
 

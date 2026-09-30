@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
 import type { Camera } from '../../src/client/canvas/camera';
 
 export const FRAME_MS = 16;
@@ -16,8 +16,12 @@ export function flushFrame() {
   });
 }
 
-export function renderApp() {
-  const utils = render(<App />);
+/** A well-formed board id for tests that render the board directly. */
+export const TEST_BOARD_ID = 'AbCdEfGhIjKlMnOpQr_-09';
+
+/** Renders the stories 1–4 board (what BoardPage shows once the board exists). */
+export function renderApp(boardId = TEST_BOARD_ID) {
+  const utils = render(<Board boardId={boardId} />);
   const viewport = screen.getByTestId('board-viewport');
   return { ...utils, viewport };
 }

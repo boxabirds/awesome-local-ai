@@ -7,8 +7,8 @@
 // is logged against LIVE_UPDATE_LATENCY_BUDGET_MS, never asserted (the browsers,
 // the server and the test runner share one machine).
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
+import { createBoardId } from './server';
 
 export const VIEWPORT = { width: 1280, height: 800 };
 
@@ -110,8 +110,9 @@ export async function openParticipant(
 }
 
 /** Opens `names.length` participants on one new board. */
-export async function openParticipants(browser: Browser, names: string[], boardId = newBoardId()): Promise<Participant[]> {
-  return Promise.all(names.map((n) => openParticipant(browser, n, boardId)));
+export async function openParticipants(browser: Browser, names: string[], boardId?: string): Promise<Participant[]> {
+  const id = boardId ?? (await createBoardId());
+  return Promise.all(names.map((n) => openParticipant(browser, n, id)));
 }
 
 export async function closeAll(participants: Participant[]): Promise<void> {

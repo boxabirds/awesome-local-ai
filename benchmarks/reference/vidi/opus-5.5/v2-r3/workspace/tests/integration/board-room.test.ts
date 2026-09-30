@@ -9,7 +9,6 @@ import {
   moveObject,
   setStickyColor,
 } from '../../src/shared/board-model';
-import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import {
   CLOSE_UNSUPPORTED_DATA,
@@ -18,7 +17,7 @@ import {
   encodeAwarenessFrame,
 } from '../../src/shared/protocol';
 import { applyRandomOp, seededRandom, type OpLog } from '../fixtures/random-ops';
-import { TestClient, equalBytes, waitFor, waitForConvergence } from './ws-client';
+import { TestClient, createBoardId, equalBytes, waitFor, waitForConvergence } from './ws-client';
 
 const clients: TestClient[] = [];
 afterEach(() => {
@@ -32,7 +31,7 @@ async function connect(boardId: string, doc?: Y.Doc): Promise<TestClient> {
 }
 
 async function pair(): Promise<{ boardId: string; a: TestClient; b: TestClient }> {
-  const boardId = newBoardId();
+  const boardId = await createBoardId();
   return { boardId, a: await connect(boardId), b: await connect(boardId) };
 }
 
@@ -134,7 +133,7 @@ describe('BoardRoom concurrent edits', () => {
   it('TC-12: MAX_CONCURRENT_EDITORS clients × 200 seeded random ops converge', async () => {
     const seed = (Date.now() ^ 0x5eed) >>> 0;
     console.log(`TC-12 seed ${seed}`);
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const all: TestClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) all.push(await connect(boardId));
     const rands = all.map((_, i) => seededRandom(seed + i));
@@ -240,7 +239,7 @@ describe('BoardRoom restart and dead sockets', () => {
     await waitFor(() => a.closeCode !== null && b.closeCode !== null, 'sockets closed');
     // B keeps editing locally while disconnected.
     const offline = createSticky(b.doc, { x: 600, y: 0 }, 'blue');
-    const fresh = newBoardId();
+    const fresh = await createBoardId();
     const a2 = await connect(fresh, a.doc);
     const observer = await connect(fresh);
     expect(observer.snapshot()).toEqual(a2.snapshot());

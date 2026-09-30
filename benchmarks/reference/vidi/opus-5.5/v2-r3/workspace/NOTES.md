@@ -194,3 +194,41 @@ Decisions made where the spec was silent or ambiguous:
   no client writes anything.
 - **E2E browsers:** only Chromium is installed here, so e2e ran in Chromium only.
 - **Commits.** The whole story went into a single commit, per the session instructions.
+
+## Story 5 — Share a board with others using a link
+
+- **Board UI moved.** The stories 1–4 board moved from `App.tsx` to `src/client/board/Board.tsx`
+  (`Board({ boardId, children })`). `App.tsx` now only routes. It still re-exports `canEdit`
+  for existing tests. `BoardPage` renders `Board` with `SharePanel` as its child.
+- **Obsolete story 3 behaviour removed.** The design deletes the `/` → random-id redirect, so the
+  component test "redirects / to /b/<new board id>" was replaced: `renderApp(boardId)` now
+  renders `Board` directly, and routing is covered by `tests/component/pages.test.tsx`. Story 3's
+  integration TC-04 now expects 404 instead of 400 for malformed room ids, as the design's HTTP
+  contract requires.
+- **Existing tests create boards first.** Connecting no longer creates a board. Integration
+  tests use `createBoardId()` (`POST /api/boards`, in `ws-client.ts`), and e2e helpers use
+  `tests/e2e/helpers/server.ts` `createBoardId(baseURL)`. `board-store.test.ts` still uses raw
+  ids because it only touches storage.
+- **Existence rule details.** A board with tables but no `created_at` and no
+  `updates`/`snapshot_chunks` rows does not exist. That covers a story 3/4 room that was only
+  opened, which writes tables but no rows. Existence is checked with a plain `BoardStore` on the
+  object's storage, not the room's `createStore` test seam, so injected load failures still
+  report `load-failed` (4500) and not 404. `BoardStore.compact()` also migrates lazily, like
+  `append()`.
+- **`nextBoardPageState`** takes an optional fourth `boardId` argument so the `ready` state can
+  carry the id. The contract's three-argument call still type-checks. Retry delays:
+  `BOARD_CHECK_RETRY_BASE_MS × 2^(attempt−1)`, capped at `RECONNECT_MAX_BACKOFF_MS`.
+- **Other methods.** `GET`/`HEAD` on `/api/boards/:id` are allowed; other methods get 405, as on
+  `/api/boards`. 405 responses carry an `Allow` header.
+- **UI details not fixed by the PRD.** The home link on Board not found reads "Go to the vidi6
+  home page". The link field is labelled "Board link". Opening the Share panel focuses Copy
+  link. The tick in "✓ Link copied" is `aria-hidden`, so the button's name is "Link copied".
+  The share note is the dialog's description.
+- **Legacy seeding (TC-31).** A new TEST_HOOKS-only route, `POST /__test/boards/:id/seed-legacy`
+  (body = one Yjs update), writes story 4's tables plus one `updates` row without
+  `created_at`, then reloads the room.
+- **Compatibility date.** The existing `2026-09-17` already supports Durable Object RPC, so it
+  was left unchanged. The integration pool still overrides it to `2026-08-22`, which also
+  supports RPC.
+- **E2E browsers:** only Chromium is installed here. TC-26 and TC-31 are skipped on other
+  browsers by design; TC-27 and TC-29 could not be run on Firefox or WebKit.

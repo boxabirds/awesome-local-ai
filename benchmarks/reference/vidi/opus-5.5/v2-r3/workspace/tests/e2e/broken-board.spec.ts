@@ -1,7 +1,6 @@
 // Broken board (story 4, TC-24): honest failure, edit lock, recovery without reload.
 // Uses the shared e2e server, which runs with TEST_HOOKS=1.
 import { expect, test } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LOAD_RETRY_MIN_INTERVAL_MS,
@@ -12,6 +11,7 @@ import { viewport } from './helpers/board';
 import { notes } from './helpers/notes';
 import { badge } from './helpers/participants';
 import { connectNode, seedBoard, testHook } from './helpers/seed';
+import { createBoardId } from './helpers/server';
 
 const LOAD_FAILED_TEXT = "This board couldn't be loaded. Retrying…";
 /** Repair → the room's next allowed retry → the provider's next attempt → sync. */
@@ -22,7 +22,7 @@ test('TC-24: a board that cannot be loaded says so, cannot be edited, and recove
   baseURL,
 }) => {
   test.setTimeout(RECOVERY_TIMEOUT_MS + 60_000);
-  const boardId = newBoardId();
+  const boardId = await createBoardId(baseURL!);
   await seedBoard(baseURL!, boardId, retroBoard());
   expect(await testHook(baseURL!, boardId, 'compact')).toEqual({ compacted: true });
   expect(await testHook(baseURL!, boardId, 'corrupt-snapshot')).toEqual({ state: 'load-failed' });

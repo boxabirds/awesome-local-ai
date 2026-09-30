@@ -1,12 +1,15 @@
 // BoardStore: a board's saved state in its Durable Object's SQLite database.
 //
-//   storage_meta         key/value: storage_schema_version, snapshot_through_seq
+//   storage_meta         key/value: storage_schema_version, snapshot_through_seq, created_at
 //   updates              append-only log of Yjs updates applied since the snapshot
 //   snapshot_chunks      the compacted board (Y.encodeStateAsUpdate), split into rows
 //   quarantined_updates  log rows that could not be read on load (kept, never replayed)
 //
 // Every applied update is appended as it happens (persist.automatic), so the board
 // survives everyone leaving and restarts (persist.reopen, persist.restart).
+//
+// Tables are created only by initialize() (board creation, story 5) or lazily
+// before the first append(); reading an unknown board never writes anything.
 import * as encoding from 'lib0/encoding';
 import * as Y from 'yjs';
 import {
@@ -113,6 +116,7 @@ export class BoardStore {
   /** Log rows and bytes, tracked in memory after load (no COUNT(*) per write). */
   private logCount = 0;
   private logBytes = 0;
+  private migrated = false;
 
   constructor(
     private readonly storage: DurableObjectStorage,
@@ -124,6 +128,7 @@ export class BoardStore {
 
   /** Creates the tables. Writes no update or snapshot rows (a never-edited board stays empty). */
   migrate(): void {
+    this.migrated = true;
     this.sql.exec('CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
     this.sql.exec(
       'CREATE TABLE IF NOT EXISTS updates (seq INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB NOT NULL, bytes INTEGER NOT NULL)',
@@ -138,8 +143,40 @@ export class BoardStore {
     );
   }
 
+  /**
+   * Board creation (share.board_api): creates the tables and records created_at
+   * once. Returns 'exists' (and changes nothing) when created_at was already set.
+   */
+  initialize(now: number = Date.now()): 'created' | 'exists' {
+    this.migrate();
+    const existing = this.sql
+      .exec<{ value: string }>("SELECT value FROM storage_meta WHERE key = 'created_at'")
+      .toArray()[0];
+    if (existing) return 'exists';
+    this.sql.exec("INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)", String(now));
+    return 'created';
+  }
+
+  /**
+   * True when the board was created (created_at), or is a legacy board with saved
+   * content (share.legacy_boards). Only reads; for an unknown board no tables exist
+   * and none are created.
+   */
+  existsReadOnly(): boolean {
+    const tables = this.tableNames();
+    if (tables.has('storage_meta')) {
+      const created = this.sql.exec("SELECT 1 FROM storage_meta WHERE key = 'created_at'").toArray();
+      if (created.length > 0) return true;
+    }
+    for (const table of ['updates', 'snapshot_chunks']) {
+      if (tables.has(table) && this.sql.exec(`SELECT 1 FROM ${table} LIMIT 1`).toArray().length > 0) return true;
+    }
+    return false;
+  }
+
   /** Appends one update to the log. Throws on SQL failure (the room then resets). */
   append(update: Uint8Array): void {
+    if (!this.migrated) this.migrate();
     this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', blob(update), update.byteLength);
     this.logCount++;
     this.logBytes += update.byteLength;
@@ -152,6 +189,13 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // A board without tables is empty; loading it must not create them.
+      const tables = this.tableNames();
+      if (!tables.has('updates') || !tables.has('snapshot_chunks') || !tables.has('storage_meta')) {
+        this.logCount = 0;
+        this.logBytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
       const chunks = this.sql
         .exec<{ data: ArrayBuffer }>('SELECT data FROM snapshot_chunks ORDER BY idx')
         .toArray()
@@ -211,6 +255,7 @@ export class BoardStore {
   compact(doc: Y.Doc): boolean {
     try {
       const chunks = chunkBytes(Y.encodeStateAsUpdate(doc), this.chunkSize);
+      if (!this.migrated) this.migrate();
       this.storage.transactionSync(() => {
         const max = this.sql.exec<{ m: number | null }>('SELECT MAX(seq) AS m FROM updates').one().m;
         const through = max ?? this.throughSeq();
@@ -234,6 +279,15 @@ export class BoardStore {
       console.error(JSON.stringify({ event: 'board-store.compaction-failed', error: errorText(e) }));
       return false;
     }
+  }
+
+  private tableNames(): Set<string> {
+    return new Set(
+      this.sql
+        .exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'")
+        .toArray()
+        .map((r) => r.name),
+    );
   }
 
   private throughSeq(): number {

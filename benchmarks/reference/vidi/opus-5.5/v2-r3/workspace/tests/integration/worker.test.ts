@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSticky } from '../../src/shared/board-model';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
-import { TestClient, openSocket, waitFor } from './ws-client';
+import { TestClient, createBoardId, openSocket, waitFor } from './ws-client';
 
 const clients: TestClient[] = [];
 afterEach(() => {
@@ -18,26 +18,26 @@ async function connect(boardId: string): Promise<TestClient> {
 }
 
 describe('Worker routing (sync.worker_entry)', () => {
-  it('TC-04: invalid board id with Upgrade → 400 and no room object is created', async () => {
+  it('TC-04: invalid board id with Upgrade → 404 (400 before story 5) and no room object is created', async () => {
     const idFromName = vi.spyOn(env.BOARD_ROOM, 'idFromName');
     const before = (await listDurableObjectIds(env.BOARD_ROOM)).length;
     const res = await SELF.fetch('http://vidi6.test/api/rooms/bad!id', { headers: { Upgrade: 'websocket' } });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(idFromName).not.toHaveBeenCalled();
     expect((await listDurableObjectIds(env.BOARD_ROOM)).length).toBe(before);
   });
 
   it('TC-04 control: the idFromName spy does observe valid room requests', async () => {
     const idFromName = vi.spyOn(env.BOARD_ROOM, 'idFromName');
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     await connect(boardId);
     expect(idFromName).toHaveBeenCalledWith(boardId);
   });
 
-  it('TC-04: path traversal and wrong-length ids → 400', async () => {
+  it('TC-04: path traversal and wrong-length ids → 404 (400 before story 5)', async () => {
     for (const bad of ['..%2Fx', 'A'.repeat(21), 'A'.repeat(23)]) {
       const res = await SELF.fetch(`http://vidi6.test/api/rooms/${bad}`, { headers: { Upgrade: 'websocket' } });
-      expect(res.status, bad).toBe(400);
+      expect(res.status, bad).toBe(404);
     }
   });
 
@@ -54,7 +54,7 @@ describe('Worker routing (sync.worker_entry)', () => {
   });
 
   it('TC-13: MAX_CONCURRENT_EDITORS + 1 participants are all accepted; the last one edits for everyone', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const all: TestClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS + 1; i++) all.push(await connect(boardId));
     const last = all[all.length - 1];
@@ -66,7 +66,7 @@ describe('Worker routing (sync.worker_entry)', () => {
   });
 
   it('TC-13: the upgrade for the extra participant answers 101', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) await connect(boardId);
     const { status, ws } = await openSocket(boardId);
     expect(status).toBe(101);
@@ -74,8 +74,8 @@ describe('Worker routing (sync.worker_entry)', () => {
   });
 
   it('TC-17: boards stay separate', async () => {
-    const boardB = newBoardId();
-    const a = await connect(newBoardId());
+    const boardB = await createBoardId();
+    const a = await connect(await createBoardId());
     const b = await connect(boardB);
     const receivedBefore = b.received.length;
     createSticky(a.doc, { x: 0, y: 0 });

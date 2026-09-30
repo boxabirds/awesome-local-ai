@@ -24,6 +24,13 @@ export interface Received {
   bytes: Uint8Array;
 }
 
+/** Creates a board through the real API (story 5: only created boards accept connections). */
+export async function createBoardId(): Promise<string> {
+  const res = await SELF.fetch('http://vidi6.test/api/boards', { method: 'POST' });
+  if (res.status !== 201) throw new Error(`create failed: ${res.status}`);
+  return ((await res.json()) as { id: string }).id;
+}
+
 export async function openSocket(boardId: string): Promise<{ status: number; ws: WebSocket | null }> {
   const res = await SELF.fetch(`http://vidi6.test/api/rooms/${boardId}`, { headers: { Upgrade: 'websocket' } });
   const ws = res.webSocket;
