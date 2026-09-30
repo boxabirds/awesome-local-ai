@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness 6d377058, client pi, model qwen3.8-flash-next-gufo",
-  "at": "2026-09-30T07:20:33Z",
+  "state": "finished",
+  "reason": "",
+  "at": "2026-09-30T15:22:02Z",
   "host": "tritus"
 }
