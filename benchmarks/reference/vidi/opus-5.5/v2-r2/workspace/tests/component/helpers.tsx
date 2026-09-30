@@ -2,12 +2,13 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import { App } from '../../src/client/App';
 import type { Camera } from '../../src/client/canvas/camera';
+import type * as Y from 'yjs';
 
 export const FRAME_MS = 16;
 
-export function renderApp() {
+export function renderApp(doc?: Y.Doc) {
   vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout', 'clearTimeout'] });
-  const utils = render(<App />);
+  const utils = render(<App doc={doc} />);
   return {
     ...utils,
     viewport: () => screen.getByTestId('board-viewport'),
@@ -39,4 +40,12 @@ export function pointer(el: HTMLElement, type: 'down' | 'move' | 'up' | 'cancel'
   const init = { clientX: x, clientY: y, pointerId: 1, button: 0, buttons: type === 'up' ? 0 : 1 };
   const fn = { down: fireEvent.pointerDown, move: fireEvent.pointerMove, up: fireEvent.pointerUp, cancel: fireEvent.pointerCancel }[type];
   return fn(el, init);
+}
+
+export function stickyNotes(): HTMLElement[] {
+  return screen.queryAllByRole('group', { name: 'Sticky note' });
+}
+
+export function noteToolbar(): HTMLElement | null {
+  return screen.queryByRole('toolbar', { name: 'Note' });
 }

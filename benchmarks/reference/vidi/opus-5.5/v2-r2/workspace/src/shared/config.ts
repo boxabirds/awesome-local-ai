@@ -14,3 +14,28 @@ export const GRID_SPACING_WORLD = 24;
 export const UNBOUNDED_PAN_TESTED_EXTENT = 1_000_000;
 /** Pixels per line when a wheel event reports deltaMode = DOM_DELTA_LINE (Firefox mouse wheels). */
 export const WHEEL_LINE_HEIGHT_PX = 16;
+
+/** Side length of a sticky note in world units (square). */
+export const STICKY_SIZE_WORLD = 200;
+/** Maximum number of characters in one sticky note. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+/** The character counter shows while editing when remaining characters <= this. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+/** Largest sticky note font size (board units, i.e. px at 100% zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+/** Smallest sticky note font size; text that does not fit at this size is clipped with a fade. */
+export const STICKY_FONT_MIN_PX = 10;
+/** Pointer movement (screen px) after which a press on an object becomes a drag. */
+export const DRAG_THRESHOLD_PX = 3;
+/** The six sticky note colours. */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+export type StickyColor = keyof typeof STICKY_COLORS;
+/** Colour of newly created sticky notes. */
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';

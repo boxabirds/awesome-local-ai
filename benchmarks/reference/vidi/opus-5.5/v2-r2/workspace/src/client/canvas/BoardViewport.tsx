@@ -1,6 +1,6 @@
 import { type ReactNode, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react';
-import { GRID_SPACING_WORLD, WHEEL_LINE_HEIGHT_PX } from '../../shared/config';
-import type { Camera, Point } from './camera';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD, WHEEL_LINE_HEIGHT_PX } from '../../shared/config';
+import { type Camera, type Point, screenToWorld } from './camera';
 import { useBoardCamera } from './useCamera';
 
 const DOM_DELTA_LINE = 1;
@@ -22,7 +22,7 @@ export function gridStyle(camera: Camera): { size: number; offsetX: number; offs
   return { size, offsetX, offsetY };
 }
 
-function isEditableTarget(target: EventTarget | null): boolean {
+export function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 }
@@ -41,12 +41,19 @@ interface GestureEventLike extends Event {
   clientY: number;
 }
 
-export function BoardViewport(props: { children?: ReactNode }): React.JSX.Element {
+export function BoardViewport(props: {
+  children?: ReactNode;
+  /** Double-click on empty board space, with the point in world units. */
+  onEmptyDoubleClick?(world: Point): void;
+  /** Press and release on empty board space without dragging. */
+  onEmptyClick?(): void;
+}): React.JSX.Element {
   const board = useBoardCamera();
   const { camera, setViewportSize } = board;
   const ref = useRef<HTMLDivElement>(null);
   const [panning, setPanning] = useState(false);
   const activePointer = useRef<number | null>(null);
+  const pressStart = useRef<Point | null>(null);
   // Latest handlers for native listeners attached once.
   const boardRef = useRef(board);
   boardRef.current = board;
@@ -129,9 +136,14 @@ export function BoardViewport(props: { children?: ReactNode }): React.JSX.Elemen
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  const stopPan = (pointerId: number) => {
+  const stopPan = (pointerId: number, released?: Point) => {
     if (activePointer.current !== pointerId) return;
     activePointer.current = null;
+    const start = pressStart.current;
+    pressStart.current = null;
+    if (released && start && Math.hypot(released.x - start.x, released.y - start.y) < DRAG_THRESHOLD_PX) {
+      props.onEmptyClick?.();
+    }
     setPanning(false);
     board.endPan();
   };
@@ -142,7 +154,12 @@ export function BoardViewport(props: { children?: ReactNode }): React.JSX.Elemen
     if (e.button !== PRIMARY_BUTTON && e.button !== MIDDLE_BUTTON) return;
     if (activePointer.current !== null) return;
     e.preventDefault();
+    // A note keeps keyboard focus otherwise (preventDefault stops the focus change).
+    if (document.activeElement instanceof HTMLElement && document.activeElement.closest('[data-sticky-note]')) {
+      document.activeElement.blur();
+    }
     activePointer.current = e.pointerId;
+    pressStart.current = localPoint(e.clientX, e.clientY);
     e.currentTarget.setPointerCapture?.(e.pointerId);
     setPanning(true);
     board.beginPan(localPoint(e.clientX, e.clientY));
@@ -170,9 +187,14 @@ export function BoardViewport(props: { children?: ReactNode }): React.JSX.Elemen
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={(e) => stopPan(e.pointerId)}
+      onPointerUp={(e) => stopPan(e.pointerId, localPoint(e.clientX, e.clientY))}
       onPointerCancel={(e) => stopPan(e.pointerId)}
       onLostPointerCapture={(e) => stopPan(e.pointerId)}
+      onDoubleClick={(e) => {
+        // Only empty board space creates; notes handle their own double-click.
+        if (e.target !== e.currentTarget) return;
+        props.onEmptyDoubleClick?.(screenToWorld(camera, localPoint(e.clientX, e.clientY)));
+      }}
     >
       <div
         className="board-world"
