@@ -1,68 +1,106 @@
 import { useState } from "react";
 import type { Row } from "../../shared/types.ts";
-import { combinations, type Combination } from "../../shared/stats.ts";
-import { short } from "./UsageCells.tsx";
+import { closeCalls, compareRanked, INDISTINGUISHABLE_TESTS, NOT_COUNTED_ORDER, rankCombinations, SMALL_N, type RankedCombination, type Spread } from "../../shared/stats.ts";
+import type { TermId } from "../../shared/glossary.ts";
 import { qualityClass } from "../format.ts";
 import { CombinationLink } from "./EntityLinks.tsx";
+import { termName, termTip } from "./combination/Term.tsx";
+import { fmtCount, fmtHours, fmtTokens, SpreadText } from "./combination/Spread.tsx";
 
 const PERCENT = 100;
-const HOUR_DECIMALS = 1;
 const SPEED_DECIMALS = 0;
-const STATUS_ORDER = ["running", "queued", "finished", "failed", "stopped", "cancelled", "unknown"];
+const RANK = "score";
 
-/** Each column: heading, class, hover, and the number it sorts by (null sorts last). */
-const COLUMNS: { head: string; cls: string; title: string; value: (c: Combination) => number | string | null }[] = [
-  { head: "Combination", cls: "combo", title: "The model, engine and client, as its folder under combinations/ names it (reference stacks under benchmarks/reference/).", value: (c) => c.label },
-  { head: "Machines", cls: "machines", title: "The machines its runs ran on.", value: (c) => c.machines.join(", ") },
-  { head: "Runs", cls: "runs", title: "Its runs among those the filters show, by status. Every number in the row is over these runs.", value: (c) => c.stats.runs },
-  { head: "Held-out quality", cls: "quality", title: "Held-out tests passing over all held-out tests, across every built story of every run shown, each on its run's latest build. 100% = everything built passes the hidden tests. The quality measure to rank by.", value: (c) => c.stats.quality },
-  { head: "Score / 75", cls: "score", title: "The mean score of record (the final build's held-out tests passing, under the current suite) over the runs that have one; n says how many.", value: (c) => c.score?.mean ?? null },
-  { head: "Hours per story", cls: "hours", title: "Agent hours per recorded story, over every story of the runs shown: how long the combination takes to deliver a story.", value: (c) => c.stats.hoursPerStory },
-  { head: "tok/s", cls: "toks", title: "Output tokens over the time the stories took (model, tools and all), over every recorded story.", value: (c) => c.tokS },
-  { head: "Calls per story", cls: "calls", title: "Tool calls per recorded story: how many steps the agent takes. A cost measure, not a quality one.", value: (c) => c.callsPerStory },
-  { head: "Input tokens per story", cls: "read", title: "Input tokens: everything the model had to read to answer, summed over all its calls. On every call it re-reads the whole conversation so far (spec, code, tool output), mostly from its cache, so this grows with the number of calls. The bigger this is, the more work each story costs.", value: (c) => c.readPerStory },
+/** Each column: its glossary term, class, and the number it sorts by (null: last, whichever way). */
+const COLUMNS: { term: TermId; cls: string; value: (c: RankedCombination) => number | string | null }[] = [
+  { term: "combination", cls: "combo", value: (c) => c.label },
+  { term: "comboMachines", cls: "machines", value: (c) => c.machines.join(", ") },
+  { term: "scoreSummary", cls: RANK, value: (c) => c.score?.median ?? null },
+  { term: "pooledPassRate", cls: "pooled", value: (c) => c.score?.pooled ?? null },
+  { term: "hoursPerStory", cls: "hours", value: (c) => c.hoursPerStory?.median ?? null },
+  { term: "outPerStory", cls: "out", value: (c) => c.outPerStory?.median ?? null },
+  { term: "callsPerStory", cls: "calls", value: (c) => c.callsPerStory?.median ?? null },
+  { term: "tokSOfRecord", cls: "toks", value: (c) => c.tokS?.median ?? null },
+  { term: "inputPerStory", cls: "read", value: (c) => c.readPerStory?.median ?? null },
+  { term: "notCounted", cls: "not-counted", value: (c) => Object.values(c.notCounted).reduce((a, b) => a + (b ?? 0), 0) },
 ];
 
-function cell(c: Combination, cls: string) {
+const NONE = "no finished run of record";
+
+function spreadCell(s: Spread | null, fmt: (n: number) => string) {
+  return s ? <SpreadText s={s} fmt={fmt} /> : <span className="missing" data-tip={`No ${NONE} recorded this.`}>—</span>;
+}
+
+function cell(c: RankedCombination, cls: string) {
   switch (cls) {
     case "combo": return <span className="stack-label"><CombinationLink pack={c.pack} stack={c.stack} label={c.label} /></span>;
     case "machines": return c.machines.join(", ");
-    case "runs": return STATUS_ORDER.filter((s) => c.byStatus[s]).map((s) => `${c.byStatus[s]} ${s}`).join(" · ");
-    case "quality": return c.stats.quality === null ? "—" : <span className={`num-xl ${qualityClass(c.stats.quality)}`}>{Math.round(c.stats.quality * PERCENT)}%</span>;
-    case "score": return c.score ? <span data-tip={`${c.score.n} run${c.score.n === 1 ? "" : "s"} with a score of record`}><span className={`num-xl ${qualityClass(c.score.total ? c.score.mean / c.score.total : null)}`}>{c.score.mean.toFixed(1)}</span> <span className="small">n={c.score.n}</span></span> : "—";
-    case "hours": return c.stats.hoursPerStory === null ? "—" : <span className="num-l">{c.stats.hoursPerStory.toFixed(HOUR_DECIMALS)}</span>;
-    case "toks": return c.tokS === null ? "—" : <span className="num">{c.tokS.toFixed(SPEED_DECIMALS)}</span>;
-    case "calls": return c.callsPerStory === null ? "—" : <span className="small">{Math.round(c.callsPerStory)}</span>;
-    case "read": return c.readPerStory === null ? "—" : <span className="small">{short(Math.round(c.readPerStory))}</span>;
+    case RANK: return c.score
+      ? <span data-tip={`Score of record: the median of ${c.score.n} finished run${c.score.n === 1 ? "" : "s"} re-scored under the current suite, lowest–highest in brackets.`}>
+          <SpreadText s={c.score} fmt={fmtCount} big={`num-xl ${qualityClass(c.score.total ? c.score.median / c.score.total : null)}`} showN />
+        </span>
+      : <span className="unranked" data-tip={termTip("unranked")}>not ranked: {c.unranked}</span>;
+    case "pooled": return c.score ? <span className="num">{Math.round(c.score.pooled * PERCENT)}%</span> : <span className="missing" data-tip={`No ${NONE}.`}>—</span>;
+    case "hours": return spreadCell(c.hoursPerStory, fmtHours);
+    case "out": return spreadCell(c.outPerStory, fmtTokens);
+    case "calls": return spreadCell(c.callsPerStory, fmtCount);
+    case "toks": return spreadCell(c.tokS, (n) => n.toFixed(SPEED_DECIMALS));
+    case "read": return spreadCell(c.readPerStory, fmtTokens);
+    case "not-counted": {
+      const parts = NOT_COUNTED_ORDER.filter((s) => c.notCounted[s]).map((s) => `${c.notCounted[s]} ${s}`);
+      return parts.length ? <span className="small not-counted-list">{parts.map((p) => <span key={p}>{p}</span>)}</span> : <span className="small">none</span>;
+    }
   }
   return null;
 }
 
-/** One row per combination, over the runs the filters show, on whatever machines they ran; sortable. */
+/** The note small n needs: which neighbours can't be told apart, or that none are close. */
+function SmallN({ ranked }: { ranked: RankedCombination[] }) {
+  const few = ranked.some((c) => c.score && c.score.n <= SMALL_N);
+  if (!few) return null;
+  const close = closeCalls(ranked);
+  return (
+    <p className="small-n-note" data-tip={termTip("smallN")}>
+      <b>{termName("smallN")}:</b> With {SMALL_N} runs or fewer, a difference of {INDISTINGUISHABLE_TESTS} tests or less can't separate two combinations.
+      {close.length ? <> Not distinguishable here: {close.map(([a, b], i) => (
+        <span key={`${a.stack}~${b.stack}`}>{i ? "; " : " "}<CombinationLink pack={a.pack} stack={a.stack} label={a.label} /> ({a.score!.median}, n={a.score!.n}) and <CombinationLink pack={b.pack} stack={b.stack} label={b.label} /> ({b.score!.median}, n={b.score!.n})</span>
+      ))}.</> : " No two neighbours here are that close."}
+    </p>
+  );
+}
+
+/** One row per combination over the runs the filters show, ranked on finished runs' scores of record; sortable. */
 export function CombinationsTable({ rows }: { rows: Row[] }) {
-  const [sort, setSort] = useState<{ cls: string; dir: 1 | -1 }>({ cls: "quality", dir: -1 });
+  const [sort, setSort] = useState<{ cls: string; dir: 1 | -1 }>({ cls: RANK, dir: -1 });
   const col = COLUMNS.find((c) => c.cls === sort.cls)!;
-  const list = combinations(rows).toSorted((a, b) => {
+  const ranked = rankCombinations(rows);
+  const list = sort.cls === RANK && sort.dir === -1 ? ranked : ranked.toSorted((a, b) => {
     const x = col.value(a), y = col.value(b);
-    if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1;  // no number: last either way
-    return (typeof x === "string" ? x.localeCompare(String(y)) : x - (y as number)) * sort.dir;
+    if (x === null || y === null) return x === y ? compareRanked(a, b) : x === null ? 1 : -1;  // no number: last either way
+    return (typeof x === "string" ? x.localeCompare(String(y)) : x - (y as number)) * sort.dir || compareRanked(a, b);
   });
   if (list.length === 0) return null;
+  const counted = ranked.reduce((n, c) => n + c.ofRecord.length, 0);
+  const suite = rows[0]?.suite ?? "";
   const click = (cls: string) => setSort(sort.cls === cls ? { cls, dir: sort.dir === 1 ? -1 : 1 } : { cls, dir: cls === "combo" || cls === "machines" ? 1 : -1 });
   return (
     <section className="combinations">
-      <h2><span>Combinations</span><span className="small">over the {rows.length} run{rows.length === 1 ? "" : "s"} shown (the filters above decide which)</span></h2>
+      <h2>
+        <span>Combinations</span>
+        <span className="small">ranked on finished runs' scores of record under {suite}: {counted} of the {rows.length} run{rows.length === 1 ? "" : "s"} shown (the filters above decide which)</span>
+      </h2>
       <table aria-label="Combinations" className="combos">
         <thead>
           <tr>{COLUMNS.map((c) => (
-            <th key={c.cls} data-tip={c.title} aria-sort={sort.cls === c.cls ? (sort.dir === 1 ? "ascending" : "descending") : "none"} onClick={() => click(c.cls)}>
-              {c.head}{sort.cls === c.cls ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
+            <th key={c.cls} className={c.cls} data-tip={termTip(c.term)} aria-sort={sort.cls === c.cls ? (sort.dir === 1 ? "ascending" : "descending") : "none"} onClick={() => click(c.cls)}>
+              {termName(c.term)}{sort.cls === c.cls ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
             </th>))}</tr>
         </thead>
         <tbody>
-          {list.map((c) => <tr key={c.stack} data-stack={c.stack}>{COLUMNS.map((k) => <td key={k.cls} className={k.cls}>{cell(c, k.cls)}</td>)}</tr>)}
+          {list.map((c) => <tr key={c.stack} data-stack={c.stack} data-ranked={c.score ? "true" : "false"}>{COLUMNS.map((k) => <td key={k.cls} className={k.cls}>{cell(c, k.cls)}</td>)}</tr>)}
         </tbody>
       </table>
+      <SmallN ranked={ranked} />
     </section>
   );
 }

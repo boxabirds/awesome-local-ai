@@ -2,7 +2,7 @@ import type { MachineGroup } from "../../shared/grouping.ts";
 import type { Machine, State } from "../../shared/types.ts";
 import { RunRow } from "./RunRow.tsx";
 import { CombinationLink } from "./EntityLinks.tsx";
-import { qualityClass } from "../format.ts";
+import { GLOSSARY } from "../../shared/glossary.ts";
 import { comboStats } from "../../shared/stats.ts";
 import type { Row } from "../../shared/types.ts";
 
@@ -30,11 +30,6 @@ const COLUMNS: [string, string, string][] = [
   ["Links", "7%", "The run's record and summary on GitHub."],
 ];
 
-const EXPLAIN = {
-  hours: "Agent hours per story: the time the agent spent on each recorded story, averaged over every story of the runs shown. How long this combination takes to deliver a story; lower is faster, whatever the tokens per second.",
-  quality: "Held-out quality: held-out tests passing over all held-out tests, across every built story of every run shown, each on its run's latest build. 100% means everything built works as the hidden tests check it. The quality measure to rank combinations by.",
-};
-
 /** A machine's rows by combination, in the order each first appears (the machine's order: running, queue, ended). */
 function byCombination(rows: Row[]): [string, Row[]][] {
   const out = new Map<string, Row[]>();
@@ -42,7 +37,8 @@ function byCombination(rows: Row[]): [string, Row[]][] {
   return [...out.entries()];
 }
 
-/** A combination's heading row in a machine's table: its name, how many runs, and its two headline numbers. */
+/** A combination's heading row in a machine's table: its name, how many runs, and live progress over them. Live, and
+ * labelled so: it counts running runs and older suite versions, so it never ranks (the Combinations table does). */
 function ComboHead({ stack, rows, span }: { stack: string; rows: Row[]; span: number }) {
   const s = comboStats(rows);
   return (
@@ -50,8 +46,11 @@ function ComboHead({ stack, rows, span }: { stack: string; rows: Row[]; span: nu
       <td colSpan={span}>
         <span className="stack-label"><CombinationLink pack={rows[0].pack} stack={stack} label={rows[0].label} /></span>
         <span className="small">{s.runs} run{s.runs === 1 ? "" : "s"}</span>
-        <span><span className="num-l">{s.hoursPerStory === null ? "—" : s.hoursPerStory.toFixed(HOUR_DECIMALS)}</span> h per story <span className="explain" tabIndex={0} data-tip={EXPLAIN.hours} aria-label="What is hours per story?">?</span></span>
-        <span>held-out quality <span className={`num-l ${qualityClass(s.quality)}`}>{s.quality === null ? "—" : `${Math.round(s.quality * PERCENT)}%`}</span> <span className="explain" tabIndex={0} data-tip={EXPLAIN.quality} aria-label="What is held-out quality?">?</span></span>
+        <span className="live-progress">
+          <span className="live-badge" tabIndex={0} data-tip={GLOSSARY.liveBadge.what}>{GLOSSARY.liveBadge.name}</span>
+          <span><span className="num-l">{s.hoursPerStory === null ? "—" : s.hoursPerStory.toFixed(HOUR_DECIMALS)}</span> {GLOSSARY.liveHoursPerStory.name} <span className="explain" tabIndex={0} data-tip={GLOSSARY.liveHoursPerStory.what} aria-label="What is live hours per story?">?</span></span>
+          <span>{GLOSSARY.liveHeldOut.name.toLowerCase()} <span className="num-l">{s.quality === null ? "—" : `${Math.round(s.quality * PERCENT)}%`}</span> <span className="explain" tabIndex={0} data-tip={GLOSSARY.liveHeldOut.what} aria-label="What is live held-out?">?</span></span>
+        </span>
       </td>
     </tr>
   );

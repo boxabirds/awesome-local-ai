@@ -1,0 +1,664 @@
+// The run and story-run pages' rules, organised by dimension: the run's state, the story's state, data present
+// or absent, held-out, jobs, and comparisons. Each dimension's cases are exhaustive for the values it can take.
+import { describe, expect, it } from "vitest";
+import type { ConversationProfile, Live, Row, RunStatus, Score, Story, StorySquare, TimeSplit, Usage } from "./types.ts";
+import {
+  AGAINST_MEASURES, COMPARE_MEASURES, DIFF_THRESHOLD, SEGMENTS, STATUS_ICON, againstCombination, agentTime, compareRuns,
+  conversationView, divergence, heldOutAgreement, isOver, jobsView, liveProgress, median, neighbours, otherRuns, relDiff,
+  runTimeBars, runTotals, scopeIds, scoreOfRecord, segmentTip, signedPercent, splitParts, squareTip, statusView,
+  storyRunState, storyTitle, toolKinds, whyMissing, whyRunMissing,
+} from "./runView.ts";
+import { GLOSSARY } from "./glossary.ts";
+
+const SUITE = "vidi-v2.0-pre1";
+const OLD_SUITE = "vidi-v1.1";
+
+const split = (over: Partial<TimeSplit> = {}): TimeSplit => ({
+  wall: 600, prefill: 60, decode: 400, tools: 100, compaction: 20, other: 20, modelUnsplit: 0, betweenSessions: 0,
+  check: { status: "ok", problems: [] }, ...over,
+});
+
+const usage = (over: Partial<Usage> = {}): Usage => ({
+  outTokens: 1000, inTokens: 100, cacheRead: 900, readTokens: 1000, calls: 10, agentSeconds: 600, tokS: 1.7,
+  decodeTokens: 900, decodeSeconds: 400, decodeTokS: 2.25, prefillTokens: 100, prefillSeconds: 60, prefillTokS: 1.7,
+  draftAcceptance: null, compactions: 1, nudges: 0, split: split(), ...over,
+});
+
+const story = (id: string, over: Partial<Story> = {}): Story => ({
+  id, title: `Story ${id}`, status: "DONE", passed: 5, total: 10, ownPassed: 5, ownTotal: 5, usage: usage(), conversation: null, ...over,
+});
+
+const live = (over: Partial<Live> = {}): Live => ({
+  jobId: "job", status: "running", attempt: 1, currentStory: null, runningStory: null, agentMinutes: null, calls: null,
+  outputTokens: null, tasksWritten: null, tasksTotal: null, lastActivity: null, storyStartedAt: null, storyTitle: null,
+  storiesInScope: null, runStartedAt: null, totalAgentMinutes: null, logTail: [], queue: null, ...over,
+});
+
+const squares = (states: StorySquare["state"][]): StorySquare[] =>
+  states.map((state, i) => ({ id: String(i + 1), state, passed: state === "ok" ? 5 : null, total: state === "ok" ? 5 : null }));
+
+const score = (passed: number | null, total: number | null, at = "2026-09-30T18:30:00Z"): Score => ({ passed, total, flaky: 0, at });
+
+const row = (over: Partial<Row> = {}): Row => ({
+  pack: "vidi", stack: "qwen/x/pi", runId: "r1", dir: "d", node: "n", host: "h", machine: "m", label: "x pi",
+  packVersion: SUITE, family: "vidi-v2", suite: SUITE, state: "finished", stateAt: "2026-09-30T15:28:00Z", status: "finished",
+  storiesWorking: { working: 0, scope: 3, squares: squares(["ok", "ok", "unbuilt"]) },
+  usage: { outTokens: 2000, inTokens: 200, readTokens: 2000, calls: 20, tokS: 1.7, decodeTokS: 2.25, prefillTokS: 1.7 },
+  statusNote: "", stories: [story("1"), story("2")], rescores: [], scores: {}, hasBundle: false,
+  stages: { build: "finished", score: "", judge: "" }, live: null, jobs: [], ...over,
+});
+
+const ALL_STATUSES: RunStatus[] = ["running", "queued", "finished", "failed", "stopped", "cancelled", "unknown"];
+
+// ---------------------------------------------------------------------------------------------------------------
+describe("run state", () => {
+  describe("status: one icon per status, and what else is known", () => {
+    it("every status has its own icon", () => {
+      const icons = ALL_STATUSES.map((s) => STATUS_ICON[s]);
+      expect(new Set(icons).size).toBe(ALL_STATUSES.length);
+      expect(STATUS_ICON).toMatchObject({ finished: "✓", running: "▶", queued: "⏸", failed: "✕", cancelled: "⊘" });
+    });
+
+    it("running: the server's note, no queue place, no end time", () => {
+      const v = statusView(row({ status: "running", statusNote: "finishing story 3", stateAt: "" }));
+      expect(v).toEqual({ status: "running", icon: "▶", note: "finishing story 3", queuePosition: null, endedAt: null });
+    });
+
+    it("queued: its place on the machine's queue", () => {
+      const v = statusView(row({ status: "queued", live: live({ status: "queued", queue: { position: 2, ahead: ["a"] } }) }));
+      expect(v.queuePosition).toBe(2);
+      expect(v.endedAt).toBeNull();
+    });
+
+    it("queued with no queue known: no place rather than a made-up one", () => {
+      expect(statusView(row({ status: "queued", live: null })).queuePosition).toBeNull();
+    });
+
+    it.each(["finished", "failed", "stopped", "cancelled"] as RunStatus[])("%s: when the record says it ended", (status) => {
+      expect(statusView(row({ status })).endedAt).toBe("2026-09-30T15:28:00Z");
+    });
+
+    it("ended with no time in the record: none", () => {
+      expect(statusView(row({ status: "failed", stateAt: "" })).endedAt).toBeNull();
+    });
+
+    it("failed: the failure's reason is the note", () => {
+      expect(statusView(row({ status: "failed", statusNote: "agent crashed" })).note).toBe("agent crashed");
+    });
+  });
+
+  describe("score of record", () => {
+    it("scored under the current suite", () => {
+      expect(scoreOfRecord(row({ scores: { [SUITE]: score(63, 75) } }))).toEqual({
+        kind: "scored", passed: 63, total: 75, version: SUITE, at: "2026-09-30T18:30:00Z", flaky: 0, currentSuite: true,
+      });
+    });
+
+    it("scored only under an older suite: shown, and marked as not the current suite", () => {
+      const r = scoreOfRecord(row({ scores: { [OLD_SUITE]: score(50, 60) } }));
+      expect(r).toMatchObject({ kind: "scored", version: OLD_SUITE, currentSuite: false });
+    });
+
+    it("finished and unscored: says it isn't re-scored under the current suite yet", () => {
+      expect(scoreOfRecord(row())).toEqual({ kind: "none", reason: "not-rescored", why: `Finished, but not re-scored under ${SUITE} yet.` });
+    });
+
+    it.each(["running", "queued"] as RunStatus[])("%s: not finished, even with a score from an earlier attempt", (status) => {
+      const r = scoreOfRecord(row({ status, scores: { [SUITE]: score(63, 75) } }));
+      expect(r).toMatchObject({ kind: "none", reason: "not-finished" });
+      if (r.kind === "none") expect(r.why).toContain(status);
+    });
+
+    it.each([["failed", "failed"], ["stopped", "stopped"], ["cancelled", "was cancelled"], ["unknown", "is in an unknown state"]] as [RunStatus, string][])(
+      "%s and unscored: it ended before finishing", (status, words) => {
+        const r = scoreOfRecord(row({ status }));
+        expect(r).toMatchObject({ kind: "none", reason: "ended-early" });
+        if (r.kind === "none") expect(r.why).toContain(words);
+      });
+
+    it("a re-score with no result: none, and says so", () => {
+      expect(scoreOfRecord(row({ scores: { [SUITE]: score(null, 75) } }))).toMatchObject({ kind: "none", reason: "no-result" });
+      expect(scoreOfRecord(row({ scores: { [SUITE]: score(60, null) } }))).toMatchObject({ kind: "none", reason: "no-result" });
+    });
+
+    it("zero passing is a score, not a missing one", () => {
+      expect(scoreOfRecord(row({ scores: { [SUITE]: score(0, 75) } }))).toMatchObject({ kind: "scored", passed: 0 });
+    });
+  });
+
+  describe("agent time", () => {
+    it("finished: the recorded stories' time summed; no live figure", () => {
+      expect(agentTime(row({ stories: [story("1", { usage: usage({ agentSeconds: 660 }) }), story("2", { usage: usage({ agentSeconds: 4811 }) })] })))
+        .toEqual({ recordedSeconds: 5471, recordedStories: 2, untimedStories: 0, liveSeconds: null });
+    });
+
+    it("running: the live total too, from the job", () => {
+      const t = agentTime(row({ status: "running", live: live({ totalAgentMinutes: 28 }) }));
+      expect(t.liveSeconds).toBe(28 * 60);
+    });
+
+    it("not running: a job's leftover live total isn't shown as live", () => {
+      expect(agentTime(row({ status: "finished", live: live({ status: "done", totalAgentMinutes: 28 }) })).liveSeconds).toBeNull();
+    });
+
+    it("stories without a time are counted as untimed, not as zero", () => {
+      const t = agentTime(row({ stories: [story("1"), story("2", { usage: null })] }));
+      expect(t).toMatchObject({ recordedSeconds: 600, recordedStories: 2, untimedStories: 1 });
+    });
+
+    it("queued, nothing recorded: no time at all", () => {
+      expect(agentTime(row({ status: "queued", stories: [] }))).toEqual({ recordedSeconds: null, recordedStories: 0, untimedStories: 0, liveSeconds: null });
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+describe("story state", () => {
+  const running = row({
+    status: "running", stories: [story("1")],
+    storiesWorking: { working: 1, scope: 4, squares: squares(["ok", "running", "unbuilt", "unbuilt"]) },
+    live: live({ runningStory: "2", agentMinutes: 4, calls: 41, outputTokens: 12000, storyStartedAt: 100, storyTitle: "Live title" }),
+  });
+
+  it("recorded: its record", () => {
+    expect(storyRunState(running, "1")).toEqual({ kind: "recorded", story: running.stories[0] });
+  });
+
+  it("recorded without usage is still recorded (a story dbench reported first)", () => {
+    expect(storyRunState(row({ stories: [story("1", { usage: null })] }), "1").kind).toBe("recorded");
+  });
+
+  it("in progress: the live figures", () => {
+    expect(storyRunState(running, "2")).toEqual({ kind: "inProgress", agentMinutes: 4, calls: 41, outputTokens: 12000, startedAt: 100 });
+  });
+
+  it("in progress, known only from its square (between the agent and the gates)", () => {
+    const r = { ...running, live: live({ runningStory: null }) };
+    expect(storyRunState(r, "2")).toMatchObject({ kind: "inProgress", agentMinutes: null });
+  });
+
+  it("not built, run running: says which story the run is at", () => {
+    expect(storyRunState(running, "3")).toEqual({ kind: "notBuilt", why: "Not built yet: the run is at story 2." });
+  });
+
+  it("not built, run queued: says the run is queued", () => {
+    const r = row({ status: "queued", stories: [], storiesWorking: { working: 0, scope: 2, squares: squares(["unbuilt", "unbuilt"]) } });
+    expect(storyRunState(r, "1")).toEqual({ kind: "notBuilt", why: "The run is queued: no story is built yet." });
+  });
+
+  it.each([["failed", "failed"], ["cancelled", "was cancelled"], ["stopped", "stopped"]] as [RunStatus, string][])(
+    "not built, run %s: it ended before reaching the story", (status, words) => {
+      expect(storyRunState(row({ status }), "3")).toEqual({ kind: "notBuilt", why: `Not built: the run ${words} before it reached this story.` });
+    });
+
+  it("not built, run finished: finished without recording it", () => {
+    expect(storyRunState(row(), "3")).toEqual({ kind: "notBuilt", why: "Not built: the run finished without recording this story." });
+  });
+
+  it("a square that says running, in a run that isn't running, is not in progress", () => {
+    const r = row({ status: "stopped", storiesWorking: { working: 0, scope: 3, squares: squares(["ok", "ok", "running"]) } });
+    expect(storyRunState(r, "3").kind).toBe("notBuilt");
+  });
+
+  it("out of scope: a story the run was never going to build", () => {
+    expect(storyRunState(row(), "99")).toEqual({ kind: "outOfScope" });
+  });
+
+  describe("scope and neighbours", () => {
+    it("scope: squares and recorded stories together, in numeric order", () => {
+      const r = row({ stories: [story("12")], storiesWorking: { working: 0, scope: 3, squares: [2, 10, 1].map((n) => ({ id: String(n), state: "unbuilt" as const, passed: null, total: null })) } });
+      expect(scopeIds(r)).toEqual(["1", "2", "10", "12"]);
+    });
+
+    it("first story: no previous", () => expect(neighbours(row(), "1")).toEqual({ prev: null, next: "2" }));
+    it("middle story: both", () => expect(neighbours(row(), "2")).toEqual({ prev: "1", next: "3" }));
+    it("last story: no next", () => expect(neighbours(row(), "3")).toEqual({ prev: "2", next: null }));
+    it("a gap in story numbers is skipped over (no story 6)", () => {
+      const r = row({ stories: [], storiesWorking: { working: 0, scope: 3, squares: ["5", "7"].map((id) => ({ id, state: "unbuilt" as const, passed: null, total: null })) } });
+      expect(neighbours(r, "5")).toEqual({ prev: null, next: "7" });
+    });
+    it("out of scope: neither", () => expect(neighbours(row(), "99")).toEqual({ prev: null, next: null }));
+  });
+
+  describe("title", () => {
+    const other = row({ runId: "r2", stories: [story("3", { title: "From another run" })] });
+
+    it("its own record's", () => expect(storyTitle(row(), [other], "1")).toBe("Story 1"));
+    it("the live title while it is built", () => expect(storyTitle(running, [], "2")).toBe("Live title"));
+    it("another run of the pack's, when this run hasn't built it", () => expect(storyTitle(row(), [other], "3")).toBe("From another run"));
+    it("never another pack's", () => expect(storyTitle(row(), [{ ...other, pack: "todoodle" }], "3")).toBe(""));
+    it("none known: empty, not invented", () => expect(storyTitle(row(), [], "3")).toBe(""));
+  });
+
+  describe("square hovers", () => {
+    it.each([
+      ["ok", 5, 5, "story 1: all its held-out tests pass (5/5), against the latest build"],
+      ["part", 9, 10, "story 1: some of its held-out tests pass (9/10), against the latest build"],
+      ["bad", 0, 10, "story 1: none of its held-out tests pass (0/10), against the latest build"],
+      ["unbuilt", null, null, "story 1: not built yet"],
+      ["running", null, null, "story 1: being built now"],
+    ] as [StorySquare["state"], number | null, number | null, string][])("%s", (state, passed, total, text) => {
+      expect(squareTip({ id: "1", state, passed, total })).toBe(text);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+describe("data present or absent", () => {
+  describe("time split", () => {
+    it("one bar per recorded story, on the scale of the longest", () => {
+      const r = row({ stories: [story("1", { usage: usage({ split: split({ wall: 660 }) }) }), story("2", { usage: usage({ split: split({ wall: 4811 }) }) })] });
+      const { bars, scaleSeconds } = runTimeBars(r);
+      expect(bars.map((b) => b.id)).toEqual(["1", "2"]);
+      expect(scaleSeconds).toBe(4811);
+    });
+
+    it("a story with usage but no split, or no usage, still has its row, with no split", () => {
+      const r = row({ stories: [story("1", { usage: usage({ split: null }) }), story("2", { usage: null })] });
+      expect(runTimeBars(r).bars.map((b) => b.split)).toEqual([null, null]);
+      expect(runTimeBars(r).scaleSeconds).toBe(1);  // never a zero scale to divide by
+    });
+
+    it("no stories: no bars", () => expect(runTimeBars(row({ stories: [] })).bars).toEqual([]));
+
+    it("parts: every segment in TimeBars' order, with its share", () => {
+      const { parts, unaccounted } = splitParts(split());
+      expect(parts.map((p) => p.seg)).toEqual(["prefill", "decode", "modelUnsplit", "compaction", "tools", "betweenSessions", "other"]);
+      expect(parts.find((p) => p.seg === "decode")!.share).toBeCloseTo(400 / 600, 6);
+      expect(parts.find((p) => p.seg === "modelUnsplit")!.seconds).toBe(0);
+      expect(unaccounted).toBe(0);
+    });
+
+    it("parts that don't add up to the wall: what's unaccounted", () => {
+      expect(splitParts(split({ wall: 700 })).unaccounted).toBe(100);
+      expect(splitParts(split({ wall: 500 })).unaccounted).toBe(-100);
+    });
+
+    it("a zero wall: no shares rather than dividing by zero", () => {
+      const s = split({ wall: 0, prefill: 0, decode: 0, tools: 0, compaction: 0, other: 0 });
+      expect(splitParts(s).parts.every((p) => p.share === null)).toBe(true);
+    });
+
+    it("every segment's name comes from the glossary", () => {
+      for (const s of SEGMENTS) expect(GLOSSARY[s.term].name).toBeTruthy();
+    });
+
+    it("segment hovers explain each part from the story's usage", () => {
+      const u = usage({ prefillTokens: 45000, prefillTokS: 750, decodeTokens: 54000, decodeTokS: 101.4, compactions: 2, calls: 95, nudges: 1 });
+      expect(segmentTip("prefill", 60, u)).toBe("Prefill 1.0 min: 45k fresh input tokens at 750 tok/s");
+      expect(segmentTip("decode", 480, u)).toBe("Generation 8.0 min: 54k tokens at 101 tok/s");
+      expect(segmentTip("compaction", 270, u)).toBe("Compaction 4.5 min, over 2 compactions");
+      expect(segmentTip("tools", 90, u)).toBe("Tools 1.5 min over 95 calls");
+      expect(segmentTip("betweenSessions", 60, u)).toContain("(1 nudges)");
+      expect(segmentTip("modelUnsplit", 480, u)).toContain("cloud model");
+      expect(segmentTip("other", 6, u)).toBe("Other 0.1 min: the agent's own overhead");
+    });
+
+    it("segment hovers with no usage say '?' rather than 0", () => {
+      expect(segmentTip("decode", 60, null)).toBe("Generation 1.0 min: ? tokens at ? tok/s");
+    });
+
+    it("tools by kind, longest first, zeros left out; none recorded: empty", () => {
+      expect(toolKinds(split({ toolsByKind: { bash: 1, unit: 62, e2e: 43, build: 0 } }))).toEqual([
+        { kind: "unit", seconds: 62 }, { kind: "e2e", seconds: 43 }, { kind: "bash", seconds: 1 },
+      ]);
+      expect(toolKinds(split())).toEqual([]);
+    });
+  });
+
+  describe("cloud model (no time split into reading and writing, no decode speed)", () => {
+    const cloud = usage({ decodeTokS: null, prefillTokS: null, split: split({ prefill: 0, decode: 0, tools: 0, compaction: 0, other: 0, modelUnsplit: 600, check: { status: "unchecked", problems: [] } }) });
+
+    it("decode and prefill: missing because the model wasn't timed apart from the agent", () => {
+      expect(whyMissing(cloud, "decode")).toContain("cloud model");
+      expect(whyMissing(cloud, "prefill")).toContain("cloud model");
+    });
+
+    it("a local model that simply wasn't timed on this story says that instead", () => {
+      const u = usage({ decodeTokS: null });
+      expect(whyMissing(u, "decode")).toBe("Not recorded: the harness didn't time the model's generation for this story.");
+      expect(whyMissing(u, "prefill")).toBe("Not recorded: the harness didn't time the model's reading for this story.");
+    });
+
+    it("draft acceptance: the engine didn't report drafting", () => expect(whyMissing(usage(), "draft")).toContain("speculative decoding"));
+    it("cached share: the record doesn't split input", () => expect(whyMissing(usage(), "cached")).toContain("cached"));
+    it("no usage at all: the story isn't recorded with usage, whatever was asked", () => {
+      for (const w of ["decode", "prefill", "draft", "story", "cached"] as const) expect(whyMissing(null, w)).toMatch(/^Not recorded: this story's record has no usage/);
+    });
+    it("usage but a figure missing: not recorded for this story", () => expect(whyMissing(usage(), "story")).toBe("Not recorded for this story."));
+  });
+
+  describe("run totals", () => {
+    it("tokens and speeds from the server; compactions and nudges summed over the stories", () => {
+      const r = row({ stories: [story("1", { usage: usage({ compactions: 1, nudges: 2 }) }), story("2", { usage: usage({ compactions: 2, nudges: 0 }) })] });
+      expect(runTotals(r)).toEqual({ outTokens: 2000, readTokens: 2000, calls: 20, tokS: 1.7, decodeTokS: 2.25, prefillTokS: 1.7, compactions: 3, nudges: 2, stories: 2 });
+    });
+
+    it("zero compactions is 0, not missing", () => {
+      expect(runTotals(row({ stories: [story("1", { usage: usage({ compactions: 0 }) })] })).compactions).toBe(0);
+    });
+
+    it("no story recorded a counter: missing, not 0", () => {
+      const r = row({ stories: [story("1", { usage: usage({ compactions: null, nudges: null }) })] });
+      expect(runTotals(r)).toMatchObject({ compactions: null, nudges: null });
+    });
+
+    it("nothing recorded: missing everywhere, over 0 stories", () => {
+      const r = row({ stories: [], usage: { outTokens: null, inTokens: null, readTokens: null, calls: null, tokS: null, decodeTokS: null, prefillTokS: null } });
+      expect(runTotals(r)).toEqual({ outTokens: null, readTokens: null, calls: null, tokS: null, decodeTokS: null, prefillTokS: null, compactions: null, nudges: null, stories: 0 });
+    });
+
+    it("why a run total is missing: queued, nothing recorded, never timed, or not in the records", () => {
+      expect(whyRunMissing(row({ status: "queued", stories: [] }), "tokens")).toBe("Nothing recorded yet: the run is queued.");
+      expect(whyRunMissing(row({ status: "running", stories: [story("1", { usage: null })] }), "tokens")).toContain("no story of this run has usage");
+      expect(whyRunMissing(row(), "model-speed")).toContain("timed the model");
+      expect(whyRunMissing(row(), "counter")).toBe("Not in any of this run's story records.");
+    });
+  });
+
+  describe("conversation profile", () => {
+    const profile = (over: Partial<ConversationProfile> = {}): ConversationProfile => ({
+      calls: 207, toolCalls: 204, thinkingChars: 328750, textChars: 4889, toolArgChars: 279940, thinkingMedian: 424,
+      thinkingMedianBefore: 80, thinkingMedianAfter: 464, largestThinking: { chars: 64543, call: 14, atS: 480 },
+      contextStart: 9000, contextEnd: 120000, largestContextJump: { tokens: 16607, call: 15 },
+      toolsByName: { read: 21, bash: 115, write: 28, edit: 40 }, toolErrors: 5,
+      longestTool: { seconds: 61.7, name: "bash", gist: "npm run test:unit" }, signals: ["long-thinking-block"], ...over,
+    });
+
+    it("absent: nothing to show", () => {
+      expect(conversationView(null)).toBeNull();
+      expect(conversationView(undefined)).toBeNull();
+    });
+
+    it("present: the derived figures", () => {
+      const v = conversationView(profile())!;
+      expect(v.afterRatio).toBeCloseTo(464 / 80, 6);
+      expect(v.largest).toEqual({ chars: 64543, call: 14, minutesIn: 8 });
+      expect(v.contextGrowth).toBeCloseTo(120000 / 9000, 6);
+      expect(v.tools.map((t) => t.name)).toEqual(["bash", "edit", "write", "read"]);
+      expect(v.signals).toEqual([]);  // "long-thinking-block" is retired: it meant nothing on its own
+    });
+
+    it("ties among tools: by name, so the order is stable", () => {
+      expect(conversationView(profile({ toolsByName: { write: 3, bash: 3 } }))!.tools.map((t) => t.name)).toEqual(["bash", "write"]);
+    });
+
+    it("a known signal in words; an unknown one as the harness wrote it", () => {
+      expect(conversationView(profile({ signals: ["hung-command", "new-thing"] }))!.signals).toEqual(["a command that hung", "new-thing"]);
+    });
+
+    it("a retired signal is left out, whatever else is there", () => {
+      expect(conversationView(profile({ signals: ["long-thinking-block", "hung-command"] }))!.signals).toEqual(["a command that hung"]);
+    });
+
+    it("parts the harness couldn't count: missing, and no ratio made from them", () => {
+      const v = conversationView(profile({ thinkingMedianBefore: null, thinkingMedianAfter: null, largestThinking: null, contextStart: null, contextEnd: null, largestContextJump: null, longestTool: null }))!;
+      expect(v).toMatchObject({ before: null, after: null, afterRatio: null, largest: null, contextGrowth: null, largestJump: null, longestTool: null });
+    });
+
+    it("zero thinking before the largest block: no ratio (no multiple of nothing)", () => {
+      expect(conversationView(profile({ thinkingMedianBefore: 0 }))!.afterRatio).toBeNull();
+    });
+
+    it("no tools, no signals: empty lists", () => {
+      const v = conversationView(profile({ toolsByName: {}, signals: [] }))!;
+      expect(v.tools).toEqual([]);
+      expect(v.signals).toEqual([]);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+describe("held-out: live progress and the score of record", () => {
+  it("live progress: the whole suite so far after each story, in story order", () => {
+    const r = row({ stories: [story("2", { passed: 20, total: 20 }), story("1", { passed: 6, total: 6 })] });
+    expect(liveProgress(r)).toEqual([{ id: "1", passed: 6, total: 6 }, { id: "2", passed: 20, total: 20 }]);
+  });
+
+  it("a story without a live figure keeps its place, as missing", () => {
+    expect(liveProgress(row({ stories: [story("1", { passed: null, total: null })] }))).toEqual([{ id: "1", passed: null, total: null }]);
+  });
+
+  it("agree: the last live figure counts the same tests and matches", () => {
+    const r = row({ stories: [story("1", { passed: 63, total: 75 })], scores: { [SUITE]: score(63, 75) } });
+    expect(heldOutAgreement(r)).toEqual({ kind: "agree", passed: 63, total: 75 });
+  });
+
+  it("differ: the same tests, a different count", () => {
+    const r = row({ stories: [story("1", { passed: 60, total: 75 })], scores: { [SUITE]: score(63, 75) } });
+    expect(heldOutAgreement(r)).toEqual({ kind: "differ", live: 60, record: 63, total: 75 });
+  });
+
+  it("incomparable: the live figure covers fewer tests than the record", () => {
+    const r = row({ stories: [story("1", { passed: 20, total: 20 })], scores: { [SUITE]: score(63, 75) } });
+    const a = heldOutAgreement(r);
+    expect(a.kind).toBe("incomparable");
+    if (a.kind === "incomparable") expect(a.why).toBe("Not the same tests: the live figure after story 1 counts 20 tests, the score of record 75.");
+  });
+
+  it("incomparable: the last story has no live figure, so the one before it is used", () => {
+    const r = row({ stories: [story("1", { passed: 63, total: 75 }), story("2", { passed: null, total: null })], scores: { [SUITE]: score(63, 75) } });
+    expect(heldOutAgreement(r).kind).toBe("agree");
+  });
+
+  it("incomparable: no score of record", () => {
+    expect(heldOutAgreement(row())).toMatchObject({ kind: "incomparable", why: "There is no score of record to check the live figure against." });
+  });
+
+  it("incomparable: no live figure at all", () => {
+    const r = row({ stories: [story("1", { passed: null, total: null })], scores: { [SUITE]: score(63, 75) } });
+    expect(heldOutAgreement(r)).toMatchObject({ kind: "incomparable", why: "No story recorded a live held-out figure." });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+describe("jobs", () => {
+  const job = (id: string, status: string, reason = "") => ({ id, node: "gruntus", status, submittedAt: 1, updatedAt: 2, reason });
+
+  it("no jobs (a run from the record alone): none", () => expect(jobsView(row({ jobs: [] }))).toEqual([]));
+
+  it("one job: job 1 of 1, not a restart", () => {
+    expect(jobsView(row({ jobs: [job("a", "done")] }))).toEqual([{ ...job("a", "done"), place: 1, of: 1, restart: false }]);
+  });
+
+  it("a restart: each job knows its place, and every one after the first is a restart", () => {
+    const v = jobsView(row({ jobs: [job("a", "cancelled", "stopped by the operator"), job("a-again1", "done")] }));
+    expect(v.map((j) => [j.place, j.of, j.restart, j.reason])).toEqual([[1, 2, false, "stopped by the operator"], [2, 2, true, ""]]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+describe("comparisons", () => {
+  describe("relative difference and the 10% rule", () => {
+    it.each([
+      ["over, above", 111, 100, 0.11, true],
+      ["over, below", 89, 100, -0.11, true],
+      ["under, above", 109, 100, 0.09, false],
+      ["under, below", 91, 100, -0.09, false],
+      ["exactly 10% is not more than 10%", 110, 100, 0.1, false],
+      ["equal", 100, 100, 0, false],
+    ] as [string, number, number, number, boolean][])("%s", (_, value, base, rel, flagged) => {
+      expect(relDiff(value, base)).toBeCloseTo(rel, 9);
+      expect(isOver(relDiff(value, base))).toBe(flagged);
+    });
+
+    it("the threshold is the plan's 10%", () => expect(DIFF_THRESHOLD).toBe(0.1));
+
+    it.each([[null, 100], [100, null], [null, null], [undefined, 100]])("missing (%s against %s): no difference, not flagged", (a, b) => {
+      expect(relDiff(a, b)).toBeNull();
+      expect(isOver(relDiff(a, b))).toBe(false);
+    });
+
+    it("zero against zero: no difference", () => {
+      expect(relDiff(0, 0)).toBe(0);
+      expect(isOver(0)).toBe(false);
+    });
+
+    it("something against zero: infinitely more, flagged", () => {
+      expect(relDiff(5, 0)).toBe(Infinity);
+      expect(relDiff(-5, 0)).toBe(-Infinity);
+      expect(isOver(Infinity)).toBe(true);
+    });
+
+    it("zero against something: 100% less, flagged", () => {
+      expect(relDiff(0, 50)).toBe(-1);
+      expect(isOver(-1)).toBe(true);
+    });
+
+    it("signed percentages", () => {
+      expect(signedPercent(0.123)).toBe("+12%");
+      expect(signedPercent(-0.083)).toBe("−8%");
+      expect(signedPercent(0.001)).toBe("±0%");
+      expect(signedPercent(Infinity)).toBe("from 0");
+      expect(signedPercent(null)).toBe("");
+    });
+  });
+
+  describe("median", () => {
+    it("odd count: the middle", () => expect(median([3, 1, 2])).toBe(2));
+    it("even count: the mean of the middle two", () => expect(median([4, 1, 3, 2])).toBe(2.5));
+    it("one: itself", () => expect(median([7])).toBe(7));
+    it("none: missing", () => expect(median([])).toBeNull());
+    it("doesn't reorder what it's given", () => {
+      const xs = [3, 1, 2];
+      median(xs);
+      expect(xs).toEqual([3, 1, 2]);
+    });
+  });
+
+  describe("two runs story by story", () => {
+    const a = row({ runId: "r5", stories: [story("1", { usage: usage({ agentSeconds: 660, calls: 95 }), ownPassed: 14, ownTotal: 14 }), story("2")] });
+    const b = row({ runId: "r1", stories: [story("1", { usage: usage({ agentSeconds: 720, calls: 95 }), ownPassed: 9, ownTotal: 10 }), story("3")] });
+
+    it("every story either run recorded, in order, knowing which has it", () => {
+      expect(compareRuns(a, b).map((r) => [r.id, r.inA, r.inB])).toEqual([["1", true, true], ["2", true, false], ["3", false, true]]);
+    });
+
+    it("measures, in order, from the glossary", () => {
+      expect(compareRuns(a, b)[0].cells.map((c) => c.key)).toEqual(COMPARE_MEASURES.map((m) => m.key));
+      for (const m of COMPARE_MEASURES) expect(GLOSSARY[m.term]).toBeDefined();
+    });
+
+    it("under 10%: shown, not flagged (660 against 720 is −8%)", () => {
+      const c = compareRuns(a, b)[0].cells.find((x) => x.key === "minutes")!;
+      expect(c).toMatchObject({ a: 660, b: 720, flagged: false });
+      expect(c.rel).toBeCloseTo(-60 / 720, 9);
+    });
+
+    it("held-out compares pass rates: 14/14 against 9/10 is +11%, flagged", () => {
+      const c = compareRuns(a, b)[0].cells.find((x) => x.key === "heldOut")!;
+      expect(c.a).toBe(1);
+      expect(c.b).toBe(0.9);
+      expect(c.flagged).toBe(true);
+    });
+
+    it("equal values: not flagged", () => expect(compareRuns(a, b)[0].cells.find((x) => x.key === "calls")!.flagged).toBe(false));
+
+    it("a story only one run has: its values against missing, never flagged", () => {
+      const cells = compareRuns(a, b)[1].cells;
+      expect(cells.every((c) => c.b === null && c.rel === null && !c.flagged)).toBe(true);
+    });
+
+    it("a story with no held-out tests: missing, not 0%", () => {
+      const r = compareRuns(row({ stories: [story("1", { ownTotal: null, ownPassed: null })] }), b)[0];
+      expect(r.cells.find((c) => c.key === "heldOut")!.a).toBeNull();
+    });
+
+    it("a story with no usage: its usage measures missing", () => {
+      const r = compareRuns(row({ stories: [story("1", { usage: null })] }), b)[0];
+      expect(r.cells.filter((c) => c.key !== "heldOut").every((c) => c.a === null)).toBe(true);
+    });
+
+    it("the title comes from whichever run has it", () => expect(compareRuns(a, b)[2].title).toBe("Story 3"));
+  });
+
+  describe("other runs of the combination", () => {
+    const rows = [
+      row({ runId: "v2-r10" }), row({ runId: "v2-r2" }), row({ runId: "v2-r1" }),
+      row({ runId: "v2-r3", stack: "other/stack" }), row({ runId: "v2-r4", pack: "todoodle" }),
+    ];
+    it("same pack and combination only, not itself, in run order", () => {
+      expect(otherRuns(rows[2], rows).map((r) => r.runId)).toEqual(["v2-r2", "v2-r10"]);
+    });
+    it("a combination with one run: none", () => expect(otherRuns(rows[3], rows)).toEqual([]));
+  });
+
+  describe("a story run against the median of the combination's other runs", () => {
+    it("no other run has the number: nothing to differ from", () => {
+      expect(divergence(100, [])).toBeNull();
+      expect(divergence(100, [null, undefined])).toBeNull();
+    });
+
+    it("over 10% from the median: flagged", () => {
+      expect(divergence(4811, [660, 720, 700])).toMatchObject({ median: 700, n: 3, flagged: true });
+    });
+
+    it("under 10%: not flagged", () => expect(divergence(660, [720])).toMatchObject({ median: 720, n: 1, flagged: false }));
+
+    it("missing values among the others are left out of the median and of n", () => {
+      expect(divergence(100, [90, null, 110])).toMatchObject({ median: 100, n: 2, flagged: false });
+    });
+
+    it("this story run's value missing: the median, but no difference", () => {
+      expect(divergence(null, [100])).toEqual({ value: null, median: 100, n: 1, rel: null, flagged: false });
+    });
+
+    it("the others' median is 0 and this isn't: flagged", () => expect(divergence(3, [0, 0])).toMatchObject({ median: 0, rel: Infinity, flagged: true }));
+    it("all zero: not flagged", () => expect(divergence(0, [0])).toMatchObject({ rel: 0, flagged: false }));
+
+    describe("across the combination", () => {
+      const talk = (thinkingChars: number, largest: number) => ({
+        calls: 1, toolCalls: 1, thinkingChars, textChars: 0, toolArgChars: 0, thinkingMedian: 0, thinkingMedianBefore: null, thinkingMedianAfter: null,
+        largestThinking: { chars: largest, call: 1, atS: 0 }, contextStart: null, contextEnd: null, largestContextJump: null,
+        toolsByName: {}, toolErrors: 0, longestTool: null, signals: [],
+      });
+      const s1 = (secs: number, out: number, calls: number, conversation: ConversationProfile | null = null) =>
+        story("1", { usage: usage({ agentSeconds: secs, outTokens: out, calls, split: split({ wall: secs }) }), conversation });
+      const me = row({ runId: "v2-r5", stories: [s1(4811, 175000, 204, talk(328750, 64543))] });
+      const rows = [
+        me,
+        row({ runId: "v2-r1", stories: [s1(660, 60000, 95, talk(9100, 60000))] }),
+        row({ runId: "v2-r2", stories: [s1(720, 60000, 190)] }),
+        row({ runId: "v2-r3", stories: [] }),
+        row({ runId: "v2-r9", stack: "other", stories: [s1(1, 1, 1)] }),
+      ];
+
+      it("every run of the combination in run order, this one marked, including runs without the story", () => {
+        const { entries } = againstCombination(me, rows, "1");
+        expect(entries.map((e) => [e.run.runId, e.isThis, e.story !== null])).toEqual([
+          ["v2-r1", false, true], ["v2-r2", false, true], ["v2-r3", false, false], ["v2-r5", true, true],
+        ]);
+      });
+
+      it("one scale: the longest wall among them", () => expect(againstCombination(me, rows, "1").scaleSeconds).toBe(4811));
+
+      it("flags on time, output tokens and calls against the others' median", () => {
+        const { flags } = againstCombination(me, rows, "1");
+        expect(Object.keys(flags)).toEqual(AGAINST_MEASURES.map((m) => m.key));
+        expect(flags.minutes).toMatchObject({ median: 690, n: 2, flagged: true });
+        expect(flags.outTokens).toMatchObject({ median: 60000, flagged: true });
+        expect(flags.calls).toMatchObject({ median: 142.5, flagged: true });
+      });
+
+      it("thinking is judged against the others, not by its size: a 64k block beside a 60k one is not flagged", () => {
+        const { flags } = againstCombination(me, rows, "1");
+        expect(flags.largestThinking).toMatchObject({ median: 60000, n: 1, flagged: false });
+        expect(flags.thinking).toMatchObject({ median: 9100, n: 1, flagged: true });
+      });
+
+      it("others without a conversation profile are left out of the thinking median", () => {
+        expect(againstCombination(me, rows, "1").flags.thinking!.n).toBe(1);
+      });
+
+      it("the only run with the story: nothing to compare with", () => {
+        const { flags } = againstCombination(me, [me], "1");
+        expect(flags).toEqual({ minutes: null, outTokens: null, calls: null, thinking: null, largestThinking: null });
+      });
+
+      it("this run hasn't built the story: the others' median, no flag", () => {
+        const { flags } = againstCombination(rows[3], rows, "1");
+        expect(flags.minutes).toMatchObject({ value: null, flagged: false, n: 3 });
+      });
+    });
+  });
+});

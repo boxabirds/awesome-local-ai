@@ -152,7 +152,7 @@ export function App() {
       </Header>
       <StaleBanner stale={stale} age={age} error={error} />
       <main>
-        {route.page !== "overview" ? <EntityPage route={route} state={data} serverNow={serverNow} /> : <>
+        {route.page !== "overview" ? <EntityPage route={route} state={data} serverNow={serverNow} family={family} /> : <>
         {tab === "runs" ? <CombinationsTable rows={shown} /> : null}
         {tab === "machines" ? <MachinesTab state={data} /> : tab === "setup" ? <SetupTab /> : view === "story" ? <StoryView rows={shown} hidden={[...hidden]} /> : (
           <>
@@ -172,19 +172,34 @@ export function App() {
 }
 
 /** A page of its own for one entity, found in the whole state (not only what the overview's filters show). */
-function EntityPage({ route, state, serverNow }: { route: Exclude<ReturnType<typeof useRoute>, { page: "overview" }>; state: NonNullable<ReturnType<typeof useBenchState>["data"]>; serverNow: number | null }) {
+type BenchState = NonNullable<ReturnType<typeof useBenchState>["data"]>;
+
+/** The state as a page sees it: only runs it can be compared with, of the same pack and version family. A v1 run
+ * was built against another spec and scored by another suite: its stories aren't the same stories. */
+const comparable = (state: BenchState, pack: string, family: string): BenchState =>
+  ({ ...state, rows: state.rows.filter((r) => r.pack === pack && r.family === family) });
+
+/** The newest version family among these runs ("vidi-v2" over "vidi-v1"). */
+const newestFamily = (runs: Row[]) => runs.map((r) => r.family).toSorted((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0] ?? "";
+
+function EntityPage({ route, state, serverNow, family }: { route: Exclude<ReturnType<typeof useRoute>, { page: "overview" }>; state: BenchState; serverNow: number | null; family: string }) {
   switch (route.page) {
     case "combination": {
-      const runs = state.rows.filter((r) => r.pack === route.pack && r.stack === route.stack);
-      return runs.length ? <CombinationPage stack={route.stack} runs={runs} state={state} serverNow={serverNow} /> : <NotFound what={`combination ${route.stack}`} />;
+      const all = state.rows.filter((r) => r.pack === route.pack && r.stack === route.stack);
+      if (!all.length) return <NotFound what={`combination ${route.stack}`} />;
+      // The family chosen in the header when this combination has runs in it; else (or with "all") its newest.
+      const fam = family !== ALL && all.some((r) => r.family === family) ? family : newestFamily(all);
+      const scoped = comparable(state, route.pack, fam);
+      return <CombinationPage stack={route.stack} runs={scoped.rows.filter((r) => r.stack === route.stack)} state={scoped} serverNow={serverNow} />;
     }
     case "run":
     case "storyRun": {
       const run = state.rows.find((r) => r.pack === route.pack && r.stack === route.stack && r.runId === route.runId);
       if (!run) return <NotFound what={`run ${route.runId} of ${route.stack}`} />;
-      if (route.page === "run") return <RunPage run={run} state={state} serverNow={serverNow} />;
+      const scoped = comparable(state, run.pack, run.family);
+      if (route.page === "run") return <RunPage run={run} state={scoped} serverNow={serverNow} />;
       const story = run.stories.find((s) => s.id === route.story) ?? null;
-      return <StoryRunPage run={run} story={story} storyId={route.story} state={state} serverNow={serverNow} />;
+      return <StoryRunPage run={run} story={story} storyId={route.story} state={scoped} serverNow={serverNow} />;
     }
     case "notFound":
       return <NotFound what={`page at "${route.path}"`} />;

@@ -418,6 +418,693 @@
         }
       },
       "host": "Intel Core i9 + RTX 4090 64GB"
+    },
+    {
+      "pack": "vidi",
+      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+      "runId": "v2-r4",
+      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4",
+      "rescores": [
+        "vidi-v2.0-pre1"
+      ],
+      "hasBundle": true,
+      "packVersion": "vidi-v2.0-pre1",
+      "state": "finished",
+      "stateAt": "2026-09-28T12:00:00Z",
+      "stories": [
+        {
+          "id": "1",
+          "title": "Pan and zoom",
+          "status": "DONE",
+          "passed": 6,
+          "total": 6,
+          "ownPassed": 6,
+          "ownTotal": 6,
+          "usage": {
+            "outTokens": 55000,
+            "inTokens": 400000,
+            "cacheRead": 4000000,
+            "readTokens": 4400000,
+            "calls": 88,
+            "agentSeconds": 690,
+            "tokS": 79.71,
+            "decodeTokens": 55000,
+            "decodeSeconds": 520,
+            "decodeTokS": 102.0,
+            "prefillTokens": 40000,
+            "prefillSeconds": 60,
+            "prefillTokS": 750.0,
+            "draftAcceptance": null,
+            "compactions": 1,
+            "nudges": 0,
+            "split": {
+              "prefill": 60,
+              "decode": 520,
+              "tools": 85,
+              "compaction": 15,
+              "other": 10,
+              "wall": 690,
+              "modelUnsplit": 0,
+              "betweenSessions": 0,
+              "toolsByKind": {
+                "e2e": 85
+              },
+              "check": {
+                "status": "ok",
+                "problems": []
+              }
+            }
+          },
+          "conversation": {
+            "calls": 89,
+            "toolCalls": 88,
+            "thinkingChars": 7600,
+            "textChars": 2000,
+            "toolArgChars": 90000,
+            "thinkingMedian": 84,
+            "thinkingMedianBefore": 80,
+            "thinkingMedianAfter": 86,
+            "largestThinking": {
+              "chars": 3700,
+              "call": 10,
+              "atS": 120
+            },
+            "contextStart": 9000,
+            "contextEnd": 64000,
+            "largestContextJump": {
+              "tokens": 4000,
+              "call": 30
+            },
+            "toolsByName": {
+              "bash": 44,
+              "edit": 22,
+              "read": 22
+            },
+            "toolErrors": 2,
+            "longestTool": {
+              "seconds": 40.0,
+              "name": "bash",
+              "gist": "npx playwright test"
+            },
+            "signals": []
+          }
+        },
+        {
+          "id": "2",
+          "title": "Sticky notes",
+          "status": "DONE",
+          "passed": 18,
+          "total": 20,
+          "ownPassed": 12,
+          "ownTotal": 14,
+          "usage": {
+            "outTokens": 70000,
+            "inTokens": 400000,
+            "cacheRead": 4000000,
+            "readTokens": 4400000,
+            "calls": 112,
+            "agentSeconds": 960,
+            "tokS": 72.92,
+            "decodeTokens": 70000,
+            "decodeSeconds": 700,
+            "decodeTokS": 99.0,
+            "prefillTokens": 40000,
+            "prefillSeconds": 80,
+            "prefillTokS": 750.0,
+            "draftAcceptance": null,
+            "compactions": 1,
+            "nudges": 0,
+            "split": {
+              "prefill": 80,
+              "decode": 700,
+              "tools": 150,
+              "compaction": 20,
+              "other": 10,
+              "wall": 960,
+              "modelUnsplit": 0,
+              "betweenSessions": 0,
+              "toolsByKind": {
+                "unit": 90,
+                "e2e": 50,
+                "bash": 10
+              },
+              "check": {
+                "status": "ok",
+                "problems": []
+              }
+            }
+          },
+          "conversation": {
+            "calls": 114,
+            "toolCalls": 113,
+            "thinkingChars": 12000,
+            "textChars": 2000,
+            "toolArgChars": 90000,
+            "thinkingMedian": 104,
+            "thinkingMedianBefore": 100,
+            "thinkingMedianAfter": 108,
+            "largestThinking": {
+              "chars": 4100,
+              "call": 10,
+              "atS": 120
+            },
+            "contextStart": 9000,
+            "contextEnd": 64000,
+            "largestContextJump": {
+              "tokens": 4000,
+              "call": 30
+            },
+            "toolsByName": {
+              "bash": 57,
+              "edit": 28,
+              "read": 28
+            },
+            "toolErrors": 2,
+            "longestTool": {
+              "seconds": 55.0,
+              "name": "bash",
+              "gist": "npm run test:unit"
+            },
+            "signals": []
+          }
+        }
+      ],
+      "scores": {
+        "vidi-v2.0-pre1": {
+          "passed": 68,
+          "total": 75,
+          "flaky": 0,
+          "at": "2026-09-28T12:00:00Z"
+        }
+      },
+      "host": "Intel Core i9 + RTX 4090 64GB"
+    },
+    {
+      "pack": "vidi",
+      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+      "runId": "v2-r6",
+      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r6",
+      "rescores": [
+        "vidi-v2.0-pre1"
+      ],
+      "hasBundle": true,
+      "packVersion": "vidi-v2.0-pre1",
+      "state": "finished",
+      "stateAt": "2026-09-29T20:00:00Z",
+      "stories": [
+        {
+          "id": "1",
+          "title": "Pan and zoom",
+          "status": "DONE",
+          "passed": 5,
+          "total": 6,
+          "ownPassed": 5,
+          "ownTotal": 6,
+          "usage": {
+            "outTokens": 62000,
+            "inTokens": 400000,
+            "cacheRead": 4000000,
+            "readTokens": 4400000,
+            "calls": 92,
+            "agentSeconds": 1500,
+            "tokS": 41.33,
+            "decodeTokens": 62000,
+            "decodeSeconds": 510,
+            "decodeTokS": 101.0,
+            "prefillTokens": 40000,
+            "prefillSeconds": 60,
+            "prefillTokS": 750.0,
+            "draftAcceptance": null,
+            "compactions": 1,
+            "nudges": 0,
+            "split": {
+              "prefill": 60,
+              "decode": 510,
+              "tools": 900,
+              "compaction": 20,
+              "other": 10,
+              "wall": 1500,
+              "modelUnsplit": 0,
+              "betweenSessions": 0,
+              "toolsByKind": {
+                "bash": 820,
+                "e2e": 80
+              },
+              "check": {
+                "status": "ok",
+                "problems": []
+              }
+            }
+          },
+          "conversation": {
+            "calls": 93,
+            "toolCalls": 92,
+            "thinkingChars": 8100,
+            "textChars": 2000,
+            "toolArgChars": 90000,
+            "thinkingMedian": 87,
+            "thinkingMedianBefore": 85,
+            "thinkingMedianAfter": 88,
+            "largestThinking": {
+              "chars": 3800,
+              "call": 10,
+              "atS": 120
+            },
+            "contextStart": 9000,
+            "contextEnd": 64000,
+            "largestContextJump": {
+              "tokens": 4000,
+              "call": 30
+            },
+            "toolsByName": {
+              "bash": 46,
+              "edit": 23,
+              "read": 23
+            },
+            "toolErrors": 2,
+            "longestTool": {
+              "seconds": 780.0,
+              "name": "bash",
+              "gist": "npm run dev (never returned; killed by the harness)"
+            },
+            "signals": [
+              "hung-command"
+            ]
+          }
+        },
+        {
+          "id": "2",
+          "title": "Sticky notes",
+          "status": "DONE",
+          "passed": 16,
+          "total": 20,
+          "ownPassed": 11,
+          "ownTotal": 14,
+          "usage": {
+            "outTokens": 80000,
+            "inTokens": 400000,
+            "cacheRead": 4000000,
+            "readTokens": 4400000,
+            "calls": 262,
+            "agentSeconds": 1080,
+            "tokS": 74.07,
+            "decodeTokens": 80000,
+            "decodeSeconds": 760,
+            "decodeTokS": 100.0,
+            "prefillTokens": 40000,
+            "prefillSeconds": 90,
+            "prefillTokS": 750.0,
+            "draftAcceptance": null,
+            "compactions": 1,
+            "nudges": 0,
+            "split": {
+              "prefill": 90,
+              "decode": 760,
+              "tools": 200,
+              "compaction": 20,
+              "other": 10,
+              "wall": 1080,
+              "modelUnsplit": 0,
+              "betweenSessions": 0,
+              "toolsByKind": {
+                "unit": 120,
+                "e2e": 60,
+                "bash": 20
+              },
+              "check": {
+                "status": "ok",
+                "problems": []
+              }
+            }
+          },
+          "conversation": {
+            "calls": 264,
+            "toolCalls": 263,
+            "thinkingChars": 23500,
+            "textChars": 2000,
+            "toolArgChars": 90000,
+            "thinkingMedian": 88,
+            "thinkingMedianBefore": 86,
+            "thinkingMedianAfter": 90,
+            "largestThinking": {
+              "chars": 4300,
+              "call": 10,
+              "atS": 120
+            },
+            "contextStart": 9000,
+            "contextEnd": 64000,
+            "largestContextJump": {
+              "tokens": 4000,
+              "call": 30
+            },
+            "toolsByName": {
+              "bash": 132,
+              "edit": 66,
+              "read": 65
+            },
+            "toolErrors": 2,
+            "longestTool": {
+              "seconds": 48.0,
+              "name": "bash",
+              "gist": "npm run test:unit"
+            },
+            "signals": []
+          }
+        }
+      ],
+      "scores": {
+        "vidi-v2.0-pre1": {
+          "passed": 58,
+          "total": 75,
+          "flaky": 0,
+          "at": "2026-09-29T20:00:00Z"
+        }
+      },
+      "host": "Intel Core i9 + RTX 4090 64GB"
+    },
+    {
+      "pack": "vidi",
+      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+      "runId": "v2-r7",
+      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r7",
+      "rescores": [
+        "vidi-v2.0-pre0"
+      ],
+      "hasBundle": true,
+      "packVersion": "vidi-v2.0-pre0",
+      "state": "finished",
+      "stateAt": "2026-09-27T09:00:00Z",
+      "stories": [
+        {
+          "id": "1",
+          "title": "Pan and zoom",
+          "status": "DONE",
+          "passed": 6,
+          "total": 6,
+          "ownPassed": 6,
+          "ownTotal": 6,
+          "usage": {
+            "outTokens": 90000,
+            "inTokens": 400000,
+            "cacheRead": 4000000,
+            "readTokens": 4400000,
+            "calls": 90,
+            "agentSeconds": 700,
+            "tokS": 128.57,
+            "decodeTokens": 90000,
+            "decodeSeconds": 530,
+            "decodeTokS": 100.0,
+            "prefillTokens": 40000,
+            "prefillSeconds": 60,
+            "prefillTokS": 750.0,
+            "draftAcceptance": null,
+            "compactions": 1,
+            "nudges": 0,
+            "split": {
+              "prefill": 60,
+              "decode": 530,
+              "tools": 85,
+              "compaction": 15,
+              "other": 10,
+              "wall": 700,
+              "modelUnsplit": 0,
+              "betweenSessions": 0,
+              "toolsByKind": {
+                "e2e": 85
+              },
+              "check": {
+                "status": "ok",
+                "problems": []
+              }
+            }
+          }
+        },
+        {
+          "id": "2",
+          "title": "Sticky notes",
+          "status": "DONE",
+          "passed": 19,
+          "total": 20,
+          "ownPassed": 13,
+          "ownTotal": 14,
+          "usage": {
+            "outTokens": 72000,
+            "inTokens": 400000,
+            "cacheRead": 4000000,
+            "readTokens": 4400000,
+            "calls": 118,
+            "agentSeconds": 1000,
+            "tokS": 72.0,
+            "decodeTokens": 72000,
+            "decodeSeconds": 730,
+            "decodeTokS": 98.0,
+            "prefillTokens": 40000,
+            "prefillSeconds": 80,
+            "prefillTokS": 750.0,
+            "draftAcceptance": null,
+            "compactions": 1,
+            "nudges": 0,
+            "split": {
+              "prefill": 80,
+              "decode": 730,
+              "tools": 160,
+              "compaction": 20,
+              "other": 10,
+              "wall": 1000,
+              "modelUnsplit": 0,
+              "betweenSessions": 0,
+              "toolsByKind": {
+                "unit": 100,
+                "e2e": 50,
+                "bash": 10
+              },
+              "check": {
+                "status": "ok",
+                "problems": []
+              }
+            }
+          },
+          "conversation": {
+            "calls": 120,
+            "toolCalls": 119,
+            "thinkingChars": 11400,
+            "textChars": 2000,
+            "toolArgChars": 90000,
+            "thinkingMedian": 95,
+            "thinkingMedianBefore": 93,
+            "thinkingMedianAfter": 97,
+            "largestThinking": {
+              "chars": 4000,
+              "call": 10,
+              "atS": 120
+            },
+            "contextStart": 9000,
+            "contextEnd": 64000,
+            "largestContextJump": {
+              "tokens": 4000,
+              "call": 30
+            },
+            "toolsByName": {
+              "bash": 60,
+              "edit": 30,
+              "read": 29
+            },
+            "toolErrors": 2,
+            "longestTool": {
+              "seconds": 50.0,
+              "name": "bash",
+              "gist": "npm run test:unit"
+            },
+            "signals": []
+          }
+        }
+      ],
+      "scores": {
+        "vidi-v2.0-pre0": {
+          "passed": 60,
+          "total": 75,
+          "flaky": 0,
+          "at": "2026-09-27T09:00:00Z"
+        }
+      },
+      "host": "Intel Core i9 + RTX 4090 64GB"
+    },
+    {
+      "pack": "vidi",
+      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+      "runId": "canvas-s-01",
+      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-s-01",
+      "rescores": [],
+      "hasBundle": true,
+      "packVersion": "vidi-v1.1",
+      "state": "finished",
+      "stateAt": "2026-09-20T10:00:00Z",
+      "stories": [
+        {
+          "id": "1",
+          "title": "Pan and zoom",
+          "status": "DONE",
+          "passed": 6,
+          "total": 6,
+          "ownPassed": 6,
+          "ownTotal": 6,
+          "usage": {
+            "outTokens": 60000,
+            "inTokens": 500000,
+            "cacheRead": 4500000,
+            "readTokens": 5000000,
+            "calls": 95,
+            "agentSeconds": 1980,
+            "tokS": 83.33333333333333,
+            "decodeTokens": 54000,
+            "decodeSeconds": 591.7159763313609,
+            "decodeTokS": 101.4,
+            "prefillTokens": 45000,
+            "prefillSeconds": null,
+            "prefillTokS": 750.0,
+            "draftAcceptance": null,
+            "compactions": 1,
+            "nudges": 2,
+            "split": {
+              "wall": 660,
+              "prefill": 60,
+              "decode": 480,
+              "tools": 90,
+              "compaction": 20,
+              "other": 10,
+              "modelUnsplit": 0,
+              "toolsByKind": {
+                "e2e": 60,
+                "bash": 30
+              },
+              "betweenSessions": 0,
+              "check": {
+                "status": "ok",
+                "problems": []
+              }
+            }
+          },
+          "conversation": {
+            "calls": 89,
+            "toolCalls": 89,
+            "thinkingChars": 8000,
+            "textChars": 2100,
+            "toolArgChars": 88000,
+            "thinkingMedian": 82,
+            "thinkingMedianBefore": 80,
+            "thinkingMedianAfter": 85,
+            "largestThinking": {
+              "chars": 3900,
+              "call": 12,
+              "atS": 150
+            },
+            "contextStart": 9000,
+            "contextEnd": 61000,
+            "largestContextJump": {
+              "tokens": 4100,
+              "call": 40
+            },
+            "toolsByName": {
+              "bash": 40,
+              "read": 25,
+              "edit": 20,
+              "write": 10
+            },
+            "toolErrors": 2,
+            "longestTool": {
+              "seconds": 41.0,
+              "name": "bash",
+              "gist": "npx playwright test"
+            },
+            "signals": []
+          }
+        },
+        {
+          "id": "2",
+          "title": "Sticky notes",
+          "status": "DONE",
+          "passed": 20,
+          "total": 20,
+          "ownPassed": 14,
+          "ownTotal": 14,
+          "usage": {
+            "outTokens": 175000,
+            "inTokens": 500000,
+            "cacheRead": 4500000,
+            "readTokens": 5000000,
+            "calls": 204,
+            "agentSeconds": 14433,
+            "tokS": 36.3,
+            "decodeTokens": 174827,
+            "decodeSeconds": 591.7159763313609,
+            "decodeTokS": 41.7,
+            "prefillTokens": 45000,
+            "prefillSeconds": null,
+            "prefillTokS": 750.0,
+            "draftAcceptance": null,
+            "compactions": 2,
+            "nudges": 0,
+            "split": {
+              "wall": 4811,
+              "prefill": 222,
+              "decode": 4188,
+              "tools": 117,
+              "compaction": 270,
+              "other": 14,
+              "modelUnsplit": 0,
+              "betweenSessions": 0,
+              "toolsByKind": {
+                "unit": 62,
+                "e2e": 43,
+                "build": 11,
+                "bash": 1
+              },
+              "check": {
+                "status": "ok",
+                "problems": []
+              }
+            }
+          },
+          "conversation": {
+            "calls": 207,
+            "toolCalls": 204,
+            "thinkingChars": 328750,
+            "textChars": 4889,
+            "toolArgChars": 279940,
+            "thinkingMedian": 424,
+            "thinkingMedianBefore": 80,
+            "thinkingMedianAfter": 464,
+            "largestThinking": {
+              "chars": 64543,
+              "call": 14,
+              "atS": 480
+            },
+            "contextStart": 9000,
+            "contextEnd": 120000,
+            "largestContextJump": {
+              "tokens": 16607,
+              "call": 15
+            },
+            "toolsByName": {
+              "bash": 115,
+              "edit": 40,
+              "read": 21,
+              "write": 28
+            },
+            "toolErrors": 5,
+            "longestTool": {
+              "seconds": 61.7,
+              "name": "bash",
+              "gist": "npm run test:unit"
+            },
+            "signals": [
+              "long-thinking-block"
+            ]
+          }
+        }
+      ],
+      "scores": {},
+      "host": "Intel Core i9 + RTX 4090 64GB"
     }
   ],
   "jobs": {

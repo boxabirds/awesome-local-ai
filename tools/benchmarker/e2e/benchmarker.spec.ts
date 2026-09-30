@@ -20,7 +20,7 @@ test("each machine has one section, headed by what it runs now, with its queue i
   await expect(machine(page, "gruntus").locator("h2")).toContainText("3 queued");
   const runs = await machine(page, "gruntus").locator("tbody tr[data-run]").evaluateAll((trs) =>
     trs.map((tr) => `${(tr as HTMLElement).dataset.stack!.includes("swift-1.5") ? "swift" : "27b"} ${(tr as HTMLElement).dataset.run}`));
-  expect(runs).toEqual(["swift v2-r1", "swift v2-r2", "swift v2-r3", "swift v2-r5", "27b v2-r1"]);  // by combination; running, queue, then ended
+  expect(runs).toEqual(["swift v2-r1", "swift v2-r2", "swift v2-r3", "swift v2-r4", "swift v2-r5", "swift v2-r6", "swift v2-r7", "27b v2-r1"]);  // by combination; running, queue, then ended
   await expect(machine(page, "tritus").locator("h2")).toContainText("idle");
 });
 
@@ -299,11 +299,12 @@ test.describe("machines", () => {
   });
 });
 
-test("each combination heads its runs with hours per story and held-out quality, each with a ? that explains it", async ({ page }) => {
+test("each combination heads its runs with live hours per story and held-out, labelled live, each with a ? that explains it", async ({ page }) => {
   const head = page.locator(`tr.combo-head[data-stack="${SWIFT}"]`);
   await expect(head).toContainText("3.8-swift-1.5/27b llamacpp");
+  await expect(head.locator(".live-badge")).toHaveText("live");   // progress, never a ranking figure
   await expect(head).toContainText(/\d+(\.\d+)? h per story/);
-  await expect(head).toContainText(/held-out quality \d+%/);
+  await expect(head).toContainText(/live held-out \d+%/);
   for (const q of await head.locator(".explain").all()) expect((await q.getAttribute("data-tip"))!.length).toBeGreaterThan(40);
   // The combination's runs follow its heading.
   await expect(page.locator(`tr.combo-head[data-stack="${SWIFT}"] + tr`)).toHaveAttribute("data-stack", SWIFT);
@@ -322,10 +323,10 @@ test("combinations: one row each across machines, over the runs shown, sortable,
   await expect(swift).toContainText("gruntus");
   await expect(swift).toContainText("1 running");
   await expect(swift).toContainText("2 queued");
-  await expect(page.locator("section.combinations")).toContainText(/over the \d+ runs? shown/);
+  await expect(page.locator("section.combinations")).toContainText(/ranked on finished runs' scores of record under vidi-v2\.0-pre1: \d+ of the \d+ runs? shown/);
   for (const t of await table.locator("thead th").evaluateAll((ths) => ths.map((th) => th.getAttribute("data-tip") ?? ""))) expect(t.length).toBeGreaterThan(20);
   // Sorting: a click sorts by the column, a second click reverses it; runs without a number stay last.
-  const calls = async () => (await table.locator("tbody td.calls").allInnerTexts()).filter((x) => x !== "—").map(Number);
+  const calls = async () => (await table.locator("tbody td.calls .median").allInnerTexts()).map(Number);   // "—" has no median
   await table.getByRole("columnheader", { name: /Calls per story/ }).click();
   const first = await calls();
   expect(first.length).toBeGreaterThan(1);
@@ -340,13 +341,13 @@ test("hovers show at once, on the page itself: the ? explanations and the column
   const tip = page.getByRole("tooltip");
   await page.locator(`tr.combo-head[data-stack="${SWIFT}"] .explain`).first().hover();
   await expect(tip).toBeVisible({ timeout: 500 });
-  await expect(tip).toContainText("Agent hours per story");
-  await page.getByRole("columnheader", { name: "Held-out quality" }).hover();
-  await expect(tip).toContainText("Held-out tests passing");
+  await expect(tip).toContainText("Live: agent hours per recorded story");
+  await page.getByRole("table", { name: "Combinations" }).getByRole("columnheader", { name: /^Score/ }).hover();
+  await expect(tip).toContainText("The score of record of this combination's finished runs");
   await page.mouse.move(1, 1);
   await expect(tip).toBeHidden();
   await page.locator(`tr.combo-head[data-stack="${SWIFT}"] .explain`).first().focus();  // the keyboard gets it too
-  await expect(tip).toContainText("Agent hours per story");
+  await expect(tip).toContainText("Live: agent hours per recorded story");
 });
 
 test("by story: a bar per job on one scale, coloured by where the time went, each part explained on hover", async ({ page }) => {
@@ -378,6 +379,9 @@ test("by story: each bar names its machine, shows the wait between agent session
   const opus = bars.locator(`[data-job="reference/opus-5.5|run-9"]`);
   await expect(swift.locator(".bar-machine")).toHaveText("gruntus");
   await expect(gufo.locator(".bar-machine")).toHaveText("AMD Ryzen AI Max+ 395 128GB");
+  // The ranking table above pushes the bars below the fold; the tooltip closes on scroll, so scroll there first.
+  await gufo.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await gufo.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   await gufo.locator('[data-seg="betweenSessions"]').hover();
   await expect(page.getByRole("tooltip")).toContainText("Between sessions 1 min");
   await expect(bars).toContainText("Between sessions");                  // in the legend
