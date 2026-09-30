@@ -3424,7 +3424,15 @@
           "found": 2,
           "total": 2
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2/server.log"
+        ],
+        "commit": "2d68f6f9"
+      }
     }
   },
   "pack": "vidi",

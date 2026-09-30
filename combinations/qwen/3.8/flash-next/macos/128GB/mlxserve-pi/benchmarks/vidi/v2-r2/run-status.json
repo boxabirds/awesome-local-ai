@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness a0f4626e, client pi, model mlxserve-flash-next-mixed-4-8bit",
-  "at": "2026-09-30T14:30:37Z",
+  "state": "failed",
+  "reason": "exit 1: hostname: 'cdn.playwright.dev' } playwright browser install for the agents (~/.cache/vidi-agent-ms-playwright) failed",
+  "at": "2026-09-30T22:14:53Z",
   "host": "Quintus"
 }
