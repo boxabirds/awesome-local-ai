@@ -1,3 +1,51 @@
+commit 40ea2c798dd1b4592d77d27b0e785f9f45dab397
+vidi-agent  Wed Sep 30 15:21:34 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ .../012-drop-images-onto-the-board/tasks.md        |  18 +-
+ src/client/board/Board.tsx                         | 139 ++++++-
+ src/client/board/Toolbar.tsx                       |  19 +
+ src/client/board/useBoardKeys.ts                   |   8 +
+ src/client/canvas/BoardViewport.tsx                |  24 ++
+ src/client/images/DropHighlight.tsx                |  40 ++
+ src/client/images/uploadImage.ts                   |  81 ++++
+ src/client/images/useImageInsert.ts                | 411 +++++++++++++++++++++
+ src/client/images/validateFiles.ts                 |  92 +++++
+ src/client/objects/ImageObject.tsx                 | 280 ++++++++++++++
+ src/client/objects/imageContext.ts                 |  46 +++
+ src/client/objects/registry.tsx                    |  52 +++
+ src/client/tools/useActiveTool.ts                  |  17 +-
+ src/client/ui/Toast.tsx                            |  71 ++++
+ src/shared/config.ts                               |  69 ++++
+ src/shared/geometry.ts                             |   6 +
+ src/shared/image-format.ts                         |  89 +++++
+ src/shared/objects/image.ts                        | 373 +++++++++++++++++++
+ src/worker/assets.ts                               | 155 ++++++++
+ src/worker/index.ts                                |  33 ++
+ tests/component/ImageObject.test.tsx               | 169 +++++++++
+ tests/component/useImageInsert.test.tsx            | 267 +++++++++++++
+ tests/e2e/images.spec.ts                           | 336 +++++++++++++++++
+ tests/fixtures/image-fixtures.ts                   |  91 +++++
+ tests/fixtures/images/animated.gif                 | Bin 0 -> 185 bytes
+ tests/fixtures/images/corrupt-truncated.png        | Bin 0 -> 400 bytes
+ tests/fixtures/images/e2e-square-1x1.png           | Bin 0 -> 238 bytes
+ tests/fixtures/images/e2e-tall-1x2.png             | Bin 0 -> 383 bytes
+ tests/fixtures/images/e2e-wide-2x1.png             | Bin 0 -> 340 bytes
+ tests/fixtures/images/malicious-script.svg         |  12 +
+ tests/fixtures/images/photo-4032x3024.jpg          | Bin 0 -> 1576144 bytes
+ tests/fixtures/images/renamed-pdf.png              |  13 +
+ tests/fixtures/images/sample.webp                  | Bin 0 -> 1468 bytes
+ tests/fixtures/images/screenshot-1440x900.png      | Bin 0 -> 32133 bytes
+ tests/integration/assets.test.ts                   | 299 +++++++++++++++
+ tests/integration/board-api.test.ts                |   2 +
+ tests/integration/board-room-persistence.test.ts   |   2 +-
+ tests/unit/image-format.test.ts                    |  90 +++++
+ tests/unit/image-model.test.ts                     | 309 ++++++++++++++++
+ tests/unit/validate-files.test.ts                  | 131 +++++++
+ wrangler.jsonc                                     |   9 +
+ 41 files changed, 3721 insertions(+), 32 deletions(-)
 commit 1d71fb9968a068da5f1b16ae6644d51308c6364a
 vidi-agent  Wed Sep 30 14:11:05 2026 +0100
 
