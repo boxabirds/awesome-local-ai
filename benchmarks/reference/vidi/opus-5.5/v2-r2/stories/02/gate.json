@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 3.3,
+      "tail": "\nadded 140 packages, and audited 141 packages in 3s\n\n31 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 1.1,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 67 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-BOcAKy8w.css    4.33 kB \u2502 gzip:  1.37 kB\ndist/client/assets/index-ByLLCPn8.js   301.29 kB \u2502 gzip: 93.77 kB\n\n\u001b[32m\u2713 built in 313ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 0.7,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit -p tsconfig.json\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.6,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.2 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__v2-r2/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 17\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m50 passed\u001b[39m\u001b[22m\u001b[90m (50)\u001b[39m\n\u001b[2m   Start at \u001b[22m 02:05:12\n\u001b[2m   Duration \u001b[22m 133ms\u001b[2m (transform 52%, import 27%, tests 18%, worker 3%)\u001b[22m\n\n",
+      "passed": 50,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.2,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.2 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__v2-r2/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 150\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 168\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 220\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 244\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 272\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 296\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m56 passed\u001b[39m\u001b[22m\u001b[90m (56)\u001b[39m\n\u001b[2m   Start at \u001b[22m 02:05:13\n\u001b[2m   Duration \u001b[22m 971ms\u001b[2m (environment 51%, tests 28%, transform 9%, setup 8%, import 4%)\u001b[22m\n\n",
+      "passed": 56,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 10.8,
+      "tail": "\n> vidi6@0.0.0 test:e2e\n> playwright test --project=chromium\n\n\nRunning 12 tests using 4 workers\n\n  \u2713   3 [chromium] \u203a tests/e2e/navigation.spec.ts:88:3 \u203a story 1: pan and zoom \u203a plain scroll pans the board in the scroll direction (535ms)\n  \u2713   5 [chromium] \u203a tests/e2e/navigation.spec.ts:163:3 \u203a story 1: pan and zoom \u203a TC-31: board zoom gestures and shortcuts never change page zoom (522ms)\n  \u2713   6 [chromium] \u203a tests/e2e/navigation.spec.ts:183:3 \u203a story 1: pan and zoom \u203a Ctrl/Cmd + = / \u2212 / 0 step the board zoom (518ms)\n  \u2713   4 [chromium] \u203a tests/e2e/navigation.spec.ts:33:3 \u203a story 1: pan and zoom \u203a workflow 1: first visit navigation (TC-28, TC-23, TC-24) (2.0s)\n  \u2713   7 [chromium] \u203a tests/e2e/navigation.spec.ts:196:3 \u203a story 1: pan and zoom \u203a resizing the window does not move content relative to the top-left (699ms)\n  \u2713   2 [chromium] \u203a tests/e2e/navigation.spec.ts:137:3 \u203a story 1: pan and zoom \u203a workflow 3: far travel still pans exactly (TC-27) (2.4s)\n  \u2713   9 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:151:3 \u203a story 2: sticky notes \u203a Backspace while typing edits text; Enter edits the selected note; bin deletes (199ms)\n  \u2713  11 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:198:3 \u203a story 2: sticky notes \u203a TC-33: text shrinks to fit, then clips with a fade at the minimum size (140ms)\n  \u2713  12 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:239:3 \u203a story 2: sticky notes \u203a TC-34: the Sticky note button creates a note in the middle of the screen far from the origin (577ms)\n  \u2713  10 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:167:3 \u203a story 2: sticky notes \u203a TC-32: drag at 200% zoom moves by delta / zoom and draws the note on top (1.5s)\n  \u2713   8 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:81:3 \u203a story 2: sticky notes \u203a workflow 1: brainstorm golden path (TC-30, TC-31, colour, delete) (2.6s)\n  \u2713   1 [chromium] \u203a tests/e2e/navigation.spec.ts:103:3 \u203a story 1: pan and zoom \u203a workflow 2: limits and recovery (TC-25, TC-26) (7.9s)\n\n  12 passed (10.3s)\n",
+      "passed": 12,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
