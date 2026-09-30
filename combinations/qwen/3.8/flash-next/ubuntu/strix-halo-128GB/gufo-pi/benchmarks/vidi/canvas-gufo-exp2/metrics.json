@@ -134,7 +134,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 2022.7,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 95,
+          "prefill_s": 77.1,
+          "prefill_tokens": 53902,
+          "prefill_tok_s": 698.9,
+          "decode_s": 1802.3,
+          "decode_tokens": 78887,
+          "decode_tok_s": 43.8,
+          "cached_tokens": 5240411
+        },
         "tools_s": 136.6,
         "tools_by_kind": {
           "e2e": 80.0,
@@ -147,7 +157,8 @@
         },
         "compaction_s": 0,
         "compactions": 0,
-        "other_s": 1886.1
+        "other_s": 6.7,
+        "backfilled": true
       },
       "loc": {
         "files": 19,
@@ -430,7 +441,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 5631.3,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 184,
+          "prefill_s": 222.5,
+          "prefill_tokens": 189297,
+          "prefill_tok_s": 850.6,
+          "decode_s": 4745.3,
+          "decode_tokens": 195295,
+          "decode_tok_s": 41.2,
+          "cached_tokens": 12584982
+        },
         "tools_s": 303.1,
         "tools_by_kind": {
           "e2e": 217.7,
@@ -443,7 +464,8 @@
         },
         "compaction_s": 345.8,
         "compactions": 2,
-        "other_s": 4982.3
+        "other_s": 14.5,
+        "backfilled": true
       },
       "loc": {
         "files": 36,
