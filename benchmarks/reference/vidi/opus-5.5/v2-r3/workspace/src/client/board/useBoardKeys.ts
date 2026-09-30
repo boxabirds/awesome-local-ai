@@ -48,7 +48,8 @@ function focusedObjectId(target: EventTarget | null): string | undefined {
  * arrows nudge, Delete/Backspace delete, Enter edits a single text object;
  * Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (story 8); V/T tools,
  * N new sticky note, Escape leaves the Text tool (story 9); S/L Shape and
- * Connector tools, Escape leaves them too (story 10); P Pen (story 11).
+ * Connector tools, Escape leaves them too (story 10); P Pen (story 11); I opens
+ * the image picker (story 12).
  * Nothing happens while text is being edited (the editor handles its own
  * undo) or a text field has focus; the mutating keys also need `canEdit`.
  * Each mutation is its own undo step (boundaries before and after).
@@ -63,13 +64,15 @@ export function useBoardKeys(opts: {
   tool?: ToolApi;
   /** Story 9: N creates a sticky note at the view centre (the Sticky note button). */
   onCreateSticky?(): void;
+  /** Story 12: I opens the Image tool's file picker. */
+  onImageTool?(): void;
 }): void {
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, undo, tool, onCreateSticky } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, undo, tool, onCreateSticky, onImageTool } = optsRef.current;
       if (selection.editingId !== null || isEditableTarget(e.target)) return;
       if (e.altKey) return;
       const ctrlOrMeta = e.ctrlKey || e.metaKey;
@@ -108,6 +111,10 @@ export function useBoardKeys(opts: {
       // Tool shortcuts (text.tool_ui); Shift is allowed so Caps Lock never blocks them.
       const letter = e.key.length === 1 ? e.key.toLowerCase() : '';
       const shortcut = TOOL_SHORTCUTS[letter];
+      if (shortcut === 'image' && onImageTool) {
+        if (canEdit) onImageTool(); // a one-shot action: opens the picker, the tool stays Select
+        return;
+      }
       if (tool && shortcut && shortcut !== 'sticky') {
         // Story 10 adds S (Shape) and L (Connector), story 11 P (Pen); tools outside this build are ignored.
         if (shortcut === 'select' || canEdit) tool.setTool(shortcut);

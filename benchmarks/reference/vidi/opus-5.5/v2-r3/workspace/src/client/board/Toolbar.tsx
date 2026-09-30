@@ -20,7 +20,7 @@ function ShapeKindIcon({ kind }: { kind: ShapeKind }) {
 /**
  * Left-side vertical toolbar: Select and Text tools (story 9), Sticky note,
  * Shape (with its kind menu while active) and Connector (story 10), Pen (with
- * its options while active, story 11), then children (undo).
+ * its options while active, story 11), Image (story 12), then children (undo).
  */
 export function Toolbar(props: {
   onCreateSticky(): void;
@@ -31,6 +31,8 @@ export function Toolbar(props: {
   onShapeKind?(k: ShapeKind): void;
   /** Story 11: the pen options, shown next to the Pen button while the Pen is active. */
   penToolbar?: ReactNode;
+  /** Story 12: the Image button opens the system file picker. */
+  onImage?(): void;
   children?: ReactNode;
 }) {
   const shapeKind = props.shapeKind ?? 'rect';
@@ -165,6 +167,22 @@ export function Toolbar(props: {
         </button>
         {tool === 'pen' && props.penToolbar}
       </div>
+      {props.onImage && (
+        <button
+          type="button"
+          className="toolbar-button"
+          aria-label="Image (I)"
+          title="Image (I)"
+          disabled={props.disabled}
+          onClick={props.onImage}
+        >
+          <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+            <rect x="3.5" y="4.5" width="15" height="13" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+            <circle cx="8.5" cy="9" r="1.5" fill="currentColor" />
+            <path d="M4 16l4.5-4.5 3.5 3.5 2-2 4 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
       {props.children}
     </div>
   );

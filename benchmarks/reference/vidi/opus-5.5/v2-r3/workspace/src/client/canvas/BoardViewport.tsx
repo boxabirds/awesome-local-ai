@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import {
   DRAG_THRESHOLD_PX,
   GRID_MIN_SCREEN_SPACING_PX,
@@ -63,6 +63,13 @@ export function BoardViewport(props: {
   tool?: string;
   /** Press with a creating tool active, in world coordinates (also on top of objects). */
   onToolClick?(world: Point): void;
+  /** Story 12: files dragged over and dropped onto the board. */
+  drop?: {
+    onDragEnter(e: DragEvent<HTMLDivElement>): void;
+    onDragOver(e: DragEvent<HTMLDivElement>): void;
+    onDragLeave(e: DragEvent<HTMLDivElement>): void;
+    onDrop(e: DragEvent<HTMLDivElement>): void;
+  };
 }) {
   const { api, onViewportResize } = useCameraContext();
   const { camera } = api;
@@ -266,6 +273,10 @@ export function BoardViewport(props: {
       onPointerCancel={onPointerEnd}
       onLostPointerCapture={onPointerEnd}
       onDoubleClick={onDoubleClick}
+      onDragEnter={props.drop?.onDragEnter}
+      onDragOver={props.drop?.onDragOver}
+      onDragLeave={props.drop?.onDragLeave}
+      onDrop={props.drop?.onDrop}
       style={{
         backgroundSize: `${grid.size}px ${grid.size}px`,
         backgroundPosition: `${grid.offsetX}px ${grid.offsetY}px`,

@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { createSticky, deleteObjects, setStickyColor, storedRects } from '../../shared/board-model';
+import { createSticky, deleteObjects, setStickyColor, storedRects, type ObjectSnapshot } from '../../shared/board-model';
 import { setShapeStyle } from '../../shared/objects/shape';
 import { createText, setTextSize } from '../../shared/objects/text';
 import { localAuthor } from '../objects/TextObject';
 import { getTextMeasurer } from '../objects/textLayout';
 import { remeasureText } from '../objects/useTextBoxSync';
 import { useActiveTool } from '../tools/useActiveTool';
+import { DropHighlight } from '../images/DropHighlight';
+import { ImageInsertContext, type ImageInsertContextValue } from '../images/ImageInsertContext';
+import { useImageInsert } from '../images/useImageInsert';
+import { Toast } from '../ui/Toast';
+import { isImage } from '../../shared/objects/image';
+import { IMAGE_STATUS_TICK_MS } from '../../shared/config';
 import { ConnectorTool } from '../tools/ConnectorTool';
 import { PenTool } from '../tools/PenTool';
 import { PenToolbar } from '../tools/PenToolbar';
@@ -162,7 +168,46 @@ export function Board({ boardId, children }: { boardId: string; children?: React
     [endEdit, clear],
   );
 
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoController, tool, onCreateSticky });
+  // Story 12: drop, paste and the Image tool's picker.
+  const identityId = localAuthor(doc);
+  const images = useImageInsert({ doc, boardId, camera, connection, identityId, viewport, undo: undoController });
+  const { openPicker } = images;
+  const openImagePicker = useCallback(() => {
+    setTool('select'); // a one-shot tool: back to Select whether files are chosen or not
+    openPicker();
+  }, [openPicker, setTool]);
+  const removeImage = useCallback(
+    (id: string) => {
+      if (!editableRef.current) return;
+      undoController.boundary();
+      deleteObjects(doc, [id]);
+      undoController.boundary();
+    },
+    [doc, undoController],
+  );
+  const now = useImageClock(objects);
+  const imageCtx = useMemo<ImageInsertContextValue>(
+    () => ({
+      identityId,
+      progress: images.progress,
+      canRetry: images.canRetry,
+      retry: images.retry,
+      remove: removeImage,
+      now,
+    }),
+    [identityId, images.progress, images.canRetry, images.retry, removeImage, now],
+  );
+
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undo: undoController,
+    tool,
+    onCreateSticky,
+    onImageTool: openImagePicker,
+  });
   const history = useUndo(undoController, editable);
   const marquee = useMarquee(camera, objects, (ids) => setMany(ids, true));
   // A whole drag or resize (all its frames) is one undo step.
@@ -223,70 +268,77 @@ export function Board({ boardId, children }: { boardId: string; children?: React
   return (
     <CameraContext.Provider value={ctx}>
       <UndoContext.Provider value={undoController}>
-        <main className="app">
-          <BoardViewport
-            onEmptyDoubleClick={createAt}
-            onEmptyClick={clear}
-            marquee={marquee}
-            overlay={overlay}
-            tool={tool.tool}
-            onToolClick={placeText}
-          >
-            {renderOrder(objects).map(({ note: obj, zIndex }) => {
-              const spec = getObjectType(obj.type);
-              if (!spec) return null;
-              const { Component } = spec;
-              return (
-                <Component
-                  key={obj.id}
-                  object={obj}
-                  doc={doc}
-                  zIndex={zIndex}
-                  selected={selectedIds.has(obj.id)}
-                  editing={editable && obj.id === editingId}
-                  readOnly={!editable}
-                  gesture={objectGesture(gesture.phase, gesture.activeIds.has(obj.id))}
-                  onPointerDown={gesture.onObjectPointerDown}
-                  onStartEdit={startEdit}
-                  onEndEdit={onEndEdit}
-                  zoom={camera.zoom}
-                  rects={rects}
+        <ImageInsertContext.Provider value={imageCtx}>
+          <main className="app">
+            <BoardViewport
+              onEmptyDoubleClick={createAt}
+              onEmptyClick={clear}
+              marquee={marquee}
+              overlay={overlay}
+              tool={tool.tool}
+              onToolClick={placeText}
+              drop={images}
+            >
+              {renderOrder(objects).map(({ note: obj, zIndex }) => {
+                const spec = getObjectType(obj.type);
+                if (!spec) return null;
+                const { Component } = spec;
+                return (
+                  <Component
+                    key={obj.id}
+                    object={obj}
+                    doc={doc}
+                    zIndex={zIndex}
+                    selected={selectedIds.has(obj.id)}
+                    editing={editable && obj.id === editingId}
+                    readOnly={!editable}
+                    gesture={objectGesture(gesture.phase, gesture.activeIds.has(obj.id))}
+                    onPointerDown={gesture.onObjectPointerDown}
+                    onStartEdit={startEdit}
+                    onEndEdit={onEndEdit}
+                    zoom={camera.zoom}
+                    rects={rects}
+                  />
+                );
+              })}
+              <MarqueeRect rect={marquee.rect} camera={camera} />
+            </BoardViewport>
+            <SelectionAnnouncer count={selectedIds.size} />
+            <Toolbar
+              onCreateSticky={onCreateSticky}
+              disabled={!editable}
+              tool={tool.tool}
+              onTool={setTool}
+              shapeKind={tool.shapeKind}
+              onShapeKind={tool.setShapeKind}
+              onImage={openImagePicker}
+              penToolbar={
+                <PenToolbar
+                  color={pen.color}
+                  thickness={pen.thickness}
+                  onColor={pen.setColor}
+                  onThickness={pen.setThickness}
                 />
-              );
-            })}
-            <MarqueeRect rect={marquee.rect} camera={camera} />
-          </BoardViewport>
-          <SelectionAnnouncer count={selectedIds.size} />
-          <Toolbar
-            onCreateSticky={onCreateSticky}
-            disabled={!editable}
-            tool={tool.tool}
-            onTool={setTool}
-            shapeKind={tool.shapeKind}
-            onShapeKind={tool.setShapeKind}
-            penToolbar={
-              <PenToolbar
-                color={pen.color}
-                thickness={pen.thickness}
-                onColor={pen.setColor}
-                onThickness={pen.setThickness}
-              />
-            }
-          >
-            <UndoButtons {...history} />
-          </Toolbar>
-          <ZoomControls
-            zoomPercent={zoomPercent(camera)}
-            canZoomIn={canZoomIn(camera)}
-            canZoomOut={canZoomOut(camera)}
-            onZoomIn={() => api.zoomStep('in')}
-            onZoomOut={() => api.zoomStep('out')}
-            onReset={api.reset}
-          />
-          <NavigationHint visible={!api.hasNavigated} />
-          <ConnectionStatus state={connection} />
-          {children}
-        </main>
+              }
+            >
+              <UndoButtons {...history} />
+            </Toolbar>
+            {images.pickerInput}
+            <DropHighlight active={images.dragActive} />
+            <Toast toast={images.toast} onDismiss={images.dismissToast} />
+            <ZoomControls
+              zoomPercent={zoomPercent(camera)}
+              canZoomIn={canZoomIn(camera)}
+              canZoomOut={canZoomOut(camera)}
+              onZoomIn={() => api.zoomStep('in')}
+              onZoomOut={() => api.zoomStep('out')}
+              onReset={api.reset}
+            />
+            <NavigationHint visible={!api.hasNavigated} />
+            <ConnectionStatus state={connection} />
+            {children}
+          </main>
+        </ImageInsertContext.Provider>
       </UndoContext.Provider>
     </CameraContext.Provider>
   );
@@ -304,6 +356,22 @@ function useUndoControllerFor(doc: Y.Doc): UndoController {
     return () => controller.destroy();
   }, [doc]);
   return current?.doc === doc ? current.controller : NO_UNDO;
+}
+
+/**
+ * The clock images use to tell an abandoned upload (story 12, image.unfinished):
+ * re-read every IMAGE_STATUS_TICK_MS while any image is uploading.
+ */
+function useImageClock(objects: readonly ObjectSnapshot[]): number {
+  const [now, setNow] = useState(() => Date.now());
+  const uploading = objects.some((o) => isImage(o) && o.status === 'uploading');
+  useEffect(() => {
+    if (!uploading) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), IMAGE_STATUS_TICK_MS);
+    return () => clearInterval(t);
+  }, [uploading]);
+  return now;
 }
 
 function objectGesture(phase: TransformPhase, active: boolean): ObjectGesturePhase {

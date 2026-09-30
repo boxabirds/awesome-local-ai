@@ -6,6 +6,7 @@ import type * as Y from 'yjs';
 import { objectBounds, registerModelType, type ObjectSnapshot } from '../../shared/board-model';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
@@ -21,10 +22,12 @@ import {
   transformConnector,
   type ConnectorSnap,
 } from '../../shared/objects/connector';
+import { IMAGE_TYPE } from '../../shared/objects/image';
 import { SHAPE_TYPE } from '../../shared/objects/shape';
 import { scaledPoints, STROKE_TYPE, type StrokeSnap } from '../../shared/objects/stroke';
 import { TEXT_TYPE } from '../../shared/objects/text';
 import { ConnectorObject } from './ConnectorObject';
+import { RegisteredImageObject } from './ImageObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { StrokeObject } from './StrokeObject';
@@ -177,6 +180,16 @@ registerObjectType(STROKE_TYPE, {
   minSize: STROKE_MIN_SIZE_WORLD,
   editableText: false,
   hitTest: strokeHitTest,
+});
+
+// Story 12: images always keep their proportions and never get smaller than 16 units.
+registerObjectType(IMAGE_TYPE, {
+  Component: RegisteredImageObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: boundsHitTest,
 });
 
 /**

@@ -18,8 +18,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | 6/6 | 0 | 0 | 56/57 |
 | 10 | 8/8 | 0 | 0 | 64/65 |
 | 11 | 5/5 | 0 | 1 | 70/70 |
+| 12 | 5/5 | 1 | 0 | 74/75 |
 
-**New work** 63/66, **regressions** 0, **repairs** 3, **cumulative** 70/70.
+**New work** 68/71, **regressions** 1, **repairs** 3, **cumulative** 74/75.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -33,8 +34,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | Write free text anywhere on the board | DONE | 17.2 | None | None | None | — | — | green | 56/57 |  | 0 / 0 | 0 | — | throttled 0% |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 16.7 | None | None | None | — | — | green | 64/65 |  | 0 / 0 | 0 | — | throttled 0% |
 | 11 | Sketch freehand with a pen | DONE | 13.7 | None | None | None | — | — | green | 70/70 |  | 0 / 0 | 0 | — | throttled 0% |
+| 12 | Drop images onto the board | DONE | 17.3 | None | None | None | — | — | green | 74/75 |  | 0 / 0 | 0 | — | throttled 0% |
 
-**Totals:** 10 stories, 134 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 10/10, final acceptance 70/70, stalled 0, partial 0, 23790 lines in src+tests.
+**Totals:** 11 stories, 151 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 11/11, final acceptance 74/75, stalled 0, partial 0, 186273 lines in src+tests.
 
 ## How it happened
 
@@ -52,6 +54,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 9 | 1 by the agent | 2550 / 269 | `TextEditor.tsx` (201), `TextObject.tsx` (199), `StickyTextEditor.tsx` (189), `text.ts` (172), `textLayout.ts` (147), `styles.css` (75), +18 more |
 | 10 | 1 by the agent | 3284 / 52 | `ConnectorObject.tsx` (262), `connector.ts` (240), `ShapeObject.tsx` (221), `styles.css` (205), `shape.ts` (186), `ConnectorTool.tsx` (173), +17 more |
 | 11 | 1 by the agent | 1798 / 11 | `PenTool.tsx` (206), `stroke.ts` (149), `simplify.ts` (106), `styles.css` (99), `StrokeObject.tsx` (95), `PenToolbar.tsx` (62), +9 more |
+| 12 | 1 by the agent | 2899 / 69 | `useImageInsert.ts` (371), `image.ts` (211), `Board.tsx` (198), `ImageObject.tsx` (197), `styles.css` (124), `NOTES.md` (59), +14 more |
 
 ### Earlier stories broken or fixed
 
@@ -60,6 +63,8 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 3: 5/7 → 6/7; fixed 1
 - **Story 11 broke 0, fixed 1** earlier held-out tests (story 11: Sketch freehand with a pen). Source files it changed most: `PenTool.tsx` (206), `stroke.ts` (149), `simplify.ts` (106), `styles.css` (99), `StrokeObject.tsx` (95), `PenToolbar.tsx` (62), +9 more.
   - story 3: 6/7 → 7/7; fixed 1
+- **Story 12 broke 1, fixed 0** earlier held-out tests (story 12: Drop images onto the board). Source files it changed most: `useImageInsert.ts` (371), `image.ts` (211), `Board.tsx` (198), `ImageObject.tsx` (197), `styles.css` (124), `NOTES.md` (59), +14 more.
+  - story 3: 7/7 → 6/7; broke 1.
 
 ### Interruptions and dead time
 
