@@ -1,4 +1,5 @@
-"""backfill_timing.py [--recompute] <run-dir>... — give a run's stories that have no model time (servers other than llama.cpp,
+"""backfill_timing.py [--recompute] <run-dir>... — give a run's stories their conversation profile where missing
+(conversation.py), and give its stories that have no model time (servers other than llama.cpp,
 before the harness timed them from the agent's stream) their prefill and decode time, from the full event log the
 machine kept (stories/NN/agent-events.jsonl), computed exactly as a live run computes it (drive.time_split). Only
 stories whose model time is missing are changed, and each is marked "backfilled". Prints the stories it filled.
@@ -40,7 +41,26 @@ def backfill(run: Path, recompute: bool = False) -> list[str]:
     return filled
 
 
+def backfill_conversation(run: Path) -> list[str]:
+    """Give each story that has none its conversation profile, from the full event log the machine kept."""
+    import conversation
+    path = run / "metrics.json"
+    metrics = json.loads(path.read_text())
+    filled = []
+    for sid, rec in sorted(metrics.get("stories", {}).items(), key=lambda kv: int(kv[0])):
+        raw = run / "stories" / sid.zfill(2) / "agent-events.jsonl"
+        if rec.get("conversation") or not raw.is_file() or "started" not in rec or "agent_finished" not in rec:
+            continue
+        if (p := conversation.profile(raw, rec["started"], rec["agent_finished"])) is not None:
+            rec["conversation"] = p
+            filled.append(sid)
+    if filled:
+        path.write_text(json.dumps(metrics, indent=2))
+    return filled
+
+
 if __name__ == "__main__":
     recompute = "--recompute" in sys.argv
     for arg in (a for a in sys.argv[1:] if a != "--recompute"):
         print(f"{arg}: {', '.join(backfill(Path(arg).resolve(), recompute)) or 'nothing to fill'}")
+        print(f"{arg} conversation: {', '.join(backfill_conversation(Path(arg).resolve())) or 'nothing to fill'}")

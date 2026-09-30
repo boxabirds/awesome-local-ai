@@ -1466,6 +1466,8 @@ def main() -> None:
         clock = accounting.check(rec["time_split"], agent_seconds=(rec.get("agent") or {}).get("seconds"))
         acc["problems"] += [p for p in clock if p not in acc["problems"]]
         acc["ok"] = not acc["problems"]
+        import conversation
+        rec["conversation"] = conversation.profile(sdir / "agent-events.jsonl", rec["started"], rec["agent_finished"])
         rec["loc"] = loc(ws)
         mirror(ws, run / "workspace")
         rec["finished"] = time.time()
