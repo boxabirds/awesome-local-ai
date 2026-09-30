@@ -1,7 +1,7 @@
 {
   "pack_version": "vidi-v2.0-pre2",
   "harness_commit": "c94a287c",
-  "host": "Julians-MacBook-Air.local",
+  "host": "Apple M2 16GB",
   "held_out_workers": 4,
   "host_limits": {
     "cores": 8,

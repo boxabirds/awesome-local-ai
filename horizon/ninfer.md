@@ -1,7 +1,7 @@
 # NInfer (Swift 1.5 on the RTX 4090, Windows)
 
 **Status:** queued (29 Sep 2026): waiting for the one-time Windows setup at the machine.
-**Machine:** gruntus on Windows 11, harness in WSL2. Compared with Swift 1.5 on llama.cpp (Ubuntu, same GPU):
+**Machine:** the RTX 4090 machine on Windows 11, harness in WSL2. Compared with Swift 1.5 on llama.cpp (Ubuntu, same GPU):
 only the engine differs.
 
 ## What it is

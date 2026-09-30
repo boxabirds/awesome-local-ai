@@ -59,12 +59,14 @@ workspace's HEAD or working tree changed. dbench returns it in its status view
 ## `control/skip-story.json`: end the running story (dbench writes, harness reads)
 
 ```json
-{"story": 3, "reason": "3h, no commit for 107 min: e2e/WebKit flake triage", "by": "100.71.150.106", "at": 1790303000}
+{"story": 3, "reason": "3h, no commit for 107 min: e2e/WebKit flake triage", "by": "192.0.2.10", "at": 1790303000}
 ```
 
 - dbench writes it atomically only if the job is running and `story` equals the
   run's `current_story`; otherwise it refuses (409). An existing, unapplied
   `skip-story.json` is replaced.
+- `by` is the caller's address and stays in this git-ignored file: the harness records the story as ended by
+  `"operator"` (`drive.OPERATOR`), since metrics.json, interventions.md and summary.md are public.
 - The harness checks it every few seconds while a story runs, and once before a
   story's agent starts, so a skip can be placed before a restart. When `story`
   matches the running story, it stops the agent (no resume, no nudge), finishes

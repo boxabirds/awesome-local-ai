@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mtp-depth.sh -- llama.cpp MTP draft depth 3 vs 4 on tritus, under the coding agents' conditions.
+# mtp-depth.sh -- llama.cpp MTP draft depth 3 vs 4 on the Strix Halo box, under the coding agents' conditions.
 #
 #   benchmarks/gufo-eval/mtp-depth.sh [--prompts DIR] [--depths "3 4"] [--fills 2048,32768,65536] [--repeats 3]
 #
@@ -10,7 +10,7 @@
 # those runs should use), only --spec-draft-n-max changes; the agents' sampler (temperature 1.0,
 # thinking on); test A's exact-length prompts. The unique line goes last, so repeats reuse the
 # cached prefix and only decode is compared (prefill figures here are not meaningful).
-# Writes benchmarks/gufo-eval/results/<timestamp>-<host>-mtp-depth/.
+# Writes benchmarks/gufo-eval/results/<timestamp>-mtp-depth/.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PATH="$HOME/.local/bin:$PATH"
@@ -45,7 +45,9 @@ for n in ${FILLS//,/ }; do
   [[ -s "$PROMPTS/fill-$n.txt" ]] || { echo "no prompt $PROMPTS/fill-$n.txt (run test-a.sh first)" >&2; exit 1; }
 done
 
-OUT="$RESULTS/$(date -u +%Y%m%d-%H%M%S)-$(hostname -s)-mtp-depth"
+# The machine by its hardware (harness host-desc.sh), never its hostname; empty if unavailable.
+hw_desc() { local f="$HERE/../../benchmarks/spec-bench/harness/host-desc.sh"; [[ -f "$f" ]] || return 0; ( . "$f" && host_desc ) 2>/dev/null || true; }
+OUT="$RESULTS/$(date -u +%Y%m%d-%H%M%S)-mtp-depth"
 mkdir -p "$OUT"
 SPID=""
 
@@ -67,7 +69,7 @@ stop_server() {
 trap stop_server EXIT   # whatever happens, stop the server this script started
 
 {
-  echo "# MTP draft depth $(date -u +%FT%TZ) on $(hostname -s); prompts $PROMPTS"
+  echo "# MTP draft depth $(date -u +%FT%TZ) on $(hw_desc); prompts $PROMPTS"
   echo "llama.cpp: $(git -C "$LLAMA_BIN/../.." log --oneline -1 2>/dev/null)"
   echo "depths: $DEPTHS; fills: $FILLS; repeats: $REPEATS; decode 400 tokens; agent sampler, thinking on"
 } > "$OUT/versions.txt"

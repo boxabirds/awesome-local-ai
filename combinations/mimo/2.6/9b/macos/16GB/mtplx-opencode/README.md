@@ -14,7 +14,7 @@ the slowdown is unmeasured).
 > it prefilled at **~55 tok/s** and decoded at **~5 tok/s** (3.7–6.1): `create a
 > fibonacci function in python` took **5 min 43 s over three turns** and used a
 > quarter of the window, and the first reply took 1½ minutes. The first install
-> attempt froze the Mac. Full numbers: [the test report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md).
+> attempt froze the Mac. Full numbers: [the test report](../../../../../../../docs/20260924-mimo-9b-m2-16gb.md).
 
 | | |
 |---|---|
@@ -22,11 +22,11 @@ the slowdown is unmeasured).
 | MTPLX offers it on | M3, M4, M5 |
 | Precision of float tensors | BF16 (vision tower, draft head) |
 | Vision | vision tower in the pack |
-| Measured by this repo | install, a pi session and its speeds, on a MacBook Air M2 16 GB ([report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md)) |
+| Measured by this repo | install, a pi session and its speeds, on a MacBook Air M2 16 GB ([report](../../../../../../../docs/20260924-mimo-9b-m2-16gb.md)) |
 
 > **Provenance.** One test by this repo, on a MacBook Air M2 16 GB: install, a
 > short pi session, and its prefill and decode speeds
-> ([report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md)). Those figures are an M2's; MTPLX recommends
+> ([report](../../../../../../../docs/20260924-mimo-9b-m2-16gb.md)). Those figures are an M2's; MTPLX recommends
 > this pack for M3+. Everything else on this page is quoted from the MTPLX
 > 2.12.0 release notes (2026-09-24) or read from the pack's own
 > `mtplx_runtime.json`, `README.md` and `chat_template.jinja` on Hugging Face,
@@ -45,7 +45,7 @@ and want a local coding model that fits it at all.
 **You should know first:**
 
 - **Tested on a MacBook Air M2 16 GB, it is not workable for agentic coding**
-  ([report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md)). Treat this combination as a way to try a
+  ([report](../../../../../../../docs/20260924-mimo-9b-m2-16gb.md)). Treat this combination as a way to try a
   local model on a small Mac, not as a coding setup.
 - **The context window is 20,480 tokens.** That is MTPLX's own memory plan for
   this pack on 16 GB. Coding agents compact often at this size; see
@@ -137,7 +137,7 @@ What MTPLX 2.12.0 does, from its catalog source:
 - On M1/M2 its BF16 tensors run without native BF16 support, so **expect it to
   be slower than on M3+**. The size of that slowdown has not been measured by
   anyone. On a MacBook Air M2 16 GB it installs, serves and answers pi, at
-  ~55 tok/s prefill and ~5 tok/s decode ([report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md)); with no
+  ~55 tok/s prefill and ~5 tok/s decode ([report](../../../../../../../docs/20260924-mimo-9b-m2-16gb.md)); with no
   M3 figure to compare, how much of that is the missing BF16 is unknown.
 
 ## Usage
@@ -266,7 +266,7 @@ Binds `127.0.0.1` with `--no-auth`, which MTPLX applies to loopback binds only.
 Measured on a **MacBook Air M2 16 GB** (M2, 10-core GPU, macOS 26.6.2, MTPLX
 2.12.0, pi 0.86.0), one pi session, `create a fibonacci function in python`.
 Prefill is derived: total time minus output ÷ decode rate, over the tokens pi
-did not reuse from cache ([how, and the rest of the data](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md)).
+did not reuse from cache ([how, and the rest of the data](../../../../../../../docs/20260924-mimo-9b-m2-16gb.md)).
 
 | # | prompt | cached | prefilled | prefill tok/s | output | decode tok/s | total s |
 |---|---:|---:|---:|---:|---:|---:|---:|

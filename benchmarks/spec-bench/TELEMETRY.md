@@ -19,7 +19,7 @@ stack).
 | `run.json` | yes | the run's configuration, written at each start (the previous one is kept in `run-history.jsonl`) |
 | `metrics.json` | yes | one record per story (the fields below) |
 | `run-history.jsonl` | yes | every earlier `run.json`, one line per start: run.sh appends the old one before it writes the new, so a restart never loses what an earlier start ran (`provenance.py` reads it) |
-| `run-status.json` | yes | the run's current state |
+| `run-status.json` | yes | the run's current state, and `host`: the machine's hardware (`host-desc.sh`), never its hostname |
 | `progress.json`, `current_story`, `control/` | no (git-ignored) | live state of the current story, for dbench and watchers |
 | `summary.md` | yes | the report (`report.py`), ending with *How it happened* (`history.py`): each story's commits and source files changed, how many of an earlier story's held-out tests each story broke or fixed (counts only; the tests and their errors are in the git-ignored `summary-detail.md`), and *Interruptions and dead time*: every machine freeze, harness crash or restart inside a story, how long it was down, the cause logged in `interventions.md`, and each story's active agent time across all its attempts |
 | `workspace-git-log.txt` | yes | the agent's commit history |
@@ -238,7 +238,8 @@ suite starts or while it waits for one (`waitPortFree`).
 `finalize.py` ends every run: it bundles the workspace, re-scores its final commit (`rescore.py --final`) on a clean
 install, and records the result as the score of record unless the re-score is spoiled or flagged.
 
-**`rescore/<version>/rescore.json`**: `pack_version`, `harness_commit`, `host`, `held_out_workers`, `host_limits`,
+**`rescore/<version>/rescore.json`**: `pack_version`, `harness_commit`, `host` (the scorer's hardware, as `run.json` names a
+machine; never its hostname: records written before 1 Oct 2026 carried the hostname and were rewritten), `held_out_workers`, `host_limits`,
 `finished_at`, `environment` (as above, for the scorer), `passing_sample` (`fraction`, `min`: the rule below), and
 `results`, one per checkpoint: `story`, `passed`, `total`, `fallbacks`, `scores` (each scoring's passed count),
 `flaky` (tests whose result changed between scorings), `flaky_failing` (of those, failed the first time),
@@ -270,13 +271,13 @@ aside in `rescore-spoiled/` and the run stays unscored, its live score shown in 
 
 ## Coverage by machine
 
-| | tritus (Strix Halo, llama.cpp, Vulkan) | gruntus (RTX 4090, llama.cpp) | quintus (Mac, MTPLX) |
+| | Strix Halo (llama.cpp, Vulkan) | RTX 4090 (llama.cpp) | M5 Max (Mac, MTPLX) |
 |---|---|---|---|
 | agent, gate, accept, conditions | all runs | all runs | all runs |
 | `time_split.model` | canvas-vk-01 from story 7 (dbench job canvas-vk-01g, harness 5b17d48, 26 Sep 08:45 UTC); stories 1–5 have none | canvas-pi-04 and later jobs; canvas-pi-03 can be backfilled (see below) | no: `requests` instead |
 | `time_split` tools and compaction | as above | as above | canvas-pi-03 (harness 61ac40e) and later |
 | `conditions.gpu` | as above, from sysfs | as above, from `nvidia-smi` | no (needs `powermetrics`, which needs root) |
-| lossless conversation log, every attempt counted, per-story `provenance` | runs started on the harness that adds them (30 Sep 2026) and later; earlier runs after `backfill_timing.py` (the log rebuild needs the machine's full logs) | as tritus | as tritus |
+| lossless conversation log, every attempt counted, per-story `provenance` | runs started on the harness that adds them (30 Sep 2026) and later; earlier runs after `backfill_timing.py` (the log rebuild needs the machine's full logs) | as Strix Halo | as Strix Halo |
 
 A server log without a start marker (before 0ef8480) can still be read by prepending a marker with
 the server's start time, which is the log file's creation time (`stat -c %W server.log`).
@@ -288,7 +289,7 @@ the server's start time, which is the log file's creation time (`stat -c %W serv
 - **MTP acceptance by draft position**: llama.cpp prints it only at trace verbosity. This decides
   whether draft depth 4 beats 3.
 - **CPU load and memory bandwidth**, which compete with the GPU on unified memory.
-- **Energy**: 30 s power samples are too coarse to integrate, and gruntus's driver has no energy
+- **Energy**: 30 s power samples are too coarse to integrate, and the RTX 4090 machine's driver has no energy
   counter.
 - **Power comparability**: the 4090 reports board power; whether amdgpu's `power1_average` on Strix
   Halo is the GPU alone or the whole package is unverified. Compare throttling, not watts, across

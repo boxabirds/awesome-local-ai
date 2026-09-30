@@ -7,7 +7,7 @@ A reference build of the Vidi spec's **canvas scope**: stories 1–5 and 7–12,
 Setup:
 - **Agents:** one fresh Opus 5.5 subagent per story, in scope order. Each got **the same rendered story prompt as the benchmark agents**, produced by the harness's own template code (`prompts/`), plus a short preamble describing its environment.
 - **Workspace:** it started from the same seed the harness uses, `README.md` plus a read-only copy of `spec/` in a fresh git repo. It lived outside this repository.
-- **Where commands ran:** code was edited on a Mac. Every npm, build, test and server command ran on a Linux build machine (gruntus: Ubuntu 22.04, Node 24) through a sync-and-run wrapper.
+- **Where commands ran:** code was edited on a Mac. Every npm, build, test and server command ran on a Linux build machine (the RTX 4090 machine: Ubuntu 22.04, Node 24) through a sync-and-run wrapper.
 - **Scoring:** the held-out acceptance suite (`benchmarks/vidi/acceptance`) ran once at the end, against all 11 stories, with `harness/gates.py accept`. That is the same scorer the benchmark runs use.
 
 How it differs from a benchmark run:

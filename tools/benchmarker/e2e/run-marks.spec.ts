@@ -83,7 +83,7 @@ test.describe("invalid: left out of every figure", () => {
   test("overview: a running invalid run is struck through on its machine's now line", async ({ page }) => {
     await patchState(page, (s) => { rowOf(s, "v2-r1").invalid = { reason: "test", since: "" }; });
     await page.goto("/");
-    const link = page.locator('[data-page="overview"] [data-section="now"] tr[data-machine="gruntus"] a.run-link');
+    const link = page.locator('[data-page="overview"] [data-section="now"] tr[data-machine="node-a"] a.run-link');
     await expect(link).toHaveAttribute("data-invalid", "true");
     expect(await strike(page, link.locator("b"))).toContain("line-through");
     expect(await strike(page, link.locator(".stack-label"))).toContain("line-through");
@@ -174,7 +174,7 @@ test.describe("invalid: left out of every figure", () => {
   });
 
   test("machine page: its history row is struck through, INVALID where the score would be", async ({ page }) => {
-    await page.goto("/#/m/gruntus");
+    await page.goto("/#/m/node-a");
     const r = page.locator('[data-page="machine"] [data-section="history"] tr[data-run="v2-r8"]');
     await expect(r).toHaveAttribute("data-invalid", "true");
     expect(await strike(page, r.locator("a.run-link b"))).toContain("line-through");
@@ -182,7 +182,7 @@ test.describe("invalid: left out of every figure", () => {
   });
 
   test("keyboard: the invalid tag takes focus and shows the reason", async ({ page }) => {
-    await page.goto("/#/m/gruntus");
+    await page.goto("/#/m/node-a");
     await page.locator('[data-page="machine"] tr[data-run="v2-r8"] .invalid-tag').focus();
     await expect(tip(page)).toContainText(REASON);
   });
@@ -198,7 +198,7 @@ test.describe("intervened: marked, and still counted", () => {
     await m.hover();
     await expect(tip(page)).toContainText("Operator interventions (4):");
     await expect(tip(page)).toContainText("2026-09-30 08:10 UTC · story 1: interrupted a tool call silent for 600s (killed processes under the workspace) (2 times)");
-    await expect(tip(page)).toContainText("2026-09-30 09:00 UTC · the run: gruntus rebooted by the operator");
+    await expect(tip(page)).toContainText("2026-09-30 09:00 UTC · the run: node-a rebooted by the operator");
     await expect(tip(page)).toContainText("2026-09-30 10:30 UTC · story 2: story ended by the operator at its cap");
   });
 
@@ -243,7 +243,7 @@ test.describe("intervened: marked, and still counted", () => {
   });
 
   test("machine page: a mark on the history row of a run with interventions; none on the others", async ({ page }) => {
-    await page.goto("/#/m/gruntus");
+    await page.goto("/#/m/node-a");
     const h = page.locator('[data-page="machine"] [data-section="history"]');
     await expect(h.locator('tr[data-run="v2-r8"] .intervened')).toHaveAttribute("data-intervened", "4");
     await expect(h.locator(".intervened")).toHaveCount(1);
@@ -255,7 +255,7 @@ test.describe("intervened: marked, and still counted", () => {
   });
 
   test("a valid run with interventions stays in every figure: ranking, KPIs, median, flags; and is marked", async ({ page }) => {
-    const iv: Intervention[] = [{ at: Date.parse("2026-09-30T06:00:00Z") / 1000, story: "2", text: "gruntus froze; restarted by the operator" }];
+    const iv: Intervention[] = [{ at: Date.parse("2026-09-30T06:00:00Z") / 1000, story: "2", text: "node-a froze; restarted by the operator" }];
     await patchState(page, (s) => { rowOf(s, "v2-r5").interventions = iv; });
     await page.goto("/");
     await expect(page.getByRole("table", { name: "Combinations" }).locator(`tr[data-stack="${SWIFT}"] td.score`)).toContainText("63 (58–68) n=3");
@@ -291,7 +291,7 @@ test.describe("intervened: marked, and still counted", () => {
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("at 1000 px", () => {
   test.use({ viewport: { width: NARROW, height: 900 } });
-  for (const [name, url] of [["run page", runUrl("v2-r8")], ["story-run page", storyRunUrl("v2-r8", "1")], ["machine page", "/#/m/gruntus"],
+  for (const [name, url] of [["run page", runUrl("v2-r8")], ["story-run page", storyRunUrl("v2-r8", "1")], ["machine page", "/#/m/node-a"],
     ["combination page", `/#/vidi/c/${enc(SWIFT)}`], ["story page", "/#/vidi/s/2"]] as const) {
     test(`${name}: the marks fit, nothing overflows`, async ({ page }) => {
       await page.goto(url);

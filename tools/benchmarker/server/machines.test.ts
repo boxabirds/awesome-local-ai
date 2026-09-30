@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { addMachine, parseNodes, renderNodes, restartId, type Commands } from "./machines.ts";
 
-const TOML = `[nodes.gruntus]
-url = "http://gruntus:7717"
+const TOML = `[nodes.node-a]
+url = "http://node-a:7717"
 token = "abc"
 
-[nodes.tritus]
-url = "http://tritus:7717"
+[nodes.node-d]
+url = "http://node-d:7717"
 token = "def"
 `;
 
 describe("nodes.toml", () => {
   it("reads every node's url and token", () => {
     expect(parseNodes(TOML)).toEqual({
-      gruntus: { url: "http://gruntus:7717", token: "abc" },
-      tritus: { url: "http://tritus:7717", token: "def" },
+      "node-a": { url: "http://node-a:7717", token: "abc" },
+      "node-d": { url: "http://node-d:7717", token: "def" },
     });
   });
 

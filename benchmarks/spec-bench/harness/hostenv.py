@@ -29,6 +29,21 @@ NVIDIA_THERMAL_FIELDS = ("clocks_event_reasons.hw_thermal_slowdown,clocks_event_
                          "clocks_throttle_reasons.hw_thermal_slowdown,clocks_throttle_reasons.sw_thermal_slowdown")
 
 
+HOST_DESC_SH = Path(__file__).resolve().parent / "host-desc.sh"
+HOST_DESC_TIMEOUT_S = 30
+
+
+def host_desc(run=subprocess.run) -> str:
+    """This machine as public records name it: its hardware ("<cpu> <ram>GB, <gpu>"), from host-desc.sh, the
+    same line run.sh puts in run.json. Never its hostname (machine_names.py). "" when it can't be read."""
+    try:
+        r = run(["bash", "-c", f'. "{HOST_DESC_SH}"; host_desc'], capture_output=True, text=True,
+                timeout=HOST_DESC_TIMEOUT_S)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
 def bench_home() -> Path:
     """All benchmark state on this machine (hidden from agents): work/, keys/, reference/, logs."""
     return Path(os.environ.get("VIDI_BENCH_HOME", Path.home() / ".vidi-bench")).expanduser().resolve()

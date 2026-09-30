@@ -6,7 +6,7 @@ The [reach analysis](02-reach-analysis.md) found which commands RTK would rewrit
 
 ## Method
 
-1. Copied the final workspace of `canvas-gufo-r1` (tritus, gufo) into a scratch folder, installed its dependencies and made it a git repository so git commands work.
+1. Copied the final workspace of `canvas-gufo-r1` (Strix Halo, gufo) into a scratch folder, installed its dependencies and made it a git repository so git commands work.
 2. [`scripts/replay.py`](scripts/replay.py) took the shell commands the agent actually ran in that run, kept only read-only ones (`grep`, `sed -n`, `ls`, `find`, `cat`, `head`, `tail`, `wc`, git read commands, unit and component test runs), dropped anything that writes, deletes or starts a server, and picked 150 at random from those RTK rewrites. Each ran twice in the workspace: as recorded, and as RTK rewrites it.
 3. [`scripts/analyse_replay.py`](scripts/analyse_replay.py) compared output sizes, checked that every line number a `grep -n` found was still in RTK's output, and checked exit statuses.
 4. Separately, the test runners were run with a passing suite and again with one assertion deliberately broken, to see whether the failure survives.

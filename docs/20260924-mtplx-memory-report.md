@@ -149,7 +149,7 @@ The timestamps come from the harness's 2-second power collector (`tools/power-co
 
 ## 6. What the 2.12.0 source and the logs show about freeze 2 (26 Sep)
 
-Read from the 2.12.0 sdist on PyPI, quintus's request log (`~/.mtplx/logs/request-log-18010.jsonl`)
+Read from the 2.12.0 sdist on PyPI, the M5 Max's request log (`~/.mtplx/logs/request-log-18010.jsonl`)
 and the server's startup record. Measured unless marked as a hypothesis.
 
 **The limits this Mac ran with** (server startup record, `metal_memory_caps` and `memory_plan`):
@@ -200,7 +200,7 @@ ceiling itself. Your own 2.12.0 speed measurements on the same M5 Max 128 GB rai
 - The in-flight system guard (issue #516) samples `kern.memorystatus_level` every 2 s once below its
   shed floor. A freeze within about 5 s of the request starting leaves it one or two samples.
 
-**The machine around it** (2-second memory recorder started on quintus at 09:27 UTC, after the
+**The machine around it** (2-second memory recorder started on the M5 Max at 09:27 UTC, after the
 restart, with the run at a small context): `kern.memorystatus_level` 27–28%, 3.0–3.7 GiB of pages
 free, 87.6–88.0 GiB wired system-wide, 3.7 GiB compressed, no swap. So at an ordinary moment
 about 88 of the 128 GiB cannot be paged, and the compaction prefill adds to that.
@@ -312,7 +312,7 @@ asks for a large block of new memory all at once.
 
 The memory plan leaves 0 bytes of headroom. The guards also forgive process memory beyond the
 limit, up to a "host allowance" (`_host_memory_allowance_bytes`): `max(8 GiB, RAM − 16 GiB system
-reserve − limit)`, which is 16 GiB at the 96 GiB limit. quintus's log showed the server at a
+reserve − limit)`, which is 16 GiB at the 96 GiB limit. the M5 Max's log showed the server at a
 115.5 GB footprint (107.6 GiB) while the allocator counted 92–96 GiB. That overhang sits inside the
 allowance and is never charged, so every guard read it as within budget. It leaves about 20 GiB
 for macOS, pi, the agent's dev servers and its test browsers.
@@ -347,7 +347,7 @@ and the snapshot each turn restores by `clone`. The new request must be prefille
   | 11:52 | 12% | |
 
   Each came from the 2-second memory recorder, and each landed closer to the floor.
-- **The same workload on llama.cpp avoids both.** tritus (Strix Halo, llama.cpp) runs the same
+- **The same workload on llama.cpp avoids both.** The Strix Halo box (llama.cpp) runs the same
   model family, the same pi client and the same compaction threshold. It has had no freezes and no
   failed compactions.
 - **A lower limit changes the outcome at the same moment.** At `MTPLX_MEMORY_LIMIT_BYTES=90G`, the

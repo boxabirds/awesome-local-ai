@@ -76,6 +76,26 @@ else
 fi
 
 echo
+echo "no local machine names in tracked files"
+# A machine is named here by its hardware ("the Strix Halo box"); its own name is personal setup. The names live
+# only in the local, git-ignored dbench node list (~/.config/dbench/nodes.toml), so they are read from there and
+# never written into this repo (machine_names.py; the harness refuses them in its commits the same way). The
+# agent's own work under a run's workspace/ is its own. Without a node list there is nothing to look for.
+if ! command -v uv >/dev/null 2>&1; then
+  echo "  skip  no uv to run the check"
+else
+  out="$(uv run --quiet --python '>=3.11' "$REPO_ROOT/benchmarks/spec-bench/harness/machine_names.py" tracked "$REPO_ROOT")"
+  rc=$?
+  if [[ "$out" == skip:* ]]; then
+    echo "  $out"
+  elif (( rc == 0 )); then
+    _pass "no tracked file names a machine in the local node list"
+  else
+    _fail "no tracked file names a machine in the local node list" "none" "$(printf '%s' "$out" | tr '\n' ' ')"
+  fi
+fi
+
+echo
 echo "no stray credentials"
 if git ls-files -z | xargs -0 grep -lE '(sk-[A-Za-z0-9]{20,}|BEGIN [A-Z ]*PRIVATE KEY|ghp_[A-Za-z0-9]{20,})' 2>/dev/null | grep -q .; then
   _fail "no credential-shaped strings" "none" "found"

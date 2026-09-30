@@ -1,8 +1,8 @@
 # Strata
 
 **Status:** gated (29 Sep 2026).
-**Machine:** gruntus (RTX 4090, Ubuntu or Windows). Would give gruntus a Flash-Next stack, the same model
-family as tritus and quintus, for a hardware comparison we don't have.
+**Machine:** the RTX 4090 machine (Ubuntu or Windows). Would give it a Flash-Next stack, the same model
+family as the Strix Halo box and the M5 Max, for a hardware comparison we don't have.
 
 ## What it is
 
@@ -18,7 +18,7 @@ removed) and UkisAI's Swift 1.5 for Flash-Next, at Q2_0, IQ2_XS, IQ3_XXS or IQ3_
    support over the API is not confirmed.
 2. Cross-turn caching: the same multi-turn test past 120k tokens as [TensorFold](tensorfold.md). Its own
    figures give 4.5 minutes to read a 262k prompt, so re-reading every turn would be a blocker.
-3. Memory: it needs "shard 1 + about 10 GB" of RAM (it loads 35-55 GB); gruntus has 62 GB and a run also
+3. Memory: it needs "shard 1 + about 10 GB" of RAM (it loads 35-55 GB); the RTX 4090 machine has 62 GB and a run also
    puts the agent, browsers and test servers there. Check the memory guard's headroom on a real story.
 4. Then a one-story smoke test.
 
@@ -27,7 +27,7 @@ removed) and UkisAI's Swift 1.5 for Flash-Next, at Q2_0, IQ2_XS, IQ3_XXS or IQ3_
 1- to 3-bit quantisation (GSQ-RCO) against our IQ4_XS and mixed 4/8-bit Flash-Next runs; the Coder variant
 is effectively a different model. Start with the full model at IQ3_S.
 
-**Last checked:** 29 Sep 2026. **Recheck when:** gruntus has a free Ubuntu slot after the v2 runs.
+**Last checked:** 29 Sep 2026. **Recheck when:** the RTX 4090 machine has a free Ubuntu slot after the v2 runs.
 
 Sources: [Strata](https://github.com/Niko1221/Strata) ·
 [DETAILS.md](https://github.com/Niko1221/Strata/blob/main/docs/DETAILS.md) ·

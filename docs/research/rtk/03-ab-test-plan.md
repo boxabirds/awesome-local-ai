@@ -7,7 +7,7 @@ Runs of the same stack vary a lot on their own (Qwen3.8-Swift scored 68 and 57 o
 ## Design
 
 - **Task:** a short, self-grading story. The planned smoke-test story (a small Rust port) suits this best, since cargo output is exactly what RTK compresses. Until it exists, canvas stories 1–2.
-- **Machine:** one, the fastest free one (gruntus, or tritus between gufo runs).
+- **Machine:** one, the fastest free one (the RTX 4090 machine, or the Strix Halo box between gufo runs).
 - **Arms:** A as today. B with RTK's hook installed for pi (`rtk init -g --agent pi`), rewriting the agent's shell commands without telling it, so the prompt is identical in both arms.
 - **Repeats:** three pairs, run alternately A B A B A B, so drift over the day (room temperature, other load) hits both arms equally.
 - **Recorded per run:** held-out score, agent time, turns, compactions, tool-output tokens, and signs of hidden information: re-running a command, or asking for fuller output (`cat`, `--verbose`, re-running tests).

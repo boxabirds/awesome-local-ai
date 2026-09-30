@@ -254,7 +254,7 @@ def test_record_story_rebases_when_remote_moved(tmp_path):
 
 
 def test_record_story_survives_a_conflicting_remote_and_pushes_the_backlog_later(tmp_path):
-    """The remote changed this run's own files (as the 24GB -> nvidia4090 rename did to gruntus's
+    """The remote changed this run's own files (as the 24GB -> nvidia4090 rename did to the RTX 4090 machine's
     canvas-pi-02): the pull-and-rebase conflicts. The checkout must not be left mid-rebase, each
     story must still be committed locally and reported unpushed, and once the remote no longer
     conflicts the next story pushes the backlog."""
@@ -405,7 +405,7 @@ def test_kill_strays_catches_processes_by_working_directory(tmp_path):
 
 
 def test_hang_guard_kills_a_tool_child_that_left_the_workspace(tmp_path):
-    """canvas-mlx-02 story 7 (quintus): the agent ran `cd <ws> && ...; find / ...`. find changed
+    """canvas-mlx-02 story 7 (the M5 Max): the agent ran `cd <ws> && ...; find / ...`. find changed
     directory as it walked the disk and has no workspace path in its command line, so killing only
     matching processes left it running, holding the tool's output pipe, and the story froze for 3 h
     through 367 "interrupts". The guard must kill the tool's whole process group."""
@@ -439,7 +439,7 @@ def test_hang_guard_kills_a_tool_child_that_left_the_workspace(tmp_path):
 def test_hang_guard_is_not_fooled_by_a_workspace_path_that_names_a_client(tmp_path):
     """Combination directories are named after their client (mlxserve-opencode), so the workspace
     path itself contains "opencode". Every tool process carrying the path looked like the agent and
-    was spared: the guard on quintus never killed anything."""
+    was spared: the guard on the M5 Max never killed anything."""
     import json as _json, os, subprocess, time
     from drive import tool_hang_check
     ws = tmp_path / "qwen__flash-next__mlxserve-opencode__canvas" / "workspace"
@@ -1128,6 +1128,6 @@ def test_memory_pressure_reaps_orphans_before_the_guard_stops_the_story(monkeypa
 
 
 def test_sandbox_hides_the_file_share_that_held_a_clone_of_this_repo():
-    # 25 Sep 2026: 27B canvas-pi-04 read the Opus reference build through a clone at ~/sambashare/tools on gruntus.
+    # 25 Sep 2026: 27B canvas-pi-04 read the Opus reference build through a clone at ~/sambashare/tools on the RTX 4090 machine.
     from drive import SANDBOX_DENY
     assert Path.home() / "sambashare" in SANDBOX_DENY

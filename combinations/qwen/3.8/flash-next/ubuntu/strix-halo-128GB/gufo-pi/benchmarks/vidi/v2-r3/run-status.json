@@ -2,5 +2,5 @@
   "state": "started",
   "reason": "harness e177726a, client pi, model qwen3.8-flash-next-gufo",
   "at": "2026-09-30T15:23:36Z",
-  "host": "tritus"
+  "host": "AMD RYZEN AI MAX+ 395 w/ Radeon 8060S 122GB"
 }

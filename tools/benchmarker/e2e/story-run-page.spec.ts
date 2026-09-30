@@ -46,7 +46,7 @@ test.describe("header", () => {
     await expect(crumbs.locator('[aria-current="page"]')).toHaveText("story 2");
     await expect(section(page, "header").locator("h1")).toHaveText("Story 2 · Sticky notes");
     await expect(section(page, "header").locator(".of-run a.run-link")).toHaveText("3.8-swift-1.5/27b llamacpp v2-r5");
-    await expect(section(page, "header").locator(".of-run")).toContainText("on gruntus");
+    await expect(section(page, "header").locator(".of-run")).toContainText("on node-a");
   });
 
   test("DONE, this story's held-out result and the whole suite so far, both marked live; agent time", async ({ page }) => {

@@ -332,6 +332,19 @@ def progress_line(r: dict) -> str:
             f"fallbacks {r['fallbacks']}, {r['seconds']}s{'  FAULT ' + r['harness_fault'] if r['harness_fault'] else ''}")
 
 
+
+def rescore_record(version: str, workers: int, host_limits: dict, environment: dict, results: list[dict]) -> dict:
+    """rescore.json, which is public: the machine is named by its hardware (hostenv.host_desc), never its hostname."""
+    import hostenv
+    return {
+        "pack_version": version, "harness_commit": subprocess.run(
+            ["git", "-C", str(HARNESS), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip(),
+        "host": hostenv.host_desc(), "held_out_workers": workers, "host_limits": host_limits,
+        "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "environment": environment,
+        "passing_sample": {"fraction": PASSING_SAMPLE_FRACTION, "min": PASSING_SAMPLE_MIN},
+        "results": sorted(results, key=lambda r: r["story"])}
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run", type=Path)
@@ -384,13 +397,8 @@ def main() -> int:
         shutil.rmtree(tmp, ignore_errors=True)
     import heldout, scoring_env
     heldout.save_metrics(out, heldout.load_metrics(run))   # per_story reads the processed order from here
-    (out / "rescore.json").write_text(json.dumps({
-        "pack_version": version, "harness_commit": subprocess.run(
-            ["git", "-C", str(HARNESS), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip(),
-        "host": os.uname().nodename, "held_out_workers": workers, "host_limits": host, "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "environment": scoring_env.environment(drive.PK.acceptance, workers),
-        "passing_sample": {"fraction": PASSING_SAMPLE_FRACTION, "min": PASSING_SAMPLE_MIN},
-        "results": sorted(results, key=lambda r: r["story"])}, indent=2))
+    (out / "rescore.json").write_text(json.dumps(rescore_record(
+        version, workers, host, scoring_env.environment(drive.PK.acceptance, workers), results), indent=2))
     import history
     (out / "per-story.md").write_text(history.render_per_story(out))
     print(history.render_per_story(out))

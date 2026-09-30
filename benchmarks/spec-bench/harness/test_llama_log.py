@@ -1,5 +1,5 @@
 """llama_log.py: each request's prefill, decode and MTP draft figures, read from llama-server's own
-log (no proxy in the request path). The lines below are tritus's, verbatim (install smoke test)."""
+log (no proxy in the request path). The lines below are the Strix Halo box's, verbatim (install smoke test)."""
 import llama_log
 
 SMOKE = """\

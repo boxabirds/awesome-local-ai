@@ -33,7 +33,7 @@ printf 'ab' > "$W/sub/model.gguf"
 assert_eq "a short file -> missing, naming it" "missing sub/model.gguf (2 of 5 bytes)" "$(_gufo_weights_state "$W")"
 
 echo
-echo "smoke test: what gufo actually answers (fields as seen on tritus, 27 Sep 2026)"
+echo "smoke test: what gufo actually answers (fields as seen on the Strix Halo box, 27 Sep 2026)"
 RESP='{"usage":{"completion_tokens":120,"draft_tokens":133,"draft_tokens_accepted":104,"gufo":{"prefill_tokens":25}}}'
 assert_eq "draft counters read from usage" "104 133" "$(_gufo_draft_counts <<< "$RESP")"
 assert_eq "no counters -> nothing" "" "$(_gufo_draft_counts <<< '{"usage":{"completion_tokens":5}}')"

@@ -4,7 +4,7 @@
 # by gufo (github.com/gufo-org/gufo) from its runtime image, driven by pi.
 #
 # The sibling llamacpp-pi combination runs the same model with llama.cpp on
-# Vulkan. Measured on tritus (27 Sep 2026, benchmarks/gufo-eval test A, same
+# Vulkan. Measured on the Strix Halo box (27 Sep 2026, benchmarks/gufo-eval test A, same
 # UD-Q4_K_XL weights and byte-identical prompts), gufo reads a prompt 4-7x
 # faster: 1,266 vs 302 tok/s at 32k, 1,228 vs 172 at 120k. A per-operation
 # profile (28 Sep) puts most of llama.cpp's prefill time in its weight matrix
@@ -53,7 +53,7 @@ GUFO_BASE_ARGS=""
 
 # ---- weights -------------------------------------------------------------
 # UD-Q4_K_XL is the only quant gufo supports (the llamacpp-pi runs use
-# UD-IQ4_XS). Sizes are the files' byte counts at this revision, from tritus.
+# UD-IQ4_XS). Sizes are the files' byte counts at this revision, from the Strix Halo box.
 MODEL_REPO="unsloth/Qwen3.8-Flash-Next-GGUF"
 MODEL_REVISION="38bb39ee97821de2c9009abb7e93950eec396e66"
 MODEL_WEIGHTS_DIR="qwen3.8-flash-next"

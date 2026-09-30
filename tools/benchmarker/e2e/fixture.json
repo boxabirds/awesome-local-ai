@@ -1309,7 +1309,7 @@
         {
           "at": 1790758800.0,
           "story": null,
-          "text": "gruntus rebooted by the operator; the run resumed at story 2"
+          "text": "node-a rebooted by the operator; the run resumed at story 2"
         },
         {
           "at": 1790764200.0,
@@ -1320,7 +1320,7 @@
     }
   ],
   "jobs": {
-    "gruntus": [
+    "node-a": [
       {
         "id": "vidi-v2b-swift15-r1",
         "spec": {
@@ -1519,7 +1519,7 @@
         "updated_at": 1790690000
       }
     ],
-    "quintus": [
+    "node-c": [
       {
         "id": "vidi-v2b-mlx-r1",
         "spec": {
@@ -1548,8 +1548,8 @@
         "updated_at": 1790715296
       }
     ],
-    "tritus": [],
-    "macbook-air": [
+    "node-d": [],
+    "node-b": [
       {
         "id": "vidi-v2-opus-r1",
         "spec": {
@@ -1611,8 +1611,8 @@
     }
   },
   "machines": {
-    "gruntus": {
-      "hostname": "gruntus",
+    "node-a": {
+      "hostname": "node-a",
       "os": "linux",
       "cpu_brand": "13th Gen Intel(R) Core(TM) i9-13900F",
       "cpus": 32,
@@ -1638,8 +1638,8 @@
         }
       ]
     },
-    "quintus": {
-      "hostname": "Quintus",
+    "node-c": {
+      "hostname": "Node-C",
       "os": "macos",
       "cpu_brand": "Apple M5 Max",
       "cpus": 18,
@@ -1661,8 +1661,8 @@
         }
       ]
     },
-    "tritus": {
-      "hostname": "tritus",
+    "node-d": {
+      "hostname": "node-d",
       "os": "linux",
       "cpu_brand": "AMD RYZEN AI MAX+ 395",
       "cpus": 32,
@@ -1672,8 +1672,8 @@
       "current_job": null,
       "combinations": []
     },
-    "macbook-air": {
-      "hostname": "Julians-MacBook-Air.local",
+    "node-b": {
+      "hostname": "laptop-b.local",
       "os": "macos",
       "cpu_brand": "Apple M2",
       "cpus": 8,

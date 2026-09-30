@@ -454,7 +454,7 @@ describe("held-out: live progress and the score of record", () => {
 
 // ---------------------------------------------------------------------------------------------------------------
 describe("jobs", () => {
-  const job = (id: string, status: string, reason = "") => ({ id, node: "gruntus", status, submittedAt: 1, updatedAt: 2, reason });
+  const job = (id: string, status: string, reason = "") => ({ id, node: "node-a", status, submittedAt: 1, updatedAt: 2, reason });
 
   it("no jobs (a run from the record alone): none", () => expect(jobsView(row({ jobs: [] }))).toEqual([]));
 

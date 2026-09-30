@@ -1,5 +1,5 @@
 """host-desc.sh: run.sh runs under `set -euo pipefail`, so describing the host must never exit the run.
-First seen on tritus (AMD Strix Halo, no nvidia-smi): the NVIDIA-only line exited 127 right after the
+First seen on the Strix Halo box (AMD, no nvidia-smi): the NVIDIA-only line exited 127 right after the
 model server came up, and dbench restarted the run in a loop."""
 import os
 import subprocess

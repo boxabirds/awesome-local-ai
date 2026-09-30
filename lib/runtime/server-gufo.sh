@@ -150,7 +150,7 @@ fi
 
 # ---- pre-flight: another model already resident --------------------------
 # Unified memory: two ~90 GB models do not fit in 128 GB. On 27 Sep 2026 a
-# llama-server left running beside a newly started one ran tritus out of
+# llama-server left running beside a newly started one ran the Strix Halo box out of
 # memory and the kernel killed it. Refuse rather than race the OOM killer.
 # Process NAMES, exactly: matching command lines (pgrep -f) would also catch a
 # shell or a tail whose arguments merely mention llama-server.

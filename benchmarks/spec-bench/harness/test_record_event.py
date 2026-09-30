@@ -169,3 +169,34 @@ def test_a_reference_stack_puts_each_packs_runs_under_that_pack(tmp_path):
                         "--run-id", "r1", "--client", "claude"], env=env, capture_output=True, text=True)
     assert (repo / "benchmarks/reference/todoodle/fake-stack/r1").is_dir(), r.stdout[-1500:] + r.stderr[-1500:]
     assert not (repo / "benchmarks/reference/vidi/fake-stack/r1").exists()
+
+
+def test_the_status_names_the_machine_by_its_hardware_never_its_hostname(tmp_path, monkeypatch):
+    """run-status.json is public: the machine is its hardware (host-desc.sh), as in run.json."""
+    import hostenv
+    import record_event
+    import socket
+    for k, v in IDENTITY.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(socket, "gethostname", lambda: "made-up-hostname")
+    monkeypatch.setattr(hostenv, "host_desc", lambda **kw: "Made-up CPU 64GB, Made-up GPU 24 GB")
+    repo, _ = repo_with_remote(tmp_path)
+    run = repo / "combos" / "x" / "benchmarks" / "vidi" / "r1"
+    run.mkdir(parents=True)
+    record_event.record(repo, run, "started")
+    text = (run / "run-status.json").read_text()
+    assert json.loads(text)["host"] == "Made-up CPU 64GB, Made-up GPU 24 GB"
+    assert "made-up-hostname" not in text
+
+
+def test_without_a_hardware_description_the_status_names_no_host(tmp_path, monkeypatch):
+    import hostenv
+    import record_event
+    for k, v in IDENTITY.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(hostenv, "host_desc", lambda **kw: "")
+    repo, _ = repo_with_remote(tmp_path)
+    run = repo / "combos" / "x" / "benchmarks" / "vidi" / "r1"
+    run.mkdir(parents=True)
+    record_event.record(repo, run, "stopped", "by hand")
+    assert "host" not in json.loads((run / "run-status.json").read_text())

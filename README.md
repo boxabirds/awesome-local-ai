@@ -76,7 +76,7 @@ half-installing.
 | Qwen3.8-Flash-Next ⁷ | Ubuntu 26.04 | Strix Halo 128GB (Ryzen AI Max+ 395) | llama.cpp *(MTP PR; Vulkan or ROCm)* + pi | 128k | [`install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh`](install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh) | [README](combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/README.md) |
 | Qwen3.8-Flash-Next UD-Q4_K_XL ⁸ | Ubuntu 26.04 | Strix Halo 128GB (Ryzen AI Max+ 395) | gufo *(Podman, ROCm in the image)* + pi | 128k | [`install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-gufo-pi.sh`](install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-gufo-pi.sh) | [README](combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/README.md) |
 | Ternary Bonsai 2 27B ² | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp *(fork)* + OpenCode | 128k | [`install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
-| MiMo-V2.6-Qwen-9B ³ | macOS 26 | 16GB Apple silicon, M3+ ⁴ | MTPLX + OpenCode | **20k**: too small for agentic coding ([tested](docs/20260924-mimo-9b-macbook-air-m2-16gb.md)) | [`install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh`](install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh) | [README](combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md) |
+| MiMo-V2.6-Qwen-9B ³ | macOS 26 | 16GB Apple silicon, M3+ ⁴ | MTPLX + OpenCode | **20k**: too small for agentic coding ([tested](docs/20260924-mimo-9b-m2-16gb.md)) | [`install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh`](install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh) | [README](combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md) |
 | Qwen3.8-27B EXL3 3.0bpw ⁹ | Ubuntu (Docker) | RTX 3090 (24GB, sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh`](install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/nvidia3090/sglang-opencode/README.md) |
 | Qwen3.6-35B-A3B EXL3 3.0bpw ⁹ | Ubuntu (Docker) | RTX 3090 (24GB, sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh`](install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh) | [README](combinations/qwen/3.6/35b-a3b/ubuntu/nvidia3090/sglang-opencode/README.md) |
 
@@ -96,7 +96,7 @@ machine, but nobody has run it on one; every line that depends on that claim
 says so. See its [benchmarks README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/benchmarks/README.md).
 
 ³ **16 GB is not enough for agentic coding. Tested on a MacBook Air M2 16 GB,
-the MiMo row is fundamentally unworkable** ([report](docs/20260924-mimo-9b-macbook-air-m2-16gb.md)). The context window
+the MiMo row is fundamentally unworkable** ([report](docs/20260924-mimo-9b-m2-16gb.md)). The context window
 is **20,480 tokens**, which MTPLX's memory plan sets from the 16 GB (8.1 GiB of
 weights and 3.25 GiB of runtime leave 0.67 GiB for KV); the model supports
 262,144, and a faster chip gets the same window. With pi's reply reserve that
@@ -182,7 +182,7 @@ one combination and is false now — so it is marked.
 
 - **A context window tuned to its memory tier** — see the Context column: 128k
   on most rows, 20k on the 16 GB row (all a 16 GB Mac can hold next to the
-  weights, and [too small for agentic coding](docs/20260924-mimo-9b-macbook-air-m2-16gb.md)), 262k on the SGLang rows (the
+  weights, and [too small for agentic coding](docs/20260924-mimo-9b-m2-16gb.md)), 262k on the SGLang rows (the
   recipe author's bare-card setup). What each window costs differs per row.
 - **An OpenAI-compatible endpoint with tool calling**, and OpenCode already
   pointed at it.
@@ -319,11 +319,11 @@ its own from another run's code ("known-good mode"), as a separately labelled di
 
 ## The bench machines and their tools
 
-| Machine | Hardware | Runs |
-|---|---|---|
-| tritus | Minisforum MS-S1 MAX: Strix Halo (Ryzen AI Max+ 395), 128 GB, Ubuntu | llama.cpp (Vulkan) and gufo, Qwen3.8 Flash-Next |
-| gruntus | RTX 4090 (24 GB), Ubuntu, and Windows 11 on the same disk | llama.cpp (CUDA): Qwen3.8 27B, Swift 1.0 and 1.5; Windows-only engines |
-| quintus | Apple M5 Max, 128 GB, macOS | mlx-serve and llama.cpp (Metal), Qwen3.8 Flash-Next |
+| Hardware | Runs |
+|---|---|
+| Minisforum MS-S1 MAX: Strix Halo (Ryzen AI Max+ 395), 128 GB, Ubuntu | llama.cpp (Vulkan) and gufo, Qwen3.8 Flash-Next |
+| i9-13900F, 64 GB, RTX 4090 (24 GB), Ubuntu, and Windows 11 on the same disk | llama.cpp (CUDA): Qwen3.8 27B, Swift 1.0 and 1.5; Windows-only engines |
+| Apple M5 Max, 128 GB, macOS | mlx-serve and llama.cpp (Metal), Qwen3.8 Flash-Next |
 
 - **[tools/dbench/](tools/dbench/)** runs benchmark jobs on any number of machines, driven from any
   machine: `dbench serve` on each box keeps a queue, restarts and recovers after a reboot; the client

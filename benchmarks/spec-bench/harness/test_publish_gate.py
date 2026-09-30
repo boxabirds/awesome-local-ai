@@ -9,7 +9,9 @@ MECE by what the gate guarantees:
   E. the detail is copied to the private repo, and the resolver finds it here or there
   F. every writer of results goes through the same path: rescore, gates, finalize, backfill
   G. end to end: a whole run through record_story into a git repo, and what was pushed
-Every title here is made up: a real held-out title in this public repo would itself be a leak.
+  H. records written before the gate are made public before they are staged
+  I. the owner's machine names (local node list, hostname) are refused in harness files and the commit message
+Every title and machine name here is made up: a real one in this public repo would itself be a leak.
 Run: uv run --with pytest pytest test_publish_gate.py
 """
 from __future__ import annotations
@@ -25,6 +27,7 @@ import pytest
 import drive
 import heldout
 import history
+import machine_names as mn
 import publicise as pub
 import report
 
@@ -758,3 +761,151 @@ def test_H3_an_old_run_record_is_committed_after_being_made_public(tmp_path):
     write(run / "summary.md", f"- story 1: 2/2 → 1/2; broke 1: “{TITLE}”\n")
     res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
     assert res["committed"] and res["pushed"], res
+
+
+# ---------- I. the owner's machine names: never in a harness-written file, nor in the commit message ----------
+# The names come from the local dbench node list and the machine's hostname, read at run time (machine_names.py);
+# conftest points the node list at a missing file and the hostname at a made-up one, so a test names its own.
+
+NODE = "node-q"                      # a made-up node name
+HOST = "made-up-bench-box"           # a made-up hostname: conftest sets this machine's to HOST + ".local"
+NODES_TOML = f'[nodes.{NODE}]\nurl = "http://{NODE}:7717"\ntoken = "not-a-real-token"\n'
+
+
+@pytest.fixture
+def node_list(tmp_path, monkeypatch):
+    f = write(tmp_path / "nodes.toml", NODES_TOML)
+    monkeypatch.setenv(mn.NODES_ENV, str(f))
+    return f
+
+
+NAMED = {
+    "the run's status": ("run-status.json", json.dumps({"state": "started", "host": NODE})),
+    "metrics": ("metrics.json", json.dumps({"stories": {"1": {"skip": {"by": f"operator ({NODE})"}}}})),
+    "the interventions": ("interventions.md", f"- 2026-09-26T08:57:29Z story 3: {NODE.upper()} froze\n"),
+    "the report": ("summary.md", f"| 3 | 26 Sep | 22 min | machine freeze | {NODE} froze |\n"),
+    "a re-score": (f"rescore/{VERSION}/rescore.json", json.dumps({"host": NODE})),
+    "a results file name in a log": ("bench.tsv", f"# written to 20260925-215328-{NODE}.tsv\n"),
+    "a gzipped record": ("notes.jsonl.gz", gzip.compress(f"on {NODE}".encode())),
+}
+
+
+@pytest.mark.parametrize("where", NAMED)
+def test_I1_a_planted_node_name_stops_the_commit_and_is_named_only_privately(tmp_path, capsys, node_list, where):
+    repo, remote = cloned(tmp_path, "public")
+    run = small_run(repo)
+    rel, content = NAMED[where]
+    write(run / rel, content)
+    before = remote_log(remote)
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
+    assert not res["committed"] and not res["pushed"], res
+    assert [(r["file"], r["why"]) for r in res["refused"]] == [(f"{RUN_REL}/{rel}", heldout.MACHINE_NAME)]
+    assert heldout.digest(NODE) in res["error"]
+    assert NODE not in json.dumps(res).lower()                                      # it goes into metrics.json
+    assert remote_log(remote) == before
+    assert git(repo, "diff", "--cached", "--name-only") == ""
+    assert NODE in (run / pub.PUBLISH_REFUSED).read_text()                         # git-ignored: the operator's own
+    assert NODE in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("planted", [HOST, f"{HOST}.local"])
+def test_I2_the_machines_own_hostname_stops_the_commit_short_or_full(tmp_path, monkeypatch, planted):
+    """No node list at all (conftest): the hostname alone is looked for."""
+    monkeypatch.setattr(mn, "this_hostname", lambda: f"{HOST}.local")
+    repo, _ = cloned(tmp_path, "public")
+    run = small_run(repo)
+    write(run / "run-status.json", json.dumps({"state": "failed", "host": planted}))
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
+    assert not res["committed"] and [r["why"] for r in res["refused"]] == [heldout.MACHINE_NAME], res
+
+
+@pytest.mark.parametrize("rel,content", [
+    ("workspace/src/hosts.ts", f"export const HOST = '{NODE}';"),
+    ("workspace/notes.md", f"I ran uname on {HOST}"),
+    ("stories/01/gate.json", json.dumps({"tail": f"server on {NODE}"})),
+    ("stories/01/agent-events.compact.jsonl.gz", gzip.compress(json.dumps({"text": NODE}).encode() + b"\n")),
+    ("workspace-git-log.txt", f"    fix: works on {NODE}"),
+])
+def test_I3_the_agents_own_work_is_committed_even_when_it_names_the_machine(tmp_path, node_list, rel, content):
+    repo, _ = cloned(tmp_path, "public")
+    run = small_run(repo)
+    write(run / rel, content)
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
+    assert res["committed"] and res["pushed"], res
+
+
+def test_I4_without_a_node_list_a_run_naming_no_hostname_commits(tmp_path):
+    repo, _ = cloned(tmp_path, "public")
+    run = small_run(repo)
+    write(run / "run-status.json", json.dumps({"state": "started", "host": "Apple M5 Max 128GB"}))
+    write(run / "interventions.md", f"- story 3: {NODE} froze\n")        # no list: nothing says it's a name
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
+    assert res["committed"] and res["pushed"], res
+
+
+def test_I5_a_name_in_the_commit_message_stops_the_commit(tmp_path, node_list):
+    repo, remote = cloned(tmp_path, "public")
+    run = small_run(repo)
+    before = remote_log(remote)
+    res = drive.record_story(repo, run, f"vidi some/stack r1: run failed: {NODE} ran out of disk", git=G,
+                             private=tmp_path / "no-private")
+    assert not res["committed"] and [(r["file"], r["why"]) for r in res["refused"]] == [
+        (drive.COMMIT_MESSAGE, heldout.MACHINE_NAME)], res
+    assert NODE not in json.dumps(res) and remote_log(remote) == before
+
+
+def test_I6_a_node_list_that_cannot_be_read_stops_the_commit(tmp_path, monkeypatch):
+    monkeypatch.setenv(mn.NODES_ENV, str(write(tmp_path / "nodes.toml", "[nodes.node-q\n")))
+    repo, _ = cloned(tmp_path, "public")
+    run = small_run(repo)
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
+    assert not res["committed"] and res["refused"][0]["why"].startswith(heldout.CHECK_FAILED), res
+
+
+def test_I7_the_names_are_read_at_each_commit_not_once(tmp_path, monkeypatch):
+    nodes = write(tmp_path / "nodes.toml", "")
+    monkeypatch.setenv(mn.NODES_ENV, str(nodes))
+    repo, _ = cloned(tmp_path, "public")
+    run = small_run(repo)
+    write(run / "interventions.md", f"- story 3: {NODE} froze\n")
+    assert drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")["committed"]
+    nodes.write_text(NODES_TOML)
+    write(run / "interventions.md", f"- story 3: {NODE} froze\n- story 4: {NODE} froze again\n")
+    assert not drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")["committed"]
+
+
+def test_I8_a_generic_hostname_does_not_refuse_the_combination_path(tmp_path, monkeypatch):
+    monkeypatch.setattr(mn, "this_hostname", lambda: "ubuntu")
+    repo, _ = cloned(tmp_path, "public")
+    run = small_run(repo)
+    write(run / "run.json", {"combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi"})
+    res = drive.record_story(repo, run, "vidi qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi r1: story 1 done", git=G,
+                             private=tmp_path / "no-private")
+    assert res["committed"], res
+
+
+def test_I9_held_out_titles_and_machine_names_are_both_reported(tmp_path, node_list):
+    private = private_suite(tmp_path)
+    repo, _ = cloned(tmp_path, "public")
+    run = small_run(repo)
+    write(run / "interventions.md", f"- story 2 on {NODE}: “{TITLE}” failed\n")
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
+    assert sorted(r["why"] for r in res["refused"]) == sorted([heldout.HELD_OUT, heldout.MACHINE_NAME])
+
+
+def test_I10_the_whole_run_names_no_local_machine(recorded):
+    """After a whole run, recorded with conftest's made-up hostname, no pushed file names it."""
+    run_files = [f for f in recorded.public if f.startswith(RUN_REL + "/")]
+    names = mn.local_names(Path("/nonexistent"), mn.this_hostname())
+    assert names and {f: mn.in_file(f, heldout._text(f, recorded.blob(f)), names) for f in run_files
+                      if mn.in_file(f, heldout._text(f, recorded.blob(f)), names)} == {}
+
+
+def test_I11_a_file_named_after_the_machine_is_refused_and_the_refusal_does_not_repeat_the_name(tmp_path, node_list):
+    repo, _ = cloned(tmp_path, "public")
+    run = small_run(repo)
+    write(run / f"backend-ab/20260925-215328-{NODE}.tsv", "# backend-ab on the Strix Halo box\n")
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "no-private")
+    assert not res["committed"] and [r["why"] for r in res["refused"]] == [heldout.MACHINE_NAME], res
+    assert NODE not in json.dumps(res)
+    assert NODE in (run / pub.PUBLISH_REFUSED).read_text()

@@ -10,7 +10,7 @@
 # For each arm and fill level: prefill and decode speed, MTP acceptance, GPU memory, and whether a
 # tool call still comes back as valid JSON. Then, unless --no-kld, the KL divergence of the fork's
 # turbo4 cache against its f16 cache (llama-perplexity), the quality measure the fork's docs ask for.
-# Needs the GPU to itself. Writes turbo-kv/<timestamp>-<host>.tsv next to this script.
+# Needs the GPU to itself. Writes turbo-kv/<timestamp>.tsv next to this script.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../../../../../../../.." && pwd)"
@@ -52,9 +52,11 @@ if pgrep -f "llama-server" >/dev/null; then echo "a llama-server is running; the
 
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"; [[ -n "${SPID:-}" ]] && kill -- "-$SPID" 2>/dev/null' EXIT
 mkdir -p "$HERE/turbo-kv"
-OUT="$HERE/turbo-kv/$(date +%Y%m%d-%H%M%S)-$(hostname -s).tsv"
+# The machine by its hardware (harness host-desc.sh), never its hostname; empty if unavailable.
+hw_desc() { local f="$REPO_ROOT/benchmarks/spec-bench/harness/host-desc.sh"; [[ -f "$f" ]] || return 0; ( . "$f" && host_desc ) 2>/dev/null || true; }
+OUT="$HERE/turbo-kv/$(date +%Y%m%d-%H%M%S).tsv"
 {
-  echo "# turbo-kv $(date -Is) on $(hostname -s); kernel $(uname -r)"
+  echo "# turbo-kv $(date -Is) on $(hw_desc); kernel $(uname -r)"
   echo "# base llama.cpp $(git -C "$ROOT/llama.cpp" rev-parse --short HEAD); fork $(git -C "$FORK_DIR" rev-parse --short HEAD)"
   echo "# gpu clock level: $(cat "$GPU_SYSFS/power_dpm_force_performance_level" 2>/dev/null); power mode: ${POWER_MODE:-not recorded}"
   echo "# MTP depth 4, p-min 0, temperature 0, prompt cache off, thinking off, $DECODE_TOKENS tokens decoded per request"

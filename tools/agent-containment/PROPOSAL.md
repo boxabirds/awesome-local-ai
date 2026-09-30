@@ -1,12 +1,12 @@
 # Agent containment: the orchestrator owns every process the agent starts
 
-Status: implemented 29 Sep 2026 in `benchmarks/spec-bench/harness/containment.py`; tests 1–3 below pass on gruntus and tritus; test 4 (live) comes with each Linux machine's next run.
+Status: implemented 29 Sep 2026 in `benchmarks/spec-bench/harness/containment.py`; tests 1–3 below pass on the RTX 4090 machine and the Strix Halo box; test 4 (live) comes with each Linux machine's next run.
 
 ## The problem
 
 The benchmark harness starts a coding agent and, story by story, lets it run commands: builds, tests, dev servers. Those commands start processes of their own, and some outlive the command that started them:
 
-- **Leaked test servers.** On gruntus (Swift 27B, canvas-pi-03, story 10) 49 `wrangler dev` servers from the agent's own e2e helper were still running 1 to 28 minutes after their tests ended, each with two `workerd` processes: about 20 GB. Their parents were gone (`sh` → `systemd --user`). The helper stops its servers in teardown; teardown never ran because the test run was cut off.
+- **Leaked test servers.** On the RTX 4090 machine (Swift 27B, canvas-pi-03, story 10) 49 `wrangler dev` servers from the agent's own e2e helper were still running 1 to 28 minutes after their tests ended, each with two `workerd` processes: about 20 GB. Their parents were gone (`sh` → `systemd --user`). The helper stops its servers in teardown; teardown never ran because the test run was cut off.
 - **The harness cuts runs off itself.** Its hang guard interrupts a tool call that is silent for 10 minutes (twice in that same story). The agent's shell dies; what it started does not.
 - **The cost is scores.** Story 5 of the same run was stopped by the memory guard (7% free < 8%) with about 28 GB held by something other than the model server. A stopped story scores what it had built at that moment.
 
@@ -25,7 +25,7 @@ systemd-run --user --scope --quiet --collect --unit=spec-bench-<run>-s<story>-<n
 
 The kernel puts every child in its parent's cgroup at fork, and an unprivileged process cannot move out of it: `setsid`, double forks and reparenting change its process group and parent, not its cgroup. So the orchestrator can always list every process the agent ever started (`cgroup.procs`), measure them (`memory.current`, `memory.peak`), cap them (`memory.max`) and kill them all at once (`cgroup.kill`, no race with processes forking at that moment).
 
-Checked on both Linux bench machines (29 Sep 2026): a `sleep` that called `setsid` and double-forked (parent init, its own process group) stayed in the scope; `memory.max` was set; `cgroup.kill` from the user account left no members and the unit went away. gruntus: systemd 249, kernel 6.8; tritus: systemd 259, kernel 7.0.
+Checked on both Linux bench machines (29 Sep 2026): a `sleep` that called `setsid` and double-forked (parent init, its own process group) stayed in the scope; `memory.max` was set; `cgroup.kill` from the user account left no members and the unit went away. RTX 4090 machine: systemd 249, kernel 6.8; Strix Halo box: systemd 259, kernel 7.0.
 
 **Memory limit.** `MemoryMax` is the memory available when the story starts, less a reserve for the operating system and the harness. If the agent's processes exceed it, the kernel's OOM killer acts inside the agent's scope (where every process already has the highest OOM score), never on the model server. The existing memory guard (stop the story below 8% free) stays as the last resort.
 
@@ -48,7 +48,7 @@ A first probe resolved an empty unit lookup to the cgroup root and tried to writ
 
 ### 4. Where it does not apply
 
-- **macOS (quintus)** has no cgroups (the closest mechanism, "coalitions", is not a public API). There the harness keeps today's approach: process groups plus processes working in the agent's workspace, and the between-story clean-up.
+- **macOS (the M5 Max)** has no cgroups (the closest mechanism, "coalitions", is not a public API). There the harness keeps today's approach: process groups plus processes working in the agent's workspace, and the between-story clean-up.
 - **A Linux host without a reachable systemd user manager** falls back the same way, and the run records that containment was off.
 
 ## Policy

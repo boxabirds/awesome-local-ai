@@ -62,18 +62,18 @@ test.beforeEach(async ({ request }) => {
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("header", () => {
   test("reachable: hardware, OS, dbench version, address; a breadcrumb back to the overview", async ({ page }) => {
-    await open(page, "gruntus");
-    await expect(header(page).locator("h1")).toHaveText("gruntus");
+    await open(page, "node-a");
+    await expect(header(page).locator("h1")).toHaveText("node-a");
     await expect(fact(page, "hardware")).toHaveText("13th Gen Intel(R) Core(TM) i9-13900F · 32 cores · 63 GB RAM · NVIDIA GeForce RTX 4090 24 GB");
     await expect(fact(page, "os")).toHaveText("linux");
     await expect(fact(page, "dbench")).toHaveText("0.1.0+30085de1");
-    await expect(fact(page, "reach")).toHaveText("✓ reachable http://gruntus:7717");
-    await expect(mp(page).locator(".breadcrumb")).toHaveText("Overview › gruntus");
+    await expect(fact(page, "reach")).toHaveText("✓ reachable http://node-a:7717");
+    await expect(mp(page).locator(".breadcrumb")).toHaveText("Overview › node-a");
     await expect(mp(page).locator(".breadcrumb a")).toHaveAttribute("href", "#/");
   });
 
   test("installs: each a link to its combination's page", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     const links = fact(page, "installs").locator("a.combination-link");
     await expect(links).toHaveText(["3.8-swift-1.5/27b llamacpp", "3.8/27b llamacpp"]);
     await expect(links.first()).toHaveAttribute("href", `#/vidi/c/${enc(SWIFT)}`);
@@ -82,26 +82,26 @@ test.describe("header", () => {
   });
 
   test("an install with no run yet: its id, saying why it has no page", async ({ page }) => {
-    await patchMachines(page, (ms) => { ms.find((m) => m.name === "tritus")!.node!.combinations = [{ install_id: "new", combination: "qwen/new/pi" }]; });
-    await open(page, "tritus");
+    await patchMachines(page, (ms) => { ms.find((m) => m.name === "node-d")!.node!.combinations = [{ install_id: "new", combination: "qwen/new/pi" }]; });
+    await open(page, "node-d");
     const none = fact(page, "installs").locator(".no-page");
     await expect(none).toHaveText("qwen/new/pi");
     await expect(none).toHaveAttribute("data-tip", /no run of this combination yet/);
   });
 
   test("nothing installed: says so", async ({ page }) => {
-    await open(page, "tritus");
+    await open(page, "node-d");
     await expect(fact(page, "installs")).toContainText("Nothing installed yet");
   });
 
   test("unreachable: the error; what dbench would say is missing, with why", async ({ page }) => {
-    await patchMachines(page, (ms) => { const g = ms.find((m) => m.name === "gruntus")!; g.ok = false; g.error = "connection refused"; delete g.node; });
-    await open(page, "gruntus");
-    await expect(fact(page, "reach")).toHaveText("✕ unreachable: connection refused http://gruntus:7717");
+    await patchMachines(page, (ms) => { const g = ms.find((m) => m.name === "node-a")!; g.ok = false; g.error = "connection refused"; delete g.node; });
+    await open(page, "node-a");
+    await expect(fact(page, "reach")).toHaveText("✕ unreachable: connection refused http://node-a:7717");
     await expect(fact(page, "dbench").locator(".missing")).toHaveAttribute("data-tip", /Unreachable/);
     // The hardware falls back to what its runs' records say.
     await expect(fact(page, "hardware")).toHaveText("Intel Core i9 + RTX 4090 64GB");
-    await expect(nowSec(page).locator('[data-part="no-queue-form"]')).toContainText("Unreachable: nothing can be queued on gruntus");
+    await expect(nowSec(page).locator('[data-part="no-queue-form"]')).toContainText("Unreachable: nothing can be queued on node-a");
   });
 
   test("not a dbench node (a host from run records only): says so; no operations", async ({ page }) => {
@@ -114,7 +114,7 @@ test.describe("header", () => {
   });
 
   test("every label explains itself from the glossary", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     for (const [f, term] of [["hardware", "hardware"], ["os", "os"], ["dbench", "dbenchVersion"], ["reach", "reachability"]] as const) {
       await expect(header(page).locator(`div:has(> dd[data-fact="${f}"]) dt .term`)).toHaveAttribute("data-tip", GLOSSARY[term].what);
     }
@@ -126,7 +126,7 @@ test.describe("header", () => {
 test.describe("now", () => {
   test("the running job: run, job place, story and title, minutes, run time, live activity; each link lands", async ({ page }) => {
     await patchState(page);
-    await open(page, "gruntus");
+    await open(page, "node-a");
     const j = job(page, "vidi-v2b-swift15-r1");
     await expect(j).toHaveAttribute("data-status", "running");
     await expect(j.locator("a.run-link")).toHaveText("3.8-swift-1.5/27b llamacpp v2-r1");
@@ -147,14 +147,14 @@ test.describe("now", () => {
 
   test("a running story with no activity is flagged, with how long", async ({ page }) => {
     await patchState(page, (s) => { const l = rowOf(s, SWIFT, "v2-r1").live!; l.agentMinutes = 4; l.storyStartedAt = s.now - HOUR; });
-    await open(page, "gruntus");
+    await open(page, "node-a");
     await expect(job(page, "vidi-v2b-swift15-r1").locator(".now-stuck")).toHaveText("⚠ no activity for 56 min");
     await expect(job(page, "vidi-v2b-swift15-r1").locator(".now-stuck")).toHaveAttribute("data-tip", GLOSSARY.needSilent.what);
   });
 
   test("a story just started says so instead of zeros; one finishing says its gates are running", async ({ page }) => {
     await patchState(page, (s) => { const l = rowOf(s, SWIFT, "v2-r1").live!; Object.assign(l, { calls: null, agentMinutes: null, currentStory: null }); });
-    await open(page, "gruntus");
+    await open(page, "node-a");
     const j = job(page, "vidi-v2b-swift15-r1");
     await expect(j.locator('[data-part="activity"]')).toContainText("first numbers within a minute");
     await expect(j.locator('[data-part="story"]')).toContainText("(finishing: gates and scoring)");
@@ -164,7 +164,7 @@ test.describe("now", () => {
   test("the queue in dbench's order, with each place; then jobs ended in the last day", async ({ page }) => {
     // The fixture's done job ended at a fixed time; here it ended an hour ago, so it is in the last day.
     await patchState(page, (s) => { const j = rowOf(s, SWIFT, "v2-r5").jobs.find((x) => x.id === "vidi-v2b-swift15-r5-again1")!; j.endedAt = s.now - HOUR; });
-    await open(page, "gruntus");
+    await open(page, "node-a");
     expect(await ids(page, '[data-section="now"] .mp-queue [data-job]', "data-job")).toEqual(["vidi-v2b-swift15-r2", "vidi-v2b-swift15-r3", "vidi-v2b-27b-r1"]);
     await expect(nowSec(page).locator(".mp-queue .mp-pos")).toHaveText(["2nd", "3rd", "4th"]);
     await expect(job(page, "vidi-v2b-27b-r1").locator("a.run-link")).toHaveAttribute("href", runHref(QWEN_27B, "v2-r1"));
@@ -172,13 +172,13 @@ test.describe("now", () => {
     await expect(job(page, "vidi-v2b-swift15-r5-again1").locator(".job-name")).toContainText("job 2 of 2");
   });
 
-  // The bug of 30 Sep: tritus listed jobs that ended on 27-29 Sep here. dbench keeps ended jobs for days.
+  // The bug of 30 Sep: node-d listed jobs that ended on 27-29 Sep here. dbench keeps ended jobs for days.
   test("a job that ended more than a day ago is not under 'Ended in the last day'; one that ended just inside it is", async ({ page }) => {
     await patchState(page, (s) => {
       rowOf(s, SWIFT, "v2-r5").jobs.find((x) => x.id === "vidi-v2b-swift15-r5-again1")!.endedAt = s.now - DAY - MIN;
       rowOf(s, QWEN_27B, "v2-r2").jobs.find((x) => x.id === "vidi-v2b-27b-r2")!.endedAt = s.now - DAY + MIN;
     });
-    await open(page, "gruntus");
+    await open(page, "node-a");
     expect(await ids(page, '[data-section="now"] .mp-ended [data-job]', "data-job")).toEqual(["vidi-v2b-27b-r2"]);
     await expect(job(page, "vidi-v2b-swift15-r5-again1")).toHaveCount(0);
     // It is still in the machine's history, with its run.
@@ -187,26 +187,26 @@ test.describe("now", () => {
 
   test("the fixture's done job, which ended days ago by the real clock, is not listed as ended in the last day", async ({ page }) => {
     await patchState(page);
-    await open(page, "gruntus");
+    await open(page, "node-a");
     await expect(job(page, "vidi-v2b-swift15-r5-again1")).toHaveCount(0);
   });
 
   test("no job ended in the last day: no 'Ended in the last day' list at all", async ({ page }) => {
     await patchState(page, (s) => { for (const r of s.rows) for (const j of r.jobs) if (j.endedAt !== null || j.status === "cancelled" || j.status === "done") j.endedAt = s.now - 3 * DAY; });
-    await open(page, "gruntus");
+    await open(page, "node-a");
     await expect(nowSec(page).locator(".mp-ended")).toHaveCount(0);
     await expect(nowSec(page)).not.toContainText("Ended in the last day");
   });
 
   test("an ended job shows when it ended: the end dbench recorded for it", async ({ page }) => {
     await patchState(page, (s) => { rowOf(s, QWEN_27B, "v2-r2").jobs.find((x) => x.id === "vidi-v2b-27b-r2")!.endedAt = Date.parse("2026-09-30T20:15:00Z") / 1000; s.now = Date.parse("2026-09-30T21:00:00Z") / 1000; });
-    await open(page, "gruntus");
+    await open(page, "node-a");
     await expect(job(page, "vidi-v2b-27b-r2")).toContainText("2026-09-30 20:15 UTC");
   });
 
   test("idle: nothing running, nothing queued, said plainly", async ({ page }) => {
     await patchState(page);
-    await open(page, "tritus");
+    await open(page, "node-d");
     await expect(nowSec(page).locator(".mp-idle")).toHaveText("Idle: nothing running, nothing queued.");
     await expect(nowSec(page).locator(".mp-idle")).toHaveAttribute("data-now", "idle");
     await expect(nowSec(page)).toContainText("Nothing queued.");
@@ -216,7 +216,7 @@ test.describe("now", () => {
     await patchState(page, (s) => {
       const r = rowOf(s, SWIFT, "v2-r1"); r.live!.status = "queued"; r.status = "queued"; r.live!.queue = { position: 1, ahead: [] };
     });
-    await open(page, "gruntus");
+    await open(page, "node-a");
     await expect(nowSec(page).locator(".mp-idle")).toHaveAttribute("data-now", "queuedOnly");
     await expect(nowSec(page).locator(".mp-idle")).toHaveText("Nothing running: the queue is waiting.");
   });
@@ -225,7 +225,7 @@ test.describe("now", () => {
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("operations, against the fake dbench", () => {
   test("Stop asks first, with the safe answer focused; Keep running (or Escape) keeps it", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     const j = job(page, "vidi-v2b-swift15-r1");
     await j.getByRole("button", { name: "Stop" }).click();
     await expect(j.getByRole("alertdialog")).toContainText("Stop vidi-v2b-swift15-r1? It throws away the story in progress");
@@ -240,7 +240,7 @@ test.describe("operations, against the fake dbench", () => {
   });
 
   test("Yes, stop it: the job ends, and can be restarted, which queues a new job for the run", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     const j = job(page, "vidi-v2b-swift15-r1");
     await j.getByRole("button", { name: "Stop" }).click();
     await j.getByRole("button", { name: "Yes, stop it" }).click();
@@ -252,36 +252,36 @@ test.describe("operations, against the fake dbench", () => {
   });
 
   test("Remove takes a queued job off the queue without asking", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     await job(page, "vidi-v2b-swift15-r2").getByRole("button", { name: "Remove" }).click();
     await expect(nowSec(page).locator('.mp-queue [data-job="vidi-v2b-swift15-r2"]')).toHaveCount(0);
     await expect(nowSec(page).locator('.mp-ended [data-job="vidi-v2b-swift15-r2"]')).toHaveAttribute("data-status", "cancelled");
   });
 
   test("Log shows the job's log and hides it again", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     const j = job(page, "vidi-v2b-swift15-r3");
     await j.getByRole("button", { name: "Log" }).click();
-    await expect(j.locator("pre.log-view")).toContainText("gruntus vidi-v2b-swift15-r3: fixture log");
+    await expect(j.locator("pre.log-view")).toContainText("node-a vidi-v2b-swift15-r3: fixture log");
     await j.getByRole("button", { name: "Hide log" }).click();
     await expect(j.locator("pre.log-view")).toHaveCount(0);
   });
 
   test("Queue a run: starts on what the machine runs now; the new job joins the queue and the history", async ({ page }) => {
-    await open(page, "gruntus");
-    const form = nowSec(page).getByRole("form", { name: "Queue a run on gruntus" });
+    await open(page, "node-a");
+    const form = nowSec(page).getByRole("form", { name: "Queue a run on node-a" });
     await expect(form.getByLabel("Combination")).toHaveValue("swift15-qwen38-27b");
     await form.getByLabel("Combination").selectOption("qwen38-27b");
     await form.getByLabel("Run id").fill("v3-r1");
     await form.getByRole("button", { name: "Queue" }).click();
-    await expect(form).toContainText("gruntus: job vidi-qwen38-27b-v3-r1 queued");
+    await expect(form).toContainText("node-a: job vidi-qwen38-27b-v3-r1 queued");
     await expect(nowSec(page).locator('.mp-queue [data-job="vidi-qwen38-27b-v3-r1"]')).toBeVisible();
     await expect(history(page).locator(`[data-stack="${QWEN_27B}"] tr[data-run="v3-r1"]`)).toContainText("queued");
   });
 
   test("Queue a run: a run id the fake refuses shows why; Queue waits for a run id", async ({ page }) => {
-    await open(page, "gruntus");
-    const form = nowSec(page).getByRole("form", { name: "Queue a run on gruntus" });
+    await open(page, "node-a");
+    const form = nowSec(page).getByRole("form", { name: "Queue a run on node-a" });
     await expect(form.getByRole("button", { name: "Queue" })).toBeDisabled();
     await form.getByLabel("Run id").fill("bad id!");
     await form.getByRole("button", { name: "Queue" }).click();
@@ -289,9 +289,9 @@ test.describe("operations, against the fake dbench", () => {
   });
 
   test("Remove machine asks first; Keep keeps it; Remove takes it off the list and leaves for the overview", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     await header(page).getByRole("button", { name: "Remove machine…" }).click();
-    await expect(header(page)).toContainText("Remove gruntus from the list? (Its dbench service keeps running.)");
+    await expect(header(page)).toContainText("Remove node-a from the list? (Its dbench service keeps running.)");
     await expect(header(page).getByRole("button", { name: "Keep" })).toBeFocused();
     await header(page).getByRole("button", { name: "Keep" }).click();
     await expect(header(page).getByRole("button", { name: "Remove machine…" })).toBeVisible();
@@ -299,14 +299,14 @@ test.describe("operations, against the fake dbench", () => {
     await header(page).getByRole("button", { name: "Remove", exact: true }).click();
     await expect(page).toHaveURL(/#\/$/);
     const machines = await (await page.request.get("/api/machines")).json() as { name: string }[];
-    expect(machines.map((m) => m.name)).not.toContain("gruntus");
+    expect(machines.map((m) => m.name)).not.toContain("node-a");
   });
 });
 
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("history", () => {
   test("by combination, work in hand first; then by pack and version, v2 and v1 apart and labelled", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     expect(await ids(page, '[data-section="history"] .history-combo', "data-stack")).toEqual([SWIFT, QWEN_27B]);
     const swift = history(page).locator(`.history-combo[data-stack="${SWIFT}"]`);
     await expect(swift.locator("h3 a.combination-link")).toHaveAttribute("href", `#/vidi/c/${enc(SWIFT)}`);
@@ -319,7 +319,7 @@ test.describe("history", () => {
   });
 
   test("each run: a link to its page, its status, its stories (live) and its score of record", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     const swift = history(page).locator(`.history-combo[data-stack="${SWIFT}"]`);
     const r5 = swift.locator('tr[data-run="v2-r5"]');
     await expect(r5.locator("a.run-link")).toHaveAttribute("href", runHref(SWIFT, "v2-r5"));
@@ -333,7 +333,7 @@ test.describe("history", () => {
   });
 
   test("no score of record: '—' with why, for each reason", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     const swift = history(page).locator(`.history-combo[data-stack="${SWIFT}"]`);
     const why = (run: string) => swift.locator(`tr[data-run="${run}"] .h-score .missing`);
     await expect(why("v2-r7")).toHaveAttribute("data-tip", /re-scored only under another suite version \(60\/75 under vidi-v2\.0-pre0\)/);
@@ -345,42 +345,42 @@ test.describe("history", () => {
 
   test("a re-score fault says so", async ({ page }) => {
     await patchState(page, (s) => { const r = rowOf(s, SWIFT, "v2-r6"); r.scores = {}; r.rescores = ["vidi-v2.0-pre1"]; });
-    await open(page, "gruntus");
+    await open(page, "node-a");
     await expect(history(page).locator(`[data-stack="${SWIFT}"] tr[data-run="v2-r6"] .h-score .missing`)).toHaveAttribute("data-tip", /the re-score gave no score of record/);
   });
 
   test("the status filter: a toggle per status with counts; its choice is in the address and survives a reload", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     const f = history(page).getByRole("group", { name: "Status" });
     await expect(f.getByRole("button")).toHaveText(["running 1", "queued 3", "finished 6", "cancelled 1"]);
     await f.getByRole("button", { name: "cancelled 1" }).click();
     await expect(history(page).locator(`[data-stack="${QWEN_27B}"] tr[data-run="v2-r2"]`)).toHaveCount(0);
     await expect(history(page).locator(".mp-head")).toContainText("10 of 11 runs");
-    await expect(page).toHaveURL(/#\/m\/gruntus\?hide=cancelled$/);
+    await expect(page).toHaveURL(/#\/m\/node-a\?hide=cancelled$/);
     await page.reload();
     await expect(history(page).getByRole("group", { name: "Status" }).getByRole("button", { name: "cancelled 1" })).toHaveAttribute("aria-pressed", "false");
     await expect(history(page).locator(`[data-stack="${QWEN_27B}"] tr[data-run="v2-r2"]`)).toHaveCount(0);
     await history(page).getByRole("button", { name: "all" }).click();
     await expect(history(page).locator(`[data-stack="${QWEN_27B}"] tr[data-run="v2-r2"]`)).toHaveCount(1);
-    await expect(page).toHaveURL(/#\/m\/gruntus$/);
+    await expect(page).toHaveURL(/#\/m\/node-a$/);
   });
 
   test("everything filtered out, or no runs at all, says so", async ({ page }) => {
-    await open(page, "gruntus", "?hide=running,queued,finished,cancelled");
+    await open(page, "node-a", "?hide=running,queued,finished,cancelled");
     await expect(history(page)).toContainText("No runs with the statuses chosen.");
-    await open(page, "tritus");
+    await open(page, "node-d");
     await expect(history(page)).toContainText("No runs on this machine yet.");
   });
 
   test("another machine's page starts from its own address, not the last one's filter", async ({ page }) => {
-    await open(page, "gruntus", "?hide=finished");
-    await page.goto(`/#/m/macbook-air`);
+    await open(page, "node-a", "?hide=finished");
+    await page.goto(`/#/m/node-b`);
     await expect(history(page).locator('tr[data-run="v2-r1"]')).toHaveCount(1);
     await expect(history(page).getByRole("group", { name: "Status" }).getByRole("button", { name: /^running/ })).toHaveAttribute("aria-pressed", "true");
   });
 
   test("the history heading and columns explain themselves", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     await expect(history(page).locator("h2 .term")).toHaveAttribute("data-tip", GLOSSARY.history.what);
     await expect(history(page).locator("thead th .term").first()).toHaveAttribute("data-tip", GLOSSARY.historyRun.what);
   });
@@ -389,7 +389,7 @@ test.describe("history", () => {
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("keyboard", () => {
   test("Tab reaches the running job's links and Stop; Enter opens the question", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     const j = job(page, "vidi-v2b-swift15-r1");
     await j.locator("a.run-link").focus();
     await page.keyboard.press("Tab");
@@ -407,7 +407,7 @@ test.describe("keyboard", () => {
 test.describe("at 1000 px", () => {
   test.use({ viewport: { width: NARROW, height: 900 } });
   test("no sideways scroll; the queue form goes below the jobs", async ({ page }) => {
-    await open(page, "gruntus");
+    await open(page, "node-a");
     await expect(nowSec(page).getByRole("form")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(NARROW);
     const jobs = await nowSec(page).locator(".mp-jobs").boundingBox();
@@ -434,30 +434,30 @@ test.describe("the machines list", () => {
   test("one row per machine: name, hardware, what it runs now, its queue", async ({ page }) => {
     await patchState(page);
     await openList(page);
-    expect(await ids(page, '[data-page="machines"] tbody tr', "data-machine")).toEqual(["gruntus", "macbook-air", "quintus", "tritus"]);
-    await expect(row(page, "gruntus").locator("td.hw")).toHaveText("13th Gen Intel(R) Core(TM) i9-13900F · 63 GB · NVIDIA GeForce RTX 4090 24 GB");
-    await expect(row(page, "quintus").locator("td.hw")).toHaveText("Apple M5 Max · 128 GB");
-    await expect(row(page, "gruntus")).toContainText("3.8-swift-1.5/27b llamacpp v2-r1 · story 3");
-    await expect(row(page, "gruntus").locator("td.q")).toHaveText("3 queued");
-    await expect(row(page, "tritus")).toHaveAttribute("data-state", "idle");
+    expect(await ids(page, '[data-page="machines"] tbody tr', "data-machine")).toEqual(["node-a", "node-b", "node-c", "node-d"]);
+    await expect(row(page, "node-a").locator("td.hw")).toHaveText("13th Gen Intel(R) Core(TM) i9-13900F · 63 GB · NVIDIA GeForce RTX 4090 24 GB");
+    await expect(row(page, "node-c").locator("td.hw")).toHaveText("Apple M5 Max · 128 GB");
+    await expect(row(page, "node-a")).toContainText("3.8-swift-1.5/27b llamacpp v2-r1 · story 3");
+    await expect(row(page, "node-a").locator("td.q")).toHaveText("3 queued");
+    await expect(row(page, "node-d")).toHaveAttribute("data-state", "idle");
   });
 
   test("each machine, run and story run links to its page", async ({ page }) => {
     await patchState(page);
     await openList(page);
-    await expect(row(page, "gruntus").locator("a.run-link")).toHaveAttribute("href", runHref(SWIFT, "v2-r1"));
-    await expect(row(page, "macbook-air").locator("a.run-link")).toHaveAttribute("href", runHref(OPUS, "v2-r1"));
-    await row(page, "gruntus").locator("a.machine-link").click();
-    await expect(mp(page).locator("h1")).toHaveText("gruntus");
+    await expect(row(page, "node-a").locator("a.run-link")).toHaveAttribute("href", runHref(SWIFT, "v2-r1"));
+    await expect(row(page, "node-b").locator("a.run-link")).toHaveAttribute("href", runHref(OPUS, "v2-r1"));
+    await row(page, "node-a").locator("a.machine-link").click();
+    await expect(mp(page).locator("h1")).toHaveText("node-a");
   });
 
   test("an unreachable machine: its error, and '—' for what can't be known", async ({ page }) => {
     await patchState(page);
-    await patchMachines(page, (ms) => { const q = ms.find((m) => m.name === "quintus")!; q.ok = false; q.error = "timed out"; delete q.node; });
+    await patchMachines(page, (ms) => { const q = ms.find((m) => m.name === "node-c")!; q.ok = false; q.error = "timed out"; delete q.node; });
     await openList(page);
-    await expect(row(page, "quintus")).toHaveAttribute("data-state", "unreachable");
-    await expect(row(page, "quintus").locator("td.hw .missing")).toHaveText("—");
-    await expect(row(page, "quintus").locator("td.q .missing")).toHaveText("—");
+    await expect(row(page, "node-c")).toHaveAttribute("data-state", "unreachable");
+    await expect(row(page, "node-c").locator("td.hw .missing")).toHaveText("—");
+    await expect(row(page, "node-c").locator("td.q .missing")).toHaveText("—");
   });
 
   test("adding a machine: over SSH it joins the list; when SSH can't, a box for the token", async ({ page }) => {

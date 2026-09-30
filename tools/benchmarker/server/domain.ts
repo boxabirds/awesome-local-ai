@@ -86,7 +86,7 @@ export function parseInvalid(raw: unknown): Invalid | null {
   return { reason: NO_REASON, since: "" };
 }
 
-// interventions.md lines, as the operator writes them ("- 2026-09-26T08:57:29Z story 3: quintus froze …", or a heading
+// interventions.md lines, as the operator writes them ("- 2026-09-26T08:57:29Z story 3: the M5 Max froze …", or a heading
 // "## 2026-09-29T07:21Z: harness restarted …") and as the harness's watchdog does ("2026-09-29T23:00:53Z 05:
 // interrupted a tool call …"). The time as history.py reads it; a ":" straight after it is dropped.
 const INTERVENTION_RE = /^(?:[-*]\s*|#{1,6}\s*)?(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z)\s*:?\s*(.*)$/;

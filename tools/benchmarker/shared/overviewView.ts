@@ -215,7 +215,7 @@ export function jobEndedAt(r: Pick<Row, "jobs" | "live" | "stateAt">): number | 
 
 /** A machine's live jobs: the running one, the queue in dbench's order, and jobs that ended within RECENT_END_S of
  * `now`, latest first. dbench keeps ended jobs for days, so each is judged on its own end; one whose end can't be told
- * isn't called recent. (30 Sep: tritus listed jobs ended on 27-29 Sep here, with no time limit at all.) */
+ * isn't called recent. (30 Sep: the Strix Halo box listed jobs ended on 27-29 Sep here, with no time limit at all.) */
 export function machineJobs(machine: string, all: Row[], now: number): { running: Row[]; queued: Row[]; ended: Row[] } {
   const mine = all.filter((r) => r.node === machine && r.live);
   const recent = (r: Row) => { const t = jobEndedAt(r); return t !== null && now - t <= RECENT_END_S; };

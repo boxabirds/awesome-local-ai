@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import json
 import os
-import socket
 import sys
 import time
 from pathlib import Path
 
 import drive
+import hostenv
 
 STATES = ("started", "finished", "failed", "stopped")
 REASON_CHARS = 300
@@ -24,8 +24,10 @@ REASON_CHARS = 300
 
 def record(repo_root: Path, run: Path, state: str, reason: str = "") -> dict:
     reason = " ".join(reason.split())[:REASON_CHARS]
-    status = {"state": state, "reason": reason, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-              "host": socket.gethostname()}
+    status = {"state": state, "reason": reason, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    host = hostenv.host_desc()          # the machine's hardware, as run.json names it; never its hostname
+    if host:
+        status["host"] = host
     (run / "run-status.json").write_text(json.dumps(status, indent=2) + "\n")
     # run.sh exports the pack's name; older callers ran vidi only.
     pack_name = os.environ.get("SPEC_BENCH_PACK_NAME", "vidi")

@@ -1,6 +1,6 @@
 # name|ctx|sessions|draft_tokens|prefill_chunk|need_mib|basis|summary
 #
-# need_mib is the GPU memory (GTT) the profile peaked at, MEASURED on tritus
+# need_mib is the GPU memory (GTT) the profile peaked at, MEASURED on the Strix Halo box
 # (Minisforum MS-S1 MAX, 128 GB) in benchmarks/gufo-eval test A, 27 Sep 2026:
 # 87,849 MiB with UD-Q4_K_XL, the shared-Q8_0 MTP head and a 120k-token prompt.
 # It does not include the podman and gufo host processes (not instrumented).

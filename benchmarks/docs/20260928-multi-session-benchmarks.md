@@ -39,15 +39,15 @@ What to measure:
 
 Candidate machines and settings:
 
-- quintus: mlx-serve's `--max-concurrent` (default 1). The Flash-Next model uses about 77 GB, so two agents might fit, especially with `--kv-quant 8`, which roughly halves the conversation cache. Its prefix cache defaults to 2 GB (`--prefix-cache-mem`), and the logs already show it evicting entries with one agent.
-- tritus: gufo's `--sessions` (currently 1). gufo's experiment log tests 2 to 8 batched sessions. Memory is tight: one session at 131,072 tokens of context already uses about 88 GB.
-- gruntus: 24 GB leaves little room for a second conversation cache with Qwen3.8-27B.
+- The M5 Max (128 GB): mlx-serve's `--max-concurrent` (default 1). The Flash-Next model uses about 77 GB, so two agents might fit, especially with `--kv-quant 8`, which roughly halves the conversation cache. Its prefix cache defaults to 2 GB (`--prefix-cache-mem`), and the logs already show it evicting entries with one agent.
+- The Strix Halo box (128 GB): gufo's `--sessions` (currently 1). gufo's experiment log tests 2 to 8 batched sessions. Memory is tight: one session at 131,072 tokens of context already uses about 88 GB.
+- The RTX 4090 machine: 24 GB leaves little room for a second conversation cache with Qwen3.8-27B.
 
 **2. Several agents changing the same codebase.** This tests coordination rather than inference: merge conflicts, agents undoing each other's work, and how the harness divides the work between them. It's a real question, but it's about agents and harnesses, and it's much bigger to build. The cache argument above means it wouldn't make the inference side faster.
 
 ## Techniques from the article and whether they transfer
 
-| Technique | Strix Halo (tritus) | M5 Max (quintus) |
+| Technique | Strix Halo | M5 Max |
 |---|---|---|
 | Several agents at once (batching) | gufo supports it; memory is the limit | mlx-serve supports it |
 | Prefix caching | llama.cpp can reuse a cached prompt; gufo keeps session snapshots | on by default, 2 GB cap |
@@ -59,13 +59,13 @@ On the thinking cap: in canvas-mlx-02 (uncapped, 1,857 requests) only 15 turns (
 
 ## Open questions
 
-- How many Flash-Next conversations fit on quintus and on tritus before evictions start?
+- How many Flash-Next conversations fit on the M5 Max and on the Strix Halo box before evictions start?
 - How far does per-agent speed drop with two agents, and does that change scores through the time caps?
 - Is the per-agent speed under load still usable for interactive work (40 tokens per second or more), or is multi-session only for unattended agents?
 
 ## Sources
 
 - The article and its 13 comments, read on 28 September 2026.
-- Cache reuse figures: the mlx-serve server log of canvas-mlx-02 on quintus, and the [gufo long-session investigation](../../docs/20260928-gufo-long-session-investigation.md).
+- Cache reuse figures: the mlx-serve server log of canvas-mlx-02 on the M5 Max, and the [gufo long-session investigation](../../docs/20260928-gufo-long-session-investigation.md).
 - Thinking-cap figures: output tokens per request in canvas-mlx-02's server log.
 - mlx-serve options: the [mlxserve-pi README](../../combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/README.md).

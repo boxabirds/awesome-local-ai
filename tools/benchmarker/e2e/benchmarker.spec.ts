@@ -108,7 +108,7 @@ test("combinations: one row each across machines, over the runs shown, sortable,
   const table = page.getByRole("table", { name: "Combinations" });
   const swift = table.locator(`tr[data-stack="${SWIFT}"]`);
   await expect(swift).toContainText("3.8-swift-1.5/27b llamacpp");
-  await expect(swift).toContainText("gruntus");
+  await expect(swift).toContainText("node-a");
   await expect(swift).toContainText("1 running");
   await expect(swift).toContainText("2 queued");
   await expect(page.locator("section.combinations")).toContainText(/ranked on finished runs' scores of record under vidi-v2\.0-pre1: \d+ of the \d+ runs? shown/);

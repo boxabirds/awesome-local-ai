@@ -407,3 +407,17 @@ def test_a_repeat_the_machine_spoiled_makes_the_checkpoint_a_fault(tmp_path):
                                    between=lambda: None)
     assert len(accept.calls) == 2
     assert acc["harness_fault"] == "scoring interrupted: killed by signal 15 (in repeat scoring 2)"
+
+
+def test_the_rescore_record_names_the_machine_by_its_hardware_never_its_hostname(monkeypatch):
+    """rescore.json is public: the machine is its hardware (host-desc.sh), as in run.json."""
+    import os
+    import hostenv
+    monkeypatch.setattr(hostenv, "host_desc", lambda **kw: "Made-up CPU 64GB")
+    rec = rescore.rescore_record("vidi-v9", workers=2, host_limits={"cores": 8}, environment={"node": "v24"},
+                                 results=[{"story": 2}, {"story": 1}])
+    assert rec["host"] == "Made-up CPU 64GB"
+    assert os.uname().nodename not in json.dumps(rec)
+    assert [r["story"] for r in rec["results"]] == [1, 2]
+    assert rec["pack_version"] == "vidi-v9" and rec["held_out_workers"] == 2 and rec["host_limits"] == {"cores": 8}
+    assert rec["environment"] == {"node": "v24"} and "finished_at" in rec and "harness_commit" in rec

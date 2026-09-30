@@ -1,5 +1,5 @@
 """history.py: how a run's changes happened, from the agent's commits and the held-out suite's results
-after every story, not from the final state alone. The real case: gruntus canvas-pi-03, where story 7
+after every story, not from the final state alone. The real case: the RTX 4090 machine's canvas-pi-03, where story 7
 broke typing into sticky notes and with it most of stories 1-5's held-out tests."""
 import json
 import re
@@ -12,7 +12,7 @@ import history
 import report
 from drive import REPO_ROOT
 
-GRUNTUS_RUN = (REPO_ROOT / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi"
+RTX4090_RUN = (REPO_ROOT / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi"
                / "canvas-pi-03")
 
 # The real runs' held-out detail lives in the private repo's copy (the public record has counts only): these tests
@@ -108,9 +108,9 @@ def test_the_report_has_a_how_it_happened_section(tmp_path):
 
 
 @has_private
-@pytest.mark.skipif(not GRUNTUS_RUN.exists(), reason="no canvas-pi-03 records in this checkout")
-def test_gruntus_story_7_is_found_as_the_story_that_broke_stories_1_to_5(real_private):
-    h = history.analyse(GRUNTUS_RUN)
+@pytest.mark.skipif(not RTX4090_RUN.exists(), reason="no canvas-pi-03 records in this checkout")
+def test_rtx4090_story_7_is_found_as_the_story_that_broke_stories_1_to_5(real_private):
+    h = history.analyse(RTX4090_RUN)
     by7 = {c["of_story"]: c for c in h["changes"] if c["by_story"] == "7"}
     assert {"01", "02", "03", "04", "05"} <= set(by7), by7.keys()
     assert sum(len(c["broke"]) for c in by7.values()) >= 10
@@ -125,10 +125,10 @@ def test_gruntus_story_7_is_found_as_the_story_that_broke_stories_1_to_5(real_pr
     # the error says what was wrong: the typed text never arrived
     typed = next(c for c in h["changes"] if c["by_story"] == "7" and c["of_story"] == "02")
     assert "Received" in typed["common_error"], typed["common_error"]
-    assert "## How it happened" in report.summary(GRUNTUS_RUN)
+    assert "## How it happened" in report.summary(RTX4090_RUN)
 
 
-QUINTUS_RUN = (REPO_ROOT / "combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/benchmarks/vidi"
+M5_MAX_RUN = (REPO_ROOT / "combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/benchmarks/vidi"
                / "canvas-pi-03")
 
 
@@ -150,7 +150,7 @@ def interrupted_run(tmp_path: Path) -> Path:
     (run / "run-history.jsonl").write_text(json.dumps({"started_at": "2026-09-26T11:00:00Z"}) + "\n"
                                            + json.dumps({"started_at": "2026-09-26T11:39:00Z"}) + "\n")
     (run / "interventions.md").write_text(
-        "- 2026-09-26T11:10:05Z story 1: quintus froze (last system log 11:10Z) and the watchdog restarted it.\n")
+        "- 2026-09-26T11:10:05Z story 1: the M5 Max froze (last system log 11:10Z) and the watchdog restarted it.\n")
     m = json.loads((run / "metrics.json").read_text())
     m["stories"]["1"]["agent"] = {"seconds": 1200.0}
     m["stories"]["2"]["agent"] = {"seconds": 240.0}
@@ -162,7 +162,7 @@ def test_a_freeze_mid_story_is_dead_time_not_agent_time(tmp_path):
     h = history.analyse(interrupted_run(tmp_path))
     [i] = h["interruptions"]
     assert i["story"] == "1" and i["kind"] == "machine freeze" and round(i["gap_s"]) == 1920
-    assert "quintus froze" in i["cause"]
+    assert "the M5 Max froze" in i["cause"]
     s1 = h["stories"]["1"]
     # events at 0-9 min and 41-60 min: a 60 min span minus the 32 min gap is 28 min of work
     assert round(s1["active_s"]) == 3600 - 1920
@@ -176,9 +176,9 @@ def test_the_report_states_interruptions_and_totals(tmp_path):
     assert "machine freeze" in text and "1 machine freeze" in text and "32 min" in text
 
 
-@pytest.mark.skipif(not QUINTUS_RUN.exists(), reason="no quintus canvas-pi-03 records in this checkout")
-def test_quintus_freeze_2_is_found_in_story_3_with_its_logged_cause():
-    h = history.analyse(QUINTUS_RUN)
+@pytest.mark.skipif(not M5_MAX_RUN.exists(), reason="no M5 Max canvas-pi-03 records in this checkout")
+def test_m5_max_freeze_2_is_found_in_story_3_with_its_logged_cause():
+    h = history.analyse(M5_MAX_RUN)
     s3 = [i for i in h["interruptions"] if i["story"] == "3"]
     assert s3 and s3[0]["kind"] == "machine freeze" and 20 * 60 <= s3[0]["gap_s"] <= 25 * 60, s3
     st = h["stories"]["3"]

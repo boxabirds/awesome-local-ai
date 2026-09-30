@@ -25,8 +25,8 @@ test("from the overview's Now: the running run and its machine open their pages"
   await now.locator("a.run-link").first().click();
   await expect(page$(page, "run")).toBeVisible();
   await page.goBack();
-  await now.locator("a.machine-link", { hasText: "gruntus" }).click();
-  await expect(page).toHaveURL(/#\/m\/gruntus$/);
+  await now.locator("a.machine-link", { hasText: "node-a" }).click();
+  await expect(page).toHaveURL(/#\/m\/node-a$/);
   await expect(page$(page, "machine")).toBeVisible();
 });
 
@@ -98,12 +98,12 @@ test.describe("comparisons stay within one version family", () => {
 
 test.describe("machine and story addresses", () => {
   test("every machine name links to its page, from the overview and from a run", async ({ page }) => {
-    await page.getByRole("table", { name: "Now" }).locator("a.machine-link", { hasText: "gruntus" }).click();
-    await expect(page).toHaveURL(/#\/m\/gruntus$/);
+    await page.getByRole("table", { name: "Now" }).locator("a.machine-link", { hasText: "node-a" }).click();
+    await expect(page).toHaveURL(/#\/m\/node-a$/);
     await expect(page$(page, "machine")).toBeVisible();
     await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5`);
     await page.locator('[data-fact="machine"] a.machine-link').click();
-    await expect(page$(page, "machine")).toContainText("gruntus");
+    await expect(page$(page, "machine")).toContainText("node-a");
   });
 
   test("a story page opens by address, and a story or machine that doesn't exist says so", async ({ page }) => {

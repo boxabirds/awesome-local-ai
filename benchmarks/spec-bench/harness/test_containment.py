@@ -184,7 +184,7 @@ def test_the_memory_limit_leaves_a_reserve_and_has_a_floor():
 
 @linux
 def test_a_fake_agent_leaking_a_detached_server_through_an_interrupted_call_loses_it():
-    """The gruntus case in miniature: after the tool call starts, it launches a server in its own
+    """The RTX 4090 machine's case in miniature: after the tool call starts, it launches a server in its own
     session and is then cut off. The server must go, the agent must stay, and the reaping must be
     recorded; at the end of the story the scope is emptied."""
     s = C.StoryContainment(f"test-{os.getpid()}", 1)

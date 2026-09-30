@@ -59,7 +59,8 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-RESULT="${RESULT:-$PROBE_DIR/bonsai2-$(hostname -s 2>/dev/null || echo mac)-$(date +%Y%m%d-%H%M).md}"
+# Named by time only: the chip is in the report's header, and a hostname is personal setup.
+RESULT="${RESULT:-$PROBE_DIR/bonsai2-$(date +%Y%m%d-%H%M).md}"
 
 # ---- output helpers -------------------------------------------------------
 _step() { printf '\n\033[36m==> %s\033[0m\n' "$*"; }

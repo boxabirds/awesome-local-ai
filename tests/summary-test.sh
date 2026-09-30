@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The failure block of the install summary: it must name what actually went
-# wrong, not only generic causes. First seen on tritus, where the server
+# wrong, not only generic causes. First seen on the Strix Halo box, where the server
 # refused a removed flag (`error: invalid argument: --no-mmap`) and the summary
 # suggested a busy device, PROFILE=balanced (a profile that combination does
 # not have) and incomplete weights.

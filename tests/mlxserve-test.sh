@@ -21,7 +21,7 @@ CFG="$REPO_ROOT/combinations/$COMBO/config.sh"
 
 echo "a first install: looking for the pinned binary in a folder that doesn't exist yet"
 # The installer runs under set -euo pipefail. find exits non-zero on a missing folder, and that
-# silently killed the first mlx-serve install on quintus (27 Sep 2026).
+# silently killed the first mlx-serve install on the M5 Max (27 Sep 2026).
 out="$(bash -c 'set -euo pipefail; . "$1/lib/common.sh"; . "$1/lib/mlxserve.sh"; b="$(_mlxserve_find_in /nonexistent/mlx-serve/v0)"; echo "survived:[$b]"' _ "$REPO_ROOT" 2>/dev/null)"
 assert_eq "a missing folder finds nothing, without ending the install" "survived:[]" "$out"
 

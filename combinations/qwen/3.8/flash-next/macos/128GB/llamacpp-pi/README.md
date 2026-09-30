@@ -1,6 +1,6 @@
 # Qwen3.8-Flash-Next on a 128 GB Mac with llama.cpp (Metal) and pi
 
-The tritus stack ([`ubuntu/strix-halo-128GB/llamacpp-pi`](../../../ubuntu/strix-halo-128GB/llamacpp-pi/))
+The Strix Halo stack ([`ubuntu/strix-halo-128GB/llamacpp-pi`](../../../ubuntu/strix-halo-128GB/llamacpp-pi/))
 moved to Apple silicon. It uses:
 - the same llama.cpp branch and commit (`danielhanchen/llama.cpp` `qwen4exp/mtp`, `6fcaa16`);
 - the same weights (Unsloth `UD-IQ4_XS` at revision `38bb39ee…`, plus the shared-Q8_0 MTP head);

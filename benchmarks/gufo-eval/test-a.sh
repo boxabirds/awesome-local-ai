@@ -11,7 +11,7 @@
 #    (engine-neutral, client-side timing), stop it. llamacpp and gufo run the same UD-Q4_K_XL weights
 #    (the only quant gufo supports); llamacpp-iq4xs is the plan's reference, llama.cpp on UD-IQ4_XS,
 #    the quant the benchmark runs use. Whatever server this script starts, it stops on every exit.
-# Writes benchmarks/gufo-eval/results/<timestamp>-<host>/ : results.jsonl, the server logs, and
+# Writes benchmarks/gufo-eval/results/<timestamp>/ : results.jsonl, the server logs, and
 # versions.txt (image digest, llama.cpp commit, weights revision, every command line).
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -49,7 +49,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-OUT="$RESULTS/$(date -u +%Y%m%d-%H%M%S)-$(hostname -s)${DRY:+-dry-run}"
+# The machine by its hardware (harness host-desc.sh), never its hostname; empty if unavailable.
+hw_desc() { local f="$REPO_ROOT/benchmarks/spec-bench/harness/host-desc.sh"; [[ -f "$f" ]] || return 0; ( . "$f" && host_desc ) 2>/dev/null || true; }
+OUT="$RESULTS/$(date -u +%Y%m%d-%H%M%S)${DRY:+-dry-run}"
 mkdir -p "$OUT/prompts"
 SPID=""
 
@@ -64,7 +66,7 @@ wait_up() {
 }
 
 # llama.cpp on the given weights. --cache-ram 0: test A's prompts are all unique, so llama-server's
-# host-RAM prompt cache (8 GB by default) only fills memory; on tritus it pushed swap to full.
+# host-RAM prompt cache (8 GB by default) only fills memory; on the Strix Halo box it pushed swap to full.
 start_llama_on() {
   local name="$1" model="$2"
   local cmd=("$LLAMA_BIN/llama-server" -m "$model" -lm dio -ngl 99 -c "$CTX" -fa on --jinja -np 1
@@ -118,7 +120,7 @@ make_prompts() { # needs llama.cpp running: /tokenize and /detokenize cut real c
 }
 
 {
-  echo "# test A $(date -u +%FT%TZ) on $(hostname -s); kernel $(uname -r)"
+  echo "# test A $(date -u +%FT%TZ) on $(hw_desc); kernel $(uname -r)"
   echo "weights: unsloth/Qwen3.8-Flash-Next-GGUF @ $WEIGHTS_REV, $MODEL_REL + $MTP_REL"
   echo "llama.cpp: $(git -C "$LLAMA_BIN/../.." log --oneline -1 2>/dev/null)"
   echo "gufo image: $(podman image inspect "$IMAGE" --format '{{.Id}} {{.Created}}' 2>/dev/null)"

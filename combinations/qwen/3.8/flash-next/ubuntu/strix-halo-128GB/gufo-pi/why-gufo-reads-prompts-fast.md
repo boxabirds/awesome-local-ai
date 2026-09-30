@@ -19,7 +19,7 @@ Programs that run AI models on your own computer are called **inference engines*
 
 (Figures as of 28 September 2026.)
 
-gufo is a newer one written specifically for AMD's Ryzen AI MAX+ 395 chip, better known as "Strix Halo". My test machine, tritus, has one of these chips and 128 GB of memory.
+gufo is a newer one written specifically for AMD's Ryzen AI MAX+ 395 chip, better known as "Strix Halo". My test machine, a Minisforum MS-S1 MAX, has one of these chips and 128 GB of memory.
 
 Before a model can write its reply, it has to read the whole conversation so far: every earlier message, every file it opened and every tool output. This reading step is called **prefill**. It's measured in **tokens**, which are small pieces of text (roughly ¾ of a word each). A coding agent's conversation is often 50,000–120,000 tokens long.
 
@@ -41,7 +41,7 @@ It's also one of the benefits of owning an RTX graphics card. A current card lik
 >
 > The providers keep the model's working memory of a conversation (its **KV cache**) for a while after each request, and reuse it when the same conversation comes back. This is called **prompt caching**. Anthropic keeps it for 5 minutes by default, or an hour if you pay for it, and charges a tenth of the normal price or less to reuse it. OpenAI keeps it for about 30 minutes on its newest models. DeepSeek saves it to disk for hours to days, and said in 2024 that a cached 128,000-token prompt starts replying in half a second instead of 13 seconds. Moonshot, which runs the Kimi service, has published how it does this at scale ("Mooncake"): the saved memory is spread across the spare RAM and SSDs of the whole GPU cluster.
 >
-> When the cache has expired, as it usually will if you come back the next day, the cloud does re-read the whole conversation. But DeepSeek's 13 seconds for 128,000 tokens with no cache works out at roughly 10,000 tokens a second, on 2024 hardware. That's about 8 times gufo on tritus and over 50 times llama.cpp, so the re-read takes seconds, not minutes.
+> When the cache has expired, as it usually will if you come back the next day, the cloud does re-read the whole conversation. But DeepSeek's 13 seconds for 128,000 tokens with no cache works out at roughly 10,000 tokens a second, on 2024 hardware. That's about 8 times gufo on the Strix Halo box and over 50 times llama.cpp, so the re-read takes seconds, not minutes.
 >
 > The caching part isn't cloud-only. Local engines keep the cache while they're running, and llama.cpp can save it to disk (its `--slot-save-path` option). The speed of reading is the real difference.
 
@@ -60,7 +60,7 @@ At the sizes a coding agent works with (32,000 to 120,000 tokens), **gufo is 4 t
 
 Note: llama.cpp gets slower as the conversation grows, while gufo stays almost flat. I explain why below.
 
-(Versions: gufo `b722a61`, and llama.cpp commit `6fcaa16` using its Vulkan graphics interface. Both used the UD-Q4_K_XL model files. The raw results are in `benchmarks/gufo-eval/results/` on tritus: `20260927-172049-tritus` for llama.cpp and `20260927-181814-tritus` for gufo. The method is in the [test A plan](../../../../../../../docs/20260926-gufo-vs-llamacpp-eval-plan.md).)
+(Versions: gufo `b722a61`, and llama.cpp commit `6fcaa16` using its Vulkan graphics interface. Both used the UD-Q4_K_XL model files. The raw results are in `benchmarks/gufo-eval/results/` on the Strix Halo box: `20260927-172049` for llama.cpp and `20260927-181814` for gufo. The method is in the [test A plan](../../../../../../../docs/20260926-gufo-vs-llamacpp-eval-plan.md).)
 
 ## Where llama.cpp's time goes
 
@@ -102,7 +102,7 @@ According to gufo's own measurements, these layers take just 9.5% of its prompt-
 
 On this chip, fetching the weights from memory takes longer than the maths itself. So the aim is to fetch each weight once and use it for as many tokens as possible.
 
-gufo pushes **2,048 tokens** through each layer at a time, while llama.cpp on tritus does 512. That's four times as much work for every weight fetched. But bigger batches alone don't do it: I tried llama.cpp at 2,048 too. It was a little faster on a short prompt (530 tokens per second against 491) and slower on long ones (233 against 284 at 64,000 tokens). The batch size only pays off because of what gufo's code does with it. gufo also keeps the graphics chip (the **GPU**) busy almost all the time: its profile shows 1,363 ms of work in a 1,380 ms prompt-reading step.
+gufo pushes **2,048 tokens** through each layer at a time, while llama.cpp on the Strix Halo box does 512. That's four times as much work for every weight fetched. But bigger batches alone don't do it: I tried llama.cpp at 2,048 too. It was a little faster on a short prompt (530 tokens per second against 491) and slower on long ones (233 against 284 at 64,000 tokens). The batch size only pays off because of what gufo's code does with it. gufo also keeps the graphics chip (the **GPU**) busy almost all the time: its profile shows 1,363 ms of work in a 1,380 ms prompt-reading step.
 
 ### 4. It uses the chip's maths units directly
 
@@ -140,13 +140,13 @@ It became so popular that it now supports almost every model on almost every chi
 
 ## Sources
 
-- llama.cpp profile: `benchmarks/gufo-eval/results/20260928-032534-llama-prefill-profile` on tritus, made with [llama-prefill-profile.sh](../../../../../../../benchmarks/gufo-eval/llama-prefill-profile.sh) (llama.cpp `6fcaa16`, Vulkan, `GGML_VK_PERF_LOGGER`). "Core multiplications" is `MUL_MAT` plus `MUL_MAT_ID`, "attention" is `FLASH_ATTN_EXT` plus `TOPK_QSA`, and "shortcut layers" is `GATED_DELTA_NET`. gufo's shares are from its d0 and d32K profiles in its experiment log.
+- llama.cpp profile: `benchmarks/gufo-eval/results/20260928-032534-llama-prefill-profile` on the Strix Halo box, made with [llama-prefill-profile.sh](../../../../../../../benchmarks/gufo-eval/llama-prefill-profile.sh) (llama.cpp `6fcaa16`, Vulkan, `GGML_VK_PERF_LOGGER`). "Core multiplications" is `MUL_MAT` plus `MUL_MAT_ID`, "attention" is `FLASH_ATTN_EXT` plus `TOPK_QSA`, and "shortcut layers" is `GATED_DELTA_NET`. gufo's shares are from its d0 and d32K profiles in its experiment log.
 
 - Cloud prompt caching: [Anthropic](https://platform.claude.com/docs/en/docs/build-with-claude/prompt-caching), [OpenAI](https://developers.openai.com/api/docs/guides/prompt-caching), [DeepSeek's 2024 announcement](https://api-docs.deepseek.com/news/news0802/) (the 13 s to 0.5 s figure) and Moonshot's [Mooncake paper](https://arxiv.org/abs/2407.00079), read on 28 September 2026.
 - Home graphics cards: the tables in [llama.cpp #29353](https://github.com/ggml-org/llama.cpp/pull/29353) (the numbers before the change; the quantisations differ slightly: Q8 on Strix Halo, Q4_K_M on the NVIDIA cards), and my RTX 4090 measurement in the [Qwen3.8 27B combination](../../../../27b/ubuntu/nvidia4090/llamacpp-pi/README.md) (pp2048 at about 2,915 tokens/s).
 - llama.cpp's reach: the GitHub pages for [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (stars, forks, latest release b11223) and [ollama/ollama](https://github.com/ollama/ollama) (its `LLAMA_CPP_VERSION` file pins llama.cpp), and the [GGUF model list on Hugging Face](https://huggingface.co/models?library=gguf), all on 28 September 2026.
 
-- Speed measurements: test A on tritus, in `benchmarks/gufo-eval/results/` (runs of 27 September 2026).
+- Speed measurements: test A on the Strix Halo box, in `benchmarks/gufo-eval/results/` (runs of 27 September 2026).
 - gufo's profile and experiment log: `docs/models/qwen3.8-flash-next/EXPERIMENTS.md` in [gufo-org/gufo](https://github.com/gufo-org/gufo) at `b722a61`.
 - gufo's routines adapted from llama.cpp: `src/models/qwen38_flash_next/kernels/rocm/mmq/VENDOR.md` in the same repository (DeepSeek V4 Flash has its own copy).
 - Compaction times and replays of real agent requests: [the long-session investigation](../../../../../../../docs/20260928-gufo-long-session-investigation.md).

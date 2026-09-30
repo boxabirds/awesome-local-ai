@@ -3,7 +3,7 @@
 #
 # The probe reads `llama-server --list-devices`. Current llama.cpp names the Metal device MTL0 and
 # never prints the word "metal"; a probe that looked for it rejected every good Mac build
-# (the 26 Sep 2026 install of qwen/3.8/flash-next/macos/128GB/llamacpp-pi on quintus).
+# (the 26 Sep 2026 install of qwen/3.8/flash-next/macos/128GB/llamacpp-pi on the M5 Max).
 set -uo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$DIR/.." && pwd)"
@@ -18,7 +18,7 @@ fake() { # name output
 }
 
 echo "metal device probe"
-# quintus, M5 Max, llama.cpp 6fcaa16, verbatim
+# Apple M5 Max (128 GB), llama.cpp 6fcaa16, verbatim
 now=$(fake now '0.00.000.258 I srv  llama_server: initializing ...
 Available devices:
   MTL0: Apple M5 Max (110100 MiB, 110099 MiB free)

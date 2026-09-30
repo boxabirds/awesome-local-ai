@@ -12,7 +12,7 @@ driven by pi by default (a much smaller system prompt than OpenCode, which
 matters at this prefill speed) or OpenCode.
 
 > **PARTLY MEASURED.** Installed and verified on a Minisforum MS-S1 MAX
-> (tritus), with decode speeds at shallow context measured there (see
+> (Minisforum MS-S1 MAX), with decode speeds at shallow context measured there (see
 > Expected performance). Every memory figure in [`profiles.tsv`](profiles.tsv)
 > is still an **ESTIMATE** with its arithmetic shown, and nothing past a few
 > thousand tokens of context has been measured yet. It is marked `AUTO_SELECT=0`, so it

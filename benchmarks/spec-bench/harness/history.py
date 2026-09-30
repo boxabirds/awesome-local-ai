@@ -38,7 +38,7 @@ ERROR_SHOWN_CHARS = 240
 # inside. A boundary this long before the gap's last event still counts (clock and logging skew).
 BOUNDARY_SLACK_S = 120
 SECONDS_PER_MINUTE = 60
-# interventions.md lines: "- 2026-09-26T08:57:29Z story 3: quintus froze …"
+# interventions.md lines: "- 2026-09-26T08:57:29Z story 3: the M5 Max froze …"
 INTERVENTION_RE = re.compile(r"^-\s*\**\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z)\s*(.*)$")
 # What kind of interruption a logged cause describes; the first match wins.
 INTERRUPTION_KINDS = [("machine freeze", re.compile(r"froze|freeze|watchdog|kernel panic|rebooted", re.I)),

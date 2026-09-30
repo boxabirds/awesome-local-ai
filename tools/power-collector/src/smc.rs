@@ -1,7 +1,7 @@
 //! Die temperatures from the Apple SMC (macOS, Apple Silicon), read the way MacThrottle and exelban/stats
 //! read them. Apple doesn't document the key names. We enumerate every temperature key the SMC offers
 //! once at startup, and group them by the prefixes seen on M1–M4: `Tp` CPU cores, `Tg` GPU. On the
-//! M5 Max, quintus exposes 321 plausible `T*` keys, including 23 `Tp` and 84 `Tg`.
+//! M5 Max, the bench machine exposes 321 plausible `T*` keys, including 23 `Tp` and 84 `Tg`.
 
 use crate::sources::Values;
 
@@ -193,7 +193,7 @@ mod tests {
         assert_eq!(from_fourcc(fourcc("Tp0C")), "Tp0C");
     }
 
-    /// Quintus, 28 Sep, idle at 42 °C: Tf06/Tf16 read 98.5/99.6 whatever the load (limits, not
+    /// The M5 Max, 28 Sep, idle at 42 °C: Tf06/Tf16 read 98.5/99.6 whatever the load (limits, not
     /// sensors), so a max over every key sat at 99.6 °C 89% of the time. The hottest is CPU or GPU only.
     #[test]
     fn hottest_is_the_hottest_cpu_or_gpu_sensor_not_any_key() {

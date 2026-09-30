@@ -235,7 +235,7 @@ print(m.get("context_length") or m.get("max_model_len") or m.get("n_ctx") or "")
 }
 
 # "<accepted> <drafted>" from a chat completion's usage, or nothing. gufo
-# reports usage.draft_tokens and usage.draft_tokens_accepted (seen on tritus,
+# reports usage.draft_tokens and usage.draft_tokens_accepted (seen on the Strix Halo box,
 # 27 Sep 2026, gufo b722a61); without drafting neither is there.
 _gufo_draft_counts() {
   python3 -c '

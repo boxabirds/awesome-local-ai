@@ -10047,7 +10047,7 @@
       "skip": {
         "story": 5,
         "reason": "runaway story: ~7.5 h agent time and 20 nudges without committing; operator cut-off at 4 h / 5 nudges adopted 2026-09-25",
-        "by": "operator (quintus)",
+        "by": "operator (Apple M5 Max 128GB)",
         "at": 1790366428.5955489
       },
       "verdict": {
@@ -18388,7 +18388,7 @@
         }
       ],
       "reason": "runaway story: ~7.5 h agent time and 20 nudges without committing; operator cut-off at 4 h / 5 nudges adopted 2026-09-25",
-      "by": "operator (quintus)",
+      "by": "operator (Apple M5 Max 128GB)",
       "requested_at": 1790366428.5955489,
       "verdict": "amber",
       "health": {

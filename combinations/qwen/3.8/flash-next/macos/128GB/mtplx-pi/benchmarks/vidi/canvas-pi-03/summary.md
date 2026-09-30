@@ -70,8 +70,8 @@ A gap in a story's agent events with a restart or a logged intervention inside i
 
 | Story | When (UTC) | Down for | Kind | Logged cause |
 |---|---|---|---|---|
-| 3 | 26 Sep 08:57 | 22 min | machine freeze | quintus froze (last system log 08:57:29.5Z; |
-| 4 | 26 Sep 14:48 | 20 min | machine freeze | quintus froze a third time today; |
+| 3 | 26 Sep 08:57 | 22 min | machine freeze | the M5 Max froze (last system log 08:57:29.5Z; |
+| 4 | 26 Sep 14:48 | 20 min | machine freeze | the M5 Max froze a third time today; |
 | 9 | 26 Sep 21:53 | 1 min | operator restart | before story 9: the operator stopped the run and relaunched it unchanged at `MTPLX_MEMORY_LIMIT_BYTES=90G` to restart MTPLX. |
 | 9 | 26 Sep 21:56 | 6 min | restart (no intervention logged) | — |
 | 10 | 27 Sep 00:44 | 18 min | operator restart | correction to the entry above: the stop at 00:45Z and the relaunch at 00:51Z were not unattributed. |

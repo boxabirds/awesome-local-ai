@@ -5,15 +5,15 @@
 
 Machines today:
 - **M2**: laptop, controller only.
-- **quintus**: M5 Max 128 GB, macOS.
-- **gruntus**: RTX 4090 24 GB, 62 GB RAM, Ubuntu 22.04.
-- **tritus**: AMD Ryzen AI Max 395, unified memory, not yet reachable.
+- **M5 Max**: Apple M5 Max 128 GB, macOS.
+- **RTX 4090 machine**: RTX 4090 24 GB, 62 GB RAM, Ubuntu 22.04.
+- **Strix Halo box**: AMD Ryzen AI Max 395, unified memory, not yet reachable.
 
 All are on one trusted network (Tailscale, which the design doesn't depend on).
 
 ## 0. Four problems with the brief
 
-1. **Rust is more efficient, but the saving here is small.** Resident memory measured on quintus mid-story, 24 Sep:
+1. **Rust is more efficient, but the saving here is small.** Resident memory measured on the M5 Max mid-story, 24 Sep:
 
    | Process | Resident memory |
    |---|---|
@@ -24,7 +24,7 @@ All are on one trusted network (Tailscale, which the design doesn't depend on).
 
    - A Rust driver would be a few MB, saving about 20 MB. That is about 0.02% of a 128 GB machine.
    - The large items are the agent under test and the model server, and they stay whatever language the harness is in.
-   - Rust also brings **deployment** (one static binary, no Python/uv on every box; gruntus has no uv today) and a type system that catches whole classes of harness bugs.
+   - Rust also brings **deployment** (one static binary, no Python/uv on every box; the RTX 4090 machine has no uv today) and a type system that catches whole classes of harness bugs.
    - So: Rust for the **new** code, meaning the node daemon and the CLI.
    - Keep the story driver (`drive.py`, `clients.py`, `gates.py`) as the job payload for now. It holds a day's worth of hard-won fixes, all learned by failure. Examples:
      - sandbox metadata reads;
@@ -38,9 +38,9 @@ All are on one trusted network (Tailscale, which the design doesn't depend on).
    - Port it later, module by module, once a second platform has produced results.
 2. **Rust doesn't remove the heavy dependencies.**
    - Every node still needs Node, npm, Playwright and Chromium for the agent's toolchain and the held-out suite, plus the combination's own server.
-   - gruntus has **node v12**, which is too old for Vite or Playwright. That, not the orchestrator, is the first real blocker.
+   - The RTX 4090 machine has **node v12**, which is too old for Vite or Playwright. That, not the orchestrator, is the first real blocker.
 3. **The hard part is portability, not orchestration.** The harness today is macOS-only in four places:
-   - `sandbox-exec` (Linux needs bubblewrap; gruntus has `bwrap`);
+   - `sandbox-exec` (Linux needs bubblewrap; the RTX 4090 machine has `bwrap`);
    - power and thermal checks (`pmset`, `thermal.py`);
    - the memory guard (`footprint`, `memory_pressure`);
    - the preflight.
@@ -56,7 +56,7 @@ All are on one trusted network (Tailscale, which the design doesn't depend on).
 
 **Order to work in:**
 1. Finish canvas-pi-01.
-2. Get one story running on gruntus by hand.
+2. Get one story running on the RTX 4090 machine by hand.
 3. Then build the daemon.
 
 The daemon is small enough that the order matters more than the code.
@@ -101,7 +101,7 @@ The daemon is small enough that the order matters more than the code.
 ## 2. Architecture
 
 ```
-  controller (any machine: M2, quintus, ...)
+  controller (any machine: M2, M5 Max, ...)
   ┌──────────────────────────────┐
   │ bench CLI  (~/.config/bench/nodes.toml)
   │  submit / status / logs -f / cancel / deploy
@@ -109,7 +109,7 @@ The daemon is small enough that the order matters more than the code.
          │ HTTP+JSON     │ (fan-out, no state)
    ┌─────▼─────┐   ┌─────▼─────┐   ┌───────────┐
    │ benchd    │   │ benchd    │   │ benchd    │
-   │ quintus   │   │ gruntus   │   │ tritus    │
+   │ M5 Max    │   │ RTX 4090  │   │ Strix Halo│
    │ launchd   │   │ systemd   │   │ systemd   │
    └─────┬─────┘   └─────┬─────┘   └─────┬─────┘
          │ runs (own process group)      │
@@ -153,10 +153,10 @@ queued → preparing (install check, preflight) → running{story, since} → do
 The CLI reads its node list from `~/.config/bench/nodes.toml`:
 
 ```toml
-[nodes.quintus]
-url = "http://quintus:7717"
-[nodes.gruntus]
-url = "http://gruntus:7717"
+[nodes.node-a]   # the M5 Max
+url = "http://node-a:7717"
+[nodes.node-b]   # the RTX 4090 machine
+url = "http://node-b:7717"
 ```
 
 Commands:
@@ -164,7 +164,7 @@ Commands:
 | Command | What it does |
 |---|---|
 | `bench nodes` | Capabilities, current job, current story, and conditions for every node, fetched in parallel. An unreachable node shows as `unreachable` and doesn't stop the command. |
-| `bench submit --node gruntus --combo qwen38-27b --pack benchmarks/vidi --scope canvas --run-id canvas-pi-01` | Checks the job against the node's capabilities (is the combination installed, is there enough memory), then sends `PUT /jobs/<id>`. |
+| `bench submit --node node-b --combo qwen38-27b --pack benchmarks/vidi --scope canvas --run-id canvas-pi-01` | Checks the job against the node's capabilities (is the combination installed, is there enough memory), then sends `PUT /jobs/<id>`. |
 | `bench status [run-id]` | Job state, stories done, the last acceptance score, and unpushed commits. |
 | `bench logs -f <node> <id>` | Follows a job's log over SSE. |
 | `bench cancel <node> <id>` | Stops the job's process group. The driver's checkpoint stays, so the job can be resumed later. |
@@ -212,20 +212,20 @@ PUT  /v1/binary                  self-update (refused while running unless ?forc
 
 These are the changes to the harness payload, not to benchd.
 
-| Concern | macOS (quintus, M2) | Linux + NVIDIA (gruntus) | Linux + AMD unified memory (tritus) |
+| Concern | macOS (M5 Max, M2) | Linux + NVIDIA (RTX 4090) | Linux + AMD unified memory (Strix Halo) |
 |---|---|---|---|
 | Agent sandbox | `sandbox-exec` (today) | `bwrap`: bind the workspace read-write, the toolchain read-only, and don't mount the repo or held-out suites at all | `bwrap`, as for NVIDIA |
 | Power | `pmset -g batt` | Desktop, so treat it as always on AC. Record `nvidia-smi` power-limit changes. | Desktop, always on AC |
 | Thermal | `thermal.py` (pressure level) | `nvidia-smi --query-gpu=temperature.gpu,clocks_throttle_reasons.active` | `sensors` / `amdgpu` hwmon |
 | Memory guard | `memory_pressure` free % + swap growth | `/proc/meminfo` MemAvailable + swap. VRAM from `nvidia-smi`, reported but not a stop signal. | MemAvailable + swap. The GPU carve-out behaves like a Mac's wired memory, so watch free memory. |
 | Other GPU users | — | `nvidia-smi --query-compute-apps` must show only the model server | `rocm-smi --showpids` |
-| Service | launchd user agent | systemd `--user` unit + `loginctl enable-linger` (sudo, user-run) | same as gruntus |
+| Service | launchd user agent | systemd `--user` unit + `loginctl enable-linger` (sudo, user-run) | same as the RTX 4090 machine |
 
 ## 7. Deployment
 
 - **Builds:** `cargo zigbuild`, which gives:
-  - `x86_64-unknown-linux-musl` for gruntus and tritus;
-  - `aarch64-apple-darwin` for quintus and the M2.
+  - `x86_64-unknown-linux-musl` for the RTX 4090 machine and the Strix Halo box;
+  - `aarch64-apple-darwin` for the M5 Max and the M2.
 - **`bench deploy <node>`:**
   - the first time, over ssh: copy the binary, write the unit or plist, generate the token, and start the service;
   - after that, through `PUT /v1/binary`.
@@ -240,12 +240,12 @@ These are the changes to the harness payload, not to benchd.
 
 These are concrete steps, in order. Each one produces a result that can be checked.
 
-1. **Finish canvas-pi-01 on quintus.** It's the reference result; nothing below should disturb it.
-2. **Linux harness by hand on gruntus.**
+1. **Finish canvas-pi-01 on the M5 Max.** It's the reference result; nothing below should disturb it.
+2. **Linux harness by hand on the RTX 4090 machine.**
    - Install Node 20 or later and uv. Add the bwrap sandbox, the NVIDIA conditions and the Linux memory adapters behind a `platform` switch.
    - Get the preflight passing inside bwrap.
-   - Run story 1 of one gruntus combination (`qwen38-27b`, llama.cpp) over ssh.
-   - **Done when** story 1 is recorded and pushed from gruntus, and the sandbox is shown to deny reads of the repo.
+   - Run story 1 of one RTX 4090 combination (`qwen38-27b`, llama.cpp) over ssh.
+   - **Done when** story 1 is recorded and pushed from the RTX 4090 machine, and the sandbox is shown to deny reads of the repo.
 3. **Harness takes over the operator work** listed in §0.5:
    - typed events;
    - the free-% memory guard;
@@ -256,18 +256,18 @@ These are concrete steps, in order. Each one produces a result that can be check
 4. **benchd MVP.**
    - `/v1/node`, `PUT/GET /v1/jobs`, events and log follow, previews, exclusive run, and resume after restart.
    - The `bench` CLI with nodes, submit, status and logs.
-   - Deployed on gruntus and quintus.
-   - **Done when** killing benchd, and rebooting gruntus, both resume the job with no manual step.
-5. **Resilience.** Push-retry while offline, conditions gating, the memory guard, `deploy` and `doctor`. **Done when** unplugging gruntus's network mid-story loses nothing and the backlog is pushed afterwards.
-6. **Bring tritus online** with `bench deploy tritus` and `benchd doctor`.
+   - Deployed on the RTX 4090 machine and the M5 Max.
+   - **Done when** killing benchd, and rebooting the RTX 4090 machine, both resume the job with no manual step.
+5. **Resilience.** Push-retry while offline, conditions gating, the memory guard, `deploy` and `doctor`. **Done when** unplugging the RTX 4090 machine's network mid-story loses nothing and the backlog is pushed afterwards.
+6. **Bring the Strix Halo box online** with `bench deploy <node>` and `benchd doctor`.
 7. **Port the driver to Rust**, only if steps 2–6 show the Python/uv dependency actually hurts. Port module by module behind the existing tests: clients, gates, then drive.
 
 ## 9. Open questions
 
-1. Which combinations should gruntus run?
+1. Which combinations should the RTX 4090 machine run?
    - Installed today: `qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi` and the swift variant.
    - The SGLang EXL3 combos written for the 3090 also fit the 4090.
 2. Git credentials on the nodes: a deploy key per node (can be revoked one at a time) or one fine-grained token? I'd use per-node deploy keys.
-3. tritus doesn't resolve from quintus yet (`ssh tritus` fails). Is it on the tailnet?
+3. The Strix Halo box doesn't resolve from the M5 Max yet (`ssh <node>` fails). Is it on the tailnet?
 4. Should the M2 also be a benchmark node (a low-memory combination), or only a controller?
 5. Which model judges quality at the end of a run? A local model changes nothing outside the tailnet. A Claude model is stronger but sends the delivered code to an external API.

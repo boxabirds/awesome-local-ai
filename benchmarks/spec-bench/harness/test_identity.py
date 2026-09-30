@@ -103,7 +103,7 @@ def test_gufo_model_files_are_found_inside_the_model_folder(tmp_path):
 
 # ---------- following the port into a container (gufo in Podman, SGLang in Docker) ----------
 
-# tritus, gufo-pi v2-r1 run.json identity.server_command: the host process on the port is Podman's network helper
+# the Strix Halo box, gufo-pi v2-r1 run.json identity.server_command: the host process on the port is Podman's network helper
 PASTA = ["/usr/bin/pasta", "--config-net", "-t", "127.0.0.1/18010-18010:8080-8080", "--dns-forward", "169.254.1.1",
          "-u", "none", "-T", "none", "-U", "none", "--no-map-gw", "--quiet", "--netns",
          "/run/user/1000/netns/netns-e5abdf57-9e96-491c-c861-24eac8a45e1c", "--map-guest-addr", "169.254.1.2"]

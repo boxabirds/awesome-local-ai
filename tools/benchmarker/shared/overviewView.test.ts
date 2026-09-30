@@ -29,11 +29,11 @@ const live = (over: Partial<Live> = {}): Live => ({
   outputTokens: null, tasksWritten: null, tasksTotal: null, lastActivity: null, storyStartedAt: null, storyTitle: null,
   storiesInScope: null, runStartedAt: null, totalAgentMinutes: null, logTail: [], queue: null, ...over,
 });
-const job = (id: string, status: string, updatedAt: number | null, reason = "", ended: number | null = null): JobRef => ({ id, node: "gruntus", status, submittedAt: null, updatedAt, reason, endedAt: ended });
+const job = (id: string, status: string, updatedAt: number | null, reason = "", ended: number | null = null): JobRef => ({ id, node: "node-a", status, submittedAt: null, updatedAt, reason, endedAt: ended });
 const score = (passed: number | null, total: number | null): Score => ({ passed, total, flaky: 0, at: "2026-09-30T18:30:00Z" });
 
 const row = (over: Partial<Row> = {}): Row => ({
-  pack: "vidi", stack: "qwen/x/pi", runId: "r1", dir: "d", node: "gruntus", host: "h", machine: "gruntus", label: "x pi",
+  pack: "vidi", stack: "qwen/x/pi", runId: "r1", dir: "d", node: "node-a", host: "h", machine: "node-a", label: "x pi",
   packVersion: SUITE, family: "vidi-v2", suite: SUITE, state: "finished", stateAt: "", status: "finished",
   storiesWorking: { working: 0, scope: 0, squares: [] },
   usage: { outTokens: null, inTokens: null, readTokens: null, calls: null, tokS: null, decodeTokS: null, prefillTokS: null },
@@ -91,14 +91,14 @@ describe("silent minutes: how long the harness has said nothing about a running 
 describe("needs you", () => {
   it("nothing needs you when all is well: a busy reachable machine, a scored run, checked stories", () => {
     const ok = running(10, 10);
-    expect(needs({ rows: [row(), ok], all: [row(), ok], machines: [busy("gruntus")], reach: { gruntus: { ok: true } } })).toEqual([]);
+    expect(needs({ rows: [row(), ok], all: [row(), ok], machines: [busy("node-a")], reach: { "node-a": { ok: true } } })).toEqual([]);
   });
 
   describe("a running story with no activity for a long time", () => {
     it(`fires at exactly ${SILENT_MINUTES} silent minutes, and not a minute before`, () => {
       const at = running(SILENT_MINUTES + 5, 5);
       const before = running(SILENT_MINUTES + 4, 5);
-      expect(needs({ all: [at] })).toMatchObject([{ kind: "silent", machine: "gruntus", story: "3", run: { runId: "run" } }]);
+      expect(needs({ all: [at] })).toMatchObject([{ kind: "silent", machine: "node-a", story: "3", run: { runId: "run" } }]);
       expect((needs({ all: [at] })[0] as Extract<Need, { kind: "silent" }>).minutes).toBeCloseTo(SILENT_MINUTES);
       expect(needs({ all: [before] })).toEqual([]);
     });
@@ -112,22 +112,22 @@ describe("needs you", () => {
       expect(needs({ all: [running(null, 5), running(120, null), running(120, 5, { currentStory: null })] })).toEqual([]);
     });
     it("names the node the job runs on", () => {
-      expect(needs({ all: [{ ...running(120, 5), node: "tritus", machine: "AMD box" }] })).toMatchObject([{ machine: "tritus" }]);
+      expect(needs({ all: [{ ...running(120, 5), node: "node-d", machine: "AMD box" }] })).toMatchObject([{ machine: "node-d" }]);
     });
   });
 
   describe("an idle machine: reachable, nothing running, nothing queued", () => {
     it("fires for a node with nothing running and nothing queued", () => {
-      expect(needs({ machines: [machine("tritus")], reach: { tritus: { ok: true } } })).toMatchObject([{ kind: "idle", machine: "tritus" }]);
+      expect(needs({ machines: [machine("node-d")], reach: { "node-d": { ok: true } } })).toMatchObject([{ kind: "idle", machine: "node-d" }]);
     });
     it("fires before /api/machines answers: dbench listing the node is an answer", () => {
-      expect(kinds(needs({ machines: [machine("tritus")], reach: null }))).toEqual(["idle"]);
+      expect(kinds(needs({ machines: [machine("node-d")], reach: null }))).toEqual(["idle"]);
     });
     it("not with one job queued and nothing running, nor with one running and nothing queued", () => {
-      expect(needs({ machines: [machine("tritus", { queued: 1 }), busy("gruntus")] })).toEqual([]);
+      expect(needs({ machines: [machine("node-d", { queued: 1 }), busy("node-a")] })).toEqual([]);
     });
     it("an unreachable machine is unreachable, not idle", () => {
-      expect(kinds(needs({ machines: [machine("tritus")], reach: { tritus: { ok: false, error: "timed out" } } }))).toEqual(["unreachable"]);
+      expect(kinds(needs({ machines: [machine("node-d")], reach: { "node-d": { ok: false, error: "timed out" } } }))).toEqual(["unreachable"]);
     });
   });
 
@@ -234,8 +234,8 @@ describe("needs you", () => {
         row({ runId: "a", stories: [story("1", { usage: usage({ split: split({ status: "problems", problems: ["x"] }) }) })] }),
         row({ runId: "r", rescores: [SUITE], scores: {} }),
       ];
-      const reach: Reachability = { down: { ok: false }, tritus: { ok: true } };
-      expect(kinds(needs({ rows, all, machines: [machine("tritus")], reach }))).toEqual(["silent", "unreachable", "ended", "idle", "rescoreFault", "unscored", "accounting"]);
+      const reach: Reachability = { down: { ok: false }, "node-d": { ok: true } };
+      expect(kinds(needs({ rows, all, machines: [machine("node-d")], reach }))).toEqual(["silent", "unreachable", "ended", "idle", "rescoreFault", "unscored", "accounting"]);
     });
     it("within a kind, by what it is about, numbers in order", () => {
       const n = needs({ machines: [machine("node-10"), machine("node-9"), machine("alpha")] });
@@ -269,44 +269,44 @@ describe("helpers", () => {
 
 // ---------------------------------------------------------------------------------------------------------------
 describe("now: one line per machine", () => {
-  const reach: Reachability = { gruntus: { ok: true }, tritus: { ok: true } };
+  const reach: Reachability = { "node-a": { ok: true }, "node-d": { ok: true } };
 
   it("running: the run (found among every run), its story and title, minutes on it, silence, and its queue", () => {
     const r = running(20, 12, { storyTitle: "Sticky notes" });
-    const [line] = nowLines([busy("gruntus", "run", 2)], [r], reach, NOW);
+    const [line] = nowLines([busy("node-a", "run", 2)], [r], reach, NOW);
     expect(line).toMatchObject({
-      machine: "gruntus", state: "running", run: { pack: "vidi", stack: "qwen/x/pi", runId: "run", label: "x pi" },
+      machine: "node-a", state: "running", run: { pack: "vidi", stack: "qwen/x/pi", runId: "run", label: "x pi" },
       story: "3", storyTitle: "Sticky notes", finishing: false, minutes: 12, queued: 2, error: "",
     });
     expect(line.silent).toBeCloseTo(8);
   });
   it("running, finishing: says so, and has no silence to measure", () => {
     const r = running(20, 12, { currentStory: null });
-    const m = machine("gruntus", { running: { stack: "qwen/x/pi", short: "x pi", runId: "run", story: "3", finishing: true, agentMinutes: 12 } });
+    const m = machine("node-a", { running: { stack: "qwen/x/pi", short: "x pi", runId: "run", story: "3", finishing: true, agentMinutes: 12 } });
     expect(nowLines([m], [r], reach, NOW)[0]).toMatchObject({ state: "running", finishing: true, silent: null });
   });
   it("running, but its run isn't among the runs: named from dbench, with no pack to link it by", () => {
-    expect(nowLines([busy("gruntus")], [], reach, NOW)[0]).toMatchObject({ state: "running", run: { pack: "", runId: "run", label: "x pi" }, storyTitle: null, silent: null });
+    expect(nowLines([busy("node-a")], [], reach, NOW)[0]).toMatchObject({ state: "running", run: { pack: "", runId: "run", label: "x pi" }, storyTitle: null, silent: null });
   });
   it("running, starting: no story yet", () => {
-    const m = machine("gruntus", { running: { stack: "qwen/x/pi", short: "x pi", runId: "run", story: null, finishing: false, agentMinutes: null } });
+    const m = machine("node-a", { running: { stack: "qwen/x/pi", short: "x pi", runId: "run", story: null, finishing: false, agentMinutes: null } });
     expect(nowLines([m], [], reach, NOW)[0]).toMatchObject({ state: "running", story: null, minutes: null });
   });
   it("idle: reachable, nothing running, nothing queued", () => {
-    expect(nowLines([machine("tritus")], [], { tritus: { ok: true } }, NOW)).toMatchObject([{ machine: "tritus", state: "idle", run: null, queued: 0 }]);
+    expect(nowLines([machine("node-d")], [], { "node-d": { ok: true } }, NOW)).toMatchObject([{ machine: "node-d", state: "idle", run: null, queued: 0 }]);
   });
   it("queued only: nothing running but a queue waiting, which is not idle", () => {
-    expect(nowLines([machine("tritus", { queued: 3 })], [], { tritus: { ok: true } }, NOW)).toMatchObject([{ state: "queuedOnly", queued: 3, run: null }]);
+    expect(nowLines([machine("node-d", { queued: 3 })], [], { "node-d": { ok: true } }, NOW)).toMatchObject([{ state: "queuedOnly", queued: 3, run: null }]);
   });
   it("unreachable: /api/machines couldn't reach it, whatever dbench last said", () => {
-    expect(nowLines([busy("gruntus")], [], { gruntus: { ok: false, error: "timed out" } }, NOW)[0]).toMatchObject({ state: "unreachable", error: "timed out", run: null });
+    expect(nowLines([busy("node-a")], [], { "node-a": { ok: false, error: "timed out" } }, NOW)[0]).toMatchObject({ state: "unreachable", error: "timed out", run: null });
     expect(nowLines([], [], { down: { ok: false } }, NOW)[0]).toMatchObject({ machine: "down", state: "unreachable", error: "no answer" });
   });
   it("in the machine list and reachable, but not in dbench's job list: can't say what it does", () => {
     expect(nowLines([], [], { fresh: { ok: true } }, NOW)[0]).toMatchObject({ state: "unreachable", error: "dbench's job list has nothing for it" });
   });
   it("before /api/machines answers, dbench's nodes are listed as dbench sees them", () => {
-    expect(nowLines([machine("tritus"), busy("gruntus")], [], null, NOW).map((l) => [l.machine, l.state])).toEqual([["gruntus", "running"], ["tritus", "idle"]]);
+    expect(nowLines([machine("node-d"), busy("node-a")], [], null, NOW).map((l) => [l.machine, l.state])).toEqual([["node-a", "running"], ["node-d", "idle"]]);
   });
   it("one line per machine, by name with numbers in order, each machine once", () => {
     const lines = nowLines([machine("node-10"), machine("node-9")], [], { "node-9": { ok: true }, alpha: { ok: false } }, NOW);
@@ -322,26 +322,26 @@ describe("a machine's jobs now", () => {
       q("third", 3), row({ runId: "old", live: live({ jobId: "old", status: "done" }), jobs: [job("old", "done", 100)] }),
       running(1, 1), q("second", 2), row({ runId: "new", live: live({ jobId: "new", status: "cancelled" }), jobs: [job("new", "cancelled", 200)] }),
     ];
-    const j = machineJobs("gruntus", rows, 300);
+    const j = machineJobs("node-a", rows, 300);
     expect(j.running.map((r) => r.runId)).toEqual(["run"]);
     expect(j.queued.map((r) => r.runId)).toEqual(["second", "third"]);
     expect(j.ended.map((r) => r.runId)).toEqual(["new", "old"]);
   });
   it("only this machine's jobs, and only runs with a job", () => {
-    const j = machineJobs("gruntus", [{ ...running(1, 1), node: "tritus" }, row({ live: null })], NOW);
+    const j = machineJobs("node-a", [{ ...running(1, 1), node: "node-d" }, row({ live: null })], NOW);
     expect(j).toEqual({ running: [], queued: [], ended: [] });
   });
 });
 
-// The bug of 30 Sep: tritus's page listed jobs that ended on 27-29 Sep under "Ended in the last day". dbench keeps
+// The bug of 30 Sep: node-d's page listed jobs that ended on 27-29 Sep under "Ended in the last day". dbench keeps
 // ended jobs for days; the list took every one it kept. What ended in the last day is judged on the job's own end.
 describe("a machine's jobs that ended in the last day", () => {
   const ended = (runId: string, agoS: number | null, status = "done", over: Partial<Row> = {}) => row({
     runId, live: live({ jobId: runId, status }), jobs: agoS === null ? [job(runId, status, null)] : [job(runId, status, NOW - agoS, "", NOW - agoS)], ...over,
   });
-  const listed = (rows: Row[]) => machineJobs("gruntus", rows, NOW).ended.map((r) => r.runId);
+  const listed = (rows: Row[]) => machineJobs("node-a", rows, NOW).ended.map((r) => r.runId);
 
-  it("a job that ended days ago is not listed (tritus: ended 27-29 Sep, shown on 30 Sep)", () => {
+  it("a job that ended days ago is not listed (node-d: ended 27-29 Sep, shown on 30 Sep)", () => {
     expect(listed([ended("canvas-vk-01", 4 * DAY), ended("canvas-gufo-r2", 2 * DAY), ended("v2-r2", 6 * 3600)])).toEqual(["v2-r2"]);
   });
   it(`listed up to exactly ${RECENT_END_S / 3600} hours after it ended, and not a second after`, () => {
@@ -369,7 +369,7 @@ describe("a machine's jobs that ended in the last day", () => {
     expect(listed([ended("a", 3 * 3600), ended("b", 60), ended("c", 2 * 3600)])).toEqual(["b", "c", "a"]);
   });
   it("running and queued jobs are never ended, however old their last report", () => {
-    const j = machineJobs("gruntus", [running(1, 1), row({ runId: "q", status: "queued", live: live({ jobId: "q", status: "queued" }), jobs: [job("q", "queued", NOW - 5 * DAY)] })], NOW);
+    const j = machineJobs("node-a", [running(1, 1), row({ runId: "q", status: "queued", live: live({ jobId: "q", status: "queued" }), jobs: [job("q", "queued", NOW - 5 * DAY)] })], NOW);
     expect(j.ended).toEqual([]);
     expect(j.running).toHaveLength(1);
     expect(j.queued).toHaveLength(1);
@@ -414,11 +414,11 @@ describe("an invalid run needs nothing from you: it is left out", () => {
     expect(kinds(needs({ rows: [row({ rescores: [], scores: {} })] }))).toEqual(["unscored"]);
   });
   it("its machine is still judged as a machine: busy with it is not idle", () => {
-    expect(needs({ machines: [busy("gruntus")], all: [{ ...running(1, 1), invalid: INVALID }] })).toEqual([]);
+    expect(needs({ machines: [busy("node-a")], all: [{ ...running(1, 1), invalid: INVALID }] })).toEqual([]);
   });
   it("the machine's now line names the run with its mark, so it can be struck through", () => {
     const r = { ...running(1, 1), invalid: INVALID };
-    const [line] = nowLines([busy("gruntus")], [r], null, NOW);
+    const [line] = nowLines([busy("node-a")], [r], null, NOW);
     expect(line.run?.invalid).toEqual(INVALID);
   });
 });

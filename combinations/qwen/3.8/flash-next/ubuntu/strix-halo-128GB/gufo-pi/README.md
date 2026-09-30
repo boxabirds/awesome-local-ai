@@ -19,7 +19,7 @@ at 64k); Gated DeltaNet is under 2%. See the [prefill guide](why-gufo-reads-prom
 Every compaction or cache miss then costs 6–8 minutes, and agent runs hit
 the 4-hour story cap. gufo reads the same prompts about 4–7× faster.
 
-Measured on tritus (Minisforum MS-S1 MAX, 128 GB), 27 Sep 2026,
+Measured on a Minisforum MS-S1 MAX (Strix Halo, 128 GB), 27 Sep 2026,
 [`benchmarks/gufo-eval/test-a.sh`](../../../../../../../benchmarks/gufo-eval/test-a.sh):
 the same UD-Q4_K_XL weights and MTP head for both engines, byte-identical
 prompts, one request at a time, greedy, thinking off, 400 tokens, median of 3.
@@ -40,7 +40,7 @@ what the benchmark runs of this combination measure.
 
 The launcher refuses to start while a llama-server, mlx-serve or gufo is
 running: two ~90 GB models do not fit in 128 GB, and on 27 Sep 2026 two
-llama-servers side by side ran tritus out of memory. `ALLOW_COEXIST=1` overrides.
+llama-servers side by side ran the Strix Halo box out of memory. `ALLOW_COEXIST=1` overrides.
 
 ## The engine and the weights
 
@@ -98,5 +98,5 @@ session commands, and smoke-tests the model.
 ```bash
 qwen38-flash-next-strix-gufo-server           # serve on :8080
 qwen38-flash-next-strix-gufo-pi               # pi against it, started on demand
-dbench submit tritus --install-id qwen38-flash-next-strix-gufo --pack benchmarks/vidi --client pi --record …
+dbench submit <node> --install-id qwen38-flash-next-strix-gufo --pack benchmarks/vidi --client pi --record …
 ```
