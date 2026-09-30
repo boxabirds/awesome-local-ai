@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
   mergeStories, stages, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, finalScore, runUsage, RECENT_S, type DbenchJob,
+  jobsByRun, buildRows,
 } from "./domain.ts";
 import type { Row } from "../shared/types.ts";
 
@@ -188,6 +189,38 @@ describe("indexing jobs by run", () => {
       job({ id: "old-again1", spec, state: { status: "queued" }, updated_at: 100 }),
     ] });
     expect([...idx.values()].map((j) => j.id)).toEqual(["old-again1"]);
+  });
+});
+
+describe("every job of a run", () => {
+  const spec = { pack: "benchmarks/vidi", run_id: "v2-r1" };
+
+  it("lists a run's jobs oldest first, whatever node or order dbench gives them in", () => {
+    const by = jobsByRun({
+      gruntus: [job({ id: "v2-r1-again1", spec, state: { status: "running" }, submitted_at: 300, updated_at: 400 }),
+                job({ id: "v2-r1", spec, state: { status: "cancelled", reason: "stopped by the operator" }, submitted_at: 100, updated_at: 200 })],
+    });
+    const jobs = [...by.values()][0];
+    expect(jobs.map((j) => j.id)).toEqual(["v2-r1", "v2-r1-again1"]);
+    expect(jobs[0]).toEqual({ id: "v2-r1", node: "gruntus", status: "cancelled", submittedAt: 100, updatedAt: 200, reason: "stopped by the operator" });
+  });
+
+  it("keeps different runs, packs and combinations apart", () => {
+    const by = jobsByRun({ n: [
+      job({ id: "a", spec }),
+      job({ id: "b", spec: { pack: "benchmarks/vidi", run_id: "v2-r2" } }),
+      job({ id: "c", spec: { pack: "benchmarks/todoodle", run_id: "v2-r1" } }),
+      job({ id: "d", spec, progress: { combination: "reference/opus-5.5" } }),
+    ] });
+    expect([...by.values()].map((js) => js.map((j) => j.id))).toEqual([["a"], ["b"], ["c"], ["d"]]);
+  });
+
+  it("each row carries its own jobs, and a run with no job has none", () => {
+    const rec = { pack: "vidi", stack: SWIFT, runId: "v2-r1", dir: "d", rescores: [], rescoreLast: {}, hasBundle: false,
+      host: "", packVersion: "", state: "finished", stateAt: "", stories: [], scores: {} };
+    const rows = buildRows([rec, { ...rec, runId: "v2-r9", dir: "e" }], { gruntus: [job({ id: "j1", spec, state: { status: "done" } })] }, {}, 0);
+    expect(rows.find((r) => r.runId === "v2-r1")!.jobs.map((j) => j.id)).toEqual(["j1"]);
+    expect(rows.find((r) => r.runId === "v2-r9")!.jobs).toEqual([]);
   });
 });
 
@@ -393,6 +426,22 @@ describe("tokens and speed", () => {
       .toEqual({ status: "problems", problems: ["tool call t1 never ended; counted to the agent's next step"] });
     expect(storyEntry("1", ts() as never).usage!.split!.check).toEqual({ status: "unchecked", problems: [] });
     expect(storyEntry("1", ts() as never).usage!.split!.betweenSessions).toBe(0);
+  });
+
+  it("keeps the conversation's profile, in the page's names; none recorded is null", () => {
+    const st = storyEntry("2", { agent: { seconds: 4811, tokens: {} }, conversation: {
+      version: 1, calls: 207, tool_calls: 204, thinking_chars: 328750, text_chars: 4889, tool_arg_chars: 279940,
+      thinking_median: 424, thinking_median_before: 80, thinking_median_after: 464,
+      largest_thinking: { chars: 64543, call: 14, at_s: 480 }, context_start: 9000, context_end: 120000,
+      largest_context_jump: { tokens: 16607, call: 15 }, tools_by_name: { bash: 115, edit: 40 }, tool_errors: 5,
+      longest_tool: { seconds: 61.7, name: "bash", gist: "npm run test:unit" }, signals: ["long-thinking-block"] } } as never);
+    expect(st.conversation).toEqual({
+      calls: 207, toolCalls: 204, thinkingChars: 328750, textChars: 4889, toolArgChars: 279940,
+      thinkingMedian: 424, thinkingMedianBefore: 80, thinkingMedianAfter: 464,
+      largestThinking: { chars: 64543, call: 14, atS: 480 }, contextStart: 9000, contextEnd: 120000,
+      largestContextJump: { tokens: 16607, call: 15 }, toolsByName: { bash: 115, edit: 40 }, toolErrors: 5,
+      longestTool: { seconds: 61.7, name: "bash", gist: "npm run test:unit" }, signals: ["long-thinking-block"] });
+    expect(storyEntry("3", { agent: { seconds: 1, tokens: {} } }).conversation).toBeNull();
   });
 
   it("a cloud model's time isn't split: it is what's left of the wall time after tools and compaction", () => {

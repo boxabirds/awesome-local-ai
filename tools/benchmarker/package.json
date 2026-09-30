@@ -8,7 +8,8 @@
     "start": "bun server/main.ts",
     "dev": "vite",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "bun run build:test && playwright test",
+    "build:test": "vite build --outDir dist-test --emptyOutDir"
   },
   "engines": {
     "bun": ">=1.2"

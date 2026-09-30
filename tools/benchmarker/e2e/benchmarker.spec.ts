@@ -20,7 +20,7 @@ test("each machine has one section, headed by what it runs now, with its queue i
   await expect(machine(page, "gruntus").locator("h2")).toContainText("3 queued");
   const runs = await machine(page, "gruntus").locator("tbody tr[data-run]").evaluateAll((trs) =>
     trs.map((tr) => `${(tr as HTMLElement).dataset.stack!.includes("swift-1.5") ? "swift" : "27b"} ${(tr as HTMLElement).dataset.run}`));
-  expect(runs).toEqual(["swift v2-r1", "swift v2-r2", "swift v2-r3", "27b v2-r1"]);
+  expect(runs).toEqual(["swift v2-r1", "swift v2-r2", "swift v2-r3", "swift v2-r5", "27b v2-r1"]);  // by combination; running, queue, then ended
   await expect(machine(page, "tritus").locator("h2")).toContainText("idle");
 });
 
@@ -78,7 +78,7 @@ test("tokens and tok/s per run, and per story on click", async ({ page }) => {
   await expect(r.locator("td.tokens")).toContainText("56k out");
   await expect(r.locator("td.tokens")).toContainText("6.3M in"); // input tokens: 45,179 fresh + 6,230,043 cached
   await expect(r.locator("td.speed")).toContainText("74 tok/s"); // 55,968 output tokens over the story's 760.3 s
-  await r.locator("td").first().click();
+  await r.locator("button.expand").click();                               // the run's name itself links to its page
   const detail = page.locator(`tr.detail[data-stack="${stack}"][data-run="canvas-gufo-r3"]`);
   await expect(detail).toBeVisible();
   await expect(detail.locator("tbody tr").first()).toContainText("55,968");
@@ -88,7 +88,7 @@ test("tokens and tok/s per run, and per story on click", async ({ page }) => {
   // A long story name wraps to three lines before it is cut.
   const name = detail.locator("tbody td.story-name").first();
   expect(await name.evaluate((el) => getComputedStyle(el).whiteSpace)).not.toBe("nowrap");
-  await r.locator("td").first().click();
+  await r.locator("button.expand").click();
   await expect(detail).toHaveCount(0);
 });
 
@@ -241,7 +241,7 @@ test.describe("machines", () => {
     await expect(g).toContainText("NVIDIA GeForce RTX 4090");
     // Jobs: running first, then the queue in its order.
     expect(await g.locator("[data-job]").evaluateAll((js) => js.map((j) => (j as HTMLElement).dataset.job)))
-      .toEqual(["vidi-v2b-swift15-r1", "vidi-v2b-swift15-r2", "vidi-v2b-swift15-r3", "vidi-v2b-27b-r1", "vidi-v2b-27b-r2"]);
+      .toEqual(["vidi-v2b-swift15-r1", "vidi-v2b-swift15-r2", "vidi-v2b-swift15-r3", "vidi-v2b-27b-r1", "vidi-v2b-swift15-r5-again1", "vidi-v2b-27b-r2"]);
     // The form starts on what the machine is running now.
     await expect(g.getByLabel("Combination")).toHaveValue("swift15-qwen38-27b");
     await expect(g).toContainText("qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi");

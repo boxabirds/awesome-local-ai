@@ -1,5 +1,6 @@
 import type { Row, TimeSplit, Usage } from "../../shared/types.ts";
 import { short } from "./UsageCells.tsx";
+import { RunLink, StoryRunLink } from "./EntityLinks.tsx";
 
 const SECONDS_PER_MINUTE = 60;
 const PERCENT = 100;
@@ -72,7 +73,7 @@ export function TimeBars({ storyId, jobs }: { storyId: string; jobs: { r: Row; u
           <div className="bar-row" key={`${r.stack}:${r.runId}`} data-job={`${r.stack}|${r.runId}`}>
             <span className="bar-label">
               <span className="bar-machine">{r.machine}</span>
-              <span className="stack-label">{r.label}</span> <b>{r.runId}</b>
+              <RunLink pack={r.pack} stack={r.stack} runId={r.runId} label={r.label} /> <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId}>this story</StoryRunLink>
               <CheckMark check={sp.check} />
             </span>
             <span className="bar-track">

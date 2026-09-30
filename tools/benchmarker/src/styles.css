@@ -153,3 +153,13 @@ figure.time-bars figcaption b { color: var(--ink); font-size: 13px; margin-right
 .seg-prefill { background: var(--seg-prefill); } .seg-decode { background: var(--seg-decode); } .seg-modelUnsplit { background: var(--seg-unsplit); }
 .seg-compaction { background: var(--seg-compaction); } .seg-tools { background: var(--seg-tools); } .seg-betweenSessions { background: var(--seg-between); } .seg-other { background: var(--seg-other); }
 .bar-total { text-align: right; font-size: 13px; }
+
+/* Entity links: every mention of a combination, run or story run goes to its page. Quiet until hovered. */
+a.entity { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--faint); }
+a.entity:hover, a.entity:focus-visible { color: var(--run); border-bottom-color: var(--run); }
+a.story-run-link { font-size: 11px; color: var(--muted); margin-left: 4px; }
+.breadcrumb { font-size: 13px; color: var(--muted); margin: 4px 0 12px; }
+.breadcrumb a { color: var(--run); text-decoration: none; }
+.breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 600; }
+.page { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+.page h1 { font-size: 20px; margin: 0 0 12px; }

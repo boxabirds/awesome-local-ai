@@ -1,6 +1,7 @@
 import type { MachineGroup } from "../../shared/grouping.ts";
 import type { Machine, State } from "../../shared/types.ts";
 import { RunRow } from "./RunRow.tsx";
+import { CombinationLink } from "./EntityLinks.tsx";
 import { qualityClass } from "../format.ts";
 import { comboStats } from "../../shared/stats.ts";
 import type { Row } from "../../shared/types.ts";
@@ -47,7 +48,7 @@ function ComboHead({ stack, rows, span }: { stack: string; rows: Row[]; span: nu
   return (
     <tr className="combo-head" data-stack={stack}>
       <td colSpan={span}>
-        <span className="stack-label" data-tip={stack}>{rows[0].label}</span>
+        <span className="stack-label"><CombinationLink pack={rows[0].pack} stack={stack} label={rows[0].label} /></span>
         <span className="small">{s.runs} run{s.runs === 1 ? "" : "s"}</span>
         <span><span className="num-l">{s.hoursPerStory === null ? "—" : s.hoursPerStory.toFixed(HOUR_DECIMALS)}</span> h per story <span className="explain" tabIndex={0} data-tip={EXPLAIN.hours} aria-label="What is hours per story?">?</span></span>
         <span>held-out quality <span className={`num-l ${qualityClass(s.quality)}`}>{s.quality === null ? "—" : `${Math.round(s.quality * PERCENT)}%`}</span> <span className="explain" tabIndex={0} data-tip={EXPLAIN.quality} aria-label="What is held-out quality?">?</span></span>
