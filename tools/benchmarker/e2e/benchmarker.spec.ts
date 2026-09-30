@@ -7,7 +7,8 @@ const row = (page: Page, stack: string, run: string) => page.locator(`tr:not(.de
 const machine = (page: Page, name: string) => page.locator(`section[data-machine="${name}"]`);
 const cell = (page: Page, stack: string, run: string, n: number) => row(page, stack, run).locator("td").nth(n);
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, request }) => {
+  await request.post("/api/test/reset");  // the fake dbench starts from the fixture in every test
   await page.goto("/");
   await expect(page.locator("section").first()).toBeVisible();
 });
@@ -309,4 +310,25 @@ test("every column heading explains itself on hover", async ({ page }) => {
   const titles = await page.locator("section[data-machine] thead th").evaluateAll((ths) => ths.map((th) => th.getAttribute("title") ?? ""));
   expect(titles.length).toBeGreaterThan(0);
   expect(titles.filter((t) => t.length < 20)).toEqual([]);
+});
+
+test("combinations: one row each across machines, over the runs shown, sortable, every heading explained", async ({ page }) => {
+  const table = page.getByRole("table", { name: "Combinations" });
+  const swift = table.locator(`tr[data-stack="${SWIFT}"]`);
+  await expect(swift).toContainText("3.8-swift-1.5/27b llamacpp");
+  await expect(swift).toContainText("gruntus");
+  await expect(swift).toContainText("1 running");
+  await expect(swift).toContainText("2 queued");
+  await expect(page.locator("section.combinations")).toContainText(/over the \d+ runs? shown/);
+  for (const t of await table.locator("thead th").evaluateAll((ths) => ths.map((th) => th.getAttribute("title") ?? ""))) expect(t.length).toBeGreaterThan(20);
+  // Sorting: a click sorts by the column, a second click reverses it; runs without a number stay last.
+  const calls = async () => (await table.locator("tbody td.calls").allInnerTexts()).filter((x) => x !== "—").map(Number);
+  await table.getByRole("columnheader", { name: /Calls per story/ }).click();
+  const first = await calls();
+  expect(first.length).toBeGreaterThan(1);
+  await table.getByRole("columnheader", { name: /Calls per story/ }).click();
+  expect(await calls()).toEqual([...first].reverse());
+  expect([...first].toSorted((a, b) => a - b).join()).toBe([first, [...first].reverse()].find((x) => x.join() === [...first].toSorted((a, b) => a - b).join())!.join());
+  await page.getByRole("button", { name: "By story" }).click();
+  await expect(table).toBeVisible();   // above both views
 });

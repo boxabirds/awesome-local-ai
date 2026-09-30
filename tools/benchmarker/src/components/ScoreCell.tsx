@@ -1,12 +1,9 @@
-import type { Row, Score } from "../../shared/types.ts";
+import type { Row } from "../../shared/types.ts";
+import { scoreOf } from "../../shared/stats.ts";
+
+export { scoreOf };
 
 interface Props { row: Row; building: boolean; web: string | null; branch: string }
-
-/** The score of record for a row: the re-score under its current suite, else the latest re-score. */
-export function scoreOf(row: Row): [string, Score] | null {
-  const all = Object.entries(row.scores);
-  return all.find(([v]) => v === row.suite) ?? all.toSorted(([a], [b]) => b.localeCompare(a))[0] ?? null;
-}
 
 /** One number: hidden flows passing. The total is in the column heading; the suite version in the tooltip. */
 export function ScoreCell({ row, building, web, branch }: Props) {

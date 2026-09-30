@@ -5,9 +5,10 @@ import { StatusFilter } from "./components/StatusFilter.tsx";
 import { StoryView } from "./components/StoryView.tsx";
 import { MachinesTab } from "./components/MachinesTab.tsx";
 import { SetupTab } from "./components/SetupTab.tsx";
+import { CombinationsTable } from "./components/CombinationsTable.tsx";
 import { StaleBanner } from "./components/StaleBanner.tsx";
 import { MachineSection } from "./components/MachineSection.tsx";
-import { scoreOf } from "./components/ScoreCell.tsx";
+import { scoreOf } from "../shared/stats.ts";
 import { groupByMachine } from "../shared/grouping.ts";
 import { useBenchState } from "./useBenchState.ts";
 
@@ -138,6 +139,7 @@ export function App() {
       </Header>
       <StaleBanner stale={stale} age={age} error={error} />
       <main>
+        {tab === "runs" ? <CombinationsTable rows={shown} /> : null}
         {tab === "machines" ? <MachinesTab state={data} /> : tab === "setup" ? <SetupTab /> : view === "story" ? <StoryView rows={shown} hidden={[...hidden]} /> : (
           <>
         {groupByMachine(shown, data.machines ?? [])
