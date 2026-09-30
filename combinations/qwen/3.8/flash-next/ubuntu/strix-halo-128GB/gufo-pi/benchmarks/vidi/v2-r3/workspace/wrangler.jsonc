@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/wrangler.json",
+  "name": "vidi6",
+  "compatibility_date": "2025-01-01",
+  "assets": {
+    "directory": "./dist/client"
+  }
+}
