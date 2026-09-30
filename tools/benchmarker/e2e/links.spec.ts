@@ -86,3 +86,33 @@ test("the tabs always go back to the overview", async ({ page }) => {
   await expect(page).toHaveURL(/#\/$/);
   await expect(page.locator(".machines-tab")).toBeVisible();
 });
+
+// Runs are only compared with runs of the same pack version family: a v1 run was built against another spec
+// and scored by another suite, so its stories aren't the same stories.
+test.describe("comparisons stay within one version family", () => {
+  test("a combination's page under v2 has no v1 run in its matrix, medians or bars", async ({ page }) => {
+    await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
+    await expect(page$(page, "combination")).toBeVisible();
+    await expect(page$(page, "combination")).toContainText("v2-r5");
+    await expect(page$(page, "combination")).not.toContainText("canvas-s-01");
+  });
+
+  test("a v2 story run is compared with v2 runs only", async ({ page }) => {
+    await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5/s/2`);
+    await expect(page$(page, "storyRun")).toContainText("v2-r4");
+    await expect(page$(page, "storyRun")).not.toContainText("canvas-s-01");
+  });
+
+  test("a v1 run's page offers only v1 runs to compare with, and says there are none", async ({ page }) => {
+    await page.goto(`/#/vidi/r/${enc(SWIFT)}/canvas-s-01`);
+    await expect(page$(page, "run")).toBeVisible();
+    await expect(page$(page, "run")).not.toContainText("v2-r5");
+  });
+
+  test("with all versions selected, the combination page shows its newest family", async ({ page }) => {
+    await page.getByLabel("Version").selectOption("all");
+    await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
+    await expect(page$(page, "combination")).toContainText("v2-r5");
+    await expect(page$(page, "combination")).not.toContainText("canvas-s-01");
+  });
+});

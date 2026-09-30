@@ -1,0 +1,88 @@
+/* The combination page: a header with the numbers of record, the runs × stories matrix, then the per-run time bars,
+     the mechanism tally and related links. Each section is a panel of its own, so the page itself is not one. */
+/* Scoped to this page: its generic class names (.flag, .sq, .related, .live) must not style other pages. */
+.combination-page {
+  &.page { background: none; border: 0; padding: 0; }
+  h2 { font-family: inherit; font-size: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+  h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 6px; }
+
+  /* Header */
+  .combo-page-head { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+                     display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 24px; align-items: start; }
+  .combo-title h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  .combo-id { display: block; font-size: 12px; color: var(--muted); margin: 2px 0 6px; overflow-wrap: anywhere; }
+  .combo-on { margin: 0; font-size: 13px; color: var(--muted); }
+  .combo-on b { color: var(--ink); }
+  .headline { display: flex; gap: 0; margin: 0; }
+  .kpi { padding: 0 16px; border-left: 1px solid var(--line); min-width: 120px; }
+  .kpi:first-child { border-left: 0; padding-left: 0; }
+  .kpi dt { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; margin-bottom: 4px; white-space: nowrap; }
+  .kpi dd { margin: 0; }
+  .kpi.primary .spread .num-xl { font-size: 28px; }
+  .kpi .range { display: block; }
+  .kpi.primary .range { display: inline; }
+  .kpi.primary > dd > .small { display: block; margin-top: 2px; }
+  .run-counts { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; }
+  @media (max-width: 1100px) { .combo-page-head { grid-template-columns: 1fr; } .headline { flex-wrap: wrap; row-gap: 10px; } }
+
+  /* Matrix */
+  .combo-section { overflow: visible; }
+  .metric-switch { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; font-weight: 400; margin-left: auto; }
+  .matrix-wrap { overflow-x: auto; }
+  table.matrix { min-width: 0; width: auto; table-layout: auto; border-collapse: separate; border-spacing: 0; }
+  table.matrix tbody th, table.matrix tfoot th { text-transform: none; letter-spacing: 0; }
+  /* The median row's heavier rule replaces the last run's; the global last-row rule would drop only some of them. */
+  table.matrix tbody tr:last-child > * { border-bottom: 0; }
+  table.matrix th, table.matrix td { padding: 0; border-bottom: 1px solid var(--line); vertical-align: middle; overflow-wrap: normal; }
+  table.matrix thead th { padding: 6px 8px; text-align: center; white-space: nowrap; }
+  table.matrix thead th.m-run, table.matrix thead th.m-score { text-align: left; }
+  table.matrix th.m-run { padding: 6px 12px; min-width: 110px; white-space: nowrap; font-weight: 400; text-align: left; background: var(--panel); position: sticky; left: 0; z-index: 1; }
+  table.matrix thead th.m-run { background: var(--panel-2); }
+  table.matrix .m-run .run-link { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  .m-status { display: block; font-size: 12px; }
+  table.matrix td.m-score { padding: 6px 10px; white-space: nowrap; border-right: 1px solid var(--line); }
+  .of-record { font-size: 15px; }
+  .unscored { font-size: 12px; color: var(--part); font-style: italic; cursor: help; }
+  .live { font-size: 12px; color: var(--faint); cursor: help; }
+  table.matrix td.m-cell { min-width: 64px; text-align: center; border-left: 1px solid var(--line); }
+  table.matrix td.m-cell:first-of-type { border-left: 0; }
+  table.matrix td.m-cell a.story-run-link { display: flex; align-items: center; justify-content: center; gap: 5px; margin: 0; padding: 7px 8px;
+    color: var(--ink); font-size: 13px; border-bottom: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.matrix td.m-cell a.story-run-link:hover { background: var(--panel-2); color: var(--ink); }
+  table.matrix td.m-cell a.story-run-link:focus-visible { outline: 2px solid var(--run); outline-offset: -2px; border-radius: 3px; background: var(--panel-2); }
+  table.matrix td.m-cell[data-state="absent"] { background: repeating-linear-gradient(135deg, transparent 0 5px, var(--panel-2) 5px 6px); }
+  table.matrix td.m-cell[data-state="building"] .v { color: var(--run); font-size: 12px; }
+  .sq { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; background: var(--none); }
+  .sq.q-ok { background: var(--ok); } .sq.q-part { background: var(--part); } .sq.q-bad { background: var(--bad); }
+  .sq.q-running { background: var(--run); animation: pulse 1.4s ease-in-out infinite; }
+  table.matrix td.m-cell.flagged { background: var(--panel-2); }
+  /* The flag is ink on its own: held-out and time-bar colours are reserved for what they mean. */
+  .flag { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%;
+          background: var(--ink); color: var(--panel); font-size: 10px; font-weight: 700; cursor: help; }
+  .flag.below { background: none; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+  table.matrix td.m-total { padding: 6px 12px; text-align: right; white-space: nowrap; border-left: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  table.matrix tfoot td, table.matrix tfoot th { border-top: 2px solid var(--line); border-bottom: 0; background: var(--panel-2); color: var(--muted); font-size: 12px; text-align: center; padding: 7px 8px; }
+  table.matrix tfoot th.m-run { text-align: left; background: var(--panel-2); font-weight: 700; color: var(--ink); }
+  .matrix-key { margin: 0; padding: 8px 12px; border-top: 1px solid var(--line); line-height: 1.8; }
+  .matrix-key .legend { margin-right: 6px; }
+  .matrix-key .flag { width: 15px; height: 15px; font-size: 9px; vertical-align: -2px; }
+
+  /* Below the matrix */
+  .combo-below { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 0 16px; align-items: start; }
+  @media (max-width: 1100px) { .combo-below { grid-template-columns: 1fr; } table.matrix td.m-cell { min-width: 56px; } }
+  .run-time-bars .bar-row { grid-template-columns: minmax(180px, 280px) minmax(0, 1fr) 64px; }
+  .run-time-bars .bar-label { white-space: normal; }
+  .run-time-bars { border-bottom: 0; }
+  .tally { margin: 0; padding: 8px 12px 12px; font-size: 13px; }
+  .tally ul { list-style: none; margin: 0 0 6px; padding: 0; }
+  .tally li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+  .tally li b { font-size: 15px; }
+  .tally li .of { color: var(--muted); font-size: 12px; font-weight: 400; }
+  .empty-note { margin: 0; padding: 10px 12px; font-size: 13px; color: var(--muted); }
+  .related { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); gap: 16px; padding: 10px 12px; }
+  .related ul { list-style: none; margin: 0; padding: 0; }
+  .related li { padding: 3px 0; font-size: 13px; }
+  .related .empty-note { padding: 0; }
+  .related .combination-link { font-weight: 600; }
+
+}

@@ -1,12 +1,30 @@
 import type { Row, State, Story } from "../../shared/types.ts";
+import { storyRunState, storyTitle } from "../../shared/runView.ts";
 import { Breadcrumb, CombinationLink, RunLink } from "../components/EntityLinks.tsx";
+import { NotRecorded, StoryNav, StoryRunHeader } from "../components/run/StoryRunParts.tsx";
+import { Conversation, StoryCost, StoryTime } from "../components/run/StoryDetail.tsx";
+import { Against } from "../components/run/Against.tsx";
+import "./run.css";
 
-/** One run's work on one story. (Being built: plan section 4.4.) */
-export function StoryRunPage({ run, story }: { run: Row; story: Story | null; storyId: string; state: State; serverNow: number | null }) {
+/** One run's work on one story (plan section 4.4). A story in scope but not recorded yet shows what is known. */
+export function StoryRunPage({ run, storyId, state }: { run: Row; story: Story | null; storyId: string; state: State; serverNow: number | null }) {
+  const st = storyRunState(run, storyId);
+  const title = storyTitle(run, state.rows, storyId);
   return (
-    <div className="page story-run-page" data-page="storyRun">
-      <Breadcrumb trail={[{ label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> }, { label: <RunLink pack={run.pack} stack={run.stack} runId={run.runId} /> }, { label: `story ${story?.id ?? ""}` }]} />
-      <h1>{story ? `Story ${story.id}: ${story.title}` : "Story not built yet"}</h1>
+    <div className="page story-run-page run-page" data-page="storyRun" data-story-state={st.kind}>
+      <Breadcrumb trail={[
+        { label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> },
+        { label: <RunLink pack={run.pack} stack={run.stack} runId={run.runId} /> },
+        { label: `story ${storyId}` },
+      ]} />
+      <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
+      {st.kind === "recorded" ? <>
+        <StoryTime story={st.story} />
+        <StoryCost usage={st.story.usage} />
+        <Conversation story={st.story} />
+      </> : <NotRecorded run={run} st={st} />}
+      {st.kind === "outOfScope" ? null : <Against run={run} state={state} storyId={storyId} />}
+      <StoryNav run={run} state={state} storyId={storyId} />
     </div>
   );
 }
