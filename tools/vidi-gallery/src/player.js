@@ -105,7 +105,13 @@ function paneMove(pane, dir) {
 // What a key press does in the review, given the pane with focus, or null to leave it to the browser. By key
 // position (code) for digits and - = , . so shift and keyboard layouts don't change them.
 function keyAction(e, pane) {
-  if (e.metaKey || e.ctrlKey || e.altKey) return null;  // reload, zoom, tabs: the browser's
+  // cmd/ctrl with = or Return, - or Esc: one verdict for every held-out test of the story. Everything else
+  // with cmd, ctrl or alt (reload, reset zoom, tabs) is the browser's.
+  if ((e.metaKey || e.ctrlKey) && !e.altKey) {
+    const all = { Equal: "agree", Enter: "agree", Minus: "disagree", Escape: "" }[e.code];
+    return all === undefined ? null : { do: "all", v: all };
+  }
+  if (e.metaKey || e.ctrlKey || e.altKey) return null;
   const shift = e.shiftKey, code = e.code;
   // In the tests pane a scrub carries on into the next or previous test at either end (hold to fly through).
   const step = dir => ({ frac: dir * (shift ? FINE_SCRUB : SCRUB), ...(pane === "tests" ? { cross: true } : {}) });

@@ -143,9 +143,18 @@ test("a scrub stops at an end; one more press in the same direction goes to the 
   assert.deepStrictEqual(scrubStep(0, -SCRUB, false), { pos: 0 });
 });
 
+test("cmd/ctrl = or Return agrees with every test of the story; cmd/ctrl - disagrees; cmd/ctrl Esc clears", () => {
+  for (const mod of [{ metaKey: true }, { ctrlKey: true }]) for (const pane of ["stories", "tests", "steps"]) {
+    assert.deepStrictEqual(keyAction(key("=", "Equal", mod), pane), { do: "all", v: "agree" });
+    assert.deepStrictEqual(keyAction(key("Enter", "Enter", mod), pane), { do: "all", v: "agree" });
+    assert.deepStrictEqual(keyAction(key("-", "Minus", mod), pane), { do: "all", v: "disagree" });
+    assert.deepStrictEqual(keyAction(key("Escape", "Escape", mod), pane), { do: "all", v: "" });
+  }
+});
+
 test("browser and system shortcuts pass through untouched", () => {
   assert.strictEqual(keyAction(key("r", "KeyR", { metaKey: true }), "tests"), null);
-  assert.strictEqual(keyAction(key("=", "Equal", { metaKey: true }), "tests"), null);
+  assert.strictEqual(keyAction(key("0", "Digit0", { metaKey: true }), "tests"), null);  // reset zoom stays the browser's
   assert.strictEqual(keyAction(key("Tab", "Tab", { ctrlKey: true }), "tests"), null);
   assert.strictEqual(keyAction(key("q", "KeyQ"), "tests"), null);
 });

@@ -77,11 +77,12 @@ requirements and its **must-nots**. Below, one row per finished build:
   | `>` `<` | faster / slower |
   | `]` `[`, `PgDn` `PgUp` | next / previous story, from any pane |
   | `a` `d` `s`, or the buttons | agree / disagree / skip, and on to the next test |
+  | `⌘=` `⌘Return` · `⌘-` · `⌘Esc` | the whole story (every test of the builds on show): agree · disagree · back to "to review". Ctrl on Windows and Linux; they replace the browser's zoom keys on this page, and overwrite earlier verdicts (notes stay) |
   | `n` · `o` · `w` | write a note · open the build · skip long waits on / off |
 
   `Return` is `=` in the tests, the right arrow in the stories and
   the down arrow in the steps.   Keys go by position for digits and `-` `=` `,` `.`, so shift and keyboard layouts don't change them.
-  Cmd, Ctrl and Alt combinations are left to the browser.
+  Other Cmd, Ctrl and Alt combinations (reload, `⌘0`, tabs) are left to the browser.
 - **Your place is in the address** (`#story=…&key=…&idx=…&pane=…`). When the gallery restarts (for
   example after a rebuild), an open review page reloads itself onto the new code and comes back to it.
 - **One run:** `/review?setup=<setup>&run=<run>` (the benchmarker's **Judge →** link) shows only that
