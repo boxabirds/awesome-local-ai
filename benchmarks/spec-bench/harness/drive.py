@@ -686,17 +686,21 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
     starts: dict[str, dict] = {}
     tools: dict[str, float] = {}
     comp, comp_open = [], None
+    # A restarted story's log also holds the earlier attempt: only what ran inside this story's window
+    # (t_from..t_to) counts, or its parts add up to more than its wall time.
+    inside = lambda a, b: max(0.0, min(b, t_to) - max(a, t_from))
     for e in _stamped_events(events):
         kind, t = e.get("type"), e["_rx"]
         if kind == "tool_execution_start":
             starts[e.get("toolCallId")] = e
         elif kind == "tool_execution_end" and (st := starts.pop(e.get("toolCallId"), None)):
             k = _tool_kind(st)
-            tools[k] = tools.get(k, 0.0) + t - st["_rx"]
+            tools[k] = tools.get(k, 0.0) + inside(st["_rx"], t)
         elif kind == "compaction_start":
             comp_open = t
         elif kind == "compaction_end" and comp_open is not None:
-            comp.append((comp_open, t))
+            if inside(comp_open, t) > 0:
+                comp.append((max(comp_open, t_from), min(t, t_to)))
             comp_open = None
     reqs = llama_log.parse(server_log.read_text(errors="replace")) if server_log.exists() else []
     # A compaction's own model call is counted in compaction, not twice.
@@ -706,7 +710,8 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
         # No server log (every server but llama.cpp): time the model from the client's own streamed events,
         # which match llama.cpp's log to within 0.5% where both exist (stream_timing.py).
         import stream_timing
-        calls = [c for c in stream_timing.calls(events) if not any(a <= c.end <= b for a, b in comp)]
+        calls = [c for c in stream_timing.calls(events)
+                 if t_from <= c.end - c.prefill_s - c.decode_s and c.end <= t_to and not any(a <= c.end <= b for a, b in comp)]
         model = stream_timing.summary(calls)
     wall = t_to - t_from
     tools_s = sum(tools.values())
