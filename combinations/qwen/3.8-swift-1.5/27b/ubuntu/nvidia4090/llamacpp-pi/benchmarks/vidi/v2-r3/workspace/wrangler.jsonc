@@ -21,5 +21,8 @@
       "tag": "v1",
       "new_sqlite_classes": ["BoardRoom"]
     }
-  ]
+  ],
+  "vars": {
+    "TEST_HOOKS": "1"
+  }
 }

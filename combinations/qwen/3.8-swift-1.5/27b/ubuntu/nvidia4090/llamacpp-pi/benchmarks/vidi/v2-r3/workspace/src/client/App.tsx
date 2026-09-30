@@ -10,6 +10,7 @@ import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 import {
   createSticky,
   deleteObject,
@@ -75,37 +76,42 @@ export function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [zoomStep, reset]);
 
-  // Sticky note creation
+  // Sticky note creation (gated by canEdit)
+  const editable = canEdit(connectionState);
   const createAtScreen = useCallback(
     (screenPoint: Point) => {
+      if (!editable) return;
       const world = screenToWorld(cam.camera, screenPoint);
       const id = createSticky(doc, world);
       if (id) sel.startEdit(id);
     },
-    [cam.camera, doc, sel],
+    [cam.camera, doc, sel, editable],
   );
 
   const createAtCenter = useCallback(() => {
+    if (!editable) return;
     const center: Point = { x: viewport.width / 2, y: viewport.height / 2 };
     createAtScreen(center);
-  }, [createAtScreen, viewport.width, viewport.height]);
+  }, [createAtScreen, viewport.width, viewport.height, editable]);
 
   const handleClearSelection = useCallback(() => {
     sel.select(null);
   }, [sel]);
 
   const handleDeleteSelected = useCallback(() => {
+    if (!editable) return;
     if (sel.selectedId) {
       deleteObject(doc, sel.selectedId);
       sel.select(null);
     }
-  }, [doc, sel]);
+  }, [doc, sel, editable]);
 
   const handleColor = useCallback(
     (c: StickyColor) => {
+      if (!editable) return;
       if (sel.selectedId) setStickyColor(doc, sel.selectedId, c);
     },
-    [doc, sel],
+    [doc, sel, editable],
   );
 
   // Sticky note keyboard: Enter edits the selected note; Delete/Backspace deletes it.
@@ -194,7 +200,7 @@ export function App() {
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtCenter} />
+      <Toolbar onCreateSticky={createAtCenter} disabled={!editable} />
       {showNoteToolbar && selectedNote && noteToolbarPos && (
         <div
           style={{

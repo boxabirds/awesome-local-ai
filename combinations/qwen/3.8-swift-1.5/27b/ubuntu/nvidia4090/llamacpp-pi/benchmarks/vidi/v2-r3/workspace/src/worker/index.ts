@@ -1,14 +1,20 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { handleTestHooks } from './test-hooks';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  TEST_HOOKS?: string;
 }
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+
+    // Test hooks (only active when TEST_HOOKS === '1')
+    const testHookResponse = await handleTestHooks(req, env as unknown as { BOARD_ROOM: DurableObjectNamespace; TEST_HOOKS?: string });
+    if (testHookResponse) return testHookResponse;
 
     if (url.pathname.startsWith('/api/rooms/')) {
       const boardId = url.pathname.slice('/api/rooms/'.length);

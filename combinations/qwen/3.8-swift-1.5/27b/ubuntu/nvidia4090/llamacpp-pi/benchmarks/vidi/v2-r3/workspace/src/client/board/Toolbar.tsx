@@ -2,6 +2,7 @@ import { STICKY_COLORS } from '../../shared/config';
 
 export interface ToolbarProps {
   onCreateSticky: () => void;
+  disabled?: boolean;
 }
 
 /**
@@ -9,7 +10,7 @@ export interface ToolbarProps {
  * creates a note at the centre of the visible board. Pointer events stop
  * propagation so clicks never reach the viewport (which would pan/clear).
  */
-export function Toolbar({ onCreateSticky }: ToolbarProps): React.ReactElement {
+export function Toolbar({ onCreateSticky, disabled }: ToolbarProps): React.ReactElement {
   return (
     <div
       data-testid="toolbar"
@@ -37,6 +38,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): React.ReactElement {
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
         onClick={onCreateSticky}
+        disabled={disabled}
         style={{
           width: 40,
           height: 40,
@@ -45,9 +47,10 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): React.ReactElement {
           justifyContent: 'center',
           border: '1px solid #cfcfcf',
           borderRadius: 8,
-          background: '#fff',
-          cursor: 'pointer',
+          background: disabled ? '#f5f5f5' : '#fff',
+          cursor: disabled ? 'not-allowed' : 'pointer',
           padding: 0,
+          opacity: disabled ? 0.5 : 1,
         }}
       >
         <span

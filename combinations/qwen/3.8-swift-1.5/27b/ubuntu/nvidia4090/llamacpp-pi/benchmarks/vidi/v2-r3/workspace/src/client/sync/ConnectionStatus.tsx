@@ -5,6 +5,7 @@ const STATE_CONFIG: Record<ConnectionState, { text: string; color: string; class
   connected: { text: 'Connected', color: '#10b981', className: 'status-connected' },
   reconnecting: { text: 'Reconnecting…', color: '#f59e0b', className: 'status-degraded' },
   confirmed: { text: 'Connected', color: '#10b981', className: 'status-connected' },
+  load_failed: { text: 'This board couldn\u2019t be loaded. Retrying\u2026', color: '#dc2626', className: 'status-load-failed' },
 };
 
 export function ConnectionStatus({ state }: { state: ConnectionState }) {

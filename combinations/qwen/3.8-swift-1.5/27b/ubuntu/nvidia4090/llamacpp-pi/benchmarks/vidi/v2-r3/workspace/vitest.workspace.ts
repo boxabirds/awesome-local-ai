@@ -25,11 +25,11 @@ export default defineWorkspace([
       poolOptions: {
         workers: {
           main: './src/worker/index.ts',
-          wranglerConfigPath: './wrangler.jsonc',
+          wrangler: { configPath: './wrangler.jsonc' },
           miniflare: {
             compatibilityDate: '2025-01-01',
             durableObjects: {
-              BOARD_ROOM: 'BoardRoom',
+              BOARD_ROOM: { className: 'BoardRoom', useSQLite: true },
             },
             assets: {
               directory: './dist/client',

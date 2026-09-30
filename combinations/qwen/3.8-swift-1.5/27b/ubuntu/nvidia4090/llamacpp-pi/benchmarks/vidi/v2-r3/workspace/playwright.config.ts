@@ -27,9 +27,12 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npx wrangler dev --port 8787 --ip 127.0.0.1',
+    command: 'npx wrangler dev --port 8787 --ip 127.0.0.1 --persist-to /tmp/vidi6-e2e-persist',
     url: 'http://127.0.0.1:8787',
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
+    env: {
+      TEST_HOOKS: '1',
+    },
   },
 });

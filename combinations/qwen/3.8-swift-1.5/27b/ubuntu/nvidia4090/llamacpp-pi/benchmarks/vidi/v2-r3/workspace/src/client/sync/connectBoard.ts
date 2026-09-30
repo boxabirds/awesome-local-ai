@@ -1,8 +1,13 @@
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { RECONNECT_MAX_BACKOFF_MS, CONNECTED_CONFIRMATION_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
+
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 export function connectBoard(
   doc: Y.Doc,
@@ -20,6 +25,7 @@ export function connectBoard(
 
   let hasConnected = false;
   let confirmationTimer: ReturnType<typeof setTimeout> | null = null;
+  let isLoadFailed = false;
 
   const handleStatus = () => {
     if (confirmationTimer !== null) {
@@ -27,11 +33,15 @@ export function connectBoard(
       confirmationTimer = null;
     }
 
-    // y-websocket's WebsocketProvider has status and sync at runtime
-    // but they're not in the TypeScript type definitions
     const p = provider as unknown as { status: string; sync: boolean };
 
     if (p.status === 'connected' && p.sync) {
+      if (isLoadFailed) {
+        // Recovery from load_failed
+        isLoadFailed = false;
+        onState('connected');
+        return;
+      }
       if (hasConnected) {
         onState('confirmed');
         confirmationTimer = setTimeout(() => {
@@ -43,22 +53,34 @@ export function connectBoard(
         onState('connected');
       }
     } else if (p.status === 'disconnected' && hasConnected) {
-      onState('reconnecting');
+      if (!isLoadFailed) {
+        onState('reconnecting');
+      }
     } else if (p.status === 'connected' && !p.sync) {
-      if (!hasConnected) {
+      if (!hasConnected && !isLoadFailed) {
         onState('connecting');
       }
     } else if (p.status === 'connecting') {
-      if (!hasConnected) {
+      if (!hasConnected && !isLoadFailed) {
         onState('connecting');
-      } else {
+      } else if (!isLoadFailed) {
         onState('reconnecting');
       }
     }
   };
 
+  const handleClose = (event: CloseEvent | null) => {
+    if (event && event.code === CLOSE_BOARD_LOAD_FAILED) {
+      isLoadFailed = true;
+      onState('load_failed');
+    }
+    // CLOSE_STORAGE_FAILURE (1011) and other codes map to 'reconnecting'
+    // which is handled by the status handler
+  };
+
   provider.on('status', handleStatus);
   provider.on('sync', handleStatus);
+  provider.on('connection-close', handleClose);
 
   // Initial state
   onState('connecting');
@@ -71,6 +93,7 @@ export function connectBoard(
       }
       provider.off('status', handleStatus);
       provider.off('sync', handleStatus);
+      provider.off('connection-close', handleClose);
       provider.destroy();
     },
   };
