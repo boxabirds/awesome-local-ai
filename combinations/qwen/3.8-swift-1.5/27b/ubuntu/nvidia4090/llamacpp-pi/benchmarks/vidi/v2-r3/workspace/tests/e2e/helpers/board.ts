@@ -1,8 +1,46 @@
 import { Page } from '@playwright/test';
+import { E2E_EVENTUAL_TIMEOUT_MS } from '../../../src/shared/config';
 
 /**
  * Helper functions for E2E board tests.
  */
+
+const BASE_URL = 'http://127.0.0.1:8787';
+
+/**
+ * Create a board through the real API (story 5). Returns the board id.
+ */
+export async function createBoard(): Promise<string> {
+  const res = await fetch(`${BASE_URL}/api/boards`, { method: 'POST' });
+  if (res.status !== 201) {
+    throw new Error(`createBoard: expected 201, got ${res.status}`);
+  }
+  const body = (await res.json()) as { id: string };
+  return body.id;
+}
+
+/**
+ * Seed a legacy board (updates rows, no created_at) through the test hook.
+ * (story 5, share.legacy_boards)
+ */
+export async function seedLegacyBoard(boardId: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/__test/boards/${boardId}/seed-legacy`, { method: 'POST' });
+  if (res.status !== 200) {
+    throw new Error(`seedLegacyBoard: expected 200, got ${res.status}`);
+  }
+}
+
+/**
+ * Open an existing board in a page and wait for the board UI to be ready
+ * (existence check passed, board rendered, test hooks registered).
+ */
+export async function openBoardInPage(page: Page, boardId: string): Promise<void> {
+  await page.goto(`/b/${boardId}`);
+  await page.getByTestId('board-viewport').waitFor({ timeout: E2E_EVENTUAL_TIMEOUT_MS });
+  await page.waitForFunction(() => !!(window as any).__vidi6, undefined, {
+    timeout: E2E_EVENTUAL_TIMEOUT_MS,
+  });
+}
 
 /** Get the world layer element */
 export async function getWorldLayer(page: Page) {

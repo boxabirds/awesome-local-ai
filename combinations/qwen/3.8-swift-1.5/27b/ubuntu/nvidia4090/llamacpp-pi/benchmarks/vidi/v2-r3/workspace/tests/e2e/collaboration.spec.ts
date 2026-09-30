@@ -1,5 +1,5 @@
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoard } from './helpers/board';
 import { LIVE_UPDATE_LATENCY_BUDGET_MS, E2E_EVENTUAL_TIMEOUT_MS } from '../../src/shared/config';
 
 /**
@@ -8,8 +8,8 @@ import { LIVE_UPDATE_LATENCY_BUDGET_MS, E2E_EVENTUAL_TIMEOUT_MS } from '../../sr
 async function openBoard(context: BrowserContext, boardId: string): Promise<Page> {
   const page = await context.newPage();
   await page.goto(`/b/${boardId}`);
-  // Wait for the board canvas to be visible
-  await page.waitForSelector('canvas', { timeout: E2E_EVENTUAL_TIMEOUT_MS });
+  // Wait for the board viewport to be visible
+  await page.waitForSelector('[data-testid="board-viewport"]', { timeout: E2E_EVENTUAL_TIMEOUT_MS });
   // Wait for connection status to show "Connected" or disappear
   await page.waitForFunction(() => {
     const badge = document.querySelector('[data-testid="connection-status"]');
@@ -49,7 +49,7 @@ async function getBoardSnapshot(page: Page): Promise<{ id: string; x: number; y:
 
 test.describe('TC-22: two tabs see each other within latency budget', () => {
   test('edits appear in the other tab within 250ms', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
     const page1 = await openBoard(ctx1, boardId);
@@ -60,13 +60,14 @@ test.describe('TC-22: two tabs see each other within latency budget', () => {
     await page1.evaluate(() => {
       const hook = (window as any).__VIDI_DEBUG__;
       const doc = hook.doc;
+      const Y = (window as any).__VIDI_Y__;
       const objects = doc.getMap('objects');
       const id = Math.random().toString(36).slice(2, 14);
-      const text = new (require('yjs').Text)();
+      const text = new Y.Text();
       doc.transact(() => {
-        objects.set(id, new (require('yjs').Map)({
+        objects.set(id, new Y.Map(Object.entries({
           id, type: 'sticky', x: 100, y: 100, color: 'yellow', text, z: 1, createdAt: Date.now(),
-        }));
+        })));
       });
     });
 
@@ -86,7 +87,7 @@ test.describe('TC-22: two tabs see each other within latency budget', () => {
 
 test.describe('TC-23: create propagates', () => {
   test('sticky created in tab A appears in tab B', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
     const page1 = await openBoard(ctx1, boardId);
@@ -101,9 +102,9 @@ test.describe('TC-23: create propagates', () => {
       const id = Math.random().toString(36).slice(2, 14);
       const text = new Y.Text();
       doc.transact(() => {
-        objects.set(id, new Y.Map({
+        objects.set(id, new Y.Map(Object.entries({
           id, type: 'sticky', x: 200, y: 150, color: 'pink', text, z: 1, createdAt: Date.now(),
-        }));
+        })));
       });
     });
 
@@ -125,7 +126,7 @@ test.describe('TC-23: create propagates', () => {
 
 test.describe('TC-24: move, recolour, text insert, delete propagate', () => {
   test('all operations propagate from A to B', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
     const page1 = await openBoard(ctx1, boardId);
@@ -141,9 +142,9 @@ test.describe('TC-24: move, recolour, text insert, delete propagate', () => {
       const id = Math.random().toString(36).slice(2, 14);
       const text = new Y.Text();
       doc.transact(() => {
-        objects.set(id, new Y.Map({
+        objects.set(id, new Y.Map(Object.entries({
           id, type: 'sticky', x: 100, y: 100, color: 'yellow', text, z: 1, createdAt: Date.now(),
-        }));
+        })));
       });
       return id;
     });
@@ -211,7 +212,7 @@ test.describe('TC-24: move, recolour, text insert, delete propagate', () => {
 
 test.describe('TC-25: concurrent text insert merges', () => {
   test('A inserts "red " at 0, B inserts " blue" at end → both "red green blue"', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
     const page1 = await openBoard(ctx1, boardId);
@@ -228,9 +229,9 @@ test.describe('TC-25: concurrent text insert merges', () => {
       const text = new Y.Text();
       text.insert(0, 'green');
       doc.transact(() => {
-        objects.set(id, new Y.Map({
+        objects.set(id, new Y.Map(Object.entries({
           id, type: 'sticky', x: 100, y: 100, color: 'yellow', text, z: 1, createdAt: Date.now(),
-        }));
+        })));
       });
       return id;
     });
@@ -277,7 +278,7 @@ test.describe('TC-25: concurrent text insert merges', () => {
 
 test.describe('TC-26: concurrent position sets converge', () => {
   test('A sets x=100, B sets x=300 → both converge', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
     const page1 = await openBoard(ctx1, boardId);
@@ -293,9 +294,9 @@ test.describe('TC-26: concurrent position sets converge', () => {
       const id = Math.random().toString(36).slice(2, 14);
       const text = new Y.Text();
       doc.transact(() => {
-        objects.set(id, new Y.Map({
+        objects.set(id, new Y.Map(Object.entries({
           id, type: 'sticky', x: 0, y: 0, color: 'yellow', text, z: 1, createdAt: Date.now(),
-        }));
+        })));
       });
       return id;
     });
@@ -319,16 +320,23 @@ test.describe('TC-26: concurrent position sets converge', () => {
       }, noteId),
     ]);
 
-    // Both should converge to the same value
-    const x1 = await page1.evaluate((id) => {
-      const hook = (window as any).__VIDI_DEBUG__;
-      return hook.doc.getMap('objects').get(id).get('x');
-    }, noteId);
-    const x2 = await page2.evaluate((id) => {
-      const hook = (window as any).__VIDI_DEBUG__;
-      return hook.doc.getMap('objects').get(id).get('x');
-    }, noteId);
-    expect(x1).toBe(x2);
+    // Both should converge to the same value (poll: the two concurrent sets
+    // propagate through the server and settle to one winner).
+    await expect
+      .poll(async () => {
+        const [x1, x2] = await Promise.all([
+          page1.evaluate((id) => {
+            const hook = (window as any).__VIDI_DEBUG__;
+            return hook.doc.getMap('objects').get(id).get('x');
+          }, noteId),
+          page2.evaluate((id) => {
+            const hook = (window as any).__VIDI_DEBUG__;
+            return hook.doc.getMap('objects').get(id).get('x');
+          }, noteId),
+        ]);
+        return x1 === x2 ? 'converged' : 'pending';
+      }, { timeout: E2E_EVENTUAL_TIMEOUT_MS })
+      .toBe('converged');
 
     await ctx1.close();
     await ctx2.close();
@@ -337,7 +345,7 @@ test.describe('TC-26: concurrent position sets converge', () => {
 
 test.describe('TC-27: delete wins over concurrent edit', () => {
   test('A deletes while B inserts → note absent on both', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
     const page1 = await openBoard(ctx1, boardId);
@@ -353,9 +361,9 @@ test.describe('TC-27: delete wins over concurrent edit', () => {
       const id = Math.random().toString(36).slice(2, 14);
       const text = new Y.Text();
       doc.transact(() => {
-        objects.set(id, new Y.Map({
+        objects.set(id, new Y.Map(Object.entries({
           id, type: 'sticky', x: 100, y: 100, color: 'yellow', text, z: 1, createdAt: Date.now(),
-        }));
+        })));
       });
       return id;
     });
@@ -391,7 +399,7 @@ test.describe('TC-27: delete wins over concurrent edit', () => {
 
 test.describe('TC-28: catch-up after simulated outage', () => {
   test('offline tab catches up within 1s of reconnect', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
     const page1 = await openBoard(ctx1, boardId);
@@ -407,9 +415,9 @@ test.describe('TC-28: catch-up after simulated outage', () => {
         const id = Math.random().toString(36).slice(2, 14);
         const text = new Y.Text();
         doc.transact(() => {
-          objects.set(id, new Y.Map({
+          objects.set(id, new Y.Map(Object.entries({
             id, type: 'sticky', x: idx * 100, y: 0, color: 'yellow', text, z: 1, createdAt: Date.now(),
-          }));
+          })));
         });
       }, i);
     }
@@ -430,9 +438,9 @@ test.describe('TC-28: catch-up after simulated outage', () => {
         const id = Math.random().toString(36).slice(2, 14);
         const text = new Y.Text();
         doc.transact(() => {
-          objects.set(id, new Y.Map({
+          objects.set(id, new Y.Map(Object.entries({
             id, type: 'sticky', x: idx * 100, y: 200, color: 'blue', text, z: 1, createdAt: Date.now(),
-          }));
+          })));
         });
       }, i);
     }

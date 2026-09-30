@@ -5,6 +5,9 @@ declare module 'cloudflare:test' {
     ASSETS?: Fetcher;
   };
   export function createExecutionContext(): ExecutionContext;
+  export function listDurableObjectIds<T>(
+    namespace: DurableObjectNamespace<T>
+  ): Promise<DurableObjectId[]>;
   export function runInDurableObject<
     O extends DurableObject,
     R,

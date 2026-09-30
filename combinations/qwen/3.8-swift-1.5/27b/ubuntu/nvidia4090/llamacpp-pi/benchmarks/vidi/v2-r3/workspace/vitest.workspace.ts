@@ -24,6 +24,11 @@ export default defineWorkspace([
       pool: '@cloudflare/vitest-pool-workers',
       poolOptions: {
         workers: {
+          // Storage is shared across tests in a file (unique board ids keep
+          // tests independent). isolatedStorage: true crashes on pop because
+          // workerd's internal DO sqlite storage leaves -shm/-wal sidecars
+          // the pool's file bookkeeping does not recognise.
+          isolatedStorage: false,
           main: './src/worker/index.ts',
           wrangler: { configPath: './wrangler.jsonc' },
           miniflare: {

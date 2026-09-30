@@ -2,13 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { SELF } from 'cloudflare:test';
 import { newBoardId } from '../../src/shared/board-id';
 
-describe('TC-04: invalid board id returns 400', () => {
-  it('GET /api/rooms/bad!id with Upgrade returns 400', async () => {
+describe('TC-04: invalid board id returns 404 (story 5)', () => {
+  it('GET /api/rooms/bad!id with Upgrade returns 404', async () => {
     const req = new Request('http://x/api/rooms/bad!id', {
       headers: { 'Upgrade': 'websocket', 'Connection': 'Upgrade' },
     });
     const res = await SELF.fetch(req);
-    expect(res.status).toBe(400);
+    // Story 5: 400 became 404 (share.board_api) — malformed ids are
+    // indistinguishable from unknown ids and never instantiate a DO.
+    expect(res.status).toBe(404);
   });
 });
 

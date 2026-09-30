@@ -26,7 +26,11 @@ export function decodeMessage(data: ArrayBuffer | string): Decoded {
     const decoder = decoding.createDecoder(bytes);
     const type = decoding.readVarInt(decoder);
     if (type === MESSAGE_SYNC) {
-      const payload = decoding.readVarUint8Array(decoder);
+      // y-websocket 3.x framing: sync frames are `[0, <sync message>]`.
+      // The sync message is self-delimiting (its own type byte drives
+      // parsing), so the payload is the remainder of the frame — there is
+      // no inner length prefix.
+      const payload = bytes.slice(decoder.pos);
       return { kind: 'sync', payload };
     } else if (type === MESSAGE_AWARENESS) {
       const payload = decoding.readVarUint8Array(decoder);
@@ -42,10 +46,12 @@ export function decodeMessage(data: ArrayBuffer | string): Decoded {
 }
 
 export function encodeSyncMessage(payload: Uint8Array): Uint8Array {
-  const encoder = encoding.createEncoder();
-  encoding.writeVarInt(encoder, MESSAGE_SYNC);
-  encoding.writeVarUint8Array(encoder, payload);
-  return encoding.toUint8Array(encoder);
+  // y-websocket 3.x framing: `[0, <sync message>]` — no inner length
+  // prefix; the sync message is self-delimiting.
+  const out = new Uint8Array(1 + payload.length);
+  out[0] = MESSAGE_SYNC;
+  out.set(payload, 1);
+  return out;
 }
 
 export function encodeAwarenessMessage(payload: Uint8Array): Uint8Array {

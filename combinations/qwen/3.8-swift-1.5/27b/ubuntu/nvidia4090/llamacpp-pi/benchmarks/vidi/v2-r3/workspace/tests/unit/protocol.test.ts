@@ -3,10 +3,11 @@ import * as encoding from 'lib0/encoding';
 import { decodeMessage, MESSAGE_SYNC, MESSAGE_AWARENESS, MESSAGE_QUERY_AWARENESS } from '../../src/shared/protocol';
 
 function makeSyncFrame(payload: Uint8Array): ArrayBuffer {
-  const encoder = encoding.createEncoder();
-  encoding.writeVarInt(encoder, MESSAGE_SYNC);
-  encoding.writeVarUint8Array(encoder, payload);
-  return encoding.toUint8Array(encoder).buffer as ArrayBuffer;
+  // y-websocket 3.x framing: [0, <sync message>] — no inner length prefix.
+  const out = new Uint8Array(1 + payload.length);
+  out[0] = MESSAGE_SYNC;
+  out.set(payload, 1);
+  return out.buffer as ArrayBuffer;
 }
 
 function makeAwarenessFrame(payload: Uint8Array): ArrayBuffer {

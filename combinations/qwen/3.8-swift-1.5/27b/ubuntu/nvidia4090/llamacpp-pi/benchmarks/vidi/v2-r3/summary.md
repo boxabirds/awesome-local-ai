@@ -12,8 +12,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 2 | 10/10 | 0 | 0 | 20/20 |
 | 3 | 0/7 | 20 | 0 | 0/27 |
 | 4 | 0/4 | 0 | 0 | 0/31 |
+| 5 | 5/5 | 0 | 29 | 34/36 |
 
-**New work** 16/27, **regressions** 20, **repairs** 0, **cumulative** 0/31.
+**New work** 21/32, **regressions** 20, **repairs** 29, **cumulative** 34/36.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -21,8 +22,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 47.6 | None | None | None | — | — | green | 20/20 |  | 0 / 0 | 2 | — | throttled 0%, server peak 23 GB |
 | 3 | See other people's edits appear live on the same board | DONE | 20.4 | None | None | None | — | — | red | 0/27 |  | 0 / 0 | 1 | — | throttled 0%, server peak 23 GB |
 | 4 | Return to a board and find everything as it was left | DONE | 32.7 | None | None | None | — | — | red | 0/31 |  | 0 / 1 | 1 | — | throttled 0%, server peak 25 GB |
+| 5 | Share a board with others using a link | DONE | 127.9 | None | None | None | — | — | green | 34/36 |  | 0 / 0 | 6 | — | throttled 0%, server peak 25 GB |
 
-**Totals:** 4 stories, 125 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/4, final acceptance 0/31, stalled 0, partial 0, 6832 lines in src+tests.
+**Totals:** 5 stories, 253 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/5, final acceptance 34/36, stalled 0, partial 0, 8609 lines in src+tests.
 
 ## How it happened
 
@@ -34,12 +36,18 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 2 | 6 by the agent | 2682 / 96 | `StickyNote.tsx` (270), `board-model.ts` (226), `StickyTextEditor.tsx` (151), `App.tsx` (146), `StickyText.ts` (137), `NoteToolbar.tsx` (81), +6 more |
 | 3 | 1 by the agent | 3582 / 85 | `board-room.ts` (121), `connectBoard.ts` (77), `protocol.ts` (54), `index.ts` (42), `ConnectionStatus.tsx` (36), `board-id.ts` (33), +9 more |
 | 4 | 1 by the agent | 2079 / 1171 | `board-room.ts` (212), `board-store.ts` (143), `room-state.ts` (77), `test-hooks.ts` (39), `NOTES.md` (37), `connectBoard.ts` (37), +11 more |
+| 5 | 1 by the agent | 2258 / 433 | `board-store.ts` (318), `BoardPage.tsx` (306), `App.tsx` (243), `board-room.ts` (237), `SharePanel.tsx` (173), `test-hooks.ts` (77), +15 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 3 broke 20, fixed 0** earlier held-out tests (story 3: See other people's edits appear live on the same board). Source files it changed most: `board-room.ts` (121), `connectBoard.ts` (77), `protocol.ts` (54), `index.ts` (42), `ConnectionStatus.tsx` (36), `board-id.ts` (33), +9 more.
   - story 1: 10/10 → 0/10; broke 10.
   - story 2: 10/10 → 0/10; broke 10.
+- **Story 5 broke 0, fixed 29** earlier held-out tests (story 5: Share a board with others using a link). Source files it changed most: `board-store.ts` (318), `BoardPage.tsx` (306), `App.tsx` (243), `board-room.ts` (237), `SharePanel.tsx` (173), `test-hooks.ts` (77), +15 more.
+  - story 1: 0/10 → 10/10; fixed 10
+  - story 2: 0/10 → 10/10; fixed 10
+  - story 3: 0/7 → 5/7; fixed 5
+  - story 4: 0/4 → 4/4; fixed 4
 
 ### Interruptions and dead time
 

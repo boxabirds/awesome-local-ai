@@ -1,5 +1,5 @@
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoard } from './helpers/board';
 import { E2E_EVENTUAL_TIMEOUT_MS } from '../../src/shared/config';
 
 /**
@@ -8,7 +8,7 @@ import { E2E_EVENTUAL_TIMEOUT_MS } from '../../src/shared/config';
 async function openBoard(context: BrowserContext, boardId: string): Promise<Page> {
   const page = await context.newPage();
   await page.goto(`/b/${boardId}`);
-  await page.waitForSelector('canvas', { timeout: E2E_EVENTUAL_TIMEOUT_MS });
+  await page.waitForSelector('[data-testid="board-viewport"]', { timeout: E2E_EVENTUAL_TIMEOUT_MS });
   await page.waitForFunction(() => {
     const badge = document.querySelector('[data-testid="connection-status"]');
     if (!badge) return true;
@@ -57,7 +57,7 @@ function createRng(seed: number) {
 test.describe('@nightly TC-29: 50 clients converge', () => {
   test('50 clients × 100 random ops → all converge', async ({ browser }) => {
     test.setTimeout(300000); // 5 minute timeout for nightly
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const numClients = 50;
     const opsPerClient = 100;
     const seed = 42;
@@ -91,14 +91,14 @@ test.describe('@nightly TC-29: 50 clients converge', () => {
             const id = `c${clientId}-o${opIdx}`;
             const text = new Y.Text();
             doc.transact(() => {
-              objects.set(id, new Y.Map({ id, type: 'sticky', x, y, color: 'yellow', text, z: 1, createdAt: Date.now() }));
+              objects.set(id, new Y.Map(Object.entries({ id, type: 'sticky', x, y, color: 'yellow', text, z: 1, createdAt: Date.now() })));
             });
           } else if (notes.length === 0) {
             // Ensure at least one note exists
             const id = `init-${clientId}`;
             const text = new Y.Text();
             doc.transact(() => {
-              objects.set(id, new Y.Map({ id, type: 'sticky', x: 0, y: 0, color: 'yellow', text, z: 1, createdAt: Date.now() }));
+              objects.set(id, new Y.Map(Object.entries({ id, type: 'sticky', x: 0, y: 0, color: 'yellow', text, z: 1, createdAt: Date.now() })));
             });
           } else if (action === 'text') {
             const note = notes[opIdx % notes.length];
@@ -126,12 +126,25 @@ test.describe('@nightly TC-29: 50 clients converge', () => {
       await Promise.all(promises);
     }
 
-    // All clients must converge to the same state
-    const snap0 = (await getBoardSnapshot(pages[0])).sort((a, b) => a.id.localeCompare(b.id));
-    for (let i = 1; i < numClients; i++) {
-      const snapI = (await getBoardSnapshot(pages[i])).sort((a, b) => a.id.localeCompare(b.id));
-      expect(snapI).toEqual(snap0);
-    }
+    // All clients must converge to the same state. The last operations are
+    // still in flight when the op loop finishes, so poll until every client
+    // reports an identical snapshot.
+    await expect
+      .poll(async () => {
+        const snaps = await Promise.all(
+          pages.map((p) =>
+            getBoardSnapshot(p).then((s) =>
+              s
+                .map((n) => JSON.stringify([n.id, n.x, n.y, n.color, n.text]))
+                .sort()
+                .join('|'),
+            ),
+          ),
+        );
+        const unique = new Set(snaps);
+        return unique.size === 1 ? 'converged' : `diverged:${unique.size}`;
+      }, { timeout: 30000 })
+      .toBe('converged');
 
     // Cleanup
     for (const ctx of contexts) {
@@ -143,7 +156,7 @@ test.describe('@nightly TC-29: 50 clients converge', () => {
 test.describe('@nightly TC-30: 1000-note board loads', () => {
   test('1000-note board loads and renders in a fresh tab', async ({ browser }) => {
     test.setTimeout(120000); // 2 minute timeout
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     // First, create a context and populate the board with 1000 notes
     const setupCtx = await browser.newContext();
@@ -162,13 +175,13 @@ test.describe('@nightly TC-30: 1000-note board loads', () => {
             const id = `note-${i}`;
             const text = new Y.Text();
             text.insert(0, `Note ${i}`);
-            objects.set(id, new Y.Map({
+            objects.set(id, new Y.Map(Object.entries({
               id, type: 'sticky',
               x: (i % 20) * 60,
               y: Math.floor(i / 20) * 40,
               color: 'yellow',
               text, z: 1, createdAt: Date.now(),
-            }));
+            })));
           }
         });
       }, batch * 100);

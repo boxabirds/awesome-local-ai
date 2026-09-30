@@ -50,7 +50,9 @@ function expectClose(value: number, target: number, tol: number) {
 
 test.describe('Story 2: Sticky notes (E2E)', () => {
   test.beforeEach(async ({ page }) => {
+    // Story 5: `/` is the home page; create a board from there.
     await page.goto('/');
+    await page.getByRole('button', { name: 'New board' }).click();
     await page.waitForSelector('[data-testid="board-viewport"]');
     await page.waitForFunction(() => !!(window as any).__vidi6);
   });

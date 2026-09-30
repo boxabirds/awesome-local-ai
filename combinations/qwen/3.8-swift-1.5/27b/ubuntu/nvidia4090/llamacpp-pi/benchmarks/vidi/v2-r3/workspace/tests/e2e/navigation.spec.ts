@@ -11,7 +11,9 @@ import {
 
 test.describe('Story 1: Pan and zoom around an infinite board (E2E)', () => {
   test.beforeEach(async ({ page }) => {
+    // Story 5: `/` is the home page; create a board from there.
     await page.goto('/');
+    await page.getByRole('button', { name: 'New board' }).click();
     await page.waitForSelector('[data-testid="board-viewport"]');
     // Wait for test hooks to be registered
     await page.waitForFunction(() => !!(window as any).__vidi6);

@@ -1,5 +1,6 @@
 import { test, expect, Page, BrowserContext } from '@playwright/test';
 import { PERSIST_TESTED_NOTES, BOARD_LOAD_BUDGET_MS, E2E_EVENTUAL_TIMEOUT_MS, LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
+import { createBoard } from './helpers/board';
 
 /**
  * Helper: create a note on the board via the UI (double-click).
@@ -13,7 +14,7 @@ async function createNoteAt(page: Page, x: number, y: number): Promise<void> {
  * Helper: count notes on the board.
  */
 async function countNotes(page: Page): Promise<number> {
-  return page.locator('[data-testid="sticky-note"]').count();
+  return page.locator('[data-testid^="sticky-note-"]').count();
 }
 
 /**
@@ -30,7 +31,7 @@ async function waitForNotes(page: Page, expected: number, timeout = E2E_EVENTUAL
  */
 async function getNoteDetails(page: Page): Promise<Array<{ text: string; x: number; y: number; color: string }>> {
   return page.evaluate(() => {
-    const notes = document.querySelectorAll('[data-testid="sticky-note"]');
+    const notes = document.querySelectorAll('[data-testid^="sticky-note-"]');
     return Array.from(notes).map((el) => {
       const noteEl = el as HTMLElement;
       const textEl = noteEl.querySelector('[data-testid="sticky-text"]');
@@ -56,9 +57,11 @@ async function newContext(page: Page): Promise<BrowserContext> {
 test.describe('TC-19: Overnight return — board intact after everyone leaves', () => {
   test('25 notes survive DO hibernation and wake', async ({ page, context }) => {
     test.setTimeout(60000);
-    const boardUrl = `/b/persisttest0000000000001`;
+    const boardId = await createBoard();
+    const boardUrl = `/b/${boardId}`;
 
     // Phase 1: Create 25 notes
+    await page.setViewportSize({ width: 1400, height: 1200 });
     await page.goto(boardUrl);
     await expect(page.getByTestId('connection-status')).toHaveText(/Connected/, { timeout: E2E_EVENTUAL_TIMEOUT_MS });
 
@@ -104,7 +107,8 @@ test.describe('TC-19: Overnight return — board intact after everyone leaves', 
 test.describe('TC-20: Leave immediately — change seen by another person survives', () => {
   test('note visible to second user survives immediate exit and DO wake', async ({ page, context }) => {
     test.setTimeout(60000);
-    const boardUrl = `/b/persisttest0000000000002`;
+    const boardId = await createBoard();
+    const boardUrl = `/b/${boardId}`;
 
     // Alex opens the board and creates a note
     await page.goto(boardUrl);
@@ -139,7 +143,8 @@ test.describe('TC-20: Leave immediately — change seen by another person surviv
 test.describe('TC-21: Big board open — PERSIST_TESTED_NOTES notes render', () => {
   test(`${PERSIST_TESTED_NOTES} notes render completely; load time logged`, async ({ page, context }) => {
     test.setTimeout(120000);
-    const boardUrl = `/b/persisttest0000000000003`;
+    const boardId = await createBoard();
+    const boardUrl = `/b/${boardId}`;
 
     // Seed the board with PERSIST_TESTED_NOTES notes using Yjs directly
     await page.goto(boardUrl);
@@ -175,7 +180,7 @@ test.describe('TC-21: Big board open — PERSIST_TESTED_NOTES notes render', () 
 
     // Wait for all notes to render
     await expect
-      .poll(async () => page.locator('[data-testid="sticky-note"]').count(), { timeout: 30000 })
+      .poll(async () => page.locator('[data-testid^="sticky-note-"]').count(), { timeout: 30000 })
       .toBe(PERSIST_TESTED_NOTES);
 
     // Close the first context (DO hibernates)
@@ -191,7 +196,7 @@ test.describe('TC-21: Big board open — PERSIST_TESTED_NOTES notes render', () 
     
     // Wait for all notes to render
     await expect
-      .poll(async () => page2.locator('[data-testid="sticky-note"]').count(), { timeout: 30000 })
+      .poll(async () => page2.locator('[data-testid^="sticky-note-"]').count(), { timeout: 30000 })
       .toBe(PERSIST_TESTED_NOTES);
     const navEnd = Date.now();
 
@@ -205,7 +210,7 @@ test.describe('TC-21: Big board open — PERSIST_TESTED_NOTES notes render', () 
 test.describe('TC-24: Broken board — honest failure, edit lock, recovery', () => {
   test('corrupted snapshot shows red message; repair recovers without reload', async ({ page, context }) => {
     test.setTimeout(60000);
-    const boardId = 'persisttest0000000000004';
+    const boardId = await createBoard();
     const boardUrl = `/b/${boardId}`;
 
     // Phase 1: Create a board with notes

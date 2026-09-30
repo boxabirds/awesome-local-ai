@@ -33,9 +33,15 @@ export function connectBoard(
       confirmationTimer = null;
     }
 
-    const p = provider as unknown as { status: string; sync: boolean };
+    // y-websocket 3.x exposes `wsconnected` / `wsconnecting` / `synced`
+    // (the 2.x `status` / `sync` properties are gone).
+    const p = provider as unknown as {
+      wsconnected: boolean;
+      wsconnecting: boolean;
+      synced: boolean;
+    };
 
-    if (p.status === 'connected' && p.sync) {
+    if (p.wsconnected && p.synced) {
       if (isLoadFailed) {
         // Recovery from load_failed
         isLoadFailed = false;
@@ -52,15 +58,15 @@ export function connectBoard(
         hasConnected = true;
         onState('connected');
       }
-    } else if (p.status === 'disconnected' && hasConnected) {
+    } else if (!p.wsconnected && hasConnected) {
       if (!isLoadFailed) {
         onState('reconnecting');
       }
-    } else if (p.status === 'connected' && !p.sync) {
+    } else if (p.wsconnected && !p.synced) {
       if (!hasConnected && !isLoadFailed) {
         onState('connecting');
       }
-    } else if (p.status === 'connecting') {
+    } else if (p.wsconnecting) {
       if (!hasConnected && !isLoadFailed) {
         onState('connecting');
       } else if (!isLoadFailed) {
