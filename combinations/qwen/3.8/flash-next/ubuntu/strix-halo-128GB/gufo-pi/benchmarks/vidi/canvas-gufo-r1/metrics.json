@@ -303,6 +303,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "11c63d9f"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 96,
+        "tool_calls": 98,
+        "thinking_chars": 172415,
+        "text_chars": 2760,
+        "tool_arg_chars": 109172,
+        "thinking_median": 214,
+        "thinking_median_before": 174,
+        "thinking_median_after": 207,
+        "largest_thinking": {
+          "chars": 39247,
+          "call": 21,
+          "at_s": 644.9
+        },
+        "context_start": 2051,
+        "context_end": 106447,
+        "largest_context_jump": {
+          "tokens": 11315,
+          "call": 3
+        },
+        "tools_by_name": {
+          "bash": 47,
+          "read": 5,
+          "write": 30,
+          "edit": 16
+        },
+        "tool_errors": 3,
+        "longest_tool": {
+          "seconds": 31.2,
+          "name": "bash",
+          "gist": "cd \"$(pwd)\"; timeout 90 npx wrangler dev --port 8787 --ip 127.0.0.1 > /tmp/wrangler.log 2>&1 &\nWRANGLER_PID=$!\necho \"sta"
+        },
+        "signals": []
       }
     },
     "2": {
@@ -632,6 +667,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "8b3d98e2"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 113,
+        "tool_calls": 121,
+        "thinking_chars": 109721,
+        "text_chars": 4764,
+        "tool_arg_chars": 161858,
+        "thinking_median": 91,
+        "thinking_median_before": 91,
+        "thinking_median_after": 76,
+        "largest_thinking": {
+          "chars": 11805,
+          "call": 95,
+          "at_s": 1883.0
+        },
+        "context_start": 2065,
+        "context_end": 45823,
+        "largest_context_jump": {
+          "tokens": 10144,
+          "call": 3
+        },
+        "tools_by_name": {
+          "bash": 57,
+          "read": 13,
+          "edit": 32,
+          "write": 19
+        },
+        "tool_errors": 8,
+        "longest_tool": {
+          "seconds": 10.5,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r1/workspa"
+        },
+        "signals": []
       }
     },
     "3": {
@@ -1015,6 +1085,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "713eef93"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 267,
+        "tool_calls": 261,
+        "thinking_chars": 144328,
+        "text_chars": 8370,
+        "tool_arg_chars": 188378,
+        "thinking_median": 122,
+        "thinking_median_before": 100,
+        "thinking_median_after": 152,
+        "largest_thinking": {
+          "chars": 14380,
+          "call": 80,
+          "at_s": 536.0
+        },
+        "context_start": 2078,
+        "context_end": 80590,
+        "largest_context_jump": {
+          "tokens": 6812,
+          "call": 4
+        },
+        "tools_by_name": {
+          "bash": 160,
+          "read": 25,
+          "edit": 45,
+          "write": 31
+        },
+        "tool_errors": 6,
+        "longest_tool": {
+          "seconds": 184.1,
+          "name": "bash",
+          "gist": "cd \"$(pwd)\" && npx playwright test --config=playwright.nightly.config.ts -g \"TC-30\" --reporter=line 2>&1 | tail -15"
+        },
+        "signals": []
       }
     },
     "4": {
@@ -1414,6 +1519,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r1/server.log"
         ],
         "commit": "3c4fa316"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 364,
+        "tool_calls": 374,
+        "thinking_chars": 189885,
+        "text_chars": 12543,
+        "tool_arg_chars": 304269,
+        "thinking_median": 122,
+        "thinking_median_before": 118,
+        "thinking_median_after": 124,
+        "largest_thinking": {
+          "chars": 17423,
+          "call": 54,
+          "at_s": 900.7
+        },
+        "context_start": 2198,
+        "context_end": 73375,
+        "largest_context_jump": {
+          "tokens": 11933,
+          "call": 2
+        },
+        "tools_by_name": {
+          "read": 73,
+          "bash": 201,
+          "edit": 77,
+          "write": 23
+        },
+        "tool_errors": 16,
+        "longest_tool": {
+          "seconds": 65.8,
+          "name": "bash",
+          "gist": "for i in 1 2 3 4 5; do\n  r=$(npx vitest run --config vitest.integration.config.ts 2>&1 | grep \"FAIL\" | head -2)\n  if [ -"
+        },
+        "signals": []
       }
     },
     "5": {
@@ -1806,6 +1946,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r1/server.log"
         ],
         "commit": "4366b8d5"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 265,
+        "tool_calls": 274,
+        "thinking_chars": 89112,
+        "text_chars": 12443,
+        "tool_arg_chars": 200259,
+        "thinking_median": 122,
+        "thinking_median_before": 109,
+        "thinking_median_after": 123,
+        "largest_thinking": {
+          "chars": 11417,
+          "call": 13,
+          "at_s": 122.4
+        },
+        "context_start": 2299,
+        "context_end": 89360,
+        "largest_context_jump": {
+          "tokens": 11773,
+          "call": 2
+        },
+        "tools_by_name": {
+          "read": 46,
+          "bash": 147,
+          "edit": 47,
+          "write": 34
+        },
+        "tool_errors": 10,
+        "longest_tool": {
+          "seconds": 14.1,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r1/workspa"
+        },
+        "signals": []
       }
     },
     "7": {
@@ -2235,6 +2410,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r1/server.log"
         ],
         "commit": "efc110c9"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 224,
+        "tool_calls": 237,
+        "thinking_chars": 130570,
+        "text_chars": 7758,
+        "tool_arg_chars": 227373,
+        "thinking_median": 150,
+        "thinking_median_before": 160,
+        "thinking_median_after": 93,
+        "largest_thinking": {
+          "chars": 9852,
+          "call": 208,
+          "at_s": 2983.7
+        },
+        "context_start": 2430,
+        "context_end": 28224,
+        "largest_context_jump": {
+          "tokens": 9680,
+          "call": 3
+        },
+        "tools_by_name": {
+          "bash": 106,
+          "read": 64,
+          "edit": 46,
+          "write": 21
+        },
+        "tool_errors": 9,
+        "longest_tool": {
+          "seconds": 70.8,
+          "name": "bash",
+          "gist": "npm run test:e2e 2>&1 | tail -30"
+        },
+        "signals": []
       }
     },
     "8": {
@@ -2602,6 +2812,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r1/server.log"
         ],
         "commit": "4713cd79"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 117,
+        "tool_calls": 116,
+        "thinking_chars": 58123,
+        "text_chars": 3592,
+        "tool_arg_chars": 132881,
+        "thinking_median": 83,
+        "thinking_median_before": 69,
+        "thinking_median_after": 89,
+        "largest_thinking": {
+          "chars": 12277,
+          "call": 39,
+          "at_s": 442.9
+        },
+        "context_start": 2452,
+        "context_end": 108758,
+        "largest_context_jump": {
+          "tokens": 4661,
+          "call": 3
+        },
+        "tools_by_name": {
+          "read": 30,
+          "bash": 54,
+          "edit": 17,
+          "write": 15
+        },
+        "tool_errors": 2,
+        "longest_tool": {
+          "seconds": 46.2,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r1/workspa"
+        },
+        "signals": []
       }
     },
     "9": {
@@ -3010,6 +3255,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r1/server.log"
         ],
         "commit": "c37140a6"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 176,
+        "tool_calls": 180,
+        "thinking_chars": 22913,
+        "text_chars": 4591,
+        "tool_arg_chars": 190047,
+        "thinking_median": 71,
+        "thinking_median_before": 88,
+        "thinking_median_after": 68,
+        "largest_thinking": {
+          "chars": 1592,
+          "call": 27,
+          "at_s": 113.4
+        },
+        "context_start": 2420,
+        "context_end": 91691,
+        "largest_context_jump": {
+          "tokens": 26884,
+          "call": 5
+        },
+        "tools_by_name": {
+          "read": 50,
+          "bash": 64,
+          "edit": 40,
+          "write": 26
+        },
+        "tool_errors": 7,
+        "longest_tool": {
+          "seconds": 8.7,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r1/workspa"
+        },
+        "signals": []
       }
     },
     "10": {
@@ -3410,6 +3690,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r1/server.log"
         ],
         "commit": "37caf90a"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 228,
+        "tool_calls": 241,
+        "thinking_chars": 71898,
+        "text_chars": 3390,
+        "tool_arg_chars": 217936,
+        "thinking_median": 83,
+        "thinking_median_before": 81,
+        "thinking_median_after": 89,
+        "largest_thinking": {
+          "chars": 4656,
+          "call": 100,
+          "at_s": 1011.8
+        },
+        "context_start": 2456,
+        "context_end": 95337,
+        "largest_context_jump": {
+          "tokens": 9657,
+          "call": 2
+        },
+        "tools_by_name": {
+          "read": 57,
+          "bash": 105,
+          "edit": 58,
+          "write": 21
+        },
+        "tool_errors": 6,
+        "longest_tool": {
+          "seconds": 57.9,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r1/workspa"
+        },
+        "signals": []
       }
     },
     "11": {
@@ -3771,6 +4086,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r1/server.log"
         ],
         "commit": "91d79459"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 129,
+        "tool_calls": 127,
+        "thinking_chars": 49982,
+        "text_chars": 4794,
+        "tool_arg_chars": 102207,
+        "thinking_median": 113,
+        "thinking_median_before": 118,
+        "thinking_median_after": 64,
+        "largest_thinking": {
+          "chars": 7832,
+          "call": 114,
+          "at_s": 1033.4
+        },
+        "context_start": 2434,
+        "context_end": 30707,
+        "largest_context_jump": {
+          "tokens": 5166,
+          "call": 7
+        },
+        "tools_by_name": {
+          "bash": 44,
+          "read": 36,
+          "edit": 35,
+          "write": 12
+        },
+        "tool_errors": 2,
+        "longest_tool": {
+          "seconds": 52.8,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r1/workspa"
+        },
+        "signals": []
       }
     },
     "12": {
@@ -4188,6 +4538,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r1/server.log"
         ],
         "commit": "64f2153d"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 155,
+        "tool_calls": 173,
+        "thinking_chars": 26855,
+        "text_chars": 2225,
+        "tool_arg_chars": 152582,
+        "thinking_median": 91,
+        "thinking_median_before": 85,
+        "thinking_median_after": 115,
+        "largest_thinking": {
+          "chars": 4256,
+          "call": 126,
+          "at_s": 1051.3
+        },
+        "context_start": 2432,
+        "context_end": 62628,
+        "largest_context_jump": {
+          "tokens": 22162,
+          "call": 150
+        },
+        "tools_by_name": {
+          "bash": 98,
+          "read": 8,
+          "edit": 50,
+          "write": 17
+        },
+        "tool_errors": 6,
+        "longest_tool": {
+          "seconds": 68.8,
+          "name": "bash",
+          "gist": "npm run typecheck && echo \"PASS: typecheck\" && npm run build && echo \"PASS: build\" && npm run test:unit && echo \"PASS: u"
+        },
+        "signals": []
       }
     }
   },

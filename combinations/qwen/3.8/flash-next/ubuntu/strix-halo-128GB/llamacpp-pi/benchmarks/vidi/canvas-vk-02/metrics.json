@@ -305,6 +305,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "a28df66"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 109,
+        "tool_calls": 123,
+        "thinking_chars": 229492,
+        "text_chars": 2843,
+        "tool_arg_chars": 158589,
+        "thinking_median": 427,
+        "thinking_median_before": 100,
+        "thinking_median_after": 432,
+        "largest_thinking": {
+          "chars": 68834,
+          "call": 7,
+          "at_s": 654.5
+        },
+        "context_start": 2052,
+        "context_end": 66652,
+        "largest_context_jump": {
+          "tokens": 18571,
+          "call": 8
+        },
+        "tools_by_name": {
+          "bash": 61,
+          "read": 8,
+          "write": 35,
+          "edit": 19
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 63.6,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-02/works"
+        },
+        "signals": []
       }
     },
     "2": {
@@ -638,6 +673,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/benchmarks/vidi/canvas-vk-02/server.log"
         ],
         "commit": "6ed6595"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 157,
+        "tool_calls": 156,
+        "thinking_chars": 338446,
+        "text_chars": 7740,
+        "tool_arg_chars": 158801,
+        "thinking_median": 314,
+        "thinking_median_before": 124,
+        "thinking_median_after": 473,
+        "largest_thinking": {
+          "chars": 83050,
+          "call": 32,
+          "at_s": 1073.0
+        },
+        "context_start": 2066,
+        "context_end": 28999,
+        "largest_context_jump": {
+          "tokens": 20544,
+          "call": 33
+        },
+        "tools_by_name": {
+          "bash": 71,
+          "read": 32,
+          "edit": 32,
+          "write": 21
+        },
+        "tool_errors": 5,
+        "longest_tool": {
+          "seconds": 63.6,
+          "name": "bash",
+          "gist": "cd \"$(pwd)\" && npx playwright test tests/e2e/sticky.spec.ts --project=chromium 2>&1 | grep -vE \"wrangler:info\" | tail -4"
+        },
+        "signals": []
       }
     },
     "3": {
@@ -1016,6 +1086,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/benchmarks/vidi/canvas-vk-02/server.log"
         ],
         "commit": "f28d9e9"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 311,
+        "tool_calls": 323,
+        "thinking_chars": 535811,
+        "text_chars": 64,
+        "tool_arg_chars": 439769,
+        "thinking_median": 644,
+        "thinking_median_before": 167,
+        "thinking_median_after": 694,
+        "largest_thinking": {
+          "chars": 23960,
+          "call": 31,
+          "at_s": 651.2
+        },
+        "context_start": 2079,
+        "context_end": 57040,
+        "largest_context_jump": {
+          "tokens": 9169,
+          "call": 3
+        },
+        "tools_by_name": {
+          "bash": 240,
+          "read": 29,
+          "edit": 11,
+          "write": 43
+        },
+        "tool_errors": 10,
+        "longest_tool": {
+          "seconds": 246.2,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-02/works"
+        },
+        "signals": []
       }
     },
     "4": {
@@ -1405,6 +1510,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/benchmarks/vidi/canvas-vk-02/server.log"
         ],
         "commit": "a9d7663"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 306,
+        "tool_calls": 324,
+        "thinking_chars": 609052,
+        "text_chars": 1600,
+        "tool_arg_chars": 395659,
+        "thinking_median": 483,
+        "thinking_median_before": 156,
+        "thinking_median_after": 547,
+        "largest_thinking": {
+          "chars": 50736,
+          "call": 20,
+          "at_s": 827.6
+        },
+        "context_start": 2187,
+        "context_end": 114225,
+        "largest_context_jump": {
+          "tokens": 21865,
+          "call": 162
+        },
+        "tools_by_name": {
+          "bash": 218,
+          "read": 38,
+          "edit": 43,
+          "write": 25
+        },
+        "tool_errors": 7,
+        "longest_tool": {
+          "seconds": 63.1,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-02/works"
+        },
+        "signals": []
       }
     }
   },

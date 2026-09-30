@@ -123,7 +123,7 @@ no LLM. Null when the log has no receive stamps (runs before the harness stamped
 | `context_start`, `context_end`, `largest_context_jump` | what the model read on its first and last call (fresh plus cached tokens), and the largest growth between two consecutive calls (`tokens`, `call`) |
 | `tools_by_name`, `tool_errors` | tool calls by tool, and results marked as errors |
 | `longest_tool` | the longest tool call: `seconds`, `name`, `gist` (its command or path); one that never ended runs to the story's end |
-| `signals` | `long-thinking-block` (a block of 20,000 characters or more), `hung-command` (a tool call of 600 s or more) |
+| `signals` | signs abnormal on any stack: `hung-command` (a single tool call of 600 s or more). A long thinking block is not one: its normal size differs by combination (median largest block 10.6k characters for gufo, 30.5k for Swift 1.5, 38.9k for mlx-serve), so it is judged against the same story in the combination's other runs |
 
 `backfill_timing.py` fills it for past stories from the full logs each machine keeps.
 

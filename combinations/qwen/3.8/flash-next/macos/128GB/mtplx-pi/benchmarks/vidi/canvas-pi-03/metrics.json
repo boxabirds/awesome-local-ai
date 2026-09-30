@@ -708,6 +708,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "bf6c65f"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 99,
+        "tool_calls": 98,
+        "thinking_chars": 230956,
+        "text_chars": 5358,
+        "tool_arg_chars": 101838,
+        "thinking_median": 363,
+        "thinking_median_before": 232,
+        "thinking_median_after": 499,
+        "largest_thinking": {
+          "chars": 33232,
+          "call": 36,
+          "at_s": 688.6
+        },
+        "context_start": 2523,
+        "context_end": 39916,
+        "largest_context_jump": {
+          "tokens": 9508,
+          "call": 37
+        },
+        "tools_by_name": {
+          "bash": 46,
+          "read": 8,
+          "write": 29,
+          "edit": 15
+        },
+        "tool_errors": 1,
+        "longest_tool": {
+          "seconds": 25.8,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-03/workspace && t"
+        },
+        "signals": []
       }
     },
     "2": {
@@ -1604,6 +1639,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "4d26274"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 180,
+        "tool_calls": 179,
+        "thinking_chars": 285000,
+        "text_chars": 7334,
+        "tool_arg_chars": 183695,
+        "thinking_median": 379,
+        "thinking_median_before": 116,
+        "thinking_median_after": 426,
+        "largest_thinking": {
+          "chars": 42815,
+          "call": 23,
+          "at_s": 343.8
+        },
+        "context_start": 2537,
+        "context_end": 107119,
+        "largest_context_jump": {
+          "tokens": 11186,
+          "call": 24
+        },
+        "tools_by_name": {
+          "bash": 71,
+          "read": 45,
+          "edit": 41,
+          "write": 22
+        },
+        "tool_errors": 6,
+        "longest_tool": {
+          "seconds": 34.0,
+          "name": "bash",
+          "gist": "cd \"$(pwd)\" && timeout 180 npm run test:e2e 2>&1 | tail -40"
+        },
+        "signals": []
       }
     },
     "3": {
@@ -3103,6 +3173,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "bb1f62a"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 376,
+        "tool_calls": 381,
+        "thinking_chars": 684689,
+        "text_chars": 16496,
+        "tool_arg_chars": 327762,
+        "thinking_median": 679,
+        "thinking_median_before": 254,
+        "thinking_median_after": 685,
+        "largest_thinking": {
+          "chars": 42824,
+          "call": 9,
+          "at_s": 359.7
+        },
+        "context_start": 26621,
+        "context_end": 59612,
+        "largest_context_jump": {
+          "tokens": 10785,
+          "call": 10
+        },
+        "tools_by_name": {
+          "bash": 269,
+          "read": 26,
+          "write": 26,
+          "edit": 60
+        },
+        "tool_errors": 21,
+        "longest_tool": {
+          "seconds": 241.6,
+          "name": "bash",
+          "gist": "npm run build 2>&1 | tail -2 && npm run typecheck && echo TYPECHECK-OK && npm run test:unit 2>&1 | grep -E \"Tests|Test F"
+        },
+        "signals": []
       }
     },
     "4": {
@@ -4087,6 +4192,38 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-03/server.log"
         ],
         "commit": "ee91884"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 163,
+        "tool_calls": 161,
+        "thinking_chars": 325110,
+        "text_chars": 0,
+        "tool_arg_chars": 37206,
+        "thinking_median": 813,
+        "thinking_median_before": 751,
+        "thinking_median_after": 808,
+        "largest_thinking": {
+          "chars": 15588,
+          "call": 33,
+          "at_s": 745.1
+        },
+        "context_start": 33111,
+        "context_end": 0,
+        "largest_context_jump": {
+          "tokens": 48146,
+          "call": 121
+        },
+        "tools_by_name": {
+          "bash": 161
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 79.5,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-03/workspace && g"
+        },
+        "signals": []
       }
     },
     "5": {
@@ -5182,6 +5319,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-03/server.log"
         ],
         "commit": "d7d45d0"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 366,
+        "tool_calls": 364,
+        "thinking_chars": 352995,
+        "text_chars": 6304,
+        "tool_arg_chars": 276005,
+        "thinking_median": 463,
+        "thinking_median_before": 172,
+        "thinking_median_after": 492,
+        "largest_thinking": {
+          "chars": 14300,
+          "call": 12,
+          "at_s": 126.2
+        },
+        "context_start": 2654,
+        "context_end": 67019,
+        "largest_context_jump": {
+          "tokens": 43284,
+          "call": 151
+        },
+        "tools_by_name": {
+          "bash": 257,
+          "read": 33,
+          "edit": 52,
+          "write": 22
+        },
+        "tool_errors": 20,
+        "longest_tool": {
+          "seconds": 484.4,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-03/workspace && n"
+        },
+        "signals": []
       }
     },
     "7": {
@@ -6928,6 +7100,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-03/server.log"
         ],
         "commit": "5287306"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 415,
+        "tool_calls": 407,
+        "thinking_chars": 784930,
+        "text_chars": 7608,
+        "tool_arg_chars": 328865,
+        "thinking_median": 459,
+        "thinking_median_before": 149,
+        "thinking_median_after": 517,
+        "largest_thinking": {
+          "chars": 41418,
+          "call": 35,
+          "at_s": 620.4
+        },
+        "context_start": 2674,
+        "context_end": 0,
+        "largest_context_jump": {
+          "tokens": 94488,
+          "call": 95
+        },
+        "tools_by_name": {
+          "bash": 232,
+          "read": 105,
+          "edit": 48,
+          "write": 22
+        },
+        "tool_errors": 20,
+        "longest_tool": {
+          "seconds": 475.5,
+          "name": "bash",
+          "gist": "cd \"~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-03/workspace\" &&"
+        },
+        "signals": []
       }
     },
     "8": {
@@ -7966,6 +8173,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-03/server.log"
         ],
         "commit": "877b682"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 148,
+        "tool_calls": 156,
+        "thinking_chars": 516957,
+        "text_chars": 3831,
+        "tool_arg_chars": 87553,
+        "thinking_median": 431,
+        "thinking_median_before": 395,
+        "thinking_median_after": 642,
+        "largest_thinking": {
+          "chars": 33737,
+          "call": 94,
+          "at_s": 2452.6
+        },
+        "context_start": 2696,
+        "context_end": 0,
+        "largest_context_jump": {
+          "tokens": 53806,
+          "call": 112
+        },
+        "tools_by_name": {
+          "bash": 104,
+          "read": 49,
+          "edit": 2,
+          "write": 1
+        },
+        "tool_errors": 7,
+        "longest_tool": {
+          "seconds": 1.9,
+          "name": "bash",
+          "gist": "cd \"~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-03/workspace\" &&"
+        },
+        "signals": []
       }
     },
     "9": {
@@ -9886,6 +10128,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-03/server.log"
         ],
         "commit": "e1e590a"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 405,
+        "tool_calls": 400,
+        "thinking_chars": 742843,
+        "text_chars": 2482,
+        "tool_arg_chars": 384261,
+        "thinking_median": 483,
+        "thinking_median_before": 225,
+        "thinking_median_after": 531,
+        "largest_thinking": {
+          "chars": 77986,
+          "call": 20,
+          "at_s": 449.9
+        },
+        "context_start": 22068,
+        "context_end": 0,
+        "largest_context_jump": {
+          "tokens": 75615,
+          "call": 383
+        },
+        "tools_by_name": {
+          "bash": 326,
+          "read": 18,
+          "write": 24,
+          "edit": 32
+        },
+        "tool_errors": 17,
+        "longest_tool": {
+          "seconds": 79.0,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-03/workspace && t"
+        },
+        "signals": []
       }
     },
     "10": {
@@ -11224,6 +11501,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-03/server.log"
         ],
         "commit": "5ae7493"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 296,
+        "tool_calls": 301,
+        "thinking_chars": 388813,
+        "text_chars": 216,
+        "tool_arg_chars": 365233,
+        "thinking_median": 548,
+        "thinking_median_before": 370,
+        "thinking_median_after": 551,
+        "largest_thinking": {
+          "chars": 33111,
+          "call": 13,
+          "at_s": 303.9
+        },
+        "context_start": 5531,
+        "context_end": 0,
+        "largest_context_jump": {
+          "tokens": 28236,
+          "call": 161
+        },
+        "tools_by_name": {
+          "bash": 192,
+          "read": 46,
+          "edit": 39,
+          "write": 24
+        },
+        "tool_errors": 15,
+        "longest_tool": {
+          "seconds": 21.4,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-03/workspace && n"
+        },
+        "signals": []
       }
     },
     "11": {
@@ -12047,6 +12359,40 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-03/server.log"
         ],
         "commit": "02b1d89"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 190,
+        "tool_calls": 186,
+        "thinking_chars": 323227,
+        "text_chars": 0,
+        "tool_arg_chars": 29612,
+        "thinking_median": 336,
+        "thinking_median_before": 385,
+        "thinking_median_after": 326,
+        "largest_thinking": {
+          "chars": 32331,
+          "call": 76,
+          "at_s": 1088.2
+        },
+        "context_start": 10913,
+        "context_end": 0,
+        "largest_context_jump": {
+          "tokens": 42630,
+          "call": 126
+        },
+        "tools_by_name": {
+          "read": 60,
+          "bash": 125,
+          "edit": 1
+        },
+        "tool_errors": 5,
+        "longest_tool": {
+          "seconds": 1.1,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-03/workspace && g"
+        },
+        "signals": []
       }
     },
     "12": {
@@ -12672,6 +13018,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-03/server.log"
         ],
         "commit": "8b7f87a"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 88,
+        "tool_calls": 84,
+        "thinking_chars": 94257,
+        "text_chars": 3898,
+        "tool_arg_chars": 53794,
+        "thinking_median": 358,
+        "thinking_median_before": 348,
+        "thinking_median_after": 583,
+        "largest_thinking": {
+          "chars": 20066,
+          "call": 75,
+          "at_s": 929.8
+        },
+        "context_start": 2674,
+        "context_end": 126681,
+        "largest_context_jump": {
+          "tokens": 61055,
+          "call": 63
+        },
+        "tools_by_name": {
+          "bash": 28,
+          "read": 46,
+          "write": 5,
+          "edit": 5
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 20.2,
+          "name": "bash",
+          "gist": "cd /tmp && rm -rf r2test && mkdir r2test && cd r2test && cat > wrangler.jsonc <<'EOF'\n{\n  \"name\": \"r2test\",\n  \"main\": \"w"
+        },
+        "signals": []
       }
     }
   },

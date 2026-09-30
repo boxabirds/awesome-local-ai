@@ -7388,6 +7388,41 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/llamacpp-pi/benchmarks/vidi/ab-s7s8-01/server.log"
         ],
         "commit": "c6596bf"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 254,
+        "tool_calls": 266,
+        "thinking_chars": 464164,
+        "text_chars": 2451,
+        "tool_arg_chars": 392844,
+        "thinking_median": 659,
+        "thinking_median_before": 177,
+        "thinking_median_after": 712,
+        "largest_thinking": {
+          "chars": 45563,
+          "call": 16,
+          "at_s": 965.9
+        },
+        "context_start": 2319,
+        "context_end": 75429,
+        "largest_context_jump": {
+          "tokens": 13514,
+          "call": 17
+        },
+        "tools_by_name": {
+          "bash": 154,
+          "read": 44,
+          "edit": 36,
+          "write": 32
+        },
+        "tool_errors": 8,
+        "longest_tool": {
+          "seconds": 189.0,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__llamacpp-pi__benchmarks__vidi__ab-s7s8-01/workspace; timeout "
+        },
+        "signals": []
       }
     },
     "8": {
@@ -9220,6 +9255,41 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/llamacpp-pi/benchmarks/vidi/ab-s7s8-01/server.log"
         ],
         "commit": "79e3015"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 214,
+        "tool_calls": 213,
+        "thinking_chars": 390155,
+        "text_chars": 3545,
+        "tool_arg_chars": 194368,
+        "thinking_median": 442,
+        "thinking_median_before": 251,
+        "thinking_median_after": 485,
+        "largest_thinking": {
+          "chars": 76009,
+          "call": 33,
+          "at_s": 1623.0
+        },
+        "context_start": 2341,
+        "context_end": 50004,
+        "largest_context_jump": {
+          "tokens": 20549,
+          "call": 34
+        },
+        "tools_by_name": {
+          "bash": 151,
+          "read": 23,
+          "edit": 29,
+          "write": 10
+        },
+        "tool_errors": 11,
+        "longest_tool": {
+          "seconds": 199.1,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__llamacpp-pi__benchmarks__vidi__ab-s7s8-01/workspace && npx pl"
+        },
+        "signals": []
       }
     }
   },

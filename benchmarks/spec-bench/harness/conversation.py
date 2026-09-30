@@ -16,7 +16,6 @@ import statistics
 from pathlib import Path
 
 VERSION = 1
-LONG_THINKING_CHARS = 20_000   # one block this long put gufo v2-r1 story 2 into its verbose mode
 HUNG_TOOL_S = 600              # a single tool call of ten minutes: a dev server or watcher left running
 GIST_CHARS = 120
 UPDATE_PREFIX = 80             # message_update lines are most of a log; skip them without parsing
@@ -75,9 +74,9 @@ def profile(events: Path, t_from: float, t_to: float) -> dict | None:
     big = max(range(len(calls)), key=lambda i: (thinks[i], -i)) if any(thinks) else None
     jumps = [(calls[i]["context"] - calls[i - 1]["context"], i) for i in range(1, len(calls))]
     jump = max(jumps, default=(0, 0))
+    # Only signs that are abnormal on any stack. A long thinking block isn't one: what's long depends on the
+    # combination, so thinking is compared with the same story's other runs, by the benchmarker.
     signals = []
-    if big is not None and thinks[big] >= LONG_THINKING_CHARS:
-        signals.append("long-thinking-block")
     if longest and longest["seconds"] >= HUNG_TOOL_S:
         signals.append("hung-command")
     return {

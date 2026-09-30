@@ -533,6 +533,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "9b7d5a06"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 88,
+        "tool_calls": 89,
+        "thinking_chars": 117198,
+        "text_chars": 6012,
+        "tool_arg_chars": 96135,
+        "thinking_median": 418,
+        "thinking_median_before": 617,
+        "thinking_median_after": 394,
+        "largest_thinking": {
+          "chars": 16684,
+          "call": 15,
+          "at_s": 292.3
+        },
+        "context_start": 2185,
+        "context_end": 86587,
+        "largest_context_jump": {
+          "tokens": 11319,
+          "call": 2
+        },
+        "tools_by_name": {
+          "read": 4,
+          "bash": 36,
+          "write": 31,
+          "edit": 18
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 217.8,
+          "name": "bash",
+          "gist": "cd \"$(pwd)\" && npx playwright test --project=firefox --project=webkit 2>&1 | tail -25"
+        },
+        "signals": []
       }
     },
     "2": {
@@ -1415,6 +1450,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "52b396dd"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 150,
+        "tool_calls": 162,
+        "thinking_chars": 212032,
+        "text_chars": 1794,
+        "tool_arg_chars": 165088,
+        "thinking_median": 234,
+        "thinking_median_before": 162,
+        "thinking_median_after": 272,
+        "largest_thinking": {
+          "chars": 29270,
+          "call": 54,
+          "at_s": 940.4
+        },
+        "context_start": 2199,
+        "context_end": 91207,
+        "largest_context_jump": {
+          "tokens": 7940,
+          "call": 55
+        },
+        "tools_by_name": {
+          "bash": 63,
+          "read": 39,
+          "edit": 39,
+          "write": 21
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 16.5,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__canvas-mlx-02/workspace "
+        },
+        "signals": []
       }
     },
     "3": {
@@ -2631,6 +2701,41 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/canvas-mlx-02/server.log"
         ],
         "commit": "293e814c"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 212,
+        "tool_calls": 226,
+        "thinking_chars": 347704,
+        "text_chars": 5998,
+        "tool_arg_chars": 220078,
+        "thinking_median": 453,
+        "thinking_median_before": 181,
+        "thinking_median_after": 556,
+        "largest_thinking": {
+          "chars": 52373,
+          "call": 34,
+          "at_s": 547.6
+        },
+        "context_start": 2212,
+        "context_end": 90274,
+        "largest_context_jump": {
+          "tokens": 12985,
+          "call": 35
+        },
+        "tools_by_name": {
+          "bash": 109,
+          "read": 51,
+          "edit": 43,
+          "write": 23
+        },
+        "tool_errors": 8,
+        "longest_tool": {
+          "seconds": 212.6,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__canvas-mlx-02/workspace "
+        },
+        "signals": []
       }
     },
     "4": {
@@ -4815,6 +4920,41 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/canvas-mlx-02/server.log"
         ],
         "commit": "3b6a6423"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 357,
+        "tool_calls": 364,
+        "thinking_chars": 875540,
+        "text_chars": 12773,
+        "tool_arg_chars": 434113,
+        "thinking_median": 717,
+        "thinking_median_before": 156,
+        "thinking_median_after": 772,
+        "largest_thinking": {
+          "chars": 75754,
+          "call": 22,
+          "at_s": 941.2
+        },
+        "context_start": 2209,
+        "context_end": 83823,
+        "largest_context_jump": {
+          "tokens": 19880,
+          "call": 23
+        },
+        "tools_by_name": {
+          "bash": 280,
+          "edit": 32,
+          "read": 34,
+          "write": 18
+        },
+        "tool_errors": 7,
+        "longest_tool": {
+          "seconds": 305.2,
+          "name": "bash",
+          "gist": "cd \"~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__canvas-mlx-02/workspace"
+        },
+        "signals": []
       }
     },
     "5": {
@@ -6366,6 +6506,43 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/canvas-mlx-02/server.log"
         ],
         "commit": "7ee31a96"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 316,
+        "tool_calls": 316,
+        "thinking_chars": 403209,
+        "text_chars": 3543,
+        "tool_arg_chars": 387759,
+        "thinking_median": 517,
+        "thinking_median_before": 278,
+        "thinking_median_after": 528,
+        "largest_thinking": {
+          "chars": 26391,
+          "call": 27,
+          "at_s": 472.7
+        },
+        "context_start": 2316,
+        "context_end": 104378,
+        "largest_context_jump": {
+          "tokens": 9715,
+          "call": 2
+        },
+        "tools_by_name": {
+          "bash": 242,
+          "edit": 32,
+          "write": 27,
+          "read": 15
+        },
+        "tool_errors": 15,
+        "longest_tool": {
+          "seconds": 622.2,
+          "name": "bash",
+          "gist": "for i in 1 2 3 4 5 6; do sleep 120; if ! pgrep -f \"playwright test\" >/dev/null; then break; fi; done; cd ~/.vidi-bench/w"
+        },
+        "signals": [
+          "hung-command"
+        ]
       }
     },
     "7": {
@@ -8254,6 +8431,43 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/canvas-mlx-02/server.log"
         ],
         "commit": "ed1b305b"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 292,
+        "tool_calls": 311,
+        "thinking_chars": 524547,
+        "text_chars": 6427,
+        "tool_arg_chars": 447222,
+        "thinking_median": 564,
+        "thinking_median_before": 100,
+        "thinking_median_after": 614,
+        "largest_thinking": {
+          "chars": 50561,
+          "call": 15,
+          "at_s": 255.0
+        },
+        "context_start": 2336,
+        "context_end": 41616,
+        "largest_context_jump": {
+          "tokens": 13648,
+          "call": 16
+        },
+        "tools_by_name": {
+          "bash": 207,
+          "read": 52,
+          "edit": 21,
+          "write": 31
+        },
+        "tool_errors": 8,
+        "longest_tool": {
+          "seconds": 708.2,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__canvas-mlx-02/workspace "
+        },
+        "signals": [
+          "hung-command"
+        ]
       }
     },
     "8": {
@@ -9956,6 +10170,41 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/canvas-mlx-02/server.log"
         ],
         "commit": "8842b5f4"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 272,
+        "tool_calls": 282,
+        "thinking_chars": 510656,
+        "text_chars": 2309,
+        "tool_arg_chars": 340014,
+        "thinking_median": 615,
+        "thinking_median_before": 192,
+        "thinking_median_after": 684,
+        "largest_thinking": {
+          "chars": 19908,
+          "call": 33,
+          "at_s": 629.8
+        },
+        "context_start": 2358,
+        "context_end": 80787,
+        "largest_context_jump": {
+          "tokens": 8006,
+          "call": 15
+        },
+        "tools_by_name": {
+          "bash": 192,
+          "read": 44,
+          "write": 18,
+          "edit": 28
+        },
+        "tool_errors": 6,
+        "longest_tool": {
+          "seconds": 190.3,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__canvas-mlx-02/workspace "
+        },
+        "signals": []
       }
     },
     "9": {
@@ -11484,6 +11733,41 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/canvas-mlx-02/server.log"
         ],
         "commit": "61aee57f"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 206,
+        "tool_calls": 267,
+        "thinking_chars": 476261,
+        "text_chars": 5017,
+        "tool_arg_chars": 219050,
+        "thinking_median": 469,
+        "thinking_median_before": 259,
+        "thinking_median_after": 555,
+        "largest_thinking": {
+          "chars": 69458,
+          "call": 42,
+          "at_s": 1366.7
+        },
+        "context_start": 2326,
+        "context_end": 70158,
+        "largest_context_jump": {
+          "tokens": 21430,
+          "call": 3
+        },
+        "tools_by_name": {
+          "read": 125,
+          "bash": 78,
+          "edit": 45,
+          "write": 19
+        },
+        "tool_errors": 10,
+        "longest_tool": {
+          "seconds": 61.8,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__canvas-mlx-02/workspace "
+        },
+        "signals": []
       }
     },
     "10": {
@@ -13094,6 +13378,41 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/canvas-mlx-02/server.log"
         ],
         "commit": "2b02cba4"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 274,
+        "tool_calls": 304,
+        "thinking_chars": 479968,
+        "text_chars": 2491,
+        "tool_arg_chars": 412529,
+        "thinking_median": 532,
+        "thinking_median_before": 211,
+        "thinking_median_after": 579,
+        "largest_thinking": {
+          "chars": 47942,
+          "call": 23,
+          "at_s": 531.6
+        },
+        "context_start": 2360,
+        "context_end": 80422,
+        "largest_context_jump": {
+          "tokens": 14929,
+          "call": 24
+        },
+        "tools_by_name": {
+          "bash": 155,
+          "read": 93,
+          "edit": 30,
+          "write": 26
+        },
+        "tool_errors": 8,
+        "longest_tool": {
+          "seconds": 70.6,
+          "name": "bash",
+          "gist": "cd workspace 2>/dev/null; npm run test:e2e 2>&1 | grep -vE \"WebServer|wrangler|GET /|POST /\" | tail -35"
+        },
+        "signals": []
       }
     },
     "11": {
@@ -14604,6 +14923,43 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/canvas-mlx-02/server.log"
         ],
         "commit": "5b4cd3d7"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 272,
+        "tool_calls": 295,
+        "thinking_chars": 354457,
+        "text_chars": 2687,
+        "tool_arg_chars": 390178,
+        "thinking_median": 321,
+        "thinking_median_before": 175,
+        "thinking_median_after": 362,
+        "largest_thinking": {
+          "chars": 51582,
+          "call": 28,
+          "at_s": 452.3
+        },
+        "context_start": 2338,
+        "context_end": 55285,
+        "largest_context_jump": {
+          "tokens": 15083,
+          "call": 22
+        },
+        "tools_by_name": {
+          "read": 107,
+          "bash": 129,
+          "edit": 40,
+          "write": 19
+        },
+        "tool_errors": 20,
+        "longest_tool": {
+          "seconds": 873.6,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__canvas-mlx-02/workspace "
+        },
+        "signals": [
+          "hung-command"
+        ]
       }
     },
     "12": {
@@ -15755,6 +16111,42 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/canvas-mlx-02/workspace/tests/fixtures/images/huge.png"
         ],
         "commit": "bcbd0386"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 288,
+        "tool_calls": 301,
+        "thinking_chars": 246119,
+        "text_chars": 2749,
+        "tool_arg_chars": 252406,
+        "thinking_median": 296,
+        "thinking_median_before": 233,
+        "thinking_median_after": 365,
+        "largest_thinking": {
+          "chars": 12290,
+          "call": 116,
+          "at_s": 1258.9
+        },
+        "context_start": 2336,
+        "context_end": 77696,
+        "largest_context_jump": {
+          "tokens": 14013,
+          "call": 2
+        },
+        "tools_by_name": {
+          "read": 138,
+          "bash": 84,
+          "edit": 58,
+          "write": 20,
+          "grep": 1
+        },
+        "tool_errors": 11,
+        "longest_tool": {
+          "seconds": 87.7,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__canvas-mlx-02/workspace "
+        },
+        "signals": []
       }
     }
   },

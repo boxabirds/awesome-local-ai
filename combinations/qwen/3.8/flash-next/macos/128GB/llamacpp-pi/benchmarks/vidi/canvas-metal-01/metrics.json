@@ -872,7 +872,42 @@
           "found": 7,
           "total": 7
         }
-      ]
+      ],
+      "conversation": {
+        "version": 1,
+        "calls": 116,
+        "tool_calls": 116,
+        "thinking_chars": 166546,
+        "text_chars": 3054,
+        "tool_arg_chars": 161408,
+        "thinking_median": 242,
+        "thinking_median_before": 95,
+        "thinking_median_after": 258,
+        "largest_thinking": {
+          "chars": 51010,
+          "call": 11,
+          "at_s": 512.7
+        },
+        "context_start": 2165,
+        "context_end": 37903,
+        "largest_context_jump": {
+          "tokens": 13798,
+          "call": 12
+        },
+        "tools_by_name": {
+          "bash": 67,
+          "read": 8,
+          "write": 30,
+          "edit": 11
+        },
+        "tool_errors": 5,
+        "longest_tool": {
+          "seconds": 40.9,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__llamacpp-pi__benchmarks__vidi__canvas-metal-01/workspace && n"
+        },
+        "signals": []
+      }
     }
   },
   "pack": "vidi",

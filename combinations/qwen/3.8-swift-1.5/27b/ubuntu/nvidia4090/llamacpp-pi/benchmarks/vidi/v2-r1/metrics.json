@@ -320,6 +320,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "d5e0623c"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 66,
+        "tool_calls": 95,
+        "thinking_chars": 35047,
+        "text_chars": 4778,
+        "tool_arg_chars": 152246,
+        "thinking_median": 136,
+        "thinking_median_before": 135,
+        "thinking_median_after": 135,
+        "largest_thinking": {
+          "chars": 11013,
+          "call": 55,
+          "at_s": 593.3
+        },
+        "context_start": 2072,
+        "context_end": 32350,
+        "largest_context_jump": {
+          "tokens": 25048,
+          "call": 30
+        },
+        "tools_by_name": {
+          "read": 3,
+          "bash": 33,
+          "write": 50,
+          "edit": 9
+        },
+        "tool_errors": 11,
+        "longest_tool": {
+          "seconds": 8.1,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r1/workspace && np"
+        },
+        "signals": []
       }
     },
     "2": {
@@ -666,6 +701,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "df3e0f1b"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 104,
+        "tool_calls": 115,
+        "thinking_chars": 35345,
+        "text_chars": 7033,
+        "tool_arg_chars": 136078,
+        "thinking_median": 98,
+        "thinking_median_before": 98,
+        "thinking_median_after": 73,
+        "largest_thinking": {
+          "chars": 9050,
+          "call": 91,
+          "at_s": 656.8
+        },
+        "context_start": 2086,
+        "context_end": 102032,
+        "largest_context_jump": {
+          "tokens": 13825,
+          "call": 3
+        },
+        "tools_by_name": {
+          "bash": 48,
+          "read": 20,
+          "edit": 26,
+          "write": 21
+        },
+        "tool_errors": 6,
+        "longest_tool": {
+          "seconds": 78.7,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r1/workspace && np"
+        },
+        "signals": []
       }
     },
     "3": {
@@ -1024,6 +1094,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "6d25c284"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 192,
+        "tool_calls": 205,
+        "thinking_chars": 160762,
+        "text_chars": 11957,
+        "tool_arg_chars": 280619,
+        "thinking_median": 138,
+        "thinking_median_before": 117,
+        "thinking_median_after": 197,
+        "largest_thinking": {
+          "chars": 9355,
+          "call": 117,
+          "at_s": 1084.8
+        },
+        "context_start": 2099,
+        "context_end": 37923,
+        "largest_context_jump": {
+          "tokens": 11508,
+          "call": 3
+        },
+        "tools_by_name": {
+          "bash": 107,
+          "read": 24,
+          "edit": 32,
+          "write": 42
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 60.0,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r1/workspace && np"
+        },
+        "signals": []
       }
     },
     "4": {
@@ -1386,6 +1491,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1/server.log"
         ],
         "commit": "b7adb756"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 201,
+        "tool_calls": 214,
+        "thinking_chars": 163983,
+        "text_chars": 11191,
+        "tool_arg_chars": 259209,
+        "thinking_median": 122,
+        "thinking_median_before": 122,
+        "thinking_median_after": 119,
+        "largest_thinking": {
+          "chars": 15195,
+          "call": 136,
+          "at_s": 1213.2
+        },
+        "context_start": 2096,
+        "context_end": 37979,
+        "largest_context_jump": {
+          "tokens": 7835,
+          "call": 3
+        },
+        "tools_by_name": {
+          "bash": 121,
+          "edit": 51,
+          "write": 22,
+          "read": 20
+        },
+        "tool_errors": 7,
+        "longest_tool": {
+          "seconds": 9.5,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r1/workspace && ec"
+        },
+        "signals": []
       }
     },
     "5": {
@@ -1726,6 +1866,43 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1/server.log"
         ],
         "commit": "c57cd9aa"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 397,
+        "tool_calls": 428,
+        "thinking_chars": 461716,
+        "text_chars": 24149,
+        "tool_arg_chars": 352336,
+        "thinking_median": 416,
+        "thinking_median_before": 139,
+        "thinking_median_after": 432,
+        "largest_thinking": {
+          "chars": 39668,
+          "call": 17,
+          "at_s": 225.5
+        },
+        "context_start": 2078,
+        "context_end": 87289,
+        "largest_context_jump": {
+          "tokens": 12912,
+          "call": 18
+        },
+        "tools_by_name": {
+          "bash": 254,
+          "read": 89,
+          "edit": 64,
+          "write": 21
+        },
+        "tool_errors": 24,
+        "longest_tool": {
+          "seconds": 609.2,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r1/workspace && ID"
+        },
+        "signals": [
+          "hung-command"
+        ]
       }
     },
     "7": {
@@ -2144,6 +2321,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1/server.log"
         ],
         "commit": "8961c8c5"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 247,
+        "tool_calls": 274,
+        "thinking_chars": 358232,
+        "text_chars": 12713,
+        "tool_arg_chars": 319768,
+        "thinking_median": 430,
+        "thinking_median_before": 99,
+        "thinking_median_after": 475,
+        "largest_thinking": {
+          "chars": 87497,
+          "call": 17,
+          "at_s": 383.1
+        },
+        "context_start": 2096,
+        "context_end": 94988,
+        "largest_context_jump": {
+          "tokens": 26668,
+          "call": 18
+        },
+        "tools_by_name": {
+          "read": 47,
+          "bash": 146,
+          "edit": 55,
+          "write": 26
+        },
+        "tool_errors": 10,
+        "longest_tool": {
+          "seconds": 319.2,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r1/workspace && np"
+        },
+        "signals": []
       }
     },
     "8": {
@@ -2499,6 +2711,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1/server.log"
         ],
         "commit": "e2b71b29"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 111,
+        "tool_calls": 124,
+        "thinking_chars": 77400,
+        "text_chars": 6473,
+        "tool_arg_chars": 152069,
+        "thinking_median": 92,
+        "thinking_median_before": 104,
+        "thinking_median_after": 76,
+        "largest_thinking": {
+          "chars": 7125,
+          "call": 89,
+          "at_s": 844.2
+        },
+        "context_start": 2116,
+        "context_end": 56236,
+        "largest_context_jump": {
+          "tokens": 9070,
+          "call": 3
+        },
+        "tools_by_name": {
+          "bash": 58,
+          "read": 27,
+          "edit": 27,
+          "write": 12
+        },
+        "tool_errors": 2,
+        "longest_tool": {
+          "seconds": 10.9,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r1/workspace && np"
+        },
+        "signals": []
       }
     },
     "9": {
@@ -2893,6 +3140,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1/server.log"
         ],
         "commit": "37bbe120"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 326,
+        "tool_calls": 351,
+        "thinking_chars": 390713,
+        "text_chars": 13870,
+        "tool_arg_chars": 262402,
+        "thinking_median": 317,
+        "thinking_median_before": 316,
+        "thinking_median_after": 314,
+        "largest_thinking": {
+          "chars": 58494,
+          "call": 15,
+          "at_s": 326.6
+        },
+        "context_start": 2082,
+        "context_end": 70648,
+        "largest_context_jump": {
+          "tokens": 17696,
+          "call": 16
+        },
+        "tools_by_name": {
+          "read": 42,
+          "bash": 237,
+          "edit": 49,
+          "write": 23
+        },
+        "tool_errors": 20,
+        "longest_tool": {
+          "seconds": 209.4,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r1/workspace && np"
+        },
+        "signals": []
       }
     },
     "10": {
@@ -3275,6 +3557,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1/server.log"
         ],
         "commit": "acfa09f9"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 131,
+        "tool_calls": 156,
+        "thinking_chars": 92885,
+        "text_chars": 8398,
+        "tool_arg_chars": 244231,
+        "thinking_median": 104,
+        "thinking_median_before": 88,
+        "thinking_median_after": 119,
+        "largest_thinking": {
+          "chars": 17909,
+          "call": 94,
+          "at_s": 1096.0
+        },
+        "context_start": 2113,
+        "context_end": 102123,
+        "largest_context_jump": {
+          "tokens": 11316,
+          "call": 3
+        },
+        "tools_by_name": {
+          "bash": 61,
+          "read": 33,
+          "edit": 34,
+          "write": 28
+        },
+        "tool_errors": 5,
+        "longest_tool": {
+          "seconds": 120.0,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r1/workspace && np"
+        },
+        "signals": []
       }
     },
     "11": {
@@ -3616,6 +3933,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1/server.log"
         ],
         "commit": "ca69dad1"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 127,
+        "tool_calls": 154,
+        "thinking_chars": 153835,
+        "text_chars": 5749,
+        "tool_arg_chars": 103401,
+        "thinking_median": 253,
+        "thinking_median_before": 203,
+        "thinking_median_after": 255,
+        "largest_thinking": {
+          "chars": 50150,
+          "call": 17,
+          "at_s": 371.3
+        },
+        "context_start": 2089,
+        "context_end": 69060,
+        "largest_context_jump": {
+          "tokens": 16856,
+          "call": 18
+        },
+        "tools_by_name": {
+          "bash": 78,
+          "read": 42,
+          "edit": 23,
+          "write": 11
+        },
+        "tool_errors": 6,
+        "longest_tool": {
+          "seconds": 205.8,
+          "name": "bash",
+          "gist": "timeout 570 npx playwright test --project=chromium --reporter=line 2>&1 | tail -15"
+        },
+        "signals": []
       }
     },
     "12": {
@@ -4008,6 +4360,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1/server.log"
         ],
         "commit": "290354e0"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 204,
+        "tool_calls": 240,
+        "thinking_chars": 229883,
+        "text_chars": 7255,
+        "tool_arg_chars": 222060,
+        "thinking_median": 246,
+        "thinking_median_before": 301,
+        "thinking_median_after": 231,
+        "largest_thinking": {
+          "chars": 62721,
+          "call": 15,
+          "at_s": 303.6
+        },
+        "context_start": 2085,
+        "context_end": 75116,
+        "largest_context_jump": {
+          "tokens": 21519,
+          "call": 16
+        },
+        "tools_by_name": {
+          "bash": 93,
+          "read": 65,
+          "edit": 52,
+          "write": 30
+        },
+        "tool_errors": 11,
+        "longest_tool": {
+          "seconds": 63.2,
+          "name": "bash",
+          "gist": "npx playwright test --project=chromium tests/e2e/images.spec.ts 2>&1 | tail -30"
+        },
+        "signals": []
       }
     }
   },
