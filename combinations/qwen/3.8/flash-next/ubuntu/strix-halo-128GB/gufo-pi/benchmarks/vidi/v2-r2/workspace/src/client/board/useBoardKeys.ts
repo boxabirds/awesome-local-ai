@@ -103,9 +103,9 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
           return;
         }
         if (!editingText) {
-          // If shape/connector/text tool is active, switch back to select
+          // If shape/connector/text/pen tool is active, switch back to select
           const o = optsRef.current;
-          if (o.setTool && (o.tool === 'text' || o.tool === 'shape' || o.tool === 'connector')) {
+          if (o.setTool && (o.tool === 'text' || o.tool === 'shape' || o.tool === 'connector' || o.tool === 'pen')) {
             o.setTool('select');
             return;
           }
@@ -142,6 +142,14 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
       if (e.key === 'l' || e.key === 'L') {
         if (!editingText && canEdit && optsRef.current.setTool) {
           optsRef.current.setTool('connector');
+          return;
+        }
+      }
+
+      // P: switch to pen tool (only if canEdit)
+      if (e.key === 'p' || e.key === 'P') {
+        if (!editingText && canEdit && optsRef.current.setTool) {
+          optsRef.current.setTool('pen');
           return;
         }
       }

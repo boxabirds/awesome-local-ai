@@ -75,6 +75,18 @@ export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
 export const DEFAULT_SHAPE_FILL: FillColor = 'white';
 export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
 
+// Pen / stroke settings (story 11).
+export const PEN_COLORS = { black: '#212121', blue: '#1E88E5', red: '#E53935', green: '#43A047', orange: '#FB8C00', purple: '#8E24AA' } as const;
+export type PenColor = keyof typeof PEN_COLORS;
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+export const STROKE_MAX_POINTS = 5000;
+export const STROKE_HIT_TOLERANCE_PX = 6;
+export const STROKE_MIN_SIZE_WORLD = 4;
+
 // Connector settings (story 10).
 export const CONNECTOR_MIN_LENGTH_WORLD = 8;
 export const CONNECTOR_HIT_TOLERANCE_PX = 6;

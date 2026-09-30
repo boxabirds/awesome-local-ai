@@ -124,9 +124,9 @@ export function ShapeTool({
     <div
       data-testid="shape-tool-overlay"
       style={{
-        position: 'absolute',
+        position: 'fixed',
         inset: 0,
-        zIndex: 15,
+        zIndex: 5,
         cursor: 'crosshair',
       }}
       onPointerDown={handlePointerDown}

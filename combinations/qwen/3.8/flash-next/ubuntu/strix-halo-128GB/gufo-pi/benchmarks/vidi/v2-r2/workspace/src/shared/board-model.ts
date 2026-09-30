@@ -40,8 +40,9 @@ export interface TextObjectSnapshot {
 
 import type { ShapeSnap } from '@shared/objects/shape';
 import type { ConnectorSnap } from '@shared/objects/connector';
+import type { StrokeSnap } from '@shared/objects/stroke';
 
-export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeSnap | ConnectorSnap;
+export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeSnap | ConnectorSnap | StrokeSnap;
 
 // Callback registered by connector.ts to handle detach-on-delete.
 let _detachFn: ((doc: Y.Doc, deletedIds: string[]) => void) | null = null;
@@ -433,6 +434,26 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         createdBy: (obj.get('createdBy') as string) ?? '',
         from,
         to,
+      };
+      result.push(entry);
+    } else if (type === 'stroke') {
+      const pts = obj.get('points') as readonly number[] | undefined;
+      if (!pts || !Array.isArray(pts)) return;
+      const entry: StrokeSnap = {
+        id,
+        type: 'stroke',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: obj.get('width') as number,
+        height: obj.get('height') as number,
+        z: (obj.get('z') as number) ?? 0,
+        createdAt: (obj.get('createdAt') as number) ?? 0,
+        createdBy: (obj.get('createdBy') as string) ?? '',
+        points: pts,
+        baseWidth: obj.get('baseWidth') as number,
+        baseHeight: obj.get('baseHeight') as number,
+        color: obj.get('color') as StrokeSnap['color'],
+        thickness: obj.get('thickness') as StrokeSnap['thickness'],
       };
       result.push(entry);
     }

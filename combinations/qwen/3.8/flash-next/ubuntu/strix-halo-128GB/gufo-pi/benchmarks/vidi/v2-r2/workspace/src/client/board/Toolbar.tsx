@@ -13,6 +13,7 @@ export interface ToolbarProps {
   onShapeKindChange?(k: ShapeKind): void;
   onShapeToolClick?(): void;
   onConnectorToolClick?(): void;
+  onPenToolClick?(): void;
 }
 
 export function Toolbar({
@@ -25,6 +26,7 @@ export function Toolbar({
   onShapeKindChange,
   onShapeToolClick,
   onConnectorToolClick,
+  onPenToolClick,
 }: ToolbarProps): ReactElement {
   return (
     <div
@@ -98,6 +100,21 @@ export function Toolbar({
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <line x1="4" y1="16" x2="16" y2="4" stroke="currentColor" strokeWidth="1.5" />
           <polygon points="16,4 11,5 15,9" fill="currentColor" />
+        </svg>
+      </button>
+      {/* Pen button */}
+      <button
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        title="Pen – P"
+        className={`board-toolbar-btn${tool === 'pen' ? ' board-toolbar-btn--active' : ''}`}
+        onClick={onPenToolClick}
+        disabled={disabled}
+        data-testid="pen-tool-btn"
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M3 17l1.5-4L14 3.5 16.5 6 7 15.5 3 17z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none" />
+          <path d="M12.5 5L15 7.5" stroke="currentColor" strokeWidth="1" />
         </svg>
       </button>
       {undo && <UndoButtons {...undo} />}

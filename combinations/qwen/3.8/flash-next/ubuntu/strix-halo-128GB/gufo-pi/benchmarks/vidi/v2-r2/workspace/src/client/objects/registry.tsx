@@ -2,7 +2,10 @@ import type { ComponentType } from 'react';
 import type { ObjectSnapshot } from '@shared/board-model';
 import { objectBounds } from '@shared/board-model';
 import type { Point } from '@shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from '@shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD } from '@shared/config';
+import { distanceToPolyline } from '@shared/geometry/polyline';
+import { scaledPoints } from '@shared/objects/stroke';
+import type { StrokeSnap } from '@shared/objects/stroke';
 
 export interface ObjectProps {
   obj: ObjectSnapshot;
@@ -22,7 +25,7 @@ export interface ObjectTypeSpec {
   minSize: number;
   editableText: boolean;
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -104,6 +107,7 @@ export function _resetRegistryForTesting(): void {
   textTypeRegistered = false;
   shapeTypeRegistered = false;
   connectorTypeRegistered = false;
+  strokeTypeRegistered = false;
 }
 
 /**
@@ -167,6 +171,33 @@ export function registerConnectorType(component: ObjectTypeSpec['Component']): v
         worldPoint.y >= bounds.y - tolerance &&
         worldPoint.y <= bounds.y + bounds.height + tolerance
       );
+    },
+  });
+}
+
+// --- Register stroke type ---
+
+let strokeTypeRegistered = false;
+
+export function registerStrokeType(component: ObjectTypeSpec['Component']): void {
+  if (strokeTypeRegistered) return;
+  strokeTypeRegistered = true;
+  registerObjectType('stroke', {
+    Component: component,
+    resizable: true,
+    aspectLocked: true,
+    minSize: STROKE_MIN_SIZE_WORLD,
+    editableText: false,
+    hitTest: (obj: ObjectSnapshot, worldPoint: Point, zoom?: number) => {
+      const stroke = obj as unknown as StrokeSnap;
+      if (!stroke.points || !Array.isArray(stroke.points)) return false;
+      const pts = scaledPoints(stroke);
+      if (pts.length === 0) return false;
+      const dist = distanceToPolyline(pts, worldPoint);
+      const thicknessHalf = PEN_THICKNESS_WORLD[stroke.thickness] / 2;
+      const effectiveZoom = zoom ?? 1;
+      const tolerance = Math.max(thicknessHalf, STROKE_HIT_TOLERANCE_PX / effectiveZoom);
+      return dist <= tolerance;
     },
   });
 }

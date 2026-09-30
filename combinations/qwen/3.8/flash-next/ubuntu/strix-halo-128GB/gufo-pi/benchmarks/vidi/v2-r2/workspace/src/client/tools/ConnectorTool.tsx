@@ -243,7 +243,7 @@ export function ConnectorTool({
   return (
     <div
       data-testid="connector-tool-overlay"
-      style={{ position: 'absolute', inset: 0, zIndex: 15, cursor: 'crosshair' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 5, cursor: 'crosshair' }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

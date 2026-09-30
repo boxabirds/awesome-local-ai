@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-export type Tool = 'select' | 'text' | 'shape' | 'connector';
+export type Tool = 'select' | 'text' | 'shape' | 'connector' | 'pen';
 
 export interface UseToolResult {
   tool: Tool;

@@ -1,3 +1,27 @@
+# Story 11 Notes
+
+## Decisions made
+
+1. **Stroke storage uses flat `number[]` array**: Points are stored as `[x0, y0, x1, y1, ...]` in the Y.Map for efficient CRDT sync. Relative coordinates (offset from the stroke's bounding box origin) ensure that moving a stroke doesn't require rewriting all points.
+
+2. **`simplify()` uses iterative Ramer-Douglas-Peucker**: Avoids stack overflow on very long strokes. Tolerance is `STROKE_SIMPLIFY_TOLERANCE_PX / zoom` so simplification is resolution-aware.
+
+3. **Tool overlays rendered outside `BoardViewport`**: The `board-world` div has `width:0; height:0` and a CSS `transform`. Rendering tool overlays inside it with `position:fixed` would still resolve relative to the transformed ancestor (per CSS spec). Moving them outside `BoardViewport` fixes this.
+
+4. **`cameraRef` passed to PenTool for wheel-safe coordinate mapping**: The `camera` prop is captured at render time and goes stale after wheel-to-pan. `cameraRef.current` is read in event handlers to always get the live camera.
+
+5. **Wheel event forwarding from PenTool overlay**: The PenTool overlay (a sibling of BoardViewport) intercepts wheel events before they reach the viewport's wheel handler. A synthetic WheelEvent is dispatched on the viewport element to preserve pan/zoom behavior.
+
+6. **Stroke SVG uses local path coordinates**: Path points are relative to the stroke's bounding-box origin, and the SVG element is positioned at `(stroke.x, stroke.y)`. This avoids pointer-events failures from SVG paths outside the element viewport.
+
+7. **Hit test uses registry's `distanceToPolyline` with zoom-aware tolerance**: `max(thickness/2, STROKE_HIT_TOLERANCE_PX / zoom)` ensures consistent screen-space hit target regardless of zoom level.
+
+8. **`aspectLocked: true` for strokes**: Resize handles scale uniformly, preserving the aspect ratio of freehand strokes.
+
+9. **Pre-existing e2e failures**: Shapes and connector e2e tests were already failing before this story (same overlay positioning issue). Fixing the tool overlays to render outside BoardViewport resolves those tests as a side effect.
+
+---
+
 # Story 9 Notes
 
 ## Decisions made

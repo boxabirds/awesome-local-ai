@@ -22,8 +22,14 @@ import { TextToolbar } from './objects/TextToolbar';
 import { ShapeLayer } from './objects/ShapeLayer';
 import { ShapeToolbar } from './objects/ShapeToolbar';
 import { ConnectorLayer } from './objects/ConnectorLayer';
+import { StrokeLayer } from './objects/StrokeLayer';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
+import { registerStrokeType } from './objects/registry';
+import { StrokeObject } from './objects/StrokeObject';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
 import { useRoute } from './router';
@@ -53,6 +59,9 @@ import type { Point } from './canvas/camera';
 export function canEdit(state: ConnectionState): boolean {
   return state !== 'load_failed';
 }
+
+// Register stroke type with the registry (side effect on module load)
+registerStrokeType(StrokeObject as any);
 
 function BoardOverlay(): ReactElement {
   const { camera, hasNavigated, zoomStep, reset } = useBoard();
@@ -103,6 +112,9 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
 
   // Shape kind state
   const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
+
+  // Pen options (session-only colour/thickness)
+  const penOptions = usePenOptions();
 
   // Transform gesture (group move and resize) with boundary hooks
   const { onObjectPointerDown, onHandlePointerDown } = useTransformGesture({
@@ -322,6 +334,10 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
             onShapeStrokeChange={handleShapeStrokeChange}
             onHandlePointerDown={onHandlePointerDown}
             undoState={undoState}
+            penColor={penOptions.color}
+            penThickness={penOptions.thickness}
+            onPenColor={penOptions.setColor}
+            onPenThickness={penOptions.setThickness}
           />
         }
       >
@@ -361,27 +377,46 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
           selection={selection}
           onConnectorHandlePointerDown={handleConnectorHandlePointerDown}
         />
-        {tool === 'shape' && (
-          <ShapeTool
-            kind={shapeKind}
-            camera={cameraRef.current}
-            doc={doc}
-            viewportEl={viewportEl}
-            onCreated={handleShapeCreated}
-            onGestureBoundary={undoController ? () => undoController.boundary() : undefined}
-          />
-        )}
-        {tool === 'connector' && (
-          <ConnectorTool
-            camera={cameraRef.current}
-            doc={doc}
-            snapshot={notes}
-            viewportEl={viewportEl}
-            onCreated={handleConnectorCreated}
-            onGestureBoundary={undoController ? () => undoController.boundary() : undefined}
-          />
-        )}
+        <StrokeLayer
+          notes={notes}
+          selection={selection}
+          onObjectPointerDown={onObjectPointerDown}
+        />
       </BoardViewport>
+
+      {/* Tool overlays rendered outside board-world to avoid transform context */}
+      {tool === 'shape' && (
+        <ShapeTool
+          kind={shapeKind}
+          camera={cameraRef.current}
+          doc={doc}
+          viewportEl={viewportEl}
+          onCreated={handleShapeCreated}
+          onGestureBoundary={undoController ? () => undoController.boundary() : undefined}
+        />
+      )}
+      {tool === 'connector' && (
+        <ConnectorTool
+          camera={cameraRef.current}
+          doc={doc}
+          snapshot={notes}
+          viewportEl={viewportEl}
+          onCreated={handleConnectorCreated}
+          onGestureBoundary={undoController ? () => undoController.boundary() : undefined}
+        />
+      )}
+      {tool === 'pen' && (
+        <PenTool
+          camera={cameraRef.current}
+          cameraRef={cameraRef}
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          doc={doc}
+          identityId="local"
+          viewportEl={viewportEl}
+          onGestureBoundary={undoController ? () => undoController.boundary() : undefined}
+        />
+      )}
     </div>
   );
 }
@@ -396,6 +431,10 @@ interface AppChromeProps {
   editable: boolean;
   tool: Tool;
   shapeKind: ShapeKind;
+  penColor: import('@shared/config').PenColor;
+  penThickness: import('@shared/config').PenThickness;
+  onPenColor(c: import('@shared/config').PenColor): void;
+  onPenThickness(t: import('@shared/config').PenThickness): void;
   onToolChange?(t: Tool): void;
   onShapeKindChange?(k: ShapeKind): void;
   onColorChange(c: StickyColor): void;
@@ -433,7 +472,27 @@ function AppChrome(props: AppChromeProps): ReactElement {
         onShapeKindChange={props.onShapeKindChange}
         onShapeToolClick={() => props.onToolChange?.('shape')}
         onConnectorToolClick={() => props.onToolChange?.('connector')}
+        onPenToolClick={() => props.onToolChange?.('pen')}
       />
+
+      {/* Pen toolbar (visible while Pen is active) */}
+      {props.tool === 'pen' && (
+        <div
+          style={{
+            position: 'fixed',
+            left: 60,
+            top: 80,
+            zIndex: 25,
+          }}
+        >
+          <PenToolbar
+            color={props.penColor}
+            thickness={props.penThickness}
+            onColor={props.onPenColor}
+            onThickness={props.onPenThickness}
+          />
+        </div>
+      )}
 
       {/* Selection overlay (bounding box + handles) */}
       {selection.ids.size > 0 && (
