@@ -40,7 +40,7 @@ test('TC-24: a board that cannot be loaded says so, cannot be edited, and recove
   // Not an empty editable board: double-click and the Sticky note button create nothing.
   const box = (await viewport(page).boundingBox())!;
   await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
-  const sticky = page.getByRole('button', { name: 'Sticky note' });
+  const sticky = page.getByRole('button', { name: 'Sticky note (N)' });
   await expect(sticky).toBeDisabled();
   await sticky.click({ force: true });
   await expect(notes(page)).toHaveCount(0);

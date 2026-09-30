@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react';
 import type * as Y from 'yjs';
 import {
+  LOCAL_ORIGIN,
   bringObjectsToFront,
   moveObjects,
   objectBounds,
@@ -19,7 +20,7 @@ import {
   type Rect,
 } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
-import { getObjectType } from '../objects/registry';
+import { getObjectType, type ObjectTypeSpec } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
 
 export type TransformPhase = 'idle' | 'pressed' | 'moving' | 'resizing';
@@ -42,6 +43,11 @@ interface Gesture {
   aspectLocked: boolean;
   resizable: Map<string, boolean>;
   minSizes: number[];
+  minHeights: number[];
+  /** Every object has horizontal-only handles (story 9 text): widths change, heights follow content. */
+  horizontalOnly: boolean;
+  /** Types that write their own resize frames (registry `resize`). */
+  resizeHooks: Map<string, NonNullable<ObjectTypeSpec['resize']>>;
   pending: { client: Point; shift: boolean } | null;
   frame: number | null;
   detach(): void;
@@ -57,6 +63,11 @@ export interface TransformGesture {
 }
 
 const NO_IDS: ReadonlySet<string> = new Set();
+
+/** True when every object's type offers only the left and right handles (story 9 text). */
+export function isHorizontalOnly(objects: readonly ObjectSnapshot[]): boolean {
+  return objects.length > 0 && objects.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+}
 
 /**
  * Generic move and resize of the selection (sel.transform). Every object type
@@ -92,19 +103,25 @@ export function useTransformGesture(opts: {
       return;
     }
     const box = g.box!;
-    const aspect = g.aspectLocked || next.shift;
+    const aspect = !g.horizontalOnly && (g.aspectLocked || next.shift);
     const raw = resizeRect(box, g.handle!, delta, aspect);
     const want = { x: box.width > 0 ? raw.width / box.width : 1, y: box.height > 0 ? raw.height / box.height : 1 };
     const rects = [...g.startRects.values()];
-    const scale = clampScale(want, rects, g.minSizes, MAX_OBJECT_SIZE_WORLD, aspect);
+    const scale = clampScale(want, rects, g.minSizes, MAX_OBJECT_SIZE_WORLD, aspect, g.minHeights);
     const to = scaleRectFrom(box, g.handle!, scale);
     const out = new Map<string, Rect>();
+    const own: [string, Rect, Rect][] = [];
     for (const [id, r] of g.startRects) {
       const scaled = scaleWithin(r, box, to);
+      if (g.resizeHooks.has(id)) own.push([id, scaled, r]);
       // Non-resizable types keep their size and only follow the layout.
-      out.set(id, g.resizable.get(id) ? scaled : { ...scaled, width: r.width, height: r.height });
+      else out.set(id, g.resizable.get(id) ? scaled : { ...scaled, width: r.width, height: r.height });
     }
-    resizeObjects(doc, out);
+    // One transaction per frame, whichever types take part.
+    doc.transact(() => {
+      if (out.size > 0) resizeObjects(doc, out);
+      for (const [id, scaled, r] of own) g.resizeHooks.get(id)!(doc, id, scaled, r, g.horizontalOnly);
+    }, LOCAL_ORIGIN);
   }, []);
 
   const finish = useCallback(
@@ -127,13 +144,17 @@ export function useTransformGesture(opts: {
   const activate = useCallback((g: Gesture): boolean => {
     const { snapshot, doc } = optsRef.current;
     const byId = new Map(snapshot.map((o) => [o.id, o]));
-    for (const id of g.ids) {
-      const obj = byId.get(id);
-      if (!obj) continue;
+    const present = g.ids.map((id) => byId.get(id)).filter((o): o is ObjectSnapshot => o !== undefined);
+    g.horizontalOnly = isHorizontalOnly(present);
+    for (const obj of present) {
       const spec = getObjectType(obj.type);
-      g.startRects.set(id, objectBounds(obj));
-      g.resizable.set(id, spec?.resizable ?? false);
-      g.minSizes.push(spec?.minSize ?? 0);
+      const horizontal = spec?.handles === 'horizontal';
+      g.startRects.set(obj.id, objectBounds(obj));
+      g.resizable.set(obj.id, spec?.resizable ?? false);
+      // Horizontal types never resize vertically, and in mixed selections clamp their own width.
+      g.minSizes.push(horizontal && !g.horizontalOnly ? 0 : (spec?.minSize ?? 0));
+      g.minHeights.push(horizontal ? 0 : (spec?.minSize ?? 0));
+      if (spec?.resize) g.resizeHooks.set(obj.id, spec.resize);
       if (spec?.aspectLocked) g.aspectLocked = true;
     }
     if (g.startRects.size === 0) return false;
@@ -190,6 +211,9 @@ export function useTransformGesture(opts: {
         aspectLocked: false,
         resizable: new Map(),
         minSizes: [],
+        minHeights: [],
+        horizontalOnly: false,
+        resizeHooks: new Map(),
         pending: null,
         frame: null,
         detach: () => {
@@ -242,6 +266,7 @@ export function useTransformGesture(opts: {
       if (!canEdit) return;
       const selected = snapshot.filter((o) => selection.ids.has(o.id));
       if (!selected.some((o) => getObjectType(o.type)?.resizable)) return;
+      if (isHorizontalOnly(selected) && handle !== 'e' && handle !== 'w') return;
       e.preventDefault();
       begin(e, { kind: 'resize', ids: selected.map((o) => o.id), objectId: null, clickOnUp: false, handle });
     },

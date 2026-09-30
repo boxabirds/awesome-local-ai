@@ -54,6 +54,10 @@ export function BoardViewport(props: {
   marquee?: Marquee;
   /** Screen-space layer above the world (selection box, handles, selection bar). */
   overlay?: ReactNode;
+  /** Active tool (story 9). With 'text', a press anywhere on the board calls `onToolClick`. */
+  tool?: 'select' | 'text';
+  /** Press with a creating tool active, in world coordinates (also on top of objects). */
+  onToolClick?(world: Point): void;
 }) {
   const { api, onViewportResize } = useCameraContext();
   const { camera } = api;
@@ -188,6 +192,16 @@ export function BoardViewport(props: {
     setPanning(true);
   };
 
+  // Text tool: a press on the board (empty space or an object, not the overlay's
+  // handles and toolbars) places text there; nothing pans, selects or drags.
+  const onPointerDownCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (props.tool !== 'text' || e.button !== 0) return;
+    if (e.target instanceof Element && e.target.closest('.board-overlay')) return;
+    e.stopPropagation();
+    e.preventDefault(); // focus goes to the new text's editor, not the board
+    props.onToolClick?.(screenToWorld(apiRef.current.camera, toLocal(e)));
+  };
+
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const p = toLocal(e);
     lastHoverRef.current = p;
@@ -229,16 +243,18 @@ export function BoardViewport(props: {
   return (
     <div
       ref={ref}
-      className={`board-viewport${panning ? ' is-panning' : ''}`}
+      className={`board-viewport${panning ? ' is-panning' : ''}${props.tool === 'text' ? ' is-text-tool' : ''}`}
       data-testid="board-viewport"
       data-state={panning ? 'panning' : selecting ? 'marquee' : 'idle'}
       data-camera-x={camera.x}
       data-camera-y={camera.y}
       data-camera-zoom={camera.zoom}
+      data-tool={props.tool ?? 'select'}
       role="application"
       aria-label="Board"
       aria-roledescription="whiteboard"
       tabIndex={0}
+      onPointerDownCapture={onPointerDownCapture}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerEnd}

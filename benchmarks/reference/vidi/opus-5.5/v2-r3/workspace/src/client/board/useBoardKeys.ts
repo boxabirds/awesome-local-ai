@@ -6,6 +6,7 @@ import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
 import type { SelectionApi } from './useSelection';
+import type { ToolApi } from './useTool';
 
 const ARROWS: Record<string, Point> = {
   ArrowLeft: { x: -1, y: 0 },
@@ -44,7 +45,8 @@ function focusedObjectId(target: EventTarget | null): string | undefined {
 /**
  * Board keyboard commands (sel.keyboard): Ctrl/Cmd+A select all, Escape clear,
  * arrows nudge, Delete/Backspace delete, Enter edits a single text object;
- * Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (story 8).
+ * Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (story 8); V/T tools,
+ * N new sticky note, Escape leaves the Text tool (story 9).
  * Nothing happens while text is being edited (the editor handles its own
  * undo) or a text field has focus; the mutating keys also need `canEdit`.
  * Each mutation is its own undo step (boundaries before and after).
@@ -55,13 +57,17 @@ export function useBoardKeys(opts: {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undo?: UndoController;
+  /** Story 9: V/T choose a tool, Escape returns to Select. */
+  tool?: ToolApi;
+  /** Story 9: N creates a sticky note at the view centre (the Sticky note button). */
+  onCreateSticky?(): void;
 }): void {
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, undo } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, undo, tool, onCreateSticky } = optsRef.current;
       if (selection.editingId !== null || isEditableTarget(e.target)) return;
       if (e.altKey) return;
       const ctrlOrMeta = e.ctrlKey || e.metaKey;
@@ -89,7 +95,26 @@ export function useBoardKeys(opts: {
       if (ctrlOrMeta) return;
 
       if (e.key === 'Escape') {
+        if (tool && tool.tool !== 'select') {
+          tool.setTool('select'); // leave the tool without creating anything
+          return;
+        }
         if (selection.ids.size > 0) selection.clear();
+        return;
+      }
+
+      // Tool shortcuts (text.tool_ui); Shift is allowed so Caps Lock never blocks them.
+      const letter = e.key.length === 1 ? e.key.toLowerCase() : '';
+      if (tool && letter === 'v') {
+        tool.setTool('select');
+        return;
+      }
+      if (tool && letter === 't') {
+        if (canEdit) tool.setTool('text');
+        return;
+      }
+      if (onCreateSticky && letter === 'n') {
+        if (canEdit) onCreateSticky();
         return;
       }
 

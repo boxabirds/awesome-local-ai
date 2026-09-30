@@ -137,6 +137,8 @@ export function clampScale(
   minSizes: readonly number[],
   maxSize: number,
   uniform: boolean = scale.x === scale.y,
+  /** Minimum heights when they differ from `minSizes` (story 9: text height is never resized). */
+  minHeights: readonly number[] = minSizes,
 ): Point {
   const range = (sizes: number[], mins: number[]): [number, number] => {
     let lo = 0;
@@ -150,13 +152,14 @@ export function clampScale(
     return [Math.min(lo, 1), Math.max(hi, 1)];
   };
   const mins = rects.map((_, i) => minSizes[i] ?? 0);
+  const minsY = rects.map((_, i) => minHeights[i] ?? 0);
   const [xLo, xHi] = range(
     rects.map((r) => r.width),
     mins,
   );
   const [yLo, yHi] = range(
     rects.map((r) => r.height),
-    mins,
+    minsY,
   );
   const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
   if (uniform) {

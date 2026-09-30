@@ -4,6 +4,7 @@ import { HANDLE_SIZE_PX } from '../../shared/config';
 import { HANDLES, unionRects, type Handle, type Rect } from '../../shared/geometry';
 import { worldToScreen, type Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
+import { isHorizontalOnly } from './useTransformGesture';
 
 export const HANDLE_LABELS: Record<Handle, string> = {
   nw: 'Resize top-left',
@@ -17,6 +18,8 @@ export const HANDLE_LABELS: Record<Handle, string> = {
 };
 
 const HALF = 2;
+
+const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
 
 /** Handle centre as a fraction of the box width/height. */
 const HANDLE_POS: Record<Handle, [number, number]> = {
@@ -42,7 +45,8 @@ export function toScreenRect(camera: Camera, r: Rect): Rect {
 }
 
 /**
- * Bounding box around the selection with 8 resize handles, drawn in screen
+ * Bounding box around the selection with 8 resize handles (only left and
+ * right when every selected type is horizontal), drawn in screen
  * space so handles keep HANDLE_SIZE_PX at every zoom. Handles are hidden when
  * no selected type is resizable, or when `showHandles` is false.
  */
@@ -59,6 +63,8 @@ export function SelectionOverlay(props: {
   const s = toScreenRect(props.camera, box);
   const resizable = selected.some((o) => getObjectType(o.type)?.resizable);
   const showHandles = (props.showHandles ?? true) && resizable;
+  // Text (story 9) has only side handles: its height always follows the content.
+  const handles = isHorizontalOnly(selected) ? HORIZONTAL_HANDLES : HANDLES;
   return (
     <div
       className="selection-box"
@@ -66,7 +72,7 @@ export function SelectionOverlay(props: {
       style={{ left: s.x, top: s.y, width: s.width, height: s.height }}
     >
       {showHandles &&
-        HANDLES.map((h) => (
+        handles.map((h) => (
           <div
             key={h}
             className={`selection-handle handle-${h}`}

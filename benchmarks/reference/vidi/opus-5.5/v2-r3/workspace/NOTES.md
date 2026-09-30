@@ -340,3 +340,56 @@ Decisions made where the spec was silent or ambiguous:
   not used yet.
 - **E2E browsers:** only Chromium is installed here, so e2e ran in Chromium only.
 - **Commits.** The whole story went into a single commit, per the session instructions.
+
+## Story 9 — Write free text anywhere on the board
+
+- **Model reader hook.** `registerModelType(type, read?)` now takes an optional reader that adds
+  a type's own fields to its snapshot. `src/shared/objects/text.ts` registers `text` with one, so
+  `objectsSnapshot` returns `TextSnapshot`s (`text`, `size`, `widthMode`, plus `createdBy`).
+  `board-model.ts` exports `getObject`, `maxZ` and `isFiniteNumber` for it. Old clients that don't
+  know `text` still skip it (unknown type).
+- **`createdBy`.** Story 6 (identity) is not in this build, so `createdBy` is a per-tab author id,
+  `c_<Y.Doc clientID>` (`localAuthor(doc)` in `TextObject.tsx`).
+- **Box and caret allowance.** Auto width = longest line + `TEXT_CARET_ALLOWANCE_WORLD` (4),
+  capped at 600; text that has to wrap is exactly 600 wide. The allowance keeps the caret and
+  sub-pixel differences from forcing a wrap in the DOM. A new text starts with the box of an empty
+  line (4 × 26). Box values are rounded to 1/100 unit so re-measuring never writes noise. Extra
+  named settings: `TEXT_CARET_ALLOWANCE_WORLD`, `TEXT_AVG_GLYPH_WIDTH_RATIO` (estimate fallback).
+- **Measurer.** `createCanvasMeasurer` uses `OffscreenCanvas`, then `<canvas>`, else the estimate.
+  jsdom is detected by user agent and uses the estimate (its canvas has no context and logs an
+  error when asked). The board shares one measurer (`getTextMeasurer`); tests can swap it with
+  `setTextMeasurer`. Rendering uses the DOM (`pre-wrap`) at the stored width, with the same font
+  stack as the canvas, so the stored height and the rendered lines match (checked in e2e).
+- **Resize.** `ObjectTypeSpec` gained `handles?: 'all' | 'horizontal'` and an optional
+  `resize(doc, id, next, start, horizontalOnly)` hook. Text uses it: when every selected object is
+  text, the dragged width becomes a fixed width (clamped to 40; a left-edge drag keeps the right
+  edge) and y never changes. In mixed selections text only moves, and fixed-width text also
+  scales its width. Height is always re-measured. Each frame is one transaction. `clampScale` has
+  an optional `minHeights` argument, so text (height 0 minimum) never blocks a group from
+  shrinking vertically. Shift (aspect lock) is ignored for text-only selections.
+- **Undo and empty text.** `UndoController` gained `mergeNext()`, `topStep()` and
+  `discardFrom(step)`.
+  - A text I just created joins its first typing to the creation step. One undo removes the whole
+    new text, so undo never leaves an invisible empty text behind. Ctrl/Cmd+Z inside the editor of
+    such a text therefore removes it and ends the edit.
+  - Abandoning a new text empty deletes it and removes its creation from my history (TC-20/TC-31:
+    nothing to undo).
+  - Existing text erased to nothing is deleted on edit end, merged into the last typing step, so
+    one undo brings the text back.
+- **Tool keys.** V/T/N work with or without Shift and are ignored with Ctrl/Cmd/Alt, while editing
+  and in text fields. Escape with the Text tool active only returns to Select; it does not also
+  clear the selection. With Text active, a press anywhere on the board, including on objects but
+  not on the selection overlay (handles, toolbars), creates text. The create happens on pointerdown
+  in the capture phase, with `preventDefault` so focus stays in the new editor.
+- **Labels.** Tool buttons are "Select (V)", "Text (T)" and "Sticky note (N)" (tooltip
+  "Sticky note (N) – or double-click the board"), and existing tests were updated to the new
+  Sticky note name. The text toolbar is `role="toolbar"` "Text", with size buttons named "Size S" …
+  "Size XL" (visible text S/M/L/XL, `aria-pressed`) and "Delete text". Text objects are
+  `role="group"`, `aria-roledescription="text"`, named by their content ("Empty text" when blank),
+  and tabbable. The editor textarea is named "Text".
+- **Editor.** `TextEditor` is story 2's editor generalised (limit, font, width, `onInput`, undo,
+  label/class/footer). `StickyTextEditor` wraps it with the counter. Outside clicks are now detected
+  via `[data-object-id]`. `clampToLimit`/`applyTextDiff`/`diffText` moved to `src/shared/text-edit.ts`
+  and `StickyText.ts` re-exports them.
+- **Not done:** Firefox/WebKit are not installed here, so TC-26 ran in Chromium only.
+- **Commits.** The whole story went into a single commit, per the session instructions.

@@ -41,7 +41,7 @@ async function fontPx(page: Page, id: string): Promise<number> {
 test.describe('Workflow 1: brainstorm golden path', () => {
   test('TC-30 → TC-31 → colour → delete', async ({ page }) => {
     await openBoard(page);
-    await expect(page.getByRole('button', { name: 'Sticky note' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sticky note (N)' })).toBeVisible();
     await expect(notes(page)).toHaveCount(0);
 
     // TC-30: double-click at (400, 300), type immediately.
@@ -216,7 +216,7 @@ test('TC-33 text shrinks to fit, then clips with a fade at the minimum size', as
 test('TC-34 the Sticky note button creates a note at the screen centre when panned far away', async ({ page }) => {
   await openBoard(page);
   await setCamera(page, { x: UNBOUNDED_PAN_TESTED_EXTENT, y: -UNBOUNDED_PAN_TESTED_EXTENT, zoom: 1 });
-  await page.getByRole('button', { name: 'Sticky note' }).click();
+  await page.getByRole('button', { name: 'Sticky note (N)' }).click();
   await expect(notes(page)).toHaveCount(1);
   const vp = page.viewportSize()!;
   const c = await centre(notes(page).first());

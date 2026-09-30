@@ -30,3 +30,18 @@ export function proseOfLength(n: number): string {
   if (text.length !== n) throw new Error(`fixture too short for ${n}`);
   return text;
 }
+
+// Story 9 — free text fixtures.
+
+export const HEADING_WENT_WELL = 'Went well';
+export const HEADING_TO_IMPROVE = 'To improve';
+
+/** A 300-character English annotation (one paragraph, no line breaks). */
+export const ANNOTATION_300 = (
+  'These notes come from the March retro. Most of the team felt that pairing on the release checklist ' +
+  'made deployments calmer, but the flaky CI jobs on Mondays still cost everyone an hour or two. ' +
+  'Next sprint we will try a short demo every Friday afternoon and review the numbers again later on, together.'
+).slice(0, 300);
+
+/** A 5,001-character pasted paragraph (one over the text limit). */
+export const PASTE_5001 = (PROSE.repeat(6)).slice(0, 5001);

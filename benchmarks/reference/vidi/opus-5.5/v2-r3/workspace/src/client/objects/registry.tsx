@@ -4,9 +4,11 @@
 import type { ComponentType, PointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, registerModelType, type ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
-import { rectContains, type Point } from '../../shared/geometry';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { rectContains, type Point, type Rect } from '../../shared/geometry';
+import { TEXT_TYPE } from '../../shared/objects/text';
 import { StickyNote } from './StickyNote';
+import { resizeText, TextObject } from './TextObject';
 
 /** This object's part in the local transform gesture. */
 export type ObjectGesturePhase = 'idle' | 'pressed' | 'dragging';
@@ -35,6 +37,15 @@ export interface ObjectTypeSpec {
   /** Smallest width and height in world units. */
   minSize: number;
   editableText: boolean;
+  /** Which resize handles a selection of only this type shows (default 'all'; story 9). */
+  handles?: 'all' | 'horizontal';
+  /**
+   * Writes a resize frame for this type instead of the generic width/height
+   * write: `next` is the object's rect in the transformed selection, `start`
+   * its rect when the gesture began; `horizontalOnly` when every selected
+   * object has horizontal handles. Called inside the frame's transaction.
+   */
+  resize?(doc: Y.Doc, id: string, next: Rect, start: Rect, horizontalOnly: boolean): void;
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -62,5 +73,16 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: boundsHitTest,
+});
+
+registerObjectType(TEXT_TYPE, {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+  resize: resizeText,
   hitTest: boundsHitTest,
 });

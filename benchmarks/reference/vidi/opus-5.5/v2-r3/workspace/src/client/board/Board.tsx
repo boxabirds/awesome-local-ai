@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createSticky, deleteObjects, setStickyColor } from '../../shared/board-model';
+import { createText, setTextSize } from '../../shared/objects/text';
+import { localAuthor } from '../objects/TextObject';
+import { getTextMeasurer } from '../objects/textLayout';
+import { remeasureText } from '../objects/useTextBoxSync';
+import { useTool } from './useTool';
 import { Toolbar } from './Toolbar';
 import { useBoardDoc } from './useBoardDoc';
 import { useBoardKeys } from './useBoardKeys';
@@ -20,7 +25,7 @@ import { getObjectType, type ObjectGesturePhase } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
 import { installTestHooks } from '../testHooks';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
 import type * as Y from 'yjs';
 
 /** A board that could not be loaded is never editable (it would look empty). */
@@ -81,10 +86,39 @@ export function Board({ boardId, children }: { boardId: string; children?: React
     [doc, startEdit, undoController],
   );
 
-  const onCreateSticky = () => {
+  const viewportRef = useRef(viewport);
+  viewportRef.current = viewport;
+  const onCreateSticky = useCallback(() => {
     if (!editableRef.current) return;
-    createAt(screenToWorld(cameraRef.current, { x: viewport.width / HALF, y: viewport.height / HALF }));
-  };
+    const size = viewportRef.current;
+    createAt(screenToWorld(cameraRef.current, { x: size.width / HALF, y: size.height / HALF }));
+  }, [createAt]);
+
+  // Story 9: the Text tool places a text object where the board is pressed.
+  const tool = useTool(editable);
+  const { setTool } = tool;
+  const placeText = useCallback(
+    (world: Point) => {
+      setTool('select');
+      if (!editableRef.current) return;
+      undoController.boundary();
+      const id = createText(doc, world, localAuthor(doc));
+      undoController.boundary();
+      if (id) startEdit(id);
+    },
+    [doc, setTool, startEdit, undoController],
+  );
+
+  const setSize = useCallback(
+    (id: string, size: TextSize) => {
+      if (!editableRef.current) return;
+      undoController.boundary();
+      // Top-left stays; the box is re-measured in the same undo step.
+      if (setTextSize(doc, id, size)) remeasureText(doc, id, getTextMeasurer());
+      undoController.boundary();
+    },
+    [doc, undoController],
+  );
 
   const deleteSelection = useCallback(() => {
     if (!editableRef.current) return;
@@ -109,7 +143,7 @@ export function Board({ boardId, children }: { boardId: string; children?: React
     [endEdit, clear],
   );
 
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoController });
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoController, tool, onCreateSticky });
   const history = useUndo(undoController, editable);
   const marquee = useMarquee(camera, objects, (ids) => setMany(ids, true));
   // A whole drag or resize (all its frames) is one undo step.
@@ -147,6 +181,7 @@ export function Board({ boardId, children }: { boardId: string; children?: React
             snapshot={objects}
             onDelete={deleteSelection}
             onColor={setColor}
+            onTextSize={setSize}
           />
         </div>
       )}
@@ -157,7 +192,14 @@ export function Board({ boardId, children }: { boardId: string; children?: React
     <CameraContext.Provider value={ctx}>
       <UndoContext.Provider value={undoController}>
         <main className="app">
-          <BoardViewport onEmptyDoubleClick={createAt} onEmptyClick={clear} marquee={marquee} overlay={overlay}>
+          <BoardViewport
+            onEmptyDoubleClick={createAt}
+            onEmptyClick={clear}
+            marquee={marquee}
+            overlay={overlay}
+            tool={tool.tool}
+            onToolClick={placeText}
+          >
             {renderOrder(objects).map(({ note: obj, zIndex }) => {
               const spec = getObjectType(obj.type);
               if (!spec) return null;
@@ -181,7 +223,7 @@ export function Board({ boardId, children }: { boardId: string; children?: React
             <MarqueeRect rect={marquee.rect} camera={camera} />
           </BoardViewport>
           <SelectionAnnouncer count={selectedIds.size} />
-          <Toolbar onCreateSticky={onCreateSticky} disabled={!editable}>
+          <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} tool={tool.tool} onTool={setTool}>
             <UndoButtons {...history} />
           </Toolbar>
           <ZoomControls

@@ -1,3 +1,48 @@
+commit ca3b2cc41fbd6b153aa5112e24bd182eccd094c8
+vidi-agent  Wed Sep 30 07:28:51 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                |  53 +++++
+ src/client/board/Board.tsx              |  56 ++++-
+ src/client/board/SelectionBar.tsx       |  11 +-
+ src/client/board/SelectionOverlay.tsx   |  10 +-
+ src/client/board/Toolbar.tsx            |  53 ++++-
+ src/client/board/undo.ts                |  48 ++++-
+ src/client/board/useBoardKeys.ts        |  29 ++-
+ src/client/board/useTool.ts             |  29 +++
+ src/client/board/useTransformGesture.ts |  47 ++++-
+ src/client/canvas/BoardViewport.tsx     |  18 +-
+ src/client/objects/StickyText.ts        |  62 +-----
+ src/client/objects/StickyTextEditor.tsx | 189 +++--------------
+ src/client/objects/TextEditor.tsx       | 201 ++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 199 ++++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  57 ++++++
+ src/client/objects/registry.tsx         |  26 ++-
+ src/client/objects/textLayout.ts        | 147 ++++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  34 ++++
+ src/client/styles.css                   |  75 +++++++
+ src/shared/board-model.ts               |  23 ++-
+ src/shared/config.ts                    |  20 ++
+ src/shared/geometry.ts                  |   5 +-
+ src/shared/objects/text.ts              | 172 ++++++++++++++++
+ src/shared/text-edit.ts                 |  63 ++++++
+ tests/component/LiveBoard.test.tsx      |   2 +-
+ tests/component/LoadFailure.test.tsx    |   2 +-
+ tests/component/TextBoxSync.test.tsx    | 120 +++++++++++
+ tests/component/TextObject.test.tsx     | 348 ++++++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx           | 142 +++++++++++++
+ tests/component/Toolbars.test.tsx       |   8 +-
+ tests/component/UndoControls.test.tsx   |   3 +
+ tests/e2e/broken-board.spec.ts          |   2 +-
+ tests/e2e/sticky-notes.spec.ts          |   4 +-
+ tests/e2e/text.spec.ts                  | 270 +++++++++++++++++++++++++
+ tests/e2e/undo.spec.ts                  |   2 +-
+ tests/fixtures/texts.ts                 |  15 ++
+ tests/unit/text-layout.test.ts          |  92 +++++++++
+ tests/unit/text-model.test.ts           | 182 +++++++++++++++++
+ 38 files changed, 2550 insertions(+), 269 deletions(-)
 commit 6cd237617d9a4fd1a0e9685ced45eebbae1ca68e
 vidi-agent  Wed Sep 30 07:08:58 2026 +0100
 

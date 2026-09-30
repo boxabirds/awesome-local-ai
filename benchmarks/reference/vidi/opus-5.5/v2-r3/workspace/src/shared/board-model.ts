@@ -47,12 +47,20 @@ export function isSticky(obj: ObjectSnapshot): obj is StickySnapshot {
 /** Object types this model reads; anything else in the doc is ignored. */
 const KNOWN_TYPES = new Set<string>(['sticky']);
 
+/** Adds a type's own fields to the common snapshot (story 9 text). */
+export type ModelTypeReader = (base: ObjectSnapshot, obj: Y.Map<unknown>) => ObjectSnapshot;
+
+const READERS = new Map<string, ModelTypeReader>();
+
 /**
  * Declares an object type readable by `objectsSnapshot`, `allObjectIds` and
- * `objectsInRect`. Called by the client object registry (story 7); idempotent.
+ * `objectsInRect`. Called by the client object registry (story 7) and by
+ * type modules with a `read` that adds the type's own fields; idempotent (a
+ * later call without `read` keeps an earlier reader).
  */
-export function registerModelType(type: string): void {
+export function registerModelType(type: string, read?: ModelTypeReader): void {
   KNOWN_TYPES.add(type);
+  if (read) READERS.set(type, read);
 }
 
 const HALF = 2;
@@ -73,11 +81,11 @@ export function isStickyColor(color: unknown): color is StickyColor {
   return typeof color === 'string' && Object.prototype.hasOwnProperty.call(STICKY_COLORS, color);
 }
 
-function isFiniteNumber(n: unknown): n is number {
+export function isFiniteNumber(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n);
 }
 
-function getObject(doc: Y.Doc, id: string): Y.Map<unknown> | undefined {
+export function getObject(doc: Y.Doc, id: string): Y.Map<unknown> | undefined {
   const obj = objects(doc).get(id);
   return obj instanceof Y.Map ? obj : undefined;
 }
@@ -87,7 +95,7 @@ function zOf(obj: Y.Map<unknown>): number {
   return isFiniteNumber(z) ? z : 0;
 }
 
-function maxZ(doc: Y.Doc): number {
+export function maxZ(doc: Y.Doc): number {
   let max = 0;
   objects(doc).forEach((obj) => {
     if (!(obj instanceof Y.Map)) return;
@@ -307,7 +315,10 @@ function toObject(id: string, obj: Y.Map<unknown>): ObjectSnapshot | null {
     z: zOf(obj),
     createdAt: isFiniteNumber(createdAt) ? createdAt : 0,
   };
-  if (type !== 'sticky') return Object.freeze(base);
+  if (type !== 'sticky') {
+    const read = READERS.get(type);
+    return Object.freeze(read ? read(base, obj) : base);
+  }
   const color = obj.get('color');
   const text = obj.get('text');
   return Object.freeze({

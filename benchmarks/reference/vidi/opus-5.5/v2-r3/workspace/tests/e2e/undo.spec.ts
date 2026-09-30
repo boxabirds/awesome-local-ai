@@ -139,7 +139,7 @@ test('TC-22 recover an accidental delete while a colleague works', async ({ brow
   await expect(undoButton(mia.page)).toBeEnabled();
 
   // Raj adds a note meanwhile.
-  await raj.page.getByRole('button', { name: 'Sticky note' }).click();
+  await raj.page.getByRole('button', { name: 'Sticky note (N)' }).click();
   await raj.page.getByRole('textbox', { name: 'Note text' }).fill('Raj was here');
   await raj.page.keyboard.press('Escape');
   await expect(mia.page.getByRole('group', { name: 'Sticky note' })).toHaveCount(5, { timeout: E2E_EVENTUAL_TIMEOUT_MS });

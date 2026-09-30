@@ -17,14 +17,14 @@ describe('Toolbars (sticky.toolbar)', () => {
 
   it('the Sticky note button has its accessible name and tooltip', () => {
     renderApp();
-    const button = screen.getByRole('button', { name: 'Sticky note' });
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
     expect(button).toHaveAttribute('title', STICKY_BUTTON_TOOLTIP);
-    expect(STICKY_BUTTON_TOOLTIP).toBe('Sticky note – or double-click the board');
+    expect(STICKY_BUTTON_TOOLTIP).toBe('Sticky note (N) – or double-click the board');
   });
 
   it('TC-28 Sticky note button creates one note centred on the viewport, in edit mode', () => {
     const { viewport } = renderApp();
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     const cam = readCamera(viewport);
     const all = notes();
     expect(all).toHaveLength(1);
@@ -44,7 +44,7 @@ describe('Toolbars (sticky.toolbar)', () => {
     fireEvent.pointerUp(viewport, { pointerId: 1, clientX: 100, clientY: 200 });
     flushFrame();
     const cam = readCamera(viewport);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     const created = notes().at(-1)!;
     expect(created.z).toBe(2);
     expect(created.x + HALF).toBeCloseTo(window.innerWidth / 2 / cam.zoom + cam.x, 9);

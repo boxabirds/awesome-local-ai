@@ -21,6 +21,9 @@ function fakeController(state = { undo: 0, redo: 0 }) {
     canRedo: () => state.redo > 0,
     addScope: vi.fn(),
     nextStepOnlyIn: () => false,
+    mergeNext: vi.fn(),
+    topStep: () => null,
+    discardFrom: () => false,
     onChange: (cb: () => void) => {
       listeners.add(cb);
       return () => listeners.delete(cb);

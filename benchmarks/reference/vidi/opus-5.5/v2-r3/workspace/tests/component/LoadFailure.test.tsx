@@ -53,7 +53,7 @@ function setState(state: ConnectionState) {
 }
 
 function stickyButton(): HTMLButtonElement {
-  return screen.getByRole('button', { name: 'Sticky note' });
+  return screen.getByRole('button', { name: 'Sticky note (N)' });
 }
 
 describe('canEdit (persist.client_status)', () => {

@@ -22,6 +22,21 @@ export interface UndoController {
    * while editing only undoes typing in that text.
    */
   nextStepOnlyIn(type: Y.AbstractType<any>, stack: 'undo' | 'redo'): boolean;
+  /**
+   * The next local change joins the most recent step instead of starting a
+   * new one, however long after it comes; a boundary cancels this (story 9:
+   * a new text's first typing joins its creation, and removing text emptied
+   * by typing joins that typing).
+   */
+  mergeNext(): void;
+  /** A token for the most recent undo step (null when the history is empty). */
+  topStep(): unknown;
+  /**
+   * Drops `step` and every later step from the undo history without applying
+   * them (story 9: text created and abandoned empty leaves no step behind).
+   * False when `step` is no longer in the history.
+   */
+  discardFrom(step: unknown): boolean;
   onChange(cb: () => void): () => void;
   destroy(): void;
 }
@@ -49,13 +64,22 @@ export function createUndo(
   // manager, which reads a clock bound at import; the manager itself never
   // closes a window, only stopCapturing() does.
   let lastLocal = 0;
+  /** mergeNext(): the next local change joins the top step whatever the pause. */
+  let mergePending = false;
   const manager: Y.UndoManager = new Y.UndoManager(getObjectsMap(doc), {
     trackedOrigins: new Set([LOCAL_ORIGIN]),
     captureTimeout: Number.MAX_SAFE_INTEGER,
     captureTransaction: (tr) => {
       if (tr.origin === LOCAL_ORIGIN) {
         const now = Date.now();
-        if (lastLocal === 0 || now - lastLocal >= captureTimeoutMs) manager.stopCapturing();
+        if (mergePending && manager.undoStack.length > 0) {
+          // The manager merges into the top step while lastChange is set (its timeout is unbounded).
+          const m = manager as unknown as { lastChange: number };
+          m.lastChange = Math.max(m.lastChange, 1);
+        } else if (lastLocal === 0 || now - lastLocal >= captureTimeoutMs) {
+          manager.stopCapturing();
+        }
+        mergePending = false;
         lastLocal = now;
       }
       return true;
@@ -120,16 +144,19 @@ export function createUndo(
     undo() {
       if (destroyed) return false;
       manager.stopCapturing();
+      mergePending = false;
       return popOne('undo');
     },
     redo() {
       if (destroyed) return false;
       manager.stopCapturing();
+      mergePending = false;
       return popOne('redo');
     },
     boundary() {
       manager.stopCapturing();
       lastLocal = 0;
+      mergePending = false;
     },
     canUndo: () => !destroyed && manager.undoStack.length > 0,
     canRedo: () => !destroyed && manager.redoStack.length > 0,
@@ -143,6 +170,22 @@ export function createUndo(
       if (!types || !types.has(type)) return false;
       // Changed parent types also list every ancestor of a changed type.
       return [...types].every((t) => isAncestorOrSelf(t, type));
+    },
+    mergeNext() {
+      if (!destroyed) mergePending = true;
+    },
+    topStep: () => top('undo') ?? null,
+    discardFrom(step) {
+      if (destroyed || step === null) return false;
+      const index = manager.undoStack.indexOf(step as (typeof manager.undoStack)[number]);
+      if (index < 0) return false;
+      manager.undoStack.splice(index);
+      manager.redoStack.length = 0;
+      manager.stopCapturing();
+      lastLocal = 0;
+      mergePending = false;
+      notify();
+      return true;
     },
     onChange(cb) {
       listeners.add(cb);
@@ -169,6 +212,9 @@ export const NO_UNDO: UndoController = {
   canRedo: () => false,
   addScope: () => {},
   nextStepOnlyIn: () => false,
+  mergeNext: () => {},
+  topStep: () => null,
+  discardFrom: () => false,
   onChange: () => () => {},
   destroy: () => {},
 };
