@@ -6,6 +6,13 @@
  * Specs: spec/stories/003-see-other-people-s-edits-appear-live-on-the-same-b/
  * design.md, coverage table "unit and integration", section `sync.room`.
  */
+// What had to change here because of story 4, with the assertions left exactly
+// as they were: the room no longer keeps a `sockets` Set of its own (the runtime
+// holds the connections now, through `ctx.getWebSockets()`, which is the list
+// that survives the object being evicted), so TC-31's dead socket goes to the
+// room's write directly and the connection count is read off the runtime's list; and
+// TC-18's "the room has no document" is now what the room does on its own every
+// time a board goes idle.
 import { describe, expect, it } from 'vitest';
 import { env, runInDurableObject } from 'cloudflare:test';
 import type * as Y from 'yjs';
@@ -345,25 +352,34 @@ describe('a live board (sync.room)', () => {
     const boardId = newBoardId();
     const { a, b } = await connectPair(boardId);
 
-    // B hangs up without letting the room know, and the room is left holding a
-    // connection that throws the moment anything is written to it: the only way
-    // to get a half-open socket in a test is to reach into the live object,
-    // because the runtime will not half-close one on request.
+    // B hangs up without letting the room know: the room is left holding a
+    // connection that is already gone. Story 3 reached into the room's own set of
+    // connections and added a socket that throws on write; story 4 gave that list
+    // to the runtime (`ctx.getWebSockets()`, which only ever holds live ones), so
+    // the dead socket is handed to the room's own write instead — the same call
+    // the relay loop makes, one step away. The runtime will not half-close a
+    // connection on request, which is why both halves are needed.
     const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
-    await runInDurableObject(stub, (room) => {
-      socketsOf(room).add(deadSocket());
+    const survived = await runInDurableObject(stub, (room) => {
+      try {
+        writeThrough(room, deadSocket(), new Uint8Array([0, 2, 1, 0]));
+        return true;
+      } catch {
+        return false;
+      }
     });
+    expect(survived).toBe(true);
+    b.hangUpWithoutSayingGoodbye();
 
     const noteId = a.addNote({ x: 9, y: 10 });
     a.type(noteId, 'after the dead socket');
-    await waitFor(() => b.notes.length === 1, 'B to still see the note A created');
-    await waitFor(() => b.textOf(noteId) === 'after the dead socket', 'B to still see the text');
 
     // The failed write did not take the room down with it: a new connection
     // still gets the board, and still gets what comes after.
     const c = await SyncClient.connect(boardId);
     await c.waitForSync();
     expect(c.notes.length).toBe(1);
+    expect(c.textOf(noteId)).toBe('after the dead socket');
     const lateId = a.addNote({ x: 11, y: 12 });
     await waitFor(
       () => c.notes.some((note) => note.id === lateId),
@@ -371,7 +387,6 @@ describe('a live board (sync.room)', () => {
     );
 
     a.close();
-    b.close();
     c.close();
   });
 
@@ -383,7 +398,7 @@ describe('a live board (sync.room)', () => {
     const { a, b } = await connectPair(boardId);
     // The room's own connections are only visible from inside the room.
     const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
-    const held = (): Promise<number> => runInDurableObject(stub, (room) => socketsOf(room).size);
+    const held = (): Promise<number> => runInDurableObject(stub, (room) => heldBy(room));
     await waitForAsync(async () => (await held()) === 2, 'the room to be holding both connections');
 
     // A tab closing: a close frame goes out and an answer comes back. Whether the
@@ -417,8 +432,17 @@ describe('a live board (sync.room)', () => {
 });
 
 /** The live object's open connections — private to the class, open to tests. */
-const socketsOf = (room: unknown): Set<WebSocket> =>
-  (room as { sockets: Set<WebSocket> }).sockets;
+/** How many connections the room is holding: the runtime's list, read from
+ * inside the room. Story 3 read the room's own Set here; story 4 handed that
+ * list to the runtime, because it is the list that survives the object being
+ * evicted out from under it. */
+const heldBy = (room: unknown): number =>
+  (room as { ctx: { getWebSockets(): WebSocket[] } }).ctx.getWebSockets().length;
+
+/** One call of the room's own write, with a connection the caller supplies. */
+const writeThrough = (room: unknown, socket: WebSocket, payload: Uint8Array): void => {
+  (room as unknown as { send(socket: WebSocket, payload: Uint8Array): void }).send(socket, payload);
+};
 
 /** A connection that throws the moment anything is written to it. */
 const deadSocket = (): WebSocket =>

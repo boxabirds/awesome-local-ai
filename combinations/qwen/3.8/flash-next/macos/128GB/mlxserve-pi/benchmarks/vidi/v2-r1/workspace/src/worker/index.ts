@@ -6,6 +6,8 @@
 //
 // Routing:
 //   /api/rooms/:boardId  -> the BoardRoom Durable Object for that board
+//   /__test/boards/...    -> the story 4 test hooks, and only when this Worker
+//                            was run with TEST_HOOKS=1 (see src/worker/test-hooks.ts)
 //   everything else      -> static assets, which serve the app shell for
 //                           `/b/<boardId>` (`assets.not_found_handling =
 //                           "single-page-application"` in `wrangler.jsonc`)
@@ -13,6 +15,7 @@
 // Specs: spec/stories/003-see-other-people-s-edits-appear-live-on-the-same-b/
 import type { BoardRoom } from './board-room';
 import { isValidBoardId } from '../shared/board-id';
+import { handleTestHook } from './test-hooks';
 
 /** What this Worker is wired to: one room object namespace and the client assets. */
 export interface Env {
@@ -20,6 +23,12 @@ export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client assets. */
   ASSETS: Fetcher;
+  /**
+   * Set to `1` by the story 4 e2e suite's own `wrangler dev` and by nothing else
+   * — no committed configuration sets it, so a deployed Worker never serves the
+   * test hooks.
+   */
+  TEST_HOOKS?: string;
 }
 
 const ROOM_PATH = /^\/api\/rooms(?:\/([^/?#]*))?$/;
@@ -42,8 +51,16 @@ const jsonError = (
   );
 
 export default {
-  fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url);
+
+    // Before anything else, so that a hook cannot be shadowed by an asset. When
+    // the flag is not set this answers null, and the request goes on unchanged.
+    if (env.TEST_HOOKS === '1') {
+      const hooked = await handleTestHook(request, env);
+      if (hooked !== null) return hooked;
+    }
+
     const match = ROOM_PATH.exec(pathname);
     if (match === null) {
       // Everything that is not a live connection is the client. `index.html`

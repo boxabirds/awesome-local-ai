@@ -34,6 +34,7 @@ import { newBoardId } from '../../src/shared/board-id';
 import { App } from '../../src/client/App';
 import { ResizeObserverStub } from './setup';
 import { dispatchPointer, VIEWPORT } from './helpers/events';
+import { FakeWebsocketProvider } from './helpers/fake-provider';
 
 const CONNECTING_TEXT = 'Connecting\u2026';
 const RECONNECTING_TEXT = 'Reconnecting\u2026';
@@ -218,80 +219,17 @@ describe('the connection badge (sync.client)', () => {
 
 // --- the board while the connection is not fine -------------------------------
 
-/**
- * A provider that does not touch the network, so the app can be put into any
- * connection state on purpose. Only the events `connectBoard` listens to are
- * implemented, plus what it passes in the options and reads back.
- */
-const fake = vi.hoisted(() => {
-  class FakeWebsocketProvider {
-    static instances: FakeWebsocketProvider[] = [];
-    static last(): FakeWebsocketProvider {
-      const last = FakeWebsocketProvider.instances[FakeWebsocketProvider.instances.length - 1];
-      if (!last) throw new Error('the app connected to no room');
-      return last;
-    }
-    static reset(): void {
-      FakeWebsocketProvider.instances = [];
-    }
-
-    readonly handlers = new Map<string, Set<(...args: never[]) => void>>();
-    readonly serverUrl: string;
-    readonly roomName: string;
-    readonly doc: unknown;
-    readonly options: Record<string, unknown>;
-    destroyed = false;
-    connected = false;
-
-    constructor(
-      serverUrl: string,
-      roomName: string,
-      doc: unknown,
-      options: Record<string, unknown>,
-    ) {
-      this.serverUrl = serverUrl;
-      this.roomName = roomName;
-      this.doc = doc;
-      this.options = options;
-      FakeWebsocketProvider.instances.push(this);
-    }
-
-    on(event: string, handler: (...args: never[]) => void): void {
-      const existing = this.handlers.get(event) ?? new Set();
-      this.handlers.set(event, existing);
-      existing.add(handler);
-    }
-
-    off(event: string, handler: (...args: never[]) => void): void {
-      this.handlers.get(event)?.delete(handler);
-    }
-
-    emit(event: string, ...args: never[]): void {
-      for (const handler of [...(this.handlers.get(event) ?? [])]) handler(...args);
-    }
-
-    /** The socket opened and the board is in sync. */
-    markSynced(): void {
-      this.connected = true;
-      this.emit('status', { status: 'connected' } as never);
-      this.emit('sync', true as never);
-    }
-
-    /** The socket dropped; edits stay in the document. */
-    markDropped(): void {
-      this.connected = false;
-      this.emit('status', { status: 'disconnected' } as never);
-      this.emit('sync', false as never);
-    }
-
-    destroy(): void {
-      this.destroyed = true;
-    }
-  }
-  return { FakeWebsocketProvider };
+// A provider that does not touch the network, so the app can be put into any
+// connection state on purpose. Only the events `connectBoard` listens to are
+// implemented, plus what it passes in the options and reads back. See
+// helpers/fake-provider.ts, which the story 4 tests share.
+// The factory is async and imports the stand-in itself: `vi.mock` calls are
+// hoisted above the imports of this file, so a stand-in referred to by name would
+// not have been initialised yet when the factory runs.
+vi.mock('y-websocket', async () => {
+  const module = await import('./helpers/fake-provider');
+  return { WebsocketProvider: module.FakeWebsocketProvider };
 });
-
-vi.mock('y-websocket', () => ({ WebsocketProvider: fake.FakeWebsocketProvider }));
 
 /**
  * Provider events reach React from a socket callback, so they are delivered
@@ -300,13 +238,13 @@ vi.mock('y-websocket', () => ({ WebsocketProvider: fake.FakeWebsocketProvider })
  */
 const markSynced = (): void => {
   act(() => {
-    fake.FakeWebsocketProvider.last().markSynced();
+    FakeWebsocketProvider.last().markSynced();
   });
 };
 
 const markDropped = (): void => {
   act(() => {
-    fake.FakeWebsocketProvider.last().markDropped();
+    FakeWebsocketProvider.last().markDropped();
   });
 };
 
@@ -327,7 +265,7 @@ describe('the board while the connection is not fine', () => {
   let boardId = '';
 
   beforeEach(() => {
-    fake.FakeWebsocketProvider.reset();
+    FakeWebsocketProvider.reset();
     boardId = newBoardId();
     window.history.replaceState(null, '', `/b/${boardId}`);
   });
@@ -338,7 +276,7 @@ describe('the board while the connection is not fine', () => {
 
   it('connects to this board through the room route, with the settings it was given', () => {
     render(<App />);
-    const provider = fake.FakeWebsocketProvider.last();
+    const provider = FakeWebsocketProvider.last();
 
     expect(provider.serverUrl).toBe('ws://localhost:3000/api/rooms');
     expect(provider.roomName).toBe(boardId);
@@ -378,7 +316,7 @@ describe('the board while the connection is not fine', () => {
 
   it('stops talking to the room when the board goes away', () => {
     const { unmount } = render(<App />);
-    const provider = fake.FakeWebsocketProvider.last();
+    const provider = FakeWebsocketProvider.last();
     act(() => {
       provider.markSynced();
     });
@@ -395,7 +333,7 @@ describe('the board while the connection is not fine', () => {
       'y-websocket',
     );
     const real = actual.WebsocketProvider.prototype as Record<string, unknown>;
-    const standIn = fake.FakeWebsocketProvider.prototype as unknown as Record<string, unknown>;
+    const standIn = FakeWebsocketProvider.prototype as unknown as Record<string, unknown>;
 
     for (const member of ['on', 'off', 'destroy', 'connect', 'disconnect']) {
       expect(typeof real[member], `the real provider has ${member}()`).toBe('function');
@@ -407,7 +345,7 @@ describe('the board while the connection is not fine', () => {
 
   it('keeps selection and editing off the shared document', () => {
     render(<App />);
-    const provider = fake.FakeWebsocketProvider.last();
+    const provider = FakeWebsocketProvider.last();
     act(() => {
       provider.markSynced();
     });

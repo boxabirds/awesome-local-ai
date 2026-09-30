@@ -100,3 +100,41 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
  * logged against LIVE_UPDATE_LATENCY_BUDGET_MS, never asserted here.
  */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+// --- Persistence (story 4) ---------------------------------------------------
+
+/**
+ * Compact the board's update log once this many rows are above the last
+ * snapshot. Lowering it is the first escalation when a large board loads
+ * slower than BOARD_LOAD_BUDGET_MS (design: persist.room).
+ */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** …or once the log rows hold this many bytes. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Snapshot chunk size. Every row stays well under the per-row size limit of
+ * SQLite-backed Durable Objects (1 MiB today; this is a quarter of it).
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** A room that failed to load its board retries the load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5_000;
+
+/** Version number of the *storage* tables (the document schema has its own). */
+export const STORAGE_SCHEMA_VERSION = 1;
+
+/** Board size the large-board requirement is tested at (PRD persist.large_board). */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/**
+ * Time a saved board of PERSIST_TESTED_NOTES notes is meant to be fully shown
+ * in, on a typical broadband connection (PRD persist.large_board).
+ *
+ * The end-to-end number is reported by the e2e suite and never asserted — the
+ * model, the browsers and the server share one machine (design: Timing policy).
+ * What is asserted is the part this machine can say something about: the time the
+ * store takes to read a board that size back together (TC-08).
+ */
+export const BOARD_LOAD_BUDGET_MS = 3_000;

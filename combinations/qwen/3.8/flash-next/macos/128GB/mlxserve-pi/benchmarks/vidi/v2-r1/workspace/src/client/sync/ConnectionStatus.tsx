@@ -12,11 +12,22 @@ import type { ConnectionState } from './connectBoard';
 export const RECONNECTING_COLOR = '#b45309';
 /** Green, for a connection that just caught up (and is holding). */
 export const CONNECTED_COLOR = '#15803d';
+/** Red, for a board the room could not read. It is not a connection problem, and
+ * saying so in a different colour is the point (PRD persist.corrupt_snapshot). */
+export const LOAD_FAILED_COLOR = '#b91c1c';
+
+/**
+ * What the badge says while the room cannot read this board. Says which board
+ * failed and that we are waiting, not "something went wrong": the person can
+ * still read what is on the screen, so there is nothing for them to do.
+ */
+export const LOAD_FAILED_TEXT = 'Board could not be loaded \u2014 waiting to retry';
 
 const LABELS: Record<Exclude<ConnectionState, 'connected'>, string> = {
   connecting: 'Connecting\u2026',
   reconnecting: 'Reconnecting\u2026',
   confirmed: 'Connected',
+  load_failed: LOAD_FAILED_TEXT,
 };
 
 const chipStyle = (state: ConnectionState): Record<string, string | number> => ({
@@ -33,14 +44,21 @@ const chipStyle = (state: ConnectionState): Record<string, string | number> => (
   fontSize: 13,
   lineHeight: '18px',
   fontFamily: 'ui-sans-serif, system-ui, sans-serif',
-  color: state === 'reconnecting' ? RECONNECTING_COLOR : CONNECTED_COLOR,
+  color:
+    state === 'reconnecting'
+      ? RECONNECTING_COLOR
+      : state === 'load_failed'
+        ? LOAD_FAILED_COLOR
+        : CONNECTED_COLOR,
   pointerEvents: 'none',
 });
 
 /**
  * The connection badge, top centre of the screen: "Connecting\u2026" during the
  * first load, amber "Reconnecting\u2026" while a connection is lost and being
- * retried, green "Connected" for CONNECTED_CONFIRMATION_MS after a recovery.
+ * retried, green "Connected" for CONNECTED_CONFIRMATION_MS after a recovery, and
+ * red "Board could not be loaded" while the room cannot read this board — which
+ * is the one message that stays up, because it is not about the connection.
  * While everything is fine it renders nothing at all: a working connection is
  * not worth a pixel of the board.
  */

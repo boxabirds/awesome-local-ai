@@ -79,6 +79,10 @@ export function App(): ReactNode {
   const boardId = useBoardId();
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  // A board the room could not read is shown and not edited: the notes on the
+  // screen are whatever the last successful read found, and writing into a board
+  // we cannot see the whole of is how a board gets lost (PRD persist.corrupt_snapshot).
+  const canEdit = connectionState !== 'load_failed';
   // The latest camera, so a double-click on empty space can be mapped to a
   // world position from the viewport callback (which lives outside the provider).
   const cameraRef = useRef<Camera | null>(null);
@@ -93,12 +97,13 @@ export function App(): ReactNode {
 
   const onEmptyDoubleClick = useCallback(
     (screen: Point): void => {
+      if (!canEdit) return;
       const camera = cameraRef.current;
       if (!camera) return;
       const id = createSticky(doc, screenToWorld(camera, screen), DEFAULT_STICKY_COLOR);
       if (id) onCreated(id);
     },
-    [doc, onCreated],
+    [canEdit, doc, onCreated],
   );
 
   // A click on empty board space clears the selection. (When editing, the
@@ -112,6 +117,7 @@ export function App(): ReactNode {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (editingId !== null) return;
+      if (!canEdit) return;
       const target = event.target as HTMLElement | null;
       if (target) {
         const tag = target.tagName;
@@ -141,7 +147,13 @@ export function App(): ReactNode {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedId, editingId, doc, startEdit, select]);
+  }, [canEdit, selectedId, editingId, doc, startEdit, select]);
+
+  // A board that goes out of reach while a note is open on the screen closes it:
+  // the editor would otherwise keep taking typing into a document nothing saves.
+  useEffect(() => {
+    if (!canEdit) select(null);
+  }, [canEdit, select]);
 
   // So the e2e suite can read the connection state as well as the badge.
   useEffect(() => {
@@ -156,6 +168,7 @@ export function App(): ReactNode {
           cameraRef={cameraRef}
           onCreated={onCreated}
           connectionState={connectionState}
+          canEdit={canEdit}
         />
       }
       onEmptyClick={onEmptyClick}
@@ -166,6 +179,7 @@ export function App(): ReactNode {
         notes={notes}
         selectedId={selectedId}
         editingId={editingId}
+        canEdit={canEdit}
         select={select}
         startEdit={startEdit}
         endEdit={endEdit}
@@ -180,11 +194,13 @@ function BoardChrome({
   cameraRef,
   onCreated,
   connectionState,
+  canEdit,
 }: {
   doc: Y.Doc;
   cameraRef: { current: Camera | null };
   onCreated(id: string): void;
   connectionState: ConnectionState;
+  canEdit: boolean;
 }): ReactNode {
   const { camera, hasNavigated, zoomStep, reset } = useBoardCamera();
 
@@ -194,6 +210,7 @@ function BoardChrome({
   }, [camera, cameraRef]);
 
   const createStickyCentre = (): void => {
+    if (!canEdit) return;
     const camera = cameraRef.current;
     if (!camera) return;
     const world = screenToWorld(camera, {
@@ -206,7 +223,7 @@ function BoardChrome({
 
   return (
     <>
-      <Toolbar onCreateSticky={createStickyCentre} />
+      <Toolbar onCreateSticky={createStickyCentre} disabled={!canEdit} />
       <ConnectionStatus state={connectionState} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
@@ -227,6 +244,7 @@ function BoardObjects({
   notes,
   selectedId,
   editingId,
+  canEdit,
   select,
   startEdit,
   endEdit,
@@ -235,6 +253,7 @@ function BoardObjects({
   notes: readonly StickySnapshot[];
   selectedId: string | null;
   editingId: string | null;
+  canEdit: boolean;
   select(id: string | null): void;
   startEdit(id: string): void;
   endEdit(next: 'selected' | 'unselected'): void;
@@ -250,6 +269,7 @@ function BoardObjects({
           zoom={camera.zoom}
           selected={note.id === selectedId}
           editing={note.id === editingId}
+          editable={canEdit}
           onSelect={select}
           onStartEdit={startEdit}
           onEndEdit={endEdit}

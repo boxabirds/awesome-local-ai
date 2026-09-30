@@ -18,6 +18,21 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** RFC 6455 "unsupported data": what the room closes a socket with. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/**
+ * The board this room serves could not be loaded, and will not be presented as
+ * an empty one (PRD persist.load_failure). 4500 is the first code of y-websocket
+ * provider's "try again later" range, so the provider keeps retrying it.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/**
+ * The room could not save a change, so it dropped every connection rather than
+ * show an unsaved change as saved (PRD persist.save_failure). 1011 is the
+ * generic "server had a problem" code: the client reconnects and re-sends what
+ * the room is missing.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 /** y-protocols/sync message kinds inside a MESSAGE_SYNC frame. */
 export const SYNC_STEP1 = 0;
 export const SYNC_STEP2 = 1;

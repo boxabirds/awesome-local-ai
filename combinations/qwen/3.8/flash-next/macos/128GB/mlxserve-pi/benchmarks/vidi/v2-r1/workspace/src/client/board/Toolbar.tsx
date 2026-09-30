@@ -2,6 +2,12 @@ import { type CSSProperties, type ReactNode } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /**
+   * The board cannot be changed right now, so the tool that changes it is off.
+   * `disabled` rather than hidden: the rail stays where people learned it is, and
+   * the reason is in the badge above it.
+   */
+  disabled?: boolean;
 }
 
 /** The exact tooltip text (PRD: Sticky note button tooltip). */
@@ -35,7 +41,7 @@ const noteIconStyle: CSSProperties = {
  * the double-click shortcut. It stops pointer events so a click here never
  * reaches the board (which would clear the selection).
  */
-export function Toolbar({ onCreateSticky }: ToolbarProps): ReactNode {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): ReactNode {
   return (
     <div
       data-testid="toolbar"
@@ -52,6 +58,8 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): ReactNode {
         aria-label="Sticky note"
         title={STICKY_BUTTON_TOOLTIP}
         className="vidi6-icon-button"
+        disabled={disabled}
+        aria-disabled={disabled}
         onClick={onCreateSticky}
       >
         <span style={noteIconStyle} aria-hidden="true" />

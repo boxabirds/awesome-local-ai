@@ -135,18 +135,26 @@ const webSocketRegistry = (): void => {
   win.WebSocket = Wrapped as unknown as typeof WebSocket;
 };
 
-async function openParticipant(
+/**
+ * One person, at an address of the scenario's choosing — a path against the suite's
+ * server, or a whole URL for the specs that run a server of their own
+ * (helpers/persistent-server.ts). Everything else is what `openParticipants` makes:
+ * a context of their own, their own socket, and a board they arrive in sync with.
+ * A scenario that means to meet a board that cannot be read passes
+ * `waitUntil: 'loaded'` and reads the badge itself.
+ */
+export async function openParticipantAt(
   browser: Browser,
-  boardId: string,
+  url: string,
   name: string,
-  outageSwitch: boolean,
+  options: { outageSwitch?: boolean; waitUntil?: 'connected' | 'loaded' } = {},
 ): Promise<Participant> {
   // A context per person: no shared storage, no shared BroadcastChannel, and
   // separate cookies, so the only thing they have in common is the room.
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const outage: Outage = { refusesConnections: false };
   outages.set(context, outage);
-  if (outageSwitch) {
+  if (options.outageSwitch === true) {
     // Playwright only routes sockets that are opened after the route is in
     // place, so a scenario that means to switch the network off has to have the
     // switch fitted before the page exists. Until it is thrown, the room's
@@ -175,7 +183,7 @@ async function openParticipant(
     consoleLogs.push(`pageerror: ${String(error)}`);
   });
 
-  await page.goto(`/b/${boardId}`);
+  await page.goto(url);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await settle(page);
 
@@ -229,10 +237,14 @@ async function openParticipant(
   };
 
   // The board is not merely open, it is in sync: that is the state a person
-  // arrives in, and every scenario starts from it.
-  await expectEventually(`${name} is connected`, () => participant.connectionState(), {
-    is: (state) => state === 'connected',
-  });
+  // arrives in, and every scenario starts from it. A scenario that means to meet
+  // a board that cannot be read asks for `waitUntil: 'loaded'` instead, because
+  // the state it is looking for is the one that is not `connected`.
+  if (options.waitUntil !== 'loaded') {
+    await expectEventually(`${name} is connected`, () => participant.connectionState(), {
+      is: (state) => state === 'connected',
+    });
+  }
   return participant;
 }
 
@@ -260,7 +272,7 @@ export async function openParticipants(
   const people: Participant[] = [];
   for (let index = 0; index < count; index += 1) {
     const name = PEOPLE[index] ?? `Person ${String(index + 1)}`;
-    people.push(await openParticipant(browser, boardId, name, outageSwitch));
+    people.push(await openParticipantAt(browser, `/b/${boardId}`, name, { outageSwitch }));
   }
   // Everyone is in the same room, so they are connected to each other, not just
   // to the server: the first note proves the line works in both directions. It

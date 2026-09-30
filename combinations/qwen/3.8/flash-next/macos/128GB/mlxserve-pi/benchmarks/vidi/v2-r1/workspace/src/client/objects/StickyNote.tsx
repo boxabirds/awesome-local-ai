@@ -40,6 +40,13 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * Whether this note can be taken hold of at all: select, drag, edit, recolour,
+   * delete. False is the board being out of reach — the note is still drawn, with
+   * its text, because what is on the screen is what the board last said, and a
+   * person reading it should not be shown a blank board (`persist.corrupt_snapshot`).
+   */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -68,6 +75,7 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  editable = true,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -121,7 +129,7 @@ export function StickyNote({
   }, [doc, note.id, stopDrag]);
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (editing || event.button !== 0) return;
+    if (!editable || editing || event.button !== 0) return;
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     // Bringing the note to the front when it is picked (a press selects it) means
@@ -171,6 +179,7 @@ export function StickyNote({
   };
 
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if (!editable) return;
     event.stopPropagation();
     if (!editing) onStartEdit(note.id);
   };
@@ -227,6 +236,7 @@ export function StickyNote({
       data-selected={selected ? 'true' : 'false'}
       role="group"
       aria-label="Sticky note"
+      aria-roledescription={editable ? 'Sticky note' : 'Sticky note (read-only board)'}
       tabIndex={0}
       style={noteStyle}
       onPointerDown={onPointerDown}
@@ -254,7 +264,7 @@ export function StickyNote({
         </div>
       )}
 
-      {selected && !editing && !dragging ? (
+      {selected && !editing && !dragging && editable ? (
         <div
           style={{
             position: 'absolute',
