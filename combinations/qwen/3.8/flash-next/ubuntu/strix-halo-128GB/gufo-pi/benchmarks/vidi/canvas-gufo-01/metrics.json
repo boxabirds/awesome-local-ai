@@ -139,7 +139,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 6509.3,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 294,
+          "prefill_s": 316.5,
+          "prefill_tokens": 253295,
+          "prefill_tok_s": 800.4,
+          "decode_s": 5131.8,
+          "decode_tokens": 215965,
+          "decode_tok_s": 42.1,
+          "cached_tokens": 20306286
+        },
         "tools_s": 621.0,
         "tools_by_kind": {
           "e2e": 369.7,
@@ -152,7 +162,8 @@
         },
         "compaction_s": 413.0,
         "compactions": 3,
-        "other_s": 5475.3
+        "other_s": 27.0,
+        "backfilled": true
       },
       "loc": {
         "files": 41,

@@ -28,7 +28,7 @@ def backfill(run: Path) -> list[str]:
         rec["time_split"] = {**new, "backfilled": True}
         filled.append(sid)
     if filled:
-        path.write_text(json.dumps(metrics, indent=2) + "\n")
+        path.write_text(json.dumps(metrics, indent=2))  # as drive.save_metrics writes it
     return filled
 
 

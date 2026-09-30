@@ -134,7 +134,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 999.2,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 42,
+          "prefill_s": 40.3,
+          "prefill_tokens": 34087,
+          "prefill_tok_s": 846.1,
+          "decode_s": 935.7,
+          "decode_tokens": 41552,
+          "decode_tok_s": 44.4,
+          "cached_tokens": 1461697
+        },
         "tools_s": 21.7,
         "tools_by_kind": {
           "build": 8.4,
@@ -146,7 +156,8 @@
         },
         "compaction_s": 0,
         "compactions": 0,
-        "other_s": 977.5
+        "other_s": 1.5,
+        "backfilled": true
       },
       "loc": {
         "files": 9,
@@ -426,7 +437,17 @@
       "requests": {},
       "time_split": {
         "wall_s": 3535.8,
-        "model": null,
+        "model": {
+          "source": "client-stream",
+          "requests": 172,
+          "prefill_s": 158.7,
+          "prefill_tokens": 119152,
+          "prefill_tok_s": 750.9,
+          "decode_s": 2941.4,
+          "decode_tokens": 125675,
+          "decode_tok_s": 42.7,
+          "cached_tokens": 11061988
+        },
         "tools_s": 312.9,
         "tools_by_kind": {
           "e2e": 205.5,
@@ -439,7 +460,8 @@
         },
         "compaction_s": 109.9,
         "compactions": 1,
-        "other_s": 3113.0
+        "other_s": 12.9,
+        "backfilled": true
       },
       "loc": {
         "files": 27,
