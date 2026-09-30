@@ -58,6 +58,9 @@ struct App {
     review_builds: std::sync::RwLock<Vec<runs::Run>>,
     /// The spec version family under review ("vidi-v2"): the private checkout's; only its runs are reviewed.
     family: String,
+    /// Changes with every start: an open review page reloads itself when it sees a new one, so it never
+    /// keeps running the code of a gallery that has been rebuilt.
+    started: String,
     reviews: reviews::Store,
     /// The stories in review order, each with its prerequisites and the build it's reviewed on.
     stories: Vec<stories::Story>,
@@ -419,9 +422,13 @@ async fn api_review_state(State(app): State<Arc<App>>) -> impl IntoResponse {
         })
         .collect();
     Json(serde_json::json!({
-        "blind": app.blind, "family": app.family, "stories": stories, "builds": builds, "reviews": reviews,
+        "blind": app.blind, "family": app.family, "started": app.started, "stories": stories, "builds": builds, "reviews": reviews,
         "file": app.reviews.path().display().to_string(),
     }))
+}
+
+async fn api_review_started(State(app): State<Arc<App>>) -> impl IntoResponse {
+    Json(serde_json::json!({"started": app.started}))
 }
 
 async fn api_review_status(State(app): State<Arc<App>>, UrlPath(story): UrlPath<u64>) -> impl IntoResponse {
@@ -682,7 +689,7 @@ async fn main() -> anyhow::Result<()> {
     let record_config = record::write_config(&acceptance, &cache)?;
     let rec_ports = vec![REC_PORT_BASE]; // one recording at a time
     let app = Arc::new(App {
-        repo: repo.clone(), builds: builds.clone(), cache, blind, review_builds: std::sync::RwLock::new(review_builds), family, reviews, stories,
+        repo: repo.clone(), builds: builds.clone(), cache, blind, review_builds: std::sync::RwLock::new(review_builds), family, started: utc_now(), reviews, stories,
         prep: Default::default(), acceptance, recordings, rec_secret, record_config, rec: Default::default(),
         rec_ports: tokio::sync::Mutex::new(rec_ports), build_order,
     });
@@ -697,6 +704,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/review", get(review_page))
         .route("/review/player.js", get(player_js))
         .route("/api/review/state", get(api_review_state))
+        .route("/api/review/started", get(api_review_started))
         .route("/api/review/status/{story}", get(api_review_status))
         .route("/api/review/story/{story}", post(api_review_story))
         .route("/api/review/open/{story}/{key}", post(api_review_open))

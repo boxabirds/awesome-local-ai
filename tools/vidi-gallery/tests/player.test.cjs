@@ -1,7 +1,7 @@
 // node --test tools/vidi-gallery/tests/  — the review player's time maths (src/player.js).
 const test = require("node:test");
 const assert = require("node:assert");
-const { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, keyAction, nextFrame, scrubStep, SCRUB, FINE_SCRUB } = require("../src/player.js");
+const { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, keyAction, nextFrame, scrubStep, placeToHash, placeFromHash, SCRUB, FINE_SCRUB } = require("../src/player.js");
 
 test("the frame shown at t is the last one at or before t, for each page separately", () => {
   const p1 = [[10, "a"], [20, "b"], [30, "c"]], p2 = [[25, "x"]];
@@ -118,12 +118,22 @@ test("verdicts move on: a d s and Return score and go to the next test; shift-Re
   assert.deepStrictEqual(keyAction(key("w", "KeyW"), "steps"), { do: "waits" });
 });
 
-test("= agrees and - disagrees, then each goes on exactly like the right arrow (shift: a finer step)", () => {
-  assert.deepStrictEqual(keyAction(key("=", "Equal"), "tests"), { do: "verdict", v: "agree", scrub: { frac: SCRUB, cross: true } });
-  assert.deepStrictEqual(keyAction(key("-", "Minus"), "tests"), { do: "verdict", v: "disagree", scrub: { frac: SCRUB, cross: true } });
-  assert.deepStrictEqual(keyAction(key("+", "Equal", SH), "tests"), { do: "verdict", v: "agree", scrub: { frac: FINE_SCRUB, cross: true } });
-  assert.deepStrictEqual(keyAction(key("=", "Equal"), "steps"), { do: "verdict", v: "agree", scrub: { frac: SCRUB } });
+test("= agrees and - disagrees, and each goes straight on to the next test", () => {
+  for (const pane of ["tests", "steps"]) {
+    assert.deepStrictEqual(keyAction(key("=", "Equal"), pane), { do: "verdict", v: "agree", next: true });
+    assert.deepStrictEqual(keyAction(key("-", "Minus"), pane), { do: "verdict", v: "disagree", next: true });
+    assert.deepStrictEqual(keyAction(key("+", "Equal", SH), pane), { do: "verdict", v: "agree", next: true });
+  }
   assert.strictEqual(keyAction(key("=", "Equal"), "stories"), null);  // no test to score from the stories
+});
+
+test("the place in the review survives a reload: story, test and pane in the address", () => {
+  const place = { story: 3, key: 0, idx: 4, pane: "tests" };
+  assert.strictEqual(placeToHash(place), "#story=3&key=0&idx=4&pane=tests");
+  assert.deepStrictEqual(placeFromHash(placeToHash(place)), place);
+  assert.deepStrictEqual(placeFromHash("#story=5&pane=stories"), { story: 5, key: null, idx: null, pane: "stories" });
+  assert.deepStrictEqual(placeFromHash(""), { story: null, key: null, idx: null, pane: null });
+  assert.strictEqual(placeFromHash("#pane=bogus").pane, null);
 });
 
 test("a scrub stops at an end; one more press in the same direction goes to the next or previous test", () => {
