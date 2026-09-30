@@ -15,8 +15,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | 5/5 | 0 | 0 | 33/36 |
 | 7 | 8/8 | 0 | 2 | 43/44 |
 | 8 | 7/7 | 0 | 0 | 50/51 |
+| 9 | 6/6 | 0 | 0 | 56/57 |
 
-**New work** 44/47, **regressions** 0, **repairs** 2, **cumulative** 50/51.
+**New work** 50/53, **regressions** 0, **repairs** 2, **cumulative** 56/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,8 +28,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | Share a board with others using a link | DONE | 9.8 | None | None | None | — | — | green | 33/36 |  | 0 / 0 | 0 | — | throttled 0% |
 | 7 | Select, move, resize and delete several objects at once | DONE | 14.8 | None | None | None | — | — | green | 43/44 |  | 0 / 0 | 0 | — | throttled 0% |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 8.1 | None | None | None | — | — | green | 50/51 |  | 0 / 0 | 0 | — | throttled 0% |
+| 9 | Write free text anywhere on the board | DONE | 17.2 | None | None | None | — | — | green | 56/57 |  | 0 / 0 | 0 | — | throttled 0% |
 
-**Totals:** 7 stories, 86 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/7, final acceptance 50/51, stalled 0, partial 0, 16657 lines in src+tests.
+**Totals:** 8 stories, 103 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/8, final acceptance 56/57, stalled 0, partial 0, 18885 lines in src+tests.
 
 ## How it happened
 
@@ -43,6 +45,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | 1 by the agent | 1791 / 273 | `App.tsx` (225), `Board.tsx` (199), `SharePanel.tsx` (150), `styles.css` (150), `BoardPage.tsx` (61), `index.ts` (60), +15 more |
 | 7 | 1 by the agent | 2933 / 317 | `useTransformGesture.ts` (272), `board-model.ts` (240), `StickyNote.tsx` (182), `geometry.ts` (181), `Board.tsx` (176), `styles.css` (120), +10 more |
 | 8 | 1 by the agent | 1507 / 53 | `undo.ts` (174), `Board.tsx` (134), `UndoButtons.tsx` (52), `useBoardKeys.ts` (46), `NOTES.md` (44), `useUndo.ts` (37), +4 more |
+| 9 | 1 by the agent | 2550 / 269 | `TextEditor.tsx` (201), `TextObject.tsx` (199), `StickyTextEditor.tsx` (189), `text.ts` (172), `textLayout.ts` (147), `styles.css` (75), +18 more |
 
 ### Earlier stories broken or fixed
 
