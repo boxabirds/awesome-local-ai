@@ -46,11 +46,18 @@ export interface RunRef {
   runId: string;
   dir: string;
   rescores: string[];
+  /** Per re-scored version, the latest story re-scored ("12" for a final re-score). */
+  rescoreLast: Record<string, string>;
   hasBundle: boolean;
 }
 
+/** A re-score's per-story results against the build after story `after`. */
+export interface Rescored { after: string; byStory: NonNullable<Story["byStory"]> }
+
 export interface RunRecord extends RunRef {
   host?: string;
+  /** Per re-scored version, the latest re-scored story's per-story results. */
+  rescored?: Record<string, Rescored>;
   packVersion: string;
   state: string;
   stateAt: string;
@@ -61,32 +68,35 @@ export interface RunRecord extends RunRef {
 const RUN_RE =
   /^(?:combinations\/(?<stack>.+)\/benchmarks\/(?<pack>[^/]+)|benchmarks\/reference\/(?<rpack>[^/]+)\/(?<rstack>[^/]+))\/(?<run>[^/]+)\/(?<rest>.+)$/;
 const RESCORE_RE = /^rescore\/([^/]+)\/rescore\.json$/;
+const RESCORE_STORY_RE = /^rescore\/([^/]+)\/stories\/(\d+)\/accept\.json$/;
 
 /** Runs are directories holding a run.json, under combinations/<stack>/benchmarks/<pack>/<run>/ or
  * benchmarks/reference/<pack>/<stack>/<run>/; also notes each run's re-scores and bundle. */
 export function findRuns(paths: string[]): RunRef[] {
   const runs = new Map<string, RunRef>();
-  const extras = new Map<string, { rescores: string[]; hasBundle: boolean }>();
+  const extras = new Map<string, { rescores: string[]; hasBundle: boolean; rescoreLast: Record<string, string> }>();
   for (const p of paths) {
     const g = RUN_RE.exec(p)?.groups;
     if (!g) continue;
     const stack = g.stack ?? `reference/${g.rstack}`;
     const pack = g.pack ?? g.rpack;
     const key = [pack, stack, g.run].join("\u0000");
-    const e = extras.get(key) ?? { rescores: [], hasBundle: false };
+    const e = extras.get(key) ?? { rescores: [], hasBundle: false, rescoreLast: {} };
     extras.set(key, e);
     if (g.rest === "run.json") {
-      runs.set(key, { pack, stack, runId: g.run, dir: p.slice(0, p.length - g.rest.length - 1), rescores: [], hasBundle: false });
+      runs.set(key, { pack, stack, runId: g.run, dir: p.slice(0, p.length - g.rest.length - 1), rescores: [], hasBundle: false, rescoreLast: {} });
     } else if (g.rest === "workspace.bundle") {
       e.hasBundle = true;
     } else {
       const r = RESCORE_RE.exec(g.rest);
       if (r && !e.rescores.includes(r[1])) e.rescores.push(r[1]);
+      const rs = RESCORE_STORY_RE.exec(g.rest);
+      if (rs && Number(rs[2]) > Number(e.rescoreLast[rs[1]] ?? 0)) e.rescoreLast[rs[1]] = String(Number(rs[2]));
     }
   }
   return [...runs.entries()].map(([key, run]) => {
     const e = extras.get(key)!;
-    return { ...run, rescores: [...e.rescores].sort(), hasBundle: e.hasBundle };
+    return { ...run, rescores: [...e.rescores].sort(), hasBundle: e.hasBundle, rescoreLast: e.rescoreLast };
   });
 }
 
@@ -197,6 +207,11 @@ interface RawAccept {
   by_story?: Record<string, { passed?: number; total?: number }>;
 }
 
+/** accept.json's by_story ({"01": {passed, total}}) keyed by plain story id ("1"). */
+export function normaliseByStory(by: Record<string, { passed?: number; total?: number }>): NonNullable<Story["byStory"]> {
+  return Object.fromEntries(Object.entries(by).map(([k, v]) => [String(Number(k)), { passed: v.passed ?? null, total: v.total ?? null }]));
+}
+
 /** A recorded story: `passed`/`total` are the whole held-out suite up to that story; `ownPassed`/
  * `ownTotal` are that story's own tests (accept.json's by_story, keyed "01", "02", …). */
 export function storyEntry(id: string, raw: { title?: string; status?: string; accept?: RawAccept | null }): Story {
@@ -210,9 +225,7 @@ export function storyEntry(id: string, raw: { title?: string; status?: string; a
     total: acc.total ?? null,
     ownPassed: own.passed ?? null,
     ownTotal: own.total ?? null,
-    byStory: acc.by_story
-      ? Object.fromEntries(Object.entries(acc.by_story).map(([k, v]) => [String(Number(k)), { passed: v.passed ?? null, total: v.total ?? null }]))
-      : null,
+    byStory: acc.by_story ? normaliseByStory(acc.by_story) : null,
   };
 }
 
@@ -284,7 +297,7 @@ export interface MergedRow extends Omit<RunRecord, "dir"> {
 }
 
 const EMPTY_RECORD = {
-  rescores: [] as string[], hasBundle: false, host: "", packVersion: "", state: "", stateAt: "",
+  rescores: [] as string[], rescoreLast: {} as Record<string, string>, hasBundle: false, host: "", packVersion: "", state: "", stateAt: "",
   stories: [] as Story[], scores: {} as Record<string, Score>,
 };
 
@@ -333,6 +346,7 @@ export function buildRows(
         stories,
         scopeIds((job?.progress?.stories ?? []).map((st) => String(st.id)), flowCounts[r.packVersion || suite], stories.map((st) => st.id)),
         job?.state.status === "running" ? runningStoryId(job) : null,
+        r.rescored?.[suite],
       ),
       live: job ? liveFromJob(job, queue.get(job.id)) : null,
     };
@@ -394,8 +408,11 @@ function runningStoryId(job: DbenchJob): string | null {
 
 /** How each story in scope does against the latest build, from the last story recorded with a per-story
  * breakdown; stories dbench reports done after that use their own result; the running one is marked. */
-export function storiesWorking(stories: Story[], scope: string[], running: string | null): StoriesWorking {
-  const latest = stories.findLast((s) => s.byStory)?.byStory ?? {};
+export function storiesWorking(stories: Story[], scope: string[], running: string | null, rescored?: Rescored): StoriesWorking {
+  const liveLast = stories.findLast((s) => s.byStory);
+  // A re-score under the current suite wins unless the live scores reach a later story.
+  const useRescore = rescored && (!liveLast || Number(rescored.after) >= Number(liveLast.id));
+  const latest = (useRescore ? rescored.byStory : liveLast?.byStory) ?? {};
   const own = new Map(stories.filter((s) => s.ownTotal !== null).map((s) => [s.id, s]));
   const state = (passed: number | null, total: number | null): StorySquare["state"] =>
     !total ? "unbuilt" : passed === total ? "ok" : passed ? "part" : "bad";
