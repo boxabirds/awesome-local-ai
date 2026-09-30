@@ -1,7 +1,7 @@
 // node --test tools/vidi-gallery/tests/  — the review player's time maths (src/player.js).
 const test = require("node:test");
 const assert = require("node:assert");
-const { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, keyAction, nextFrame, SCRUB, FINE_SCRUB } = require("../src/player.js");
+const { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, keyAction, nextFrame, scrubStep, SCRUB, FINE_SCRUB } = require("../src/player.js");
 
 test("the frame shown at t is the last one at or before t, for each page separately", () => {
   const p1 = [[10, "a"], [20, "b"], [30, "c"]], p2 = [[25, "x"]];
@@ -74,8 +74,9 @@ test("stories pane: up/down pick the story; right, Tab or Return go into the hel
 test("tests pane: up/down pick the test, left/right scrub (shift finer), Tab to the steps, shift-Tab or Esc back", () => {
   assert.deepStrictEqual(keyAction(key("ArrowDown", "ArrowDown"), "tests"), { do: "path", dir: 1 });
   assert.deepStrictEqual(keyAction(key("ArrowUp", "ArrowUp"), "tests"), { do: "path", dir: -1 });
-  assert.deepStrictEqual(keyAction(key("ArrowRight", "ArrowRight"), "tests"), { do: "scrub", frac: SCRUB });
-  assert.deepStrictEqual(keyAction(key("ArrowLeft", "ArrowLeft", SH), "tests"), { do: "scrub", frac: -FINE_SCRUB });
+  // In the tests pane a scrub carries on into the next or previous test at either end.
+  assert.deepStrictEqual(keyAction(key("ArrowRight", "ArrowRight"), "tests"), { do: "scrub", frac: SCRUB, cross: true });
+  assert.deepStrictEqual(keyAction(key("ArrowLeft", "ArrowLeft", SH), "tests"), { do: "scrub", frac: -FINE_SCRUB, cross: true });
   assert.deepStrictEqual(keyAction(key("Tab", "Tab"), "tests"), { do: "pane", to: "steps" });
   assert.deepStrictEqual(keyAction(key("Tab", "Tab", SH), "tests"), { do: "pane", to: "stories" });
   assert.deepStrictEqual(keyAction(key("Escape", "Escape"), "tests"), { do: "pane", to: "stories" });
@@ -91,11 +92,9 @@ test("steps pane: up/down pick the step, left/right scrub, shift-Tab or Esc back
   assert.deepStrictEqual(keyAction(key("Tab", "Tab"), "steps"), { do: "none" });  // already the last pane
 });
 
-test("in every pane: space plays, - and = scrub, digits jump, frames, speed, stories by bracket", () => {
+test("in every pane: space plays, digits jump, frames, speed, stories by bracket", () => {
   for (const pane of ["stories", "tests", "steps"]) {
     assert.deepStrictEqual(keyAction(key(" ", "Space"), pane), { do: "play" });
-    assert.deepStrictEqual(keyAction(key("=", "Equal"), pane), { do: "scrub", frac: SCRUB });
-    assert.deepStrictEqual(keyAction(key("_", "Minus", SH), pane), { do: "scrub", frac: -FINE_SCRUB });
     assert.deepStrictEqual(keyAction(key("5", "Digit5"), pane), { do: "jump", frac: 0.5 });
     assert.deepStrictEqual(keyAction(key("End", "End"), pane), { do: "jump", frac: 1 });
     assert.deepStrictEqual(keyAction(key(".", "Period"), pane), { do: "frame", dir: 1 });
@@ -106,17 +105,36 @@ test("in every pane: space plays, - and = scrub, digits jump, frames, speed, sto
   assert.ok(FINE_SCRUB < SCRUB);
 });
 
-test("verdicts: Return agrees and moves on, shift-Return disagrees and asks why, in the tests and steps panes", () => {
+test("verdicts move on: a d s and Return score and go to the next test; shift-Return disagrees and asks why", () => {
   for (const pane of ["tests", "steps"]) {
     assert.deepStrictEqual(keyAction(key("Enter", "Enter"), pane), { do: "verdict", v: "agree", next: true });
     assert.deepStrictEqual(keyAction(key("Enter", "Enter", SH), pane), { do: "verdict", v: "disagree", note: true });
-    assert.deepStrictEqual(keyAction(key("a", "KeyA"), pane), { do: "verdict", v: "agree" });
-    assert.deepStrictEqual(keyAction(key("d", "KeyD"), pane), { do: "verdict", v: "disagree" });
-    assert.deepStrictEqual(keyAction(key("s", "KeyS"), pane), { do: "verdict", v: "skip" });
+    assert.deepStrictEqual(keyAction(key("a", "KeyA"), pane), { do: "verdict", v: "agree", next: true });
+    assert.deepStrictEqual(keyAction(key("d", "KeyD"), pane), { do: "verdict", v: "disagree", next: true });
+    assert.deepStrictEqual(keyAction(key("s", "KeyS"), pane), { do: "verdict", v: "skip", next: true });
   }
   assert.deepStrictEqual(keyAction(key("n", "KeyN"), "tests"), { do: "note" });
   assert.deepStrictEqual(keyAction(key("o", "KeyO"), "tests"), { do: "open" });
   assert.deepStrictEqual(keyAction(key("w", "KeyW"), "steps"), { do: "waits" });
+});
+
+test("= agrees and - disagrees, then each goes on exactly like the right arrow (shift: a finer step)", () => {
+  assert.deepStrictEqual(keyAction(key("=", "Equal"), "tests"), { do: "verdict", v: "agree", scrub: { frac: SCRUB, cross: true } });
+  assert.deepStrictEqual(keyAction(key("-", "Minus"), "tests"), { do: "verdict", v: "disagree", scrub: { frac: SCRUB, cross: true } });
+  assert.deepStrictEqual(keyAction(key("+", "Equal", SH), "tests"), { do: "verdict", v: "agree", scrub: { frac: FINE_SCRUB, cross: true } });
+  assert.deepStrictEqual(keyAction(key("=", "Equal"), "steps"), { do: "verdict", v: "agree", scrub: { frac: SCRUB } });
+  assert.strictEqual(keyAction(key("=", "Equal"), "stories"), null);  // no test to score from the stories
+});
+
+test("a scrub stops at an end; one more press in the same direction goes to the next or previous test", () => {
+  const EPS = 1e-9;
+  assert.deepStrictEqual(scrubStep(0.5, SCRUB, true), { pos: 0.5 + SCRUB });
+  assert.deepStrictEqual(scrubStep(1 - SCRUB / 2, SCRUB, true), { pos: 1 });        // lands on the end first
+  assert.deepStrictEqual(scrubStep(1, SCRUB, true), { path: 1 });                   // then on to the next test
+  assert.deepStrictEqual(scrubStep(1 - EPS, SCRUB, true), { path: 1 });
+  assert.deepStrictEqual(scrubStep(0, -SCRUB, true), { path: -1 });                 // before the start: the previous test
+  assert.deepStrictEqual(scrubStep(1, SCRUB, false), { pos: 1 });                   // without cross it stays put
+  assert.deepStrictEqual(scrubStep(0, -SCRUB, false), { pos: 0 });
 });
 
 test("browser and system shortcuts pass through untouched", () => {

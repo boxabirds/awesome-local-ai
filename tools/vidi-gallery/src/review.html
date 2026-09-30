@@ -233,7 +233,7 @@ function renderStory() {
     <section style="margin-top:8px"><h2>Requirements (${s.requirements.length})</h2><ul>${s.requirements.map(r => `<li><b>${esc(r.title)}</b> <span class="muted small">${esc(r.anchor)}</span></li>`).join("")}</ul></section>
     </details>
     <div class="work"><div><div id="builds" tabindex="0" aria-label="Held-out tests"></div><div class="reveal" id="reveal"></div></div><div id="player"><section class="muted">Pick a path on the left (or press <kbd>j</kbd>) to play its recording.</section></div></div>
-    <div class="keys"><kbd>Tab</kbd> / <kbd>⇧Tab</kbd> move between stories, held-out tests and browser steps · <kbd>↑</kbd><kbd>↓</kbd> within one · <kbd>←</kbd><kbd>→</kbd> scrub · <kbd>Space</kbd> play · <kbd>Return</kbd> agree and next · <kbd>⇧Return</kbd> disagree and say why · <kbd>?</kbd> all keys<br>
+    <div class="keys"><kbd>Tab</kbd> / <kbd>⇧Tab</kbd> move between stories, held-out tests and browser steps · <kbd>↑</kbd><kbd>↓</kbd> within one · <kbd>←</kbd><kbd>→</kbd> scrub, and on to the next test at the end · <kbd>=</kbd> agree / <kbd>-</kbd> disagree, then on · <kbd>Space</kbd> play · <kbd>?</kbd> all keys<br>
     A verdict says whether <b>you agree with the automated result</b> of that path, having watched it. Each build opens as it was after story ${s.review_build}. Reviews save to <code>${esc(S.file)}</code>.</div>`;
   renderBuilds();
 }
@@ -374,7 +374,7 @@ function renderPlayer(tasks) {
     bar.onpointerup = bar.onpointercancel = e => { if (P) P.dragging = false; bar.releasePointerCapture?.(e.pointerId); };
     document.querySelectorAll("[data-s]").forEach(el => el.onclick = () => seek(w.steps[+el.dataset.s].end));
   }
-  document.querySelectorAll("[data-pv]").forEach(b => b.onclick = () => judge(b.dataset.pv));
+  document.querySelectorAll("[data-pv]").forEach(b => b.onclick = async () => { await judge(b.dataset.pv); movePath(1); });
   $("pnote").oninput = e => {
     const id = `${sid}:${key}:${p.title}`;
     clearTimeout(timers[id]);
@@ -442,7 +442,7 @@ async function movePath(dir) {
   if (next < 0 || next >= S.stories.length) return;
   await go(next);
   const g = flat();
-  if (g.length) { const p = dir > 0 ? g[0] : g[g.length - 1]; select(p.key, p.idx); }
+  if (g.length) { const p = dir > 0 ? g[0] : g[g.length - 1]; return select(p.key, p.idx); }
 }
 
 async function judge(v) {
@@ -496,9 +496,10 @@ const KEYS = [
   ["Stories: → Return", "into the story's held-out tests"],
   ["Tests: ↑ ↓", "previous / next held-out test"],
   ["Steps: ↑ ↓", "previous / next browser step"],
-  ["Tests, steps: ← →", "scrub 5% of the recording (⇧: 1%)"],
+  ["Tests: ← →", "scrub 5% (⇧: 1%); at an end, on to the next / previous test: hold → to fly through"],
+  ["Steps: ← →", "scrub 5% (⇧: 1%)"],
   ["Space", "play / pause"],
-  ["= -", "scrub 5% forward / back (⇧: 1%)"],
+  ["= -", "agree / disagree, then on like → (hold = to agree as you fly through)"],
   [". ,", "next / previous frame"],
   ["1 … 9 · 0", "jump to 10% … 90% · the start"],
   ["Home End", "start / end"],
@@ -506,7 +507,7 @@ const KEYS = [
   ["] [ · PgDn PgUp", "next / previous story, from any pane"],
   ["Return", "agree, and on to the next test"],
   ["⇧Return", "disagree, and write why"],
-  ["a d s", "agree / disagree / skip (stay here)"],
+  ["a d s", "agree / disagree / skip, and on to the next test"],
   ["n", "write a note (Esc or Return to leave it)"],
   ["o", "open this build"],
   ["w", "skip long waits on / off"],
@@ -557,15 +558,24 @@ async function act(a) {
     case "check": return stepCheck(a.dir);
     case "step": return stepAny(a.dir);
     case "frame": { if (!P?.w) return; pause(); const t = nextFrame(P.w.people.map(pp => pp.frames), P.t, a.dir); if (t !== null) seek(t); return; }
-    case "scrub": if (P?.w) { pause(); seek(timeAt(pos(P.t) + a.frac)); } return;  // a share of the seek bar
+    case "scrub": {  // a share of the seek bar; in the tests pane, at an end, on into the next or previous test
+      if (!P?.w) return;  // a test is still loading: key repeats wait for it
+      const r = scrubStep(pos(P.t), a.frac, a.cross);
+      if (r.path === undefined) { pause(); seek(timeAt(r.pos)); return; }
+      await movePath(r.path);
+      if (r.path < 0 && P?.w) seek(P.w.end);  // going back: arrive at the previous test's end
+      return;
+    }
     case "jump": if (P?.w) { pause(); seek(a.frac >= 1 ? P.w.end : a.frac <= 0 ? P.w.start : timeAt(a.frac)); } return;
     case "speed": return setSpeed(a.dir);
     case "waits": if (P) { P.skipWaits = !P.skipWaits; if ($("skipw")) $("skipw").checked = P.skipWaits; } return;
     case "verdict":
       if (!P) return;
-      await judge(a.v);
-      if (a.note) $("pnote")?.focus();
-      else if (a.next) return movePath(1);
+      // Holding = or - passes the same verdict many times: save it once.
+      if (review(sidNow(), P.key, P.p.title)?.verdict !== a.v) await judge(a.v);
+      if (a.note) return $("pnote")?.focus();
+      if (a.scrub) return act({do: "scrub", ...a.scrub});
+      if (a.next) return movePath(1);
       return;
     case "note": return $("pnote")?.focus();
     case "open": if (cur) openTab(cur.key); return;

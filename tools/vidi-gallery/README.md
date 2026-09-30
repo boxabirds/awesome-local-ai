@@ -67,15 +67,16 @@ requirements and its **must-nots**. Below, one row per finished build:
   | stories: `↑` `↓` · `→` / `Return` | previous / next story · into its held-out tests |
   | tests: `↑` `↓` | previous / next held-out test |
   | steps: `↑` `↓` | previous / next browser step (the scrubber follows) |
-  | tests, steps: `←` `→` (`⇧` finer) | scrub 5% of the recording (1%) |
+  | tests: `←` `→` (`⇧` finer) | scrub 5% of the recording (1%); at an end, on to the next / previous test (hold `→` to fly through the story) |
+  | steps: `←` `→` (`⇧` finer) | scrub 5% (1%), stopping at the ends |
   | `Space` | play / pause |
-  | `=` `-` (`⇧` finer) | scrub 5% (1%), in any pane; hold to keep going |
+  | `=` · `-` | agree · disagree with the test, then on exactly like `→` (hold `=` to agree as you fly through) |
   | `.` `,` | next / previous frame |
   | `1`…`9` · `0` · `Home` `End` | jump to 10%…90% · the start · the ends |
   | `>` `<` | faster / slower |
   | `]` `[`, `PgDn` `PgUp` | next / previous story, from any pane |
   | `Return` · `⇧Return` | agree and on to the next test · disagree and write why |
-  | `a` `d` `s` | agree / disagree / skip, staying on the test |
+  | `a` `d` `s`, or the buttons | agree / disagree / skip, and on to the next test |
   | `n` · `o` · `w` | write a note · open the build · skip long waits on / off |
 
   Keys go by position for digits and `-` `=` `,` `.`, so shift and keyboard layouts don't change them.
