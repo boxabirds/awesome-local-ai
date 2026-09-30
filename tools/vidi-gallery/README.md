@@ -16,8 +16,9 @@ Ctrl-C stops the gallery and every build it started.
 One section per setup (a combination, or a reference stack such as `reference/opus-5.5`), one card
 per run found under `combinations/**/benchmarks/vidi/<run>/` or `benchmarks/reference/vidi/<stack>/<run>/`:
 
-- **Held-out score:** `accept-final.json` if the run has one, else the last story's `accept.json`
-  (the whole suite, run after it), else the run's `accept.json` (a build scored once at the end).
+- **Held-out score:** the counts-only summaries: `accept-final-summary.json` if the run has one, else the last
+  story's `accept-summary.json` (the whole suite, run after it), else the run's. The full results are private;
+  a run's audit (`audit.jsonl`) is read from the private repo's copy (`runs/<run path>/`).
   The strip shows each story's own tests: all passed, some, or none. **VOID** means the machine
   couldn't score it (e.g. no browser), so the numbers say nothing.
 - **Judging:** counted rows of the run's `audit.jsonl`: functional faults by severity, the other
