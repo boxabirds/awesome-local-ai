@@ -45,8 +45,8 @@ requirements and its **must-nots**. Below, one row per finished build:
   seek bar with a tick per check (green passed, red failed), and the test's steps beside it; the
   current step is highlighted as it plays. Drag or click the bar, click a tick or a step, or use
   `←`/`→` for the previous/next check; every frame is decoded when the path opens, so scrubbing
-  doesn't wait. Long timed waits are drawn narrow and skipped in playback; fast tests start slowed
-  down (0.1×–1×) so they can be watched. "details" opens Playwright's own trace viewer.
+  doesn't wait. Long timed waits are drawn narrow and skipped in playback; every test plays by itself at 2× when you move to it,
+  and stops at its end. "details" opens Playwright's own trace viewer.
 - **Traceability:** above the player, the PRD requirement(s) the test names (`@ref prd:<anchor>`)
   with their text; below it, the story's tasks with the status the harness recorded for this
   build, the commits that name each task, and all of the build's commits for the story. The spec
@@ -64,14 +64,14 @@ requirements and its **must-nots**. Below, one row per finished build:
   | Keys | Does |
   |---|---|
   | `Tab` · `⇧Tab` | next pane · previous pane |
-  | stories: `↑` `↓` · `→` `Space` `Return` | previous / next story · into its held-out tests |
+  | `Space` `p` | play / stop, in any pane. A test plays by itself, at 2×, when you move to it, and stops at its end |
+  | stories: `↑` `↓` · `→` `Return` | previous / next story · into its held-out tests |
   | tests: `↑` `↓` | previous / next held-out test |
-  | tests: `→` `Space` · `←` (`⇧` finer) | scrub 5% (1%); at an end, on to the next / previous test (hold to fly through the story) |
+  | tests: `→` · `←` (`⇧` finer) | scrub 5% (1%); at an end, on to the next / previous test (hold to fly through the story) |
   | tests: `=` `Return` · `-` | agree · disagree, and on to the next test |
   | tests: `⇧Return` · `Esc` | disagree and write why · clear the verdict back to "to review" |
-  | steps: `↑` `↓` `Return` · `→` `Space` `←` | previous / next browser step · scrub 5% (`⇧`: 1%) |
+  | steps: `↑` `↓` `Return` · `→` `←` | previous / next browser step · scrub 5% (`⇧`: 1%) |
   | steps: `Esc` | back to the held-out tests |
-  | `p` | play / pause |
   | `.` `,` | next / previous frame |
   | `1`…`9` · `0` · `Home` `End` | jump to 10%…90% · the start · the ends |
   | `>` `<` | faster / slower |
@@ -79,7 +79,7 @@ requirements and its **must-nots**. Below, one row per finished build:
   | `a` `d` `s`, or the buttons | agree / disagree / skip, and on to the next test |
   | `n` · `o` · `w` | write a note · open the build · skip long waits on / off |
 
-  `Space` is the right arrow everywhere; `Return` is `=` in the tests, the right arrow in the stories and
+  `Return` is `=` in the tests, the right arrow in the stories and
   the down arrow in the steps.   Keys go by position for digits and `-` `=` `,` `.`, so shift and keyboard layouts don't change them.
   Cmd, Ctrl and Alt combinations are left to the browser.
 - **Your place is in the address** (`#story=…&key=…&idx=…&pane=…`). When the gallery restarts (for

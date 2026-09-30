@@ -167,12 +167,11 @@ test("a scrub moves a share of the recording, so one press never crosses a short
   assert.ok(to > 0 && to < 100, `one press lands inside the recording, at ${to} ms`);
 });
 
-test("Space is the right arrow everywhere: into the tests, scrub on (and across tests), scrub the steps; p plays", () => {
-  assert.deepStrictEqual(keyAction(key(" ", "Space"), "stories"), keyAction(key("ArrowRight", "ArrowRight"), "stories"));
-  assert.deepStrictEqual(keyAction(key(" ", "Space"), "tests"), { do: "scrub", frac: SCRUB, cross: true });
-  assert.deepStrictEqual(keyAction(key(" ", "Space"), "steps"), { do: "scrub", frac: SCRUB });
-  assert.deepStrictEqual(keyAction(key(" ", "Space", SH), "tests"), keyAction(key("ArrowRight", "ArrowRight", SH), "tests"));
-  for (const pane of ["stories", "tests", "steps"]) assert.deepStrictEqual(keyAction(key("p", "KeyP"), pane), { do: "play" });
+test("Space plays and stops in every pane; p does too", () => {
+  for (const pane of ["stories", "tests", "steps"]) {
+    assert.deepStrictEqual(keyAction(key(" ", "Space"), pane), { do: "play" });
+    assert.deepStrictEqual(keyAction(key("p", "KeyP"), pane), { do: "play" });
+  }
 });
 
 test("Return is = in the tests (agree and on), the right arrow in the stories, the down arrow in the steps", () => {
