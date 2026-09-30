@@ -58,20 +58,25 @@ requirements and its **must-nots**. Below, one row per finished build:
 - **Keys** (press `?` on the page for the sheet; the map is `keyAction` in `src/player.js`, tested in
   `tests/player.test.cjs`):
 
+  Three panes, left to right: **stories**, a story's **held-out tests**, and the **browser steps** of the
+  test being played. The focused pane has a ring.
+
   | Keys | Does |
   |---|---|
-  | `↓` `↑`, `Tab` `⇧Tab`, `j` `k` | next / previous path, on through builds and stories |
-  | `]` `[`, `PgDn` `PgUp` | next / previous story |
+  | `Tab` · `⇧Tab` / `Esc` | next pane · previous pane |
+  | stories: `↑` `↓` · `→` / `Return` | previous / next story · into its held-out tests |
+  | tests: `↑` `↓` | previous / next held-out test |
+  | steps: `↑` `↓` | previous / next browser step (the scrubber follows) |
+  | tests, steps: `←` `→` (`⇧` finer) | scrub 5% of the recording (1%) |
   | `Space` | play / pause |
-  | `→` `←` · `⇧→` `⇧←` | next / previous check · step |
+  | `=` `-` (`⇧` finer) | scrub 5% (1%), in any pane; hold to keep going |
   | `.` `,` | next / previous frame |
-  | `=` `-` · `⇧=` `⇧-` | scrub 5% · 1% of the recording (hold to keep going) |
   | `1`…`9` · `0` · `Home` `End` | jump to 10%…90% · the start · the ends |
   | `>` `<` | faster / slower |
-  | `Return` · `⇧Return` | agree and on to the next path · disagree and write why |
-  | `a` `d` `s` | agree / disagree / skip, staying on the path |
-  | `n` · `Esc` | write a note · leave it (it saves as you type), pause, close the sheet |
-  | `o` · `w` | open the build · skip long waits on / off |
+  | `]` `[`, `PgDn` `PgUp` | next / previous story, from any pane |
+  | `Return` · `⇧Return` | agree and on to the next test · disagree and write why |
+  | `a` `d` `s` | agree / disagree / skip, staying on the test |
+  | `n` · `o` · `w` | write a note · open the build · skip long waits on / off |
 
   Keys go by position for digits and `-` `=` `,` `.`, so shift and keyboard layouts don't change them.
   Cmd, Ctrl and Alt combinations are left to the browser.
