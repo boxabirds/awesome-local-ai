@@ -2,7 +2,7 @@
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import type { Score } from "../shared/types.ts";
-import { countTests, findRuns, normaliseByStory, storyEntry, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
+import { countTests, finalScore, findRuns, normaliseByStory, type RawRescore, storyEntry, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
 
 const run = promisify(execFile);
 export const REF = "origin/main";
@@ -58,7 +58,6 @@ function json<T>(text: string | undefined): T | null {
 }
 
 interface RawStory { title?: string; status?: string; accept?: { passed?: number; total?: number } | null }
-interface RawRescore { finished_at?: string; results?: { passed?: number; total?: number; flaky?: number }[] }
 
 /** Every pushed run record, and each pack's current version (bench.json pack_ref). */
 export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; suites: Record<string, string> }> {
@@ -82,11 +81,10 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
       ? raw.map((s, i) => [String(i + 1), s])
       : Object.entries(raw).toSorted((a, b) => Number(a[0]) - Number(b[0]));
     const scores: Record<string, Score> = {};
+    const lastStory = pairs.at(-1)?.[0];
     for (const v of r.rescores) {
-      const rs = json<RawRescore>(blobs.get(`${r.dir}/rescore/${v}/rescore.json`));
-      const last = rs?.results?.at(-1);
-      if (last) scores[v] = { passed: last.passed ?? null, total: last.total ?? null,
-        flaky: (rs!.results ?? []).reduce((n, x) => n + (x.flaky ?? 0), 0), at: rs!.finished_at ?? "" };
+      const score = finalScore(json<RawRescore>(blobs.get(`${r.dir}/rescore/${v}/rescore.json`)), status.state ?? "", lastStory);
+      if (score) scores[v] = score;
     }
     const rescored: Record<string, Rescored> = {};
     for (const [v, id] of Object.entries(r.rescoreLast)) {

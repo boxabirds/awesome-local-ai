@@ -2,7 +2,11 @@ import type { MachineGroup } from "../../shared/grouping.ts";
 import type { Machine, State } from "../../shared/types.ts";
 import { RunRow } from "./RunRow.tsx";
 
-interface Props { group: MachineGroup; state: State; serverNow: number | null }
+interface Props {
+  group: MachineGroup; state: State; serverNow: number | null;
+  /** The flows every shown score is out of ("Score / 75"); null if they differ or there are none. */
+  scoreTotal: number | null;
+}
 
 const COLUMNS: [string, string][] = [
   ["Run", "14%"], ["Status", "10%"], ["Story", "14%"], ["Time", "10%"], ["Activity", "16%"],
@@ -29,7 +33,7 @@ function NodeStatus({ info }: { info: Machine }) {
 }
 
 /** One machine and every run on it: the running one, its queue in order, then finished runs. */
-export function MachineSection({ group, state, serverNow }: Props) {
+export function MachineSection({ group, state, serverNow, scoreTotal }: Props) {
   const host = group.rows.find((r) => r.host && r.host !== group.machine)?.host;
   return (
     <section data-machine={group.machine}>
@@ -42,7 +46,7 @@ export function MachineSection({ group, state, serverNow }: Props) {
         <table>
           <colgroup>{COLUMNS.map(([name, width]) => <col key={name} style={{ width }} />)}</colgroup>
           <thead>
-            <tr>{COLUMNS.map(([name]) => <th key={name}>{name}</th>)}</tr>
+            <tr>{COLUMNS.map(([name]) => <th key={name}>{name === "Score" && scoreTotal ? `Score / ${scoreTotal}` : name}</th>)}</tr>
           </thead>
           <tbody>
             {group.rows.map((r) => <RunRow key={`${r.stack}:${r.runId}:${r.live?.jobId ?? ""}`} row={r} state={state} serverNow={serverNow} />)}
