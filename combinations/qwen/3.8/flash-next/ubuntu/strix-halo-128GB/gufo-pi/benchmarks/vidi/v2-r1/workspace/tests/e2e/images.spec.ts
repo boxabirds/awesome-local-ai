@@ -152,8 +152,14 @@ test.describe('Image workflows (story 12)', () => {
     // Remove the route interception (unblock uploads)
     await page.unroute('**/api/boards/*/assets');
 
-    // Click Retry button
-    await page.getByTestId('image-retry').click({ force: true });
+    // Click the Retry button. The button is inside a transformed stacking context
+    // (.board-world uses `transform`), so Playwright's real-pointer click hit-tests
+    // against the viewport; dispatch the click via JS instead.
+    await page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="image-retry"]') as HTMLButtonElement | null;
+      if (!btn) throw new Error('image-retry button not found');
+      btn.click();
+    });
 
     // Should become 'ready' after retry
     await waitForImageReady(page);

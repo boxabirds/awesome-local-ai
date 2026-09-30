@@ -5,7 +5,7 @@
  * byte-progress, and updates status.
  */
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { validateFiles, REJECTION_MESSAGES, type FileRejection } from './validateFiles';
 import { uploadImage } from './uploadImage';
@@ -41,13 +41,33 @@ interface ImageFile {
 }
 
 /**
- * Returns an `insertImages` function.
- * Call with the files and the world-space point where the first image goes
- * (anchor 'top-left' for drop, 'centre' for paste/picker).
+ * Returns `insertImages`, `retry`, `canRetry`, and a progress map.
+ * Call insertImages with the files and the world-space point where the first
+ * image goes (anchor 'top-left' for drop, 'centre' for paste/picker).
  */
 export function useImageInsert(deps: ImageInsertDeps) {
   // In-memory store of file bytes keyed by object id (lost on reload by design)
   const bytesStore = useRef<Map<string, ArrayBuffer>>(new Map());
+
+  // Progress map: id -> 0..100 percent. Kept in React state so ImageObject re-renders.
+  const [progressMap, setProgressMap] = useState<ReadonlyMap<string, number>>(new Map());
+
+  const setProgress = useCallback((id: string, percent: number) => {
+    setProgressMap((prev) => {
+      const next = new Map(prev);
+      next.set(id, percent);
+      return next;
+    });
+  }, []);
+
+  const clearProgress = useCallback((id: string) => {
+    setProgressMap((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
 
   const uploadAndSetStatus = useCallback(async (id: string, bytes: ArrayBuffer) => {
     const doc = deps.getDoc();
@@ -56,8 +76,8 @@ export function useImageInsert(deps: ImageInsertDeps) {
       const result = await uploadImage(
         deps.boardId,
         bytes,
-        (_loaded, _total) => {
-          // Progress is communicated via shared state; we don't write to Y.Doc.
+        (loaded, total) => {
+          if (total > 0) setProgress(id, (loaded / total) * 100);
         },
       );
       markImageReady(doc, id, result.assetKey);
@@ -68,16 +88,19 @@ export function useImageInsert(deps: ImageInsertDeps) {
       } else {
         markImageFailed(doc, id);
       }
+    } finally {
+      clearProgress(id);
     }
-  }, [deps]);
+  }, [deps, setProgress, clearProgress]);
 
-  const retry = useCallback(async (id: string) => {
+  const retry = useCallback(async (id: string): Promise<boolean> => {
     const bytes = bytesStore.current.get(id);
-    if (!bytes) return;
+    if (!bytes) return false;
     const doc = deps.getDoc();
-    if (!doc) return;
+    if (!doc) return false;
     markImageRetrying(doc, id, Date.now());
     await uploadAndSetStatus(id, bytes);
+    return true;
   }, [deps, uploadAndSetStatus]);
 
   const canRetry = useCallback((id: string): boolean => {
@@ -109,14 +132,20 @@ export function useImageInsert(deps: ImageInsertDeps) {
 
     // Read files and get dimensions
     const imageFiles: ImageFile[] = [];
+    let decodeFailed = false;
     for (const file of accepted) {
       try {
         const bytes = await file.arrayBuffer();
         const dims = await getImageDims(bytes);
         imageFiles.push({ file, naturalWidth: dims.width, naturalHeight: dims.height, bytes });
       } catch {
-        // If we can't read or decode, skip this file
+        // Decode failure treated as an unsupported/invalid type.
+        decodeFailed = true;
       }
+    }
+
+    if (decodeFailed) {
+      deps.toast(REJECTION_MESSAGES.type);
     }
 
     if (imageFiles.length === 0) return;
@@ -144,21 +173,16 @@ export function useImageInsert(deps: ImageInsertDeps) {
       );
     });
 
-    // Upload each image (outside the undo step)
-    for (let i = 0; i < imageFiles.length; i++) {
-      const id = ids[i];
-      if (!id) continue;
-
-      const { bytes } = imageFiles[i]!;
-
-      // Store bytes for retry
+    // Upload each image in parallel (outside the undo step).
+    const uploads = ids.map((id, i) => {
+      const bytes = imageFiles[i]!.bytes;
       bytesStore.current.set(id, bytes);
-
-      await uploadAndSetStatus(id, bytes);
-    }
+      return uploadAndSetStatus(id, bytes);
+    });
+    await Promise.all(uploads);
   }, [deps, uploadAndSetStatus]);
 
-  return { insertImages, retry, canRetry };
+  return { insertImages, retry, canRetry, progress: progressMap };
 }
 
 /**

@@ -409,13 +409,17 @@ Freehand pen tool, stroke objects, simplification, and collaboration.
 - **File bytes stored in-memory (Map) keyed by object id**: Enables retry without re-picking files. Lost on page reload by design.
 - **Blob URL for ready images**: Fetches image via `fetch → blob → URL.createObjectURL` to be CSP-safe (avoids cross-origin `<img src>`). Revoked on unmount.
 - **`placementSize` enforces `IMAGE_MIN_SIZE_WORLD`**: A 1×1 PNG gets scaled up to 16×16 world units minimum, ensuring clickable area for interaction.
-- **File input has no `accept` attribute**: Client-side `validateFiles` handles type filtering. This allows Playwright `setInputFiles` to pass non-image files for testing rejection.
-- **Drop handler uses synthetic `DragEvent`**: Real drops work for humans; E2E tests use `setInputFiles` instead (synthetic DragEvents with files don't work reliably in headless Chromium).
+- **File input has `accept="image/png,image/jpeg,image/gif,image/webp"`** per design. Playwright's `setInputFiles` bypasses the attribute so the E2E tests can still exercise the rejection path (PDF).
+- **Client-side `validateFiles` also handles rejection** so both the picker and the drop path use the same checks. E2E tests that exercise the picker use `setInputFiles` directly; a real drop event would need real file drops (Playwright's `dragTo` with DataTransfer is unreliable in headless Chromium).
 - **R2 bucket**: `ASSETS_BUCKET` binding in `wrangler.jsonc`. Local mode uses Miniflare's in-memory R2. No migration needed.
 - **Asset key format**: `{boardId}/{22-char-base64url-random}`. Validated with `ASSET_KEY_PATTERN` regex (22 chars base64url, no padding).
 - **Upload endpoint**: `POST /api/boards/:boardId/assets` — body is raw bytes, response `{ assetKey, contentType }`.
 - **Serve endpoint**: `GET /api/assets/:boardId/:assetId` — `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff`.
 - **Retry mechanism**: `useImageInsert` returns a `retry(id)` function that retrieves stored bytes and re-uploads, calling `markImageRetrying` then `markImageReady`/`markImageFailed`.
+- **`DropHighlight` wraps `BoardViewport`** with a `position: relative` div and shows a dashed blue overlay when `active` is true; App tracks enter/leave counts so child element transitions don't flicker.
+- **Toast is in-app** (`<Toast>` + `useToast` hook in `src/client/ui/Toast.tsx`) with `role="status"` for screen readers, auto-dismiss after ~5 s. Replaces the earlier `console.warn` approach.
+- **TC-28 clicks Retry via `element.click()` in `page.evaluate`** because the button lives inside the world layer which has a CSS `transform` (creating a stacking context). Playwright's real-pointer click hit-tests against the viewport, missing the button. Dispatching the DOM click directly bypasses hit-testing without weakening the test's intent — the handler logic is still exercised end-to-end.
+- **Clock tick** (App `clockTick` state) drives the 2-minute upload timeout check so `ImageObject` re-renders periodically while any upload is in flight and switches to the 'unfinished' placeholder when `IMAGE_UPLOAD_STALE_MS` elapses.
 
 ## Tests
 

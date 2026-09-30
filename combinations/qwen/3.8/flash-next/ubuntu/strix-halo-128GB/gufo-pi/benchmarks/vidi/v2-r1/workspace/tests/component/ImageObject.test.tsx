@@ -41,37 +41,42 @@ function makeImageSnap(overrides?: Partial<ImageSnap>): ImageSnap {
 }
 
 describe('TC-21: Failed image states', () => {
-  it('shows "Upload failed" for uploader with Retry button', () => {
+  it('shows "Upload failed" for uploader with Retry and Remove buttons', () => {
     const snap = makeImageSnap({ status: 'failed', uploaderId: 'local' });
     render(
       <ImageObject
         snap={snap}
         camera={{ x: 0, y: 0, zoom: 1 }}
         isSelected={false}
+        isUploader={true}
+        canRetry={true}
         onRetry={() => {}}
+        onRemove={() => {}}
       />,
     );
     expect(screen.getByText('Upload failed')).toBeTruthy();
     expect(screen.getByTestId('image-retry')).toBeTruthy();
+    expect(screen.getByTestId('image-remove')).toBeTruthy();
   });
 
-  it('shows "Upload failed" for non-uploader too (per implementation)', () => {
+  it('shows "Image unavailable" for non-uploader', () => {
     const snap = makeImageSnap({ status: 'failed', uploaderId: 'other' });
     render(
       <ImageObject
         snap={snap}
         camera={{ x: 0, y: 0, zoom: 1 }}
         isSelected={false}
+        isUploader={false}
       />,
     );
-    // The image container has status="failed"
-    const el = screen.getByTestId('image-img-1');
-    expect(el.getAttribute('data-image-status')).toBe('failed');
+    expect(screen.getByTestId('image-unavailable')).toBeTruthy();
+    // No Retry or Remove for non-uploader
+    expect(screen.queryByTestId('image-retry')).toBeNull();
   });
 });
 
 describe('TC-22: Stale upload → unfinished', () => {
-  it('uploading older than IMAGE_UPLOAD_STALE_MS → unfinished message', () => {
+  it('uploading older than IMAGE_UPLOAD_STALE_MS → unfinished message + Remove', () => {
     const snap = makeImageSnap({
       status: 'uploading',
       uploadStartedAt: Date.now() - IMAGE_UPLOAD_STALE_MS - 1000,
@@ -81,9 +86,11 @@ describe('TC-22: Stale upload → unfinished', () => {
         snap={snap}
         camera={{ x: 0, y: 0, zoom: 1 }}
         isSelected={false}
+        onRemove={() => {}}
       />,
     );
-    expect(screen.getByText('Upload incomplete — refresh to retry')).toBeTruthy();
+    expect(screen.getByText("Image upload didn't finish")).toBeTruthy();
+    expect(screen.getByTestId('image-remove')).toBeTruthy();
   });
 });
 
@@ -114,7 +121,7 @@ describe('TC-23: Ready image fetch error → unavailable', () => {
   });
 });
 
-describe('TC-24: Ready image renders img element', () => {
+describe('TC-24 (part 1): Ready image renders img element', () => {
   it('fetches blob and creates img when ready', async () => {
     const mockBlob = new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: 'image/png' });
     const originalFetch = globalThis.fetch;
@@ -315,6 +322,216 @@ describe('TC-29: createImageBitmap rejects → no placeholder', () => {
     });
 
     globalThis.createImageBitmap = originalCreateImageBitmap;
+  });
+});
+
+describe('TC-24 (part 2): Retry with file in memory', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('retry with stored bytes re-uploads and returns true; canRetry reflects bytes', async () => {
+    const doc = new Y.Doc();
+    doc.getMap('objects');
+
+    let uploadCalls = 0;
+    (uploadImage as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      uploadCalls += 1;
+      return Promise.resolve({ assetKey: 'b/a', contentType: 'image/png' });
+    });
+
+    const originalBitmap = globalThis.createImageBitmap;
+    globalThis.createImageBitmap = vi.fn().mockResolvedValue({ width: 100, height: 100, close() {} });
+
+    let hook: ReturnType<typeof useImageInsert> | null = null;
+    const Harness: React.FC = () => {
+      hook = useImageInsert({
+        boardId: 'test-board',
+        getDoc: () => doc,
+        undoBoundary: (_l, fn) => fn(),
+        toast: () => {},
+        screenToWorld: (p) => p,
+        isOnline: () => true,
+        clientId: () => 'local',
+      });
+      return null;
+    };
+
+    const files = [new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'a.png', { type: 'image/png' })];
+    await act(async () => {
+      render(<Harness />);
+    });
+    await act(async () => {
+      await hook!.insertImages(files, { x: 0, y: 0 }, 'top-left');
+    });
+
+    const objects = doc.getMap('objects');
+    const id = [...objects.keys()][0]!;
+
+    // canRetry is true because bytes are in memory
+    expect(hook!.canRetry(id)).toBe(true);
+
+    // Mark as failed, then retry
+    await act(async () => {
+      const ok = await hook!.retry(id);
+      expect(ok).toBe(true);
+    });
+
+    // Upload was called a second time (retry)
+    expect(uploadCalls).toBeGreaterThanOrEqual(2);
+
+    // canRetry on a non-existent id returns false (simulates reload losing bytes)
+    expect(hook!.canRetry('no-such-id')).toBe(false);
+
+    globalThis.createImageBitmap = originalBitmap;
+  });
+
+  it('ImageObject with canRetry=false hides Retry and shows only Remove', () => {
+    const snap = makeImageSnap({ status: 'failed', uploaderId: 'local' });
+    render(
+      <ImageObject
+        snap={snap}
+        camera={{ x: 0, y: 0, zoom: 1 }}
+        isSelected={false}
+        isUploader={true}
+        canRetry={false}
+        onRetry={() => {}}
+        onRemove={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('image-remove')).toBeTruthy();
+    expect(screen.queryByTestId('image-retry')).toBeNull();
+  });
+});
+
+describe('TC-18: Paste — text editing vs board focused', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /**
+   * A test component that mimics the App paste handler logic:
+   * - skips paste when the target is a text-entry element or editing is set
+   * - otherwise calls insertImages(files, viewCentre, 'centre')
+   */
+  function PasteHarness({ doc, isEditing }: { doc: Y.Doc; isEditing: boolean }) {
+    const { insertImages: insert } = useImageInsert({
+      boardId: 'test-board',
+      getDoc: () => doc,
+      undoBoundary: (_l, fn) => fn(),
+      toast: () => {},
+      screenToWorld: (p) => p,
+      isOnline: () => true,
+      clientId: () => 'local',
+    });
+
+    React.useEffect(() => {
+      const handler = (e: ClipboardEvent) => {
+        const target = e.target as HTMLElement | null;
+        const isTargetText =
+          target != null &&
+          (target.tagName === 'TEXTAREA' ||
+            target.tagName === 'INPUT' ||
+            target.isContentEditable);
+        if (isTargetText || isEditing) return;
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        const files: File[] = [];
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i]!;
+          if (it.kind === 'file' && (it.type === 'image/png' || it.type === 'image/jpeg' || it.type === 'image/gif' || it.type === 'image/webp')) {
+            const f = it.getAsFile();
+            if (f) files.push(f);
+          }
+        }
+        if (files.length === 0) return;
+        insert(files, { x: 400, y: 300 }, 'centre');
+      };
+      document.addEventListener('paste', handler);
+      return () => document.removeEventListener('paste', handler);
+    }, [insert, isEditing]);
+
+    return null;
+  }
+
+  function firePaste(files: File[], target: EventTarget = document.body) {
+    // Build a clipboardData-like object (jsdom has no DataTransfer).
+    const items = files.map((f) => ({
+      kind: 'file' as const,
+      type: f.type,
+      getAsFile: () => f,
+    }));
+    const clipboardData = {
+      items,
+      files,
+      getData: () => '',
+      types: items.map((i) => i.type),
+    };
+    const evt = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(evt, 'clipboardData', { value: clipboardData });
+    target.dispatchEvent(evt);
+    return evt;
+  }
+
+  it('paste while focused in a textarea does NOT create an image', async () => {
+    const doc = new Y.Doc();
+    doc.getMap('objects');
+
+    (uploadImage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      assetKey: 'b/a', contentType: 'image/png',
+    });
+    const originalBitmap = globalThis.createImageBitmap;
+    globalThis.createImageBitmap = vi.fn().mockResolvedValue({ width: 100, height: 100, close() {} });
+
+    const textarea = document.createElement('textarea');
+    document.body.appendChild(textarea);
+    textarea.focus();
+
+    render(<PasteHarness doc={doc} isEditing={false} />);
+
+    const png = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'a.png', { type: 'image/png' });
+    await act(async () => {
+      firePaste([png], textarea);
+      await Promise.resolve();
+    });
+
+    // No objects should be created (paste target is a textarea)
+    expect(doc.getMap('objects').size).toBe(0);
+
+    document.body.removeChild(textarea);
+    globalThis.createImageBitmap = originalBitmap;
+  });
+
+  it('paste while board focused creates an image centred in the view', async () => {
+    const doc = new Y.Doc();
+    doc.getMap('objects');
+
+    (uploadImage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      assetKey: 'b/a', contentType: 'image/png',
+    });
+    const originalBitmap = globalThis.createImageBitmap;
+    globalThis.createImageBitmap = vi.fn().mockResolvedValue({ width: 100, height: 100, close() {} });
+
+    render(<PasteHarness doc={doc} isEditing={false} />);
+
+    const png = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'a.png', { type: 'image/png' });
+    await act(async () => {
+      firePaste([png]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(doc.getMap('objects').size).toBe(1);
+    });
+
+    // Verify it's centred at (400, 300) — placementSize for 100x100 is 100x100;
+    // with 'centre' anchor the rect starts at (400-50, 300-50) = (350, 250).
+    const objects = doc.getMap('objects');
+    const first = [...objects.values()][0] as Y.Map<unknown>;
+    expect(first.get('x')).toBe(350);
+    expect(first.get('y')).toBe(250);
+
+    globalThis.createImageBitmap = originalBitmap;
   });
 });
 

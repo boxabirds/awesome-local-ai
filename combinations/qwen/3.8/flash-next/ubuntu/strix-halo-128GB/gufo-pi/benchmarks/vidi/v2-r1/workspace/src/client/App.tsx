@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
@@ -8,7 +8,7 @@ import { useCamera, useViewportSize } from './canvas/useCamera';
 import { TEST_MODE } from './canvas/testHooks';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
-import { useSelection } from './board/useSelection';
+import { useSelection, isTextEntryTarget } from './board/useSelection';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useUndo } from './board/useUndo';
@@ -52,6 +52,8 @@ import { ImageObject } from './objects/ImageObject';
 import type { ImageSnap as ImageSnapType } from '../shared/objects/image';
 import { useImageInsert } from './images/useImageInsert';
 import { IMAGE_ACCEPTED_TYPES } from '../shared/config';
+import { Toast, useToast } from './ui/Toast';
+import { DropHighlight } from './images/DropHighlight';
 import type { FillColor, StrokeColor } from '../shared/config';
 import type { Rect } from '../shared/geometry';
 import { objectBounds } from '../shared/board-model';
@@ -118,12 +120,15 @@ export function App(props: { boardId: string }) {
     [],
   );
 
+  // Toast state (bottom status messages, role=status)
+  const { toasts, push: pushToast, dismiss: dismissToast } = useToast();
+
   // Image insert hook
-  const { insertImages, retry: retryImage, canRetry: _canRetry } = useImageInsert({
+  const { insertImages, retry: retryImage, canRetry, progress: imageProgress } = useImageInsert({
     boardId,
     getDoc: () => doc,
     undoBoundary: (_label, fn) => fn(),
-    toast: (msg) => { console.warn(msg); },
+    toast: pushToast,
     screenToWorld: (screen) => screenToWorld(cameraRef.current, screen),
     isOnline: () => editing,
     clientId: () => 'local',
@@ -133,6 +138,28 @@ export function App(props: { boardId: string }) {
 
   const handleImagePicker = useCallback(() => {
     fileInputRef.current?.click();
+  }, []);
+
+  // Drop highlight state: shown while files are dragged over the board.
+  const [dropActive, setDropActive] = useState(false);
+  const dragDepthRef = useRef(0);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    // Only respond to file drags, not text or element drags.
+    if (e.dataTransfer.types?.includes('Files')) {
+      dragDepthRef.current += 1;
+      setDropActive(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setDropActive(false);
+  }, []);
+
+  const clearDrop = useCallback(() => {
+    dragDepthRef.current = 0;
+    setDropActive(false);
   }, []);
 
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,16 +174,19 @@ export function App(props: { boardId: string }) {
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    clearDrop();
     if (!editing) return;
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
     const screen = { x: e.clientX, y: e.clientY };
     const world = screenToWorld(cameraRef.current, screen);
     insertImages(files, world, 'top-left');
-  }, [editing, insertImages]);
+  }, [editing, insertImages, clearDrop]);
 
   const handlePaste = useCallback((e: ClipboardEvent) => {
     if (!editing) return;
+    // Do not intercept paste while a text object or input is being edited.
+    if (isTextEntryTarget(e.target) || selection.editingId !== null) return;
     const items = e.clipboardData?.items;
     if (!items) return;
     const files: File[] = [];
@@ -169,7 +199,7 @@ export function App(props: { boardId: string }) {
     if (files.length === 0) return;
     const world = screenToWorld(cameraRef.current, { x: viewport.width / 2, y: viewport.height / 2 });
     insertImages(files, world, 'centre');
-  }, [editing, insertImages, viewport]);
+  }, [editing, insertImages, viewport, selection.editingId]);
 
   useEffect(() => {
     const handler = (e: ClipboardEvent) => handlePaste(e);
@@ -462,6 +492,26 @@ export function App(props: { boardId: string }) {
     return result.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }, [objSnapshots, doc, notes]);
 
+  // Clock tick: re-render every 30 s while any image is uploading so the
+  // `unfinished` state appears without interaction.
+  const [clockTick, setClockTick] = useState(() => Date.now());
+  const hasUploading = useMemo(
+    () => imageObjects.some((img) => img.status === 'uploading'),
+    [imageObjects],
+  );
+  useEffect(() => {
+    if (!hasUploading) return undefined;
+    const id = setInterval(() => setClockTick(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [hasUploading]);
+
+  const handleRemoveImage = useCallback((id: string) => {
+    if (!editing) return;
+    undoBoundary();
+    deleteObjects(doc, [id]);
+    undoBoundary();
+  }, [doc, editing, undoBoundary]);
+
   // Build rects map for connector resolution
   const rectsMap: ReadonlyMap<string, Rect> = useMemo(() => {
     const map = new Map<string, Rect>();
@@ -512,6 +562,7 @@ export function App(props: { boardId: string }) {
   return (
     <>
       <ConnectionStatus state={connectionState} />
+      <DropHighlight active={dropActive}>
       <BoardViewport
         camera={cameraApi}
         onEmptyClick={() => selection.clear()}
@@ -523,6 +574,8 @@ export function App(props: { boardId: string }) {
         tool={tool}
         onTextToolClick={handleTextToolClick}
         onDrop={handleDrop}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
       >
         {paintedNotes.map((note) => (
           <StickyNote
@@ -601,7 +654,12 @@ export function App(props: { boardId: string }) {
             camera={camera}
             isSelected={selection.ids.has(img.id)}
             onPointerDown={(e: React.PointerEvent) => gesture.onObjectPointerDown(e, img.id)}
-            onRetry={retryImage}
+            onRetry={(id) => { retryImage(id); }}
+            isUploader={img.uploaderId === 'local'}
+            progress={imageProgress.get(img.id)}
+            canRetry={canRetry(img.id)}
+            now={clockTick}
+            onRemove={handleRemoveImage}
           />
         ))}
         <SelectionOverlay
@@ -613,6 +671,7 @@ export function App(props: { boardId: string }) {
         />
         <MarqueeRect rect={marquee.rect} />
       </BoardViewport>
+      </DropHighlight>
 
       {/* Connector objects render as fixed overlays */}
       {connectorObjects.map((conn) => (
@@ -674,6 +733,7 @@ export function App(props: { boardId: string }) {
         onToolChange={setTool}
         shapeKind={shapeKind}
         onShapeKindChange={setShapeKind}
+        onImagePicker={handleImagePicker}
       />
       {tool === 'pen' && (
         <PenToolbar
@@ -696,10 +756,12 @@ export function App(props: { boardId: string }) {
         ref={fileInputRef}
         type="file"
         multiple
+        accept={IMAGE_ACCEPTED_TYPES.join(',')}
         data-testid="image-file-input"
         style={{ display: 'none' }}
         onChange={handleFileInputChange}
       />
+      <Toast toasts={toasts} onDismiss={dismissToast} />
       <SharePanel boardId={boardId} />
       {/* Selection bar renders in a fixed position overlay */}
       <div className="selection-bar-overlay" data-testid="selection-bar-overlay">

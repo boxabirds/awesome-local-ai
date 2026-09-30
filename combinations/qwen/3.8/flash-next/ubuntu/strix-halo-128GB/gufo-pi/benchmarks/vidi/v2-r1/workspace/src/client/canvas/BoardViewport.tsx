@@ -49,6 +49,10 @@ export interface BoardViewportProps {
   onTextToolClick?(point: Point): void;
   /** Called when files are dropped onto the board. */
   onDrop?(e: React.DragEvent): void;
+  /** Called when a drag enters the board area. */
+  onDragEnter?(e: React.DragEvent): void;
+  /** Called when a drag leaves the board area. */
+  onDragLeave?(e: React.DragEvent): void;
   /** Called on paste events. */
   onPaste?(e: React.ClipboardEvent): void;
   /** Called when the picker button is clicked. */
@@ -94,6 +98,8 @@ export function BoardViewport({
   tool,
   onTextToolClick,
   onDrop,
+  onDragEnter,
+  onDragLeave,
   onPaste,
 }: BoardViewportProps) {
   const { camera } = cameraApi;
@@ -312,6 +318,8 @@ export function BoardViewport({
       onLostPointerCapture={handlePointerCancel}
       onDoubleClick={handleDoubleClick}
       onDragOver={(e) => { e.preventDefault(); }}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
       onDrop={onDrop}
       onPaste={onPaste}
       tabIndex={0}

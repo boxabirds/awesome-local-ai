@@ -16,6 +16,8 @@ export interface ToolbarProps {
   shapeKind?: ShapeKind;
   /** Set the shape kind */
   onShapeKindChange?(kind: ShapeKind): void;
+  /** Open the image file picker (Image button / I shortcut). */
+  onImagePicker?(): void;
 }
 
 /** The tooltip of the Sticky note button, exactly as the product names it. */
@@ -35,6 +37,7 @@ export function Toolbar({
   onToolChange,
   shapeKind = 'rect',
   onShapeKindChange,
+  onImagePicker,
 }: ToolbarProps): JSX.Element {
   return (
     <div
@@ -151,6 +154,22 @@ export function Toolbar({
           <path d="M3 17l1-4L15 2l3 3L7 16l-4 1z" fill="none" stroke="currentColor" strokeWidth="1.5" />
         </svg>
         <span>Pen</span>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar__button"
+        data-testid="tool-image"
+        aria-label="Image (I)"
+        title="Image (I)"
+        onClick={() => onImagePicker?.()}
+        disabled={disabled}
+      >
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+          <rect x="2" y="3" width="16" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <circle cx="7" cy="8" r="1.5" fill="currentColor" />
+          <path d="M3 15l4-4 3 3 4-4 3 3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+        <span>Image</span>
       </button>
       {undo ? <UndoButtons {...undo} /> : null}
     </div>

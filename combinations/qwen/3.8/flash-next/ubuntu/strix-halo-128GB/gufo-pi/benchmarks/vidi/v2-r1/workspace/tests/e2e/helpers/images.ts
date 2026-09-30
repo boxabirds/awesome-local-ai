@@ -75,11 +75,12 @@ export async function waitForImageReady(page: Page, timeout?: number): Promise<v
       async () => {
         return page.evaluate(() => {
           const images = document.querySelectorAll('[data-testid^="image-"][data-image-status]');
+          if (images.length === 0) return false;
           for (const el of images) {
             const status = el.getAttribute('data-image-status');
-            if (status === 'ready') return true;
+            if (status !== 'ready') return false;
           }
-          return false;
+          return true;
         });
       },
       { timeout: timeout ?? E2E_EVENTUAL_TIMEOUT_MS },
