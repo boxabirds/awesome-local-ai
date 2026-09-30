@@ -7,7 +7,7 @@ import { Against } from "../components/run/Against.tsx";
 import "./run.css";
 
 /** One run's work on one story (plan section 4.4). A story in scope but not recorded yet shows what is known. */
-export function StoryRunPage({ run, storyId, state }: { run: Row; story: Story | null; storyId: string; state: State; serverNow: number | null }) {
+export function StoryRunPage({ run, storyId, state }: { run: Row; story: Story | null; storyId: string; state: State; serverNow: number | null; params?: Record<string, string> }) {
   const st = storyRunState(run, storyId);
   const title = storyTitle(run, state.rows, storyId);
   return (
