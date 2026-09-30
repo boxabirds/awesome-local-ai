@@ -44,6 +44,8 @@ test("stories working: one square per story in scope, against the latest build, 
   await expect(sw.locator("[data-story='3']")).toHaveAttribute("data-state", "running");
   await expect(sw.locator("[data-story='4']")).toHaveAttribute("data-state", "unbuilt");
   await expect(sw).toContainText("1 of 11 pass");
+  // Coloured by the stories built so far (1 of 2 pass: amber-or-red), not by the whole scope.
+  await expect(sw.locator("strong")).toHaveAttribute("data-tip", /1 of the 2 stories built so far/);
   await expect(sw.locator("[data-story='2']")).toHaveAttribute("data-tip", /9\/10 hidden flows/);
 });
 

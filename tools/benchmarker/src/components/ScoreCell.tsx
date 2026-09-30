@@ -1,5 +1,6 @@
 import type { Row } from "../../shared/types.ts";
 import { scoreOf } from "../../shared/stats.ts";
+import { qualityClass } from "../format.ts";
 
 export { scoreOf };
 
@@ -12,6 +13,6 @@ export function ScoreCell({ row, building, web, branch }: Props) {
   const [version, s] = found;
   const link = web && row.dir ? `${web}/blob/${branch}/${row.dir}/rescore/${version}/per-story.md` : null;
   const title = `${s.passed} of ${s.total} hidden flows pass · suite ${version}${s.flaky ? ` · ${s.flaky} flaky` : ""} · per-story results`;
-  const n = <strong className="score-n">{s.passed}</strong>;
+  const n = <strong className={`num-xl ${qualityClass(s.total && s.passed !== null ? s.passed / s.total : null)}`}>{s.passed}</strong>;
   return link ? <a href={link} target="_blank" rel="noopener" data-tip={title}>{n}</a> : <span data-tip={title}>{n}</span>;
 }
