@@ -29,13 +29,14 @@ def run_dir(tmp_path: Path, work: Path) -> Path:
     return run
 
 
-def fake_rescore(passed: int, total: int, calls: list):
+def fake_rescore(passed: int, total: int, calls: list, fault: str | None = None):
     """Stands in for rescore.py --final: writes what it would, without a browser."""
     def rescore(run: Path, bundle: Path, version: str) -> None:
         calls.append((run, bundle, version))
         out = run / "rescore" / version
         out.mkdir(parents=True)
-        (out / "rescore.json").write_text(json.dumps({"pack_version": version, "results": [{"story": 2, "passed": passed, "total": total}]}))
+        (out / "rescore.json").write_text(json.dumps({"pack_version": version, "results": [
+            {"story": 2, "passed": passed, "total": total, "harness_fault": fault}]}))
     return rescore
 
 
@@ -91,3 +92,19 @@ def test_a_failed_rescore_is_reported_not_raised(tmp_path):
     assert out["rescore"] == "failed" and "no browser" in out["reason"]
     assert (run / "workspace.bundle").is_file()
     assert "re-score failed" in messages[0]
+
+
+def test_a_rescore_the_machine_spoiled_is_not_a_score_and_does_not_block_a_retry(tmp_path):
+    """30 Sep 2026: Swift v2-r2's re-score ran under a Node too old for Playwright; the runner crashed before
+    any test, and the record said "final score 0/0"."""
+    run = run_dir(tmp_path, workspace_with_history(tmp_path))
+    calls, messages = [], []
+    out = finalize.finalize(run, "vidi-v2.0-pre2", "vidi-v2.0-pre2",
+                            rescore=fake_rescore(0, 0, calls, fault="scoring interrupted: the held-out runner failed to start"),
+                            record=messages.append)
+    assert out["rescore"] == "failed" and "score" not in out and "runner failed to start" in out["reason"]
+    assert messages and "0/0" not in messages[0] and "failed" in messages[0]
+    assert not (run / "rescore" / "vidi-v2.0-pre2").exists()          # set aside, so the page never shows it
+    assert [p.name.startswith("vidi-v2.0-pre2-") for p in (run / "rescore-spoiled").iterdir()] == [True]
+    finalize.finalize(run, "vidi-v2.0-pre2", "vidi-v2.0-pre2", rescore=fake_rescore(61, 75, calls), record=None)
+    assert len(calls) == 2                                             # and the next finalize tries again

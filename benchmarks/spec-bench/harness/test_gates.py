@@ -170,6 +170,22 @@ def test_a_suite_runner_that_timed_out_without_a_report_is_a_harness_fault(tmp_p
     assert res["harness_fault"] and "timed out" in res["harness_fault"]
 
 
+def test_a_suite_runner_that_crashed_loading_playwright_is_a_harness_fault(tmp_path, monkeypatch):
+    """30 Sep 2026: under Node 12, Playwright's own code didn't parse; the record said 0/0."""
+    acc = _suite_with_story_1(tmp_path)
+    crash = (f"{acc}/node_modules/playwright-core/lib/cli/program.js:160\n"
+             "        console.log(`  Install location:    ${executable.directory ?? \"<system>\"}`);\n"
+             "SyntaxError: Unexpected token '?'\n    at wrapSafe (internal/modules/cjs/loader.js:915:16)\n"
+             f"    at Object.<anonymous> ({acc}/node_modules/playwright/lib/program.js:36:22)\n")
+    run, _ = _runs({"exit": 1, "tail": crash})
+    monkeypatch.setattr(gates, "_run", run)
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
+    res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
+    assert res["harness_fault"] and res["harness_fault"].startswith(gates.SCORING_INTERRUPTED)
+    assert "runner failed to start" in res["harness_fault"] and "SyntaxError" in res["harness_fault"]
+
+
 def test_a_suite_that_fails_normally_without_a_report_is_not_interrupted(tmp_path, monkeypatch):
     acc = _suite_with_story_1(tmp_path)
     run, calls = _runs({"exit": 1, "tail": "Error: something in the app"})

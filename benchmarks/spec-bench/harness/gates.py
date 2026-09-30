@@ -214,6 +214,10 @@ def missing_browser(output: str) -> str | None:
     return next((sig for sig in BROWSER_MISSING_SIGNS if sig in (output or "")), None)
 
 
+RUNNER_FRAME = re.compile(r"/node_modules/playwright(-core)?/lib/")   # a stack frame inside the runner itself
+ERROR_LINE = re.compile(r"^\s*[A-Z]\w*Error\b.*")
+
+
 def interrupted(run: dict, report: Path) -> str | None:
     """Why the suite runner produced no score, if something outside the app stopped it."""
     if report.exists():
@@ -223,6 +227,10 @@ def interrupted(run: dict, report: Path) -> str | None:
         return f"{SCORING_INTERRUPTED} the held-out suite timed out after {ACCEPT_TIMEOUT_S}s before writing a report"
     if isinstance(code, int) and code < 0:
         return f"{SCORING_INTERRUPTED} the held-out suite was killed by signal {-code} before writing a report"
+    tail = run.get("tail") or ""
+    if code != 0 and RUNNER_FRAME.search(tail):   # Playwright's own code threw: no test ran, whatever the app is
+        err = next((m.group(0) for m in map(ERROR_LINE.match, tail.splitlines()) if m), "an error")
+        return f"{SCORING_INTERRUPTED} the held-out runner failed to start ({err[:160]})"
     return None
 
 

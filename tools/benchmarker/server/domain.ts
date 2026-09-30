@@ -503,13 +503,14 @@ export function scopeIds(jobStories: string[], counts: Record<string, number> | 
 
 // ---------- scores ----------
 
-export interface RawRescore { finished_at?: string; results?: { story?: number; passed?: number; total?: number; flaky?: number }[] }
+export interface RawRescore { finished_at?: string; results?: { story?: number; passed?: number; total?: number; flaky?: number; harness_fault?: string | null }[] }
 
 /** A re-score is a score of record only when the run finished and it re-scored the run's last story (the
- * whole build). A partial re-score still corrects the story squares, but isn't the run's score. */
+ * whole build), and the machine didn't spoil it (harness_fault). A partial re-score still corrects the story
+ * squares, but isn't the run's score. */
 export function finalScore(rs: RawRescore | null, state: string, lastStory: string | undefined): Score | null {
   const last = rs?.results?.at(-1);
-  if (!last || state !== "finished" || lastStory === undefined || String(last.story) !== String(Number(lastStory))) return null;
+  if (!last || last.harness_fault || state !== "finished" || lastStory === undefined || String(last.story) !== String(Number(lastStory))) return null;
   return { passed: last.passed ?? null, total: last.total ?? null,
     flaky: (rs!.results ?? []).reduce((n, x) => n + (x.flaky ?? 0), 0), at: rs!.finished_at ?? "" };
 }
