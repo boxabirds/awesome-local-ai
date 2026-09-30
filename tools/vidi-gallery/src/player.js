@@ -110,9 +110,8 @@ function keyAction(e, pane) {
   // In the tests pane a scrub carries on into the next or previous test at either end (hold to fly through).
   const step = dir => ({ frac: dir * (shift ? FINE_SCRUB : SCRUB), ...(pane === "tests" ? { cross: true } : {}) });
   const scrub = dir => ({ do: "scrub", ...step(dir) });
-  // Aliases, so the key under the thumb does the most common thing: Space is the right arrow everywhere, and
   // Return is = in the tests (agree and on), the right arrow in the stories and the down arrow in the steps.
-  if (code === "Space") return keyAction({ ...e, code: "ArrowRight", key: "ArrowRight" }, pane);
+  if (code === "Space") return { do: "play" };  // play / stop, whichever pane has focus
   if (code === "Enter" && !shift) {
     const as = { stories: "ArrowRight", tests: "Equal", steps: "ArrowDown" }[pane];
     return keyAction({ ...e, code: as, key: as }, pane);

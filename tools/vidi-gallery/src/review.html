@@ -124,7 +124,7 @@ let cur = null;  // the selected path: {key, idx}
 const NOTE_SAVE_MS = 700, POLL_MS = 3000;
 const FOCUS_TRIES = 20, FOCUS_RETRY_MS = 5000;  // how long a Judge link waits for its run to join the review
 const SPEEDS = [0.1, 0.25, 1, 2, 4, 8];
-const MIN_PLAY_MS = 8000;         // a path plays for at least this long by default: fast tests slow down
+const DEFAULT_SPEED = 2;          // every test starts playing at 2×
 const FRAME_FETCHES = 6;          // frames fetched at once when a path opens
 const LONG_WAIT_MS = 2000;       // a timed wait longer than this is skipped in playback and drawn compressed
 const WAIT_SHOWN_MS = 400;       // how much seek-bar time a skipped wait keeps
@@ -238,7 +238,7 @@ function renderStory() {
     <section style="margin-top:8px"><h2>Requirements (${s.requirements.length})</h2><ul>${s.requirements.map(r => `<li><b>${esc(r.title)}</b> <span class="muted small">${esc(r.anchor)}</span></li>`).join("")}</ul></section>
     </details>
     <div class="work"><div><div id="builds" tabindex="0" aria-label="Held-out tests"></div><div class="reveal" id="reveal"></div></div><div id="player"><section class="muted">Pick a path on the left (or press <kbd>j</kbd>) to play its recording.</section></div></div>
-    <div class="keys"><kbd>Tab</kbd> / <kbd>⇧Tab</kbd> move between stories, held-out tests and browser steps · <kbd>↑</kbd><kbd>↓</kbd> within one · <kbd>→</kbd>/<kbd>Space</kbd> scrub, and on to the next test at the end · <kbd>=</kbd>/<kbd>Return</kbd> agree, <kbd>-</kbd> disagree, and on · <kbd>Esc</kbd> clear the verdict · <kbd>p</kbd> play · <kbd>?</kbd> all keys<br>
+    <div class="keys"><kbd>Space</kbd> play / stop (a test plays by itself at 2× when you move to it) · <kbd>Tab</kbd> / <kbd>⇧Tab</kbd> move between stories, held-out tests and browser steps · <kbd>↑</kbd><kbd>↓</kbd> within one · <kbd>→</kbd> scrub, and on to the next test at the end · <kbd>=</kbd>/<kbd>Return</kbd> agree, <kbd>-</kbd> disagree, and on · <kbd>Esc</kbd> clear the verdict · <kbd>?</kbd> all keys<br>
     A verdict says whether <b>you agree with the automated result</b> of that path, having watched it. Each build opens as it was after story ${s.review_build}. Reviews save to <code>${esc(S.file)}</code>.</div>`;
   renderBuilds();
 }
@@ -265,7 +265,8 @@ function flat() {  // every (key, idx) in page order, for j/k
   return out;
 }
 
-async function select(key, idx) {
+// Picking a test plays it from the start to the end (autoplay), unless the caller parks it elsewhere.
+async function select(key, idx, autoplay = true) {
   cur = {key, idx}; renderBuilds(); remember();
   document.querySelector(".prow.on")?.scrollIntoView({block: "nearest"});
   stopPlayer();
@@ -287,12 +288,11 @@ async function select(key, idx) {
     P.tl = timeline(w.start, w.end, P.waits, WAIT_SHOWN_MS);
     P.checks = w.steps.filter(s => s.kind === "check" || s.error);
     P.frameUrl = name => `/api/review/frame/${sid}/${key}/${idx}/${encodeURIComponent(name)}`;
-    // Waits are skipped in playback, so a path's watchable length is without them.
-    const watchable = w.end - w.start - P.waits.reduce((d, [a, b]) => d + b - a, 0);
-    P.speed = defaultSpeed(watchable, SPEEDS, MIN_PLAY_MS);
+    P.speed = DEFAULT_SPEED;
   }
   renderPlayer(tasks);
   if (w) preloadFrames(P);
+  if (w && autoplay) togglePlay();
 }
 
 // Seek-bar position of a time and back (player.js), for the open path.
@@ -498,16 +498,16 @@ const KEYS = [
   ["Three panes", "stories · held-out tests · browser steps (the focused one has a ring)"],
   ["Tab · ⇧Tab", "next pane · previous pane"],
   ["Stories: ↑ ↓", "previous / next story"],
-  ["Stories: → Space Return", "into the story's held-out tests"],
+  ["Space p", "play / stop, in any pane (a test plays by itself when you move to it, at 2×)"],
+  ["Stories: → Return", "into the story's held-out tests"],
   ["Tests: ↑ ↓", "previous / next held-out test"],
-  ["Tests: → Space · ←", "scrub 5% (⇧: 1%); at an end, on to the next / previous test: hold to fly through"],
+  ["Tests: → · ←", "scrub 5% (⇧: 1%); at an end, on to the next / previous test: hold to fly through"],
   ["Tests: = Return · -", "agree · disagree, and on to the next test"],
   ["Tests: ⇧Return", "disagree, and write why"],
   ["Tests: Esc", "clear the verdict back to “to review”"],
   ["Steps: ↑ ↓ Return", "previous / next browser step"],
-  ["Steps: → Space · ←", "scrub 5% (⇧: 1%)"],
+  ["Steps: → · ←", "scrub 5% (⇧: 1%)"],
   ["Steps: Esc", "back to the held-out tests"],
-  ["p", "play / pause"],
   [". ,", "next / previous frame"],
   ["1 … 9 · 0", "jump to 10% … 90% · the start"],
   ["Home End", "start / end"],
@@ -569,7 +569,7 @@ async function act(a) {
       const r = scrubStep(pos(P.t), a.frac, a.cross);
       if (r.path === undefined) { pause(); seek(timeAt(r.pos)); return; }
       await movePath(r.path);
-      if (r.path < 0 && P?.w) seek(P.w.end);  // going back: arrive at the previous test's end
+      if (r.path < 0 && P?.w) { pause(); seek(P.w.end); }  // going back: arrive, paused, at the previous test's end
       return;
     }
     case "jump": if (P?.w) { pause(); seek(a.frac >= 1 ? P.w.end : a.frac <= 0 ? P.w.start : timeAt(a.frac)); } return;
