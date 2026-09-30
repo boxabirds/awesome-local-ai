@@ -1,5 +1,5 @@
 // Pure logic: from repo paths, run records and dbench jobs to the rows the page shows. No I/O here.
-import type { Live, Machine, QueuePlace, Row, RunStatus, StoriesWorking, StorySquare, Score, Stages, Story } from "../shared/types.ts";
+import type { Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, Usage, Score, Stages, Story } from "../shared/types.ts";
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
 export const RECENT_S = 24 * 3600;
@@ -214,7 +214,45 @@ export function normaliseByStory(by: Record<string, { passed?: number; total?: n
 
 /** A recorded story: `passed`/`total` are the whole held-out suite up to that story; `ownPassed`/
  * `ownTotal` are that story's own tests (accept.json's by_story, keyed "01", "02", …). */
-export function storyEntry(id: string, raw: { title?: string; status?: string; accept?: RawAccept | null }): Story {
+/** metrics.json's per-story agent and time-split sections, as far as usage goes. */
+export interface RawUsage {
+  agent?: { seconds?: number; tool_calls?: number; tokens?: { input?: number; output?: number; cache_read?: number } };
+  time_split?: { model?: {
+    decode_tokens?: number; decode_s?: number; decode_tok_s?: number;
+    prefill_tokens?: number; prefill_s?: number; prefill_tok_s?: number; draft_acceptance?: number | null;
+  } };
+}
+
+function usageOf(raw: RawUsage): Usage | null {
+  const a = raw.agent, m = raw.time_split?.model;
+  if (!a && !m) return null;
+  return {
+    outTokens: a?.tokens?.output ?? null, inTokens: a?.tokens?.input ?? null, cacheRead: a?.tokens?.cache_read ?? null,
+    calls: a?.tool_calls ?? null, agentSeconds: a?.seconds ?? null,
+    decodeTokens: m?.decode_tokens ?? null, decodeSeconds: m?.decode_s ?? null, decodeTokS: m?.decode_tok_s ?? null,
+    prefillTokens: m?.prefill_tokens ?? null, prefillSeconds: m?.prefill_s ?? null, prefillTokS: m?.prefill_tok_s ?? null,
+    draftAcceptance: m?.draft_acceptance ?? null,
+  };
+}
+
+/** A run's tokens and speeds over its recorded stories. Speeds are total tokens over total seconds, so a
+ * long story counts for more than a short one; null when no story was timed (a cloud model). */
+export function runUsage(stories: Story[]): RunUsage {
+  const us = stories.map((s) => s.usage).filter((u): u is Usage => !!u);
+  const sum = (f: (u: Usage) => number | null) => (us.some((u) => f(u) != null) ? us.reduce((t, u) => t + (f(u) ?? 0), 0) : null);
+  const rate = (tok: (u: Usage) => number | null, sec: (u: Usage) => number | null) => {
+    const timed = us.filter((u) => tok(u) != null && sec(u));
+    const s = timed.reduce((t, u) => t + sec(u)!, 0);
+    return s > 0 ? timed.reduce((t, u) => t + tok(u)!, 0) / s : null;
+  };
+  return {
+    outTokens: sum((u) => u.outTokens), inTokens: sum((u) => u.inTokens),
+    decodeTokS: rate((u) => u.decodeTokens, (u) => u.decodeSeconds),
+    prefillTokS: rate((u) => u.prefillTokens, (u) => u.prefillSeconds),
+  };
+}
+
+export function storyEntry(id: string, raw: { title?: string; status?: string; accept?: RawAccept | null } & RawUsage): Story {
   const acc = raw.accept ?? {};
   const own = acc.by_story?.[/^\d+$/.test(id) ? id.padStart(2, "0") : id] ?? {};
   return {
@@ -226,6 +264,7 @@ export function storyEntry(id: string, raw: { title?: string; status?: string; a
     ownPassed: own.passed ?? null,
     ownTotal: own.total ?? null,
     byStory: acc.by_story ? normaliseByStory(acc.by_story) : null,
+    usage: usageOf(raw),
   };
 }
 
@@ -340,6 +379,7 @@ export function buildRows(
       family: rowFamily(r, suite),
       suite,
       stories,
+      usage: runUsage(r.stories), // recorded stories only: a story dbench reports done has no time split yet
       stages: stages(r, job, suite),
       ...(({ status, note }) => ({ status, statusNote: note }))(runStatus(r, job)),
       storiesWorking: storiesWorking(

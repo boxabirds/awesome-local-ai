@@ -1,5 +1,30 @@
 // The state the server sends the page (GET /api/state). Shared by both sides.
 
+/** What one story cost and how fast the model ran: from metrics.json (agent tokens; the meter's time split).
+ * Speeds are null for a cloud model (nothing local to time). */
+export interface Usage {
+  outTokens: number | null;
+  inTokens: number | null;
+  cacheRead: number | null;
+  calls: number | null;
+  agentSeconds: number | null;
+  decodeTokens: number | null;
+  decodeSeconds: number | null;
+  decodeTokS: number | null;
+  prefillTokens: number | null;
+  prefillSeconds: number | null;
+  prefillTokS: number | null;
+  draftAcceptance: number | null;
+}
+
+/** A run's totals over its recorded stories; speeds weighted by tokens. */
+export interface RunUsage {
+  outTokens: number | null;
+  inTokens: number | null;
+  decodeTokS: number | null;
+  prefillTokS: number | null;
+}
+
 /** One finished story of a run. */
 export interface Story {
   id: string;
@@ -13,6 +38,7 @@ export interface Story {
   ownTotal: number | null;
   /** Every story's own tests against the build after this story, keyed "1", "2", …; null if not recorded. */
   byStory?: Record<string, { passed: number | null; total: number | null }> | null;
+  usage?: Usage | null;
 }
 
 export interface QueuePlace {
@@ -86,6 +112,7 @@ export interface Row {
   stateAt: string;
   status: RunStatus;
   storiesWorking: StoriesWorking;
+  usage: RunUsage;
   /** Why or how: a failure's reason, "finishing story 3", "attempt 2"; "" if nothing to add. */
   statusNote: string;
   stories: Story[];

@@ -24,8 +24,8 @@ section { background: var(--panel); border: 1px solid var(--line); border-radius
 h2 { font-size: 13px; font-weight: 600; margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line);
      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 table { border-collapse: collapse; width: 100%; min-width: 900px; table-layout: fixed; }
-th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
-th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+th, td { text-align: left; padding: 8px 8px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; overflow-wrap: normal; hyphens: none; }
 tr:last-child td { border-bottom: none; }
 .run { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; overflow-wrap: anywhere; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -45,7 +45,7 @@ tr:last-child td { border-bottom: none; }
 .q-running { background: var(--run); animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .45; } }
 a { color: var(--run); text-decoration: none; } a:hover { text-decoration: underline; }
-.links a { display: block; }
+.links a { display: block; white-space: nowrap; }
 .empty { color: var(--muted); padding: 24px; }
 .stale-banner { background: var(--bad); color: #fff; padding: 8px 16px; font-weight: 600; }
 .stale main { opacity: .45; filter: grayscale(1); }
@@ -64,3 +64,10 @@ button.chip.link { border-style: dashed; }
 .clip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .score-n { font-size: 16px; }
 .story-title { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.run-cell { cursor: pointer; }
+button.expand { border: 0; background: none; color: var(--muted); font: inherit; padding: 0 4px 0 0; cursor: pointer; }
+tr.opened td { border-bottom-color: transparent; }
+tr.detail > td { padding-top: 0; }
+table.usage { min-width: 0; width: 100%; table-layout: auto; font-size: 12px; }
+table.usage th, table.usage td { padding: 3px 6px; border-bottom: 1px solid var(--line); overflow-wrap: normal; }
+table.usage td:first-child { max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

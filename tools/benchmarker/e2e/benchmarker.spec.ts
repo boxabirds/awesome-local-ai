@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
 const QWEN_27B = "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi";
 
-const row = (page: Page, stack: string, run: string) => page.locator(`tr[data-stack="${stack}"][data-run="${run}"]`);
+const row = (page: Page, stack: string, run: string) => page.locator(`tr:not(.detail)[data-stack="${stack}"][data-run="${run}"]`);
 const machine = (page: Page, name: string) => page.locator(`section[data-machine="${name}"]`);
 const cell = (page: Page, stack: string, run: string, n: number) => row(page, stack, run).locator("td").nth(n);
 
@@ -49,7 +49,7 @@ test("queued runs say queued and their place on the node, in dbench's order, and
   await expect(cell(page, SWIFT, "v2-r2", 1)).toHaveText("queued2nd on gruntus");
   await expect(cell(page, SWIFT, "v2-r3", 1)).toContainText("3rd on gruntus");
   await expect(cell(page, QWEN_27B, "v2-r1", 1)).toContainText("4th on gruntus");
-  for (const n of [2, 3, 4, 5, 6, 7, 8]) await expect(cell(page, SWIFT, "v2-r2", n)).toHaveText("—");
+  for (const n of [2, 3, 4, 5, 6, 7, 8, 9, 10]) await expect(cell(page, SWIFT, "v2-r2", n)).toHaveText("—");
 });
 
 test("a story that has only just started says so instead of showing zeros", async ({ page }) => {
@@ -65,6 +65,23 @@ test("a running story's title shows in full over up to three lines, not cut to o
   expect(await title.evaluate((el) => getComputedStyle(el).whiteSpace)).not.toBe("nowrap");
 });
 
+test("tokens and tok/s per run, and per story on click", async ({ page }) => {
+  // gufo canvas-gufo-r3 (v1) has a recorded story with tokens and speeds in the fixture.
+  await page.getByLabel("Version").selectOption("all");
+  const stack = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi";
+  const r = row(page, stack, "canvas-gufo-r3");
+  await expect(r.locator("td.tokens")).toContainText("56k out");
+  await expect(r.locator("td.speed")).toContainText("99 tok/s");
+  await r.locator("td").first().click();
+  const detail = page.locator(`tr.detail[data-stack="${stack}"][data-run="canvas-gufo-r3"]`);
+  await expect(detail).toBeVisible();
+  await expect(detail.locator("tbody tr").first()).toContainText("55,968");
+  await expect(detail.locator("tbody tr").first()).toContainText("98.9");
+  await expect(detail.locator("thead")).toContainText("Flows now"); // against the latest build, like the squares
+  await r.locator("td").first().click();
+  await expect(detail).toHaveCount(0);
+});
+
 test("a Claude run, whose calls and tokens are only counted at the end of a story, shows no false zeros", async ({ page }) => {
   const activity = cell(page, "reference/opus-5.5", "v2-r1", 4);
   await expect(activity).toContainText("tasks 1/2");
@@ -76,11 +93,11 @@ test("a finished, scored run with its bundle can be judged, and links to its rec
   await expect(cell(page, "reference/opus-5.5", "run-9", 1)).toContainText("finished");
   // The score is one number under a heading that carries the total.
   await expect(page.getByRole("columnheader", { name: "Score / 75" }).first()).toBeVisible();
-  await expect(cell(page, "reference/opus-5.5", "run-9", 6)).toHaveText("74");
+  await expect(cell(page, "reference/opus-5.5", "run-9", 8)).toHaveText("74");
   // The link opens this run in the review, not the review's first build.
-  await expect(cell(page, "reference/opus-5.5", "run-9", 7).getByRole("link", { name: "Judge →" }))
+  await expect(cell(page, "reference/opus-5.5", "run-9", 9).getByRole("link", { name: "Judge →" }))
     .toHaveAttribute("href", "http://127.0.0.1:7800/review?setup=reference%2Fopus-5.5&run=run-9");
-  const record = cell(page, "reference/opus-5.5", "run-9", 8).getByRole("link", { name: "record" });
+  const record = cell(page, "reference/opus-5.5", "run-9", 10).getByRole("link", { name: "record" });
   await expect(record).toHaveAttribute("href", "https://github.com/boxabirds/awesome-local-ai/tree/main/benchmarks/reference/vidi/opus-5.5/run-9");
 });
 
@@ -109,10 +126,16 @@ test("the version filter opens on the current version and can show all", async (
   await expect(row(page, "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi", "canvas-gufo-r3")).toBeVisible();
 });
 
-test("all nine columns fit at 1000 px", async ({ page }) => {
+test("all eleven columns fit at 1000 px", async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 900 });
   const fits = await page.locator("section").evaluateAll((ss) => ss.every((s) => s.scrollWidth <= s.clientWidth + 1));
   expect(fits).toBe(true);
+  // No heading or link breaks inside a word ("JUDG / E", "recor / d").
+  const broken = await page.locator("thead th, .links a").evaluateAll((els) =>
+    els.filter((el) => { const r = document.createRange(); r.selectNodeContents(el);
+      return !/\s/.test(el.textContent!.trim()) && new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1; })
+      .map((el) => el.textContent));
+  expect(broken).toEqual([]);
 });
 
 test("when refreshes fail, the page greys out under a warning", async ({ page }) => {
