@@ -3521,7 +3521,15 @@
           "found": 4,
           "total": 4
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/benchmarks/reference/vidi/opus-5.5/v2-r2/workspace/tests/fixtures/images/photo.jpg"
+        ],
+        "commit": "a752e0b5"
+      }
     }
   },
   "pack": "vidi",
