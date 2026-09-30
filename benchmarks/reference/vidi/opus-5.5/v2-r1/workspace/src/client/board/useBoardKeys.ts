@@ -1,7 +1,7 @@
 // Board keyboard commands (story 7): Ctrl/Cmd+A select all, Escape clear, arrows nudge,
 // Delete/Backspace delete, Enter edit a single selected note; story 8: Ctrl/Cmd+Z undo,
 // Ctrl/Cmd+Shift+Z and Ctrl+Y redo; story 9: V Select tool, T Text tool, N new sticky note,
-// Escape back to Select; story 10: S Shape tool, L Connector tool; story 11: P Pen tool. Ignored while text is edited (the editor handles its own undo) and in
+// Escape back to Select; story 10: S Shape tool, L Connector tool; story 11: P Pen tool; story 12: I Image tool (file picker). Ignored while text is edited (the editor handles its own undo) and in
 // other text fields.
 import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';

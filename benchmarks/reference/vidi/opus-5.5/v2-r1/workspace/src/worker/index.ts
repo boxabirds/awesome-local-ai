@@ -1,4 +1,5 @@
 import { isValidBoardId } from '../shared/board-id';
+import { handleServe, handleUpload } from './assets';
 import type { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { handleTestHook } from './test-hooks';
@@ -8,6 +9,8 @@ export { BoardRoom } from './board-room';
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** Uploaded images (story 12). */
+  ASSETS_BUCKET: R2Bucket;
   /** '1' only in the e2e `wrangler dev` (enables src/worker/test-hooks.ts routes). */
   TEST_HOOKS?: string;
 }
@@ -15,6 +18,8 @@ export interface Env {
 const ROOM_PATH = /^\/api\/rooms\/(.*)$/;
 const BOARDS_PATH = /^\/api\/boards\/?$/;
 const BOARD_PATH = /^\/api\/boards\/(.+)$/;
+const BOARD_ASSETS_PATH = /^\/api\/boards\/([^/]+)\/assets\/?$/;
+const ASSET_PATH = /^\/api\/assets\/(.*)$/;
 
 function json(body: unknown, status: number, headers?: HeadersInit): Response {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
@@ -31,6 +36,28 @@ function boardIdFrom(segment: string): string | null {
     return null;
   }
   return isValidBoardId(id) ? id : null;
+}
+
+/** Story 12: image upload (POST /api/boards/:id/assets) and serving (GET /api/assets/:key). */
+async function handleAssets(req: Request, url: URL, env: Env): Promise<Response | null> {
+  const upload = BOARD_ASSETS_PATH.exec(url.pathname);
+  if (upload) {
+    if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, { Allow: 'POST' });
+    const boardId = boardIdFrom(upload[1]);
+    return boardId ? handleUpload(req, env, boardId) : notFound();
+  }
+  const serve = ASSET_PATH.exec(url.pathname);
+  if (!serve) return null;
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return json({ error: 'method_not_allowed' }, 405, { Allow: 'GET' });
+  }
+  let key: string;
+  try {
+    key = decodeURIComponent(serve[1]);
+  } catch {
+    return new Response('Not found', { status: 404 });
+  }
+  return handleServe(env, key);
 }
 
 async function handleBoards(req: Request, url: URL, env: Env): Promise<Response | null> {
@@ -54,10 +81,17 @@ async function handleBoards(req: Request, url: URL, env: Env): Promise<Response 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    const assets = await handleAssets(req, url, env);
+    if (assets) return assets;
     const boards = await handleBoards(req, url, env);
     if (boards) return boards;
     const match = ROOM_PATH.exec(url.pathname);
-    if (!match) return (await handleTestHook(req, url, env)) ?? env.ASSETS.fetch(req);
+    if (!match) {
+      // Any other API address (e.g. `/api/assets/../x`, normalised to `/api/x`) is not found,
+      // never the app page.
+      if (url.pathname.startsWith('/api/')) return notFound();
+      return (await handleTestHook(req, url, env)) ?? env.ASSETS.fetch(req);
+    }
     const boardId = boardIdFrom(match[1]);
     if (!boardId) return new Response('Board not found', { status: 404 });
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {

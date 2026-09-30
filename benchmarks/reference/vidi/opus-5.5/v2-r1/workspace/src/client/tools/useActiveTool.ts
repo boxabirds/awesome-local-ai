@@ -1,5 +1,5 @@
-// The active tool (story 9 Select/Text; story 10 Shape/Connector; story 11 Pen). Per tab, never
-// stored.
+// The active tool (story 9 Select/Text; story 10 Shape/Connector; story 11 Pen; story 12 Image,
+// active only while its file picker is open). Per tab, never stored.
 import { useCallback, useEffect, useState } from 'react';
 import type { ShapeKind } from '../../shared/objects/shape';
 
@@ -19,10 +19,10 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 
 /**
  * Tools that stay active until something is created (Pen: until another tool is chosen or
- * Escape). Sticky note is a one-off action, handled by its button and N. Image and comment
- * tools are not part of this build.
+ * Escape; Image: until its file picker closes). Sticky note is a one-off action, handled by its
+ * button and N. The comment tool is not part of this build.
  */
-export const MODE_TOOLS: ReadonlySet<ToolId> = new Set(['select', 'text', 'shape', 'connector', 'pen']);
+export const MODE_TOOLS: ReadonlySet<ToolId> = new Set(['select', 'text', 'shape', 'connector', 'pen', 'image']);
 
 export interface ActiveTool {
   tool: ToolId;

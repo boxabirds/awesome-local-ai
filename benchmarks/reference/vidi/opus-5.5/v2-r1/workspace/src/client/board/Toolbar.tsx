@@ -14,6 +14,7 @@ export const TEXT_TOOL_LABEL = 'Text (T)';
 export const SHAPE_TOOL_LABEL = 'Shape (S)';
 export const CONNECTOR_TOOL_LABEL = 'Connector (L)';
 export const PEN_TOOL_LABEL = 'Pen (P)';
+export const IMAGE_TOOL_LABEL = 'Image (I)';
 export const SHAPE_KIND_NAMES: Record<ShapeKind, string> = {
   rect: 'Rectangle',
   ellipse: 'Ellipse',
@@ -37,8 +38,8 @@ const stop = (e: SyntheticEvent) => e.stopPropagation();
 
 /**
  * Fixed left-side toolbar: Select and Text tools (story 9), Shape (with its kind menu while
- * active) and Connector (story 10) and Pen (story 11, with its pen toolbar while active) when
- * `tool` is given, the Sticky note button, then Undo and Redo (story 8) when `undo` is given.
+ * active) and Connector (story 10), Pen (story 11, with its pen toolbar while active) and Image
+ * (story 12: opens the file picker) when `tool` is given, the Sticky note button, then Undo and Redo (story 8) when `undo` is given.
  */
 export function Toolbar(props: {
   onCreateSticky(): void;
@@ -185,6 +186,27 @@ export function Toolbar(props: {
               />
             )}
           </div>
+          <button
+            type="button"
+            className="toolbar-button"
+            aria-label={IMAGE_TOOL_LABEL}
+            title={IMAGE_TOOL_LABEL}
+            aria-pressed={props.tool === 'image'}
+            disabled={props.disabled}
+            onClick={() => props.onTool?.('image')}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="4.5" width="18" height="15" rx="2" fill="none" stroke="currentColor" strokeWidth="1.7" />
+              <circle cx="9" cy="10" r="1.7" fill="currentColor" />
+              <path
+                d="M4 18l5-5 3.5 3.5L15 14l5 4.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
         </>
       )}
       <button

@@ -444,3 +444,57 @@ Decisions made while implementing without anyone to ask.
   rest in Chromium only (design). Firefox still cannot start here; runs used
   `E2E_BROWSERS=chromium,webkit`.
 - **Red-phase commits skipped** (task 1), as in earlier stories: one story commit.
+
+## Story 12 — Drop images onto the board
+
+- **Unknown `/api/*` addresses are 404.** URL parsing normalises `/api/assets/../x` to `/api/x`,
+  which used to fall through to the app page (SPA fallback, 200). Any `/api/` path the Worker
+  does not route now answers 404 JSON, so TC-16's `../x` case is a 404 and API typos never
+  return HTML. The upload route is matched before story 5's `/api/boards/:id`.
+- **Upload body.** Checks run in the design's order (id → `exists()` → `Content-Length` →
+  body → sniff → put). The body is read as a stream and abandoned once it passes
+  IMAGE_MAX_BYTES, so an upload without a `Content-Length` is never buffered beyond the limit.
+  Served images also get `Content-Length` and `ETag`. Other methods: 405 with `Allow`.
+- **Service refusals remove the placeholder.** If the server answers 413 or 415 (the browser
+  checks normally catch these first), the client shows the same size/type message and removes
+  the placeholder with UPLOAD_ORIGIN (so no undo step is added), as the design says ("nothing is
+  stored or added"). Every other failure (404, 500, network error, abort) marks it `failed`.
+- **Count limit counts supported files.** `validateFiles` refuses type and size first and then
+  keeps the first IMAGE_MAX_FILES_PER_ADD of the remaining files (PRD: "more than 20 supported
+  files"). A file whose extension claims an image but whose content does not decode
+  (`createImageBitmap` rejects, e.g. a renamed PDF) gets the type message.
+- **Hook API additions.** `useImageInsert` also takes `viewport` (for the view centre),
+  `canEdit`, `notify` (toast), `boundary` (story 8 undo step around the placeholders) and
+  `onPickerClose`, and also returns `onDragEnter`/`onDragLeave`, `dragging` (drop highlight).
+  `camera` may be a getter. `openPicker()` returns `false` when it showed the offline message
+  instead of opening the picker. The paste listener sits on `window`; pastes with focus in a
+  field/editor are left alone.
+- **Image tool.** `image` joined `MODE_TOOLS`; it is active (button pressed) only while the
+  picker is open and returns to Select on `change` or `cancel`. `App` turns "set tool image"
+  (button or I) into `openPicker()`. The picker is a hidden `<input type=file multiple
+  accept=…>` appended to `<body>` (removed on unmount).
+- **Unfinished clock.** Instead of a 30-second interval, each uploading image sets one timer for
+  the moment it becomes stale (uploadStartedAt + IMAGE_UPLOAD_STALE_MS + 1 ms), which shows
+  "Image upload didn't finish" at that moment without polling.
+- **Undo/redo of an insertion (design's open question).** Confirmed: status changes with the
+  untracked UPLOAD_ORIGIN are not undo steps; undo removes all placeholders of one add in one
+  step, and redo brings them back *with* their later `ready` state and asset key (Yjs restores
+  the map's latest content). Asserted in TC-05.
+- **Image board context.** Image objects get identity, progress, Retry and Remove through
+  `ImageContext` (the generic registry props have no room for them); `ImageEntry` adapts. The
+  uploader is recognised by the tab's anonymous identity (story 6 is not in this build), so
+  after a reload the uploader sees a failed image as others do ("Image unavailable"); Remove
+  on an unfinished image is available to everyone. Remove is its own undo step.
+- **Accessibility.** Image objects are `role="group"` named "Image"; a ready image is an
+  `<img alt="Image">`. The toast region is always mounted, `role="status"` `aria-live="polite"`.
+  The Image button is "Image (I)". Upload progress is a `progressbar` "Upload progress".
+- **Fixtures.** Generated with ImageMagick (`tests/fixtures/images/`): PNG 1440×900, JPEG
+  4032×3024 (plasma, ~1.2 MB rather than ~3 MB to keep the repository small), 3-frame GIF, WebP
+  640×480, SVG with a script, a PDF named `.png` and a truncated PNG. The 10 MB
+  and 10 MB + 1 files are generated in the tests (a real JPEG padded after its end). Integration
+  tests import fixtures with Vite's `?inline` (declared in `tests/integration/image-fixtures.d.ts`).
+- **E2E.** TC-25 holds Leo's uploads for 1.5 s with `page.route` so Sam's "Uploading…"
+  placeholders are observable; the logged drop-to-visible times therefore include that delay
+  (reported, not asserted). TC-26 runs in every configured browser, the rest in Chromium only
+  (design). Firefox still cannot start here; runs used `E2E_BROWSERS=chromium,webkit`.
+- **Red-phase commits skipped** (tasks 1, 2), as in earlier stories: one story commit.

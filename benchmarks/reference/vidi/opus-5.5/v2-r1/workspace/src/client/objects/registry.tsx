@@ -7,6 +7,7 @@ import type * as Y from 'yjs';
 import { LOCAL_ORIGIN, type ObjectSnapshot, moveObjects, objectBounds } from '../../shared/board-model';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   PEN_THICKNESS_WORLD,
   STICKY_MIN_SIZE_WORLD,
@@ -20,6 +21,7 @@ import { type ConnectorSnap, translateConnector } from '../../shared/objects/con
 import { type StrokeSnap, scaledPoints } from '../../shared/objects/stroke';
 import { type TextSnapshot, setTextWidthFixed } from '../../shared/objects/text';
 import { ConnectorEntry } from './ConnectorObject';
+import { ImageEntry } from './ImageObject';
 import { ShapeEntry } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { StrokeEntry } from './StrokeObject';
@@ -185,6 +187,16 @@ export function strokeHitTest(obj: ObjectSnapshot, p: Point, zoom = 1): boolean 
   const tolerance = Math.max(PEN_THICKNESS_WORLD[s.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom);
   return distanceToPolyline(scaledPoints(s), p) <= tolerance;
 }
+
+// Images (story 12) keep their proportions when resized, down to IMAGE_MIN_SIZE_WORLD.
+registerObjectType('image', {
+  Component: ImageEntry,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: boundsHitTest,
+});
 
 registerObjectType('stroke', {
   Component: StrokeEntry,

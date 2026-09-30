@@ -11,6 +11,8 @@
     // falls through to the assets); everything else is served from assets without invoking it.
     "run_worker_first": ["/api/*", "/__test/*"]
   },
+  // Uploaded images (story 12), keyed `<boardId>/<assetId>`.
+  "r2_buckets": [{ "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }],
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
   },

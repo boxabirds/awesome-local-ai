@@ -1,4 +1,5 @@
 import {
+  type DragEvent as ReactDragEvent,
   type MutableRefObject,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -209,6 +210,13 @@ export interface BoardViewportProps {
    */
   pickAt?(world: Point, zoom: number, target: EventTarget): string | null;
   onPick?(e: ReactPointerEvent<HTMLDivElement>, id: string): void;
+  /** File drag and drop on the board surface (story 12 images). */
+  drop?: {
+    onDragEnter(e: ReactDragEvent<HTMLElement>): void;
+    onDragOver(e: ReactDragEvent<HTMLElement>): void;
+    onDragLeave(e: ReactDragEvent<HTMLElement>): void;
+    onDrop(e: ReactDragEvent<HTMLElement>): void;
+  };
 }
 
 const NO_OBJECTS: readonly ObjectSnapshot[] = [];
@@ -322,6 +330,10 @@ export function BoardViewport(props: BoardViewportProps) {
         onPointerCancel={onPointerEnd}
         onLostPointerCapture={onPointerEnd}
         onDoubleClick={onDoubleClick}
+        onDragEnter={props.drop?.onDragEnter}
+        onDragOver={props.drop?.onDragOver}
+        onDragLeave={props.drop?.onDragLeave}
+        onDrop={props.drop?.onDrop}
       >
         <div
           className="world-layer"

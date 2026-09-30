@@ -13,13 +13,17 @@ import { useTransformGesture } from './board/useTransformGesture';
 import { type UndoController, createUndo } from './board/undo';
 import { UndoContext, useUndo } from './board/useUndo';
 import { BoardViewport } from './canvas/BoardViewport';
+import { DropHighlight } from './images/DropHighlight';
+import { useImageInsert } from './images/useImageInsert';
+import { ImageContext } from './objects/ImageObject';
+import { Toast, useToasts } from './ui/Toast';
 import { type Camera, type Point, type Size, screenToWorld } from './canvas/camera';
 import { getObjectType } from './objects/registry';
 import { ConnectorTool } from './tools/ConnectorTool';
 import { PenTool } from './tools/PenTool';
 import { usePenOptions } from './tools/usePenOptions';
 import { ShapeTool } from './tools/ShapeTool';
-import { useActiveTool } from './tools/useActiveTool';
+import { type ToolId, useActiveTool } from './tools/useActiveTool';
 import { syncTextBox } from './objects/useTextBoxSync';
 import { textMeasurer } from './objects/textLayout';
 import { BoardPage } from './pages/BoardPage';
@@ -77,6 +81,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
   const getCamera = useCallback(() => cameraRef.current ?? INITIAL_CAMERA, []);
   const tool = useActiveTool({ canEdit: editable, select: selectNew });
   const pen = usePenOptions();
+  const toasts = useToasts();
 
   // One undo history per board document, for this tab only: gone on board change or reload.
   const [history, setHistory] = useState<UndoController | null>(null);
@@ -90,6 +95,26 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
   }, [doc]);
   const undo = useUndo(history, editable);
   const boundary = useCallback(() => history?.boundary(), [history]);
+
+  // Images (story 12): drop, paste and the Image tool's picker; the tool is active only while
+  // the picker is open.
+  const images = useImageInsert({
+    doc,
+    boardId: props.boardId ?? '',
+    camera: getCamera,
+    viewport: () => viewportRef.current ?? { width: window.innerWidth, height: window.innerHeight },
+    connection,
+    identityId: localIdentity(),
+    canEdit: editable,
+    notify: toasts.show,
+    boundary,
+    onPickerClose: () => tool.setTool('select'),
+  });
+  const setTool = (t: ToolId) => {
+    if (t !== 'image') tool.setTool(t);
+    else if (editable && images.openPicker()) tool.setTool('image');
+  };
+  const toolControls = { ...tool, setTool };
   /** Runs one user action as its own undo step. */
   const step = <T,>(fn: () => T): T => {
     boundary();
@@ -114,6 +139,16 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
     onGestureStart: boundary,
     onGestureEnd: boundary,
   });
+
+  const imageContext = {
+    identityId: localIdentity(),
+    progress: images.progress,
+    canRetry: images.canRetry,
+    retry: images.retry,
+    remove: (id: string) => {
+      if (editable) step(() => deleteObjects(doc, [id]));
+    },
+  };
 
   const deleteSelection = () => {
     if (!editable) return;
@@ -161,7 +196,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
     snapshot: shown,
     canEdit: editable,
     undo: history,
-    tool,
+    tool: toolControls,
     onCreateSticky: createStickyInView,
   });
 
@@ -178,122 +213,127 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
 
   return (
     <UndoContext.Provider value={history}>
-      <BoardViewport
-        cameraRef={cameraRef}
-        viewportRef={viewportRef}
-        onPlace={tool.tool === 'text' ? placeText : undefined}
-        pickAt={pickAt}
-        onPick={(e, id) => transform.onObjectPointerDown(e, id)}
-        toolLayer={({ camera }) =>
-          tool.tool === 'shape' ? (
-            <ShapeTool
-              kind={tool.shapeKind}
-              camera={camera}
-              doc={doc}
-              by={localIdentity()}
-              onCreated={tool.toolCreated}
-            />
-          ) : tool.tool === 'pen' ? (
-            <PenTool
-              camera={camera}
-              color={pen.color}
-              thickness={pen.thickness}
-              doc={doc}
-              identityId={localIdentity()}
-            />
-          ) : tool.tool === 'connector' ? (
-            <ConnectorTool
-              camera={camera}
-              snapshot={shown}
-              doc={doc}
-              by={localIdentity()}
-              onCreated={tool.toolCreated}
-            />
-          ) : null
-        }
-        onEmptyDoubleClick={createAt}
-        onEmptyClick={clear}
-        marquee={{ snapshot: shown, onSelect: (ids) => setMany(ids, true) }}
-        overlay={({ camera, viewport }) => (
-          <>
-            <div className="selection-layer">
-              <SelectionOverlay
-                ids={selection.ids}
-                snapshot={shown}
+      <ImageContext.Provider value={imageContext}>
+        <BoardViewport
+          cameraRef={cameraRef}
+          viewportRef={viewportRef}
+          onPlace={tool.tool === 'text' ? placeText : undefined}
+          pickAt={pickAt}
+          onPick={(e, id) => transform.onObjectPointerDown(e, id)}
+          toolLayer={({ camera }) =>
+            tool.tool === 'shape' ? (
+              <ShapeTool
+                kind={tool.shapeKind}
                 camera={camera}
-                interactive={editable && editingId === null && tool.tool === 'select'}
-                onHandlePointerDown={transform.onHandlePointerDown}
-              />
-              <SelectionBar
-                ids={selection.ids}
-                snapshot={shown}
-                camera={camera}
-                editable={editable}
-                hidden={transform.gesture !== null || editingId !== null}
-                onDelete={deleteSelection}
-                onColor={(id, color) => {
-                  if (editable) step(() => setStickyColor(doc, id, color));
-                }}
-                onShapeStyle={(id, style) => {
-                  if (editable) step(() => setShapeStyle(doc, id, style));
-                }}
-                onTextSize={(id, size) => {
-                  // The top-left stays; the box is re-measured in the same step.
-                  if (editable)
-                    step(() => {
-                      if (setTextSize(doc, id, size)) syncTextBox(doc, id, textMeasurer());
-                    });
-                }}
-              />
-            </div>
-            <Toolbar
-              disabled={!editable}
-              undo={undo}
-              tool={tool.tool}
-              onTool={tool.setTool}
-              shapeKind={tool.shapeKind}
-              onShapeKind={(k) => {
-                tool.setShapeKind(k);
-                tool.setTool('shape');
-              }}
-              pen={{
-                color: pen.color,
-                thickness: pen.thickness,
-                onColor: pen.setColor,
-                onThickness: pen.setThickness,
-              }}
-              onCreateSticky={() =>
-                createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }))
-              }
-            />
-          </>
-        )}
-      >
-        {({ camera }) =>
-          domOrder.map((obj) => {
-            const { Component } = getObjectType(obj.type)!;
-            return (
-              <Component
-                key={obj.id}
-                layer={layers.get(obj.id)}
-                rects={rects}
-                object={obj}
                 doc={doc}
-                zoom={camera.zoom}
-                selected={selection.ids.has(obj.id)}
-                editing={obj.id === editingId}
-                editable={editable}
-                transforming={transform.gesture !== null}
-                onPointerDown={transform.onObjectPointerDown}
-                onSelect={click}
-                onStartEdit={startEdit}
-                onEndEdit={endEdit}
+                by={localIdentity()}
+                onCreated={tool.toolCreated}
               />
-            );
-          })
-        }
-      </BoardViewport>
+            ) : tool.tool === 'pen' ? (
+              <PenTool
+                camera={camera}
+                color={pen.color}
+                thickness={pen.thickness}
+                doc={doc}
+                identityId={localIdentity()}
+              />
+            ) : tool.tool === 'connector' ? (
+              <ConnectorTool
+                camera={camera}
+                snapshot={shown}
+                doc={doc}
+                by={localIdentity()}
+                onCreated={tool.toolCreated}
+              />
+            ) : null
+          }
+          drop={images}
+          onEmptyDoubleClick={createAt}
+          onEmptyClick={clear}
+          marquee={{ snapshot: shown, onSelect: (ids) => setMany(ids, true) }}
+          overlay={({ camera, viewport }) => (
+            <>
+              <DropHighlight visible={images.dragging} />
+              <div className="selection-layer">
+                <SelectionOverlay
+                  ids={selection.ids}
+                  snapshot={shown}
+                  camera={camera}
+                  interactive={editable && editingId === null && tool.tool === 'select'}
+                  onHandlePointerDown={transform.onHandlePointerDown}
+                />
+                <SelectionBar
+                  ids={selection.ids}
+                  snapshot={shown}
+                  camera={camera}
+                  editable={editable}
+                  hidden={transform.gesture !== null || editingId !== null}
+                  onDelete={deleteSelection}
+                  onColor={(id, color) => {
+                    if (editable) step(() => setStickyColor(doc, id, color));
+                  }}
+                  onShapeStyle={(id, style) => {
+                    if (editable) step(() => setShapeStyle(doc, id, style));
+                  }}
+                  onTextSize={(id, size) => {
+                    // The top-left stays; the box is re-measured in the same step.
+                    if (editable)
+                      step(() => {
+                        if (setTextSize(doc, id, size)) syncTextBox(doc, id, textMeasurer());
+                      });
+                  }}
+                />
+              </div>
+              <Toolbar
+                disabled={!editable}
+                undo={undo}
+                tool={tool.tool}
+                onTool={setTool}
+                shapeKind={tool.shapeKind}
+                onShapeKind={(k) => {
+                  tool.setShapeKind(k);
+                  tool.setTool('shape');
+                }}
+                pen={{
+                  color: pen.color,
+                  thickness: pen.thickness,
+                  onColor: pen.setColor,
+                  onThickness: pen.setThickness,
+                }}
+                onCreateSticky={() =>
+                  createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }))
+                }
+              />
+            </>
+          )}
+        >
+          {({ camera }) =>
+            domOrder.map((obj) => {
+              const { Component } = getObjectType(obj.type)!;
+              return (
+                <Component
+                  key={obj.id}
+                  layer={layers.get(obj.id)}
+                  rects={rects}
+                  object={obj}
+                  doc={doc}
+                  zoom={camera.zoom}
+                  selected={selection.ids.has(obj.id)}
+                  editing={obj.id === editingId}
+                  editable={editable}
+                  transforming={transform.gesture !== null}
+                  onPointerDown={transform.onObjectPointerDown}
+                  onSelect={click}
+                  onStartEdit={startEdit}
+                  onEndEdit={endEdit}
+                />
+              );
+            })
+          }
+        </BoardViewport>
+      </ImageContext.Provider>
       {props.boardId && <ConnectionStatus state={connection} />}
+      <Toast messages={toasts.messages} />
     </UndoContext.Provider>
   );
 }

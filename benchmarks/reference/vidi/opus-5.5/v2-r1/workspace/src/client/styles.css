@@ -981,3 +981,122 @@ body,
 .stroke-object:focus-visible .stroke-path {
   filter: drop-shadow(0 0 2px #1a73e8);
 }
+
+/* Images (story 12). */
+
+.image-object {
+  position: absolute;
+  box-sizing: border-box;
+  outline: none;
+  cursor: move;
+}
+
+.image-object:focus-visible {
+  box-shadow: 0 0 0 2px #1a73e8;
+}
+
+.image-content {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+}
+
+.image-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 0.5em;
+  color: #5f6368;
+  background: #e8eaed;
+  border: 1px solid #d0d4d9;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.is-upload-failed .image-placeholder {
+  color: #8a1c1c;
+  background: #fdecec;
+  border: 2px solid #e53935;
+}
+
+.image-state-icon {
+  width: 2em;
+  height: 2em;
+  flex: none;
+}
+
+.image-progress {
+  width: min(70%, 16em);
+  height: 0.5em;
+  border-radius: 999px;
+  background: #cfd3d8;
+  overflow: hidden;
+}
+
+.image-progress-bar {
+  height: 100%;
+  background: #1a73e8;
+  transition: width 120ms linear;
+}
+
+.image-state-actions {
+  display: flex;
+  gap: 0.5em;
+}
+
+.image-state-button {
+  font: inherit;
+  padding: 0.25em 0.75em;
+  border: 1px solid #b0b5bb;
+  border-radius: 0.3em;
+  background: #fff;
+  color: #202124;
+  cursor: pointer;
+}
+
+.image-state-button:hover:not(:disabled) {
+  background: #f1f3f4;
+}
+
+.drop-highlight {
+  position: fixed;
+  inset: 6px;
+  z-index: 15;
+  border: 3px dashed #1a73e8;
+  border-radius: 8px;
+  background: rgba(26, 115, 232, 0.06);
+  pointer-events: none;
+}
+
+.toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  max-width: min(90vw, 480px);
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: #323232;
+  color: #fff;
+  font-size: 14px;
+  line-height: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}

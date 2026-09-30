@@ -174,3 +174,22 @@ export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 /** Smallest width/height a stroke can be resized to, world units. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+/** Image types that can be added to a board (story 12), judged by content. Raster only: no SVG. */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+/** Largest image file that can be uploaded: 10 MB. */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** Most images added by one drop, paste or pick; further files are skipped. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/** An added image's longest side is scaled down to at most this, world units. */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** Smallest width/height an image can be resized to, world units. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** Gap between images added together in a row, world units. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/** An upload still not finished after this long is shown as unfinished. */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/** Browser cache lifetime of served images (keys never change): one year. */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** Leading bytes read to decide an uploaded file's image type. */
+export const IMAGE_SNIFF_BYTES = 12;
