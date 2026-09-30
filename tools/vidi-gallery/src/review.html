@@ -514,6 +514,7 @@ const KEYS = [
   ["> <", "faster / slower"],
   ["] [ · PgDn PgUp", "next / previous story, from any pane"],
   ["a d s", "agree / disagree / skip, and on to the next test"],
+  ["⌘= ⌘Return · ⌘- · ⌘Esc", "the whole story: agree with every test · disagree with every test · all back to “to review” (Ctrl on Windows and Linux)"],
   ["n", "write a note (Esc or Return to leave it)"],
   ["o", "open this build"],
   ["w", "skip long waits on / off"],
@@ -551,9 +552,25 @@ function setSpeed(dir) {
   document.querySelectorAll("[data-speed]").forEach(x => x.classList.toggle("on", +x.dataset.speed === P.speed));
 }
 
+// One verdict for every held-out test of the story, in the builds on show. Only changes are saved; notes stay.
+async function judgeAll(v) {
+  const sid = sidNow();
+  let changed = 0, tests = 0;
+  for (const b of builds()) for (const pth of paths(sid, b.key)) {
+    tests++;
+    const r = review(sid, b.key, pth.title);
+    if ((r?.verdict || "") === v) continue;
+    if (await post(b.key, v, r?.notes || "", pth.title)) changed++;
+  }
+  if (P) document.querySelectorAll("[data-pv]").forEach(x => x.classList.toggle("on", x.dataset.pv === (review(sid, P.key, P.p.title)?.verdict || "")));
+  renderNav(); renderBuilds();
+  $("saved").textContent = `story ${sid}: ${v ? `${v} with` : "back to review:"} all ${tests} tests (${changed} changed)`;
+}
+
 async function act(a) {
   switch (a.do) {
     case "none": return;
+    case "all": return judgeAll(a.v);
     case "pane":
       if (a.to === "tests" && !cur) { const f = flat(); if (f.length) await select(f[0].key, f[0].idx); }
       if (a.to === "steps" && !$("steps")) return;  // nothing playing yet
