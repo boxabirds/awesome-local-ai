@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { undoShortcut, useUndoController } from '../board/useUndo';
 import { STICKY_LINE_HEIGHT, STICKY_PADDING_WORLD, applyTextDiff, clampEdit, counterVisible } from './StickyText';
 
 /**
@@ -43,6 +44,20 @@ export function StickyTextEditor(props: {
   const [length, setLength] = useState(() => ytext.length);
   const onEndRef = useRef(props.onEnd);
   onEndRef.current = props.onEnd;
+  const undo = useUndoController();
+  /** Newest undo step before this edit began: undo inside the editor never goes past it. */
+  const editStart = useRef<unknown>(null);
+  /** Steps undone inside this edit that may be redone here. */
+  const undoneHere = useRef(0);
+
+  // Editing is its own run of undo steps: typing never merges with the change
+  // before it (e.g. creating the note) or after it.
+  useLayoutEffect(() => {
+    undo.boundary();
+    editStart.current = undo.checkpoint();
+    undoneHere.current = 0;
+    return () => undo.boundary();
+  }, [undo, ytext]);
 
   // Edit start: current text, focused, caret at the end.
   useLayoutEffect(() => {
@@ -92,8 +107,19 @@ export function StickyTextEditor(props: {
       el.value = text;
       if (caret !== null) el.setSelectionRange(caret, caret);
     }
+    if (text !== prev) undoneHere.current = 0;
     applyTextDiff(ytext, text, LOCAL_ORIGIN);
     setLength(text.length);
+  };
+
+  /** Ctrl/Cmd+Z undoes typing in this note; the browser's own textarea undo would diverge from the Y.Text. */
+  const onHistoryKey = (kind: 'undo' | 'redo') => {
+    commit();
+    if (kind === 'undo') {
+      if (undo.canUndoSince(editStart.current) && undo.undo()) undoneHere.current++;
+    } else if (undoneHere.current > 0 && undo.redo()) {
+      undoneHere.current--;
+    }
   };
 
   return (
@@ -118,6 +144,13 @@ export function StickyTextEditor(props: {
         }}
         onBlur={commit}
         onKeyDown={(e) => {
+          const history = undoShortcut(e);
+          if (history) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!composing.current) onHistoryKey(history);
+            return;
+          }
           if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();

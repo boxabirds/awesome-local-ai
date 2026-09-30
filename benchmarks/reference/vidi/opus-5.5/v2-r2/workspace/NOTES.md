@@ -280,3 +280,39 @@ Decisions made where the spec was open or self-contradictory:
   installed here, so TC-32 was not run in them.
 - **Red phase.** As in earlier stories, test-first phases were not committed separately (single story commit).
 - **Presence (story 6) is not built**: the selection is not published to others.
+
+## Story 8 — Undo and redo my own changes without undoing anyone else's
+
+- **Capture timeout is timed by the controller, not Y.UndoManager.** Yjs reads the clock through lib0's
+  `getUnixTime = Date.now`, bound at import, so fake clocks (`vi.setSystemTime`, TC-12/TC-13) cannot reach it.
+  `createUndo` registers its own `afterTransaction` handler (before the manager's) that calls `stopCapturing()`
+  when a local change comes ≥ `UNDO_CAPTURE_TIMEOUT_MS` after the previous one; the manager itself runs with an
+  infinite capture timeout. Behaviour is the same as the manager's (pause of exactly the timeout = new step).
+- **One press = one step, even when the step has no effect.** Y.UndoManager keeps popping until something changes,
+  so undoing a move of a note someone else deleted would also undo the step before it. `undo()`/`redo()` pop
+  exactly one stack item (by presenting the manager a one-item stack); a no-effect step is consumed silently
+  (PRD alternate flow "the next undo continues normally").
+- **Extra controller methods** beyond the design contract: `checkpoint()` / `canUndoSince(checkpoint)` (the text
+  editor's Ctrl/Cmd+Z only undoes steps made since the edit began, so it never undoes an earlier move — TC-16)
+  and `holdCapture(on)` (gestures hold the capture window open between their boundaries, so a drag that pauses
+  ≥ 500 ms mid-way is still one step). `addScope` takes `Y.AbstractType<any>` (with `<unknown>`, `Y.Map<T>` is
+  not assignable).
+- **Redo inside the editor** (Ctrl/Cmd+Shift+Z, Ctrl+Y) only redoes typing undone in that same edit; typing
+  again forgets it. Outside the editor, board shortcuts are the normal undo/redo.
+- **Wiring.** `useTransformGesture` is unchanged: its story 7 `onGestureStart/End` hooks are passed from `App.tsx`
+  (boundary + hold). Delete/nudge keys (`useBoardKeys`), the Sticky note button / double-click create, and the
+  selection bar's colour and delete run between two `boundary()` calls. The editor gets the controller from
+  `UndoContext` (in `useUndo.ts`) because registered object components have a fixed props contract.
+- **Controller lifetime.** `App.tsx` creates the controller in an effect (StrictMode-safe) and destroys it on
+  board change/unmount; until then `NO_UNDO` (empty history) is used. `App` accepts an optional `undo` prop
+  (component tests supply a fake).
+- **Buttons.** Below the tools, after a divider, in the left toolbar: `aria-label` "Undo"/"Redo", tooltips
+  "Undo (Ctrl/Cmd+Z)" / "Redo (Ctrl/Cmd+Shift+Z)", `disabled` plus `aria-disabled`.
+- **Ctrl+Y** is redo only with Ctrl (not Cmd), as the PRD says; Cmd+Y is left to the browser.
+- **LOAD origin in unit tests.** `tests/unit/peer.ts` uses its own load-origin symbol: story 4's `LOAD_ORIGIN`
+  lives in worker code that needs the Workers types, and any non-local origin is equally untracked.
+- **Story 7 e2e TC-36** now uses a camera 100 units further left: its rectangles started at screen x=40, which
+  is on the (now taller) left toolbar. Assertions are unchanged.
+- **E2E** (`tests/e2e/undo.spec.ts`, fixture `tests/fixtures/undo-board.ts`): the board is seeded by the other
+  participant (Raj), so the seed is not in Mia's history. Chromium only (Firefox/WebKit not installed).
+- **Red phase** not committed separately (single story commit), as in earlier stories.

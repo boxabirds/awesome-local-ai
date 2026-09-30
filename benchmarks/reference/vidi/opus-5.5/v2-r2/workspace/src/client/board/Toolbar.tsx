@@ -1,7 +1,14 @@
+import { UndoButtons } from './UndoButtons';
+import type { useUndo } from './useUndo';
+
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
-/** Fixed left-side vertical toolbar. */
-export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }): React.JSX.Element {
+/** Fixed left-side vertical toolbar: the tools, then Undo and Redo. */
+export function Toolbar(props: {
+  onCreateSticky(): void;
+  disabled?: boolean;
+  undo?: ReturnType<typeof useUndo>;
+}): React.JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -23,6 +30,12 @@ export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }): 
           <path d="M14 20v-6h6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
         </svg>
       </button>
+      {props.undo && (
+        <>
+          <span className="board-toolbar-divider" aria-hidden="true" />
+          <UndoButtons {...props.undo} />
+        </>
+      )}
     </div>
   );
 }

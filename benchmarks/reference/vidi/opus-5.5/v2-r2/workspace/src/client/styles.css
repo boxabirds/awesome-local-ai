@@ -154,6 +154,12 @@ body,
   cursor: pointer;
 }
 
+.board-toolbar-divider {
+  height: 1px;
+  margin: 2px 4px;
+  background: #dcdfe6;
+}
+
 .board-toolbar button:hover:not(:disabled) {
   background: #eef0f4;
 }

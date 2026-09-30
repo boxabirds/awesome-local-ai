@@ -231,7 +231,8 @@ test.describe('story 7: selection with other people', () => {
     test.slow();
     const people = await openParticipants(browser, MAX_CONCURRENT_EDITORS);
     try {
-      const cam = { x: -100, y: -100, zoom: 0.5 };
+      // Rectangles start right of the left toolbar (which also holds Undo/Redo since story 8).
+      const cam = { x: -200, y: -100, zoom: 0.5 };
       await Promise.all(people.map((p) => setCamera(p.page, cam)));
       const rows = people.map((_, i) => [
         { x: 0, y: i * 300, text: `Row ${i + 1} left`, color: 'yellow' as const },

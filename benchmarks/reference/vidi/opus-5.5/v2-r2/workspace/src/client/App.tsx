@@ -15,10 +15,12 @@ import { MarqueeRect, useMarquee } from './board/Marquee';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { Toolbar } from './board/Toolbar';
+import { type UndoController, createUndo } from './board/undo';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useSelection } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
+import { NO_UNDO, UndoContext, useUndo } from './board/useUndo';
 import { type Point, type Size, canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
 import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
@@ -45,8 +47,10 @@ export function canEdit(state: ConnectionState): boolean {
 /**
  * `boardId` connects the board to its live room; without it the board stays
  * local. `doc` lets tests supply the board document; the app creates its own.
+ * `undo` lets tests supply the undo controller; otherwise the board gets its
+ * own, discarded with the board (history is per tab and session-only).
  */
-export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React.JSX.Element {
+export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoController } = {}): React.JSX.Element {
   const [viewportSize, setViewportSize] = useState<Size>(initialViewportSize);
   const board = useCamera(viewportSize);
   const context = useMemo(() => ({ ...board, setViewportSize }), [board]);
@@ -62,9 +66,46 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React
     if (!editable) endEdit('selected');
   }, [editable, endEdit]);
 
-  const gesture = useTransformGesture({ doc, camera, selection, snapshot: objects, canEdit: editable });
+  const [ownUndo, setOwnUndo] = useState<UndoController>(NO_UNDO);
+  useEffect(() => {
+    if (props.undo) return;
+    const controller = createUndo(doc);
+    setOwnUndo(controller);
+    return () => {
+      controller.destroy();
+      setOwnUndo(NO_UNDO);
+    };
+  }, [doc, props.undo]);
+  const undoController = props.undo ?? ownUndo;
+  const undoControls = useUndo(undoController, editable);
+  /** Runs one board change as its own undo step. */
+  const asStep = <T,>(change: () => T): T => {
+    undoController.boundary();
+    try {
+      return change();
+    } finally {
+      undoController.boundary();
+    }
+  };
+
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    // A whole drag or resize (even a cancelled one) is exactly one undo step.
+    onGestureStart: () => {
+      undoController.boundary();
+      undoController.holdCapture(true);
+    },
+    onGestureEnd: () => {
+      undoController.holdCapture(false);
+      undoController.boundary();
+    },
+  });
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoController });
 
   useEffect(
     () =>
@@ -94,17 +135,19 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React
   const createAt = useCallback(
     (world: Point) => {
       if (!editableRef.current) return;
+      undoController.boundary();
       const id = createSticky(doc, world);
+      undoController.boundary();
       if (id !== false) startEdit(id);
     },
-    [doc, startEdit],
+    [doc, startEdit, undoController],
   );
 
   const createAtViewportCentre = () =>
     createAt(screenToWorld(camera, { x: viewportSize.width / 2, y: viewportSize.height / 2 }));
 
   const deleteSelection = () => {
-    deleteObjects(doc, [...selectedIds]);
+    asStep(() => deleteObjects(doc, [...selectedIds]));
     selection.clear();
   };
 
@@ -112,58 +155,60 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React
 
   return (
     <BoardCameraContext.Provider value={context}>
-      <main className="app">
-        <BoardViewport onEmptyDoubleClick={createAt} onEmptyClick={selection.clear} marquee={marquee}>
-          {[...objects].sort(byId).map((obj) => {
-            const spec = getObjectType(obj.type);
-            if (!spec) return null;
-            const selected = selectedIds.has(obj.id);
-            return (
-              <spec.Component
-                key={obj.id}
-                object={obj}
-                doc={doc}
-                zoom={camera.zoom}
-                selected={selected}
-                editing={obj.id === editingId}
-                editable={editable}
-                transforming={transforming && selected}
-                onPointerDown={gesture.onObjectPointerDown}
-                onSelect={selection.click}
-                onStartEdit={startEdit}
-                onEndEdit={endEdit}
-              />
-            );
-          })}
-          <MarqueeRect rect={marquee.rect} camera={camera} />
-        </BoardViewport>
-        <SelectionOverlay
-          ids={selectedIds}
-          snapshot={objects}
-          camera={camera}
-          onHandlePointerDown={gesture.onHandlePointerDown}
-          showHandles={editable && editingId === null}
-        />
-        <SelectionBar
-          ids={selectedIds}
-          snapshot={objects}
-          camera={camera}
-          onDelete={deleteSelection}
-          onColor={(id, color) => setStickyColor(doc, id, color)}
-          hidden={!editable || editingId !== null || transforming}
-        />
-        <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} />
-        {props.boardId && <ConnectionStatus state={connection} />}
-        <NavigationHint visible={!board.hasNavigated} />
-        <ZoomControls
-          zoomPercent={zoomPercent(camera)}
-          canZoomIn={canZoomIn(camera)}
-          canZoomOut={canZoomOut(camera)}
-          onZoomIn={() => board.zoomStep('in')}
-          onZoomOut={() => board.zoomStep('out')}
-          onReset={board.reset}
-        />
-      </main>
+      <UndoContext.Provider value={undoController}>
+        <main className="app">
+          <BoardViewport onEmptyDoubleClick={createAt} onEmptyClick={selection.clear} marquee={marquee}>
+            {[...objects].sort(byId).map((obj) => {
+              const spec = getObjectType(obj.type);
+              if (!spec) return null;
+              const selected = selectedIds.has(obj.id);
+              return (
+                <spec.Component
+                  key={obj.id}
+                  object={obj}
+                  doc={doc}
+                  zoom={camera.zoom}
+                  selected={selected}
+                  editing={obj.id === editingId}
+                  editable={editable}
+                  transforming={transforming && selected}
+                  onPointerDown={gesture.onObjectPointerDown}
+                  onSelect={selection.click}
+                  onStartEdit={startEdit}
+                  onEndEdit={endEdit}
+                />
+              );
+            })}
+            <MarqueeRect rect={marquee.rect} camera={camera} />
+          </BoardViewport>
+          <SelectionOverlay
+            ids={selectedIds}
+            snapshot={objects}
+            camera={camera}
+            onHandlePointerDown={gesture.onHandlePointerDown}
+            showHandles={editable && editingId === null}
+          />
+          <SelectionBar
+            ids={selectedIds}
+            snapshot={objects}
+            camera={camera}
+            onDelete={deleteSelection}
+            onColor={(id, color) => asStep(() => setStickyColor(doc, id, color))}
+            hidden={!editable || editingId !== null || transforming}
+          />
+          <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} undo={undoControls} />
+          {props.boardId && <ConnectionStatus state={connection} />}
+          <NavigationHint visible={!board.hasNavigated} />
+          <ZoomControls
+            zoomPercent={zoomPercent(camera)}
+            canZoomIn={canZoomIn(camera)}
+            canZoomOut={canZoomOut(camera)}
+            onZoomIn={() => board.zoomStep('in')}
+            onZoomOut={() => board.zoomStep('out')}
+            onReset={board.reset}
+          />
+        </main>
+      </UndoContext.Provider>
     </BoardCameraContext.Provider>
   );
 }
