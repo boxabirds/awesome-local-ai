@@ -1,35 +1,36 @@
 :root {
-  --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e3e2dd;
-  --ok: #1f8a4c; --part: #c98a0b; --bad: #c0392b; --run: #2f6fdb; --none: #d6d5cf; --chip: #efeee9;
+  /* Three levels of text: --ink (what matters), --muted (supporting), --faint (detail). */
+  --bg: #eeede8; --panel: #ffffff; --panel-2: #f6f5f1; --ink: #141412; --muted: #55544f; --faint: #86857f; --line: #d6d5cf;
+  --ok: #17803f; --part: #b0760a; --bad: #b8321f; --run: #1f5fd6; --none: #d3d2cb; --chip: #e7e6e0;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #9a9993; --line: #33332f;
-    --ok: #3fb872; --part: #e0a82e; --bad: #e0685a; --run: #6c9cf0; --none: #3a3a36; --chip: #2a2a27;
+    --bg: #0c0c0b; --panel: #191917; --panel-2: #222220; --ink: #f4f3ee; --muted: #b0afa8; --faint: #7d7c76; --line: #393934;
+    --ok: #4ccf82; --part: #f0b93c; --bad: #f2786a; --run: #7aa7ff; --none: #3c3c37; --chip: #2d2d2a;
     color-scheme: dark;
   }
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink);
-       font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+       font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-variant-numeric: tabular-nums; }
 header { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line);
          padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
 h1 { font-size: 17px; margin: 0; }
 select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font: inherit; }
-.meta { color: var(--muted); font-size: 12px; }
+.meta { color: var(--faint); font-size: 12px; }
 .err { color: var(--bad); font-size: 12px; }
 main { padding: 12px 16px 40px; }
-section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin: 0 0 14px; overflow-x: auto; }
-h2 { font-size: 13px; font-weight: 600; margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line);
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin: 0 0 16px; overflow-x: auto; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+h2 { font-size: 13px; font-weight: 600; margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--panel-2);
      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 table { border-collapse: collapse; width: 100%; min-width: 900px; table-layout: fixed; }
 th, td { text-align: left; padding: 8px 8px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
-th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; overflow-wrap: normal; hyphens: none; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; overflow-wrap: normal; hyphens: none; background: var(--panel-2); }
 tr:last-child td { border-bottom: none; }
 .run { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; overflow-wrap: anywhere; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.small { font-size: 12px; color: var(--muted); }
+.small { font-size: 12px; color: var(--faint); }
 .log { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--muted);
        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; overflow-wrap: anywhere; }
@@ -119,3 +120,16 @@ table.combos th { cursor: pointer; }
 table.combos td.combo .stack-label { font-size: 13px; color: var(--ink); font-weight: 600; }
 .tooltip { position: fixed; z-index: 20; background: var(--ink); color: var(--bg); font-size: 12px; line-height: 1.45; padding: 7px 10px; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.35); pointer-events: none; white-space: normal; font-weight: 400; text-transform: none; letter-spacing: 0; }
 [data-tip] { cursor: help; }
+
+/* Emphasis: headline numbers are large, bold and coloured by how good they are; the rest steps down. */
+.num-xl { font-size: 20px; font-weight: 750; letter-spacing: -.01em; line-height: 1.1; }
+.num-l { font-size: 16px; font-weight: 700; }
+.num { font-size: 14px; font-weight: 500; color: var(--ink); }
+.q-high { color: var(--ok); } .q-mid { color: var(--part); } .q-low { color: var(--bad); }
+.machine-name { font-size: 17px; font-weight: 750; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+tr.combo-head td { background: var(--panel-2); }
+tr.combo-head .stack-label { font-size: 14px; font-weight: 700; }
+.stack-label { color: var(--muted); }
+.run { font-size: 14px; }
+.status-word { font-size: 14px; }
+.log { color: var(--faint); }

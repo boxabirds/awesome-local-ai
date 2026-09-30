@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Row } from "../../shared/types.ts";
 import { combinations, type Combination } from "../../shared/stats.ts";
 import { short } from "./UsageCells.tsx";
+import { qualityClass } from "../format.ts";
 
 const PERCENT = 100;
 const HOUR_DECIMALS = 1;
@@ -26,12 +27,12 @@ function cell(c: Combination, cls: string) {
     case "combo": return <span className="stack-label" data-tip={c.stack}>{c.label}</span>;
     case "machines": return c.machines.join(", ");
     case "runs": return STATUS_ORDER.filter((s) => c.byStatus[s]).map((s) => `${c.byStatus[s]} ${s}`).join(" · ");
-    case "quality": return c.stats.quality === null ? "—" : `${Math.round(c.stats.quality * PERCENT)}%`;
-    case "score": return c.score ? <span data-tip={`${c.score.n} run${c.score.n === 1 ? "" : "s"} with a score of record`}>{c.score.mean.toFixed(1)} <span className="small">(n={c.score.n})</span></span> : "—";
-    case "hours": return c.stats.hoursPerStory === null ? "—" : c.stats.hoursPerStory.toFixed(HOUR_DECIMALS);
-    case "toks": return c.tokS === null ? "—" : c.tokS.toFixed(SPEED_DECIMALS);
-    case "calls": return c.callsPerStory === null ? "—" : String(Math.round(c.callsPerStory));
-    case "read": return c.readPerStory === null ? "—" : short(Math.round(c.readPerStory));
+    case "quality": return c.stats.quality === null ? "—" : <span className={`num-xl ${qualityClass(c.stats.quality)}`}>{Math.round(c.stats.quality * PERCENT)}%</span>;
+    case "score": return c.score ? <span data-tip={`${c.score.n} run${c.score.n === 1 ? "" : "s"} with a score of record`}><span className={`num-xl ${qualityClass(c.score.total ? c.score.mean / c.score.total : null)}`}>{c.score.mean.toFixed(1)}</span> <span className="small">n={c.score.n}</span></span> : "—";
+    case "hours": return c.stats.hoursPerStory === null ? "—" : <span className="num-l">{c.stats.hoursPerStory.toFixed(HOUR_DECIMALS)}</span>;
+    case "toks": return c.tokS === null ? "—" : <span className="num">{c.tokS.toFixed(SPEED_DECIMALS)}</span>;
+    case "calls": return c.callsPerStory === null ? "—" : <span className="small">{Math.round(c.callsPerStory)}</span>;
+    case "read": return c.readPerStory === null ? "—" : <span className="small">{short(Math.round(c.readPerStory))}</span>;
   }
   return null;
 }

@@ -21,6 +21,11 @@ export function duration(seconds: number): string {
   return `${(s / DAY).toFixed(1)} d`;
 }
 
+const HIGH = 0.95;
+const MID = 0.8;
+/** How good a pass rate is, as a class: green at 95% and up, amber at 80% and up, red below. */
+export const qualityClass = (frac: number | null) => (frac === null ? "" : frac >= HIGH ? "q-high" : frac >= MID ? "q-mid" : "q-low");
+
 export function ordinal(n: number): string {
   const teen = n % 100 > 10 && n % 100 < 14;
   const suffix = teen ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
