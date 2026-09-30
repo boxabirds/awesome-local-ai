@@ -9,9 +9,9 @@ import { useEffect } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
-import { createText, getTextContent } from '../../src/shared/objects/text';
+import { createText, getTextContent, setTextWidthFixed } from '../../src/shared/objects/text';
 import { LOCAL_ORIGIN } from '../../src/shared/board-model';
-import { useTextBoxSync } from '../../src/client/objects/useTextBoxSync';
+import { remeasureTextBox, useTextBoxSync } from '../../src/client/objects/useTextBoxSync';
 import { TEXT_SIZES, TEXT_LINE_HEIGHT } from '../../src/shared/config';
 import type { Measurer } from '../../src/client/objects/textLayout';
 
@@ -42,6 +42,38 @@ function SyncTester({
   }, [remeasureAfterLocalChange, onReady]);
   return null;
 }
+
+describe('remeasureTextBox (width drag re-wraps)', () => {
+  it('a narrower fixed width re-wraps the text and grows the height', () => {
+    const doc = new Y.Doc();
+    const id = createText(doc, { x: 0, y: 0 }, 'local')!;
+    const ytext = getTextContent(doc, id)!;
+    doc.transact(() => {
+      ytext.insert(0, 'aaaa bbbb cccc dddd'); // 19 chars → 114 world px wide
+    }, LOCAL_ORIGIN);
+    remeasureTextBox(doc, id, fakeMeasure);
+
+    const entry = getEntry(doc, id);
+    const heightBefore = entry.get('height') as number;
+    expect(heightBefore).toBeCloseTo(1 * TEXT_SIZES.M * TEXT_LINE_HEIGHT, 0);
+
+    // Drag the right handle narrower than the single line: words must re-wrap.
+    setTextWidthFixed(doc, id, 60);
+    remeasureTextBox(doc, id, fakeMeasure);
+
+    const heightAfter = entry.get('height') as number;
+    const widthAfter = entry.get('width') as number;
+    expect(widthAfter).toBe(60);
+    expect(heightAfter).toBeGreaterThan(heightBefore);
+    expect(heightAfter).toBeCloseTo(2 * TEXT_SIZES.M * TEXT_LINE_HEIGHT, 0);
+  });
+
+  it('returns without writing when the id is not a text object', () => {
+    const doc = new Y.Doc();
+    expect(() => remeasureTextBox(doc, 'missing', fakeMeasure)).not.toThrow();
+    expect(doc.getMap('objects').size).toBe(0);
+  });
+});
 
 describe('useTextBoxSync (TC-12, TC-13)', () => {
   it('TC-12: a local edit remeasures and writes the new box to the Y.Map', () => {

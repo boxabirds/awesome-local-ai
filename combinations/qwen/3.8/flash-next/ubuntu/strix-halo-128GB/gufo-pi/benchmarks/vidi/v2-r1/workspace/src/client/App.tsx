@@ -21,6 +21,7 @@ import { StickyNote } from './objects/StickyNote';
 import { TextObject } from './objects/TextObject';
 import { getObjectType } from './objects/registry';
 import { createCanvasMeasurer, type Measurer } from './objects/textLayout';
+import { remeasureTextBox } from './objects/useTextBoxSync';
 import { createText } from '../shared/objects/text';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
@@ -185,6 +186,10 @@ export function App(props: { boardId: string }) {
     canEdit: editing,
     onGestureStart: undoBoundary,
     onGestureEnd: undoBoundary,
+    remeasureText: useCallback(
+      (id: string) => remeasureTextBox(doc, id, measure),
+      [doc, measure],
+    ),
   });
 
   // Marquee selection

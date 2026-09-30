@@ -69,7 +69,7 @@ export async function noteCount(page: Page): Promise<number> {
 }
 
 export function stickyButton(page: Page): Locator {
-  return page.getByRole('button', { name: 'Sticky note', exact: true });
+  return page.getByRole('button', { name: 'Sticky note (N)' });
 }
 
 export function deleteButton(page: Page): Locator {

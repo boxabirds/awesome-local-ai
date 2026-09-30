@@ -135,7 +135,7 @@ export async function noteIds(page: Page): Promise<string[]> {
  */
 export async function createNoteAndGetId(p: Participant): Promise<string> {
   const before = await noteIds(p.page);
-  await p.page.getByRole('button', { name: 'Sticky note', exact: true }).click();
+  await p.page.getByRole('button', { name: 'Sticky note (N)' }).click();
   // Wait for the note to appear
   await expect
     .poll(() => noteCount(p.page), { timeout: 5000 })

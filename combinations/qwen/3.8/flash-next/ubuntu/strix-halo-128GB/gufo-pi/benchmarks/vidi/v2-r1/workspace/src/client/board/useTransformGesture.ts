@@ -23,6 +23,7 @@ import {
   type Handle,
   type Rect,
 } from '../../shared/geometry';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import { getObjectType } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
 
@@ -34,6 +35,11 @@ export interface UseTransformGestureOpts {
   canEdit: boolean;
   onGestureStart?(): void;
   onGestureEnd?(): void;
+  /**
+   * Re-measure a text object's box after a horizontal handle drag wrote a new
+   * fixed width (story 9: height is derived, so it must follow the width).
+   */
+  remeasureText?(id: string): void;
 }
 
 export interface UseTransformGestureResult {
@@ -76,6 +82,8 @@ interface GestureState {
  */
 export function useTransformGesture(opts: UseTransformGestureOpts): UseTransformGestureResult {
   const { doc, camera, selection, snapshot, canEdit, onGestureStart, onGestureEnd } = opts;
+  const remeasureTextRef = useRef(opts.remeasureText);
+  remeasureTextRef.current = opts.remeasureText;
 
   const [isDragging, setIsDragging] = useState(false);
   const stateRef = useRef<GestureState | null>(null);
@@ -283,7 +291,7 @@ export function useTransformGesture(opts: UseTransformGestureOpts): UseTransform
             const s = stateRef.current;
             if (!s || s.phase !== 'resizing') return;
             s.frame = null;
-            applyResize(s, doc, selectionRef.current, snapshotRef.current);
+            applyResize(s, doc, selectionRef.current, snapshotRef.current, remeasureTextRef.current);
           });
         }
       };
@@ -314,7 +322,7 @@ export function useTransformGesture(opts: UseTransformGestureOpts): UseTransform
             state.frame = null;
           }
           if (state.phase === 'resizing') {
-            applyResize(state, doc, selectionRef.current, snapshotRef.current);
+            applyResize(state, doc, selectionRef.current, snapshotRef.current, remeasureTextRef.current);
           }
           if (state.phase === 'moving' || state.phase === 'resizing') {
             onGestureEndRef.current?.();
@@ -360,13 +368,34 @@ function applyResize(
   doc: Y.Doc,
   _selection: SelectionApi,
   snapshot: readonly ObjectSnapshot[],
+  remeasureText?: (id: string) => void,
 ): void {
   if (state.handle === null || state.startBounds === null) return;
 
   const dx = state.pendingDx / state.zoom;
   const dy = state.pendingDy / state.zoom;
+  const handle = state.handle;
 
   // Compute the new bounding box
+  // A horizontal-only handle on a single horizontally-handled object (text)
+  // sets a fixed width instead of scaling a box: the height is derived from
+  // the wrapped layout, so it is re-measured afterwards.
+  if ((handle === 'e' || handle === 'w') && state.startRects.size === 1) {
+    const id = [...state.startRects.keys()][0]!;
+    const obj = snapshot.find((o) => o.id === id);
+    const startRect = state.startRects.get(id)!;
+    if (obj && getObjectType(obj.type)?.handles === 'horizontal') {
+      const spec = getObjectType(obj.type)!;
+      const rawWidth = startRect.width + (handle === 'e' ? dx : -dx);
+      const newWidth = Math.min(Math.max(rawWidth, spec.minSize), MAX_OBJECT_SIZE_WORLD);
+      const newX = handle === 'w' ? startRect.x + startRect.width - newWidth : startRect.x;
+      setTextWidthFixed(doc, id, newWidth);
+      moveObjects(doc, new Map([[id, { x: newX, y: startRect.y }]]));
+      remeasureText?.(id);
+      return;
+    }
+  }
+
   const newBounds = resizeRect(state.startBounds, state.handle, { x: dx, y: dy }, state.aspectLocked);
 
   // Compute scale factors
@@ -401,7 +430,6 @@ function applyResize(
   };
 
   // Adjust position based on handle direction (anchor stays fixed)
-  const handle = state.handle;
   if (handle.includes('w')) {
     actualBounds.x = state.startBounds.x + state.startBounds.width - actualBounds.width;
   }

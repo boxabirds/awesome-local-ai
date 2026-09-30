@@ -37,6 +37,7 @@ export function PenTool(props: PenToolProps): JSX.Element | null {
   const { camera, color, thickness, doc, identityId, canEdit, undoBoundary } = props;
 
   const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
   const pointerId = useRef<number | null>(null);
   const rawPoints = useRef<Point[]>([]);
   const cameraRef = useRef(camera);
@@ -186,6 +187,30 @@ export function PenTool(props: PenToolProps): JSX.Element | null {
     }
   }, [commitStroke]);
 
+  // Round cursor preview following the pointer, sized thickness × zoom.
+  // Hidden while the pointer is over the app chrome (toolbar, controls) so the
+  // dot does not float on top of buttons; events without an element target
+  // (document/window listeners in tests) count as being on the board.
+  const handleCursorMove = useCallback((event: PointerEvent) => {
+    const target = event.target;
+    if (
+      target instanceof HTMLElement &&
+      target.closest('[data-board-surface]') === null &&
+      target.closest('.board-viewport') === null
+    ) {
+      setCursorPos(null);
+      return;
+    }
+    setCursorPos({ x: event.clientX, y: event.clientY });
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('pointermove', handleCursorMove);
+    return () => {
+      document.removeEventListener('pointermove', handleCursorMove);
+    };
+  }, [handleCursorMove]);
+
   useEffect(() => {
     document.addEventListener('pointerdown', handlePointerDown, true);
     document.addEventListener('pointermove', handlePointerMove, true);
@@ -199,33 +224,53 @@ export function PenTool(props: PenToolProps): JSX.Element | null {
     };
   }, [handlePointerDown, handlePointerMove, handlePointerUp, handlePointerCancel]);
 
-  // Render preview SVG overlay
+  // Render preview SVG overlay and round cursor dot
   const thicknessPx = PEN_THICKNESS_WORLD[thicknessRef.current] * camera.zoom;
   const strokeColor = PEN_COLORS[colorRef.current];
-
-  if (!previewPath) return null;
+  const cursorSize = Math.max(thicknessPx, 2);
 
   return (
-    <svg
-      data-testid="pen-preview-overlay"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        zIndex: 1000,
-      }}
-    >
-      <path
-        d={previewPath}
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth={thicknessPx}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <>
+      {cursorPos && (
+        <div
+          data-testid="pen-cursor"
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            left: cursorPos.x - cursorSize / 2,
+            top: cursorPos.y - cursorSize / 2,
+            width: cursorSize,
+            height: cursorSize,
+            borderRadius: '50%',
+            backgroundColor: strokeColor,
+            pointerEvents: 'none',
+            zIndex: 1001,
+          }}
+        />
+      )}
+      {previewPath && (
+        <svg
+          data-testid="pen-preview-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            zIndex: 1000,
+          }}
+        >
+          <path
+            d={previewPath}
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={thicknessPx}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </>
   );
 }

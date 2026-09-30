@@ -336,22 +336,60 @@ Freehand pen tool, stroke objects, simplification, and collaboration.
   `scaleWithin` (uniform scale) for strokes registered as `aspectLocked: true`
   in the registry. The `scaledPoints` function then scales all stored points
   proportionally at render time.
-- **Pen uses crosshair cursor** and prevents panning while active (scroll wheel
-  still pans). This matches the BoardViewport's tool guards.
+- **Pen hides the native cursor** and prevents panning while active (scroll
+  wheel still pans). This matches the BoardViewport's tool guards.
+- **Hit tolerance is screen-relative**: `ObjectTypeSpec.hitTest` gained a
+  `zoom` argument and the stroke spec uses
+  `Math.max(thickness / 2, STROKE_HIT_TOLERANCE_PX / zoom)`, so picking a thin
+  line stays a 6-*pixel* affair at 50 % and at 200 % zoom alike. The object
+  itself enforces the same rule in the DOM: `StrokeObject`'s invisible hit path
+  is `STROKE_HIT_TOLERANCE_PX * 2 / zoom` wide with `pointer-events: stroke`, so
+  a click inside the bounding box but away from the line falls through to
+  whatever is underneath.
+- **Round pen cursor**: while the Pen tool is active the viewport sets
+  `cursor: none` and `PenTool` renders a fixed-position circle that follows the
+  pointer, sized `thickness × zoom` and filled with the current pen colour, so
+  the mark on screen is exactly what will be drawn.
 
 ## Tests
 
 - **Unit tests** (TC-01 to TC-08): 11 tests in `tests/unit/stroke.test.ts`
   covering simplify, splitPoints, createStroke, scaledPoints, distanceToPolyline
   on scaled points, and smoothPath output format.
-- **Component tests** (TC-09 to TC-16, TC-21): 13 tests in
+- **Component tests** (TC-09 to TC-16, TC-21): 18 tests in
   `tests/component/PenTool.test.tsx` covering pen gesture (drag, click dot,
-  cancel, max-points split, colour switching), PenToolbar rendering, registry
-  hit test (near/far), and stale selection safety.
+  cancel, max-points split, colour switching), the round pen cursor (size =
+  thickness × zoom, colour, centred on the pointer, hidden over the chrome),
+  PenToolbar rendering, registry hit test at 0.5×/1×/2× zoom and far from the
+  line, and stale selection safety.
 - **E2E tests** (TC-17 to TC-20): 4 tests in `tests/e2e/pen-strokes.spec.ts`
   proving preview during drag (d attribute changes), release-to-share collaboration,
   scroll-pan while pen is active, and select-by-line + aspect-locked resize +
   move + delete workflow.
+- Only the Chromium browser binary is installed in this environment, so the
+  firefox/webkit projects are skipped by `playwright.config.ts` (`isInstalled`);
+  the restart-persistence project runs and passes.
+
+## Fixes to earlier stories found while finishing this one
+
+- **Sticky toolbar accessible name.** Story 9 renamed the toolbar button to
+  `"Sticky note (N)"`; the e2e helpers still matched `"Sticky note"` exactly,
+  which broke every sticky/collaboration/share test. `tests/e2e/helpers/stickies.ts`,
+  `tests/e2e/helpers/participants.ts` and `tests/e2e/share.spec.ts` now match the
+  current label.
+- **Persistence helpers and story 4 routing.** `'/'` is the home page now, so
+  `tests/e2e/helpers/persistence.ts` `openBoard()` clicks `new-board` and waits
+  for `/b/<id>` when no board id is given (it used to assume `/` redirects).
+- **Text toolbar was unhittable.** `.text-object` had `overflow: hidden`, which
+  clipped the selection toolbar anchored above the box; the buttons existed but
+  no pointer event ever reached them (`text-workflows` TC-28). The clip now
+  lives only on `.text-object__content`, which is what actually holds the text.
+- **Horizontal handle drag on a text did not re-wrap** (`text-workflows` TC-27).
+  `useTransformGesture` scaled text like any other box, so the stored height
+  never followed the narrower width. A single horizontal-only-handle object now
+  goes through `setTextWidthFixed` + `remeasureTextBox` (extracted out of
+  `useTextBoxSync` for exactly this purpose), which is what story 9's design
+  already specified.
 
 ---
 

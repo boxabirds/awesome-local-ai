@@ -303,7 +303,7 @@ export function BoardViewport({
       style={{
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px`,
-        cursor: tool === 'text' ? 'text' : tool === 'shape' ? 'crosshair' : tool === 'connector' ? 'crosshair' : tool === 'pen' ? 'crosshair' : undefined,
+        cursor: tool === 'text' ? 'text' : tool === 'shape' ? 'crosshair' : tool === 'connector' ? 'crosshair' : tool === 'pen' ? 'none' : undefined,
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

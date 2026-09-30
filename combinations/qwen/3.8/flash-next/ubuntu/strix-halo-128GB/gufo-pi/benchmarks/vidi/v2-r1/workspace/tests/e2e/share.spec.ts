@@ -29,7 +29,7 @@ test('TC-26: create-share-join round trip', async ({ browser }) => {
   const joiner = await joinBoard(browser, boardId);
 
   // Creator adds a sticky note
-  await page1.getByRole('button', { name: 'Sticky note', exact: true }).click();
+  await page1.getByRole('button', { name: 'Sticky note (N)' }).click();
   await expect.poll(() => noteCount(page1), { timeout: 5000 }).toBe(1);
   await page1.keyboard.press('Escape');
 

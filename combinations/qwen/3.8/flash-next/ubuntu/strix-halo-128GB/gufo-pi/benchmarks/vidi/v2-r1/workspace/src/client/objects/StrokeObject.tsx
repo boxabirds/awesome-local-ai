@@ -8,7 +8,7 @@ import type { JSX } from 'react';
 import type { StrokeSnap } from '../../shared/objects/stroke';
 import { scaledPoints } from '../../shared/objects/stroke';
 import { smoothPath } from '../../shared/geometry/simplify';
-import { PEN_COLORS, PEN_THICKNESS_WORLD } from '../../shared/config';
+import { PEN_COLORS, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX } from '../../shared/config';
 
 export interface StrokeObjectProps {
   stroke: StrokeSnap;
@@ -75,7 +75,7 @@ export function StrokeObject(props: StrokeObjectProps): JSX.Element {
           d={path}
           fill="none"
           stroke="transparent"
-          strokeWidth={Math.max(thicknessWorld, 12 / zoom)}
+          strokeWidth={Math.max(thicknessWorld, (STROKE_HIT_TOLERANCE_PX * 2) / zoom)}
           strokeLinecap="round"
           strokeLinejoin="round"
           style={{ pointerEvents: 'stroke' }}

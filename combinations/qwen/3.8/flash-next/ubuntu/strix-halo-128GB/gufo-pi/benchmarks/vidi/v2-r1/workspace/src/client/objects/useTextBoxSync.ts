@@ -20,6 +20,43 @@ export interface UseTextBoxSyncResult {
 }
 
 /**
+ * Compute the box of a text object from its current content, size and width
+ * mode, and write it via `setTextBox` only if it differs from the stored one.
+ * Exported so the resize gesture can re-measure height after a width drag.
+ */
+export function remeasureTextBox(
+  doc: Y.Doc,
+  id: string,
+  measure: Measurer,
+): void {
+  const objects = doc.getMap('objects');
+  const entry = objects.get(id);
+  if (!(entry instanceof Y.Map)) return;
+
+  const type = entry.get('type');
+  if (type !== 'text') return;
+
+  const sizeKey = entry.get('size');
+  const widthMode = entry.get('widthMode');
+  const storedWidth = entry.get('width');
+  const storedHeight = entry.get('height');
+  const ytext = entry.get('text');
+
+  if (!(ytext instanceof Y.Text)) return;
+
+  const text = ytext.toString();
+  const textSize = (sizeKey ?? 'M') as TextSize;
+  const mode = widthMode === 'fixed' ? 'fixed' : 'auto';
+  const fixedW = mode === 'fixed' && typeof storedWidth === 'number' ? storedWidth : null;
+
+  const layout = layoutText(text, textSize, mode, fixedW, measure);
+
+  if (layout.width !== storedWidth || layout.height !== storedHeight) {
+    setTextBox(doc, id, { width: layout.width, height: layout.height });
+  }
+}
+
+/**
  * Returns `remeasureAfterLocalChange()` which computes the box from the
  * current text content, size and widthMode, and writes it via `setTextBox`
  * only if the computed box differs from the stored one.
@@ -37,37 +74,7 @@ export function useTextBoxSync(
   measureRef.current = measure;
 
   const remeasureAfterLocalChange = useCallback((): void => {
-    const d = docRef.current;
-    const objId = idRef.current;
-    const m = measureRef.current;
-
-    // Read the current state from the document
-    const objects = d.getMap('objects');
-    const entry = objects.get(objId);
-    if (!(entry instanceof Y.Map)) return;
-
-    const type = entry.get('type');
-    if (type !== 'text') return;
-
-    const sizeKey = entry.get('size');
-    const widthMode = entry.get('widthMode');
-    const storedWidth = entry.get('width');
-    const storedHeight = entry.get('height');
-    const ytext = entry.get('text');
-
-    if (!(ytext instanceof Y.Text)) return;
-
-    const text = ytext.toString();
-    const textSize = (sizeKey ?? 'M') as TextSize;
-    const mode = widthMode === 'fixed' ? 'fixed' : 'auto';
-    const fixedW = mode === 'fixed' && typeof storedWidth === 'number' ? storedWidth : null;
-
-    const layout = layoutText(text, textSize, mode, fixedW, m);
-
-    // Only write if the box actually changed
-    if (layout.width !== storedWidth || layout.height !== storedHeight) {
-      setTextBox(d, objId, { width: layout.width, height: layout.height });
-    }
+    remeasureTextBox(docRef.current, idRef.current, measureRef.current);
   }, []);
 
   return { remeasureAfterLocalChange };

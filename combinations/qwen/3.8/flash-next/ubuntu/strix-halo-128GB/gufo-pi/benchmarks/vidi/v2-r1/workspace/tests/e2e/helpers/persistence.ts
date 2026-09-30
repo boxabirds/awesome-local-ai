@@ -7,8 +7,14 @@ import { expect } from '@playwright/test';
 
 /** Opens the app at /b/:boardId or creates a new board. */
 export async function openBoard(page: Page, boardId?: string): Promise<string> {
-  const url = boardId ? `/b/${boardId}` : '/';
-  await page.goto(url);
+  if (boardId) {
+    await page.goto(`/b/${boardId}`);
+  } else {
+    // Story 4 routing: '/' is the home page; a board is created from there.
+    await page.goto('/');
+    await page.getByTestId('new-board').click();
+    await page.waitForURL(/\/b\/[A-Za-z0-9_-]{22}/);
+  }
   await expect(page.getByTestId('viewport')).toBeVisible();
   await expect
     .poll(() =>

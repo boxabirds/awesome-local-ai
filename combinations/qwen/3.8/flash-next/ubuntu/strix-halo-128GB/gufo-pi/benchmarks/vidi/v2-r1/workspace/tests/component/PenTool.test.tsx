@@ -162,9 +162,33 @@ describe('PenTool (TC-09 to TC-14)', () => {
     expect(objects.size).toBeGreaterThanOrEqual(2);
   });
 
-  it('TC-13: Escape then V → tool would change, no stroke created', () => {
+  it('TC-13: Escape while drawing, then V → tool would change, no stroke created', () => {
     renderPenTool();
-    // We just verify no stroke was created; the Escape handling is in useTool
+
+    // Start dragging
+    act(() => {
+      viewport.dispatchEvent(pointerEvent(viewport, 'pointerdown', { clientX: 300, clientY: 300 }));
+    });
+    for (let i = 1; i <= 5; i++) {
+      act(() => {
+        document.dispatchEvent(pointerEvent(document, 'pointermove', { clientX: 300 + i * 15, clientY: 300 }));
+      });
+    }
+
+    // Escape (handled by app keyboard handler → switch to select tool).
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+
+    // Without a release/cancel the pen component holds its points but never commits
+    // (no pointerup fires because the tool switch unmounts the capture handlers).
+    expect(doc.getMap('objects').size).toBe(0);
+
+    // The tool state itself is covered in ToolMode tests; here we verify pressing V
+    // likewise creates nothing.
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'v' }));
+    });
     expect(doc.getMap('objects').size).toBe(0);
   });
 
@@ -237,6 +261,39 @@ describe('PenTool (TC-09 to TC-14)', () => {
     expect(blues.length).toBe(1);
   });
 
+  it('round pen cursor follows the pointer, sized thickness × zoom in the pen colour', () => {
+    const { container } = renderPenTool({ camera: makeCamera({ zoom: 2 }) });
+
+    // No cursor marker before the pointer has moved over the board
+    expect(container.querySelector('[data-testid="pen-cursor"]')).toBeNull();
+
+    act(() => {
+      viewport.dispatchEvent(pointerEvent(viewport, 'pointermove', { clientX: 140, clientY: 90 }));
+    });
+
+    const cursor = container.querySelector<HTMLElement>('[data-testid="pen-cursor"]');
+    expect(cursor).not.toBeNull();
+    // thick = 8 world units → 16 CSS px at zoom 2
+    expect(cursor!.style.width).toBe('16px');
+    expect(cursor!.style.height).toBe('16px');
+    expect(cursor!.style.borderRadius).toBe('50%');
+    expect(cursor!.style.backgroundColor).toBe('rgb(229, 57, 53)'); // PEN_COLORS.red
+    // Centred on the pointer
+    expect(cursor!.style.left).toBe('132px');
+    expect(cursor!.style.top).toBe('82px');
+    // Never intercepts the drawing gestures
+    expect(cursor!.style.pointerEvents).toBe('none');
+
+    // Over the app chrome the dot is hidden (the real cursor is used there)
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    act(() => {
+      outside.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 10, clientY: 10 }));
+    });
+    expect(container.querySelector('[data-testid="pen-cursor"]')).toBeNull();
+    outside.remove();
+  });
+
 });
 
 describe('PenToolbar', () => {
@@ -283,19 +340,21 @@ describe('StrokeObject registry hit test (TC-15, TC-16)', () => {
     };
   }
 
-  it('TC-15: hitTest at 5px from line → hit', () => {
+  it.each([0.5, 1, 2])('TC-15: hitTest at 5px screen distance from line → hit (zoom %g)', (zoom) => {
     const snap = makeStrokeSnap();
-    // scaledPoints will give (50,50), (60,50), (70,50) since width/baseWidth = 1
-    // Point at (60, 44) is 6 units from the line y=50. At zoom 1, tolerance = max(2, 6) = 6.
-    // 5 units away should be within tolerance
-    const hit = spec.hitTest(snap, { x: 60, y: 45 });
+    // scaledPoints give (50,50), (60,50), (70,50) since width/baseWidth = 1.
+    // Tolerance = max(thickness/2, STROKE_HIT_TOLERANCE_PX / zoom).
+    // A 5 screen-pixel offset = 5 / zoom world units → within tolerance.
+    const worldOffset = 5 / zoom;
+    const hit = spec.hitTest(snap, { x: 60, y: 50 - worldOffset }, zoom);
     expect(hit).toBe(true);
   });
 
-  it('TC-15: hitTest at 7px from line → miss', () => {
+  it.each([0.5, 1, 2])('TC-15: hitTest at 7px screen distance from line → miss (zoom %g)', (zoom) => {
     const snap = makeStrokeSnap();
-    // Point at (60, 57) is 7 units from line y=50, tolerance = max(4/2, 6) = 6 → miss
-    const hit = spec.hitTest(snap, { x: 60, y: 57 });
+    // A 7 screen-pixel offset = 7 / zoom world units → outside tolerance.
+    const worldOffset = 7 / zoom;
+    const hit = spec.hitTest(snap, { x: 60, y: 50 + worldOffset }, zoom);
     expect(hit).toBe(false);
   });
 

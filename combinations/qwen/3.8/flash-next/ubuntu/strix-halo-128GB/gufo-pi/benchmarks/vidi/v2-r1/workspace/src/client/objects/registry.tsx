@@ -19,7 +19,7 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** Handle set: 'all' (8 handles) or 'horizontal' (e/w only). Default 'all'. */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -103,15 +103,15 @@ registerObjectType('stroke', {
   minSize: 4, // STROKE_MIN_SIZE_WORLD
   editableText: false,
   handles: 'all',
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom = 1): boolean {
     const snap = obj as StrokeSnap;
     if (snap.type !== 'stroke') return false;
     const pts = scaledPoints(snap);
     if (pts.length === 0) return false;
     const thicknessHalf = PEN_THICKNESS_WORLD[snap.thickness] / 2;
-    // Zoom is not available here; the BoardViewport scales the tolerance before calling hitTest.
-    // Use a generous hit tolerance in world units (6px at zoom 1).
-    const tolerance = Math.max(thicknessHalf, STROKE_HIT_TOLERANCE_PX);
+    // Select only within 6 *screen* pixels of the line, or half the thickness,
+    // whichever is larger (STROKE_HIT_TOLERANCE_PX / zoom converts to world units).
+    const tolerance = Math.max(thicknessHalf, STROKE_HIT_TOLERANCE_PX / zoom);
     return distanceToPolyline(pts, worldPoint) <= tolerance;
   },
 });

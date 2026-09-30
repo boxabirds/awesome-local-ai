@@ -424,7 +424,10 @@ body {
   line-height: 1.3;
   word-break: break-word;
   white-space: pre-wrap;
-  overflow: hidden;
+  /* Not `overflow: hidden`: the selection toolbar is a child anchored above
+     the box, and clipping it would make its buttons unhittable. The text
+     itself is clipped by `.text-object__content`. */
+  overflow: visible;
 }
 
 .text-object__content {
@@ -500,4 +503,64 @@ body {
   outline: 0;
   min-width: 40px;
   min-height: 1em;
+}
+
+/* ---- pen toolbar (story 11: sketch freehand with a pen) ---- */
+
+.pen-toolbar {
+  position: fixed;
+  left: 76px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgb(20 22 30 / 12%);
+  z-index: 20;
+}
+
+.pen-toolbar__color {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.pen-toolbar__color[aria-pressed='true'] {
+  border-color: #1e88e5;
+  box-shadow: 0 0 0 2px rgb(30 136 229 / 35%);
+}
+
+.pen-toolbar__separator {
+  height: 1px;
+  margin: 2px 0;
+  background: var(--panel-border);
+}
+
+.pen-toolbar__thickness {
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.pen-toolbar__thickness[aria-pressed='true'] {
+  background: #e3f2fd;
+  border-color: #1e88e5;
+}
+
+/* The pen draws its own round cursor, so hide the native one everywhere on
+   the board (objects set their own cursors otherwise). */
+.board-viewport[data-tool='pen'],
+.board-viewport[data-tool='pen'] * {
+  cursor: none !important;
 }
