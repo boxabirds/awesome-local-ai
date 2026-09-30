@@ -4,7 +4,15 @@
 import type { ComponentType, PointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, registerModelType, type ObjectSnapshot } from '../../shared/board-model';
-import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  PEN_THICKNESS_WORLD,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import { rectContains, type Point, type Rect } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import {
@@ -14,10 +22,12 @@ import {
   type ConnectorSnap,
 } from '../../shared/objects/connector';
 import { SHAPE_TYPE } from '../../shared/objects/shape';
+import { scaledPoints, STROKE_TYPE, type StrokeSnap } from '../../shared/objects/stroke';
 import { TEXT_TYPE } from '../../shared/objects/text';
 import { ConnectorObject } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeObject } from './StrokeObject';
 import { resizeText, TextObject } from './TextObject';
 
 /** This object's part in the local transform gesture. */
@@ -147,6 +157,26 @@ registerObjectType(CONNECTOR_TYPE, {
     },
   },
   hitTest: connectorHitTest,
+});
+
+/**
+ * Within STROKE_HIT_TOLERANCE_PX screen pixels of the drawn line, or half its
+ * thickness when that is larger (pen.select). Empty space inside the box misses.
+ */
+export function strokeHitTest(obj: ObjectSnapshot, p: Point, zoom = 1): boolean {
+  const s = obj as StrokeSnap;
+  if (!s.points || !(s.thickness in PEN_THICKNESS_WORLD)) return false;
+  const tol = Math.max(PEN_THICKNESS_WORLD[s.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom);
+  return distanceToPolyline(scaledPoints(s), p) <= tol;
+}
+
+registerObjectType(STROKE_TYPE, {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: strokeHitTest,
 });
 
 /**

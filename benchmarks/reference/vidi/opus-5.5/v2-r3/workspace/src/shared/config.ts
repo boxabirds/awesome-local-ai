@@ -166,3 +166,22 @@ export const CONNECTOR_COLOR = '#263238';
 export const SHAPE_LABEL_FONT_PX = 16;
 /** Inner padding of a shape's label box in world units. */
 export const SHAPE_LABEL_PADDING_WORLD = 8;
+
+// Story 11 — freehand pen.
+
+/** The six pen colours offered by the pen toolbar. */
+export const PEN_COLORS = { black: '#212121', blue: '#1E88E5', red: '#E53935', green: '#43A047', orange: '#FB8C00', purple: '#8E24AA' } as const;
+/** Pen line thicknesses in world units (strokes scale with zoom like everything else). */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenColor = keyof typeof PEN_COLORS;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+/** A finished stroke stays within this many screen pixels (at the drawing zoom) of the drawn path. */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/** A stroke being drawn is finished and continued as a new stroke at this many recorded points. */
+export const STROKE_MAX_POINTS = 5000;
+/** A click within this many screen pixels of a stroke's line (or half its thickness) selects it. */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** Smallest width/height a stroke can be resized to, in world units. */
+export const STROKE_MIN_SIZE_WORLD = 4;

@@ -18,12 +18,13 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 
 /**
  * Tools that stay active until used (the rest are not part of this build, or
- * are one-shot actions like Sticky note). Only these can be chosen.
+ * are one-shot actions like Sticky note). Only these can be chosen. The Pen
+ * (story 11) stays active after each stroke: it never calls `toolCreated`.
  */
-export const MODAL_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector']);
+export const MODAL_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector', 'pen']);
 
 /** Tools that create content: unavailable while the board cannot be edited. */
-const CREATING_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['text', 'shape', 'connector']);
+const CREATING_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['text', 'shape', 'connector', 'pen']);
 
 export interface ActiveTool {
   tool: ToolId;

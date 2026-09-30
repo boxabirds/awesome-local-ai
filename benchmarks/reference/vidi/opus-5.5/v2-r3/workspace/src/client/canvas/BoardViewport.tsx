@@ -55,8 +55,10 @@ export function BoardViewport(props: {
   /** Screen-space layer above the world (selection box, handles, selection bar). */
   overlay?: ReactNode;
   /**
-   * Active tool (stories 9–10). With 'text', a press anywhere on the board calls
-   * `onToolClick`; the Shape and Connector tools render their own layer in `overlay`.
+   * Active tool (stories 9–11). With 'text', a press anywhere on the board calls
+   * `onToolClick`; the Shape, Connector and Pen tools render their own layer in
+   * `overlay`, which takes every press (also over objects) so nothing pans or
+   * moves, while wheel and pinch still reach this viewport and navigate.
    */
   tool?: string;
   /** Press with a creating tool active, in world coordinates (also on top of objects). */

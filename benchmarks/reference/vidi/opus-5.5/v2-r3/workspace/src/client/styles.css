@@ -896,3 +896,102 @@ body {
   border-width: 4px;
   border-style: solid;
 }
+
+/* Story 11 — freehand pen. */
+.toolbar-pen {
+  position: relative;
+}
+
+.pen-toolbar {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #d8d8d4;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+}
+
+.pen-swatch,
+.pen-thickness {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: #1f2328;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.pen-swatch:hover,
+.pen-thickness:hover {
+  background: #efefec;
+}
+
+.pen-swatch[aria-pressed='true'],
+.pen-thickness[aria-pressed='true'] {
+  background: #dde7fb;
+  color: #1d4fb8;
+}
+
+.pen-swatch-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+
+.pen-swatch[aria-pressed='true'] .pen-swatch-dot {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #1d4fb8;
+}
+
+.pen-toolbar-separator {
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background: #d8d8d4;
+}
+
+.tool-layer.pen-tool {
+  cursor: none;
+}
+
+.pen-preview-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.pen-cursor {
+  position: absolute;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 90%), 0 0 0 2px rgb(0 0 0 / 35%);
+  pointer-events: none;
+}
+
+.stroke-object {
+  position: absolute;
+  pointer-events: none;
+  outline: none;
+}
+
+.stroke-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.stroke-hit {
+  cursor: pointer;
+}

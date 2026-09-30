@@ -7,7 +7,10 @@ import { getTextMeasurer } from '../objects/textLayout';
 import { remeasureText } from '../objects/useTextBoxSync';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
 import { ShapeTool } from '../tools/ShapeTool';
+import { usePenOptions } from '../tools/usePenOptions';
 import { Toolbar } from './Toolbar';
 import { useBoardDoc } from './useBoardDoc';
 import { useBoardKeys } from './useBoardKeys';
@@ -101,6 +104,8 @@ export function Board({ boardId, children }: { boardId: string; children?: React
   // Story 10: Shape and Connector tools select what they create and return to Select.
   const tool = useActiveTool({ canEdit: editable, select: click });
   const { setTool } = tool;
+  // Story 11: pen colour and thickness for this page session.
+  const pen = usePenOptions();
   const placeText = useCallback(
     (world: Point) => {
       setTool('select');
@@ -209,6 +214,9 @@ export function Board({ boardId, children }: { boardId: string; children?: React
       {editable && tool.tool === 'connector' && (
         <ConnectorTool camera={camera} snapshot={objects} doc={doc} onCreated={tool.toolCreated} />
       )}
+      {editable && tool.tool === 'pen' && (
+        <PenTool camera={camera} color={pen.color} thickness={pen.thickness} doc={doc} identityId={localAuthor(doc)} />
+      )}
     </>
   );
 
@@ -256,6 +264,14 @@ export function Board({ boardId, children }: { boardId: string; children?: React
             onTool={setTool}
             shapeKind={tool.shapeKind}
             onShapeKind={tool.setShapeKind}
+            penToolbar={
+              <PenToolbar
+                color={pen.color}
+                thickness={pen.thickness}
+                onColor={pen.setColor}
+                onThickness={pen.setThickness}
+              />
+            }
           >
             <UndoButtons {...history} />
           </Toolbar>

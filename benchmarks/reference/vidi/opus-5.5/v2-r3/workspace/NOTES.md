@@ -459,3 +459,51 @@ Decisions made where the spec was silent or ambiguous:
   is part of its line box. Fixture: `tests/fixtures/checkout-flow.ts`, seeded via `seedBoard`.
 - **E2E browsers:** only Chromium is installed here, so TC-23 did not run on Firefox or WebKit.
 - **Commits.** The whole story went into a single commit, per the session instructions.
+
+## Story 11 — Sketch freehand with a pen
+
+- **Tool wiring.** `pen` is now a modal, creating tool in `useActiveTool` (P or the "Pen (P)" button after
+  "Connector (L)"). It never calls `toolCreated`, so it stays active after each stroke; Escape or any other
+  tool leaves it. Like Shape and Connector it is unavailable on a board that failed to load.
+- **Pen layer instead of viewport routing.** Like story 10's tools, `PenTool` renders a full-viewport layer in
+  the board overlay. It takes every press, including over objects, so a Pen drag never pans or moves anything.
+  Wheel and pinch still bubble to `BoardViewport`, so scrolling pans and Ctrl/Cmd+scroll zooms. That is why
+  `BoardViewport` only got a doc-comment change. `PenTool` takes the contract's props (`camera`, `color`,
+  `thickness`, `doc`, `identityId` = `c_<clientID>`, the same author id as text and shapes). It gets undo
+  boundaries (`stopCapturing`) from the undo context, so each stroke or long-stroke part is one undo step.
+- **Gesture details.** Points are recorded in world units, including `getCoalescedEvents()` when available.
+  The screen-space preview (`data-testid="pen-preview"`) and the round cursor (`pen-cursor`,
+  thickness × zoom in diameter) re-render once per animation frame. A press whose movement stays under
+  `DRAG_THRESHOLD_PX` is a dot. The smoothing tolerance uses the zoom at the moment of the press. Pressing
+  Escape mid-drag removes the layer and **discards** the unfinished stroke (TC-13: Escape creates nothing).
+  Only `pointercancel` and `lostpointercapture` keep the stroke drawn so far. After a long-stroke split, a
+  remainder that is only the shared join point is not committed.
+- **Pen options.** `usePenOptions` keeps its state in a module-level store, not component state. The choice
+  therefore survives tool switches and moving between boards, and resets on reload. `resetPenOptions()`
+  exists for tests. The toolbar is `role="toolbar"` "Pen", placed next to the Pen button. Its buttons are
+  "Black pen", "Blue pen", "Red pen", "Green pen", "Orange pen", "Purple pen" (the design's
+  `<colour> pen`, capitalised like the other labels) and "Thin" / "Medium" / "Thick", all with `aria-pressed`.
+  `PenColor`/`PenThickness` types live in `config.ts` next to the settings; `stroke.ts` re-exports them.
+- **Smoothing and corner rounding (deviation from the design's `smoothPath`).** Pure midpoint-to-midpoint
+  quadratics cut sharp corners by up to half a segment. Simplification leaves long straight segments (for
+  example an L or an arrow tip), so the rendered line visibly missed the drawn corner by tens of pixels. That
+  broke both pen.smooth and select-by-line (found in e2e TC-20). `smoothPath(points, maxCut = Infinity)` now
+  draws straight pieces joined by a quadratic at each interior point, starting and ending at most `maxCut`
+  from the corner (never past a segment's midpoint). `StrokeObject` passes the stroke's thickness, so each
+  rounded corner stays inside the drawn line's own width. The contract call `smoothPath(points)` keeps the
+  midpoint behaviour and still produces `M … Q …`.
+- **Scaling.** Following the design, `scaledPoints` scales the stored (bbox-relative) points by
+  width/baseWidth and height/baseHeight. The thickness/2 padding therefore scales too, so after enlarging a
+  stroke its line sits slightly inside the box edges. This is harmless and keeps the maths simple.
+- **Stroke rendering and hit test.** `StrokeObject` is a `role="group"` "Drawing" box with
+  `pointer-events: none`. Inside it is an SVG with the visible path (round caps and joins, stroke-width = the
+  thickness in world units) and a transparent hit path `2 × max(thickness/2, 6 px/zoom)` wide. The press
+  handler re-checks `strokeHitTest` (registry, `distanceToPolyline` on `scaledPoints`) with the camera, as
+  arrows do. Presses elsewhere in the box reach the objects underneath. Strokes keep the default
+  `attachable`, so an arrow can attach to a drawing; with the Connector tool the line-distance hit test
+  decides.
+- **E2E.** Replaying the ~400-point loop takes about 25 s, because each Playwright mouse move costs about
+  60 ms on this machine even with the Select tool. TC-17 and TC-18 therefore raise their test timeouts
+  instead of thinning the recorded path. Only Chromium is installed here, so TC-17 did not run on Firefox or
+  WebKit.
+- **Commits.** The whole story went into a single commit, per the session instructions.

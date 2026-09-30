@@ -48,7 +48,7 @@ function focusedObjectId(target: EventTarget | null): string | undefined {
  * arrows nudge, Delete/Backspace delete, Enter edits a single text object;
  * Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (story 8); V/T tools,
  * N new sticky note, Escape leaves the Text tool (story 9); S/L Shape and
- * Connector tools, Escape leaves them too (story 10).
+ * Connector tools, Escape leaves them too (story 10); P Pen (story 11).
  * Nothing happens while text is being edited (the editor handles its own
  * undo) or a text field has focus; the mutating keys also need `canEdit`.
  * Each mutation is its own undo step (boundaries before and after).
@@ -109,9 +109,9 @@ export function useBoardKeys(opts: {
       const letter = e.key.length === 1 ? e.key.toLowerCase() : '';
       const shortcut = TOOL_SHORTCUTS[letter];
       if (tool && shortcut && shortcut !== 'sticky') {
-        // Story 10 adds S (Shape) and L (Connector); tools outside this build are ignored.
+        // Story 10 adds S (Shape) and L (Connector), story 11 P (Pen); tools outside this build are ignored.
         if (shortcut === 'select' || canEdit) tool.setTool(shortcut);
-        if (shortcut === 'select' || shortcut === 'text' || shortcut === 'shape' || shortcut === 'connector') return;
+        if (shortcut !== 'image' && shortcut !== 'comment') return;
       }
       if (onCreateSticky && letter === 'n') {
         if (canEdit) onCreateSticky();
