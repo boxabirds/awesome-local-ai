@@ -4,6 +4,7 @@ import { Header } from "./components/Header.tsx";
 import { StatusFilter } from "./components/StatusFilter.tsx";
 import { StaleBanner } from "./components/StaleBanner.tsx";
 import { MachineSection } from "./components/MachineSection.tsx";
+import { scoreOf } from "./components/ScoreCell.tsx";
 import { groupByMachine } from "../shared/grouping.ts";
 import { useBenchState } from "./useBenchState.ts";
 
@@ -85,6 +86,8 @@ export function App() {
   const inFamily = inPack.filter((r) => family === ALL || r.family === family);
   const counts = RUN_STATUSES.map((st) => [st, inFamily.filter((r) => r.status === st).length] as [RunStatus, number]).filter(([, n]) => n > 0);
   const shown = inFamily.filter((r) => !hidden.has(r.status));
+  const totals = new Set(shown.map((r) => scoreOf(r)?.[1].total).filter((t): t is number => t != null));
+  const scoreTotal = totals.size === 1 ? [...totals][0] : null;
   const chooseHidden = (next: Set<RunStatus>) => {
     setHidden(next);
     saveHidden(next);
@@ -116,7 +119,7 @@ export function App() {
           // A machine with nothing to show under this filter is left out, unless it is idle: that is news.
           .filter((g) => g.rows.length > 0 || (g.info !== null && !g.info.running && g.info.queued === 0))
           .map((g) => (
-          <MachineSection key={g.machine} group={g} state={data} serverNow={serverNow} />
+          <MachineSection key={g.machine} group={g} state={data} serverNow={serverNow} scoreTotal={scoreTotal} />
         ))}
         {shown.length === 0 ? <p className="empty">No runs for this pack, version and status.</p> : null}
       </main>

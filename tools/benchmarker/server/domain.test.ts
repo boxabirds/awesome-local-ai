@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
-  mergeStories, stages, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, RECENT_S, type DbenchJob,
+  mergeStories, stages, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, finalScore, RECENT_S, type DbenchJob,
 } from "./domain.ts";
 import type { Row } from "../shared/types.ts";
 
@@ -318,5 +318,16 @@ describe("stories working", () => {
     ], SCOPE, "4");
     expect(sw.working).toBe(2);
     expect(sw.squares.slice(0, 5).map((q) => q.state)).toEqual(["ok", "part", "ok", "running", "unbuilt"]);
+  });
+});
+
+describe("finalScore", () => {
+  const rs = (stories: number[]) => ({ finished_at: "t", results: stories.map((story) => ({ story, passed: 50, total: 57, flaky: 1 })) });
+
+  it("is a score of record only when it re-scores a finished run's last story", () => {
+    expect(finalScore(rs([12]), "finished", "12")).toEqual({ passed: 50, total: 57, flaky: 1, at: "t" });
+    expect(finalScore(rs([9]), "started", "9")).toBeNull();   // the run is still going
+    expect(finalScore(rs([9]), "finished", "12")).toBeNull(); // a partial re-score of a finished run
+    expect(finalScore(null, "finished", "12")).toBeNull();
   });
 });

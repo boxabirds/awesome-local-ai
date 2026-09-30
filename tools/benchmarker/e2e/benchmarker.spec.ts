@@ -58,6 +58,13 @@ test("a story that has only just started says so instead of showing zeros", asyn
   await expect(activity).not.toContainText("0 calls");
 });
 
+test("a running story's title shows in full over up to three lines, not cut to one", async ({ page }) => {
+  const title = cell(page, SWIFT, "v2-r1", 2).locator(".story-title");
+  const lines = await title.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
+  expect(lines).toBeLessThanOrEqual(3);
+  expect(await title.evaluate((el) => getComputedStyle(el).whiteSpace)).not.toBe("nowrap");
+});
+
 test("a Claude run, whose calls and tokens are only counted at the end of a story, shows no false zeros", async ({ page }) => {
   const activity = cell(page, "reference/opus-5.5", "v2-r1", 4);
   await expect(activity).toContainText("tasks 1/2");
@@ -67,10 +74,9 @@ test("a Claude run, whose calls and tokens are only counted at the end of a stor
 
 test("a finished, scored run with its bundle can be judged, and links to its record", async ({ page }) => {
   await expect(cell(page, "reference/opus-5.5", "run-9", 1)).toContainText("finished");
-  const score = cell(page, "reference/opus-5.5", "run-9", 6);
-  await expect(score.locator(".score-main").first()).toHaveText("74 of 75 flows pass"); // the headline, first and big
-  await expect(score.locator(".score-main strong").first()).toHaveText("74");
-  await expect(score).toContainText("suite vidi-v2.0-pre1");
+  // The score is one number under a heading that carries the total.
+  await expect(page.getByRole("columnheader", { name: "Score / 75" }).first()).toBeVisible();
+  await expect(cell(page, "reference/opus-5.5", "run-9", 6)).toHaveText("74");
   await expect(cell(page, "reference/opus-5.5", "run-9", 7).getByRole("link", { name: "Judge →" })).toBeVisible();
   const record = cell(page, "reference/opus-5.5", "run-9", 8).getByRole("link", { name: "record" });
   await expect(record).toHaveAttribute("href", "https://github.com/boxabirds/awesome-local-ai/tree/main/benchmarks/reference/vidi/opus-5.5/run-9");

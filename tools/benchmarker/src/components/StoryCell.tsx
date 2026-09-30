@@ -10,7 +10,7 @@ export function StoryCell({ row }: { row: Row }) {
     return (
       <>
         <div>{cur ? `story ${cur}${of}` : "starting"}</div>
-        {live.storyTitle ? <div className="small clip" title={live.storyTitle}>{live.storyTitle}</div> : null}
+        {live.storyTitle ? <div className="small story-title" title={live.storyTitle}>{live.storyTitle}</div> : null}
       </>
     );
   }
