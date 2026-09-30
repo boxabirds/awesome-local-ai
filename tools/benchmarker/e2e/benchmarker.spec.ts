@@ -16,7 +16,7 @@ test("each machine has one section, headed by what it runs now, with its queue i
   await expect(machine(page, "gruntus")).toHaveCount(1);
   await expect(machine(page, "gruntus").locator("h2")).toContainText("running 3.8-swift-1.5/27b llamacpp v2-r1 · story 3");
   await expect(machine(page, "gruntus").locator("h2")).toContainText("3 queued");
-  const runs = await machine(page, "gruntus").locator("tbody tr").evaluateAll((trs) =>
+  const runs = await machine(page, "gruntus").locator("tbody tr[data-run]").evaluateAll((trs) =>
     trs.map((tr) => `${(tr as HTMLElement).dataset.stack!.includes("swift-1.5") ? "swift" : "27b"} ${(tr as HTMLElement).dataset.run}`));
   expect(runs).toEqual(["swift v2-r1", "swift v2-r2", "swift v2-r3", "27b v2-r1"]);
   await expect(machine(page, "tritus").locator("h2")).toContainText("idle");
@@ -293,4 +293,20 @@ test.describe("machines", () => {
     const r = await request.post("/api/jobs", { data: { node: "gruntus", installId: "qwen38-27b", pack: "benchmarks/vidi", runId: "x" } });
     expect(r.status()).toBe(403);
   });
+});
+
+test("each combination heads its runs with hours per story and held-out quality, each with a ? that explains it", async ({ page }) => {
+  const head = page.locator(`tr.combo-head[data-stack="${SWIFT}"]`);
+  await expect(head).toContainText("3.8-swift-1.5/27b llamacpp");
+  await expect(head).toContainText(/\d+(\.\d+)? h per story/);
+  await expect(head).toContainText(/held-out quality \d+%/);
+  for (const q of await head.locator(".explain").all()) expect((await q.getAttribute("title"))!.length).toBeGreaterThan(40);
+  // The combination's runs follow its heading.
+  await expect(page.locator(`tr.combo-head[data-stack="${SWIFT}"] + tr`)).toHaveAttribute("data-stack", SWIFT);
+});
+
+test("every column heading explains itself on hover", async ({ page }) => {
+  const titles = await page.locator("section[data-machine] thead th").evaluateAll((ths) => ths.map((th) => th.getAttribute("title") ?? ""));
+  expect(titles.length).toBeGreaterThan(0);
+  expect(titles.filter((t) => t.length < 20)).toEqual([]);
 });

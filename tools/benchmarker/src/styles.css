@@ -108,3 +108,8 @@ button.danger { background: var(--bad); color: #fff; border-color: var(--bad); }
 .note { color: var(--ok); } .setup { max-width: 860px; line-height: 1.55; } .setup pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow-x: auto; font-size: 12px; }
 .setup h1 { font-size: 20px; } .setup h2 { font-size: 15px; margin-top: 22px; } .setup code { font-size: 12px; }
 table.access { min-width: 0; width: 100%; table-layout: auto; font-size: 13px; } .steps-list li { margin: 8px 0; }
+tr.combo-head td { background: var(--bg); border-top: 1px solid var(--line); padding: 6px 8px; }
+tr.combo-head td > span { margin-right: 16px; }
+tr.combo-head .stack-label { font-size: 13px; color: var(--ink); font-weight: 600; }
+.explain { display: inline-block; width: 15px; height: 15px; line-height: 15px; text-align: center; border-radius: 50%; border: 1px solid var(--muted); color: var(--muted); font-size: 10px; cursor: help; }
+th[title] { cursor: help; }
