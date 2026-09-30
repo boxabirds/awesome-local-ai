@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, cleanup } from '@testing-library/react';
-import { useState, useCallback, useRef } from 'react';
+import { useState } from 'react';
 import { BoardViewport } from '../../src/client/canvas/BoardViewport';
 import { useCamera } from '../../src/client/canvas/useCamera';
-import { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP_FACTOR, WHEEL_ZOOM_SENSITIVITY } from '../../src/shared/config';
 
 // Mock ResizeObserver
 class MockResizeObserver {
@@ -318,7 +317,6 @@ describe('BoardViewport (viewport.input)', () => {
   // TC-30: Ctrl wheel over zoom control (outside board) → no board zoom
   it('TC-30: wheel event outside the viewport does not affect the board', () => {
     render(<TestBoardViewport />);
-    const viewport = getViewport();
 
     const initialTransform = getWorldLayerTransform();
 

@@ -74,7 +74,7 @@ export async function dragBoard(page: Page, startX: number, startY: number, endX
 /**
  * Scroll (wheel) on the viewport.
  */
-export async function scrollBoard(page: Page, deltaX: number, deltaY: number, x: number, y: number, ctrlKey = false) {
+export async function scrollBoard(page: Page, deltaX: number, deltaY: number, x: number, y: number) {
   const viewport = await getViewport(page);
   const box = await viewport.boundingBox();
   if (!box) throw new Error('Viewport not found');

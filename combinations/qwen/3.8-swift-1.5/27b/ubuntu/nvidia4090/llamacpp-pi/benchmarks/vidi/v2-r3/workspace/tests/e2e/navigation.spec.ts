@@ -1,12 +1,10 @@
 import { test, expect } from '@playwright/test';
 import {
   getCamera,
-  getWorldLayer,
   getZoomLabel,
   getNavigationHint,
   getZoomInButton,
   getZoomOutButton,
-  getResetButton,
   dragBoard,
   ctrlScrollBoard,
 } from './helpers/board';

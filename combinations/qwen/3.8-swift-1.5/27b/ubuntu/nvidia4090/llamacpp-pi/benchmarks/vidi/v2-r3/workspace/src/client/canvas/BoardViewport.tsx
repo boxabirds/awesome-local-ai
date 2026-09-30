@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import type { Camera, Point, Size } from './camera';
+import type { Camera, Point } from './camera';
 import { GRID_SPACING_WORLD } from '../../shared/config';
 
 interface BoardViewportProps {
@@ -8,14 +8,30 @@ interface BoardViewportProps {
   panMove: (p: Point) => void;
   endPan: () => void;
   wheel: (e: { deltaX: number; deltaY: number; ctrlOrMeta: boolean; point: Point }) => void;
+  onCreateStickyAt?: (p: Point) => void;
+  onClearSelection?: () => void;
   children?: React.ReactNode;
 }
 
-export function BoardViewport({ camera, beginPan, panMove, endPan, wheel }: BoardViewportProps): React.ReactElement {
+export function BoardViewport({
+  camera,
+  beginPan,
+  panMove,
+  endPan,
+  wheel,
+  onCreateStickyAt,
+  onClearSelection,
+  children,
+}: BoardViewportProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const isPanningRef = useRef(false);
+  const movedRef = useRef(false);
   const lastPointRef = useRef<Point | null>(null);
+  const onCreateStickyAtRef = useRef(onCreateStickyAt);
+  onCreateStickyAtRef.current = onCreateStickyAt;
+  const onClearSelectionRef = useRef(onClearSelection);
+  onClearSelectionRef.current = onClearSelection;
 
   // Non-passive wheel listener
   useEffect(() => {
@@ -82,6 +98,7 @@ export function BoardViewport({ camera, beginPan, panMove, endPan, wheel }: Boar
       if (e.button !== 0) return;
       el.setPointerCapture(e.pointerId);
       isPanningRef.current = true;
+      movedRef.current = false;
       setIsPanning(true);
       lastPointRef.current = { x: e.clientX, y: e.clientY };
       beginPan({ x: e.clientX, y: e.clientY });
@@ -89,15 +106,23 @@ export function BoardViewport({ camera, beginPan, panMove, endPan, wheel }: Boar
 
     const onPointerMove = (e: PointerEvent) => {
       if (!isPanningRef.current || !lastPointRef.current) return;
+      const dx = e.clientX - lastPointRef.current.x;
+      const dy = e.clientY - lastPointRef.current.y;
+      if (dx !== 0 || dy !== 0) movedRef.current = true;
       lastPointRef.current = { x: e.clientX, y: e.clientY };
       panMove({ x: e.clientX, y: e.clientY });
     };
 
     const onPointerUp = (_e: PointerEvent) => {
+      const wasPanning = isPanningRef.current;
       isPanningRef.current = false;
       setIsPanning(false);
       lastPointRef.current = null;
       endPan();
+      // A click on empty board space (no movement) clears the selection.
+      if (wasPanning && !movedRef.current) {
+        onClearSelectionRef.current?.();
+      }
     };
 
     const onPointerCancel = (_e: PointerEvent) => {
@@ -107,15 +132,24 @@ export function BoardViewport({ camera, beginPan, panMove, endPan, wheel }: Boar
       endPan();
     };
 
+    const onDoubleClick = (e: MouseEvent) => {
+      // Notes stop propagation on dblclick, so only empty space reaches here.
+      if (e.target !== el) return;
+      const rect = el.getBoundingClientRect();
+      onCreateStickyAtRef.current?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    };
+
     el.addEventListener('pointerdown', onPointerDown);
     el.addEventListener('pointermove', onPointerMove);
     el.addEventListener('pointerup', onPointerUp);
     el.addEventListener('pointercancel', onPointerCancel);
+    el.addEventListener('dblclick', onDoubleClick);
     return () => {
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('pointercancel', onPointerCancel);
+      el.removeEventListener('dblclick', onDoubleClick);
     };
   }, [beginPan, panMove, endPan]);
 
@@ -166,6 +200,7 @@ export function BoardViewport({ camera, beginPan, panMove, endPan, wheel }: Boar
           <div style={{ position: 'absolute', left: 5, top: 0, width: 2, height: 12, background: '#999' }} />
           <div style={{ position: 'absolute', left: 0, top: 5, width: 12, height: 2, background: '#999' }} />
         </div>
+        {children}
       </div>
     </div>
   );

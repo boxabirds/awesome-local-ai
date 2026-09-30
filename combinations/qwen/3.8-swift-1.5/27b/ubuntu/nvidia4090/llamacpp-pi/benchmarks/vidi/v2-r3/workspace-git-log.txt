@@ -1,3 +1,80 @@
+commit 30d6770cefc856173b318d68143d54e2bca10fb0
+vidi-agent  Wed Sep 30 17:39:26 2026 +0100
+
+    story 2 (task 8): e2e tests; fix drag by stacking via z-index and stable render order
+
+
+ src/client/App.tsx                    |   8 +-
+ src/client/objects/StickyNote.tsx     |   1 +
+ tests/component/StickyNote.test.tsx   |   3 +-
+ tests/component/helpers/TestBoard.tsx |   5 +-
+ tests/e2e/sticky-notes.spec.ts        | 214 ++++++++++++++++++++++++++++++++++
+ tests/fixtures/texts.ts               |  23 ++++
+ 6 files changed, 250 insertions(+), 4 deletions(-)
+commit 45ac1151166e94295807361ff59b1ba8afc74ec8
+vidi-agent  Wed Sep 30 17:13:41 2026 +0100
+
+    story 2 (task 7): component tests for notes, editor, and toolbars
+
+
+ tests/component/StickyNote.test.tsx       | 234 ++++++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 148 +++++++++++++++++++
+ tests/component/Toolbars.test.tsx         | 105 ++++++++++++++
+ tests/component/helpers/TestBoard.tsx     | 147 +++++++++++++++++++
+ tests/component/helpers/mocks.ts          |  44 ++++++
+ 5 files changed, 678 insertions(+)
+commit 8b149a80b38fe7e079c8942c74fbeab244286ce5
+vidi-agent  Wed Sep 30 17:07:58 2026 +0100
+
+    story 2 (tasks 4-6): sticky text editing, note interaction, and toolbars
+
+
+ src/client/App.tsx                      | 136 +++++++++++++++-
+ src/client/board/Toolbar.tsx            |  67 ++++++++
+ src/client/board/useSelection.ts        |  38 +++++
+ src/client/canvas/BoardViewport.tsx     |  37 ++++-
+ src/client/objects/NoteToolbar.tsx      |  81 ++++++++++
+ src/client/objects/StickyNote.tsx       | 269 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts        | 101 ++++++++++--
+ src/client/objects/StickyTextEditor.tsx | 151 ++++++++++++++++++
+ tests/unit/sticky-text.test.ts          |  42 ++---
+ 9 files changed, 880 insertions(+), 42 deletions(-)
+commit e375b7ec9b6d55db3902f497c87d981d2c16a987
+vidi-agent  Wed Sep 30 17:00:20 2026 +0100
+
+    story 2 (task 3): sticky text logic unit tests first
+
+
+ src/client/objects/StickyText.ts |  36 ++++++++
+ tests/unit/sticky-text.test.ts   | 184 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 220 insertions(+)
+commit 383b6b63714fbafe844053a16ae2ffd5028d09cf
+vidi-agent  Wed Sep 30 16:58:44 2026 +0100
+
+    story 2 (task 2): implement Yjs board model and useBoardDoc snapshot hook
+
+
+ src/client/App.tsx                     |   2 +-
+ src/client/board/useBoardDoc.ts        |  45 +++++++++
+ src/client/canvas/BoardViewport.tsx    |   2 +-
+ src/shared/board-model.ts              | 175 +++++++++++++++++++++++++++++----
+ tests/component/BoardViewport.test.tsx |   4 +-
+ tests/e2e/helpers/board.ts             |   2 +-
+ tests/e2e/navigation.spec.ts           |   2 -
+ tests/unit/board-model.test.ts         |  59 ++++++-----
+ 8 files changed, 243 insertions(+), 48 deletions(-)
+commit c1cee278c8c97ad60c4d7d7c9fc2c043c1d496ab
+vidi-agent  Wed Sep 30 16:55:28 2026 +0100
+
+    story 2 (task 1): board model unit tests first against a real Y.Doc
+
+
+ package-lock.json              |  51 ++++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  51 +++++++
+ src/shared/config.ts           |  13 ++
+ tests/unit/board-model.test.ts | 295 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 411 insertions(+), 2 deletions(-)
 commit 9057e9cb7c8e67566a88cd309ddac7931a68691c
 vidi-agent  Wed Sep 30 16:53:20 2026 +0100
 
