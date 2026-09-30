@@ -1,3 +1,42 @@
+commit fba9d304b2bf09ca3d2988cda532e124f2887da6
+vidi-agent  Wed Sep 30 11:45:59 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                | 118 +++++++++++++++
+ index.html                              |   1 +
+ src/client/App.tsx                      |  28 ++--
+ src/client/api.ts                       |  45 ++++++
+ src/client/pages/BoardPage.tsx          |  99 +++++++++++++
+ src/client/pages/HomePage.tsx           |  31 ++++
+ src/client/pages/NotFoundPage.tsx       |  46 ++++++
+ src/client/pages/state.ts               |  38 +++++
+ src/client/pages/useCreateBoard.ts      |  32 +++++
+ src/client/router.ts                    |  38 +++++
+ src/client/share/SharePanel.tsx         | 137 ++++++++++++++++++
+ src/client/styles.css                   | 144 +++++++++++++++++++
+ src/shared/config.ts                    |   5 +
+ src/worker/board-room.ts                |  31 +++-
+ src/worker/board-store.ts               |  86 +++++++++++
+ src/worker/create-board.ts              |  25 ++++
+ src/worker/index.ts                     |  32 ++++-
+ tests/component/BoardPage.test.tsx      | 129 +++++++++++++++++
+ tests/component/HomePage.test.tsx       |  71 +++++++++
+ tests/component/LoadFailed.test.tsx     |   9 +-
+ tests/component/SharePanel.test.tsx     |  90 ++++++++++++
+ tests/e2e/collaboration-nightly.spec.ts |  12 +-
+ tests/e2e/collaboration.spec.ts         |  19 ++-
+ tests/e2e/helpers/board.ts              |   2 +
+ tests/e2e/helpers/participants.ts       |  14 ++
+ tests/e2e/persistence.spec.ts           |  11 +-
+ tests/e2e/share.spec.ts                 | 206 ++++++++++++++++++++++++++
+ tests/integration/board-api.test.ts     | 246 ++++++++++++++++++++++++++++++++
+ tests/integration/board-room.test.ts    |   7 +-
+ tests/integration/worker.test.ts        |   6 +-
+ tests/integration/ws-client.ts          |  12 ++
+ tests/unit/create-board.test.ts         |  48 +++++++
+ 32 files changed, 1777 insertions(+), 41 deletions(-)
 commit 1b1ef89bd8d50a81043222bdd8071cf17ed7b5e5
 vidi-agent  Wed Sep 30 10:55:20 2026 +0000
 
