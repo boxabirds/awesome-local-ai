@@ -37,6 +37,10 @@ export interface StickyNoteProps {
   multiSelected?: boolean;
   /** If true, this note is currently being dragged. */
   dragging?: boolean;
+  /** Called on edit start/end to close undo capture windows. */
+  undoBoundary?(): void;
+  /** Undo controller for Ctrl+Z inside the editor. */
+  undoCtrl?: { undo(): boolean; redo(): boolean };
 }
 
 /**
@@ -61,6 +65,8 @@ export function StickyNote({
   onEndEdit,
   multiSelected,
   dragging,
+  undoBoundary,
+  undoCtrl,
 }: StickyNoteProps): JSX.Element {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
@@ -162,7 +168,7 @@ export function StickyNote({
       onDoubleClick={handleDoubleClick}
     >
       {editing && ytext !== undefined ? (
-        <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} />
+        <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} undoBoundary={undoBoundary} undoCtrl={undoCtrl} />
       ) : (
         <div
           ref={textRef}

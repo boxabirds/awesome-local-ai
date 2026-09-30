@@ -1,8 +1,11 @@
 import type { JSX } from 'react';
 
+import { UndoButtons, type UndoButtonsProps } from './UndoButtons';
+
 export interface ToolbarProps {
   onCreateSticky(): void;
   disabled?: boolean;
+  undo?: UndoButtonsProps;
 }
 
 /** The tooltip of the Sticky note button, exactly as the product names it. */
@@ -15,7 +18,7 @@ export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board'
  * Pointer events stop at the toolbar so clicking a tool never reaches the board
  * (which would pan it or clear the selection).
  */
-export function Toolbar({ onCreateSticky, disabled }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, disabled, undo }: ToolbarProps): JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -43,6 +46,7 @@ export function Toolbar({ onCreateSticky, disabled }: ToolbarProps): JSX.Element
         </svg>
         <span>Sticky note</span>
       </button>
+      {undo ? <UndoButtons {...undo} /> : null}
     </div>
   );
 }

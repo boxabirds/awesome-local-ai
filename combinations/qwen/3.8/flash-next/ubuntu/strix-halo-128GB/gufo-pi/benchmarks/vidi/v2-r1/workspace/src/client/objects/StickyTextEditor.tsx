@@ -20,6 +20,10 @@ export interface StickyTextEditorProps {
   fontPx: number;
   /** Escape ends editing with the note still selected, a click outside does not. */
   onEnd(next: 'selected' | 'unselected'): void;
+  /** Called on mount (edit start) and on end to close undo capture windows. */
+  undoBoundary?(): void;
+  /** Undo controller for Ctrl+Z inside the textarea. */
+  undoCtrl?: { undo(): boolean; redo(): boolean };
 }
 
 /**
@@ -41,6 +45,8 @@ export function StickyTextEditor({
   ytext,
   fontPx: initialFontPx,
   onEnd,
+  undoBoundary,
+  undoCtrl,
 }: StickyTextEditorProps): JSX.Element {
   const elementRef = useRef<HTMLTextAreaElement | null>(null);
   const [fontPx, setFontPx] = useState(initialFontPx);
@@ -91,6 +97,8 @@ export function StickyTextEditor({
     const fit = fitFontSize(element, STICKY_TEXT_BOX_WORLD);
     setFontPx(fit.fontPx);
     setOverflow(fit.overflow);
+    // Close capture window at edit start so typing never merges with prior actions.
+    undoBoundary?.();
   }, [ytext]);
 
   const handleInput = (): void => {
@@ -101,12 +109,31 @@ export function StickyTextEditor({
   };
 
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>): void => {
+    // Ctrl/Cmd+Z inside the textarea: undo via the controller, not the browser's native undo.
+    if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      undoCtrl?.undo();
+      return;
+    }
+    // Ctrl/Cmd+Shift+Z or Ctrl+Y: redo inside the textarea.
+    if (
+      ((event.ctrlKey || event.metaKey) && event.key === 'z' && event.shiftKey) ||
+      (event.ctrlKey && event.key === 'y')
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      undoCtrl?.redo();
+      return;
+    }
     if (event.key !== 'Escape') return;
     // Escape leaves editing and keeps the note selected; it must not reach the
     // window handler or scroll the page.
     event.preventDefault();
     event.stopPropagation();
     flush();
+    // Close capture window at edit end so subsequent actions don't merge with typing.
+    undoBoundary?.();
     onEndRef.current('selected');
   };
 

@@ -16,10 +16,17 @@ export interface UseBoardKeysOpts {
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** Undo controller actions. */
+  undo?(): void;
+  redo?(): void;
+  /** Close capture window before and after group operations. */
+  undoBoundary?(): void;
 }
 
 /**
  * Window-level keyboard handler for selection commands:
+ * - Ctrl/Cmd+Z: undo
+ * - Ctrl/Cmd+Shift+Z or Ctrl+Y: redo
  * - Ctrl/Cmd+A: select all
  * - Escape: clear selection
  * - Arrow keys: nudge selection
@@ -28,7 +35,7 @@ export interface UseBoardKeysOpts {
  * Does nothing when focus is in an input/textarea or when editing text.
  */
 export function useBoardKeys(opts: UseBoardKeysOpts): void {
-  const { doc, selection, snapshot, canEdit } = opts;
+  const { doc, selection, snapshot, canEdit, undo, redo, undoBoundary } = opts;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -36,6 +43,25 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
 
       // If editing text or focus is in a text input, let the input handle it
       if (editingId !== null || isTextEntryTarget(event.target)) return;
+
+      // Ctrl/Cmd+Z: undo (only when NOT editing text)
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+        if (!canEdit) return;
+        event.preventDefault();
+        undo?.();
+        return;
+      }
+
+      // Ctrl/Cmd+Shift+Z or Ctrl+Y: redo (only when NOT editing text)
+      if (
+        ((event.ctrlKey || event.metaKey) && event.key === 'z' && event.shiftKey) ||
+        (event.ctrlKey && event.key === 'y')
+      ) {
+        if (!canEdit) return;
+        event.preventDefault();
+        redo?.();
+        return;
+      }
 
       // Ctrl/Cmd+A: select all
       if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
@@ -87,7 +113,9 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
           }
         }
         if (positions.size > 0) {
+          undoBoundary?.();
           moveObjects(doc, positions);
+          undoBoundary?.();
         }
         return;
       }
@@ -99,7 +127,9 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         (event.key === 'Delete' || event.key === 'Backspace')
       ) {
         event.preventDefault();
+        undoBoundary?.();
         deleteObjects(doc, [...ids]);
+        undoBoundary?.();
         clear();
         return;
       }
@@ -107,5 +137,5 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selection, snapshot, canEdit]);
+  }, [doc, selection, snapshot, canEdit, undo, redo, undoBoundary]);
 }

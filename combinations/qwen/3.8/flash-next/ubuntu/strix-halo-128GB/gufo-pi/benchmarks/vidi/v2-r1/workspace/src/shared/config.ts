@@ -72,6 +72,13 @@ export const NUDGE_STEP_WORLD = 1;
 /** Shift+arrow nudge step, in world units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
 
+// ---- Undo (story 8: undo and redo my own changes without undoing anyone else's) ----
+
+/** Typing pause that ends a capture burst, in milliseconds. */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/** Maximum number of undo steps kept in memory. */
+export const UNDO_MAX_STEPS = 200;
+
 /** Zoom step values are snapped to `ZOOM_STEP_FACTOR^n` within this epsilon. */
 export const ZOOM_STEP_SNAP_EPSILON = 1e-9;
 
