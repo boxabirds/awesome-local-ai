@@ -67,7 +67,10 @@ test("a Claude run, whose calls and tokens are only counted at the end of a stor
 
 test("a finished, scored run with its bundle can be judged, and links to its record", async ({ page }) => {
   await expect(cell(page, "reference/opus-5.5", "run-9", 1)).toContainText("finished");
-  await expect(cell(page, "reference/opus-5.5", "run-9", 6)).toContainText("vidi-v2.0-pre1 74/75");
+  const score = cell(page, "reference/opus-5.5", "run-9", 6);
+  await expect(score.locator(".score-main").first()).toHaveText("74 of 75 flows pass"); // the headline, first and big
+  await expect(score.locator(".score-main strong").first()).toHaveText("74");
+  await expect(score).toContainText("suite vidi-v2.0-pre1");
   await expect(cell(page, "reference/opus-5.5", "run-9", 7).getByRole("link", { name: "Judge →" })).toBeVisible();
   const record = cell(page, "reference/opus-5.5", "run-9", 8).getByRole("link", { name: "record" });
   await expect(record).toHaveAttribute("href", "https://github.com/boxabirds/awesome-local-ai/tree/main/benchmarks/reference/vidi/opus-5.5/run-9");
