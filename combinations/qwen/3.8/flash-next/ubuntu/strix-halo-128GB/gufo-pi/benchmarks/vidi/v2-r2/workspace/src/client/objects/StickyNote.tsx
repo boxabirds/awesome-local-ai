@@ -10,6 +10,7 @@ import type { StickySnapshot } from '@shared/board-model';
 import { STICKY_SIZE_WORLD, STICKY_COLORS } from '@shared/config';
 import { StickyTextEditor } from './StickyTextEditor';
 import { getStickyText } from '@shared/board-model';
+import type { UndoController } from '@client/board/undo';
 
 export interface StickyNoteProps {
   note: StickySnapshot;
@@ -24,6 +25,7 @@ export interface StickyNoteProps {
   onToggle(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  undoController?: UndoController | null;
 }
 
 export function StickyNote({
@@ -38,6 +40,7 @@ export function StickyNote({
   onToggle,
   onStartEdit,
   onEndEdit,
+  undoController,
 }: StickyNoteProps): ReactElement {
   const elRef = useRef<HTMLDivElement | null>(null);
   const pressedRef = useRef(false);
@@ -163,6 +166,7 @@ export function StickyNote({
           ytext={ytext}
           fontPx={displayFontPx}
           onEnd={handleEditorEnd}
+          undoController={undoController}
         />
       ) : (
         <div

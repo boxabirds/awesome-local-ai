@@ -47,6 +47,10 @@ export const MAX_OBJECT_SIZE_WORLD = 20_000;
 export const NUDGE_STEP_WORLD = 1;
 export const NUDGE_LARGE_STEP_WORLD = 10;
 
+// Undo settings (story 8).
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;   // typing pause that ends a burst
+export const UNDO_MAX_STEPS = 200;
+
 // Zoom limits and step size (PRD "Settings").
 export const ZOOM_MIN = 0.1;
 export const ZOOM_MAX = 4;

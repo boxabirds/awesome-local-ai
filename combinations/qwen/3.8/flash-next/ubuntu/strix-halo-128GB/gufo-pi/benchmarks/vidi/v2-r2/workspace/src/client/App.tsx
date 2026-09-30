@@ -1,4 +1,4 @@
-import { useCallback, useRef, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactElement } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
 import { useBoard } from './canvas/BoardContext';
 import { ZoomControls } from './canvas/ZoomControls';
@@ -10,6 +10,8 @@ import { useSelection } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useMarquee } from './board/Marquee';
+import { useUndo } from './board/useUndo';
+import { createUndo, type UndoController } from './board/undo';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { NoteLayer } from './objects/NoteLayer';
@@ -65,13 +67,31 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
   // Camera ref - updated by BoardViewport on every render
   const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 1 });
 
-  // Transform gesture (group move and resize)
+  // Undo controller: one per board doc, destroyed on board change/unmount
+  const undoController: UndoController | null = useMemo(() => {
+    if (!doc) return null;
+    return createUndo(doc);
+  }, [doc]);
+
+  // Destroy previous controller when board changes or component unmounts
+  useEffect(() => {
+    return () => {
+      if (undoController) undoController.destroy();
+    };
+  }, [undoController]);
+
+  // Undo state for buttons and shortcuts
+  const undoState = useUndo(undoController, editable);
+
+  // Transform gesture (group move and resize) with boundary hooks
   const { onObjectPointerDown, onHandlePointerDown } = useTransformGesture({
     doc,
     cameraRef,
     selection,
     snapshot: notes,
     canEdit: editable,
+    onGestureStart: undoController ? () => undoController.boundary() : undefined,
+    onGestureEnd: undoController ? () => undoController.boundary() : undefined,
   });
 
   // Keyboard commands
@@ -80,6 +100,7 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
     selection,
     snapshot: notes,
     canEdit: editable,
+    undoController,
   });
 
   // Marquee
@@ -90,12 +111,14 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
   const handleCreateSticky = useCallback(
     (worldPoint: Point) => {
       if (!editable) return;
+      if (undoController) undoController.boundary();
       const id = createSticky(doc, worldPoint);
+      if (undoController) undoController.boundary();
       if (id) {
         selection.startEdit(id);
       }
     },
-    [doc, selection, editable],
+    [doc, selection, editable, undoController],
   );
 
   const handleEmptyDoubleClick = useCallback(
@@ -114,19 +137,23 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
       if (!editable) return;
       if (selection.ids.size === 1) {
         const id = [...selection.ids][0];
+        if (undoController) undoController.boundary();
         setStickyColor(doc, id, color);
+        if (undoController) undoController.boundary();
       }
     },
-    [doc, selection, editable],
+    [doc, selection, editable, undoController],
   );
 
   const handleDelete = useCallback(() => {
     if (!editable) return;
     if (selection.ids.size > 0) {
+      if (undoController) undoController.boundary();
       deleteObjects(doc, [...selection.ids]);
+      if (undoController) undoController.boundary();
       selection.clear();
     }
-  }, [doc, selection, editable]);
+  }, [doc, selection, editable, undoController]);
 
   // Determine which object to show NoteToolbar for (single sticky, not editing)
   const singleSticky: import('@shared/board-model').StickySnapshot | null =
@@ -156,6 +183,7 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
             onDelete={handleDelete}
             onCreateSticky={handleCreateSticky}
             onHandlePointerDown={onHandlePointerDown}
+            undoState={undoState}
           />
         }
       >
@@ -167,6 +195,7 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
           onObjectPointerDown={onObjectPointerDown}
           onStartEdit={selection.startEdit}
           onEndEdit={() => selection.endEdit()}
+          undoController={undoController}
         />
       </BoardViewport>
     </div>
@@ -185,6 +214,7 @@ interface AppChromeProps {
   onDelete(): void;
   onCreateSticky(p: Point): void;
   onHandlePointerDown(e: PointerEvent, h: import('@shared/geometry').Handle): void;
+  undoState: ReturnType<typeof useUndo>;
 }
 
 function AppChrome(props: AppChromeProps): ReactElement {
@@ -202,7 +232,11 @@ function AppChrome(props: AppChromeProps): ReactElement {
   return (
     <>
       <BoardOverlay />
-      <Toolbar onCreateSticky={handleCreateFromToolbar} disabled={!props.editable} />
+      <Toolbar
+        onCreateSticky={handleCreateFromToolbar}
+        disabled={!props.editable}
+        undo={props.undoState}
+      />
 
       {/* Selection overlay (bounding box + handles) */}
       {selection.ids.size > 0 && (

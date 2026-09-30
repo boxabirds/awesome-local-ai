@@ -4,12 +4,14 @@ import type { ObjectSnapshot } from '@shared/board-model';
 import { moveObjects, deleteObjects, allObjectIds } from '@shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '@shared/config';
 import type { SelectionApi } from './useSelection';
+import type { UndoController } from './undo';
 
 interface UseBoardKeysOpts {
   doc: Y.Doc;
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  undoController?: UndoController | null;
 }
 
 function isEditingText(): boolean {
@@ -19,14 +21,67 @@ function isEditingText(): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || (el as HTMLElement).isContentEditable;
 }
 
+/**
+ * Returns true if the focus is in an input/textarea that is NOT part of the board
+ * (e.g. a share-link field). In that case, keyboard shortcuts should not fire.
+ */
+function isOutsideBoardInput(): boolean {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !(el as HTMLElement).isContentEditable) return false;
+  // Check if the element is within a board UI area
+  let node: HTMLElement | null = el as HTMLElement;
+  while (node) {
+    if (node.hasAttribute('data-board-ui') || node.hasAttribute('data-board-viewport')) return false;
+    node = node.parentElement;
+  }
+  return true;
+}
+
 export function useBoardKeys(opts: UseBoardKeysOpts): void {
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot: snap, canEdit } = optsRef.current;
+      const { doc, selection, snapshot: snap, canEdit, undoController } = optsRef.current;
       const editingText = isEditingText() || selection.editingId !== null;
+
+      // Undo: Ctrl/Cmd+Z (without Shift)
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        !e.shiftKey &&
+        (e.key === 'z' || e.key === 'Z')
+      ) {
+        // If a sticky is being edited, let the editor handle it
+        if (selection.editingId !== null) return;
+        // Ignore when focus is in a non-board input
+        if (isOutsideBoardInput()) return;
+        if (!canEdit) return;
+        if (!undoController) return;
+        e.preventDefault();
+        undoController.boundary();
+        undoController.undo();
+        return;
+      }
+
+      // Redo: Ctrl/Cmd+Shift+Z or Ctrl+Y
+      if (
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) ||
+        (e.ctrlKey && !e.metaKey && (e.key === 'y' || e.key === 'Y'))
+      ) {
+        // If a sticky is being edited, let the editor handle it
+        if (selection.editingId !== null) return;
+        // Ignore when focus is in a non-board input
+        if (isOutsideBoardInput()) return;
+        if (!canEdit) return;
+        if (!undoController) return;
+        e.preventDefault();
+        undoController.boundary();
+        undoController.redo();
+        return;
+      }
 
       // Ctrl/Cmd+A: select all
       if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey && !e.altKey) {
@@ -85,7 +140,9 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
             }
           }
           if (positions.size > 0) {
+            if (undoController) undoController.boundary();
             moveObjects(doc, positions);
+            if (undoController) undoController.boundary();
           }
         }
         return;
@@ -95,7 +152,9 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (!editingText && selection.ids.size > 0 && canEdit) {
           e.preventDefault();
+          if (undoController) undoController.boundary();
           deleteObjects(doc, [...selection.ids]);
+          if (undoController) undoController.boundary();
           selection.clear();
         }
         return;

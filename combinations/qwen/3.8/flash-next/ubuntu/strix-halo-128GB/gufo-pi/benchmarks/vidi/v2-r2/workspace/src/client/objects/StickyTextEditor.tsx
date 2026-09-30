@@ -2,14 +2,17 @@ import { useEffect, useRef, useState, useCallback, type ReactElement } from 'rea
 import * as Y from 'yjs';
 import { clampToLimit, applyTextDiff, counterVisible } from './StickyText';
 import { STICKY_TEXT_MAX_CHARS } from '@shared/config';
+import { LOCAL_ORIGIN } from '@shared/board-model';
+import type { UndoController } from '@client/board/undo';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
   onEnd(next: 'selected' | 'unselected'): void;
+  undoController?: UndoController | null;
 }
 
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): ReactElement {
+export function StickyTextEditor({ ytext, fontPx, onEnd, undoController }: StickyTextEditorProps): ReactElement {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
   const [text, setText] = useState(() => ytext.toString());
@@ -18,6 +21,14 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   useEffect(() => {
     return () => { mountedRef.current = false; };
   }, []);
+
+  // Signal undo boundary on edit start
+  useEffect(() => {
+    if (undoController) undoController.boundary();
+    return () => {
+      if (undoController) undoController.boundary();
+    };
+  }, [undoController]);
 
   // Focus and set caret at end on mount
   useEffect(() => {
@@ -42,7 +53,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       ta.setSelectionRange(pos, pos);
     }
     setText(clamped);
-    applyTextDiff(ytext, clamped, null);
+    applyTextDiff(ytext, clamped, LOCAL_ORIGIN);
   }, [ytext]);
 
   const handleCompositionStart = useCallback(() => {
@@ -58,15 +69,53 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     (e: React.KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        // Prevent useBoardKeys from also processing this Escape event
-        // (React 18 flushes discrete events synchronously, so the textarea
-        // may unmount before the window handler fires)
         (window as any).__vidi6_escapeHandled = true;
         onEnd('selected');
+        return;
       }
+
+      // Ctrl/Cmd+Z inside the editor: undo typing (prevent browser's native undo)
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        !e.shiftKey &&
+        (e.key === 'z' || e.key === 'Z')
+      ) {
+        if (undoController) {
+          e.preventDefault();
+          undoController.undo();
+        }
+        return;
+      }
+
+      // Ctrl/Cmd+Shift+Z inside the editor: redo typing
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.shiftKey &&
+        (e.key === 'z' || e.key === 'Z')
+      ) {
+        if (undoController) {
+          e.preventDefault();
+          undoController.redo();
+        }
+        return;
+      }
+
+      // Ctrl+Y inside the editor: redo typing
+      if (
+        e.ctrlKey &&
+        !e.metaKey &&
+        (e.key === 'y' || e.key === 'Y')
+      ) {
+        if (undoController) {
+          e.preventDefault();
+          undoController.redo();
+        }
+        return;
+      }
+
       // Enter inserts newline in textarea (default behaviour), don't prevent
     },
-    [onEnd],
+    [onEnd, undoController],
   );
 
   const showCounter = counterVisible(text.length);

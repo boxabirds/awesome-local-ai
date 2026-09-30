@@ -1,11 +1,13 @@
 import type { ReactElement } from 'react';
+import { UndoButtons, type UndoButtonsProps } from './UndoButtons';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
   disabled?: boolean;
+  undo?: UndoButtonsProps;
 }
 
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): ReactElement {
+export function Toolbar({ onCreateSticky, disabled = false, undo }: ToolbarProps): ReactElement {
   return (
     <div
       className="board-toolbar"
@@ -26,6 +28,7 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): Rea
           <line x1="6" y1="11" x2="12" y2="11" stroke="#999" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </button>
+      {undo && <UndoButtons {...undo} />}
     </div>
   );
 }
