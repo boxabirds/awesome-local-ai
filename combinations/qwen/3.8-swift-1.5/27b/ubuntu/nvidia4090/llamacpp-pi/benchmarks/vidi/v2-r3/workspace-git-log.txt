@@ -1,3 +1,33 @@
+commit 6ac47fbdc86b46113df0fc635ee4f942176383d6
+vidi-agent  Wed Sep 30 18:02:33 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                   |   27 +
+ package-lock.json                          | 1914 ++++++++++++++++++++++++++--
+ package.json                               |   10 +-
+ src/client/App.tsx                         |   29 +-
+ src/client/board/useBoardDoc.ts            |   32 +-
+ src/client/sync/ConnectionStatus.tsx       |   36 +
+ src/client/sync/connectBoard.ts            |   77 ++
+ src/shared/board-id.ts                     |   33 +
+ src/shared/config.ts                       |    8 +
+ src/shared/protocol.ts                     |   54 +
+ src/types/cloudflare-test.d.ts             |    8 +
+ src/worker/board-room.ts                   |  121 ++
+ src/worker/index.ts                        |   42 +
+ tests/component/connection-status.test.tsx |   51 +
+ tests/e2e/collaboration.spec.ts            |  455 +++++++
+ tests/e2e/nightly.spec.ts                  |  190 +++
+ tests/integration/board-room.test.ts       |  385 ++++++
+ tests/integration/worker.test.ts           |   31 +
+ tests/unit/board-id.test.ts                |   43 +
+ tests/unit/protocol.test.ts                |   71 ++
+ tsconfig.json                              |    2 +-
+ vitest.workspace.ts                        |   27 +
+ wrangler.jsonc                             |   21 +-
+ 23 files changed, 3582 insertions(+), 85 deletions(-)
 commit 30d6770cefc856173b318d68143d54e2bca10fb0
 vidi-agent  Wed Sep 30 17:39:26 2026 +0100
 
