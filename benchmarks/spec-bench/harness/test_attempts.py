@@ -355,3 +355,24 @@ def test_recompute_from_the_lossless_compact_log_times_every_attempt(tmp_path):
     assert new["time_split"]["model"]["requests"] == 6 and new["time_split"]["model"]["decode_s"] > 0
     assert new["conversation"]["calls"] == 6
     assert sorted(p.name for p in gz.parent.iterdir()) == ["agent-events.compact.jsonl.gz"]   # no copy left behind
+
+
+def test_an_earlier_attempts_waits_between_sessions_are_not_counted_twice(tmp_path):
+    """1 Oct 2026, mlx-serve v2-r2 story 4: its first attempt resumed the agent once (a wait between sessions),
+    then the harness crashed and restarted. The earlier attempt's seconds were its log span, waits included, while
+    the agent's clock (the current attempt's) runs only while a session does; the check then added the waits again
+    and failed by exactly them (206 s). An attempt's seconds are the agent's clock, whichever record they came from."""
+    import drive
+    per_call = CALL_S + TOOL_S
+    first = _session(T0, "s1", 2) + _session(T0 + 200, "s1", 2)          # a resume inside the first attempt
+    restart_at = T0 + 400
+    second = _session(restart_at + 1, "s1", 2)
+    ev = _write(tmp_path / "e.jsonl", first + [attempts.restart_mark(restart_at, 2, {})] + second)
+    earlier = attempts.earlier_attempts(PiClient(tmp_path), ev, before=restart_at + 1 - attempts.RESTART_SLACK_S)
+    assert len(earlier) == 1
+    started, finished = restart_at + 1, restart_at + 1 + 1 + 2 * per_call
+    rec = {"started": started, "agent_finished": finished,
+           "agent": attempts.combine(earlier, _harness_agent(finished - started, 2, 2, "s1"), started, finished)}
+    split = drive.story_time_split(rec, ev, tmp_path / "server.log")
+    assert split["between_sessions_s"] > 0                                 # the wait is there, and named
+    assert split["accounting"]["ok"], split["accounting"]["problems"]
