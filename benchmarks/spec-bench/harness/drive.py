@@ -32,6 +32,7 @@ from collections import deque
 from pathlib import Path
 
 import attempts
+import engine_settings
 import containment
 import gates
 import heldout
@@ -1625,7 +1626,7 @@ def main() -> None:
             # Placed before a restart: end the story from what the agent already did; don't start it again.
             print(f"[story {sid}] {title} — ended by the operator before the agent restarted", flush=True)
             STORY_SKIP.set()
-            rec: dict = {"title": title, "started": time.time()}
+            rec: dict = {"title": title, "started": time.time(), "engine_settings": engine_settings.for_story(run)}
             rec["agent"] = reconstruct_agent(client, events)
             rec["agent_finished"] = time.time()
             # Every attempt is in the log; with more than one, each is kept and the agent time is theirs, not the
@@ -1639,7 +1640,8 @@ def main() -> None:
             skip = early
         else:
             print(f"[story {sid}] {title} — agent starting", flush=True)
-            rec = {"title": title, "conditions_start": wait_for_conditions(), "started": time.time()}
+            rec = {"title": title, "conditions_start": wait_for_conditions(), "started": time.time(),
+                   "engine_settings": engine_settings.for_story(run)}   # the settings of the server this story ran on
             # After a harness restart the story began earlier: its live clock counts the whole story, like its
             # call and token counts, and so does the record (record_attempts).
             live["started_at"] = (first_event_time(events) if prior else None) or rec["started"]

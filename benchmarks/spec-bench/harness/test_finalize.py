@@ -323,3 +323,39 @@ def test_a_shared_cause_needs_enough_failures_in_more_than_one_story():
     assert finalize.shared_cause(mixed) is None                                           # two causes
     passing = [{"file": "story-01.spec.ts", "title": "fake ok", "status": "passed", "error": ""}]
     assert finalize.shared_cause(passing + _failing({3: enough - 1, 7: 1})) is not None   # passes don't count
+
+
+def test_a_story_whose_agent_reached_outside_its_workspace_is_recorded_and_said(tmp_path):
+    """The containment scan (logscan.py) runs at finalize, where the full logs are: each story gets its verdict,
+    and a reach is named in the record's message. 25 Sep 2026: an agent read the reference build through a clone."""
+    import drive
+    run = run_dir(tmp_path, workspace_with_history(tmp_path))
+    (run / "metrics.json").write_text(json.dumps({"stories": {"7": {"title": "t"}, "8": {"title": "u"}}}))
+    reach = {"type": "message_end", "message": {"role": "assistant", "content": [{"type": "toolCall", "id": "c1", "name": "bash",
+             "arguments": {"command": "cat ~/share/tools/awesome-local-ai/benchmarks/reference/vidi/opus-5.5/v2-r1/workspace/src/a.ts"}}]}}
+    own = {"type": "message_end", "message": {"role": "assistant", "content": [{"type": "toolCall", "id": "c2", "name": "bash",
+           "arguments": {"command": "ls src"}}]}}
+    for sid, ev in (("07", reach), ("08", own)):
+        (run / "stories" / sid).mkdir(parents=True)
+        (run / "stories" / sid / "agent-events.jsonl").write_text(json.dumps(ev) + "\n")
+    messages = []
+    out = finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []), record=messages.append)
+    assert out["outside_workspace"]["ok"] is False and out["outside_workspace"]["reached"] == ["07"]
+    m = drive.load_metrics(run)
+    assert m["stories"]["7"]["outside_workspace"]["ok"] is False and m["stories"]["8"]["outside_workspace"]["ok"] is True
+    assert m["stories"]["7"]["outside_workspace"]["reaches"][0]["route"] == "reference_build"
+    assert "reached outside its workspace" in messages[0] and "story 7" in messages[0]
+
+
+def test_the_scan_leaves_the_storys_process_containment_record_alone(tmp_path):
+    # metrics.json's per-story "containment" is the systemd scope record (memory limit, reaped processes).
+    import drive
+    run = run_dir(tmp_path, workspace_with_history(tmp_path))
+    scope = {"enabled": True, "units": 2, "reaped": []}
+    (run / "metrics.json").write_text(json.dumps({"stories": {"7": {"title": "t", "containment": scope}}}))
+    (run / "stories" / "07").mkdir(parents=True)
+    (run / "stories" / "07" / "agent-events.jsonl").write_text(json.dumps({"type": "message_end", "message": {
+        "role": "assistant", "content": [{"type": "toolCall", "id": "c", "name": "bash", "arguments": {"command": "ls src"}}]}}) + "\n")
+    finalize.finalize(run, VERSION, VERSION, rescore=fake_rescore(75, 75, []), record=None)
+    rec = drive.load_metrics(run)["stories"]["7"]
+    assert rec["containment"] == scope and rec["outside_workspace"]["ok"] is True
