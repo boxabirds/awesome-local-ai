@@ -679,7 +679,8 @@ def _stamped_events(events: Path):
 
 
 def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> dict:
-    """Where a story's wall time went: the model (prefill, decode: from llama-server's log), tools
+    """Where a story's wall time went: the model (prefill, decode: from llama-server's log, else from the
+    agent's own streamed events), tools
     (by kind), compaction, and the rest (the agent's own overhead, gaps). From "_rx" stamps."""
     import llama_log
     starts: dict[str, dict] = {}
@@ -701,6 +702,12 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
     # A compaction's own model call is counted in compaction, not twice.
     reqs = [r for r in reqs if not any(a <= r["end"] <= b for a, b in comp)]
     model = llama_log.summarise(reqs, t_from, t_to) if reqs else None
+    if model is None:
+        # No server log (every server but llama.cpp): time the model from the client's own streamed events,
+        # which match llama.cpp's log to within 0.5% where both exist (stream_timing.py).
+        import stream_timing
+        calls = [c for c in stream_timing.calls(events) if not any(a <= c.end <= b for a, b in comp)]
+        model = stream_timing.summary(calls)
     wall = t_to - t_from
     tools_s = sum(tools.values())
     comp_s = sum(b - a for a, b in comp)
