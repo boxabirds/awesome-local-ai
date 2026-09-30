@@ -1405,6 +1405,41 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/kg-07-01/server.log"
         ],
         "commit": "d11a3e87"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 380,
+        "tool_calls": 390,
+        "thinking_chars": 237874,
+        "text_chars": 19150,
+        "tool_arg_chars": 392531,
+        "thinking_median": 115,
+        "thinking_median_before": 87,
+        "thinking_median_after": 125,
+        "largest_thinking": {
+          "chars": 24705,
+          "call": 15,
+          "at_s": 204.5
+        },
+        "context_start": 2210,
+        "context_end": 44172,
+        "largest_context_jump": {
+          "tokens": 13385,
+          "call": 2
+        },
+        "tools_by_name": {
+          "read": 81,
+          "bash": 203,
+          "edit": 74,
+          "write": 32
+        },
+        "tool_errors": 15,
+        "longest_tool": {
+          "seconds": 39.7,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__kg-07-01/workspace && np"
+        },
+        "signals": []
       }
     }
   },

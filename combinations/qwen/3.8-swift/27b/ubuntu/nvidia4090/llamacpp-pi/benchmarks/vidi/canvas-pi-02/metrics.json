@@ -304,6 +304,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "056183a"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 83,
+        "tool_calls": 107,
+        "thinking_chars": 192956,
+        "text_chars": 7472,
+        "tool_arg_chars": 110239,
+        "thinking_median": 355,
+        "thinking_median_before": 109,
+        "thinking_median_after": 367,
+        "largest_thinking": {
+          "chars": 87710,
+          "call": 5,
+          "at_s": 319.7
+        },
+        "context_start": 2140,
+        "context_end": 37532,
+        "largest_context_jump": {
+          "tokens": 25218,
+          "call": 6
+        },
+        "tools_by_name": {
+          "bash": 53,
+          "read": 7,
+          "write": 27,
+          "edit": 20
+        },
+        "tool_errors": 3,
+        "longest_tool": {
+          "seconds": 35.9,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-02/worksp"
+        },
+        "signals": []
       }
     },
     "2": {
@@ -634,6 +669,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "18ca948"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 135,
+        "tool_calls": 155,
+        "thinking_chars": 195317,
+        "text_chars": 6239,
+        "tool_arg_chars": 158730,
+        "thinking_median": 271,
+        "thinking_median_before": 114,
+        "thinking_median_after": 313,
+        "largest_thinking": {
+          "chars": 53753,
+          "call": 21,
+          "at_s": 335.5
+        },
+        "context_start": 2154,
+        "context_end": 79483,
+        "largest_context_jump": {
+          "tokens": 14676,
+          "call": 22
+        },
+        "tools_by_name": {
+          "bash": 77,
+          "read": 27,
+          "edit": 32,
+          "write": 19
+        },
+        "tool_errors": 2,
+        "longest_tool": {
+          "seconds": 40.5,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-02/worksp"
+        },
+        "signals": []
       }
     },
     "3": {
@@ -981,6 +1051,43 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/server.log"
         ],
         "commit": "431bc28"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 564,
+        "tool_calls": 624,
+        "thinking_chars": 910338,
+        "text_chars": 35413,
+        "tool_arg_chars": 438671,
+        "thinking_median": 411,
+        "thinking_median_before": 92,
+        "thinking_median_after": 428,
+        "largest_thinking": {
+          "chars": 78261,
+          "call": 8,
+          "at_s": 318.3
+        },
+        "context_start": 2167,
+        "context_end": 97312,
+        "largest_context_jump": {
+          "tokens": 24184,
+          "call": 9
+        },
+        "tools_by_name": {
+          "bash": 346,
+          "read": 108,
+          "edit": 141,
+          "write": 29
+        },
+        "tool_errors": 68,
+        "longest_tool": {
+          "seconds": 900.0,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-02/worksp"
+        },
+        "signals": [
+          "hung-command"
+        ]
       }
     },
     "4": {
@@ -1328,6 +1435,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/server.log"
         ],
         "commit": "2ad76b08"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 713,
+        "tool_calls": 740,
+        "thinking_chars": 777988,
+        "text_chars": 17483,
+        "tool_arg_chars": 544624,
+        "thinking_median": 278,
+        "thinking_median_before": 101,
+        "thinking_median_after": 284,
+        "largest_thinking": {
+          "chars": 82967,
+          "call": 16,
+          "at_s": 394.8
+        },
+        "context_start": 2164,
+        "context_end": 60827,
+        "largest_context_jump": {
+          "tokens": 23691,
+          "call": 17
+        },
+        "tools_by_name": {
+          "bash": 509,
+          "read": 99,
+          "edit": 113,
+          "write": 19
+        },
+        "tool_errors": 36,
+        "longest_tool": {
+          "seconds": 311.5,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-02/worksp"
+        },
+        "signals": []
       }
     },
     "5": {
@@ -1660,6 +1802,43 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/server.log"
         ],
         "commit": "b8773006"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 394,
+        "tool_calls": 426,
+        "thinking_chars": 441156,
+        "text_chars": 12517,
+        "tool_arg_chars": 281743,
+        "thinking_median": 422,
+        "thinking_median_before": 144,
+        "thinking_median_after": 427,
+        "largest_thinking": {
+          "chars": 49251,
+          "call": 12,
+          "at_s": 238.7
+        },
+        "context_start": 2146,
+        "context_end": 86580,
+        "largest_context_jump": {
+          "tokens": 17423,
+          "call": 13
+        },
+        "tools_by_name": {
+          "bash": 276,
+          "read": 56,
+          "edit": 74,
+          "write": 20
+        },
+        "tool_errors": 18,
+        "longest_tool": {
+          "seconds": 641.4,
+          "name": "bash",
+          "gist": "PID=$(ss -ltnp 2>/dev/null | grep 8787 | grep -oP 'pid=\\K[0-9]+' | head -1); [ -n \"$PID\" ] && kill -9 $PID; sleep 1\nnpx "
+        },
+        "signals": [
+          "hung-command"
+        ]
       }
     },
     "7": {
@@ -2064,6 +2243,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/server.log"
         ],
         "commit": "b1653b71"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 337,
+        "tool_calls": 365,
+        "thinking_chars": 492171,
+        "text_chars": 10026,
+        "tool_arg_chars": 295888,
+        "thinking_median": 355,
+        "thinking_median_before": 212,
+        "thinking_median_after": 384,
+        "largest_thinking": {
+          "chars": 66668,
+          "call": 22,
+          "at_s": 647.8
+        },
+        "context_start": 2164,
+        "context_end": 98842,
+        "largest_context_jump": {
+          "tokens": 21279,
+          "call": 23
+        },
+        "tools_by_name": {
+          "bash": 209,
+          "read": 79,
+          "write": 19,
+          "edit": 58
+        },
+        "tool_errors": 14,
+        "longest_tool": {
+          "seconds": 233.1,
+          "name": "bash",
+          "gist": "npx playwright test 2>&1 | tail -12"
+        },
+        "signals": []
       }
     },
     "8": {
@@ -2406,6 +2620,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/server.log"
         ],
         "commit": "5f0e7bc1"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 226,
+        "tool_calls": 245,
+        "thinking_chars": 300034,
+        "text_chars": 9459,
+        "tool_arg_chars": 189907,
+        "thinking_median": 315,
+        "thinking_median_before": 151,
+        "thinking_median_after": 363,
+        "largest_thinking": {
+          "chars": 38958,
+          "call": 19,
+          "at_s": 199.3
+        },
+        "context_start": 2184,
+        "context_end": 82895,
+        "largest_context_jump": {
+          "tokens": 12254,
+          "call": 20
+        },
+        "tools_by_name": {
+          "bash": 124,
+          "read": 65,
+          "edit": 44,
+          "write": 12
+        },
+        "tool_errors": 8,
+        "longest_tool": {
+          "seconds": 92.6,
+          "name": "bash",
+          "gist": "npx playwright test --project=chromium tests/e2e/undo.spec.ts -g \"TC-24\" 2>&1 | tail -25"
+        },
+        "signals": []
       }
     },
     "9": {
@@ -2786,6 +3035,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/server.log"
         ],
         "commit": "aaa170c3"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 223,
+        "tool_calls": 254,
+        "thinking_chars": 260004,
+        "text_chars": 6879,
+        "tool_arg_chars": 225771,
+        "thinking_median": 234,
+        "thinking_median_before": 199,
+        "thinking_median_after": 249,
+        "largest_thinking": {
+          "chars": 62729,
+          "call": 23,
+          "at_s": 556.5
+        },
+        "context_start": 2150,
+        "context_end": 42815,
+        "largest_context_jump": {
+          "tokens": 19010,
+          "call": 24
+        },
+        "tools_by_name": {
+          "read": 76,
+          "bash": 98,
+          "edit": 62,
+          "write": 18
+        },
+        "tool_errors": 7,
+        "longest_tool": {
+          "seconds": 299.7,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-02/worksp"
+        },
+        "signals": []
       }
     },
     "10": {
@@ -3155,6 +3439,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/server.log"
         ],
         "commit": "94a4a4ca"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 211,
+        "tool_calls": 260,
+        "thinking_chars": 310623,
+        "text_chars": 8105,
+        "tool_arg_chars": 317814,
+        "thinking_median": 317,
+        "thinking_median_before": 255,
+        "thinking_median_after": 333,
+        "largest_thinking": {
+          "chars": 64240,
+          "call": 23,
+          "at_s": 676.0
+        },
+        "context_start": 2181,
+        "context_end": 93315,
+        "largest_context_jump": {
+          "tokens": 20485,
+          "call": 24
+        },
+        "tools_by_name": {
+          "bash": 92,
+          "read": 84,
+          "edit": 59,
+          "write": 25
+        },
+        "tool_errors": 8,
+        "longest_tool": {
+          "seconds": 60.8,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-02/worksp"
+        },
+        "signals": []
       }
     },
     "11": {
@@ -3482,6 +3801,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/server.log"
         ],
         "commit": "dce51298"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 199,
+        "tool_calls": 219,
+        "thinking_chars": 215191,
+        "text_chars": 7493,
+        "tool_arg_chars": 200637,
+        "thinking_median": 271,
+        "thinking_median_before": 215,
+        "thinking_median_after": 284,
+        "largest_thinking": {
+          "chars": 16688,
+          "call": 27,
+          "at_s": 208.7
+        },
+        "context_start": 2157,
+        "context_end": 78742,
+        "largest_context_jump": {
+          "tokens": 7696,
+          "call": 3
+        },
+        "tools_by_name": {
+          "bash": 105,
+          "read": 54,
+          "edit": 48,
+          "write": 12
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 322.0,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-02/worksp"
+        },
+        "signals": []
       }
     },
     "12": {
@@ -3864,6 +4218,41 @@
           "~/.dbench/repo/combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/workspace/tests/fixtures/images/photo.jpg"
         ],
         "commit": "ad97c2b2"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 268,
+        "tool_calls": 297,
+        "thinking_chars": 257441,
+        "text_chars": 7090,
+        "tool_arg_chars": 247057,
+        "thinking_median": 262,
+        "thinking_median_before": 166,
+        "thinking_median_after": 276,
+        "largest_thinking": {
+          "chars": 38594,
+          "call": 28,
+          "at_s": 381.6
+        },
+        "context_start": 2153,
+        "context_end": 106831,
+        "largest_context_jump": {
+          "tokens": 11064,
+          "call": 29
+        },
+        "tools_by_name": {
+          "bash": 158,
+          "read": 62,
+          "edit": 56,
+          "write": 21
+        },
+        "tool_errors": 11,
+        "longest_tool": {
+          "seconds": 95.1,
+          "name": "bash",
+          "gist": "npx playwright test tests/e2e/images.spec.ts --project=chromium 2>&1 | tail -30"
+        },
+        "signals": []
       }
     }
   },

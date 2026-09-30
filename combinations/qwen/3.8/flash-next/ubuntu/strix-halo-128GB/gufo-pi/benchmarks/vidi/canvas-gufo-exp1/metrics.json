@@ -302,6 +302,40 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "dd1ea43c"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 42,
+        "tool_calls": 49,
+        "thinking_chars": 88069,
+        "text_chars": 510,
+        "tool_arg_chars": 53105,
+        "thinking_median": 177,
+        "thinking_median_before": 153,
+        "thinking_median_after": 297,
+        "largest_thinking": {
+          "chars": 34958,
+          "call": 36,
+          "at_s": 898.0
+        },
+        "context_start": 2051,
+        "context_end": 63114,
+        "largest_context_jump": {
+          "tokens": 9043,
+          "call": 37
+        },
+        "tools_by_name": {
+          "bash": 26,
+          "write": 19,
+          "edit": 4
+        },
+        "tool_errors": 3,
+        "longest_tool": {
+          "seconds": 6.4,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-exp1/works"
+        },
+        "signals": []
       }
     },
     "2": {
@@ -630,6 +664,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "a98426aa"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 172,
+        "tool_calls": 171,
+        "thinking_chars": 216229,
+        "text_chars": 576,
+        "tool_arg_chars": 218209,
+        "thinking_median": 484,
+        "thinking_median_before": 86,
+        "thinking_median_after": 547,
+        "largest_thinking": {
+          "chars": 43607,
+          "call": 21,
+          "at_s": 372.0
+        },
+        "context_start": 2065,
+        "context_end": 101141,
+        "largest_context_jump": {
+          "tokens": 11063,
+          "call": 22
+        },
+        "tools_by_name": {
+          "bash": 102,
+          "read": 16,
+          "edit": 30,
+          "write": 23
+        },
+        "tool_errors": 7,
+        "longest_tool": {
+          "seconds": 33.2,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-exp1/works"
+        },
+        "signals": []
       }
     }
   },

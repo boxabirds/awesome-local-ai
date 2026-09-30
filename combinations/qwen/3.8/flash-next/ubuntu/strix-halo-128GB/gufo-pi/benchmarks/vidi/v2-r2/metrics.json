@@ -319,6 +319,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "ab555147"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 97,
+        "tool_calls": 96,
+        "thinking_chars": 180559,
+        "text_chars": 7650,
+        "tool_arg_chars": 108512,
+        "thinking_median": 350,
+        "thinking_median_before": 159,
+        "thinking_median_after": 429,
+        "largest_thinking": {
+          "chars": 30497,
+          "call": 30,
+          "at_s": 727.0
+        },
+        "context_start": 2049,
+        "context_end": 108817,
+        "largest_context_jump": {
+          "tokens": 7308,
+          "call": 31
+        },
+        "tools_by_name": {
+          "bash": 44,
+          "read": 5,
+          "write": 33,
+          "edit": 14
+        },
+        "tool_errors": 6,
+        "longest_tool": {
+          "seconds": 13.0,
+          "name": "bash",
+          "gist": "cd \"$PWD\" && npm run build >/tmp/build.log 2>&1 && tail -3 /tmp/build.log && echo \"=== wrangler dev test ===\" && (CI=1 t"
+        },
+        "signals": []
       }
     },
     "2": {
@@ -664,6 +699,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "c30593d1"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 101,
+        "tool_calls": 110,
+        "thinking_chars": 20916,
+        "text_chars": 3340,
+        "tool_arg_chars": 142067,
+        "thinking_median": 86,
+        "thinking_median_before": 82,
+        "thinking_median_after": 86,
+        "largest_thinking": {
+          "chars": 4640,
+          "call": 20,
+          "at_s": 217.6
+        },
+        "context_start": 2063,
+        "context_end": 89446,
+        "largest_context_jump": {
+          "tokens": 8234,
+          "call": 4
+        },
+        "tools_by_name": {
+          "bash": 38,
+          "read": 24,
+          "edit": 25,
+          "write": 23
+        },
+        "tool_errors": 6,
+        "longest_tool": {
+          "seconds": 5.0,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r2/workspace && npm"
+        },
+        "signals": []
       }
     },
     "3": {
@@ -1022,6 +1092,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "5e7bf693"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 239,
+        "tool_calls": 250,
+        "thinking_chars": 90377,
+        "text_chars": 5230,
+        "tool_arg_chars": 181173,
+        "thinking_median": 102,
+        "thinking_median_before": 104,
+        "thinking_median_after": 95,
+        "largest_thinking": {
+          "chars": 10090,
+          "call": 104,
+          "at_s": 739.0
+        },
+        "context_start": 2076,
+        "context_end": 74004,
+        "largest_context_jump": {
+          "tokens": 13723,
+          "call": 2
+        },
+        "tools_by_name": {
+          "bash": 127,
+          "read": 37,
+          "edit": 44,
+          "write": 42
+        },
+        "tool_errors": 11,
+        "longest_tool": {
+          "seconds": 34.0,
+          "name": "bash",
+          "gist": "cd \"$(pwd)\" && timeout 180 npx playwright test tests/e2e/collaboration.spec.ts --grep \"TC-25|TC-28\" --project=chromium 2"
+        },
+        "signals": []
       }
     },
     "4": {
@@ -1662,6 +1767,41 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "f41649ea"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 242,
+        "tool_calls": 241,
+        "thinking_chars": 573797,
+        "text_chars": 15584,
+        "tool_arg_chars": 197299,
+        "thinking_median": 411,
+        "thinking_median_before": 124,
+        "thinking_median_after": 648,
+        "largest_thinking": {
+          "chars": 67893,
+          "call": 38,
+          "at_s": 552.0
+        },
+        "context_start": 2073,
+        "context_end": 61536,
+        "largest_context_jump": {
+          "tokens": 20213,
+          "call": 39
+        },
+        "tools_by_name": {
+          "read": 63,
+          "bash": 127,
+          "edit": 37,
+          "write": 14
+        },
+        "tool_errors": 7,
+        "longest_tool": {
+          "seconds": 378.1,
+          "name": "bash",
+          "gist": "cd \"$(pwd)\" && sleep 5; echo \"port check:\"; curl -s -o /dev/null -w '%{http_code}\\n' http://127.0.0.1:8795/ 2>/dev/null;"
+        },
+        "signals": []
       }
     },
     "5": {
@@ -2002,6 +2142,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r2/server.log"
         ],
         "commit": "9bf5c4a0"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 149,
+        "tool_calls": 169,
+        "thinking_chars": 217614,
+        "text_chars": 3400,
+        "tool_arg_chars": 122274,
+        "thinking_median": 307,
+        "thinking_median_before": 93,
+        "thinking_median_after": 414,
+        "largest_thinking": {
+          "chars": 41229,
+          "call": 20,
+          "at_s": 377.4
+        },
+        "context_start": 2055,
+        "context_end": 86392,
+        "largest_context_jump": {
+          "tokens": 10164,
+          "call": 21
+        },
+        "tools_by_name": {
+          "bash": 68,
+          "read": 47,
+          "edit": 38,
+          "write": 16
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 41.8,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r2/workspace && npm"
+        },
+        "signals": []
       }
     },
     "7": {
@@ -2419,6 +2594,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r2/server.log"
         ],
         "commit": "40fe30ef"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 210,
+        "tool_calls": 225,
+        "thinking_chars": 117831,
+        "text_chars": 5530,
+        "tool_arg_chars": 236976,
+        "thinking_median": 99,
+        "thinking_median_before": 84,
+        "thinking_median_after": 106,
+        "largest_thinking": {
+          "chars": 11538,
+          "call": 53,
+          "at_s": 837.4
+        },
+        "context_start": 2073,
+        "context_end": 98647,
+        "largest_context_jump": {
+          "tokens": 13863,
+          "call": 2
+        },
+        "tools_by_name": {
+          "read": 69,
+          "bash": 88,
+          "edit": 46,
+          "write": 22
+        },
+        "tool_errors": 6,
+        "longest_tool": {
+          "seconds": 158.3,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r2/workspace && npm"
+        },
+        "signals": []
       }
     },
     "8": {
@@ -2773,6 +2983,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r2/server.log"
         ],
         "commit": "7ac41e67"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 113,
+        "tool_calls": 129,
+        "thinking_chars": 66674,
+        "text_chars": 4347,
+        "tool_arg_chars": 153216,
+        "thinking_median": 99,
+        "thinking_median_before": 90,
+        "thinking_median_after": 104,
+        "largest_thinking": {
+          "chars": 11317,
+          "call": 21,
+          "at_s": 251.4
+        },
+        "context_start": 2093,
+        "context_end": 28906,
+        "largest_context_jump": {
+          "tokens": 8912,
+          "call": 2
+        },
+        "tools_by_name": {
+          "read": 26,
+          "bash": 68,
+          "edit": 17,
+          "write": 18
+        },
+        "tool_errors": 5,
+        "longest_tool": {
+          "seconds": 27.6,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r2/workspace && npm"
+        },
+        "signals": []
       }
     },
     "9": {
@@ -3166,6 +3411,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r2/server.log"
         ],
         "commit": "7b9667b7"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 212,
+        "tool_calls": 225,
+        "thinking_chars": 34689,
+        "text_chars": 4635,
+        "tool_arg_chars": 189183,
+        "thinking_median": 86,
+        "thinking_median_before": 86,
+        "thinking_median_after": 77,
+        "largest_thinking": {
+          "chars": 2658,
+          "call": 157,
+          "at_s": 1420.3
+        },
+        "context_start": 2059,
+        "context_end": 73616,
+        "largest_context_jump": {
+          "tokens": 6400,
+          "call": 4
+        },
+        "tools_by_name": {
+          "bash": 97,
+          "read": 65,
+          "edit": 43,
+          "write": 20
+        },
+        "tool_errors": 2,
+        "longest_tool": {
+          "seconds": 28.6,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r2/workspace && npm"
+        },
+        "signals": []
       }
     },
     "10": {
@@ -3548,6 +3828,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r2/server.log"
         ],
         "commit": "108e7920"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 138,
+        "tool_calls": 153,
+        "thinking_chars": 33212,
+        "text_chars": 5139,
+        "tool_arg_chars": 186630,
+        "thinking_median": 97,
+        "thinking_median_before": 106,
+        "thinking_median_after": 91,
+        "largest_thinking": {
+          "chars": 3956,
+          "call": 35,
+          "at_s": 486.0
+        },
+        "context_start": 2090,
+        "context_end": 51609,
+        "largest_context_jump": {
+          "tokens": 13734,
+          "call": 2
+        },
+        "tools_by_name": {
+          "bash": 54,
+          "read": 39,
+          "edit": 39,
+          "write": 21
+        },
+        "tool_errors": 2,
+        "longest_tool": {
+          "seconds": 33.9,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r2/workspace && ech"
+        },
+        "signals": []
       }
     },
     "11": {
@@ -3887,6 +4202,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r2/server.log"
         ],
         "commit": "0e06bd5a"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 187,
+        "tool_calls": 193,
+        "thinking_chars": 86508,
+        "text_chars": 5285,
+        "tool_arg_chars": 158117,
+        "thinking_median": 95,
+        "thinking_median_before": 83,
+        "thinking_median_after": 97,
+        "largest_thinking": {
+          "chars": 9973,
+          "call": 33,
+          "at_s": 333.3
+        },
+        "context_start": 2066,
+        "context_end": 72674,
+        "largest_context_jump": {
+          "tokens": 10041,
+          "call": 2
+        },
+        "tools_by_name": {
+          "read": 28,
+          "bash": 111,
+          "edit": 38,
+          "write": 16
+        },
+        "tool_errors": 9,
+        "longest_tool": {
+          "seconds": 34.2,
+          "name": "bash",
+          "gist": "npx playwright test tests/e2e/shapes.spec.ts --project chromium --reporter=line 2>&1 | tail -10"
+        },
+        "signals": []
       }
     },
     "12": {
@@ -4274,6 +4624,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r2/server.log"
         ],
         "commit": "92835d1a"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 117,
+        "tool_calls": 136,
+        "thinking_chars": 32411,
+        "text_chars": 3181,
+        "tool_arg_chars": 141834,
+        "thinking_median": 97,
+        "thinking_median_before": 108,
+        "thinking_median_after": 93,
+        "largest_thinking": {
+          "chars": 4199,
+          "call": 49,
+          "at_s": 545.5
+        },
+        "context_start": 2062,
+        "context_end": 39429,
+        "largest_context_jump": {
+          "tokens": 14857,
+          "call": 2
+        },
+        "tools_by_name": {
+          "read": 43,
+          "bash": 47,
+          "edit": 29,
+          "write": 17
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 33.1,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r2/workspace && npx"
+        },
+        "signals": []
       }
     }
   },

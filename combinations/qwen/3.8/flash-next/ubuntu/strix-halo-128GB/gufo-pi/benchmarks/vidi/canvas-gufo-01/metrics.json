@@ -311,6 +311,41 @@
           "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-01/workspace/.e2e-state/v3/observability/miniflare-wobs-trace-store/a590acd76969f996ec6e4b599c3c09f58c283a76f2d61392b5d3046caf557602.sqlite-wal"
         ],
         "commit": "d6993cc4"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 294,
+        "tool_calls": 293,
+        "thinking_chars": 461339,
+        "text_chars": 2667,
+        "tool_arg_chars": 301232,
+        "thinking_median": 429,
+        "thinking_median_before": 268,
+        "thinking_median_after": 432,
+        "largest_thinking": {
+          "chars": 49519,
+          "call": 28,
+          "at_s": 1167.7
+        },
+        "context_start": 2051,
+        "context_end": 92420,
+        "largest_context_jump": {
+          "tokens": 13302,
+          "call": 29
+        },
+        "tools_by_name": {
+          "bash": 189,
+          "write": 67,
+          "edit": 18,
+          "read": 19
+        },
+        "tool_errors": 11,
+        "longest_tool": {
+          "seconds": 126.6,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-01/workspa"
+        },
+        "signals": []
       }
     }
   },

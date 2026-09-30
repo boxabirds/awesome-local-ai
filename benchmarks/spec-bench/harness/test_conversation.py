@@ -180,10 +180,12 @@ def test_E5_a_long_gist_is_cut(tmp_path):
 
 # ---------- F. signals and their thresholds ----------
 
-@pytest.mark.parametrize("chars,signal", [(cv.LONG_THINKING_CHARS - 1, False), (cv.LONG_THINKING_CHARS, True)])
-def test_F1_a_long_thinking_block(tmp_path, chars, signal):
-    p = prof(tmp_path, Log().call(T0 + 1, thinking="x" * chars))
-    assert ("long-thinking-block" in p["signals"]) is signal
+def test_F1_a_long_thinking_block_is_not_a_signal_on_its_own(tmp_path):
+    """How long is long depends on the combination: the median largest block per story was 10.6k characters for
+    gufo, 30.5k for Swift 1.5 and 38.9k for mlx-serve (v2, 30 Sep 2026). So thinking is judged against the same
+    story in the combination's other runs (the benchmarker does that), never by a fixed size here."""
+    p = prof(tmp_path, Log().call(T0 + 1, thinking="x" * 90_000))
+    assert p["signals"] == [] and p["largest_thinking"]["chars"] == 90_000
 
 
 @pytest.mark.parametrize("secs,signal", [(cv.HUNG_TOOL_S - 1, False), (cv.HUNG_TOOL_S, True)])
