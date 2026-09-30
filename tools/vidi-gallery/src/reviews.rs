@@ -137,7 +137,10 @@ mod tests {
     }
 
     fn rand_suffix() -> u128 {
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        // Tests run in parallel: the clock alone can give two of them the same directory.
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed) as u128;
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() * 1000 + n
     }
 
     #[test]
@@ -168,7 +171,7 @@ mod tests {
     #[test]
     fn a_path_is_judged_agree_or_disagree_with_its_automated_result() {
         let (s, dir) = store();
-        s.set(5, "x", "a made-up path title", "agree", "", "t").unwrap();
+        s.set(5, "x", "the made-up path title", "agree", "", "t").unwrap();
         s.set(5, "x", "distinct links", "disagree", "the test passed but two links were equal", "t").unwrap();
         assert_eq!(s.all().iter().map(|r| r.verdict.as_str()).collect::<Vec<_>>(), ["disagree", "agree"]);
         let _ = std::fs::remove_dir_all(dir);
