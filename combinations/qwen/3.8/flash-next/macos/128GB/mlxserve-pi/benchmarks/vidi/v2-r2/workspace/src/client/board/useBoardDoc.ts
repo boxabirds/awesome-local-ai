@@ -7,9 +7,11 @@
 // persists it, which is why the document lives here rather than in a useState
 // of some component.
 
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshotByCreation, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
+import { registerConnectionControl, registerConnectionState } from '../canvas/testHooks';
 
 export interface BoardDocApi {
   /** The document every mutation is applied to. */
@@ -20,6 +22,11 @@ export interface BoardDocApi {
    * moving the element the user may be holding.
    */
   notes: readonly StickySnapshot[];
+  /**
+   * Live collaboration state. Stays `connecting` for a standalone board with no
+   * `boardId` (a component test, or the pre-network app), so nothing connects.
+   */
+  connection: ConnectionState;
 }
 
 interface SnapshotStore {
@@ -61,14 +68,40 @@ function createStore(injected: Y.Doc | undefined): SnapshotStore {
 
 /**
  * The board document and its notes. `doc` lets a test (or, later, the story 4
- * client) supply the document; without it the hook owns a fresh one.
+ * client) supply the document; without it the hook owns a fresh one. When a
+ * `boardId` is given the same document is attached to its room and shared live;
+ * the connection is torn down on unmount but the document is left intact.
  */
-export function useBoardDoc(injected?: Y.Doc): BoardDocApi {
+export function useBoardDoc(injected?: Y.Doc, boardId?: string): BoardDocApi {
   const [store] = useState(() => createStore(injected));
   const subscribe = useCallback((onStoreChange: () => void) => store.subscribe(onStoreChange), [store]);
   const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return { doc: store.doc, notes };
+
+  const [connection, setConnection] = useState<ConnectionState>('connecting');
+  useEffect(() => {
+    if (boardId === undefined) return;
+    // Record every mapped state into the page-level log (a plain JS value the
+    // badge's MutationObserver cannot watch), then surface it to React.
+    const onState = (state: ConnectionState): void => {
+      registerConnectionState(state);
+      setConnection(state);
+    };
+    const live = connectBoard(store.doc, boardId, onState);
+    registerConnectionControl({
+      drop: () => live.drop(),
+      restore: () => live.restore(),
+      awarenessPresent: () => live.awarenessPresent(),
+      reconnectCount: () => live.reconnectAttempts(),
+      destroy: () => live.destroy(),
+    });
+    return () => {
+      registerConnectionControl(null);
+      live.destroy();
+    };
+  }, [store, boardId]);
+
+  return { doc: store.doc, notes, connection };
 }
 
 /** Re-export so callers do not import Yjs just to type a prop. */

@@ -493,12 +493,15 @@ describe('board model: painting order', () => {
 
     const byCreation = snapshotByCreation(doc);
     expect(byCreation.map((note) => note.id).sort()).toEqual(snapshot(doc).map((note) => note.id).sort());
-    expect(byCreation.map((note) => [note.id, note.x, note.y, note.z, note.color, note.text])).toEqual(
-      snapshot(doc)
-        .slice()
-        .sort((a, b) => (a.id < b.id ? -1 : 1))
-        .map((note) => [note.id, note.x, note.y, note.z, note.color, note.text]),
-    );
+    // Both sides are ordered by id before the field-by-field comparison: these
+    // two functions list the same notes by design (creation order vs stacking
+    // order), so the assertion is about the ids and their fields, not the order
+    // each function happens to return them in.
+    const byId = <T extends { id: string }>(list: readonly T[]): T[] =>
+      [...list].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const fields = (note: { id: string; x: number; y: number; z: number; color: string; text: string }): (string | number)[] =>
+      [note.id, note.x, note.y, note.z, note.color, note.text];
+    expect(byId(byCreation).map(fields)).toEqual(byId(snapshot(doc)).map(fields));
   });
 
   it('ignores objects it cannot draw, as snapshot does', () => {

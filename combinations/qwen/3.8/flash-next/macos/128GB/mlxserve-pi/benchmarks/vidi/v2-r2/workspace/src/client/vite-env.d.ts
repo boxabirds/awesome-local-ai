@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
 
 import type { Camera } from './canvas/camera';
+import type * as Y from 'yjs';
+import type { StickySnapshot } from '../shared/board-model';
 
 /**
  * Test-only hooks, installed on `window` only in the `test` build
@@ -10,6 +12,26 @@ import type { Camera } from './canvas/camera';
 export interface Vidi6TestApi {
   /** Jump the board camera to an exact position, e.g. far from the start. */
   setCamera(x: number, y: number, zoom: number): void;
+  /** The live board document, for end-to-end state comparison. */
+  doc?: Y.Doc;
+  /** The board notes as plain JSON, readable across the Playwright boundary. */
+  snapshot?(): readonly StickySnapshot[];
+  /** Whether a standalone collaboration endpoint is configured for this build. */
+  __serverMode?: boolean;
+  /** Forcibly close the provider socket (simulate a dropped link). */
+  __drop?(): void;
+  /** Re-open the provider socket and resync. */
+  __restore?(): void;
+  /** Whether the provider still holds a local awareness state (presence alive). */
+  __awarenessPresent?(): boolean;
+  /** How many times the provider has begun (re)connecting. */
+  __reconnectCount?(): number;
+  /** The mapped connection state, newest last, deduplicated. */
+  __stateLog?(): readonly string[];
+  /** Tear the connection down the way unmounting a context does. */
+  __destroy?(): void;
+  /** The current mapped connection state. */
+  connectionState?: string;
 }
 
 declare global {

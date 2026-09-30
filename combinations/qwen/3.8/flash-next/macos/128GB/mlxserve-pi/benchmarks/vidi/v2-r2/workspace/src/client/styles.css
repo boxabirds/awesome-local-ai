@@ -352,3 +352,38 @@ button:focus-visible,
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
+
+/* --- Live connection status (story 3) --- */
+
+/* Top-centre pill. It never takes pointer events, so the board stays fully
+   usable (and editable) while the badge is showing. */
+.connection-status {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 40;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.connection-status--connecting {
+  background: var(--hint-bg);
+  color: #fff;
+}
+
+.connection-status--reconnecting {
+  background: #b8860b;
+  color: #fff;
+}
+
+.connection-status--confirmed {
+  background: #2e7d32;
+  color: #fff;
+}

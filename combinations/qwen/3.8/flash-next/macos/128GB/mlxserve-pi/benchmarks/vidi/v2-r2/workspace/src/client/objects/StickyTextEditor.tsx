@@ -110,6 +110,28 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     [ytext],
   );
 
+  // A remote edit to this note must land in the textarea too, or the next local
+  // keystroke's diff would delete it (story 3 merges concurrent typing). We skip
+  // our own writes and any in-flight IME composition, and keep the caret the same
+  // distance from the end so typing continues where the user left off.
+  useEffect(() => {
+    const onRemote = (_event: Y.YTextEvent, transaction: Y.Transaction): void => {
+      if (transaction.origin === LOCAL_ORIGIN || composingRef.current) return;
+      const el = ref.current;
+      const next = clampToLimit(ytext.toString());
+      setValue(next);
+      if (el !== null) {
+        const afterCaret = el.value.length - el.selectionEnd;
+        const caret = Math.min(Math.max(0, next.length - afterCaret), next.length);
+        el.value = next;
+        el.setSelectionRange(caret, caret);
+      }
+      measure();
+    };
+    ytext.observe(onRemote);
+    return () => ytext.unobserve(onRemote);
+  }, [ytext, measure]);
+
   const applyValue = useCallback(
     (next: string): void => {
       const kept = clampToLimit(next);

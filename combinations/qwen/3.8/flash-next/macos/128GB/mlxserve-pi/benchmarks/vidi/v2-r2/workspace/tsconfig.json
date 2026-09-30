@@ -23,5 +23,12 @@
     "vite.config.ts",
     "vitest.config.ts",
     "playwright.config.ts"
+  ],
+  // The Worker and its workerd integration tests compile under the Workers
+  // runtime types (see tsconfig.worker.json); their globals clash with the DOM
+  // lib used for the browser client, so they are excluded from this project.
+  "exclude": [
+    "src/worker",
+    "tests/integration"
   ]
 }

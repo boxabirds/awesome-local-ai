@@ -1,3 +1,124 @@
+commit 816e61e7a9ec6ad72d68d2112ce2c0cf9e2cf24b
+vidi-agent  Wed Sep 30 19:33:56 2026 +0100
+
+    docs(NOTES): story 3 decisions, deviations and the remote-edit fix
+
+
+ NOTES.md | 87 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 87 insertions(+)
+commit a0968c03ae03ae322df0531dd3f641cbda559dbb
+vidi-agent  Wed Sep 30 19:33:23 2026 +0100
+
+    test(e2e): nightly idle-stability and full-capacity soak (TC-29, TC-30)
+
+
+ src/client/board/useBoardDoc.ts         |  12 +-
+ src/client/canvas/testHooks.ts          |  37 +++++-
+ src/client/sync/connectBoard.ts         |  14 ++
+ src/client/vite-env.d.ts                |   8 ++
+ src/shared/config.ts                    |   6 +
+ tests/e2e/helpers/live.ts               |  37 +++++-
+ tests/e2e/nightly-collaboration.spec.ts | 219 +++++++++++++++++++++++---------
+ 7 files changed, 263 insertions(+), 70 deletions(-)
+commit 268fffaaea2cd6b0a5ac29d927fcaf213b54e5f9
+vidi-agent  Wed Sep 30 19:14:30 2026 +0100
+
+    test(e2e): nightly keep-alive and awareness-soak cases (TC-29, TC-30)
+
+
+ package.json                            |  3 +-
+ src/client/board/useBoardDoc.ts         |  6 +-
+ src/client/canvas/testHooks.ts          | 10 ++--
+ src/client/sync/connectBoard.ts         |  5 ++
+ src/client/vite-env.d.ts                |  2 +
+ src/shared/config.ts                    | 11 ++++
+ tests/e2e/helpers/live.ts               | 12 ++++
+ tests/e2e/nightly-collaboration.spec.ts | 97 +++++++++++++++++++++++++++++++++
+ 8 files changed, 140 insertions(+), 6 deletions(-)
+commit 684e852c450b8196c818c50ab3ceef80d5e90b2f
+vidi-agent  Wed Sep 30 19:09:44 2026 +0100
+
+    test(e2e): live cross-browser collaboration on one board (TC-22..TC-28)
+
+
+ src/client/board/useBoardDoc.ts         |   7 +-
+ src/client/canvas/testHooks.ts          |  17 +++
+ src/client/objects/StickyTextEditor.tsx |  22 +++
+ src/client/sync/connectBoard.ts         |  14 ++
+ src/client/vite-env.d.ts                |   4 +
+ tests/e2e/helpers/live.ts               | 188 +++++++++++++++++++++++++
+ tests/e2e/live-collaboration.spec.ts    | 237 ++++++++++++++++++++++++++++++++
+ 7 files changed, 488 insertions(+), 1 deletion(-)
+commit a77a1dcbb941664fca10c097052a4c9717fdeb8f
+vidi-agent  Wed Sep 30 18:49:05 2026 +0100
+
+    story 3: connection badge component tests (TC-19 to TC-21)
+
+
+ tests/component/ConnectionStatus.test.tsx | 121 ++++++++++++++++++++++++++++++
+ 1 file changed, 121 insertions(+)
+commit b9c9c197ead292e7a4caf5203e286a2420abbc35
+vidi-agent  Wed Sep 30 18:47:00 2026 +0100
+
+    story 3: client connection, /b/:boardId routing, connection badge
+
+
+ src/client/App.tsx                   |  59 ++++++++++--
+ src/client/board/useBoardDoc.ts      |  24 ++++-
+ src/client/canvas/testHooks.ts       |  43 +++++++--
+ src/client/styles.css                |  35 +++++++
+ src/client/sync/ConnectionStatus.tsx |  32 +++++++
+ src/client/sync/connectBoard.ts      | 180 +++++++++++++++++++++++++++++++++++
+ src/client/sync/endpoint.ts          |  11 +++
+ src/client/vite-env.d.ts             |   8 ++
+ 8 files changed, 375 insertions(+), 17 deletions(-)
+commit 3ff47933f328ed685b21639c224c933007579f40
+vidi-agent  Wed Sep 30 18:33:57 2026 +0100
+
+    story 3: BoardRoom + worker routing integration tests (TC-04 to TC-18, TC-31)
+
+
+ tests/integration/boardroom.test.ts      | 285 +++++++++++++++++++++++++++++++
+ tests/integration/helpers/random-ops.ts  |  98 +++++++++++
+ tests/integration/helpers/ws-client.ts   | 259 ++++++++++++++++++++++++++++
+ tests/integration/worker-routing.test.ts | 100 +++++++++++
+ 4 files changed, 742 insertions(+)
+commit 49ce79c4166b9bdb2ee72ffe30258fb3f1cf8054
+vidi-agent  Wed Sep 30 18:18:04 2026 +0100
+
+    story 3: Worker entry + BoardRoom DO + workerd integration harness
+
+
+ env.d.ts                       |  12 +++
+ package-lock.json              | 240 ++++++++++++++++++++++++++++++-----------
+ package.json                   |   6 +-
+ src/shared/board-id.ts         |  12 ++-
+ src/shared/protocol.ts         |  61 ++++++++++-
+ src/worker/board-room.ts       | 151 ++++++++++++++++++++++++++
+ src/worker/index.ts            |  57 ++++++++++
+ tests/integration/boot.test.ts |  35 ++++++
+ tests/integration/env.d.ts     |   4 +
+ tests/unit/board-model.test.ts |  15 +--
+ tests/unit/protocol.test.ts    |   3 +-
+ tsconfig.json                  |   7 ++
+ tsconfig.worker.json           |  22 ++++
+ vitest.config.ts               |  16 ++-
+ wrangler.jsonc                 |  28 ++++-
+ 15 files changed, 590 insertions(+), 79 deletions(-)
+commit b73c8aaedd422569f08ea81af1c9d6f6474ab587
+vidi-agent  Wed Sep 30 17:57:21 2026 +0100
+
+    story 3: board-id/protocol unit tests (TC-01 to TC-03) and named settings (red)
+
+
+ package-lock.json           | 876 ++++++++++++++++++++++++++++++++++++++++++++
+ package.json                |   3 +
+ src/shared/board-id.ts      |  22 ++
+ src/shared/config.ts        |  29 ++
+ src/shared/protocol.ts      |  26 ++
+ tests/unit/board-id.test.ts |  56 +++
+ tests/unit/protocol.test.ts | 100 +++++
+ 7 files changed, 1112 insertions(+)
 commit 15ac39cf430fa1179396afaef48762f0ad75615e
 vidi-agent  Wed Sep 30 17:49:21 2026 +0100
 

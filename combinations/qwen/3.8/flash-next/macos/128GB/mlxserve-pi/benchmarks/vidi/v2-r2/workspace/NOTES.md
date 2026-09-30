@@ -164,3 +164,90 @@ Decisions, deviations from the design's file list, and things the next story
 - Camera reads in tests: the viewport carries `data-camera-x`, `data-camera-y`,
   `data-camera-zoom`, `data-grid-spacing`, `data-grid-offset-x/y`,
   `data-origin-x/y` and `data-mode` (`idle` / `panning`).
+
+---
+
+# Story 3 — see other people's edits appear live on the same board
+
+## What is here (story 3)
+
+- `src/worker/index.ts` — Worker entry: routes `GET /api/rooms/:boardId` to that
+  board's `BoardRoom` Durable Object, 426 for a socket-less request, else falls
+  through to static assets.
+- `src/worker/board-room.ts` — one DO per board: an in-memory `Y.Doc`, a set of
+  accepted sockets, sync relay (no echo to the author), awareness relayed verbatim
+  to every socket including the sender.
+- `src/client/sync/endpoint.ts` — `COLLAB_ENDPOINT` from `VITE_COLLAB_ENDPOINT`
+  (client-only; the shared `config.ts` the Worker imports must not read
+  `import.meta.env`).
+- `src/client/sync/connectBoard.ts` — the `WebsocketProvider` wrapper plus the pure
+  `mapConnectionState` state machine, and the awareness keep-alive.
+- `src/client/sync/ConnectionStatus.tsx` — the badge (`role="status"`).
+- tests: `tests/unit/protocol.test.ts`, `tests/integration/*` (workerd),
+  `tests/component/ConnectionStatus.test.tsx`, `tests/e2e/live-collaboration.spec.ts`,
+  `tests/e2e/nightly-collaboration.spec.ts`.
+
+## Deviations and decisions
+
+1. **Vitest downgraded 5 → 4.1.11.** `@cloudflare/vitest-pool-workers@0.22`
+   peer-requires vitest `^4.1.0`; no pool version supports vitest 5. The existing
+   tests use only APIs that are identical across both. The pool's bundled workerd
+   caps `compatibility_date` at `2026-08-22`, so `wrangler.jsonc` uses `2026-08-01`.
+2. **Two tsconfigs.** `tsconfig.json` (DOM lib, client+tests) and
+   `tsconfig.worker.json` (Workers globals). Compiling both in one program yields
+   `duplicate identifier` between DOM and worker types; `typecheck` runs both.
+   Cloudflare bindings are declared once in `env.d.ts`.
+3. **Non-hibernating accept** (`server.accept()`). The room's `Y.Doc` is memory-only
+   until story 4; hibernation would evict the object while sockets stay open and
+   silently lose the document. An open accepted socket keeps the DO alive.
+4. **Awareness is relayed verbatim to all sockets, including the sender**, and never
+   interpreted. The echo back to the sender is the only inbound traffic on an idle
+   board and is what keeps the provider's 30s no-message reconnect timer from
+   firing; `connectBoard` gives the awareness a non-null local state so the
+   provider re-advertises it (y-protocols does this every ~15s) and the room echoes
+   it back (TC-29). Interpreting awareness is story 6.
+5. **Accept-time SyncStep1 from the server.** On every (re)connect the room sends its
+   own SyncStep1; each client answers with the state it holds, so after a Worker
+   restart the first reconnecting client repopulates the room (no loss while one
+   person keeps the board open).
+6. **No echo to the author.** Each update is broadcast to every socket except the one
+   it came from (the socket passed as the transaction origin), so an author learns
+   its own edit only by applying it locally, as the design specifies.
+7. **A real text-editor bug was found and fixed.** `StickyTextEditor` wrote local
+   keystrokes to `Y.Text` but never observed *remote* `Y.Text` changes, so under
+   concurrent typing the next local keystroke's minimal diff deleted the peer's
+   characters (observed on Firefox/WebKit as `AABB` instead of `AAAABBBB`). It now
+   refreshes the textarea on remote changes (skipping its own writes and IME
+   composition), keeping the caret the same distance from the end. This is a
+   story-3 integration requirement (TC-23), not a story-2 regression.
+8. **`mapConnectionState` is a pure function** over a minimal `ConnectionEmitter`
+   interface, so the badge state machine is unit/component-testable with a fake
+   emitter and fake timers, with no `WebsocketProvider` at module-evaluation time.
+
+## Test decisions
+
+- **Deterministic socket drop/restore.** Playwright's `context.setOffline(true)` does
+  not reset an already-open WebSocket, so the provider would not notice a dropped
+  link until its own 30s watchdog. e2e drives the *same* provider disconnect/reconnect/
+  resync path through `__drop`/`__restore` test hooks (`provider.disconnect()`/
+  `connect()`), which is both deterministic and exercises the real path (TC-27).
+- **Page-side state logs.** The mapped `ConnectionState` is a plain JS value a
+  MutationObserver cannot watch, so `registerConnectionState` records every change
+  into a deduplicated `window.__vidi6.__stateLog`; the idle test slices it and
+  asserts it never left `connected` between poll samples.
+- **The soak places notes on a grid and caps the live count**, so peers' notes never
+  pile on one spot (which made a selected note's colour button unclickable) and
+  never drift off-screen (moves are absolute). `recolourNote` force-clicks its
+  swatch so overlap can never block the run. Latency is measured per change and
+  reported (p50/p95/max) but never asserted, because model, browsers and server
+  share one machine.
+- **Nightly tests are excluded from `npm run test:e2e`** via `--grep-invert @nightly`
+  and run by `npm run test:e2e:nightly` (Chromium, 240s per-test timeout).
+
+## Environment notes (story 3)
+
+- **`test:integration` builds first** (`vite build`) because the workerd pool serves
+  the built client; the integration `env.d.ts` supplies worker types.
+- **`VITE_COLLAB_ENDPOINT` is unset in e2e**: the client derives the room URL from its
+  own origin (`ws(s)://host/api/rooms`), so the e2e `wrangler dev` server (which
+  serves the built client AND runs the Worker/DO) is the whole stack.

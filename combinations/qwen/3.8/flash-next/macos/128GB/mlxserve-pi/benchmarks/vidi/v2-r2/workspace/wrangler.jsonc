@@ -1,10 +1,30 @@
 {
-  // vidi6 static client. The Worker `main` (Durable Objects sync) arrives in
-  // story 3; for now this is an assets-only Worker serving the built client.
+  // vidi6: a static client plus one BoardRoom Durable Object per board address.
+  // The Worker (`main`) routes `/api/rooms/:boardId` to that board's room and
+  // serves everything else from the built client assets.
   "name": "vidi6",
-  "compatibility_date": "2026-09-17",
+  // Shared by the e2e `wrangler dev` and the vitest workerd pool; kept at a date
+  // every workerd binary in this repo supports.
+  "compatibility_date": "2026-08-01",
+  "main": "src/worker/index.ts",
   "assets": {
     "directory": "./dist/client",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
-  }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  // SQLite-backed from the start so story 4's persistence needs no class migration.
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ]
 }

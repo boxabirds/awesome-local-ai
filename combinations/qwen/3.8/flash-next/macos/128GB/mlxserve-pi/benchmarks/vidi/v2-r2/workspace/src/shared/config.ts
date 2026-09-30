@@ -53,3 +53,49 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** Colour of a newly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// --- Live collaboration (story 3) ---
+
+/**
+ * Soft simultaneous-editor capacity: the design and test target for the 1-second
+ * change-delivery guarantee. It is never enforced — a board never refuses or
+ * restricts a person over this number (PRD live.over_capacity). Tests read this
+ * setting rather than a hard-coded number.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+/**
+ * The change-delivery budget, in milliseconds: how long after a change appears
+ * on the sender's screen it must appear on every other screen (PRD
+ * live.propagate). In e2e this is reported, not asserted, because the model,
+ * browsers and server share one machine.
+ */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Upper bound on the provider's reconnect backoff, in milliseconds. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** How long the green "Connected" badge shows after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** Outage length used by the catch-up (live.catch_up) test, in milliseconds. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/**
+ * How long a single idle editor is left open in the awareness keep-alive test.
+ * Must exceed the provider's 30s no-message reconnect timeout so the test proves
+ * the periodic awareness relay, not just a short gap (TC-29, nightly).
+ */
+export const IDLE_KEEPALIVE_TEST_MS = 45_000;
+/**
+ * Socket outage for the awareness soak test: longer than the catch-up outage, to
+ * show awareness survives a drop past the reconnect timeout (TC-30, nightly).
+ */
+export const SOAK_TEST_OUTAGE_MS = CATCH_UP_TEST_OUTAGE_MS + 15_000;
+/**
+ * Wall-clock duration of the full-capacity soak: MAX_CONCURRENT_EDITORS contexts
+ * make continuous seeded random edits via the real UI for this long, and every
+ * change's sender-to-receiver latency is measured and reported (TC-30, nightly).
+ */
+export const SOAK_DURATION_MS = 60_000;
+/**
+ * Generous functional wait used by every e2e story: tests wait up to this long
+ * for a change to appear and log the measured latency against
+ * LIVE_UPDATE_LATENCY_BUDGET_MS instead of failing on it.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
