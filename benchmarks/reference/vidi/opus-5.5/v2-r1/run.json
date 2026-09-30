@@ -1,5 +1,5 @@
 {"install_id": "claude-code-opus-5-5", "combination": "reference/opus-5.5", "model_id": "claude-opus-5-5",
  "pack": "vidi", "scope": "canvas", "metered": 0, "reasoning_effort": "client default", "client_thinking": "", "known_good_from": "", "context_limit": 0,
  "output_limit": 0, "backend_version": "", "mtplx_memory_limit_bytes": "", "compact_at": "client default", "client": "claude", "client_version": "2.1.284 (Claude Code)", "backend": "anthropic", "host": "Apple M2 16GB",
- "harness_commit": "2a6fe6cf", "pack_version": "vidi-v2.0-pre1", "started_at": "2026-09-29T21:04:52Z",
+ "harness_commit": "ecea68bc", "pack_version": "vidi-v2.0-pre1+94b980f-dirty", "started_at": "2026-09-30T00:45:16Z",
  "identity": {"backend": "anthropic", "install_manifest": {"INSTALL_ID": "claude-code-opus-5-5", "COMBINATION": "reference/opus-5.5", "BACKEND": "anthropic", "MODEL_ID": "claude-opus-5-5", "CLIENT": "claude", "RUN_BASE": "benchmarks/reference/vidi/opus-5.5", "CONFIG_FILE": "benchmarks/reference/vidi/opus-5.5/stack.env"}, "server_command": null, "engine_version": null, "model_files": [], "drivers": {}, "os": "macOS 26.6.2"}}
