@@ -21,13 +21,15 @@ stack).
 | `run-history.jsonl` | yes | run started / finished / failed / stopped, with the reason; each also pushed as a commit |
 | `run-status.json` | yes | the run's current state |
 | `progress.json`, `current_story`, `control/` | no (git-ignored) | live state of the current story, for dbench and watchers |
-| `summary.md` | yes | the report (`report.py`), ending with *How it happened* (`history.py`): each story's commits and source files changed, which story broke or fixed an earlier story's held-out tests (with the tests and their error), and *Interruptions and dead time*: every machine freeze, harness crash or restart inside a story, how long it was down, the cause logged in `interventions.md`, and each story's active agent time across all its attempts |
+| `summary.md` | yes | the report (`report.py`), ending with *How it happened* (`history.py`): each story's commits and source files changed, how many of an earlier story's held-out tests each story broke or fixed (counts only; the tests and their errors are in the git-ignored `summary-detail.md`), and *Interruptions and dead time*: every machine freeze, harness crash or restart inside a story, how long it was down, the cause logged in `interventions.md`, and each story's active agent time across all its attempts |
 | `workspace-git-log.txt` | yes | the agent's commit history |
 | `stories/NN/prompt.md`, `base-commit` | yes | what the agent was given, and from which commit |
 | `stories/NN/agent-events.compact.jsonl.gz` | yes | the agent's session, stream deltas dropped, long strings cut, home paths redacted |
 | `stories/NN/agent-events.jsonl` | no (git-ignored) | the full session as pi streamed it, each line stamped `_rx` on arrival |
-| `stories/NN/gate.json`, `accept.json`, `accept-report.json`, `screenshots/`, `artifacts/` | yes | the agent's own checks and the held-out suite |
-| `base/accept.json` | yes, known-good runs only | the held-out suite on the base before the agent starts, so the story's regressions and repairs are measured |
+| `stories/NN/gate.json` | yes | the agent's own checks |
+| `stories/NN/accept-summary.json` (and `accept-final-summary.json`) | yes | the held-out result's counts: passed, total, per story, fallbacks, fault; never a test, its title or its output |
+| `stories/NN/accept.json`, `accept-report.json`, `screenshots/`, `artifacts/`, `scoring-N/`; `accept-final.json`; `AUDIT.md`, `audit.jsonl`; `heldout-detail.json`, `summary-detail.md` | **no, never** (git-ignored; `publicise.py`) | the held-out suite's detail. Kept on the machine and copied to the private repo under `runs/<run path>/`; tools that need it read it there (`heldout.find`). The harness refuses any commit whose files carry a held-out test title |
+| `base/accept-summary.json` | yes, known-good runs only | the held-out suite's counts on the base before the agent starts, so the story's regressions and repairs are measured |
 | `server.log` | no (`*.log` is ignored) | the model server's own log, appended across restarts, each start after a `=== server start <epoch> ===` marker |
 | `requests.jsonl` | yes, if present | per-request figures from the Python metering proxy; only with `run.sh --meter` (off by default; it adds a hop) |
 
@@ -158,8 +160,9 @@ fetch a browser), `all_green`, `harness_fault`.
 `skipped` (the pack has none: n/a, not 0/0), `build_exit`, `runner_exit`, `runner_tail`, `passed`,
 `total`, `on_partial` (tests built on PARTIAL stories), `by_story`, `setup_fallbacks` (from pack
 vidi-v1.2: `tests` whose setup fell back to the documented flow, and their count `by_owner`, the story
-that owns the behaviour; EVALUATION-POLICY rule 8), `harness_fault`, and `tests` (per test, in
-`accept.json` only, each with its own `setup_fallbacks` list).
+that owns the behaviour; EVALUATION-POLICY rule 8), `harness_fault`; and, in the private copy only, `runner_tail`
+and `tests` (per test, each with its own `setup_fallbacks` list). The public `metrics.json` keeps the counts;
+the rest is in the git-ignored `heldout-detail.json` beside it.
 
 A `harness_fault` (`missing resources: …`) means the machine couldn't run the tests: the story's
 scores are void and the run stops with exit 3, which dbench reports without restarting.
