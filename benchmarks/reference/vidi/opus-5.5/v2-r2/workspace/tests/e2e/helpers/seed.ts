@@ -47,6 +47,23 @@ export async function seedBoard(baseURL: string, boardId: string, doc: Y.Doc, ti
   }
 }
 
+/** Creates a board through the real API (POST /api/boards, story 5). */
+export async function createBoard(baseURL: string): Promise<string> {
+  const response = await fetch(`${baseURL}/api/boards`, { method: 'POST' });
+  if (response.status !== 201) throw new Error(`create failed: ${response.status}`);
+  return ((await response.json()) as { id: string }).id;
+}
+
+/** Saves `doc` as a board from before story 5: an update row, but no `created_at` (test hook). */
+export async function seedLegacyBoard(baseURL: string, boardId: string, doc: Y.Doc): Promise<void> {
+  const response = await fetch(`${baseURL}/__test/boards/${boardId}/seed-legacy`, {
+    method: 'POST',
+    body: Y.encodeStateAsUpdate(doc).slice(),
+  });
+  const body = await response.text();
+  if (!response.ok || !body.includes('"ok":true')) throw new Error(`seed-legacy failed: ${response.status} ${body}`);
+}
+
 export async function storageHook(
   baseURL: string,
   boardId: string,

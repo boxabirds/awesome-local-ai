@@ -3,13 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as syncProtocol from 'y-protocols/sync';
 import * as Y from 'yjs';
 import { createSticky, snapshot } from '../../src/shared/board-model';
-import { newBoardId } from '../../src/shared/board-id';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
 import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE, CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
 import { BoardStore } from '../../src/worker/board-store';
 import { retroBoard, truncated } from '../fixtures/boards';
 import { count, failingStorage, inRoom, loadFromStorage, roomStub } from './storage-helpers';
-import { TestClient, settle, syncFrame, waitForConvergence } from './ws-client';
+import { TestClient, createBoardId, settle, syncFrame, waitForConvergence } from './ws-client';
 
 const clients: TestClient[] = [];
 async function join(boardId: string, doc?: Y.Doc): Promise<TestClient> {
@@ -69,7 +68,7 @@ async function closeCode(client: TestClient): Promise<number | undefined> {
 
 describe('persistent board room (persist.room)', () => {
   it('TC-12: a change is stored by the time another participant sees it, and reloads from storage', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     const rowsBefore = await inRoom(boardId, (_room, storage) => count(storage, 'updates'));
@@ -86,7 +85,7 @@ describe('persistent board room (persist.room)', () => {
   });
 
   it('TC-13: after everyone leaves and the room restarts, a new participant gets the identical board', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const original = await savedRetroBoard(boardId);
     await evictDurableObject(roomStub(boardId), { webSockets: 'close' });
     const late = await join(boardId);
@@ -96,7 +95,7 @@ describe('persistent board room (persist.room)', () => {
 
   it('TC-14: a failed save is not broadcast; both are closed 1011; the change is saved and delivered after reconnecting', async () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     await inRoom(boardId, (room) => {
@@ -126,7 +125,7 @@ describe('persistent board room (persist.room)', () => {
 
   it('TC-15: a board whose snapshot is damaged closes clients with 4500 and stores nothing they send', async () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     await brokenBoard(boardId);
     const before = await inRoom(boardId, (room, storage) => ({
       state: room.state,
@@ -154,7 +153,7 @@ describe('persistent board room (persist.room)', () => {
 
   it('TC-16: a failed room retries loading only after LOAD_RETRY_MIN_INTERVAL_MS, then loads the repaired board', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const { original, saved } = await brokenBoard(boardId);
     const loads = await inRoom(boardId, (room) => {
       expect(room.state).toBe('load-failed');
@@ -183,7 +182,7 @@ describe('persistent board room (persist.room)', () => {
   });
 
   it('TC-17: a garbage update closes the sender with 1003 and nothing is stored', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await join(boardId);
     createSticky(a.doc, { x: 5, y: 5 });
     const probe = await join(boardId);
@@ -196,7 +195,7 @@ describe('persistent board room (persist.room)', () => {
   });
 
   it('TC-18: after the room hibernates and is rebuilt, sockets accepted earlier still receive broadcasts', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const board = retroBoard();
     const a = await join(boardId, copyOf(board.doc));
     const b = await join(boardId);
@@ -216,7 +215,7 @@ describe('persistent board room (persist.room)', () => {
 
   it('TC-26: a SQL error while loading puts the room in load-failed and closes new sockets with 4500', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     await savedRetroBoard(boardId);
     await inRoom(boardId, (room, storage) => {
       room.store = new BoardStore(failingStorage(storage, /^SELECT/));

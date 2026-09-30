@@ -67,3 +67,10 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Version of the board storage tables (the Yjs document schema is versioned separately). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+/** PRD share.create: click New board → empty board visible (logged in e2e, not asserted). */
+export const CREATE_BUDGET_MS = 2000;
+/** How long Copy link shows "Link copied". */
+export const LINK_COPIED_MS = 2000;
+/** First retry delay when a board link cannot be checked; doubles up to RECONNECT_MAX_BACKOFF_MS. */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

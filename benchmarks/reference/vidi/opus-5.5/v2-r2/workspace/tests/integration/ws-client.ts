@@ -32,6 +32,14 @@ export function awarenessFrame(body: Uint8Array): Uint8Array {
   return encoding.toUint8Array(encoder);
 }
 
+/** Creates a board through the real API (POST /api/boards), as the Home page does. */
+export async function createBoardId(): Promise<string> {
+  const response = await SELF.fetch(`${ORIGIN}/api/boards`, { method: 'POST' });
+  if (response.status !== 201) throw new Error(`create failed with ${response.status}`);
+  const { id } = (await response.json()) as { id: string };
+  return id;
+}
+
 export class TestClient {
   readonly received: Received[] = [];
   readonly errors: unknown[] = [];

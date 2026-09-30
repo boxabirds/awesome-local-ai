@@ -3,9 +3,16 @@ import type { Camera } from '../../../src/client/canvas/camera';
 
 export const HINT_TEXT = 'Drag to move around · Ctrl/Cmd + scroll or pinch to zoom';
 
-/** Opens `path` (default `/`, which redirects to a new board) and waits until it is live. */
+/**
+ * Opens `path` and waits until the board is live. The default `/` is the Home
+ * page: it clicks New board (story 5) and waits for the new board.
+ */
 export async function openBoard(page: Page, path = '/') {
   await page.goto(path);
+  if (new URL(path, 'http://x').pathname === '/') {
+    await page.getByRole('button', { name: 'New board' }).click();
+    await page.waitForURL(/\/b\/[A-Za-z0-9_-]{22}$/);
+  }
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await page.waitForFunction(() => window.__vidi6?.connectionState === 'connected');
 }

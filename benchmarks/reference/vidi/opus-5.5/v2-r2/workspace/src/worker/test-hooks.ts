@@ -1,13 +1,13 @@
 // Test-only routes for e2e tests (TC-24): force compaction, corrupt and repair a
-// board's saved snapshot. Reachable only when `env.TEST_HOOKS === '1'`, which is
+// board's saved snapshot; seed a legacy board (story 5 TC-31). Reachable only when `env.TEST_HOOKS === '1'`, which is
 // set by the e2e `wrangler dev --var TEST_HOOKS:1` and never in wrangler.jsonc.
 import type * as Y from 'yjs';
 import { isValidBoardId } from '../shared/board-id';
 import type { BoardStore } from './board-store';
 import type { Env } from './index';
 
-const WORKER_PATH = /^\/__test\/boards\/([^/]+)\/(compact|corrupt-snapshot|repair)$/;
-const ROOM_PATH = /^\/__test\/boards\/[^/]+\/(compact|corrupt-snapshot|repair)$/;
+const WORKER_PATH = /^\/__test\/boards\/([^/]+)\/(compact|corrupt-snapshot|repair|seed-legacy)$/;
+const ROOM_PATH = /^\/__test\/boards\/[^/]+\/(compact|corrupt-snapshot|repair|seed-legacy)$/;
 
 /** Bytes cut from the end of snapshot chunk 0 to make it unreadable. */
 const CORRUPT_TRUNCATE_BYTES = 10;
@@ -39,7 +39,7 @@ export function routeTestHook(request: Request, env: Env): Promise<Response> | n
 }
 
 /** Room side: runs the action against this room's storage. */
-export function handleRoomTestHook(pathname: string, room: TestHookRoom): Response {
+export function handleRoomTestHook(pathname: string, room: TestHookRoom, body?: ArrayBuffer): Response {
   const action = ROOM_PATH.exec(pathname)?.[1];
   const sql = room.storage.sql;
   switch (action) {
@@ -65,6 +65,15 @@ export function handleRoomTestHook(pathname: string, room: TestHookRoom): Respon
       if (!saved) return json({ hook: action, ok: false, error: 'nothing to repair' }, 409);
       sql.exec('UPDATE snapshot_chunks SET data = ? WHERE idx = 0', saved.data);
       sql.exec('DELETE FROM test_saved_chunks');
+      return json({ hook: action, ok: true });
+    }
+    case 'seed-legacy': {
+      // A board saved before story 5: tables and one log row (the request body, a Yjs
+      // update), but no `created_at`. The room reloads it on the next connection.
+      if (!body || body.byteLength === 0) return json({ hook: action, ok: false, error: 'empty update' }, 400);
+      room.store.migrate();
+      sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', body, body.byteLength);
+      room.unload();
       return json({ hook: action, ok: true });
     }
     default:

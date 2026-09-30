@@ -2,7 +2,6 @@
 // Each test runs its own `wrangler dev --persist-to <tmp>` and kills/restarts it.
 import { type Browser, type Page, expect, test } from '@playwright/test';
 import { type StickySnapshot, snapshot } from '../../src/shared/board-model';
-import { newBoardId } from '../../src/shared/board-id';
 import {
   BOARD_LOAD_BUDGET_MS,
   E2E_EVENTUAL_TIMEOUT_MS,
@@ -13,7 +12,7 @@ import {
 import { largeBoard } from '../fixtures/boards';
 import { drag, nextFrames, openBoard, setCamera } from './helpers/board';
 import { getNotes } from './helpers/participants';
-import { seedBoard, storageHook } from './helpers/seed';
+import { createBoard, seedBoard, storageHook } from './helpers/seed';
 import { WranglerProcess } from './helpers/wrangler-process';
 
 test.describe.configure({ mode: 'serial' });
@@ -67,7 +66,7 @@ async function createNote(page: Page, at: { x: number; y: number }, text: string
 }
 
 test('TC-19 overnight return: 25 notes are identical after everyone leaves and the service restarts', async ({ browser }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoard(server.baseURL);
   const alex = await openFresh(browser, boardId);
   // 50% zoom, world origin at the top left of a 5 × 5 grid.
   await setCamera(alex.page, { x: -200, y: -200, zoom: 0.5 });
@@ -100,7 +99,7 @@ test('TC-19 overnight return: 25 notes are identical after everyone leaves and t
 });
 
 test('TC-20 leave immediately: a change another person has seen survives an immediate exit and kill', async ({ browser }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoard(server.baseURL);
   const alex = await openFresh(browser, boardId);
   const sam = await openFresh(browser, boardId);
   await alex.page.getByRole('button', { name: 'Sticky note' }).click();
@@ -128,7 +127,7 @@ test('TC-20 leave immediately: a change another person has seen survives an imme
 });
 
 test(`TC-21 big board: a saved ${PERSIST_TESTED_NOTES}-note board opens with every note rendered`, async ({ browser }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoard(server.baseURL);
   const doc = largeBoard();
   await seedBoard(server.baseURL, boardId, doc);
   await storageHook(server.baseURL, boardId, 'compact');

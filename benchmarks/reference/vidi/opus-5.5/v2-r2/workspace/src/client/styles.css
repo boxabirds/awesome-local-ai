@@ -353,3 +353,160 @@ body,
   border-color: #3fa452;
   color: #1e5b29;
 }
+
+/* Story 5: pages and sharing */
+
+.page {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.page-text {
+  margin: 0;
+  font-size: 16px;
+  color: #4a5060;
+}
+
+.page-link {
+  font-size: 14px;
+  color: #2f5fc4;
+}
+
+.new-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.new-board-error {
+  min-height: 20px;
+  margin: 0;
+  font-size: 14px;
+  color: #a1160a;
+}
+
+.primary-button {
+  min-width: 160px;
+  height: 44px;
+  padding: 0 20px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: #3b6fd8;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: #2f5fc4;
+}
+
+.primary-button:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.primary-button:focus-visible,
+.share-button:focus-visible,
+.share-copy:focus-visible {
+  outline: 2px solid #1f2330;
+  outline-offset: 2px;
+}
+
+.share {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.share-button {
+  height: 36px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: #3b6fd8;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
+  cursor: pointer;
+}
+
+.share-panel {
+  width: 380px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
+  text-align: left;
+}
+
+.share-row {
+  display: flex;
+  gap: 8px;
+}
+
+.share-link {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  background: #f7f7f5;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  user-select: text;
+}
+
+.share-copy {
+  min-width: 108px;
+  height: 34px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  background: #eef0f4;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.share-manual {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7a4d00;
+}
+
+.share-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #4a5060;
+}

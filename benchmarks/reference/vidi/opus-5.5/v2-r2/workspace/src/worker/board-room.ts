@@ -79,7 +79,7 @@ export class BoardRoom extends DurableObject<Env> {
     const doc = new Y.Doc();
     let result;
     try {
-      this.store.migrate();
+      // Unknown boards load as empty without creating tables (tables come with initialize or the first append).
       result = this.store.load(doc);
     } catch (error) {
       result = { ok: false as const, reason: 'sql-error' as const, error: String(error) };
@@ -137,19 +137,44 @@ export class BoardRoom extends DurableObject<Env> {
     return this.doc;
   }
 
+  /** RPC (share.board_api): creates the board once; 'exists' if it was already created. */
+  async initialize(): Promise<'created' | 'exists'> {
+    return this.store.initialize();
+  }
+
+  /** RPC (share.board_api): read-only existence check; writes nothing for unknown boards. */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  /**
+   * Whether a connection may be accepted. A storage error while checking is not
+   * "not found": the load path then reports the board as unloadable (4500).
+   */
+  private existsForConnection(): boolean {
+    try {
+      return this.store.existsReadOnly();
+    } catch {
+      return true;
+    }
+  }
+
   override async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (this.env.TEST_HOOKS === '1' && isTestHookPath(url.pathname)) {
+      const body = request.method === 'POST' ? await request.arrayBuffer() : undefined;
       return handleRoomTestHook(url.pathname, {
         storage: this.ctx.storage,
         store: this.store,
         loadedDoc: () => this.loadedDoc(),
         unload: () => this.unload(),
-      });
+      }, body);
     }
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Expected a WebSocket upgrade', { status: 426 });
     }
+    // Rooms are never created implicitly by connecting (share.not_found).
+    if (!this.existsForConnection()) return new Response('Board not found', { status: 404 });
     if (this.state !== 'ready') {
       const before = this.state;
       this.transition({ type: 'connection', msSinceLoadFailure: Date.now() - this.loadFailedAt });

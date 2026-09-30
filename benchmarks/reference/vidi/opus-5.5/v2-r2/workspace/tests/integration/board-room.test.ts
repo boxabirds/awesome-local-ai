@@ -10,11 +10,10 @@ import {
   objectsMap,
   setStickyColor,
 } from '../../src/shared/board-model';
-import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { CLOSE_UNSUPPORTED_DATA, MESSAGE_AWARENESS, MESSAGE_SYNC } from '../../src/shared/protocol';
 import { newOpLog, randomOp, seededRandom } from '../fixtures/random-ops';
-import { TestClient, awarenessFrame, settle, syncFrame, waitForConvergence } from './ws-client';
+import { TestClient, awarenessFrame, createBoardId, settle, syncFrame, waitForConvergence } from './ws-client';
 
 const clients: TestClient[] = [];
 async function join(boardId: string, doc?: Y.Doc): Promise<TestClient> {
@@ -37,7 +36,7 @@ function typeText(doc: Y.Doc, id: string, index: number, text: string): void {
 
 /** Two participants on a fresh board that already share one note. */
 async function pairWithNote() {
-  const boardId = newBoardId();
+  const boardId = await createBoardId();
   const a = await join(boardId);
   const b = await join(boardId);
   const id = createSticky(a.doc, { x: 0, y: 0 });
@@ -48,7 +47,7 @@ async function pairWithNote() {
 
 describe('BoardRoom relay (sync.room)', () => {
   it('TC-07: a created note reaches the other participant as exactly one update', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     createSticky(a.doc, { x: 100, y: 200 }, 'green');
@@ -133,7 +132,7 @@ describe('BoardRoom relay (sync.room)', () => {
     const seed = Date.now() >>> 0;
     console.info(`TC-12 random-ops seed: ${seed}`);
     const rand = seededRandom(seed);
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const participants: TestClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) participants.push(await join(boardId));
     const log = newOpLog();
@@ -154,7 +153,7 @@ describe('BoardRoom relay (sync.room)', () => {
   });
 
   it('TC-14: a late joiner receives the current board (20 notes)', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     for (let i = 0; i < 10; i++) {
@@ -194,7 +193,7 @@ describe('BoardRoom relay (sync.room)', () => {
   });
 
   it('TC-16: awareness bytes are relayed verbatim to everyone, sender included', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     const message = awarenessFrame(new Uint8Array([1, 42, 7, 3, 123, 125]));
@@ -215,7 +214,7 @@ describe('BoardRoom relay (sync.room)', () => {
     b.close();
     // B keeps editing while the room is down.
     createSticky(b.doc, { x: -500, y: -500 }, 'green');
-    const fresh = newBoardId();
+    const fresh = await createBoardId();
     const a2 = await join(fresh, a.doc);
     // The fresh room's doc now equals A's doc: a probe joining it sees A's board.
     const probe = await join(fresh);

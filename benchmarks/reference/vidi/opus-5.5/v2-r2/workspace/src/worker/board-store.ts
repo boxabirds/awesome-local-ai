@@ -70,6 +70,8 @@ export class BoardStore {
   private logCount = 0;
   private logBytes = 0;
   private readonly chunkSize: number;
+  /** Whether this instance already ran `migrate()` (appends migrate lazily). */
+  private migrated = false;
 
   constructor(
     private readonly storage: DurableObjectStorage,
@@ -82,8 +84,51 @@ export class BoardStore {
     return this.storage.sql;
   }
 
+  /** Whether the board's tables exist (read-only; never creates them). */
+  hasTables(): boolean {
+    return (
+      this.sql
+        .exec<{ n: number }>("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'storage_meta'")
+        .one().n > 0
+    );
+  }
+
+  /**
+   * Whether this board exists (share.board_api): it was initialised (`created_at`),
+   * or it is a board saved before boards were created explicitly (legacy: any
+   * log or snapshot rows). Only reads; an unknown board gets no tables.
+   */
+  existsReadOnly(): boolean {
+    if (!this.hasTables()) return false;
+    if (this.createdAt() !== null) return true;
+    const rows = this.sql
+      .exec<{ n: number }>(
+        'SELECT (SELECT COUNT(*) FROM (SELECT 1 FROM updates LIMIT 1)) + (SELECT COUNT(*) FROM (SELECT 1 FROM snapshot_chunks LIMIT 1)) AS n',
+      )
+      .one().n;
+    return rows > 0;
+  }
+
+  /** When the board was created (epoch ms), or null for unknown and legacy boards. */
+  createdAt(): number | null {
+    if (!this.hasTables()) return null;
+    const row = this.sql
+      .exec<{ value: string }>("SELECT value FROM storage_meta WHERE key = 'created_at'")
+      .toArray()[0];
+    return row ? Number(row.value) : null;
+  }
+
+  /** Migrates and records `created_at` once: 'created' the first time, 'exists' afterwards. */
+  initialize(now: number = Date.now()): 'created' | 'exists' {
+    this.migrate();
+    if (this.createdAt() !== null) return 'exists';
+    this.sql.exec("INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)", String(now));
+    return 'created';
+  }
+
   /** Creates the tables and records the storage schema version; writes no board content. */
   migrate(): void {
+    this.migrated = true;
     for (const statement of SCHEMA) this.sql.exec(statement);
     this.sql.exec(
       "INSERT OR IGNORE INTO storage_meta (key, value) VALUES ('storage_schema_version', ?)",
@@ -93,6 +138,7 @@ export class BoardStore {
 
   /** Appends one update to the log. Throws on SQL failure (the caller resets the room). */
   append(update: Uint8Array): void {
+    if (!this.migrated) this.migrate();
     this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', blob(update), update.byteLength);
     this.logCount++;
     this.logBytes += update.byteLength;
@@ -105,6 +151,12 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // A board without tables is empty; loading never creates them.
+      if (!this.hasTables()) {
+        this.logCount = 0;
+        this.logBytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
       const through = this.snapshotThroughSeq();
       const chunks = this.sql
         .exec<{ data: ArrayBuffer }>('SELECT data FROM snapshot_chunks ORDER BY idx')

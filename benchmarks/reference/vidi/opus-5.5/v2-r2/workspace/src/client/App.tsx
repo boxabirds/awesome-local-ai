@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
-import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { STICKY_SIZE_WORLD } from '../shared/config';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -23,20 +22,6 @@ function initialViewportSize(): Size {
 
 function byId(a: { id: string }, b: { id: string }): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-}
-
-const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
-
-/**
- * The board id from `/b/:boardId`. Any other address (e.g. `/`) is replaced with
- * a new board address — temporary until story 5 creates boards on the server.
- */
-export function boardIdFromLocation(): string {
-  const match = BOARD_PATH.exec(window.location.pathname);
-  if (match?.[1] && isValidBoardId(match[1])) return match[1];
-  const id = newBoardId();
-  window.history.replaceState(null, '', `/b/${id}`);
-  return id;
 }
 
 /** Whether the board may be edited: never while its saved state cannot be loaded. */

@@ -1,6 +1,5 @@
 import { type Browser, type BrowserContext, type Page, type TestInfo, expect } from '@playwright/test';
 import type { StickySnapshot } from '../../../src/shared/board-model';
-import { newBoardId } from '../../../src/shared/board-id';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
 import { openBoard } from './board';
 
@@ -14,8 +13,21 @@ export interface Participant {
 
 const NAMES = ['Alex', 'Sam', 'Kim', 'Noor', 'Lee', 'Ravi', 'Ola'];
 
-/** Opens `count` isolated browser contexts on the same board and waits until each is live. */
-export async function openParticipants(browser: Browser, count: number, boardId = newBoardId()): Promise<Participant[]> {
+/** Creates a board through the real API (story 5), as New board does. */
+export async function createBoardIn(browser: Browser): Promise<string> {
+  const context = await browser.newContext();
+  try {
+    const response = await context.request.post('/api/boards');
+    expect(response.status()).toBe(201);
+    return ((await response.json()) as { id: string }).id;
+  } finally {
+    await context.close();
+  }
+}
+
+/** Opens `count` isolated browser contexts on the same (by default new) board and waits until each is live. */
+export async function openParticipants(browser: Browser, count: number, boardId?: string): Promise<Participant[]> {
+  boardId ??= await createBoardIn(browser);
   return Promise.all(
     Array.from({ length: count }, async (_, i) => {
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });

@@ -176,3 +176,53 @@ Decisions made where the spec was open or self-contradictory:
   time against `BOARD_LOAD_BUDGET_MS` (~0.9 s locally), which is reported, not asserted. E2E ran in
   Chromium only.
 - **Red phase.** As in earlier stories, test-first phases were not committed separately (single story commit).
+
+## Story 5 — Share a board with others using a link
+
+- **Router lives in `src/client/Root.tsx`.** The design says `App.tsx` "renders router", but `App` is the
+  stories 1–4 board component (component tests render it directly with `doc`/`boardId`) and `BoardPage`
+  mounts it once the board is `ready`. Putting the router into `App.tsx` would make `App` import
+  `BoardPage`, which imports `App`. So `main.tsx` renders `Root` (router) and `App` keeps the board.
+  Story 3's `boardIdFromLocation` redirect is gone: `/` is the Home page.
+- **`nextBoardPageState` has a 4th parameter `boardId`.** The contract's `ready` state carries
+  `boardId`, but the listed signature `(state, result, attempt)` has no way to know it. The extra
+  parameter defaults to the id in a `ready` state.
+- **Retry delay.** Check attempt *n* (1-based) that fails waits `BOARD_CHECK_RETRY_BASE_MS × 2^(n−1)`,
+  capped at `RECONNECT_MAX_BACKOFF_MS`. The retry message stays visible during a retry. The page does not
+  flash back to "Opening board…".
+- **Existence and storage.** `BoardStore.load()` treats missing tables as an empty board. `migrate()` runs
+  only from `initialize()` and lazily before the first `append()`. The room constructor no longer
+  migrates. `BoardStore.initialize()` holds the "set `created_at` once" logic and `BoardRoom.initialize()`
+  calls it. A board whose tables exist but hold no rows and no `created_at` does **not** exist. That
+  state could only come from a story 3/4 room that was opened and never edited. It has nothing worth
+  keeping, so Board not found is correct.
+- **A storage error during the connection-time existence check counts as "exists".** Otherwise a board
+  whose storage is failing would be reported as not found. The existing load path then closes the socket
+  with 4500 (story 4 TC-26 still covers this). If the HTTP `GET /api/boards/:id` RPC fails, the result is
+  a 500 `check_failed`, and the client treats that as "unreachable" and retries.
+- **HTTP details.** `/api/boards` answers 405 with `Allow: POST` for other methods. `/api/boards/:id`
+  answers 405 for methods other than GET/HEAD. API responses are `Cache-Control: no-store`.
+  `/api/rooms/<malformed>` is now 404 (it was 400), and story 3's TC-04 was updated to match, as the
+  design specifies.
+- **Test changes for explicit creation.** Rooms are no longer created by connecting, so the story 3/4
+  integration tests create their boards with `createBoardId()` (`POST /api/boards`, in `ws-client.ts`).
+  The e2e helpers change the same way. `openBoard(page)` with no path goes to the Home page and clicks
+  **New board**. `openParticipants` creates the board through the API. The persistence and broken-board
+  specs use `createBoard(baseURL)` from `helpers/seed.ts`.
+- **TC-12 injection.** The failing RPC is injected by calling the real Worker `fetch` (and `createBoard`)
+  with an `Env` whose room stub throws, or returns `exists`, since vitest-pool-workers cannot make a real
+  RPC fail on demand.
+- **TC-31 legacy seed.** A new test-only hook, `POST /__test/boards/:id/seed-legacy` (enabled only by
+  `TEST_HOOKS=1`, like story 4's hooks), stores the request body (a Yjs update) as an `updates` row
+  without `created_at` and unloads the room.
+- **Share panel.** The Copy link button's accessible name is "Link copied" while confirming; the tick
+  (✓) is `aria-hidden`. Focus goes back to the Share button after Escape and after an outside press. The
+  link field is labelled "Board link". The Board not found page's link home reads "Go to the home page".
+- **TC-26 is Chromium-only** (it needs clipboard-read permission). E2E ran in Chromium only, because
+  Firefox and WebKit are not installed. Click-to-board time was about 110 ms against `CREATE_BUDGET_MS`
+  (logged).
+- **Nightly soak (TC-30) failed once.** One note was deleted without the soak recording the deletion (a
+  missing id, seed 4029729626). It passed on re-run. This matches the user-level race described in the
+  story 3 notes. The Share button (top right, y < 48 px) is outside the soak's note area (y ≥ 80 px).
+- **Red phase.** As in earlier stories, the test-first phases were not committed separately (single
+  story commit).

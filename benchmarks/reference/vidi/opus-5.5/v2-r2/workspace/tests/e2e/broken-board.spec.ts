@@ -1,7 +1,6 @@
 // Story 4 — a board that cannot be loaded says so, cannot be edited, and recovers
 // without a reload (TC-24). Uses the e2e-only storage hooks (TEST_HOOKS=1).
 import { expect, test } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LOAD_RETRY_MIN_INTERVAL_MS,
@@ -10,7 +9,7 @@ import {
 import { retroBoard } from '../fixtures/boards';
 import { connectionBadge } from './helpers/board';
 import { getNotes } from './helpers/participants';
-import { seedBoard, storageHook } from './helpers/seed';
+import { createBoard, seedBoard, storageHook } from './helpers/seed';
 
 const LOAD_FAILED_TEXT = "This board couldn't be loaded. Retrying…";
 /** Recovery needs the room's retry interval plus at most one full client backoff. */
@@ -19,7 +18,7 @@ const RECOVERY_TIMEOUT_MS = E2E_EVENTUAL_TIMEOUT_MS + LOAD_RETRY_MIN_INTERVAL_MS
 test('TC-24 broken board: honest failure message, no editing, recovery without reload', async ({ page, baseURL }) => {
   test.setTimeout(120_000);
   const base = baseURL!;
-  const boardId = newBoardId();
+  const boardId = await createBoard(base);
   await seedBoard(base, boardId, retroBoard().doc);
   await storageHook(base, boardId, 'compact');
   await storageHook(base, boardId, 'corrupt-snapshot');
