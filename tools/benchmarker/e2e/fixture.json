@@ -101,7 +101,8 @@
             "prefillTokens": 45179,
             "prefillSeconds": 59.2,
             "prefillTokS": 763.2,
-            "draftAcceptance": 0.853
+            "draftAcceptance": 0.853,
+            "tokS": 73.6130474812574
           }
         }
       ],

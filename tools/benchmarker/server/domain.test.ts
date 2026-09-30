@@ -356,9 +356,11 @@ describe("tokens and speed", () => {
     expect(u.prefillTokS).toBeCloseTo(1000 / 10, 6);
   });
 
-  it("a cloud run has tokens but no measured speed", () => {
-    const u = runUsage([storyEntry("1", raw(5000, 40, null, null))]);
-    expect(u.outTokens).toBe(5000);
-    expect(u.decodeTokS).toBeNull();
+  it("tok/s is output tokens over the time the stories took, for every run, cloud included", () => {
+    const u = runUsage([storyEntry("1", raw(5000, 40, null, null)), storyEntry("2", raw(7000, 40, null, null))]);
+    expect(u.outTokens).toBe(12000);
+    expect(u.tokS).toBeCloseTo(12000 / 1200, 6); // each story took 600 s
+    expect(u.decodeTokS).toBeNull();              // the model-only rate needs the meter; nothing timed here
+    expect(storyEntry("1", raw(5000, 40, null, null)).usage!.tokS).toBeCloseTo(5000 / 600, 6);
   });
 });
