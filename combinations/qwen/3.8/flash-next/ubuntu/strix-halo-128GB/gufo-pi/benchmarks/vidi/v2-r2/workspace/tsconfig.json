@@ -16,12 +16,13 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["vite/client", "node"],
+    "types": ["vite/client", "node", "@cloudflare/workers-types"],
     "baseUrl": ".",
     "paths": {
       "@shared/*": ["src/shared/*"],
       "@client/*": ["src/client/*"]
     }
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts", "tests/e2e/helpers"]
+  "exclude": ["tests/integration"],
+  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts", "tests/e2e/helpers", "src/worker/env.d.ts"]
 }

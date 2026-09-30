@@ -9,13 +9,24 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { NoteLayer } from './objects/NoteLayer';
 import { NoteToolbar } from './objects/NoteToolbar';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import {
   createSticky,
   deleteObject,
   setStickyColor,
 } from '@shared/board-model';
+import { newBoardId } from '@shared/board-id';
 import { STICKY_SIZE_WORLD, type StickyColor } from '@shared/config';
 import type { Point } from '@client/canvas/camera';
+
+function getBoardIdFromPath(): string {
+  const match = location.pathname.match(/^\/b\/([^/]+)/);
+  if (match) return match[1];
+  // Redirect to a new board
+  const id = newBoardId();
+  history.replaceState(null, '', `/b/${id}`);
+  return id;
+}
 
 function BoardOverlay(): ReactElement {
   const { camera, hasNavigated, zoomStep, reset } = useBoard();
@@ -35,8 +46,9 @@ function BoardOverlay(): ReactElement {
 }
 
 export function App(): ReactElement {
-  const { doc, notes } = useBoardDoc();
-  const selection = useSelection();
+  const boardId = getBoardIdFromPath();
+  const { doc, notes, connectionState } = useBoardDoc(boardId);
+  const selection = useSelection(doc, notes);
   const { selectedId, editingId, select, startEdit, endEdit } = selection;
 
   // Refs for stable access in global keydown handler
@@ -114,6 +126,7 @@ export function App(): ReactElement {
 
   return (
     <div className="vidi6-app">
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         onEmptyDoubleClick={handleEmptyDoubleClick}
         onEmptyClick={handleEmptyClick}

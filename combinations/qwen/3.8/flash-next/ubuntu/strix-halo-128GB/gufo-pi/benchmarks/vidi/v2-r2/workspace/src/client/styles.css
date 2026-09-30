@@ -348,3 +348,32 @@ body {
   outline: 2px solid #2563eb;
   outline-offset: 1px;
 }
+
+/* Connection status badge (story 3) */
+.connection-badge {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.connection-connecting {
+  background: rgba(107, 114, 128, 0.9);
+  color: #fff;
+}
+
+.connection-reconnecting {
+  background: rgba(245, 158, 11, 0.9);
+  color: #fff;
+}
+
+.connection-confirmed {
+  background: rgba(34, 197, 94, 0.9);
+  color: #fff;
+}

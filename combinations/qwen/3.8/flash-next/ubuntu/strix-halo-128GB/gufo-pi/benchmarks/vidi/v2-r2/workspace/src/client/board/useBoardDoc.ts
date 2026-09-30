@@ -1,19 +1,23 @@
-import { useMemo, useSyncExternalStore, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '@shared/board-model';
+import { connectBoard, type ConnectionState, type BoardConnection } from '@client/sync/connectBoard';
 
 export interface BoardDoc {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  connectionState: ConnectionState;
 }
 
-export function useBoardDoc(): BoardDoc {
+export function useBoardDoc(boardId: string): BoardDoc {
   const docRef = useRef<Y.Doc | null>(null);
   if (!docRef.current) {
     docRef.current = new Y.Doc();
     initDoc(docRef.current);
   }
   const doc = docRef.current;
+
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
 
   const cacheRef = useRef<readonly StickySnapshot[]>([]);
 
@@ -25,7 +29,6 @@ export function useBoardDoc(): BoardDoc {
         onStoreChange();
       };
       objects.observeDeep(observer);
-      // Initial snapshot
       cacheRef.current = snapshot(doc);
       return () => {
         objects.unobserveDeep(observer);
@@ -34,12 +37,27 @@ export function useBoardDoc(): BoardDoc {
   }, [doc]);
 
   const getSnapshot = useMemo(() => {
-    // Initialize on first call
     cacheRef.current = snapshot(doc);
     return () => cacheRef.current;
   }, [doc]);
 
   const notes = useSyncExternalStore(subscribe, getSnapshot);
 
-  return { doc, notes };
+  // Attach/detach WebSocket provider when boardId changes
+  useEffect(() => {
+    const connection: BoardConnection = connectBoard(doc, boardId, setConnectionState);
+    return () => {
+      connection.destroy();
+    };
+  }, [doc, boardId]);
+
+  // Expose connection state for e2e tests
+  useEffect(() => {
+    if (import.meta.env.MODE === 'test') {
+      if (!window.__vidi6) window.__vidi6 = { setCamera: () => {} };
+      window.__vidi6.connectionState = connectionState;
+    }
+  }, [connectionState]);
+
+  return { doc, notes, connectionState };
 }

@@ -1,5 +1,13 @@
 // Product settings shared across the app. Stories 2-5 add to this file.
 
+// Live collaboration settings (story 3).
+export const MAX_CONCURRENT_EDITORS = 5;
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+export const CONNECTED_CONFIRMATION_MS = 2000;
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
 // Sticky note settings (story 2).
 export const STICKY_SIZE_WORLD = 200;
 export const STICKY_TEXT_MAX_CHARS = 1000;
