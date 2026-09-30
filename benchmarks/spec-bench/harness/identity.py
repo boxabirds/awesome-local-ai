@@ -6,8 +6,13 @@ Prints one JSON object:
   backend            install.env BACKEND
   install_manifest   every KEY=VALUE of install.env (it holds no absolute paths by design): engine
                      settings, sampling, draft settings, model files, pinned images and versions
-  server_command     argv of the process listening on --port, with $HOME written as ~ (null if none)
-  engine_version     first line the serving binary prints for --version (null if it can't say)
+  server_command     argv of the engine serving --port, with $HOME written as ~ and keys masked (null if none).
+                     When the port's listener is a container's network helper (Podman's pasta, slirp4netns,
+                     rootlessport, conmon; docker-proxy), the engine is the process inside that container
+  engine_version     first line the engine prints for --version, asked inside its container, and of `mtplx`
+                     rather than the Python interpreter MTPLX runs in (null if it can't say)
+  listener_command   the host process on --port when it is not the engine (a container helper), else null
+  container          {runtime, name, image} of the engine's container, else null
   model_files        each model file named in the manifest: bytes, and the Hugging Face revision and
                      sha256 saved at download (no hashing here: a 17 GB file would take a minute)
   drivers            NVIDIA driver, and the kernel on Linux
@@ -135,17 +140,138 @@ def tilde(argv: list[str], home: str) -> list[str]:
     return [a.replace(home, "~") for a in argv] if home else argv
 
 
-def engine_version(argv: list[str]) -> str | None:
-    """The serving binary's own answer to --version (llama-server prints it on stdout or stderr)."""
-    if not argv or not os.access(argv[0], os.X_OK):
-        return None
+def _run_rc(cmd: list[str], timeout: float = TOOL_TIMEOUT_S) -> tuple[str, int]:
+    """stdout and stderr together, and the exit code (-1 if it couldn't run)."""
     try:
-        r = subprocess.run([argv[0], "--version"], capture_output=True, text=True, timeout=VERSION_TIMEOUT_S)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     except (OSError, subprocess.SubprocessError):
+        return "", -1
+    return r.stdout + "\n" + r.stderr, r.returncode
+
+
+def first_version_line(text: str, ok: bool) -> str | None:
+    """The line that looks like a version (llama-server prints build chatter first); failing that, when the
+    command succeeded, its first line (gufo prints just "gufo <commit>")."""
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    for line in lines:
+        if re.search(r"version|\d+\.\d+", line, re.I) and not line.startswith(("[", "0.")):
+            return line
+    return lines[0] if ok and lines else None
+
+
+def engine_version(argv: list[str] | None, cmd: list[str] | None = None) -> str | None:
+    """The engine's own answer to --version: cmd (from version_command) or the serving binary itself."""
+    if cmd is None:
+        if not argv or not os.access(argv[0], os.X_OK):
+            return None
+        cmd = [argv[0], "--version"]
+    out, rc = _run_rc(cmd, VERSION_TIMEOUT_S)
+    return first_version_line(out, rc == 0)
+
+
+# ---------- the engine behind the port: following it into a container ----------
+
+# What listens on a published port for a container, instead of the engine itself.
+CONTAINER_HELPERS = {"pasta", "pasta.avx2", "slirp4netns", "rootlessport", "rootlessport-child", "conmon",
+                     "docker-proxy"}
+# Backends whose launcher runs the engine in a container, named "<INSTALL_ID>-<PORT>" (lib/runtime/server-*.sh).
+CONTAINER_BACKENDS = {"gufo": "podman", "sglang": "docker"}
+_SECRET = re.compile(r"^--?[\w-]*(?:key|token|secret|password)[\w-]*$", re.I)
+
+
+def is_container_helper(argv: list[str] | None) -> bool:
+    return bool(argv) and Path(argv[0]).name in CONTAINER_HELPERS
+
+
+def container_runtime(listener: list[str] | None, backend: str | None) -> str | None:
+    """podman or docker when the engine is in a container: the backend's launcher says which; a helper alone
+    (docker-proxy for Docker, the rest Podman's) says so when the backend doesn't."""
+    if backend in CONTAINER_BACKENDS:
+        return CONTAINER_BACKENDS[backend]
+    if is_container_helper(listener):
+        return "docker" if Path(listener[0]).name == "docker-proxy" else "podman"
+    return None
+
+
+def _json(text: str):
+    try:
+        return json.loads(text)
+    except ValueError:
         return None
-    for line in (r.stdout + "\n" + r.stderr).splitlines():
-        if re.search(r"version|\d+\.\d+", line, re.I) and not line.lstrip().startswith(("[", "0.")):
-            return line.strip()
+
+
+def container_for_port(ps_json: str, port: int) -> str | None:
+    """The name of the container publishing host port `port`, from `podman ps --format json`."""
+    for c in _json(ps_json) or []:
+        for p in c.get("Ports") or []:
+            if (p.get("host_port") or p.get("hostPort")) == port:
+                names = c.get("Names") or []
+                return names[0] if names else c.get("Id")
+    return None
+
+
+def engine_from_inspect(inspect_json: str) -> dict | None:
+    """{argv, name, image} of a container's main process, from `podman inspect` or `docker inspect`."""
+    data = _json(inspect_json)
+    if not isinstance(data, list) or not data or not isinstance(data[0], dict):
+        return None
+    c = data[0]
+    if c.get("Path"):
+        argv = [c["Path"], *(c.get("Args") or [])]
+    else:
+        cfg = c.get("Config") or {}
+        ep = cfg.get("Entrypoint") or []
+        argv = [*([ep] if isinstance(ep, str) else ep), *(cfg.get("Cmd") or [])]
+    if not argv:
+        return None
+    return {"argv": argv, "name": (c.get("Name") or "").lstrip("/") or c.get("Id"),
+            "image": c.get("ImageName") or (c.get("Config") or {}).get("Image") or c.get("Image")}
+
+
+def version_command(backend: str | None, argv: list[str] | None, container: dict | None = None) -> list[str] | None:
+    """How to ask the engine its version: inside its container; of `mtplx` for MTPLX (its server is a Python
+    process, whose own --version names Python); else the serving binary."""
+    if not argv:
+        return None
+    if container:
+        return [container["runtime"], "exec", container["name"], argv[0], "--version"]
+    if backend == "mtplx":
+        return ["mtplx", "--version"]
+    return [argv[0], "--version"]
+
+
+def redact(argv: list[str]) -> list[str]:
+    """Run records are published: a key given on a command line is masked."""
+    out, mask_next = [], False
+    for a in argv:
+        if mask_next:
+            out.append("***"); mask_next = False
+            continue
+        flag, eq, _ = a.partition("=")
+        if _SECRET.match(flag):
+            if eq:
+                out.append(f"{flag}=***")
+                continue
+            mask_next = True
+        out.append(a)
+    return out
+
+
+def follow_container(listener: list[str] | None, port: int, env: dict[str, str]) -> dict | None:
+    """The engine inside the container behind `port`: by the launcher's own name first, else by published port."""
+    runtime = container_runtime(listener, env.get("BACKEND"))
+    if runtime is None or port <= 0:
+        return None
+    names = [f"{env['INSTALL_ID']}-{port}"] if env.get("INSTALL_ID") else []
+    for name in names:
+        eng = engine_from_inspect(_run([runtime, "inspect", name]))
+        if eng:
+            return {"runtime": runtime, **eng}
+    if runtime == "podman":
+        name = container_for_port(_run(["podman", "ps", "--format", "json"]), port)
+        eng = engine_from_inspect(_run([runtime, "inspect", name])) if name else None
+        if eng:
+            return {"runtime": runtime, **eng}
     return None
 
 
@@ -172,12 +298,19 @@ def identity(env_file: Path, port: int) -> dict:
     home = str(Path.home())
     env = parse_env(env_file.read_text()) if env_file.is_file() else {}
     pid = listening_pid(port)
-    argv = argv_of(pid) if pid else None
+    listener = argv_of(pid) if pid else None
+    backend = env.get("BACKEND")
+    ctr = follow_container(listener, port, env) if (is_container_helper(listener) or backend in CONTAINER_BACKENDS) else None
+    # A helper whose container can't be found is not the engine: record no engine rather than the helper.
+    argv = ctr["argv"] if ctr else (None if is_container_helper(listener) else listener)
+    vcmd = version_command(backend, argv, ctr)
     return {
-        "backend": env.get("BACKEND"),
+        "backend": backend,
         "install_manifest": env,
-        "server_command": tilde(argv, home) if argv else None,
-        "engine_version": engine_version(argv) if argv else None,
+        "server_command": tilde(redact(argv), home) if argv else None,
+        "engine_version": engine_version(argv, vcmd if vcmd != [argv[0], "--version"] else None) if argv else None,
+        "listener_command": tilde(redact(listener), home) if listener and listener != argv else None,
+        "container": {k: ctr[k] for k in ("runtime", "name", "image")} if ctr else None,
         "model_files": model_files(env, env_file.parent, Path(home)),
         "drivers": drivers(),
         "os": os_desc(),

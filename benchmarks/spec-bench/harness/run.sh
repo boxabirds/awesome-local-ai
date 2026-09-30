@@ -143,6 +143,22 @@ fi
 echo "sandbox preflight (agent toolchain inside the sandbox)"
 (cd "$HARNESS" && uv run --quiet preflight.py --client "$CLIENT_NAME") || { echo "preflight failed; not starting the run" >&2; exit 1; }
 
+# harness self-test: the whole story loop, end to end, on known answers (test_pipeline.py), before any model
+# server starts. A harness change that crashes at the end of a story costs hours per story otherwise (30 Sep
+# 2026). A skipped self-test (no node or npm) is a failure: it proved nothing. SKIP_SELF_TEST=1 waives it for
+# one run, in an emergency only.
+if [[ "${SKIP_SELF_TEST:-0}" != 1 ]]; then
+  echo "harness self-test (the story loop, end to end, on known answers)"
+  SELF_TEST_OUT=$(cd "$HARNESS" && uv run --quiet --with pytest pytest -q -x -rs -p no:cacheprovider test_pipeline.py 2>&1)
+  SELF_TEST_RC=$?
+  if [[ $SELF_TEST_RC -ne 0 ]] || grep -q "skipped" <<<"$SELF_TEST_OUT"; then
+    echo "$SELF_TEST_OUT" | tail -20 >&2
+    echo "harness self-test failed or skipped; not starting the run" >&2; exit 1
+  fi
+else
+  echo "harness self-test WAIVED (SKIP_SELF_TEST=1)"
+fi
+
 if [[ "$(uname)" == Darwin ]]; then
   echo "cooling to thermal nominal"
   python3 -c "
@@ -214,13 +230,20 @@ EFFORT_RECORDED="$REASONING_EFFORT"; [[ "$CLOUD" == 1 ]] && EFFORT_RECORDED="cli
 IDENTITY_PORT="$BENCH_PORT"; [[ "$CLOUD" == 1 ]] && IDENTITY_PORT=0
 IDENTITY_JSON="$(python3 "$HARNESS/identity.py" --env-file "$ENV_FILE" --port "$IDENTITY_PORT" 2>/dev/null)" || IDENTITY_JSON=""
 [[ -n "$IDENTITY_JSON" ]] || IDENTITY_JSON=null
+# The settings the engine actually applies (effort, thinking, budget, context, KV, draft, sampling, quantisation),
+# read from that command line against what this run asked for: engine_settings.py. Unknowns say why.
+ENGINE_SETTINGS_JSON="$(printf '%s' "$IDENTITY_JSON" | python3 "$HARNESS/engine_settings.py" \
+  --requested-effort "$EFFORT_RECORDED" --client "$CLIENT_NAME" --client-thinking "${CLIENT_THINKING:-}" \
+  --context-limit "$CONTEXT_LIMIT" 2>/dev/null)" || ENGINE_SETTINGS_JSON=""
+[[ -n "$ENGINE_SETTINGS_JSON" ]] || ENGINE_SETTINGS_JSON=null
 [[ -f "$RUN_DIR/run.json" ]] && { tr -d '\n' < "$RUN_DIR/run.json"; echo; } >> "$RUN_DIR/run-history.jsonl"
 cat > "$RUN_DIR/run.json" <<JSON
 {"install_id": "$INSTALL_ID", "combination": "$COMBINATION", "model_id": "$MODEL_ID",
  "pack": "$SPEC_BENCH_PACK_NAME", "scope": "${SCOPE:-${EPIC:+epic:$EPIC}}", "metered": $METER, "reasoning_effort": "$EFFORT_RECORDED", "client_thinking": "${CLIENT_THINKING:-}", "known_good_from": "${FROM_RUN#"$REPO_ROOT"/}", "context_limit": $CONTEXT_LIMIT,
  "output_limit": $OUTPUT_LIMIT, "backend_version": "$( [[ "$BACKEND" == mtplx ]] && mtplx --version 2>/dev/null | awk '{print $NF}' )", "mtplx_memory_limit_bytes": "$( [[ "$BACKEND" == mtplx ]] && echo "${MTPLX_MEMORY_LIMIT_BYTES:-default}" )", "compact_at": "${COMPACT_AT:-client default}", "client": "$CLIENT_NAME", "client_version": "$CLIENT_VERSION", "backend": "$BACKEND", "host": "$HOST_DESC",
  "harness_commit": "$(git -C "$REPO_ROOT" rev-parse --short HEAD)", "pack_version": "$PACK_VERSION", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
- "identity": $IDENTITY_JSON}
+ "identity": $IDENTITY_JSON,
+ "engine_settings": $ENGINE_SETTINGS_JSON}
 JSON
 
 cd "$HARNESS"

@@ -154,6 +154,11 @@ class OpenCodeClient:
         return None
 
 
+# Our token fields and the names Claude Code's `result` usage gives them.
+CLAUDE_USAGE_FIELDS = (("input", "input_tokens"), ("output", "output_tokens"),
+                       ("cache_read", "cache_read_input_tokens"), ("cache_write", "cache_creation_input_tokens"))
+
+
 class ClaudeClient:
     """Claude Code headless: `claude -p --output-format stream-json`, config under an isolated
     CLAUDE_CONFIG_DIR. Authenticates with the user's subscription via CLAUDE_CODE_OAUTH_TOKEN (from
@@ -205,10 +210,11 @@ class ClaudeClient:
                     st["tool_calls"] += 1
                     return json.dumps([c.get("name"), c.get("input")], sort_keys=True)
         elif t == "result":
+            # Each result carries the usage of its own stretch of the session, not a running total, and a
+            # session can end in more than one (Opus v2-r3 story 12: 90,620 then 1,230 output tokens). Add them.
             u = e.get("usage") or {}
-            st["tokens"].update(input=u.get("input_tokens", 0), output=u.get("output_tokens", 0),
-                                cache_read=u.get("cache_read_input_tokens", 0),
-                                cache_write=u.get("cache_creation_input_tokens", 0))
+            for ours, theirs in CLAUDE_USAGE_FIELDS:
+                st["tokens"][ours] += u.get(theirs) or 0
             if e.get("is_error") or str(e.get("subtype", "")).startswith("error"):
                 st["error"] = str(e.get("result") or e.get("subtype"))[:500]
             else:

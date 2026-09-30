@@ -136,3 +136,49 @@ def test_pi_refuses_an_unknown_thinking_level(tmp_path):
     import pytest
     with pytest.raises(ValueError):
         PiClient(tmp_path, thinking="extreme")
+
+
+# ---------- Claude Code token counts: every result event adds, none overwrites ----------
+# Opus v2-r3 story 12 (30 Sep 2026): one `claude -p` session emitted two `result` events (the agent was
+# woken again after its first answer). Each carries the usage of its own stretch of the session, not a
+# running total (total_cost_usd is the running figure). metrics.json recorded only the second: 1,230
+# output tokens against 91,850.
+OPUS_V2R3_S12_RESULTS = (
+    {"input_tokens": 130, "output_tokens": 90620, "cache_read_input_tokens": 10582402,
+     "cache_creation_input_tokens": 226164},
+    {"input_tokens": 6, "output_tokens": 1230, "cache_read_input_tokens": 476307,
+     "cache_creation_input_tokens": 1044},
+)
+
+
+def _result(usage: dict, **extra) -> dict:
+    return {"type": "result", "subtype": "success", "is_error": False, "session_id": "s", "usage": usage, **extra}
+
+
+def test_claude_adds_the_usage_of_every_result_in_a_session():
+    st, _ = claude_scan([{"type": "system", "subtype": "init", "session_id": "s"},
+                         *(_result(u) for u in OPUS_V2R3_S12_RESULTS)])
+    assert st["tokens"] == {"input": 136, "output": 91850, "reasoning": 0, "cache_read": 11058709,
+                            "cache_write": 227208}
+
+
+def test_claude_adds_results_across_the_sessions_of_one_story():
+    """A story's log holds every attempt (fork-resumes, nudges, a restart's continuation), one after another."""
+    a, b = OPUS_V2R3_S12_RESULTS
+    st, _ = claude_scan([{"type": "system", "subtype": "init", "session_id": "s1"}, _result(a),
+                         {"type": "system", "subtype": "init", "session_id": "s2"}, _result(b)])
+    assert st["tokens"]["output"] == a["output_tokens"] + b["output_tokens"]
+    assert st["session"] == "s1"          # the first session is the story's, as before
+
+
+def test_claude_result_without_usage_adds_nothing():
+    a, _ = OPUS_V2R3_S12_RESULTS
+    st, _ = claude_scan([_result(a), {"type": "result", "subtype": "success", "is_error": False}])
+    assert st["tokens"]["output"] == a["output_tokens"] and st["tokens"]["input"] == a["input_tokens"]
+
+
+def test_claude_a_later_successful_result_still_clears_an_earlier_error():
+    a, b = OPUS_V2R3_S12_RESULTS
+    st, _ = claude_scan([_result(a, is_error=True, subtype="error_during_execution", result="API Error: 529"),
+                         _result(b)])
+    assert st["error"] is None and st["tokens"]["output"] == a["output_tokens"] + b["output_tokens"]

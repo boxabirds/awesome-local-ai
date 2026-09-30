@@ -6,6 +6,13 @@ import pytest
 import gates
 
 
+@pytest.fixture(autouse=True)
+def no_port_listeners(monkeypatch):
+    """Nothing listens on a scoring port unless a test says so: the real ports of the machine running the tests
+    must not decide a test's result."""
+    monkeypatch.setattr(gates, "_listeners", lambda port: [])
+
+
 def test_unstartable_app_counts_every_applicable_test_as_failed(tmp_path: Path):
     ws = tmp_path / "ws"
     ws.mkdir()
@@ -363,3 +370,195 @@ def test_only_our_own_leftovers_are_reclaimed_from_a_scoring_port(cmd, ours):
     only from an app server or test runner, never from anything else."""
     from gates import is_scoring_process
     assert is_scoring_process(cmd) is ours
+
+
+# ---------- a port another program holds is the machine's fault, not the app's (item 6c) ----------
+# Before 30 Sep 2026 reclaim_ports noted "held by something else" on stderr and the scoring went ahead;
+# the suite's waitPortFree then threw after 30 s and every test failed as if the app never started.
+
+def _suite_run(monkeypatch):
+    """gates._run where the build passes and the suite runner writes nothing; returns the commands run."""
+    calls = []
+    monkeypatch.setattr(gates, "_run", lambda cmd, cwd, timeout, env=None: calls.append(cmd) or
+                        {"cmd": " ".join(cmd), "exit": 0, "seconds": 0, "tail": ""})
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    return calls
+
+
+def _listening(monkeypatch, holders: dict):
+    """gates._listeners from {port: [(pid, command), ...]}; each holder a list of answers, one per call."""
+    asked = {}
+
+    def listeners(port):
+        answers = holders.get(port) or [[]]
+        n = asked[port] = asked.get(port, -1) + 1
+        return answers[min(n, len(answers) - 1)]
+    monkeypatch.setattr(gates, "_listeners", listeners)
+
+
+def test_a_port_held_by_another_program_is_a_harness_fault_and_the_suite_never_runs(tmp_path, monkeypatch):
+    acc = _suite_with_story_1(tmp_path)
+    calls = _suite_run(monkeypatch)
+    monkeypatch.setenv("ACCEPT_PORT", "18800")
+    monkeypatch.setenv("ACCEPT_WORKERS", "1")
+    _listening(monkeypatch, {18801: [[("4242", "python3 -m http.server 18801")]]})
+    res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
+    assert res["harness_fault"].startswith(gates.MISSING_RESOURCES)
+    assert "18801" in res["harness_fault"] and "4242" in res["harness_fault"] and "http.server" in res["harness_fault"]
+    assert not any(c[:2] == ["npx", "playwright"] for c in calls)
+    assert (res["passed"], res["total"], res["tests"]) == (0, 0, [])
+
+
+def test_every_workers_ports_are_checked(tmp_path, monkeypatch):
+    """ACCEPT_WORKERS=3 gives each worker its app port and its control port: six ports in all."""
+    acc = _suite_with_story_1(tmp_path)
+    _suite_run(monkeypatch)
+    monkeypatch.setenv("ACCEPT_PORT", "18800")
+    monkeypatch.setenv("ACCEPT_WORKERS", "3")
+    assert gates.scoring_ports() == [18800, 18801, 18802, 18803, 18804, 18805]
+    _listening(monkeypatch, {18805: [[("99", "/usr/sbin/sshd -D")]]})
+    assert "18805" in gates.accept(tmp_path, [1], tmp_path / "out", acc)["harness_fault"]
+
+
+def test_a_leftover_of_our_own_is_reclaimed_and_the_scoring_goes_ahead(tmp_path, monkeypatch):
+    acc = _suite_with_story_1(tmp_path)
+    calls = _suite_run(monkeypatch)
+    monkeypatch.setenv("ACCEPT_PORT", "18800")
+    monkeypatch.setenv("ACCEPT_WORKERS", "1")
+    wrangler = ("555", "node /x/node_modules/wrangler/wrangler-dist/cli.js dev --port 18800")
+    _listening(monkeypatch, {18800: [[wrangler], []]})          # gone once killed
+    killed = []
+    monkeypatch.setattr(gates, "kill_groups", lambda groups: killed.append(set(groups)))
+    monkeypatch.setattr(gates.os, "getpgid", lambda pid: pid)
+    res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
+    assert {555} in killed
+    assert res["harness_fault"] is None
+    assert any(c[:2] == ["npx", "playwright"] for c in calls)
+
+
+def test_a_leftover_of_our_own_that_survives_the_kill_is_still_a_fault(tmp_path, monkeypatch):
+    acc = _suite_with_story_1(tmp_path)
+    calls = _suite_run(monkeypatch)
+    monkeypatch.setenv("ACCEPT_PORT", "18800")
+    monkeypatch.setenv("ACCEPT_WORKERS", "1")
+    _listening(monkeypatch, {18800: [[("555", "/x/workerd serve")]]})       # never goes away
+    monkeypatch.setattr(gates, "kill_groups", lambda groups: None)
+    monkeypatch.setattr(gates.os, "getpgid", lambda pid: pid)
+    res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
+    assert res["harness_fault"].startswith(gates.MISSING_RESOURCES) and "18800" in res["harness_fault"]
+    assert not any(c[:2] == ["npx", "playwright"] for c in calls)
+
+
+def test_free_ports_are_no_fault(tmp_path, monkeypatch):
+    acc = _suite_with_story_1(tmp_path)
+    _suite_run(monkeypatch)
+    assert gates.accept(tmp_path, [1], tmp_path / "out", acc)["harness_fault"] is None
+
+
+# The suite's AppServer.waitPortFree (private suite, tests/app-server.ts) when a port never frees up.
+PORT_STUCK = "Error: port 18800 still in use after 30000 ms"
+
+
+def test_a_port_the_suite_waited_on_in_vain_is_a_harness_fault():
+    tests = [{"status": "failed", "error": PORT_STUCK}, {"status": "passed", "error": ""}]
+    fault = gates.harness_fault(tests)
+    assert fault and fault.startswith(gates.MISSING_RESOURCES) and "18800" in fault
+
+
+def test_a_port_the_suite_waited_on_in_global_setup_is_a_harness_fault():
+    """Global setup failing means no test ran: the message is only in the runner's output."""
+    assert "18800" in gates.harness_fault([], runner_tail=f"Error in global setup\n{PORT_STUCK}\n    at waitPortFree")
+
+
+def test_an_app_error_that_mentions_a_port_is_not_a_port_fault():
+    tests = [{"status": "failed", "error": "Error: expect(locator).toHaveText(expected) 'port 3 still open'"}]
+    assert gates.harness_fault(tests) is None
+
+
+# ---------- the build follows the workspace's package manager, and says why it failed ----------
+
+def test_the_held_out_build_uses_the_workspaces_package_manager(tmp_path, monkeypatch):
+    calls = _suite_run(monkeypatch)
+    acc = _suite_with_story_1(tmp_path)
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "package.json").write_text('{"packageManager": "bun@1.2.0"}')
+    gates.accept(ws, [1], tmp_path / "out", acc)
+    assert ["bun", "run", "build"] in calls and ["npm", "run", "build"] not in calls
+    (ws / "package.json").write_text('{}')
+    gates.accept(ws, [1], tmp_path / "out2", acc)
+    assert ["npm", "run", "build"] in calls
+
+
+def test_a_failed_build_keeps_its_output_and_a_passing_one_does_not(tmp_path, monkeypatch):
+    acc = _suite_with_story_1(tmp_path)
+
+    def run(cmd, cwd, timeout, env=None):
+        if cmd[1:3] == ["run", "build"]:
+            return {"cmd": "", "exit": 127, "seconds": 0, "tail": "sh: vite: command not found"}
+        return {"cmd": "", "exit": 0, "seconds": 0, "tail": ""}
+    monkeypatch.setattr(gates, "_run", run)
+    monkeypatch.setattr(gates, "_run_owned", run)
+    res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
+    assert res["build_exit"] == 127 and "vite: command not found" in res["build_tail"]
+    _suite_run(monkeypatch)
+    assert "build_tail" not in gates.accept(tmp_path, [1], tmp_path / "out", acc)
+
+
+# ---------- the scoring environment is recorded with every result (item 6e) ----------
+
+def test_every_scoring_records_its_environment(tmp_path, monkeypatch):
+    import scoring_env
+    acc = _suite_with_story_1(tmp_path)
+    _suite_run(monkeypatch)
+    monkeypatch.setenv("ACCEPT_WORKERS", "3")
+    seen = {}
+    monkeypatch.setattr(scoring_env, "environment",
+                        lambda acceptance, workers: seen.update(acceptance=acceptance, workers=workers) or {"node": "v1"})
+    res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
+    assert res["environment"] == {"node": "v1"}
+    assert seen == {"acceptance": acc, "workers": 3}
+
+
+def test_a_scoring_stopped_by_a_held_port_still_records_its_environment(tmp_path, monkeypatch):
+    acc = _suite_with_story_1(tmp_path)
+    _suite_run(monkeypatch)
+    _listening(monkeypatch, {gates.DEFAULT_ACCEPT_PORT: [[("1", "sshd")]]})
+    monkeypatch.delenv("ACCEPT_PORT", raising=False)
+    res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
+    assert res["harness_fault"] and set(res["environment"]) >= {"node", "playwright", "workers"}
+
+
+# ---------- error signatures: many failures, one cause ----------
+
+REFUSED = "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18800/"
+
+
+@pytest.mark.parametrize("a,b", [
+    (REFUSED, "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18802/b/7f3a"),   # another worker, board
+    ("\x1b[31mTimeoutError\x1b[39m: waiting 5000ms", "TimeoutError: waiting 15000ms"),        # colour, numbers
+    ("Error: x\n    at story-01.spec.ts:12:5", "Error: x\n    at story-07.spec.ts:40:9"),       # only the first line
+    ("Error: expected 'red'", 'Error: expected "blue"'),                                      # quoted values
+])
+def test_messages_that_differ_only_in_detail_share_a_signature(a, b):
+    assert gates.error_signature(a) == gates.error_signature(b)
+
+
+@pytest.mark.parametrize("a,b", [
+    (REFUSED, "Error: expect(locator).toBeVisible() failed"),
+    ("TimeoutError: locator.click", "TimeoutError: locator.fill"),
+])
+def test_different_failures_have_different_signatures(a, b):
+    assert gates.error_signature(a) != gates.error_signature(b)
+
+
+def test_shared_signature_names_the_one_cause_of_every_failure():
+    tests = [{"status": "failed", "error": REFUSED.replace("18800", str(p))} for p in (18800, 18802, 18804)]
+    tests += [{"status": "skipped", "error": ""}, {"status": "passed", "error": ""}]
+    assert gates.shared_signature(tests) == (gates.error_signature(REFUSED), 3)
+
+
+def test_shared_signature_is_none_when_the_failures_differ_or_there_are_none():
+    mixed = [{"status": "failed", "error": REFUSED}, {"status": "timedOut", "error": "Test timeout exceeded"}]
+    assert gates.shared_signature(mixed) == (None, 2)
+    assert gates.shared_signature([{"status": "passed", "error": ""}]) == (None, 0)

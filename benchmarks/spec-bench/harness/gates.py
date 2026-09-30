@@ -24,6 +24,7 @@ from pathlib import Path
 HARNESS = Path(__file__).resolve().parent
 import hostenv  # noqa: E402
 import packdir  # noqa: E402
+import scoring_env  # noqa: E402
 # The default pack's held-out suite (vidi); drive.py passes the running pack's.
 ACCEPTANCE = packdir.resolve() / "acceptance"
 STEP_TIMEOUT_S = 20 * 60
@@ -187,6 +188,8 @@ BROWSER_MISSING_SIGNS = (
 )
 
 
+# The held-out suite's AppServer.waitPortFree (tests/app-server.ts) when its port never frees up.
+PORT_STILL_IN_USE = re.compile(r"port (\d+) still in use after \d+ ?ms")
 # Playwright's error when --project names a project the config doesn't have.
 NO_SUCH_PROJECT = re.compile(r'Project\(s\) .* not found')
 # The harness installs and promises Chromium only; another missing browser is the agent's configuration.
@@ -241,7 +244,38 @@ def harness_fault(tests: list[dict], runner_tail: str = "") -> str | None:
     if sig:
         return (f"{MISSING_RESOURCES} the held-out suite has no browser ({sig}); run "
                 f"`npx playwright install chromium` in the acceptance suite")
+    stuck = next(filter(None, (PORT_STILL_IN_USE.search(t.get("error") or "") for t in tests)), None) \
+        or PORT_STILL_IN_USE.search(runner_tail or "")
+    if stuck:
+        return (f"{MISSING_RESOURCES} port {stuck.group(1)} stayed in use while the held-out suite waited to start "
+                f"the app on it (another process held it): the app never had its port")
     return None
+
+
+# ---------- error signatures ----------
+# Many failures with one cause (the app server never answering, a port, a missing module) share the first line
+# of their error once its details are masked: finalize.py reads a re-score whose every failure has one
+# signature as the machine's doing, unless the live scoring failed the same way.
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+URL = re.compile(r"\b\w+://\S+")
+QUOTED = re.compile(r"""(['"`])(?:(?!\1).)*\1""")
+NUMBER = re.compile(r"\d+")
+SIGNATURE_CHARS = 160
+FAILED_STATUSES_EXCLUDE = ("passed", "skipped")
+
+
+def error_signature(message: str | None) -> str:
+    """An error's first line with what varies from test to test masked: colours, URLs, quoted values, numbers."""
+    first = next((line.strip() for line in ANSI.sub("", message or "").splitlines() if line.strip()), "")
+    masked = NUMBER.sub("N", QUOTED.sub("<text>", URL.sub("<url>", first)))
+    return " ".join(masked.split())[:SIGNATURE_CHARS]
+
+
+def shared_signature(tests: list[dict]) -> tuple[str | None, int]:
+    """(the one signature every failing test shares, or None; how many tests failed)."""
+    failures = [t for t in tests if t.get("status") not in FAILED_STATUSES_EXCLUDE]
+    sigs = {error_signature(t.get("error")) for t in failures}
+    return (sigs.pop() if len(sigs) == 1 else None), len(failures)
 
 
 def processed_env(processed: list) -> str:
@@ -297,20 +331,33 @@ def is_scoring_process(cmd: str) -> bool:
     return bool(SCORING_PROCESS.search(cmd))
 
 
+def scoring_workers() -> int:
+    """Held-out workers for this scoring: the suite's playwright.config reads the same variable."""
+    return max(1, int(os.environ.get("ACCEPT_WORKERS", 1)))
+
+
 def scoring_ports() -> list[int]:
     base = int(os.environ.get("ACCEPT_PORT", DEFAULT_ACCEPT_PORT))
-    workers = max(1, int(os.environ.get("ACCEPT_WORKERS", 1)))
+    workers = scoring_workers()
     return [base + PORTS_PER_SLOT * slot + k for slot in range(workers) for k in (0, 1)]
+
+
+HOLDER_CMD_CHARS = 80
+
+
+def _listeners(port: int) -> list[tuple[str, str]]:
+    """(pid, command) of each process listening on a TCP port of this machine."""
+    pids = subprocess.run(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+                          capture_output=True, text=True).stdout.split()
+    return [(pid, subprocess.run(["ps", "-o", "command=", "-p", pid], capture_output=True, text=True).stdout.strip())
+            for pid in pids]
 
 
 def reclaim_ports(ports: list[int]) -> list[str]:
     """Kill our own leftovers (app servers, test runners) holding these ports; report anything else."""
     notes = []
     for port in ports:
-        pids = subprocess.run(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
-                              capture_output=True, text=True).stdout.split()
-        for pid in pids:
-            cmd = subprocess.run(["ps", "-o", "command=", "-p", pid], capture_output=True, text=True).stdout.strip()
+        for pid, cmd in _listeners(port):
             if is_scoring_process(cmd):
                 try:
                     kill_groups({os.getpgid(int(pid))})
@@ -318,8 +365,22 @@ def reclaim_ports(ports: list[int]) -> list[str]:
                 except ProcessLookupError:
                     pass
             else:
-                notes.append(f"port {port} is held by something else (pid {pid}: {cmd[:80]}); left alone")
+                notes.append(f"port {port} is held by something else (pid {pid}: {cmd[:HOLDER_CMD_CHARS]}); left alone")
     return notes
+
+
+def held_ports(ports: list[int]) -> list[str]:
+    """Each of these ports something still listens on (after reclaim_ports), with what holds it."""
+    return [f"{port} (pid {pid}: {cmd[:HOLDER_CMD_CHARS]})" for port in ports for pid, cmd in _listeners(port)]
+
+
+def port_fault(held: list[str]) -> str | None:
+    """The suite would wait for these ports and give up (waitPortFree), and every test would fail as if the app
+    never started: the machine's fault, so no score."""
+    if not held:
+        return None
+    return (f"{MISSING_RESOURCES} scoring port{'s' if len(held) > 1 else ''} held by another process: "
+            f"{'; '.join(held)}; free {'them' if len(held) > 1 else 'it'} and score again")
 
 
 def _run_owned(cmd: list[str], cwd: Path, timeout: int, env: dict | None = None) -> dict:
@@ -352,7 +413,7 @@ def accept(ws: Path, processed: list, out: Path, acceptance: Path | None = ACCEP
         return {"skipped": True, "build_exit": None, "runner_exit": None, "runner_tail": "", "passed": 0,
                 "total": 0, "on_partial": {"passed": 0, "total": 0}, "by_story": {}, "harness_fault": None,
                 "tests": []}
-    build = (_run(["npm", "run", "build"], ws, STEP_TIMEOUT_S) if build
+    build = (_run([package_manager(ws), "run", "build"], ws, STEP_TIMEOUT_S) if build
              else {"cmd": "", "exit": 0, "seconds": 0, "tail": "skipped: already built"})
     report = out / "accept-report.json"
     report.unlink(missing_ok=True)
@@ -363,8 +424,16 @@ def accept(ws: Path, processed: list, out: Path, acceptance: Path | None = ACCEP
     files = [f"tests/story-{s:02d}.spec.ts" for s in done if (acceptance / f"tests/story-{s:02d}.spec.ts").exists()]
     if only is not None:
         files = [f"tests/{f}:{line}" for f, line in only]
-    for note in reclaim_ports(scoring_ports()):
+    ports = scoring_ports()
+    for note in reclaim_ports(ports):
         print(f"  {note}", file=sys.stderr, flush=True)
+    env_record = scoring_env.environment(acceptance, scoring_workers())
+    if held := port_fault(held_ports(ports)):
+        print(f"  {held}", file=sys.stderr, flush=True)
+        return {"skipped": False, "build_exit": build["exit"], "runner_exit": None, "runner_tail": "", "passed": 0,
+                "total": 0, "on_partial": {"passed": 0, "total": 0}, "by_story": {},
+                "setup_fallbacks": {"tests": 0, "by_owner": {}}, "harness_fault": held, "tests": [],
+                "environment": env_record, **_build_tail(build)}
     try:
         for _ in range(ACCEPT_ATTEMPTS):
             run = _run_owned(["npx", "playwright", "test", *files], acceptance, ACCEPT_TIMEOUT_S, env)
@@ -403,7 +472,17 @@ def accept(ws: Path, processed: list, out: Path, acceptance: Path | None = ACCEP
         "setup_fallbacks": _fallback_summary(applicable),
         "harness_fault": stopped or harness_fault(tests, run["tail"]),
         "tests": tests,
+        "environment": env_record,
+        **_build_tail(build),
     }
+
+
+BUILD_TAIL_CHARS = 1500
+
+
+def _build_tail(build: dict) -> dict:
+    """A failed build's last output, kept with the result: a re-score whose build fails is judged by it."""
+    return {} if build["exit"] == 0 else {"build_tail": (build.get("tail") or "")[-BUILD_TAIL_CHARS:]}
 
 
 def main() -> None:
