@@ -63,23 +63,24 @@ requirements and its **must-nots**. Below, one row per finished build:
 
   | Keys | Does |
   |---|---|
-  | `Tab` · `⇧Tab` / `Esc` | next pane · previous pane |
-  | stories: `↑` `↓` · `→` / `Return` | previous / next story · into its held-out tests |
+  | `Tab` · `⇧Tab` | next pane · previous pane |
+  | stories: `↑` `↓` · `→` `Space` `Return` | previous / next story · into its held-out tests |
   | tests: `↑` `↓` | previous / next held-out test |
-  | steps: `↑` `↓` | previous / next browser step (the scrubber follows) |
-  | tests: `←` `→` (`⇧` finer) | scrub 5% of the recording (1%); at an end, on to the next / previous test (hold `→` to fly through the story) |
-  | steps: `←` `→` (`⇧` finer) | scrub 5% (1%), stopping at the ends |
-  | `Space` | play / pause |
-  | `=` · `-` | agree · disagree, and on to the next test |
+  | tests: `→` `Space` · `←` (`⇧` finer) | scrub 5% (1%); at an end, on to the next / previous test (hold to fly through the story) |
+  | tests: `=` `Return` · `-` | agree · disagree, and on to the next test |
+  | tests: `⇧Return` · `Esc` | disagree and write why · clear the verdict back to "to review" |
+  | steps: `↑` `↓` `Return` · `→` `Space` `←` | previous / next browser step · scrub 5% (`⇧`: 1%) |
+  | steps: `Esc` | back to the held-out tests |
+  | `p` | play / pause |
   | `.` `,` | next / previous frame |
   | `1`…`9` · `0` · `Home` `End` | jump to 10%…90% · the start · the ends |
   | `>` `<` | faster / slower |
   | `]` `[`, `PgDn` `PgUp` | next / previous story, from any pane |
-  | `Return` · `⇧Return` | agree and on to the next test · disagree and write why |
   | `a` `d` `s`, or the buttons | agree / disagree / skip, and on to the next test |
   | `n` · `o` · `w` | write a note · open the build · skip long waits on / off |
 
-  Keys go by position for digits and `-` `=` `,` `.`, so shift and keyboard layouts don't change them.
+  `Space` is the right arrow everywhere; `Return` is `=` in the tests, the right arrow in the stories and
+  the down arrow in the steps.   Keys go by position for digits and `-` `=` `,` `.`, so shift and keyboard layouts don't change them.
   Cmd, Ctrl and Alt combinations are left to the browser.
 - **Your place is in the address** (`#story=…&key=…&idx=…&pane=…`). When the gallery restarts (for
   example after a rebuild), an open review page reloads itself onto the new code and comes back to it.

@@ -110,11 +110,19 @@ function keyAction(e, pane) {
   // In the tests pane a scrub carries on into the next or previous test at either end (hold to fly through).
   const step = dir => ({ frac: dir * (shift ? FINE_SCRUB : SCRUB), ...(pane === "tests" ? { cross: true } : {}) });
   const scrub = dir => ({ do: "scrub", ...step(dir) });
+  // Aliases, so the key under the thumb does the most common thing: Space is the right arrow everywhere, and
+  // Return is = in the tests (agree and on), the right arrow in the stories and the down arrow in the steps.
+  if (code === "Space") return keyAction({ ...e, code: "ArrowRight", key: "ArrowRight" }, pane);
+  if (code === "Enter" && !shift) {
+    const as = { stories: "ArrowRight", tests: "Equal", steps: "ArrowDown" }[pane];
+    return keyAction({ ...e, code: as, key: as }, pane);
+  }
   const digit = /^(Digit|Numpad)(\d)$/.exec(code);
   if (digit) return { do: "jump", frac: Number(digit[2]) / TENTHS };
   // Moving within and between panes.
   if (code === "Tab") return paneMove(pane, shift ? -1 : 1);
-  if (code === "Escape") return pane === "stories" ? { do: "escape" } : paneMove(pane, -1);
+  // Esc on a held-out test clears its verdict back to "to review"; elsewhere it steps back out.
+  if (code === "Escape") return pane === "stories" ? { do: "escape" } : pane === "tests" ? { do: "verdict", v: "" } : paneMove(pane, -1);
   if (code === "ArrowUp" || code === "ArrowDown") {
     const dir = code === "ArrowDown" ? 1 : -1;
     return { do: pane === "stories" ? "story" : pane === "tests" ? "path" : "step", dir };
@@ -123,15 +131,12 @@ function keyAction(e, pane) {
     if (pane === "stories") return code === "ArrowRight" ? { do: "pane", to: "tests" } : { do: "none" };
     return scrub(code === "ArrowRight" ? 1 : -1);
   }
-  if (code === "Enter") {
-    if (pane === "stories") return { do: "pane", to: "tests" };
-    return shift ? { do: "verdict", v: "disagree", note: true } : { do: "verdict", v: "agree", next: true };
-  }
+  if (code === "Enter") return pane === "tests" ? { do: "verdict", v: "disagree", note: true } : null;  // shift-Return
   // The same in every pane.
   switch (code) {
     case "BracketRight": case "PageDown": return { do: "story", dir: 1 };
     case "BracketLeft": case "PageUp": return { do: "story", dir: -1 };
-    case "Space": return { do: "play" };
+    case "KeyP": return { do: "play" };
     case "Period": return shift ? { do: "speed", dir: 1 } : { do: "frame", dir: 1 };
     case "Comma": return shift ? { do: "speed", dir: -1 } : { do: "frame", dir: -1 };
     // = agrees and - disagrees with the test, and each goes straight on to the next test.
