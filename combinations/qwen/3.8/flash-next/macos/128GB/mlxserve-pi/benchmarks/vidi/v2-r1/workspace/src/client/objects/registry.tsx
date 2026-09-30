@@ -26,6 +26,7 @@ import { rectContains } from '../../shared/geometry';
 import {
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import {
@@ -36,10 +37,16 @@ import {
 import type { UndoController } from '../board/undo';
 import { isConnectorSnapshot, hitTestConnector, type ConnectorSnapshot } from '../../shared/objects/connector';
 import { isShapeSnapshot, type ShapeSnapshot } from '../../shared/objects/shape';
+import {
+  hitTestStroke,
+  isStrokeSnapshot,
+  type StrokeSnapshot,
+} from '../../shared/objects/stroke';
 import { objectRects } from '../../shared/board-model';
 import { ConnectorObject } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeObject } from './StrokeObject';
 import { TextObject } from './TextObject';
 import { boardMeasurer } from './textLayout';
 import { measureTextBox } from './useTextBoxSync';
@@ -318,5 +325,45 @@ registerObjectType('connector', {
   hitTest: (object: ObjectSnapshot, point: Point, zoom?: number) =>
     isConnectorSnapshot(object)
       ? hitTestConnector(object, point, zoom ?? 1)
+      : rectContains(objectBounds(object), { ...point, width: 0, height: 0 }),
+});
+
+/**
+ * A drawing (`stroke.object`).
+ *
+ * Resizable, and the one type whose resize has to keep the proportions: a sketch stretched
+ * on one axis only is that sketch distorted, so `aspectLocked` is what story 7's handles
+ * are given and `scaledPoints` draws the result at whatever size the box became
+ * (`pen.resize`). It holds no text — a drawing has nothing to type into — and it is the
+ * second type that is not hit by its box: a stroke's box is mostly empty air, and a click
+ * in that air that is nowhere near the ink is a click on whatever is behind it (TC-16).
+ * Where a stroke is drawn is the document's own `width`/`height`, so the generic move,
+ * resize and delete work on it without knowing what a line is.
+ */
+function StrokeObjectType(props: ObjectProps): ReactNode {
+  if (!isStrokeSnapshot(props.object)) return null;
+  const stroke = props.object as StrokeSnapshot;
+  return (
+    <StrokeObject
+      stroke={stroke}
+      selected={props.selected}
+      zoom={props.zoom}
+      editable={props.editable}
+      onObjectPointerDown={props.onObjectPointerDown}
+    />
+  );
+}
+
+registerObjectType('stroke', {
+  Component: StrokeObjectType,
+  resizable: true,
+  // A drawing scales as a drawing: both ways at once, so the thing that was drawn is the
+  // thing that is bigger.
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (object: ObjectSnapshot, point: Point, zoom?: number) =>
+    isStrokeSnapshot(object)
+      ? hitTestStroke(object, point, zoom ?? 1)
       : rectContains(objectBounds(object), { ...point, width: 0, height: 0 }),
 });

@@ -328,3 +328,63 @@ export const CONNECTOR_HIT_TOLERANCE_PX = 6;
 
 /** How wide a connection dot is, in *screen* pixels (`connector.hover_points`). */
 export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+// --- Freehand strokes (story 11) ---------------------------------------------
+
+/**
+ * The six colours the Pen tool offers (`pen.options`). The key is the persisted name
+ * and the accessible name of the swatch; the value is what the stroke is drawn with.
+ */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+export type PenColor = keyof typeof PEN_COLORS;
+
+/**
+ * The three thicknesses, in *board* units (`pen.options`). Board units rather than
+ * pixels on purpose: a stroke is as thick relative to the board at every zoom, the
+ * way a shape's outline is.
+ */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** The colour a stroke is drawn in when nobody picked one (`pen.options`). */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+
+/** The thickness a stroke is drawn with when nobody picked one (`pen.options`). */
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/**
+ * How far a finished stroke may lie from the path that was drawn, in *screen* pixels
+ * at the zoom the drawing happened at (`pen.smooth`). Ramer-Douglas-Peucker is run
+ * with this tolerance divided by the zoom, in board units, which is what makes the
+ * smoothing faithful at any zoom instead of coarser as you go in.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * How many recorded points one stroke may hold (`pen.long_stroke`). A drag that
+ * reaches it commits what it has and carries on as a new stroke from the same point,
+ * so a very long sketch is several strokes that join with no gap rather than one
+ * object nobody can render quickly.
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/**
+ * How close to a stroke's line the pointer has to come for it to be hit
+ * (`pen.select`), in *screen* pixels — divided by the zoom to become board units, the
+ * one zoom-aware thing about a hit test. Half the stroke's own thickness wins when it
+ * is thicker than this.
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/**
+ * The smallest a stroke's box may be squeezed to (`pen.resize`). A stroke that is a
+ * flat underline still has a box this tall to grab.
+ */
+export const STROKE_MIN_SIZE_WORLD = 4;

@@ -506,3 +506,151 @@ another zoom, a label that re-wraps, and an arrow that follows what somebody els
     the thing worth asserting. `pressKey` blurs the focused element first, because a toolbar
     button is a control rather than the board and does not take the board's keys (story 9
     found that too).
+
+# Story 11 — Sketch freehand with a pen
+
+One new object kind (`src/shared/objects/stroke.ts`), one tool that stays put
+(`src/client/tools/PenTool.tsx`), and the geometry that turns a handful of coalesced pointer
+samples into a line (`src/shared/geometry/simplify.ts`). The unit suite holds the
+simplification and the distance rule, the component suite the drawing and the clicking, and
+`tests/e2e/pen.spec.ts` the three things only a browser can answer: a preview that keeps up
+with the pointer, a stroke the other person sees only when it is finished, and a drawing that
+is chosen, resized and moved by its own line.
+
+## Model and geometry (`src/shared`)
+
+52. **`StrokeSnapshot`, not the design's `StrokeSnap`.** The document's object types are
+    `ShapeSnapshot`, `ConnectorSnapshot` and `TextSnapshot`; a fourth called something else
+    would be the one name in the file that does not fit. It extends `ObjectSnapshot` directly
+    because `board-model.ts` has no `BaseObjectFields` for it to extend.
+53. **`points` is a flat array of numbers** — `[x0, y0, x1, y1, …]` relative to the object's
+    own `x`/`y` — rather than `Point[]`, which is what the design's field list says and what
+    makes the Yjs map small. Worth spelling out for anyone reading a test: the world points of
+    a stored stroke come from `scaledPoints`, which is why the component helpers read a
+    drawing's path with `strokeDrawnPoints(id)` and not off the snapshot.
+54. **`crypto.randomUUID()` for the id, and `doc.transact(fn, LOCAL_ORIGIN)`** — the design's
+    sketch wrote `nanoid()` and `Y.transact(doc, …)`. `shape.ts` uses the first and the second
+    form here, which is what makes a stroke one undo step (story 8) and a local edit that is
+    not echoed back (story 3).
+55. **`baseWidth`/`baseHeight` are the box at creation, after the minimum-size clamp.** That
+    is what makes `scaledPoints`' ratio exactly 1 for a stroke that has never been resized,
+    and uniform for a resize the gesture kept proportional — the ink scales because the box
+    scaled, with no second number to keep in step.
+56. **`simplify.ts` is three functions: `simplify` (Ramer-Douglas-Peucker), `splitPoints` and
+    `smoothPath`.** `smoothPath` draws quadratics that lean towards each sample instead of
+    turning at it — `M` at the first point, then one `Q` per remaining point, each curve's
+    control point the sample and its end the midpoint to the next — which is why one point
+    becomes `M12 34` and two become `M0 0 Q8 8 8 8`. `splitPoints` shares the join: part two
+    starts where part one ended, so a stroke cut at `STROKE_MAX_POINTS` still draws as one
+    line and undoes as two.
+57. **`strokeHitToleranceWorld` and `strokeHitWidthWorld` take the thickness *name*.** A
+    stroke's tolerance is `max(thickness / 2, STROKE_HIT_TOLERANCE_PX / zoom)` — the thicker
+    of the line's own half-width and six screen pixels — so a caller with a number in world
+    units would have to know the thickness anyway to be wrong more quietly.
+
+## Client (`src/client`)
+
+58. **`PenTool` takes a sixth prop, `undo?: UndoController`,** beyond the design's five
+    (`camera, color, thickness, doc, identityId`). A stroke committed because it reached
+    `STROKE_MAX_POINTS` and the stroke that finishes the line are two undo steps, and only
+    `undo.boundary()` around each `doc.transact` says so; every other tool gets its boundary
+    from the board, which never sees the pen's commits.
+59. **`PenTool` never calls `tools.toolCreated()`.** Drawing one line does not mean you are
+    done with the pen (`pen.stay_active`), so the pen stays up after every stroke and the user
+    leaves it with Escape or another tool. `useActiveTool` needed no exception for that —
+    staying up is simply never being put away — which is why the only changes there are
+    `TOOL_PEN`, `p` in `TOOL_SHORTCUTS`, `TOOL_PEN` in `BUILT_TOOLS` and `isPen`. Its docstring
+    carries the note, since `pen` was in the comment's list of tools that "have no drawing code
+    yet".
+60. **`PenTool` does not commit when it unmounts**, and the cleanup is a `useLayoutEffect` for
+    a reason that is easy to lose. Escape changes the tool, the tool unmounts, and what was
+    drawn so far is thrown away (TC-13); a browser fires `lostpointercapture` at the moment it
+    removes the element that had the pointer, and a layout effect runs *before* the DOM goes
+    away, so that parting event cannot commit a stroke the person just cancelled.
+61. **`finish()` is idempotent**: it clears the draft before it writes, so `onPointerUp`,
+    `onPointerCancel` and `onLostPointerCapture` — which a browser may fire in a row, and does
+    — produce exactly one stroke. TC-11 asserts that.
+62. **Coalesced samples are `getCoalescedEvents() ?? [event]`, never both.** The spec's list
+    already contains the event being handled, so appending both would double the last sample
+    every time; the call is behind a `typeof` and a `try` because a synthetic event that has
+    gone stale has no such method.
+63. **A dot is decided by `DRAG_THRESHOLD_PX`, the constant story 7 already had.** A press
+    that never travelled 3 pixels commits the one point it started with, and
+    `stroke-linecap: round` draws that single `M` as a dot (`pen.pen`, TC-10) — the same
+    threshold the transform gesture uses for "is this a drag", which is the point.
+64. **`PenToolbar` is its own fixed panel beside the rail (`left: 68px`) rather than buttons
+    inside it.** Nine controls would nearly double the rail's height, and the rail's height is
+    the subject of note 68. It is `role="toolbar"` / `aria-label="Pen options"`, one button per
+    colour and thickness, each with `aria-pressed`, and it is mounted only while the pen is the
+    tool that is up. The rail's own Pen button sits after the Connector button and before the
+    one-shot `+ note`, in the tools' part of the rail; its `title` is written the way the rail's
+    other buttons write theirs.
+65. **`usePenOptions` is two `useState`s and two guarded setters**, and the guards matter:
+    a value that is not one of the six colours or three thicknesses is ignored rather than
+    stored, because the setter is also the place a stale panel click could arrive with a name
+    the model would refuse. Nothing is written to the document or to storage — "for the rest of
+    the session" is exactly what a reload starts over (TC-14).
+66. **The preview is local, and the commits are synchronous.** `PenTool` paints a
+    screen-space `<path>` out of its own state and writes nothing to the document until a
+    stroke is finished or split, which is the PRD's "others see a stroke once finished, not
+    while drawn" (TC-18, asserted from the other person's screen). Preview repaints are
+    rAF-throttled through a tick counter so 5,000 samples do not mean 5,000 renders; the
+    commits happen *in* the pointermove handler, so a test that feeds the pen past
+    `STROKE_MAX_POINTS` sees the second stroke without waiting for a frame.
+67. **`StrokeObject` is two `<path>`s in one `<svg>` whose `viewBox` is the object's box in
+    board units:** the invisible target first (`stroke="transparent"`,
+    `pointerEvents: 'stroke'`, as wide as twice the hit tolerance), the visible line on top of
+    it, and a wrapper that takes no pointer at all. A click in a drawing's empty air therefore
+    reaches whatever is behind it (TC-16) and a click on its line does not, which is the same
+    trick `ConnectorObject` plays and for the same reason: the box of a sketch is mostly air.
+    The `<svg>` carries `role="img"` / `aria-label="Drawing"` and `focusable="false"`.
+    Registering the type — `resizable`, `aspectLocked`, `minSize`, `editableText: false` and a
+    `hitTest` that is `hitTestStroke` for a drawing — is the whole of what makes story 7's
+    move, resize, marquee, select-all and delete work on it.
+
+## Environment / testing notes
+
+68. **A pressed drawing has to cancel the browser's own drag of it**, which is the one real
+    bug this story found in the app's own pattern. `StrokeObject`'s press handler calls
+    `event.preventDefault()`. Firefox reads an `<svg>` as a picture it may pick up: press a
+    drawing, move a few pixels, and it fires `dragstart` and then `pointercancel` for that
+    pointer — the transform gesture sees a cancelled pointer and the drawing never moves. It
+    is Firefox only (Chromium and WebKit move it), it needs the pointer to be *on the SVG*, and
+    `draggable={false}` on the `<svg>` — the answer that turns up when you search for it — does
+    nothing here. `ConnectorObject` captures the pointer on its `<polyline>` the same way and
+    has the same exposure; it shows only when an arrow's *body* is dragged, which no test in
+    story 10's suite does, and that line is story 10's to change rather than this one's. The
+    fix is pinned by a component test that fails with the `preventDefault()` removed.
+69. **`tests/e2e/shapes-and-connectors.spec.ts` TC-23 changed one line: the third drag's
+    camera is centred on the shape it draws (`viewAt({ x: -180, y: 10 }, 2)`) instead of on the
+    middle of the board.** At 200% the board point `(-300, -90)` is screen point `(40, 220)`,
+    and the tool rail is `position: fixed` at `left: 16` and centred *vertically* — so what it
+    covers depends on how many buttons it is holding, and with the Shape tool's three kind
+    buttons open and one more button in the rail than this test was written against, its Select
+    button reached y=220 exactly. The press selected the Select tool and drew nothing; the test
+    had been passing on a few pixels of luck since story 10. Nothing about what it asserts
+    changed: board units against pixels is the same answer wherever on the screen the drag
+    happens. `pressPoint` in `tests/e2e/helpers/pen.ts` refuses candidates under the rail for
+    the same reason: a point the rail owns is the rail's, whatever the board has drawn there.
+70. **`tests/e2e/helpers/pen.ts` is the story's driver.** A drawing's painted path is read off
+    `[data-testid="stroke-path"]`'s `d` (world units, because the `viewBox` is in world units)
+    and its box off `style.left`/`style.width`, which the world layer's transform leaves alone;
+    the mid-drag preview is sampled with `requestAnimationFrame` rather than a timer, because
+    "the preview keeps up with the pointer" is a per-frame claim; and press points are chosen
+    off the painted line at the point furthest from every selection grip, because the overlay
+    puts handles on the edge midpoints as well as the corners and a closed drawing's line runs
+    under them — pressing there starts a resize rather than a move.
+71. **`pen.navigation` is a PRD anchor, not a design TC.** The scroll/pan/zoom-with-the-pen-up
+    cases (prd.md "Navigation still works") are labelled `pen.navigation` in
+    `tests/component/PenTool.test.tsx`; TC-21 in the design's table is the remote-delete case,
+    which is where it is in `tests/component/StrokeObject.test.tsx`.
+72. **Counts, with this story in**: 273 unit (19 of them `stroke.test.ts`), 242 component
+    (`PenTool` 29, `StrokeObject` 14, `useActiveTool` updated for the pen being a built tool),
+    61 integration, and 225 e2e across Chromium, Firefox and WebKit — 18 of the last from
+    `pen.spec.ts`, six per browser.
+73. **The failures that are not this story's, checked by running the same commands on the tree
+    this story started from** (`git stash push -u`, rebuild, same specs):
+    `share-board.spec.ts` TC-26 fails on Chromium and TC-27/TC-28 fail on all three browsers —
+    as stories 7 and 10 recorded before me — and `undo-redo.spec.ts` TC-24 on WebKit failed 2
+    of 4 runs there too: a double-click that does not always reach a sticky note's editor in
+    time. Both still fail, and nothing else does.

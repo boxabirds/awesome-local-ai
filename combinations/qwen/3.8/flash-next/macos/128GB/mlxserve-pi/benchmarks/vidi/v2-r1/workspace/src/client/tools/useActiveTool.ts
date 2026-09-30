@@ -13,13 +13,19 @@
 //     the exception that was here first: `sticky` is the rail's one-shot button, and
 //     asking for it leaves the board in Select, exactly as it was in story 1;
 //   - a tool this build has no behaviour for is not a mode you can be stuck in either:
-//     `pen`, `image` and `comment` are the rail's shape, and asking for one selects;
+//     `image` and `comment` are the rail's shape, and asking for one selects;
 //   - a board you cannot edit holds no tool at all, and a shortcut that arrives anyway
 //     does nothing (TC-30's rule, kept from story 9 for every tool now);
 // - the tool that created something hands the new object back as the selection, so
 //     the thing it just drew is what the keyboard and the bar then act on;
 //   - Escape leaves the tool and creates nothing (TC-22) — including halfway through a
 //     drag, which the tool itself takes as its cue to throw its preview away.
+//
+// Story 11's Pen tool is the first tool that does *not* use the third rule: drawing one
+// line with a pen does not mean you are done with the pen, so `PenTool` never calls
+// `toolCreated` and stays up after every stroke (`pen.stay_active`). Nothing here needs to
+// know that: staying up is simply never being put away, which is why the rule below is a
+// callback the tool may or may not call rather than something this hook does for it.
 //
 // Spec: spec/stories/010-draw-shapes-and-connect-them-with-arrows-that-foll/design.md
 //       (tools.active_tool)
@@ -45,6 +51,8 @@ export const TOOL_TEXT: 'text' = 'text';
 export const TOOL_SHAPE: 'shape' = 'shape';
 /** Drag from one object to another to join them with an arrow. */
 export const TOOL_CONNECTOR: 'connector' = 'connector';
+/** Draw freehand; stays up after every stroke, because a pen is not a stamp. */
+export const TOOL_PEN: 'pen' = 'pen';
 /** The rail's one-shot button, kept as a tool id so `N` means what it has always meant. */
 export const TOOL_STICKY: 'sticky' = 'sticky';
 
@@ -60,17 +68,24 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
   t: TOOL_TEXT,
   s: TOOL_SHAPE,
   l: TOOL_CONNECTOR,
-  p: 'pen',
+  p: TOOL_PEN,
   i: 'image',
   c: 'comment',
 };
 
 /**
  * The tools this build can actually be *in*. `sticky` is a button and not a mode, and
- * `pen`, `image` and `comment` have no drawing code yet: asking for any of them leaves
- * the board in Select rather than in a mode that would do nothing.
+ * `image` and `comment` have no drawing code yet: asking for either leaves the board in
+ * Select rather than in a mode that would do nothing. `pen` was in that list until story 11
+ * drew it, and is a mode now (`pen.stay_active`): asking for it is asking to keep drawing.
  */
-export const BUILT_TOOLS: readonly ToolId[] = [TOOL_SELECT, TOOL_TEXT, TOOL_SHAPE, TOOL_CONNECTOR];
+export const BUILT_TOOLS: readonly ToolId[] = [
+  TOOL_SELECT,
+  TOOL_TEXT,
+  TOOL_SHAPE,
+  TOOL_CONNECTOR,
+  TOOL_PEN,
+];
 
 /** The kind the Shape tool draws next; the first of the menu's three. */
 export const DEFAULT_SHAPE_KIND: ShapeKind = SHAPE_KINDS[0];
@@ -100,6 +115,7 @@ export interface ActiveTool {
   isText: boolean;
   isShape: boolean;
   isConnector: boolean;
+  isPen: boolean;
 }
 
 export function useActiveTool(options: ActiveToolOptions = {}): ActiveTool {
@@ -162,6 +178,7 @@ export function useActiveTool(options: ActiveToolOptions = {}): ActiveTool {
       isText: tool === TOOL_TEXT,
       isShape: tool === TOOL_SHAPE,
       isConnector: tool === TOOL_CONNECTOR,
+      isPen: tool === TOOL_PEN,
     }),
     [tool, shapeKind, setTool, setShapeKind, toolCreated, reset],
   );

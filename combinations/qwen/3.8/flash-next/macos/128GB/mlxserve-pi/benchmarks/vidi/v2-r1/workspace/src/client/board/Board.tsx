@@ -29,7 +29,10 @@ import { TOOL_SELECT, type Tool } from './useTool';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
-import type { ShapeKind } from '../../shared/config';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
+import type { PenColor, PenThickness, ShapeKind } from '../../shared/config';
 import { createLocalIdentity } from './localIdentity';
 import { reportConnectionState } from '../canvas/testHooks';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -129,6 +132,12 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
   // share — a tool is put away once it has drawn the thing it draws — is here, and the
   // object it just drew becomes the selection, because that is the thing you want to fix.
   const tools = useActiveTool({ canEdit, onSelect: selectCreated });
+
+  // What the Pen draws with next (`pen.options`): a colour and a thickness this screen
+  // holds for the rest of the session, and nothing else. Not in the document — a finished
+  // stroke keeps the look it was made with — and not saved anywhere, because "for the rest
+  // of the session" is exactly what a reload starts over.
+  const pen = usePenOptions();
 
   /**
    * Write something at a point (`text.create`): top-left under the click, size M,
@@ -255,6 +264,10 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
           onTool={tools.setTool}
           shapeKind={tools.shapeKind}
           onShapeKind={tools.setShapeKind}
+          penColor={pen.color}
+          penThickness={pen.thickness}
+          onPenColor={pen.setColor}
+          onPenThickness={pen.setThickness}
           onDeleteSelection={deleteSelection}
           connectionState={connectionState}
           canEdit={canEdit}
@@ -283,6 +296,18 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
             snapshot={objects}
             onCreated={tools.toolCreated}
             onCancelled={tools.reset}
+            undo={undoController}
+          />
+        ) : tools.isPen ? (
+          // The Pen tool is the same sheet over the board, and deliberately asks for
+          // nothing when it has drawn something: no selection, and no toolCreated, because
+          // the pen is still the tool you are using (`pen.stay_active`).
+          <PenTool
+            doc={doc}
+            camera={camera}
+            color={pen.color}
+            thickness={pen.thickness}
+            identityId={identity.id}
             undo={undoController}
           />
         ) : undefined
@@ -315,6 +340,10 @@ function BoardChrome({
   onTool,
   shapeKind,
   onShapeKind,
+  penColor,
+  penThickness,
+  onPenColor,
+  onPenThickness,
   onDeleteSelection,
   connectionState,
   canEdit,
@@ -334,6 +363,11 @@ function BoardChrome({
   /** Which shape the Shape tool draws next (`shape.kind_menu`). */
   shapeKind: ShapeKind;
   onShapeKind(kind: ShapeKind): void;
+  /** What the next stroke is drawn in, and how thick (`pen.options`). */
+  penColor: PenColor;
+  penThickness: PenThickness;
+  onPenColor(color: PenColor): void;
+  onPenThickness(thickness: PenThickness): void;
   onDeleteSelection(): void;
   connectionState: ConnectionState;
   canEdit: boolean;
@@ -359,6 +393,17 @@ function BoardChrome({
         disabled={!canEdit}
         undo={undo}
       />
+      {/* The pen's colour and thickness are the pen's own, and are shown while it is the
+          tool that is up: a choice you cannot see is a choice you have to draw twice to
+          find out. */}
+      {tool === 'pen' ? (
+        <PenToolbar
+          color={penColor}
+          thickness={penThickness}
+          onColor={onPenColor}
+          onThickness={onPenThickness}
+        />
+      ) : null}
       <SharePanel boardId={boardId} />
       <ConnectionStatus state={connectionState} />
       <ZoomControls

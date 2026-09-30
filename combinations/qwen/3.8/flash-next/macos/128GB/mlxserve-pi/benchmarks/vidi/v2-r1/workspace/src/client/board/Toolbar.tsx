@@ -207,6 +207,24 @@ export function Toolbar({
       </button>
       <button
         type="button"
+        data-testid="tool-pen"
+        aria-label="Pen (P)"
+        title="Pen (P) \u2013 draw freehand; Escape puts the pen away"
+        className="vidi6-icon-button"
+        disabled={disabled}
+        aria-disabled={disabled}
+        aria-pressed={tool === 'pen'}
+        style={toolButtonStyle(tool === 'pen')}
+        onClick={() => {
+          onTool?.('pen');
+        }}
+      >
+        <span style={glyphStyle} aria-hidden="true">
+          {"\u270E"}
+        </span>
+      </button>
+      <button
+        type="button"
         data-testid="create-sticky"
         // Story 9 labels the rail by shortcut: this one is N. The tooltip stays what
         // story 2 wrote, because the double-click it promises is still the point.

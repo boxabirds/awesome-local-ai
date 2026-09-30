@@ -139,8 +139,14 @@ test.describe('drawing shapes', () => {
     expect(wider.box).toEqual({ x: -500, y: -300, width: 400, height: 260 });
     expect(await onScreenWidth(dana, second)).toBeCloseTo(200, 1);
 
-    // In at double zoom: the first shape is twice as many pixels and no bigger.
-    await setCamera(dana.page, viewAt(MIDDLE, 2));
+    // In at double zoom: the first shape is twice as many pixels and no bigger. The board
+    // is centred on the shape this drag is about to make rather than on the middle of the
+    // board, because at 200% the middle of the board is a screen point the tool rail owns:
+    // the rail is centred vertically too, and with the Shape tool's kind menu open it
+    // reaches this far up. What this test measures is board units against pixels, which is
+    // the same wherever on the board the drag happens (story 11's Pen button is one button
+    // taller than the rail this test was written against).
+    await setCamera(dana.page, viewAt({ x: -180, y: 10 }, 2));
     expect(await onScreenWidth(dana, id)).toBeCloseTo(400, 1);
     // Shift holds the proportions, anchored where the pointer went down, at a zoom that is
     // not 100%: 240 units each way out of a drag that was 240 by 200 units.
