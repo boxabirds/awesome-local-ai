@@ -1,5 +1,5 @@
 // Pure logic: from repo paths, run records and dbench jobs to the rows the page shows. No I/O here.
-import type { FlowsHealth, Live, Machine, QueuePlace, Row, RunStatus, Score, Stages, Story } from "../shared/types.ts";
+import type { Live, Machine, QueuePlace, Row, RunStatus, StoriesWorking, StorySquare, Score, Stages, Story } from "../shared/types.ts";
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
 export const RECENT_S = 24 * 3600;
@@ -210,6 +210,9 @@ export function storyEntry(id: string, raw: { title?: string; status?: string; a
     total: acc.total ?? null,
     ownPassed: own.passed ?? null,
     ownTotal: own.total ?? null,
+    byStory: acc.by_story
+      ? Object.fromEntries(Object.entries(acc.by_story).map(([k, v]) => [String(Number(k)), { passed: v.passed ?? null, total: v.total ?? null }]))
+      : null,
   };
 }
 
@@ -324,10 +327,13 @@ export function buildRows(
       family: rowFamily(r, suite),
       suite,
       stories,
-      flows: flowsHealth(stories),
       stages: stages(r, job, suite),
       ...(({ status, note }) => ({ status, statusNote: note }))(runStatus(r, job)),
-      flowsTotal: scopeFlows(flowCounts[r.packVersion || suite], (job?.progress?.stories ?? []).map((st) => String(st.id))),
+      storiesWorking: storiesWorking(
+        stories,
+        scopeIds((job?.progress?.stories ?? []).map((st) => String(st.id)), flowCounts[r.packVersion || suite], stories.map((st) => st.id)),
+        job?.state.status === "running" ? runningStoryId(job) : null,
+      ),
       live: job ? liveFromJob(job, queue.get(job.id)) : null,
     };
   }));
@@ -373,28 +379,36 @@ export function machines(nodes: string[], rows: Row[]): Machine[] {
   });
 }
 
-// ---------- flows ----------
+// ---------- stories working ----------
 
 /** Tests in one Playwright spec file: each test( / test.only( / test.fixme( / test.fail( call. */
 const TEST_CALL = /^\s*test(?:\.(?:only|fixme|fail))?\(/gm;
 export const countTests = (source: string) => source.match(TEST_CALL)?.length ?? 0;
 
-/** Flows in a scope: the counts of its stories, or of every story when the scope isn't known. */
-export function scopeFlows(counts: Record<string, number> | undefined, scope: string[]): number | null {
-  if (!counts) return null;
-  const ids = scope.length ? scope : Object.keys(counts);
-  const total = ids.reduce((t, id) => t + (counts[String(Number(id))] ?? 0), 0);
-  return total || null;
+/** The story a running job is on: current_story, or the one progress.json marks running while it is scored. */
+function runningStoryId(job: DbenchJob): string | null {
+  const prog = job.progress ?? {};
+  const id = prog.current_story || (prog.stories ?? []).find((s) => s.status === "running")?.id;
+  return id ? String(Number(id)) : null;
 }
 
-/** Whether the flows built so far work: all of them, some, fewer than before, or none. */
-export function flowsHealth(stories: Story[]): FlowsHealth {
-  const scored = stories.filter((s) => s.total !== null && s.passed !== null);
-  const last = scored.at(-1);
-  if (!last) return { state: "none", passed: null, after: null, was: null };
-  const best = Math.max(...scored.slice(0, -1).map((s) => s.passed!), -1);
-  const passed = last.passed!;
-  const was = best > passed ? best : null;
-  const state = passed === 0 && last.total! > 0 ? "broken" : was !== null ? "regressed" : passed === last.total ? "working" : "some failing";
-  return { state, passed, after: last.id, was };
+/** How each story in scope does against the latest build, from the last story recorded with a per-story
+ * breakdown; stories dbench reports done after that use their own result; the running one is marked. */
+export function storiesWorking(stories: Story[], scope: string[], running: string | null): StoriesWorking {
+  const latest = stories.findLast((s) => s.byStory)?.byStory ?? {};
+  const own = new Map(stories.filter((s) => s.ownTotal !== null).map((s) => [s.id, s]));
+  const state = (passed: number | null, total: number | null): StorySquare["state"] =>
+    !total ? "unbuilt" : passed === total ? "ok" : passed ? "part" : "bad";
+  const squares = scope.map((id): StorySquare => {
+    if (id === running) return { id, state: "running", passed: null, total: null };
+    const r = latest[id] ?? (own.has(id) ? { passed: own.get(id)!.ownPassed, total: own.get(id)!.ownTotal } : null);
+    return r ? { id, state: state(r.passed, r.total), passed: r.passed, total: r.total } : { id, state: "unbuilt", passed: null, total: null };
+  });
+  return { working: squares.filter((q) => q.state === "ok").length, scope: scope.length, squares };
+}
+
+/** The stories in a run's scope, in order: the job's list, else every story in the suite, else the recorded ones. */
+export function scopeIds(jobStories: string[], counts: Record<string, number> | undefined, recorded: string[]): string[] {
+  const ids = jobStories.length ? jobStories : counts ? Object.keys(counts) : recorded;
+  return [...new Set(ids.map((id) => String(Number(id))))].toSorted((a, b) => Number(a) - Number(b));
 }

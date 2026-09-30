@@ -54,10 +54,10 @@ unless it is idle.
 |---|---|
 | Run | model and engine, run id, spec version |
 | Status | one word from the dbench job, else the run record; below it the place in the node's queue, a failure's reason, "finishing story N" while a story is scored, or when the run ended |
-| Story | the running story out of the job's scope ("story 4 of 11") and its title; one square per story, coloured by its own held-out tests (all passed, some, none); the running one pulses |
+| Story | the running story out of the job's scope ("story 4 of 11") and its title; for other runs, how many stories were built |
 | Time | running: agent minutes on this story and how long the run has gone; otherwise agent time over its stories |
 | Activity | the running story's calls, output tokens and tasks, and the agent's latest action. Claude runs count calls and tokens only at the end of a story, so they show none mid-story rather than a false zero |
-| Flows working | how many of the scope's hidden flows (held-out tests, one user flow each) pass against the app as built so far, out of every flow in the scope (75 for vidi canvas), with a bar; then **working** (all built so far pass), **some failing**, **regressed** (fewer than before, "was N") or **broken** (none). Checked after each story, so it is the latest finished story. The total is counted from the private suite at the run's version (`--private`, default `../awesome-local-ai-bench-private`) |
+| Stories working | how many of the run's stories work against its latest build, out of every story in its scope ("4 of 11 working"), and one square per story: green all its hidden flows pass, amber some, red none, grey not built yet, pulsing blue being built. A story that worked and was broken by a later one turns red. From the latest story recorded with a per-story breakdown (accept.json `by_story`); the scope is the job's story list, else every story in the private suite at the run's version (`--private`) |
 | Score | the run's re-scores (`rescore/<suite version>/`), each linking to its per-story table; otherwise what scoring is waiting for |
 | Judge | **Judge →** once the run is finished, re-scored with the pack's current version and has its `workspace.bundle`; otherwise what it is waiting for |
 | Links | the run's record and summary on GitHub |

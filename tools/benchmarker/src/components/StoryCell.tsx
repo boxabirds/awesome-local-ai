@@ -1,7 +1,6 @@
 import type { Row } from "../../shared/types.ts";
-import { StoriesStrip } from "./StoriesStrip.tsx";
 
-/** Which story out of the scope, the running story's title, and one square per story. */
+/** Which story out of the scope, and the running story's title. */
 export function StoryCell({ row }: { row: Row }) {
   const live = row.live;
   const scope = live?.storiesInScope ?? null;
@@ -12,15 +11,11 @@ export function StoryCell({ row }: { row: Row }) {
       <>
         <div>{cur ? `story ${cur}${of}` : "starting"}</div>
         {live.storyTitle ? <div className="small clip" title={live.storyTitle}>{live.storyTitle}</div> : null}
-        <StoriesStrip row={row} />
       </>
     );
   }
   if (row.stories.length === 0) return <span className="wait">—</span>;
   return (
-    <>
-      <div>{row.stories.length}{of} stories</div>
-      <StoriesStrip row={row} />
-    </>
+    <div>{row.stories.length}{of} stories built</div>
   );
 }

@@ -2,7 +2,7 @@ import type { Row, State } from "../../shared/types.ts";
 import { ActivityCell } from "./ActivityCell.tsx";
 import { JudgeCell } from "./JudgeCell.tsx";
 import { LinksCell } from "./LinksCell.tsx";
-import { FlowsCell } from "./FlowsCell.tsx";
+import { StoriesWorkingCell } from "./StoriesWorkingCell.tsx";
 import { ScoreCell } from "./ScoreCell.tsx";
 import { StatusCell } from "./StatusCell.tsx";
 import { StoryCell } from "./StoryCell.tsx";
@@ -23,7 +23,7 @@ export function RunRow({ row, state, serverNow }: Props) {
       <td><StoryCell row={row} /></td>
       <td><TimeCell row={row} serverNow={serverNow} /></td>
       <td><ActivityCell row={row} /></td>
-      <td><FlowsCell row={row} /></td>
+      <td><StoriesWorkingCell row={row} /></td>
       <td><ScoreCell row={row} building={building} web={state.web} branch={state.branch} /></td>
       <td><JudgeCell judge={row.stages.judge} building={building} url={state.judgeUrl} /></td>
       <td><LinksCell row={row} web={state.web} branch={state.branch} /></td>

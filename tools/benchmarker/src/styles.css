@@ -41,8 +41,8 @@ tr:last-child td { border-bottom: none; }
 .wait { color: var(--muted); }
 .strip { display: flex; gap: 2px; flex-wrap: wrap; }
 .cell { width: 14px; height: 14px; border-radius: 3px; background: var(--none); }
-.c-ok { background: var(--ok); } .c-part { background: var(--part); } .c-bad { background: var(--bad); }
-.c-run { background: var(--run); animation: pulse 1.4s ease-in-out infinite; }
+.q-ok { background: var(--ok); } .q-part { background: var(--part); } .q-bad { background: var(--bad); } .q-unbuilt { background: var(--none); }
+.q-running { background: var(--run); animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .45; } }
 a { color: var(--run); text-decoration: none; } a:hover { text-decoration: underline; }
 .links a { display: block; }
@@ -62,6 +62,3 @@ button.chip.link { border-style: dashed; }
 .status-word { font-weight: 600; }
 .s-unknown { color: var(--muted); }
 .clip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.meter { height: 5px; background: var(--none); border-radius: 3px; margin: 3px 0; overflow: hidden; }
-.meter span { display: block; height: 100%; background: var(--ok); }
-.f-ok { color: var(--ok); font-weight: 600; } .f-part { color: var(--part); font-weight: 600; } .f-bad { color: var(--bad); font-weight: 600; }
