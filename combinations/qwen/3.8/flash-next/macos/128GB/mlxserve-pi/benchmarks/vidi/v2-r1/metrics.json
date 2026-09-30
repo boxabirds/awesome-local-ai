@@ -12283,6 +12283,1677 @@
           "found": 5,
           "total": 5
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r1/metrics.json",
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r1/server.log"
+        ],
+        "commit": "a395719d"
+      }
+    },
+    "11": {
+      "title": "Sketch freehand with a pen",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790766101.267458,
+      "agent": {
+        "seconds": 7783.1,
+        "steps": 373,
+        "tool_calls": 398,
+        "compactions": 6,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 792125,
+          "output": 284795,
+          "reasoning": 0,
+          "cache_read": 25376643,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a0f1fa-338d-7564-a496-9cdb62dc081a"
+        ]
+      },
+      "agent_finished": 1790773884.750748,
+      "conditions": {
+        "samples": 255,
+        "degraded": false,
+        "throttled_share": 0.89,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790766222.661345
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766253.139349
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766283.52558
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766313.8900118
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766344.380542
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766374.772328
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766405.0755808
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766435.4775722
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766465.80662
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766496.172587
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766526.4635289
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766556.856027
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766587.237068
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766617.760899
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766648.2876859
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766678.7425122
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766709.296979
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766739.708009
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766770.217261
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766800.6207008
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766831.0675242
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766861.383126
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766891.830624
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766922.219996
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766952.639206
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790766983.142831
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767013.450526
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767043.9481962
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767074.462333
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767104.977424
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767135.365705
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767165.7074292
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767195.987891
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767226.3485372
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767256.703058
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767287.065473
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767317.445879
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767347.838232
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767378.2910888
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767408.7414799
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767439.1897979
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767469.657269
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767500.1164958
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767530.515271
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767560.8776588
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767591.2380328
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767621.575653
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767651.9088142
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767682.289252
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767712.78691
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767743.153543
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767773.5740988
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767803.994633
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767834.3603032
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767864.809536
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767895.2950258
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767925.610142
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767956.05539
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790767986.39977
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768016.8249989
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768047.3841012
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768077.745256
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768108.1420102
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768138.456928
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768168.76243
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768199.068747
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768229.354039
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768259.75223
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768290.1021461
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768320.425194
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768350.747888
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768381.1697679
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768411.507684
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768441.858044
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768472.2799869
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768502.7836978
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768533.215294
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768563.623759
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768593.93439
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768624.254951
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768654.700141
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768685.145615
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768715.560082
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768745.910309
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768776.352248
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768806.784619
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768837.096907
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768867.509562
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768897.976372
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768928.410232
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768958.83692
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790768989.287714
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769019.80186
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769050.253317
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769080.6295118
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769110.940521
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769141.256824
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769171.578828
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769201.89609
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769232.216285
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769262.562359
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769292.895642
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769323.24471
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769353.685684
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769384.1073558
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769414.414614
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769444.809984
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769475.2519538
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769505.593493
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769535.8659
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769566.33949
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769596.825919
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769627.1645598
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769657.609051
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769688.114038
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769718.5504918
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769749.044571
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769779.481691
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769809.8751519
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769840.324073
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769870.7643352
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769901.209607
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769931.593761
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769961.902559
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790769992.216257
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770022.659104
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770053.094505
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770083.3941288
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770113.671913
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770144.1891022
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770174.603313
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770204.920664
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770235.2441258
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770265.598345
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770296.0403461
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770326.5503721
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770357.07073
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770387.5046442
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770417.928789
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770448.2536461
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770478.673964
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770509.0956469
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770539.5260968
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770569.963009
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770600.405793
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770630.71242
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770661.0959759
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770691.60207
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770722.1220028
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770752.625185
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770783.1361332
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770813.645138
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770844.109568
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770874.543592
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770904.873526
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770935.212224
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770965.503262
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790770995.821459
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771026.258367
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771056.6450298
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771086.9592981
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771117.350108
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771147.7853062
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771178.21957
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771208.633201
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771239.037633
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771269.48347
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771299.937085
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771330.398134
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771360.812427
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771391.215502
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771421.700178
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771452.174818
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771482.82689
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771513.22268
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771543.6422231
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771574.051685
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771604.546565
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771634.957333
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771665.3562791
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771695.752268
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771726.2252312
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771756.6736069
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771786.975723
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771817.2957492
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771847.680114
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771878.155221
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771908.5674329
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771939.001824
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790771969.477899
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790771999.773397
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790772030.2501152
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790772060.696432
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790772091.046367
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790772121.388313
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790772151.834252
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790772182.225301
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790772212.732138
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790772243.176922
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790772273.6012669
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790772304.0054982
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790772334.467005
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790772364.8831942
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790772455.965724
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790772486.405945
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790772516.802214
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790772547.272415
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790772586.853656
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773105.117364
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773135.556577
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773165.997375
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773196.364545
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773226.657888
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773257.1449332
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773287.537735
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773317.963
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773348.354629
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773378.8198102
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773409.319645
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773439.6878269
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773470.1590972
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773500.554831
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790773531.209971
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790773775.2638001
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790773805.730299
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773836.206961
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790773866.867362
+          }
+        ],
+        "swap_start_gb": 2.48,
+        "swap_max_gb": 5.91,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 21.0,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": 93.0,
+        "server_footprint_peak_gb": 95.0,
+        "gpu": null
+      },
+      "containment": {
+        "enabled": false
+      },
+      "spec_tampered": true,
+      "agent_commits": 1,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 5.0,
+            "tail": "\nadded 177 packages, and audited 178 packages in 5s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n9 vulnerabilities (1 low, 2 moderate, 6 high)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm warn allow-scripts 6 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.27.3 (postinstall: node install.js)\nnpm warn allow-scripts   sharp@0.34.5 (install: node install/check.js || npm run build)\nnpm warn allow-scripts   workerd@1.20260310.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260926.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.9,
+            "tail": "\n> vidi6@0.0.1 build\n> vite build\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 120 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.44 kB \u2502 gzip:   0.27 kB\ndist/client/assets/index-CHRMorrm.css    0.95 kB \u2502 gzip:   0.55 kB\ndist/client/assets/index-CEM7cQpu.js   404.93 kB \u2502 gzip: 124.05 kB\n\n\u001b[32m\u2713 built in 251ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.9,
+            "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit && tsc -p tsconfig.worker.json --noEmit\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 1.7,
+            "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-layout.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/geometry.test.ts \u001b[2m(\u001b[22m\u001b[2m28 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/selection.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m25 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-boundaries.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model-group.test.ts \u001b[2m(\u001b[22m\u001b[2m35 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 15\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/shape-model.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-model.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m24 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 55\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-history.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 35\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/connector-model.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 15\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/live-config.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/stroke.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 223\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 86\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/create-board.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 372\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m a link code is unguessable (TC-04)\u001b[2m > \u001b[22mis 22 characters long and matches BOARD_ID_PATTERN, 10,000 times \u001b[33m 357\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 859\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m joinChunks (TC-01)\u001b[2m > \u001b[22mround-trips 0, 1, one chunk, and one chunk plus one bytes \u001b[33m 342\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m20 passed\u001b[39m\u001b[22m\u001b[90m (20)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m273 passed\u001b[39m\u001b[22m\u001b[90m (273)\u001b[39m\n\u001b[2m   Start at \u001b[22m 14:11:33\n\u001b[2m   Duration \u001b[22m 1.13s\u001b[2m (transform 1.09s, setup 0ms, collect 2.23s, tests 1.73s, environment 2ms, prepare 937ms)\u001b[22m\n\n",
+            "passed": 273,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 5.4,
+            "tail": "[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1502\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m sticky text editing (sticky.text)\u001b[2m > \u001b[22mTC-25 stores typed text and shows it after editing \u001b[33m 586\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StrokeObject.test.tsx \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1743\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m stroke.object\u001b[2m > \u001b[22mTC-15 paints the stored path as one smooth path, in board units, whatever the zoom \u001b[33m 401\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m stroke.object\u001b[2m > \u001b[22mTC-15 paints a stroke with the colour and thickness it was drawn with \u001b[33m 366\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/useActiveTool.test.tsx \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1772\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m tools.active_tool\u001b[2m > \u001b[22mTC-22 puts the tool a key names up, and only that one \u001b[33m 414\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/TextObject.test.tsx \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1862\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m text.editor\u001b[2m > \u001b[22mTC-19 puts the caret at the end, leaves Enter to the browser, keeps it selected on Escape \u001b[33m 463\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ShapeObject.test.tsx \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2015\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m shape.ui\u001b[2m > \u001b[22mTC-15 draws a rectangle, an ellipse and a diamond, and the shape says which it is \u001b[33m 562\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Connector.test.tsx \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2241\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m connector.ui\u001b[2m > \u001b[22mdraws an arrow from the edge of one thing to the edge of the next \u001b[33m 380\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Selection.test.tsx \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2281\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m selection bar (sel.interaction)\u001b[2m > \u001b[22mTC-17 shows \"2 selected\" and a Delete selection button \u001b[33m 571\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2346\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m create (sticky.creation)\u001b[2m > \u001b[22mTC-36 creates a note centred on the double-click and opens its editor \u001b[33m 604\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/SharePanel.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 141\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 273\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.remote.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 73\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/PenTool.test.tsx \u001b[2m(\u001b[22m\u001b[2m29 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2721\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m pen.draw\u001b[2m > \u001b[22mTC-09 records the path the pointer traced and writes one stroke when it lifts \u001b[33m 576\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m pen.long_stroke\u001b[2m > \u001b[22mTC-12 commits a part at the limit and carries on drawing from its last point \u001b[33m 577\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 214\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/UndoBoundaries.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 313\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m22 passed\u001b[39m\u001b[22m\u001b[90m (22)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m242 passed\u001b[39m\u001b[22m\u001b[90m (242)\u001b[39m\n\u001b[2m   Start at \u001b[22m 14:11:34\n\u001b[2m   Duration \u001b[22m 5.05s\u001b[2m (transform 2.39s, setup 4.64s, collect 9.61s, tests 25.39s, environment 21.24s, prepare 3.66s)\u001b[22m\n\n",
+            "passed": 242,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 4.0,
+            "tail": "n/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2ma board that comes back (persist.room)\u001b[2m > \u001b[22m\u001b[2mrefuses everybody while its storage cannot be read, and serves them once it can (TC-26)\n\u001b[22m\u001b[39m[vidi6] dropping a connection that could not be written to { error: \"TypeError: Can't call WebSocket send() after close().\" }\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2ma live board (sync.room)\u001b[2m > \u001b[22m\u001b[2mcloses the sender that sent a text frame instead of bytes and no one else (TC-15)\n\u001b[22m\u001b[39m[vidi6] dropping a connection that could not be written to { error: \"TypeError: Can't call WebSocket send() after close().\" }\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2ma live board (sync.room)\u001b[2m > \u001b[22m\u001b[2mcloses the sender that sent a text frame instead of bytes and no one else (TC-15)\n\u001b[22m\u001b[39m[vidi6] dropping a connection that could not be written to { error: \"TypeError: Can't call WebSocket send() after close().\" }\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2ma live board (sync.room)\u001b[2m > \u001b[22m\u001b[2mcloses the sender that sent bytes that stop in the middle of a message and no one else (TC-15)\n\u001b[22m\u001b[39m[vidi6] dropping a connection that could not be written to { error: \"TypeError: Can't call WebSocket send() after close().\" }\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2ma live board (sync.room)\u001b[2m > \u001b[22m\u001b[2mcloses the sender that sent bytes that stop in the middle of a message and no one else (TC-15)\n\u001b[22m\u001b[39m[vidi6] dropping a connection that could not be written to { error: \"TypeError: Can't call WebSocket send() after close().\" }\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2ma live board (sync.room)\u001b[2m > \u001b[22m\u001b[2mcloses the sender that sent a message type nobody defined and no one else (TC-15)\n\u001b[22m\u001b[39m[vidi6] dropping a connection that could not be written to { error: \"TypeError: Can't call WebSocket send() after close().\" }\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2ma live board (sync.room)\u001b[2m > \u001b[22m\u001b[2mcloses the sender that sent a message type nobody defined and no one else (TC-15)\n\u001b[22m\u001b[39m[vidi6] dropping a connection that could not be written to { error: \"TypeError: Can't call WebSocket send() after close().\" }\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2ma live board (sync.room)\u001b[2m > \u001b[22m\u001b[2mcloses the sender that sent bytes that are not a Yjs update and no one else (TC-15)\n\u001b[22m\u001b[39mCaught error while handling a Yjs update Error: Unexpected end of array\n    at Module.create (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace/node_modules/lib0/error.js:12:28)\n    at Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace/node_modules/lib0/decoding.js:40:41\n[vidi6] closing a connection that sent a frame it could not apply { error: 'Error: Unexpected end of array' }\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2ma live board (sync.room)\u001b[2m > \u001b[22m\u001b[2mcloses the sender that sent bytes that are not a Yjs update and no one else (TC-15)\n\u001b[22m\u001b[39m[vidi6] dropping a connection that could not be written to { error: \"TypeError: Can't call WebSocket send() after close().\" }\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2ma live board (sync.room)\u001b[2m > \u001b[22m\u001b[2mcloses the sender that sent bytes that are not a Yjs update and no one else (TC-15)\n\u001b[22m\u001b[39m[vidi6] dropping a connection that could not be written to { error: \"TypeError: Can't call WebSocket send() after close().\" }\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2ma live board (sync.room)\u001b[2m > \u001b[22m\u001b[2mkeeps relaying after a write to a connection that died mid-flight (TC-31)\n\u001b[22m\u001b[39m[vidi6] dropping a connection that could not be written to { error: 'Error: the connection is gone' }\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 45.7,
+            "tail": "    Locator: getByTestId('share-panel').getByText('Copied')\n    Expected: visible\n    Timeout: 5000ms\n    Error: element(s) not found\n\n    Call log:\n      - Expect \"toBeVisible\" getByTestId('share-panel').getByText('Copied') with timeout 5000ms\n      - waiting for getByTestId('share-panel').getByText('Copied')\n\n\n      60 |   const value = await field.inputValue();\n      61 |   await page.getByTestId('copy-link-button').click();\n    > 62 |   await expect(page.getByTestId('share-panel').getByText('Copied')).toBeVisible();\n         |                                                                     ^\n      63 |   const clipboard = await readClipboard(page);\n      64 |   if (clipboard !== null) {\n      65 |     expect(clipboard, 'the copied clipboard matches the field').toBe(value);\n        at copyShareLink (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace/tests/e2e/share-board.spec.ts:62:69)\n        at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace/tests/e2e/share-board.spec.ts:87:16\n\n    Error Context: test-results/share-board-a-board-is-shared-by-its-link-TC-26--chromium/error-context.md\n\n  2) [chromium] \u203a tests/e2e/share-board.spec.ts:101:1 \u203a a board link that is not a board says so and makes nothing (TC-27) \n\n    Error: expect(locator).toBeVisible() failed\n\n    Locator: getByTestId('board-not-found')\n    Expected: visible\n    Timeout: 5000ms\n    Error: element(s) not found\n\n    Call log:\n      - Expect \"toBeVisible\" getByTestId('board-not-found') with timeout 5000ms\n      - waiting for getByTestId('board-not-found')\n\n\n      103 |   const missing = newBoardId();\n      104 |   await page.goto(`/b/${missing}`);\n    > 105 |   await expect(page.getByTestId('board-not-found')).toBeVisible();\n          |                                                     ^\n      106 |   await expect(page.getByTestId('board-viewport')).toHaveCount(0);\n      107 |\n      108 |   // Opening it did not invent a board: the server still has no such board.\n        at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace/tests/e2e/share-board.spec.ts:105:53\n\n    Error Context: test-results/share-board-a-board-link-t-5baa5-so-and-makes-nothing-TC-27--chromium/error-context.md\n\n  3) [chromium] \u203a tests/e2e/share-board.spec.ts:118:1 \u203a a refused clipboard still leaves a link to copy by hand (TC-28) \n\n    Error: expect(locator).toBeVisible() failed\n\n    Locator: getByTestId('share-panel').getByText(/Copy the link above/)\n    Expected: visible\n    Timeout: 5000ms\n    Error: element(s) not found\n\n    Call log:\n      - Expect \"toBeVisible\" getByTestId('share-panel').getByText(/Copy the link above/) with timeout 5000ms\n      - waiting for getByTestId('share-panel').getByText(/Copy the link above/)\n\n\n      136 |   await page.getByTestId('copy-link-button').click();\n      137 |   // Told what happened, and given a link it can select and copy itself.\n    > 138 |   await expect(page.getByTestId('share-panel').getByText(/Copy the link above/)).toBeVisible();\n          |                                                                                  ^\n      139 |   await expect(field).toHaveValue(value);\n      140 | });\n      141 |\n        at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace/tests/e2e/share-board.spec.ts:138:82\n\n    Error Context: test-results/share-board-a-refused-clip-3029f-link-to-copy-by-hand-TC-28--chromium/error-context.md\n\n  3 failed\n    [chromium] \u203a tests/e2e/share-board.spec.ts:79:1 \u203a a board is shared by its link (TC-26) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    [chromium] \u203a tests/e2e/share-board.spec.ts:101:1 \u203a a board link that is not a board says so and makes nothing (TC-27) \n    [chromium] \u203a tests/e2e/share-board.spec.ts:118:1 \u203a a refused clipboard still leaves a link to copy by hand (TC-28) \n  72 passed (45.1s)\n",
+            "passed": 72,
+            "failed": 3
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 63,
+        "total": 70,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 7,
+            "total": 10
+          },
+          "03": {
+            "passed": 4,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5
+          },
+          "07": {
+            "passed": 8,
+            "total": 8
+          },
+          "08": {
+            "passed": 7,
+            "total": 7
+          },
+          "09": {
+            "passed": 5,
+            "total": 6
+          },
+          "10": {
+            "passed": 8,
+            "total": 8
+          },
+          "11": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "1d71fb9968a068da5f1b16ae6644d51308c6364a",
+      "requests": {},
+      "time_split": {
+        "wall_s": 7783.5,
+        "model": null,
+        "tools_s": 1017.3,
+        "tools_by_kind": {
+          "e2e": 948.8,
+          "unit": 53.1,
+          "build": 14.0,
+          "bash": 1.2,
+          "read": 0.1,
+          "edit": 0.1,
+          "write": 0.0
+        },
+        "compaction_s": 772.6,
+        "compactions": 6,
+        "other_s": 5993.6
+      },
+      "loc": {
+        "files": 150,
+        "lines": 35604
+      },
+      "finished": 1790774079.483101,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write stroke model and geometry unit tests first (TC-01 to TC-08)",
+          "type": "test:unit",
+          "implements": [
+            "stroke.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 2,
+          "title": "Implement stroke model: RDP simplify, split, smooth path, createStroke, scaled points",
+          "type": "implementation",
+          "implements": [
+            "stroke.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement Pen tool: capture, local preview, commit on finish/cancel/limit, options toolbar, viewport routing",
+          "type": "implementation",
+          "implements": [
+            "pen.tool"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement StrokeObject rendering and registry entry with line-distance hit test and aspect-locked resize",
+          "type": "implementation",
+          "implements": [
+            "stroke.object"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Component tests for Pen tool and StrokeObject (TC-09 to TC-16, TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "pen.tool",
+            "stroke.object"
+          ],
+          "tcs": [
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-21"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 6,
+          "title": "E2E pen workflows: annotate, shared sketch, tidy up (TC-17 to TC-20)",
+          "type": "test:e2e",
+          "implements": [
+            "pen.tool",
+            "stroke.object"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20"
+          ],
+          "status": "committed",
+          "found": 4,
+          "total": 4
+        }
       ]
     }
   },
@@ -16256,6 +17927,384 @@
           "accept": {
             "passed": 3,
             "total": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Sketch freehand with a pen",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790766101.267458,
+      "ended_at": 1790773884.750748,
+      "agent_minutes": 129.7,
+      "calls": 373,
+      "output_tokens": 284795,
+      "compactions": 6,
+      "last_commit_at": 1790773865.0,
+      "accept": {
+        "passed": 5,
+        "total": 5
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write stroke model and geometry unit tests first (TC-01 to TC-08)",
+          "type": "test:unit",
+          "implements": [
+            "stroke.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 2,
+          "title": "Implement stroke model: RDP simplify, split, smooth path, createStroke, scaled points",
+          "type": "implementation",
+          "implements": [
+            "stroke.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement Pen tool: capture, local preview, commit on finish/cancel/limit, options toolbar, viewport routing",
+          "type": "implementation",
+          "implements": [
+            "pen.tool"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement StrokeObject rendering and registry entry with line-distance hit test and aspect-locked resize",
+          "type": "implementation",
+          "implements": [
+            "stroke.object"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Component tests for Pen tool and StrokeObject (TC-09 to TC-16, TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "pen.tool",
+            "stroke.object"
+          ],
+          "tcs": [
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-21"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 6,
+          "title": "E2E pen workflows: annotate, shared sketch, tidy up (TC-17 to TC-20)",
+          "type": "test:e2e",
+          "implements": [
+            "pen.tool",
+            "stroke.object"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20"
+          ],
+          "status": "committed",
+          "found": 4,
+          "total": 4
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 31.4,
+          "calls": 69,
+          "output_tokens": 72676,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 10.5,
+          "calls": 46,
+          "output_tokens": 54481,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 10.5,
+          "calls": 43,
+          "output_tokens": 55574,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 46.4,
+          "calls": 181,
+          "output_tokens": 139642,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 62.6,
+          "calls": 265,
+          "output_tokens": 165955,
+          "accept": {
+            "passed": 3,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-04",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 147.0,
+          "calls": 526,
+          "output_tokens": 478683,
+          "accept": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 121.3,
+          "calls": 272,
+          "output_tokens": 216358,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 93.1,
+          "calls": 225,
+          "output_tokens": 160291,
+          "accept": {
+            "passed": 0,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 0.8,
+          "calls": 2,
+          "output_tokens": 34,
+          "accept": {
+            "passed": 4,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 96.0,
+          "calls": 292,
+          "output_tokens": 194169,
+          "accept": {
+            "passed": 1,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 1
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 50.6,
+          "calls": 190,
+          "output_tokens": 94849,
+          "accept": {
+            "passed": 0,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 22.0,
+          "calls": 129,
+          "output_tokens": 48132,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 44.9,
+          "calls": 179,
+          "output_tokens": 92825,
+          "accept": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 29.0,
+          "calls": 107,
+          "output_tokens": 46899,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 64.7,
+          "calls": 239,
+          "output_tokens": 78606,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 68.6,
+          "calls": 211,
+          "output_tokens": 97371,
+          "accept": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 32.8,
+          "calls": 174,
+          "output_tokens": 112634,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 46.4,
+          "calls": 199,
+          "output_tokens": 128282,
+          "accept": {
+            "passed": 1,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 35.9,
+          "calls": 174,
+          "output_tokens": 114931,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 35.1,
+          "calls": 127,
+          "output_tokens": 78648,
+          "accept": {
+            "passed": 5,
+            "total": 5
           }
         }
       ]
