@@ -1,7 +1,7 @@
 import type { MachineGroup } from "../../shared/grouping.ts";
 import type { Machine, State } from "../../shared/types.ts";
 import { RunRow } from "./RunRow.tsx";
-import { CombinationLink } from "./EntityLinks.tsx";
+import { CombinationLink, MachineLink } from "./EntityLinks.tsx";
 import { GLOSSARY } from "../../shared/glossary.ts";
 import { comboStats } from "../../shared/stats.ts";
 import type { Row } from "../../shared/types.ts";
@@ -81,7 +81,7 @@ export function MachineSection({ group, state, serverNow, scoreTotal }: Props) {
   return (
     <section data-machine={group.machine}>
       <h2>
-        <span className="machine-name">{group.machine}</span>
+        <span className="machine-name"><MachineLink machine={group.machine} host={host} /></span>
         {host ? <span className="small">{host}</span> : null}
         {group.info ? <NodeStatus info={group.info} /> : null}
       </h2>

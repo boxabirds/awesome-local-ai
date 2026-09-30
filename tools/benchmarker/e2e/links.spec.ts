@@ -116,3 +116,23 @@ test.describe("comparisons stay within one version family", () => {
     await expect(page$(page, "combination")).not.toContainText("canvas-s-01");
   });
 });
+
+test.describe("machine and story addresses", () => {
+  test("every machine name links to its page, from a machine section, a time bar and a run", async ({ page }) => {
+    await page.locator('section[data-machine="gruntus"] h2 a.machine-link').click();
+    await expect(page).toHaveURL(/#\/m\/gruntus$/);
+    await expect(page$(page, "machine")).toBeVisible();
+    await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5`);
+    await page.locator('[data-fact="machine"] a.machine-link').click();
+    await expect(page$(page, "machine")).toContainText("gruntus");
+  });
+
+  test("a story page opens by address, and a story or machine that doesn't exist says so", async ({ page }) => {
+    await page.goto("/#/vidi/s/2");
+    await expect(page$(page, "story")).toBeVisible();
+    await page.goto("/#/m/no-such-machine");
+    await expect(page$(page, "notFound")).toContainText("no-such-machine");
+    await page.goto("/#/nopack/s/2");
+    await expect(page$(page, "notFound")).toBeVisible();
+  });
+});

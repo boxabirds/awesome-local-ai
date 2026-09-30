@@ -2,7 +2,7 @@
 import type { Row } from "../../../shared/types.ts";
 import { modelOf } from "../../../shared/combinationView.ts";
 import { summarise } from "../../../shared/stats.ts";
-import { CombinationLink } from "../EntityLinks.tsx";
+import { CombinationLink, MachineLink } from "../EntityLinks.tsx";
 import { Term } from "./Term.tsx";
 import { fmtCount, SpreadText } from "./Spread.tsx";
 
@@ -22,7 +22,7 @@ export function Related({ stack, runs, all }: { stack: string; runs: Row[]; all:
     <div className="related">
       <div>
         <h3><Term id="comboMachines" /></h3>
-        <ul className="related-machines">{machinesOf(runs).map((m) => <li key={m.machine}><b>{m.machine}</b>{m.host ? <span className="small"> {m.host}</span> : null}</li>)}</ul>
+        <ul className="related-machines">{machinesOf(runs).map((m) => <li key={m.machine}><b><MachineLink machine={m.machine} host={m.host} /></b>{m.host ? <span className="small"> {m.host}</span> : null}</li>)}</ul>
       </div>
       <div>
         <h3><Term id="relatedCombinations" /></h3>

@@ -557,6 +557,8 @@ test.describe("links and keyboard", () => {
       const route = parseRoute(href);
       if (route.page === "overview") { await expect(page.locator("table.combos"), href).toBeVisible(); continue; }
       if (route.page === "combination") { await expect(page.locator('[data-page="combination"]'), href).toBeVisible(); continue; }
+      if (route.page === "machine") { await expect(page.locator('[data-page="machine"]'), href).toContainText(route.machine); continue; }
+      if (route.page === "story") { await expect(page.locator('[data-page="story"]'), href).toContainText(`Story ${route.story}`); continue; }
       if (route.page === "run") {
         await expect(page.locator('[data-page="run"] .rp-header .run-id'), href).toHaveText(route.runId);
         await expect(page.locator('[data-page="run"] .rp-header a.combination-link'), href).toHaveAttribute("data-tip", route.stack);

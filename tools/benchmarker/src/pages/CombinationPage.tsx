@@ -5,7 +5,7 @@ import type { Row, State } from "../../shared/types.ts";
 import { NOT_COUNTED_ORDER, summarise } from "../../shared/stats.ts";
 import { buildMatrix, DEFAULT_METRIC, type Metric } from "../../shared/combinationView.ts";
 import { qualityClass } from "../format.ts";
-import { Breadcrumb } from "../components/EntityLinks.tsx";
+import { Breadcrumb, MachineLink } from "../components/EntityLinks.tsx";
 import { Term, termTip } from "../components/combination/Term.tsx";
 import { fmtCount, fmtHours, fmtTokens, SpreadText } from "../components/combination/Spread.tsx";
 import { metricLabel, MetricSwitch, RunMatrix } from "../components/combination/RunMatrix.tsx";
@@ -43,7 +43,7 @@ export function CombinationPage({ stack, runs, state }: { stack: string; runs: R
         <div className="combo-title">
           <h1>{c.label}</h1>
           <code className="combo-id" data-tip={termTip("combination")}>{stack}</code>
-          <p className="combo-on">on {machinesOf(runs).map((m, i) => <span key={m.machine}>{i ? ", " : ""}<b>{m.machine}</b>{m.host ? <span className="small"> ({m.host})</span> : null}</span>)} · {c.pack} · suite {runs[0].suite}</p>
+          <p className="combo-on">on {machinesOf(runs).map((m, i) => <span key={m.machine}>{i ? ", " : ""}<b><MachineLink machine={m.machine} host={m.host} /></b>{m.host ? <span className="small"> ({m.host})</span> : null}</span>)} · {c.pack} · suite {runs[0].suite}</p>
         </div>
         <dl className="headline">
           <div className="kpi primary" data-kpi="score">
