@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import type { Size } from './camera';
-import { GRID_SPACING_WORLD } from '../../shared/config';
+import { GRID_SPACING_WORLD, DRAG_THRESHOLD_PX } from '../../shared/config';
 
 export interface BoardViewportProps {
   children?: React.ReactNode;
@@ -10,6 +10,10 @@ export interface BoardViewportProps {
   onEndPan(): void;
   onWheel(e: { deltaX: number; deltaY: number; ctrlOrMeta: boolean; point: { x: number; y: number } }): void;
   onGestureZoom(scale: number, point: { x: number; y: number }): void;
+  /** A press on empty board space that did not turn into a pan. */
+  onEmptyClick?(p: { x: number; y: number }): void;
+  /** A double-click on empty board space (not on an object). */
+  onEmptyDblClick?(p: { x: number; y: number }): void;
   dataTestId?: string;
 }
 
@@ -21,10 +25,21 @@ export function BoardViewport({
   onEndPan,
   onWheel,
   onGestureZoom,
+  onEmptyClick,
+  onEmptyDblClick,
   dataTestId,
 }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
+  const panStartRef = useRef<{ x: number; y: number } | null>(null);
+  const panMovedRef = useRef(false);
+  const emptyClickRef = useRef(false);
+
+  const isBoardSurface = useCallback((target: EventTarget | null): boolean => {
+    const el = target as HTMLElement | null;
+    if (!el) return false;
+    return el === viewportRef.current || el.dataset.gridLayer === 'true';
+  }, []);
 
   const getPoint = useCallback((e: { clientX: number; clientY: number }): { x: number; y: number } => {
     const rect = viewportRef.current?.getBoundingClientRect();
@@ -34,42 +49,56 @@ export function BoardViewport({
 
   // Pointer handlers
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    const target = e.target as HTMLElement;
-    if (
-      target !== viewportRef.current &&
-      !target.dataset.gridLayer
-    ) return;
+    if (!isBoardSurface(e.target)) return;
 
     e.preventDefault();
     viewportRef.current?.setPointerCapture(e.pointerId);
     isPanningRef.current = true;
+    emptyClickRef.current = true;
+    panMovedRef.current = false;
     const p = getPoint(e);
+    panStartRef.current = p;
     onBeginPan(p);
-  }, [getPoint, onBeginPan]);
+  }, [getPoint, onBeginPan, isBoardSurface]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!isPanningRef.current) return;
     const p = getPoint(e);
+    const start = panStartRef.current;
+    if (start && Math.hypot(p.x - start.x, p.y - start.y) >= DRAG_THRESHOLD_PX) {
+      panMovedRef.current = true;
+    }
     onPanMove(p);
   }, [getPoint, onPanMove]);
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (!isPanningRef.current) return;
     isPanningRef.current = false;
+    const p = getPoint(e);
     onEndPan();
-  }, [onEndPan]);
+    // A press on empty space that never became a pan clears the selection.
+    if (emptyClickRef.current && !panMovedRef.current) onEmptyClick?.(p);
+    emptyClickRef.current = false;
+  }, [getPoint, onEndPan, onEmptyClick]);
 
   const handlePointerCancel = useCallback(() => {
     if (!isPanningRef.current) return;
     isPanningRef.current = false;
+    emptyClickRef.current = false;
     onEndPan();
   }, [onEndPan]);
 
   const handleLostPointerCapture = useCallback(() => {
     if (!isPanningRef.current) return;
     isPanningRef.current = false;
+    emptyClickRef.current = false;
     onEndPan();
   }, [onEndPan]);
+
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    if (!isBoardSurface(e.target)) return;
+    onEmptyDblClick?.(getPoint(e));
+  }, [getPoint, onEmptyDblClick, isBoardSurface]);
 
   // Wheel handler (non-passive)
   useEffect(() => {
@@ -167,6 +196,7 @@ export function BoardViewport({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       onLostPointerCapture={handleLostPointerCapture}
+      onDoubleClick={handleDoubleClick}
     >
       {/* Grid layer (pointer target) */}
       <div

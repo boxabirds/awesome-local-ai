@@ -23,3 +23,79 @@
 9. **Grid rendering**: Dot grid is rendered via CSS `radial-gradient` with computed `background-size` and `background-position` derived from camera position and zoom modulo grid spacing. No canvas.
 
 10. **World layer transform**: Uses `transform: scale(zoom) translate(-x, -y)` with `transform-origin: 0 0`. Origin marker is a crosshair at world (0,0) rendered in all builds for e2e assertions.
+
+## Story 2: Capture ideas on sticky notes and rearrange them
+
+### Decisions made
+
+1. **Drag listeners live on `window`, not on the note**: the design's `setPointerCapture`
+   is unusable here because `bringToFront()` at drag start re-orders the world layer's
+   children, and React moving the DOM node drops the capture (Chromium fires
+   `lostpointercapture` immediately and the drag stalls). Instead the note adds
+   `pointermove` / `pointerup` / `pointercancel` listeners on `window` for the duration
+   of the press, filtered by `pointerId`. Behaviour matches the state diagram: release
+   selects, cancel keeps the last applied position, and no `lostpointercapture` handler
+   is needed.
+
+2. **`board-model` rejections are pre-transaction**: `moveObject`, `setStickyColor`,
+   `bringToFront` and `deleteObject` validate (stale id, unknown colour, non-finite
+   coordinates, already-topmost) and return `false` *before* `doc.transact(...)`, so a
+   rejected mutation emits zero `update` events. Equal-value writes (`moveObject` to the
+   same point, `setStickyColor` to the current colour) are also no-ops, which keeps the
+   rAF drag loop from writing a Yjs update per frame while the pointer is idle.
+
+3. **`applyTextDiff` counts code points, writes UTF-16 offsets**: the common prefix and
+   suffix are compared over `Array.from(text)` so an emoji is never split, then converted
+   back to UTF-16 offsets for `ytext.delete`/`insert` — one delete and/or one insert
+   inside a single transaction (required for story 3's concurrency).
+
+4. **Font fit measures the display div only**: `fitFontSize(el, box)` binary-searches
+   integer px in `[STICKY_FONT_MIN_PX, STICKY_FONT_MAX_PX]` using `scrollHeight <=
+   clientHeight`, run in a `useLayoutEffect` on mount and on text change (zoom scales
+   uniformly, so no re-fit is needed). In jsdom `clientHeight` is 0, which is treated as
+   an unbounded box and leaves the size at the maximum — the only layout-free assertion
+   the component tests can make; the real shrink-to-10px path is covered by e2e TC-33.
+
+5. **Note toolbar stays screen-sized inside the scaled world layer**: rather than
+   portalling out of the world layer, the anchor div uses `transform: scale(1/zoom)`
+   with `transform-origin: bottom left`, so the toolbar keeps its 1:1 pixel size at any
+   zoom without measuring the note's screen box.
+
+6. **Text editor is uncontrolled**: the textarea's value is set once on mount from the
+   `Y.Text` (focus + caret at end) and every `input` writes through with
+   `clampToLimit` + `applyTextDiff`; IME input is deferred to `compositionend` so
+   composition never duplicates characters. Ending editing therefore writes nothing
+   further — Escape ends as *Selected*, a pointerdown outside the note ends as
+   *Unselected* (document-level capture listener, idempotent via a ref), blur flushes
+   defensively.
+
+7. **Empty-space click detection in `BoardViewport`**: `onEmptyClick` fires on
+   `pointerup` when the press started on the viewport/grid layer and never exceeded
+   `DRAG_THRESHOLD_PX`, and `onEmptyDblClick` fires on `dblclick` with the same target
+   test. Both props are optional, so story 1's `BoardViewport` tests are untouched. The
+   world layer is `0x0`, so clicks on empty space fall through to the grid layer.
+
+8. **Selection cleanup is an `App` effect**: a note can vanish while selected (bin
+   button, remote deletion in story 3), so `App` clears `selectedId` whenever it is
+   missing from the snapshot. `StickyNote` additionally checks the live `Y.Map` in its
+   rAF drag step and stops quietly if the note is gone (TC-37).
+
+9. **`useBoardDoc` snapshot cache**: `objects.observeDeep` bumps a revision counter and
+   `getSnapshot` memoises `snapshot(doc)` per revision for `useSyncExternalStore`; the
+   `Y.Doc` is created once per mount with `initDoc`.
+
+10. **E2E helpers must wait for the camera to settle**: `setCamera()` posts to
+    `window.__vidi6` and React re-renders asynchronously, so a following
+    `boundingBox()` could measure the previous frame and make the test grab empty board
+    (an intermittent failure at 50% zoom). `setCamera` now waits until the world layer's
+    computed matrix carries the requested zoom/pan.
+
+11. **`window.__vidi6.getBoard()`**: added next to `setCamera` (same test-mode gate,
+    now via `registerTestHooks`) so e2e tests can assert the model — positions, z order,
+    colour and the 1,000 character clamp — instead of inferring it from pixels.
+
+12. **Browsers**: the Playwright config stays chromium-only. Firefox and WebKit binaries
+    are present but the host is missing their system libraries (`libgtk-3-0t64`, ...),
+    and installing them needs root and network access that this environment does not
+    have; story 1's tests fail there for the same reason.
+

@@ -1,3 +1,59 @@
+commit 3fafab21c4e3cebfd2f1c07fcc79b868eb16be1a
+vidi-agent  Wed Sep 30 17:26:21 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  76 +++++++
+ src/client/App.tsx                        | 112 +++++++++--
+ src/client/board/Toolbar.tsx              |  62 ++++++
+ src/client/board/useSelection.ts          |  37 ++++
+ src/client/canvas/BoardViewport.tsx       |  48 ++++-
+ src/client/canvas/testHooks.ts            |   8 +-
+ src/client/objects/NoteToolbar.tsx        |  90 +++++++++
+ src/client/objects/StickyNote.tsx         | 318 ++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          |  23 ++-
+ src/client/objects/StickyTextEditor.tsx   | 177 +++++++++++++++++
+ tests/component/StickyNote.test.tsx       | 279 ++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 224 +++++++++++++++++++++
+ tests/component/Toolbars.test.tsx         | 217 ++++++++++++++++++++
+ tests/component/harness/BoardHarness.tsx  | 121 ++++++++++++
+ tests/component/pointerUtils.ts           |  45 +++++
+ tests/e2e/helpers/board.ts                | 136 +++++++++++++
+ tests/e2e/sticky-notes.spec.ts            | 221 +++++++++++++++++++++
+ 17 files changed, 2157 insertions(+), 37 deletions(-)
+commit 21e69b96f82d6a5b6d48bf2c938020acade3e9f6
+vidi-agent  Wed Sep 30 16:07:28 2026 +0000
+
+    story 2: sticky text logic (clamp, minimal Y.Text diff, counter, font fit) with unit tests
+
+
+ src/client/objects/StickyText.ts | 113 ++++++++++++++++++++
+ tests/unit/sticky-text.test.ts   | 215 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 328 insertions(+)
+commit 69f0925c39d102b574bbb7923584dc75381183c1
+vidi-agent  Wed Sep 30 16:00:49 2026 +0000
+
+    story 2: Yjs board model and useBoardDoc snapshot hook
+
+
+ src/client/board/useBoardDoc.ts |  54 +++++++++++++
+ src/shared/board-model.ts       | 174 +++++++++++++++++++++++++++++++++++++---
+ tests/unit/board-model.test.ts  |  12 ++-
+ 3 files changed, 229 insertions(+), 11 deletions(-)
+commit e50f7a6d9fdede26ed869331768e87a5e48564d7
+vidi-agent  Wed Sep 30 15:57:17 2026 +0000
+
+    story 2: board model unit tests (TC-01..TC-12, TC-39) with stubs
+
+
+ package-lock.json              |  48 +++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  54 +++++++
+ src/shared/config.ts           |  28 ++++
+ tests/fixtures/texts.ts        |  60 +++++++
+ tests/unit/board-model.test.ts | 354 +++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 545 insertions(+), 2 deletions(-)
 commit 34e0d04e2b765b4dd5727528870c8cd7df9a18b3
 vidi-agent  Wed Sep 30 15:51:37 2026 +0000
 
