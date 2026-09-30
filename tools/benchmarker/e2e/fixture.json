@@ -405,5 +405,91 @@
       "11": 5,
       "12": 5
     }
+  },
+  "machines": {
+    "gruntus": {
+      "hostname": "gruntus",
+      "os": "linux",
+      "cpu_brand": "13th Gen Intel(R) Core(TM) i9-13900F",
+      "cpus": 32,
+      "total_ram_bytes": 67108864000,
+      "gpus": [
+        {
+          "name": "NVIDIA GeForce RTX 4090",
+          "memory_mib": 24564
+        }
+      ],
+      "dbench_version": "0.1.0+30085de1",
+      "current_job": "vidi-v2b-swift15-r1",
+      "combinations": [
+        {
+          "install_id": "swift15-qwen38-27b",
+          "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+          "backend": "llamacpp"
+        },
+        {
+          "install_id": "qwen38-27b",
+          "combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi",
+          "backend": "llamacpp"
+        }
+      ]
+    },
+    "quintus": {
+      "hostname": "Quintus",
+      "os": "macos",
+      "cpu_brand": "Apple M5 Max",
+      "cpus": 18,
+      "total_ram_bytes": 137438953472,
+      "gpus": [
+        {
+          "name": "Apple M5 Max",
+          "memory_mib": 131072,
+          "unified": true
+        }
+      ],
+      "dbench_version": "0.1.0+30085de1",
+      "current_job": "vidi-v2b-mlx-r1",
+      "combinations": [
+        {
+          "install_id": "mlxserve-qwen38-flash-next",
+          "combination": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi",
+          "backend": "mlxserve"
+        }
+      ]
+    },
+    "tritus": {
+      "hostname": "tritus",
+      "os": "linux",
+      "cpu_brand": "AMD RYZEN AI MAX+ 395",
+      "cpus": 32,
+      "total_ram_bytes": 131000000000,
+      "gpus": [],
+      "dbench_version": "0.1.0+30085de1",
+      "current_job": null,
+      "combinations": []
+    },
+    "macbook-air": {
+      "hostname": "Julians-MacBook-Air.local",
+      "os": "macos",
+      "cpu_brand": "Apple M2",
+      "cpus": 8,
+      "total_ram_bytes": 17179869184,
+      "gpus": [
+        {
+          "name": "Apple M2",
+          "memory_mib": 16384,
+          "unified": true
+        }
+      ],
+      "dbench_version": "0.1.0+30085de1",
+      "current_job": "vidi-v2-opus-r1",
+      "combinations": [
+        {
+          "install_id": "claude-code-opus-5-5",
+          "combination": "reference/opus-5.5",
+          "backend": "anthropic"
+        }
+      ]
+    }
   }
 }

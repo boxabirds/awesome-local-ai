@@ -180,6 +180,17 @@ describe("stages", () => {
   });
 });
 
+describe("indexing jobs by run", () => {
+  it("a run shows its live job: a restart queued in the same second as the cancel beats the cancelled one", () => {
+    const spec = { pack: "benchmarks/vidi", run_id: "v2-r1" };
+    const idx = indexJobs({ n: [
+      job({ id: "old", spec, state: { status: "cancelled" }, updated_at: 100 }),
+      job({ id: "old-again1", spec, state: { status: "queued" }, updated_at: 100 }),
+    ] });
+    expect([...idx.values()].map((j) => j.id)).toEqual(["old-again1"]);
+  });
+});
+
 describe("merging runs and jobs", () => {
   it("jobs without a record appear; old finished or cancelled ones don't", () => {
     const now = 1_000_000;
