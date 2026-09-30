@@ -1,8 +1,11 @@
+import type * as Y from 'yjs';
 import type { Camera } from './canvas/camera';
 
 export interface Vidi6TestHooks {
   setCamera(cam: Camera): void;
   getCamera(): Camera;
+  /** The board document (story 2), for tests that inspect or mutate notes directly. */
+  doc: Y.Doc;
 }
 
 declare global {

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
+  DRAG_THRESHOLD_PX,
   GRID_MIN_SCREEN_SPACING_PX,
   GRID_SPACING_WORLD,
   WHEEL_LINE_HEIGHT_PX,
 } from '../../shared/config';
-import type { Camera, Point } from './camera';
+import { screenToWorld, type Camera, type Point } from './camera';
 import { useCameraContext } from './useCamera';
 
 const DOM_DELTA_LINE = 1;
@@ -42,12 +43,19 @@ interface GestureLikeEvent extends Event {
   clientY?: number;
 }
 
-export function BoardViewport(props: { children?: ReactNode }) {
+export function BoardViewport(props: {
+  children?: ReactNode;
+  /** Double-click on empty board space, in world coordinates. */
+  onEmptyDoubleClick?(world: Point): void;
+  /** Press and release on empty board space without dragging. */
+  onEmptyClick?(): void;
+}) {
   const { api, onViewportResize } = useCameraContext();
   const { camera } = api;
   const ref = useRef<HTMLDivElement>(null);
   const [panning, setPanning] = useState(false);
   const pointerIdRef = useRef<number | null>(null);
+  const downPointRef = useRef<Point | null>(null);
   const lastHoverRef = useRef<Point | null>(null);
   const apiRef = useRef(api);
   apiRef.current = api;
@@ -134,7 +142,7 @@ export function BoardViewport(props: { children?: ReactNode }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  const toLocal = (e: React.PointerEvent): Point => {
+  const toLocal = (e: React.MouseEvent): Point => {
     const rect = ref.current!.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
@@ -157,7 +165,8 @@ export function BoardViewport(props: { children?: ReactNode }) {
       // Pointer capture may be unavailable (e.g. synthetic events); dragging still works.
     }
     pointerIdRef.current = e.pointerId;
-    api.beginPan(toLocal(e));
+    downPointRef.current = toLocal(e);
+    api.beginPan(downPointRef.current);
     setPanning(true);
   };
 
@@ -170,7 +179,20 @@ export function BoardViewport(props: { children?: ReactNode }) {
 
   const onPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== e.pointerId) return;
+    const down = downPointRef.current;
+    downPointRef.current = null;
     endPan();
+    if (e.type !== 'pointerup' || !down) return;
+    const p = toLocal(e);
+    if (Math.hypot(p.x - down.x, p.y - down.y) < DRAG_THRESHOLD_PX) props.onEmptyClick?.();
+  };
+
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Only empty board space creates; objects stop propagation of their own dblclick.
+    if (e.target !== e.currentTarget) return;
+    const rect = ref.current!.getBoundingClientRect();
+    const p = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    props.onEmptyDoubleClick?.(screenToWorld(apiRef.current.camera, p));
   };
 
   const grid = gridStyle(camera);
@@ -193,6 +215,7 @@ export function BoardViewport(props: { children?: ReactNode }) {
       onPointerUp={onPointerEnd}
       onPointerCancel={onPointerEnd}
       onLostPointerCapture={onPointerEnd}
+      onDoubleClick={onDoubleClick}
       style={{
         backgroundSize: `${grid.size}px ${grid.size}px`,
         backgroundPosition: `${grid.offsetX}px ${grid.offsetY}px`,

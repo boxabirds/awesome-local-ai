@@ -128,3 +128,189 @@ body {
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* Story 2 — sticky notes and toolbars */
+
+.toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #d8d8d4;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+}
+
+.toolbar-button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: #1f2328;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.toolbar-button:hover {
+  background: #efefec;
+}
+
+.toolbar-button:focus-visible,
+.note-toolbar button:focus-visible {
+  outline: 2px solid #2f6feb;
+  outline-offset: 1px;
+}
+
+.sticky-note {
+  position: absolute;
+  border-radius: 2px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 12%),
+    0 6px 14px rgb(0 0 0 / 10%);
+  cursor: default;
+  outline: none;
+  touch-action: none;
+}
+
+.sticky-note:focus-visible {
+  box-shadow:
+    0 0 0 2px #2f6feb66,
+    0 6px 14px rgb(0 0 0 / 10%);
+}
+
+.sticky-note.is-selected {
+  outline: 2px solid #2f6feb;
+  outline-offset: 2px;
+}
+
+.sticky-note.is-dragging {
+  cursor: grabbing;
+  box-shadow:
+    0 2px 4px rgb(0 0 0 / 14%),
+    0 12px 24px rgb(0 0 0 / 16%);
+}
+
+.sticky-text {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  line-height: 1.25;
+  color: #1f2328;
+}
+
+/* Auto margins centre short text but never push overflowing text above the top edge. */
+.sticky-text-content {
+  margin-block: auto;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sticky-text.is-overflowing {
+  -webkit-mask-image: linear-gradient(to bottom, #000 75%, transparent);
+  mask-image: linear-gradient(to bottom, #000 75%, transparent);
+}
+
+.sticky-editor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 16px;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden auto;
+  background: transparent;
+  color: #1f2328;
+  font-family: inherit;
+  line-height: 1.25;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  cursor: text;
+}
+
+.sticky-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 11px;
+  color: rgb(31 35 40 / 70%);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.note-toolbar-anchor {
+  position: absolute;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.note-toolbar {
+  position: absolute;
+  left: 0;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #d8d8d4;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 18%);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.swatch[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px #2f6feb;
+}
+
+.note-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: #d8d8d4;
+}
+
+.note-delete {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #1f2328;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.note-delete:hover {
+  background: #efefec;
+}

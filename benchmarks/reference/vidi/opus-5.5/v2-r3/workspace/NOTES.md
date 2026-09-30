@@ -36,3 +36,43 @@ Decisions made where the spec was silent or ambiguous:
 - **Not covered by automated tests:** Safari pinch in a real browser, trackpad hardware
   differences, and touch input. These match the design's "Not covered" list. The manual
   Chrome/Safari check in task 3 was replaced by automated Chromium e2e plus a visual screenshot check.
+
+## Story 2 — Capture ideas on sticky notes and rearrange them
+
+- **Stable DOM order, z-index stacking.** Notes are rendered in id order with `z-index` taken
+  from the `(z, id)` snapshot order. Re-ordering DOM nodes on `bringToFront` would move the
+  element that holds the drag's pointer capture, which browsers treat as losing capture.
+- **Note toolbar placement.** `NoteToolbar` is rendered by `App` in the world layer *after* all
+  notes (an anchor at the note's top-centre with `scale(1 / zoom)`), not inside `StickyNote`,
+  so a later-stacked note can never cover it and it keeps screen size at any zoom.
+  `StickyNote` reports Dragging through an extra optional `onDragChange` prop so the toolbar
+  hides while dragging; it also takes an optional `zIndex` prop.
+- **`createSticky` with non-finite coordinates** returns `''` (falsy) instead of an id, since the
+  contract's return type is `string`. No transaction is opened.
+- **`moveObject` to the current position** returns `false` with no update (a no-op, like
+  `bringToFront` on the topmost note). `setStickyColor` to the current colour likewise.
+- **`bringToFront` with a tie** for topmost counts as "not topmost", so it raises the note.
+- **Length limit while typing in the middle.** Beyond `clampToLimit` (required by the
+  contract), the editor uses `limitEdit(prev, next)`: only the newly inserted characters beyond
+  1,000 are dropped, so typing into the middle of a full note never pushes text off its end.
+  For a paste into an empty note it is identical to `clampToLimit` (caret at end).
+- **Surrogate pairs.** `clampToLimit` and `applyTextDiff` never split an emoji pair; the limit
+  counts UTF-16 code units (what the textarea reports).
+- **Keyboard.** Enter/Delete/Backspace act on the selected note, or on a note focused with Tab
+  (so notes are reachable with Tab and editable with Enter). They are ignored while any note is
+  being edited, when focus is in a text field or on a button, and with Ctrl/Cmd/Alt held.
+- **Edit end.** Escape returns focus to the note element (still selected). Blur only flushes the
+  pending value; editing ends on Escape or a pointerdown outside the note, per the design.
+- **Vertical centring.** Display text is centred with flex auto margins, which fall back to
+  top-aligned when the text overflows so clipping only happens at the bottom (under the fade).
+  The textarea gets a matching top padding so text does not jump when editing starts.
+- **Extra named settings:** `STICKY_PADDING_WORLD` (16), `BOARD_SCHEMA_VERSION` (1).
+- **Test hook.** `window.__vidi6.doc` (the board `Y.Doc`) was added for component and e2e tests
+  (TC-37 deletes through the model while dragging/editing). Still test-mode only; the
+  production build was re-checked with grep.
+- **Notes carry `data-x/y/z/color/state/selected/editing`** attributes for test assertions.
+- **E2E browsers:** only Chromium is installed here, so e2e ran in Chromium only.
+- **Manual checks** from tasks 4/5 (IME on macOS, trackpad feel) were not run by hand; IME is
+  covered by a jsdom composition test and drag accuracy at 50%/200% by Chromium e2e.
+- **Commits.** The whole story went into a single commit (per the session instructions) rather
+  than separate test-first commits for tasks 1 and 3.
