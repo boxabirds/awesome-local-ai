@@ -15,6 +15,7 @@ acceptance suite, snapshot the workspace in git, and checkpoint metrics.json.
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import os
@@ -30,6 +31,7 @@ from urllib.parse import urlparse
 from collections import deque
 from pathlib import Path
 
+import attempts
 import containment
 import gates
 import heldout
@@ -38,6 +40,7 @@ import hostenv
 import pack as packmod
 import packdir
 import progress
+import provenance
 import publicise
 from hostenv import IS_MAC, THERMAL_OK, mem_free_pct
 from clients import CLIENTS, PI_THINKING_LEVELS, empty_state
@@ -73,17 +76,41 @@ SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
 # Denied trees that must still be readable, read-only: dbench installs the agents' tools (pi, uv) under
 # ~/.dbench/tools, while the rest of ~/.dbench (token, jobs, repo checkouts, other runs' builds) stays hidden.
 SANDBOX_REOPEN_RO = [Path.home() / ".dbench" / "tools"]
+# Each run's agent has a temporary directory of its own, inside its run's work dir (so the sandbox already opens it
+# to that agent alone): TMPDIR points there, and the machine's shared temp dirs are out of reach. Agents shared /tmp
+# until 30 Sep 2026, when a run found another run's leftover git worktree at /tmp/vidi-baseline; the held-out suite
+# also keeps its app's state in the harness's temp dir (os.tmpdir()/vidi-accept-*).
+AGENT_TMP = "tmp"
+TMP_ENV = ("TMPDIR", "TMP", "TEMP")
+# Linux: bound over by the run's own temp dir (bwrap), so a hard-coded /tmp path still works, privately.
+SHARED_TMP = [Path("/tmp"), Path("/var/tmp")]
+# macOS: denied (sandbox-exec can't remap a path), with the per-user temp dir (confstr, what os.tmpdir() gives the
+# harness and what BSD mktemp uses whatever TMPDIR says). In that dir only names mktemp makes (tmp.XXXXXXXX, unguessable
+# and, since the dir can't be listed, unfindable) and xcrun's cache (/usr/bin/git's shim writes it on every call) stay
+# open, so `mktemp -d` and git keep working.
+USER_TEMP_OPEN = r"(tmp\.|xcrun_db)"
 CONTEXT_BANDS = [(0, 16_000), (16_000, 32_000), (32_000, 64_000), (64_000, 100_000), (100_000, 10**9)]
 CONDITION_POLL_S = 30        # how often run conditions are sampled during a story / while waiting
 # The mirror is committed into the outer repo: no nested .git (it would become a
 # broken gitlink), no copy of the spec (it lives in the pack), no build output.
 MIRROR_EXCLUDES = [".git", "spec", "node_modules", "dist", ".wrangler", "test-results", "playwright-report"]
-# Per-token stream deltas are ~99% of an agent event log and carry nothing the report uses.
+# Per-token stream deltas are ~99% of an agent event log: each repeats the partial message so far. The published log
+# (compact_events) drops them, except the first of each model call: its arrival is when prefill ended, which
+# accounting.py needs to split a call's time into prefill and decode.
 STREAM_DELTA_EVENTS = {"message_update", "tool_execution_update"}
+FIRST_CHUNK_EVENT = "message_update"
+DELTA_TYPE = re.compile(r'"type":\s*"(message_update|tool_execution_update)"')
+DELTA_PREFIX = 80            # a stamped line names its type within its first bytes: skip a delta without parsing it
 # tests/privacy-test.sh: committed benchmark files stay under 512 KB and carry no home paths.
 PUBLISH_MAX_BYTES = 512 * 1024
-# Whole file bodies the agent read or wrote are kept as a marked prefix; the record keeps the
-# conversation's shape, tool calls and timings, not every byte of every file.
+# The conversation log is the exception (owner's decision, 30 Sep 2026): it is published whole, nothing truncated,
+# because a record that cuts what the model read and wrote can't be audited. Measured: a 30.9 MB story compacts to
+# about 0.7 MB gzipped. Its own cap is GitHub's: pushes warn on files over 50 MB and are refused over 100 MB, and a
+# refused push would stop every later story's record. Past the cap (never seen) strings are cut, and the log says so.
+MB = 1024 * 1024
+EVENT_LOG_MAX_BYTES = 50 * MB
+LOG_CUT_MARK = "harness_log_cut"
+# Only past EVENT_LOG_MAX_BYTES: long strings are cut to this, then shorter (EVENT_STRING_STEPS).
 EVENT_STRING_MAX = 2000
 # Git-ignored bookkeeping read by local tools; must keep real absolute paths.
 LOCAL_ONLY_FILES = {"work_dir.txt", "current_story", "progress.json"}
@@ -155,15 +182,40 @@ def _sb_quote(p: Path) -> str:
     return '"' + str(p.resolve()).replace('\\', '\\\\').replace('"', '\\"') + '"'
 
 
+@functools.lru_cache(maxsize=None)
+def user_temp_dir() -> Path | None:
+    """macOS's per-user temp dir (/var/folders/…/T), resolved; None elsewhere. Python's os.confstr doesn't know
+    the name, so getconf is asked, once."""
+    if not IS_MAC:
+        return None
+    p = subprocess.run(["getconf", "DARWIN_USER_TEMP_DIR"], capture_output=True, text=True)
+    d = p.stdout.strip()
+    return Path(d).resolve() if p.returncode == 0 and d else None
+
+
 def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
-    """Wrap cmd in a sandbox that hides everything in SANDBOX_DENY except own_dir.
+    """Wrap cmd in a sandbox that hides everything in SANDBOX_DENY except own_dir, with own_dir/AGENT_TMP as the
+    agent's only temp dir.
 
     macOS: sandbox-exec; SBPL applies the last matching rule, so the final allow re-opens
     own_dir even though it sits under WORK_ROOT. Linux: bubblewrap (see hostenv.bwrap_wrap).
     """
+    own_tmp = own_dir / AGENT_TMP
+    own_tmp.mkdir(parents=True, exist_ok=True)   # bwrap can't bind a missing source; agent_env makes it too
     if not IS_MAC:
-        return hostenv.bwrap_wrap(cmd, own_dir, [*SANDBOX_DENY, WORK_ROOT], reopen_ro=SANDBOX_REOPEN_RO)
-    deny = " ".join(f"(subpath {_sb_quote(p)})" for p in [*SANDBOX_DENY, WORK_ROOT])
+        args = hostenv.bwrap_wrap([], own_dir, [*SANDBOX_DENY, WORK_ROOT], reopen_ro=SANDBOX_REOPEN_RO)
+        own = str(own_dir.resolve())
+        assert args[-4:] == ["--bind", own, own, "--"], "hostenv.bwrap_wrap must end by binding own_dir back"
+        # After the masks (bwrap mounts in order; a later mount covers an earlier one) and before own_dir, which
+        # may itself sit under /tmp and must stay visible.
+        tmp = [a for p in SHARED_TMP for a in ("--bind", str(own_tmp.resolve()), str(p))]
+        return [*args[:-4], *tmp, *args[-4:], *cmd]
+    user_tmp = user_temp_dir()
+    denied = [*SANDBOX_DENY, WORK_ROOT, *(p.resolve() for p in SHARED_TMP), *([user_tmp] if user_tmp else [])]
+    deny = " ".join(f"(subpath {_sb_quote(p)})" for p in denied)
+    user_tmp_rules = (f"(allow file-read-metadata (literal {_sb_quote(user_tmp)}))"
+                      f'(allow file-read* file-write* (regex #"^{re.escape(str(user_tmp))}/{USER_TEMP_OPEN}"))'
+                      if user_tmp else "")
     # Tools resolve real paths by lstat()ing every ancestor of a path (node's realpath, the
     # wrangler watcher). Allow metadata only -- stat, not reading or listing -- on the
     # ancestors of own_dir, so path resolution works while siblings stay hidden.
@@ -173,6 +225,7 @@ def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
     profile = (f"(version 1)(allow default)"
                f"(deny file-read* file-write* {deny})"
                f"(allow file-read-metadata {ancestors})"
+               f"{user_tmp_rules}"
                f"{reopen_rules}"
                f"(allow file-read* file-write* (subpath {_sb_quote(own_dir)}))")
     return ["sandbox-exec", "-p", profile, *cmd]
@@ -214,7 +267,7 @@ def mirror(ws: Path, dest: Path) -> None:
     (dest.parent / "workspace-git-log.txt").write_text(log)
 
 
-# If a compacted log is still over PUBLISH_MAX_BYTES, strings are cut further, in these steps;
+# If a log is over EVENT_LOG_MAX_BYTES, strings are cut in these steps until it fits;
 # every event is kept, only long strings get shorter.
 EVENT_STRING_STEPS = (EVENT_STRING_MAX, 500, 200, 80)
 
@@ -234,24 +287,57 @@ def _redact(text: str) -> str:
 
 
 def compact_events(raw: Path) -> Path:
-    """Gzip the agent event log without stream deltas, long strings truncated, home redacted."""
+    """Gzip the agent event log, lossless but for the stream deltas: every other event exactly as the agent wrote
+    it (its line, home paths redacted, nothing truncated), and the first delta of each model call for its timing.
+    Lines that aren't a JSON object (a line cut off when the agent was killed) are dropped."""
     import gzip
     out = raw.with_name(raw.stem + ".compact.jsonl.gz")
-    with raw.open() as src, gzip.open(out, "wt") as dst:
+    first_chunk_due = False            # an assistant message has started and its first chunk isn't kept yet
+    with raw.open(errors="replace") as src, gzip.open(out, "wt") as dst:
         for line in src:
+            m = DELTA_TYPE.search(line[:DELTA_PREFIX])
+            if m and not (first_chunk_due and m.group(1) == FIRST_CHUNK_EVENT):
+                continue
             try:
                 e = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if isinstance(e, dict) and e.get("type") not in STREAM_DELTA_EVENTS:
-                dst.write(_redact(json.dumps(_truncate(e))) + "\n")
+            if not isinstance(e, dict):
+                continue
+            t = e.get("type")
+            if t in STREAM_DELTA_EVENTS and not (first_chunk_due and t == FIRST_CHUNK_EVENT):
+                continue                  # a delta whose type wasn't at the start of its line
+            if t == FIRST_CHUNK_EVENT:
+                first_chunk_due = False
+            elif t == "message_start":
+                msg = e.get("message")
+                first_chunk_due = isinstance(msg, dict) and msg.get("role") == "assistant"
+            dst.write(_redact(line.rstrip("\n")) + "\n")
     return out
+
+
+def _cut_to_fit(f: Path) -> None:
+    """The safety valve past EVENT_LOG_MAX_BYTES: strings cut in steps until the log fits, a first line saying so."""
+    import gzip
+    with gzip.open(f, "rt", errors="replace") as src:
+        events = [json.loads(l) for l in src if l.strip()]
+    events = [e for e in events if not (isinstance(e, dict) and e.get("type") == LOG_CUT_MARK)]
+    for limit in EVENT_STRING_STEPS:
+        mark = {"type": LOG_CUT_MARK, "limit_bytes": EVENT_LOG_MAX_BYTES, "string_max": limit}
+        with gzip.open(f, "wt") as dst:
+            dst.write("\n".join(_redact(json.dumps(x)) for x in [mark, *(_truncate(e, limit) for e in events)]) + "\n")
+        if f.stat().st_size <= EVENT_LOG_MAX_BYTES:
+            break
+
+
+def _over_limit(f: Path) -> bool:
+    cap = EVENT_LOG_MAX_BYTES if f.name.endswith(".compact.jsonl.gz") else PUBLISH_MAX_BYTES
+    return f.stat().st_size > cap
 
 
 def make_publishable(run: Path) -> list[str]:
     """Make a run dir safe to commit: redact home paths everywhere, compact any raw event log that
-    is not git-ignored, and recompact oversized compact logs. Returns files still over the limit."""
-    import gzip
+    is not git-ignored, and cut a compact log only if it is over its own cap. Returns files still over their cap."""
     for raw in run.rglob("agent-events.jsonl"):
         if raw.parent.parent.name != "stories":        # stories/*/agent-events.jsonl is git-ignored
             compact_events(raw)
@@ -262,13 +348,9 @@ def make_publishable(run: Path) -> list[str]:
         if f.name in LOCAL_ONLY_FILES:          # git-ignored, machine-local: keep real paths
             continue
         if f.name.endswith(".compact.jsonl.gz"):
-            with gzip.open(f, "rt") as src:
-                events = [json.loads(l) for l in src if l.strip()]
-            for limit in EVENT_STRING_STEPS:
-                with gzip.open(f, "wt") as dst:
-                    dst.write("\n".join(_redact(json.dumps(_truncate(e, limit))) for e in events) + "\n")
-                if f.stat().st_size <= PUBLISH_MAX_BYTES:
-                    break
+            # Written redacted by compact_events; left byte for byte as it is unless it is over its cap.
+            if f.stat().st_size > EVENT_LOG_MAX_BYTES:
+                _cut_to_fit(f)
         elif f.suffix in TEXT_SUFFIXES:
             try:
                 t = f.read_text()
@@ -278,7 +360,7 @@ def make_publishable(run: Path) -> list[str]:
                 f.write_text(_redact(t))
     return [str(f) for f in run.rglob("*") if f.is_file() and ".git" not in f.parts and "node_modules" not in f.parts
             and not (f.name == "agent-events.jsonl" and f.parent.parent.name == "stories")
-            and f.stat().st_size > PUBLISH_MAX_BYTES]
+            and _over_limit(f)]
 
 
 RUN_GITIGNORE = """# Written by benchmarks/spec-bench/harness/drive.py. Raw agent logs are kept compacted
@@ -556,10 +638,13 @@ def agent_env(work: Path) -> dict:
     """Isolated HOME + XDG so the user's own config, skills and plugins never reach the agent."""
     home = work / "agent-home"
     home.mkdir(parents=True, exist_ok=True)
+    tmp = work / AGENT_TMP
+    tmp.mkdir(parents=True, exist_ok=True)
     real_home = Path.home()
     link_agent_browsers(home, real_home)
     return {
         "HOME": str(home),
+        **{k: str(tmp) for k in TMP_ENV},
         # Node tools (OpenCode, pi) trust $PWD; an inherited one points into the denied repo.
         "PWD": str(work / "workspace"),
         "OLDPWD": str(work / "workspace"),
@@ -984,8 +1069,10 @@ def _median(xs):
     return xs[len(xs) // 2] if xs else None
 
 
-def server_stats(server_log: Path | None, t_start: float, t_end: float) -> dict:
-    """Per-story numbers from the server's own request log (MTPLX), by time window.
+def server_stats(server_log: Path | None, t_start: float, t_end: float,
+                 earlier: list[tuple[float, float]] | tuple = ()) -> dict:
+    """Per-story numbers from the server's own request log (MTPLX), by time window: this attempt's, and each
+    earlier attempt's window of a restarted story (attempts.py).
 
     Measured by the server, not by a proxy in the request path. Backends that keep
     no such log get only the client-reported token counts in rec["agent"]."""
@@ -997,7 +1084,8 @@ def server_stats(server_log: Path | None, t_start: float, t_end: float) -> dict:
             r = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if t_start <= (r.get("logged_at_s") or 0) <= t_end:
+        t = r.get("logged_at_s") or 0
+        if any(a <= t <= b for a, b in [(t_start, t_end), *earlier]):
             recs.append(r)
     bands = {}
     for lo, hi in CONTEXT_BANDS:
@@ -1248,13 +1336,18 @@ class SkipWatcher(threading.Thread):
     """Watches for the operator's skip-story request for the running story; on one, stops the agent
     (every process in the workspace) and sets STORY_SKIP so nothing resumes or nudges it."""
 
-    def __init__(self, run: Path, sid: int, ws: Path, now=time.time, poll_s: float = SKIP_POLL_S):
+    def __init__(self, run: Path, sid: int, ws: Path, now=time.time, poll_s: float = SKIP_POLL_S,
+                 already_s: float = 0.0):
         super().__init__(daemon=True)
         self.run_dir, self.sid, self.ws = run, sid, ws
         self.now, self.poll_s = now, poll_s
         self.started = now()
+        self.already_s = already_s     # agent time of the story's earlier harness attempts: the cap is the story's
         self.request: dict | None = None
         self._halt = threading.Event()
+
+    def elapsed(self) -> float:
+        return self.now() - self.started + self.already_s
 
     def _end(self, req: dict, who: str) -> None:
         self.request = req
@@ -1272,7 +1365,7 @@ class SkipWatcher(threading.Thread):
             if req:
                 self._end(req, "operator")
                 return
-            reason = cap_reason(self.now() - self.started, 0)
+            reason = cap_reason(self.elapsed(), 0)
             if reason:
                 self.cap(reason)
                 return
@@ -1363,6 +1456,55 @@ def log_intervention(run: Path, text: str) -> None:
 
 
 
+# ---- a story's attempts and provenance (attempts.py, provenance.py) --------------------------------------------
+
+def begin_attempt(client, events: Path, prior: str | None, started: float, provenance: dict) -> list[dict]:
+    """At a harness restart mid-story (prior: the agent's session found in the log), the story's earlier attempts,
+    counted from its log, and a mark in the log where this attempt begins. A fresh story has none."""
+    if not prior:
+        return []
+    earlier = attempts.earlier_attempts(client, events, before=started)
+    attempts.write_restart_mark(events, started, attempts.next_attempt(earlier), provenance)
+    return earlier
+
+
+def record_attempts(rec: dict, earlier: list[dict]) -> None:
+    """rec["agent"] over every attempt of the story, each attempt kept; unchanged for a story run once."""
+    if not earlier:
+        return
+    rec["agent"] = attempts.combine(earlier, rec["agent"], rec["started"], rec["agent_finished"])
+    rec["first_started"] = earlier[0]["started"]
+
+
+def story_time_split(rec: dict, events: Path, server_log: Path) -> dict:
+    """Where the story's time went (accounting.py), over each attempt's own window, summed, and checked against
+    the agent's own clock. The time the harness was down between attempts is no attempt's, so it isn't counted."""
+    import accounting
+    split = time_split(events, server_log, rec["started"], rec["agent_finished"])
+    each = (rec.get("agent") or {}).get("attempts") or []
+    if len(each) > 1:
+        # Each attempt over its own window; this attempt's is the one just computed, unless the harness never ran
+        # the agent this time (a skip placed before a restart), when every attempt is one the log recorded.
+        splits = [split if a["source"] == "harness" else attempts.split_of(events, server_log, a) for a in each]
+        for a, s in zip(each, splits):
+            a["time_split"] = s
+        split = attempts.sum_splits(splits)
+    acc = split["accounting"]
+    clock = accounting.check(split, agent_seconds=(rec.get("agent") or {}).get("seconds"))
+    acc["problems"] += [p for p in clock if p not in acc["problems"]]
+    acc["ok"] = not acc["problems"]
+    return split
+
+
+def story_provenance(harness: dict, started_under: str, scored_under: str) -> dict:
+    """What a story ran under: the harness this process loaded, and the pack version when it was scored; the pack
+    version at the story's start too, when the pack's checkout moved while the story ran."""
+    out = {**harness, "pack_version": scored_under, "source": provenance.LIVE}
+    if started_under != scored_under:
+        out["started_under"] = {"pack_version": started_under}
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pack", default=packdir.DEFAULT_PACK,
@@ -1451,6 +1593,8 @@ def main() -> None:
         heldout.write_accept(run / history.BASE_DIR / "accept.json", acc)
         kill_strays(ws)
     progress.write_progress(run, scope, stories, metrics, None)
+    # Before any story is recorded: HEAD then is the harness this process loaded (the records move HEAD on).
+    harness = provenance.at_start(REPO_ROOT)
 
     for story in stories:
         sid = story["id"]
@@ -1474,6 +1618,8 @@ def main() -> None:
         partial_base = [p["id"] for p in processed if p["status"] == PARTIAL]
         live = {"id": sid, "title": title, "status": "running", "started_at": time.time(), "tasks": [],
                 "partial_base": partial_base, "baselines": progress.baselines(REPO_ROOT, sid, run)}
+        pack_started = provenance.pack_version(PK.dir, PK.name)
+        earlier: list[dict] = []
         early = pending_skip(run, sid)
         if early:
             # Placed before a restart: end the story from what the agent already did; don't start it again.
@@ -1482,29 +1628,39 @@ def main() -> None:
             rec: dict = {"title": title, "started": time.time()}
             rec["agent"] = reconstruct_agent(client, events)
             rec["agent_finished"] = time.time()
+            # Every attempt is in the log; with more than one, each is kept and the agent time is theirs, not the
+            # log's first-to-last span, which would count the time the harness was down.
+            logged = attempts.earlier_attempts(client, events, before=rec["agent_finished"])
+            if len(logged) > 1:
+                rec["agent"].update(seconds=round(sum(a["seconds"] for a in logged), 1), restarted=True,
+                                    harness_attempts=len(logged), attempts=logged)
+                rec["first_started"] = logged[0]["started"]
             rec["conditions"] = {**summarise_conditions(0, []), "aborted_swap": False, "aborted_memory": False}
             skip = early
         else:
             print(f"[story {sid}] {title} — agent starting", flush=True)
             rec = {"title": title, "conditions_start": wait_for_conditions(), "started": time.time()}
-            # After a harness restart the story began earlier: its live clock counts the whole story,
-            # like its call and token counts. (Recorded agent seconds still cover this attempt only.)
+            # After a harness restart the story began earlier: its live clock counts the whole story, like its
+            # call and token counts, and so does the record (record_attempts).
             live["started_at"] = (first_event_time(events) if prior else None) or rec["started"]
             sampler = ConditionSampler(ws, server_port=urlparse(a.base_url).port)
             sampler.start()
             if prior:
                 print(f"[story {sid}] continuing the agent's own session {prior} after a harness restart", flush=True)
                 rec["continued_session"] = prior
+            earlier = begin_attempt(client, events, prior, rec["started"],
+                                    {"harness_commit": harness["harness_commit"], "pack_version": pack_started})
             tally = progress.EventTally(client, events, empty_state)
             watcher = ProgressWatcher(run, scope, stories, metrics, live, ws, base, tasks, tally)
             watcher.start()
-            skipper = SkipWatcher(run, sid, ws)
+            skipper = SkipWatcher(run, sid, ws, already_s=sum(a["seconds"] for a in earlier))
             skipper.start()
             global CONTAINMENT
             CONTAINMENT = containment.StoryContainment(run.name, sid)
             rec["agent"] = run_story_agent(client, ws, env, a.model_id, prompt, events, continue_session=prior,
                                            on_cap=skipper.cap)
             rec["agent_finished"] = time.time()
+            record_attempts(rec, earlier)
             skip = skipper.stop()
             watcher.stop()
             rec["conditions"] = sampler.stop()
@@ -1528,6 +1684,7 @@ def main() -> None:
         rec["agent_commits"] = int(sh(["git", "rev-list", "--count", f"{head_before}..HEAD"], ws).strip())
 
         print(f"[story {sid}] agent done in {rec['agent']['seconds']}s; running gates", flush=True)
+        rec["provenance"] = story_provenance(harness, pack_started, provenance.pack_version(PK.dir, PK.name))
         rec["gate"] = gates.gate(ws, PK.gate)
         (sdir / "gate.json").write_text(json.dumps(rec["gate"], indent=2))
         kill_strays(ws)
@@ -1546,17 +1703,14 @@ def main() -> None:
         if sh(["git", "status", "--porcelain"], ws).strip():
             sh(["git", "commit", "-qm", f"harness: snapshot after story {sid} (uncommitted agent work)"], ws, GIT_IDENTITY)
         rec["commit"] = sh(["git", "rev-parse", "HEAD"], ws).strip()
-        rec["requests"] = server_stats(a.server_log, rec["started"], rec["agent_finished"])
-        rec["time_split"] = time_split(sdir / "agent-events.jsonl", run / "server.log", rec["started"],
-                                       rec["agent_finished"])
-        # The wall should agree with the agent's own clock; a disagreement is recorded with the other checks.
-        import accounting
-        acc = rec["time_split"]["accounting"]
-        clock = accounting.check(rec["time_split"], agent_seconds=(rec.get("agent") or {}).get("seconds"))
-        acc["problems"] += [p for p in clock if p not in acc["problems"]]
-        acc["ok"] = not acc["problems"]
+        rec["requests"] = server_stats(a.server_log, rec["started"], rec["agent_finished"],
+                                       earlier=[(x["started"], x["ended"]) for x in earlier])
+        # Over every attempt of a restarted story; the wall should agree with the agent's own clock, and a
+        # disagreement is recorded with the other checks.
+        rec["time_split"] = story_time_split(rec, sdir / "agent-events.jsonl", run / "server.log")
         import conversation
-        rec["conversation"] = conversation.profile(sdir / "agent-events.jsonl", rec["started"], rec["agent_finished"])
+        rec["conversation"] = conversation.profile(sdir / "agent-events.jsonl", rec.get("first_started", rec["started"]),
+                                                   rec["agent_finished"])
         rec["loc"] = loc(ws)
         mirror(ws, run / "workspace")
         rec["finished"] = time.time()

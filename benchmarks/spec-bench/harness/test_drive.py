@@ -520,11 +520,12 @@ def test_continue_uses_the_same_session_not_a_fork(tmp_path):
     assert oc[oc.index("--session") + 1] == "ses" and "--fork" not in oc
 
 
-def test_make_publishable_redacts_home_and_keeps_event_logs_small(tmp_path):
-    """tests/privacy-test.sh: no /Users/<name> paths and no benchmark file over 512K may be committed."""
+def test_make_publishable_redacts_home_and_leaves_event_logs_whole(tmp_path):
+    """tests/privacy-test.sh: no /Users/<name> paths may be committed. The conversation log is published whole
+    (item 4, 30 Sep 2026): nothing truncated; its own cap is drive.EVENT_LOG_MAX_BYTES (test_recording.py)."""
     import gzip, json as _json
     from pathlib import Path as _P
-    from drive import make_publishable, compact_events, PUBLISH_MAX_BYTES
+    from drive import make_publishable, compact_events, EVENT_LOG_MAX_BYTES
     home = str(_P.home())
     run = tmp_path / "run"
     (run / "stories" / "01").mkdir(parents=True)
@@ -540,8 +541,8 @@ def test_make_publishable_redacts_home_and_keeps_event_logs_small(tmp_path):
     assert (run / "work_dir.txt").read_text() == f"{home}/.vidi-bench/work/x"   # local-only file untouched
     assert home not in (run / "metrics.json").read_text() and "~/.vidi-bench" in (run / "metrics.json").read_text()
     text = gzip.open(gz, "rt").read()
-    assert home not in text and "truncated" in text
-    assert gz.stat().st_size < PUBLISH_MAX_BYTES
+    assert home not in text and "truncated" not in text and text.count(big) == 60
+    assert gz.stat().st_size < EVENT_LOG_MAX_BYTES
     assert not (run / "superseded" / "agent-events.jsonl").exists()          # raw log replaced by its compact form
     assert (run / "superseded" / "agent-events.compact.jsonl.gz").exists()
 
@@ -608,23 +609,6 @@ def test_parse_footprint_reads_current_and_peak():
     assert parse_footprint_gb(out) == (92.0, 99.0)
     assert parse_footprint_gb("    phys_footprint: 1264 KB\n    phys_footprint_peak: 512 MB\n") == (1264 / 1024 ** 2, 0.5)
     assert parse_footprint_gb("") == (None, None)
-
-
-def test_oversized_compact_log_is_shrunk_below_the_limit(tmp_path):
-    """canvas-pi-01 story 4: 408 steps compacted to 836 KB, over the 512 KB repo limit."""
-    import gzip, json as _json, os
-    from drive import make_publishable, PUBLISH_MAX_BYTES
-    run = tmp_path / "run"
-    (run / "stories" / "04").mkdir(parents=True)
-    gz = run / "stories" / "04" / "agent-events.compact.jsonl.gz"
-    with gzip.open(gz, "wt") as f:
-        for i in range(4000):
-            f.write(_json.dumps({"type": "message_end", "i": i, "text": os.urandom(900).hex()[:1900]}) + "\n")
-    assert gz.stat().st_size > PUBLISH_MAX_BYTES
-    assert make_publishable(run) == []
-    assert gz.stat().st_size <= PUBLISH_MAX_BYTES
-    kept = [_json.loads(l) for l in gzip.open(gz, "rt")]
-    assert len(kept) == 4000 and all(e["type"] == "message_end" for e in kept)   # every event kept, strings shortened
 
 
 def test_sampler_aborts_when_free_memory_runs_out(monkeypatch):

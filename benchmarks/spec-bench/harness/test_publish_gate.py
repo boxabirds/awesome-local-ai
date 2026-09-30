@@ -651,6 +651,9 @@ def test_F1_a_rescore_writes_each_result_with_its_summary(tmp_path, monkeypatch)
     monkeypatch.setenv("ACCEPT_PORT", "0")                    # _score_one sets it; restored after the test
     monkeypatch.setattr(drive, "set_pack", lambda pack: None)
     monkeypatch.setattr(drive, "kill_strays", lambda ws: None)
+    # The empty checkpoint has no package.json, which rescore.install now faults (item 6d); this test is about
+    # where each result and its summary are written, so the install is taken as done.
+    monkeypatch.setattr(rescore, "install", lambda ws: {"ok": True, "command": "npm ci", "fallback": False})
     scorings = iter([STORY_2, result([t(TITLE, "passed"), t(OTHER, "passed"), t(OWN_TITLE, "passed", story=2)]), STORY_2])
     monkeypatch.setattr(gates, "accept", lambda *a, **k: json.loads(json.dumps(next(scorings))))
     out = tmp_path / "rescore" / VERSION
