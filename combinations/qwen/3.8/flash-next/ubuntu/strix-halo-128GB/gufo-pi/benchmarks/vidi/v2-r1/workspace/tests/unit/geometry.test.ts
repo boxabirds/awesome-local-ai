@@ -226,7 +226,7 @@ describe('board-model allObjectIds', () => {
   it('TC-08 returns sticky ids, excludes unknown type', () => {
     const snap: ObjectSnapshot[] = [
       { id: 'a', type: 'sticky', x: 0, y: 0, z: 1 },
-      { id: 'b', type: 'shape', x: 0, y: 0, z: 2 },
+      { id: 'b', type: 'unknown_future_type', x: 0, y: 0, z: 2 },
       { id: 'c', type: 'sticky', x: 100, y: 0, z: 3 },
     ];
     const ids = allObjectIds(snap);

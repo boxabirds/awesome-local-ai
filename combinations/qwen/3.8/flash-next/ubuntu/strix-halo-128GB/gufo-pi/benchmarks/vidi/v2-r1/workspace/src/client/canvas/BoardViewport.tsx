@@ -44,9 +44,15 @@ export interface BoardViewportProps {
   onMarqueeEnd?(): void;
   onMarqueeCancel?(): void;
   /** Active tool: when 'text', cursor becomes text and click creates text. */
-  tool?: 'select' | 'text';
+  tool?: 'select' | 'text' | 'shape' | 'connector' | 'pen';
   /** Called on click when text tool is active. Screen point of the click. */
   onTextToolClick?(point: Point): void;
+  /** Called when files are dropped onto the board. */
+  onDrop?(e: React.DragEvent): void;
+  /** Called on paste events. */
+  onPaste?(e: React.ClipboardEvent): void;
+  /** Called when the picker button is clicked. */
+  onImagePicker?(files: File[]): void;
 }
 
 /** `deltaMode` values from the WheelEvent spec. */
@@ -87,6 +93,8 @@ export function BoardViewport({
   onMarqueeCancel,
   tool,
   onTextToolClick,
+  onDrop,
+  onPaste,
 }: BoardViewportProps) {
   const { camera } = cameraApi;
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -176,8 +184,8 @@ export function BoardViewport({
     if (activePointerRef.current !== null) return;
     if (!isBoardSurface(event.target)) return;
 
-    // When text tool is active, don't pan or marquee
-    if (tool === 'text') {
+    // When text/shape/connector/pen tool is active, don't pan or marquee
+    if (tool === 'text' || tool === 'shape' || tool === 'connector' || tool === 'pen') {
       activePointerRef.current = event.pointerId;
       pressRef.current = { x: event.clientX, y: event.clientY };
       isMarqueeRef.current = false;
@@ -222,13 +230,13 @@ export function BoardViewport({
     const press = pressRef.current;
     pressRef.current = null;
 
-    // When text tool is active: a click (no travel) calls onTextToolClick
-    if (tool === 'text') {
+    // When text/shape/connector/pen tool is active: handle click behavior
+    if (tool === 'text' || tool === 'shape' || tool === 'connector' || tool === 'pen') {
       const travelled =
         press === null
           ? Number.POSITIVE_INFINITY
           : Math.hypot(event.clientX - press.x, event.clientY - press.y);
-      if (travelled <= DRAG_THRESHOLD_PX) {
+      if (tool === 'text' && travelled <= DRAG_THRESHOLD_PX) {
         onTextToolClick?.({ x: event.clientX, y: event.clientY });
       }
       return;
@@ -295,7 +303,7 @@ export function BoardViewport({
       style={{
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px`,
-        cursor: tool === 'text' ? 'text' : undefined,
+        cursor: tool === 'text' ? 'text' : tool === 'shape' ? 'crosshair' : tool === 'connector' ? 'crosshair' : tool === 'pen' ? 'crosshair' : undefined,
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -303,6 +311,10 @@ export function BoardViewport({
       onPointerCancel={handlePointerCancel}
       onLostPointerCapture={handlePointerCancel}
       onDoubleClick={handleDoubleClick}
+      onDragOver={(e) => { e.preventDefault(); }}
+      onDrop={onDrop}
+      onPaste={onPaste}
+      tabIndex={0}
     >
       <div
         className="board-world"

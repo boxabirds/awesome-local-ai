@@ -147,3 +147,28 @@ interface IterableIteratorOptions {
   cursor?: string;
   signal?: AbortSignal;
 }
+
+// R2 types
+interface R2Bucket {
+  put(key: string, value: ArrayBuffer | ReadableStream | WritableStream, options?: {
+    httpMetadata?: { contentType?: string };
+    onlyIf?: Record<string, unknown>;
+  }): Promise<R2Object | null>;
+  get(key: string, options?: { range?: { offset?: number; length?: number } }): Promise<R2Object | null>;
+  delete(key: string): Promise<void>;
+  list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<R2ObjectsListing>;
+  head(key: string): Promise<R2Object | null>;
+}
+
+interface R2Object {
+  key: string;
+  size: number;
+  httpMetadata?: { contentType?: string };
+  body: ReadableStream | null;
+}
+
+interface R2ObjectsListing {
+  objects: R2Object[];
+  truncated: boolean;
+  cursor?: string;
+}

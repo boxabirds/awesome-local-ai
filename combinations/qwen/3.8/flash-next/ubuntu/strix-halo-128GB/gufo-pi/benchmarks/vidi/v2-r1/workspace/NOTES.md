@@ -232,3 +232,156 @@ implementation differs from `design.md`, the reason is given.
 - Stories 6 and 13–17 are excluded, so there is no persistence, no
   collaboration, no undo and no shapes/frames/arrows yet — the board is empty on
   every reload.
+
+---
+
+# Story 10 implementation notes
+
+Shapes (rect, ellipse, diamond) with labels/colors, and connectors (arrows)
+that stay attached to shapes when moved.
+
+## Structure
+
+- **`src/shared/objects/shape.ts`** owns the shape schema, `createShape`,
+  `setShapeStyle`, `getShapeLabel`, and `readShapeSnapshot`. The `ShapeSnap`
+  interface extends `ObjectSnapshot` with shape-specific fields.
+- **`src/shared/objects/connector.ts`** owns `createConnector`,
+  `setConnectorEndpoint`, `detachConnectorsTo`, and `readConnectorSnapshot`.
+  Connectors store `x=0, y=0, width=0, height=0` (as the design specifies) —
+  their visual bbox is derived at render time from resolved endpoints.
+- **`src/shared/geometry/connector-geometry.ts`** implements `sideAnchor`,
+  `nearestSide`, `resolveEndpoints`, and `connectorBBox`. These are pure
+  functions with no side effects.
+- **`src/shared/geometry/polyline.ts`** implements `distanceToPolyline` (reused
+  by future story 11 for freeform paths).
+- **`useTool` hook** (in `src/client/board/useTool.ts`) manages the active tool
+  state. The design names it `useActiveTool`; we kept the existing file name
+  (`useTool`) to avoid breaking the import that existed before, and extended
+  its signature with an options object.
+
+## Connector geometry decisions
+
+- **Attached endpoints store no side.** The side is recomputed every render via
+  `nearestSide(bounds, otherEndpoint)`. This means arrows automatically switch
+  sides as objects move, and remote moves update the arrow without any extra
+  writes — just a new snapshot recalculation.
+- **`fallback`** stores the anchor point at attach time. If the target object is
+  concurrently deleted (a race), the fallback is used to place a detached free
+  endpoint so the connector remains visible.
+- **`detachConnectorsTo(doc, ids)`** is called inside `deleteObjects`'s
+  transaction. It replaces `attached` endpoints pointing to deleted objects with
+  `free` endpoints at the current computed anchor position.
+
+## Deviations from the design
+
+- **`ShapeTool` renders its own preview overlay** (SVG positioned fixed) rather
+  than exposing state to a separate component. This avoids the need for an
+  external state bridge and keeps the preview synchronized via React state.
+- **`ConnectorTool` also renders its own overlay** (dots + preview line).
+- **Connector rendering** uses `<svg style="position:fixed">` at the document
+  level (not inside the world-transform layer) because arrow endpoints are
+  computed in screen space from `resolveEndpoints` + `worldToScreen`.
+- **Shape rendering** is inside the world-transform layer (`position: absolute`
+  in world coords), matching how stickies and text are rendered.
+- **`connectorBBox`** is used for hit-test culling only; actual hit detection
+  for connectors uses `distanceToPolyline` against the arrow line.
+
+## Tests
+
+- **Unit tests** (TC-01 to TC-14, TC-29) cover the shape model (create, style,
+  label) and connector model + geometry (creation validation, side anchors,
+  nearest side, resolve endpoints, detach on delete, polyline distance).
+- **Component tests** (TC-15 to TC-22, TC-28) cover the toolbar buttons, shape
+  kind menu, toolbar swatches, useTool hook transitions, connector creation
+  flow, and the shape tool not moving existing objects.
+- **E2E tests** (TC-23 to TC-27) prove arrows follow dragged shapes at 100% and
+  50% zoom, deleting a shape deletes attached connectors, labels and colors
+  sync between participants, and multi-select drag keeps arrows attached.
+- **The existing test** `TC-08 returns sticky ids, excludes unknown type` was
+  updated: it previously used `'shape'` as an "unknown" type to exclude; now
+  uses `'unknown_future_type'` since `'shape'` is a known type.
+
+# Story 11 implementation notes
+
+Freehand pen tool, stroke objects, simplification, and collaboration.
+
+## Structure
+
+- **`src/shared/geometry/simplify.ts`** — RDP simplification (iterative,
+  stack-based), `splitPoints` for polyline smoothing, and `smoothPath` which
+  produces an SVG cubic Bézier path string.
+- **`src/shared/objects/stroke.ts`** — `StrokeSnap` type, `createStroke`,
+  `scaledPoints` (scales points by current/base size ratio for resize).
+- **`src/client/tools/PenTool.tsx`** — document-level capture handlers,
+  coalesced events, requestAnimationFrame preview, commit on pointerup/cancel/limit.
+- **`src/client/tools/PenToolbar.tsx`** — 6 colour swatches, 3 thickness buttons.
+- **`src/client/tools/usePenOptions.ts`** — session-only colour/thickness state.
+- **`src/client/objects/StrokeObject.tsx`** — SVG rendering with invisible
+  hit-area path (wider stroke for easier selection), pointer events for drag.
+
+## Decisions & deviations
+
+- **`getCoalescedEvents` fallback**: jsdom defines `PointerEvent.prototype.getCoalescedEvents`
+  as a function that returns `[]`. In real browsers it returns the event itself
+  (or coalesced siblings). Added `coalesced.length > 0 ? coalesced : [event]`
+  fallback to handle jsdom gracefully.
+- **Pen tool stays active** after committing a stroke (unlike Shape/Connector
+  which return to Select). User switches tool explicitly or presses Escape.
+- **STROKE_MAX_POINTS splitting**: When rawPoints reaches the limit, the current
+  stroke is committed and a new one starts from the last point. This avoids
+  silently dropping input.
+- **Strokes store `x, y, width, height` as padded bbox** (padded by
+  `STROKE_MIN_SIZE_WORLD / 2` on each side to ensure minimum clickable area).
+- **Resize is aspect-locked** — `useTransformGesture` calls
+  `scaleWithin` (uniform scale) for strokes registered as `aspectLocked: true`
+  in the registry. The `scaledPoints` function then scales all stored points
+  proportionally at render time.
+- **Pen uses crosshair cursor** and prevents panning while active (scroll wheel
+  still pans). This matches the BoardViewport's tool guards.
+
+## Tests
+
+- **Unit tests** (TC-01 to TC-08): 11 tests in `tests/unit/stroke.test.ts`
+  covering simplify, splitPoints, createStroke, scaledPoints, distanceToPolyline
+  on scaled points, and smoothPath output format.
+- **Component tests** (TC-09 to TC-16, TC-21): 13 tests in
+  `tests/component/PenTool.test.tsx` covering pen gesture (drag, click dot,
+  cancel, max-points split, colour switching), PenToolbar rendering, registry
+  hit test (near/far), and stale selection safety.
+- **E2E tests** (TC-17 to TC-20): 4 tests in `tests/e2e/pen-strokes.spec.ts`
+  proving preview during drag (d attribute changes), release-to-share collaboration,
+  scroll-pan while pen is active, and select-by-line + aspect-locked resize +
+  move + delete workflow.
+
+---
+
+# Story 12 implementation notes
+
+## Structure
+
+- **`src/shared/image-format.ts`**: Magic-byte sniffing (`sniffImageType`), asset key validation (`ASSET_KEY_PATTERN`), key generation (`assetKeyFor`). Used by both client (for validation before upload) and worker (for server-side content-type enforcement).
+- **`src/shared/objects/image.ts`**: Image object model — `placementSize`, `layoutRow`, `createImagePlaceholders`, `markImageReady/Failed/Retrying`, `displayStatus`, `getImageSnapshot`. Placeholder transactions use `LOCAL_ORIGIN` (tracked by UndoManager); status updates use `UPLOAD_ORIGIN` (not tracked).
+- **`src/client/images/`**: `validateFiles.ts` (client-side validation), `uploadImage.ts` (XHR with progress), `useImageInsert.ts` (orchestration hook).
+- **`src/worker/assets.ts`**: `handleUpload` (magic-byte sniffing, 10 MB limit, R2 put) and `handleServe` (immutable cache, nosniff, CSP headers).
+- **`src/client/objects/ImageObject.tsx`**: Four render states — uploading spinner, ready `<img>` via blob URL, failed with Retry, unfinished/unavailable.
+
+## Key decisions
+
+- **`LOCAL_ORIGIN` for placeholder transactions**: So UndoManager tracks the creation of image objects. `UPLOAD_ORIGIN` symbol is used for status transitions (ready/failed/retrying) so they are NOT undo steps — undo only removes/adds the placeholder.
+- **File bytes stored in-memory (Map) keyed by object id**: Enables retry without re-picking files. Lost on page reload by design.
+- **Blob URL for ready images**: Fetches image via `fetch → blob → URL.createObjectURL` to be CSP-safe (avoids cross-origin `<img src>`). Revoked on unmount.
+- **`placementSize` enforces `IMAGE_MIN_SIZE_WORLD`**: A 1×1 PNG gets scaled up to 16×16 world units minimum, ensuring clickable area for interaction.
+- **File input has no `accept` attribute**: Client-side `validateFiles` handles type filtering. This allows Playwright `setInputFiles` to pass non-image files for testing rejection.
+- **Drop handler uses synthetic `DragEvent`**: Real drops work for humans; E2E tests use `setInputFiles` instead (synthetic DragEvents with files don't work reliably in headless Chromium).
+- **R2 bucket**: `ASSETS_BUCKET` binding in `wrangler.jsonc`. Local mode uses Miniflare's in-memory R2. No migration needed.
+- **Asset key format**: `{boardId}/{22-char-base64url-random}`. Validated with `ASSET_KEY_PATTERN` regex (22 chars base64url, no padding).
+- **Upload endpoint**: `POST /api/boards/:boardId/assets` — body is raw bytes, response `{ assetKey, contentType }`.
+- **Serve endpoint**: `GET /api/assets/:boardId/:assetId` — `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff`.
+- **Retry mechanism**: `useImageInsert` returns a `retry(id)` function that retrieves stored bytes and re-uploads, calling `markImageRetrying` then `markImageReady`/`markImageFailed`.
+
+## Tests
+
+- **Unit tests** (TC-01 to TC-09): 18 tests in `tests/unit/image-format.test.ts` + `tests/unit/image-model.test.ts` covering magic-byte sniffing, key validation/generation, placement sizing (min enforcement, max cap), layout row (top-left anchor, centre anchor), placeholder creation, status transitions.
+- **Integration tests** (TC-10 to TC-16): 12 tests in `tests/integration/assets-api.test.ts` covering upload (valid PNG, JPEG, GIF, WebP), rejection (PDF, oversized, empty body), serve (correct content-type, immutable cache, 404, path traversal prevention).
+- **Component tests** (TC-17, TC-19, TC-21–24, TC-29): 9 tests in `tests/component/ImageObject.test.tsx` covering rendering (uploading, ready, failed with Retry, unavailable, unfinished), insert hook (multi-file, offline toast, decode failure).
+- **E2E tests** (TC-25 to TC-28): 4 tests in `tests/e2e/images.spec.ts` proving multi-upload collaboration, mixed batch validation (PDF rejection), aspect-locked resize + persistence after reload, abort-then-retry.

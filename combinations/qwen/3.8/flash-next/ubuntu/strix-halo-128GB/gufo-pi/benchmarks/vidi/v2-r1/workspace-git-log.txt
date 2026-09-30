@@ -1,3 +1,62 @@
+commit 07a9ba61bbca9cb6fb7fcd7f50ee61594683bf86
+vidi-agent  Wed Sep 30 05:22:50 2026 +0000
+
+    harness: snapshot after story 10 (uncommitted agent work)
+
+
+ NOTES.md                                  | 153 +++++++++
+ src/client/App.tsx                        | 365 ++++++++++++++++++++-
+ src/client/board/Toolbar.tsx              |  60 ++++
+ src/client/board/useBoardKeys.ts          |  47 ++-
+ src/client/board/useTool.ts               |  57 +++-
+ src/client/canvas/BoardViewport.tsx       |  26 +-
+ src/client/images/uploadImage.ts          |  71 ++++
+ src/client/images/useImageInsert.ts       | 174 ++++++++++
+ src/client/images/validateFiles.ts        |  46 +++
+ src/client/objects/ConnectorObject.tsx    | 200 ++++++++++++
+ src/client/objects/ImageObject.tsx        | 228 +++++++++++++
+ src/client/objects/ShapeObject.tsx        | 231 +++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  70 ++++
+ src/client/objects/StrokeObject.tsx       |  96 ++++++
+ src/client/objects/registry.tsx           |  63 +++-
+ src/client/tools/ConnectorTool.tsx        | 317 ++++++++++++++++++
+ src/client/tools/PenTool.tsx              | 231 +++++++++++++
+ src/client/tools/PenToolbar.tsx           |  70 ++++
+ src/client/tools/ShapeTool.tsx            | 165 ++++++++++
+ src/client/tools/usePenOptions.ts         |  22 ++
+ src/shared/board-model.ts                 |   5 +-
+ src/shared/config.ts                      | 114 +++++++
+ src/shared/geometry/connector-geometry.ts | 122 +++++++
+ src/shared/geometry/polyline.ts           |  39 +++
+ src/shared/geometry/simplify.ts           | 138 ++++++++
+ src/shared/image-format.ts                |  52 +++
+ src/shared/objects/connector.ts           | 304 +++++++++++++++++
+ src/shared/objects/image.ts               | 281 ++++++++++++++++
+ src/shared/objects/shape.ts               | 214 ++++++++++++
+ src/shared/objects/stroke.ts              | 126 ++++++++
+ src/worker/assets.ts                      | 125 +++++++
+ src/worker/cloudflare-workers.d.ts        |  25 ++
+ src/worker/index.ts                       |  22 ++
+ tests/component/ImageObject.test.tsx      | 330 +++++++++++++++++++
+ tests/component/PenTool.test.tsx          | 387 ++++++++++++++++++++++
+ tests/component/ShapeConnector.test.tsx   | 520 ++++++++++++++++++++++++++++++
+ tests/e2e/helpers/images.ts               | 128 ++++++++
+ tests/e2e/helpers/pen.ts                  | 129 ++++++++
+ tests/e2e/helpers/shapes-connectors.ts    | 210 ++++++++++++
+ tests/e2e/images.spec.ts                  | 164 ++++++++++
+ tests/e2e/pen-strokes.spec.ts             | 257 +++++++++++++++
+ tests/e2e/shapes-connectors.spec.ts       | 265 +++++++++++++++
+ tests/fixtures/checkout-flow.ts           | 158 +++++++++
+ tests/fixtures/pen-paths.ts               |  61 ++++
+ tests/integration/assets-api.test.ts      | 200 ++++++++++++
+ tests/unit/connector-model.test.ts        | 313 ++++++++++++++++++
+ tests/unit/geometry.test.ts               |   2 +-
+ tests/unit/image-format.test.ts           | 164 ++++++++++
+ tests/unit/image-model.test.ts            | 192 +++++++++++
+ tests/unit/shape-model.test.ts            | 220 +++++++++++++
+ tests/unit/stroke.test.ts                 | 208 ++++++++++++
+ wrangler.jsonc                            |   6 +
+ 52 files changed, 8151 insertions(+), 22 deletions(-)
 commit c301cfe1c2e6bb2e3d2bbbabad2f5fd9ce03a4f2
 vidi-agent  Wed Sep 30 01:47:49 2026 +0000
 

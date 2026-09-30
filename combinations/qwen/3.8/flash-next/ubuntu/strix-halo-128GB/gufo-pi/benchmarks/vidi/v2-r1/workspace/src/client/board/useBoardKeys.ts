@@ -30,6 +30,8 @@ export interface UseBoardKeysOpts {
   onCreateSticky?(): void;
   /** Create text at a world point (board click while Text tool active). */
   onTextToolClick?(point: Point): void;
+  /** Open image file picker (I shortcut). */
+  onImagePicker?(): void;
 }
 
 /**
@@ -59,6 +61,7 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
     tool,
     setTool,
     onCreateSticky,
+    onImagePicker,
   } = opts;
 
   useEffect(() => {
@@ -91,6 +94,46 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
       if (event.key === 'n' || event.key === 'N') {
         if (!event.ctrlKey && !event.metaKey && !event.altKey) {
           onCreateSticky?.();
+          return;
+        }
+      }
+
+      // S → Shape tool (only if canEdit)
+      if (event.key === 's' || event.key === 'S') {
+        if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+          if (canEdit) {
+            setTool?.('shape');
+          }
+          return;
+        }
+      }
+
+      // L → Connector tool (only if canEdit)
+      if (event.key === 'l' || event.key === 'L') {
+        if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+          if (canEdit) {
+            setTool?.('connector');
+          }
+          return;
+        }
+      }
+
+      // P → Pen tool (only if canEdit)
+      if (event.key === 'p' || event.key === 'P') {
+        if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+          if (canEdit) {
+            setTool?.('pen');
+          }
+          return;
+        }
+      }
+
+      // I → Image picker (only if canEdit)
+      if (event.key === 'i' || event.key === 'I') {
+        if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+          if (canEdit && onImagePicker) {
+            onImagePicker();
+          }
           return;
         }
       }
@@ -134,7 +177,7 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         if (ids.size === 1 && canEdit) {
           const id = [...ids][0]!;
           const obj = snapshot.find((o) => o.id === id);
-          if (obj && (obj.type === 'sticky' || obj.type === 'text')) {
+          if (obj && (obj.type === 'sticky' || obj.type === 'text' || obj.type === 'shape')) {
             event.preventDefault();
             startEdit(id);
           }
@@ -189,5 +232,5 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selection, snapshot, canEdit, undo, redo, undoBoundary, tool, setTool, onCreateSticky]);
+  }, [doc, selection, snapshot, canEdit, undo, redo, undoBoundary, tool, setTool, onCreateSticky, onImagePicker]);
 }

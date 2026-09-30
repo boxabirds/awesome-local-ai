@@ -2,10 +2,12 @@ import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { handleTestHook } from './test-hooks';
+import { handleUpload, handleServe } from './assets';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   TEST_HOOKS?: string;
 }
 
@@ -69,6 +71,26 @@ export default {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+
+    // POST /api/boards/:id/assets — upload an image
+    const uploadMatch = url.pathname.match(/^\/api\/boards\/([^/]+)\/assets$/);
+    if (uploadMatch) {
+      if (request.method !== 'POST') {
+        return new Response('Method not allowed', { status: 405 });
+      }
+      const boardId = decodeURIComponent(uploadMatch[1]!);
+      return handleUpload(request, env, boardId);
+    }
+
+    // GET /api/assets/:boardId/:assetId — serve a stored image
+    const assetMatch = url.pathname.match(/^\/api\/assets\/([^/]+)\/([^/]+)$/);
+    if (assetMatch) {
+      if (request.method !== 'GET') {
+        return new Response('Method not allowed', { status: 405 });
+      }
+      const key = `${decodeURIComponent(assetMatch[1]!)}/${decodeURIComponent(assetMatch[2]!)}`;
+      return handleServe(env, key);
     }
 
     // Route WebSocket upgrade requests to the BoardRoom Durable Object.

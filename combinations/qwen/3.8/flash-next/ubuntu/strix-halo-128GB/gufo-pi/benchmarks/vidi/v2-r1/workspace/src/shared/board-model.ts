@@ -41,6 +41,7 @@ import {
   type StickyColor,
 } from './config';
 import { type Rect, rectContains } from './geometry';
+import { detachConnectorsTo } from './objects/connector';
 
 /** Origin tag for mutations made on this client. */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
@@ -270,6 +271,8 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const objects = objectsOf(doc);
   let count = 0;
   doc.transact(() => {
+    // Detach connector endpoints attached to objects being deleted (inside the same transaction)
+    detachConnectorsTo(doc, ids);
     for (const id of ids) {
       const entry = objects.get(id);
       if (entry instanceof Y.Map) {
@@ -360,7 +363,7 @@ export function objectsInRect(
  * Uses a simple heuristic: only types explicitly present in the snapshot list
  * that have a known `type` field (i.e. 'sticky' for now; other stories will add more).
  */
-const KNOWN_TYPES = new Set(['sticky', 'text']);
+const KNOWN_TYPES = new Set(['sticky', 'text', 'shape', 'connector', 'stroke']);
 
 /** Register a type as known (called by the object registry module). */
 export function registerKnownType(type: string): void {
