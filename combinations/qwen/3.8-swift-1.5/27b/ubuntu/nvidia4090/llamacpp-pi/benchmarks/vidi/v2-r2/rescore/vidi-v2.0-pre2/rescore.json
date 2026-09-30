@@ -1,0 +1,28 @@
+{
+  "pack_version": "vidi-v2.0-pre2",
+  "harness_commit": "f01f9704",
+  "host": "Apple M2 16GB",
+  "held_out_workers": 4,
+  "host_limits": {
+    "cores": 8,
+    "memory_gb": 16.0,
+    "free_gb": 12.8
+  },
+  "finished_at": "2026-09-30T17:38:30Z",
+  "results": [
+    {
+      "story": 12,
+      "passed": 63,
+      "total": 75,
+      "fallbacks": 0,
+      "scores": [
+        63,
+        63,
+        63
+      ],
+      "flaky": 0,
+      "harness_fault": null,
+      "seconds": 362
+    }
+  ]
+}
