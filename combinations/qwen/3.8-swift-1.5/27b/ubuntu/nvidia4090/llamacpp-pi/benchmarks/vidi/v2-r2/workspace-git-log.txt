@@ -1,3 +1,126 @@
+commit 90d6ce34f8a648760f2557735c03e6fc4b7457fe
+vidi-agent  Wed Sep 30 14:19:51 2026 +0100
+
+    story 9: add implementation notes
+
+
+ NOTES.md | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 81 insertions(+)
+commit 0ec596a8efb26ae80b004d8b194e69be5040663a
+vidi-agent  Wed Sep 30 14:19:19 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+commit 9739a2460f55e72f7caa447b690f0c576498c9a2
+vidi-agent  Wed Sep 30 14:18:19 2026 +0100
+
+    story 9 task 10: e2e text workflow (TC-26 to TC-31); fixed-width handle drag
+
+
+ src/client/board/useTransformGesture.ts |  20 ++--
+ tests/component/TextObject.test.tsx     |  31 ++++---
+ tests/e2e/text-notes.spec.ts            | 156 ++++++++++++++++++++++++++++++++
+ 3 files changed, 181 insertions(+), 26 deletions(-)
+commit bdbe71fcc477a03092d35907fdf54fc410dc1e76
+vidi-agent  Wed Sep 30 14:10:46 2026 +0100
+
+    story 9 task 9: text object component tests (TC-19 to TC-25)
+
+
+ src/shared/objects/text.ts          |   3 +
+ tests/component/TextObject.test.tsx | 210 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 213 insertions(+)
+commit 6b53a3ec9beb18c42fa9a3f1fe473ca577059a3d
+vidi-agent  Wed Sep 30 14:06:02 2026 +0100
+
+    story 9 task 8: TextObject, generalized TextEditor, TextToolbar, horizontal-only handles
+
+
+ src/client/board/SelectionBar.tsx       |  70 +++++++---
+ src/client/board/SelectionOverlay.tsx   |  14 +-
+ src/client/board/useTransformGesture.ts |  52 +++++++
+ src/client/objects/StickyTextEditor.tsx | 217 +++--------------------------
+ src/client/objects/TextEditor.tsx       | 239 ++++++++++++++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 118 ++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  75 ++++++++++
+ src/client/objects/registry.tsx         |  29 ++++
+ src/shared/objects/text.ts              |   2 +
+ tests/component/Tool.test.tsx           |  10 +-
+ 10 files changed, 602 insertions(+), 224 deletions(-)
+commit bbbe3ecd3985b0db8d76175b1326270c006650a1
+vidi-agent  Wed Sep 30 13:59:35 2026 +0100
+
+    story 9 task 7: tool mode component tests (TC-14 to TC-18)
+
+
+ tests/component/Tool.test.tsx | 151 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 151 insertions(+)
+commit 7bd7d164e6f589b5ffe51fa7983af74cb6fe22eb
+vidi-agent  Wed Sep 30 13:58:21 2026 +0100
+
+    story 9 task 6: tool mode with Select/Text tools and V/T/N/Escape shortcuts
+
+
+ src/client/board/Board.tsx            |  66 +++++++++++-
+ src/client/board/Toolbar.tsx          | 182 ++++++++++++++++------------------
+ src/client/board/useBoardKeys.ts      |  33 +++++-
+ src/client/board/useTool.ts           |  23 +++++
+ src/client/canvas/BoardViewport.tsx   |  53 +++++++++-
+ tests/component/TextBoxSync.test.tsx  |   3 +-
+ tests/component/Toolbars.test.tsx     |   2 +-
+ tests/component/UndoControls.test.tsx |   8 +-
+ tests/component/load-failure.test.tsx |   2 +-
+ tests/e2e/persistence.spec.ts         |   2 +-
+ tests/e2e/sticky-notes.spec.ts        |   2 +-
+ 11 files changed, 262 insertions(+), 114 deletions(-)
+commit 86719e236cefdb5a21c6ddbfa835138fc8c51610
+vidi-agent  Wed Sep 30 13:53:20 2026 +0100
+
+    story 9 task 5: box sync component tests (TC-12, TC-13)
+
+
+ tests/component/TextBoxSync.test.tsx | 121 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 121 insertions(+)
+commit e3e9d32d569ce6a87ba4ce3a9537bb7e3b738a23
+vidi-agent  Wed Sep 30 13:49:58 2026 +0100
+
+    story 9 task 4: text layout and local-only box sync
+
+
+ src/client/objects/textLayout.ts     | 93 +++++++++++++++++++++++++++++++-----
+ src/client/objects/useTextBoxSync.ts | 53 ++++++++++++++++++++
+ 2 files changed, 134 insertions(+), 12 deletions(-)
+commit 3b090a859a0f25e0f1780778b4debfdc4a12096b
+vidi-agent  Wed Sep 30 13:49:33 2026 +0100
+
+    story 9 task 3: text layout unit tests first with fake measurer
+
+
+ src/client/objects/textLayout.ts | 45 ++++++++++++++++++++
+ tests/unit/text-layout.test.ts   | 88 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 133 insertions(+)
+commit f7150b921ee8cb071a74c3dc9277e88583e5282e
+vidi-agent  Wed Sep 30 13:47:48 2026 +0100
+
+    story 9 task 2: text object model and shared text-edit helpers
+
+
+ src/client/objects/StickyText.ts |  48 +++-----------
+ src/shared/board-model.ts        |  15 ++++-
+ src/shared/objects/text.ts       | 131 +++++++++++++++++++++++++++++++--------
+ src/shared/text-edit.ts          |  45 +++++++++++---
+ 4 files changed, 160 insertions(+), 79 deletions(-)
+commit 189c4844246bc95af7e82792e6728970677593d4
+vidi-agent  Wed Sep 30 13:46:35 2026 +0100
+
+    story 9 task 1: text model unit tests first (TC-01 to TC-06)
+
+
+ src/shared/config.ts          |  10 +++
+ src/shared/objects/text.ts    |  73 +++++++++++++++++
+ src/shared/text-edit.ts       |  25 ++++++
+ tests/unit/text-model.test.ts | 185 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 293 insertions(+)
 commit 6483764da4b0dc7ca8f13407a666e1feaa8a7a59
 vidi-agent  Wed Sep 30 13:34:28 2026 +0100
 
