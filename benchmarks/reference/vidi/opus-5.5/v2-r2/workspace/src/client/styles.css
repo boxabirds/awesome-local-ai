@@ -154,8 +154,13 @@ body,
   cursor: pointer;
 }
 
-.board-toolbar button:hover {
+.board-toolbar button:hover:not(:disabled) {
   background: #eef0f4;
+}
+
+.board-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .board-toolbar button:focus-visible,
@@ -335,6 +340,12 @@ body,
   background: #fff4d6;
   border-color: #f0b429;
   color: #7a4d00;
+}
+
+.connection-status--load_failed {
+  background: #fde8e8;
+  border-color: #d93025;
+  color: #a1160a;
 }
 
 .connection-status--confirmed {

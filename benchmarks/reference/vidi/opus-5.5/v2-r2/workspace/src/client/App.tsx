@@ -39,6 +39,11 @@ export function boardIdFromLocation(): string {
   return id;
 }
 
+/** Whether the board may be edited: never while its saved state cannot be loaded. */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
 /**
  * `boardId` connects the board to its live room; without it the board stays
  * local. `doc` lets tests supply the board document; the app creates its own.
@@ -52,6 +57,13 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React
   const selection = useSelection();
   const { selectedId, editingId, select, startEdit, endEdit } = selection;
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  // A board that could not be loaded is never presented as an empty editable board.
+  const editable = canEdit(connection);
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
+  useEffect(() => {
+    if (!editable) endEdit('selected');
+  }, [editable, endEdit]);
 
   const selectedNote = notes.find((n) => n.id === selectedId) ?? null;
   // A note deleted while selected, dragged or edited leaves no stale selection behind.
@@ -69,6 +81,7 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React
 
   const createAt = useCallback(
     (world: Point) => {
+      if (!editableRef.current) return;
       const id = createSticky(doc, world);
       if (id !== false) startEdit(id);
     },
@@ -84,7 +97,7 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const { selectedId: id, editingId: editing } = keyState.current;
-      if (id === null || editing !== null || e.defaultPrevented) return;
+      if (id === null || editing !== null || e.defaultPrevented || !editableRef.current) return;
       if (isEditableTarget(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Enter') {
         // Enter on a focused button activates the button instead.
@@ -101,7 +114,8 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [doc, select, startEdit]);
 
-  const showNoteToolbar = selectedNote !== null && editingId !== selectedNote.id && draggingId !== selectedNote.id;
+  const showNoteToolbar =
+    editable && selectedNote !== null && editingId !== selectedNote.id && draggingId !== selectedNote.id;
   const toolbarAnchor = selectedNote
     ? worldToScreen(camera, { x: selectedNote.x + STICKY_SIZE_WORLD / 2, y: selectedNote.y })
     : null;
@@ -118,6 +132,7 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React
               zoom={camera.zoom}
               selected={note.id === selectedId}
               editing={note.id === editingId}
+              editable={editable}
               onSelect={select}
               onStartEdit={startEdit}
               onEndEdit={endEdit}
@@ -137,7 +152,7 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React
             />
           </div>
         )}
-        <Toolbar onCreateSticky={createAtViewportCentre} />
+        <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} />
         {props.boardId && <ConnectionStatus state={connection} />}
         <NavigationHint visible={!board.hasNavigated} />
         <ZoomControls

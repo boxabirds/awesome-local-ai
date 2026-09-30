@@ -48,6 +48,8 @@ export function StickyNote(props: {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** False while the board cannot be edited: no drag, no text editing (default true). */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -56,6 +58,7 @@ export function StickyNote(props: {
 }): React.JSX.Element {
   const { note, doc } = props;
   const id = note.id;
+  const editable = props.editable ?? true;
   const rootRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const press = useRef<Press | null>(null);
@@ -130,7 +133,7 @@ export function StickyNote(props: {
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     // The board must never pan (or clear the selection) from a press on a note.
     e.stopPropagation();
-    if (props.editing || e.button !== PRIMARY_BUTTON || press.current) return;
+    if (!editable || props.editing || e.button !== PRIMARY_BUTTON || press.current) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     press.current = {
       pointerId: e.pointerId,
@@ -146,6 +149,11 @@ export function StickyNote(props: {
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const p = press.current;
     if (!p || p.pointerId !== e.pointerId) return;
+    // Editing was switched off mid-press (board load failure): stop without moving.
+    if (latest.current.editable === false) {
+      endPress(false);
+      return;
+    }
     const dx = e.clientX - p.startX;
     const dy = e.clientY - p.startY;
     if (!p.dragging) {
@@ -212,10 +220,10 @@ export function StickyNote(props: {
       onLostPointerCapture={(e) => finish(e, false)}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        if (!props.editing) props.onStartEdit(id);
+        if (editable && !props.editing) props.onStartEdit(id);
       }}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' && e.target === e.currentTarget && !props.editing) {
+        if (editable && e.key === 'Enter' && e.target === e.currentTarget && !props.editing) {
           e.preventDefault();
           props.onStartEdit(id);
         }

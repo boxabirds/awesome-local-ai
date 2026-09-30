@@ -1,8 +1,9 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 type ProviderStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -10,14 +11,19 @@ type ProviderStatus = 'connecting' | 'connected' | 'disconnected';
 export interface ProviderEvents {
   on(event: 'status', handler: (e: { status: ProviderStatus }) => void): void;
   on(event: 'sync', handler: (synced: boolean) => void): void;
+  on(event: 'connection-close', handler: (e: { code: number } | null) => void): void;
   off(event: 'status', handler: (e: { status: ProviderStatus }) => void): void;
   off(event: 'sync', handler: (synced: boolean) => void): void;
+  off(event: 'connection-close', handler: (e: { code: number } | null) => void): void;
 }
 
 /**
- * Maps provider `status` / `sync` events to the badge state:
+ * Maps provider `status` / `sync` / `connection-close` events to the badge state:
  * `connecting` until the first sync → `connected`; a disconnect after that →
  * `reconnecting`; the next sync → `confirmed` for CONNECTED_CONFIRMATION_MS → `connected`.
+ * A close with CLOSE_BOARD_LOAD_FAILED → `load_failed` until a sync succeeds (the
+ * provider keeps retrying); any other close code (e.g. 1011 storage failure, 1003)
+ * is an ordinary disconnect.
  */
 export function trackConnectionState(
   provider: ProviderEvents,
@@ -34,14 +40,19 @@ export function trackConnectionState(
     state = next;
     onState(next);
   };
+  const onClose = (event: { code: number } | null) => {
+    if (event?.code !== CLOSE_BOARD_LOAD_FAILED) return;
+    clearTimer();
+    set('load_failed');
+  };
   const onStatus = ({ status }: { status: ProviderStatus }) => {
-    if (status !== 'disconnected' || state === 'connecting') return;
+    if (status !== 'disconnected' || state === 'connecting' || state === 'load_failed') return;
     clearTimer();
     set('reconnecting');
   };
   const onSync = (synced: boolean) => {
     if (!synced) return;
-    if (state === 'connecting') set('connected');
+    if (state === 'connecting' || state === 'load_failed') set('connected');
     else if (state === 'reconnecting') {
       set('confirmed');
       timer = setTimeout(() => {
@@ -52,12 +63,14 @@ export function trackConnectionState(
   };
   provider.on('status', onStatus);
   provider.on('sync', onSync);
+  provider.on('connection-close', onClose);
   onState(state);
   return {
     destroy() {
       clearTimer();
       provider.off('status', onStatus);
       provider.off('sync', onSync);
+      provider.off('connection-close', onClose);
     },
   };
 }

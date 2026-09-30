@@ -6,6 +6,10 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code for frames the room cannot understand. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/** The board's saved state cannot be loaded; the client shows the load-failure message and keeps retrying. */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/** A change could not be saved; clients reconnect and re-send what the room lacks. */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }

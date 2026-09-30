@@ -6,13 +6,13 @@
   "assets": {
     "directory": "dist/client",
     "binding": "ASSETS",
-    // Room connections always reach the Worker, never the SPA fallback.
-    "run_worker_first": ["/api/*"],
+    // Room connections (and e2e-only test hooks) always reach the Worker, never the SPA fallback.
+    "run_worker_first": ["/api/*", "/__test/*"],
     "not_found_handling": "single-page-application"
   },
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
   },
-  // SQLite-backed from the start so story 4 (persistence) needs no class migration.
+  // SQLite-backed: each board's saved state lives in its room's SQLite database (story 4).
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
 }

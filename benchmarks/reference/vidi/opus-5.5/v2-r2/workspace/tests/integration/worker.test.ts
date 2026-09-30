@@ -65,3 +65,17 @@ describe('Worker routing (sync.worker_entry)', () => {
     expect(c.snapshot()).toEqual([]);
   });
 });
+
+describe('test-only storage hooks (TC-24 support)', () => {
+  it.each(['compact', 'corrupt-snapshot', 'repair'])(
+    'without TEST_HOOKS (production config) POST /__test/boards/:id/%s never reaches a room',
+    async (action) => {
+      expect(env.TEST_HOOKS).toBeUndefined();
+      const get = vi.spyOn(env.BOARD_ROOM, 'get');
+      const response = await SELF.fetch(`${ORIGIN}/__test/boards/${newBoardId()}/${action}`, { method: 'POST' });
+      expect(get).not.toHaveBeenCalled();
+      expect(response.headers.get('Content-Type') ?? '').not.toContain('application/json');
+      expect(await response.text()).not.toContain('"hook"');
+    },
+  );
+});

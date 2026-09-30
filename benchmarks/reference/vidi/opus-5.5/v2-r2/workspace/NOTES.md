@@ -117,3 +117,62 @@ Decisions made where the spec was open or self-contradictory:
 - **Stale e2e server.** `playwright.config.ts` keeps story 1's `reuseExistingServer` outside CI. A
   leftover `wrangler dev` on port 8787 serves whatever is in `dist/client`. If `npm run build`
   (production, no test hooks) ran last, every e2e test times out. Stop the old server first.
+
+## Story 4 — Return to a board and find everything as it was left
+
+- **Room lifecycle.** `src/worker/room-state.ts` holds the design's full lifecycle (`loading`, `ready`,
+  `compacting`, `storage-failed`, `load-failed`, `hibernated`) as `nextRoomState(state, event)`. `BoardRoom`
+  drives its state through it. `hibernated` is also used by the test-only `unload()` (the room forgets its
+  doc and sockets, as a restart would). A `load-failed` room retries loading on a new connection only once
+  `LOAD_RETRY_MIN_INTERVAL_MS` has passed since the last failed attempt; earlier connections are accepted
+  and closed with 4500 straight away.
+- **Storage failure handling.** An `append` failure inside Yjs's `update` handler is recorded, not thrown
+  (a throw inside a Yjs observer would surface as a decode error). After the message has been applied,
+  the room closes every socket with 1011 and discards its doc, and sends no reply.
+- **Echo filtering under hibernation.** Every socket gets a random id via `serializeAttachment`, and the
+  broadcast skips the socket whose id matches the update's origin. This avoids depending on WebSocket
+  object identity across hibernation.
+- **Damaged bytes never half-apply.** Snapshot and log rows are fully decoded (`Y.decodeUpdate`) before
+  `Y.applyUpdate`, so a truncated row fails before any of it is integrated.
+- **Limit of partial damage (Yjs property).** A quarantined row also blocks later updates *from the same
+  Yjs client*, because their clocks depend on it. They stay pending in the doc, and compaction keeps them.
+  On a real board this is usually one person's edits from one session. The TC-09 fixture therefore
+  models a real shared board: each note is written by its own participant. The test asserts that every
+  other note is intact.
+- **`BoardStore` extras.** The constructor takes an optional `{ chunkBytes }`. TC-08 uses it to also prove
+  a many-chunk snapshot; production always uses `SNAPSHOT_CHUNK_BYTES`. `compact(doc)` (unconditional) is
+  public, `compactIfNeeded` calls it, and the test hook uses it. A 2,000-note fixture board encodes to
+  ~744 KB, which is 2 chunks at 512 KB. Cloudflare's documented per-row limit for SQLite-backed Durable
+  Objects is 2 MB. I could not re-check the current docs (no network), so the 512 KB chunk stays far
+  below it.
+- **Test seams on `BoardRoom`.** `store` (replaceable), `state`, `loadFailedAt`, `unload()` and
+  `loadedDoc()` are public so that integration tests can inject failures and shift the retry clock via
+  `runInDurableObject`. `evictDurableObject` (vitest-pool-workers) provides real restarts and hibernation
+  in TC-13/15/16/18.
+- **Test hooks (TC-24).** `src/worker/test-hooks.ts` serves `POST /__test/boards/:id/{compact,corrupt-snapshot,repair}`
+  only when `env.TEST_HOOKS === '1'`. Playwright's `wrangler dev` passes `--var TEST_HOOKS:1`, and
+  `wrangler.jsonc` never sets it. The check happens at runtime, so the code ships in the bundle but is
+  unreachable in production. `/__test/*` is in `run_worker_first` so that the Worker, not the SPA fallback,
+  sees these paths. Without the variable, the Worker passes them to the assets. The integration test in
+  `worker.test.ts` checks that production never reaches a room. `corrupt-snapshot` also unloads the room,
+  so the next connection loads the damaged state.
+- **Client close-code mapping.** `trackConnectionState` also listens to `connection-close`. 4500 →
+  `load_failed`, which stays until a sync succeeds, even through network errors while retrying, so the
+  board is never shown as empty and editable. 1011/1003 are ordinary disconnects (`reconnecting`).
+  y-websocket keeps retrying after 4500 (it only stops for 4400–4499) with its backoff capped at
+  `RECONNECT_MAX_BACKOFF_MS`.
+- **Edit lock.** `canEdit(state)` (exported from `App.tsx`) is false only for `load_failed`. While it is
+  false: the Sticky note button is disabled, double-click creation and the Enter/Delete keys do nothing,
+  the note toolbar is hidden, and notes cannot be dragged or edited (`StickyNote` got an optional
+  `editable` prop). An open editor is closed. Selection itself is not a board change and still works.
+- **Client meta write.** Each browser still runs story 2's `initDoc`, which writes `meta.schemaVersion`
+  locally. So every first visit stores one tiny update row; compaction absorbs these. A never-edited
+  board creates no rows just by the room opening (TC-25 is checked at the store level).
+- **E2E process tests.** `tests/e2e/persistence.spec.ts` (TC-19–21) runs in its own Chromium-only
+  Playwright project, `persistence`. Each test starts `wrangler dev --persist-to <tmp> --var TEST_HOOKS:1`
+  on port 8790+ and kills the whole process group with SIGKILL for restarts. The spec still relies on
+  the shared webServer's `npm run build:test` for `dist/client`. TC-21 seeds the 2,000-note board through
+  the real WebSocket protocol from Node (`helpers/seed.ts`), compacts it, restarts, and logs the load
+  time against `BOARD_LOAD_BUDGET_MS` (~0.9 s locally), which is reported, not asserted. E2E ran in
+  Chromium only.
+- **Red phase.** As in earlier stories, test-first phases were not committed separately (single story commit).

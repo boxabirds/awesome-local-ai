@@ -4,6 +4,8 @@ import { chromium, defineConfig, devices, firefox, webkit } from '@playwright/te
 const PORT = 8787;
 const VIEWPORT = { width: 1280, height: 800 };
 const NIGHTLY_SPECS = /\.nightly\.spec\.ts$/;
+// Specs that run their own `wrangler dev --persist-to` processes (restarts), Chromium only.
+const PROCESS_SPECS = /persistence\.spec\.ts$/;
 
 // Chromium, Firefox and WebKit per the design; browsers that are not installed
 // locally are skipped (Chromium is always required).
@@ -27,8 +29,9 @@ export default defineConfig({
     ...browsers.map((b) => ({
       name: b.name,
       use: { ...b.device, viewport: VIEWPORT },
-      testIgnore: NIGHTLY_SPECS,
+      testIgnore: [NIGHTLY_SPECS, PROCESS_SPECS],
     })),
+    { name: 'persistence', use: { ...devices['Desktop Chrome'], viewport: VIEWPORT }, testMatch: PROCESS_SPECS },
     // Long-running checks (TC-29, TC-30): only with `npm run test:e2e:nightly`.
     ...(process.env.VIDI6_NIGHTLY
       ? [{ name: 'nightly', use: { ...devices['Desktop Chrome'], viewport: VIEWPORT }, testMatch: NIGHTLY_SPECS }]
@@ -36,7 +39,8 @@ export default defineConfig({
   ],
   webServer: {
     // Test-mode build exposes window.__vidi6; served by wrangler like production.
-    command: `npm run build:test && npx wrangler dev --port ${PORT} --ip 127.0.0.1`,
+    // TEST_HOOKS enables the e2e-only storage hooks (src/worker/test-hooks.ts); never set in wrangler.jsonc.
+    command: `npm run build:test && npx wrangler dev --port ${PORT} --ip 127.0.0.1 --var TEST_HOOKS:1`,
     url: `http://127.0.0.1:${PORT}`,
     env: { WRANGLER_SEND_METRICS: 'false' },
     reuseExistingServer: !process.env.CI,

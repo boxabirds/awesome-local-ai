@@ -1,11 +1,14 @@
 import { isValidBoardId } from '../shared/board-id';
 import type { BoardRoom } from './board-room';
+import { routeTestHook } from './test-hooks';
 
 export { BoardRoom } from './board-room';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** '1' only in the e2e `wrangler dev` (enables src/worker/test-hooks.ts); never in production. */
+  TEST_HOOKS?: string;
 }
 
 const ROOM_PATH = /^\/api\/rooms\/(.*)$/;
@@ -13,6 +16,8 @@ const ROOM_PATH = /^\/api\/rooms\/(.*)$/;
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const hook = routeTestHook(request, env);
+    if (hook) return hook;
     const match = ROOM_PATH.exec(url.pathname);
     if (!match) return env.ASSETS.fetch(request);
     const boardId = match[1] ?? '';
