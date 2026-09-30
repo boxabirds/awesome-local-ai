@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 1.6,
+      "tail": "\nadded 217 packages, and audited 218 packages in 1s\n\n39 packages are looking for funding\n  run `npm fund` for details\n\n5 vulnerabilities (3 moderate, 1 high, 1 critical)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.6,
+      "tail": "\n> vidi6@0.0.1 build\n> vite build\n\n\u001b[36mvite v6.4.3 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 35 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                \u001b[39m\u001b[1m\u001b[2m  0.32 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.23 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-BThgzom0.js  \u001b[39m\u001b[1m\u001b[2m231.27 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 72.14 kB\u001b[22m\n\u001b[32m\u2713 built in 449ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 2,
+      "seconds": 0.7,
+      "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit\n\nsrc/client/App.tsx(7,39): error TS6133: 'useCallback' is declared but its value is never read.\nsrc/client/canvas/BoardViewport.tsx(2,30): error TS6196: 'Size' is declared but never used.\ntests/component/BoardViewport.test.tsx(3,20): error TS6133: 'useCallback' is declared but its value is never read.\ntests/component/BoardViewport.test.tsx(3,33): error TS6133: 'useRef' is declared but its value is never read.\ntests/component/BoardViewport.test.tsx(6,1): error TS6192: All imports in import declaration are unused.\ntests/component/BoardViewport.test.tsx(321,11): error TS6133: 'viewport' is declared but its value is never read.\ntests/e2e/helpers/board.ts(77,101): error TS6133: 'ctrlKey' is declared but its value is never read.\ntests/e2e/navigation.spec.ts(4,3): error TS6133: 'getWorldLayer' is declared but its value is never read.\ntests/e2e/navigation.spec.ts(9,3): error TS6133: 'getResetButton' is declared but its value is never read.\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.4,
+      "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r3/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 14\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m   Start at \u001b[22m 16:53:30\n\u001b[2m   Duration \u001b[22m 197ms\u001b[2m (transform 20ms, setup 0ms, collect 23ms, tests 14ms, environment 0ms, prepare 49ms)\u001b[22m\n\n",
+      "passed": 13,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 0.7,
+      "tail": "\n> vidi6@0.0.1 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r3/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m1 test\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 23\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 51\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 58\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m   Start at \u001b[22m 16:53:30\n\u001b[2m   Duration \u001b[22m 444ms\u001b[2m (transform 48ms, setup 0ms, collect 194ms, tests 131ms, environment 478ms, prepare 128ms)\u001b[22m\n\n",
+      "passed": 13,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 9.0,
+      "tail": "\n> vidi6@0.0.1 test:e2e\n> playwright test --project=chromium\n\n\nRunning 8 tests using 1 worker\n\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\n  8 passed (8.6s)\n",
+      "passed": 8,
+      "failed": 0
+    }
+  },
+  "all_green": false
+}
