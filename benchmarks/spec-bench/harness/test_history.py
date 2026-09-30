@@ -7,12 +7,23 @@ from pathlib import Path
 
 import pytest
 
+import heldout
 import history
 import report
 from drive import REPO_ROOT
 
 GRUNTUS_RUN = (REPO_ROOT / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi"
                / "canvas-pi-03")
+
+# The real runs' held-out detail lives in the private repo's copy (the public record has counts only): these tests
+# read it there, read-only, and are skipped where it isn't checked out.
+REAL_PRIVATE = REPO_ROOT.parent / "awesome-local-ai-bench-private"
+has_private = pytest.mark.skipif(not (REAL_PRIVATE / heldout.PRIVATE_RUNS).is_dir(), reason="no private repo copy of the runs")
+
+
+@pytest.fixture
+def real_private(monkeypatch):
+    monkeypatch.setenv(heldout.PRIVATE_ENV, str(REAL_PRIVATE))
 
 LOG = """commit bbbb
 vidi-agent  Sat Sep 26 09:44:15 2026 +0100
@@ -96,8 +107,9 @@ def test_the_report_has_a_how_it_happened_section(tmp_path):
     assert "fixed 1" in text and "harness snapshot" in text
 
 
+@has_private
 @pytest.mark.skipif(not GRUNTUS_RUN.exists(), reason="no canvas-pi-03 records in this checkout")
-def test_gruntus_story_7_is_found_as_the_story_that_broke_stories_1_to_5():
+def test_gruntus_story_7_is_found_as_the_story_that_broke_stories_1_to_5(real_private):
     h = history.analyse(GRUNTUS_RUN)
     by7 = {c["of_story"]: c for c in h["changes"] if c["by_story"] == "7"}
     assert {"01", "02", "03", "04", "05"} <= set(by7), by7.keys()
