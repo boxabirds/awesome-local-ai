@@ -1,0 +1,125 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2330;
+  background: #f7f7f5;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+}
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+  background-color: #f7f7f5;
+  background-image: radial-gradient(circle, #c5c8d0 1px, transparent 1.2px);
+}
+
+.board-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  will-change: transform;
+}
+
+.board-origin-marker {
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  background:
+    linear-gradient(#8a90a0, #8a90a0) center / 16px 1px no-repeat,
+    linear-gradient(#8a90a0, #8a90a0) center / 1px 16px no-repeat;
+}
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
+}
+
+.zoom-controls button {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #eef0f4;
+}
+
+.zoom-controls button:disabled {
+  color: #b3b7c2;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible {
+  outline: 2px solid #3b6fd8;
+  outline-offset: 1px;
+}
+
+.zoom-controls-label {
+  min-width: 48px;
+  font-size: 14px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoom-controls-reset {
+  border-left: 1px solid #dcdfe6 !important;
+  border-radius: 0 6px 6px 0 !important;
+}
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  font-size: 14px;
+  color: #fff;
+  background: rgb(31 35 48 / 0.82);
+  border-radius: 999px;
+  pointer-events: none;
+  white-space: nowrap;
+}

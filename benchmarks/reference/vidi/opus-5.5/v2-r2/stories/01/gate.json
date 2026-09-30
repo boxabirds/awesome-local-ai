@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 3.3,
+      "tail": "\nadded 137 packages, and audited 138 packages in 3s\n\n28 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 1.1,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-3YBMv6Ad.css    1.76 kB \u2502 gzip:  0.81 kB\ndist/client/assets/index-BWYSM6zL.js   226.30 kB \u2502 gzip: 70.93 kB\n\n\u001b[32m\u2713 built in 295ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 0.7,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit -p tsconfig.json\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.6,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.2 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__v2-r2/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 16\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m22 passed\u001b[39m\u001b[22m\u001b[90m (22)\u001b[39m\n\u001b[2m   Start at \u001b[22m 01:53:40\n\u001b[2m   Duration \u001b[22m 105ms\u001b[2m (transform 47%, tests 35%, import 14%, worker 4%)\u001b[22m\n\n",
+      "passed": 22,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 0.9,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.2 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__v2-r2/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 79\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 106\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 164\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m25 passed\u001b[39m\u001b[22m\u001b[90m (25)\u001b[39m\n\u001b[2m   Start at \u001b[22m 01:53:40\n\u001b[2m   Duration \u001b[22m 646ms\u001b[2m (environment 57%, tests 22%, transform 9%, setup 9%, import 2%)\u001b[22m\n\n",
+      "passed": 25,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 12.2,
+      "tail": "\n> vidi6@0.0.0 test:e2e\n> playwright test --project=chromium\n\n\nRunning 7 tests using 4 workers\n\n  \u2713  1 [chromium] \u203a tests/e2e/navigation.spec.ts:88:3 \u203a story 1: pan and zoom \u203a plain scroll pans the board in the scroll direction (604ms)\n  \u2713  5 [chromium] \u203a tests/e2e/navigation.spec.ts:163:3 \u203a story 1: pan and zoom \u203a TC-31: board zoom gestures and shortcuts never change page zoom (640ms)\n  \u2713  2 [chromium] \u203a tests/e2e/navigation.spec.ts:137:3 \u203a story 1: pan and zoom \u203a workflow 3: far travel still pans exactly (TC-27) (1.4s)\n  \u2713  6 [chromium] \u203a tests/e2e/navigation.spec.ts:183:3 \u203a story 1: pan and zoom \u203a Ctrl/Cmd + = / \u2212 / 0 step the board zoom (720ms)\n  \u2713  7 [chromium] \u203a tests/e2e/navigation.spec.ts:196:3 \u203a story 1: pan and zoom \u203a resizing the window does not move content relative to the top-left (725ms)\n  \u2713  4 [chromium] \u203a tests/e2e/navigation.spec.ts:33:3 \u203a story 1: pan and zoom \u203a workflow 1: first visit navigation (TC-28, TC-23, TC-24) (2.1s)\n  \u2713  3 [chromium] \u203a tests/e2e/navigation.spec.ts:103:3 \u203a story 1: pan and zoom \u203a workflow 2: limits and recovery (TC-25, TC-26) (9.3s)\n\n  7 passed (11.6s)\n",
+      "passed": 7,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
