@@ -32,3 +32,11 @@ export const STICKY_COLOR_NAMES: Record<StickyColor, string> = {
   pink: 'Pink',
   violet: 'Violet',
 };
+
+// --- Story 3: live collaboration ---
+export const MAX_CONCURRENT_EDITORS = 5;
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+export const CONNECTED_CONFIRMATION_MS = 2000;
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;

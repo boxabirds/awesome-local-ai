@@ -1,3 +1,36 @@
+commit d000303923f85f0419b3e070905496a82c40b360
+vidi-agent  Wed Sep 30 18:11:06 2026 +0000
+
+    harness: snapshot after story 3 (uncommitted agent work)
+
+
+ package-lock.json                         | 1396 ++++++++++++++++++++++++++++-
+ package.json                              |    8 +-
+ src/client/App.tsx                        |   38 +-
+ src/client/board/useBoardDoc.ts           |   27 +-
+ src/client/canvas/testHooks.ts            |    6 +-
+ src/client/sync/ConnectionStatus.tsx      |   48 +
+ src/client/sync/connectBoard.ts           |   96 ++
+ src/shared/board-id.ts                    |   20 +
+ src/shared/config.ts                      |    8 +
+ src/shared/protocol.ts                    |   99 ++
+ src/worker/board-room.ts                  |  137 +++
+ src/worker/env.d.ts                       |    1 +
+ src/worker/index.ts                       |   37 +
+ tests/component/ConnectionStatus.test.tsx |   65 ++
+ tests/component/harness/BoardHarness.tsx  |    2 +-
+ tests/e2e/live-collaboration.spec.ts      |  362 ++++++++
+ tests/integration/board-room.test.ts      |  246 +++++
+ tests/integration/global-setup.ts         |   60 ++
+ tests/integration/worker.test.ts          |  116 +++
+ tests/integration/ws-client.ts            |  188 ++++
+ tests/unit/board-id.test.ts               |   44 +
+ tests/unit/protocol.test.ts               |   72 ++
+ tsconfig.json                             |    3 +-
+ tsconfig.worker.json                      |   18 +
+ vitest.workspace.ts                       |   15 +
+ wrangler.jsonc                            |   21 +-
+ 26 files changed, 3118 insertions(+), 15 deletions(-)
 commit 3fafab21c4e3cebfd2f1c07fcc79b868eb16be1a
 vidi-agent  Wed Sep 30 17:26:21 2026 +0000
 

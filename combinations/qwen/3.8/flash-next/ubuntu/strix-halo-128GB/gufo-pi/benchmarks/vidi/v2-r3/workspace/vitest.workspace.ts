@@ -1,4 +1,5 @@
 import { defineWorkspace } from 'vitest/config';
+import { defineWorkersProject } from '@cloudflare/vitest-pool-workers/config';
 import react from '@vitejs/plugin-react';
 
 export default defineWorkspace([
@@ -18,6 +19,20 @@ export default defineWorkspace([
       environment: 'jsdom',
       globals: true,
       setupFiles: ['tests/component/setup.ts'],
+    },
+  },
+  {
+    extends: './vitest.config.ts',
+    test: {
+      name: 'integration',
+      include: ['tests/integration/**/*.{test,spec}.ts'],
+      environment: 'node',
+      globalSetup: ['tests/integration/global-setup.ts'],
+      testTimeout: 30000,
+      pool: 'forks',
+      poolOptions: { forks: { singleFork: true } },
+      teardownTimeout: 5000,
+      passWithNoTests: true,
     },
   },
 ]);

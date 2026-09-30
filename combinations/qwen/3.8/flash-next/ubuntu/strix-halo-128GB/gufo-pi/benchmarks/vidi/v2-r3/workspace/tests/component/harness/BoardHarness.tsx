@@ -37,7 +37,7 @@ export interface BoardHarnessProps {
  */
 export function BoardHarness({ handleRef, viewport = { width: 1280, height: 800 } }: BoardHarnessProps) {
   const { camera, beginPan, panMove, endPan, wheel, gestureZoom } = useCamera(viewport);
-  const { doc, notes } = useBoardDoc();
+  const { doc, notes } = useBoardDoc(null);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   const live = useRef({ camera, selectedId, editingId });

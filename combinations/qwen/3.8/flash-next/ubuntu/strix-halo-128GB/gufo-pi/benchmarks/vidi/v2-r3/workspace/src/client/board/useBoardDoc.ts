@@ -1,21 +1,25 @@
-import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, getObjectsMap } from '../../shared/board-model';
 import type { StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 export interface BoardDoc {
   doc: Y.Doc;
   /** Immutable notes sorted by (z, id). Recomputed on any document change. */
   notes: readonly StickySnapshot[];
+  /** Connection state for the live sync provider. */
+  connectionState: ConnectionState;
 }
 
 /**
  * Owns the single `Y.Doc` of this board and exposes an immutable snapshot to
- * React via `useSyncExternalStore`. Story 3 attaches a network provider to the
- * returned doc; story 4 persists it. Selection and editing are local state and
- * never written here.
+ * React via `useSyncExternalStore`. Attaches a WebsocketProvider for live
+ * collaboration. Selection and editing are local state and never written here.
+ *
+ * When `boardId` is null/empty, no provider is attached (used in component tests).
  */
-export function useBoardDoc(): BoardDoc {
+export function useBoardDoc(boardId: string | null): BoardDoc {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     const doc = new Y.Doc();
@@ -23,6 +27,17 @@ export function useBoardDoc(): BoardDoc {
     docRef.current = doc;
   }
   const doc = docRef.current;
+
+  const [connectionState, setConnectionState] = useState<ConnectionState>(
+    boardId ? 'connecting' : 'connected',
+  );
+
+  // Attach/detach provider on boardId change
+  useEffect(() => {
+    if (!boardId) return;
+    const handle = connectBoard(doc, boardId, setConnectionState);
+    return () => handle.destroy();
+  }, [doc, boardId]);
 
   const revisionRef = useRef(0);
   const cacheRef = useRef<{ rev: number; value: readonly StickySnapshot[] } | null>(null);
@@ -50,5 +65,5 @@ export function useBoardDoc(): BoardDoc {
   }, [doc]);
 
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return { doc, notes };
+  return { doc, notes, connectionState };
 }

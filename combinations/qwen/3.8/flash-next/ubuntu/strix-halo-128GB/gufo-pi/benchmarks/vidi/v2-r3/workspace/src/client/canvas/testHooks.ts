@@ -7,13 +7,15 @@ declare global {
       setCamera(cam: Camera): void;
       /** Current board snapshot, for assertions in end-to-end tests. */
       getBoard(): readonly StickySnapshot[];
+      /** Current connection state for e2e tests. */
+      connectionState?: string;
     };
   }
 }
 
 /** Expose the board to Playwright, but only in the `test` build mode. */
-export function registerTestHooks(hooks: Window['__vidi6']): void {
+export function registerTestHooks(hooks: Omit<NonNullable<Window['__vidi6']>, 'connectionState'>): void {
   if (import.meta.env.MODE === 'test') {
-    window.__vidi6 = hooks;
+    window.__vidi6 = { ...window.__vidi6, ...hooks };
   }
 }

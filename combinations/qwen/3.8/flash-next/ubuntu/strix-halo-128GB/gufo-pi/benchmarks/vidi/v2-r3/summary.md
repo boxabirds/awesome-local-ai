@@ -10,15 +10,17 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 |---|---|---|---|---|
 | 1 | 6/6 | 0 | 0 | 6/6 |
 | 2 | 10/10 | 0 | 0 | 19/20 |
+| 3 | 5/7 | 0 | 0 | 24/27 |
 
-**New work** 16/16, **regressions** 0, **repairs** 0, **cumulative** 19/20.
+**New work** 21/23, **regressions** 0, **repairs** 0, **cumulative** 24/27.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 28.1 | None | None | None | — | — | green | 6/6 |  | 0 / 2 | 0 | — | throttled 0%, server peak 0 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 95.8 | None | None | None | — | — | green | 19/20 |  | 1 / 0 | 2 | — | throttled 0%, server peak 0 GB |
+| 3 | See other people's edits appear live on the same board | DONE | 38.6 | None | None | None | — | — | red | 24/27 |  | 0 / 0 (ended in error) | 1 | — | throttled 0%, server peak 0 GB MEMORY-ABORT |
 
-**Totals:** 2 stories, 124 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 19/20, stalled 0, partial 0, 4697 lines in src+tests.
+**Totals:** 3 stories, 163 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/3, final acceptance 24/27, stalled 0, partial 0, 6349 lines in src+tests.
 
 ## How it happened
 
@@ -28,6 +30,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 1 by the agent | 7250 / 0 | `BoardViewport.tsx` (216), `useCamera.ts` (122), `camera.ts` (117), `App.tsx` (93), `ZoomControls.tsx` (73), `package.json` (33), +14 more |
 | 2 | 4 by the agent | 3259 / 50 | `StickyNote.tsx` (318), `board-model.ts` (228), `StickyTextEditor.tsx` (177), `StickyText.ts` (136), `App.tsx` (112), `NoteToolbar.tsx` (90), +8 more |
+| 3 | harness snapshot (agent left work uncommitted) | 3118 / 15 | `board-room.ts` (137), `protocol.ts` (99), `connectBoard.ts` (96), `ConnectionStatus.tsx` (48), `App.tsx` (38), `index.ts` (37), +10 more |
 
 ### Earlier stories broken or fixed
 
