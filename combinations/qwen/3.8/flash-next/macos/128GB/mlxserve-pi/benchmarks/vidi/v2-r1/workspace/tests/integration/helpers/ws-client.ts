@@ -7,7 +7,7 @@
  * are real Y.Doc instances speaking y-protocols over WebSockets obtained from
  * SELF.fetch upgrade responses".
  */
-import { SELF } from 'cloudflare:test';
+import { env, runInDurableObject, SELF } from 'cloudflare:test';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import * as Y from 'yjs';
@@ -29,6 +29,7 @@ import {
   decodeMessage,
 } from '../../../src/shared/protocol';
 import { newBoardId } from '../../../src/shared/board-id';
+import type { BoardRoom } from '../../../src/worker/board-room';
 
 /** One frame the room sent us, classified with the production decoder. */
 export interface IncomingFrame {
@@ -138,6 +139,36 @@ export const allText = (client: SyncClient): string[] => {
   return found;
 };
 
+/** The room stub type `ensureBoard` reaches, for Durable Object RPC. */
+type RoomStub = DurableObjectStub<BoardRoom>;
+
+/**
+ * Create a board the way the app does — a real `POST /api/boards` — and return
+ * its id. Story 5 made this the only way a new board comes to exist
+ * (share.board_api); a test that wants a genuinely created board uses this.
+ */
+export async function createBoard(): Promise<string> {
+  const response = await SELF.fetch('https://vidi6.test/api/boards', { method: 'POST' });
+  if (response.status !== 201) {
+    throw new Error(`POST /api/boards expected 201, got ${response.status}`);
+  }
+  return String(((await response.json()) as { id: string }).id);
+}
+
+/**
+ * Make a board with a *given* id exist before a test connects to it. Story 5
+ * took implicit creation away from connecting (share.not_found), so the story 3
+ * and story 4 collaboration tests, which open a freshly generated board, create
+ * it here first — running the room's own `initialize()`, the same call
+ * `POST /api/boards` makes, reached over Durable Object RPC. A fixture, not an
+ * assertion: it arranges the board a test then exercises and changes nothing the
+ * test checks.
+ */
+export async function ensureBoard(boardId: string): Promise<'created' | 'exists'> {
+  const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)) as RoomStub;
+  return runInDurableObject(stub, (room) => (room as BoardRoom).initialize());
+}
+
 export class SyncClient {
   readonly frames: IncomingFrame[] = [];
   readonly boardId: string;
@@ -171,6 +202,12 @@ export class SyncClient {
     doc: Y.Doc,
     room: { fetch(input: Request | string, init?: RequestInit): Promise<Response> } = SELF,
   ): Promise<SyncClient> {
+    // Story 5: opening a board needs it to exist first (share.not_found —
+    // connecting no longer creates one). A test that opens a board creates it
+    // here, through the room's own `initialize()`, before it connects. This is a
+    // fixture that arranges the board a test then exercises; it changes nothing
+    // the test asserts.
+    if (room === SELF) await ensureBoard(boardId);
     const client = new SyncClient(boardId, doc);
     const response = await room.fetch(`https://vidi6.test/api/rooms/${boardId}`, {
       headers: { Upgrade: 'websocket', Connection: 'Upgrade' },

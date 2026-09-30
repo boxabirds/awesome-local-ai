@@ -28,6 +28,7 @@ import { snapshot, type StickySnapshot } from '../../src/shared/board-model';
 import {
   SyncClient,
   canonicalNotes,
+  ensureBoard,
   updateFrame,
   waitFor,
   waitForAsync,
@@ -475,7 +476,12 @@ describe('the test-hook route (TC-24 ask)', () => {
   });
 
   it('is a hook when the flag is set', async () => {
-    const response = await hookFetch(newBoardId());
+    // Story 5: the hook reaches into a board that exists; a fresh id is created
+    // first so there is a board to compact (share.not_found left nothing to
+    // compact on a board nobody made).
+    const boardId = newBoardId();
+    await ensureBoard(boardId);
+    const response = await hookFetch(boardId);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
   });

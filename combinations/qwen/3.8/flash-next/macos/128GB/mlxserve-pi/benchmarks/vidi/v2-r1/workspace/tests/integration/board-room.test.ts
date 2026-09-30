@@ -27,6 +27,7 @@ import {
   awarenessBody,
   awarenessFrame,
   canonicalNotes,
+  ensureBoard,
   seeSameBoard,
   tick,
   unknownTypeFrame,
@@ -324,6 +325,11 @@ describe('a live board (sync.room)', () => {
     a.hangUpWithoutSayingGoodbye();
     b.hangUpWithoutSayingGoodbye();
     const restarted = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(`${boardId}-restarted`));
+    // Story 5: a room only serves a board that exists, and this stand-in for the
+    // post-deploy instance is a fresh DO name, so the board is created (empty) —
+    // it exists but this instance holds no document, which is what the test is
+    // about: a returning person fills the empty room back in.
+    await ensureBoard(`${boardId}-restarted`);
 
     // A comes back first, with the document still in the page's memory.
     const aBack = await SyncClient.connectWith(boardId, a.doc, restarted);

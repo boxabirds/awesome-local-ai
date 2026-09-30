@@ -27,6 +27,19 @@ export const TEST_HOOKS_ENV = 'TEST_HOOKS';
 /** What a test can ask for. */
 export type TestHookKind = 'compact' | 'corrupt-snapshot' | 'repair-snapshot';
 
+/**
+ * The hooks that are not a storage fault: `initialize` makes a board exist at a
+ * chosen id (the e2e suite needs a board at a known address, and only `POST
+ * /api/boards` — which invents its own id — otherwise makes one); `seed-legacy`
+ * seeds a board with real Yjs updates and no `created_at`, so a board made before
+ * story 5 can be opened (share.legacy_boards, TC-31). Kept apart from
+ * {@link TestHookKind} so the room's own storage-fault hook switch stays what it was.
+ */
+export type SeedHookKind = 'initialize' | 'seed-legacy';
+
+/** Every hook name the route understands. */
+type HookName = TestHookKind | SeedHookKind;
+
 // The hook is a query parameter on the room's own address —
 // `POST /api/rooms/<boardId>?__test=compact` — and that is not a stylistic choice.
 // In `wrangler dev`, with `assets.not_found_handling = "single-page-application"`,
@@ -38,7 +51,13 @@ export type TestHookKind = 'compact' | 'corrupt-snapshot' | 'repair-snapshot';
 // the parameter is a hook and nothing else.
 const HOOK_PARAM = '__test';
 const ROOM_PATH = /^\/api\/rooms\/([^/?#]+)$/;
-const HOOK_KINDS: readonly string[] = ['compact', 'corrupt-snapshot', 'repair-snapshot'];
+const HOOK_KINDS: readonly string[] = [
+  'compact',
+  'corrupt-snapshot',
+  'repair-snapshot',
+  'initialize',
+  'seed-legacy',
+];
 
 /** What a hook reports: whether it did the thing, and why not if it did not. */
 export interface TestHookResult {
@@ -55,7 +74,7 @@ export interface TestHookResult {
  * this build does not have, which is a 400 rather than a "not a hook". */
 export interface ParsedTestHook {
   boardId: string;
-  kind: TestHookKind | null;
+  kind: HookName | null;
 }
 
 export const parseTestHook = (url: URL): ParsedTestHook | null => {
@@ -65,7 +84,7 @@ export const parseTestHook = (url: URL): ParsedTestHook | null => {
   if (match === null) return null;
   return {
     boardId: match[1] as string,
-    kind: HOOK_KINDS.includes(requested) ? (requested as TestHookKind) : null,
+    kind: HOOK_KINDS.includes(requested) ? (requested as HookName) : null,
   };
 };
 
@@ -95,6 +114,37 @@ export async function handleTestHook(
   // The same lookup a board connection goes through: the board id is the object's
   // name, so the hook can only ever reach into its own board's storage.
   const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(hook.boardId));
+
+  // `initialize` makes a board exist at this id, through the same creation the
+  // real endpoint runs. It is how the suite puts a board at an address it chose,
+  // so a scenario can restart its own server and find the board again there.
+  if (hook.kind === 'initialize') {
+    const created = await stub.initialize();
+    return Response.json({ ok: true, created }, {
+      status: 200,
+      headers: { 'Cache-Control': 'no-store' },
+    });
+  }
+
+  // `seed-legacy` is the one hook with a body: the real Yjs updates to write, so
+  // the suite can arrange a board that predates the created_at marker. It writes
+  // them and never marks the board created, exactly like a board from before
+  // story 5 (share.legacy_boards, TC-31).
+  if (hook.kind === 'seed-legacy') {
+    const body = (await request.json()) as { updates?: unknown };
+    const updates = Array.isArray(body.updates)
+      ? body.updates.filter((u): u is string => typeof u === 'string')
+      : [];
+    if (updates.length === 0) {
+      return Response.json({ ok: false, reason: 'no updates to seed' }, { status: 400 });
+    }
+    const seeded = await stub.seedLegacy(updates);
+    return Response.json(seeded, {
+      status: seeded.ok ? 200 : 409,
+      headers: { 'Cache-Control': 'no-store' },
+    });
+  }
+
   const result = await stub.testHook(hook.kind);
   return Response.json(result, {
     status: result.ok ? 200 : 409,

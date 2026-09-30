@@ -32,18 +32,17 @@ const countRoomObjects = async (run: () => Promise<unknown>): Promise<number> =>
 };
 
 describe('the board address (sync.worker_entry)', () => {
-  // TC-04: invalid id → 400, and no room object created for it (negative
-  // scenario: an address that is wrong must not cost an object).
+  // TC-04 (share.not_found): an address that is not a board id is refused with
+  // 404 — story 5 made "not a board" a 404, the same answer an unknown id gets —
+  // and no room object is created for it (negative scenario).
   it('refuses an address that is not a board id and creates nothing for it (TC-04)', async () => {
     const before = roomsInvoked;
     const response = await SELF.fetch('https://vidi6.test/api/rooms/bad!id', {
       headers: upgradeHeaders,
     });
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      error: { code: 'invalid_board_id', message: 'That is not a board address.' },
-    });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: 'not_found' });
     expect(roomsInvoked).toBe(before);
 
     // The same for the other shapes a person might paste: too short, too long,
@@ -58,7 +57,7 @@ describe('the board address (sync.worker_entry)', () => {
       const other = await SELF.fetch(`https://vidi6.test/api/rooms/${bad}`, {
         headers: upgradeHeaders,
       });
-      expect(other.status, bad).toBe(400);
+      expect(other.status, bad).toBe(404);
     }
     expect(roomsInvoked, 'no invalid address reaches the namespace').toBe(before);
 
@@ -151,11 +150,11 @@ describe('the board address (sync.worker_entry)', () => {
     expect(roomsInvoked).toBe(before);
   });
 
-  it('answers an upgrade on the bare room path with a 400 (TC-04, boundary)', async () => {
+  it('answers an upgrade on the bare room path with a 404 (TC-04, boundary)', async () => {
     const response = await SELF.fetch('https://vidi6.test/api/rooms/', {
       headers: upgradeHeaders,
     });
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
   });
 
   it('counts the room objects a request asks for', async () => {

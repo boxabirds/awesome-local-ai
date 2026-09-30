@@ -31,7 +31,7 @@ import {
   RECONNECT_MAX_BACKOFF_MS,
 } from '../../src/shared/config';
 import { newBoardId } from '../../src/shared/board-id';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
 import { ResizeObserverStub } from './setup';
 import { dispatchPointer, VIEWPORT } from './helpers/events';
 import { FakeWebsocketProvider } from './helpers/fake-provider';
@@ -275,7 +275,7 @@ describe('the board while the connection is not fine', () => {
   });
 
   it('connects to this board through the room route, with the settings it was given', () => {
-    render(<App />);
+    render(<Board boardId={boardId} />);
     const provider = FakeWebsocketProvider.last();
 
     expect(provider.serverUrl).toBe('ws://localhost:3000/api/rooms');
@@ -285,7 +285,7 @@ describe('the board while the connection is not fine', () => {
   });
 
   it('is fully editable while it says Reconnecting (TC-21, negative: no lockout)', () => {
-    render(<App />);
+    render(<Board boardId={boardId} />);
     markSynced();
     expect(badge(), 'a board that is in sync shows no badge').toBeNull();
 
@@ -315,7 +315,7 @@ describe('the board while the connection is not fine', () => {
   });
 
   it('stops talking to the room when the board goes away', () => {
-    const { unmount } = render(<App />);
+    const { unmount } = render(<Board boardId={boardId} />);
     const provider = FakeWebsocketProvider.last();
     act(() => {
       provider.markSynced();
@@ -344,7 +344,7 @@ describe('the board while the connection is not fine', () => {
   });
 
   it('keeps selection and editing off the shared document', () => {
-    render(<App />);
+    render(<Board boardId={boardId} />);
     const provider = FakeWebsocketProvider.last();
     act(() => {
       provider.markSynced();

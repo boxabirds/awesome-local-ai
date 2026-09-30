@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
+
+/** A board id for the component under test; the fake provider never reaches a server. */
+const BOARD_ID = 'component-board-under-test';
 import { BoardViewport } from '../../src/client/canvas/BoardViewport';
 import {
   resetCamera,
@@ -118,7 +121,7 @@ describe('pan by dragging (pan.drag)', () => {
 
   // TC-29: a click without moving leaves the camera unchanged.
   it('TC-29 leaves the camera unchanged for a press without movement', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const before = camera();
     dispatchPointer(viewport(), 'pointerdown', 300, 200);
     dispatchPointer(viewport(), 'pointerup', 300, 200);
@@ -276,7 +279,7 @@ describe('board ownership (zoom.no_page_zoom, TC-30)', () => {
   // TC-30: a Ctrl/Cmd wheel over the zoom control neither zooms the board nor
   // suppresses the browser default there.
   it('TC-30 leaves the camera alone for a Ctrl wheel over the zoom control', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const before = camera();
     const controls = screen.getByTestId('zoom-controls');
     const event = new WheelEvent('wheel', {

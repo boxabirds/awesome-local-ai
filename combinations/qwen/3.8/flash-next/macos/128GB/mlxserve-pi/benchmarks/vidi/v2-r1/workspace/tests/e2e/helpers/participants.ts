@@ -147,7 +147,14 @@ export async function openParticipantAt(
   browser: Browser,
   url: string,
   name: string,
-  options: { outageSwitch?: boolean; waitUntil?: 'connected' | 'loaded' } = {},
+  options: {
+    outageSwitch?: boolean;
+    waitUntil?: 'connected' | 'loaded';
+    /** Arrive by creating a board from home, as a person does, rather than
+     * opening an address. Story 5 makes a board exist only once it is created,
+     * so "the first person on a fresh board" means "the person who made it". */
+    create?: boolean;
+  } = {},
 ): Promise<Participant> {
   // A context per person: no shared storage, no shared BroadcastChannel, and
   // separate cookies, so the only thing they have in common is the room.
@@ -183,7 +190,14 @@ export async function openParticipantAt(
     consoleLogs.push(`pageerror: ${String(error)}`);
   });
 
-  await page.goto(url);
+  if (options.create === true) {
+    // Create the board the way the product does, then it is on screen at the
+    // address the server gave it.
+    await page.goto('/');
+    await page.getByTestId('new-board-button').click();
+  } else {
+    await page.goto(url);
+  }
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await settle(page);
 
@@ -248,15 +262,19 @@ export async function openParticipantAt(
   return participant;
 }
 
+/** The board address a page is on, read back as a board id. */
+async function boardIdOf(page: Page): Promise<string> {
+  const path = await page.evaluate(() => window.location.pathname);
+  const match = /^\/b\/([^/?#]+)$/.exec(path);
+  if (match === null) throw new Error(`the page is not on a board address (${path})`);
+  return decodeURIComponent(match[1] as string);
+}
+
 /**
  * `count` people on the same board, each in a context of their own, all of them
- * connected and in sync. The board id is a fresh one, as it would be for a real
- * workshop: nothing from an earlier test is in it.
- */
-/**
- * `count` people on the same board, each in a context of their own, all of them
- * connected and in sync. The board id is a fresh one, as it would be for a real
- * workshop: nothing from an earlier test is in it.
+ * connected and in sync. The first person makes the board from home — a board
+ * only exists once someone creates it (share.not_found) — and the rest arrive at
+ * the address it was given, which is exactly how a shared link is used.
  *
  * `outageSwitch` fits the scenario with a way to switch one person's network off
  * and back on (see `goOffline`). It has to be decided up front, because the
@@ -267,10 +285,18 @@ export async function openParticipants(
   count: number,
   options?: { outageSwitch?: boolean },
 ): Promise<{ boardId: string; people: Participant[] }> {
-  const boardId = newBoardId();
   const outageSwitch = options?.outageSwitch === true;
   const people: Participant[] = [];
-  for (let index = 0; index < count; index += 1) {
+
+  const firstName = PEOPLE[0] ?? 'Person 1';
+  const creator = await openParticipantAt(browser, '/', firstName, {
+    outageSwitch,
+    create: true,
+  });
+  people.push(creator);
+  const boardId = await boardIdOf(creator.page);
+
+  for (let index = 1; index < count; index += 1) {
     const name = PEOPLE[index] ?? `Person ${String(index + 1)}`;
     people.push(await openParticipantAt(browser, `/b/${boardId}`, name, { outageSwitch }));
   }

@@ -35,6 +35,7 @@ import {
   decodeMessage,
 } from '../shared/protocol';
 import { BoardStore, LOAD_ORIGIN, type BoardStorage } from './board-store';
+import { snapshot } from '../shared/board-model';
 import {
   nextRoomState,
   type RoomEvent,
@@ -115,6 +116,51 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   /**
+   * Create this board: make its tables and mark it created, so it can be opened
+   * even while it is still empty (share.board_api, TC-05). This is the only way
+   * a brand-new board comes into existence — connecting to a link no longer
+   * makes one (share.not_found). Returns 'created' the first time and 'exists'
+   * after that; an already-created board is never re-initialised, and its
+   * `created_at` never moves (TC-15).
+   *
+   * Reached only over Durable Object RPC, from the Worker's POST handler and
+   * from the tests. It is not a public HTTP endpoint of its own.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    return this.store.markCreated() ? 'created' : 'exists';
+  }
+
+  /**
+   * Whether this board exists, for the Worker's `GET /api/boards/:id`. Reads
+   * only (share.existing_link): it must not create tables, must not load a
+   * document and must not open a WebSocket. TC-06 asserts a false answer leaves
+   * no tables behind.
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  /**
+   * Test-only (TEST_HOOKS, TC-31): write real Yjs updates into a board's log
+   * WITHOUT setting `created_at`, so the board looks the way a board made before
+   * story 5 looked — recognised as existing by its rows, not by the marker. The
+   * room then reads the board back the way it reads anything, so the seeded
+   * notes are what a newcomer is shown.
+   */
+  async seedLegacy(updates: string[]): Promise<{ ok: boolean; notes: number }> {
+    this.store.migrate();
+    for (const update of updates) {
+      const bytes = Uint8Array.from(atob(update), (c) => c.charCodeAt(0));
+      this.store.append(bytes);
+    }
+    // The room holds its board the way it holds any other; re-reading picks the
+    // seeded rows up, and the HTTP open path then serves them.
+    this.loadRoom();
+    return { ok: true, notes: this.doc === null ? 0 : snapshot(this.doc).length };
+  }
+
+  /**
    * Read the board out of storage into a fresh document. Called from the
    * constructor — i.e. on every wake — and from `fetch` when somebody arrives at
    * a room that holds no copy.
@@ -128,7 +174,10 @@ export class BoardRoom extends DurableObject<Env> {
     // Going through Loading even when the room was already Ready: a load that
     // fails lands in LoadFailed, which design.md reaches from Loading.
     this.move({ type: 'start-load' });
-    this.store.migrate();
+    // No migrate() here. Creating tables is what happens when a board is
+    // explicitly made (share.board_api, initialize()) or, defensively, when the
+    // first update is written; a room woken for a board that was never created
+    // must not write anything (share.legacy_boards, TC-06).
     const doc = new Y.Doc();
     // The listener goes on before the load, and the loaded bytes are applied
     // under LOAD_ORIGIN: what came out of storage is by definition already in
@@ -161,6 +210,18 @@ export class BoardRoom extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
     if ((request.headers.get('Upgrade') ?? '').toLowerCase() !== 'websocket') {
       return new Response('Expected a WebSocket upgrade', { status: 426 });
+    }
+
+    // A board that was never created is not opened by connecting to it
+    // (share.not_found, TC-09/TC-10). Checked before anything else, before a
+    // socket is accepted and before a table is touched, so a mistyped or broken
+    // link cannot silently create a board. The check reads the catalogue; it
+    // creates nothing.
+    if (!this.store.existsReadOnly()) {
+      return new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
     }
 
     // A connection is the event that decides: a room holding no copy reads the

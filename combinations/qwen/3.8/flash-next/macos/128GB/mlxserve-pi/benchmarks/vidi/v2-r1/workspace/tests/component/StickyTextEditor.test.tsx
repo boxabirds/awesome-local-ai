@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
+
+/** A board id for the component under test; the fake provider never reaches a server. */
+const BOARD_ID = 'component-board-under-test';
 import { STICKY_FONT_MAX_PX, STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
 import { dispatchPointer, VIEWPORT } from './helpers/events';
 
@@ -47,7 +50,7 @@ beforeEach(() => {
 describe('sticky text editing (sticky.text)', () => {
   // TC-25: typing inserts text at the caret and the note shows the new string.
   it('TC-25 stores typed text and shows it after editing', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     openEditor();
     typeInto('Ship the demo');
     expect(editor().value).toBe('Ship the demo');
@@ -57,7 +60,7 @@ describe('sticky text editing (sticky.text)', () => {
 
   // TC-26: exactly 1000 characters accepted; one more is not applied.
   it('TC-26 clamps input to 1000 characters', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     openEditor();
     typeInto('a'.repeat(1000));
     expect(editor().value).toHaveLength(STICKY_TEXT_MAX_CHARS);
@@ -70,7 +73,7 @@ describe('sticky text editing (sticky.text)', () => {
 
   // TC-27: at 100% a short label renders at the maximum font size (it fits).
   it('TC-27 renders short text at the maximum font size', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     openEditor();
     typeInto('Idea');
     expect(editor().style.fontSize).toBe(`${STICKY_FONT_MAX_PX}px`);
@@ -79,7 +82,7 @@ describe('sticky text editing (sticky.text)', () => {
 
   // TC-28: a completed IME composition writes once and honours the limit.
   it('TC-28 writes a finished IME composition once, clamped to the limit', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     openEditor();
     const composed = '日本語のアイデア';
     fireEvent.compositionStart(editor());
@@ -91,7 +94,7 @@ describe('sticky text editing (sticky.text)', () => {
   });
 
   it('TC-28b clamps a long IME composition to the limit', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     openEditor();
     fireEvent.compositionStart(editor());
     editor().value = 'あ'.repeat(STICKY_TEXT_MAX_CHARS + 50);
@@ -102,7 +105,7 @@ describe('sticky text editing (sticky.text)', () => {
 
   // TC-29: Escape ends editing and keeps the text; outside pointerdown ends too.
   it('TC-29 Escape ends editing and keeps the text', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     openEditor();
     typeInto('persisted');
     pressEscape();
@@ -113,7 +116,7 @@ describe('sticky text editing (sticky.text)', () => {
   });
 
   it('TC-29b an outside pointerdown ends editing and keeps the text', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     openEditor();
     typeInto('kept');
     // Press on empty board space (outside the note) ends editing.
@@ -127,7 +130,7 @@ describe('sticky text editing (sticky.text)', () => {
 
   // Character counter appears when 50 or fewer characters remain (at 950).
   it('shows a character counter once 50 or fewer characters remain', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     openEditor();
     typeInto('a'.repeat(949));
     expect(screen.queryByTestId('sticky-note-counter')).toBeNull();
@@ -139,7 +142,7 @@ describe('sticky text editing (sticky.text)', () => {
 
   // The create button tooltip matches the PRD wording exactly.
   it('documents the double-click shortcut in the create button tooltip', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     expect(screen.getByTestId('create-sticky').getAttribute('title')).toBe(
       'Sticky note \u2013 or double-click the board',
     );

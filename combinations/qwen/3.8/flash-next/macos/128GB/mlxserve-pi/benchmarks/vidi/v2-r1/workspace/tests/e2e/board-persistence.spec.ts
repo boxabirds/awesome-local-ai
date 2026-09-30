@@ -78,6 +78,7 @@ async function fill(who: Participant, count: number, text: (index: number) => st
 test('a board is there again after the server has been restarted (TC-19)', async ({ browser }) => {
   await withServer(async (server) => {
     const boardId = newBoardId();
+    await server.seedBoard(boardId);
     const alex = await openParticipantAt(browser, server.boardUrl(boardId), 'Alex');
     const ids = await fill(alex, 3, (index) => `note ${String(index + 1)}`);
     const expected = await alex.snapshot();
@@ -113,6 +114,7 @@ test('a board is not half-written when the process is killed outright (TC-20)', 
 }) => {
   await withServer(async (server) => {
     const boardId = newBoardId();
+    await server.seedBoard(boardId);
     const alex = await openParticipantAt(browser, server.boardUrl(boardId), 'Alex');
     const ids = await fill(alex, 5, (index) => `line ${String(index + 1)}`);
     const saved = await alex.notes();
@@ -175,6 +177,7 @@ test('a board that sat untouched comes back with all of it (TC-21)', async ({ br
   // checked here is that a board left alone is the board that comes back.
   await withServer(async (server) => {
     const boardId = newBoardId();
+    await server.seedBoard(boardId);
     const alex = await openParticipantAt(browser, server.boardUrl(boardId), 'Alex');
     const ids = await fill(alex, 25, (index) => `idle note ${String(index + 1)}`);
     const expected = await alex.snapshot();
@@ -204,6 +207,7 @@ test('a board that cannot be read says so, and the reading of it comes back (TC-
   test.setTimeout(180_000);
   await withServer(async (server) => {
     const boardId = newBoardId();
+    await server.seedBoard(boardId);
     const alex = await openParticipantAt(browser, server.boardUrl(boardId), 'Alex');
     await fill(alex, 25, (index) => `snapshot note ${String(index + 1)}`);
     const expected = await alex.snapshot();

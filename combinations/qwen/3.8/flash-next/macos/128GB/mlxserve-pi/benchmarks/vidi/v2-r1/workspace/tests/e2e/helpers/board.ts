@@ -5,11 +5,19 @@ import type { Camera } from '../../../src/client/canvas/camera';
 /** Viewport size configured in playwright.config.ts. */
 export const VIEWPORT = { width: 1280, height: 800 };
 
-/** Open the board and wait for it to be interactive. */
-export async function openBoard(page: Page): Promise<void> {
+/** Open the board and wait for it to be interactive. Story 5 moved board
+ * creation behind an explicit action, so an e2e "open a board" starts at home
+ * and creates one, exactly as a person does — nothing is invented at an address
+ * any more (share.not_found). Returns the id of the board that was created. */
+export async function openBoard(page: Page): Promise<string> {
   await page.goto('/');
+  await page.getByTestId('new-board-button').click();
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await settle(page);
+  const path = await page.evaluate(() => window.location.pathname);
+  const match = /^\/b\/([^/?#]+)$/.exec(path);
+  if (match === null) throw new Error(`creating a board did not open one (${path})`);
+  return decodeURIComponent(match[1] as string);
 }
 
 /**

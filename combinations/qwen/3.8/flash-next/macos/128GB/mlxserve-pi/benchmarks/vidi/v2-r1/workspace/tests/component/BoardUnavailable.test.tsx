@@ -30,7 +30,7 @@ import {
 } from '../../src/client/sync/ConnectionStatus';
 import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from '../../src/shared/protocol';
 import { newBoardId } from '../../src/shared/board-id';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
 import { ResizeObserverStub } from './setup';
 import { dispatchPointer, VIEWPORT } from './helpers/events';
 import { FakeWebsocketProvider } from './helpers/fake-provider';
@@ -283,7 +283,7 @@ describe('the board while it cannot be loaded', () => {
 
   // TC-22
   it('shows the notes and lets nothing be changed (TC-22)', () => {
-    render(<App />);
+    render(<Board boardId={boardId} />);
     markSynced();
     createNote(VIEWPORT.width / 2 + 200, VIEWPORT.height / 2);
     expect(noteElements()).toHaveLength(1);
@@ -326,7 +326,7 @@ describe('the board while it cannot be loaded', () => {
   });
 
   it('gives the board back the moment it can be read again', () => {
-    render(<App />);
+    render(<Board boardId={boardId} />);
     markSynced();
     createNote(VIEWPORT.width / 2 + 200, VIEWPORT.height / 2);
     markBoardUnreadable();
@@ -343,7 +343,7 @@ describe('the board while it cannot be loaded', () => {
   });
 
   it('closes an editor that was open when the board went out of reach', () => {
-    render(<App />);
+    render(<Board boardId={boardId} />);
     markSynced();
     createNote(VIEWPORT.width / 2 + 200, VIEWPORT.height / 2);
     // This screen is mid-edit on the note: a textarea is open inside it.
@@ -358,7 +358,7 @@ describe('the board while it cannot be loaded', () => {
   });
 
   it('draws the notes it could not load a board for with their text', () => {
-    render(<App />);
+    render(<Board boardId={boardId} />);
     markSynced();
     createNote(VIEWPORT.width / 2 + 200, VIEWPORT.height / 2);
     // What the other person sees is a note with this text on it, written the way
@@ -381,7 +381,7 @@ describe('the board while it cannot be loaded', () => {
   // The other room failure is a connection failure, and the board does not go
   // read-only for it: PRD persist.storage_fail says the board stays usable.
   it('stays editable when the room could not save, only saying Reconnecting', () => {
-    render(<App />);
+    render(<Board boardId={boardId} />);
     markSynced();
     feed(() =>
       FakeWebsocketProvider.last().markRoomClosed(CLOSE_STORAGE_FAILURE),

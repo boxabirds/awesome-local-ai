@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
+
+/** A board id for the component under test; the fake provider never reaches a server. */
+const BOARD_ID = 'component-board-under-test';
 import type { Camera } from '../../src/client/canvas/camera';
 import { ResizeObserverStub } from './setup';
 import { dispatchPointer, VIEWPORT } from './helpers/events';
@@ -65,7 +68,7 @@ beforeEach(() => {
 describe('create (sticky.creation)', () => {
   // TC-36: double-click the board -> one note, 200 world units, edit opened.
   it('TC-36 creates a note centred on the double-click and opens its editor', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     expect(notes()).toHaveLength(0);
     const note = createNote(centreX, centreY);
     expect(notes()).toHaveLength(1);
@@ -82,7 +85,7 @@ describe('create (sticky.creation)', () => {
 
   // TC-36b: the toolbar "Sticky note" button also creates a note at the centre.
   it('creates a centred note from the toolbar button', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     fireEvent.click(screen.getByTestId('create-sticky'));
     flush();
     const note = noteAt(0);
@@ -92,7 +95,7 @@ describe('create (sticky.creation)', () => {
 
   // TC-22: a newly created note is last in the z-order.
   it('TC-22 draws a new note above existing notes', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const a = createNote(300, 200);
     const b = createNote(500, 400);
     expect(zOf(b)).toBeGreaterThan(zOf(a));
@@ -102,7 +105,7 @@ describe('create (sticky.creation)', () => {
 describe('select and drag to move (sticky.interaction)', () => {
   // TC-18: press and release without moving selects the note.
   it('TC-18 selects on press + release without moving', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const note = createNote();
     stopEditing();
     clickEmpty();
@@ -115,7 +118,7 @@ describe('select and drag to move (sticky.interaction)', () => {
 
   // TC-19: a 2px move stays under the threshold -> still Selected, not moved.
   it('TC-19 does not move on a 2px drag (below threshold)', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const note = createNote();
     stopEditing();
     const before = leftOf(note);
@@ -130,7 +133,7 @@ describe('select and drag to move (sticky.interaction)', () => {
 
   // TC-20: drag >= threshold moves the note; the camera does not change.
   it('TC-20 drags the note exactly with the pointer and does not pan', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const note = createNote();
     stopEditing();
     const beforeLeft = leftOf(note);
@@ -148,7 +151,7 @@ describe('select and drag to move (sticky.interaction)', () => {
 
   // TC-21: double-clicking an overlapping note brings it to the front.
   it('TC-21 raises a double-clicked note above the other', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const a = createNote(centreX, centreY);
     const b = createNote(centreX, centreY);
     expect(zOf(b)).toBeGreaterThan(zOf(a));
@@ -158,7 +161,7 @@ describe('select and drag to move (sticky.interaction)', () => {
 
   // TC-23: the delete button removes the note.
   it('TC-23 deletes the note from its toolbar', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     createNote();
     stopEditing();
     fireEvent.click(screen.getByTestId('delete-note'));
@@ -168,7 +171,7 @@ describe('select and drag to move (sticky.interaction)', () => {
 
   // TC-24 / TC-38: clicking empty space clears selection (and editing).
   it('TC-24 deselects on a click of empty space', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const note = createNote();
     stopEditing();
     expect(note.dataset.selected).toBe('true');
@@ -177,7 +180,7 @@ describe('select and drag to move (sticky.interaction)', () => {
   });
 
   it('TC-38 a click of empty space ends editing and clears selection', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const note = createNote();
     // While still editing, a pointerdown on empty space ends editing unselected.
     dispatchPointer(vp(), 'pointerdown', 40, 40);
@@ -189,7 +192,7 @@ describe('select and drag to move (sticky.interaction)', () => {
 
   // The camera is untouched by selecting or dragging a note.
   it('does not pan the camera while interacting with a note', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const note = createNote();
     const before = camera();
     dispatchPointer(note, 'pointerdown', centreX, centreY);
@@ -204,7 +207,7 @@ describe('select and drag to move (sticky.interaction)', () => {
 describe('selection toolbar (sticky.toolbar)', () => {
   // TC-37: six colour swatches (current one aria-pressed) + delete bin.
   it('TC-37 shows six swatches and a delete bin when a note is selected', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     createNote();
     stopEditing();
     const toolbar = screen.getByTestId('note-toolbar');
@@ -217,7 +220,7 @@ describe('selection toolbar (sticky.toolbar)', () => {
   });
 
   it('changes the note colour from a swatch and keeps it selected', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const note = createNote();
     stopEditing();
     fireEvent.click(screen.getByTestId('swatch-blue'));
@@ -229,7 +232,7 @@ describe('selection toolbar (sticky.toolbar)', () => {
 
   // Selecting a note must not remount the note text (caret / scroll preserved).
   it('TC-41 selecting does not reset the note element (no remount)', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const note = createNote();
     typeInto('keep me');
     stopEditing();
@@ -244,7 +247,7 @@ describe('selection toolbar (sticky.toolbar)', () => {
   });
 
   it('survives a viewport resize without error', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const note = createNote();
     act(() => {
       ResizeObserverStub.resize(1000, 600);
@@ -256,7 +259,7 @@ describe('selection toolbar (sticky.toolbar)', () => {
 
   // TC-41 (App level): panning/zooming does not move notes; position is world.
   it('TC-41 navigating (pan) leaves note world positions unchanged', () => {
-    render(<App />);
+    render(<Board boardId={BOARD_ID} />);
     const note = createNote();
     stopEditing();
     const beforeLeft = leftOf(note);

@@ -101,6 +101,41 @@ export class PersistentServer {
   }
 
   /**
+   * Make a board exist at `boardId`, through the `initialize` test hook, before
+   * anybody opens it. Story 5 makes a board exist only once it is created, so a
+   * scenario that wants a board at a chosen address — and finds it again across a
+   * restart — creates it here first.
+   */
+  async seedBoard(boardId: string): Promise<void> {
+    const response = await fetch(
+      `${this.origin}/api/rooms/${boardId}?__test=initialize`,
+      { method: 'POST' },
+    );
+    if (!response.ok) {
+      throw new Error(`could not create board ${boardId}: ${String(response.status)}`);
+    }
+  }
+
+  /**
+   * Arrange a board that looks like it was made before story 5: real updates and
+   * no `created_at` (TC-31). `updates` are base64 Yjs updates.
+   */
+  async seedLegacyBoard(boardId: string, updates: string[]): Promise<void> {
+    const response = await fetch(
+      `${this.origin}/api/rooms/${boardId}?__test=seed-legacy`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ updates }),
+      },
+    );
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`could not seed legacy board ${boardId}: ${body}`);
+    }
+  }
+
+  /**
    * Start, and wait until it answers.
    *
    * A port that was free when it was chosen can be taken by the time the runtime

@@ -75,6 +75,20 @@ export const THROUGH_SEQ_KEY = 'snapshot_through_seq';
 export const SCHEMA_VERSION_KEY = 'storage_schema_version';
 
 /**
+ * The storage_meta key holding when this board was first created by an explicit
+ * "New board" (share.board_api). It is the positive half of the existence check
+ * (share.legacy_boards): a board created from story 5 on has it, so it exists
+ * even while it holds no notes. Older boards never wrote it and are recognised
+ * by having rows instead.
+ */
+export const CREATED_AT_KEY = 'created_at';
+
+/** Table names, spelled once so the read-only existence check reads clearly. */
+const STORAGE_META_TABLE = 'storage_meta';
+const UPDATES_TABLE = 'updates';
+const SNAPSHOT_CHUNKS_TABLE = 'snapshot_chunks';
+
+/**
  * Test-only: the storage_meta key into which the story 4 corruption hook moves
  * snapshot chunk 0 so the repair hook can put it back. A production board never
  * has this row: only the hook writes it.
@@ -143,9 +157,38 @@ export class BoardStore {
   /** The highest seq the current snapshot already contains. */
   private throughSeq = 0;
 
+  /**
+   * Whether the tables are present. Seeded from the catalogue in the
+   * constructor (never written by it), set by migrate(). append() creates them
+   * lazily the first time it writes; load() and existsReadOnly() never do
+   * (share.legacy_boards).
+   */
+  private migrated: boolean;
+
   constructor(storage: BoardStorage, faults?: StorageFaults) {
     this.storage = storage;
     this.faults = faults;
+    // Only look for the watermark when the tables are already there. A store
+    // built for a board nobody created must not read, and must not make, any
+    // table before it is asked to.
+    this.migrated = this.tableExists(STORAGE_META_TABLE);
+    this.maxSeq = this.migrated ? (metaNumber(storage, THROUGH_SEQ_KEY) ?? 0) : 0;
+  }
+
+  /**
+   * Is one named table present? Read straight from the catalogue, bypassing
+   * {@link exec} so it never trips a storage fault and never writes: this is
+   * what lets a board that was never created answer "does not exist" at all.
+   */
+  private tableExists(name: string): boolean {
+    return (
+      this.storage.sql
+        .exec(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+          name,
+        )
+        .toArray().length > 0
+    );
   }
 
   /** Run one statement, giving a test the chance to make it throw first. */
@@ -215,6 +258,7 @@ export class BoardStore {
         String(STORAGE_SCHEMA_VERSION),
       );
     }
+    this.migrated = true;
   }
 
   /**
@@ -222,6 +266,9 @@ export class BoardStore {
    * broadcast an update this method threw for (PRD persist.save_failure).
    */
   append(update: Uint8Array): void {
+    // A board only ever gets here once it exists (share.board_api), but the
+    // store keeps itself whole: create the tables before the first write.
+    if (!this.migrated) this.migrate();
     this.exec(
       'INSERT INTO updates (data, bytes) VALUES (?, ?)',
       asBlob(update),
@@ -251,6 +298,17 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // A board nobody created has no tables at all. Present it as an empty
+      // board WITHOUT creating any — creating is migrate()'s job, and opening
+      // a mistyped link must write nothing (share.legacy_boards, TC-06).
+      if (!this.tableExists(STORAGE_META_TABLE)) {
+        this.throughSeq = 0;
+        this.maxSeq = 0;
+        this.logCount = 0;
+        this.logBytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
+
       this.throughSeq = metaNumber(this.storage, THROUGH_SEQ_KEY) ?? 0;
 
       const chunkRows = this.exec(
@@ -367,6 +425,50 @@ export class BoardStore {
     this.logCount = 0;
     this.logBytes = 0;
     return true;
+  }
+
+  /**
+   * Whether this board exists, without creating it (share.not_found, TC-06 /
+   * TC-09). The catalogue is consulted first, so a link typed at an address
+   * nobody created answers "no" without writing a single row.
+   *
+   * A board exists when it was explicitly created (`storage_meta.created_at`),
+   * or — for boards that predate that marker (share.legacy_boards) — when it
+   * holds anything at all: a change not yet snapshotted, or a snapshot.
+   */
+  existsReadOnly(): boolean {
+    // Every read here goes straight to storage, never through exec(): the
+    // existence check of an unknown board must not trip a storage fault, and
+    // must never write.
+    if (this.tableExists(STORAGE_META_TABLE) && metaNumber(this.storage, CREATED_AT_KEY) !== null) {
+      return true;
+    }
+    // No created_at marker: recognise a board the way a board made before story
+    // 5 is recognised — by the rows it left behind.
+    return this.hasRows(UPDATES_TABLE) || this.hasRows(SNAPSHOT_CHUNKS_TABLE);
+  }
+
+  /**
+   * Mark this board as created, if it is not already (share.board_api, TC-15).
+   * Returns true only when it wrote the marker — the one, first creation of a
+   * board. Runs after migrate(), so the table it writes into is there. An
+   * already-created board is never re-initialised and its created_at never moves.
+   */
+  markCreated(): boolean {
+    if (metaNumber(this.storage, CREATED_AT_KEY) !== null) return false;
+    this.exec(
+      'INSERT INTO storage_meta (key, value) VALUES (?, ?)',
+      CREATED_AT_KEY,
+      String(Date.now()),
+    );
+    return true;
+  }
+
+  /** Does this table hold at least one row? A catalogue-guarded read, so it
+   * never touches a table that is not there. */
+  private hasRows(table: string): boolean {
+    if (!this.tableExists(table)) return false;
+    return this.storage.sql.exec(`SELECT 1 FROM ${table} LIMIT 1`).toArray().length > 0;
   }
 
   /**

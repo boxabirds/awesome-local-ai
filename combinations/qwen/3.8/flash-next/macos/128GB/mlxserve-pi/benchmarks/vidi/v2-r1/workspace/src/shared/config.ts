@@ -138,3 +138,28 @@ export const PERSIST_TESTED_NOTES = 2000;
  * store takes to read a board that size back together (TC-08).
  */
 export const BOARD_LOAD_BUDGET_MS = 3_000;
+
+// --- Share links (story 5) ---------------------------------------------------
+
+/**
+ * How long creating a board is meant to take, measured from the click on
+ * "New board" to the empty board being on screen (PRD share.create). A board is
+ * one id generation plus one Durable Object RPC plus one small SQLite write, so
+ * it fits comfortably inside this. TC-26 logs the real click-to-board time in a
+ * browser against it and never asserts it (design: Timing policy).
+ */
+export const CREATE_BUDGET_MS = 2000;
+
+/**
+ * How long the "Link copied" confirmation stays on the Copy link button before
+ * it reverts (PRD share.copy). Boundary-tested at LINK_COPIED_MS - 1 (still
+ * shown) and LINK_COPIED_MS (reverted) in TC-22.
+ */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * The first wait before a board-existence check is retried while the service
+ * cannot be reached (PRD share.unreachable). Each later wait doubles, capped at
+ * RECONNECT_MAX_BACKOFF_MS (the same ceiling story 3's reconnect uses).
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
