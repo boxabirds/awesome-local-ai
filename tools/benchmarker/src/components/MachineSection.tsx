@@ -9,8 +9,8 @@ interface Props {
 }
 
 const COLUMNS: [string, string][] = [
-  ["Run", "14%"], ["Status", "10%"], ["Story", "14%"], ["Time", "10%"], ["Activity", "16%"],
-  ["Stories working", "11%"], ["Score", "10%"], ["Judge", "8%"], ["Links", "7%"],
+  ["Run", "12%"], ["Status", "9%"], ["Story", "11%"], ["Time", "9%"], ["Activity", "11%"],
+  ["Stories working", "11%"], ["Tokens", "8%"], ["tok/s", "8%"], ["Score", "7%"], ["Judge", "7%"], ["Links", "7%"],
 ];
 
 /** What a dbench node is doing now: its running job, or idle, and the length of its queue. */
@@ -49,7 +49,7 @@ export function MachineSection({ group, state, serverNow, scoreTotal }: Props) {
             <tr>{COLUMNS.map(([name]) => <th key={name}>{name === "Score" && scoreTotal ? `Score / ${scoreTotal}` : name}</th>)}</tr>
           </thead>
           <tbody>
-            {group.rows.map((r) => <RunRow key={`${r.stack}:${r.runId}:${r.live?.jobId ?? ""}`} row={r} state={state} serverNow={serverNow} />)}
+            {group.rows.map((r) => <RunRow key={`${r.stack}:${r.runId}:${r.live?.jobId ?? ""}`} row={r} state={state} serverNow={serverNow} columns={COLUMNS.length} />)}
           </tbody>
         </table>
       )}

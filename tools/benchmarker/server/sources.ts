@@ -2,7 +2,7 @@
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import type { Score } from "../shared/types.ts";
-import { countTests, finalScore, findRuns, normaliseByStory, type RawRescore, storyEntry, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
+import { countTests, finalScore, findRuns, normaliseByStory, type RawRescore, type RawUsage, storyEntry, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
 
 const run = promisify(execFile);
 export const REF = "origin/main";
@@ -57,7 +57,7 @@ function json<T>(text: string | undefined): T | null {
   }
 }
 
-interface RawStory { title?: string; status?: string; accept?: { passed?: number; total?: number } | null }
+type RawStory = { title?: string; status?: string; accept?: { passed?: number; total?: number } | null } & RawUsage;
 
 /** Every pushed run record, and each pack's current version (bench.json pack_ref). */
 export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; suites: Record<string, string> }> {

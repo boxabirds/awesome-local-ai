@@ -88,7 +88,21 @@
           "passed": 6,
           "total": 6,
           "ownPassed": 6,
-          "ownTotal": 6
+          "ownTotal": 6,
+          "usage": {
+            "outTokens": 55968,
+            "inTokens": 45179,
+            "cacheRead": 6230043,
+            "calls": 115,
+            "agentSeconds": 760.3,
+            "decodeTokens": 55968,
+            "decodeSeconds": 565.7,
+            "decodeTokS": 98.9,
+            "prefillTokens": 45179,
+            "prefillSeconds": 59.2,
+            "prefillTokS": 763.2,
+            "draftAcceptance": 0.853
+          }
         }
       ],
       "scores": {},

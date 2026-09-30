@@ -41,6 +41,12 @@ queue in dbench's order, then finished runs. A run is filed under its dbench nod
 job (from before dbench, or aged out) goes under the node another run on the same host (run.json's
 `host`) ran on, else under the host itself. Each run shows its model and engine above its run id.
 
+## Per-story detail
+
+Click a run (its first cell) to open one line per recorded story: flows passing now (against the latest
+build, like the squares), agent minutes, calls, output, input and cache-read tokens, decode and prefill
+tok/s, and how many drafted tokens the model accepted.
+
 ## Filters
 
 Pack and version at the top, and a toggle per status with its count: running, queued, finished,
@@ -58,6 +64,8 @@ unless it is idle.
 | Time | running: agent minutes on this story and how long the run has gone; otherwise agent time over its stories |
 | Activity | the running story's calls, output tokens and tasks, and the agent's latest action. Claude runs count calls and tokens only at the end of a story, so they show none mid-story rather than a false zero |
 | Stories working | how many of the run's stories work against its latest build, out of every story in its scope ("4 of 11 working"), and one square per story: green all its hidden flows pass, amber some, red none, grey not built yet, pulsing blue being built. A story that worked and was broken by a later one turns red. From the latest story recorded with a per-story breakdown (accept.json `by_story`), or from the run's re-score under the pack's current suite when that reaches the same story or later (a re-score corrects live scores taken with an older suite); the scope is the job's story list, else every story in the private suite at the run's version (`--private`) |
+| Tokens | output tokens over the run's recorded stories, input under it (metrics.json, per story) |
+| tok/s | decode speed over the run's recorded stories, total output tokens over total decode seconds (so long stories weigh more), prefill under it. From the harness's time split: llama.cpp's server log, or its metering proxy on runs that turn it on. "not timed" means no timing exists for the run (a cloud model, or an unmetered server such as mlx-serve or gufo in the v2 runs) |
 | Score / N | the score of record as one number: hidden flows passing in the re-score (`rescore/<suite version>/`) of a finished run's last story, under the current suite (else the latest). The heading carries the total when every shown score has the same one; the tooltip gives the suite version and flaky count; the number links to the per-story table. A partial re-score (e.g. one story of a running run) only corrects the story squares |
 | Judge | **Judge →** once the run is finished, re-scored with the pack's current version and has its `workspace.bundle` (the app's git history, one commit per story, which the review page rebuilds each story from; the harness doesn't write it yet, so it is made by hand); otherwise what it is waiting for |
 | Links | the run's record and summary on GitHub |

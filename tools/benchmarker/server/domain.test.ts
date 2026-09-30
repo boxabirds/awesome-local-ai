@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
-  mergeStories, stages, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, finalScore, RECENT_S, type DbenchJob,
+  mergeStories, stages, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, finalScore, runUsage, RECENT_S, type DbenchJob,
 } from "./domain.ts";
 import type { Row } from "../shared/types.ts";
 
@@ -329,5 +329,36 @@ describe("finalScore", () => {
     expect(finalScore(rs([9]), "started", "9")).toBeNull();   // the run is still going
     expect(finalScore(rs([9]), "finished", "12")).toBeNull(); // a partial re-score of a finished run
     expect(finalScore(null, "finished", "12")).toBeNull();
+  });
+});
+
+describe("tokens and speed", () => {
+  const raw = (out: number, inp: number, decodeS: number | null, prefillS: number | null) => ({
+    title: "t", status: "DONE",
+    agent: { seconds: 600, tool_calls: 100, tokens: { input: inp, output: out, cache_read: 1000 } },
+    time_split: decodeS === null ? undefined : { model: {
+      decode_tokens: out, decode_s: decodeS, decode_tok_s: out / decodeS,
+      prefill_tokens: inp, prefill_s: prefillS, prefill_tok_s: inp / prefillS!, draft_acceptance: 0.85 } },
+  });
+
+  it("each recorded story keeps its tokens and speeds", () => {
+    const st = storyEntry("2", raw(55968, 45179, 565.7, 59.2));
+    expect(st.usage).toMatchObject({ outTokens: 55968, inTokens: 45179, cacheRead: 1000, calls: 100, agentSeconds: 600 });
+    expect(st.usage!.decodeTokS).toBeCloseTo(98.9, 1);
+    expect(st.usage!.draftAcceptance).toBe(0.85);
+  });
+
+  it("a run's tok/s is weighted by tokens, not an average of the stories' rates", () => {
+    const u = runUsage([storyEntry("1", raw(1000, 100, 10, 1)), storyEntry("2", raw(9000, 900, 180, 9))]);
+    expect(u.outTokens).toBe(10000);
+    expect(u.inTokens).toBe(1000);
+    expect(u.decodeTokS).toBeCloseTo(10000 / 190, 6); // not (100 + 50) / 2
+    expect(u.prefillTokS).toBeCloseTo(1000 / 10, 6);
+  });
+
+  it("a cloud run has tokens but no measured speed", () => {
+    const u = runUsage([storyEntry("1", raw(5000, 40, null, null))]);
+    expect(u.outTokens).toBe(5000);
+    expect(u.decodeTokS).toBeNull();
   });
 });
