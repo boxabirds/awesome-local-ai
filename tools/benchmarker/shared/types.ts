@@ -6,6 +6,9 @@ export interface Usage {
   outTokens: number | null;
   inTokens: number | null;
   cacheRead: number | null;
+  /** Everything the model read: fresh input plus cache reads and writes. Clients split input differently
+   * (Claude Code reports nearly all of it as cache reads), so this is the comparable figure. */
+  readTokens: number | null;
   calls: number | null;
   agentSeconds: number | null;
   /** Output tokens over the time the story took (agent seconds). */
@@ -23,6 +26,8 @@ export interface Usage {
 export interface RunUsage {
   outTokens: number | null;
   inTokens: number | null;
+  readTokens: number | null;
+  calls: number | null;
   /** Output tokens over the time the recorded stories took. */
   tokS: number | null;
   decodeTokS: number | null;
