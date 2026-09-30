@@ -20,6 +20,9 @@ export interface Usage {
   prefillSeconds: number | null;
   prefillTokS: number | null;
   draftAcceptance: number | null;
+  compactions: number | null;
+  /** Times the harness had to nudge the agent to carry on. */
+  nudges: number | null;
 }
 
 /** A run's totals over its recorded stories; speeds weighted by tokens. */

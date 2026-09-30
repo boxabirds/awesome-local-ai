@@ -216,7 +216,7 @@ export function normaliseByStory(by: Record<string, { passed?: number; total?: n
  * `ownTotal` are that story's own tests (accept.json's by_story, keyed "01", "02", …). */
 /** metrics.json's per-story agent and time-split sections, as far as usage goes. */
 export interface RawUsage {
-  agent?: { seconds?: number; tool_calls?: number; tokens?: { input?: number; output?: number; cache_read?: number; cache_write?: number } };
+  agent?: { seconds?: number; tool_calls?: number; compactions?: number; nudges?: number; tokens?: { input?: number; output?: number; cache_read?: number; cache_write?: number } };
   time_split?: { model?: {
     decode_tokens?: number; decode_s?: number; decode_tok_s?: number;
     prefill_tokens?: number; prefill_s?: number; prefill_tok_s?: number; draft_acceptance?: number | null;
@@ -234,6 +234,7 @@ function usageOf(raw: RawUsage): Usage | null {
     decodeTokens: m?.decode_tokens ?? null, decodeSeconds: m?.decode_s ?? null, decodeTokS: m?.decode_tok_s ?? null,
     prefillTokens: m?.prefill_tokens ?? null, prefillSeconds: m?.prefill_s ?? null, prefillTokS: m?.prefill_tok_s ?? null,
     draftAcceptance: m?.draft_acceptance ?? null,
+    compactions: a?.compactions ?? null, nudges: a?.nudges ?? null,
   };
 }
 

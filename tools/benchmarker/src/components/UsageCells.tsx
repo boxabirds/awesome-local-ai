@@ -45,7 +45,7 @@ export function StoryUsageTable({ stories, squares }: { stories: Story[]; square
     <table className="usage">
       <thead>
         <tr>
-          <th>Story</th><th title="Its hidden flows passing against the latest build, as the squares show">Flows now</th><th>Agent min</th><th>Calls</th><th>Out tokens</th><th title="everything the model read: fresh input plus cache reads and writes">Read tokens</th>
+          <th>Story</th><th title="This story's held-out tests passing against the run's latest build, as its square shows">Held-out passing (latest build)</th><th>Agent min</th><th>Calls</th><th>Out tokens</th><th title="everything the model read: fresh input plus cache reads and writes">Read tokens</th>
           <th title="the share of what it read that came from the prompt cache">Cached</th><th title="output tokens ÷ the time the story took">tok/s</th>
           <th title="the model alone, where the harness timed it">Decode tok/s</th><th title="the model alone, where the harness timed it">Prefill tok/s</th><th>Draft accepted</th>
         </tr>
@@ -55,7 +55,7 @@ export function StoryUsageTable({ stories, squares }: { stories: Story[]; square
           const u = s.usage;
           return (
             <tr key={s.id}>
-              <td title={s.title}>{s.id}. {s.title}</td>
+              <td className="story-name" title={s.title}><div className="clamp3">{s.id}. {s.title}</div></td>
               <td>{flowsNow(squares.find((q) => q.id === s.id))}</td>
               <td>{u?.agentSeconds != null ? Math.round(u.agentSeconds / 60) : "—"}</td>
               <td>{full(u?.calls ?? null)}</td>

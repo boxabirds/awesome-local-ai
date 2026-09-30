@@ -22,7 +22,25 @@
           "passed": 6,
           "total": 6,
           "ownPassed": 6,
-          "ownTotal": 6
+          "ownTotal": 6,
+          "usage": {
+            "outTokens": 60000,
+            "inTokens": 500000,
+            "cacheRead": 4500000,
+            "readTokens": 5000000,
+            "calls": 95,
+            "agentSeconds": 720,
+            "tokS": 83.33333333333333,
+            "decodeTokens": 60000,
+            "decodeSeconds": 591.7159763313609,
+            "decodeTokS": 101.4,
+            "prefillTokens": null,
+            "prefillSeconds": null,
+            "prefillTokS": null,
+            "draftAcceptance": null,
+            "compactions": 1,
+            "nudges": 2
+          }
         }
       ],
       "scores": {},
@@ -48,7 +66,25 @@
           "passed": 6,
           "total": 6,
           "ownPassed": 6,
-          "ownTotal": 6
+          "ownTotal": 6,
+          "usage": {
+            "outTokens": 38000,
+            "inTokens": 110000,
+            "cacheRead": 990000,
+            "readTokens": 1100000,
+            "calls": 20,
+            "agentSeconds": 480,
+            "tokS": 79.16666666666667,
+            "decodeTokens": null,
+            "decodeSeconds": null,
+            "decodeTokS": null,
+            "prefillTokens": null,
+            "prefillSeconds": null,
+            "prefillTokS": null,
+            "draftAcceptance": null,
+            "compactions": 0,
+            "nudges": 0
+          }
         },
         {
           "id": "2",
@@ -103,7 +139,9 @@
             "prefillTokS": 763.2,
             "draftAcceptance": 0.853,
             "tokS": 73.6130474812574,
-            "readTokens": 6275222
+            "readTokens": 6275222,
+            "compactions": 0,
+            "nudges": 0
           }
         }
       ],

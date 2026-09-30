@@ -70,4 +70,20 @@ tr.opened td { border-bottom-color: transparent; }
 tr.detail > td { padding-top: 0; }
 table.usage { min-width: 0; width: 100%; table-layout: auto; font-size: 12px; }
 table.usage th, table.usage td { padding: 3px 6px; border-bottom: 1px solid var(--line); overflow-wrap: normal; }
-table.usage td:first-child { max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A story's name wraps to three lines before it is cut. */
+table.usage td.story-name { max-width: 260px; }
+.view-switch { display: flex; gap: 6px; }
+.story-view { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 12px; align-items: start; }
+.story-list { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 100px; }
+.story-list button { text-align: left; background: none; border: 0; border-radius: 6px; padding: 6px 8px; color: var(--ink); font: inherit; cursor: pointer; }
+.story-list button.on { background: var(--chip); font-weight: 600; }
+.story-jobs h2 { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-family: inherit; font-size: 14px; }
+.story-jobs .toolbar { display: flex; gap: 6px; }
+.story-jobs .toolbar button { font: inherit; font-size: 12px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.story-jobs .toolbar button:disabled { opacity: .45; cursor: default; }
+.compare-note { padding: 6px 12px; }
+table.by-job { min-width: 0; }
+table.by-job tbody tr { cursor: pointer; }
+table.by-job tr[aria-selected="true"] td { background: var(--chip); }
+table.by-job tr[data-comparison="true"] td { box-shadow: inset 0 2px 0 var(--run), inset 0 -2px 0 var(--run); }
+.clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }

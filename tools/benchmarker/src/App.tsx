@@ -2,6 +2,7 @@ import { useState } from "react";
 import { RUN_STATUSES, type Row, type RunStatus } from "../shared/types.ts";
 import { Header } from "./components/Header.tsx";
 import { StatusFilter } from "./components/StatusFilter.tsx";
+import { StoryView } from "./components/StoryView.tsx";
 import { StaleBanner } from "./components/StaleBanner.tsx";
 import { MachineSection } from "./components/MachineSection.tsx";
 import { scoreOf } from "./components/ScoreCell.tsx";
@@ -11,6 +12,9 @@ import { useBenchState } from "./useBenchState.ts";
 const SAVED_KEY = "benchmarker:v2"; // versioned: selections saved by older builds are ignored
 const ALL = "all";
 const HIDDEN_KEY = "benchmarker:hidden-statuses:v1";
+const VIEW_KEY = "benchmarker:view:v1";
+type View = "machine" | "story";
+const loadView = (): View => { try { return localStorage.getItem(VIEW_KEY) === "story" ? "story" : "machine"; } catch { return "machine"; } };
 const HIDDEN_AT_FIRST: RunStatus[] = ["cancelled"];
 
 function loadHidden(): Set<RunStatus> {
@@ -68,6 +72,8 @@ export function App() {
   const { data, error, age, stale, serverNow } = useBenchState();
   const [choice, setChoice] = useState<Partial<Selection>>(loadSaved);
   const [hidden, setHidden] = useState<Set<RunStatus>>(loadHidden);
+  const [view, setView] = useState<View>(loadView);
+  const chooseView = (v: View) => { setView(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* not remembered */ } };
 
   if (!data) {
     return (
@@ -111,10 +117,16 @@ export function App() {
         onPack={(p) => choose({ pack: p, family: "" })}
         onFamily={(f) => choose({ pack, family: f })}
       >
+        <div className="view-switch" role="group" aria-label="View">
+          <button type="button" aria-pressed={view === "machine"} className="chip" onClick={() => chooseView("machine")}>By machine</button>
+          <button type="button" aria-pressed={view === "story"} className="chip" onClick={() => chooseView("story")}>By story</button>
+        </div>
         <StatusFilter counts={counts} hidden={hidden} onChange={chooseHidden} />
       </Header>
       <StaleBanner stale={stale} age={age} error={error} />
       <main>
+        {view === "story" ? <StoryView rows={shown} /> : (
+          <>
         {groupByMachine(shown, data.machines ?? [])
           // A machine with nothing to show under this filter is left out, unless it is idle: that is news.
           .filter((g) => g.rows.length > 0 || (g.info !== null && !g.info.running && g.info.queued === 0))
@@ -122,6 +134,8 @@ export function App() {
           <MachineSection key={g.machine} group={g} state={data} serverNow={serverNow} scoreTotal={scoreTotal} />
         ))}
         {shown.length === 0 ? <p className="empty">No runs for this pack, version and status.</p> : null}
+          </>
+        )}
       </main>
     </div>
   );
