@@ -78,6 +78,17 @@ failed, stopped, cancelled. Cancelled runs are hidden at first; **only running**
 click. The choice is remembered in the browser. A machine with nothing under the filter is left out,
 unless it is idle.
 
+## Combinations
+
+In each machine's table, every combination's runs sit under a heading line with two numbers over the
+runs the filters show (hover the **?** for what each means):
+
+- **hours per story**: the agent's time per recorded story, averaged over every story of those runs;
+- **held-out quality**: held-out tests passing over all held-out tests, across every built story of every
+  run, each on its run's latest build (100% = everything built passes the hidden tests).
+
+Every column heading explains itself on hover too.
+
 ## What each column means
 
 | Column | From |
