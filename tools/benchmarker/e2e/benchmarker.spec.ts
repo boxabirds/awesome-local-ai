@@ -34,14 +34,15 @@ test("a running run: status, story of the scope with its title, time, and activi
 });
 
 test("stories working: one square per story in scope, against the latest build, and how many work", async ({ page }) => {
-  await expect(page.getByRole("columnheader", { name: "Stories working" }).first()).toBeVisible();
+  // A story counts only when all its held-out tests pass: the heading says so.
+  await expect(page.getByRole("columnheader", { name: "Stories passing held-out tests" }).first()).toBeVisible();
   const sw = cell(page, SWIFT, "v2-r1", 5);
   await expect(sw.locator("[data-story]")).toHaveCount(11);
   await expect(sw.locator("[data-story='1']")).toHaveAttribute("data-state", "ok");
   await expect(sw.locator("[data-story='2']")).toHaveAttribute("data-state", "part"); // 9/10, reported by dbench before git
   await expect(sw.locator("[data-story='3']")).toHaveAttribute("data-state", "running");
   await expect(sw.locator("[data-story='4']")).toHaveAttribute("data-state", "unbuilt");
-  await expect(sw).toContainText("1 of 11 working");
+  await expect(sw).toContainText("1 of 11 pass");
   await expect(sw.locator("[data-story='2']")).toHaveAttribute("title", /9\/10 hidden flows/);
 });
 
