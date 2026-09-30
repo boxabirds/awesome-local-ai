@@ -1,6 +1,5 @@
 // This run beside another of the same combination, story by story; and the combination's other runs.
 // Modest on purpose: the combination page has the full runs x stories matrix.
-import { useState } from "react";
 import type { Row } from "../../../shared/types.ts";
 import { COMPARE_MEASURES, compareRuns, scoreOfRecord, signedPercent, statusView, type MeasureKey } from "../../../shared/runView.ts";
 import { GLOSSARY } from "../../../shared/glossary.ts";
@@ -9,18 +8,27 @@ import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
 import { Missing, Section, Term, full } from "./bits.tsx";
 import { pct, speed } from "./RunCost.tsx";
+import { useAddressParam } from "../story/useAddressParam.ts";
 
 const SHOW: Record<MeasureKey, (n: number) => string> = { minutes: duration, outTokens: short, calls: full, tokS: speed, heldOut: pct };
 
-export function CompareRuns({ run, others }: { run: Row; others: Row[] }) {
-  const [chosen, setChosen] = useState<string>(() => others.find((r) => r.stories.length)?.runId ?? "");
+/** The run compared with is in the address (?compare=v2-r4), so a reload or a shared link keeps it. With none there,
+ * the first other run that has recorded a story; ?compare=none when the reader chose no run. */
+const NONE = "none";
+
+export function CompareRuns({ run, others, params }: { run: Row; others: Row[]; params?: Record<string, string> }) {
+  const [param, setParam] = useAddressParam(params, "compare");
+  const fallback = others.find((r) => r.stories.length)?.runId ?? "";
+  const chosen = param === NONE ? "" : param ?? fallback;
+  const setChosen = (id: string) => setParam(id === "" ? NONE : id);
   const other = others.find((r) => r.runId === chosen) ?? null;
+  const unknown = chosen !== "" && !other;
   const rows = other ? compareRuns(run, other) : [];
   const selectId = "compare-with";
   const aside = others.length ? (
     <label className="compare-pick" htmlFor={selectId}>
       against{" "}
-      <select id={selectId} value={chosen} onChange={(e) => setChosen(e.target.value)}>
+      <select id={selectId} value={other ? chosen : ""} onChange={(e) => setChosen(e.target.value)}>
         <option value="">choose a run…</option>
         {others.map((r) => <option key={r.runId} value={r.runId}>{r.runId} · {r.status}{r.stories.length ? ` · ${r.stories.length} recorded` : " · nothing recorded"}</option>)}
       </select>
@@ -29,6 +37,7 @@ export function CompareRuns({ run, others }: { run: Row; others: Row[] }) {
   return (
     <Section term="compareRuns" id="compare" aside={aside}>
       {others.length === 0 ? <p className="rp-empty">This combination has no other run in this pack to compare with.</p>
+        : unknown ? <p className="rp-empty" data-unknown={chosen}>The address names {chosen}, which isn't another run of this combination in this pack version. Choose a run to compare with.</p>
         : !other ? <p className="rp-empty">Choose a run to compare with.</p>
         : rows.length === 0 ? <p className="rp-empty">Neither run has recorded a story yet.</p> : <>
           <p className="small compare-key">

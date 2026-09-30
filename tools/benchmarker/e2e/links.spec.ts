@@ -20,35 +20,14 @@ test("from the combinations table: a combination's name opens its page", async (
   await expect(page$(page, "combination")).toBeVisible();
 });
 
-test("from a machine's table: a combination heading and a run's name open their pages", async ({ page }) => {
-  const g = page.locator('section[data-machine="gruntus"]');
-  await g.locator(`tr.combo-head[data-stack="${SWIFT}"] a.combination-link`).click();
-  await expect(page$(page, "combination")).toBeVisible();
-  await page.goBack();
-  await g.locator(`tr[data-stack="${SWIFT}"][data-run="v2-r5"] a.run-link`).click();
-  await expect(page).toHaveURL(new RegExp(`#/vidi/r/${enc(SWIFT)}/v2-r5$`));
+test("from the overview's Now: the running run and its machine open their pages", async ({ page }) => {
+  const now = page.getByRole("table", { name: "Now" });
+  await now.locator("a.run-link").first().click();
   await expect(page$(page, "run")).toBeVisible();
-});
-
-test("from the time bars: a run's name opens the run, 'this story' opens that story run", async ({ page }) => {
-  await page.getByRole("button", { name: "By story" }).click();
-  await page.getByRole("button", { name: /^2\. / }).click();
-  const bar = page.locator(`.time-bars [data-job="${SWIFT}|v2-r5"]`);
-  await bar.locator("a.story-run-link").click();
-  await expect(page).toHaveURL(new RegExp(`#/vidi/r/${enc(SWIFT)}/v2-r5/s/2$`));
-  await expect(page$(page, "storyRun")).toBeVisible();
   await page.goBack();
-  await bar.locator("a.run-link").click();
-  await expect(page$(page, "run")).toBeVisible();
-});
-
-test("from the story table: the combination, the run and the story run are each a link", async ({ page }) => {
-  await page.getByRole("button", { name: "By story" }).click();
-  await page.getByRole("button", { name: /^2\. / }).click();
-  const r = page.locator(`table.by-job tr[data-stack="${SWIFT}"][data-run="v2-r5"]`);
-  await expect(r.locator("a.combination-link")).toHaveAttribute("href", `#/vidi/c/${enc(SWIFT)}`);
-  await expect(r.locator("a.run-link")).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r5`);
-  await expect(r.locator("a.story-run-link")).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r5/s/2`);
+  await now.locator("a.machine-link", { hasText: "gruntus" }).click();
+  await expect(page).toHaveURL(/#\/m\/gruntus$/);
+  await expect(page$(page, "machine")).toBeVisible();
 });
 
 test("breadcrumbs: a story run sits under its run, which sits under its combination, under the overview", async ({ page }) => {
@@ -84,7 +63,7 @@ test("the tabs always go back to the overview", async ({ page }) => {
   await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5`);
   await page.getByRole("tab", { name: "Machines" }).click();
   await expect(page).toHaveURL(/#\/$/);
-  await expect(page.locator(".machines-tab")).toBeVisible();
+  await expect(page$(page, "machines")).toBeVisible();
 });
 
 // Runs are only compared with runs of the same pack version family: a v1 run was built against another spec
@@ -118,8 +97,8 @@ test.describe("comparisons stay within one version family", () => {
 });
 
 test.describe("machine and story addresses", () => {
-  test("every machine name links to its page, from a machine section, a time bar and a run", async ({ page }) => {
-    await page.locator('section[data-machine="gruntus"] h2 a.machine-link').click();
+  test("every machine name links to its page, from the overview and from a run", async ({ page }) => {
+    await page.getByRole("table", { name: "Now" }).locator("a.machine-link", { hasText: "gruntus" }).click();
     await expect(page).toHaveURL(/#\/m\/gruntus$/);
     await expect(page$(page, "machine")).toBeVisible();
     await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5`);

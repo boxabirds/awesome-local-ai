@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 // The ranking on the overview and the combination page, from the fixture. Swift 1.5 has four finished runs:
 // v2-r4 68, v2-r5 63, v2-r6 58 (scores of record under vidi-v2.0-pre1) and v2-r7 (re-scored only under pre0, so
@@ -19,8 +19,6 @@ const cell = (page: Page, run: string, story: string) => matrix(page).locator(`t
 const rowOf = (page: Page, run: string) => matrix(page).locator(`tr[data-run="${run}"]`);
 const tip = (page: Page) => page.getByRole("tooltip");
 const heading = (page: Page) => page.locator('[data-page="combination"] h1');
-/** Hover below the fold: the page's tooltip closes on any scroll, so scroll there first and then hover. */
-const hoverAt = async (l: Locator) => { await l.evaluate((el) => el.scrollIntoView({ block: "center" })); await l.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))); await l.hover(); };
 const show = (page: Page, metric: string) => page.getByRole("group", { name: "Show" }).getByRole("button", { name: metric, exact: true }).click();
 
 test.beforeEach(async ({ request }) => {
@@ -68,14 +66,6 @@ test.describe("overview: combinations ranked on finished runs of record", () => 
     await combos(page).getByRole("columnheader", { name: /^Score/ }).click();
     const order = await combos(page).locator("tbody tr").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.stack));
     expect(order).toEqual([SWIFT, OPUS, QWEN_27B, MLX]);
-  });
-
-  test("the machine sections keep a live figure, labelled live, which ranks nothing", async ({ page }) => {
-    const head = page.locator(`section[data-machine="gruntus"] tr.combo-head[data-stack="${SWIFT}"]`);
-    await expect(head.locator(".live-badge")).toHaveText("live");
-    await expect(head).toContainText(/live held-out \d+%/);
-    await head.locator(".live-badge").hover();
-    await expect(tip(page)).toContainText("It never ranks anything");
   });
 });
 
@@ -232,10 +222,10 @@ test.describe("combination page", () => {
     expect(await width("v2-r5")).toBeGreaterThan(await width("v2-r6"));                       // 91 min against 43
     expect(await width("v2-r6")).toBeGreaterThan(await width("v2-r4"));
     await expect(bars.locator('[data-run="v2-r5"] .bar-total')).toHaveText("1h31m");
-    await hoverAt(bars.locator('[data-run="v2-r6"] [data-seg="tools"]'));
+    await bars.locator('[data-run="v2-r6"] [data-seg="tools"]').hover();
     await expect(tip(page)).toContainText("Tools 18 min (43%) over 2 recorded stories");
     await expect(bars.locator('[data-run="v2-r1"]')).toContainText("1 recorded story, 1 without a split");
-    await hoverAt(bars.locator('[data-run="v2-r1"] .check-flag'));
+    await bars.locator('[data-run="v2-r1"] .check-flag').hover();
     await expect(tip(page)).toContainText("story 1: tool call t9 never ended");
     await expect(bars.locator("figcaption")).toContainText("Between sessions");
   });
@@ -246,7 +236,7 @@ test.describe("combination page", () => {
     await expect(tally).toContainText("2 of 9 story runs flagged on minutes");
     await show(page, "tool calls");
     await expect(tally.locator(".tally-line")).toHaveText(["verbose thinking1 of 9 story runs", "many small steps1 of 9 story runs", "unexplained2 of 9 story runs"]);
-    await hoverAt(tally.getByText("many small steps"));
+    await tally.getByText("many small steps").hover();
     await expect(tip(page)).toContainText("At least 1.5× the other runs' model calls");
   });
 

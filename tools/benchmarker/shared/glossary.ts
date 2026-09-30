@@ -1,6 +1,8 @@
 // One definition per measure: its name, unit, and what it counts. Every page's headings and hovers read from here,
 // so a number means the same thing wherever it appears. Add a measure here before showing it anywhere.
 
+import { SILENT_MINUTES } from "./overviewView.ts";
+
 export interface Term {
   /** The heading or label. */
   name: string;
@@ -108,6 +110,46 @@ export const GLOSSARY = {
   mechPrecedence: { name: "Which label wins", what: "When several rules fire: hung command, then restarted (time sinks nothing else explains), then verbose thinking, many small steps, compaction-heavy, slower generation (causes before their consequences: more thinking and more steps grow the context, which brings compactions and slower generation). Every rule that fired is in the hover." },
   relatedCombinations: { name: "Other combinations of this model", what: "The same model with another quant, engine, client or hardware class, in this pack." },
   related: { name: "Related", what: "The machines this combination's runs ran on, and the other combinations of the same model." },
+
+  // The overview and the machine pages.
+  needsYou: { name: "Needs you", what: "Exceptions that ask for action, each linked to where it is resolved: a stuck story, an unreachable or idle machine, a run that failed or stopped in the last day, a finished run with no score of record, and stories whose time accounting failed its checks. Machines are looked at whatever the pack; runs in the pack and version chosen above." },
+  needSilent: { name: "no activity", what: `The harness has reported nothing on this running story for ${SILENT_MINUTES} minutes or more. It rewrites the story's progress once a minute while the agent works, however slowly, so this silence means the harness, the agent or the machine has stopped. Stop it and restart the run, or read its log.` },
+  needUnreachable: { name: "unreachable", what: "The machine's dbench service didn't answer. Nothing can be queued or stopped on it until it does." },
+  needEnded: { name: "ended early", what: "The run failed or was stopped in the last day, before it finished: it has no score of record. Restart it from the machine's page, which resumes it at its first unfinished story." },
+  needIdle: { name: "idle", what: "The machine answers, but nothing runs on it and nothing is queued: it is doing no benchmarking. Queue a run on its page." },
+  needRescoreFault: { name: "re-score fault", what: "The finished run was re-scored under the current suite, but the re-score gave no score of record: the machine spoiled it (a harness fault, such as no browser), or it didn't reach the run's last story. Re-score it again." },
+  needUnscored: { name: "not scored", what: "The run finished but has not been re-scored under the current suite, so it has no score of record and isn't ranked. Runs of an older spec version aren't listed: this suite can't score another spec." },
+  needAccounting: { name: "accounting", what: "A story's time split failed its own checks (the parts don't sum to the wall time, one is negative, a tool call never ended, or the wall disagrees with the agent's clock), so where its time went can't be trusted." },
+  now: { name: "Now", what: "What each machine is doing: the run and story it is on, with the agent minutes on that story as the harness last reported them, or idle; and how many jobs wait in its queue." },
+  storyMinutes: { name: "min on story", what: "Agent minutes on the running story, as the harness last reported them (it reports once a minute)." },
+  queue: { name: "Queue", what: "Jobs waiting on the machine, in the order dbench will run them. The running job is not counted." },
+  queuedOnly: { name: "waiting", what: "Nothing is running, but jobs are queued: dbench starts the next one when it can. If this lasts, check the machine." },
+  hardware: { name: "Hardware", what: "What dbench reports about the machine: processor, cores, memory, graphics and operating system. Each exact machine spec is its own hardware class." },
+  reachability: { name: "Reachability", what: "Whether the machine's dbench service answered the benchmarker's last request, and at which address." },
+  historyRun: { name: "Run", what: "The run's id: a link to its page, with everything about it. The combination it belongs to heads the table." },
+  nowRunning: { name: "Running", what: "The run the machine is on now and its story, with the agent minutes on that story as the harness last reported them; or idle, waiting (a queue but nothing running), or unreachable." },
+  machinesList: { name: "Machines", what: "Every dbench node: the machines in the benchmarker's list and those dbench answered for. Each links to its page, with its hardware, installs, jobs and history." },
+  os: { name: "OS", what: "The operating system dbench reports the machine runs." },
+  jobPlace: { name: "Job", what: "Which of the run's dbench jobs this is: a run restarted after a stop or a failure has more than one. The dbench id is on hover." },
+  runElapsed: { name: "run", what: "How long ago this attempt of the job started: the wall time of the run so far, not agent time." },
+  dbenchVersion: { name: "dbench", what: "The version of the dbench service on the machine: the program that queues and runs the benchmark jobs there." },
+  installs: { name: "Installs", what: "The combinations installed on the machine, which it can run. Each links to its combination's page once it has a run." },
+  machineNow: { name: "Now", what: "The job running on this machine, with its live activity, then the queue in the order dbench will run it, then jobs that ended in the last day. Each job has its operations." },
+  endedJobs: { name: "Ended in the last day", what: "Jobs dbench still lists after they ended: finished, failed, stopped or cancelled. A failed, stopped or cancelled one can be restarted, which resumes its run at its first unfinished story." },
+  history: { name: "History", what: "Every run on this machine, by combination, then by pack and spec version: runs of different spec versions built different specs, so they are never grouped together. Each shows its status and its score of record." },
+  activity: { name: "Activity", what: "Live: the running story's model calls and output tokens so far, the tasks written, and the agent's latest action. Claude runs count calls and tokens only at the end of a story." },
+  machineRow: { name: "Machine", what: "A dbench node: the machine a run runs on. Its page has its hardware, installs, jobs and history." },
+
+  // The story page.
+  storyList: { name: "Stories", what: "Every story of this pack version that any run has in scope. Each opens its own page, keeping the comparison you chose." },
+  storyHeldOutTests: { name: "Held-out tests", what: "How many held-out tests this story has, as the runs counted them. A run scored under another suite version can count a different number: each count is shown with how many runs counted it." },
+  storyByCombination: { name: "By combination", what: "Every combination's attempt at this story: its median and range over its finished runs (agent time, output tokens, tool calls, held-out), then each of its runs. A run more than 10% from its combination's median is flagged, with the mechanism on hover." },
+  storyCombinationMedian: { name: "Median", what: "This story's median over the combination's finished runs, with the lowest and highest and n, how many runs had the figure. Running runs aren't in it. It is the same median the combination page flags against." },
+  storyLatestBuild: { name: "Latest build", what: "Live: this story's own held-out tests against the run's latest build, which may be several stories later. A later story can break an earlier one, so this can differ from the result right after the story." },
+  setComparison: { name: "Set as comparison", what: "Show every other story run's numbers as a percentage of this one's. The choice is kept in the address, so a reload, a shared link and the back button keep it. Where its number is 0 or missing, each run shows its own." },
+  storyTimeByCombination: { name: "Where the time went", what: "One bar per story run of this story, grouped by combination, all on one scale: a longer bar took longer. Every second has one owner: compaction, a tool call, the model reading or writing, the harness between sessions, or other." },
+  storyNotBuilt: { name: "Not built", what: "Runs of this combination that haven't built this story: queued, still on an earlier story, or ended before it." },
+  storyInEveryCombination: { name: "Every combination", what: "The story's own page: how every combination's runs did on this story, side by side." },
 } as const satisfies Record<string, Term>;
 
 export type TermId = keyof typeof GLOSSARY;

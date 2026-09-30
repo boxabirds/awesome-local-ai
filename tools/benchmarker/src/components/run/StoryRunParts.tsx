@@ -2,7 +2,7 @@
 import type { Row, State } from "../../../shared/types.ts";
 import { neighbours, otherRuns, storyRunState, type StoryRunState } from "../../../shared/runView.ts";
 import { GLOSSARY } from "../../../shared/glossary.ts";
-import { CombinationLink, MachineLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
+import { CombinationLink, MachineLink, RunLink, StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
 import { LiveTag, Missing, Section, Stat, full } from "./bits.tsx";
@@ -102,6 +102,7 @@ export function StoryNav({ run, state, storyId }: { run: Row; state: State; stor
             )}
           </dd>
         </div>
+        <div data-row="story"><dt>Story {storyId} in every combination</dt><dd><StoryLink pack={run.pack} story={storyId}>story {storyId}: every combination's runs</StoryLink></dd></div>
         <div data-row="run"><dt>The run</dt><dd><RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} /></dd></div>
         <div data-row="combination"><dt>The combination</dt><dd><CombinationLink pack={run.pack} stack={run.stack} label={run.label} /></dd></div>
       </dl>

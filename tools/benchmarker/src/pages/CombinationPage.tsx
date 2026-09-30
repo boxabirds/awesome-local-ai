@@ -1,9 +1,8 @@
 // One combination: how good and how costly it is, how consistent, and why its runs differ (plan section 4.2).
 // Numbers of record are over its finished runs with a score of record only; the matrix shows every run.
-import { useState } from "react";
 import type { Row, State } from "../../shared/types.ts";
 import { NOT_COUNTED_ORDER, summarise } from "../../shared/stats.ts";
-import { buildMatrix, DEFAULT_METRIC, type Metric } from "../../shared/combinationView.ts";
+import { buildMatrix, DEFAULT_METRIC, METRICS, type Metric } from "../../shared/combinationView.ts";
 import { qualityClass } from "../format.ts";
 import { Breadcrumb, MachineLink } from "../components/EntityLinks.tsx";
 import { Term, termTip } from "../components/combination/Term.tsx";
@@ -14,6 +13,7 @@ import { MechanismTally } from "../components/combination/MechanismTally.tsx";
 import { machinesOf, Related } from "../components/combination/Related.tsx";
 import type { Spread } from "../../shared/stats.ts";
 import type { TermId } from "../../shared/glossary.ts";
+import { useAddressParam } from "../components/story/useAddressParam.ts";
 import "./combination.css";
 
 const PERCENT = 100;
@@ -27,8 +27,14 @@ function Kpi({ term, s, fmt }: { term: TermId; s: Spread | null; fmt: (n: number
   );
 }
 
-export function CombinationPage({ stack, runs, state }: { stack: string; runs: Row[]; state: State; serverNow: number | null; params?: Record<string, string> }) {
-  const [metric, setMetric] = useState<Metric>(DEFAULT_METRIC);
+/** The metric an address names (?metric=calls); the default for none or one that isn't a metric. */
+const metricOf = (m: string | undefined): Metric => (METRICS as string[]).includes(m ?? "") ? (m as Metric) : DEFAULT_METRIC;
+
+export function CombinationPage({ stack, runs, state, params }: { stack: string; runs: Row[]; state: State; serverNow: number | null; params?: Record<string, string> }) {
+  const [metricParam, setMetricParam] = useAddressParam(params, "metric");
+  const metric = metricOf(metricParam);
+  // The default is left out of the address, so the plain address and "minutes" are one page.
+  const setMetric = (m: Metric) => setMetricParam(m === DEFAULT_METRIC ? undefined : m);
   const c = summarise(stack, runs);
   const matrix = buildMatrix(runs, metric);
   const finished = c.byStatus.finished ?? 0;
