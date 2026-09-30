@@ -340,6 +340,8 @@ describe("finalScore", () => {
     expect(finalScore(rs([9]), "started", "9")).toBeNull();   // the run is still going
     expect(finalScore(rs([9]), "finished", "12")).toBeNull(); // a partial re-score of a finished run
     expect(finalScore(null, "finished", "12")).toBeNull();
+    // A re-score the machine spoiled (the runner never started) says nothing about the app: not a score.
+    expect(finalScore({ results: [{ story: 12, passed: 0, total: 0, harness_fault: "scoring interrupted: the held-out runner failed to start" }] }, "finished", "12")).toBeNull();
   });
 });
 

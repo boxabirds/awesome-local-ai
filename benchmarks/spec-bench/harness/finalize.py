@@ -46,6 +46,19 @@ def score_of(run: Path, version: str) -> str:
     return f"{last['passed']}/{last['total']}"
 
 
+def fault_of(run: Path, version: str) -> str | None:
+    """Why the re-score says nothing about the app (the machine spoiled it), if it does."""
+    last = json.loads((run / "rescore" / version / "rescore.json").read_text())["results"][-1]
+    return last.get("harness_fault")
+
+
+def set_aside(run: Path, version: str) -> None:
+    """Move a spoiled re-score out of the way: the page doesn't read it, and the next finalize tries again."""
+    dest = run / "rescore-spoiled" / f"{version}-{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}"
+    dest.parent.mkdir(exist_ok=True)
+    (run / "rescore" / version).rename(dest)
+
+
 def finalize(run: Path, pack_ref: str, version: str, rescore: Rescore, record: Callable[[str], None] | None) -> dict:
     work = Path((run / "work_dir.txt").read_text().strip()).expanduser()
     out: dict = {"version": version, "pack_ref": pack_ref, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
@@ -57,6 +70,9 @@ def finalize(run: Path, pack_ref: str, version: str, rescore: Rescore, record: C
     if action == "rescore":
         try:
             rescore(run, run / BUNDLE, version)
+            if fault := fault_of(run, version):
+                set_aside(run, version)
+                raise RuntimeError(fault)
             out.update(rescore="done", reason="", score=score_of(run, version))
             message = f"final score {out['score']} under {version}"
         except Exception as e:  # a broken scorer must not lose the bundle or the run's record
