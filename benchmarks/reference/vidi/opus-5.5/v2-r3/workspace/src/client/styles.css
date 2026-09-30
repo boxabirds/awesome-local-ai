@@ -607,3 +607,12 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
+/* Story 8 — Undo and Redo, below the tools with a divider. */
+.toolbar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #e4e4e0;
+}

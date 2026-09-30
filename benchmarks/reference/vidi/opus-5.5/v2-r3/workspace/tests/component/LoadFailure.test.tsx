@@ -114,6 +114,26 @@ describe('App while the board could not be loaded (persist.load_failure)', () =>
     expect(Array.from(Y.encodeStateVector(boardDoc()))).toEqual(Array.from(before));
   });
 
+  it('TC-20 (story 8): undo and redo are unavailable while the board failed to load', () => {
+    renderApp();
+    setState('connected');
+    act(() => stickyButton().click());
+    keyDown(document.querySelector('textarea')!, 'Escape');
+    const undo = screen.getByRole('button', { name: 'Undo' });
+    expect(undo).toBeEnabled();
+    setState('load_failed');
+    expect(undo).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled();
+    const ev = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+    act(() => {
+      document.body.dispatchEvent(ev);
+    });
+    fireEvent.click(undo);
+    expect(noteElements()).toHaveLength(1);
+    setState('connected');
+    expect(undo).toBeEnabled();
+  });
+
   it('TC-23: an edit in progress ends when the board becomes unloadable', () => {
     renderApp();
     setState('connected');

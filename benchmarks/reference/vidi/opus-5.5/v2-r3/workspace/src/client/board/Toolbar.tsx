@@ -1,7 +1,9 @@
+import type { ReactNode } from 'react';
+
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
 /** Left-side vertical toolbar. */
-export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
+export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean; children?: ReactNode }) {
   return (
     <div className="toolbar" role="toolbar" aria-label="Tools" aria-orientation="vertical">
       <button
@@ -23,6 +25,7 @@ export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
           <path d="M18.5 13.5h-4.5a.5.5 0 0 0-.5.5v4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
         </svg>
       </button>
+      {props.children}
     </div>
   );
 }

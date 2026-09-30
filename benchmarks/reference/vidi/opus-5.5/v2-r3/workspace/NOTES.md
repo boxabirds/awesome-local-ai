@@ -296,3 +296,47 @@ Decisions made where the spec was silent or ambiguous:
   `onGestureStart/End` options exist (story 8 will use them), but the board passes none.
 - **E2E browsers:** only Chromium is installed here, so TC-32 did not run on Firefox or WebKit.
 - **Commits.** The whole story went into a single commit, per the session instructions.
+
+## Story 8 — Undo and redo my own changes without undoing anyone else's
+
+- **Controller lives in `Board.tsx`.** The design names `App.tsx`. Since story 5 the board is
+  `src/client/board/Board.tsx`, so that is where one controller per board doc is created (in an
+  effect, destroyed on doc change or unmount). Until the effect runs, a no-history `NO_UNDO`
+  controller stands in. The controller reaches the sticky text editor through `UndoContext`
+  (`useUndo.ts`), so object components need no new props.
+- **Capture timing is done by the controller, not by `Y.UndoManager`.** lib0 binds
+  `getUnixTime = Date.now` at import, so the manager's own capture timer cannot be driven by a
+  fake clock, and TC-13's exact boundary could not be tested. The manager gets an effectively
+  infinite `captureTimeout`. The controller's `captureTransaction` hook reads `Date.now()` for
+  each LOCAL_ORIGIN transaction and calls `stopCapturing()` when the pause is
+  ≥ `UNDO_CAPTURE_TIMEOUT_MS`. Behaviour is the same as the design's (pause of exactly 500 ms =
+  new step; 499 ms = same step).
+- **Exactly one step per undo.** `Y.UndoManager` skips a step whose inverse changes nothing
+  (for example a move of a note someone else deleted) and goes on to undo the *next* step. That
+  would break the PRD's "nothing visible happens; the next undo continues normally". The
+  controller hides the older steps while popping, so the no-op step is the one consumed. Change
+  notifications are sent once, after the stack is restored.
+- **Undo inside the note editor is limited to that note's typing.** Ctrl/Cmd+Z (and
+  Ctrl/Cmd+Shift+Z, Ctrl+Y) in the textarea always prevent the native textarea undo. They act
+  only when the next undo/redo step changed nothing but this note's `Y.Text`. The controller
+  tags each stack item with the shared types it changed; this is the extra
+  `UndoController.nextStepOnlyIn(type, stack)`. So once the typing is undone, further Ctrl+Z
+  presses while editing do nothing, and they never undo the note's creation from under the
+  editor. After leaving the note (Escape/click outside), board undo continues through earlier
+  actions.
+- **Boundaries.** A boundary is placed at gesture start/end (including pointercancel), at edit
+  start/end, and before and after each create, delete, colour change and arrow-key nudge (one
+  nudge press = one step). `undo()`/`redo()` also close the capture window.
+- **Shortcut details.** Ctrl+Y redoes; Cmd+Y does not (it is a browser shortcut on macOS and the
+  PRD names only Ctrl+Y). With Alt held, the shortcuts are ignored. In a load-failed board they
+  are ignored without `preventDefault`, and the buttons are disabled.
+- **Buttons** sit in the left "Tools" toolbar below the Sticky note button, in a
+  `role="group"` "History" with a divider. Tooltips are "Undo (Ctrl/Cmd+Z)" and
+  "Redo (Ctrl/Cmd+Shift+Z)". They carry both `disabled` and `aria-disabled`.
+- **Test seeding.** Component tests seed notes as non-local updates (as if loaded), so the
+  history holds only the actions under test. E2E uses the new `undoBoard()` fixture (12 notes in
+  varied colours and sizes, 8 in one cluster).
+- **Out of scope** (stories 6, 16): no presence hooks. `addScope` exists for comments but is
+  not used yet.
+- **E2E browsers:** only Chromium is installed here, so e2e ran in Chromium only.
+- **Commits.** The whole story went into a single commit, per the session instructions.

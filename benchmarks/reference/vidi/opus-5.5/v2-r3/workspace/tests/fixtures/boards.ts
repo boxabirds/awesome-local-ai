@@ -1,7 +1,7 @@
 // Realistic boards built with the real board-model functions, so their bytes are
 // real Yjs updates (story 4 persistence tests).
 import * as Y from 'yjs';
-import { bringToFront, createSticky, getStickyText, initDoc, moveObject } from '../../src/shared/board-model';
+import { bringToFront, createSticky, getStickyText, initDoc, moveObject, resizeObjects } from '../../src/shared/board-model';
 import { PERSIST_TESTED_NOTES, STICKY_COLORS, type StickyColor } from '../../src/shared/config';
 
 const COLORS = Object.keys(STICKY_COLORS) as StickyColor[];
@@ -161,4 +161,30 @@ export function selectionBoard(doc: Y.Doc = new Y.Doc()): { doc: Y.Doc; a: strin
   bringToFront(doc, b[1]);
   bringToFront(doc, b[5]);
   return { doc, a, b };
+}
+
+// Story 8 — undo: a retro board with 12 notes in varied colours and sizes;
+// the 8 in cluster (0..~1000, 0..~500) are the ones deleted in TC-22.
+export const UNDO_CLUSTER_COLUMNS = [0, 260, 520, 780];
+export const UNDO_CLUSTER_ROWS = [0, 280];
+
+export function undoBoard(doc: Y.Doc = new Y.Doc()): { doc: Y.Doc; cluster: string[]; others: string[] } {
+  initDoc(doc);
+  const sizes = [200, 160, 240, 180];
+  const cluster = UNDO_CLUSTER_ROWS.flatMap((y, row) =>
+    UNDO_CLUSTER_COLUMNS.map((x, col) => {
+      const i = row * UNDO_CLUSTER_COLUMNS.length + col;
+      const id = createSticky(doc, { x: x + 100, y: y + 100 }, COLORS[i % COLORS.length]);
+      const size = sizes[(row + col) % sizes.length];
+      resizeObjects(doc, new Map([[id, { x, y, width: size, height: size }]]));
+      getStickyText(doc, id)!.insert(0, RETRO_TEXTS[i]);
+      return id;
+    }),
+  );
+  const others = [0, 1, 2, 3].map((i) => {
+    const id = createSticky(doc, { x: 1500 + i * 260 + 100, y: 100 }, COLORS[(i + 3) % COLORS.length]);
+    getStickyText(doc, id)!.insert(0, RETRO_TEXTS[8 + i]);
+    return id;
+  });
+  return { doc, cluster, others };
 }

@@ -4,6 +4,7 @@ import { allObjectIds, deleteObjects, moveObjects, type ObjectSnapshot } from '.
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
+import type { UndoController } from './undo';
 import type { SelectionApi } from './useSelection';
 
 const ARROWS: Record<string, Point> = {
@@ -23,6 +24,17 @@ function isButton(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.tagName === 'BUTTON';
 }
 
+/** Ctrl/Cmd+Z → undo; Ctrl/Cmd+Shift+Z or Ctrl+Y → redo. */
+export function historyCommand(
+  e: Pick<KeyboardEvent, 'key' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>,
+): 'undo' | 'redo' | null {
+  if (e.altKey || !(e.ctrlKey || e.metaKey)) return null;
+  const key = e.key.toLowerCase();
+  if (key === 'z') return e.shiftKey ? 'redo' : 'undo';
+  if (key === 'y' && e.ctrlKey && !e.metaKey && !e.shiftKey) return 'redo';
+  return null;
+}
+
 /** An object focused with Tab (not necessarily selected) — keys act on it. */
 function focusedObjectId(target: EventTarget | null): string | undefined {
   if (!(target instanceof HTMLElement)) return undefined;
@@ -31,25 +43,43 @@ function focusedObjectId(target: EventTarget | null): string | undefined {
 
 /**
  * Board keyboard commands (sel.keyboard): Ctrl/Cmd+A select all, Escape clear,
- * arrows nudge, Delete/Backspace delete, Enter edits a single text object.
- * Nothing happens while text is being edited or a text field has focus; the
- * mutating keys also need `canEdit`.
+ * arrows nudge, Delete/Backspace delete, Enter edits a single text object;
+ * Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (story 8).
+ * Nothing happens while text is being edited (the editor handles its own
+ * undo) or a text field has focus; the mutating keys also need `canEdit`.
+ * Each mutation is its own undo step (boundaries before and after).
  */
 export function useBoardKeys(opts: {
   doc: Y.Doc;
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  undo?: UndoController;
 }): void {
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, undo } = optsRef.current;
       if (selection.editingId !== null || isEditableTarget(e.target)) return;
       if (e.altKey) return;
       const ctrlOrMeta = e.ctrlKey || e.metaKey;
+      const step = (fn: () => void) => {
+        undo?.boundary();
+        fn();
+        undo?.boundary();
+      };
+
+      const history = historyCommand(e);
+      if (history) {
+        if (!canEdit || !undo) return;
+        e.preventDefault(); // never the browser's own undo
+        undo.boundary();
+        if (history === 'undo') undo.undo();
+        else undo.redo();
+        return;
+      }
 
       if (ctrlOrMeta && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault(); // never select the page's text
@@ -74,19 +104,19 @@ export function useBoardKeys(opts: {
       const dir = ARROWS[e.key];
       if (dir) {
         e.preventDefault(); // no page scroll, no board pan
-        const step = e.shiftKey ? NUDGE_LARGE_STEP_WORLD : NUDGE_STEP_WORLD;
+        const dist = e.shiftKey ? NUDGE_LARGE_STEP_WORLD : NUDGE_STEP_WORLD;
         const byId = new Map(snapshot.map((o) => [o.id, o]));
         const positions = new Map<string, Point>();
         for (const id of ids) {
           const o = byId.get(id)!;
-          positions.set(id, { x: o.x + dir.x * step, y: o.y + dir.y * step });
+          positions.set(id, { x: o.x + dir.x * dist, y: o.y + dir.y * dist });
         }
-        moveObjects(doc, positions);
+        step(() => moveObjects(doc, positions));
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
-        deleteObjects(doc, ids);
+        step(() => deleteObjects(doc, ids));
         selection.clear();
         return;
       }

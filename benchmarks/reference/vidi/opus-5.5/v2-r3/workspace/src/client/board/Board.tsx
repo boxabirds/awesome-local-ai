@@ -8,6 +8,9 @@ import { SelectionAnnouncer, SelectionBar } from './SelectionBar';
 import { SelectionOverlay, selectionBounds, toScreenRect } from './SelectionOverlay';
 import { useSelection } from './useSelection';
 import { useTransformGesture, type TransformPhase } from './useTransformGesture';
+import { createUndo, NO_UNDO, type UndoController } from './undo';
+import { UndoButtons } from './UndoButtons';
+import { UndoContext, useUndo } from './useUndo';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { NavigationHint } from '../canvas/NavigationHint';
 import { ZoomControls } from '../canvas/ZoomControls';
@@ -17,6 +20,8 @@ import { getObjectType, type ObjectGesturePhase } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
 import { installTestHooks } from '../testHooks';
+import type { StickyColor } from '../../shared/config';
+import type * as Y from 'yjs';
 
 /** A board that could not be loaded is never editable (it would look empty). */
 export function canEdit(state: ConnectionState): boolean {
@@ -35,6 +40,7 @@ export function Board({ boardId, children }: { boardId: string; children?: React
   const api = useCamera(viewport);
   const { camera } = api;
   const { doc, objects, connection } = useBoardDoc(boardId);
+  const undoController = useUndoControllerFor(doc);
   const selection = useSelection(objects);
   const { ids: selectedIds, editingId, clear, setMany, startEdit, endEdit } = selection;
 
@@ -67,10 +73,12 @@ export function Board({ boardId, children }: { boardId: string; children?: React
   const createAt = useCallback(
     (world: Point) => {
       if (!editableRef.current) return;
+      undoController.boundary();
       const id = createSticky(doc, world);
+      undoController.boundary();
       if (id) startEdit(id);
     },
-    [doc, startEdit],
+    [doc, startEdit, undoController],
   );
 
   const onCreateSticky = () => {
@@ -80,18 +88,40 @@ export function Board({ boardId, children }: { boardId: string; children?: React
 
   const deleteSelection = useCallback(() => {
     if (!editableRef.current) return;
+    undoController.boundary();
     deleteObjects(doc, [...selectedIds]);
+    undoController.boundary();
     clear();
-  }, [doc, selectedIds, clear]);
+  }, [doc, selectedIds, clear, undoController]);
+
+  const setColor = useCallback(
+    (id: string, color: StickyColor) => {
+      if (!editableRef.current) return;
+      undoController.boundary();
+      setStickyColor(doc, id, color);
+      undoController.boundary();
+    },
+    [doc, undoController],
+  );
 
   const onEndEdit = useCallback(
     (next: 'selected' | 'unselected') => (next === 'selected' ? endEdit() : clear()),
     [endEdit, clear],
   );
 
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoController });
+  const history = useUndo(undoController, editable);
   const marquee = useMarquee(camera, objects, (ids) => setMany(ids, true));
-  const gesture = useTransformGesture({ doc, camera, selection, snapshot: objects, canEdit: editable });
+  // A whole drag or resize (all its frames) is one undo step.
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    onGestureStart: undoController.boundary,
+    onGestureEnd: undoController.boundary,
+  });
 
   const busy = gesture.phase === 'moving' || gesture.phase === 'resizing';
   const box = selectionBounds(selectedIds, objects);
@@ -116,7 +146,7 @@ export function Board({ boardId, children }: { boardId: string; children?: React
             ids={selectedIds}
             snapshot={objects}
             onDelete={deleteSelection}
-            onColor={(id, c) => setStickyColor(doc, id, c)}
+            onColor={setColor}
           />
         </div>
       )}
@@ -125,46 +155,64 @@ export function Board({ boardId, children }: { boardId: string; children?: React
 
   return (
     <CameraContext.Provider value={ctx}>
-      <main className="app">
-        <BoardViewport onEmptyDoubleClick={createAt} onEmptyClick={clear} marquee={marquee} overlay={overlay}>
-          {renderOrder(objects).map(({ note: obj, zIndex }) => {
-            const spec = getObjectType(obj.type);
-            if (!spec) return null;
-            const { Component } = spec;
-            return (
-              <Component
-                key={obj.id}
-                object={obj}
-                doc={doc}
-                zIndex={zIndex}
-                selected={selectedIds.has(obj.id)}
-                editing={editable && obj.id === editingId}
-                readOnly={!editable}
-                gesture={objectGesture(gesture.phase, gesture.activeIds.has(obj.id))}
-                onPointerDown={gesture.onObjectPointerDown}
-                onStartEdit={startEdit}
-                onEndEdit={onEndEdit}
-              />
-            );
-          })}
-          <MarqueeRect rect={marquee.rect} camera={camera} />
-        </BoardViewport>
-        <SelectionAnnouncer count={selectedIds.size} />
-        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
-        <ZoomControls
-          zoomPercent={zoomPercent(camera)}
-          canZoomIn={canZoomIn(camera)}
-          canZoomOut={canZoomOut(camera)}
-          onZoomIn={() => api.zoomStep('in')}
-          onZoomOut={() => api.zoomStep('out')}
-          onReset={api.reset}
-        />
-        <NavigationHint visible={!api.hasNavigated} />
-        <ConnectionStatus state={connection} />
-        {children}
-      </main>
+      <UndoContext.Provider value={undoController}>
+        <main className="app">
+          <BoardViewport onEmptyDoubleClick={createAt} onEmptyClick={clear} marquee={marquee} overlay={overlay}>
+            {renderOrder(objects).map(({ note: obj, zIndex }) => {
+              const spec = getObjectType(obj.type);
+              if (!spec) return null;
+              const { Component } = spec;
+              return (
+                <Component
+                  key={obj.id}
+                  object={obj}
+                  doc={doc}
+                  zIndex={zIndex}
+                  selected={selectedIds.has(obj.id)}
+                  editing={editable && obj.id === editingId}
+                  readOnly={!editable}
+                  gesture={objectGesture(gesture.phase, gesture.activeIds.has(obj.id))}
+                  onPointerDown={gesture.onObjectPointerDown}
+                  onStartEdit={startEdit}
+                  onEndEdit={onEndEdit}
+                />
+              );
+            })}
+            <MarqueeRect rect={marquee.rect} camera={camera} />
+          </BoardViewport>
+          <SelectionAnnouncer count={selectedIds.size} />
+          <Toolbar onCreateSticky={onCreateSticky} disabled={!editable}>
+            <UndoButtons {...history} />
+          </Toolbar>
+          <ZoomControls
+            zoomPercent={zoomPercent(camera)}
+            canZoomIn={canZoomIn(camera)}
+            canZoomOut={canZoomOut(camera)}
+            onZoomIn={() => api.zoomStep('in')}
+            onZoomOut={() => api.zoomStep('out')}
+            onReset={api.reset}
+          />
+          <NavigationHint visible={!api.hasNavigated} />
+          <ConnectionStatus state={connection} />
+          {children}
+        </main>
+      </UndoContext.Provider>
     </CameraContext.Provider>
   );
+}
+
+/**
+ * One undo controller per board doc (undo.history), created when the board
+ * mounts and destroyed on board change or unmount, so history is session-only.
+ */
+function useUndoControllerFor(doc: Y.Doc): UndoController {
+  const [current, setCurrent] = useState<{ doc: Y.Doc; controller: UndoController } | null>(null);
+  useEffect(() => {
+    const controller = createUndo(doc);
+    setCurrent({ doc, controller });
+    return () => controller.destroy();
+  }, [doc]);
+  return current?.doc === doc ? current.controller : NO_UNDO;
 }
 
 function objectGesture(phase: TransformPhase, active: boolean): ObjectGesturePhase {

@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { historyCommand } from '../board/useBoardKeys';
+import { useUndoController } from '../board/useUndo';
 import { applyTextDiff, counterVisible, diffText, limitEdit, transformIndex, type TextDelta } from './StickyText';
 
 /**
@@ -11,6 +13,10 @@ import { applyTextDiff, counterVisible, diffText, limitEdit, transformIndex, typ
  * Other people's typing (story 3) is merged into the textarea as it arrives,
  * keeping the caret in place; during an IME composition it is held back and
  * merged when the composition ends.
+ * Undo (story 8): editing starts and ends an undo step boundary, typing
+ * groups into bursts by the capture timeout, and Ctrl/Cmd+Z / redo inside the
+ * textarea act on typing steps in this text only (never the native textarea
+ * undo, which would diverge from the Y.Text).
  */
 export function StickyTextEditor(props: {
   ytext: Y.Text;
@@ -29,6 +35,15 @@ export function StickyTextEditor(props: {
   const pendingRemoteRef = useRef<TextDelta[][]>([]);
   const onEndRef = useRef(props.onEnd);
   onEndRef.current = props.onEnd;
+  const undo = useUndoController();
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+
+  // Edit start and end are undo step boundaries.
+  useEffect(() => {
+    undoRef.current.boundary();
+    return () => undoRef.current.boundary();
+  }, [ytext]);
 
   // Edit start: current text, focused, caret at the end.
   useLayoutEffect(() => {
@@ -114,6 +129,18 @@ export function StickyTextEditor(props: {
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    const history = historyCommand(e);
+    if (history && !composingRef.current && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      e.stopPropagation();
+      flush();
+      undo.boundary();
+      if (undo.nextStepOnlyIn(ytext, history)) {
+        if (history === 'undo') undo.undo();
+        else undo.redo();
+      }
+      return;
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
