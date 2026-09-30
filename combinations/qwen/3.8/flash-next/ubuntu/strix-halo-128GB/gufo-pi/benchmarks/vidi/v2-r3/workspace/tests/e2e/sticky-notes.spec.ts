@@ -38,7 +38,9 @@ async function expectWorldPosition(
 
 test.describe('Story 2: sticky notes', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    const res = await page.request.post('/api/boards');
+    const { id } = await res.json();
+    await page.goto(`/b/${id}`);
     await page.waitForSelector('[data-testid="board-viewport"]');
   });
 

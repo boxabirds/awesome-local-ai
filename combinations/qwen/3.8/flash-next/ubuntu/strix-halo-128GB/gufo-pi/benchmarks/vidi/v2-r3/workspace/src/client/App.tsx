@@ -12,7 +12,6 @@ import { canEdit } from './sync/connectBoard';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
-import { newBoardId } from '../shared/board-id';
 import { registerTestHooks } from './canvas/testHooks';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 
@@ -24,32 +23,10 @@ function isTextEntry(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
 }
 
-/** Extract boardId from pathname /b/:boardId, or redirect to a new board. */
-function useBoardId(): string {
-  const [boardId, setBoardId] = useState<string>(() => {
-    const match = window.location.pathname.match(/^\/b\/([^/]+)$/);
-    if (match) return match[1];
-    // Redirect / to /b/<newBoardId()>
-    const id = newBoardId();
-    window.history.replaceState(null, '', `/b/${id}`);
-    return id;
-  });
-
-  useEffect(() => {
-    const handlePopState = () => {
-      const match = window.location.pathname.match(/^\/b\/([^/]+)$/);
-      if (match) setBoardId(match[1]);
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  return boardId;
-}
-
-export function App() {
-  const boardId = useBoardId();
-
+/**
+ * BoardUI: the stories 1–4 board UI. Requires a boardId (existence already checked).
+ */
+export function BoardUI({ boardId }: { boardId: string }) {
   const [viewport, setViewport] = useState<Size>({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -229,3 +206,6 @@ export function App() {
     </>
   );
 }
+
+/** Backward-compatible export for tests that import App */
+export { BoardUI as App };

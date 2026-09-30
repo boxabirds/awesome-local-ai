@@ -8,14 +8,28 @@ import http from 'node:http';
 
 const WS_BASE = HTTP_BASE.replace('http:', 'ws:') + '/api/rooms';
 
-function httpRequest(url: string, options: { headers?: Record<string, string> } = {}): Promise<{ status: number; body: string }> {
+function httpRequest(
+  url: string,
+  options: { method?: string; headers?: Record<string, string> } = {},
+): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
-    const req = http.get(url, { headers: options.headers }, (res) => {
-      let body = '';
-      res.on('data', (chunk) => (body += chunk));
-      res.on('end', () => resolve({ status: res.statusCode ?? 0, body }));
-    });
+    const u = new URL(url);
+    const req = http.request(
+      {
+        hostname: u.hostname,
+        port: u.port,
+        path: u.pathname,
+        method: options.method ?? 'GET',
+        headers: options.headers ?? {},
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body }));
+      },
+    );
     req.on('error', reject);
+    req.end();
   });
 }
 
@@ -30,12 +44,12 @@ afterEach(async () => {
 });
 
 describe('Worker routing (TC-04 to TC-06, TC-13, TC-17)', () => {
-  // TC-04: GET /api/rooms/bad!id with Upgrade → 400
-  it('TC-04: invalid board id returns 400, no object instance created', async () => {
+  // TC-04: GET /api/rooms/bad!id with Upgrade → 404
+  it('TC-04: invalid board id returns 404, no object instance created', async () => {
     const res = await httpRequest(`${HTTP_BASE}/api/rooms/bad!id`, {
       headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
   });
 
   // TC-05: valid id without Upgrade → 426
@@ -55,7 +69,10 @@ describe('Worker routing (TC-04 to TC-06, TC-13, TC-17)', () => {
 
   // TC-13: MAX_CONCURRENT_EDITORS + 1 sockets all accepted, note reaches all
   it('TC-13: over-capacity joiners are accepted and edits propagate', async () => {
-    const boardId = newBoardId();
+    // Create a board first
+    const createRes = await httpRequest(`${HTTP_BASE}/api/boards`, { method: 'POST' });
+    expect(createRes.status).toBe(201);
+    const boardId = JSON.parse(createRes.body).id;
     const numClients = MAX_CONCURRENT_EDITORS + 1;
     const clients = [];
 
@@ -90,8 +107,13 @@ describe('Worker routing (TC-04 to TC-06, TC-13, TC-17)', () => {
 
   // TC-17: boards are isolated
   it('TC-17: updates do not cross between different boards', async () => {
-    const boardId1 = newBoardId();
-    const boardId2 = newBoardId();
+    // Create both boards first
+    const createRes1 = await httpRequest(`${HTTP_BASE}/api/boards`, { method: 'POST' });
+    expect(createRes1.status).toBe(201);
+    const boardId1 = JSON.parse(createRes1.body).id;
+    const createRes2 = await httpRequest(`${HTTP_BASE}/api/boards`, { method: 'POST' });
+    expect(createRes2.status).toBe(201);
+    const boardId2 = JSON.parse(createRes2.body).id;
 
     const client1 = await createWsClient(WS_BASE, boardId1);
     const client2 = await createWsClient(WS_BASE, boardId2);

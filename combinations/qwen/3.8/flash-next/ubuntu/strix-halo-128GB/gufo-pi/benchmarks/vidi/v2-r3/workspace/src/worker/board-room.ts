@@ -36,11 +36,37 @@ export class BoardRoom extends DurableObject<Env> {
     });
   }
 
-  /** Runs migrate + load and sets roomState accordingly. Returns true if ready. */
+  /**
+   * RPC: Initialize a new board. Creates tables and sets created_at.
+   * Returns 'created' on first call, 'exists' if already initialized.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    const store = new BoardStore(this.ctx.storage);
+    store.migrate();
+    const sql = this.ctx.storage.sql;
+    const existing = sql.exec<{ value: string }>(
+      `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+    ).toArray();
+    if (existing.length > 0) return 'exists';
+    sql.exec(
+      `INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)`,
+      String(Date.now()),
+    );
+    return 'created';
+  }
+
+  /**
+   * RPC: Check if board exists. Read-only; never creates tables.
+   */
+  async exists(): Promise<boolean> {
+    const store = new BoardStore(this.ctx.storage);
+    return store.existsReadOnly();
+  }
+
+  /** Runs load (no migrate) and sets roomState accordingly. Returns true if ready. */
   private doLoad(): boolean {
     this.roomState = 'loading';
     this.store = new BoardStore(this.ctx.storage);
-    this.store.migrate();
 
     // Test-only: simulate a SQL read error on the next load (TC-26).
     if (this._failNextLoadFlag) {
@@ -135,6 +161,17 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   async fetch(request: Request): Promise<Response> {
+    // Check board existence before accepting WebSocket
+    if (!this.store) {
+      this.store = new BoardStore(this.ctx.storage);
+    }
+    if (!this.store.existsReadOnly()) {
+      return new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+
     const upgradeHeader = request.headers.get('Upgrade');
     if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
       return new Response('Expected WebSocket', { status: 426 });
@@ -338,6 +375,40 @@ export class BoardRoom extends DurableObject<Env> {
   /** Force a fresh load from storage now (re-enters Loading then Ready/LoadFailed). */
   _testReload(): void {
     this.doLoad();
+  }
+
+  /** Seed legacy board: updates rows WITHOUT created_at. Returns note count. */
+  _testSeedLegacyNotes(count: number): number {
+    const store = new BoardStore(this.ctx.storage);
+    store.migrate();
+    // Remove created_at if it was set (legacy boards don't have it)
+    this.ctx.storage.sql.exec(`DELETE FROM storage_meta WHERE key = 'created_at'`);
+    // Seed notes via a fresh doc
+    const doc = new Y.Doc();
+    const COLORS: StickyColor[] = ['yellow', 'orange', 'green', 'blue', 'pink', 'violet'];
+    initDoc(doc);
+    doc.transact(() => {
+      for (let i = 0; i < count; i++) {
+        const x = (i % 5) * 220;
+        const y = Math.floor(i / 5) * 220;
+        const color = COLORS[i % COLORS.length];
+        const id = createSticky(doc, { x, y }, color);
+        if (id) {
+          const t = (doc.getMap('objects').get(id) as Y.Map<unknown>).get('text') as Y.Text;
+          t.insert(0, `Legacy note ${i}`);
+        }
+      }
+    });
+    // Encode the doc state as a single update and write it
+    const update = Y.encodeStateAsUpdate(doc);
+    store.append(update);
+    // Make sure created_at is still absent (append doesn't add it, but migrate might not add it either)
+    this.ctx.storage.sql.exec(`DELETE FROM storage_meta WHERE key = 'created_at'`);
+    // Force reload from storage so the in-memory doc has the seeded data
+    this.doc = null;
+    this.store = null;
+    this.doLoad();
+    return count;
   }
 
   /**

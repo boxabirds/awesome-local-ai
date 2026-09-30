@@ -9,8 +9,29 @@ import { newBoardId } from '../../src/shared/board-id';
 import { createWsClient, type WsClient } from './ws-client';
 import { initDoc, createSticky, snapshot } from '../../src/shared/board-model';
 import { HTTP_BASE } from './global-setup';
+import http from 'node:http';
 
 const WS_BASE = HTTP_BASE.replace('http:', 'ws:') + '/api/rooms';
+
+/** Create a board via POST and return its id. */
+function createBoardId(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const u = new URL(`${HTTP_BASE}/api/boards`);
+    const req = http.request(
+      { hostname: u.hostname, port: u.port, path: u.pathname, method: 'POST' },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => {
+          if (res.statusCode === 201) resolve(JSON.parse(body).id);
+          else reject(new Error(`POST /api/boards returned ${res.statusCode}`));
+        });
+      },
+    );
+    req.on('error', reject);
+    req.end();
+  });
+}
 
 const openClients: WsClient[] = [];
 
@@ -50,7 +71,7 @@ function raceClose(c: WsClient, ms: number): Promise<number> {
 describe('BoardRoom persistence (TC-12 to TC-18, TC-26)', () => {
   // TC-12: a change B observes is already stored (append-before-broadcast).
   it('TC-12: a change B observes is already stored', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await createClient(boardId);
     const b = await createClient(boardId);
     initDoc(a.doc);
@@ -65,7 +86,7 @@ describe('BoardRoom persistence (TC-12 to TC-18, TC-26)', () => {
 
   // TC-13: all clients leave; a fresh doc loaded from the same storage equals original.
   it('TC-13: reopen after everyone leaves returns the original board', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await createClient(boardId);
     initDoc(a.doc);
     for (let i = 0; i < 25; i++) createSticky(a.doc, { x: i * 20, y: 0 });
@@ -81,7 +102,7 @@ describe('BoardRoom persistence (TC-12 to TC-18, TC-26)', () => {
 
   // TC-14: storage write failure — not broadcast; re-sent and saved on reconnect.
   it('TC-14: a change whose append fails is not broadcast, is saved on reconnect', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await createClient(boardId);
     const b = await createClient(boardId);
     initDoc(a.doc);
@@ -122,7 +143,7 @@ describe('BoardRoom persistence (TC-12 to TC-18, TC-26)', () => {
 
   // TC-15: corrupt snapshot → connect closed with 4500; sending SyncStep2 stores nothing.
   it('TC-15: LoadFailed room closes with 4500 and stores nothing', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await createClient(boardId);
     initDoc(a.doc);
     createSticky(a.doc, { x: 1, y: 1 });
@@ -156,7 +177,7 @@ describe('BoardRoom persistence (TC-12 to TC-18, TC-26)', () => {
   // TC-16: connect before LOAD_RETRY_MIN_INTERVAL_MS → 4500 without reload; after
   // the interval → loads and syncs.
   it('TC-16: retry only after LOAD_RETRY_MIN_INTERVAL_MS, then recovers', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     // Enter load-failed now (fresh board, nothing to lose).
     await hook(boardId, 'enter-load-failed', 'POST');
 
@@ -178,7 +199,7 @@ describe('BoardRoom persistence (TC-12 to TC-18, TC-26)', () => {
 
   // TC-17: garbage update → closed 1003; updates row count unchanged.
   it('TC-17: garbage update closes with 1003 and stores nothing', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await createClient(boardId);
     initDoc(a.doc);
     await sleep(500);
@@ -194,7 +215,7 @@ describe('BoardRoom persistence (TC-12 to TC-18, TC-26)', () => {
 
   // TC-18: broadcast reaches a socket accepted via the hibernation API.
   it('TC-18: broadcast reaches sockets via getWebSockets after a new connection', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await createClient(boardId);
     const b = await createClient(boardId);
     initDoc(a.doc);
@@ -206,7 +227,7 @@ describe('BoardRoom persistence (TC-12 to TC-18, TC-26)', () => {
 
   // TC-26: SQL read error on load closes new sockets with 4500.
   it('TC-26: SQL read error on load closes clients with 4500', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     // Ensure the DO exists and has a room, then arm a failing load and reload.
     const seed = await createClient(boardId);
     initDoc(seed.doc);

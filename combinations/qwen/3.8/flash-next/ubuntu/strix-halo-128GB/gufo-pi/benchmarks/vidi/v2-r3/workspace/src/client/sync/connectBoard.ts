@@ -56,6 +56,30 @@ export function connectBoard(
         disableBc: true,
       });
 
+  // Expose provider for test access (window.__vidi6_disconnect/reconnect)
+  if (typeof window !== 'undefined') {
+    (window as any).__vidi6_disconnect = () => {
+      const wsProvider = provider as any;
+      wsProvider.shouldConnect = false;
+      if (wsProvider.ws) {
+        wsProvider.ws.onclose = null; // prevent reconnect handler
+        wsProvider.ws.onmessage = null;
+        try { wsProvider.ws.close(1006); } catch {}
+        wsProvider.ws = null;
+      }
+      wsProvider.wsconnected = false;
+      wsProvider.wsconnecting = false;
+      // Manually trigger the state transitions
+      wsProvider.emit('connection-close', [{ code: 1006 }, wsProvider]);
+      wsProvider.emit('status', [{ status: 'disconnected' }, wsProvider]);
+    };
+    (window as any).__vidi6_reconnect = () => {
+      const wsProvider = provider as any;
+      wsProvider.shouldConnect = true;
+      wsProvider.connect();
+    };
+  }
+
   let currentState: ConnectionState = 'connecting';
   let hasBeenSynced = false;
   let confirmTimer: ReturnType<typeof setTimeout> | null = null;

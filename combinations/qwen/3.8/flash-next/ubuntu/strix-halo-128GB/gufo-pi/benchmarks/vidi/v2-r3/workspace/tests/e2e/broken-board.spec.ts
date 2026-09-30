@@ -18,6 +18,13 @@ import {
 
 const PORT = 5412;
 
+async function createBoardViaApi(handle: WranglerHandle): Promise<string> {
+  const res = await fetch(`${handle.url}/api/boards`, { method: 'POST' });
+  if (!res.ok) throw new Error(`POST /api/boards failed: ${res.status}`);
+  const { id } = await res.json();
+  return id;
+}
+
 async function openBoard(handle: WranglerHandle, context: BrowserContext, boardId: string): Promise<Page> {
   const page = await context.newPage();
   await page.goto(`${handle.url}/b/${boardId}`);
@@ -52,7 +59,7 @@ test.describe('Broken board', () => {
   test('TC-24: honest failure, edit lock, recovery without reload', async ({ browser }) => {
     test.setTimeout(60000);
     handle = await startWrangler(PORT);
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi(handle);
 
     // 1. Create a 25-note board in the browser, then force a snapshot and corrupt it.
     const ctx0 = await browser.newContext();

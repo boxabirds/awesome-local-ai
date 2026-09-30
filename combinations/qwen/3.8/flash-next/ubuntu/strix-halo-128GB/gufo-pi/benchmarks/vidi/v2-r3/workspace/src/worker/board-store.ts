@@ -20,6 +20,7 @@ export class BoardStore {
   private updateCount = 0;
   private updateBytes = 0;
   private snapshotThroughSeq = 0;
+  private migrated = false;
 
   constructor(storage: DurableObjectStorage) {
     this.storage = storage;
@@ -49,9 +50,13 @@ export class BoardStore {
         String(STORAGE_SCHEMA_VERSION),
       );
     }
+    this.migrated = true;
   }
 
   append(update: Uint8Array): void {
+    if (!this.migrated) {
+      this.migrate();
+    }
     this.sql.exec(
       `INSERT INTO updates (data, bytes) VALUES (?, ?)`,
       update,
@@ -61,8 +66,50 @@ export class BoardStore {
     this.updateBytes += update.length;
   }
 
+  /**
+   * Read-only existence check. Never creates tables.
+   * A board exists if storage_meta has 'created_at' OR (legacy) updates/snapshot_chunks have rows.
+   */
+  existsReadOnly(): boolean {
+    try {
+      const tables = this.sql.exec<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM sqlite_master WHERE type='table' AND name IN ('storage_meta', 'updates', 'snapshot_chunks')`,
+      ).toArray();
+      if (tables[0].cnt === 0) return false;
+
+      // Check storage_meta for created_at
+      const metaRows = this.sql.exec<{ value: string }>(
+        `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+      ).toArray();
+      if (metaRows.length > 0) return true;
+
+      // Legacy: check if any updates or snapshot_chunks exist
+      const updatesCnt = this.sql.exec<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM updates`,
+      ).toArray();
+      if (updatesCnt[0].cnt > 0) return true;
+
+      const snapshotCnt = this.sql.exec<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM snapshot_chunks`,
+      ).toArray();
+      if (snapshotCnt[0].cnt > 0) return true;
+
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
   load(doc: Y.Doc): LoadResult {
     try {
+      // If tables don't exist yet, treat as empty board (never writes)
+      const tableCheck = this.sql.exec<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM sqlite_master WHERE type='table' AND name = 'updates'`,
+      ).toArray();
+      if (tableCheck[0].cnt === 0) {
+        return { ok: true, quarantined: 0 };
+      }
+
       // Load snapshot
       const chunkRows = this.sql.exec<{ data: ArrayBuffer }>(
         `SELECT data FROM snapshot_chunks ORDER BY idx`,

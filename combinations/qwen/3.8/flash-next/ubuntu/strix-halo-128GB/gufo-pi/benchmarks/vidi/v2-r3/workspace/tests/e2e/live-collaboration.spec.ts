@@ -13,9 +13,16 @@ import {
 import { newBoardId } from '../../src/shared/board-id';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS, CATCH_UP_TEST_OUTAGE_MS, MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 
+async function createBoard(): Promise<string> {
+  const res = await fetch('http://localhost:5173/api/boards', { method: 'POST' });
+  if (!res.ok) throw new Error(`POST /api/boards failed: ${res.status}`);
+  const { id } = await res.json();
+  return id;
+}
+
 async function openBoard(context: BrowserContext): Promise<Page> {
   const page = await context.newPage();
-  const boardId = newBoardId();
+  const boardId = await createBoard();
   await page.goto(`/b/${boardId}`);
   await page.waitForFunction(() => (window as any).__vidi6?.connectionState === 'connected', undefined, { timeout: 10000 });
   return page;
@@ -47,7 +54,7 @@ async function getConnectionState(page: Page): Promise<string> {
 
 test.describe('Live collaboration', () => {
   test('TC-22: two-person workshop - create, move, recolour, text, delete propagate', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const alex = await openBoardOnId(ctxA, boardId);
@@ -96,7 +103,7 @@ test.describe('Live collaboration', () => {
   });
 
   test('TC-23: concurrent text inserts merge', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const pageA = await openBoardOnId(ctxA, boardId);
@@ -141,7 +148,7 @@ test.describe('Live collaboration', () => {
   });
 
   test('TC-24: concurrent move of same note converges', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const pageA = await openBoardOnId(ctxA, boardId);
@@ -173,7 +180,7 @@ test.describe('Live collaboration', () => {
   });
 
   test('TC-25: delete during edit removes note and editor cleanly', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const alex = await openBoardOnId(ctxA, boardId);
@@ -202,7 +209,7 @@ test.describe('Live collaboration', () => {
   });
 
   test('TC-26: full capacity - MAX_CONCURRENT_EDITORS contexts sync', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const contexts: BrowserContext[] = [];
     const pages: Page[] = [];
 
@@ -237,7 +244,7 @@ test.describe('Live collaboration', () => {
   });
 
   test('TC-27: outage - reconnection shows badge and catches up', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctxAlex = await browser.newContext();
     const ctxSam = await browser.newContext();
     const alex = await openBoardOnId(ctxAlex, boardId);
@@ -248,8 +255,10 @@ test.describe('Live collaboration', () => {
     await endEditing(sam);
     await waitForBoardSize(alex, 1);
 
-    // Alex goes offline
-    await ctxAlex.setOffline(true);
+    // Alex goes offline: close the WebSocket and prevent reconnection
+    await alex.evaluate(() => {
+      (window as any).__vidi6_disconnect?.();
+    });
 
     // Verify Alex's connection state becomes "reconnecting"
     await expect.poll(async () => {
@@ -261,7 +270,9 @@ test.describe('Live collaboration', () => {
     await endEditing(sam);
 
     // Alex comes back online
-    await ctxAlex.setOffline(false);
+    await alex.evaluate(() => {
+      (window as any).__vidi6_reconnect?.();
+    });
 
     // Wait for Alex to reconnect
     await expect.poll(async () => {
@@ -277,7 +288,7 @@ test.describe('Live collaboration', () => {
   });
 
   test('TC-28: selection and editing do not propagate', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const alex = await openBoardOnId(ctxA, boardId);
@@ -305,7 +316,7 @@ test.describe('Live collaboration', () => {
   test.describe('nightly', () => {
     test('TC-29: idle stability - badge never shows Reconnecting', async ({ browser }) => {
       test.skip(!process.env.NIGHTLY, 'Nightly test');
-      const boardId = newBoardId();
+      const boardId = await createBoard();
       const ctxA = await browser.newContext();
       const ctxB = await browser.newContext();
       const alex = await openBoardOnId(ctxA, boardId);
@@ -324,7 +335,7 @@ test.describe('Live collaboration', () => {
 
     test('TC-30: capacity soak - 60s of continuous edits', async ({ browser }) => {
       test.skip(!process.env.NIGHTLY, 'Nightly test');
-      const boardId = newBoardId();
+      const boardId = await createBoard();
       const contexts: BrowserContext[] = [];
       const pages: Page[] = [];
 

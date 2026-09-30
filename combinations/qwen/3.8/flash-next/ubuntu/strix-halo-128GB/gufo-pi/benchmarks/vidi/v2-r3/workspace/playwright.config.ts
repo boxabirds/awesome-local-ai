@@ -27,7 +27,7 @@ export default defineConfig({
   // The build here also ensures `dist` exists for the persistence specs' own
   // wrangler instances, which read static assets from the same directory.
   webServer: {
-    command: 'vite build --mode test && npx wrangler dev --port 5173',
+    command: 'vite build --mode test && npx wrangler dev --port 5173 --var TEST_HOOKS:1',
     port: 5173,
     reuseExistingServer: true,
     timeout: 120000,

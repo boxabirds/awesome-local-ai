@@ -20,9 +20,17 @@ import {
 
 const PORT = 5411;
 
-async function openBoard(handle: WranglerHandle, context: BrowserContext, boardId: string): Promise<Page> {
+async function createBoardViaApi(handle: WranglerHandle): Promise<string> {
+  const res = await fetch(`${handle.url}/api/boards`, { method: 'POST' });
+  if (!res.ok) throw new Error(`POST /api/boards failed: ${res.status}`);
+  const { id } = await res.json();
+  return id;
+}
+
+async function openBoard(handle: WranglerHandle, context: BrowserContext, boardId?: string): Promise<Page> {
+  const id = boardId ?? await createBoardViaApi(handle);
   const page = await context.newPage();
-  await page.goto(`${handle.url}/b/${boardId}`);
+  await page.goto(`${handle.url}/b/${id}`);
   await page.waitForFunction(
     () => (window as any).__vidi6?.connectionState === 'connected',
     undefined,
@@ -63,7 +71,7 @@ test.describe('Persistence across restarts', () => {
   // browser, kill and restart the process, reopen → identical board.
   test('TC-19: overnight return restores the board exactly', async ({ browser }) => {
     handle = await startWrangler(PORT);
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi(handle);
 
     const ctx = await browser.newContext();
     const page = await openBoard(handle, ctx, boardId);
@@ -122,7 +130,7 @@ test.describe('Persistence across restarts', () => {
   // even if both clients leave within 1s, it survives a restart.
   test('TC-20: a change a peer observed survives an immediate restart', async ({ browser }) => {
     handle = await startWrangler(PORT);
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi(handle);
 
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
@@ -165,7 +173,7 @@ test.describe('Persistence across restarts', () => {
   // reported against BOARD_LOAD_BUDGET_MS (never fails on timing).
   test('TC-21: a large board opens fully (open time reported, not asserted)', async ({ browser }) => {
     handle = await startWrangler(PORT);
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi(handle);
 
     // Seed server-side (fast) so we do not drive thousands of browser actions.
     await testHook(handle, boardId, `seed?count=${PERSIST_TESTED_NOTES}`, 'POST');

@@ -4,8 +4,29 @@ import { createWsClient, type WsClient } from './ws-client';
 import { snapshot, createSticky, deleteObject } from '../../src/shared/board-model';
 import { decodeMessage } from '../../src/shared/protocol';
 import { HTTP_BASE } from './global-setup';
+import http from 'node:http';
 
 const WS_BASE = HTTP_BASE.replace('http:', 'ws:') + '/api/rooms';
+
+/** Create a board via POST and return its id. */
+function createBoardId(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const u = new URL(`${HTTP_BASE}/api/boards`);
+    const req = http.request(
+      { hostname: u.hostname, port: u.port, path: u.pathname, method: 'POST' },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => {
+          if (res.statusCode === 201) resolve(JSON.parse(body).id);
+          else reject(new Error(`POST /api/boards returned ${res.statusCode}`));
+        });
+      },
+    );
+    req.on('error', reject);
+    req.end();
+  });
+}
 
 const openClients: WsClient[] = [];
 
@@ -27,7 +48,7 @@ function createClient(boardId: string): Promise<WsClient> {
 describe('BoardRoom merging and broadcast', () => {
   // TC-07: two clients concurrently create two notes → both notes in both docs
   it('TC-07: concurrent creates merge on both docs', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const clientA = await createClient(boardId);
     const clientB = await createClient(boardId);
     await new Promise(r => setTimeout(r, 500));
@@ -47,7 +68,7 @@ describe('BoardRoom merging and broadcast', () => {
 
   // TC-08: create from A, delete from B → note gone from A within 250ms
   it('TC-08: delete from B propagates to A', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const clientA = await createClient(boardId);
     const clientB = await createClient(boardId);
     await new Promise(r => setTimeout(r, 500));
@@ -68,7 +89,7 @@ describe('BoardRoom merging and broadcast', () => {
 
   // TC-09: reconnect mid-session → late client receives prior state
   it('TC-09: reconnecting client receives prior state', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
 
     // First client creates notes
     const client1 = await createClient(boardId);
@@ -93,7 +114,7 @@ describe('BoardRoom merging and broadcast', () => {
 
   // TC-10: awareness relay (TC-10, TC-11, TC-12)
   it('TC-10: awareness update from A appears at B', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const clientA = await createClient(boardId);
     const clientB = await createClient(boardId);
     await new Promise(r => setTimeout(r, 500));
@@ -115,7 +136,7 @@ describe('BoardRoom merging and broadcast', () => {
   });
 
   it('TC-11: awareness frame carries inner bytes verbatim', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const clientA = await createClient(boardId);
     const clientB = await createClient(boardId);
     await new Promise(r => setTimeout(r, 500));
@@ -134,7 +155,7 @@ describe('BoardRoom merging and broadcast', () => {
   });
 
   it('TC-12: awareness never mutates the Y.Doc', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const clientA = await createClient(boardId);
     const clientB = await createClient(boardId);
     await new Promise(r => setTimeout(r, 500));
@@ -151,7 +172,7 @@ describe('BoardRoom merging and broadcast', () => {
 
   // TC-15: malformed frame → connection closed with 1003, other clients unaffected
   it('TC-15: malformed frame closes the offending socket with code 1003', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const clientA = await createClient(boardId);
     const clientB = await createClient(boardId);
     await new Promise(r => setTimeout(r, 500));
@@ -174,7 +195,7 @@ describe('BoardRoom merging and broadcast', () => {
 
   // TC-16: unknown type byte → close with 1003
   it('TC-16: unknown type byte closes socket with code 1003', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const client = await createClient(boardId);
     await new Promise(r => setTimeout(r, 500));
 
@@ -188,7 +209,7 @@ describe('BoardRoom merging and broadcast', () => {
 
   // TC-18: server persists Y.Doc across disconnect/reconnect with full sync
   it('TC-18: full sync after all clients disconnect and one reconnects', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
 
     // Two clients create notes
     const clientA = await createClient(boardId);
@@ -218,7 +239,7 @@ describe('BoardRoom merging and broadcast', () => {
   // TC-31: dead socket handling - close B's socket abruptly, A sends update;
   // room does not throw and later sockets still receive
   it('TC-31: dead socket does not prevent updates to later sockets', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
 
     const clientA = await createClient(boardId);
     const clientB = await createClient(boardId);

@@ -58,6 +58,12 @@ export async function routeTestHook(
       const seeded = await (room as any)._testSeedNotes(Number.isFinite(count) ? count : 0);
       return json({ seeded });
     }
+    case 'seed-legacy': {
+      // Seed updates rows without created_at (simulates pre-story-5 board)
+      const count = parseInt(url.searchParams.get('count') ?? '3', 10);
+      const seeded = await (room as any)._testSeedLegacyNotes(Number.isFinite(count) ? count : 3);
+      return json({ seeded });
+    }
     case 'fail-next-append': {
       const n = parseInt(url.searchParams.get('n') ?? '1', 10);
       await (room as any)._testFailNextAppends(Number.isFinite(n) ? n : 1);
