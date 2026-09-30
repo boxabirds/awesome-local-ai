@@ -8,15 +8,17 @@ import {
   useRef,
   useState,
   type JSX,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
 import {
+  DRAG_THRESHOLD_PX,
   GRID_SPACING_WORLD,
   WHEEL_LINE_PX,
   WHEEL_PAGE_PX,
 } from '../../shared/config';
-import { worldToScreen } from './camera';
+import { screenToWorld, worldToScreen, type Point } from './camera';
 import { useBoardCamera } from './CameraProvider';
 
 /** Interaction state: Idle -> Panning -> Idle (see the story state diagram). */
@@ -42,22 +44,31 @@ export function wheelDeltaToPixels(delta: number, deltaMode: number): number {
 }
 
 /** True when the keyboard shortcut should be left to the browser/page (typing). */
-function isTypingTarget(target: EventTarget | null): boolean {
+export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || /^(input|textarea|select)$/i.test(target.tagName);
 }
 
+/** A point on the board, in world units. */
+export type WorldClickHandler = (world: Point) => void;
+
 export interface BoardViewportProps {
   /** Board content, rendered in world coordinates. */
   children?: ReactNode;
+  /** Double-click on empty board space: the world point that was clicked. */
+  onDoubleClickBoard?: WorldClickHandler;
+  /** A press on empty board space that ended without moving. */
+  onEmptyClick?: () => void;
 }
 
-export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
+export function BoardViewport({ children, onDoubleClickBoard, onEmptyClick }: BoardViewportProps): JSX.Element {
   const api = useBoardCamera();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<InteractionMode>('idle');
   /** Same as `mode`, readable synchronously from event handlers. */
   const modeRef = useRef<InteractionMode>('idle');
+  /** The press that may still turn out to be a click on empty board space. */
+  const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   // Keep the newest camera API in a ref so the non-passive wheel, gesture and
   // key listeners are attached once and never call a stale camera.
@@ -156,14 +167,43 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
     if (event.target !== el) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     el.setPointerCapture?.(event.pointerId);
-    apiRef.current.beginPan(pointOf(event.clientX, event.clientY));
+    const point = pointOf(event.clientX, event.clientY);
+    pressRef.current = { x: point.x, y: point.y, moved: false };
+    apiRef.current.beginPan(point);
     modeRef.current = 'panning';
     setMode('panning');
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (modeRef.current !== 'panning') return;
-    apiRef.current.panMove(pointOf(event.clientX, event.clientY));
+    const point = pointOf(event.clientX, event.clientY);
+    const press = pressRef.current;
+    if (press !== null && !press.moved) {
+      if (Math.hypot(point.x - press.x, point.y - press.y) >= DRAG_THRESHOLD_PX) press.moved = true;
+    }
+    apiRef.current.panMove(point);
+  };
+
+  // A press on empty space that never moved is a click: it clears the selection.
+  // Anything that is not the board surface itself (a note, a toolbar) got there
+  // first and stopped the event, so it is not a click on the board.
+  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const el = viewportRef.current;
+    const press = pressRef.current;
+    if (el !== null && event.target === el && press !== null && !press.moved) {
+      onEmptyClick?.();
+    }
+    pressRef.current = null;
+    endDrag();
+  };
+
+  // Double-click on empty board space creates a note centred on the point; a
+  // double-click on a note was handled by that note and never reaches this.
+  const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const el = viewportRef.current;
+    if (el === null || event.target !== el) return;
+    const point = pointOf(event.clientX, event.clientY);
+    onDoubleClickBoard?.(screenToWorld(apiRef.current.camera, point));
   };
 
   const endDrag = useCallback(() => {
@@ -200,9 +240,10 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
+      onPointerUp={onPointerUp}
       onPointerCancel={endDrag}
       onLostPointerCapture={endDrag}
+      onDoubleClick={onDoubleClick}
     >
       <div
         data-testid="board-world"

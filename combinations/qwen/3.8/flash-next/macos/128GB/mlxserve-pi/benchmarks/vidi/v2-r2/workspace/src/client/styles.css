@@ -9,7 +9,9 @@
   --ui-text: #1c1c24;
   --hint-bg: rgba(28, 28, 36, 0.88);
   --focus: #2563eb;
+  --select: #2563eb;
   --marker: rgba(198, 60, 50, 0.8);
+  --ink: #26262e;
 }
 
 * {
@@ -158,4 +160,195 @@ button:focus-visible,
   color: #fff;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* --- Sticky notes (story 2) --- */
+
+/* Left tool rail: fixed UI, so it keeps its screen size at any board zoom. */
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.board-tool {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: var(--ui-text);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.board-tool:hover {
+  background: rgba(20, 20, 30, 0.08);
+}
+
+/* The note itself. Its own box is the world-space square; the text is laid out
+   inside the padding box and clipped there, so nothing of a long idea ever draws
+   outside the note. */
+.sticky-note {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: auto;
+  color: var(--ink);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), 0 6px 16px rgba(0, 0, 0, 0.08);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.sticky-note.is-dragging {
+  cursor: grabbing;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.24), 0 14px 30px rgba(0, 0, 0, 0.14);
+}
+
+/* The outline that says "this is the note you are working on". */
+.sticky-note[data-selected='true'] {
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
+}
+
+.sticky-note:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 5px;
+}
+
+/* Text and caret share one box, so switching between reading and typing does
+   not move the text. Font size is written per element by the auto-fit code. */
+.sticky-text,
+.sticky-input {
+  position: absolute;
+  inset: var(--note-inset);
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  color: inherit;
+  background: transparent;
+  font-family: inherit;
+  line-height: 1.25;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Reading: vertically centred while all of it fits, top-aligned once it does not,
+   so the first line is always readable rather than cut in half. */
+.sticky-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.sticky-text.has-overflow {
+  justify-content: flex-start;
+}
+
+.sticky-input {
+  pointer-events: auto;
+  resize: none;
+  display: block;
+  cursor: text;
+  user-select: text;
+}
+
+.sticky-input:focus {
+  outline: none;
+}
+
+/* The part that did not fit at the smallest size is hidden, and this fade says so
+   at the bottom edge. */
+.sticky-fade {
+  position: absolute;
+  left: var(--note-inset);
+  right: var(--note-inset);
+  bottom: var(--note-inset);
+  height: 26px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent 0%, var(--note-fill) 85%);
+}
+
+.sticky-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 11px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: rgba(38, 38, 46, 0.62);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The note tools keep their size at any zoom: the anchor is scaled by the inverse
+   of the board zoom around its bottom-left corner, which sits above the note. */
+.note-toolbar-anchor {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: 6px;
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sticky-swatch {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid rgba(20, 20, 30, 0.28);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.sticky-swatch[aria-pressed='true'] {
+  border: 2px solid var(--select);
+}
+
+.sticky-delete {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--ui-text);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.sticky-delete:hover {
+  background: rgba(20, 20, 30, 0.08);
+}
+
+.note-toolbar .sticky-swatch:focus-visible,
+.note-toolbar .sticky-delete:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }

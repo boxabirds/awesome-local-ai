@@ -4,7 +4,9 @@
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
+import * as Y from 'yjs';
 import App from '../../src/client/App';
+import { initDoc, createSticky, getStickyText } from '../../src/shared/board-model';
 import { resetCamera, type Camera, type Point, type Size } from '../../src/client/canvas/camera';
 
 function number(value: string | undefined): number {
@@ -13,9 +15,11 @@ function number(value: string | undefined): number {
 }
 
 /** Render the app and return the board's DOM handles. */
-export function renderBoard() {
-  const utils = render(<App />);
-  return utils;
+export function renderBoard(options: { doc?: Y.Doc } = {}) {
+  const doc = options.doc ?? new Y.Doc();
+  initDoc(doc);
+  const utils = render(<App doc={doc} />);
+  return { ...utils, doc };
 }
 
 /** The board area size the app measured (jsdom has no ResizeObserver). */
@@ -195,15 +199,20 @@ export function gestureAt(
 }
 
 export function pressKey(key: string, init: { ctrlKey?: boolean; metaKey?: boolean } = {}): Event {
-  const event = new KeyboardEvent('keydown', {
-    bubbles: true,
-    cancelable: true,
-    key,
-    ctrlKey: init.ctrlKey ?? false,
-    metaKey: init.metaKey ?? false,
+  let event!: Event;
+  // act(): the board's keyboard handlers change React state (selection) and the
+  // document, and the test reads the result straight after
+  act(() => {
+    event = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      key,
+      ctrlKey: init.ctrlKey ?? false,
+      metaKey: init.metaKey ?? false,
+    });
+    // The board listens on window, the way browser zoom shortcuts arrive.
+    window.dispatchEvent(event);
   });
-  // The board listens on window, the way browser zoom shortcuts arrive.
-  window.dispatchEvent(event);
   return event;
 }
 
@@ -223,4 +232,269 @@ export function useBoardTestLifecycle(): void {
     cleanup();
     vi.useRealTimers();
   });
+}
+
+// --------------------------------------------------------------------------------
+// Sticky note helpers (story 2)
+// --------------------------------------------------------------------------------
+
+const byTestId = (id: string): HTMLElement | null =>
+  document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
+
+const allTestId = (id: string): HTMLElement[] =>
+  Array.from(document.querySelectorAll<HTMLElement>(`[data-testid="${id}"]`));
+
+/** The notes in the order the board paints them: the last one is on top. */
+export function noteElements(): HTMLElement[] {
+  return allTestId('sticky-note');
+}
+
+export function noteAt(index: number): HTMLElement {
+  const el = noteElements()[index];
+  if (el === undefined) throw new Error(`no note at index ${index} (${noteElements().length} rendered)`);
+  return el;
+}
+
+export function noteCount(): number {
+  return noteElements().length;
+}
+
+/** Where a note is, read back from the document through the rendered element. */
+export function notePosition(index: number): { x: number; y: number } {
+  const el = noteAt(index);
+  return { x: Number(el.dataset.noteX), y: Number(el.dataset.noteY) };
+}
+
+/** Note id and z in document order, which is the order they were created in. */
+export function noteOrder(): { id: string; z: number }[] {
+  return noteElements().map((el) => ({ id: String(el.dataset.noteId), z: Number(el.dataset.noteZ) }));
+}
+
+/**
+ * The order the browser paints the notes in, bottom first: every note gets one
+ * element and they are stacked by z-index, so the last of these is the note that
+ * is drawn on top of the others.
+ */
+export function paintOrder(): { id: string; z: number; css: number }[] {
+  return noteElements()
+    .map((el, position) => ({
+      id: String(el.dataset.noteId),
+      z: Number(el.dataset.noteZ),
+      css: Number(el.style.zIndex),
+      position,
+    }))
+    .sort((a, b) => a.css - b.css || a.position - b.position)
+    .map(({ id, z, css }) => ({ id, z, css }));
+}
+
+/** Notes carrying the selection outline. */
+export function selectedNotes(): HTMLElement[] {
+  return noteElements().filter((el) => el.dataset.selected === 'true');
+}
+
+export function selectionCount(): number {
+  return selectedNotes().length;
+}
+
+/** The text of a note: a div while reading, a textarea while typing. */
+export function textElement(index: number): HTMLElement | null {
+  return noteAt(index).querySelector<HTMLElement>('[data-testid="sticky-text"]');
+}
+
+export function noteText(index: number): string {
+  return textElement(index)?.textContent ?? '';
+}
+
+export function noteFontPx(index: number): number {
+  return Number(textElement(index)?.dataset.fontPx ?? NaN);
+}
+
+export function noteOverflows(index: number): boolean {
+  return textElement(index)?.dataset.overflow === 'true';
+}
+
+export function fadeElement(index: number): HTMLElement | null {
+  return noteAt(index).querySelector<HTMLElement>('[data-testid="sticky-fade"]');
+}
+
+/** The open editor, or null when nothing is being typed in. */
+export function editorElement(): HTMLTextAreaElement | null {
+  return document.querySelector<HTMLTextAreaElement>('textarea[data-testid="sticky-text"]');
+}
+
+export function isEditing(): boolean {
+  return editorElement() !== null;
+}
+
+export function editorValue(): string {
+  return editorElement()?.value ?? '';
+}
+
+export function editorFocused(): boolean {
+  return document.activeElement === editorElement();
+}
+
+export const noteToolbarElement = (): HTMLElement | null => byTestId('note-toolbar');
+export const swatchElement = (color: string): HTMLElement | null => byTestId(`swatch-${color}`);
+export const deleteNoteButton = (): HTMLElement | null => byTestId('delete-note');
+export const stickyToolButton = (): HTMLElement | null => byTestId('create-sticky');
+export const counterElement = (): HTMLElement | null => byTestId('sticky-counter');
+export const noteToolbarOpen = (): boolean => noteToolbarElement() !== null;
+
+function pointerOn(
+  el: Element,
+  kind: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel' | 'click' | 'dblclick',
+  init: Record<string, unknown> = {},
+): void {
+  const released = kind === 'pointerup' || kind === 'pointercancel';
+  const init2: Record<string, unknown> = {
+    pointerId: 1,
+    pointerType: 'mouse',
+    isPrimary: true,
+    buttons: released || kind === 'click' || kind === 'dblclick' ? 0 : 1,
+    clientX: 0,
+    clientY: 0,
+    ...init,
+  };
+  if (kind === 'pointerdown') init2.button = 0;
+  if (kind === 'pointerup') init2.button = 0;
+  switch (kind) {
+    case 'pointerdown':
+      fireEvent.pointerDown(el, init2);
+      return;
+    case 'pointermove':
+      fireEvent.pointerMove(el, init2);
+      return;
+    case 'pointerup':
+      fireEvent.pointerUp(el, init2);
+      return;
+    case 'pointercancel':
+      fireEvent.pointerCancel(el, init2);
+      return;
+    case 'click':
+      fireEvent.click(el, init2);
+      return;
+    case 'dblclick':
+      fireEvent.doubleClick(el, init2);
+      return;
+  }
+}
+
+/** One pointer event on any element, with the fields a real pointer event has. */
+export { pointerOn };
+
+/** A press that ends where it started: a click for the note, not a drag. */
+export function clickOn(el: Element | null, clientX = 10, clientY = 10): void {
+  if (el === null) throw new Error('clickOn: the element is missing');
+  pointerOn(el, 'pointerdown', { clientX, clientY });
+  pointerOn(el, 'pointerup', { clientX, clientY });
+  fireEvent.click(el, { clientX, clientY });
+}
+
+/** The two clicks of a double-click, in the order a browser sends them. */
+export function doubleClickOn(el: Element | null, clientX = 10, clientY = 10): void {
+  if (el === null) throw new Error('doubleClickOn: the element is missing');
+  pointerOn(el, 'pointerdown', { clientX, clientY });
+  pointerOn(el, 'pointerup', { clientX, clientY });
+  fireEvent.click(el, { clientX, clientY, detail: 2 });
+  fireEvent.doubleClick(el, { clientX, clientY, detail: 2 });
+}
+
+/**
+ * Drag a note by (dx, dy) screen pixels in `steps` moves, flushing the animation
+ * frames the note's writes are batched into between each.
+ */
+export function dragNote(index: number, dx: number, dy: number, steps = 4): void {
+  const el = noteAt(index);
+  pointerOn(el, 'pointerdown', { clientX: 20, clientY: 20 });
+  for (let i = 1; i <= steps; i += 1) {
+    pointerOn(el, 'pointermove', { clientX: 20 + (dx * i) / steps, clientY: 20 + (dy * i) / steps });
+    flushFrames();
+  }
+  pointerOn(el, 'pointerup', { clientX: 20 + dx, clientY: 20 + dy });
+  flushFrames();
+}
+
+/** A press on the board surface itself: a click on empty space, or a pan. */
+export function clickBoard(clientX = 500, clientY = 400): void {
+  const el = viewportEl();
+  pointerOn(el, 'pointerdown', { clientX, clientY });
+  pointerOn(el, 'pointerup', { clientX, clientY });
+  fireEvent.click(el, { clientX, clientY });
+}
+
+/** Double-click the board surface itself (empty space). */
+export function doubleClickBoard(clientX = 500, clientY = 400): void {
+  doubleClickOn(viewportEl(), clientX, clientY);
+}
+
+/** Add a note through the model, the way the app does, and return its id. */
+export function newNote(doc: Y.Doc, world: { x: number; y: number } = { x: 0, y: 0 }): string {
+  let id = '';
+  act(() => {
+    id = createSticky(doc, world);
+  });
+  return id;
+}
+
+/** Give a note text from the test side (what typing would have written). */
+export function setNoteText(doc: Y.Doc, id: string, text: string): void {
+  act(() => {
+    getStickyText(doc, id)?.insert(0, text);
+  });
+}
+
+/** The document's text for a note id, as it stands right now. */
+export function modelText(doc: Y.Doc, id: string): string {
+  return getStickyText(doc, id)?.toString() ?? '';
+}
+
+/** Put text in the open editor the way a paste arrives: one value, one event. */
+export function typeInto(value: string): void {
+  const el = editorElement();
+  if (el === null) throw new Error('typeInto: no note is being edited');
+  act(() => {
+    fireEvent.input(el, { target: { value } });
+  });
+}
+
+/** Press a key where the browser would: on the focused element, up to window. */
+export function pressKeyOn(target: EventTarget | Element | null, key: string): Event {
+  if (target === null) throw new Error(`pressKeyOn: element is missing for ${key}`);
+  let event!: Event;
+  act(() => {
+    event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key });
+    target.dispatchEvent(event);
+  });
+  return event;
+}
+
+/**
+ * jsdom does no text layout, so a test says how tall the rendered text is
+ * instead of trusting the browser to measure it.
+ */
+export function stubTextHeight(height: number | ((fontPx: number) => number)): void {
+  Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+    configurable: true,
+    get(this: HTMLElement): number {
+      const fontPx = Number.parseFloat(this.style.fontSize);
+      if (!Number.isFinite(fontPx)) return 0;
+      return typeof height === 'number' ? height : height(fontPx);
+    },
+  });
+}
+
+/** Give up the pretend layout (each test restores jsdom's own answer). */
+export function unstubTextHeight(): void {
+  delete (HTMLElement.prototype as unknown as Record<string, unknown>).scrollHeight;
+}
+
+/** The world point in the middle of the visible board area, right now. */
+export function screenCentre(): { x: number; y: number } {
+  const size = boardSize();
+  const camera = readCamera();
+  return {
+    x: size.width / 2 / camera.zoom + camera.x,
+    y: size.height / 2 / camera.zoom + camera.y,
+  };
 }

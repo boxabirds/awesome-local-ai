@@ -28,6 +28,8 @@ export interface WheelInput {
 
 export interface CameraApi {
   readonly camera: Camera;
+  /** The board area size in CSS pixels, for anything that needs its centre. */
+  readonly viewport: Size;
   /** Latches true on the first camera change of the visit; never resets. */
   readonly hasNavigated: boolean;
   beginPan(p: Point): void;
@@ -165,6 +167,7 @@ export function useCamera(viewport: Size): CameraApi {
   return useMemo<CameraApi>(
     () => ({
       camera,
+      viewport: viewportRef.current,
       hasNavigated,
       beginPan,
       panMove,
@@ -175,6 +178,6 @@ export function useCamera(viewport: Size): CameraApi {
       reset,
       setCamera,
     }),
-    [camera, hasNavigated, beginPan, panMove, endPan, wheel, pinchAt, stepZoom, reset, setCamera],
+    [camera, viewport, hasNavigated, beginPan, panMove, endPan, wheel, pinchAt, stepZoom, reset, setCamera],
   );
 }
