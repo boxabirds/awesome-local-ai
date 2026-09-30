@@ -46,6 +46,7 @@ export function connectBoard(
   let currentState: ConnectionState = 'connecting';
   let hasConnected = false;
   let confirmTimer: ReturnType<typeof setTimeout> | null = null;
+  let wasOffline = false;
 
   function setState(s: ConnectionState) {
     if (currentState === s) return;
@@ -112,6 +113,37 @@ export function connectBoard(
   provider.on('connection-close', closeHandler);
   provider.on('sync', syncHandler);
 
+  // The browser does not always close an established WebSocket when the
+  // network goes down (Chromium leaves the socket lingering), so the
+  // provider's 'disconnected' status can be delayed indefinitely. Listen to
+  // the page's online/offline events: offline → 'reconnecting' immediately
+  // (the board stays readable and editable, changes re-send on reconnect);
+  // online → force a clean reconnect, because the old socket may be dead
+  // without ever having fired 'close'.
+  const onOffline = () => {
+    wasOffline = true;
+    if (!hasConnected) return;
+    if (confirmTimer) {
+      clearTimeout(confirmTimer);
+      confirmTimer = null;
+    }
+    if (currentState !== 'load_failed') {
+      setState('reconnecting');
+    }
+  };
+  const onOnline = () => {
+    if (!wasOffline) return;
+    wasOffline = false;
+    try {
+      provider.disconnect();
+      provider.connect();
+    } catch {
+      // provider already destroyed
+    }
+  };
+  window.addEventListener('offline', onOffline);
+  window.addEventListener('online', onOnline);
+
   // Initial state
   onState('connecting');
 
@@ -121,6 +153,8 @@ export function connectBoard(
         clearTimeout(confirmTimer);
         confirmTimer = null;
       }
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
       provider.off('status', statusHandler);
       provider.off('connection-close', closeHandler);
       provider.off('sync', syncHandler);

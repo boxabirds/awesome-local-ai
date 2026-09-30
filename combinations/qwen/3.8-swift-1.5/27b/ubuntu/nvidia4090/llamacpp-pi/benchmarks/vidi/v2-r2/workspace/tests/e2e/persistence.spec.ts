@@ -20,6 +20,7 @@ import {
   makePersistDir,
   PERSIST_URL,
 } from './helpers/wrangler-process';
+import { apiCreateBoard } from './helpers/board';
 
 /**
  * Story 4 e2e: persistence across real `wrangler dev --persist-to` process
@@ -116,10 +117,11 @@ test.describe('Story 4: persistence e2e (TC-19 to TC-24)', () => {
 
   test('TC-19: overnight return — 25 varied notes survive a real process restart', async ({ browser }) => {
     const persistDir = makePersistDir();
-    const boardId = newBoardId();
     let firstSnapshot: Snapshot = [];
 
     await startWranglerProcess(persistDir);
+    // Story 5: the board must exist before anyone can open it.
+    const boardId = await apiCreateBoard(PERSIST_URL);
     try {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       const page = await ctx.newPage();
@@ -229,9 +231,10 @@ test.describe('Story 4: persistence e2e (TC-19 to TC-24)', () => {
 
   test('TC-20: leave immediately — a note seen by Sam survives instant exit + restart', async ({ browser }) => {
     const persistDir = makePersistDir();
-    const boardId = newBoardId();
 
     await startWranglerProcess(persistDir);
+    // Story 5: the board must exist before anyone can open it.
+    const boardId = await apiCreateBoard(PERSIST_URL);
     try {
       const ctxA = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       const ctxB = await browser.newContext({ viewport: { width: 1280, height: 800 } });

@@ -38,6 +38,39 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     el.setSelectionRange(len, len);
   }, []);
 
+  // Merge remote updates into the textarea while editing. Every local
+  // keystroke is already written to Y.Text, so the doc is the source of
+  // truth; without this a remote char would be clobbered by the next local
+  // diff (concurrent typing, story 3 TC-23). Local-origin writes are
+  // skipped: the DOM already holds those characters.
+  useEffect(() => {
+    const handler = (_event: unknown, transaction: { origin: unknown }) => {
+      if (transaction.origin === LOCAL_ORIGIN) return;
+      const el = ref.current;
+      if (!el) return;
+      const next = ytext.toString();
+      if (el.value === next) return;
+      const focused = document.activeElement === el;
+      const oldLen = el.value.length;
+      const caret = focused ? el.selectionStart : 0;
+      const atEnd = focused && caret === oldLen;
+      el.value = next;
+      if (focused) {
+        // Caret at the end stays at the end; otherwise preserve the
+        // distance from the end (exact when remote inserts land at the
+        // end, the common typing case).
+        const target = atEnd
+          ? next.length
+          : Math.max(0, Math.min(next.length, next.length - (oldLen - caret)));
+        el.setSelectionRange(target, target);
+      }
+    };
+    ytext.observe(handler);
+    return () => {
+      ytext.unobserve(handler);
+    };
+  }, [ytext]);
+
   // A pointerdown anywhere outside the editor ends editing as unselected.
   // Capture phase so a stopPropagation on another note cannot swallow it.
   useEffect(() => {

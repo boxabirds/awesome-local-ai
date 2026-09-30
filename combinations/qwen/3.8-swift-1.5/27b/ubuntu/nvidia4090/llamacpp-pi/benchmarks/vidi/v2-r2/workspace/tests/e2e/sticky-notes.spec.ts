@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { setCamera } from './helpers/board';
+import { setCamera, openBoard } from './helpers/board';
 import { SHORT_PHRASE, RETRO_ITEM, THOUSAND_CHAR_PARAGRAPH } from '../fixtures/texts';
 import {
   STICKY_FONT_MAX_PX,
@@ -71,7 +71,7 @@ test.describe('sticky-notes (ui-e2e)', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
     await setCamera(page, -640, -400, 1);
   });
 

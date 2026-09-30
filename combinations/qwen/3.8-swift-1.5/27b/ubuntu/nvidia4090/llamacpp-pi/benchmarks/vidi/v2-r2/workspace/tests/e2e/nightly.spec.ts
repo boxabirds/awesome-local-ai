@@ -1,12 +1,14 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
+import { apiCreateBoard } from './helpers/board';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS, MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 
 test.describe('Story 3: Nightly e2e (TC-29, TC-30) @nightly', () => {
   test.describe.configure({ mode: 'serial' });
+  // These soak for 45s / 60s by design — well past the default 30s timeout.
+  test.setTimeout(180_000);
 
   test('TC-29: idle connection stability - badge never shows Reconnecting for 45s', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await apiCreateBoard();
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const pageA = await ctxA.newPage();
@@ -39,7 +41,7 @@ test.describe('Story 3: Nightly e2e (TC-29, TC-30) @nightly', () => {
   });
 
   test('TC-30: capacity soak - MAX_CONCURRENT_EDITORS contexts, 60s continuous edits', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await apiCreateBoard();
     const contexts: BrowserContext[] = [];
     const pages: Page[] = [];
 

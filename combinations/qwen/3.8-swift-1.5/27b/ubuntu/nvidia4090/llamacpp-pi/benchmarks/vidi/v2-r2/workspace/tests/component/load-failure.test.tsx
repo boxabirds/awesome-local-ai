@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import * as Y from 'yjs';
-import App from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { connectBoard, canEdit, type ConnectionState } from '../../src/client/sync/connectBoard';
 import * as boardModel from '../../src/shared/board-model';
@@ -78,7 +78,7 @@ describe('Story 4: load-failure client state (TC-22, TC-23, TC-28)', () => {
 
   it('TC-23: load_failed — dblclick, button, Delete, drag and typing make zero mutations', async () => {
     // Seed the board before installing the spies.
-    const { unmount } = render(<App />);
+    const { unmount } = render(<Board boardId="test-board" />);
     const p = getProvider();
     act(() => {
       p.emit('status', { status: 'connected' });

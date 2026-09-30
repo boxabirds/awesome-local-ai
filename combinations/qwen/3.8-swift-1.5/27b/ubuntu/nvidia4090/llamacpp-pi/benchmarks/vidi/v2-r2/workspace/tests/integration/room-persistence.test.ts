@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import WebSocket from 'ws';
-import { startServer, stopServer, URL } from './server';
+import { startServer, stopServer, URL, createBoard } from './server';
 import {
   createTestClient,
   connectRaw,
@@ -10,7 +10,6 @@ import {
   sendRaw,
   type TestClient,
 } from './ws-client';
-import { newBoardId } from '../../src/shared/board-id';
 import { createSticky, snapshot, initDoc } from '../../src/shared/board-model';
 import { MESSAGE_SYNC, CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE, CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
@@ -165,7 +164,7 @@ describe('Persistent room: durability, failures, hibernation (story 4)', () => {
   });
 
   it('TC-12: by the time B observes A\'s note, the updates row exists and storage contains it', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     initDoc(a.doc);
     createSticky(a.doc, { x: 300, y: 200 }, 'green');
@@ -190,7 +189,7 @@ describe('Persistent room: durability, failures, hibernation (story 4)', () => {
   });
 
   it('TC-13: everyone leaves; a fresh room instance over the same storage sees the snapshot', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const original = await seedBoard(boardId, 6);
     const originalNotes = snapshot(original);
     expect(originalNotes).toHaveLength(6);
@@ -208,15 +207,17 @@ describe('Persistent room: durability, failures, hibernation (story 4)', () => {
   });
 
   it('TC-14: append failure closes both 1011, B never got the note; A reconnects holding it → stored and delivered', async () => {
-    const boardId = newBoardId();
-    // Arm the one-shot append failure BEFORE the room is constructed: the
-    // fault-injecting store factory is consulted at room construction.
+    const boardId = await createBoard();
+    // Arm the one-shot append failure: the room's update handler reads the
+    // fault registry live, so it works for an already-constructed room.
     const f = await faultsHook(boardId, { appendFailures: 1 });
     expect(f.ok).toBe(true);
 
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
-    initDoc(a.doc); // stored fine (the fault is armed for the NEXT append)
+    // This append consumes the injected failure → both sockets closed 1011
+    // before the note below is ever delivered.
+    initDoc(a.doc);
     const before = await countUpdates(boardId);
 
     // This append hits the injected failure.
@@ -250,7 +251,7 @@ describe('Persistent room: durability, failures, hibernation (story 4)', () => {
   });
 
   it('TC-15: corrupted snapshot → client closed 4500; a SyncStep2 sent before close stores nothing', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     await seedBoard(boardId, 4);
     const c = await corruptHook(boardId);
     expect(c.ok).toBe(true);
@@ -301,7 +302,7 @@ describe('Persistent room: durability, failures, hibernation (story 4)', () => {
   });
 
   it('TC-16: connect before the retry interval → 4500 without reload; after repair + interval → loads', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const original = await seedBoard(boardId, 5);
     const originalNotes = snapshot(original);
     const c = await corruptHook(boardId);
@@ -334,7 +335,7 @@ describe('Persistent room: durability, failures, hibernation (story 4)', () => {
   }, 30000);
 
   it('TC-17: garbage update → closed 1003, row count unchanged', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     initDoc(a.doc);
     const before = await countUpdates(boardId);
@@ -349,7 +350,7 @@ describe('Persistent room: durability, failures, hibernation (story 4)', () => {
   });
 
   it('TC-18: after the room is reconstructed, messages reach sockets via ctx.getWebSockets()', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     initDoc(a.doc);
     createSticky(a.doc, { x: 100, y: 100 }, 'yellow');
@@ -383,7 +384,7 @@ describe('Persistent room: durability, failures, hibernation (story 4)', () => {
   });
 
   it('TC-26: load SELECT throws → room closes clients with 4500', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     // Make every SELECT that reads the snapshot chunks throw. This hits
     // BoardStore.load's first read → sql-error → load-failed.
     const f = await faultsHook(boardId, { failSelectsMatching: 'FROM snapshot_chunks' });

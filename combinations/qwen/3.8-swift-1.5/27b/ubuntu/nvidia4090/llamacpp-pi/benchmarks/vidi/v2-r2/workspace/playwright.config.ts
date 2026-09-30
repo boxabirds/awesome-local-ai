@@ -26,9 +26,13 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npx wrangler dev --port 8787 --ip 127.0.0.1',
+    // TEST_HOOKS enables the /__test/* endpoints used by e2e specs
+    // (corruption/repair, legacy board seeding). wrangler parses --var on ':'.
+    command: 'npx wrangler dev --port 8787 --ip 127.0.0.1 --var TEST_HOOKS:1',
     url: 'http://localhost:8787',
     reuseExistingServer: true,
-    timeout: 30000,
+    timeout: 60000,
   },
+  // Build the client once before any spec (the worker serves dist/client).
+  globalSetup: './tests/e2e/global-setup.ts',
 });

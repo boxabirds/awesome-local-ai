@@ -6,6 +6,19 @@ const URL = `http://127.0.0.1:${PORT}`;
 
 let server: ChildProcess | null = null;
 
+/**
+ * Story 5: create a board via the public API. Boards must be created
+ * before anything can connect to them (a WebSocket connection no longer
+ * implicitly creates a board).
+ */
+export async function createBoard(): Promise<string> {
+  const res = await fetch(`${URL}/api/boards`, { method: 'POST' });
+  if (res.status !== 201) {
+    throw new Error(`POST /api/boards → ${res.status}: ${await res.text()}`);
+  }
+  return (await res.json() as { id: string }).id;
+}
+
 export async function startServer(): Promise<string> {
   if (server) return URL;
 

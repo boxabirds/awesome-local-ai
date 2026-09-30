@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
+import { apiCreateBoard } from './helpers/board';
 import { E2E_EVENTUAL_TIMEOUT_MS, MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 
 const noteSelector = '[data-note-id]';
@@ -33,7 +33,7 @@ test.describe('Story 3: Live collaboration (TC-22 to TC-28)', () => {
   test.describe.configure({ mode: 'serial' });
 
   test('TC-22: Alex creates, moves, recolours, types, deletes → each change appears for Sam', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await apiCreateBoard();
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const pageA = await ctxA.newPage();
@@ -108,7 +108,7 @@ test.describe('Story 3: Live collaboration (TC-22 to TC-28)', () => {
   });
 
   test('TC-23: both type simultaneously → identical text containing every character', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await apiCreateBoard();
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const pageA = await ctxA.newPage();
@@ -133,11 +133,23 @@ test.describe('Story 3: Live collaboration (TC-22 to TC-28)', () => {
       pageB.keyboard.type('blue', { delay: 50 }),
     ]);
 
-    // Both should see text containing both contributions
+    // Both should see text containing every character both sides typed.
+    // With a fast relay the two contributions interleave character-by-
+    // character ("brleude"), so assert the multiset of characters rather
+    // than the literal substrings "red"/"blue" (the test title's
+    // "every character").
+    const hasEveryChar = (s: string) => {
+      const counts = new Map<string, number>();
+      for (const ch of s) counts.set(ch, (counts.get(ch) ?? 0) + 1);
+      for (const [ch, n] of [ ['r',1], ['e',2], ['d',1], [' ',1], ['b',1], ['l',1], ['u',1] ] as const) {
+        if ((counts.get(ch) ?? 0) < n) return false;
+      }
+      return true;
+    };
     await expect.poll(async () => {
       const textA = await pageA.locator(editorSelector).inputValue();
       const textB = await pageB.locator(editorSelector).inputValue();
-      return textA.includes('red') && textA.includes('blue') && textB.includes('red') && textB.includes('blue');
+      return hasEveryChar(textA) && hasEveryChar(textB);
     }, { timeout: E2E_EVENTUAL_TIMEOUT_MS }).toBeTruthy();
 
     // Both pages show identical text
@@ -152,7 +164,7 @@ test.describe('Story 3: Live collaboration (TC-22 to TC-28)', () => {
   });
 
   test('TC-24: both drag same note → identical settled position', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await apiCreateBoard();
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const pageA = await ctxA.newPage();
@@ -203,7 +215,7 @@ test.describe('Story 3: Live collaboration (TC-22 to TC-28)', () => {
   });
 
   test('TC-25: Sam editing note, Alex deletes → Sam\'s note and editor disappear, no errors', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await apiCreateBoard();
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const pageA = await ctxA.newPage();
@@ -243,7 +255,7 @@ test.describe('Story 3: Live collaboration (TC-22 to TC-28)', () => {
   });
 
   test('TC-26: MAX_CONCURRENT_EDITORS contexts each create 5 and move 5 notes → final snapshots identical', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await apiCreateBoard();
     const contexts: BrowserContext[] = [];
     const pages: import('@playwright/test').Page[] = [];
 
@@ -299,7 +311,7 @@ test.describe('Story 3: Live collaboration (TC-22 to TC-28)', () => {
   });
 
   test('TC-27: Flaky Wi-Fi - Alex offline, both add notes, reconnect → 6 notes total', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await apiCreateBoard();
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const pageA = await ctxA.newPage();
@@ -319,12 +331,14 @@ test.describe('Story 3: Live collaboration (TC-22 to TC-28)', () => {
       return state === 'reconnecting';
     }, { timeout: E2E_EVENTUAL_TIMEOUT_MS }).toBeTruthy();
 
-    // Both add 3 notes while Alex is offline
+    // Both add 3 notes while Alex is offline. Notes are 200 world units
+    // square and centred on the click, so positions must be >200px apart
+    // or the double-click lands on the previous note (select, not create).
     for (let i = 0; i < 3; i++) {
-      await createNoteAt(pageA, 100 + i * 50, 100);
+      await createNoteAt(pageA, 100 + i * 250, 100);
     }
     for (let i = 0; i < 3; i++) {
-      await createNoteAt(pageB, 100 + i * 50, 300);
+      await createNoteAt(pageB, 100 + i * 250, 400);
     }
 
     // Bring Alex back online
@@ -350,7 +364,7 @@ test.describe('Story 3: Live collaboration (TC-22 to TC-28)', () => {
   });
 
   test('TC-28: Alex selects and edits → Sam sees no selection outline or editor', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await apiCreateBoard();
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const pageA = await ctxA.newPage();

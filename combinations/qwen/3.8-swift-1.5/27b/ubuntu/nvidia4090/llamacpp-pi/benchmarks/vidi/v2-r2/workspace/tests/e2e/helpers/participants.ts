@@ -1,6 +1,6 @@
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
+import { apiCreateBoard } from './board';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
 
 export interface Participant {
@@ -18,7 +18,7 @@ export async function createParticipants(
   count: number,
   baseURL: string
 ): Promise<Participant[]> {
-  const boardId = newBoardId();
+  const boardId = await apiCreateBoard(baseURL);
   const participants: Participant[] = [];
 
   for (let i = 0; i < count; i++) {

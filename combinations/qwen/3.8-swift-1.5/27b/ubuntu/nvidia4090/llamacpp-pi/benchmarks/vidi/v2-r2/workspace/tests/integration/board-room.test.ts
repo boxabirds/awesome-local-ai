@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { startServer, stopServer, URL } from './server';
+import { startServer, stopServer, URL, createBoard } from './server';
 import { createTestClient, sendRaw, sendAwareness, waitForCondition, type TestClient } from './ws-client';
-import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { initDoc, createSticky, moveObject, setStickyColor, deleteObject, getStickyText, snapshot } from '../../src/shared/board-model';
 import { performRandomOps } from './random-ops';
@@ -18,7 +17,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-07: A creates sticky → B snapshot equals A; B received exactly one update', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
 
@@ -39,7 +38,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-08a: A moves note → B equals A; A receives no echo', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
 
@@ -63,7 +62,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-08b: A recolours note → B equals A', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
 
@@ -83,7 +82,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-08c: A inserts text → B equals A', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
 
@@ -104,7 +103,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-08d: A deletes note → B note gone', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
 
@@ -121,7 +120,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-09: concurrent text inserts merge to "red green blue"', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
 
@@ -159,7 +158,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-10: concurrent position sets converge to same value', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
 
@@ -188,7 +187,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-11: A deletes note while B inserts text → note absent on both, no resurrection', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
 
@@ -216,7 +215,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-12: MAX_CONCURRENT_EDITORS clients × 200 seeded random ops → identical snapshots', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const seed = 42;
     const clients: TestClient[] = [];
 
@@ -257,7 +256,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-14: late joiner C sees all 20 notes created by A and B', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
 
@@ -291,7 +290,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-15: malformed traffic from A → A closed with 1003, B still open and receives updates', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
     initDoc(a.doc);
@@ -341,7 +340,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-16: awareness bytes from A → A and B both receive identical bytes', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
 
@@ -372,7 +371,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-18: restart simulation - A reconnects to fresh room, B converges', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
 
@@ -404,7 +403,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   });
 
   it('TC-31: B closed abruptly, A sends update → room does not throw; later sockets still receive', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const a = await createTestClient(URL, boardId);
     const b = await createTestClient(URL, boardId);
     initDoc(a.doc);

@@ -1,16 +1,32 @@
-import { __installFaultyStoreFactory, __setFaults, type Env, type FaultConfig } from './board-room';
+import { __armInitializeFailures, __setFaults, type Env, type FaultConfig } from './board-room';
 
 /**
  * Test-only HTTP endpoints, enabled only when env.TEST_HOOKS === '1'.
  * Used by integration tests (store/sql/fault access to a board's Durable
- * Object storage) and e2e tests (snapshot corruption/repair).
+ * Object storage) and e2e tests (snapshot corruption/repair, legacy
+ * board seeding).
  */
 export async function handleTestHooks(req: Request, env: Env): Promise<Response | null> {
   if (env.TEST_HOOKS !== '1') {
     return new Response('forbidden', { status: 403 });
   }
   const url = new URL(req.url);
-  const match = url.pathname.match(/^\/__test\/boards\/([A-Za-z0-9_-]+)\/(sql|store|corrupt|repair|faults|reset)$/);
+
+  // Test-only (story 5 TC-12): arm one-shot `initialize()` failures.
+  // Global (no board id) because createBoard generates its own random id,
+  // so a per-board fault cannot target it.
+  if (url.pathname === '/__test/initialize-failures' && req.method === 'POST') {
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return json({ ok: false, detail: 'invalid json body' }, 400);
+    }
+    __armInitializeFailures(Number(body.count ?? 1));
+    return json({ ok: true });
+  }
+
+  const match = url.pathname.match(/^\/__test\/boards\/([A-Za-z0-9_-]+)\/(sql|store|corrupt|repair|faults|reset|init|exists|legacy-seed)$/);
   if (!match || req.method !== 'POST') {
     return new Response('not found', { status: 404 });
   }
@@ -46,12 +62,7 @@ export async function handleTestHooks(req: Request, env: Env): Promise<Response 
         const result = await stub.__testCorruptSnapshot('repair');
         return json(result);
       }
-      case 'reset': {
-        const result = await stub.__testReset();
-        return json(result);
-      }
       case 'faults': {
-        __installFaultyStoreFactory();
         // Faults are keyed by the DO's opaque id (what the room sees as ctx.id).
         const doId = env.BOARD_ROOM.idFromName(boardId).toString();
         if (body.reset) {
@@ -65,6 +76,22 @@ export async function handleTestHooks(req: Request, env: Env): Promise<Response 
         __setFaults(doId, fault);
         return json({ ok: true });
       }
+      case 'reset': {
+        const result = await stub.__testReset();
+        return json(result);
+      }
+      case 'init': {
+        const result = await stub.initialize();
+        return json({ ok: true, result });
+      }
+      case 'exists': {
+        const result = await stub.exists();
+        return json({ ok: true, exists: result });
+      }
+      case 'legacy-seed': {
+        const result = await stub.__testSeedLegacy((body.updatesB64 as string[]) ?? []);
+        return json(result);
+      }
       default:
         return json({ ok: false, detail: `unknown op: ${op}` }, 400);
     }
@@ -73,8 +100,8 @@ export async function handleTestHooks(req: Request, env: Env): Promise<Response 
   }
 }
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
   });

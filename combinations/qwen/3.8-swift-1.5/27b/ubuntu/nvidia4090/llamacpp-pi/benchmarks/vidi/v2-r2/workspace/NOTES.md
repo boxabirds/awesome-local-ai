@@ -156,22 +156,35 @@ y-websocket expects `[message_type: varuint][raw payload]`. Rewrote
 "miniflare does not transmit binary frames to the browser" — the e2e suite
 proves binary sync works end-to-end under `wrangler dev`.
 
-## Test results
-- Unit: 115 pass (incl. `board-store-chunks`, `room-state`, `protocol`).
-- Component: 40 pass (incl. `load-failure.test.tsx`: TC-22, TC-23, TC-28).
-- Integration: 37 pass (incl. `board-store.test.ts` TC-03–11/25,
-  `room-persistence.test.ts` TC-12–18/26).
-- E2E persistence: 4 pass (TC-19 restart durability, TC-20 instant-exit
-  durability, TC-21 2000-note load, TC-24 broken board → honest failure →
-  edit lock → recovery without reload).
+## Test results (story 5)
+- Unit: 118 pass (incl. `create-board` TC-04).
+- Component: 50 pass (incl. `pages.test.tsx` TC-16/17/19/20/21,
+  `SharePanel.test.tsx` TC-22–25).
+- Integration: 47 pass (incl. `board-api.test.ts` TC-05–10/12/14/15/32).
+- E2E chromium: 31/31 pass (navigation, sticky-notes, live-collaboration,
+  share, persistence, nightly).
+- E2E firefox: share TC-27/29 + persistence pass (chromium-only TCs skip).
 - `npm run build` and `npm run typecheck` clean.
 
-## Pre-existing out-of-scope e2e failures (Story 3, not touched by this story)
-- **live-collaboration TC-23** (both type simultaneously): `StickyTextEditor`
-  uses an *uncontrolled* textarea (`defaultValue`) that never reflects remote
-  Y.Text changes, so `applyTextDiff(ytext, el.value)` deletes the remote
-  characters when the local user types. A CRDT text-editor integration bug in
-  unmodified story 2/3 code.
-- **nightly TC-29/TC-30** (@nightly): the tests run 45s/60s but Playwright's
-  default test timeout is 30s, so they can never pass. Timeout-config issue in
-  unmodified story 3 files.
+## Pre-existing story-3 bugs fixed along the way
+- **StickyTextEditor clobbered concurrent typing**: the textarea was
+  uncontrolled (`defaultValue`) and never merged remote Y.Text updates, so
+  each local keystroke's `applyTextDiff` deleted the remote characters.
+  Fixed with a `ytext.observe` handler that merges remote updates into the
+  textarea (caret-at-end stays at end; otherwise distance-from-end is
+  preserved). Local-origin writes are skipped (DOM already in sync).
+- **Offline detection never fired**: Chromium does not close an established
+  WebSocket when the context goes offline, so the provider's 'disconnected'
+  status never arrived and the badge stayed "connected". `connectBoard` now
+  listens to `offline` (→ 'reconnecting' immediately) and `online` (→ forced
+  clean reconnect via `provider.disconnect(); provider.connect()`, because
+  the old socket may be dead without ever firing 'close').
+- **nightly spec timeout**: 45s/60s soak tests under the default 30s test
+  timeout → `test.setTimeout(180_000)` in the describe.
+- **TC-23 assertion**: with a fast relay the two contributions interleave
+  character-by-character (e.g. "brleude"), so the literal-substring check
+  (`includes('red') && includes('blue')`) could never hold. Now asserts the
+  multiset of characters (matches the test title "every character").
+- **TC-27 note positions**: notes are 200 world units square, centred on the
+  click; the old 50px-apart coordinates landed on the previous note (select,
+  not create), so fewer than 3 notes were made per side. Now 250px apart.

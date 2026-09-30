@@ -1,5 +1,5 @@
 import { render, act } from '@testing-library/react';
-import App from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
 import type * as Y from 'yjs';
 import type { Camera } from '../../src/client/canvas/camera';
 import { snapshot, type StickySnapshot } from '../../src/shared/board-model';
@@ -11,11 +11,12 @@ interface RenderedApp {
 }
 
 /**
- * Renders the real App (with the ResizeObserver polyfill from tests/setup.ts)
- * and exposes the Y.Doc + camera for test-driven model calls.
+ * Renders the real board UI (story 5: App is now a router, so the board
+ * component is rendered directly) with the ResizeObserver polyfill from
+ * tests/setup.ts, and exposes the Y.Doc + camera for test-driven model calls.
  */
 export function renderApp(): RenderedApp {
-  render(<App />);
+  render(<Board boardId="test-board" />);
   const vidi6 = () => (window as unknown as { __vidi6: { setCamera(cam: Camera): void; doc: Y.Doc } }).__vidi6;
   return {
     getDoc: () => vidi6().doc,

@@ -40,7 +40,7 @@ export interface FaultConfig {
   failSelectsMatching: string | null;
 }
 
-// Registry keyed by board id (DO name). Mutable objects: the live store
+// Registry keyed by the DO's opaque id. Mutable objects: the live room
 // instance reads through them on every call, so hooks can arm faults at
 // runtime without reconstructing the room.
 const faultRegistry = new Map<string, FaultConfig>();
@@ -49,6 +49,11 @@ function faultFor(boardId: string): FaultConfig | undefined {
   return faultRegistry.get(boardId);
 }
 
+/**
+ * Storage wrapper that throws on SELECTs matching the armed fault. Rooms
+ * always load through it: with no fault armed it is a plain pass-through,
+ * so a room constructed before a fault is armed still honours it on reload.
+ */
 class FaultyStorage implements BoardStorage {
   constructor(
     private inner: BoardStorage,
@@ -68,36 +73,19 @@ class FaultyStorage implements BoardStorage {
   }
 }
 
-class FaultyBoardStore extends BoardStore {
-  constructor(storage: BoardStorage, private boardId: string) {
-    super(storage);
-  }
-  override append(update: Uint8Array): void {
-    const fault = faultFor(this.boardId);
-    if (fault && fault.appendFailures > 0) {
-      fault.appendFailures--;
-      throw new Error('injected append failure');
-    }
-    super.append(update);
-  }
-}
-
-// The store factory is swappable so test hooks can install fault-injecting
-// stores. The default factory produces plain stores.
-let storeFactory: (boardId: string, storage: BoardStorage) => BoardStore = (
-  _boardId,
-  storage,
-) => new BoardStore(storage);
-
-/** Test-only: install the fault-injecting store factory. */
-export function __installFaultyStoreFactory(): void {
-  storeFactory = (boardId, storage) => new FaultyBoardStore(new FaultyStorage(storage, boardId), boardId);
-}
-
 /** Test-only: set (or reset) the fault config for a board. */
 export function __setFaults(boardId: string, fault: FaultConfig | null): void {
   if (fault === null) faultRegistry.delete(boardId);
   else faultRegistry.set(boardId, fault);
+}
+
+// One-shot `initialize()` failures, armed globally: createBoard generates its
+// own random id, so a per-board fault cannot target it (story 5 TC-12).
+let globalInitializeFailures = 0;
+
+/** Test-only: arm one-shot `initialize()` failures for the next calls. */
+export function __armInitializeFailures(count: number): void {
+  globalInitializeFailures = Math.max(0, count);
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +149,13 @@ export class BoardRoom extends DurableObject {
       return new Response(JSON.stringify({ status: 'ok' }), {
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+
+    // Story 5 (share.not_found): boards that do not exist are rejected
+    // before anything is accepted, so a WebSocket connection can never
+    // implicitly create a board.
+    if (!this.storeExists()) {
+      return new Response('Not found', { status: 404 });
     }
 
     const pair = new WebSocketPair();
@@ -284,14 +279,52 @@ export class BoardRoom extends DurableObject {
   }
 
   // -------------------------------------------------------------------------
+  // Board creation and existence (story 5 RPC surface)
+  // -------------------------------------------------------------------------
+
+  /** Read-only existence check backing `GET /api/boards/:id`. */
+  async exists(): Promise<boolean> {
+    return this.storeExists();
+  }
+
+  /**
+   * Creates the board's storage: migrates the tables and writes
+   * `storage_meta.created_at` exactly once. Idempotent — a board that
+   * already exists (created_at, or legacy data) is never re-initialized.
+   * The only code path that writes a board's storage.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    if (globalInitializeFailures > 0) {
+      globalInitializeFailures--;
+      throw new Error('injected initialize failure');
+    }
+    const store = this.store ?? this.createStore();
+    store.migrate();
+    if (store.existsReadOnly()) return 'exists';
+    store.markCreated();
+    return 'created';
+  }
+
+  private storeExists(): boolean {
+    const store = this.store ?? this.createStore();
+    return store.existsReadOnly();
+  }
+
+  /** A store bound to this room's storage (fault-aware, like load uses). */
+  private createStore(): BoardStore {
+    return new BoardStore(new FaultyStorage(this.boardStorage, this.doId));
+  }
+
+  // -------------------------------------------------------------------------
   // Persistence
   // -------------------------------------------------------------------------
 
   private doLoad(): void {
     this.lastLoadAttemptAt = Date.now();
     const doc = new Y.Doc();
-    const store = storeFactory(this.doId, this.boardStorage);
-    store.migrate();
+    const store = this.createStore();
+    // No migrate here: a board that has never been initialized must not gain
+    // tables just because someone probed its link (share.not_found).
     const result = store.load(doc);
     if (result.ok) {
       this.store = store;
@@ -313,6 +346,17 @@ export class BoardRoom extends DurableObject {
       const store = this.store;
       if (!store) return;
 
+      // Test-only fault injection: one-shot append failures. Checked here
+      // (not in the store) so it also works for rooms constructed before
+      // the fault was armed.
+      const fault = faultFor(this.doId);
+      if (fault && fault.appendFailures > 0) {
+        fault.appendFailures--;
+        console.error('[board-room] injected append failure');
+        this.handleAppendFailure();
+        return;
+      }
+
       // Store BEFORE broadcast: an update that cannot be saved is not
       // shared, and the room drops into storage-failed.
       try {
@@ -321,16 +365,7 @@ export class BoardRoom extends DurableObject {
         console.error('[board-room] storage append failed; resetting room', {
           error: String(e),
         });
-        this.transition({ type: 'storage-failed' });
-        this.doc = null;
-        this.store = null;
-        for (const socket of this.ctx.getWebSockets()) {
-          try {
-            socket.close(CLOSE_STORAGE_FAILURE, 'storage failure');
-          } catch {
-            // already closed
-          }
-        }
+        this.handleAppendFailure();
         return;
       }
 
@@ -338,6 +373,20 @@ export class BoardRoom extends DurableObject {
       this.broadcast(update, origin);
       this.maybeCompact(doc);
     });
+  }
+
+  /** Drops the room into storage-failed and closes every socket (1011). */
+  private handleAppendFailure(): void {
+    this.transition({ type: 'storage-failed' });
+    this.doc = null;
+    this.store = null;
+    for (const socket of this.ctx.getWebSockets()) {
+      try {
+        socket.close(CLOSE_STORAGE_FAILURE, 'storage failure');
+      } catch {
+        // already closed
+      }
+    }
   }
 
   private maybeCompact(doc: Y.Doc): void {
@@ -469,6 +518,30 @@ export class BoardRoom extends DurableObject {
       default:
         throw new Error(`unknown test op: ${op}`);
     }
+  }
+
+  /**
+   * Test-only: seed a pre-story-5 (legacy) board — `updates` rows without a
+   * `storage_meta.created_at`, exactly what story-4 storage looks like.
+   * Used to verify legacy boards open and count as existing.
+   */
+  async __testSeedLegacy(updatesB64: string[]): Promise<Record<string, unknown>> {
+    for (const _row of this.boardStorage.sql.exec(
+      'CREATE TABLE IF NOT EXISTS updates (seq INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB NOT NULL, bytes INTEGER NOT NULL)'
+    ).raw()) {
+      // DDL
+    }
+    for (const b64 of updatesB64) {
+      const data = fromBase64(b64);
+      for (const _row of this.boardStorage.sql.exec(
+        'INSERT INTO updates (data, bytes) VALUES (?, ?)',
+        data,
+        data.length
+      ).raw()) {
+        // DML
+      }
+    }
+    return { ok: true, seeded: updatesB64.length };
   }
 
   /**

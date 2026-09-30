@@ -80,6 +80,7 @@ export class BoardStore {
   private rowCount = 0;
   private rowBytes = 0;
   private countersReady = false;
+  private migrated = false;
 
   constructor(private storage: BoardStorage) {}
 
@@ -105,10 +106,29 @@ export class BoardStore {
         String(STORAGE_SCHEMA_VERSION)
       );
     }
+    this.migrated = true;
+  }
+
+  /**
+   * Story 5 (share.board_api): sets `storage_meta.created_at` (epoch ms)
+   * exactly once. `migrate()` must have run first. Called only from the
+   * room's `initialize()` RPC, which is the only code path that creates a
+   * board's storage.
+   */
+  markCreated(): void {
+    this.execute(
+      'INSERT INTO storage_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING',
+      'created_at',
+      String(Date.now())
+    );
   }
 
   /** Appends one update to the log. Throws on SQL failure (caller resets the room). */
   append(update: Uint8Array): void {
+    // Migrate lazily on the first append: a room whose board was never
+    // initialized (e.g. a legacy board probed before story 5) gains its
+    // tables only when it first stores data. Probing never reaches here.
+    if (!this.migrated && !this.hasTables()) this.migrate();
     this.execute('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length);
     this.ensureCounters();
     this.rowCount += 1;
@@ -123,6 +143,18 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // A board whose tables do not exist is an empty board. This is
+      // read-only: tables are created by initialize() or the first append,
+      // so probing an unknown link writes no storage (share.not_found).
+      if (!this.hasTables()) {
+        return { ok: true, quarantined: 0 };
+      }
+
+      // A board that has SOME tables (a legacy board from before story 5)
+      // is completed to the full schema here: CREATE TABLE IF NOT EXISTS is
+      // idempotent, and this path is only reached for boards that exist.
+      this.migrate();
+
       // 1. Snapshot
       const chunks: Uint8Array[] = [];
       for (const row of this.queryRows('SELECT data FROM snapshot_chunks ORDER BY idx')) {
@@ -226,6 +258,42 @@ export class BoardStore {
     this.rowBytes = 0;
     this.countersReady = true;
     return chunks.length;
+  }
+
+  /**
+   * Story 5 (share.board_api): read-only existence check. A board exists if
+   * its storage has `storage_meta.created_at`, or (legacy boards from before
+   * story 5, share.legacy_boards) at least one row in `updates` or
+   * `snapshot_chunks`. Queries `sqlite_master` first and never creates
+   * tables, so probing links leaves no storage behind.
+   */
+  existsReadOnly(): boolean {
+    const tables = new Set<string>();
+    for (const row of this.queryRows("SELECT name FROM sqlite_master WHERE type = 'table'")) {
+      tables.add(String(row[0]));
+    }
+    if (tables.has('storage_meta')) {
+      for (const _row of this.queryRows('SELECT value FROM storage_meta WHERE key = ?', 'created_at')) {
+        return true;
+      }
+    }
+    if (tables.has('updates') && Number(this.queryScalar('SELECT COUNT(*) FROM updates') ?? 0) > 0) {
+      return true;
+    }
+    if (tables.has('snapshot_chunks') && Number(this.queryScalar('SELECT COUNT(*) FROM snapshot_chunks') ?? 0) > 0) {
+      return true;
+    }
+    return false;
+  }
+
+  /** True when any of the board's tables exist (read-only; creates nothing). */
+  private hasTables(): boolean {
+    for (const _row of this.queryRows(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('storage_meta', 'updates', 'snapshot_chunks', 'quarantined_updates')"
+    )) {
+      return true;
+    }
+    return false;
   }
 
   // --- internals ---------------------------------------------------------

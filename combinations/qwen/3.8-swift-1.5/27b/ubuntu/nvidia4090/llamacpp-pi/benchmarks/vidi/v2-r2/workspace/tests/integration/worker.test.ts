@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { startServer, stopServer, URL } from './server';
+import { startServer, stopServer, URL, createBoard } from './server';
 import { createTestClient, waitForCondition } from './ws-client';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
@@ -14,10 +14,11 @@ describe('Worker routing integration tests', () => {
     await stopServer();
   });
 
-  it('TC-04: GET /api/rooms/bad!id with Upgrade → 400', async () => {
-    // Use a plain GET - the worker validates board id before checking for Upgrade
+  it('TC-04: GET /api/rooms/bad!id → 404 (story 5: was 400 in story 3)', async () => {
+    // The worker validates the board id before checking for Upgrade; story 5
+    // collapsed 400 into 404 so unknown and malformed ids are indistinguishable.
     const resp = await fetch(`${URL}/api/rooms/bad%21id`);
-    expect(resp.status).toBe(400);
+    expect(resp.status).toBe(404);
   });
 
   it('TC-05: valid id without Upgrade → 426', async () => {
@@ -33,7 +34,7 @@ describe('Worker routing integration tests', () => {
   });
 
   it('TC-13: MAX_CONCURRENT_EDITORS + 1 sockets all accepted; last client\'s note reaches all others', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const clients = [];
 
     // Open MAX_CONCURRENT_EDITORS + 1 connections
@@ -67,8 +68,8 @@ describe('Worker routing integration tests', () => {
   });
 
   it('TC-17: boards are isolated - changes in room1 do not appear in room2', async () => {
-    const boardId1 = newBoardId();
-    const boardId2 = newBoardId();
+    const boardId1 = await createBoard();
+    const boardId2 = await createBoard();
 
     const client1 = await createTestClient(URL, boardId1);
     const client2 = await createTestClient(URL, boardId2);
