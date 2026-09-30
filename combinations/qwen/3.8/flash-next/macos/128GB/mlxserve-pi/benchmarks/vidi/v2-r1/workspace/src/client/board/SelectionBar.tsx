@@ -18,6 +18,7 @@ import type { StickyColor } from '../../shared/config';
 import { worldToScreen } from '../canvas/camera';
 import { useBoardCamera } from '../canvas/BoardViewport';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import type { UndoController } from './undo';
 
 export interface SelectionBarProps {
   ids: ReadonlySet<string>;
@@ -25,6 +26,8 @@ export interface SelectionBarProps {
   doc: Y.Doc;
   /** Delete everything selected — the model call and the cleanup are the board's. */
   onDelete(): void;
+  /** This tab's undo history (story 8); a colour change is closed into its own step. */
+  undo?: UndoController;
 }
 
 /** How many objects are selected, in the words the bar says out loud. */
@@ -44,7 +47,7 @@ const windowSize = (): { width: number; height: number } => ({
   height: typeof window === 'undefined' ? 800 : window.innerHeight,
 });
 
-export function SelectionBar({ ids, snapshot, doc, onDelete }: SelectionBarProps): ReactNode {
+export function SelectionBar({ ids, snapshot, doc, onDelete, undo }: SelectionBarProps): ReactNode {
   const { camera } = useBoardCamera();
   const selected = snapshot.filter((object) => ids.has(object.id));
   if (selected.length === 0) return null;
@@ -80,7 +83,10 @@ export function SelectionBar({ ids, snapshot, doc, onDelete }: SelectionBarProps
         <NoteToolbar
           color={loneSticky.color}
           onColor={(color: StickyColor): void => {
+            // A recolour is one undo step, closed around the single model call.
+            undo?.boundary();
             setStickyColor(doc, loneSticky.id, color);
+            undo?.boundary();
           }}
           onDelete={onDelete}
         />

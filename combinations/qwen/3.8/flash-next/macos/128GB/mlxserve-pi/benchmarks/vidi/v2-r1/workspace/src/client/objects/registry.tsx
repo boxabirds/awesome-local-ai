@@ -23,6 +23,7 @@ import {
 import type { Point } from '../../shared/geometry';
 import { rectContains } from '../../shared/geometry';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 
 /** What the board hands every object component, whatever kind it is. */
@@ -44,6 +45,12 @@ export interface ObjectProps {
   /** Only called for a type with `editableText`. */
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /**
+   * This tab's own undo history (story 8). A text-editing object opens and closes a
+   * step with it and routes Ctrl/Cmd+Z through it, so the browser's own textarea
+   * undo never diverges from the shared text. Absent means the board is not undoable.
+   */
+  undo?: UndoController;
 }
 
 export interface ObjectTypeSpec {
@@ -96,6 +103,7 @@ function StickyObject(props: ObjectProps): ReactNode {
       onObjectPointerDown={props.onObjectPointerDown}
       onStartEdit={props.onStartEdit}
       onEndEdit={props.onEndEdit}
+      undo={props.undo}
     />
   );
 }

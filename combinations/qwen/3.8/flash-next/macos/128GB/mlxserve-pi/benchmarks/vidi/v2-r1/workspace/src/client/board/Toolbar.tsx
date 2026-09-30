@@ -1,4 +1,6 @@
 import { type CSSProperties, type ReactNode } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UseUndoResult } from './useUndo';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
@@ -8,6 +10,8 @@ export interface ToolbarProps {
    * the reason is in the badge above it.
    */
   disabled?: boolean;
+  /** This tab's undo / redo state (story 8); absent means the rail has no undo pair. */
+  undo?: UseUndoResult;
 }
 
 /** The exact tooltip text (PRD: Sticky note button tooltip). */
@@ -41,7 +45,7 @@ const noteIconStyle: CSSProperties = {
  * the double-click shortcut. It stops pointer events so a click here never
  * reaches the board (which would clear the selection).
  */
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): ReactNode {
+export function Toolbar({ onCreateSticky, disabled = false, undo }: ToolbarProps): ReactNode {
   return (
     <div
       data-testid="toolbar"
@@ -64,6 +68,14 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): Rea
       >
         <span style={noteIconStyle} aria-hidden="true" />
       </button>
+      {undo ? (
+        <UndoButtons
+          canUndo={undo.canUndo && !disabled}
+          canRedo={undo.canRedo && !disabled}
+          onUndo={undo.undo}
+          onRedo={undo.redo}
+        />
+      ) : null}
     </div>
   );
 }

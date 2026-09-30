@@ -285,3 +285,48 @@ and component tests; this e2e layer plus the helper updates.
 Stories 6 and 13–17 are not implemented, so no hooks are taken for them: the selection is
 not broadcast to other people (story 6's presence would carry it), and there is no undo
 (story 13) — every group edit is one Y.Doc transaction, which is the granularity undo wants.
+
+# Story 8 — Undo and redo my own changes
+
+The controller lives at `src/client/board/undo.ts`: a thin wrapper over `Y.UndoManager`
+scoped to the `objects` map with `trackedOrigins = new Set([LOCAL_ORIGIN])`, so a peer's
+edits and story 4's LOAD-origin updates are never in this tab's stack (undo.own). The
+board creates one per doc and hands it to the gesture, the keyboard, the selection bar and
+the text editor.
+
+24. **The capture timeout is the controller's own timer, not Yjs's.** `lib0`'s
+    `getUnixTime` is `Date.now` captured by reference at module load, so `vi.setSystemTime`
+    cannot move it and Yjs's internal `captureTimeout` window is not observable under fake
+    timers. The controller therefore owns a `setTimeout(captureTimeoutMs)` that calls
+    `manager.stopCapturing()`; Yjs's `captureTimeout` is set to the same value so the two
+    agree in production, and under fake timers the controller's timer is the sole splitter.
+    `undo-boundaries.test.ts` TC-13 asserts exactly at and one millisecond below it.
+25. **`tests/unit/peer.ts`** is a second real `Y.Doc` linked to the first with updates
+    applied under a `PEER_ORIGIN` the controller does not track, plus a `LOAD_ORIGIN`
+    helper. It does the initial `encodeStateAsUpdate` handshake first: a peer that
+    subscribed only after `initDoc` would otherwise fail to integrate later deltas that
+    reference types created before the link (a Y.js integration quirk a real provider hides).
+26. **The editor keeps Ctrl/Cmd+Z for itself.** `StickyTextEditor` intercepts the undo and
+    redo keys while editing and routes them through the shared controller instead of the
+    browser's native textarea history, then resyncs the textarea from the `Y.Text` (an
+    undo's transaction is `local`, so the observe handler that would normally push the
+    change in skips it). The caret in the share-link field, a real non-board input, still
+    gets the shortcut left alone — `useBoardKeys` never runs it (TC-21).
+27. **`tests/component/helpers/board-ui.tsx`** is the full-`<Board>` driver the boundary and
+    control tests share, modelled on `Selection.test.tsx`: it asks the live camera, creates
+    notes through the document, and drives drags (including one continuous `dragSlow` of N
+    frames), a marquee, and the undo/redo keys — undo is exercised as a person uses it,
+    through the shortcut and the toolbar buttons, and read back from the document.
+28. **The undo/redo buttons live in the left toolbar** (`UndoButtons`, test ids
+    `undo-button` / `redo-button`, tooltips exactly `Undo (Ctrl/Cmd+Z)` and
+    `Redo (Ctrl/Cmd+Shift+Z)`) and are disabled by the stacks *and* the edit lock, so a
+    load-failed viewer has both greyed out (TC-20).
+29. **e2e focus caveat.** The undo keyboard shortcut is the board's only when focus is not in
+    a control; a click meant to "focus the board" in a test can land on a zoom button, whose
+    focus makes `isTypingTarget` swallow the key. `pressUndoKey` in `undo-redo.spec.ts` blurs
+    to the body instead of clicking, so the shortcut reaches the window handler.
+30. **TC-24 asserts typing reversion and consensus, not a full baseline.** A move carries a
+    z-order raise and a note's editor open carries another, so two Ctrl/Cmd+Z presses do not
+    land every note on its exact pre-edit geometry; with everyone undoing their own last
+    change, every screen converges and every owner's own typing is gone — the personal-scope
+    signal. Personal scope on a move and on a delete is shown directly by TC-22 and TC-23.

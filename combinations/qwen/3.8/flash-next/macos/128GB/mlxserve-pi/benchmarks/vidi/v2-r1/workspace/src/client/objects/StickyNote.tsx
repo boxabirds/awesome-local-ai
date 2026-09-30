@@ -43,6 +43,7 @@ export function StickyNote({
   onObjectPointerDown,
   onStartEdit,
   onEndEdit,
+  undo,
 }: StickyNoteProps): ReactNode {
   const [font, setFont] = useState(STICKY_FONT_MAX_PX);
   const [overflow, setOverflow] = useState(false);
@@ -132,6 +133,7 @@ export function StickyNote({
           fontPx={font}
           height={bounds.height}
           onEnd={onEndEdit}
+          undo={undo}
         />
       ) : (
         <div

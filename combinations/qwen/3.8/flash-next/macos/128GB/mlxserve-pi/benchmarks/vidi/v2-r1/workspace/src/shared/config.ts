@@ -92,6 +92,19 @@ export const NUDGE_STEP_WORLD = 1;
 /** How far one Shift + arrow key press moves a selection, in world units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
 
+// --- Undo / redo (story 8) ---------------------------------------------------
+
+/**
+ * The typing pause that ends a burst: consecutive keystrokes in a note's text
+ * that arrive less than this long apart are one undo step; a pause of this long
+ * or longer starts a new one. `UndoController.boundary()` closes the window
+ * immediately for gestures, edits and toolbar actions.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/** How many undo steps one person's history keeps; older steps are dropped. */
+export const UNDO_MAX_STEPS = 200;
+
 // --- Live collaboration (story 3) --------------------------------------------
 
 /**

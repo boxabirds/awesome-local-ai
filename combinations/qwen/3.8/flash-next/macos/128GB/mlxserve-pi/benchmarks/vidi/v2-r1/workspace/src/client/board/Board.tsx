@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type * as Y from 'yjs';
 import { createSticky, deleteObjects } from '../../shared/board-model';
 import type { BoardObject } from '../../shared/board-model';
@@ -22,6 +22,8 @@ import { useBoardKeys } from './useBoardKeys';
 import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
+import { useUndo, type UseUndoResult } from './useUndo';
+import { createUndo, type UndoController } from './undo';
 import { reportConnectionState } from '../canvas/testHooks';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -60,18 +62,41 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
   // and a drag all arrive in screen pixels.
   const [camera, setCamera] = useState<Camera>(INITIAL_CAMERA);
 
-  const gesture = useTransformGesture({ doc, camera, selection, snapshot: objects, canEdit });
+  // This tab's undo history (story 8). One controller per board, made with the
+  // document and thrown away when the board goes. The `boundary()` it hands round is
+  // what turns each action — a drag, a keystroke burst, a delete, a nudge — into one
+  // undo step; the controller itself only ever captures this tab's `LOCAL_ORIGIN`
+  // transactions, so what it undoes is this person's work and no one else's.
+  const undoController = useMemo<UndoController>(() => createUndo(doc), [doc]);
+  useEffect(() => () => undoController.destroy(), [undoController]);
+  const undoBoundary = useCallback((): void => {
+    undoController.boundary();
+  }, [undoController]);
+
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: objects,
+    canEdit,
+    onGestureStart: undoBoundary,
+    onGestureEnd: undoBoundary,
+  });
   const marquee = useMarquee(camera, objects, (ids): void => {
     selection.setMany(ids, true);
   });
 
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit });
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit, undo: undoController });
+  const undoState = useUndo(undoController, canEdit);
 
   /** Delete what is selected, and stop selecting it. */
   const deleteSelection = useCallback((): void => {
+    // One undoable step, so an accidental delete of a whole cluster comes back in one.
+    undoBoundary();
     deleteObjects(doc, [...selection.ids]);
+    undoBoundary();
     selection.clear();
-  }, [doc, selection]);
+  }, [doc, selection, undoBoundary]);
 
   const onCreated = useCallback(
     (id: string): void => {
@@ -143,6 +168,8 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
           onDeleteSelection={deleteSelection}
           connectionState={connectionState}
           canEdit={canEdit}
+          undoController={undoController}
+          undo={undoState}
         />
       }
       onEmptyClick={onEmptyClick}
@@ -156,6 +183,7 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
         gesture={gesture}
         canEdit={canEdit}
         endObjectEdit={endObjectEdit}
+        undo={undoController}
       />
     </BoardViewport>
   );
@@ -174,6 +202,8 @@ function BoardChrome({
   onDeleteSelection,
   connectionState,
   canEdit,
+  undoController,
+  undo,
 }: {
   doc: Y.Doc;
   boardId: string;
@@ -186,6 +216,8 @@ function BoardChrome({
   onDeleteSelection(): void;
   connectionState: ConnectionState;
   canEdit: boolean;
+  undoController: UndoController;
+  undo: UseUndoResult;
 }): ReactNode {
   const { camera, hasNavigated, zoomStep, reset } = useBoardCamera();
 
@@ -201,13 +233,16 @@ function BoardChrome({
       x: window.innerWidth / 2,
       y: window.innerHeight / 2,
     });
+    // A new note is one undo step, closed before and after the single model call.
+    undoController.boundary();
     const id = createSticky(doc, world);
+    undoController.boundary();
     if (id) onCreated(id);
   };
 
   return (
     <>
-      <Toolbar onCreateSticky={createStickyCentre} disabled={!canEdit} />
+      <Toolbar onCreateSticky={createStickyCentre} disabled={!canEdit} undo={undo} />
       <SharePanel boardId={boardId} />
       <ConnectionStatus state={connectionState} />
       <ZoomControls
@@ -230,6 +265,7 @@ function BoardChrome({
         snapshot={objects}
         doc={doc}
         onDelete={onDeleteSelection}
+        undo={undoController}
       />
       <MarqueeRect rect={marquee.rect} camera={camera} />
     </>
@@ -244,6 +280,7 @@ function BoardObjects({
   gesture,
   canEdit,
   endObjectEdit,
+  undo,
 }: {
   doc: Y.Doc;
   objects: readonly BoardObject[];
@@ -251,6 +288,7 @@ function BoardObjects({
   gesture: TransformGestureHandlers;
   canEdit: boolean;
   endObjectEdit(id: string, next: 'selected' | 'unselected'): void;
+  undo: UndoController;
 }): ReactNode {
   const { camera } = useBoardCamera();
   return (
@@ -275,6 +313,7 @@ function BoardObjects({
             onEndEdit={(next: 'selected' | 'unselected'): void => {
               endObjectEdit(object.id, next);
             }}
+            undo={undo}
           />
         );
       })}

@@ -1,3 +1,38 @@
+commit 2fafb2a36948ceb8a52bc84536d49317e8ab439c
+vidi-agent  Wed Sep 30 08:05:37 2026 +0100
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ NOTES.md                                           |  45 ++++
+ .../tasks.md                                       |  16 +-
+ src/client/board/Toolbar.tsx                       |   4 +-
+ tests/component/UndoBoundaries.test.tsx            | 131 ++++++++++
+ tests/component/UndoControls.test.tsx              | 174 ++++++++++++++
+ tests/component/helpers/board-ui.tsx               | 233 ++++++++++++++++++
+ tests/e2e/undo-redo.spec.ts                        | 263 +++++++++++++++++++++
+ 7 files changed, 856 insertions(+), 10 deletions(-)
+commit d82235d801895827398345583861dbc2263c3852
+vidi-agent  Wed Sep 30 07:36:35 2026 +0100
+
+    story 8: undo controller, unit tests, and boundary/shortcut/button wiring
+
+
+ src/client/board/Board.tsx              |  49 ++++-
+ src/client/board/SelectionBar.tsx       |   8 +-
+ src/client/board/Toolbar.tsx            |  14 +-
+ src/client/board/UndoButtons.tsx        |  82 ++++++++
+ src/client/board/undo.ts                | 151 +++++++++++++++
+ src/client/board/useBoardKeys.ts        |  32 +++-
+ src/client/board/useUndo.ts             |  51 +++++
+ src/client/objects/StickyNote.tsx       |   2 +
+ src/client/objects/StickyTextEditor.tsx |  74 +++++++-
+ src/client/objects/registry.tsx         |   8 +
+ src/shared/config.ts                    |  13 ++
+ tests/unit/peer.ts                      |  86 +++++++++
+ tests/unit/undo-boundaries.test.ts      |  95 ++++++++++
+ tests/unit/undo-history.test.ts         | 323 ++++++++++++++++++++++++++++++++
+ 14 files changed, 976 insertions(+), 12 deletions(-)
 commit 8abe131ee70c40226fe946563dce4bec6503dd75
 vidi-agent  Wed Sep 30 06:54:35 2026 +0100
 

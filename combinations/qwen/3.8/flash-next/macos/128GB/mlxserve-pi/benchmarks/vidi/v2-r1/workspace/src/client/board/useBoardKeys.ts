@@ -22,12 +22,19 @@ import {
 import type { Point } from '../../shared/geometry';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { UseSelectionResult } from './useSelection';
+import type { UndoController } from './undo';
 
 export interface BoardKeyOptions {
   doc: Y.Doc;
   selection: UseSelectionResult;
   snapshot: readonly BoardObject[];
   canEdit: boolean;
+  /**
+   * This tab's undo history (story 8). Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and
+   * Ctrl+Y redo; a nudge or a delete is closed into its own step around the model
+   * call. Absent: the board is not undoable and those keys do what they did before.
+   */
+  undo?: UndoController;
 }
 
 /** Where typing belongs to a control rather than to the board. */
@@ -69,7 +76,7 @@ export function useBoardKeys(options: BoardKeyOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      const { doc, selection, snapshot, canEdit } = live.current;
+      const { doc, selection, snapshot, canEdit, undo } = live.current;
       // A board that could not be read has no selection to command, so the keyboard
       // does not answer for it either (TC-22, TC-25).
       if (!canEdit) return;
@@ -86,6 +93,23 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         return;
       }
 
+      // Undo / redo (story 8). Reaching here means the keyboard belongs to the board
+      // (not typing, board not read-only). The browser's own undo is refused so it
+      // cannot act on the page behind the board; this tab's controller decides.
+      const mod = event.ctrlKey || event.metaKey;
+      const lower = event.key.toLowerCase();
+      if (mod && !event.altKey && lower === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) undo?.redo();
+        else undo?.undo();
+        return;
+      }
+      if (event.ctrlKey && !event.metaKey && !event.altKey && lower === 'y') {
+        event.preventDefault();
+        undo?.redo();
+        return;
+      }
+
       if (event.key === 'Escape') {
         event.preventDefault();
         selection.clear();
@@ -96,6 +120,8 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       if (step && selection.ids.size > 0) {
         // The page must not scroll and the board must not pan (TC-29, TC-34).
         event.preventDefault();
+        // A nudge is its own undo step: close whatever came before, and this one after.
+        undo?.boundary();
         const positions = new Map<string, Point>();
         for (const object of snapshot) {
           if (!selection.ids.has(object.id)) continue;
@@ -103,13 +129,17 @@ export function useBoardKeys(options: BoardKeyOptions): void {
           positions.set(object.id, { x: bounds.x + step.x, y: bounds.y + step.y });
         }
         moveObjects(doc, positions);
+        undo?.boundary();
         return;
       }
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
         if (selection.ids.size === 0) return;
         event.preventDefault();
+        // A delete is one undoable step, and its undo brings the whole set back.
+        undo?.boundary();
         deleteObjects(doc, [...selection.ids]);
+        undo?.boundary();
         // What is gone is not selected any more; the prune would catch up anyway.
         selection.clear();
         return;

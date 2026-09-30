@@ -11,6 +11,7 @@ import {
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 import {
   applyTextDiff,
   clampToLimit,
@@ -28,6 +29,14 @@ export interface StickyTextEditorProps {
   height?: number;
   /** Escape -> 'selected'; pointerdown outside the note -> 'unselected'. */
   onEnd(next: 'selected' | 'unselected'): void;
+  /**
+   * This tab's undo history (story 8). Opening and closing the editor closes a step
+   * so a typing burst is one undo, and Ctrl/Cmd+Z inside the note is routed through
+   * it instead of the browser's own textarea undo, which would silently diverge
+   * from the shared `Y.Text`. Absent: the board is not undoable and Ctrl/Cmd+Z is
+   * left to the textarea.
+   */
+  undo?: UndoController;
 }
 
 /**
@@ -41,6 +50,7 @@ export function StickyTextEditor({
   fontPx,
   height,
   onEnd,
+  undo,
 }: StickyTextEditorProps): ReactNode {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
@@ -51,6 +61,11 @@ export function StickyTextEditor({
   // Kept in a ref so `measure` keeps its identity when the note is resized.
   const heightRef = useRef(height);
   heightRef.current = height;
+
+  // The undo controller is read through a ref so the pointerdown handler below keeps
+  // its identity and never re-subscribes when the board re-renders.
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
 
   /** Re-measure the textarea and update font / overflow state (idempotent). */
   const measure = useCallback((): void => {
@@ -83,8 +98,35 @@ export function StickyTextEditor({
     [ytext, measure],
   );
 
-  // Mount: seed the textarea from the shared text, focus, caret at the end.
+  /** Pull the shared text back into the textarea after an undo/redo changed it. */
+  const resync = useCallback((): void => {
+    const el = ref.current;
+    if (!el || !ytext.doc) return;
+    const next = ytext.toString();
+    el.value = next;
+    const pos = next.length;
+    try {
+      el.setSelectionRange(pos, pos);
+    } catch {
+      // selection unsupported in this environment; ignore
+    }
+    setLength(next.length);
+    measure();
+  }, [ytext, measure]);
+
+  /** Closing the editor: close the typing step, then hand the reason to the board. */
+  const close = useCallback(
+    (next: 'selected' | 'unselected'): void => {
+      undoRef.current?.boundary();
+      onEnd(next);
+    },
+    [onEnd],
+  );
+
+  // Mount: open a fresh undo step for this editing session, seed the textarea from
+  // the shared text, focus, caret at the end.
   useLayoutEffect(() => {
+    undoRef.current?.boundary();
     const el = ref.current;
     if (!el) return;
     el.value = ytext.toString();
@@ -136,11 +178,11 @@ export function StickyTextEditor({
       if (!el) return;
       const note = el.closest('[data-testid="sticky-note"]');
       if (note && event.target instanceof Node && note.contains(event.target)) return;
-      onEnd('unselected');
+      close('unselected');
     };
     window.addEventListener('pointerdown', onPointerDown, true);
     return () => window.removeEventListener('pointerdown', onPointerDown, true);
-  }, [onEnd]);
+  }, [close]);
 
   const onInput = (): void => {
     if (composingRef.current) return; // wait for compositionend (IME)
@@ -158,9 +200,32 @@ export function StickyTextEditor({
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      onEnd('selected');
+      close('selected');
+      return;
     }
     // Enter is left to the textarea so it inserts a newline.
+    //
+    // Ctrl/Cmd+Z and their redo partners are taken from the browser: the textarea
+    // keeps an undo history of its own that knows nothing about the shared text, so
+    // letting it fire would put characters in the box that the document does not
+    // have. They go to this tab's controller instead, and the box is re-synced from
+    // the shared text, which is what actually changed.
+    const mod = event.ctrlKey || event.metaKey;
+    const key = event.key.toLowerCase();
+    if (mod && !event.altKey && key === 'z') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.shiftKey) undoRef.current?.redo();
+      else undoRef.current?.undo();
+      resync();
+      return;
+    }
+    if (event.ctrlKey && !event.metaKey && !event.altKey && key === 'y') {
+      event.preventDefault();
+      event.stopPropagation();
+      undoRef.current?.redo();
+      resync();
+    }
   };
 
   const onBlur = (): void => {
@@ -170,6 +235,7 @@ export function StickyTextEditor({
     if (!el || !ytext.doc) return;
     const clamped = clampToLimit(el.value);
     if (clamped !== ytext.toString()) applyTextDiff(ytext, clamped, LOCAL_ORIGIN);
+    undoRef.current?.boundary();
   };
 
   const style: CSSProperties = {
