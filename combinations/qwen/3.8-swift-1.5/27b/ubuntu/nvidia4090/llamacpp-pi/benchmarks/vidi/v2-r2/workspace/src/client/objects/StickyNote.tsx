@@ -23,6 +23,12 @@ interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * When false (board cannot be loaded) all mutating interactions are
+   * no-ops: drag, text editing, colour and delete (story 4). Selection and
+   * viewing remain possible.
+   */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -55,6 +61,7 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  editable = true,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -146,6 +153,9 @@ export function StickyNote({
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const st = dragRef.current;
     if (!st || e.pointerId !== st.pointerId) return;
+    // View-only (board load failed): a press may still select the note on
+    // release, but it never drags.
+    if (!editable) return;
     const dx = e.clientX - st.startClientX;
     const dy = e.clientY - st.startClientY;
     if (!st.dragging) {
@@ -194,12 +204,13 @@ export function StickyNote({
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
+    if (!editable) return;
     onStartEdit(note.id);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Tab-reachable notes are editable with Enter (accessibility).
-    if (e.key === 'Enter' && !editing) {
+    if (e.key === 'Enter' && !editing && editable) {
       e.preventDefault();
       onStartEdit(note.id);
     }
@@ -285,9 +296,10 @@ export function StickyNote({
           )}
         </>
       )}
-      {!editing && !dragging && selected && (
+      {!editing && !dragging && selected && editable && (
         // Screen-space toolbar: counter-scaled by 1/zoom so it does not grow
-        // with board zoom. Anchored at the note's top centre.
+        // with board zoom. Anchored at the note's top centre. Hidden when the
+        // board cannot be loaded (colour + delete would be unstoreable).
         <div
           style={{
             position: 'absolute',

@@ -1,40 +1,72 @@
+import { BoardRoom, type Env } from './board-room';
+import { handleTestHooks } from './test-hooks';
 import { isValidBoardId } from '../shared/board-id';
-import { BoardRoom } from './board-room';
 
-export interface Env {
-  BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
-  ASSETS: Fetcher;
-}
+export { Env };
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
-    const url = new URL(req.url);
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
 
-    // Route /api/rooms/:boardId to the BoardRoom Durable Object
-    const roomsMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)$/);
-    if (roomsMatch) {
-      const boardId = roomsMatch[1];
+    // Test-only hooks (enabled with TEST_HOOKS=1)
+    if (url.pathname.startsWith('/__test/')) {
+      const hooksResponse = await handleTestHooks(request, env);
+      if (hooksResponse) return hooksResponse;
+    }
 
-      // Validate board id
+    // Health check endpoint
+    if (url.pathname === '/health') {
+      return new Response(JSON.stringify({ status: 'ok' }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // API routes for rooms
+    if (url.pathname.startsWith('/api/rooms/')) {
+      const boardId = url.pathname.substring('/api/rooms/'.length);
+
+      // Validate board id before anything else
       if (!isValidBoardId(boardId)) {
-        return new Response('Bad Request', { status: 400 });
+        return new Response('Invalid board ID', { status: 400 });
       }
 
-      // Check for WebSocket upgrade
-      const upgrade = req.headers.get('Upgrade');
-      if (upgrade !== 'websocket') {
+      // Require WebSocket upgrade
+      const upgradeHeader = request.headers.get('Upgrade');
+      if (upgradeHeader !== 'websocket') {
         return new Response('Upgrade Required', { status: 426 });
       }
 
-      // Forward to the Durable Object
+      // Route to the Durable Object for this board
       const id = env.BOARD_ROOM.idFromName(boardId);
       const stub = env.BOARD_ROOM.get(id);
-      return stub.fetch(req);
+      return stub.fetch(request);
     }
 
-    // Everything else → static assets (SPA fallback)
-    return env.ASSETS.fetch(req);
+    // SPA fallback: serve client assets
+    try {
+      const assetsResponse = await env.ASSETS.fetch(request);
+      if (assetsResponse.status !== 404) {
+        return assetsResponse;
+      }
+    } catch {
+      // fall through to 404
+    }
+
+    // Check if this looks like a board URL (/b/<id>)
+    const boardMatch = url.pathname.match(/^\/b\/([a-zA-Z0-9-]+)$/);
+    if (boardMatch) {
+      const boardId = boardMatch[1];
+      if (isValidBoardId(boardId)) {
+        // Serve the SPA entry point
+        const indexResponse = await env.ASSETS.fetch(
+          new Request(new URL('/index.html', url.origin).href, request)
+        );
+        return indexResponse;
+      }
+    }
+
+    return new Response('Not Found', { status: 404 });
   },
-};
+} satisfies ExportedHandler<Env>;
 
 export { BoardRoom };

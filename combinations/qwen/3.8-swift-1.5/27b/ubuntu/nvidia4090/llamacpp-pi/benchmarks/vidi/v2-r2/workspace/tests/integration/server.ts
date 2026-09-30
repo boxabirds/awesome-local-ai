@@ -9,10 +9,29 @@ let server: ChildProcess | null = null;
 export async function startServer(): Promise<string> {
   if (server) return URL;
 
-  server = spawn('npx', ['wrangler', 'dev', '--port', String(PORT), '--ip', '127.0.0.1'], {
+  // Fail loudly if something else already holds the port (e.g. a stale
+  // `wrangler dev` from a crashed run) — silently adopting it would make
+  // tests run against the wrong worker build.
+  try {
+    const probe = await fetch(`${URL}/health`, { signal: AbortSignal.timeout(500) });
+    if (probe.status !== 0) {
+      throw new Error(
+        `Port ${PORT} is already in use by another process. Kill stale wrangler/workerd processes and retry.`
+      );
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith('Port ')) throw err;
+    // fetch failed (connection refused / timeout) → port is free, continue.
+  }
+
+  // TEST_HOOKS is passed as a --var binding: wrangler does not forward
+  // process env vars into the worker automatically. Note: this wrangler
+  // version parses --var pairs on ':' (not '='), so 'TEST_HOOKS:1'.
+  server = spawn('npx', ['wrangler', 'dev', '--port', String(PORT), '--ip', '127.0.0.1', '--var', 'TEST_HOOKS:1'], {
     stdio: ['pipe', 'pipe', 'pipe'],
-    env: { ...process.env, CI: 'true' },
+    env: { ...process.env, CI: 'true', TEST_HOOKS: '1' },
     cwd: process.cwd(),
+    detached: true, // own process group so we can kill workerd children too
   });
 
   // Log server output for debugging
@@ -40,12 +59,12 @@ export async function startServer(): Promise<string> {
 }
 
 export async function stopServer(): Promise<void> {
-  if (server) {
-    server.kill('SIGTERM');
-    await delay(500);
-    if (server.exitCode === null) {
-      server.kill('SIGKILL');
-    }
+  if (server && server.pid) {
+    // Kill the whole process group (wrangler + workerd children).
+    const pid = server.pid;
+    try { process.kill(-pid, 'SIGTERM'); } catch { /* already gone */ }
+    await delay(1000);
+    try { process.kill(-pid, 'SIGKILL'); } catch { /* already gone */ }
     server = null;
   }
 }

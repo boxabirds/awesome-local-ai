@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { startServer, stopServer, URL } from './server';
-import { createTestClient, sendRaw, sendAwareness, waitForCondition } from './ws-client';
+import { createTestClient, sendRaw, sendAwareness, waitForCondition, type TestClient } from './ws-client';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { initDoc, createSticky, moveObject, setStickyColor, deleteObject, getStickyText, snapshot } from '../../src/shared/board-model';
@@ -218,7 +218,7 @@ describe('BoardRoom Durable Object integration tests', () => {
   it('TC-12: MAX_CONCURRENT_EDITORS clients × 200 seeded random ops → identical snapshots', async () => {
     const boardId = newBoardId();
     const seed = 42;
-    const clients = [];
+    const clients: TestClient[] = [];
 
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) {
       const client = await createTestClient(URL, boardId);
@@ -234,10 +234,18 @@ describe('BoardRoom Durable Object integration tests', () => {
       performRandomOps(client.doc, 200, seed);
     }
 
-    // Wait for convergence
-    await new Promise(r => setTimeout(r, 3000));
+    // Wait for convergence. Story 4 adds a SQLite write per update, so the
+    // broadcast pipeline needs longer than a fixed 3s under burst load;
+    // poll until every client holds the same state (bounded by 15s).
+    await waitForCondition(
+      () => {
+        const snaps = clients.map(c => JSON.stringify(snapshot(c.doc)));
+        return snaps.every(s => s === snaps[0]);
+      },
+      15000,
+      'all clients to converge'
+    );
 
-    // All snapshots should be identical
     const snaps = clients.map(c => JSON.stringify(snapshot(c.doc)));
     for (let i = 1; i < snaps.length; i++) {
       expect(snaps[i]).toBe(snaps[0]);
@@ -290,26 +298,20 @@ describe('BoardRoom Durable Object integration tests', () => {
 
     // Run 4 types of malformed traffic
     const malformedFrames: (Uint8Array | string)[] = [
-      // 1. Text frame (string)
+      // 1. Text frame (string) → invalid, closed with 1003
       'hello',
-      // 2. Truncated bytes (sync frame with wrong length)
-      (() => {
-        const enc = encoding.createEncoder();
-        encoding.writeUint8(enc, MESSAGE_SYNC);
-        encoding.writeVarUint(enc, 100);
-        encoding.writeUint8Array(enc, new Uint8Array([1, 2]));
-        return encoding.toUint8Array(enc);
-      })(),
-      // 3. Unknown type 9
+      // 2. Truncated sync frame (SyncStep1 with no state vector) → invalid
+      new Uint8Array([MESSAGE_SYNC, 0]),
+      // 3. Unknown type 9 → ignored, not fatal
       new Uint8Array([9, 1, 2, 3]),
-      // 4. Invalid Yjs update (random bytes as sync update)
+      // 4. Invalid Yjs update (random bytes as sync update) → closed with 1003
       (() => {
         const enc = encoding.createEncoder();
-        encoding.writeUint8(enc, MESSAGE_SYNC);
+        encoding.writeVarUint(enc, MESSAGE_SYNC);
         const innerEnc = encoding.createEncoder();
-        encoding.writeUint8(innerEnc, 2); // update message type
+        encoding.writeVarUint(innerEnc, 2); // update message type
         encoding.writeVarUint8Array(innerEnc, new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF, 0xFF]));
-        encoding.writeVarUint8Array(enc, encoding.toUint8Array(innerEnc));
+        encoding.writeUint8Array(enc, encoding.toUint8Array(innerEnc));
         return encoding.toUint8Array(enc);
       })(),
     ];

@@ -97,3 +97,81 @@
 - `wrangler.jsonc` - Added Durable Object binding, migrations
 - `tsconfig.json` - Excluded src/worker
 - `tests/setup.ts` - Added jest-dom matchers
+
+---
+
+# Story 4: Return to a board and find everything as it was left
+
+## Summary
+Boards persist across service restarts: every edit is appended to a per-board
+update log in Durable Object SQLite, compacted into snapshots at
+`COMPACTION_UPDATE_COUNT` (500) updates, and reloaded (snapshot + trailing log)
+when a room instance is reconstructed. A board whose snapshot cannot be read is
+an honest failure: clients get close code 4500, a red "This board couldn't be
+loaded. Retrying…" badge, and a locked (read-only) board — and recover without a
+page reload once storage is repaired and the room's retry (gated by
+`LOAD_RETRY_MIN_INTERVAL_MS`, 5s) succeeds.
+
+## Key decisions
+- **`BoardStore` is a structural interface** (`sql.exec(query, ...bindings).raw()`
+  — the new object API; BLOBs come back as `ArrayBuffer`) so the pure helpers
+  (chunking, load, quarantine) are unit-testable without `cloudflare:workers`.
+- **DO identity**: `ctx.id.toString()` (`DurableObjectState` has no `name`).
+- **Store-before-broadcast**: every doc update is appended to SQLite *before* it
+  is broadcast; a failed append → `storage-failed` → close 1011 (clients retry).
+- **Load**: snapshot chunks concatenated → `Y.applyUpdate`; a throw quarantines
+  nothing and fails the load (`snapshot-unreadable`) → close 4500. Trailing
+  updates (seq > through_seq) replay on top; a bad trailing row is quarantined
+  (Yjs CRDT cascade: a skipped middle update drops later *insertions*, so only
+  "nothing before the damage is lost" is guaranteed).
+- **Room state machine** (`room-state.ts`, pure `nextRoomState`): loading →
+  ready / load-failed; ready ⇄ compacting (rollback on failure); ready →
+  storage-failed → loading; load-failed → loading only after
+  `LOAD_RETRY_MIN_INTERVAL_MS`.
+- **Test hooks over `runInDurableObject`**: integration/e2e run against a
+  subprocess `wrangler dev`, so `__test*` HTTP endpoints (sql / store /
+  corrupt / repair / faults / reset) drive the DO. `TEST_HOOKS:1` (wrangler
+  `--var` splits on `:`).
+- **`__testReset`** simulates fresh-instance reconstruction (DOs do not
+  hibernate in `wrangler dev`): discards doc/store, re-runs `doLoad`.
+- **Close codes**: 4500 = board load failed (room keeps retrying); 1011 =
+  storage failure; 1003 = unsupported data. 4500 is outside y-websocket's
+  4400–4499 "permanent" range, so the provider keeps reconnecting — that
+  background reconnect is what triggers the room's reload and the client's
+  recovery.
+- **Client recovery uses the `sync` event** (first `sync: true` while in
+  `load_failed` → `connected`), not `status: connected` (socket open ≠ board
+  loaded). `canEdit()` is false only for `load_failed`.
+- **workerd close from `fetch` context does not work**: the 4500/1011 close is
+  delivered from `webSocketMessage` (after the client's first frame). A close
+  initiated in the upgrade handler is dropped and corrupts the socket.
+- **Corrupt hook uses deterministic garbage** (`[0xde,0xad,0xbe,0xef,0x01]`):
+  byte-inversion is NOT reliable — `Y.applyUpdate` silently skips some garbage,
+  letting a "corrupted" board load as empty.
+
+## Story 3 protocol bug (fixed here)
+The story-3 server framed sync payloads with an extra length prefix;
+y-websocket expects `[message_type: varuint][raw payload]`. Rewrote
+`protocol.ts` to the raw framing. This also disproves the story-3 note that
+"miniflare does not transmit binary frames to the browser" — the e2e suite
+proves binary sync works end-to-end under `wrangler dev`.
+
+## Test results
+- Unit: 115 pass (incl. `board-store-chunks`, `room-state`, `protocol`).
+- Component: 40 pass (incl. `load-failure.test.tsx`: TC-22, TC-23, TC-28).
+- Integration: 37 pass (incl. `board-store.test.ts` TC-03–11/25,
+  `room-persistence.test.ts` TC-12–18/26).
+- E2E persistence: 4 pass (TC-19 restart durability, TC-20 instant-exit
+  durability, TC-21 2000-note load, TC-24 broken board → honest failure →
+  edit lock → recovery without reload).
+- `npm run build` and `npm run typecheck` clean.
+
+## Pre-existing out-of-scope e2e failures (Story 3, not touched by this story)
+- **live-collaboration TC-23** (both type simultaneously): `StickyTextEditor`
+  uses an *uncontrolled* textarea (`defaultValue`) that never reflects remote
+  Y.Text changes, so `applyTextDiff(ytext, el.value)` deletes the remote
+  characters when the local user types. A CRDT text-editor integration bug in
+  unmodified story 2/3 code.
+- **nightly TC-29/TC-30** (@nightly): the tests run 45s/60s but Playwright's
+  default test timeout is 30s, so they can never pass. Timeout-config issue in
+  unmodified story 3 files.

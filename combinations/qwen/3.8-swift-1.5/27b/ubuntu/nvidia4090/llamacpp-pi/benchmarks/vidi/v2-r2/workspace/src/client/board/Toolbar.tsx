@@ -1,5 +1,7 @@
 interface ToolbarProps {
   onCreateSticky(): void;
+  /** When true the Sticky note button is disabled (board cannot be loaded). */
+  disabled?: boolean;
 }
 
 /**
@@ -7,7 +9,7 @@ interface ToolbarProps {
  * of the visible board area (see App). Clicks stop propagation so the
  * viewport never pans or clears the selection.
  */
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
   return (
     <div
       data-testid="toolbar"
@@ -32,7 +34,8 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
       <button
         type="button"
         aria-label="Sticky note"
-        title="Sticky note – or double-click the board"
+        title={disabled ? 'Board unavailable' : 'Sticky note – or double-click the board'}
+        disabled={disabled}
         onClick={onCreateSticky}
         style={{
           width: 36,
@@ -42,9 +45,10 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
           justifyContent: 'center',
           border: '1px solid rgba(0,0,0,0.15)',
           borderRadius: 6,
-          background: '#FFF59D',
-          cursor: 'pointer',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+          background: disabled ? '#E5E7EB' : '#FFF59D',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          boxShadow: disabled ? 'none' : '0 1px 3px rgba(0,0,0,0.2)',
+          opacity: disabled ? 0.6 : 1,
         }}
       >
         <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">

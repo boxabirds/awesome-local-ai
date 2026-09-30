@@ -12,7 +12,7 @@ import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
 import { newBoardId } from '../shared/board-id';
 import { ConnectionStatus } from './sync/ConnectionStatus';
-import type { ConnectionState } from './sync/connectBoard';
+import { canEdit, type ConnectionState } from './sync/connectBoard';
 
 declare global {
   interface Window {
@@ -86,9 +86,16 @@ export default function App() {
     endPan();
   };
 
+  // Editing is disabled only while the board cannot be loaded (story 4):
+  // changes made to an unloadable board could not be stored. A transient
+  // disconnect ('reconnecting') keeps the board editable — unsaved changes
+  // are re-sent on reconnect.
+  const editable = canEdit(connectionState);
+
   // Create a sticky note centred on a viewport point; select and edit it.
   const createStickyAtScreenPoint = useCallback(
     (p: Point) => {
+      if (!canEdit(connectionState)) return;
       const world = screenToWorld(camera, p);
       const id = createSticky(doc, world);
       if (id) {
@@ -96,7 +103,7 @@ export default function App() {
         selection.startEdit(id);
       }
     },
-    [camera, doc, selection]
+    [camera, doc, selection, connectionState]
   );
 
   // Toolbar button: create at the centre of the visible board area.
@@ -115,12 +122,12 @@ export default function App() {
       if (inField || selection.editingId !== null) return;
 
       if (e.key === 'Enter') {
-        if (selection.selectedId !== null) {
+        if (selection.selectedId !== null && canEdit(connectionState)) {
           e.preventDefault();
           selection.startEdit(selection.selectedId);
         }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selection.selectedId !== null) {
+        if (selection.selectedId !== null && canEdit(connectionState)) {
           e.preventDefault();
           if (deleteObject(doc, selection.selectedId)) {
             selection.select(null);
@@ -130,7 +137,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [doc, selection]);
+  }, [doc, selection, connectionState]);
 
   // If the selected or edited note disappears from the board (e.g. deleted
   // mid-interaction), clear the local selection state silently.
@@ -179,13 +186,14 @@ export default function App() {
             zoom={camera.zoom}
             selected={selection.selectedId === note.id}
             editing={selection.editingId === note.id}
+            editable={editable}
             onSelect={selection.select}
             onStartEdit={selection.startEdit}
             onEndEdit={selection.endEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createStickyAtCentre} />
+      <Toolbar onCreateSticky={createStickyAtCentre} disabled={!editable} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

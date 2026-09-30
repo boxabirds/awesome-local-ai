@@ -10,6 +10,7 @@ export interface ConnectionStatusProps {
  * - "Connecting…" when 'connecting'
  * - Amber "Reconnecting…" when 'reconnecting'
  * - Green "Connected" when 'confirmed'
+ * - Red "This board couldn't be loaded. Retrying…" when 'load_failed'
  */
 export function ConnectionStatus({ state }: ConnectionStatusProps) {
   if (state === 'connected') {
@@ -31,6 +32,10 @@ export function ConnectionStatus({ state }: ConnectionStatusProps) {
     case 'confirmed':
       text = 'Connected';
       color = '#10B981'; // green
+      break;
+    case 'load_failed':
+      text = "This board couldn't be loaded. Retrying…";
+      color = '#DC2626'; // red
       break;
     default:
       return null;
