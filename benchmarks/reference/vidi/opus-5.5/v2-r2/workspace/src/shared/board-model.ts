@@ -6,17 +6,27 @@
 //   objects: Y.Map<id, Y.Map { type, x, y, width?, height?, color, text: Y.Text, z, createdAt }>
 //   (`width`/`height` are written by the first resize; absent means STICKY_SIZE_WORLD.)
 //   Text objects (story 9): see src/shared/objects/text.ts.
+//   Shapes and connectors (story 10): see src/shared/objects/shape.ts and connector.ts.
 import * as Y from 'yjs';
 import {
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
   DEFAULT_TEXT_SIZE,
+  SHAPE_FILL_COLORS,
+  SHAPE_KINDS,
+  SHAPE_STROKE_COLORS,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   TEXT_SIZES,
+  type FillColor,
   type StickyColor,
+  type StrokeColor,
   type TextSize,
 } from './config';
 import { type Point, type Rect, isFiniteRect, rectContains } from './geometry';
+import { type Endpoint, connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import { connectorEnds, detachConnectorsTo, translateConnector } from './objects/connector';
 
 /** Current document schema version, stored in `meta.schemaVersion`. */
 export const SCHEMA_VERSION = 1;
@@ -39,6 +49,15 @@ export interface ObjectSnapshot {
   /** Text objects (story 9). */
   size?: TextSize;
   widthMode?: 'auto' | 'fixed';
+  /** Shapes (story 10). */
+  kind?: (typeof SHAPE_KINDS)[number];
+  fill?: FillColor;
+  stroke?: StrokeColor;
+  label?: string;
+  /** Connectors (story 10): stored ends and their resolved points; x/y/width/height are derived. */
+  from?: Endpoint;
+  to?: Endpoint;
+  ends?: { from: Point; to: Point };
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -52,11 +71,11 @@ export function isSticky(obj: ObjectSnapshot): obj is StickySnapshot {
 }
 
 /**
- * Object types the board understands. `sticky` and `text` are built in; the client object
+ * Object types the board understands. `sticky`, `text`, `shape` and `connector` are built in; the client object
  * registry adds the others. Objects of any other type are kept in the document
  * but never shown, selected or changed by group operations.
  */
-const knownTypes = new Set<string>(['sticky', 'text']);
+const knownTypes = new Set<string>(['sticky', 'text', 'shape', 'connector']);
 
 export function markObjectTypeKnown(type: string): void {
   knownTypes.add(type);
@@ -178,40 +197,110 @@ function sizeOf(obj: Y.Map<unknown>, key: 'width' | 'height'): number {
   return isFiniteNumber(value) && value > 0 ? value : STICKY_SIZE_WORLD;
 }
 
-/** Immutable view of all objects of known types, sorted by (z, id). Unknown object types are skipped. */
+function isShapeKindValue(value: unknown): value is (typeof SHAPE_KINDS)[number] {
+  return typeof value === 'string' && (SHAPE_KINDS as readonly string[]).includes(value);
+}
+
+function hasKey(obj: object, key: unknown): boolean {
+  return typeof key === 'string' && Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+/** Snapshot of one object of a known type other than connector; undefined when unusable. */
+function plainSnapshot(id: string, obj: Y.Map<unknown>, type: string): ObjectSnapshot | undefined {
+  const x = obj.get('x');
+  const y = obj.get('y');
+  if (!isFiniteNumber(x) || !isFiniteNumber(y)) return undefined;
+  const createdAt = obj.get('createdAt');
+  const base: ObjectSnapshot = {
+    id,
+    type,
+    x,
+    y,
+    width: sizeOf(obj, 'width'),
+    height: sizeOf(obj, 'height'),
+    z: zOf(obj),
+    createdAt: isFiniteNumber(createdAt) ? createdAt : 0,
+  };
+  if (type === 'sticky') {
+    const color = obj.get('color');
+    const text = obj.get('text');
+    base.color = isStickyColor(color) ? color : DEFAULT_STICKY_COLOR;
+    base.text = text instanceof Y.Text ? text.toString() : '';
+  } else if (type === 'text') {
+    const text = obj.get('text');
+    const size = obj.get('size');
+    base.text = text instanceof Y.Text ? text.toString() : '';
+    base.size = isTextSize(size) ? size : DEFAULT_TEXT_SIZE;
+    base.widthMode = obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
+  } else if (type === 'shape') {
+    const kind = obj.get('kind');
+    const fill = obj.get('fill');
+    const stroke = obj.get('stroke');
+    const label = obj.get('label');
+    base.kind = isShapeKindValue(kind) ? kind : 'rect';
+    base.fill = hasKey(SHAPE_FILL_COLORS, fill) ? (fill as FillColor) : DEFAULT_SHAPE_FILL;
+    base.stroke = hasKey(SHAPE_STROKE_COLORS, stroke) ? (stroke as StrokeColor) : DEFAULT_SHAPE_STROKE;
+    base.label = label instanceof Y.Text ? label.toString() : '';
+  }
+  return base;
+}
+
+/**
+ * Rects of every object an arrow can attach to (known types except connectors), by id.
+ */
+export function objectRects(doc: Y.Doc): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const [id, obj] of objectsMap(doc)) {
+    if (!(obj instanceof Y.Map)) continue;
+    const type = obj.get('type');
+    if (typeof type !== 'string' || type === 'connector' || !knownTypes.has(type)) continue;
+    const x = obj.get('x');
+    const y = obj.get('y');
+    if (!isFiniteNumber(x) || !isFiniteNumber(y)) continue;
+    rects.set(id, { x, y, width: sizeOf(obj, 'width'), height: sizeOf(obj, 'height') });
+  }
+  return rects;
+}
+
+/**
+ * Immutable view of all objects of known types, sorted by (z, id). Unknown object types are skipped.
+ * A connector's box is derived from its resolved ends (attached ends follow their objects).
+ */
 export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects: ObjectSnapshot[] = [];
+  const connectors: [string, Y.Map<unknown>][] = [];
+  const rects = new Map<string, Rect>();
   for (const [id, obj] of objectsMap(doc)) {
     if (!(obj instanceof Y.Map)) continue;
     const type = obj.get('type');
     if (typeof type !== 'string' || !knownTypes.has(type)) continue;
-    const x = obj.get('x');
-    const y = obj.get('y');
-    if (!isFiniteNumber(x) || !isFiniteNumber(y)) continue;
-    const createdAt = obj.get('createdAt');
-    const base: ObjectSnapshot = {
-      id,
-      type,
-      x,
-      y,
-      width: sizeOf(obj, 'width'),
-      height: sizeOf(obj, 'height'),
-      z: zOf(obj),
-      createdAt: isFiniteNumber(createdAt) ? createdAt : 0,
-    };
-    if (type === 'sticky') {
-      const color = obj.get('color');
-      const text = obj.get('text');
-      base.color = isStickyColor(color) ? color : DEFAULT_STICKY_COLOR;
-      base.text = text instanceof Y.Text ? text.toString() : '';
-    } else if (type === 'text') {
-      const text = obj.get('text');
-      const size = obj.get('size');
-      base.text = text instanceof Y.Text ? text.toString() : '';
-      base.size = isTextSize(size) ? size : DEFAULT_TEXT_SIZE;
-      base.widthMode = obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
+    if (type === 'connector') {
+      connectors.push([id, obj]);
+      continue;
     }
-    objects.push(Object.freeze(base));
+    const snap = plainSnapshot(id, obj, type);
+    if (!snap) continue;
+    rects.set(id, objectBounds(snap));
+    objects.push(Object.freeze(snap));
+  }
+  for (const [id, obj] of connectors) {
+    const stored = connectorEnds(obj);
+    if (!stored) continue;
+    const ends = resolveEndpoints(stored, rects);
+    const box = connectorBBox(ends.from, ends.to);
+    const createdAt = obj.get('createdAt');
+    objects.push(
+      Object.freeze({
+        id,
+        type: 'connector',
+        ...box,
+        z: zOf(obj),
+        createdAt: isFiniteNumber(createdAt) ? createdAt : 0,
+        from: stored.from,
+        to: stored.to,
+        ends,
+      }),
+    );
   }
   return Object.freeze(objects.sort(compareByStacking));
 }
@@ -246,18 +335,54 @@ export function allObjectIds(objects: readonly ObjectSnapshot[]): string[] {
 export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): number {
   for (const p of positions.values()) if (!isFiniteNumber(p.x) || !isFiniteNumber(p.y)) return 0;
   const changes: [Y.Map<unknown>, Point][] = [];
+  const arrows: [Y.Map<unknown>, ObjectSnapshot, Point][] = [];
+  let current: Map<string, ObjectSnapshot> | null = null;
   for (const [id, p] of positions) {
     const obj = getObject(doc, id);
-    if (obj && (obj.get('x') !== p.x || obj.get('y') !== p.y)) changes.push([obj, p]);
+    if (!obj) continue;
+    if (obj.get('type') === 'connector') {
+      // An arrow's box is derived: its free ends move by the difference to the current box.
+      current ??= new Map(objectsSnapshot(doc).map((o) => [o.id, o]));
+      const snap = current.get(id);
+      if (snap && (snap.x !== p.x || snap.y !== p.y)) arrows.push([obj, snap, { x: p.x - snap.x, y: p.y - snap.y }]);
+    } else if (obj.get('x') !== p.x || obj.get('y') !== p.y) changes.push([obj, p]);
   }
-  if (changes.length === 0) return 0;
+  if (changes.length === 0 && arrows.length === 0) return 0;
+  let count = changes.length;
   doc.transact(() => {
     for (const [obj, p] of changes) {
       obj.set('x', p.x);
       obj.set('y', p.y);
     }
+    for (const [obj, snap, delta] of arrows) {
+      if (snap.from && snap.to && translateConnector(obj, { from: snap.from, to: snap.to }, delta)) count++;
+    }
   }, LOCAL_ORIGIN);
-  return changes.length;
+  return count;
+}
+
+/**
+ * Moves objects by `delta` from their state in `starts` (a snapshot taken when
+ * a drag began, or the current one for a nudge): top-left = start + delta;
+ * arrows move their free ends. Objects that are gone are skipped. One
+ * LOCAL_ORIGIN transaction; returns the number of objects changed.
+ */
+export function translateObjects(doc: Y.Doc, starts: readonly ObjectSnapshot[], delta: Point): number {
+  if (!isFiniteNumber(delta.x) || !isFiniteNumber(delta.y)) return 0;
+  const positions = new Map<string, Point>();
+  const arrows: [Y.Map<unknown>, ObjectSnapshot][] = [];
+  for (const s of starts) {
+    if (s.type === 'connector') {
+      const obj = getObject(doc, s.id);
+      if (obj && s.from && s.to) arrows.push([obj, s]);
+    } else positions.set(s.id, { x: s.x + delta.x, y: s.y + delta.y });
+  }
+  let count = 0;
+  doc.transact(() => {
+    count = moveObjects(doc, positions);
+    for (const [obj, s] of arrows) if (translateConnector(obj, { from: s.from!, to: s.to! }, delta)) count++;
+  }, LOCAL_ORIGIN);
+  return count;
 }
 
 /**
@@ -309,12 +434,17 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
   return selected.length;
 }
 
-/** Removes the objects; missing ids are skipped. Returns the number removed. */
+/**
+ * Removes the objects; missing ids are skipped. Returns the number removed.
+ * Arrows attached to a removed object stay, their end freed where it was
+ * attached, in the same transaction (one update, one undo step).
+ */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const map = objectsMap(doc);
   const present = [...new Set(ids)].filter((id) => map.has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    detachConnectorsTo(doc, present);
     for (const id of present) map.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;

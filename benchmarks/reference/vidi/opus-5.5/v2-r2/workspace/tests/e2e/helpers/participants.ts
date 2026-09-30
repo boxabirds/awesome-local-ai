@@ -26,7 +26,12 @@ export async function createBoardIn(browser: Browser): Promise<string> {
 }
 
 /** Opens `count` isolated browser contexts on the same (by default new) board and waits until each is live. */
-export async function openParticipants(browser: Browser, count: number, boardId?: string): Promise<Participant[]> {
+export async function openParticipants(
+  browser: Browser,
+  count: number,
+  boardId?: string,
+  opts: { beforeOpen?(page: Page, index: number): Promise<void> } = {},
+): Promise<Participant[]> {
   boardId ??= await createBoardIn(browser);
   return Promise.all(
     Array.from({ length: count }, async (_, i) => {
@@ -53,6 +58,7 @@ export async function openParticipants(browser: Browser, count: number, boardId?
         problems.push(`dialog: ${dialog.message()}`);
         void dialog.dismiss();
       });
+      await opts.beforeOpen?.(page, i);
       await openBoard(page, `/b/${boardId}`);
       return { name: NAMES[i] ?? `P${i + 1}`, context, page, problems };
     }),

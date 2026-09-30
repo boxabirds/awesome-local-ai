@@ -1,5 +1,6 @@
 import { type ReactNode, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD, WHEEL_LINE_HEIGHT_PX } from '../../shared/config';
+import type { ToolId } from '../tools/useActiveTool';
 import { type Camera, type Point, screenToWorld } from './camera';
 import { useBoardCamera } from './useCamera';
 
@@ -50,7 +51,9 @@ export function BoardViewport(props: {
   /** Shift+drag on empty board space draws this selection rectangle instead of panning. */
   marquee?: { begin(screen: Point): void; move(screen: Point): void; end(): void; cancel(): void };
   /** The active tool; with 'text' a press anywhere on the board (even on an object) places text. */
-  tool?: 'select' | 'text';
+  tool?: ToolId;
+  /** Screen-space layer above the objects (the Shape and Connector tools own every press there). */
+  overlay?: ReactNode;
   /** Text tool press, with the point in world units. */
   onPlaceText?(world: Point): void;
 }): React.JSX.Element {
@@ -244,6 +247,7 @@ export function BoardViewport(props: {
         <div className="board-origin-marker" data-testid="origin-marker" aria-hidden="true" />
         {props.children}
       </div>
+      {props.overlay}
     </div>
   );
 }

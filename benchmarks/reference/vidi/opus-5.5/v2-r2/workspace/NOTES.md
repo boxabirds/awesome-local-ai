@@ -372,3 +372,63 @@ Decisions made where the spec was open or self-contradictory:
 - **E2E** `tests/e2e/text.spec.ts` (TC-26–TC-31 plus the 5,001-character paste), fixture `tests/fixtures/text-board.ts`.
   Chromium only: Firefox and WebKit are not installed here, so TC-26 was not run in them.
 - **Red phase** not committed separately (single story commit), as in earlier stories.
+
+## Story 10 — Draw shapes and connect them with arrows that follow when moved
+
+- **`shape` and `connector` are built-in known types in board-model** (like `text`), so shared code and unit tests
+  see them without the client registry. `objectsSnapshot` adds `kind/fill/stroke/label` for shapes and
+  `from/to/ends` for connectors. `ends` holds the resolved end points. A connector's `x/y/width/height` are
+  stored as 0 and derived from `ends` in the snapshot. `objectRects(doc)` gives the rects that arrows can
+  attach to.
+- **Arrows attach only to non-connector objects.** A connector cannot be the target of another connector. That
+  would make ends depend on each other. `createConnector` returns null for that case.
+- **Geometry.** `nearestSide` compares the direction to the other end with the rect's diagonals; exactly on a
+  diagonal counts as left/right. The "other end" of an attached end is the centre of its object, so the two
+  sides never depend on each other. `resolveEndpoints` takes `{ from, to }` (structurally a `ConnectorSnap`).
+- **Endpoint writes.** `createConnector` and `setConnectorEndpoint` recompute the fallback of each attached end
+  whose object exists. An end whose object is already gone keeps the caller's fallback, so it is drawn there
+  (connector.target_deleted race). `setConnectorEndpoint` also normalises an orphaned other end to a free end
+  at its fallback ("next local write normalises"), and returns false when asked to attach to a missing object,
+  a connector or the arrow itself.
+- **Moving arrows.** Arrows have no stored position. In a drag, `translateObjects(doc, startSnapshots, delta)`
+  (new) moves free ends from their start state, so repeated absolute writes never accumulate. Attached ends
+  stay with their objects. `moveObjects` (nudges) moves a connector's free ends by the difference to its
+  current box. In a group resize, the connector registry entry's `applyResize` (`scaleConnector`) maps free ends
+  into the scaled box. Connectors are `resizable: false`, so a lone arrow shows its two end handles and no
+  resize handles. `SelectionOverlay` draws no outline for arrows, and no box when only arrows are selected.
+- **Registry `hitTest(obj, p, zoom?)`** gained the optional zoom used by the connector's screen-pixel tolerance.
+  In the DOM, an arrow's hit area is a transparent stroke `2 × CONNECTOR_HIT_TOLERANCE_PX / zoom` wide with
+  round caps. Its pointerdown handler checks the same distance, so jsdom and browsers behave alike.
+- **Component props follow the registry.** `ShapeObject` and `ConnectorObject` take the registry's fixed
+  `ObjectProps` (as story 9 did for `TextObject`) instead of the design's per-component props. The connector
+  reads the snapshot (for handle hit tests) from `BoardObjectsContext` and the camera from `BoardCameraContext`.
+  `ShapeTool`/`ConnectorTool` also take `doc`, `createdBy` and `undo`.
+- **Tools.** `src/client/tools/useActiveTool.ts` holds `ToolId`, `TOOL_SHORTCUTS` and the hook. The hook also
+  takes `{ canEdit, onSelect }`. Story 9's `board/useTool.ts` is now a thin wrapper. Only select, text, shape
+  and connector are modes in this build; N stays story 2's "sticky note at the view centre" action; P/I/C do
+  nothing. Key handling stays in `useBoardKeys` and uses `TOOL_SHORTCUTS`. `toolCreated` selects through
+  the new `selection.selectNew(id)`, because the plain `click` ignores ids not yet in the snapshot.
+- **Tool layers.** With Shape or Connector active, a screen-space layer (`BoardViewport` `overlay` prop) above
+  every object owns all presses. Drags over objects never move them (TC-28). The board cannot be dragged to
+  pan in those tools, but wheel/pinch still work. Escape unmounts the layer, so an unfinished drag creates
+  nothing. A drag shorter than `DRAG_THRESHOLD_PX` is a click. A Shift drag squares in the drag's direction.
+- **Labels.** Shape labels use the story 8/9 `TextEditor` (textarea named "Shape label", 500-character clamp).
+  The label is an HTML box over the SVG outline (not a `foreignObject`), with the same result: it is sized to
+  the shape, so resizing re-wraps it and keeps it centred. For ellipses (12%) and diamonds (20%) it is inset so
+  the text stays inside the outline. Label font: 16 board units. While editing, the textarea uses
+  `field-sizing: content` so the text is centred vertically too. Browsers without it (Firefox) align it to the top.
+- **UI text / accessible names.** The design fixes only the patterns. The choices: tools "Shape (S)" (with
+  `aria-expanded`; group "Shape kind" with "Rectangle", "Ellipse", "Diamond", `aria-pressed`) and
+  "Connector (L)". Shape toolbar: role `toolbar` "Shape" with "No fill", "White fill" … "Grey fill", "Dark
+  outline" … "Grey outline", and "Delete shape". Arrow toolbar: "Arrow" with "Delete arrow". Arrow end
+  handles: "Arrow start" / "Arrow end". Shapes are groups named "Rectangle" or "Rectangle: Checkout". Arrows
+  are named like 'Arrow from Rectangle "Checkout" to Diamond "Paid?"' ("a point" for a free end).
+- **Test hooks (test builds only):** `seedShapes`, `seedConnectors`, `deleteObjects`, used by the
+  `tests/fixtures/checkout-flow.ts` fixture and the e2e specs.
+- **TC-27 race.** Sam's *outgoing* WebSocket messages are held with `page.routeWebSocket` (the new
+  `beforeOpen` option of `openParticipants`) while Dana draws. Dana still sees B, so she creates the arrow
+  attached to B. Sam gets it for a shape he already deleted and draws it at the fallback. After release, Dana
+  gets the delete and draws the end at the fallback too.
+- **E2E** `tests/e2e/shapes.spec.ts` (TC-23, TC-24, fixture render) and `tests/e2e/connectors.spec.ts` (TC-25–TC-27).
+  Chromium only: Firefox and WebKit are not installed here, so TC-23 was not run in them.
+- **Red phase** not committed separately (single story commit), as in earlier stories.

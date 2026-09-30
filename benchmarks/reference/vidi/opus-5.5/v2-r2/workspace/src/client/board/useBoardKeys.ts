@@ -4,6 +4,7 @@ import { type ObjectSnapshot, allObjectIds, deleteObjects, moveObjects } from '.
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { isEditableTarget } from '../canvas/BoardViewport';
 import { getObjectType } from '../objects/registry';
+import { TOOL_SHORTCUTS } from '../tools/useActiveTool';
 import type { UndoController } from './undo';
 import type { Tool } from './useTool';
 import { undoShortcut } from './useUndo';
@@ -20,7 +21,8 @@ const ARROWS: Record<string, { x: number; y: number }> = {
  * Board keyboard commands (sel.keyboard): Ctrl/Cmd+A select all, Escape clear,
  * arrows nudge, Delete/Backspace delete, Enter edits a single text object,
  * Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (undo.controls),
- * V Select tool, T Text tool, N new sticky note (text.tool_ui).
+ * V Select tool, T Text tool, N new sticky note (text.tool_ui), S Shape and L Connector
+ * tools (tools.active_tool); Escape leaves any tool for Select.
  * Never while editing text (the editor handles its own undo) or typing in a
  * field; mutating keys need `canEdit`. Each change is its own undo step.
  */
@@ -30,7 +32,7 @@ export function useBoardKeys(opts: {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undo?: UndoController;
-  /** Tool shortcuts: V → Select, T → Text (needs canEdit), Escape → Select. */
+  /** Tool shortcuts: V → Select, T/S/L → Text/Shape/Connector (need canEdit), Escape → Select. */
   tool?: { tool: Tool; setTool(t: Tool): void };
   /** N: the Sticky note button's action (a note at the view centre). */
   onCreateSticky?(): void;
@@ -63,17 +65,18 @@ export function useBoardKeys(opts: {
       }
       if (!mod && !e.altKey && (tool || onCreateSticky)) {
         const key = e.key.toLowerCase();
-        if (key === 'v' && tool) {
+        const shortcut = TOOL_SHORTCUTS[key];
+        if (shortcut === 'select' && tool) {
           e.preventDefault();
           tool.setTool('select');
           return;
         }
-        if (key === 't' && tool) {
+        if ((shortcut === 'text' || shortcut === 'shape' || shortcut === 'connector') && tool) {
           e.preventDefault();
-          if (canEdit) tool.setTool('text');
+          if (canEdit) tool.setTool(shortcut);
           return;
         }
-        if (key === 'n' && onCreateSticky) {
+        if (shortcut === 'sticky' && onCreateSticky) {
           e.preventDefault();
           if (canEdit) onCreateSticky();
           return;

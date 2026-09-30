@@ -11,6 +11,8 @@ import {
   stickiesOf,
 } from '../shared/board-model';
 import { STICKY_SIZE_WORLD } from '../shared/config';
+import { type Endpoint, createConnector } from '../shared/objects/connector';
+import { type ShapeKind, createShape, getShapeLabel, setShapeStyle } from '../shared/objects/shape';
 import { createText, setTextSize } from '../shared/objects/text';
 import { MarqueeRect, useMarquee } from './board/Marquee';
 import { SelectionBar } from './board/SelectionBar';
@@ -20,7 +22,6 @@ import { type UndoController, createUndo } from './board/undo';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useSelection } from './board/useSelection';
-import { useTool } from './board/useTool';
 import { useTransformGesture } from './board/useTransformGesture';
 import { NO_UNDO, UndoContext, useUndo } from './board/useUndo';
 import { type Point, type Size, canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
@@ -29,10 +30,14 @@ import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
 import { installTestHooks } from './canvas/testHooks';
 import { BoardCameraContext, useCamera } from './canvas/useCamera';
+import { BoardObjectsContext } from './objects/BoardObjectsContext';
 import { getObjectType } from './objects/registry';
 import { remeasureTextBox } from './objects/useTextBoxSync';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
+import { ConnectorTool } from './tools/ConnectorTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { useActiveTool } from './tools/useActiveTool';
 
 function initialViewportSize(): Size {
   return { width: window.innerWidth, height: window.innerHeight };
@@ -114,7 +119,8 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
     },
   });
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
-  const tools = useTool(editable);
+  // A shape or arrow just created becomes the selection and the tool returns to Select.
+  const tools = useActiveTool({ canEdit: editable, onSelect: selection.selectNew });
 
   useEffect(
     () =>
@@ -132,6 +138,24 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
             if (size !== STICKY_SIZE_WORLD) resizeObjects(doc, new Map([[id, { x: n.x, y: n.y, width: size, height: size }]]));
             return id;
           }),
+        seedShapes: (shapes) =>
+          shapes.map((sh) => {
+            const id = createShape(
+              doc,
+              { kind: sh.kind as ShapeKind, rect: { x: sh.x, y: sh.y, width: sh.width, height: sh.height }, at: { x: sh.x, y: sh.y } },
+              LOCAL_AUTHOR_ID,
+            );
+            if (id === null) throw new Error('seed rejected');
+            if (sh.label) doc.transact(() => getShapeLabel(doc, id)?.insert(0, sh.label!), LOCAL_ORIGIN);
+            return id;
+          }),
+        seedConnectors: (arrows) =>
+          arrows.map((a) => {
+            const id = createConnector(doc, a.from as Endpoint, a.to as Endpoint, LOCAL_AUTHOR_ID);
+            if (id === null) throw new Error('seed rejected');
+            return id;
+          }),
+        deleteObjects: (ids) => deleteObjects(doc, ids),
       }),
     [objects, selectedIds, doc],
   );
@@ -191,74 +215,105 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc; undo?: UndoCo
 
   const transforming = gesture.active !== null;
 
+  let toolLayer: React.JSX.Element | null = null;
+  if (tools.tool === 'shape') {
+    toolLayer = (
+      <ShapeTool
+        kind={tools.shapeKind}
+        camera={camera}
+        onCreated={tools.toolCreated}
+        doc={doc}
+        createdBy={LOCAL_AUTHOR_ID}
+        undo={undoController}
+      />
+    );
+  } else if (tools.tool === 'connector') {
+    toolLayer = (
+      <ConnectorTool
+        camera={camera}
+        snapshot={objects}
+        onCreated={tools.toolCreated}
+        doc={doc}
+        createdBy={LOCAL_AUTHOR_ID}
+        undo={undoController}
+      />
+    );
+  }
+
   return (
     <BoardCameraContext.Provider value={context}>
       <UndoContext.Provider value={undoController}>
-        <main className="app">
-          <BoardViewport
-            onEmptyDoubleClick={createAt}
-            onEmptyClick={selection.clear}
-            marquee={marquee}
-            tool={tools.tool}
-            onPlaceText={placeText}
-          >
-            {[...objects].sort(byId).map((obj) => {
-              const spec = getObjectType(obj.type);
-              if (!spec) return null;
-              const selected = selectedIds.has(obj.id);
-              return (
-                <spec.Component
-                  key={obj.id}
-                  object={obj}
-                  doc={doc}
-                  zoom={camera.zoom}
-                  selected={selected}
-                  editing={obj.id === editingId}
-                  editable={editable}
-                  transforming={transforming && selected}
-                  onPointerDown={gesture.onObjectPointerDown}
-                  onSelect={selection.click}
-                  onStartEdit={startEdit}
-                  onEndEdit={endEdit}
-                />
-              );
-            })}
-            <MarqueeRect rect={marquee.rect} camera={camera} />
-          </BoardViewport>
-          <SelectionOverlay
-            ids={selectedIds}
-            snapshot={objects}
-            camera={camera}
-            onHandlePointerDown={gesture.onHandlePointerDown}
-            showHandles={editable && editingId === null}
-          />
-          <SelectionBar
-            ids={selectedIds}
-            snapshot={objects}
-            camera={camera}
-            onDelete={deleteSelection}
-            onColor={(id, color) => asStep(() => setStickyColor(doc, id, color))}
-            onTextSize={changeTextSize}
-            hidden={!editable || editingId !== null || transforming}
-          />
-          <Toolbar
-            onCreateSticky={createAtViewportCentre}
-            disabled={!editable}
-            undo={undoControls}
-            tool={tools.tool}
-            onTool={tools.setTool}
-          />
-          {props.boardId && <ConnectionStatus state={connection} />}
-          <NavigationHint visible={!board.hasNavigated} />
-          <ZoomControls
-            zoomPercent={zoomPercent(camera)}
-            canZoomIn={canZoomIn(camera)}
-            canZoomOut={canZoomOut(camera)}
-            onZoomIn={() => board.zoomStep('in')}
-            onZoomOut={() => board.zoomStep('out')}
-            onReset={board.reset}
-          />
-        </main>
+        <BoardObjectsContext.Provider value={objects}>
+          <main className="app">
+            <BoardViewport
+              onEmptyDoubleClick={createAt}
+              onEmptyClick={selection.clear}
+              marquee={marquee}
+              tool={tools.tool}
+              onPlaceText={placeText}
+              overlay={toolLayer}
+            >
+              {[...objects].sort(byId).map((obj) => {
+                const spec = getObjectType(obj.type);
+                if (!spec) return null;
+                const selected = selectedIds.has(obj.id);
+                return (
+                  <spec.Component
+                    key={obj.id}
+                    object={obj}
+                    doc={doc}
+                    zoom={camera.zoom}
+                    selected={selected}
+                    editing={obj.id === editingId}
+                    editable={editable}
+                    transforming={transforming && selected}
+                    onPointerDown={gesture.onObjectPointerDown}
+                    onSelect={selection.click}
+                    onStartEdit={startEdit}
+                    onEndEdit={endEdit}
+                  />
+                );
+              })}
+              <MarqueeRect rect={marquee.rect} camera={camera} />
+            </BoardViewport>
+            <SelectionOverlay
+              ids={selectedIds}
+              snapshot={objects}
+              camera={camera}
+              onHandlePointerDown={gesture.onHandlePointerDown}
+              showHandles={editable && editingId === null}
+            />
+            <SelectionBar
+              ids={selectedIds}
+              snapshot={objects}
+              camera={camera}
+              onDelete={deleteSelection}
+              onColor={(id, color) => asStep(() => setStickyColor(doc, id, color))}
+              onTextSize={changeTextSize}
+              onShapeStyle={(id, style) => asStep(() => setShapeStyle(doc, id, style))}
+              hidden={!editable || editingId !== null || transforming}
+            />
+            <Toolbar
+              onCreateSticky={createAtViewportCentre}
+              disabled={!editable}
+              undo={undoControls}
+              tool={tools.tool}
+              onTool={tools.setTool}
+              shapeKind={tools.shapeKind}
+              onShapeKind={tools.setShapeKind}
+            />
+            {props.boardId && <ConnectionStatus state={connection} />}
+            <NavigationHint visible={!board.hasNavigated} />
+            <ZoomControls
+              zoomPercent={zoomPercent(camera)}
+              canZoomIn={canZoomIn(camera)}
+              canZoomOut={canZoomOut(camera)}
+              onZoomIn={() => board.zoomStep('in')}
+              onZoomOut={() => board.zoomStep('out')}
+              onReset={board.reset}
+            />
+          </main>
+        </BoardObjectsContext.Provider>
       </UndoContext.Provider>
     </BoardCameraContext.Provider>
   );

@@ -654,3 +654,181 @@ body,
   color: #2f5fc4;
   background: #e3ebfb;
 }
+
+/* Story 10: shapes and connectors */
+
+.board-toolbar-shape {
+  position: relative;
+}
+
+.shape-kind-menu {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
+}
+
+.board-toolbar .shape-kind-menu button {
+  width: 34px;
+  height: 34px;
+}
+
+.tool-layer {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.shape-preview {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+  fill: rgb(47 111 237 / 0.06);
+  stroke: #2f6fed;
+  stroke-width: 1.5px;
+  stroke-dasharray: 6 4;
+}
+
+.shape-preview[data-too-small='true'] {
+  stroke: #9aa3b5;
+}
+
+.connector-tool-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-preview {
+  stroke: #2f6fed;
+  stroke-width: 2px;
+  stroke-dasharray: 6 4;
+}
+
+.connector-dot {
+  fill: #fff;
+  stroke: #2f6fed;
+  stroke-width: 1.5px;
+  pointer-events: none;
+}
+
+.connector-dot.is-highlighted {
+  fill: #2f6fed;
+}
+
+.connector-object .connector-dot {
+  stroke-width: inherit;
+}
+
+.shape-object {
+  position: absolute;
+  outline: none;
+  cursor: default;
+  color: #1f2330;
+}
+
+.shape-object:focus-visible:not(.is-selected) {
+  outline: 2px dashed #2f6fed;
+}
+
+.shape-object.is-dragging {
+  cursor: grabbing;
+}
+
+.shape-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.shape-label-box {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.shape-label {
+  max-width: 100%;
+  max-height: 100%;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.shape-editor-wrap {
+  pointer-events: auto;
+}
+
+.shape-editor {
+  display: block;
+  width: 100%;
+  max-height: 100%;
+  margin: 0;
+  padding: 0;
+  field-sizing: content;
+  resize: none;
+  overflow: hidden;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+  outline: none;
+}
+
+.connector-object:focus-visible .connector-line {
+  stroke-dasharray: 4 3;
+}
+
+.connector-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+
+.connector-hit {
+  cursor: pointer;
+}
+
+.connector-handle {
+  fill: #fff;
+  stroke: #2f6fed;
+  pointer-events: all;
+  cursor: move;
+  touch-action: none;
+}
+
+.shape-swatch-none {
+  background-image: linear-gradient(135deg, transparent 45%, #e53935 45%, #e53935 55%, transparent 55%);
+}
+
+.note-toolbar .shape-swatch-outline {
+  background: #fff;
+  border-width: 3px;
+  border-style: solid;
+}

@@ -3,10 +3,10 @@ import type * as Y from 'yjs';
 import {
   type ObjectSnapshot,
   bringObjectsToFront,
-  moveObjects,
   objectBounds,
   objectsSnapshot,
   resizeObjects,
+  translateObjects,
 } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
 import {
@@ -104,7 +104,9 @@ export function useTransformGesture(opts: {
         return;
       }
       if (p.kind === 'move') {
-        moveObjects(doc, new Map(live.map(([id, r]) => [id, { x: r.x + delta.x, y: r.y + delta.y }])));
+        // From each object's start state: arrows move their free ends (their box is derived).
+        const starts = live.map(([id]) => p.objects.get(id)).filter((o): o is ObjectSnapshot => o !== undefined);
+        translateObjects(doc, starts, delta);
         return;
       }
       const box = p.box;

@@ -108,3 +108,49 @@ export const TEXT_LINE_HEIGHT = 1.3;
 export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 /** Average glyph width as a fraction of the font size, used when text cannot be measured (no canvas). */
 export const TEXT_ESTIMATE_GLYPH_WIDTH_RATIO = 0.55;
+
+/** Shape kinds offered by the Shape tool. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+/** Side of a shape dropped with a click (or a drag smaller than SHAPE_MIN_SIZE_WORLD), world units. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** Smallest dragged shape (either side), and the smallest resize, in world units. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Maximum number of characters in a shape's label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Outline thickness of shapes in world units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** Shape fill palette: six colours and no fill. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+/** Shape outline palette. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+/** Fill of new shapes. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+/** Outline of new shapes. */
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+/** An arrow shorter than this (world units) is not created. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** A click this close to an arrow's line (screen px, any zoom) selects it. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Arrow line thickness in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Arrowhead length in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius of the connection dots shown with the Connector tool (screen px). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;

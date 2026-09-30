@@ -66,9 +66,12 @@ export function SelectionOverlay(props: {
   const box = toScreen(camera, worldBox);
   const resizable = selected.some((o) => getObjectType(o.type)?.resizable);
   const showHandles = (props.showHandles ?? true) && resizable;
+  const onlyArrows = selected.every((o) => o.type === 'connector');
   return (
     <div className="selection-overlay" data-testid="selection-overlay" aria-hidden={showHandles ? undefined : true}>
       {selected.map((o) => {
+        // An arrow shows its own selection (highlighted line and end handles).
+        if (o.type === 'connector') return null;
         const r = toScreen(camera, objectBounds(o));
         return (
           <div
@@ -79,11 +82,13 @@ export function SelectionOverlay(props: {
           />
         );
       })}
-      <div
-        className="selection-box"
-        data-testid="selection-box"
-        style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
-      />
+      {!onlyArrows && (
+        <div
+          className="selection-box"
+          data-testid="selection-box"
+          style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
+        />
+      )}
       {showHandles &&
         handlesFor(selected).map((h) => {
           const c = handleCentre(box, h);

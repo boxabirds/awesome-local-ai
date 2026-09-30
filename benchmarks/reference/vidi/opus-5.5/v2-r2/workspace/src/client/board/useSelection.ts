@@ -62,6 +62,8 @@ export interface Selection {
   ids: ReadonlySet<string>;
   editingId: string | null;
   click(id: string): void;
+  /** Selects only `id`, which may be too new to be in the snapshot yet (just created by a tool). */
+  selectNew(id: string): void;
   toggle(id: string): void;
   setMany(ids: string[], additive: boolean): void;
   clear(): void;
@@ -92,6 +94,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   const click = useCallback((id: string) => {
     if (presentRef.current.has(id)) dispatch({ type: 'click', id });
   }, []);
+  const selectNew = useCallback((id: string) => dispatch({ type: 'click', id }), []);
   const toggle = useCallback((id: string) => {
     if (presentRef.current.has(id)) dispatch({ type: 'toggle', id });
   }, []);
@@ -113,7 +116,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   const editingId = state.editingId !== null && present.has(state.editingId) ? state.editingId : null;
 
   return useMemo(
-    () => ({ ids, editingId, click, toggle, setMany, clear, startEdit, endEdit }),
-    [ids, editingId, click, toggle, setMany, clear, startEdit, endEdit],
+    () => ({ ids, editingId, click, selectNew, toggle, setMany, clear, startEdit, endEdit }),
+    [ids, editingId, click, selectNew, toggle, setMany, clear, startEdit, endEdit],
   );
 }

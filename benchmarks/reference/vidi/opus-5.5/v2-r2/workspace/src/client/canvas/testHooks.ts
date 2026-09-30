@@ -14,6 +14,12 @@ export interface Vidi6TestHooks {
   getSelection?(): string[];
   /** Adds sticky notes (top-left, optional size) in one go; returns their ids (e2e fixtures). */
   seedNotes?(notes: readonly { x: number; y: number; text?: string; color?: string; size?: number }[]): string[];
+  /** Adds shapes (top-left, size, optional label); returns their ids (story 10 e2e fixtures). */
+  seedShapes?(shapes: readonly { kind: string; x: number; y: number; width: number; height: number; label?: string }[]): string[];
+  /** Adds arrows between endpoints (`{ kind: 'attached', objectId, fallback }` or `{ kind: 'free', x, y }`); returns ids. */
+  seedConnectors?(arrows: readonly { from: unknown; to: unknown }[]): string[];
+  /** Deletes objects as the Delete key does (arrows attached to them stay, freed). */
+  deleteObjects?(ids: string[]): number;
   /** Current live connection state, and every state since the page loaded. */
   connectionState?: ConnectionState;
   connectionStates?: readonly ConnectionState[];
