@@ -15,7 +15,8 @@ export type SelectionAction =
   | { type: 'setMany'; ids: string[]; additive: boolean }
   | { type: 'clear' }
   | { type: 'prune'; presentIds: ReadonlySet<string> }
-  | { type: 'edit'; id: string | null };
+  | { type: 'edit'; id: string | null }
+  | { type: 'selectNew'; id: string };
 
 const EMPTY: ReadonlySet<string> = new Set();
 
@@ -70,6 +71,9 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
       const samePresent = state.present !== null && sameSet(state.present, present);
       return next === state && samePresent ? state : { ...next, present };
     }
+    case 'selectNew':
+      // Like `edit`: a just-created object is not in the pruned snapshot yet.
+      return withSelection(state, new Set([action.id]), null);
     case 'edit':
       if (action.id === null) return withSelection(state, state.ids, null);
       // Not checked against `present`: a note is edited right after it is created, before the
@@ -86,6 +90,8 @@ export interface Selection {
   setMany(ids: string[], additive: boolean): void;
   clear(): void;
   startEdit(id: string): void;
+  /** Selects only `id`, an object this tab has just created (story 10). */
+  selectNew(id: string): void;
   /** Ends editing; the edited object stays selected unless `next` is 'unselected'. */
   endEdit(next?: 'selected' | 'unselected'): void;
 }
@@ -119,6 +125,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   );
   const clear = useCallback(() => dispatch({ type: 'clear' }), []);
   const startEdit = useCallback((id: string) => dispatch({ type: 'edit', id }), []);
+  const selectNew = useCallback((id: string) => dispatch({ type: 'selectNew', id }), []);
   const endEdit = useCallback(
     (next: 'selected' | 'unselected' = 'selected') =>
       dispatch(next === 'selected' ? { type: 'edit', id: null } : { type: 'clear' }),
@@ -126,7 +133,17 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   );
 
   return useMemo(
-    () => ({ ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit }),
-    [state.ids, state.editingId, click, toggle, setMany, clear, startEdit, endEdit],
+    () => ({
+      ids: state.ids,
+      editingId: state.editingId,
+      click,
+      toggle,
+      setMany,
+      clear,
+      startEdit,
+      selectNew,
+      endEdit,
+    }),
+    [state.ids, state.editingId, click, toggle, setMany, clear, startEdit, selectNew, endEdit],
   );
 }

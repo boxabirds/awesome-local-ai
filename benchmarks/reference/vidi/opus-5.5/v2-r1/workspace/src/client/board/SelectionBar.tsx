@@ -1,11 +1,14 @@
 // "N selected" bar with a Delete button above the selection, or the note toolbar when exactly one
-// sticky note is selected (story 7), or the text toolbar when exactly one text is (story 9). The count is also announced to screen readers.
+// sticky note is selected (story 7), the text toolbar when exactly one text is (story 9), or the
+// shape toolbar when exactly one shape is (story 10). The count is also announced to screen readers.
 import type { SyntheticEvent } from 'react';
 import { type ObjectSnapshot, isSticky } from '../../shared/board-model';
-import type { StickyColor, TextSize } from '../../shared/config';
+import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
+import { isShape } from '../../shared/objects/shape';
 import { isText } from '../../shared/objects/text';
 import type { Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
 import { selectedObjects, selectionScreenBox } from './SelectionOverlay';
 
@@ -25,6 +28,8 @@ export function SelectionBar(props: {
   onColor?(id: string, color: StickyColor): void;
   /** Size change from the single-text toolbar (story 9). */
   onTextSize?(id: string, size: TextSize): void;
+  /** Fill or outline change from the single-shape toolbar (story 10). */
+  onShapeStyle?(id: string, style: { fill?: FillColor; stroke?: StrokeColor }): void;
   /** False while the board is locked: no note toolbar, Delete disabled. */
   editable?: boolean;
   /** Hides the bar (not the announcement) while dragging or editing. */
@@ -55,6 +60,19 @@ export function SelectionBar(props: {
         <TextToolbar
           size={text.size}
           onSize={(s) => props.onTextSize?.(text.id, s)}
+          onDelete={props.onDelete}
+        />
+      </div>
+    );
+  } else if (!props.hidden && count === 1 && isShape(objects[0]) && editable) {
+    const shape = objects[0];
+    bar = (
+      <div className="selection-bar-anchor" style={anchorStyle}>
+        <ShapeToolbar
+          fill={shape.fill}
+          stroke={shape.stroke}
+          onFill={(fill) => props.onShapeStyle?.(shape.id, { fill })}
+          onStroke={(stroke) => props.onShapeStyle?.(shape.id, { stroke })}
           onDelete={props.onDelete}
         />
       </div>

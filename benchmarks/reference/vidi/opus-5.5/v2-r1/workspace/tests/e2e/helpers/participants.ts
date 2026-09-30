@@ -23,6 +23,8 @@ export async function openParticipants(
   testInfo: TestInfo,
   names: string[],
   boardId?: string,
+  /** Runs on each page before it opens the board (e.g. routing its WebSocket). */
+  beforeOpen?: (name: string, page: Page) => Promise<void>,
 ): Promise<Session> {
   const { baseURL, viewport } = testInfo.project.use;
   const id = boardId ?? (await createBoardViaApi(baseURL!));
@@ -39,6 +41,7 @@ export async function openParticipants(
         problems.push(`dialog: ${dialog.message()}`);
         void dialog.dismiss();
       });
+      await beforeOpen?.(name, page);
       await page.goto(`/b/${id}`);
       await waitForConnected(page);
       return { name, context, page, problems };

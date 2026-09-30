@@ -345,3 +345,56 @@ Decisions made while implementing without anyone to ask.
 - **E2E browsers.** All text e2e tests run in every configured browser. Firefox still cannot start
   in this environment (sandbox error); runs used `E2E_BROWSERS=chromium,webkit`.
 - **Red-phase commits skipped** (tasks 1, 3), as in earlier stories: one story commit.
+
+## Story 10 — Draw shapes and connect them with arrows that follow when moved
+
+- **Active tool hook.** Story 9's `board/useTool.ts` is replaced by `tools/useActiveTool.ts` (the
+  design's file). It takes `{ canEdit, select }` (the contract has no arguments, but it needs the
+  lock state and the selection for `toolCreated`). `TOOL_SHORTCUTS` lists every cross-story
+  letter; only the tools in this build (`MODE_TOOLS`: select, text, shape, connector) can be
+  activated. Shortcut handling stays in `useBoardKeys` next to V/T/N (same rules: ignored while
+  editing, in fields, with modifiers). A new selection action `selectNew(id)` selects an object
+  created in the same event (like `edit`, it is not checked against the last pruned snapshot).
+- **Tool layer.** `BoardViewport` gained `toolLayer`: the Shape and Connector tools render a
+  transparent screen-space layer inside the board surface that owns every press (TC-28: no
+  object moves), while wheel/pinch still navigate. Selection handles are hidden while a
+  creating tool is active. The Shape kind menu (Rectangle / Ellipse / Diamond, `role="group"`
+  "Shape kind", `aria-pressed`) is shown next to the Shape button while the Shape tool is
+  active; picking a kind keeps the tool. Buttons are "Shape (S)" and "Connector (L)".
+- **Shift squares before the minimum-size check.** `createShape` squares a Shift drag (larger
+  side, anchored at the press point `at`) and only then applies the click rule, so a thin Shift
+  drag still gives a square of the dragged length.
+- **Arrow picking.** An arrow's DOM takes no pointer events. With the Select tool the board asks
+  the registry, in the capture phase, for the topmost object whose `hitTest` matches the press
+  (`hitTest(obj, p, zoom)`: bounds for boxes, `distanceToPolyline <= CONNECTOR_HIT_TOLERANCE_PX /
+  zoom` for arrows, `pickByHitTest: true`). If that is an arrow, the generic gesture starts for it;
+  otherwise the press goes to the objects' DOM as before. A double-click on an arrow's line does
+  not create a note. A lone selected arrow shows its own end handles instead of the selection box
+  (`ownSelection`).
+- **Snapshot of arrows.** `ConnectorSnap` also carries `ends` (the resolved points) besides the
+  stored `from`/`to`; its box is derived from them. `objectRects(doc)` gives the rects arrows
+  attach to. Arrows cannot attach to arrows.
+- **Moving arrows.** Only free ends move. The move gesture uses a new registry hook
+  `applyMove(doc, start, dx, dy)` (from the snapshot at gesture start, so frames never drift);
+  `moveObjects` (nudges) moves an arrow's free ends by the offset of its derived box.
+  `resizeObjects` skips arrows; in a group resize they move with the group.
+- **Orphaned ends.** `createConnector` keeps an end attached to an object that is already gone
+  (drawn at its fallback). `setConnectorEndpoint` turns such an end into a free end at its
+  fallback when it writes the other end (the design's "next local write normalises").
+- **Label layout.** The label is HTML over the SVG outline (the objects are HTML elements in the
+  world layer) rather than a `foreignObject`; the effect is the same. It is centred with a small
+  inset for ellipses/diamonds and 16 px world font (`SHAPE_LABEL_FONT_PX`, added to config). A
+  label taller than its shape overflows evenly above and below (stays centred) instead of being
+  clipped. While editing, a hidden copy of the text sizes the box the textarea covers, so the
+  caret stays centred too. The editor is the textbox "Shape label"; shapes are `role="group"`
+  with `aria-roledescription` = kind name and the label (or kind name) as their name; arrows are
+  groups named "Arrow" with handles "Arrow start" / "Arrow end".
+- **Shape toolbar.** Swatch names follow the design's `<colour> fill` / `<colour> outline` with
+  the palette keys, so "no fill" is `none fill` (its tooltip says "No fill"). The toolbar also has
+  "Delete shape", like the other single-object toolbars.
+- **TC-27 race.** Sam's outgoing WebSocket frames are held back with `page.routeWebSocket`
+  (order kept) so the delete reaches the room after Dana's arrow; both screens then draw the
+  arrow's end at its fallback. `openParticipants` gained an optional `beforeOpen(name, page)`.
+- **E2E browsers.** TC-23 runs in every configured browser, the rest in Chromium only (design).
+  Firefox still cannot start in this environment; runs used `E2E_BROWSERS=chromium,webkit`.
+- **Red-phase commits skipped** (tasks 7, 9), as in earlier stories: one story commit.

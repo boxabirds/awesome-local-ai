@@ -196,6 +196,19 @@ export interface BoardViewportProps {
    * selecting or starting a marquee.
    */
   onPlace?(world: Point): void;
+  /**
+   * Screen-space layer inside the board surface for a drawing tool (story 10: Shape, Connector).
+   * It receives the tool's presses; wheel and pinch still navigate.
+   */
+  toolLayer?: (view: BoardView) => ReactNode;
+  /**
+   * Objects matched by hit test rather than by their DOM box (story 10 arrows): the id of such
+   * an object that is topmost at a world point, or null. A press there goes to `onPick` (in the
+   * capture phase, before any object or the board sees it) and a double-click there creates
+   * nothing.
+   */
+  pickAt?(world: Point, zoom: number, target: EventTarget): string | null;
+  onPick?(e: ReactPointerEvent<HTMLDivElement>, id: string): void;
 }
 
 const NO_OBJECTS: readonly ObjectSnapshot[] = [];
@@ -225,7 +238,14 @@ export function BoardViewport(props: BoardViewportProps) {
 
   // Capture phase: a placing click never reaches objects or the pan/marquee handlers.
   const onPointerDownCapture = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!props.onPlace) return;
+    if (!props.onPlace) {
+      if (!props.pickAt || !props.onPick || e.button !== PRIMARY_BUTTON) return;
+      const id = props.pickAt(screenToWorld(camera, localPoint(e)), camera.zoom, e.target);
+      if (id === null) return;
+      e.stopPropagation();
+      props.onPick(e, id);
+      return;
+    }
     e.stopPropagation();
     // No focus change and no text selection from the press.
     e.preventDefault();
@@ -274,9 +294,10 @@ export function BoardViewport(props: BoardViewportProps) {
   const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget || !props.onEmptyDoubleClick) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    props.onEmptyDoubleClick(
-      screenToWorld(camera, { x: e.clientX - rect.left, y: e.clientY - rect.top }),
-    );
+    const world = screenToWorld(camera, { x: e.clientX - rect.left, y: e.clientY - rect.top });
+    // On an arrow's line: not empty space.
+    if (props.pickAt?.(world, camera.zoom, e.target) != null) return;
+    props.onEmptyDoubleClick(world);
   };
 
   return (
@@ -311,6 +332,7 @@ export function BoardViewport(props: BoardViewportProps) {
           {typeof props.children === 'function' ? props.children(view) : props.children}
           <MarqueeRect rect={marquee.rect} camera={camera} />
         </div>
+        {props.toolLayer?.(view)}
       </div>
       <NavigationHint visible={!controls.hasNavigated} />
       {props.overlay?.(view)}

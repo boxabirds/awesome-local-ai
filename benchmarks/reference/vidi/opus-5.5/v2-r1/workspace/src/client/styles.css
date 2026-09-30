@@ -733,3 +733,193 @@ body,
   background: #ddf4ff;
   color: #0969da;
 }
+
+/* Story 10: shapes, arrows, Shape and Connector tools. */
+.toolbar-menu-anchor {
+  position: relative;
+}
+
+.toolbar-menu {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: -4px;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+}
+
+.toolbar-menu .toolbar-button {
+  width: 34px;
+  height: 34px;
+}
+
+.tool-layer {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.shape-preview {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px dashed #1a73e8;
+  pointer-events: none;
+}
+
+.shape-preview-ellipse {
+  border-radius: 50%;
+}
+
+.shape-preview-diamond {
+  border-style: dotted;
+}
+
+.connector-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-preview line {
+  stroke: #1a73e8;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+
+.connector-dot {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid #1a73e8;
+  pointer-events: none;
+}
+
+.connector-dot.is-highlighted {
+  background: #1a73e8;
+  transform: scale(1.5);
+}
+
+.shape-object {
+  position: absolute;
+  cursor: default;
+  touch-action: none;
+  outline: none;
+}
+
+.shape-object:focus-visible {
+  outline: 1px dashed rgb(26 115 232 / 60%);
+}
+
+.shape-outline {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+
+.shape-label {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* A label taller than its shape stays centred on it (overflowing evenly), never clipped. */
+  overflow: visible;
+  color: #1f2328;
+  text-align: center;
+}
+
+.shape-label-sizer {
+  position: relative;
+  width: 100%;
+}
+
+.shape-label-text,
+.shape-label-editor {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.shape-object.is-editing .shape-label-text {
+  visibility: hidden;
+}
+
+.shape-label-editor {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  cursor: text;
+}
+
+.swatch-none {
+  background-image: linear-gradient(135deg, transparent 45%, #e53935 45%, #e53935 55%, transparent 55%);
+}
+
+.swatch-outline {
+  background: #fff;
+  border-width: 3px;
+  border-style: solid;
+}
+
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+  outline: none;
+}
+
+.connector-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-selection {
+  stroke: rgb(26 115 232 / 35%);
+  stroke-linecap: round;
+}
+
+.connector-object:focus-visible .connector-line {
+  stroke: #1a73e8;
+}
+
+.connector-dot.is-highlighted:is(circle) {
+  fill: #1a73e8;
+  transform: none;
+}
+
+.connector-handle-svg {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-handle {
+  fill: #fff;
+  stroke: #1a73e8;
+  pointer-events: all;
+  cursor: move;
+  touch-action: none;
+}

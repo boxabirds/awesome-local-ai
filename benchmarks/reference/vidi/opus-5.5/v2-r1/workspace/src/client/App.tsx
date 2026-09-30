@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createSticky, deleteObjects, setStickyColor } from '../shared/board-model';
+import { createSticky, deleteObjects, objectBounds, setStickyColor } from '../shared/board-model';
+import type { Rect } from '../shared/geometry';
+import { setShapeStyle } from '../shared/objects/shape';
 import { createText, setTextSize } from '../shared/objects/text';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
-import { useTool } from './board/useTool';
 import { useSelection } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
 import { type UndoController, createUndo } from './board/undo';
@@ -14,6 +15,9 @@ import { UndoContext, useUndo } from './board/useUndo';
 import { BoardViewport } from './canvas/BoardViewport';
 import { type Camera, type Point, type Size, screenToWorld } from './canvas/camera';
 import { getObjectType } from './objects/registry';
+import { ConnectorTool } from './tools/ConnectorTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { useActiveTool } from './tools/useActiveTool';
 import { syncTextBox } from './objects/useTextBoxSync';
 import { textMeasurer } from './objects/textLayout';
 import { BoardPage } from './pages/BoardPage';
@@ -64,12 +68,12 @@ export function canEdit(state: ConnectionState): boolean {
 export function App(props: { boardId?: string; doc?: Y.Doc }) {
   const { doc, objects, connection } = useBoardDoc(props.boardId, props.doc);
   const selection = useSelection(objects);
-  const { startEdit, endEdit, click, setMany, clear } = selection;
+  const { startEdit, endEdit, click, setMany, clear, selectNew } = selection;
   const editable = canEdit(connection);
   const cameraRef = useRef<Camera | null>(null);
   const viewportRef = useRef<Size | null>(null);
   const getCamera = useCallback(() => cameraRef.current ?? INITIAL_CAMERA, []);
-  const tool = useTool(editable);
+  const tool = useActiveTool({ canEdit: editable, select: selectNew });
 
   // One undo history per board document, for this tab only: gone on board change or reload.
   const [history, setHistory] = useState<UndoController | null>(null);
@@ -120,6 +124,25 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
     (a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
   );
 
+  // Rects arrows attach to, topmost last (story 10).
+  const rects = new Map<string, Rect>();
+  for (const o of shown) if (o.type !== 'connector') rects.set(o.id, objectBounds(o));
+
+  /**
+   * Select tool: the topmost object at a world point when it is one picked by hit test (an
+   * arrow near its line); presses on anything else go to the objects' own DOM handlers.
+   */
+  const pickAt = (world: Point, zoom: number, target: EventTarget): string | null => {
+    if (tool.tool !== 'select') return null;
+    // Arrow end handles and an open editor handle their own presses.
+    if (target instanceof Element && target.closest('[data-connector-handle], .is-editing')) return null;
+    for (let i = shown.length - 1; i >= 0; i--) {
+      const spec = getObjectType(shown[i].type)!;
+      if (spec.hitTest(shown[i], world, zoom)) return spec.pickByHitTest ? shown[i].id : null;
+    }
+    return null;
+  };
+
   const createAt = (world: Point) => {
     if (!editable) return;
     const id = step(() => createSticky(doc, world));
@@ -156,6 +179,27 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
         cameraRef={cameraRef}
         viewportRef={viewportRef}
         onPlace={tool.tool === 'text' ? placeText : undefined}
+        pickAt={pickAt}
+        onPick={(e, id) => transform.onObjectPointerDown(e, id)}
+        toolLayer={({ camera }) =>
+          tool.tool === 'shape' ? (
+            <ShapeTool
+              kind={tool.shapeKind}
+              camera={camera}
+              doc={doc}
+              by={localIdentity()}
+              onCreated={tool.toolCreated}
+            />
+          ) : tool.tool === 'connector' ? (
+            <ConnectorTool
+              camera={camera}
+              snapshot={shown}
+              doc={doc}
+              by={localIdentity()}
+              onCreated={tool.toolCreated}
+            />
+          ) : null
+        }
         onEmptyDoubleClick={createAt}
         onEmptyClick={clear}
         marquee={{ snapshot: shown, onSelect: (ids) => setMany(ids, true) }}
@@ -166,7 +210,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
                 ids={selection.ids}
                 snapshot={shown}
                 camera={camera}
-                interactive={editable && editingId === null}
+                interactive={editable && editingId === null && tool.tool === 'select'}
                 onHandlePointerDown={transform.onHandlePointerDown}
               />
               <SelectionBar
@@ -178,6 +222,9 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
                 onDelete={deleteSelection}
                 onColor={(id, color) => {
                   if (editable) step(() => setStickyColor(doc, id, color));
+                }}
+                onShapeStyle={(id, style) => {
+                  if (editable) step(() => setShapeStyle(doc, id, style));
                 }}
                 onTextSize={(id, size) => {
                   // The top-left stays; the box is re-measured in the same step.
@@ -193,6 +240,11 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
               undo={undo}
               tool={tool.tool}
               onTool={tool.setTool}
+              shapeKind={tool.shapeKind}
+              onShapeKind={(k) => {
+                tool.setShapeKind(k);
+                tool.setTool('shape');
+              }}
               onCreateSticky={() =>
                 createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }))
               }
@@ -207,6 +259,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
               <Component
                 key={obj.id}
                 layer={layers.get(obj.id)}
+                rects={rects}
                 object={obj}
                 doc={doc}
                 zoom={camera.zoom}

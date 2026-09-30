@@ -4,13 +4,23 @@
 // Y.Doc
 //   meta:    Y.Map { schemaVersion: 1 }
 //   objects: Y.Map<id, Y.Map { type: 'sticky', x, y, width?, height?, color, text: Y.Text, z, createdAt }>
-//            (story 9 adds type 'text', see objects/text.ts)
+//            (story 9 adds type 'text', see objects/text.ts; story 10 adds 'shape' and
+//            'connector', see objects/shape.ts and objects/connector.ts)
 //
 // `width`/`height` (story 7) are optional: objects without them are STICKY_SIZE_WORLD square.
 import * as Y from 'yjs';
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
 import { type Point, type Rect, isFiniteRect, rectContains } from './geometry';
+import {
+  type ConnectorSnap,
+  detachConnectorsTo,
+  readConnectorFields,
+  translateConnector,
+  unresolvedEnds,
+} from './objects/connector';
+import { readShapeFields } from './objects/shape';
 import { readTextFields } from './objects/text';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 
 /** Transaction origin of changes made by this client (used by undo and sync in later stories). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
@@ -39,7 +49,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 }
 
 /** Object types this model knows how to read. */
-export const MODEL_TYPES: ReadonlySet<string> = new Set(['sticky', 'text']);
+export const MODEL_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector']);
 
 type ObjectMap = Y.Map<unknown>;
 
@@ -163,6 +173,12 @@ function readObject(id: string, value: unknown): ObjectSnapshot | undefined {
     createdAt: typeof createdAt === 'number' ? createdAt : 0,
   };
   if (type === 'text') return Object.freeze({ ...base, type: 'text', ...readTextFields(obj) });
+  if (type === 'shape') return Object.freeze({ ...base, type: 'shape', ...readShapeFields(obj) });
+  // The box is derived from the ends once every other object has been read (objectsSnapshot).
+  if (type === 'connector') {
+    const fields = readConnectorFields(obj);
+    return { ...base, width: 0, height: 0, type: 'connector', ...fields, ends: unresolvedEnds(fields) } as ConnectorSnap;
+  }
   if (type !== 'sticky') return Object.freeze(base);
   const color = obj.get('color');
   const text = obj.get('text');
@@ -189,7 +205,38 @@ export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (obj) objects.push(obj);
   });
   objects.sort(byStacking);
+  // Arrows (story 10): the box spans the ends resolved against the other objects' rects.
+  if (objects.some((o) => o.type === 'connector')) {
+    const rects = rectsOf(objects);
+    objects.forEach((o, i) => {
+      if (o.type !== 'connector') return;
+      const c = o as ConnectorSnap;
+      const ends = resolveEndpoints(c, rects);
+      objects[i] = Object.freeze({ ...c, ...connectorBBox(ends.from, ends.to), ends });
+    });
+  }
   return Object.freeze(objects);
+}
+
+function rectsOf(objects: readonly ObjectSnapshot[]): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const o of objects) if (o.type !== 'connector') rects.set(o.id, objectBounds(o));
+  return rects;
+}
+
+/**
+ * Rects of every object an arrow can attach to (all but arrows), in stacking order (topmost
+ * last). Story 10.
+ */
+export function objectRects(doc: Y.Doc): Map<string, Rect> {
+  const objects: ObjectSnapshot[] = [];
+  objectsOf(doc).forEach((value, id) => {
+    if (value instanceof Y.Map && value.get('type') === 'connector') return;
+    const obj = readObject(id, value);
+    if (obj) objects.push(obj);
+  });
+  objects.sort(byStacking);
+  return rectsOf(objects);
 }
 
 /** Immutable sticky notes sorted by (z, id); unknown or malformed objects are skipped. */
@@ -239,19 +286,29 @@ export function allObjectIds(
  */
 export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): number {
   const changes: [ObjectMap, Point][] = [];
+  // Arrows (story 10) have a derived box: their free ends move by the box's offset.
+  const arrows: [ConnectorSnap, Point][] = [];
+  let current: Map<string, ObjectSnapshot> | null = null;
   for (const [id, p] of positions) {
     if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return 0;
     const obj = getObject(doc, id);
-    if (obj && (obj.get('x') !== p.x || obj.get('y') !== p.y)) changes.push([obj, p]);
+    if (!obj) continue;
+    if (obj.get('type') === 'connector') {
+      current ??= new Map(objectsSnapshot(doc).map((o) => [o.id, o]));
+      const c = current.get(id) as ConnectorSnap | undefined;
+      if (c && (c.x !== p.x || c.y !== p.y)) arrows.push([c, { x: p.x - c.x, y: p.y - c.y }]);
+    } else if (obj.get('x') !== p.x || obj.get('y') !== p.y) changes.push([obj, p]);
   }
-  if (changes.length === 0) return 0;
+  if (changes.length === 0 && arrows.length === 0) return 0;
+  let changed = changes.length;
   doc.transact(() => {
     for (const [obj, p] of changes) {
       obj.set('x', p.x);
       obj.set('y', p.y);
     }
+    for (const [c, d] of arrows) if (translateConnector(doc, c, d.x, d.y)) changed++;
   }, LOCAL_ORIGIN);
-  return changes.length;
+  return changed;
 }
 
 /**
@@ -264,7 +321,8 @@ export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): num
   for (const [id, r] of rects) {
     if (!isFiniteRect(r) || r.width <= 0 || r.height <= 0) return 0;
     const obj = getObject(doc, id);
-    if (!obj) continue;
+    // Arrows have no size of their own (story 10).
+    if (!obj || obj.get('type') === 'connector') continue;
     const same =
       obj.get('x') === r.x &&
       obj.get('y') === r.y &&
@@ -316,11 +374,15 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
   return changed;
 }
 
-/** Deletes the objects; missing ids are skipped. Returns the number deleted. */
+/**
+ * Deletes the objects; missing ids are skipped. Arrows attached to them stay, with those ends
+ * freed where they were attached (story 10), in the same transaction. Returns the number deleted.
+ */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = [...new Set(ids)].filter((id) => getObject(doc, id) !== undefined);
   if (present.length === 0) return 0;
   doc.transact(() => {
+    detachConnectorsTo(doc, present);
     for (const id of present) objectsOf(doc).delete(id);
   }, LOCAL_ORIGIN);
   return present.length;

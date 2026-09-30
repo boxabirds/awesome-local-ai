@@ -5,9 +5,18 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN, type ObjectSnapshot, moveObjects, objectBounds } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import type { Point, Rect } from '../../shared/geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { type ConnectorSnap, translateConnector } from '../../shared/objects/connector';
 import { type TextSnapshot, setTextWidthFixed } from '../../shared/objects/text';
+import { ConnectorEntry } from './ConnectorObject';
+import { ShapeEntry } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { textMeasurer } from './textLayout';
@@ -26,6 +35,8 @@ export interface ObjectProps {
   transforming: boolean;
   /** CSS stacking layer: the object's rank in (z, id) order. */
   layer?: number;
+  /** Rects of every object an arrow can attach to, topmost last (story 10 arrows). */
+  rects?: ReadonlyMap<string, Rect>;
   /** Starts the generic select / move gesture (useTransformGesture). */
   onPointerDown(e: ReactPointerEvent<HTMLElement>, id: string): void;
   /** Keyboard focus selected the object. */
@@ -57,7 +68,20 @@ export interface ObjectTypeSpec {
    * rect write. `to` is the rect the generic resize computed for the object.
    */
   applyResize?(doc: Y.Doc, obj: ObjectSnapshot, to: Rect, widthOnly: boolean): void;
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Writes a move for a type whose box is derived (story 10 arrows), instead of setting x/y:
+   * `start` is the object when the gesture started, (dx, dy) the offset in world units.
+   */
+  applyMove?(doc: Y.Doc, start: ObjectSnapshot, dx: number, dy: number): void;
+  /**
+   * True when presses are matched by `hitTest` instead of the object's DOM box (story 10:
+   * an arrow is only hit near its line, not anywhere in its bounding box).
+   */
+  pickByHitTest?: boolean;
+  /** The object draws its own selection (arrow end handles): no selection box when alone. */
+  ownSelection?: boolean;
+  /** `zoom` (screen px per world unit) lets a type use a tolerance in screen pixels. */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -116,4 +140,33 @@ registerObjectType('text', {
     }, LOCAL_ORIGIN);
   },
   hitTest: boundsHitTest,
+});
+
+registerObjectType('shape', {
+  Component: ShapeEntry,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: boundsHitTest,
+});
+
+/** Within CONNECTOR_HIT_TOLERANCE_PX screen pixels of the arrow's line. */
+export function connectorHitTest(obj: ObjectSnapshot, p: Point, zoom = 1): boolean {
+  const { ends } = obj as ConnectorSnap;
+  return distanceToPolyline([ends.from, ends.to], p) <= CONNECTOR_HIT_TOLERANCE_PX / zoom;
+}
+
+registerObjectType('connector', {
+  Component: ConnectorEntry,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  pickByHitTest: true,
+  ownSelection: true,
+  applyMove: (doc, start, dx, dy) => {
+    translateConnector(doc, start as ConnectorSnap, dx, dy);
+  },
+  hitTest: connectorHitTest,
 });

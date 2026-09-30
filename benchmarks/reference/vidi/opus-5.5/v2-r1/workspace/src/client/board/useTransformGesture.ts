@@ -70,6 +70,8 @@ interface Session {
   canTransform: boolean;
   active: boolean;
   startRects: Map<string, Rect>;
+  /** The objects when the gesture started (types with `applyMove` move from these). */
+  startObjects: Map<string, ObjectSnapshot>;
   // Resize only.
   handle?: Handle;
   box?: Rect;
@@ -132,13 +134,25 @@ export function useTransformGesture(opts: TransformGestureOptions): {
       }
       const dx = p.dx / s.zoom;
       const dy = p.dy / s.zoom;
+      /** Types with a derived box (arrows) move from their start state instead of by x/y. */
+      const customMove = (id: string) => {
+        const start = s.startObjects.get(id);
+        const spec = start ? getObjectType(start.type) : undefined;
+        return start && spec?.applyMove ? { start, applyMove: spec.applyMove } : null;
+      };
       if (s.kind === 'move') {
         const positions = new Map<string, Point>();
-        for (const id of present) {
-          const r = s.startRects.get(id)!;
-          positions.set(id, { x: r.x + dx, y: r.y + dy });
-        }
-        moveObjects(doc, positions);
+        doc.transact(() => {
+          for (const id of present) {
+            const custom = customMove(id);
+            if (custom) custom.applyMove(doc, custom.start, dx, dy);
+            else {
+              const r = s.startRects.get(id)!;
+              positions.set(id, { x: r.x + dx, y: r.y + dy });
+            }
+          }
+          moveObjects(doc, positions);
+        }, LOCAL_ORIGIN);
         return;
       }
       const box = s.box!;
@@ -155,17 +169,23 @@ export function useTransformGesture(opts: TransformGestureOptions): {
       const rects = new Map<string, Rect>();
       const positions = new Map<string, Point>();
       const custom: [ObjectSnapshot, Rect][] = [];
+      const arrows: (() => void)[] = [];
       const byId = new Map(optsRef.current.snapshot.map((o) => [o.id, o]));
       for (const id of present) {
         const r = scaleWithin(s.startRects.get(id)!, box, to);
         const obj = byId.get(id);
         const spec = obj ? getObjectType(obj.type) : undefined;
+        const moved = customMove(id);
         if (obj && spec?.applyResize && s.resizable!.has(id)) custom.push([obj, r]);
         else if (s.resizable!.has(id)) rects.set(id, r);
-        else positions.set(id, { x: r.x, y: r.y });
+        else if (moved) {
+          const from = s.startRects.get(id)!;
+          arrows.push(() => moved.applyMove(doc, moved.start, r.x - from.x, r.y - from.y));
+        } else positions.set(id, { x: r.x, y: r.y });
       }
       // One transaction per frame, whatever the types involved.
       doc.transact(() => {
+        for (const move of arrows) move();
         resizeObjects(doc, rects);
         if (positions.size > 0) moveObjects(doc, positions);
         for (const [obj, r] of custom) getObjectType(obj.type)!.applyResize!(doc, obj, r, s.widthOnly!);
@@ -260,6 +280,11 @@ export function useTransformGesture(opts: TransformGestureOptions): {
     [activate, apply, finish],
   );
 
+  const startObjectsOf = (ids: readonly string[]) => {
+    const wanted = new Set(ids);
+    return new Map(optsRef.current.snapshot.filter((o) => wanted.has(o.id)).map((o) => [o.id, o]));
+  };
+
   const startRectsOf = (ids: readonly string[]) => {
     const byId = new Map(optsRef.current.snapshot.map((o) => [o.id, o]));
     const rects = new Map<string, Rect>();
@@ -300,7 +325,14 @@ export function useTransformGesture(opts: TransformGestureOptions): {
         selection.click(id);
         ids = [id];
       }
-      begin(e, { kind: 'move', ids, onClick, canTransform: canEdit, startRects: startRectsOf(ids) });
+      begin(e, {
+        kind: 'move',
+        ids,
+        onClick,
+        canTransform: canEdit,
+        startRects: startRectsOf(ids),
+        startObjects: startObjectsOf(ids),
+      });
     },
     [begin],
   );
@@ -347,6 +379,7 @@ export function useTransformGesture(opts: TransformGestureOptions): {
         onClick: null,
         canTransform: true,
         startRects,
+        startObjects: startObjectsOf(ids),
         handle,
         box,
         resizable,

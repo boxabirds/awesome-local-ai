@@ -56,6 +56,8 @@ export function SelectionOverlay(props: {
   const box = selectionScreenBox(props.ids, props.snapshot, props.camera);
   if (!box) return null;
   const specs = selectedObjects(props.ids, props.snapshot).map((o) => getObjectType(o.type));
+  // An arrow alone shows its own end handles instead (story 10).
+  if (specs.every((spec) => spec?.ownSelection)) return null;
   const resizable = specs.some((spec) => spec?.resizable);
   const showHandles = resizable && (props.interactive ?? true);
   // Only side handles when every selected type's height follows its content (text, story 9).

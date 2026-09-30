@@ -106,3 +106,49 @@ export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 export const TEXT_CARET_SLACK_WORLD = 2;
 /** Average glyph width as a fraction of the font size, used when text cannot be measured. */
 export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.55;
+
+/** Shape kinds (story 10), in Shape menu order. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+/** Size of a shape dropped with a click (or a drag below the minimum), world units. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** A drag smaller than this in either direction drops a standard-size shape instead. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Maximum number of characters in a shape's label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Outline width of shapes, world units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** Shape fill swatches ("none" = no fill). */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+/** Shape outline swatches. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+/** A connector drag shorter than this (world units) creates no arrow. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** A click within this distance (screen px) of an arrow's line selects it. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Line width of arrows, world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Length of an arrowhead, world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius of the connection dots shown with the Connector tool, screen px. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+/** Font size of shape labels, world units (px at 100% zoom). */
+export const SHAPE_LABEL_FONT_PX = 16;

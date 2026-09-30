@@ -1,7 +1,7 @@
 // Board keyboard commands (story 7): Ctrl/Cmd+A select all, Escape clear, arrows nudge,
 // Delete/Backspace delete, Enter edit a single selected note; story 8: Ctrl/Cmd+Z undo,
 // Ctrl/Cmd+Shift+Z and Ctrl+Y redo; story 9: V Select tool, T Text tool, N new sticky note,
-// Escape back to Select. Ignored while text is edited (the editor handles its own undo) and in
+// Escape back to Select; story 10: S Shape tool, L Connector tool. Ignored while text is edited (the editor handles its own undo) and in
 // other text fields.
 import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
@@ -17,7 +17,7 @@ import type { Point } from '../../shared/geometry';
 import { isEditableTarget } from '../canvas/isEditableTarget';
 import { getObjectType, isRegisteredType } from '../objects/registry';
 import type { UndoController } from './undo';
-import type { Tool } from './useTool';
+import { MODE_TOOLS, TOOL_SHORTCUTS, type ToolId } from '../tools/useActiveTool';
 import type { Selection } from './useSelection';
 
 /** 'undo', 'redo' or null for a keydown. */
@@ -44,7 +44,7 @@ export function useBoardKeys(opts: {
   /** This tab's undo history (story 8). */
   undo?: UndoController | null;
   /** The active tool (story 9): enables V, T and Escape. */
-  tool?: { tool: Tool; setTool(t: Tool): void };
+  tool?: { tool: ToolId; setTool(t: ToolId): void };
   /** N: the same as the Sticky note button (story 9). */
   onCreateSticky?(): void;
 }): void {
@@ -80,13 +80,9 @@ export function useBoardKeys(opts: {
         return;
       }
       if (!e.shiftKey && tool) {
-        const key = e.key.toLowerCase();
-        if (key === 'v') {
-          tool.setTool('select');
-          return;
-        }
-        if (key === 't') {
-          if (canEdit) tool.setTool('text');
+        const next = TOOL_SHORTCUTS[e.key.toLowerCase()];
+        if (next && MODE_TOOLS.has(next)) {
+          if (next === 'select' || canEdit) tool.setTool(next);
           return;
         }
       }
