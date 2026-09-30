@@ -337,7 +337,27 @@ pub fn tasks_named(subject: &str) -> Vec<u64> {
     words.windows(2).filter(|w| w[0] == "task").filter_map(|w| w[1].parse().ok()).collect()
 }
 
+/// The private repo's copy of a run's held-out detail (the public record keeps counts only): the harness copies
+/// each run's private files to <private repo>/runs/<the run's path in this repo>/.
+const PRIVATE_RUNS: &str = "runs";
+
+fn private_of(repo: &Path) -> PathBuf {
+    repo.parent().map(|p| p.join("awesome-local-ai-bench-private")).unwrap_or_default()
+}
+
+/// A run file that may be private: in the run, else in the private repo's copy.
+fn run_or_private(repo: &Path, private: &Path, run: &Path, rel: &str) -> Option<String> {
+    std::fs::read_to_string(run.join(rel)).ok().or_else(|| {
+        let copy = private.join(PRIVATE_RUNS).join(run.strip_prefix(repo).ok()?).join(rel);
+        std::fs::read_to_string(copy).ok()
+    })
+}
+
 pub fn load(repo: &Path) -> Vec<Run> {
+    load_with(repo, &private_of(repo))
+}
+
+fn load_with(repo: &Path, private: &Path) -> Vec<Run> {
     discover(repo)
         .into_iter()
         .map(|(setup, run, path)| {
@@ -368,7 +388,7 @@ pub fn load(repo: &Path) -> Vec<Run> {
                     .unwrap_or_default(),
                 stories_in_scope: in_scope,
                 score: score(&path),
-                judging: std::fs::read_to_string(path.join("audit.jsonl")).ok().map(|t| judging(&t)),
+                judging: run_or_private(repo, private, &path, "audit.jsonl").map(|t| judging(&t)),
                 cost,
                 setup,
                 run,
@@ -514,6 +534,23 @@ mod tests {
         assert!(is_void(&json!({"harness_fault": "Playwright's browser is missing"})));
         assert!(is_void(&json!({"tests": [{"error": "browserType.launch: Executable doesn't exist at ~/x"}]})));
         assert!(!is_void(&json!({"harness_fault": null, "tests": [{"error": "net::ERR_CONNECTION_REFUSED"}]})));
+    }
+
+    #[test]
+    fn a_runs_audit_is_read_from_the_private_copy_when_the_public_record_has_none() {
+        let root = tmp("audit-private");
+        let (repo, private) = (root.join("pub"), root.join("priv"));
+        let rel = "combinations/x/benchmarks/vidi/r1";
+        let run = repo.join(rel);
+        write(&run.join("metrics.json"), &json!({"stories": {}}));
+        std::fs::create_dir_all(run.join("workspace")).unwrap();
+        assert!(load_with(&repo, &private)[0].judging.is_none(), "no audit anywhere: no judging");
+        let row = json!({"category": "functional", "severity": "high", "status": "counted"}).to_string();
+        std::fs::create_dir_all(private.join("runs").join(rel)).unwrap();
+        std::fs::write(private.join("runs").join(rel).join("audit.jsonl"), &row).unwrap();
+        assert_eq!(load_with(&repo, &private)[0].judging.as_ref().map(|j| j.rows), Some(1));
+        std::fs::write(run.join("audit.jsonl"), format!("{row}\n{row}")).unwrap();
+        assert_eq!(load_with(&repo, &private)[0].judging.as_ref().map(|j| j.rows), Some(2), "the run's own copy first");
     }
 
     #[test]
