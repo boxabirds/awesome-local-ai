@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Row, Usage } from "../../shared/types.ts";
 import { short } from "./UsageCells.tsx";
+import { TimeBars } from "./TimeBars.tsx";
 
 const SAVED_KEY = "benchmarker:story-view:v1";
 const PERCENT = 100;
@@ -79,6 +80,7 @@ export function StoryView({ rows, hidden = [] }: { rows: Row[]; hidden?: string[
         </h2>
         {hidden.length ? <div className="small compare-note">Jobs that are {hidden.join(", ")} are hidden by the status filter above.</div> : null}
         {base ? <div className="small compare-note">Numbers are % of <b>{base.r.label} {base.r.runId}</b> ({base.r.machine}), shown in full on its row; where its number is 0 or missing, each job shows its own.</div> : null}
+        <TimeBars storyId={story.id} jobs={jobs.map(({ r, s }) => ({ r, u: s?.usage }))} />
         <table aria-label={`Story ${story.id} by job`} className="by-job">
           <thead>
             <tr>

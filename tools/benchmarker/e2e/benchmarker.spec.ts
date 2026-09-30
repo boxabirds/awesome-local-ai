@@ -347,3 +347,19 @@ test("hovers show at once, on the page itself: the ? explanations and the column
   await page.locator(`tr.combo-head[data-stack="${SWIFT}"] .explain`).first().focus();  // the keyboard gets it too
   await expect(tip).toContainText("Agent hours per story");
 });
+
+test("by story: a bar per job on one scale, coloured by where the time went, each part explained on hover", async ({ page }) => {
+  await page.getByRole("button", { name: "By story" }).click();
+  await page.getByRole("button", { name: /^1\. / }).click();
+  const bars = page.getByRole("figure", { name: "Where story 1's time went, by job" });
+  const swift = bars.locator(`[data-job="${SWIFT}|v2-r1"]`);
+  const opus = bars.locator(`[data-job="reference/opus-5.5|run-9"]`);
+  await expect(swift.locator('[data-seg="decode"]')).toBeVisible();
+  // One scale: Swift's 12 minutes is wider than Opus's 8.
+  const width = (l: typeof swift) => l.locator(".bar").evaluate((el) => el.getBoundingClientRect().width);
+  expect(await width(swift)).toBeGreaterThan(await width(opus));
+  await expect(opus.locator('[data-seg="modelUnsplit"]')).toBeVisible();   // the cloud model's time isn't split
+  await swift.locator('[data-seg="decode"]').hover();
+  await expect(page.getByRole("tooltip")).toContainText("Generation 9 min: 54k tokens at 101 tok/s");
+  await expect(bars).toContainText("Prefill");                          // the legend
+});

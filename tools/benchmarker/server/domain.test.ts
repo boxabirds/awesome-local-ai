@@ -366,6 +366,17 @@ describe("tokens and speed", () => {
     expect(runUsage([storyEntry("1", raw(5000, 40, null, null)), storyEntry("2", raw(5000, 60, null, null))]).readTokens).toBe(2 * 1010 + 100);
   });
 
+  it("keeps where the story's time went: prefill, generation, tools, compaction, and the rest", () => {
+    const st = storyEntry("3", { agent: { seconds: 4800, tokens: {} }, time_split: { wall_s: 4800, tools_s: 420, compaction_s: 240, other_s: 60,
+      model: { prefill_s: 1020, prefill_tokens: 1230000, decode_s: 3060, decode_tokens: 159000 } } } as never);
+    expect(st.usage!.split).toEqual({ wall: 4800, prefill: 1020, decode: 3060, tools: 420, compaction: 240, other: 60, modelUnsplit: 0 });
+  });
+
+  it("a cloud model's time isn't split: it is what's left of the wall time after tools and compaction", () => {
+    const st = storyEntry("3", { agent: { seconds: 1400, tokens: {} }, time_split: { wall_s: 1400, tools_s: 0, compaction_s: 0, other_s: 1400, model: null } } as never);
+    expect(st.usage!.split).toMatchObject({ prefill: 0, decode: 0, modelUnsplit: 1400, other: 0 });
+  });
+
   it("a run's tok/s is weighted by tokens, not an average of the stories' rates", () => {
     const u = runUsage([storyEntry("1", raw(1000, 100, 10, 1)), storyEntry("2", raw(9000, 900, 180, 9))]);
     expect(u.outTokens).toBe(10000);
