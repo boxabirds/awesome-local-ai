@@ -708,13 +708,15 @@
       "time_split": {
         "wall_s": 3345.7,
         "model": {
+          "source": "llama-log",
           "requests": 116,
-          "prefill_s": 154.3,
+          "prefill_s": 153.0,
           "prefill_tokens": 59297,
           "prefill_tok_s": 384.3,
           "decode_s": 2672.5,
           "decode_tokens": 94605,
           "decode_tok_s": 35.4,
+          "cached_tokens": 0,
           "draft_acceptance": 0.626,
           "mean_accepted_len": 3.62
         },
@@ -724,13 +726,19 @@
           "bash": 103.0,
           "unit": 18.0,
           "build": 3.3,
-          "read": 0.1,
-          "write": 0.0,
-          "edit": 0.0
+          "read": 0.1
         },
         "compaction_s": 210.7,
         "compactions": 1,
-        "other_s": 7.4
+        "between_sessions_s": 0.0,
+        "other_s": 8.7,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 21,

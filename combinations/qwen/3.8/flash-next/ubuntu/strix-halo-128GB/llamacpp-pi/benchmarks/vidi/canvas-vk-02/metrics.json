@@ -135,29 +135,37 @@
       "time_split": {
         "wall_s": 4505.2,
         "model": {
+          "source": "llama-log",
           "requests": 109,
-          "prefill_s": 424.2,
+          "prefill_s": 413.5,
           "prefill_tokens": 97564,
           "prefill_tok_s": 230.0,
           "decode_s": 3493.4,
           "decode_tokens": 110791,
           "decode_tok_s": 31.7,
+          "cached_tokens": 0,
           "draft_acceptance": 0.604,
           "mean_accepted_len": 3.52
         },
-        "tools_s": 179.5,
+        "tools_s": 179.4,
         "tools_by_kind": {
           "e2e": 111.1,
           "bash": 45.9,
           "unit": 11.3,
           "build": 11.0,
-          "write": 0.1,
-          "edit": 0.1,
-          "read": 0.0
+          "edit": 0.1
         },
         "compaction_s": 391.0,
         "compactions": 1,
-        "other_s": 17.1
+        "between_sessions_s": 0.0,
+        "other_s": 27.9,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 21,
@@ -438,13 +446,15 @@
       "time_split": {
         "wall_s": 6700.4,
         "model": {
+          "source": "llama-log",
           "requests": 157,
-          "prefill_s": 606.9,
+          "prefill_s": 594.4,
           "prefill_tokens": 134727,
           "prefill_tok_s": 222.0,
           "decode_s": 5055.6,
           "decode_tokens": 136791,
           "decode_tok_s": 27.1,
+          "cached_tokens": 0,
           "draft_acceptance": 0.524,
           "mean_accepted_len": 3.2
         },
@@ -455,12 +465,19 @@
           "bash": 4.8,
           "build": 4.4,
           "edit": 0.1,
-          "read": 0.1,
-          "write": 0.0
+          "read": 0.1
         },
         "compaction_s": 805.1,
         "compactions": 2,
-        "other_s": 23.4
+        "between_sessions_s": 0.0,
+        "other_s": 35.9,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 37,
@@ -773,29 +790,39 @@
       "time_split": {
         "wall_s": 14401.0,
         "model": {
+          "source": "llama-log",
           "requests": 311,
-          "prefill_s": 1338.8,
+          "prefill_s": 1294.1,
           "prefill_tokens": 279952,
           "prefill_tok_s": 209.1,
           "decode_s": 9442.4,
           "decode_tokens": 274597,
           "decode_tok_s": 29.1,
+          "cached_tokens": 0,
           "draft_acceptance": 0.567,
           "mean_accepted_len": 3.36
         },
-        "tools_s": 1801.5,
+        "tools_s": 1810.8,
         "tools_by_kind": {
-          "e2e": 1241.6,
+          "e2e": 1251.0,
           "unit": 428.4,
-          "bash": 72.9,
+          "bash": 72.8,
           "build": 58.4,
-          "write": 0.1,
-          "read": 0.1,
-          "edit": 0.0
+          "write": 0.1
         },
         "compaction_s": 1763.0,
         "compactions": 4,
-        "other_s": 55.3
+        "between_sessions_s": 0.0,
+        "other_s": 90.7,
+        "accounting": {
+          "version": 3,
+          "ok": false,
+          "problems": [
+            "tool call x3YprsFTGlNjVCnQSZFPHGqYp4ujaltt never ended; counted to the agent's next step"
+          ],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 54,
@@ -1147,13 +1174,15 @@
       "time_split": {
         "wall_s": 14401.0,
         "model": {
+          "source": "llama-log",
           "requests": 306,
-          "prefill_s": 1676.2,
+          "prefill_s": 1644.9,
           "prefill_tokens": 344488,
           "prefill_tok_s": 205.5,
           "decode_s": 10064.9,
           "decode_tokens": 276557,
           "decode_tok_s": 27.5,
+          "cached_tokens": 0,
           "draft_acceptance": 0.534,
           "mean_accepted_len": 3.24
         },
@@ -1163,13 +1192,21 @@
           "e2e": 278.6,
           "bash": 71.0,
           "build": 5.4,
-          "edit": 0.2,
-          "read": 0.1,
-          "write": 0.0
+          "edit": 0.1
         },
-        "compaction_s": 1658.3,
-        "compactions": 4,
-        "other_s": 336.4
+        "compaction_s": 1951.3,
+        "compactions": 5,
+        "between_sessions_s": 0.0,
+        "other_s": 74.7,
+        "accounting": {
+          "version": 3,
+          "ok": false,
+          "problems": [
+            "a compaction never ended; counted to the window's end"
+          ],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 67,

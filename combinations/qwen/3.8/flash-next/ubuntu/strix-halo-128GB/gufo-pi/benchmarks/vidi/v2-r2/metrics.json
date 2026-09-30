@@ -166,14 +166,18 @@
           "e2e": 23.4,
           "build": 23.1,
           "unit": 15.5,
-          "bash": 11.2,
-          "write": 0.0,
-          "edit": 0.0,
-          "read": 0.0
+          "bash": 11.2
         },
-        "compaction_s": 0,
+        "compaction_s": 0.0,
         "compactions": 0,
+        "between_sessions_s": 0.0,
         "other_s": 6.9,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -482,19 +486,24 @@
           "decode_tok_s": 54.0,
           "cached_tokens": 5816389
         },
-        "tools_s": 43.3,
+        "tools_s": 43.2,
         "tools_by_kind": {
           "build": 17.0,
           "unit": 15.9,
           "e2e": 9.8,
           "bash": 0.4,
-          "edit": 0.1,
-          "read": 0.0,
-          "write": 0.0
+          "edit": 0.1
         },
-        "compaction_s": 0,
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 7.3,
+        "between_sessions_s": 0.0,
+        "other_s": 7.4,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -831,19 +840,25 @@
           "decode_tok_s": 49.2,
           "cached_tokens": 14170119
         },
-        "tools_s": 356.3,
+        "tools_s": 356.2,
         "tools_by_kind": {
           "unit": 213.8,
           "e2e": 119.6,
           "build": 22.3,
           "bash": 0.4,
           "edit": 0.1,
-          "read": 0.1,
           "write": 0.1
         },
         "compaction_s": 72.1,
         "compactions": 1,
-        "other_s": 26.8,
+        "between_sessions_s": 0.0,
+        "other_s": 26.9,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -1475,12 +1490,18 @@
           "e2e": 112.2,
           "build": 22.0,
           "read": 0.1,
-          "edit": 0.1,
-          "write": 0.0
+          "edit": 0.1
         },
         "compaction_s": 489.6,
         "compactions": 3,
+        "between_sessions_s": 0.0,
         "other_s": 17.1,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -1827,19 +1848,25 @@
           "decode_tok_s": 41.7,
           "cached_tokens": 10042863
         },
-        "tools_s": 302.2,
+        "tools_s": 302.1,
         "tools_by_kind": {
           "unit": 185.5,
           "e2e": 103.3,
           "build": 12.8,
           "bash": 0.4,
           "edit": 0.1,
-          "read": 0.1,
-          "write": 0.0
+          "read": 0.1
         },
         "compaction_s": 139.1,
         "compactions": 1,
-        "other_s": 13.1,
+        "between_sessions_s": 0.3,
+        "other_s": 12.8,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -2163,19 +2190,25 @@
           "decode_tok_s": 49.5,
           "cached_tokens": 14662783
         },
-        "tools_s": 492.3,
+        "tools_s": 492.2,
         "tools_by_kind": {
           "e2e": 257.8,
           "unit": 203.4,
           "build": 30.4,
-          "bash": 0.4,
-          "read": 0.1,
+          "bash": 0.3,
           "edit": 0.1,
-          "write": 0.0
+          "read": 0.1
         },
         "compaction_s": 84.7,
         "compactions": 1,
+        "between_sessions_s": 0.0,
         "other_s": 21.2,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -2578,19 +2611,24 @@
           "decode_tok_s": 49.8,
           "cached_tokens": 8015011
         },
-        "tools_s": 128.6,
+        "tools_s": 128.5,
         "tools_by_kind": {
           "unit": 60.9,
           "e2e": 53.5,
           "build": 13.7,
-          "bash": 0.4,
-          "read": 0.1,
-          "edit": 0.0,
-          "write": 0.0
+          "bash": 0.3,
+          "read": 0.1
         },
         "compaction_s": 88.7,
         "compactions": 1,
+        "between_sessions_s": 0.0,
         "other_s": 11.0,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -2938,12 +2976,18 @@
           "e2e": 4.5,
           "bash": 0.6,
           "edit": 0.1,
-          "read": 0.1,
-          "write": 0.0
+          "read": 0.1
         },
         "compaction_s": 96.8,
         "compactions": 1,
-        "other_s": 20.3,
+        "between_sessions_s": 0.0,
+        "other_s": 20.4,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -3324,18 +3368,23 @@
           "decode_tok_s": 53.5,
           "cached_tokens": 9217831
         },
-        "tools_s": 129.0,
+        "tools_s": 126.7,
         "tools_by_kind": {
-          "unit": 108.7,
+          "unit": 106.5,
           "build": 19.8,
           "bash": 0.3,
-          "edit": 0.1,
-          "read": 0.1,
-          "write": 0.0
+          "edit": 0.1
         },
         "compaction_s": 77.5,
         "compactions": 1,
-        "other_s": 9.4,
+        "between_sessions_s": 0.3,
+        "other_s": 11.3,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -3709,13 +3758,18 @@
           "build": 42.2,
           "unit": 38.9,
           "bash": 1.1,
-          "edit": 0.1,
-          "read": 0.0,
-          "write": 0.0
+          "edit": 0.1
         },
         "compaction_s": 80.9,
         "compactions": 1,
-        "other_s": 17.0,
+        "between_sessions_s": 0.0,
+        "other_s": 17.1,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -4041,18 +4095,22 @@
           "decode_tok_s": 52.0,
           "cached_tokens": 7734841
         },
-        "tools_s": 219.4,
+        "tools_s": 219.3,
         "tools_by_kind": {
           "unit": 196.2,
           "build": 22.8,
-          "bash": 0.3,
-          "read": 0.1,
-          "edit": 0.0,
-          "write": 0.0
+          "bash": 0.3
         },
         "compaction_s": 72.6,
         "compactions": 1,
+        "between_sessions_s": 0.0,
         "other_s": 8.8,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
