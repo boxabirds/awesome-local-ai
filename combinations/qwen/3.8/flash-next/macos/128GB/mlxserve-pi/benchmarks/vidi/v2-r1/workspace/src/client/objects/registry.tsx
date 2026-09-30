@@ -23,13 +23,22 @@ import {
 } from '../../shared/board-model';
 import type { Handle, Point } from '../../shared/geometry';
 import { rectContains } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import {
   readTextSnapshot,
   setTextBox,
   setTextWidthFixed,
 } from '../../shared/objects/text';
 import type { UndoController } from '../board/undo';
+import { isConnectorSnapshot, hitTestConnector, type ConnectorSnapshot } from '../../shared/objects/connector';
+import { isShapeSnapshot, type ShapeSnapshot } from '../../shared/objects/shape';
+import { objectRects } from '../../shared/board-model';
+import { ConnectorObject } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { boardMeasurer } from './textLayout';
@@ -92,7 +101,14 @@ export interface ObjectTypeSpec {
   /** The type's own floor, in world units; the maximum is one global setting. */
   minSize: number;
   editableText: boolean;
-  hitTest(object: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Is this board point on this object? `zoom` is how far the board is zoomed in, for
+   * the one kind of object whose target is measured in *screen* pixels rather than
+   * board units — an arrow is hit within a few pixels of its line, whatever the zoom,
+   * so its tolerance has to be divided by the zoom to be in board units at all
+   * (`connector.select`). Every other type is a box and ignores it; absent means 1.
+   */
+  hitTest(object: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
   /** Which handles this kind of object is dragged by. Default `all`. */
   handles?: ObjectHandles;
   /**
@@ -219,4 +235,88 @@ registerObjectType('text', {
       if (box) setTextBox(doc, id, box);
     }
   },
+});
+
+/**
+ * A shape, reached through the generic props every object gets (`shape.ui`).
+ *
+ * A shape is a box with a size of its own, so it is dragged by any of story 7's eight
+ * handles and is resized down to `SHAPE_MIN_SIZE_WORLD` — the same floor a drawn shape
+ * may not be smaller than, so that the minimum means one thing (`shape.min_size`). It
+ * holds text, so it is editable, and the label is a `Y.Text` that `snapshotObjects`
+ * reads into `object` like any other field.
+ */
+function ShapeObjectType(props: ObjectProps): ReactNode {
+  if (!isShapeSnapshot(props.object)) return null;
+  const shape = props.object as ShapeSnapshot;
+  return (
+    <ShapeObject
+      shape={shape}
+      doc={props.doc}
+      zoom={props.zoom}
+      selected={props.selected}
+      editing={props.editing}
+      editable={props.editable}
+      onObjectPointerDown={props.onObjectPointerDown}
+      onStartEdit={props.onStartEdit}
+      onEndEdit={props.onEndEdit}
+      undo={props.undo}
+    />
+  );
+}
+
+registerObjectType('shape', {
+  Component: ShapeObjectType,
+  resizable: true,
+  // A shape is as wide as you dragged it: a resize never changes the other dimension.
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  // The whole rectangle, which for a diamond or an ellipse includes its corners: the
+  // box is the object's, and hitting the box it is drawn in is what picking it means.
+  hitTest: (object: ObjectSnapshot, point: Point) =>
+    rectContains(objectBounds(object), { ...point, width: 0, height: 0 }),
+});
+
+/**
+ * An arrow (`connector.ui`).
+ *
+ * Not resizable in story 7's sense: an arrow has no box of its own to drag — its box is
+ * between two objects, and what you drag instead is either end, which the component
+ * does for itself (`connector.reattach`). It holds no text. And it is the one type that
+ * is not hit by its box: an arrow's box is mostly empty air, and a click in that air
+ * that is nowhere near the line must not select it (TC-20).
+ */
+function ConnectorObjectType(props: ObjectProps): ReactNode {
+  if (!isConnectorSnapshot(props.object)) return null;
+  const connector = props.object as ConnectorSnapshot;
+  // The same snapshot's boxes the arrow's own box was resolved from. Nothing here is
+  // measured or written: the arrow asks where its objects are and draws itself there.
+  const rects = objectRects(props.doc);
+  return (
+    <ConnectorObject
+      connector={connector}
+      rects={rects}
+      doc={props.doc}
+      zoom={props.zoom}
+      selected={props.selected}
+      editable={props.editable}
+      onObjectPointerDown={props.onObjectPointerDown}
+      undo={props.undo}
+    />
+  );
+}
+
+registerObjectType('connector', {
+  Component: ConnectorObjectType,
+  resizable: false,
+  aspectLocked: false,
+  // No floor of its own: an arrow is as long as the gap between what it joins, and
+  // `CONNECTOR_MIN_LENGTH_WORLD` is a rule about drags, taken once in the model.
+  minSize: 0,
+  editableText: false,
+  hitTest: (object: ObjectSnapshot, point: Point, zoom?: number) =>
+    isConnectorSnapshot(object)
+      ? hitTestConnector(object, point, zoom ?? 1)
+      : rectContains(objectBounds(object), { ...point, width: 0, height: 0 }),
 });

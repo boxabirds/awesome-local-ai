@@ -14,11 +14,13 @@ import type { CSSProperties, ReactNode } from 'react';
 import type * as Y from 'yjs';
 import type { BoardObject } from '../../shared/board-model';
 import { isStickySnapshot, selectionBounds, setStickyColor } from '../../shared/board-model';
-import type { StickyColor, TextSize } from '../../shared/config';
+import type { ShapeFill, ShapeStroke, StickyColor, TextSize } from '../../shared/config';
+import { isShapeSnapshot, setShapeStyle } from '../../shared/objects/shape';
 import { isTextSnapshot } from '../../shared/objects/text';
 import { worldToScreen } from '../canvas/camera';
 import { useBoardCamera } from '../canvas/BoardViewport';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
 import { boardMeasurer } from '../objects/textLayout';
 import { applyTextSize } from '../objects/useTextBoxSync';
@@ -43,6 +45,8 @@ export const selectionCountLabel = (count: number): string =>
 // that it is never placed off the edge of the screen where nothing can reach it.
 const TOOLBAR_WIDTH_PX = 200;
 const TEXT_TOOLBAR_WIDTH_PX = 190;
+// Thirteen swatches in two groups: the widest bar the rail ever shows.
+const SHAPE_TOOLBAR_WIDTH_PX = 320;
 const BAR_WIDTH_PX = 160;
 const BAR_HEIGHT_PX = 28;
 const EDGE_INSET_PX = 8;
@@ -62,10 +66,19 @@ export function SelectionBar({ ids, snapshot, doc, onDelete, undo }: SelectionBa
   // else, and anything from two objects up, gets the bar.
   const loneSticky = selected.length === 1 && isStickySnapshot(selected[0]) ? selected[0] : undefined;
   const loneText = selected.length === 1 && isTextSnapshot(selected[0]) ? selected[0] : undefined;
+  // One shape gets its own two groups of swatches: what it is filled with, and what it
+  // is outlined in (`shape.style`).
+  const loneShape = selected.length === 1 && isShapeSnapshot(selected[0]) ? selected[0] : undefined;
 
   const box = selectionBounds(snapshot, [...ids]);
   const anchor = box ? worldToScreen(camera, { x: box.x, y: box.y }) : { x: 0, y: 0 };
-  const width = loneSticky ? TOOLBAR_WIDTH_PX : loneText ? TEXT_TOOLBAR_WIDTH_PX : BAR_WIDTH_PX;
+  const width = loneSticky
+    ? TOOLBAR_WIDTH_PX
+    : loneText
+      ? TEXT_TOOLBAR_WIDTH_PX
+      : loneShape
+        ? SHAPE_TOOLBAR_WIDTH_PX
+        : BAR_WIDTH_PX;
   const view = windowSize();
   const left = Math.min(
     Math.max(EDGE_INSET_PX, anchor.x),
@@ -111,6 +124,30 @@ export function SelectionBar({ ids, snapshot, doc, onDelete, undo }: SelectionBa
             // gets undone comes back as the size it was, not as a box still too tall.
             undo?.boundary();
             applyTextSize(doc, loneText.id, size, boardMeasurer);
+            undo?.boundary();
+          }}
+          onDelete={onDelete}
+        />
+      </div>
+    );
+  }
+
+  if (loneShape) {
+    return (
+      <div data-testid="selection-bar" style={style}>
+        <ShapeToolbar
+          fill={loneShape.fill}
+          stroke={loneShape.stroke}
+          onFill={(fill: ShapeFill): void => {
+            // One swatch, one key of the shape, one undo step: the label, the size and
+            // the selection are untouched by a change of colour.
+            undo?.boundary();
+            setShapeStyle(doc, loneShape.id, { fill });
+            undo?.boundary();
+          }}
+          onStroke={(stroke: ShapeStroke): void => {
+            undo?.boundary();
+            setShapeStyle(doc, loneShape.id, { stroke });
             undo?.boundary();
           }}
           onDelete={onDelete}

@@ -215,24 +215,13 @@ export function objectBounds(object: ObjectSnapshot): Rect {
  * different contents.
  */
 function readObject(id: string, object: Y.Map<unknown>): BoardObject | null {
+  const base = baseOf(id, object);
+  if (base === null) return null;
   const type = object.get('type');
-  if (!isKnownObjectType(type)) return null;
   // A kind that reads itself gets the whole map, because the fields below are not
   // all it has (a text object carries its own text, size and width mode).
   const read = typeof type === 'string' ? readers.get(type) : undefined;
   if (read) return read(id, object);
-  const base: ObjectSnapshot = {
-    id,
-    type: type as string,
-    x: num(object.get('x')) ?? 0,
-    y: num(object.get('y')) ?? 0,
-    z: num(object.get('z')) ?? 0,
-  };
-  const width = num(object.get('width'));
-  const height = num(object.get('height'));
-  // Absent on an object nothing has resized; `objectBounds` supplies the default.
-  if (width !== undefined) base.width = width;
-  if (height !== undefined) base.height = height;
   if (type !== 'sticky') return base;
 
   const color = object.get('color');
@@ -376,13 +365,97 @@ export function resizeObjects(doc: Y.Doc, sizes: ReadonlyMap<string, Rect>): num
   return changed;
 }
 
+/**
+ * Every object's *base* fields — position, size, draw order — straight out of the
+ * document, without asking a single kind's reader.
+ *
+ * A kind whose own read depends on where the other objects are has to look at those
+ * objects without going through the whole snapshot: a connector is drawn between two
+ * shapes, so its reader needs their boxes, and asking `snapshotObjects` from inside a
+ * reader would ask its own reader again, and that does not end. Unknown kinds are
+ * skipped here exactly as they are in the snapshot.
+ */
+export function baseObjects(doc: Y.Doc): ObjectSnapshot[] {
+  const out: ObjectSnapshot[] = [];
+  objectsMap(doc).forEach((value, key) => {
+    const base = baseOf(key, value);
+    if (base) out.push(base);
+  });
+  return out.sort(compareOrder);
+}
+
+/**
+ * The fields every object carries, read out of its `Y.Map`, or null for an object of
+ * a kind this story has never heard of. `readObject` builds on this; a kind that
+ * resolves its own position from the other objects uses it directly.
+ */
+function baseOf(id: string, value: unknown): ObjectSnapshot | null {
+  if (!(value instanceof Y.Map)) return null;
+  const type = value.get('type');
+  if (!isKnownObjectType(type)) return null;
+  const base: ObjectSnapshot = {
+    id,
+    type: type as string,
+    x: num(value.get('x')) ?? 0,
+    y: num(value.get('y')) ?? 0,
+    z: num(value.get('z')) ?? 0,
+  };
+  const width = num(value.get('width'));
+  const height = num(value.get('height'));
+  // Absent on an object nothing has resized; `objectBounds` supplies the default.
+  if (width !== undefined) base.width = width;
+  if (height !== undefined) base.height = height;
+  return base;
+}
+
+/**
+ * Where every object a board can draw is, as a map of id → rectangle. This is what a
+ * connector resolves its ends against, and what an arrow is aimed at.
+ */
+export function objectRects(doc: Y.Doc): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const object of baseObjects(doc)) {
+    const rect = objectBounds(object);
+    rects.set(object.id, rect);
+  }
+  return rects;
+}
+
+/**
+ * What a kind of object has to say when objects are deleted. Story 10 registers
+ * `detachConnectorsTo` here, so that deleting a shape keeps the arrows that pointed
+ * at it (`connector.detach`) without `board-model` ever learning what a connector is
+ * — the same direction of dependency as `registerObjectTypeModel`, for the same
+ * reason: no cycle.
+ *
+ * Called with the ids being deleted, *before* they are gone, inside the same
+ * transaction, so an arrow and the shape it was attached to still agree on where the
+ * arrow ended and one undo step reverts both.
+ */
+export type ObjectDeleteObserver = (doc: Y.Doc, ids: readonly string[]) => void;
+
+const deleteObservers: ObjectDeleteObserver[] = [];
+
+export const registerObjectDeleteObserver = (observer: ObjectDeleteObserver): void => {
+  deleteObservers.push(observer);
+};
+
+/** Every registered observer, in the order they registered. Nothing to do for none. */
+const observeDelete = (doc: Y.Doc, ids: readonly string[]): void => {
+  for (const observer of deleteObservers) observer(doc, ids);
+};
+
 /** Delete every listed object still there, in one transaction. */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
   let changed = 0;
   doc.transact(() => {
     const objects = objectsMap(doc);
-    for (const id of new Set(ids)) {
+    const going = [...new Set(ids)];
+    // Arrows outlive the shapes they were attached to: their ends are put down first
+    // (TC-26), in this same transaction, so one undo brings back both.
+    observeDelete(doc, going);
+    for (const id of going) {
       const object = objects.get(id);
       if (!(object instanceof Y.Map) || !isKnownObjectType(object.get('type'))) continue;
       objects.delete(id);
@@ -486,6 +559,7 @@ export function deleteObject(doc: Y.Doc, id: string): boolean {
   const objects = objectsMap(doc);
   if (!objects.has(id)) return false;
   doc.transact(() => {
+    observeDelete(doc, [id]);
     objects.delete(id);
   }, LOCAL_ORIGIN);
   return true;

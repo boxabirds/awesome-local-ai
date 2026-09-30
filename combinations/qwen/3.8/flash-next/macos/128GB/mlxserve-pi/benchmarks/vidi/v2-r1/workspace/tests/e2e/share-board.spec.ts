@@ -154,6 +154,11 @@ test('the board link is not sent to another origin as a Referer (TC-29)', async 
   // out, so we can read what it would have carried.
   let fired = false;
   let referer: string | null | undefined = undefined;
+  // Read through a function: the only assignment TypeScript can see in the control
+  // flow is the initialiser, because a route callback is not modelled as running
+  // before the assertion below. Without this the variable is narrowed to `undefined`
+  // and the `includes` call below has nothing to call `includes` on.
+  const readReferer = (): string | null | undefined => referer;
   await page.route('http://referer-probe.invalid/**', (route) => {
     fired = true;
     referer = route.request().headers()['referer'];
@@ -168,9 +173,10 @@ test('the board link is not sent to another origin as a Referer (TC-29)', async 
 
   // No Referer at all, or none that names the board — the link does not go with
   // the visit.
+  const seen = readReferer();
   expect(
-    referer === undefined || referer === null || !referer.includes('/b/'),
-    `referer=${String(referer)}`,
+    seen === undefined || seen === null || !seen.includes('/b/'),
+    `referer=${String(seen)}`,
   ).toBe(true);
 });
 

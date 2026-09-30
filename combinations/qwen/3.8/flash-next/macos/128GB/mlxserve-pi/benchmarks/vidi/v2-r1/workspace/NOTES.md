@@ -417,3 +417,92 @@ and the tool itself in `src/client/board/useTool.ts`.
     - `design.md` and `tasks.md` number the e2e cases differently. The test titles follow
       `design.md`; the three that only `tasks.md` asks for say "Task case TC-28 / TC-29 / TC-30"
       in the comment above them.
+
+# Story 10 — Draw shapes and connect them with arrows
+
+Two new object kinds (`src/shared/objects/shape.ts`, `src/shared/objects/connector.ts`), one
+drawing tool each, and the geometry that makes an arrow's end a *relationship* rather than a
+point. The unit suite holds the arithmetic, the component suite the drawing, and
+`tests/e2e/shapes-and-connectors.spec.ts` the three things only a browser can answer: size at
+another zoom, a label that re-wraps, and an arrow that follows what somebody else moved.
+
+40. **A machine typing 150 characters trips the store binding, and always could.** With
+    `keyboard.type(text)` and no delay, React reports "Maximum update depth exceeded": every
+    character is its own Yjs transaction, `useBoardDoc`'s `observeDeep` handler invalidates the
+    snapshot, and the store is told about a change while React is still rendering the previous
+    one. Reproduced on a story 1 **sticky note** with the same string and the same driver, so
+    it is not story 10's and fixing it is not story 10's either (the app is unaffected — every
+    character lands, which is what the test asserts). The e2e helper types at a person's pace
+    (`delay: 12`) and says so where it is written; 70 characters at full speed does not reach
+    the limit, which is why no earlier story noticed.
+41. **An arrow's own stored position is `(0, 0)` and nothing reads it.** The box comes from the
+    two ends: `readConnectorObject` resolves them and fills `x`/`y`/`width`/`height` from the
+    resolved line, so a shape moving is one write to the shape and no write at all to the
+    arrow. It also means `objectBounds` of an arrow is derived, and `connectorBBox` adds the
+    stroke width to the axis that would otherwise be zero-thick — a horizontal arrow's box is
+    `CONNECTOR_STROKE_WIDTH_WORLD` tall, or a marquee could never reach one.
+42. **Deleting a shape lets its arrows go rather than taking them with them**, and the arrow
+    keeps the point it was tied to (`detachConnectorsTo` writes the resolved anchor in as that
+    end's `fallback`). `board-model.ts` cannot import `connector.ts` — the connector's reader
+    imports `board-model` — so deletion goes through
+    `registerObjectDeleteObserver(fn)`, which `connector.ts` fills at module load. The
+    observers run *inside* the delete transaction, so a delete and the ends it releases are
+    still one undo step (story 8).
+43. **`baseObjects(doc)` / `objectRects(doc)` exist because a reader cannot call a reader.**
+    Resolving an arrow needs the boxes of the shapes it points at, and calling
+    `snapshotObjects` from inside a registered reader would recurse through the very registry
+    entry being read. `baseObjects` returns the base fields without running any reader, which
+    is all an arrow needs — a shape's box is its own numbers.
+44. **`shortenSegment(from, to, amount)` pulls the point back from `to`.** The visible line of
+    an arrow has to stop where the arrowhead starts, so the call is `shortenSegment(from, to,
+    headLength)`. Written the other way round it still draws an arrow — with its head at the
+    tail and a line that stops short of where it points — which is the kind of thing a
+    component test that measures the drawn sleeve catches and a glance does not.
+45. **`hitTest(object, point, zoom)` gained a third argument.** A connector's tolerance is a
+    screen distance (`CONNECTOR_HIT_TOLERANCE_PX`, 6 px) so the world distance it means is
+    `6 / zoom`; every caller that has a camera now passes it. The default of `1` is for tests
+    and for callers that genuinely have no camera, of which there are none in the app.
+46. **The two operations that cannot both win are made to overlap with story 6's outage
+    switch, not with a race.** TC-27 needs the arrow's create to arrive *after* the delete;
+    which of two browsers writes first is not something a test can fix, so Dana draws her
+    arrow while her network is down, Sam deletes the shape, and her arrow arrives when she
+    reconnects — an end attached to an object that is gone, deterministically, over the real
+    sync path. Both outcomes are asserted to be the same picture on both screens.
+47. **`hitTest` of a shape is the box, not the drawn figure.** A diamond's corners are not
+    part of it, so a pointer in a corner grabs the diamond. That is how the shape's own box is
+    the thing you resize, label and marquee; a triangle-in-a-box hit test would make a shape
+    that is harder to catch than it looks.
+48. **`useActiveTool` is the tool, and `useTool` is now a one-line call to it.** The shortcut
+    table (`TOOL_SHORTCUTS`) is one place rather than a chain of `if`s in `useBoardKeys`,
+    because story 10 adds two tools and there are four that a key reaches: `v`, `t`, `s`, `l`.
+    Keys that belong to a tool the rail shows but does not build yet (pen, image, comment)
+    fall through to the board, and a key typed while a text editor holds the focus never
+    changes the tool — `useBoardKeys` already answers that, and the hook is written so it does
+    not have to.
+
+## Environment / testing notes
+
+49. **Two of the suite's failures are not this story's, and both were checked that way.** On
+    the tree this story started from (`git stash push -u`, same commands),
+    `share-board.spec.ts` TC-26 fails on Chromium and TC-27/TC-28 fail on all three browsers —
+    as recorded in story 7's notes — and `undo-redo.spec.ts` TC-24 on WebKit failed 2 of 4
+    runs: a double-click that does not always reach a note's editor in time. With story 10 in,
+    the same tests fail the same way, and everything else passes: 254 unit, 197 component, 61
+    integration, and 199 e2e across Chromium, Firefox and WebKit, including all six
+    `shapes-and-connectors.spec.ts` cases on each browser.
+50. **Two type errors that predated this story are fixed here, because `npm run typecheck` is
+    one of the gates.** In `share-board.spec.ts`, the `referer` a route callback captures is
+    narrowed by TypeScript to its initialiser — a route callback is not modelled as running
+    before the assertion — so `referer.includes` was called on `never`; it is read through a
+    small function now, which gives it the type it was declared with. In `text.spec.ts`, two
+    helpers were still imported after story 9 stopped using them. No assertion in either file
+    changed, and neither failure was about a shape.
+51. **`tests/e2e/helpers/shapes.ts`** is the story's driver: board units from
+    `style.left`/`style.width` (the world layer's transform does the scaling, so those numbers
+    *are* board units at any zoom), screen pixels from the camera the board publishes through
+    `window.__vidi6`, and a `viewAt(centre, zoom)` that keeps the board points in the tests
+    readable. Arrow ends are read off `[data-testid="connector-hit"]`'s `points`, which is the
+    line the browser really drew rather than the number the model holds — the two agreeing is
+    the thing worth asserting. `pressKey` blurs the focused element first, because a toolbar
+    button is a control rather than the board and does not take the board's keys (story 9
+    found that too).

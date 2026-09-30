@@ -1,3 +1,41 @@
+commit 9882e9519ce52da3492cc5182c594456311f5738
+vidi-agent  Wed Sep 30 11:58:08 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  |  89 ++++
+ src/client/board/Board.tsx                |  75 +++-
+ src/client/board/SelectionBar.tsx         |  41 +-
+ src/client/board/Toolbar.tsx              |  87 ++++
+ src/client/board/useBoardKeys.ts          |  25 +-
+ src/client/board/useTool.ts               |  50 +--
+ src/client/canvas/BoardViewport.tsx       |  13 +
+ src/client/objects/ConnectorObject.tsx    | 326 ++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 278 ++++++++++++
+ src/client/objects/ShapeToolbar.tsx       | 129 ++++++
+ src/client/objects/registry.tsx           | 104 ++++-
+ src/client/tools/ConnectorTool.tsx        | 339 +++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 208 +++++++++
+ src/client/tools/useActiveTool.ts         | 168 +++++++
+ src/shared/board-model.ts                 | 102 ++++-
+ src/shared/config.ts                      |  90 ++++
+ src/shared/geometry/connector-geometry.ts | 239 ++++++++++
+ src/shared/geometry/polyline.ts           |  67 +++
+ src/shared/objects/connector.ts           | 379 ++++++++++++++++
+ src/shared/objects/shape.ts               | 324 ++++++++++++++
+ tests/component/Connector.test.tsx        | 698 ++++++++++++++++++++++++++++++
+ tests/component/ShapeObject.test.tsx      | 353 +++++++++++++++
+ tests/component/helpers/shape-ui.tsx      | 373 ++++++++++++++++
+ tests/component/useActiveTool.test.tsx    | 302 +++++++++++++
+ tests/e2e/helpers/shapes.ts               | 538 +++++++++++++++++++++++
+ tests/e2e/shapes-and-connectors.spec.ts   | 478 ++++++++++++++++++++
+ tests/e2e/share-board.spec.ts             |  10 +-
+ tests/e2e/text.spec.ts                    |   2 -
+ tests/unit/connector-model.test.ts        | 416 ++++++++++++++++++
+ tests/unit/registry.test.ts               |  15 +-
+ tests/unit/shape-model.test.ts            | 247 +++++++++++
+ 31 files changed, 6483 insertions(+), 82 deletions(-)
 commit 79501dff673525189ec0abada669f3c1aa81a5b8
 vidi-agent  Wed Sep 30 09:46:53 2026 +0100
 

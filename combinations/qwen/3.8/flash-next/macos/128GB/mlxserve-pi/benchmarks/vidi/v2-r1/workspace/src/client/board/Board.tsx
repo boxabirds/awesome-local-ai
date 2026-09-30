@@ -25,7 +25,11 @@ import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
 import { useUndo, type UseUndoResult } from './useUndo';
 import { createUndo, type UndoController } from './undo';
-import { TOOL_SELECT, TOOL_TEXT, useTool, type Tool } from './useTool';
+import { TOOL_SELECT, type Tool } from './useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import type { ShapeKind } from '../../shared/config';
 import { createLocalIdentity } from './localIdentity';
 import { reportConnectionState } from '../canvas/testHooks';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -76,9 +80,6 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
     undoController.boundary();
   }, [undoController]);
 
-  // Which tool is up (`text.tool_ui`). A board that cannot be edited neither gets the
-  // tool that writes nor keeps it.
-  const { tool, setTool } = useTool(canEdit);
   // Who this tab is, for the `createdBy` a text object carries. Story 6 (who is here)
   // is not built, so it is a per-tab id and nothing more than that.
   const identity = useMemo(createLocalIdentity, []);
@@ -107,6 +108,8 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
     selection.clear();
   }, [doc, selection, undoBoundary]);
 
+  // A thing this board just made is the thing you want next: selected, and — for
+  // something whose whole point is what is written in it — open to be written in.
   const onCreated = useCallback(
     (id: string): void => {
       selection.click(id);
@@ -114,6 +117,18 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
     },
     [selection],
   );
+
+  // A shape or an arrow a tool just drew is selected and left closed: what you do to an
+  // arrow next is move it or move what it points at, and a label editor that opened by
+  // itself would take the keyboard out of your hands (`tools.return_to_select`).
+  const selectCreated = useCallback((id: string): void => selection.click(id), [selection]);
+
+  // Which tool is up (`text.tool_ui`, `tools.active_tool`). A board that cannot be
+  // edited neither gets a tool that writes nor keeps one. Story 9 had two tools and this
+  // state lived in `useTool`; with a Shape tool and a Connector tool, the rule they all
+  // share — a tool is put away once it has drawn the thing it draws — is here, and the
+  // object it just drew becomes the selection, because that is the thing you want to fix.
+  const tools = useActiveTool({ canEdit, onSelect: selectCreated });
 
   /**
    * Write something at a point (`text.create`): top-left under the click, size M,
@@ -129,11 +144,11 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
       undoController.boundary();
       // The tool is done: it asked what goes here, and it went. Staying on Text would
       // make the next click another one, which is what a stamp does.
-      setTool(TOOL_SELECT);
+      tools.setTool(TOOL_SELECT);
       if (id === null) return;
       onCreated(id);
     },
-    [canEdit, camera, doc, identity, onCreated, setTool, undoController],
+    [canEdit, camera, doc, identity, onCreated, tools, undoController],
   );
 
   /** A sticky at the middle of what is on screen: the rail's button, and `N`. */
@@ -158,8 +173,8 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
     snapshot: objects,
     canEdit,
     undo: undoController,
-    tool,
-    onTool: setTool,
+    tool: tools.tool,
+    onTool: tools.setTool,
     onCreateSticky: createStickyCentre,
   });
 
@@ -168,14 +183,14 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
       if (!canEdit) return;
       // The tool says what a click means: a double-click with Text up writes text
       // rather than slapping a note down where the person meant to type.
-      if (tool === TOOL_TEXT) {
+      if (tools.isText) {
         placeText(screen);
         return;
       }
       const id = createSticky(doc, screenToWorld(camera, screen));
       if (id) onCreated(id);
     },
-    [canEdit, camera, doc, onCreated, tool, placeText],
+    [canEdit, camera, doc, onCreated, tools, placeText],
   );
 
   // A click on empty board space clears the selection. (When editing, the editor
@@ -183,13 +198,13 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
   // up it means something else entirely: *here* is where the text goes.
   const onEmptyClick = useCallback(
     (screen: Point): void => {
-      if (tool === TOOL_TEXT) {
+      if (tools.isText) {
         placeText(screen);
         return;
       }
       selection.clear();
     },
-    [selection, tool, placeText],
+    [selection, tools, placeText],
   );
 
   // Closing a note's text editor: 'selected' is Escape (the note keeps the selection),
@@ -236,8 +251,10 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
           marquee={marquee}
           onCamera={setCamera}
           onCreateSticky={createStickyCentre}
-          tool={tool}
-          onTool={setTool}
+          tool={tools.tool}
+          onTool={tools.setTool}
+          shapeKind={tools.shapeKind}
+          onShapeKind={tools.setShapeKind}
           onDeleteSelection={deleteSelection}
           connectionState={connectionState}
           canEdit={canEdit}
@@ -248,7 +265,28 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
       onEmptyClick={onEmptyClick}
       onEmptyDoubleClick={onEmptyDoubleClick}
       marquee={marqueeForViewport}
-      textToolActive={tool === TOOL_TEXT}
+      textToolActive={tools.isText}
+      overlay={
+        tools.isShape ? (
+          <ShapeTool
+            doc={doc}
+            camera={camera}
+            kind={tools.shapeKind}
+            onCreated={tools.toolCreated}
+            onCancelled={tools.reset}
+            undo={undoController}
+          />
+        ) : tools.isConnector ? (
+          <ConnectorTool
+            doc={doc}
+            camera={camera}
+            snapshot={objects}
+            onCreated={tools.toolCreated}
+            onCancelled={tools.reset}
+            undo={undoController}
+          />
+        ) : undefined
+      }
     >
       <BoardObjects
         doc={doc}
@@ -275,6 +313,8 @@ function BoardChrome({
   onCreateSticky,
   tool,
   onTool,
+  shapeKind,
+  onShapeKind,
   onDeleteSelection,
   connectionState,
   canEdit,
@@ -291,6 +331,9 @@ function BoardChrome({
   onCreateSticky(): void;
   tool: Tool;
   onTool(tool: Tool): void;
+  /** Which shape the Shape tool draws next (`shape.kind_menu`). */
+  shapeKind: ShapeKind;
+  onShapeKind(kind: ShapeKind): void;
   onDeleteSelection(): void;
   connectionState: ConnectionState;
   canEdit: boolean;
@@ -311,6 +354,8 @@ function BoardChrome({
         onCreateSticky={onCreateSticky}
         tool={tool}
         onTool={onTool}
+        shapeKind={shapeKind}
+        onShapeKind={onShapeKind}
         disabled={!canEdit}
         undo={undo}
       />

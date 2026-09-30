@@ -13,15 +13,24 @@
 // The sticky note is not a mode. It is a one-shot button that makes a note and
 // leaves the tool where it was, exactly as it was in story 1.
 //
+// Story 10 moved those rules into `../tools/useActiveTool`, where the Shape and
+// Connector tools can share them: the state, the "a tool that cannot be used is not
+// held" rule and the return to Select after a tool has drawn something are one thing
+// now. This is the same door story 9's board and tests come in through, with the two
+// tools it knows about.
+//
 // Spec: spec/stories/009-write-free-text-anywhere-on-the-board/design.md
-import { useCallback, useEffect, useState } from 'react';
+import { useMemo } from 'react';
+import {
+  TOOL_SELECT,
+  TOOL_TEXT,
+  useActiveTool,
+  type ToolId,
+} from '../tools/useActiveTool';
 
-/** The tool the board is in when it is just selecting things. */
-export const TOOL_SELECT = 'select';
-/** The text tool: the next place you go puts plain text down there. */
-export const TOOL_TEXT = 'text';
+export { TOOL_SELECT, TOOL_TEXT };
 
-export type Tool = typeof TOOL_SELECT | typeof TOOL_TEXT;
+export type Tool = ToolId;
 
 export interface ToolMode {
   tool: Tool;
@@ -30,30 +39,9 @@ export interface ToolMode {
 }
 
 export function useTool(canEdit: boolean): ToolMode {
-  const [tool, setToolState] = useState<Tool>(TOOL_SELECT);
-
-  const setTool = useCallback(
-    (next: string): void => {
-      if (next !== TOOL_SELECT && next !== TOOL_TEXT) {
-        setToolState(TOOL_SELECT);
-        return;
-      }
-      // Ctrl+T on a board you cannot edit does nothing at all — not even leave the
-      // selection looking armed for a tool that cannot be used.
-      if (next === TOOL_TEXT && !canEdit) {
-        setToolState(TOOL_SELECT);
-        return;
-      }
-      setToolState(next);
-    },
-    [canEdit],
+  const { tool, setTool } = useActiveTool({ canEdit });
+  return useMemo<ToolMode>(
+    () => ({ tool, setTool: (tool: string): void => setTool(tool as ToolId) }),
+    [tool, setTool],
   );
-
-  // Being told you cannot edit while the text tool is up puts the board back the
-  // way it was: read-only boards have no text tool to be in.
-  useEffect(() => {
-    if (!canEdit) setToolState(TOOL_SELECT);
-  }, [canEdit]);
-
-  return { tool, setTool };
 }

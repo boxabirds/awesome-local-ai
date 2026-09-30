@@ -17,6 +17,9 @@ import { isKnownObjectType } from '../../src/shared/board-model';
 import { MAX_OBJECT_SIZE_WORLD, STICKY_MIN_SIZE_WORLD } from '../../src/shared/config';
 import type { BoardObject, ObjectSnapshot } from '../../src/shared/board-model';
 
+/** A type name no story draws anything with, for the "unknown type" cases. */
+const MYSTERY_TYPE = 'mystery-type';
+
 const sticky: BoardObject = {
   id: 'a',
   type: 'sticky',
@@ -43,10 +46,16 @@ describe('object type registry (sel.registry)', () => {
 
   // TC-12: the registry is the only place types are known; an unknown one is
   // simply not there, so nothing downstream can select, resize or draw it.
+  //
+  // The type this asks about has to be one no story ever draws. It was written as
+  // 'shape' in story 7, when that was still a type nothing knew — and story 10 went and
+  // drew shapes, which is the point of it. `mystery-type` is the same question asked of
+  // a name that stays nobody's: a type the registry has no entry for is invisible to
+  // selection, transform and delete, and stays that way however the board grows.
   it('TC-12 has no spec and no model registration for an unknown type', () => {
-    expect(getObjectType('shape')).toBeUndefined();
-    expect(registeredObjectTypes()).not.toContain('shape');
-    expect(isKnownObjectType('shape')).toBe(false);
+    expect(getObjectType(MYSTERY_TYPE)).toBeUndefined();
+    expect(registeredObjectTypes()).not.toContain(MYSTERY_TYPE);
+    expect(isKnownObjectType(MYSTERY_TYPE)).toBe(false);
   });
 
   it('registers sticky in the shared model too, so the model can read it', () => {

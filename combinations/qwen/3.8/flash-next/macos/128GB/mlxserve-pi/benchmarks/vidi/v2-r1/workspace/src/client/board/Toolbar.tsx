@@ -1,4 +1,5 @@
 import { type CSSProperties, type ReactNode } from 'react';
+import { SHAPE_KINDS, type ShapeKind } from '../../shared/config';
 import { UndoButtons } from './UndoButtons';
 import type { UseUndoResult } from './useUndo';
 import type { Tool } from './useTool';
@@ -13,6 +14,14 @@ export interface ToolbarProps {
   tool?: Tool;
   /** Pick a tool. `select` puts the board back the way it was. */
   onTool?(tool: Tool): void;
+  /**
+   * Which shape the Shape tool draws next (`shape.kind_menu`). It is remembered after
+   * a shape is drawn rather than reset to the first kind, because drawing five ellipses
+   * means clicking the rail five times otherwise.
+   */
+  shapeKind?: ShapeKind;
+  /** Which shape the Shape tool draws next. */
+  onShapeKind?(kind: ShapeKind): void;
   /**
    * The board cannot be changed right now, so the tool that changes it is off.
    * `disabled` rather than hidden: the rail stays where people learned it is, and
@@ -48,6 +57,20 @@ const noteIconStyle: CSSProperties = {
   boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.12)',
 };
 
+/** What each kind of shape is called, in the kind menu and to a screen reader. */
+export const SHAPE_KIND_LABEL: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+
+/** The kind menu's marks. */
+export const SHAPE_KIND_GLYPH: Record<ShapeKind, string> = {
+  rect: '\u25A1',
+  ellipse: '\u25CB',
+  diamond: '\u25C7',
+};
+
 /** A tool that is up looks pressed; a tool that is not does not. */
 const toolButtonStyle = (active: boolean): CSSProperties => ({
   borderColor: active ? '#1f2328' : '#d6dae0',
@@ -69,6 +92,8 @@ export function Toolbar({
   onCreateSticky,
   tool = 'select',
   onTool,
+  shapeKind = 'rect',
+  onShapeKind,
   disabled = false,
   undo,
 }: ToolbarProps): ReactNode {
@@ -116,6 +141,68 @@ export function Toolbar({
       >
         <span style={glyphStyle} aria-hidden="true">
           T
+        </span>
+      </button>
+      <button
+        type="button"
+        data-testid="tool-shape"
+        aria-label="Shape (S)"
+        title="Shape (S) \u2013 drag to draw a shape, click to drop one"
+        className="vidi6-icon-button"
+        disabled={disabled}
+        aria-disabled={disabled}
+        aria-pressed={tool === 'shape'}
+        style={toolButtonStyle(tool === 'shape')}
+        onClick={() => {
+          onTool?.('shape');
+        }}
+      >
+        <span style={glyphStyle} aria-hidden="true">
+          &#9671;
+        </span>
+      </button>
+      {/* The kind the Shape tool draws, shown while it is the tool that is up: three
+          buttons rather than one that cycles, because a shape you meant to be an
+          ellipse should not have to be drawn twice to find out. */}
+      {tool === 'shape'
+        ? SHAPE_KINDS.map((kind: ShapeKind) => (
+            <button
+              key={kind}
+              type="button"
+              data-testid={`shape-kind-${kind}`}
+              aria-label={SHAPE_KIND_LABEL[kind] ?? kind}
+              title={`${SHAPE_KIND_LABEL[kind] ?? kind} \u2013 what S draws next`}
+              className="vidi6-icon-button"
+              disabled={disabled}
+              aria-disabled={disabled}
+              aria-pressed={kind === shapeKind}
+              style={{ ...toolButtonStyle(kind === shapeKind), marginLeft: 22 }}
+              onClick={() => {
+                onShapeKind?.(kind);
+              }}
+            >
+              <span style={glyphStyle} aria-hidden="true">
+                {SHAPE_KIND_GLYPH[kind] ?? kind}
+              </span>
+            </button>
+          ))
+        : null}
+      <button
+        type="button"
+        data-testid="tool-connector"
+        aria-label="Connector (L)"
+        title="Connector (L) \u2013 drag from one thing to another"
+        className="vidi6-icon-button"
+        disabled={disabled}
+        aria-disabled={disabled}
+        aria-pressed={tool === 'connector'}
+        style={toolButtonStyle(tool === 'connector')}
+        onClick={() => {
+          onTool?.('connector');
+        }}
+      >
+        <span style={glyphStyle} aria-hidden="true">
+          {"\u2194"}
         </span>
       </button>
       <button

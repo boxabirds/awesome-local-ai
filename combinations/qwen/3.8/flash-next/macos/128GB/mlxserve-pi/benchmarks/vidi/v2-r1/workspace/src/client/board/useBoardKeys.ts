@@ -21,6 +21,7 @@ import {
 import type { Point } from '../../shared/geometry';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
+import { BUILT_TOOLS, TOOL_SHORTCUTS, TOOL_STICKY } from '../tools/useActiveTool';
 import type { Tool } from './useTool';
 import type { UseSelectionResult } from './useSelection';
 import type { UndoController } from './undo';
@@ -132,22 +133,24 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         return;
       }
 
-      // The tools (`text.tool_ui`). Only bare letters, with nothing held: Cmd+T is a new
-      // browser tab and Ctrl+N is a new window, and neither of them is a board command.
+      // The tools (`text.tool_ui`, and `tools.active_tool` from story 10, which put the
+      // letters in one table so that a key means the same thing as the rail button it is
+      // written under). Only bare letters, with nothing held: Cmd+T is a new browser tab
+      // and Ctrl+N is a new window, and neither of them is a board command.
       if (!mod && !event.altKey && !event.shiftKey) {
-        if (lower === 'v') {
-          event.preventDefault();
-          onTool?.('select');
-          return;
-        }
-        if (lower === 't') {
-          event.preventDefault();
-          onTool?.('text');
-          return;
-        }
-        if (lower === 'n') {
+        const shortcut = TOOL_SHORTCUTS[lower];
+        // `N` is not a mode: it is the rail's one-shot button, from the keyboard.
+        if (shortcut === TOOL_STICKY) {
           event.preventDefault();
           onCreateSticky?.();
+          return;
+        }
+        // A letter that belongs to a tool this build has not drawn — story 10's `P`, `I`
+        // and `C` are pen, image and comment — does nothing here, and is not swallowed:
+        // a key that draws nothing must not be taken off the browser either.
+        if (shortcut !== undefined && BUILT_TOOLS.includes(shortcut)) {
+          event.preventDefault();
+          onTool?.(shortcut);
           return;
         }
       }

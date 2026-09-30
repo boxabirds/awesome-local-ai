@@ -238,3 +238,93 @@ export const LINK_COPIED_MS = 2000;
  * RECONNECT_MAX_BACKOFF_MS (the same ceiling story 3's reconnect uses).
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Shapes and connectors (story 10) ----------------------------------------
+
+/** The kinds a shape may be. The Shape tool's menu offers exactly these. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/**
+ * The fill palette (`shape.style`): the shape UI spec's six colours plus 'none',
+ * which is the real "no fill" — the board shows the shapes' outlines over the dot
+ * grid. Keys are the persisted names and the swatch labels.
+ */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type ShapeFill = keyof typeof SHAPE_FILL_COLORS;
+
+/** The stroke palette (`shape.style`) — the shapes' outlines, six of them. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type ShapeStroke = keyof typeof SHAPE_STROKE_COLORS;
+
+/** The fill a freshly created shape gets (`shape.default_fill`). */
+export const DEFAULT_SHAPE_FILL: ShapeFill = 'white';
+
+/** The stroke a freshly created shape gets (`shape.default_stroke`). */
+export const DEFAULT_SHAPE_STROKE: ShapeStroke = 'dark';
+
+/**
+ * The size a shape gets when it is clicked into existence instead of dragged
+ * (`shape.default_size`) — square, because a shape dropped without a drag has no
+ * direction to be wider in. Board units.
+ */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/**
+ * The smallest a shape may be squeezed, by resize handles or by a drag. A drag
+ * smaller than this is a click, and the shape gets `SHAPE_DEFAULT_SIZE_WORLD`
+ * (`shape.min_size`). Board units, and the model's per-kind resize floor.
+ */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** How thick a shape's outline is drawn, in board units (`shape.stroke_width`). */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** Hard limit on a shape's label, in characters (`shape.label_max_chars`). */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** A shape's label font size in board units (the size at 100% zoom). */
+export const SHAPE_LABEL_FONT_SIZE_WORLD = 16;
+
+/**
+ * The shortest arrow a drag may create (`connector.min_length_world`): a drag
+ * shorter than this is a click, and `createConnector` returns null. Board units.
+ */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/**
+ * How long an arrowhead is, in board units (`connector.arrowhead_size_world`). The
+ * arrow is drawn with the same length of gap at its pointed end, so the tip lands on
+ * the anchored object's edge instead of on the anchor point behind it.
+ */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** How thick an arrow is drawn, in board units (`connector.stroke_width_world`). */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** The colour every arrow is drawn in. Story 10 gives arrows no style of their own. */
+export const CONNECTOR_COLOR = '#3C4043';
+
+/**
+ * How close to an arrow the pointer has to come for it to be hit (`connector.
+ * hit_tolerance_px`), in *screen* pixels — divided by zoom to become board units.
+ */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** How wide a connection dot is, in *screen* pixels (`connector.hover_points`). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;

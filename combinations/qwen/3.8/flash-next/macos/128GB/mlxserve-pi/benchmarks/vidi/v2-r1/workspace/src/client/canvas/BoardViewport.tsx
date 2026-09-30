@@ -89,6 +89,17 @@ interface BoardViewportProps {
    * objects out of the pointer's way so a press over one is a press on the board.
    */
   textToolActive?: boolean;
+  /**
+   * A drawing tool's own sheet, laid over the board in screen space
+   * (`tools.active_tool`). Story 10's Shape and Connector tools are drawn here: they
+   * work in screen pixels and turn them into board units themselves, so they cannot
+   * live in the world layer with the objects.
+   *
+   * It is inside the viewport, which is what makes the wheel still zoom the board with
+   * a tool up — the sheet stops presses, not the scroll — and it is above the world, so
+   * a press on it never reaches an object underneath.
+   */
+  overlay?: ReactNode;
 }
 
 /** The four moments of a marquee drag, driven by the viewport's own pointer events. */
@@ -114,6 +125,7 @@ export function BoardViewport({
   onEmptyDoubleClick,
   marquee,
   textToolActive = false,
+  overlay,
 }: BoardViewportProps): ReactNode {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<Size>(measureWindow);
@@ -440,6 +452,7 @@ export function BoardViewport({
           </div>
           {children}
         </div>
+        {overlay}
       </div>
       {chrome}
     </BoardCameraContext.Provider>
