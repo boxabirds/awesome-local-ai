@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { combinationHref, overviewHref, parseRoute, runHref, storyRunHref } from "./routes.ts";
+import { combinationHref, machineHref, overviewHref, parseRoute, runHref, storyHref, storyRunHref, withParams } from "./routes.ts";
 
 const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
 const OPUS = "reference/opus-5.5";
@@ -7,23 +7,23 @@ const OPUS = "reference/opus-5.5";
 // The cases, MECE by page, then by the shape of the ids, then by malformed addresses.
 describe("each page's address reads back as that page", () => {
   it("overview", () => {
-    expect(parseRoute(overviewHref())).toEqual({ page: "overview" });
+    expect(parseRoute(overviewHref())).toEqual({ page: "overview", params: {} });
   });
   it("combination, whose id holds slashes", () => {
-    expect(parseRoute(combinationHref("vidi", SWIFT))).toEqual({ page: "combination", pack: "vidi", stack: SWIFT });
+    expect(parseRoute(combinationHref("vidi", SWIFT))).toEqual({ page: "combination", pack: "vidi", stack: SWIFT, params: {} });
   });
   it("run", () => {
-    expect(parseRoute(runHref("vidi", SWIFT, "v2-r2"))).toEqual({ page: "run", pack: "vidi", stack: SWIFT, runId: "v2-r2" });
+    expect(parseRoute(runHref("vidi", SWIFT, "v2-r2"))).toEqual({ page: "run", pack: "vidi", stack: SWIFT, runId: "v2-r2", params: {} });
   });
   it("story run", () => {
-    expect(parseRoute(storyRunHref("vidi", OPUS, "v2-r1", "12"))).toEqual({ page: "storyRun", pack: "vidi", stack: OPUS, runId: "v2-r1", story: "12" });
+    expect(parseRoute(storyRunHref("vidi", OPUS, "v2-r1", "12"))).toEqual({ page: "storyRun", pack: "vidi", stack: OPUS, runId: "v2-r1", story: "12", params: {} });
   });
 });
 
 describe("the pack keeps runs of the same id apart", () => {
   it("run-1 of Opus in two packs is two addresses", () => {
     expect(runHref("vidi", OPUS, "run-1")).not.toBe(runHref("todoodle", OPUS, "run-1"));
-    expect(parseRoute(runHref("todoodle", OPUS, "run-1"))).toEqual({ page: "run", pack: "todoodle", stack: OPUS, runId: "run-1" });
+    expect(parseRoute(runHref("todoodle", OPUS, "run-1"))).toEqual({ page: "run", pack: "todoodle", stack: OPUS, runId: "run-1", params: {} });
   });
 });
 
@@ -33,7 +33,7 @@ describe("ids of every shape survive the round trip", () => {
     ["a run id with a space and a hash", SWIFT, "run #2 x"],
     ["a combination with a percent sign", "qwen/50%/x", "r1"],
   ])("%s", (_, stack, runId) => {
-    expect(parseRoute(runHref("vidi", stack, runId))).toEqual({ page: "run", pack: "vidi", stack, runId });
+    expect(parseRoute(runHref("vidi", stack, runId))).toEqual({ page: "run", pack: "vidi", stack, runId, params: {} });
   });
   it("a story written with a leading zero is the same story", () => {
     expect(storyRunHref("vidi", SWIFT, "v2-r1", "02")).toBe(storyRunHref("vidi", SWIFT, "v2-r1", "2"));
@@ -43,10 +43,10 @@ describe("ids of every shape survive the round trip", () => {
 
 describe("addresses are forgiving about slashes and the hash itself", () => {
   it.each(["", "#", "#/", "/", "#//"])("%j is the overview", (h) => {
-    expect(parseRoute(h)).toEqual({ page: "overview" });
+    expect(parseRoute(h)).toEqual({ page: "overview", params: {} });
   });
   it("a trailing slash is the same page", () => {
-    expect(parseRoute(`${runHref("vidi", SWIFT, "v2-r1")}/`)).toEqual({ page: "run", pack: "vidi", stack: SWIFT, runId: "v2-r1" });
+    expect(parseRoute(`${runHref("vidi", SWIFT, "v2-r1")}/`)).toEqual({ page: "run", pack: "vidi", stack: SWIFT, runId: "v2-r1", params: {} });
   });
 });
 
@@ -64,5 +64,35 @@ describe("anything else is not found, never a guess", () => {
     ["broken percent-encoding", "#/vidi/c/%E0%A4%A"],
   ])("%s", (_, h) => {
     expect(parseRoute(h).page).toBe("notFound");
+  });
+});
+
+describe("story and machine pages", () => {
+  it("a story page is per pack", () => {
+    expect(parseRoute(storyHref("vidi", "7"))).toEqual({ page: "story", pack: "vidi", story: "7", params: {} });
+    expect(storyHref("vidi", "07")).toBe(storyHref("vidi", "7"));
+  });
+  it("a machine page isn't: a machine runs every pack", () => {
+    expect(parseRoute(machineHref("gruntus"))).toEqual({ page: "machine", machine: "gruntus", params: {} });
+    expect(parseRoute(machineHref("macbook-air.local"))).toMatchObject({ machine: "macbook-air.local" });
+  });
+  it.each([
+    ["a story that isn't a number", "#/vidi/s/two"],
+    ["a machine with no name", "#/m"],
+    ["a machine with extra segments", "#/m/gruntus/x"],
+  ])("%s is not found", (_, h) => expect(parseRoute(h).page).toBe("notFound"));
+});
+
+describe("page state rides along as query parameters", () => {
+  it("any page keeps its parameters, decoded", () => {
+    expect(parseRoute(withParams(combinationHref("vidi", SWIFT), { metric: "calls" }))).toEqual(
+      { page: "combination", pack: "vidi", stack: SWIFT, params: { metric: "calls" } });
+    expect(parseRoute(withParams(runHref("vidi", SWIFT, "v2-r5"), { compare: "v2 r4&x" })).params).toEqual({ compare: "v2 r4&x" });
+  });
+  it("empty values are left out, and no parameters means a plain address", () => {
+    expect(withParams(machineHref("gruntus"), { a: "", b: undefined })).toBe(machineHref("gruntus"));
+  });
+  it("the overview keeps its parameters too", () => {
+    expect(parseRoute(withParams(overviewHref(), { tab: "machines" }))).toEqual({ page: "overview", params: { tab: "machines" } });
   });
 });

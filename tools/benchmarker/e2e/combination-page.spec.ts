@@ -250,10 +250,10 @@ test.describe("combination page", () => {
     await expect(tip(page)).toContainText("At least 1.5× the other runs' model calls");
   });
 
-  test("related: machines as plain names; no other combination of this model", async ({ page }) => {
+  test("related: each machine links to its page; no other combination of this model", async ({ page }) => {
     const related = page.locator('[data-section="related"]');
     await expect(related.locator(".related-machines li")).toHaveText(["gruntus Intel Core i9 + RTX 4090 64GB"]);
-    await expect(related.locator(".related-machines a")).toHaveCount(0);                     // machine pages don't exist yet
+    await expect(related.locator(".related-machines a.machine-link")).toHaveAttribute("href", "#/m/gruntus");
     await expect(related.locator('[data-related="none"]')).toHaveText("No other combination of qwen/3.8-swift-1.5/27b in vidi.");
   });
 

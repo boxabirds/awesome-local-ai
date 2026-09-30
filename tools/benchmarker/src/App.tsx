@@ -18,6 +18,8 @@ import { RunPage } from "./pages/RunPage.tsx";
 import { StoryRunPage } from "./pages/StoryRunPage.tsx";
 import { CombinationPage } from "./pages/CombinationPage.tsx";
 import { NotFound } from "./pages/NotFound.tsx";
+import { StoryPage } from "./pages/StoryPage.tsx";
+import { MachinePage } from "./pages/MachinePage.tsx";
 
 const SAVED_KEY = "benchmarker:v2"; // versioned: selections saved by older builds are ignored
 const ALL = "all";
@@ -200,6 +202,19 @@ function EntityPage({ route, state, serverNow, family }: { route: Exclude<Return
       if (route.page === "run") return <RunPage run={run} state={scoped} serverNow={serverNow} />;
       const story = run.stories.find((s) => s.id === route.story) ?? null;
       return <StoryRunPage run={run} story={story} storyId={route.story} state={scoped} serverNow={serverNow} />;
+    }
+    case "story": {
+      const all = state.rows.filter((r) => r.pack === route.pack);
+      if (!all.length) return <NotFound what={`pack ${route.pack}`} />;
+      const fam = family !== ALL && all.some((r) => r.family === family) ? family : newestFamily(all);
+      const scoped = comparable(state, route.pack, fam);
+      return <StoryPage pack={route.pack} story={route.story} runs={scoped.rows} state={scoped} serverNow={serverNow} params={route.params} />;
+    }
+    case "machine": {
+      // A machine runs every pack and version: its page shows all of them, each labelled.
+      const runs = state.rows.filter((r) => r.machine === route.machine);
+      const known = runs.length > 0 || (state.machines ?? []).some((m) => m.node === route.machine);
+      return known ? <MachinePage machine={route.machine} runs={runs} state={state} serverNow={serverNow} params={route.params} /> : <NotFound what={`machine ${route.machine}`} />;
     }
     case "notFound":
       return <NotFound what={`page at "${route.path}"`} />;

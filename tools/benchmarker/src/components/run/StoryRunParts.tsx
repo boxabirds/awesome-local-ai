@@ -2,7 +2,7 @@
 import type { Row, State } from "../../../shared/types.ts";
 import { neighbours, otherRuns, storyRunState, type StoryRunState } from "../../../shared/runView.ts";
 import { GLOSSARY } from "../../../shared/glossary.ts";
-import { CombinationLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
+import { CombinationLink, MachineLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
 import { LiveTag, Missing, Section, Stat, full } from "./bits.tsx";
@@ -33,7 +33,7 @@ export function StoryRunHeader({ run, st, storyId, title }: { run: Row; st: Stor
       <div className="eyebrow">Story run</div>
       <h1>Story {storyId}{title ? <span className="story-title-h"> · {title}</span> : <span className="small"> · title not known yet</span>}</h1>
       <div className="of-run">
-        <RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} /> <span className="small">on {run.machine} · run</span> <StatusBadge run={run} />
+        <RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} /> <span className="small">on <MachineLink machine={run.machine} host={run.host} /> · run</span> <StatusBadge run={run} />
       </div>
       <div className="outcome">
         <Stat term="storyStatus"><span data-fact="storyStatus"><StoryStatus st={st} /></span></Stat>

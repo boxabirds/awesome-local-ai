@@ -3,7 +3,7 @@
 import type { Row, State } from "../../../shared/types.ts";
 import { agentTime, scoreOfRecord, statusView } from "../../../shared/runView.ts";
 import { GLOSSARY } from "../../../shared/glossary.ts";
-import { CombinationLink } from "../EntityLinks.tsx";
+import { CombinationLink, MachineLink } from "../EntityLinks.tsx";
 import { JudgeCell } from "../JudgeCell.tsx";
 import { LinksCell } from "../LinksCell.tsx";
 import { duration, ordinal, qualityClass } from "../../format.ts";
@@ -62,7 +62,7 @@ export function RunHeader({ run, state }: { run: Row; state: State }) {
       <div className="eyebrow">Run</div>
       <h1><CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> <span className="run-id">{run.runId}</span></h1>
       <dl className="facts">
-        <div><dt><Term id="machine" /></dt><dd data-fact="machine"><span data-tip={run.host || "no hardware recorded"}>{run.machine}</span></dd></div>
+        <div><dt><Term id="machine" /></dt><dd data-fact="machine"><MachineLink machine={run.machine} host={run.host || "no hardware recorded"} /></dd></div>
         <div><dt><Term id="packVersion" /></dt><dd data-fact="packVersion" className="mono">{run.packVersion || <Missing why="The record doesn't name its pack version (a run with no record yet)." />}</dd></div>
         <div><dt><Term id="suite" /></dt><dd data-fact="suite" className="mono">{run.suite}</dd></div>
         <div><dt><Term id="runStatus" /></dt><dd data-fact="status"><StatusBadge run={run} /></dd></div>

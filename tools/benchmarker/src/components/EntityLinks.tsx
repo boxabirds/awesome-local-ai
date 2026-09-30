@@ -1,7 +1,7 @@
 // The one way an entity is named on the page: a link to its own page, the same text everywhere. Combination names
 // are short labels with the full id on hover. A run is always shown with its combination unless the context has it.
 import type { ReactNode } from "react";
-import { combinationHref, overviewHref, runHref, storyRunHref } from "../../shared/routes.ts";
+import { combinationHref, machineHref, overviewHref, runHref, storyHref, storyRunHref } from "../../shared/routes.ts";
 
 export function CombinationLink({ pack, stack, label }: { pack: string; stack: string; label: string }) {
   return <a className="entity combination-link" href={combinationHref(pack, stack)} data-tip={stack}>{label}</a>;
@@ -14,6 +14,16 @@ export function RunLink({ pack, stack, runId, label }: { pack: string; stack: st
       {label ? <span className="stack-label">{label} </span> : null}<b>{runId}</b>
     </a>
   );
+}
+
+/** A machine (a dbench node, or a host no node answered for), with its hardware on hover when known. */
+export function MachineLink({ machine, host }: { machine: string; host?: string }) {
+  return <a className="entity machine-link" href={machineHref(machine)} data-tip={host || undefined}>{machine}</a>;
+}
+
+/** A story of a pack: every combination's attempt at it. */
+export function StoryLink({ pack, story, children }: { pack: string; story: string; children?: ReactNode }) {
+  return <a className="entity story-link" href={storyHref(pack, story)}>{children ?? `story ${Number(story)}`}</a>;
 }
 
 /** One run's work on one story. */

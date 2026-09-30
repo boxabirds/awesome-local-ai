@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Row } from "../../../shared/types.ts";
 import { COMPARE_MEASURES, compareRuns, scoreOfRecord, signedPercent, statusView, type MeasureKey } from "../../../shared/runView.ts";
 import { GLOSSARY } from "../../../shared/glossary.ts";
-import { CombinationLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
+import { CombinationLink, MachineLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
 import { Missing, Section, Term, full } from "./bits.tsx";
@@ -83,7 +83,7 @@ export function RelatedRuns({ run, others }: { run: Row; others: Row[] }) {
                 <span className={`s-${v.status}`} aria-hidden="true">{v.icon}</span>{" "}
                 <RunLink pack={r.pack} stack={r.stack} runId={r.runId} />{" "}
                 <span className={`status-word s-${v.status}`}>{v.status}</span>
-                <span className="small"> · {r.machine} · {r.stories.length} {r.stories.length === 1 ? "story" : "stories"} recorded · </span>
+                <span className="small"> · <MachineLink machine={r.machine} host={r.host} /> · {r.stories.length} {r.stories.length === 1 ? "story" : "stories"} recorded · </span>
                 {rec.kind === "scored" ? <span className="small">score <b>{rec.passed}/{rec.total}</b></span> : <span className="small" data-tip={rec.why}>no score of record</span>}
               </li>
             );
