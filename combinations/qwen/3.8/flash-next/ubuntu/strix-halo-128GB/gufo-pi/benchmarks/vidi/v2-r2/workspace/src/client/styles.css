@@ -24,7 +24,6 @@ body {
   color: var(--vidi6-fg);
   background: var(--vidi6-bg);
   overflow: hidden;
-  /* Prevent the browser's own overscroll / pinch behaviour interfering. */
   overscroll-behavior: none;
 }
 
@@ -39,7 +38,6 @@ body {
   inset: 0;
   overflow: hidden;
   cursor: grab;
-  /* The board owns all wheel/pinch gestures over it. */
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -63,7 +61,6 @@ body {
 
 .origin-marker {
   position: absolute;
-  /* Placed at world (0,0) inside the world layer. */
   left: 0;
   top: 0;
   width: 0;
@@ -75,12 +72,10 @@ body {
 .origin-marker::after {
   content: '';
   position: absolute;
-  /* Counter-scale so the marker stays a constant screen size regardless of zoom. */
   background: rgba(59, 130, 246, 0.9);
 }
 
 .origin-marker::before {
-  /* vertical bar */
   left: -0.5px;
   top: -8px;
   width: 1px;
@@ -88,7 +83,6 @@ body {
 }
 
 .origin-marker::after {
-  /* horizontal bar */
   left: -8px;
   top: -0.5px;
   width: 16px;
@@ -168,4 +162,189 @@ body {
   pointer-events: none;
   z-index: 10;
   white-space: nowrap;
+}
+
+/* ---- Left toolbar ---- */
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--vidi6-control-bg);
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  z-index: 10;
+}
+
+.board-toolbar-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 6px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-toolbar-btn:hover {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.board-toolbar-btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* ---- Sticky note ---- */
+.sticky-note {
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: default;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.sticky-note--selected {
+  outline: 3px solid #2563eb;
+  outline-offset: -1px;
+}
+
+.sticky-note--dragging {
+  cursor: grabbing;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.sticky-note:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: -1px;
+}
+
+.sticky-note-text {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+  line-height: 1.3;
+  color: #1a1a1a;
+}
+
+.sticky-note-text--overflow {
+  align-items: flex-start;
+  position: relative;
+}
+
+.sticky-note-text--overflow::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.6));
+  pointer-events: none;
+}
+
+/* ---- Sticky text editor ---- */
+.sticky-text-editor {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.sticky-textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  line-height: 1.3;
+  color: #1a1a1a;
+  text-align: center;
+}
+
+.sticky-char-counter {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* ---- Note toolbar ---- */
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--vidi6-control-bg);
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.note-toolbar-swatch {
+  appearance: none;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.note-toolbar-swatch:hover {
+  transform: scale(1.2);
+}
+
+.note-toolbar-swatch[aria-pressed="true"] {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #fff inset;
+}
+
+.note-toolbar-swatch:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.note-toolbar-delete {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #e53e3e;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+}
+
+.note-toolbar-delete:hover {
+  background: rgba(229, 62, 62, 0.1);
+}
+
+.note-toolbar-delete:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
 }

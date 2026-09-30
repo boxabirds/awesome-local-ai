@@ -31,11 +31,17 @@ interface BoardViewportProps {
   // Fixed-position UI (zoom controls, hint) rendered inside the board context but
   // NOT inside the transformed world layer.
   overlay?: ReactNode;
+  // Double-click on empty board space -> create note
+  onEmptyDoubleClick?(worldPoint: Point): void;
+  // Click on empty board space without drag -> clear selection
+  onEmptyClick?(): void;
 }
 
 export function BoardViewport({
   children,
   overlay,
+  onEmptyDoubleClick,
+  onEmptyClick,
 }: BoardViewportProps): ReactElement {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<Size>(() => defaultViewport());
@@ -47,6 +53,10 @@ export function BoardViewport({
   // the "is-panning" cursor class.
   const panningRef = useRef(false);
   const [isPanning, setIsPanning] = useState(false);
+
+  // Track whether we moved during a pointer sequence (to distinguish click from drag)
+  const movedRef = useRef(false);
+  const downPosRef = useRef<Point | null>(null);
 
   // --- viewport size (design: ResizeObserver; fall back to window.resize) ---
   useLayoutEffect(() => {
@@ -86,6 +96,10 @@ export function BoardViewport({
     endPan();
   }, [endPan]);
 
+  // Callbacks ref for double-click and empty click
+  const callbacksRef = useRef({ onEmptyDoubleClick, onEmptyClick });
+  callbacksRef.current = { onEmptyDoubleClick, onEmptyClick };
+
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
@@ -94,6 +108,8 @@ export function BoardViewport({
       // Drag starts only on the viewport/grid itself; later object stories can
       // stopPropagation on their own elements.
       if (e.target !== el) return;
+      movedRef.current = false;
+      downPosRef.current = { x: e.clientX, y: e.clientY };
       panningRef.current = true;
       setIsPanning(true);
       try {
@@ -105,23 +121,52 @@ export function BoardViewport({
     };
     const onMove = (e: PointerEvent) => {
       if (!panningRef.current) return;
+      if (downPosRef.current) {
+        const dx = e.clientX - downPosRef.current.x;
+        const dy = e.clientY - downPosRef.current.y;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+          movedRef.current = true;
+        }
+      }
       panMove(pointFromClient(e.clientX, e.clientY));
+    };
+    const onUp = (e: PointerEvent) => {
+      if (panningRef.current && !movedRef.current && e.target === el) {
+        // Click on empty board space without dragging: clear selection
+        callbacksRef.current.onEmptyClick?.();
+      }
+      finishPan();
     };
     // move/up/cancel are tracked on window so a drag that leaves the element (or
     // an interrupted drag) still ends cleanly; pointer events bubble to window.
     el.addEventListener('pointerdown', onDown);
     el.addEventListener('lostpointercapture', finishPan);
     window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', finishPan);
+    window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', finishPan);
     return () => {
       el.removeEventListener('pointerdown', onDown);
       el.removeEventListener('lostpointercapture', finishPan);
       window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', finishPan);
+      window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', finishPan);
     };
   }, [beginPan, panMove, finishPan, pointFromClient]);
+
+  // --- dblclick on empty board space ---
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const onDblClick = (e: MouseEvent) => {
+      // Only handle if target is the viewport itself (empty space)
+      if (e.target !== el) return;
+      const pt = pointFromClient(e.clientX, e.clientY);
+      const worldPoint = { x: pt.x / camera.zoom + camera.x, y: pt.y / camera.zoom + camera.y };
+      callbacksRef.current.onEmptyDoubleClick?.(worldPoint);
+    };
+    el.addEventListener('dblclick', onDblClick);
+    return () => el.removeEventListener('dblclick', onDblClick);
+  }, [camera, pointFromClient]);
 
   // --- wheel (non-passive; always preventDefault over the board) ---
   useEffect(() => {

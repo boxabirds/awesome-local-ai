@@ -65,4 +65,53 @@ export async function setCamera(page: Page, camera: Camera): Promise<void> {
   }, camera);
 }
 
+// Get sticky note position in world coordinates from DOM data attributes
+export async function getNoteWorldPos(
+  page: Page,
+  index: number,
+): Promise<{ x: number; y: number }> {
+  return page.evaluate((i) => {
+    const notes = document.querySelectorAll('[role="group"][aria-label="Sticky note"]');
+    const el = notes[i] as HTMLElement | undefined;
+    if (!el) throw new Error(`note at index ${i} not found`);
+    return {
+      x: parseFloat(el.style.left),
+      y: parseFloat(el.style.top),
+    };
+  }, index);
+}
+
+// Get sticky note position in screen coordinates
+export async function getNoteScreenPos(
+  page: Page,
+  index: number,
+): Promise<ScreenPoint> {
+  return page.evaluate((i) => {
+    const notes = document.querySelectorAll('[role="group"][aria-label="Sticky note"]');
+    const el = notes[i] as HTMLElement | undefined;
+    if (!el) throw new Error(`note at index ${i} not found`);
+    const r = el.getBoundingClientRect();
+    return { x: r.x, y: r.y };
+  }, index);
+}
+
+// Get number of sticky notes on the board
+export async function getNoteCount(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    return document.querySelectorAll('[role="group"][aria-label="Sticky note"]').length;
+  });
+}
+
+// Get note text
+export async function getNoteText(page: Page, index: number): Promise<string> {
+  return page.evaluate((i) => {
+    const notes = document.querySelectorAll('[role="group"][aria-label="Sticky note"]');
+    const el = notes[i];
+    if (!el) return '';
+    const textEl = el.querySelector('.sticky-note-text') || el.querySelector('.sticky-textarea');
+    if (textEl && 'value' in textEl) return (textEl as HTMLTextAreaElement).value;
+    return textEl?.textContent ?? '';
+  }, index);
+}
+
 export { expect };

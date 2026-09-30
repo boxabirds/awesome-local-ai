@@ -1,104 +1,33 @@
-# vidi6 — Story 1: Pan and zoom around an infinite board
+# Notes
 
-Client-only infinite canvas. A pure camera module drives a DOM viewport (world
-layer + CSS dot-grid) positioned with CSS transforms; input handling (pointer
-drag, wheel, Safari gesture, keyboard) and zoom controls are React components.
+## Story 2: Capture ideas on sticky notes and rearrange them
 
-## Status
+### Decisions
 
-`npm run build`, `npm run typecheck`, `npm run test:unit`, `npm run test:component`
-and `npm run test:e2e` all pass. E2E is verified in **Chromium** (the only
-browser engine installed in this environment — see decisions below).
+- **BoardViewport integration**: Added `onEmptyDoubleClick` and `onEmptyClick` callbacks to `BoardViewport` to avoid circular dependencies. The viewport detects clicks/drags on its own element (empty space) and invokes these callbacks. The `App.tsx` wires them to create notes and clear selection.
 
-Test coverage mapped to the design's coverage table:
-- Unit (`tests/unit/camera.test.ts`): TC-01..TC-12 (+ resize TC-07, reset, step
-  sequence/limits, factor edge cases) and the seeded 1,000-case pointer-invariance
-  property check.
-- Component (`tests/component/`): TC-13..TC-18, TC-29, TC-30 (BoardViewport);
-  TC-19, TC-20, TC-21, TC-32 (ZoomControls); TC-22 (NavigationHint latch).
-- E2E (`tests/e2e/navigation.spec.ts`): TC-23..TC-27 and TC-31, organised as the
-  three story workflows plus the page-zoom negative case.
+- **NoteLayer component**: Introduced an intermediate `NoteLayer` component rendered inside the `BoardViewport` children to access the camera zoom from `useBoard()` context and pass it down to each `StickyNote`. This satisfies the design's `zoom` prop requirement while working within the component tree.
 
-There is deliberately **no integration layer** in this story (no server / data).
+- **Text editor outside-click detection**: The `StickyTextEditor` calls `onEnd('unselected')` via the App-level click handler on the viewport. The `BoardViewport`'s `onEmptyClick` fires when a pointerup occurs without movement on the viewport element itself (since the note's `pointerdown` calls `stopPropagation`, clicks on notes don't trigger the viewport's empty-click detection).
 
-## Repository layout
+- **NoteToolbar screen-space positioning**: The `NoteToolbar` is rendered in the overlay (fixed-position) layer, using `worldToScreen` to position it above the selected note. This keeps it unscaled by zoom as the design requires.
 
-Follows the design's planned layout. Added on top of the listed files:
-`vitest.config.ts`, `playwright.config.ts`, `src/client/styles.css`,
-`src/client/global.d.ts`, `src/client/canvas/BoardContext.tsx`,
-`tests/component/setup.ts`, `tests/e2e/helpers/board.ts`.
+- **Font auto-fit**: `fitFontSize` is implemented for use in real browser contexts. In the component (jsdom) tests, a simplified heuristic is used since jsdom doesn't perform real text layout. The e2e test verifies the actual computed font sizes.
 
-## Key decisions & deviations (noted per task rules)
+- **`yjs` dependency**: Added as a regular dependency (not dev) since it's part of the production application logic.
 
-1. **BoardContext to share one camera.** `BoardViewport` owns the single camera
-   via `useCamera` (so it stays self-contained for isolated component tests). A
-   small React context (`BoardContext`/`useBoard`) exposes it to the fixed UI.
-   `App.tsx` wires `ZoomControls`/`NavigationHint` (stateless, prop-driven per the
-   contracts) through an `overlay` slot rendered by `BoardViewport`, so the controls
-   render above the world layer without inheriting its transform, while `App`
-   remains the wiring point the design describes.
+- **E2E test tolerance**: Used ±2px tolerance for drag tests at different zoom levels to account for floating-point rounding in the world-coordinate calculation during rapid pointer events.
 
-2. **Pointer input via native listeners, not React synthetic events.** React's
-   delegated pointer events did not fire under jsdom, and native listeners behave
-   identically in jsdom and real browsers and let us use pointer capture.
-   `pointerdown` is on the viewport element (drag starts only when the target is
-   the board itself, so later object stories can `stopPropagation`); `pointermove`
-   / `pointerup` / `pointercancel` are on `window` (events bubble there), and
-   `lostpointercapture` on the element. `setPointerCapture` is guarded.
+### What was built
 
-3. **jsdom has no `PointerEvent`.** `tests/component/setup.ts` polyfills a minimal
-   `PointerEvent` (extends `MouseEvent`) so handlers see realistic `button`,
-   `pointerId`, `clientX/Y` values like a real browser. Also sets
-   `IS_REACT_ACT_ENVIRONMENT` for manual dispatch + `act` flushing.
-
-4. **TC-30 (wheel over controls).** The board's non-passive `wheel` listener is a
-   native listener on the viewport element (a DOM ancestor of the overlay), so it
-   fires during bubbling *before* React's root-delegated `onWheel` on the controls.
-   `stopPropagation` alone cannot stop the ancestor. The viewport wheel handler
-   therefore also ignores any wheel whose target is inside a `[data-board-ui]`
-   overlay (the controls container and the hint carry that attribute) — and does
-   not `preventDefault` there, leaving the browser default intact. The controls'
-   own `stopPropagation` is kept as belt-and-braces. Verified by both the component
-   test and the e2e guard test.
-
-5. **rAF coalescing omitted.** The design mentions batching camera updates with
-   `requestAnimationFrame`. React 18/19 already batches all state updates inside a
-   single event handler into one render, and discrete events map to discrete
-   gestures, so a per-handler functional `setState` is deterministic and simpler to
-   test (no fake-timer coupling). Camera updates remain immutable, and camera.math
-   returns the *same object* for no-ops so React skips a re-render and the
-   `hasNavigated` latch never trips on them (TC-29).
-
-6. **Zoom-step snapping.** `zoomStep` snaps the target zoom to the nearest
-   `ZOOM_STEP_FACTOR^n` within `1e-9`, so a step in immediately followed by a step
-   out lands on exactly `1.0` ("100%") with no float drift (TC-09). The applied
-   zoom is set to the exact snapped value (via an internal `withZoom`), and the
-   pointer/centre world point is kept invariant.
-
-7. **E2E serving path.** E2E runs against `wrangler dev` (the path used from day
-   one) over a **test-mode** build (`vite build --mode test`) so
-   `window.__vidi6.setCamera()` exists (jumping a million units by dragging is
-   impractical). Verified: the production build tree-shakes the hook out entirely
-   (0 occurrences of `__vidi6` in the bundle); the test build includes it.
-
-8. **Browser projects.** Only Chromium is installed here, so `playwright.config.ts`
-   auto-detects installed engines and runs Chromium; Firefox/WebKit projects
-   activate automatically when those engines are present. Per the task guidance,
-   Chromium is sufficient. Safari pinch (`GestureEvent`) cannot be synthesised by
-   Playwright and is covered by the component handler test TC-17 (per strategy).
-
-9. **wrangler.jsonc is assets-only.** A Worker `main` arrives in story 3. Wrangler
-   rejects an asset `binding` in an assets-only Worker, so the binding is omitted;
-   `assets.directory = ./dist/client` with SPA not-found handling.
-
-10. **Keyboard.** A window `keydown` handler prevents Ctrl/Cmd + `=`/`+`/`-`/`_`/`0`
-    (stopping browser page zoom) and maps them to step-in / step-out / reset.
-    Alt/Shift combinations are ignored.
-
-11. **Origin marker.** A 0×0 anchor at world (0,0) inside the world layer,
-    counter-scaled by `1/zoom` so the crosshair keeps a constant on-screen size.
-    Its rendered `getBoundingClientRect` matches the camera model exactly (verified
-    at origin and at ±1,000,000 world units), giving e2e a precise pixel target.
-
-12. **Stack versions.** Vite 6 + React 19 + TypeScript 5.7 + Vitest 3 +
-    Playwright 1.63 (matching the installed Chromium build) + Wrangler 4.
+- `src/shared/board-model.ts` — Yjs schema, all mutations (createSticky, moveObject, bringToFront, setStickyColor, deleteObject, getStickyText, snapshot)
+- `src/client/board/useBoardDoc.ts` — Y.Doc lifecycle hook with `useSyncExternalStore`
+- `src/client/board/useSelection.ts` — local selection/editing state
+- `src/client/board/Toolbar.tsx` — left toolbar with "Sticky note" button
+- `src/client/objects/StickyNote.tsx` — render, select, drag-to-move, double-click-to-edit
+- `src/client/objects/NoteLayer.tsx` — renders all notes, passes zoom from context
+- `src/client/objects/NoteToolbar.tsx` — 6 colour swatches + delete button
+- `src/client/objects/StickyText.ts` — clampToLimit, applyTextDiff, counterVisible, fitFontSize
+- `src/client/objects/StickyTextEditor.tsx` — textarea with Y.Text binding, length clamping, Escape handling
+- Modified `src/client/canvas/BoardViewport.tsx` — added dblclick and empty-click detection
+- Modified `src/client/App.tsx` — wired doc, selection, toolbars, keyboard handlers
