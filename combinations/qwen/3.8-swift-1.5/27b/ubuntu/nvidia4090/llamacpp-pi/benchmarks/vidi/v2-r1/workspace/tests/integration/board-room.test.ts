@@ -6,7 +6,7 @@ import * as encoder from 'lib0/encoding';
 import * as decoder from 'lib0/decoding';
 import { newBoardId } from '@shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '@shared/config';
-import { createSticky, moveObject, setStickyColor, deleteObject, snapshot, getStickyText, initDoc } from '@shared/board-model';
+import { createSticky, moveObject, setStickyColor, deleteObject, snapshot, getStickyText, initDoc, asSticky } from '@shared/board-model';
 import { decodeMessage, encodeSyncFrame, encodeAwarenessFrame } from '@shared/protocol';
 import { RoomCore } from '../../src/worker/room-core';
 
@@ -99,7 +99,7 @@ describe('TC-07: create propagates to other client', () => {
     expect(snapB.length).toBe(1);
     expect(snapB[0].x).toBe(snapA[0].x);
     expect(snapB[0].y).toBe(snapA[0].y);
-    expect(snapB[0].color).toBe('blue');
+    expect(asSticky(snapB[0]).color).toBe('blue');
 
     a.close();
     b.close();
@@ -140,7 +140,7 @@ describe('TC-08: operations propagate', () => {
     await TICK(100);
 
     const snapB = snapshot(b.doc);
-    expect(snapB[0].color).toBe('green');
+    expect(asSticky(snapB[0]).color).toBe('green');
 
     a.close();
     b.close();

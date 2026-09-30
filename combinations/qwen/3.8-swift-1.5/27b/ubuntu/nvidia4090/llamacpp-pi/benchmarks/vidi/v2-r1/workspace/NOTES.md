@@ -1,5 +1,63 @@
 # NOTES
 
+## Story 7: Select, move, resize and delete several objects at once
+
+### Decisions made
+
+1. **Generic object model (`ObjectSnapshot` base, `StickySnapshot` extends)**:
+   The doc stores one `objects` Y.Map of per-type records. `snapshot()` returns
+   `ObjectSnapshot[]` (id/type/x/y/z/createdAt + width/height when present);
+   sticky-specific fields (`color`, `text`) live on `StickySnapshot`. Old story 2
+   tests cast via the `asSticky()` helper.
+
+2. **`src/shared/known-types.ts` seeds 'sticky' at module load**: the type
+   registry (`src/client/objects/registry.tsx`) is client code; shared code
+   (`board-model.snapshot`, `allObjectIds`) must not import client modules
+   (cycle). Importing `known-types` registers 'sticky' as a side effect.
+
+3. **`bringObjectsToFront` no-op optimization**: if every selected z is already
+   above every unselected z, skip the transaction entirely (TC-26c counts
+   LOCAL_ORIGIN transactions; a plain move must not re-z the unselected).
+
+4. **`rectContains` is STRICT (touching edge ≠ contained)**: locked in by the
+   TC-07 unit test. E2e marquee geometry must keep notes off the marquee edge.
+
+5. **`resizeRect` non-finite contract**: returns a sanitised copy (NaN → 0)
+   so a bad cursor position can never poison the doc.
+
+6. **Aspect-locked edge handles stay centred** on the original middle along the
+   fixed axis (`applyScaleToRect` in `useTransformGesture`).
+
+7. **Gesture ids are captured at pointerdown**: `useTransformGesture` reads the
+   selection once when the gesture starts; remote prunes mid-drag cannot change
+   the moving set. Writes are absolute (`start + delta`), rAF-throttled, with a
+   synchronous flush on pointerup — concurrent gestures converge (TC-36).
+
+8. **`user-select: none` on the board viewport (critical e2e fix)**: without it,
+   a drag over note text leaves a text selection behind; the NEXT pointerdown
+   inside that selection starts a native HTML5 text drag, which fires
+   `pointercancel` and kills the transform gesture after one move. Symptom was
+   a flaky e2e resize that stopped at an intermediate scale.
+
+9. **Marquee end ≠ clear selection**: releasing the marquee keeps the selection;
+   only Escape / click-on-empty / Delete clear it. A 1-sticky selection shows
+   story 2's NoteToolbar, not the "N selected" bar (which needs ≥ 2).
+
+10. **jsdom has no `PointerEvent`**: component tests dispatch
+    `new MouseEvent('pointerdown', { bubbles: true, ... })` with
+    `Object.defineProperty(e, 'pointerId', { value: 1 })`, and every native
+    dispatch is wrapped in `act()` (React 19 does not flush state updates from
+    native handlers synchronously — assertions without `act()` read stale
+    state). Test harnesses use `useSyncExternalStore` snapshots of the doc so
+    `useBoardKeys`/`useTransformGesture` see fresh positions after writes.
+
+11. **Y.Doc has no `transaction` event** in the installed yjs: tests that count
+    LOCAL_ORIGIN transactions monkey-patch `doc.transact`.
+
+12. **E2e viewport is 1280×720** (Playwright `Desktop Chrome` device overrides
+    the config's 800): all e2e scene geometry is designed to fit 720px height.
+    Camera is set to (0,0,1) so screen coords = world coords.
+
 ## Story 5: Share a board with others using a link
 
 ### Decisions made

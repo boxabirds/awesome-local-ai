@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import * as Y from 'yjs';
-import { initDoc, createSticky, deleteObject, setStickyColor, snapshot } from '@shared/board-model';
+import { initDoc, createSticky, deleteObject, setStickyColor, snapshot, asSticky } from '@shared/board-model';
 import { Toolbar } from '@client/board/Toolbar';
 import { NoteToolbar } from '@client/objects/NoteToolbar';
 
@@ -30,7 +30,7 @@ describe('sticky.toolbar', () => {
     fireEvent.click(pinkSwatch);
 
     expect(onColor).toHaveBeenCalledWith('pink');
-    const snap = snapshot(doc).find(n => n.id === id)!;
+    const snap = asSticky(snapshot(doc).find(n => n.id === id)!);
     expect(snap.color).toBe('pink');
   });
 

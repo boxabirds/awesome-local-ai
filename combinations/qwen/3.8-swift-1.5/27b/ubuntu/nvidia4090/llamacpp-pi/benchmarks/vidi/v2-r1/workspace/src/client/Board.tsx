@@ -8,19 +8,24 @@ import { zoomPercent, canZoomIn, canZoomOut } from './canvas/camera';
 import { setupTestHooks } from './canvas/testHooks';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { useTransformGesture } from './board/useTransformGesture';
+import { useMarquee, MarqueeRect } from './board/Marquee';
+import { useBoardKeys } from './board/useBoardKeys';
+import { SelectionOverlay } from './board/SelectionOverlay';
+import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
-import { StickyNote } from './objects/StickyNote';
-import { NoteToolbar } from './objects/NoteToolbar';
+import { getObjectType } from './objects/registry';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
-import { createSticky, deleteObject, setStickyColor } from '@shared/board-model';
-import { STICKY_SIZE_WORLD } from '@shared/config';
+import {
+  createSticky, deleteObjects, setStickyColor,
+} from '@shared/board-model';
+import type { StickyColor } from '@shared/config';
 import type { Point } from './canvas/camera';
 
 /**
- * The stories 1–4 board UI. Mounted by BoardPage only once the board is
- * known to exist (story 5); the board id is provided by the router, not read
- * from the address.
+ * Story 7 board UI: multi-object selection, group move, bounding-box
+ * resize, marquee, keyboard shortcuts and the selection bar.
  */
 export function Board(props: { boardId: string }) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -42,23 +47,61 @@ export function Board(props: { boardId: string }) {
 
   const cam = useCamera(size);
   const { doc, objects, connectionState } = useBoardDoc(boardId);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   // Set up test hooks
   useEffect(() => {
-    setupTestHooks(cam);
-  }, [cam]);
+    setupTestHooks(cam, doc);
+  }, [cam, doc]);
 
   const editAllowed = canEdit(connectionState);
+
+  // Multi-object selection (story 7).
+  const selection = useSelection(objects);
+
+  // Transform gesture: group move + bounding-box resize.
+  const gestureStartedRef = useRef(false);
+  const gesture = useTransformGesture({
+    doc,
+    camera: cam.camera,
+    selection,
+    snapshot: objects,
+    canEdit: editAllowed,
+    onGestureStart: () => {
+      gestureStartedRef.current = true;
+    },
+    onGestureEnd: () => {
+      gestureStartedRef.current = false;
+    },
+  });
+
+  // Marquee: Shift+drag over empty space adds fully-contained objects.
+  const marquee = useMarquee(cam.camera, objects, useCallback(
+    (ids: string[]) => selection.setMany(ids, true),
+    [selection],
+  ));
+
+  // Board-level keyboard shortcuts.
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editAllowed,
+    isBusy: () => false, // story 8 will feed gesture state in
+    isMarqueeActive: () => marquee.rect !== null,
+    onEscape: () => {
+      marquee.cancel();
+      selection.clear();
+    },
+  });
 
   // Create a sticky note at a world point
   const createStickyAt = useCallback((worldPoint: Point) => {
     if (!canEdit(connectionState)) return;
     const id = createSticky(doc, worldPoint);
     if (id) {
-      startEdit(id);
+      selection.startEdit(id);
     }
-  }, [doc, startEdit, connectionState]);
+  }, [doc, selection, connectionState]);
 
   // Handle double-click on empty board space
   const handleDoubleClickEmpty = useCallback((screenPoint: Point) => {
@@ -77,72 +120,34 @@ export function Board(props: { boardId: string }) {
 
   // Handle clear selection (click on empty space)
   const handlePointerUpEmpty = useCallback(() => {
-    select(null);
-  }, [select]);
+    selection.clear();
+  }, [selection]);
 
-  // Keyboard handler for Enter, Delete, Backspace
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      // Don't handle keys when focus is in an input/textarea
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-        return;
-      }
-
-      if (e.key === 'Enter' && selectedId && !editingId) {
-        e.preventDefault();
-        if (canEdit(connectionState)) startEdit(selectedId);
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingId) {
-        e.preventDefault();
-        if (canEdit(connectionState)) {
-          deleteObject(doc, selectedId);
-          select(null);
-        }
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selectedId, editingId, doc, select, startEdit]);
-
-  // Handle colour change from NoteToolbar
-  const handleColorChange = useCallback((color: string) => {
-    if (selectedId && canEdit(connectionState)) {
-      setStickyColor(doc, selectedId, color);
+  // Handle colour change from the single-note toolbar
+  const handleColorChange = useCallback((color: StickyColor) => {
+    if (selection.ids.size === 1 && editAllowed) {
+      const [id] = selection.ids;
+      setStickyColor(doc, id, color);
     }
-  }, [doc, selectedId, connectionState]);
+  }, [doc, selection, editAllowed]);
 
-  // Handle delete from NoteToolbar
+  // Handle delete from the selection bar / single-note toolbar
   const handleDelete = useCallback(() => {
-    if (selectedId && canEdit(connectionState)) {
-      deleteObject(doc, selectedId);
-      select(null);
-    }
-  }, [doc, selectedId, select, connectionState]);
+    if (selection.ids.size === 0 || !editAllowed) return;
+    deleteObjects(doc, [...selection.ids]);
+  }, [doc, selection, editAllowed]);
 
-  // Clear selection/editing if the note was deleted remotely
-  useEffect(() => {
-    if (selectedId && !objects.find(n => n.id === selectedId)) {
-      select(null);
-    }
-  }, [objects, selectedId, select]);
-
-  // Find the selected note for NoteToolbar positioning
-  const selectedNote = objects.find(n => n.id === selectedId);
-
-  // Compute screen position for the NoteToolbar
-  let noteToolbarStyle: React.CSSProperties | null = null;
-  if (selectedNote && !editingId) {
-    const screenX = (selectedNote.x - cam.camera.x) * cam.camera.zoom;
-    const screenY = (selectedNote.y - cam.camera.y) * cam.camera.zoom;
-    const noteWidth = STICKY_SIZE_WORLD * cam.camera.zoom;
-    noteToolbarStyle = {
-      position: 'absolute',
-      left: screenX + noteWidth / 2,
-      top: screenY - 8,
-      transform: 'translate(-50%, -100%)',
-      zIndex: 1001,
-    };
-  }
+  // Object props for the registry components
+  const onObjectPointerDown = useCallback(
+    (e: React.PointerEvent, id: string) => gesture.onObjectPointerDown(e, id),
+    [gesture],
+  );
+  const onStartEdit = useCallback((id: string) => {
+    if (editAllowed) selection.startEdit(id);
+  }, [selection, editAllowed]);
+  const onEndEdit = useCallback((next: 'selected' | 'unselected') => {
+    selection.endEdit(next);
+  }, [selection]);
 
   return (
     <div ref={viewportRef} style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
@@ -159,31 +164,46 @@ export function Board(props: { boardId: string }) {
         isPanning={cam.isPanning}
         onDoubleClickEmpty={handleDoubleClickEmpty}
         onPointerUpEmpty={handlePointerUpEmpty}
+        onMarqueeBegin={marquee.begin}
+        onMarqueeMove={marquee.move}
+        onMarqueeEnd={marquee.end}
+        onMarqueeCancel={marquee.cancel}
       >
-        {objects.map(note => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={cam.camera.zoom}
-            selected={selectedId === note.id}
-            editing={editingId === note.id}
-            onSelect={select}
-            onStartEdit={startEdit}
-            onEndEdit={endEdit}
-          />
-        ))}
+        {objects.map((obj) => {
+          const spec = getObjectType(obj.type);
+          if (!spec) return null;
+          const Component = spec.Component;
+          return (
+            <Component
+              key={obj.id}
+              obj={obj}
+              doc={doc}
+              zoom={cam.camera.zoom}
+              selected={selection.ids.has(obj.id)}
+              editing={selection.editingId === obj.id}
+              onObjectPointerDown={onObjectPointerDown}
+              onStartEdit={onStartEdit}
+              onEndEdit={onEndEdit}
+            />
+          );
+        })}
+        <MarqueeRect rect={marquee.rect} camera={cam.camera} />
       </BoardViewport>
+      <SelectionOverlay
+        ids={selection.ids}
+        snapshot={objects}
+        camera={cam.camera}
+        onHandlePointerDown={gesture.onHandlePointerDown}
+      />
+      <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 1002 }}>
+        <SelectionBar
+          ids={selection.ids}
+          snapshot={objects}
+          onDelete={handleDelete}
+          onColor={handleColorChange}
+        />
+      </div>
       <Toolbar onCreateSticky={handleCreateSticky} disabled={!editAllowed} />
-      {noteToolbarStyle && selectedNote && (
-        <div style={noteToolbarStyle}>
-          <NoteToolbar
-            color={selectedNote.color}
-            onColor={handleColorChange}
-            onDelete={handleDelete}
-          />
-        </div>
-      )}
       <ZoomControls
         zoomPercent={zoomPercent(cam.camera)}
         canZoomIn={canZoomIn(cam.camera)}

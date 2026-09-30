@@ -23,12 +23,17 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     el.setSelectionRange(text.length, text.length);
   }, [ytext]);
 
-  // Handle outside pointerdown to end editing
+  // Handle outside pointerdown to end editing.
+  // Story 7: if the pointer lands on ANOTHER object (div[data-note-id]),
+  // the selection of that object is kept ('selected'); on empty space the
+  // selection clears ('unselected').
   useEffect(() => {
     const handler = (e: PointerEvent) => {
       const el = textareaRef.current;
-      if (el && !el.contains(e.target as Node)) {
-        onEnd('unselected');
+      const target = e.target as Element | null;
+      if (el && !el.contains(target)) {
+        const onObject = !!(target && target.closest && target.closest('[data-note-id]'));
+        onEnd(onObject ? 'selected' : 'unselected');
       }
     };
     document.addEventListener('pointerdown', handler);

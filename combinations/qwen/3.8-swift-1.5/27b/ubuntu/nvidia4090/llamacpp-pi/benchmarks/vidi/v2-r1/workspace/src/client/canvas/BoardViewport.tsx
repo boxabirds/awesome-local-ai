@@ -14,6 +14,15 @@ interface BoardViewportProps {
   isPanning: boolean;
   onDoubleClickEmpty?: (screenPoint: Point) => void;
   onPointerUpEmpty?: () => void;
+  /**
+   * Story 7: Shift+drag over empty space draws a marquee instead of
+   * panning. The board wires these to `useMarquee`. Without them, empty
+   * drags only pan (story 1 behaviour).
+   */
+  onMarqueeBegin?: (screen: Point) => void;
+  onMarqueeMove?: (screen: Point) => void;
+  onMarqueeEnd?: () => void;
+  onMarqueeCancel?: () => void;
   children?: ReactNode;
 }
 
@@ -32,10 +41,15 @@ export function BoardViewport({
   isPanning,
   onDoubleClickEmpty,
   onPointerUpEmpty,
+  onMarqueeBegin,
+  onMarqueeMove,
+  onMarqueeEnd,
+  onMarqueeCancel,
   children,
 }: BoardViewportProps) {
   const ref = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+  const marqueeRef = useRef(false);
 
   const getPoint = useCallback((e: { clientX: number; clientY: number }): Point => {
     const rect = ref.current?.getBoundingClientRect();
@@ -55,13 +69,24 @@ export function BoardViewport({
     } catch {
       // jsdom doesn't support setPointerCapture
     }
+    if (e.shiftKey && onMarqueeBegin) {
+      // Story 7: Shift+drag on empty space starts a marquee, not a pan.
+      marqueeRef.current = true;
+      onMarqueeBegin(getPoint(e));
+      return;
+    }
+    marqueeRef.current = false;
     beginPan(getPoint(e));
-  }, [beginPan, getPoint]);
+  }, [beginPan, getPoint, onMarqueeBegin]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!draggingRef.current) return;
+    if (marqueeRef.current) {
+      onMarqueeMove?.(getPoint(e));
+      return;
+    }
     panMove(getPoint(e));
-  }, [panMove, getPoint]);
+  }, [panMove, getPoint, onMarqueeMove]);
 
   const endDrag = useCallback(() => {
     if (!draggingRef.current) return;
@@ -70,13 +95,20 @@ export function BoardViewport({
   }, [endPan]);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
+    const wasMarquee = marqueeRef.current;
+    marqueeRef.current = false;
     endDrag();
+    if (wasMarquee) {
+      // The marquee selects; a marquee up must NOT clear the selection.
+      onMarqueeEnd?.();
+      return;
+    }
     // If pointerup on empty space (not a note), clear selection
     const target = e.target as HTMLElement;
     if (target === ref.current || target.classList.contains('board-grid')) {
       onPointerUpEmpty?.();
     }
-  }, [endDrag, onPointerUpEmpty]);
+  }, [endDrag, onPointerUpEmpty, onMarqueeEnd]);
 
   const onDoubleClick = useCallback((e: React.MouseEvent) => {
     // Only handle dblclick on empty space (viewport/grid), not on notes
@@ -88,8 +120,13 @@ export function BoardViewport({
   }, [onDoubleClickEmpty]);
 
   const onPointerCancel = useCallback((_e: React.PointerEvent) => {
+    const wasMarquee = marqueeRef.current;
+    marqueeRef.current = false;
     endDrag();
-  }, [endDrag]);
+    if (wasMarquee) {
+      onMarqueeCancel?.();
+    }
+  }, [endDrag, onMarqueeCancel]);
 
   // Wheel event (non-passive to allow preventDefault)
   useEffect(() => {
@@ -198,6 +235,12 @@ export function BoardViewport({
         position: 'absolute',
         inset: 0,
         overflow: 'hidden',
+        // Story 7: never let the browser start a text selection during a
+        // gesture — a selected text region turns the next pointerdown into
+        // a native text drag, which fires pointercancel and kills the
+        // transform gesture (PRD sel.group_move / sel.resize).
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
         cursor: isPanning ? 'grabbing' : 'grab',
         backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)',
         backgroundSize: `${spacing}px ${spacing}px`,

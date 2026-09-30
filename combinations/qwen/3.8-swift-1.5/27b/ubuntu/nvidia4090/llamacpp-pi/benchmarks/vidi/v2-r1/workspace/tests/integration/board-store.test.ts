@@ -4,7 +4,7 @@ import * as Y from 'yjs';
 import { newBoardId } from '@shared/board-id';
 import { STORAGE_SCHEMA_VERSION, COMPACTION_UPDATE_COUNT, SNAPSHOT_CHUNK_BYTES, PERSIST_TESTED_NOTES } from '@shared/config';
 import { createRetroBoard, createLargeBoard } from '../fixtures/boards';
-import { snapshot, initDoc } from '@shared/board-model';
+import { snapshot, initDoc, asSticky } from '@shared/board-model';
 
 // Helper to call the Durable Object's test storage endpoint directly
 async function storageOp(boardId: string, operation: string, data?: any): Promise<any> {
@@ -86,8 +86,8 @@ describe('TC-05: LogOnly 25 notes → load equals original', () => {
 
     const freshDoc = new Y.Doc();
     Y.applyUpdate(freshDoc, new Uint8Array(loadResult.docBytes));
-    const loadedSnap = snapshot(freshDoc);
-    const originalSnap = snapshot(doc);
+    const loadedSnap = snapshot(freshDoc).map(asSticky);
+    const originalSnap = snapshot(doc).map(asSticky);
 
     expect(loadedSnap.length).toBe(originalSnap.length);
     expect(loadedSnap.length).toBe(25);

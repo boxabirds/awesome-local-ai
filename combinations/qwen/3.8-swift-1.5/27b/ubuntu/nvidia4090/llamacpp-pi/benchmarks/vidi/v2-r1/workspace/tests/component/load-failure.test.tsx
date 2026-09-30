@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import * as Y from 'yjs';
 import { canEdit, type ConnectionState } from '@client/sync/connectBoard';
 import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from '@shared/protocol';
-import { initDoc, createSticky, deleteObject, setStickyColor, snapshot } from '@shared/board-model';
+import { initDoc, createSticky, deleteObject, setStickyColor, snapshot, asSticky } from '@shared/board-model';
 
 describe('TC-23: Edit lock during load_failed', () => {
   it('canEdit returns false only for load_failed', () => {
@@ -56,7 +56,7 @@ describe('TC-23: Edit lock during load_failed', () => {
     }
     
     const after = snapshot(doc);
-    expect(after[0].color).toBe(before[0].color);
+    expect(asSticky(after[0]).color).toBe(asSticky(before[0]).color);
   });
 
   it('editing is allowed when state is connected', () => {

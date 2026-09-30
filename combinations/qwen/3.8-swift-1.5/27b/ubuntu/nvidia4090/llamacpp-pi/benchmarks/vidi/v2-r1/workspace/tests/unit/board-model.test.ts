@@ -2,9 +2,15 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as Y from 'yjs';
 import {
   initDoc, createSticky, moveObject, bringToFront, setStickyColor,
-  deleteObject, snapshot, LOCAL_ORIGIN,
+  deleteObject, snapshot, asSticky, LOCAL_ORIGIN,
+  type StickySnapshot,
 } from '@shared/board-model';
 import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR } from '@shared/config';
+
+// Story 7: snapshot() is generic; these story 2 tests deal with stickies.
+function stickySnap(doc: Y.Doc): StickySnapshot[] {
+  return snapshot(doc).map(asSticky);
+}
 
 function makeDoc(): Y.Doc {
   const doc = new Y.Doc();
@@ -33,7 +39,7 @@ describe('board.model', () => {
   it('TC-01: createSticky on empty doc creates 1 object with correct defaults', () => {
     const updates = countUpdates(doc);
     const id = createSticky(doc, { x: 100, y: 200 });
-    const snap = snapshot(doc);
+    const snap = stickySnap(doc);
     expect(snap).toHaveLength(1);
     expect(snap[0].id).toBe(id);
     expect(snap[0].type).toBe('sticky');
@@ -52,7 +58,7 @@ describe('board.model', () => {
     createSticky(doc, { x: 0, y: 0 });
     createSticky(doc, { x: 50, y: 50 });
     const id3 = createSticky(doc, { x: 100, y: 100 });
-    const snap = snapshot(doc);
+    const snap = stickySnap(doc);
     const note3 = snap.find(s => s.id === id3)!;
     expect(note3.z).toBe(3);
   });
@@ -60,11 +66,11 @@ describe('board.model', () => {
   // TC-03: moveObject updates x,y, other fields unchanged
   it('TC-03: moveObject updates position, other fields unchanged', () => {
     const id = createSticky(doc, { x: 0, y: 0 });
-    const before = snapshot(doc).find(s => s.id === id)!;
+    const before = stickySnap(doc).find(s => s.id === id)!;
     const updates = countUpdates(doc);
     const result = moveObject(doc, id, 10, -20);
     expect(result).toBe(true);
-    const after = snapshot(doc).find(s => s.id === id)!;
+    const after = stickySnap(doc).find(s => s.id === id)!;
     expect(after.x).toBe(10);
     expect(after.y).toBe(-20);
     expect(after.color).toBe(before.color);
@@ -87,11 +93,11 @@ describe('board.model', () => {
   // TC-05: setStickyColor green → applied, other fields unchanged
   it('TC-05: setStickyColor changes colour, other fields unchanged', () => {
     const id = createSticky(doc, { x: 10, y: 20 });
-    const before = snapshot(doc).find(s => s.id === id)!;
+    const before = stickySnap(doc).find(s => s.id === id)!;
     const updates = countUpdates(doc);
     const result = setStickyColor(doc, id, 'green');
     expect(result).toBe(true);
-    const after = snapshot(doc).find(s => s.id === id)!;
+    const after = stickySnap(doc).find(s => s.id === id)!;
     expect(after.color).toBe('green');
     expect(after.text).toBe(before.text);
     expect(after.x).toBe(before.x);
@@ -104,11 +110,11 @@ describe('board.model', () => {
   // TC-06: setStickyColor 'teal' → false, unchanged, 0 updates
   it('TC-06: setStickyColor with unknown colour returns false', () => {
     const id = createSticky(doc, { x: 0, y: 0 });
-    const before = snapshot(doc).find(s => s.id === id)!;
+    const before = stickySnap(doc).find(s => s.id === id)!;
     const updates = countUpdates(doc);
     const result = setStickyColor(doc, id, 'teal');
     expect(result).toBe(false);
-    const after = snapshot(doc).find(s => s.id === id)!;
+    const after = stickySnap(doc).find(s => s.id === id)!;
     expect(after.color).toBe(before.color);
     expect(updates.count).toBe(0);
     updates.stop();
@@ -117,11 +123,11 @@ describe('board.model', () => {
   // TC-07: deleteObject removes the note
   it('TC-07: deleteObject removes the note', () => {
     const id = createSticky(doc, { x: 0, y: 0 });
-    expect(snapshot(doc)).toHaveLength(1);
+    expect(stickySnap(doc)).toHaveLength(1);
     const updates = countUpdates(doc);
     const result = deleteObject(doc, id);
     expect(result).toBe(true);
-    expect(snapshot(doc)).toHaveLength(0);
+    expect(stickySnap(doc)).toHaveLength(0);
     expect(updates.count).toBe(1);
     updates.stop();
   });
@@ -143,7 +149,7 @@ describe('board.model', () => {
     const updates = countUpdates(doc);
     const result = bringToFront(doc, id1);
     expect(result).toBe(true);
-    const note = snapshot(doc).find(s => s.id === id1)!;
+    const note = stickySnap(doc).find(s => s.id === id1)!;
     expect(note.z).toBe(4);
     expect(updates.count).toBe(1);
     updates.stop();
@@ -175,13 +181,13 @@ describe('board.model', () => {
       obj1.set('z', 5);
       obj2.set('z', 5);
     }, LOCAL_ORIGIN);
-    const snap = snapshot(doc);
+    const snap = stickySnap(doc);
     expect(snap).toHaveLength(2);
     // Sorted by id as tie-break
     const [first, second] = snap;
     expect(first.id < second.id).toBe(true);
     // Stable across calls
-    const snap2 = snapshot(doc);
+    const snap2 = stickySnap(doc);
     expect(snap2[0].id).toBe(snap[0].id);
     expect(snap2[1].id).toBe(snap[1].id);
   });
@@ -198,7 +204,7 @@ describe('board.model', () => {
     doc.transact(() => {
       objects.set('unknown-1', unknownObj);
     }, LOCAL_ORIGIN);
-    const snap = snapshot(doc);
+    const snap = stickySnap(doc);
     expect(snap).toHaveLength(1);
     expect(snap[0].id).toBe(id);
   });
@@ -229,7 +235,7 @@ describe('board.model', () => {
       const result = createSticky(doc, { x: NaN, y: 0 });
       // Should return empty string or not create
       if (result) {
-        expect(snapshot(doc)).toHaveLength(0);
+        expect(stickySnap(doc)).toHaveLength(0);
       }
     }).not.toThrow();
     expect(updates.count).toBe(0);
@@ -241,7 +247,7 @@ describe('board.model', () => {
     expect(() => {
       const result = createSticky(doc, { x: Infinity, y: 0 });
       if (result) {
-        expect(snapshot(doc)).toHaveLength(0);
+        expect(stickySnap(doc)).toHaveLength(0);
       }
     }).not.toThrow();
     expect(updates.count).toBe(0);

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import * as Y from 'yjs';
 import { env } from 'cloudflare:test';
 import { newBoardId } from '@shared/board-id';
-import { initDoc, snapshot, createSticky } from '@shared/board-model';
+import { initDoc, snapshot, createSticky, asSticky } from '@shared/board-model';
 
 async function storageOp(boardId: string, operation: string, data?: any): Promise<any> {
   const id = env.BOARD_ROOM.idFromName(boardId);
@@ -38,7 +38,7 @@ describe('TC-12: Store before broadcast', () => {
     expect(loadResult.ok).toBe(true);
     const freshDoc = new Y.Doc();
     Y.applyUpdate(freshDoc, new Uint8Array(loadResult.docBytes));
-    const snap = snapshot(freshDoc);
+    const snap = snapshot(freshDoc).map(asSticky);
     expect(snap.length).toBe(1);
     expect(snap[0].text).toBe('');
     expect(snap[0].color).toBe('pink');
@@ -59,7 +59,7 @@ describe('TC-13: Reopen after everyone leaves', () => {
     const update = Y.encodeStateAsUpdate(doc);
     await storageOp(boardId, 'append', Array.from(update));
 
-    const originalSnap = snapshot(doc);
+    const originalSnap = snapshot(doc).map(asSticky);
     expect(originalSnap.length).toBe(10);
 
     // Simulate all clients leaving (no action needed - data is in storage)
@@ -68,7 +68,7 @@ describe('TC-13: Reopen after everyone leaves', () => {
     expect(loadResult.ok).toBe(true);
     const reloadedDoc = new Y.Doc();
     Y.applyUpdate(reloadedDoc, new Uint8Array(loadResult.docBytes));
-    const reloadedSnap = snapshot(reloadedDoc);
+    const reloadedSnap = snapshot(reloadedDoc).map(asSticky);
 
     expect(reloadedSnap.length).toBe(originalSnap.length);
     for (let i = 0; i < originalSnap.length; i++) {
