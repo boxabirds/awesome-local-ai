@@ -9,8 +9,12 @@ anything converting old records:
 - private paths (is_private): a run's held-out results and their artefacts, and the old public copy of the suite;
 - public summaries (summary_path, summarise_accept): each held-out result's counts, beside where it was;
 - metrics.json (strip_metrics) and reports (redact_markdown) without test titles, errors or runner output;
-- a check (fingerprints, leaks): no held-out test title may appear in a public file the harness wrote.
-The agent's own work (anything under a run's workspace/) is its own and always public.
+- a check (fingerprints, leaks): no held-out test title may appear in a public file the harness wrote;
+- a run's .gitignore (gitignore_lines), so its private files are never staged;
+- metrics.json split in two (split_metrics, merge_metrics): the public part, and the held-out detail kept beside
+  it in a git-ignored sidecar (HELDOUT_DETAIL) that the machine's own tools read back.
+The agent's own work (anything under a run's workspace/, its conversation and its gate) is its own and always
+public. The harness applies these rules in heldout.py and drive.record_story.
 Tests: test_publicise.py.
 """
 from __future__ import annotations
@@ -20,7 +24,15 @@ import re
 import subprocess
 from pathlib import Path, PurePosixPath
 
-PRIVATE_FILES = {"accept.json", "accept-report.json", "accept-final.json"}
+# The harness's own sidecars of held-out detail: metrics.json's (split_metrics), the report with its test titles
+# (redact_markdown's input), and the record of a commit the leak check refused (it names the title it found).
+HELDOUT_DETAIL = "heldout-detail.json"
+SUMMARY_DETAIL = "summary-detail.md"
+PUBLISH_REFUSED = "publish-refused.json"
+PRIVATE_FILES = {"accept.json", "accept-report.json", "accept-final.json", HELDOUT_DETAIL, SUMMARY_DETAIL,
+                 PUBLISH_REFUSED}
+# A scoring's artefacts. In a run record they are private wherever they are: under stories/NN/, and also a known-good
+# run's base/ and a superseded attempt's superseded/<name>/, which hold the same pages and screenshots.
 PRIVATE_DIRS = {"artifacts", "screenshots", "pre-suite-fix"}
 RUN_RECORDS = (("combinations",), ("benchmarks", "reference"))
 PRIVATE_RUN_FILES = {"AUDIT.md", "audit.jsonl"}   # audits triage each held-out failure by its title
@@ -32,8 +44,12 @@ SUMMARY_FIELDS = ("skipped", "build_exit", "runner_exit", "passed", "total", "on
                   "setup_fallbacks", "harness_fault", "install", "scores")
 ANCHOR_MARK = "@ref prd:"                  # every held-out test's title names its PRD anchor this way
 MIN_TITLE_CHARS = 16                       # shorter titles ("undo") would match ordinary words
+# The agent's own records beside its workspace: its conversation with the model (it wrote its tests from the same
+# spec sentences the held-out titles come from, and never saw the suite), its git log, and its gate's output.
+AGENT_OWN_FILES = {"gate.json", "agent-events.jsonl", "agent-events.compact.jsonl.gz", "workspace-git-log.txt"}
 TEST_TITLE = re.compile(r"""\btest(?:\.\w+)?\(\s*(['"`])(.+?)\1\s*,""")
-QUOTED_TITLES = re.compile(r";? (?:broke|fixed) \d+: (?:“[^”]*”(?:; )?)+(?: …)?")
+# history.render's "broke N: “t1”; “t2” …": the titles, "; " only between them, so a "; fixed M" after them stays.
+QUOTED_TITLES = re.compile(r";? (?:broke|fixed) \d+: “[^”]*”(?:; “[^”]*”)*(?: …)?")
 COMMON_ERROR = re.compile(r"\.? Most common error: `[^`]*`")
 
 
@@ -54,6 +70,8 @@ def is_private(rel: str) -> bool:
         return False
     name = parts[-1]
     if name in PRIVATE_FILES or (name in PRIVATE_RUN_FILES and _in_run_records(parts)):
+        return True
+    if _in_run_records(parts) and any(p in PRIVATE_DIRS or SCORING_DIR.match(p) for p in parts[:-1]):
         return True
     # Anything under stories/NN/<artefacts> (also inside rescore/<version>/).
     for i, p in enumerate(parts[:-1]):
@@ -96,6 +114,42 @@ def strip_metrics(metrics: dict) -> dict:
     return {**metrics, "stories": stories} if "stories" in metrics else dict(metrics)
 
 
+def split_metrics(metrics: dict) -> tuple[dict, dict]:
+    """metrics.json as (public, detail): public is strip_metrics(metrics); detail holds, per story, the full value of
+    each field strip_metrics changed, so that merge_metrics(public, detail) gives back metrics. Records from before
+    stories were keyed by id list them instead; they carry no held-out result, so they are all public."""
+    if not isinstance(metrics.get("stories"), dict):
+        return dict(metrics), {}
+    public = strip_metrics(metrics)
+    detail = {}
+    for sid, rec in (metrics.get("stories") or {}).items():
+        kept = {k: v for k, v in rec.items() if public["stories"][sid].get(k) != v}
+        if kept:
+            detail[sid] = kept
+    return public, ({"stories": detail} if detail else {})
+
+
+def merge_metrics(public: dict, detail: dict) -> dict:
+    """metrics.json with its held-out detail back in: each story's fields from detail replace the public ones.
+    A story the public metrics no longer have is not brought back. Neither input is modified."""
+    if not isinstance(public.get("stories"), (dict, type(None))):
+        return dict(public)
+    stories = {sid: dict(rec) for sid, rec in (public.get("stories") or {}).items()}
+    for sid, fields in (detail.get("stories") or {}).items():
+        if sid in stories:
+            stories[sid].update(fields)
+    return {**public, "stories": stories} if "stories" in public else dict(public)
+
+
+def gitignore_lines() -> list[str]:
+    """A run's .gitignore lines that keep every private file of the run out of git (is_private), and put back what
+    the agent wrote under its workspace/, whatever it named it. Scoring repeats are matched as scoring-<digit>…, a
+    little wider than SCORING_DIR; nothing else in a run is named that way."""
+    names = sorted(PRIVATE_FILES | PRIVATE_RUN_FILES)
+    dirs = [f"{d}/" for d in sorted(PRIVATE_DIRS)] + ["scoring-[0-9]*/"]
+    return [*names, *dirs, *(f"!/workspace/**/{p}" for p in [*names, *dirs])]
+
+
 def redact_markdown(text: str) -> str:
     """A report without held-out test titles or error text; its counts stay."""
     out = []
@@ -134,13 +188,20 @@ def leaks(text: str, fps: set[str]) -> list[str]:
     return found
 
 
-def leaks_in_file(rel: str, text: str, fps: set[str]) -> list[str]:
-    """leaks() for a file about to be public, minus what isn't held-out: the agent's own work and its own checks
-    (agents write tests from the same spec sentences the held-out titles come from), and, outside run records,
-    the anchor mark on its own (docs explain the convention)."""
+def is_own_work(rel: str) -> bool:
+    """Whether a file is the agent's own (its workspace, conversation, git log or gate), which leaks_in_file never
+    counts: the check can skip reading it."""
     parts = _parts(rel)
-    if "workspace" in parts or parts[-1] == "gate.json":
+    return "workspace" in parts or parts[-1] in AGENT_OWN_FILES
+
+
+def leaks_in_file(rel: str, text: str, fps: set[str]) -> list[str]:
+    """leaks() for a file about to be public, minus what isn't held-out: the agent's own work, its conversation and
+    its own checks (agents write tests from the same spec sentences the held-out titles come from), and, outside run records,
+    the anchor mark on its own (docs explain the convention)."""
+    if is_own_work(rel):
         return []
+    parts = _parts(rel)
     if parts[-1] == "metrics.json":
         try:
             m = json.loads(text)

@@ -42,6 +42,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 import claims  # noqa: E402
+import heldout  # noqa: E402
 import packdir  # noqa: E402
 
 EVENTS = "agent-events.compact.jsonl.gz"
@@ -157,8 +158,9 @@ def commits_for(log: str, sid: int) -> list[str]:
 
 def build_attempt(run: Path, repo: Path, sdir: Path, metrics: dict, log: str) -> dict | None:
     sid = sdir.name
-    accept_path, events_path = sdir / "accept.json", sdir / EVENTS
-    if not accept_path.exists() or not events_path.exists():
+    # The held-out result is private: this machine's copy, else the private repo's (heldout.find).
+    accept_path, events_path = heldout.find(run, f"stories/{sid}/accept.json"), sdir / EVENTS
+    if accept_path is None or not events_path.exists():
         return None
     accept = json.loads(accept_path.read_text())
     own = (accept.get("by_story") or {}).get(sid) or {}
@@ -223,7 +225,8 @@ def coverage_order(attempts: list[dict]) -> list[dict]:
 def fingerprint(runs: list[Path]) -> str:
     h = hashlib.sha256()
     for r in runs:
-        for p in sorted(r.glob("stories/*/accept.json")) + [r / "metrics.json"]:
+        results = [heldout.find(r, f"stories/{d.name}/accept.json") for d in heldout.result_dirs(r)]
+        for p in [*results, r / "metrics.json"]:
             h.update(f"{p}:{p.stat().st_mtime_ns}".encode())
     return h.hexdigest()[:16]
 

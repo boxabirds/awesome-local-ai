@@ -46,6 +46,13 @@ describe("finding runs", () => {
     expect(runs[0].rescores).toEqual([]);
     expect(runs[0].hasBundle).toBe(false);
   });
+  it("finds a re-score's latest story from its public summary, the only file a record has since 30 Sep 2026", () => {
+    const dir = `combinations/${SWIFT}/benchmarks/vidi/v2-r2`;
+    const runs = findRuns([`${dir}/run.json`, `${dir}/rescore/vidi-v2.0-pre2/rescore.json`,
+      `${dir}/rescore/vidi-v2.0-pre2/stories/03/accept-summary.json`, `${dir}/rescore/vidi-v2.0-pre2/stories/12/accept-summary.json`,
+      `${dir}/rescore/vidi-v2.0-pre2/stories/12/accept-report.json`]);
+    expect(runs[0].rescoreLast).toEqual({ "vidi-v2.0-pre2": "12" });
+  });
 });
 
 describe("versions", () => {

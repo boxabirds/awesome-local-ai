@@ -22,6 +22,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import re
 import threading
@@ -31,11 +32,13 @@ from pathlib import Path
 
 import containment
 import gates
+import heldout
 import history
 import hostenv
 import pack as packmod
 import packdir
 import progress
+import publicise
 from hostenv import IS_MAC, THERMAL_OK, mem_free_pct
 from clients import CLIENTS, PI_THINKING_LEVELS, empty_state
 
@@ -285,7 +288,9 @@ current_story
 work_dir.txt
 progress.json
 control/
-"""
+# Held-out detail (publicise.py): kept on this machine and in the private repo, never in this one.
+""" + "\n".join(publicise.gitignore_lines()) + "\n"
+REFUSED_SHOWN = 3       # problems a refused commit names in its one-line error; the rest are in PUBLISH_REFUSED
 COMMIT_TRAILER = "\n\nCo-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 
@@ -298,10 +303,14 @@ def _rebase_in_progress(repo_root: Path, git: list[str]) -> bool:
     return False
 
 
-def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None = None) -> dict:
+def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None = None,
+                 private: Path | None = None) -> dict:
     """Commit exactly this run's directory and push, so every story leaves a durable record.
 
-    Only the run dir is staged: anything else uncommitted in the repo is left alone.
+    Only the run dir is staged: anything else uncommitted in the repo is left alone. Held-out detail never is
+    (publicise.py): each result gets its public summary, the run's private files are git-ignored (and untracked
+    if an older harness committed them) and copied to the private repo (record_private), and every staged file
+    is checked for held-out test titles first; if one has any, nothing is committed (refuse).
     A failed push is reported, never fatal: the benchmark carries on. When the remote has
     changed this run's own files (a rename of its combination, say), the pull-and-rebase
     conflicts: it is aborted, the story stays committed locally and is reported `unpushed`,
@@ -313,19 +322,47 @@ def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None
         subprocess.run([*git, "rebase", "--abort"], cwd=repo_root, capture_output=True, text=True)
         out["recovered"] = "aborted a rebase left in progress by an earlier run"
     (run / ".gitignore").write_text(RUN_GITIGNORE)
+    heldout.make_public(run)
     too_big = make_publishable(run)
     rel = str(run.resolve().relative_to(repo_root.resolve()))
-    out["over_size_limit"] = too_big
-    add = subprocess.run([*git, "add", "--", rel], cwd=repo_root, capture_output=True, text=True)
-    if add.returncode != 0:
-        return {**out, "error": add.stderr[-500:]}
-    commit = subprocess.run([*git, "commit", "-q", "-m", message + COMMIT_TRAILER, "--", rel],
-                            cwd=repo_root, capture_output=True, text=True)
-    if commit.returncode != 0:
-        return {**out, "error": (commit.stdout + commit.stderr)[-500:]}
+    out["over_size_limit"] = [f for f in too_big if not publicise.is_private(
+        str(Path(f).resolve().relative_to(repo_root.resolve())))]
+    private = heldout.private_repo() if private is None else private
+    # The detail first: whatever happens to the public commit, the private repo has it.
+    out["private"] = record_private(repo_root, run, message, private, git)
+    # The commit is built in an index of its own, from HEAD plus this run: exactly what is checked is what is
+    # committed, a private file an older harness committed can be dropped from it (a `commit -- <run>` would take
+    # it back from the working tree), and nothing else staged in the checkout goes in with it.
+    with tempfile.TemporaryDirectory(prefix="record-index-") as tmp:
+        env = {**os.environ, "GIT_INDEX_FILE": str(Path(tmp) / "index")}
+        if subprocess.run([*git, "rev-parse", "-q", "--verify", "HEAD"], cwd=repo_root, capture_output=True).returncode == 0:
+            subprocess.run([*git, "read-tree", "HEAD"], cwd=repo_root, env=env, capture_output=True)
+        untracked = untrack_private(repo_root, rel, git, env)
+        if untracked:
+            out["untracked_private"] = len(untracked)
+        add = subprocess.run([*git, "add", "--", rel], cwd=repo_root, capture_output=True, text=True, env=env)
+        if add.returncode != 0:
+            return {**out, "error": add.stderr[-500:]}
+        problems = heldout.staged_problems(repo_root, rel, git, heldout.fingerprints(private), env)
+        if problems:
+            return {**out, **refuse(run, problems)}
+        (run / publicise.PUBLISH_REFUSED).unlink(missing_ok=True)
+        commit = subprocess.run([*git, "commit", "-q", "-m", message + COMMIT_TRAILER], cwd=repo_root,
+                                capture_output=True, text=True, env=env)
+        if commit.returncode != 0:
+            return {**out, "error": (commit.stdout + commit.stderr)[-500:]}
+    # The checkout's own index catches up with the commit for this run; the rest of it is left as it was.
+    subprocess.run([*git, "reset", "-q", "--", rel], cwd=repo_root, capture_output=True)
     out["committed"] = True
     out["commit"] = subprocess.run([*git, "rev-parse", "--short", "HEAD"], cwd=repo_root,
                                    capture_output=True, text=True).stdout.strip()
+    return {**out, **push_with_rebase(repo_root, git)}
+
+
+def push_with_rebase(repo_root: Path, git: list[str]) -> dict:
+    """Push HEAD to origin; if the remote moved, replay onto it and try once more. Never raises: returns
+    {"pushed"} plus, when it didn't, {"unpushed", "error"}."""
+    out: dict = {"pushed": False}
     push = subprocess.run([*git, "push", "-q", "origin", "HEAD"], cwd=repo_root, capture_output=True, text=True)
     if push.returncode != 0:
         # The remote moved during a long run: replay our commit on top, keeping any
@@ -351,13 +388,63 @@ def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None
     return out
 
 
+def untrack_private(repo_root: Path, rel: str, git: list[str], env: dict | None = None) -> list[str]:
+    """Drop from the index the run's private files that an older harness committed; the files stay on disk."""
+    listed = subprocess.run([*git, "ls-files", "-z", "--", rel], cwd=repo_root, capture_output=True, env=env)
+    tracked = [p for p in listed.stdout.decode().split("\0") if p and publicise.is_private(p)]
+    if tracked:
+        subprocess.run([*git, "rm", "-q", "--cached", "--pathspec-from-file=-", "--pathspec-file-nul"],
+                       cwd=repo_root, input="\0".join(tracked).encode(), capture_output=True, env=env)
+    return tracked
+
+
+def refuse(run: Path, problems: list[dict]) -> dict:
+    """Don't commit (the index the commit was built in is thrown away): keep what was found in a private file and
+    name it on stdout. What is returned goes into metrics.json, which is public, so it names each file and a digest
+    of any title found, not the title."""
+    (run / publicise.PUBLISH_REFUSED).write_text(json.dumps({"at": time.time(), "problems": problems}, indent=2))
+    for p in problems:
+        print(f"record: NOT COMMITTED, {p['why']} in {p['file']}"
+              f"{': ' + p['fingerprint'] if p['fingerprint'] else ''}", flush=True)
+    found = [{"file": p["file"], "why": p["why"],
+              "fingerprint": heldout.digest(p["fingerprint"]) if p["fingerprint"] else None} for p in problems]
+    shown = ", ".join(f"{f['file']} ({f['why']}{' ' + f['fingerprint'] if f['fingerprint'] else ''})"
+                      for f in found[:REFUSED_SHOWN])
+    return {"refused": found,
+            "error": (f"not committed: {len({f['file'] for f in found})} staged file(s) must not be public: {shown}"
+                      f"{' …' if len(found) > REFUSED_SHOWN else ''}; see {publicise.PUBLISH_REFUSED}")}
+
+
+def record_private(repo_root: Path, run: Path, message: str, private: Path, git: list[str]) -> dict:
+    """Copy the run's held-out detail to the private repo (heldout.copy_private), commit it there and push.
+    Never fatal: a missing checkout, or a failed commit or push, is reported."""
+    if not (private / ".git").exists():
+        return {"skipped": f"no private checkout at {private}"}
+    copied = heldout.copy_private(run, repo_root, private)
+    out: dict = {"copied": len(copied), "committed": False, "pushed": False}
+    dest = f"{heldout.PRIVATE_RUNS}/{run.resolve().relative_to(repo_root.resolve()).as_posix()}"
+    if copied:
+        add = subprocess.run([*git, "add", "--", dest], cwd=private, capture_output=True, text=True)
+        commit = subprocess.run([*git, "commit", "-q", "-m", message + COMMIT_TRAILER, "--", dest], cwd=private,
+                                capture_output=True, text=True) if add.returncode == 0 else add
+        if commit.returncode != 0:
+            return {**out, "error": (commit.stdout + commit.stderr)[-500:]}
+        out["committed"] = True
+    ahead = subprocess.run([*git, "rev-list", "--count", "@{upstream}..HEAD"], cwd=private,
+                           capture_output=True, text=True)
+    if out["committed"] or (ahead.returncode == 0 and ahead.stdout.strip() not in ("", "0")):
+        out.update(push_with_rebase(private, git))     # this copy, and any an earlier failed push left behind
+    return out
+
+
 def load_metrics(run: Path) -> dict:
-    p = run / "metrics.json"
-    return json.loads(p.read_text()) if p.exists() else {"stories": {}}
+    """metrics.json with its held-out detail (heldout.py): a resumed run carries on with everything."""
+    return heldout.load_metrics(run)
 
 
 def save_metrics(run: Path, m: dict) -> None:
-    (run / "metrics.json").write_text(json.dumps(m, indent=2))
+    """metrics.json as it may be published, and the held-out detail beside it, git-ignored."""
+    heldout.save_metrics(run, m)
 
 
 def setup_workspace(ws: Path) -> None:
@@ -1361,7 +1448,7 @@ def main() -> None:
         # The base's own held-out results, so the story's regressions and repairs can be measured.
         print(f"[known-good] scoring the base (stories {[p['id'] for p in processed]})", flush=True)
         acc = gates.accept(ws, processed, run / history.BASE_DIR, PK.acceptance)
-        (run / history.BASE_DIR / "accept.json").write_text(json.dumps(acc, indent=2))
+        heldout.write_accept(run / history.BASE_DIR / "accept.json", acc)
         kill_strays(ws)
     progress.write_progress(run, scope, stories, metrics, None)
 
@@ -1446,7 +1533,7 @@ def main() -> None:
         kill_strays(ws)
         status = PARTIAL if skip else DONE
         acc = gates.accept(ws, [*processed, {"id": sid, "status": status}], sdir, PK.acceptance)
-        (sdir / "accept.json").write_text(json.dumps(acc, indent=2))
+        heldout.write_accept(sdir / "accept.json", acc)
         rec["accept"] = {k: v for k, v in acc.items() if k != "tests"}
         # Task evidence before the snapshot below, which would make uncommitted work look committed.
         ev = progress.evidence(ws, base)
@@ -1480,10 +1567,9 @@ def main() -> None:
         rec.update(status=status, ended_by="operator" if skip else "agent", partial_base=partial_base, tasks=table)
         if partial_base:
             rec["stub_markers"] = progress.stub_markers(ws, base)
-            rec["partial_heldout_changes"] = {
-                str(p): progress.heldout_changes(json.loads((run / "stories" / f"{p:02d}" / "accept.json").read_text()),
-                                                 acc["tests"], p)
-                for p in partial_base if (run / "stories" / f"{p:02d}" / "accept.json").exists()}
+            earlier = {p: heldout.read_json(run, f"stories/{p:02d}/accept.json") for p in partial_base}
+            rec["partial_heldout_changes"] = {str(p): progress.heldout_changes(e, acc["tests"], p)
+                                              for p, e in earlier.items() if e is not None}
         entry = {"id": sid, "title": title, "status": status, "ended_by": rec["ended_by"],
                  "started_at": rec["started"], "ended_at": rec["agent_finished"],
                  "agent_minutes": round(rec["agent"]["seconds"] / 60, 1), "calls": rec["agent"]["steps"],
@@ -1509,7 +1595,7 @@ def main() -> None:
         progress.write_progress(run, scope, stories, metrics, None)
         if a.record:
             import report
-            (run / "summary.md").write_text(report.summary(run))
+            report.write_summary(run)
             compact_events(sdir / "agent-events.jsonl")
             label = combination_label(run)
             outcome = "done" if status == DONE else "partial (ended by operator)"

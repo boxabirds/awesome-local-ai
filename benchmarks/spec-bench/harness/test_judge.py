@@ -80,6 +80,8 @@ def test_scorer_faults_are_caught_on_real_records(tmp_path):
         "error": "Error: browserType.launch: Executable doesn't exist at ~/Library/Caches/ms-playwright/chromium"}]}))
     good = ref / "run-3" / "stories" / "12" / "accept.json"
     assert "no browser" in judge.scorer_fault(broken)
+    if not good.exists():
+        pytest.skip("the real held-out results have left the public repo (publicise.py); they are in the private copy")
     assert judge.scorer_fault(good) is None
     # run-2's final build was re-scored whole on 25 Sep; that is what a judge gets
     assert judge.last_accept(ref / "run-2").name == "accept-final.json"

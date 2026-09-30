@@ -419,7 +419,11 @@ def main() -> None:
     else:
         res = accept(ws, parse_processed(a.done), a.out)
     a.out.mkdir(parents=True, exist_ok=True)
-    (a.out / f"{a.what}.json").write_text(json.dumps(res, indent=2))
+    if a.what == "accept":
+        import heldout
+        heldout.write_accept(a.out / "accept.json", res)   # and its public summary beside it
+    else:
+        (a.out / f"{a.what}.json").write_text(json.dumps(res, indent=2))
     print(json.dumps({k: v for k, v in res.items() if k not in ("tests", "steps")}, indent=2))
 
 

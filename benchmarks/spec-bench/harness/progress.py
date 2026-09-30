@@ -25,6 +25,8 @@ import time
 from collections import deque
 from pathlib import Path
 
+import heldout
+
 TASK_ROW_RE = re.compile(r"^\|\s*(\d+)\s*\|\s*(.+?)\s*\|\s*[^|]*\|\s*([^|]+?)\s*\|\s*([^|]*?)\s*\|\s*$")
 TASK_HEAD_RE = re.compile(r"^###\s+(\d+)\.")
 TC_RE = re.compile(r"TC-(\d+)")
@@ -204,14 +206,11 @@ def _story_minutes(s: dict) -> float | None:
     return None
 
 
-def _void(accept_file: Path) -> bool:
-    """A held-out score the machine couldn't produce (gates.harness_fault), e.g. no browser."""
+def _void(acc: dict) -> bool:
+    """A held-out score the machine couldn't produce (gates.harness_fault), e.g. no browser. From the result
+    itself where its detail is at hand, else from its public summary's harness_fault."""
     import gates
-    try:
-        acc = json.loads(accept_file.read_text())
-        return bool(acc.get("harness_fault") or gates.harness_fault(acc.get("tests", []), acc.get("runner_tail", "")))
-    except (OSError, json.JSONDecodeError):
-        return False
+    return bool(acc.get("harness_fault") or gates.harness_fault(acc.get("tests", []), acc.get("runner_tail", "")))
 
 
 def baselines(repo_root: Path, story_id: int, exclude: Path) -> list[dict]:
@@ -233,14 +232,11 @@ def baselines(repo_root: Path, story_id: int, exclude: Path) -> list[dict]:
             continue
         status = next((p["status"] for p in m.get("processed", []) if p["id"] == story_id), "DONE")
         own = (s.get("accept") or {}).get("by_story", {}).get(f"{story_id:02d}")
-        if own is None and (mf.parent / "accept.json").exists():
+        if own is None:
             # A reference build is scored once at the end, all stories built (not at each story's end).
-            try:
-                own = json.loads((mf.parent / "accept.json").read_text()).get("by_story", {}).get(f"{story_id:02d}")
-            except (OSError, json.JSONDecodeError):
-                pass
-        story_accept = mf.parent / "stories" / f"{story_id:02d}" / "accept.json"
-        if own is not None and story_accept.exists() and _void(story_accept):
+            own = (heldout.accept_or_summary(mf.parent, "accept.json") or {}).get("by_story", {}).get(f"{story_id:02d}")
+        story_accept = heldout.accept_or_summary(mf.parent, f"stories/{story_id:02d}/accept.json")
+        if own is not None and story_accept is not None and _void(story_accept):
             own = None  # scored without a working browser: says nothing about the build
         rel = mf.parent.relative_to(repo_root)
         label = (" ".join([str(Path(*rel.parts[1:-3])), rel.parts[-1]]) if rel.parts[0] == "combinations"

@@ -158,16 +158,31 @@ fn walk(dir: &Path, depth: usize, visit: &mut dyn FnMut(&Path) -> bool) {
     }
 }
 
+/// The public summary a held-out result has beside it, and the result itself, in the order they are read. Since
+/// 30 Sep 2026 a record holds only the summary (counts; the result with its tests is private); older records only
+/// the result. Either gives the score.
+const RESULT_FILES: [(&str, &str); 2] = [("accept-final-summary.json", "accept-final.json"), ("accept-summary.json", "accept.json")];
+const FINAL: usize = 0;
+const STORY_OR_RUN: usize = 1;
+
+/// A result's files in a folder, summary first, that are there.
+fn result_files(dir: &Path, which: usize) -> Vec<PathBuf> {
+    let (summary, full) = RESULT_FILES[which];
+    [summary, full].iter().map(|f| dir.join(f)).filter(|f| f.is_file()).collect()
+}
+
 /// The final held-out result: accept-final.json, else the last story's accept.json (the whole suite
-/// run after it), else the run-level accept.json (a build scored once at the end).
+/// run after it), else the run-level accept.json (a build scored once at the end). Each is read from its
+/// public summary where the record has one (RESULT_FILES).
 pub fn score(run: &Path) -> Score {
     let last_story = subdirs(&run.join("stories"))
         .into_iter()
-        .filter(|d| d.join("accept.json").is_file())
+        .filter(|d| !result_files(d, STORY_OR_RUN).is_empty())
         .max_by_key(|d| name(d).parse::<u64>().unwrap_or(0))
-        .map(|d| d.join("accept.json"));
-    let candidates = [Some(run.join("accept-final.json")), last_story, Some(run.join("accept.json"))];
-    for file in candidates.into_iter().flatten() {
+        .map(|d| result_files(&d, STORY_OR_RUN))
+        .unwrap_or_default();
+    let candidates = [result_files(run, FINAL), last_story, result_files(run, STORY_OR_RUN)].concat();
+    for file in candidates {
         if let Some(doc) = read_json(&file) {
             return score_from(&doc, file.strip_prefix(run).ok().map(|p| p.to_string_lossy().to_string()));
         }
@@ -456,6 +471,42 @@ mod tests {
         write(&only_run.join("accept.json"), &json!({"passed": 71, "total": 75}));
         assert_eq!(score(&only_run).source.as_deref(), Some("accept.json"));
         assert_eq!(score(&tmp("score-none")), Score::default());
+    }
+
+    #[test]
+    fn the_final_score_reads_each_results_public_summary_first() {
+        let run = tmp("score-summary");
+        // A record since 30 Sep 2026: summaries only.
+        write(&run.join("stories/03/accept-summary.json"), &json!({"passed": 20, "total": 27}));
+        write(&run.join("stories/12/accept-summary.json"), &json!({"passed": 62, "total": 75, "by_story": {"12": {"passed": 1, "total": 5}}}));
+        let s = score(&run);
+        assert_eq!((s.passed, s.total, s.source.as_deref()), (Some(62), Some(75), Some("stories/12/accept-summary.json")));
+        assert_eq!(s.by_story, vec![StoryScore { story: "12".into(), passed: 1, total: 5 }]);
+        // On the machine that ran it the result is there too: the summary is still what is read.
+        write(&run.join("stories/12/accept.json"), &json!({"passed": 0, "total": 75}));
+        assert_eq!(score(&run).source.as_deref(), Some("stories/12/accept-summary.json"));
+        write(&run.join("accept-final-summary.json"), &json!({"passed": 71, "total": 75}));
+        write(&run.join("accept-final.json"), &json!({"passed": 1, "total": 75}));
+        assert_eq!((score(&run).passed, score(&run).source.as_deref()), (Some(71), Some("accept-final-summary.json")));
+        let only_run = tmp("score-run-summary");
+        write(&only_run.join("accept-summary.json"), &json!({"passed": 71, "total": 75}));
+        assert_eq!(score(&only_run).source.as_deref(), Some("accept-summary.json"));
+    }
+
+    #[test]
+    fn a_summary_that_does_not_parse_falls_back_to_the_result() {
+        let run = tmp("score-bad-summary");
+        std::fs::create_dir_all(run.join("stories/12")).unwrap();
+        std::fs::write(run.join("stories/12/accept-summary.json"), "{half-written").unwrap();
+        write(&run.join("stories/12/accept.json"), &json!({"passed": 62, "total": 75}));
+        assert_eq!((score(&run).passed, score(&run).source.as_deref()), (Some(62), Some("stories/12/accept.json")));
+    }
+
+    #[test]
+    fn a_void_score_is_flagged_from_its_summarys_harness_fault() {
+        let run = tmp("score-void-summary");
+        write(&run.join("stories/12/accept-summary.json"), &json!({"passed": 0, "total": 75, "harness_fault": "missing resources: no browser"}));
+        assert!(score(&run).void);
     }
 
     #[test]

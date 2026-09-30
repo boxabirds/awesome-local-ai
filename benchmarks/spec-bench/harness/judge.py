@@ -44,6 +44,7 @@ REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 import claims  # noqa: E402
 import gates  # noqa: E402
+import heldout  # noqa: E402
 import hostenv  # noqa: E402
 import judge_sandbox  # noqa: E402
 import packdir  # noqa: E402
@@ -70,14 +71,15 @@ def work_dir_name(record: str) -> str:
 
 
 def last_accept(record: Path) -> Path:
-    """The run's final held-out results: a whole-run re-score if there is one, else the last story's."""
+    """The run's final held-out results: a whole-run re-score if there is one, else the last story's. Where
+    heldout.find finds them: in the record on the machine that ran it, else in the private repo's copy."""
     for final in ("accept-final.json", "accept.json"):
-        if (record / final).exists():
-            return record / final
-    stories = sorted(p for p in (record / "stories").iterdir() if (p / "accept.json").exists())
+        if (found := heldout.find(record, final)):
+            return found
+    stories = heldout.result_dirs(record)
     if not stories:
-        raise SystemExit(f"{record}: no stories/NN/accept.json")
-    return stories[-1] / "accept.json"
+        raise SystemExit(f"{record}: no stories/NN/accept.json, here or in the private repo's copy")
+    return heldout.find(record, f"stories/{stories[-1].name}/accept.json")
 
 
 def scorer_fault(accept: Path) -> str | None:
@@ -241,7 +243,7 @@ def main() -> None:
         rec = REPO / record
         fault = scorer_fault(last_accept(rec))
         if fault:
-            raise SystemExit(f"{label}: {last_accept(rec).relative_to(REPO)} is a scorer fault, not a result "
+            raise SystemExit(f"{label}: {last_accept(rec)} is a scorer fault, not a result "
                              f"({fault}). Re-score the run before judging it.")
         ws = src / label
         record_workspace(rec, ws)

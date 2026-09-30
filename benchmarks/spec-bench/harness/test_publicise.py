@@ -3,6 +3,7 @@
 MECE by what decides the answer:
   A. which paths are private      B. the public summary of a held-out result    C. metrics.json
   D. reports in markdown          E. fingerprints of the held-out suite          F. finding leaks
+  G. which leaks count            H. what the publishing gate needed (sidecars, split metrics, gitignore)
 Run: uv run --with pytest pytest test_publicise.py
 """
 import json
@@ -215,3 +216,82 @@ def test_G3_outside_run_records_only_titles_count_not_the_anchor_mark():
     assert pub.leaks_in_file("benchmarks/spec-bench/EVALUATION-POLICY.md", "titles end @ref prd:<anchor>", FPS) == []
     assert pub.leaks_in_file(f"{RUN}/summary.md", "“x @ref prd:a”", FPS) == ["@ref prd:"]
     assert pub.leaks_in_file("tools/x.rs", "zoom buttons step 100 to 125", FPS) == ["zoom buttons step 100 to 125"]
+
+
+# ---------- H. what the publishing gate needed (heldout.py, drive.record_story) ----------
+
+@pytest.mark.parametrize("rel", [
+    f"{RUN}/base/screenshots/b.png",                                     # a known-good run's base scoring
+    f"{RUN}/base/artifacts/x/error-context.md",
+    f"{RUN}/superseded/story-02-early-stop/artifacts/x/error-context.md",   # a superseded attempt's scoring
+    f"{RUN}/rescore-spoiled/v-20260930T000000/stories/02/scoring-2/accept-report.json",
+    f"{RUN}/{pub.HELDOUT_DETAIL}", f"{RUN}/{pub.SUMMARY_DETAIL}", f"{RUN}/{pub.PUBLISH_REFUSED}",
+    f"{RUN}/rescore/v/{pub.HELDOUT_DETAIL}",
+])
+def test_H1_a_scorings_artefacts_anywhere_in_a_run_and_the_harness_sidecars_are_private(rel):
+    assert pub.is_private(rel)
+
+
+@pytest.mark.parametrize("rel", [
+    "tools/benchmarker/src/screenshots/logo.png",       # outside run records an artefact-named folder is ordinary
+    f"{RUN}/workspace/base/screenshots/b.png",           # the agent's own
+    f"{RUN}/superseded/story-02-early-stop/prompt.md",
+])
+def test_H2_artefact_folders_outside_run_records_or_in_the_agents_work_are_public(rel):
+    assert not pub.is_private(rel)
+
+
+FULL = {"pack": "vidi", "processed": [2], "stories": {
+    "2": {"accept": dict(ACCEPT), "agent": {"seconds": 5},
+          "partial_heldout_changes": {"1": {"fixed": ["an invented title"], "regressed": []}}},
+    "3": {"agent": {"seconds": 7}}}}
+
+
+def test_H3_metrics_split_into_the_public_part_and_only_the_detail_it_lost():
+    public, detail = pub.split_metrics(FULL)
+    assert public == pub.strip_metrics(FULL)
+    assert detail == {"stories": {"2": {"accept": ACCEPT, "partial_heldout_changes": FULL["stories"]["2"]["partial_heldout_changes"]}}}
+
+
+def test_H4_merging_the_split_gives_back_the_metrics_and_modifies_neither_part():
+    public, detail = pub.split_metrics(FULL)
+    kept = json.dumps([public, detail], sort_keys=True)
+    assert pub.merge_metrics(public, detail) == FULL
+    assert json.dumps([public, detail], sort_keys=True) == kept
+
+
+def test_H5_metrics_without_held_out_detail_split_to_no_detail():
+    assert pub.split_metrics({"stories": {"1": {"agent": {"seconds": 1}}}})[1] == {}
+    assert pub.split_metrics({"pack": "vidi"}) == ({"pack": "vidi"}, {})
+
+
+def test_H5b_old_records_that_list_their_stories_are_public_as_they_are():
+    old = {"stories": [{"title": "Story 1", "agent_minutes": 3}]}
+    assert pub.split_metrics(old) == (old, {})
+    assert pub.merge_metrics(old, {"stories": {"1": {"accept": ACCEPT}}}) == old
+
+
+def test_H6_detail_for_a_story_the_metrics_no_longer_have_is_not_brought_back():
+    assert pub.merge_metrics({"stories": {}}, {"stories": {"9": {"accept": ACCEPT}}}) == {"stories": {}}
+
+
+def test_H7_a_story_that_broke_and_fixed_tests_keeps_both_counts():
+    line = "  - story 1: 2/2 → 1/2; broke 1: “an invented title”; fixed 1. Most common error: `Error: x`"
+    assert pub.redact_markdown(line) == "  - story 1: 2/2 → 1/2; broke 1; fixed 1."
+
+
+def test_H8_the_agents_conversation_and_git_log_are_its_own_work():
+    fps = {"a made-up step the agent also named"}
+    for name in ("agent-events.compact.jsonl.gz", "agent-events.jsonl", "workspace-git-log.txt", "gate.json"):
+        rel = f"{RUN}/stories/07/{name}" if name != "workspace-git-log.txt" else f"{RUN}/{name}"
+        assert pub.is_own_work(rel)
+        assert pub.leaks_in_file(rel, "a made-up step the agent also named @ref prd:x", fps) == []
+    assert not pub.is_own_work(f"{RUN}/stories/07/prompt.md")      # the harness wrote it: checked
+
+
+def test_H9_the_run_gitignore_names_every_private_file_and_dir_and_gives_the_workspace_back():
+    lines = pub.gitignore_lines()
+    assert set(pub.PRIVATE_FILES | pub.PRIVATE_RUN_FILES) <= set(lines)
+    assert {f"{d}/" for d in pub.PRIVATE_DIRS} | {"scoring-[0-9]*/"} <= set(lines)
+    assert {f"!/workspace/**/{x}" for x in ["accept.json", "artifacts/", "scoring-[0-9]*/"]} <= set(lines)
+    # git reads them as is_private does: test_publish_gate.test_A3 checks every kind of path with git itself.

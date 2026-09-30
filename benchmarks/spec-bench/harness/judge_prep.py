@@ -20,22 +20,25 @@ import subprocess
 from pathlib import Path
 
 HARNESS = Path(__file__).resolve().parent
+import heldout  # noqa: E402
 import packdir  # noqa: E402
 PACK = packdir.resolve()  # the judged runs are vidi's
 PER_STORY_FILES = ("accept.json", "gate.json")
 
 
 def copy_run(run: Path, dest: Path) -> None:
+    """The run's workspace and each story's results. The held-out ones are private: taken from wherever
+    heldout.find finds them (this machine's record, else the private repo's copy)."""
     dest.mkdir(parents=True)
     subprocess.run(["git", "clone", "-q", str(run / "workspace"), str(dest / "workspace")], check=True)
     for sdir in sorted((run / "stories").iterdir()):
         out = dest / "stories" / sdir.name
         out.mkdir(parents=True)
         for name in PER_STORY_FILES:
-            if (sdir / name).exists():
-                shutil.copy(sdir / name, out / name)
-        if (sdir / "screenshots").exists():
-            shutil.copytree(sdir / "screenshots", out / "screenshots")
+            if (src := heldout.find(run, f"stories/{sdir.name}/{name}")):
+                shutil.copy(src, out / name)
+        if (shots := heldout.find(run, f"stories/{sdir.name}/screenshots")):
+            shutil.copytree(shots, out / "screenshots")
 
 
 def main() -> None:
