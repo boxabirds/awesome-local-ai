@@ -1,3 +1,43 @@
+commit 57193bc06b3dc80eba6645aceab4705ecd7a2d6b
+vidi-agent  Wed Sep 30 20:00:48 2026 +0000
+
+    feat(share): Story 5 — Share a board with others using a link
+
+
+ index.html                                       |   1 +
+ playwright.config.ts                             |   2 +-
+ src/client/App.tsx                               |  34 +---
+ src/client/api.ts                                |  28 +++
+ src/client/main.tsx                              |  14 +-
+ src/client/pages/BoardPage.tsx                   | 100 ++++++++++
+ src/client/pages/HomePage.tsx                    |  43 ++++
+ src/client/pages/NotFoundPage.tsx                |  44 +++++
+ src/client/pages/state.ts                        |  38 ++++
+ src/client/router.ts                             |  30 +++
+ src/client/share/SharePanel.tsx                  | 179 +++++++++++++++++
+ src/client/sync/connectBoard.ts                  |  24 +++
+ src/shared/config.ts                             |   5 +
+ src/worker/board-room.ts                         |  75 ++++++-
+ src/worker/board-store.ts                        |  47 +++++
+ src/worker/create-board.ts                       |  25 +++
+ src/worker/index.ts                              |  53 ++++-
+ src/worker/test-hooks.ts                         |   6 +
+ tests/component/share-pages.test.tsx             | 179 +++++++++++++++++
+ tests/component/share-panel.test.tsx             | 182 +++++++++++++++++
+ tests/e2e/broken-board.spec.ts                   |   9 +-
+ tests/e2e/live-collaboration.spec.ts             |  37 ++--
+ tests/e2e/navigation.spec.ts                     |  21 +-
+ tests/e2e/persistence.spec.ts                    |  18 +-
+ tests/e2e/share-workflows.spec.ts                | 237 +++++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts                   |   4 +-
+ tests/integration-do/board-api.test.ts           |  83 ++++++++
+ tests/integration/board-api.test.ts              | 137 +++++++++++++
+ tests/integration/board-room-persistence.test.ts |  37 +++-
+ tests/integration/board-room.test.ts             |  41 +++-
+ tests/integration/worker.test.ts                 |  46 +++--
+ tests/unit/create-board.test.ts                  |  49 +++++
+ wrangler.jsonc                                   |   2 +-
+ 33 files changed, 1739 insertions(+), 91 deletions(-)
 commit 354ff74d6e4a989d9d6f547551e4b7cece1f8f38
 vidi-agent  Wed Sep 30 19:18:07 2026 +0000
 
