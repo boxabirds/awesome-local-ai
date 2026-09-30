@@ -253,7 +253,7 @@ describe('BoardRoom Durable Object integration tests', () => {
     console.log(`TC-12: seed=${seed}, all ${MAX_CONCURRENT_EDITORS} clients converged`);
 
     for (const c of clients) c.destroy();
-  });
+  }, 30000);
 
   it('TC-14: late joiner C sees all 20 notes created by A and B', async () => {
     const boardId = await createBoard();

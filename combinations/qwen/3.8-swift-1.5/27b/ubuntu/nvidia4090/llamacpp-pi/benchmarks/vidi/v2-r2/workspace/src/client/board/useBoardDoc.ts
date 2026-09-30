@@ -1,19 +1,24 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore, useState } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, objectSnapshot, type ObjectSnapshot, type StickySnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 export interface BoardDoc {
   doc: Y.Doc;
+  /** Every known board object (story 7 multi-type selection). */
+  objects: readonly ObjectSnapshot[];
+  /** Sticky notes only (story 2–5 API). */
   notes: readonly StickySnapshot[];
   connectionState: ConnectionState;
 }
 
 interface BoardState {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  objects: readonly ObjectSnapshot[];
   boardId: string | undefined;
 }
+
+const EMPTY_OBJECTS: readonly ObjectSnapshot[] = [];
 
 /**
  * Owns the in-memory Y.Doc and exposes an immutable snapshot of the board via
@@ -32,7 +37,7 @@ export function useBoardDoc(boardId?: string): BoardDoc {
     }
     const doc = new Y.Doc();
     initDoc(doc);
-    stateRef.current = { doc, notes: snapshot(doc), boardId };
+    stateRef.current = { doc, objects: objectSnapshot(doc), boardId };
   }
   const { doc } = stateRef.current;
 
@@ -57,24 +62,55 @@ export function useBoardDoc(boardId?: string): BoardDoc {
 
   const subscribe = useCallback(
     (onChange: () => void) => {
-      const objects = doc.getMap('objects');
+      const objectsMap = doc.getMap('objects');
       const handler = () => {
         if (stateRef.current?.doc !== doc) return;
-        stateRef.current.notes = snapshot(doc);
+        stateRef.current.objects = objectSnapshot(doc);
         onChange();
       };
-      objects.observeDeep(handler);
+      objectsMap.observeDeep(handler);
       return () => {
-        objects.unobserveDeep(handler);
+        objectsMap.unobserveDeep(handler);
       };
     },
     [doc]
   );
 
-  const getSnapshot = useCallback(() => stateRef.current?.notes ?? EMPTY_NOTES, []);
+  const getSnapshot = useCallback(() => stateRef.current?.objects ?? EMPTY_OBJECTS, []);
 
-  const notes = useSyncExternalStore(subscribe, getSnapshot);
-  return { doc, notes, connectionState };
+  const objects = useSyncExternalStore(subscribe, getSnapshot);
+
+  // Sticky-only view (story 2–5 API); the array is fresh on every doc change,
+  // so filtering per render is cheap and stable.
+  const notes = objects.filter((o): o is StickySnapshot => o.type === 'sticky');
+
+  return { doc, objects, notes, connectionState };
 }
 
-const EMPTY_NOTES: readonly StickySnapshot[] = [];
+/**
+ * Subscribes a component to the object snapshot of an existing Y.Doc. Used by
+ * the story 7 gesture test harness (which supplies its own doc) and reusable
+ * anywhere a doc is owned outside of useBoardDoc.
+ */
+export function useDocObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const objectsRef = useRef<readonly ObjectSnapshot[]>(objectSnapshot(doc));
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const objectsMap = doc.getMap('objects');
+      const handler = () => {
+        objectsRef.current = objectSnapshot(doc);
+        onChange();
+      };
+      objectsMap.observeDeep(handler);
+      return () => {
+        objectsMap.unobserveDeep(handler);
+      };
+    },
+    [doc]
+  );
+  const getSnapshot = useCallback(
+    () => objectsRef.current,
+    []
+  );
+  return useSyncExternalStore(subscribe, getSnapshot);
+}

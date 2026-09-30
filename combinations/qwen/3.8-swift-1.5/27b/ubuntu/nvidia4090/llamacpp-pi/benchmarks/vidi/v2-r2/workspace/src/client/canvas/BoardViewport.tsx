@@ -18,6 +18,11 @@ interface BoardViewportProps {
   onEmptyClick?: () => void;
   /** A double-click on empty board space (viewport-relative point) — creates a sticky note. */
   onCreateSticky?: (p: Point) => void;
+  /** Story 7: Shift + drag on empty space draws a marquee (instead of panning). */
+  onMarqueeBegin?: (p: Point) => void;
+  onMarqueeMove?: (p: Point) => void;
+  onMarqueeEnd?: () => void;
+  onMarqueeCancel?: () => void;
   children?: ReactNode;
 }
 
@@ -37,10 +42,14 @@ export function BoardViewport({
   onKeyReset,
   onEmptyClick,
   onCreateSticky,
+  onMarqueeBegin,
+  onMarqueeMove,
+  onMarqueeEnd,
+  onMarqueeCancel,
   children,
 }: BoardViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const isPanningRef = useRef(false);
+  const dragModeRef = useRef<'none' | 'pan' | 'marquee'>('none');
   const emptyDownRef = useRef<Point | null>(null);
 
   // Pointer drag
@@ -55,30 +64,51 @@ export function BoardViewport({
         if (target.closest('[data-testid="zoom-controls"]')) return;
         if (target.closest('[data-testid="navigation-hint"]')) return;
       }
-      isPanningRef.current = true;
+      // Story 7: Shift + pointer-down on empty space starts a marquee, not a pan.
+      const mode: 'pan' | 'marquee' = e.shiftKey && onMarqueeBegin ? 'marquee' : 'pan';
+      dragModeRef.current = mode;
       emptyDownRef.current = { x: e.clientX, y: e.clientY };
       try {
         containerRef.current?.setPointerCapture(e.pointerId);
       } catch {
         // jsdom doesn't support pointer capture
       }
-      onPointerDown({ x: e.clientX, y: e.clientY });
+      if (mode === 'marquee' && onMarqueeBegin) {
+        onMarqueeBegin({ x: e.clientX, y: e.clientY });
+      } else {
+        onPointerDown({ x: e.clientX, y: e.clientY });
+      }
     },
-    [onPointerDown]
+    [onPointerDown, onMarqueeBegin]
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!isPanningRef.current) return;
+      if (dragModeRef.current === 'marquee') {
+        onMarqueeMove?.({ x: e.clientX, y: e.clientY });
+        return;
+      }
+      if (dragModeRef.current !== 'pan') return;
       onPointerMove({ x: e.clientX, y: e.clientY });
     },
-    [onPointerMove]
+    [onPointerMove, onMarqueeMove]
   );
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
-      if (!isPanningRef.current) return;
-      isPanningRef.current = false;
+      if (dragModeRef.current === 'marquee') {
+        dragModeRef.current = 'none';
+        emptyDownRef.current = null;
+        try {
+          containerRef.current?.releasePointerCapture(e.pointerId);
+        } catch {
+          // ignore
+        }
+        onMarqueeEnd?.();
+        return;
+      }
+      if (dragModeRef.current !== 'pan') return;
+      dragModeRef.current = 'none';
       const down = emptyDownRef.current;
       emptyDownRef.current = null;
       try {
@@ -93,13 +123,19 @@ export function BoardViewport({
         if (moved < DRAG_THRESHOLD_PX) onEmptyClick();
       }
     },
-    [onPointerUp, onEmptyClick]
+    [onPointerUp, onEmptyClick, onMarqueeEnd]
   );
 
   const handlePointerCancel = useCallback(
     (e: React.PointerEvent) => {
-      if (!isPanningRef.current) return;
-      isPanningRef.current = false;
+      if (dragModeRef.current === 'marquee') {
+        dragModeRef.current = 'none';
+        emptyDownRef.current = null;
+        onMarqueeCancel?.();
+        return;
+      }
+      if (dragModeRef.current !== 'pan') return;
+      dragModeRef.current = 'none';
       emptyDownRef.current = null;
       try {
         containerRef.current?.releasePointerCapture(e.pointerId);
@@ -108,7 +144,7 @@ export function BoardViewport({
       }
       onPointerCancel();
     },
-    [onPointerCancel]
+    [onPointerCancel, onMarqueeCancel]
   );
 
   // Double-click on empty board space creates a sticky note centred there.

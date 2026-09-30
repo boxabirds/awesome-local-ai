@@ -40,6 +40,13 @@ export const PERSIST_TESTED_NOTES = 2000;            // PRD persist.large_board
 export const BOARD_LOAD_BUDGET_MS = 3000;            // PRD persist.large_board
 export const STORAGE_SCHEMA_VERSION = 1;
 
+// Story 7: multi-selection, group move/resize/delete
+export const HANDLE_SIZE_PX = 8;
+export const STICKY_MIN_SIZE_WORLD = 50;
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+export const NUDGE_STEP_WORLD = 1;
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 // Story 5: sharing boards
 export const CREATE_BUDGET_MS = 2000;                // PRD share.create
 export const LINK_COPIED_MS = 2000;                  // PRD share.copy
