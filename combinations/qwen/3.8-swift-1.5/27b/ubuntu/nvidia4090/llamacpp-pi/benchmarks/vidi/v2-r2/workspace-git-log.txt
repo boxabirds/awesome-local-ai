@@ -1,3 +1,48 @@
+commit 72e6c14d98b4b22ef0309786d71da7b9e6738470
+vidi-agent  Wed Sep 30 10:28:49 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                   |  78 ++++
+ package.json                               |   3 +-
+ src/client/App.tsx                         |  20 +-
+ src/client/board/Toolbar.tsx               |  14 +-
+ src/client/objects/StickyNote.tsx          |  18 +-
+ src/client/sync/ConnectionStatus.tsx       |   5 +
+ src/client/sync/connectBoard.ts            |  51 ++-
+ src/shared/protocol.ts                     |  44 ++-
+ src/worker/board-room.ts                   | 599 ++++++++++++++++++++++-------
+ src/worker/board-store.ts                  | 219 ++++++++++-
+ src/worker/index.ts                        |  74 +++-
+ src/worker/room-state.ts                   |  33 +-
+ src/worker/test-hooks.ts                   |  81 ++++
+ tests/component/load-failure.test.tsx      | 227 +++++++++++
+ tests/e2e/helpers/wrangler-process.ts      |  86 +++++
+ tests/e2e/persistence.spec.ts              | 401 +++++++++++++++++++
+ tests/fixtures/boards.ts                   | 164 ++++++++
+ tests/integration/board-room.test.ts       |  40 +-
+ tests/integration/board-store.test.ts      | 351 +++++++++++++++++
+ tests/integration/room-persistence.test.ts | 407 ++++++++++++++++++++
+ tests/integration/server.ts                |  35 +-
+ tests/integration/ws-client.ts             | 195 +++++++---
+ tests/integration/ws.d.ts                  |  16 +
+ tests/unit/protocol.test.ts                |  42 +-
+ vitest.integration.config.ts               |   4 +
+ 25 files changed, 2914 insertions(+), 293 deletions(-)
+commit ef9201f6922e235e7f588a3b85aa4fae283ba988
+vidi-agent  Wed Sep 30 07:18:30 2026 +0100
+
+    story 4 (wip): settings, protocol close codes, test-first unit suites
+
+
+ src/shared/config.ts                  |   9 +++
+ src/shared/protocol.ts                |   2 +
+ src/worker/board-store.ts             |  80 ++++++++++++++++++++++
+ src/worker/room-state.ts              |  41 ++++++++++++
+ tests/unit/board-store-chunks.test.ts |  68 +++++++++++++++++++
+ tests/unit/room-state.test.ts         | 123 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 323 insertions(+)
 commit 3dd69ddad96e27ea96e163f57469c3f137d66e66
 vidi-agent  Wed Sep 30 07:08:17 2026 +0100
 
