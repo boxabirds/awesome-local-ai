@@ -1,3 +1,44 @@
+commit 96758ccedb5b48fa5c5c6100e0c69838fc53cab4
+vidi-agent  Wed Sep 30 21:16:28 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                            |  42 +++++
+ index.html                          |   1 +
+ src/client/App.tsx                  | 243 ++-------------------------
+ src/client/api.ts                   |  42 +++++
+ src/client/pages/BoardPage.tsx      | 306 ++++++++++++++++++++++++++++++++++
+ src/client/pages/HomePage.tsx       |  45 +++++
+ src/client/pages/NotFoundPage.tsx   |  50 ++++++
+ src/client/pages/state.ts           |  48 ++++++
+ src/client/pages/useCreateBoard.ts  |  29 ++++
+ src/client/router.ts                |  57 +++++++
+ src/client/share/SharePanel.tsx     | 173 ++++++++++++++++++++
+ src/client/sync/connectBoard.ts     |  16 +-
+ src/shared/config.ts                |   5 +
+ src/shared/protocol.ts              |  16 +-
+ src/types/cloudflare-test.d.ts      |   3 +
+ src/worker/board-room.ts            | 237 ++++++++++++++++++---------
+ src/worker/board-store.ts           | 318 ++++++++++++++++++++++++++++++++----
+ src/worker/create-board.ts          |  55 +++++++
+ src/worker/index.ts                 |  47 +++++-
+ src/worker/test-hooks.ts            |  77 ++++++---
+ tests/component/SharePanel.test.tsx | 135 +++++++++++++++
+ tests/component/pages.test.tsx      | 176 ++++++++++++++++++++
+ tests/e2e/collaboration.spec.ts     |  82 +++++-----
+ tests/e2e/helpers/board.ts          |  38 +++++
+ tests/e2e/navigation.spec.ts        |   2 +
+ tests/e2e/nightly.spec.ts           |  41 +++--
+ tests/e2e/persistence.spec.ts       |  21 ++-
+ tests/e2e/share.spec.ts             | 177 ++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts      |   2 +
+ tests/integration/board-api.test.ts | 160 ++++++++++++++++++
+ tests/integration/worker.test.ts    |   8 +-
+ tests/unit/create-board.test.ts     |  25 +++
+ tests/unit/protocol.test.ts         |   9 +-
+ vitest.workspace.ts                 |   5 +
+ 34 files changed, 2258 insertions(+), 433 deletions(-)
 commit 21a427f7df8b825a98bee7bd4a9ede49f27e58f7
 vidi-agent  Wed Sep 30 18:49:54 2026 +0100
 
