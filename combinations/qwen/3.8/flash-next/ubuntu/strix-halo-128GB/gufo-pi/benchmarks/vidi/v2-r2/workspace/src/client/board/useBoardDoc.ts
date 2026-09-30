@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '@shared/board-model';
+import { initDoc, snapshot, type ObjectSnapshot } from '@shared/board-model';
 import { connectBoard, type ConnectionState, type BoardConnection } from '@client/sync/connectBoard';
 
 export interface BoardDoc {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  notes: readonly ObjectSnapshot[];
   connectionState: ConnectionState;
 }
 
@@ -19,7 +19,7 @@ export function useBoardDoc(boardId: string): BoardDoc {
 
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
 
-  const cacheRef = useRef<readonly StickySnapshot[]>([]);
+  const cacheRef = useRef<readonly ObjectSnapshot[]>([]);
 
   const subscribe = useMemo(() => {
     const objects = doc.getMap<Y.Map<unknown>>('objects');

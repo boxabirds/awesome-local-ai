@@ -1,3 +1,27 @@
+# Story 9 Notes
+
+## Decisions made
+
+1. **`snapshot()` return type widened to `readonly ObjectSnapshot[]`**: The union `StickySnapshot | TextObjectSnapshot` replaces the prior `readonly StickySnapshot[]`. Existing tests required a cast (`as StickySnapshot`) when accessing sticky-specific fields like `.color`. This is the cleanest path without a discriminated-union type guard pattern in every consumer.
+
+2. **Text objects get their own `TextLayer`**: Mirrors the `NoteLayer` pattern for stickies. Each layer filters `notes` by `type` and renders only its own kind. The registry `Component` field is unused at the app level (kept for extensibility).
+
+3. **`createText(doc, at, createdBy)` accepts a `createdBy` string**: No identity module exists (story 6 is excluded). The field is stored for audit purposes but not used in UI logic.
+
+4. **`useTextBoxSync` writes only after local changes**: The hook exposes `remeasureAfterLocalChange()` which callers invoke explicitly after local text edits. Remote updates are not remeasured locally because the originating peer already wrote the box dimensions.
+
+5. **`layoutText()` uses a `Measurer` function type**: Enables injection of fake measurers in unit tests. In production, `createCanvasMeasurer()` provides a canvas-based implementation with a proportional fallback for environments without canvas (jsdom).
+
+6. **`TextEditor` is separate from `StickyTextEditor`**: Rather than wrapping or modifying `StickyTextEditor`, the new `TextEditor` was written independently to preserve story 2 behavior exactly. Both share `clampToLimit` and `applyTextDiff` from `@shared/text-edit`.
+
+7. **Toolbar `aria-label` changed from "Sticky note" to "Sticky note (N)"**: Per the design spec which shows keyboard shortcuts in labels. Existing tests updated accordingly.
+
+8. **Horizontal-only resize via `setTextWidthFixed` in gesture**: When all selected objects have `handles === 'horizontal'`, the resize gesture computes width from the drag delta and calls `setTextWidthFixed` (which sets `widthMode = 'fixed'`). This avoids going through the generic `resizeObjects` path which would also set height.
+
+9. **`registeredTypes` for board-model validation**: The `_registerTypeForModel('text')` call ensures `createText` passes the type-validity check in board-model without coupling the model to the client registry.
+
+---
+
 # Story 8 Notes
 
 ## Decisions made

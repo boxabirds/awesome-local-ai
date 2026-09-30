@@ -1,12 +1,12 @@
 import type { ReactElement } from 'react';
 import { useBoard } from '@client/canvas/BoardContext';
-import { StickyNote } from './StickyNote';
-import type { ObjectSnapshot, StickySnapshot } from '@shared/board-model';
+import { TextObject } from './TextObject';
+import type { ObjectSnapshot, TextObjectSnapshot } from '@shared/board-model';
 import type * as Y from 'yjs';
 import type { SelectionApi } from '@client/board/useSelection';
 import type { UndoController } from '@client/board/undo';
 
-interface NoteLayerProps {
+interface TextLayerProps {
   notes: readonly ObjectSnapshot[];
   doc: Y.Doc;
   selection: SelectionApi;
@@ -17,7 +17,7 @@ interface NoteLayerProps {
   undoController?: UndoController | null;
 }
 
-export function NoteLayer({
+export function TextLayer({
   notes,
   doc,
   selection,
@@ -26,23 +26,21 @@ export function NoteLayer({
   onStartEdit,
   onEndEdit,
   undoController,
-}: NoteLayerProps): ReactElement {
+}: TextLayerProps): ReactElement {
   const { camera } = useBoard();
-  const stickies = notes.filter((n): n is StickySnapshot => n.type === 'sticky');
+  const textObjects = notes.filter((n): n is TextObjectSnapshot => n.type === 'text');
   return (
     <>
-      {stickies.map((note) => (
-        <StickyNote
-          key={note.id}
-          note={note}
+      {textObjects.map((textObj) => (
+        <TextObject
+          key={textObj.id}
+          textObj={textObj}
           doc={doc}
           zoom={camera.zoom}
-          selected={selection.ids.has(note.id)}
-          editing={note.id === selection.editingId}
+          selected={selection.ids.has(textObj.id)}
+          editing={textObj.id === selection.editingId}
           editable={editable}
           onObjectPointerDown={onObjectPointerDown}
-          onSelect={selection.click}
-          onToggle={selection.toggle}
           onStartEdit={onStartEdit}
           onEndEdit={onEndEdit}
           undoController={undoController}

@@ -9,6 +9,7 @@ import {
   setStickyColor,
   LOCAL_ORIGIN,
 } from '@shared/board-model';
+import type { StickySnapshot } from '@shared/board-model';
 import { UNDO_MAX_STEPS } from '@shared/config';
 import { createUndo, type UndoController } from '@client/board/undo';
 import { createPeer, applyWithLoadOrigin, type Peer } from './peer';
@@ -66,7 +67,7 @@ describe('undo.history', () => {
 
     const snap = snapshot(doc);
     const noteX = snap.find((n) => n.id === idX)!;
-    const noteZ = snap.find((n) => n.id === idZ)!;
+    const noteZ = snap.find((n) => n.id === idZ)! as StickySnapshot;
 
     // X restored to original position (0,0 because STICKY_SIZE_WORLD/2 = 100)
     expect(noteX.x).toBe(0);
@@ -144,7 +145,7 @@ describe('undo.history', () => {
       const note = after.find((n) => n.id === ids[i])!;
       expect(note.x).toBe(expected[i].x);
       expect(note.y).toBe(expected[i].y);
-      expect(note.color).toBe('orange');
+      expect((note as StickySnapshot).color).toBe('orange');
       expect(note.text).toBe(`text-${i}`);
     }
   });

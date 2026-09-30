@@ -1,63 +1,18 @@
-import * as Y from 'yjs';
+import type * as Y from 'yjs';
 import {
   STICKY_TEXT_MAX_CHARS,
   STICKY_COUNTER_THRESHOLD_CHARS,
   STICKY_FONT_MAX_PX,
   STICKY_FONT_MIN_PX,
 } from '@shared/config';
+import { clampToLimit as _clampToLimit, applyTextDiff as _applyTextDiff } from '@shared/text-edit';
 
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (next.length <= max) return next;
-  // Be careful not to split a surrogate pair at the boundary
-  let end = max;
-  if (end > 0) {
-    const code = next.charCodeAt(end - 1);
-    // High surrogate: if we'd cut right after it, we'd leave a lone high surrogate
-    if (code >= 0xd800 && code <= 0xdbff) {
-      end--;
-    }
-  }
-  return next.slice(0, end);
+  return _clampToLimit(next, max);
 }
 
 export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-
-  // Find common prefix
-  let prefixLen = 0;
-  const minLen = Math.min(current.length, next.length);
-  while (prefixLen < minLen && current[prefixLen] === next[prefixLen]) {
-    prefixLen++;
-  }
-
-  // Find common suffix (but not overlapping with prefix)
-  let suffixLen = 0;
-  while (
-    suffixLen < minLen - prefixLen &&
-    current[current.length - 1 - suffixLen] === next[next.length - 1 - suffixLen]
-  ) {
-    suffixLen++;
-  }
-
-  const deleteCount = current.length - prefixLen - suffixLen;
-  const insertStr = next.slice(prefixLen, next.length - suffixLen);
-
-  const perform = () => {
-    if (deleteCount > 0) {
-      ytext.delete(prefixLen, deleteCount);
-    }
-    if (insertStr.length > 0) {
-      ytext.insert(prefixLen, insertStr);
-    }
-  };
-
-  const doc = ytext.doc;
-  if (doc) {
-    doc.transact(perform, origin);
-  } else {
-    perform();
-  }
+  _applyTextDiff(ytext, next, origin);
 }
 
 export function counterVisible(length: number): boolean {

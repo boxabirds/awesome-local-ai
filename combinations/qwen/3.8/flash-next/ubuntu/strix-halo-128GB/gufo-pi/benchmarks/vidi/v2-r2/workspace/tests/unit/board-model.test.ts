@@ -9,6 +9,7 @@ import {
   deleteObject,
   getStickyText,
   snapshot,
+  type StickySnapshot,
 } from '@shared/board-model';
 import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR } from '@shared/config';
 
@@ -45,7 +46,7 @@ describe('board-model', () => {
       expect(snap.length).toBe(1);
       expect(snap[0].id).toBe(id);
       expect(snap[0].type).toBe('sticky');
-      expect(snap[0].color).toBe(DEFAULT_STICKY_COLOR);
+      expect((snap[0] as StickySnapshot).color).toBe(DEFAULT_STICKY_COLOR);
       expect(snap[0].text).toBe('');
       expect(snap[0].z).toBe(1);
       // centred: top-left = point - STICKY_SIZE_WORLD/2
@@ -96,7 +97,7 @@ describe('board-model', () => {
       const snap = snapshot(doc);
       expect(snap[0].x).toBe(10);
       expect(snap[0].y).toBe(-20);
-      expect(snap[0].color).toBe(DEFAULT_STICKY_COLOR);
+      expect((snap[0] as StickySnapshot).color).toBe(DEFAULT_STICKY_COLOR);
       expect(snap[0].text).toBe('');
       expect(snap[0].z).toBe(1);
       expect(updateCount).toBe(1);
@@ -138,7 +139,7 @@ describe('board-model', () => {
       const result = setStickyColor(doc, id, 'green');
       expect(result).toBe(true);
       const snap = snapshot(doc);
-      expect(snap[0].color).toBe('green');
+      expect((snap[0] as StickySnapshot).color).toBe('green');
       expect(snap[0].x).toBe(10);
       expect(snap[0].y).toBe(20);
       expect(snap[0].text).toBe('hello');
@@ -154,7 +155,7 @@ describe('board-model', () => {
       expect(result).toBe(false);
       expect(updateCount).toBe(0);
       const snap = snapshot(doc);
-      expect(snap[0].color).toBe(DEFAULT_STICKY_COLOR);
+      expect((snap[0] as StickySnapshot).color).toBe(DEFAULT_STICKY_COLOR);
     });
   });
 

@@ -51,6 +51,16 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;   // typing pause that ends a burst
 export const UNDO_MAX_STEPS = 200;
 
+// Text object settings (story 9).
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+export const TEXT_MIN_WIDTH_WORLD = 40;
+export const TEXT_MAX_CHARS = 5000;
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+export const TEXT_LINE_HEIGHT = 1.3;
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
 // Zoom limits and step size (PRD "Settings").
 export const ZOOM_MIN = 0.1;
 export const ZOOM_MAX = 4;

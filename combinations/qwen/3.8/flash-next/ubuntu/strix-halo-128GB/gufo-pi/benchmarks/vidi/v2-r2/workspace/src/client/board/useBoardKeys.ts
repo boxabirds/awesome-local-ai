@@ -12,6 +12,9 @@ interface UseBoardKeysOpts {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undoController?: UndoController | null;
+  tool?: string;
+  setTool?(t: string): void;
+  onCreateSticky?(): void;
 }
 
 function isEditingText(): boolean {
@@ -100,17 +103,48 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
           return;
         }
         if (!editingText) {
+          // If text tool is active, switch back to select
+          const o = optsRef.current;
+          if (o.setTool && o.tool === 'text') {
+            o.setTool('select');
+            return;
+          }
           selection.clear();
         }
         return;
       }
 
-      // Enter: start editing single selected sticky (kept from story 2)
+      // V: switch to select tool
+      if (e.key === 'v' || e.key === 'V') {
+        if (!editingText && optsRef.current.setTool) {
+          optsRef.current.setTool('select');
+          return;
+        }
+      }
+
+      // T: switch to text tool (only if canEdit)
+      if (e.key === 't' || e.key === 'T') {
+        if (!editingText && canEdit && optsRef.current.setTool) {
+          optsRef.current.setTool('text');
+          return;
+        }
+      }
+
+      // N: create sticky note at view centre
+      if (e.key === 'n' || e.key === 'N') {
+        if (!editingText && canEdit && optsRef.current.onCreateSticky) {
+          e.preventDefault();
+          optsRef.current.onCreateSticky();
+          return;
+        }
+      }
+
+      // Enter: start editing single selected object (sticky or text)
       if (e.key === 'Enter' && !editingText && canEdit) {
         if (selection.ids.size === 1) {
           const id = [...selection.ids][0];
           const obj = snap.find((o) => o.id === id);
-          if (obj && obj.type === 'sticky') {
+          if (obj && (obj.type === 'sticky' || obj.type === 'text')) {
             e.preventDefault();
             selection.startEdit(id);
           }

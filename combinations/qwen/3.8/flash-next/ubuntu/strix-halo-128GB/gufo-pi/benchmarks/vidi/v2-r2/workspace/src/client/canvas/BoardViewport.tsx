@@ -45,6 +45,10 @@ interface BoardViewportProps {
   onMarqueeEnd?(): void;
   // pointercancel during marquee
   onMarqueeCancel?(): void;
+  // Active tool
+  tool?: 'select' | 'text';
+  // Click with text tool active -> worldPoint
+  onToolClick?(worldPoint: Point): void;
 }
 
 export function BoardViewport({
@@ -57,6 +61,8 @@ export function BoardViewport({
   onMarqueeMove,
   onMarqueeEnd,
   onMarqueeCancel,
+  tool,
+  onToolClick,
 }: BoardViewportProps): ReactElement {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<Size>(() => defaultViewport());
@@ -125,6 +131,8 @@ export function BoardViewport({
     onMarqueeMove,
     onMarqueeEnd,
     onMarqueeCancel,
+    tool,
+    onToolClick,
   });
   callbacksRef.current = {
     onEmptyDoubleClick,
@@ -133,6 +141,8 @@ export function BoardViewport({
     onMarqueeMove,
     onMarqueeEnd,
     onMarqueeCancel,
+    tool,
+    onToolClick,
   };
 
   useEffect(() => {
@@ -201,8 +211,15 @@ export function BoardViewport({
         return;
       }
       if (panningRef.current && !movedRef.current && e.target === el) {
-        // Click on empty board space without dragging: clear selection
-        callbacksRef.current.onEmptyClick?.();
+        // If text tool is active, create text at click point instead of clearing selection
+        if (callbacksRef.current.tool === 'text' && callbacksRef.current.onToolClick) {
+          const pt = pointFromClient(e.clientX, e.clientY);
+          const worldPoint = { x: pt.x / camera.zoom + camera.x, y: pt.y / camera.zoom + camera.y };
+          callbacksRef.current.onToolClick(worldPoint);
+        } else {
+          // Click on empty board space without dragging: clear selection
+          callbacksRef.current.onEmptyClick?.();
+        }
       }
       finishPan();
     };
@@ -349,6 +366,7 @@ export function BoardViewport({
     backgroundImage: 'radial-gradient(var(--vidi6-grid-dot) 1px, transparent 1.2px)',
     backgroundSize: `${gridSize}px ${gridSize}px`,
     backgroundPosition: `${bgX}px ${bgY}px`,
+    cursor: tool === 'text' ? 'text' : undefined,
   };
 
   const worldStyle: CSSProperties = {

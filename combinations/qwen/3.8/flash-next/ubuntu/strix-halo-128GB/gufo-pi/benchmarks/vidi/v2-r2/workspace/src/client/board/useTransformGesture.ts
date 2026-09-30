@@ -4,8 +4,9 @@ import type { ObjectSnapshot } from '@shared/board-model';
 import { objectBounds, moveObjects, resizeObjects, bringObjectsToFront } from '@shared/board-model';
 import { type Rect, type Handle, type Point, resizeRect, clampScale, scaleWithin, unionRects } from '@shared/geometry';
 import { type Camera } from '@client/canvas/camera';
-import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '@shared/config';
+import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '@shared/config';
 import { getObjectType } from '@client/objects/registry';
+import { setTextWidthFixed } from '@shared/objects/text';
 import type { SelectionApi } from './useSelection';
 
 interface TransformGestureOpts {
@@ -172,6 +173,12 @@ export function useTransformGesture(opts: TransformGestureOpts) {
       const boundingBox = unionRects(rects);
       if (!boundingBox) return;
 
+      // Check if all selected objects use horizontal-only handles (text objects)
+      const allHorizontal = selectedObjs.every((o) => {
+        const spec = getObjectType(o.type);
+        return spec?.handles === 'horizontal';
+      });
+
       // Determine aspect lock: any type with aspectLocked, or Shift held
       const specAspectLocked = selectedObjs.some((o) => {
         const spec = getObjectType(o.type);
@@ -214,6 +221,29 @@ export function useTransformGesture(opts: TransformGestureOpts) {
         const dy = (me.clientY - state.startScreen.y) / cameraRef.current.zoom;
 
         scheduleFrame(() => {
+          if (allHorizontal) {
+            // Horizontal-only resize for text objects
+            const newWidth = Math.max(TEXT_MIN_WIDTH_WORLD, state.boundingBox.width + dx);
+            const newX = state.handle === 'w'
+              ? state.boundingBox.x + state.boundingBox.width - newWidth
+              : state.boundingBox.x;
+
+            for (const [objId, startRect] of state.startRects) {
+              // For text objects, use setTextWidthFixed
+              const result = setTextWidthFixed(doc, objId, newWidth);
+              if (!result) {
+                // Fallback: update x directly if needed
+                const obj = doc.getMap<Y.Map<unknown>>('objects').get(objId);
+                if (obj && state.handle === 'w') {
+                  const xRatio = startRect.width !== 0 ? (startRect.x - state.boundingBox.x) / state.boundingBox.width : 0;
+                  obj.set('x', newX + xRatio * newWidth);
+                }
+              }
+            }
+            return;
+          }
+
+          // Standard resize for mixed selections (non-text)
           // Compute new bounding box
           const newBox = resizeRect(state.boundingBox, state.handle, { x: dx, y: dy }, state.aspectLocked);
 

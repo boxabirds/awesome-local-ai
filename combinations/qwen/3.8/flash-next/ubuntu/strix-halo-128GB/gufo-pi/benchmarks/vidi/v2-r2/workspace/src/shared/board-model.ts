@@ -22,7 +22,21 @@ export interface StickySnapshot {
   height?: number;
 }
 
-export type ObjectSnapshot = StickySnapshot;
+export interface TextObjectSnapshot {
+  id: string;
+  type: 'text';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  createdAt: number;
+  text: string;
+  size: string;
+  widthMode: 'auto' | 'fixed';
+}
+
+export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot;
 
 const VALID_COLORS = new Set<string>(Object.keys(STICKY_COLORS));
 
@@ -80,6 +94,8 @@ export function objectBounds(obj: ObjectSnapshot): Rect {
   const h = obj.height ?? STICKY_SIZE_WORLD;
   return { x: obj.x, y: obj.y, width: w, height: h };
 }
+
+// Note: for text objects, width and height are always present (number, not undefined).
 
 // --- Marquee / select all helpers ---
 
@@ -310,26 +326,43 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   return note.get('text') as Y.Text | undefined;
 }
 
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects = doc.getMap<Y.Map<unknown>>('objects');
-  const result: StickySnapshot[] = [];
+  const result: ObjectSnapshot[] = [];
   objects.forEach((obj, id) => {
-    if (obj.get('type') !== 'sticky') return;
-    const entry: StickySnapshot = {
-      id,
-      type: 'sticky',
-      x: obj.get('x') as number,
-      y: obj.get('y') as number,
-      color: obj.get('color') as StickyColor,
-      text: (obj.get('text') as Y.Text).toString(),
-      z: obj.get('z') as number,
-      createdAt: obj.get('createdAt') as number,
-    };
-    const w = obj.get('width');
-    const h = obj.get('height');
-    if (w != null) entry.width = w as number;
-    if (h != null) entry.height = h as number;
-    result.push(entry);
+    const type = obj.get('type') as string;
+    if (type === 'sticky') {
+      const entry: StickySnapshot = {
+        id,
+        type: 'sticky',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        color: obj.get('color') as StickyColor,
+        text: (obj.get('text') as Y.Text).toString(),
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+      };
+      const w = obj.get('width');
+      const h = obj.get('height');
+      if (w != null) entry.width = w as number;
+      if (h != null) entry.height = h as number;
+      result.push(entry);
+    } else if (type === 'text') {
+      const entry: TextObjectSnapshot = {
+        id,
+        type: 'text',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: obj.get('width') as number,
+        height: obj.get('height') as number,
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        text: (obj.get('text') as Y.Text).toString(),
+        size: (obj.get('size') as string) ?? 'M',
+        widthMode: (obj.get('widthMode') as 'auto' | 'fixed') ?? 'auto',
+      };
+      result.push(entry);
+    }
   });
   result.sort((a, b) => {
     if (a.z !== b.z) return a.z - b.z;

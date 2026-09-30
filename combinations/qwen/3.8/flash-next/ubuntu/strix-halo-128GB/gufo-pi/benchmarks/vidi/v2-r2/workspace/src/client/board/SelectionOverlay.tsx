@@ -4,7 +4,7 @@ import { objectBounds } from '@shared/board-model';
 import { unionRects, type Handle } from '@shared/geometry';
 import { type Camera, worldToScreen } from '@client/canvas/camera';
 import { HANDLE_SIZE_PX } from '@shared/config';
-import { getObjectType } from '@client/objects/registry';
+import { getObjectType, allHandlesHorizontal } from '@client/objects/registry';
 
 const HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 
@@ -99,9 +99,12 @@ export function SelectionOverlay({
 
       {/* Bounding box */}
       <div data-testid="selection-bounding-box" style={boxStyle}>
-        {/* 8 handles */}
+        {/* 8 handles or horizontal-only handles */}
         {anyResizable &&
-          HANDLES.map((handle) => {
+          (allHandlesHorizontal(selectedObjs.map((o) => o.type))
+            ? (['e', 'w'] as Handle[])
+            : HANDLES
+          ).map((handle) => {
             const pos = getHandlePosition(handle, topLeft, bottomRight);
             const handleStyle: CSSProperties = {
               position: 'absolute',

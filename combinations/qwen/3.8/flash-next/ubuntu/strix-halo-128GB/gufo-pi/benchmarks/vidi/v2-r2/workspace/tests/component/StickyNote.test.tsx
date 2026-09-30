@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { Doc } from 'yjs';
 import { StickyNote } from '@client/objects/StickyNote';
 import { createSticky, deleteObject, initDoc, snapshot } from '@shared/board-model';
+import type { StickySnapshot } from '@shared/board-model';
 
 function setupNote() {
   const doc = new Doc();
   initDoc(doc);
   const id = createSticky(doc, { x: 100, y: 100 });
-  const notes = snapshot(doc);
-  return { doc, id, note: notes[0] };
+  const notes = snapshot(doc) as StickySnapshot[];
+  return { doc, id, note: notes[0] as StickySnapshot };
 }
 
 // Helper to create a mock onObjectPointerDown that calls onSelect on pointerdown
@@ -29,7 +30,7 @@ describe('StickyNote interaction', () => {
     const onToggle = vi.fn();
     const onStartEdit = vi.fn();
     const onEndEdit = vi.fn();
-    const notes = snapshot(doc);
+    const notes = snapshot(doc) as StickySnapshot[];
     const onObjectPointerDown = makeGestureMock(onSelect);
     render(
       <StickyNote
@@ -59,7 +60,7 @@ describe('StickyNote interaction', () => {
     const onToggle = vi.fn();
     const onStartEdit = vi.fn();
     const onEndEdit = vi.fn();
-    const notes = snapshot(doc);
+    const notes = snapshot(doc) as StickySnapshot[];
     const note = notes[0];
     const onObjectPointerDown = makeGestureMock(onSelect);
     render(
@@ -93,7 +94,7 @@ describe('StickyNote interaction', () => {
     const { doc } = setupNote();
     const onSelect = vi.fn();
     const onToggle = vi.fn();
-    const notes = snapshot(doc);
+    const notes = snapshot(doc) as StickySnapshot[];
     const note = notes[0];
     const onPanHandler = vi.fn();
 
@@ -160,7 +161,7 @@ describe('StickyNote interaction', () => {
     const { doc } = setupNote();
     const onSelect = vi.fn();
     const onToggle = vi.fn();
-    const notes = snapshot(doc);
+    const notes = snapshot(doc) as StickySnapshot[];
     const note = notes[0];
 
     // Simulate gesture move
@@ -235,7 +236,7 @@ describe('StickyNote interaction', () => {
   it('TC-35: double-click on note starts editing, does not create new note', () => {
     const { doc, id } = setupNote();
     const onStartEdit = vi.fn();
-    const notes = snapshot(doc);
+    const notes = snapshot(doc) as StickySnapshot[];
     render(
       <StickyNote
         note={notes[0]}
@@ -276,7 +277,7 @@ describe('StickyNote interaction', () => {
       const n = snap.find((s) => s.id === id);
       return n ? (
         <StickyNote
-          note={n}
+          note={n as StickySnapshot}
           doc={doc}
           zoom={1}
           selected={false}

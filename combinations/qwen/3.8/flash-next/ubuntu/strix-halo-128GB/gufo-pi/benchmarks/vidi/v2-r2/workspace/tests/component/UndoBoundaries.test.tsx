@@ -244,7 +244,7 @@ describe('TC-15: gesture boundary separates steps', () => {
       ctrl.undo();
     });
     const afterFirstUndo = snapshot(doc).find((n) => n.id === idA)!;
-    expect(afterFirstUndo.color).toBe('yellow'); // original colour restored
+    expect((afterFirstUndo as any).color).toBe('yellow'); // original colour restored
     // Still moved (not yet undone)
     expect(afterFirstUndo.x).not.toBe(origPos.x);
 

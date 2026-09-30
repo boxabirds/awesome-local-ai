@@ -1,24 +1,28 @@
-import type { ReactElement } from 'react';
+import { useEffect, useRef, useState, useCallback, type ReactElement } from 'react';
 import * as Y from 'yjs';
-import { STICKY_TEXT_MAX_CHARS } from '@shared/config';
-import { counterVisible } from './StickyText';
-import type { UndoController } from '@client/board/undo';
-import { useState, useRef, useEffect, useCallback } from 'react';
 import { clampToLimit, applyTextDiff } from '@shared/text-edit';
 import { LOCAL_ORIGIN } from '@shared/board-model';
+import type { UndoController } from '@client/board/undo';
 
-export interface StickyTextEditorProps {
+export interface TextEditorProps {
   ytext: Y.Text;
+  maxChars: number;
   fontPx: number;
+  width: number | 'auto';
+  onInput(): void;
   onEnd(next: 'selected' | 'unselected'): void;
   undoController?: UndoController | null;
 }
 
-/**
- * Sticky text editor: wraps the generalised TextEditor with sticky-specific
- * features (character counter). Preserves story 2 behaviour.
- */
-export function StickyTextEditor({ ytext, fontPx, onEnd, undoController }: StickyTextEditorProps): ReactElement {
+export function TextEditor({
+  ytext,
+  maxChars,
+  fontPx,
+  width,
+  onInput,
+  onEnd,
+  undoController,
+}: TextEditorProps): ReactElement {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
   const [text, setText] = useState(() => ytext.toString());
@@ -51,7 +55,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd, undoController }: Stick
     const ta = textareaRef.current;
     if (!ta) return;
     const raw = ta.value;
-    const clamped = clampToLimit(raw, STICKY_TEXT_MAX_CHARS);
+    const clamped = clampToLimit(raw, maxChars);
     if (clamped !== raw) {
       ta.value = clamped;
       // Restore caret to end of kept text
@@ -60,7 +64,8 @@ export function StickyTextEditor({ ytext, fontPx, onEnd, undoController }: Stick
     }
     setText(clamped);
     applyTextDiff(ytext, clamped, LOCAL_ORIGIN);
-  }, [ytext]);
+    onInput();
+  }, [ytext, maxChars, onInput]);
 
   const handleCompositionStart = useCallback(() => {
     composingRef.current = true;
@@ -124,26 +129,35 @@ export function StickyTextEditor({ ytext, fontPx, onEnd, undoController }: Stick
     [onEnd, undoController],
   );
 
-  const showCounter = counterVisible(text.length);
+  const widthStyle = width === 'auto' ? 'auto' : `${width}px`;
 
   return (
-    <div className="sticky-text-editor">
-      <textarea
-        ref={textareaRef}
-        className="sticky-textarea"
-        value={text}
-        style={{ fontSize: `${fontPx}px` }}
-        onInput={handleInput}
-        onCompositionStart={handleCompositionStart}
-        onCompositionEnd={handleCompositionEnd}
-        onKeyDown={handleKeyDown}
-        data-testid="sticky-textarea"
-      />
-      {showCounter && (
-        <span className="sticky-char-counter" data-testid="char-counter">
-          {text.length}/{STICKY_TEXT_MAX_CHARS}
-        </span>
-      )}
-    </div>
+    <textarea
+      ref={textareaRef}
+      className="text-editor"
+      data-testid="text-editor"
+      value={text}
+      style={{
+        fontSize: `${fontPx}px`,
+        width: widthStyle,
+        resize: 'none',
+        border: 'none',
+        outline: 'none',
+        background: 'transparent',
+        padding: 0,
+        margin: 0,
+        overflow: 'hidden',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        fontFamily: 'inherit',
+        lineHeight: '1.3',
+        display: 'block',
+        minWidth: 40,
+      }}
+      onInput={handleInput}
+      onCompositionStart={handleCompositionStart}
+      onCompositionEnd={handleCompositionEnd}
+      onKeyDown={handleKeyDown}
+    />
   );
 }

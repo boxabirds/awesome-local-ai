@@ -4,6 +4,7 @@ import * as Y from 'yjs';
 import { Toolbar } from '@client/board/Toolbar';
 import { NoteToolbar } from '@client/objects/NoteToolbar';
 import { createSticky, setStickyColor, deleteObject, initDoc, snapshot } from '@shared/board-model';
+import type { StickySnapshot } from '@shared/board-model';
 import type { StickyColor } from '@shared/config';
 
 describe('Toolbar', () => {
@@ -11,7 +12,7 @@ describe('Toolbar', () => {
   it('TC-28: sticky note button calls onCreateSticky', () => {
     const onCreateSticky = vi.fn();
     render(<Toolbar onCreateSticky={onCreateSticky} />);
-    const btn = document.querySelector('[aria-label="Sticky note"]') as HTMLButtonElement;
+    const btn = document.querySelector('[aria-label="Sticky note (N)"]') as HTMLButtonElement;
     expect(btn).not.toBeNull();
     fireEvent.click(btn);
     expect(onCreateSticky).toHaveBeenCalledTimes(1);
@@ -28,7 +29,7 @@ describe('Toolbar', () => {
       );
     }
     render(<TestWrapper />);
-    const btn = document.querySelector('[aria-label="Sticky note"]') as HTMLButtonElement;
+    const btn = document.querySelector('[aria-label="Sticky note (N)"]') as HTMLButtonElement;
     fireEvent.pointerDown(btn, { button: 0 });
     expect(parentHandler).not.toHaveBeenCalled();
   });
@@ -101,7 +102,7 @@ describe('NoteToolbar', () => {
     initDoc(doc);
     const id = createSticky(doc, { x: 100, y: 100 });
     setStickyColor(doc, id, 'pink');
-    expect(snapshot(doc)[0].color).toBe('pink');
+    expect((snapshot(doc)[0] as StickySnapshot).color).toBe('pink');
     deleteObject(doc, id);
     expect(snapshot(doc).length).toBe(0);
   });
