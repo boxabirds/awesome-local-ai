@@ -68,7 +68,8 @@ export interface RunRecord extends RunRef {
 const RUN_RE =
   /^(?:combinations\/(?<stack>.+)\/benchmarks\/(?<pack>[^/]+)|benchmarks\/reference\/(?<rpack>[^/]+)\/(?<rstack>[^/]+))\/(?<run>[^/]+)\/(?<rest>.+)$/;
 const RESCORE_RE = /^rescore\/([^/]+)\/rescore\.json$/;
-const RESCORE_STORY_RE = /^rescore\/([^/]+)\/stories\/(\d+)\/accept\.json$/;
+// A re-scored story's result: its public summary, or (records from before 30 Sep 2026) the full result.
+const RESCORE_STORY_RE = /^rescore\/([^/]+)\/stories\/(\d+)\/accept(?:-summary)?\.json$/;
 
 /** Runs are directories holding a run.json, under combinations/<stack>/benchmarks/<pack>/<run>/ or
  * benchmarks/reference/<pack>/<stack>/<run>/; also notes each run's re-scores and bundle. */

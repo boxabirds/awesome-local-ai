@@ -4,6 +4,9 @@ broke or fixed an earlier story's held-out tests (from the suite's results after
 Scores say *when* something broke; this names the story, its commits and the files they touched, the
 tests that changed, and their most common error. Everything comes from records every run keeps:
 workspace-git-log.txt, stories/NN/base-commit, each story's recorded commit, and stories/NN/accept.json.
+The held-out results are private: they are read where heldout.find finds them (the machine that ran the run, or
+the private repo's copy). render() quotes test titles and errors, so only its redacted form is ever published
+(report.write_summary).
 
 Attribution is as fine as the agent's commits: an agent that commits once per story can only be
 blamed per story. A test that flips once may be flaky; one story breaking many at once is not.
@@ -19,6 +22,8 @@ import json
 import re
 import sys
 from pathlib import Path
+
+import heldout
 
 COMMIT_RE = re.compile(r"^commit ([0-9a-f]+)$")
 STAT_RE = re.compile(r"^ (\S.*?)\s+\|\s+(\d+)")
@@ -104,14 +109,11 @@ BASE_DIR = "base"   # a known-good run's held-out results on its base, before th
 
 
 def _tests(run: Path, sid: str) -> dict[tuple, dict]:
-    return _accept_tests(run / "stories" / f"{int(sid):02d}" / "accept.json")
+    return _accept_tests(run, f"stories/{int(sid):02d}/accept.json")
 
 
-def _accept_tests(f: Path) -> dict[tuple, dict]:
-    try:
-        tests = json.loads(f.read_text()).get("tests", [])
-    except (OSError, json.JSONDecodeError):
-        return {}
+def _accept_tests(run: Path, rel: str) -> dict[tuple, dict]:
+    tests = (heldout.read_json(run, rel) or {}).get("tests", [])
     return {(t.get("file"), t.get("title")): t for t in tests if t.get("status") != "skipped"}
 
 
@@ -218,7 +220,7 @@ def interruptions(run: Path, stories: dict) -> tuple[list[dict], dict[str, dict]
 
 
 def analyse(run: Path) -> dict:
-    m = json.loads((run / "metrics.json").read_text())
+    m = heldout.load_metrics(run)
     log = run / "workspace-git-log.txt"
     commits = parse_git_log(log.read_text(errors="replace")) if log.exists() else []
     ids = list(m["stories"])
@@ -334,9 +336,9 @@ if __name__ == "__main__":
 def per_story(run: Path) -> list[dict]:
     """Per story (EVALUATION-POLICY rule 6): its own held-out tests (new work), earlier stories'
     tests it broke (regressions) or repaired, and the cumulative score after it."""
-    sids = sorted(int(d.name) for d in (run / "stories").glob("[0-9]*") if (d / "accept.json").exists())
-    base = run / BASE_DIR / "accept.json"
-    rows, prev = [], (_accept_tests(base) if base.exists() else None)
+    sids = sorted(int(d.name) for d in heldout.result_dirs(run) if d.name.isdigit())
+    base = f"{BASE_DIR}/accept.json"
+    rows, prev = [], (_accept_tests(run, base) if heldout.find(run, base) else None)
     for sid in sids:
         tests = _tests(run, str(sid))
         own = [t for (f, _), t in tests.items() if str(f or "").startswith(f"story-{sid:02d}")]

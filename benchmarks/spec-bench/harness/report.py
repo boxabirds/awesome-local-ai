@@ -3,8 +3,11 @@
 # ///
 """Summarise Vidi runs.
 
-    uv run report.py <run-dir>                 # writes <run-dir>/summary.md
+    uv run report.py <run-dir>                 # writes <run-dir>/summary.md (and summary-detail.md)
     uv run report.py --compare <run> <run> ... # prints a cross-combination table
+
+summary.md is what may be public: counts only (publicise.redact_markdown). The same report with the held-out
+tests each story broke, and their most common error, is written to summary-detail.md, which git ignores.
 """
 from __future__ import annotations
 
@@ -12,14 +15,16 @@ import argparse
 import json
 from pathlib import Path
 
+import heldout
 import history
+import publicise
 
 SECONDS_PER_MINUTE = 60
 
 
 def load(run: Path) -> tuple[dict, dict]:
     meta = json.loads((run / "run.json").read_text()) if (run / "run.json").exists() else {}
-    return meta, json.loads((run / "metrics.json").read_text())
+    return meta, heldout.load_metrics(run)
 
 
 SHORT_SHA = 7
@@ -95,15 +100,20 @@ def partial_notes(m: dict) -> list[str]:
                        f"(floor {v.get('heldout_floor')}).")
         if s.get("partial_base"):
             changes = s.get("partial_heldout_changes") or {}
-            fixed = {p: c["fixed"] for p, c in changes.items() if c.get("fixed")}
-            regressed = {p: c["regressed"] for p, c in changes.items() if c.get("regressed")}
+            fixed = {p: _count(c["fixed"]) for p, c in changes.items() if c.get("fixed")}
+            regressed = {p: _count(c["regressed"]) for p, c in changes.items() if c.get("regressed")}
             stubs = s.get("stub_markers") or []
             onp = (s.get("accept") or {}).get("on_partial") or {}
             out.append(f"- Story {sid}, built on partial {', '.join(map(str, s['partial_base']))}: held-out tests on the "
                        f"partial base {onp.get('passed')}/{onp.get('total')}; partial story's tests fixed "
-                       f"{sum(map(len, fixed.values()))}, regressed {sum(map(len, regressed.values()))}; "
+                       f"{sum(fixed.values())}, regressed {sum(regressed.values())}; "
                        f"{len(stubs)} stub-like lines added to src/.")
     return out
+
+
+def _count(tests: list | int) -> int:
+    """How many tests: the titles where the detail is, their count where it isn't (public metrics.json)."""
+    return len(tests) if isinstance(tests, list) else int(tests)
 
 
 def summary(run: Path) -> str:
@@ -175,9 +185,15 @@ def main() -> None:
         print(compare(a.runs))
         return
     for run in a.runs:
-        text = summary(run)
-        (run / "summary.md").write_text(text)
-        print(text)
+        print(write_summary(run))
+
+
+def write_summary(run: Path) -> str:
+    """summary.md without held-out titles or errors, and the full report beside it (git-ignored). Returns the full one."""
+    text = summary(run)
+    (run / publicise.SUMMARY_DETAIL).write_text(text)
+    (run / "summary.md").write_text(publicise.redact_markdown(text))
+    return text
 
 
 if __name__ == "__main__":

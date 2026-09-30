@@ -46,8 +46,24 @@ export function readBlobs(repo: string, paths: string[]): Promise<Map<string, st
 }
 
 const STORY_DIR_DIGITS = 2;
-const rescoreStoryPath = (dir: string, version: string, id: string) =>
-  `${dir}/rescore/${version}/stories/${id.padStart(STORY_DIR_DIGITS, "0")}/accept.json`;
+// A re-scored story's counts: the public summary beside its result (the harness writes it since 30 Sep 2026,
+// and the result itself is private), else the full result in records from before.
+const RESCORE_STORY_FILES = ["accept-summary.json", "accept.json"];
+
+/** Where a re-scored story's counts may be, in the order they are tried. */
+export const rescoreStoryPaths = (dir: string, version: string, id: string) =>
+  RESCORE_STORY_FILES.map((f) => `${dir}/rescore/${version}/stories/${id.padStart(STORY_DIR_DIGITS, "0")}/${f}`);
+
+type RawRescoredStory = { by_story?: Record<string, { passed?: number; total?: number }> };
+
+/** A re-scored story's counts from the blobs read: the first of its files that parses. */
+export function rescoredStory(blobs: Map<string, string>, dir: string, version: string, id: string): RawRescoredStory | null {
+  for (const p of rescoreStoryPaths(dir, version, id)) {
+    const doc = json<RawRescoredStory>(blobs.get(p));
+    if (doc) return doc;
+  }
+  return null;
+}
 
 function json<T>(text: string | undefined): T | null {
   try {
@@ -68,7 +84,7 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
   const wanted = runs.flatMap((r) => [
     `${r.dir}/run.json`, `${r.dir}/run-status.json`, `${r.dir}/metrics.json`,
     ...r.rescores.map((v) => `${r.dir}/rescore/${v}/rescore.json`),
-    ...Object.entries(r.rescoreLast).map(([v, id]) => rescoreStoryPath(r.dir, v, id)),
+    ...Object.entries(r.rescoreLast).flatMap(([v, id]) => rescoreStoryPaths(r.dir, v, id)),
   ]).concat(packs.map((p) => `benchmarks/${p}/bench.json`));
   const blobs = await readBlobs(repo, wanted);
   const suites = Object.fromEntries(packs.map((p) => [p, json<{ pack_ref?: string }>(blobs.get(`benchmarks/${p}/bench.json`))?.pack_ref ?? ""]));
@@ -88,7 +104,7 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
     }
     const rescored: Record<string, Rescored> = {};
     for (const [v, id] of Object.entries(r.rescoreLast)) {
-      const acc = json<{ by_story?: Record<string, { passed?: number; total?: number }> }>(blobs.get(rescoreStoryPath(r.dir, v, id)));
+      const acc = rescoredStory(blobs, r.dir, v, id);
       if (acc?.by_story) rescored[v] = { after: id, byStory: normaliseByStory(acc.by_story) };
     }
     return { ...r, rescored, host: meta.host ?? "", packVersion: meta.pack_version ?? "", state: status.state ?? "", stateAt: status.at ?? "",

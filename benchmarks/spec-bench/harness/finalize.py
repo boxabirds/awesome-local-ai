@@ -7,7 +7,9 @@ finished run has its score of record and can be judged without anyone doing it b
 The re-score only runs when the private suite checkout is exactly at the pack's pack_ref: a checkout a
 commit past its tag records a version ("vidi-v2.0-pre2+22a2164") that no page matches, so the record says
 why it wasn't scored instead. A run already re-scored under that version is left alone. With --record the
-result is committed and pushed with the run's record. Never fails the caller: problems are reported.
+result is committed and pushed with the run's record, through drive.record_story like every story: the re-score's
+held-out results go to the private repo and only their summaries to this one. Never fails the caller: problems are
+reported.
 """
 from __future__ import annotations
 

@@ -3,7 +3,8 @@
 # ///
 """Re-score a finished run's held-out suite under the current pack version, story by story, from
 the code the run recorded at the end of each story. The run's own scores are left as they are; the
-new ones go to <run>/rescore/<pack-version>/stories/NN/accept.json, beside a per-story table.
+new ones go to <run>/rescore/<pack-version>/stories/NN/accept.json (private; accept-summary.json beside it is
+its public counts), beside a per-story table.
 
     uv run rescore.py <run-dir> --bundle <workspace.bundle> [--pack benchmarks/vidi]
 
@@ -169,7 +170,7 @@ def out_dir(run: Path, version: str) -> Path:
 def _score_one(cp: dict, base_repo: str, work_root: str, out: str, port: int, pack: str) -> dict:
     """One checkpoint: worktree at the recorded commit, its own dependencies, the suite on its own port."""
     os.environ["ACCEPT_PORT"] = str(port)
-    import drive, gates
+    import drive, gates, heldout
     drive.set_pack(pack)
     ws = Path(work_root) / f"s{cp['story']:02d}"
     subprocess.run(["git", "-C", base_repo, "worktree", "add", "-q", "--detach", str(ws), cp["commit"]],
@@ -193,7 +194,7 @@ def _score_one(cp: dict, base_repo: str, work_root: str, out: str, port: int, pa
                                      build=False, only=again)
                 accs.append(overlay(acc, rerun))
             acc = majority(accs)
-        (sdir / "accept.json").write_text(json.dumps(acc, indent=2))
+        heldout.write_accept(sdir / "accept.json", acc)   # its public summary beside it
         drive.kill_strays(ws)
         return {"story": cp["story"], "passed": acc.get("passed"), "total": acc.get("total"),
                 "fallbacks": (acc.get("setup_fallbacks") or {}).get("tests", 0),
@@ -257,7 +258,8 @@ def main() -> int:
                       f"{r['seconds']}s{'  FAULT ' + r['harness_fault'] if r['harness_fault'] else ''}", flush=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    shutil.copy(run / "metrics.json", out / "metrics.json")   # per_story reads the processed order from here
+    import heldout
+    heldout.save_metrics(out, heldout.load_metrics(run))   # per_story reads the processed order from here
     (out / "rescore.json").write_text(json.dumps({
         "pack_version": version, "harness_commit": subprocess.run(
             ["git", "-C", str(HARNESS), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip(),
