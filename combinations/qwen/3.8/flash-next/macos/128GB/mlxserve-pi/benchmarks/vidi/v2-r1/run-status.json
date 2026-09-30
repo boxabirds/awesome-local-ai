@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness ea82b135, client pi, model mlxserve-flash-next-mixed-4-8bit",
-  "at": "2026-09-29T20:17:58Z",
+  "state": "finished",
+  "reason": "",
+  "at": "2026-09-30T14:25:39Z",
   "host": "Quintus"
 }
