@@ -13,6 +13,8 @@ const PATHS = [
   `combinations/${SWIFT}/benchmarks/vidi/v2-r1/stories/01/accept.json`,
   "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r3/run.json",
   "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r3/rescore/vidi-v1.3.2/rescore.json",
+  "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r3/rescore/vidi-v1.3.2/stories/03/accept.json",
+  "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r3/rescore/vidi-v1.3.2/stories/12/accept.json",
   "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r3/workspace.bundle",
   "benchmarks/reference/vidi/opus-5.5/run-3/run.json",
   "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/perf/results.json",
@@ -38,6 +40,7 @@ describe("finding runs", () => {
       ["vidi", "reference/opus-5.5", "run-3"],
     ]);
     expect(runs[1].rescores).toEqual(["vidi-v1.3.2"]);
+    expect(runs[1].rescoreLast).toEqual({ "vidi-v1.3.2": "12" }); // the latest re-scored story per version
     expect(runs[1].hasBundle).toBe(true);
     expect(runs[0].rescores).toEqual([]);
     expect(runs[0].hasBundle).toBe(false);
@@ -296,6 +299,15 @@ describe("stories working", () => {
     expect(sw.working).toBe(0);
     expect(sw.squares.slice(0, 4).map((q) => q.state)).toEqual(["bad", "bad", "bad", "unbuilt"]);
     expect(sw.squares[0]).toMatchObject({ id: "1", passed: 0, total: 10 });
+  });
+
+  it("a re-score under the current suite overrides older live scores: a finished run scored 75/75 shows 11 of 11", () => {
+    const live = [st("1", { "1": [10, 10] }), st("12", { "1": [0, 10], "12": [0, 5] })]; // live, under a broken suite
+    const all = Object.fromEntries(SCOPE.map((id) => [id, [1, 1] as [number, number]]));
+    const rescored = { after: "12", byStory: st("12", all).byStory! };
+    expect(storiesWorking(live, SCOPE, null, rescored).working).toBe(11);
+    // A re-score of an earlier story doesn't hide later live results.
+    expect(storiesWorking(live, SCOPE, null, { after: "5", byStory: rescored.byStory }).working).toBe(0);
   });
 
   it("counts stories whose flows all pass now; the running story pulses; one dbench reports done ahead of git uses its own result", () => {

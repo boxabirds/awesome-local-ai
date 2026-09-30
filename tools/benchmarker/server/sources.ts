@@ -2,7 +2,7 @@
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import type { Score } from "../shared/types.ts";
-import { countTests, findRuns, storyEntry, type DbenchJob, type RunRecord } from "./domain.ts";
+import { countTests, findRuns, normaliseByStory, storyEntry, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
 
 const run = promisify(execFile);
 export const REF = "origin/main";
@@ -45,6 +45,10 @@ export function readBlobs(repo: string, paths: string[]): Promise<Map<string, st
   });
 }
 
+const STORY_DIR_DIGITS = 2;
+const rescoreStoryPath = (dir: string, version: string, id: string) =>
+  `${dir}/rescore/${version}/stories/${id.padStart(STORY_DIR_DIGITS, "0")}/accept.json`;
+
 function json<T>(text: string | undefined): T | null {
   try {
     return text ? (JSON.parse(text) as T) : null;
@@ -65,6 +69,7 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
   const wanted = runs.flatMap((r) => [
     `${r.dir}/run.json`, `${r.dir}/run-status.json`, `${r.dir}/metrics.json`,
     ...r.rescores.map((v) => `${r.dir}/rescore/${v}/rescore.json`),
+    ...Object.entries(r.rescoreLast).map(([v, id]) => rescoreStoryPath(r.dir, v, id)),
   ]).concat(packs.map((p) => `benchmarks/${p}/bench.json`));
   const blobs = await readBlobs(repo, wanted);
   const suites = Object.fromEntries(packs.map((p) => [p, json<{ pack_ref?: string }>(blobs.get(`benchmarks/${p}/bench.json`))?.pack_ref ?? ""]));
@@ -83,7 +88,12 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
       if (last) scores[v] = { passed: last.passed ?? null, total: last.total ?? null,
         flaky: (rs!.results ?? []).reduce((n, x) => n + (x.flaky ?? 0), 0), at: rs!.finished_at ?? "" };
     }
-    return { ...r, host: meta.host ?? "", packVersion: meta.pack_version ?? "", state: status.state ?? "", stateAt: status.at ?? "",
+    const rescored: Record<string, Rescored> = {};
+    for (const [v, id] of Object.entries(r.rescoreLast)) {
+      const acc = json<{ by_story?: Record<string, { passed?: number; total?: number }> }>(blobs.get(rescoreStoryPath(r.dir, v, id)));
+      if (acc?.by_story) rescored[v] = { after: id, byStory: normaliseByStory(acc.by_story) };
+    }
+    return { ...r, rescored, host: meta.host ?? "", packVersion: meta.pack_version ?? "", state: status.state ?? "", stateAt: status.at ?? "",
       stories: pairs.map(([id, s]) => storyEntry(id, s)), scores };
   });
   return { records, suites };
