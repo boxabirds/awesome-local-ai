@@ -1,3 +1,33 @@
+commit ac9efecfb9c10b63bb3fe524af819fc163c04bf1
+vidi-agent  Wed Sep 30 06:34:34 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  | 103 +++++++++-
+ package-lock.json                         |  51 ++++-
+ package.json                              |   3 +-
+ src/client/App.tsx                        | 108 ++++++++++-
+ src/client/board/Toolbar.tsx              |  60 ++++++
+ src/client/board/useBoardDoc.ts           |  55 ++++++
+ src/client/board/useSelection.ts          |  35 ++++
+ src/client/canvas/BoardViewport.tsx       |  35 +++-
+ src/client/objects/NoteToolbar.tsx        |  87 +++++++++
+ src/client/objects/StickyNote.tsx         | 312 ++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          | 104 ++++++++++
+ src/client/objects/StickyTextEditor.tsx   | 152 +++++++++++++++
+ src/shared/board-model.ts                 | 162 ++++++++++++++++
+ src/shared/config.ts                      |  18 ++
+ tests/component/StickyNote.test.tsx       | 271 ++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 116 +++++++++++
+ tests/component/Toolbars.test.tsx         |  75 +++++++
+ tests/component/sticky-helpers.tsx        |  39 ++++
+ tests/e2e/sticky-notes.spec.ts            | 237 +++++++++++++++++++++++
+ tests/fixtures/texts.ts                   |  11 ++
+ tests/setup.ts                            |  15 ++
+ tests/unit/board-model.test.ts            | 273 ++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts            | 172 ++++++++++++++++
+ 23 files changed, 2474 insertions(+), 20 deletions(-)
 commit 5a151d99c55077b3993a413e6fc70c945bdb4cd8
 vidi-agent  Wed Sep 30 05:58:38 2026 +0100
 

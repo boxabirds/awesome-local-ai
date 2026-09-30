@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { Point, Camera } from './camera';
-import { GRID_SPACING_WORLD, WHEEL_ZOOM_SENSITIVITY } from '../../shared/config';
+import { GRID_SPACING_WORLD, WHEEL_ZOOM_SENSITIVITY, DRAG_THRESHOLD_PX } from '../../shared/config';
 
 interface BoardViewportProps {
   camera: Camera;
@@ -14,6 +14,10 @@ interface BoardViewportProps {
   onKeyZoomIn: () => void;
   onKeyZoomOut: () => void;
   onKeyReset: () => void;
+  /** A click (no drag) on empty board space — clears the selection. */
+  onEmptyClick?: () => void;
+  /** A double-click on empty board space (viewport-relative point) — creates a sticky note. */
+  onCreateSticky?: (p: Point) => void;
   children?: ReactNode;
 }
 
@@ -31,10 +35,13 @@ export function BoardViewport({
   onKeyZoomIn,
   onKeyZoomOut,
   onKeyReset,
+  onEmptyClick,
+  onCreateSticky,
   children,
 }: BoardViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
+  const emptyDownRef = useRef<Point | null>(null);
 
   // Pointer drag
   const handlePointerDown = useCallback(
@@ -49,6 +56,7 @@ export function BoardViewport({
         if (target.closest('[data-testid="navigation-hint"]')) return;
       }
       isPanningRef.current = true;
+      emptyDownRef.current = { x: e.clientX, y: e.clientY };
       try {
         containerRef.current?.setPointerCapture(e.pointerId);
       } catch {
@@ -71,20 +79,28 @@ export function BoardViewport({
     (e: React.PointerEvent) => {
       if (!isPanningRef.current) return;
       isPanningRef.current = false;
+      const down = emptyDownRef.current;
+      emptyDownRef.current = null;
       try {
         containerRef.current?.releasePointerCapture(e.pointerId);
       } catch {
         // ignore
       }
       onPointerUp();
+      // A short press without movement on empty space clears the selection.
+      if (down && onEmptyClick) {
+        const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+        if (moved < DRAG_THRESHOLD_PX) onEmptyClick();
+      }
     },
-    [onPointerUp]
+    [onPointerUp, onEmptyClick]
   );
 
   const handlePointerCancel = useCallback(
     (e: React.PointerEvent) => {
       if (!isPanningRef.current) return;
       isPanningRef.current = false;
+      emptyDownRef.current = null;
       try {
         containerRef.current?.releasePointerCapture(e.pointerId);
       } catch {
@@ -93,6 +109,20 @@ export function BoardViewport({
       onPointerCancel();
     },
     [onPointerCancel]
+  );
+
+  // Double-click on empty board space creates a sticky note centred there.
+  // A double-click on a note is handled (and stopped) by the note itself.
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!onCreateSticky) return;
+      const target = e.target as HTMLElement;
+      if (target !== containerRef.current && !target.classList.contains('board-grid')) return;
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      onCreateSticky({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    },
+    [onCreateSticky]
   );
 
   // Wheel (non-passive)
@@ -212,6 +242,7 @@ export function BoardViewport({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
+      onDoubleClick={handleDoubleClick}
     >
       {/* Dot grid */}
       <div

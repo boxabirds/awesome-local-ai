@@ -1,13 +1,23 @@
-import { useRef, useLayoutEffect, useState, useEffect } from 'react';
+import { useRef, useLayoutEffect, useState, useEffect, useCallback } from 'react';
+import type * as Y from 'yjs';
 import { BoardViewport } from './canvas/BoardViewport';
 import { ZoomControls } from './canvas/ZoomControls';
 import { NavigationHint } from './canvas/NavigationHint';
-import { zoomPercent, canZoomIn, canZoomOut, type Camera } from './canvas/camera';
+import { zoomPercent, canZoomIn, canZoomOut, screenToWorld, type Camera, type Point } from './canvas/camera';
 import { useCamera } from './canvas/useCamera';
+import { useBoardDoc } from './board/useBoardDoc';
+import { useSelection } from './board/useSelection';
+import { Toolbar } from './board/Toolbar';
+import { StickyNote } from './objects/StickyNote';
+import { createSticky, deleteObject, snapshot } from '../shared/board-model';
 
 declare global {
   interface Window {
-    __vidi6?: { setCamera(cam: Camera): void };
+    __vidi6?: {
+      setCamera(cam: Camera): void;
+      doc?: Y.Doc;
+      snapshot?(): readonly import('../shared/board-model').StickySnapshot[];
+    };
   }
 }
 
@@ -32,6 +42,8 @@ export default function App() {
 
   const { camera, hasNavigated, beginPan, panMove, endPan, wheel, zoomStepFn, reset, setCamera } =
     useCamera(size);
+  const { doc, notes } = useBoardDoc();
+  const selection = useSelection();
 
   const [isPanning, setIsPanning] = useState(false);
 
@@ -50,13 +62,72 @@ export default function App() {
     endPan();
   };
 
-  // Expose test hook for e2e tests
+  // Create a sticky note centred on a viewport point; select and edit it.
+  const createStickyAtScreenPoint = useCallback(
+    (p: Point) => {
+      const world = screenToWorld(camera, p);
+      const id = createSticky(doc, world);
+      if (id) {
+        selection.select(id);
+        selection.startEdit(id);
+      }
+    },
+    [camera, doc, selection]
+  );
+
+  // Toolbar button: create at the centre of the visible board area.
+  const createStickyAtCentre = useCallback(() => {
+    createStickyAtScreenPoint({ x: size.width / 2, y: size.height / 2 });
+  }, [createStickyAtScreenPoint, size]);
+
+  // Keyboard: Enter edits the selected note; Delete/Backspace delete it.
+  // Both are ignored while editing text (keys go to the textarea) or while
+  // focus is in any input field.
   useEffect(() => {
-    window.__vidi6 = { setCamera };
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const inField =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable);
+      if (inField || selection.editingId !== null) return;
+
+      if (e.key === 'Enter') {
+        if (selection.selectedId !== null) {
+          e.preventDefault();
+          selection.startEdit(selection.selectedId);
+        }
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selection.selectedId !== null) {
+          e.preventDefault();
+          if (deleteObject(doc, selection.selectedId)) {
+            selection.select(null);
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [doc, selection]);
+
+  // If the selected or edited note disappears from the board (e.g. deleted
+  // mid-interaction), clear the local selection state silently.
+  useEffect(() => {
+    if (
+      (selection.selectedId !== null && !notes.some((n) => n.id === selection.selectedId)) ||
+      (selection.editingId !== null && !notes.some((n) => n.id === selection.editingId))
+    ) {
+      selection.select(null);
+    }
+  }, [notes, selection]);
+
+  // Expose test hook for e2e / component tests
+  useEffect(() => {
+    window.__vidi6 = { setCamera, doc, snapshot: () => snapshot(doc) };
     return () => {
       delete window.__vidi6;
     };
-  }, [setCamera]);
+  }, [setCamera, doc]);
 
   return (
     <div ref={containerRef} style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
@@ -71,7 +142,30 @@ export default function App() {
         onKeyZoomIn={() => zoomStepFn('in')}
         onKeyZoomOut={() => zoomStepFn('out')}
         onKeyReset={reset}
-      />
+        onEmptyClick={() => selection.select(null)}
+        onCreateSticky={createStickyAtScreenPoint}
+      >
+        {/* Stable DOM order (by id) so z-order changes never re-insert a
+            note's element mid-drag (which would release pointer capture);
+            stacking is done with CSS zIndex. */}
+        {[...notes]
+          .sort((a, b) => a.id.localeCompare(b.id))
+          .map((note) => (
+          <StickyNote
+            key={note.id}
+            note={note}
+            doc={doc}
+            z={note.z}
+            zoom={camera.zoom}
+            selected={selection.selectedId === note.id}
+            editing={selection.editingId === note.id}
+            onSelect={selection.select}
+            onStartEdit={selection.startEdit}
+            onEndEdit={selection.endEdit}
+          />
+        ))}
+      </BoardViewport>
+      <Toolbar onCreateSticky={createStickyAtCentre} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
