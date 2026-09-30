@@ -6,6 +6,7 @@ import threading
 import pytest
 
 import annotate
+import heldout
 
 
 def ev(**kw):
@@ -79,7 +80,14 @@ def test_labels_are_saved_updated_and_validated(tmp_path):
         annotate.write_label(path, "run#03", "maybe", "", lock)
 
 
-def test_attempts_build_from_the_real_records(tmp_path):
+REAL_PRIVATE = annotate.REPO.parent / "awesome-local-ai-bench-private"
+
+
+# The real runs' held-out detail is in the private repo's copy (the public record keeps counts): read it there,
+# read-only, and skip where it isn't checked out.
+@pytest.mark.skipif(not (REAL_PRIVATE / heldout.PRIVATE_RUNS).is_dir(), reason="no private repo copy of the runs")
+def test_attempts_build_from_the_real_records(tmp_path, monkeypatch):
+    monkeypatch.setenv(heldout.PRIVATE_ENV, str(REAL_PRIVATE))
     attempts = annotate.load_attempts(annotate.REPO, tmp_path / "cache.json", rebuild=True)
     ids = {a["id"] for a in attempts}
     assert len(ids) == len(attempts) and len(attempts) >= 100
