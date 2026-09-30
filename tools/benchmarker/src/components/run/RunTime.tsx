@@ -2,7 +2,8 @@
 import type { Row } from "../../../shared/types.ts";
 import { runTimeBars } from "../../../shared/runView.ts";
 import { storyRunHref } from "../../../shared/routes.ts";
-import { StoryRunLink } from "../EntityLinks.tsx";
+import { StoryLink, StoryRunLink } from "../EntityLinks.tsx";
+import { GLOSSARY } from "../../../shared/glossary.ts";
 import { duration } from "../../format.ts";
 import { Missing, Section } from "./bits.tsx";
 import { CheckMark, SegmentLegend, SplitBar } from "./SplitBar.tsx";
@@ -28,7 +29,10 @@ export function RunTime({ run }: { run: Row }) {
                 ) : <span className="no-split">no time split recorded <Missing why={b.usage ? "This story's record has usage but no time split (recorded before the harness split time)." : "This story's record has no usage: dbench reported it before the record arrived, or it was recorded before usage was kept."} /></span>}
               </span>
               <span className="rp-bar-total num">{b.split ? duration(b.split.wall) : b.usage?.agentSeconds != null ? duration(b.usage.agentSeconds) : ""}</span>
-              <span className="rp-bar-check">{b.split ? <CheckMark check={b.split.check} /> : null}</span>
+              <span className="rp-bar-check">
+                {b.split ? <CheckMark check={b.split.check} /> : null}{" "}
+                <span className="rp-bar-story" data-tip={GLOSSARY.storyInEveryCombination.what}><StoryLink pack={run.pack} story={b.id}>all runs</StoryLink></span>
+              </span>
             </div>
           ))}
         </div>

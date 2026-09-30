@@ -604,9 +604,6 @@ test.describe("links and keyboard", () => {
   test("a missing number can be focused to read why", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
     const m = section(page, "cost").locator('[data-stat="prefillTokS"] .missing');
-    // The tooltip hides on scroll, and a scroll's event arrives a frame late: scroll first, let it land, then focus.
-    await m.scrollIntoViewIfNeeded();
-    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     await m.focus();
     await expect(page.getByRole("tooltip")).toContainText("timed the model");
   });

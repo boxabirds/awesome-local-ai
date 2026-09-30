@@ -11,7 +11,7 @@ import "./run.css";
 
 /** Everything about one run, in reading order: identity, outcome, where the time went, cost, evidence, provenance
  * (plan section 4.3). */
-export function RunPage({ run, state }: { run: Row; state: State; serverNow: number | null; params?: Record<string, string> }) {
+export function RunPage({ run, state, params }: { run: Row; state: State; serverNow: number | null; params?: Record<string, string> }) {
   const others = otherRuns(run, state.rows);
   return (
     <div className="page run-page" data-page="run">
@@ -23,7 +23,7 @@ export function RunPage({ run, state }: { run: Row; state: State; serverNow: num
       <HeldOut run={run} />
       <Jobs run={run} />
       {/* Keyed by run: moving to another run's page starts its comparison afresh. */}
-      <CompareRuns key={`${run.stack}|${run.runId}`} run={run} others={others} />
+      <CompareRuns key={`${run.stack}|${run.runId}`} run={run} others={others} params={params} />
       <RelatedRuns run={run} others={others} />
     </div>
   );

@@ -5,6 +5,8 @@ import { defineConfig } from "@playwright/test";
 const PORT = 7769;
 
 export default defineConfig({
+  // One fixture server serves every test, and some tests change its fake dbench (queue, stop): run them one at a time.
+  workers: 1,
   testDir: "e2e",
   timeout: 60_000,
   use: { baseURL: `http://127.0.0.1:${PORT}` },

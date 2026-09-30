@@ -467,9 +467,6 @@ test.describe("links and keyboard", () => {
   test("a flag's reason can be read from the keyboard", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     const flag = section(page, "against").locator('tr.is-this [data-measure="minutes"] .diff.flagged');
-    // The tooltip hides on scroll, and a scroll's event arrives a frame late: scroll first, let it land, then focus.
-    await flag.scrollIntoViewIfNeeded();
-    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     await flag.focus();
     await expect(page.getByRole("tooltip")).toContainText("The median of the other 3 runs: 17 min.");
   });

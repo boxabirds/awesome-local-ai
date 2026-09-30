@@ -2,18 +2,14 @@ import { useState } from "react";
 import { RUN_STATUSES, type Row, type RunStatus } from "../shared/types.ts";
 import { Header } from "./components/Header.tsx";
 import { StatusFilter } from "./components/StatusFilter.tsx";
-import { StoryView } from "./components/StoryView.tsx";
-import { MachinesTab } from "./components/MachinesTab.tsx";
 import { SetupTab } from "./components/SetupTab.tsx";
-import { CombinationsTable } from "./components/CombinationsTable.tsx";
 import { Tooltip } from "./components/Tooltip.tsx";
 import { StaleBanner } from "./components/StaleBanner.tsx";
-import { MachineSection } from "./components/MachineSection.tsx";
-import { scoreOf } from "../shared/stats.ts";
-import { groupByMachine } from "../shared/grouping.ts";
 import { useBenchState } from "./useBenchState.ts";
 import { useRoute } from "./router.ts";
-import { overviewHref } from "../shared/routes.ts";
+import { overviewHref, storyHref } from "../shared/routes.ts";
+import { OverviewPage } from "./pages/OverviewPage.tsx";
+import { MachinesIndex } from "./pages/MachinesIndex.tsx";
 import { RunPage } from "./pages/RunPage.tsx";
 import { StoryRunPage } from "./pages/StoryRunPage.tsx";
 import { CombinationPage } from "./pages/CombinationPage.tsx";
@@ -24,13 +20,10 @@ import { MachinePage } from "./pages/MachinePage.tsx";
 const SAVED_KEY = "benchmarker:v2"; // versioned: selections saved by older builds are ignored
 const ALL = "all";
 const HIDDEN_KEY = "benchmarker:hidden-statuses:v1";
-const VIEW_KEY = "benchmarker:view:v1";
-type View = "machine" | "story";
 type Tab = "runs" | "machines" | "setup";
 const TAB_KEY = "benchmarker:tab:v1";
-const TABS: [Tab, string][] = [["runs", "Runs"], ["machines", "Machines"], ["setup", "Setup"]];
+const TABS: [Tab | "stories", string][] = [["runs", "Runs"], ["stories", "Stories"], ["machines", "Machines"], ["setup", "Setup"]];
 const loadTab = (): Tab => { try { const t = localStorage.getItem(TAB_KEY); return t === "machines" || t === "setup" ? t : "runs"; } catch { return "runs"; } };
-const loadView = (): View => { try { return localStorage.getItem(VIEW_KEY) === "story" ? "story" : "machine"; } catch { return "machine"; } };
 const HIDDEN_AT_FIRST: RunStatus[] = ["cancelled"];
 
 function loadHidden(): Set<RunStatus> {
@@ -89,14 +82,12 @@ export function App() {
   const route = useRoute();
   const [choice, setChoice] = useState<Partial<Selection>>(loadSaved);
   const [hidden, setHidden] = useState<Set<RunStatus>>(loadHidden);
-  const [view, setView] = useState<View>(loadView);
   const [tab, setTab] = useState<Tab>(loadTab);
   const chooseTab = (t: Tab) => {
     setTab(t);
     if (route.page !== "overview") location.hash = overviewHref();  // the tabs are the overview's
     try { localStorage.setItem(TAB_KEY, t); } catch { /* not remembered */ }
   };
-  const chooseView = (v: View) => { setView(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* not remembered */ } };
 
   if (!data) {
     return (
@@ -114,9 +105,6 @@ export function App() {
   const family = pickFamily(families, current, choice.family);
   const inFamily = inPack.filter((r) => family === ALL || r.family === family);
   const counts = RUN_STATUSES.map((st) => [st, inFamily.filter((r) => r.status === st).length] as [RunStatus, number]).filter(([, n]) => n > 0);
-  const shown = inFamily.filter((r) => !hidden.has(r.status));
-  const totals = new Set(shown.map((r) => scoreOf(r)?.[1].total).filter((t): t is number => t != null));
-  const scoreTotal = totals.size === 1 ? [...totals][0] : null;
   const chooseHidden = (next: Set<RunStatus>) => {
     setHidden(next);
     saveHidden(next);
@@ -142,35 +130,30 @@ export function App() {
         onFamily={(f) => choose({ pack, family: f })}
       >
         <div className="tabs" role="tablist" aria-label="Sections">
-          {TABS.map(([t, name]) => <button key={t} type="button" role="tab" aria-selected={route.page === "overview" && tab === t} onClick={() => chooseTab(t)}>{name}</button>)}
+          {TABS.map(([t, name]) => t === "stories"
+            // Stories are pages of their own: the tab opens the pack's first one, whose side list goes to the rest.
+            ? <button key={t} type="button" role="tab" aria-selected={route.page === "story"} onClick={() => { location.hash = storyHref(pack, firstStory(inFamily)); }}>{name}</button>
+            : <button key={t} type="button" role="tab" aria-selected={route.page === "overview" && tab === t} onClick={() => chooseTab(t as Tab)}>{name}</button>)}
         </div>
-        {tab !== "runs" || route.page !== "overview" ? null : <>
-        <div className="view-switch" role="group" aria-label="View">
-          <button type="button" aria-pressed={view === "machine"} className="chip" onClick={() => chooseView("machine")}>By machine</button>
-          <button type="button" aria-pressed={view === "story"} className="chip" onClick={() => chooseView("story")}>By story</button>
-        </div>
-        <StatusFilter counts={counts} hidden={hidden} onChange={chooseHidden} />
-        </>}
+        {tab !== "runs" || route.page !== "overview" ? null : <StatusFilter counts={counts} hidden={hidden} onChange={chooseHidden} />}
       </Header>
       <StaleBanner stale={stale} age={age} error={error} />
       <main>
         {route.page !== "overview" ? <EntityPage route={route} state={data} serverNow={serverNow} family={family} /> : <>
-        {tab === "runs" ? <CombinationsTable rows={shown} /> : null}
-        {tab === "machines" ? <MachinesTab state={data} /> : tab === "setup" ? <SetupTab /> : view === "story" ? <StoryView rows={shown} hidden={[...hidden]} /> : (
-          <>
-        {groupByMachine(shown, data.machines ?? [])
-          // A machine with nothing to show under this filter is left out, unless it is idle: that is news.
-          .filter((g) => g.rows.length > 0 || (g.info !== null && !g.info.running && g.info.queued === 0))
-          .map((g) => (
-          <MachineSection key={g.machine} group={g} state={data} serverNow={serverNow} scoreTotal={scoreTotal} />
-        ))}
-        {shown.length === 0 ? <p className="empty">No runs for this pack, version and status.</p> : null}
-          </>
-        )}
+        {tab === "machines" ? <MachinesIndex state={data} serverNow={serverNow} />
+          : tab === "setup" ? <SetupTab />
+          : <OverviewPage state={data} serverNow={serverNow} rows={inFamily} hidden={hidden} context={`${pack} · ${family === ALL ? "all versions" : family}`} />}
         </>}
       </main>
     </div>
   );
+}
+
+/** The first story any of these runs has, for the Stories tab to open. */
+const FIRST_STORY = 1;
+function firstStory(runs: Row[]): string {
+  const ids = runs.flatMap((r) => r.storiesWorking.squares.map((q) => Number(q.id))).filter(Number.isFinite);
+  return String(ids.length ? Math.min(...ids) : FIRST_STORY);
 }
 
 /** A page of its own for one entity, found in the whole state (not only what the overview's filters show). */

@@ -1,0 +1,129 @@
+/* The machine page and the machines list. The page follows the run page's visual language: a header card with the
+   machine's facts, then one panel per section (Now, History). Scoped to each page's root; colours are styles.css's
+   tokens only, so dark mode follows. */
+.machine-page {
+  &.page { background: none; border: 0; padding: 0; margin: 0 auto 16px; max-width: 1280px; }
+  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, [tabindex="0"]:focus-visible { outline: 2px solid var(--run); outline-offset: 2px; border-radius: 3px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .missing { color: var(--faint); cursor: help; }
+  .ok-text { color: var(--ok); font-weight: 600; }
+  .bad-text { color: var(--bad); font-weight: 600; }
+  .tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; line-height: 15px; border-radius: 3px; padding: 0 5px; vertical-align: 1px; }
+  .tag-record { background: var(--ink); color: var(--panel); }
+  .tag-live { border: 1px dashed var(--run); color: var(--run); line-height: 13px; }
+  .live-n { font-style: italic; color: var(--muted); font-weight: 600; }
+
+  /* ---------- header ---------- */
+  .mp-header { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px 16px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .mp-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+  .mp-title .eyebrow { flex-basis: 100%; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+  .mp-title h1 { font-size: 22px; font-weight: 750; margin: 0 0 10px; }
+  .remove-machine { margin-left: auto; font-size: 12px; display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+  .remove-machine button { font: inherit; font-size: 12px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+  .remove-machine button.quiet { border-style: dashed; color: var(--muted); }
+  .mp-facts { display: flex; flex-wrap: wrap; gap: 8px 36px; margin: 0 0 12px; }
+  .mp-facts dt, .mp-installs .label { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .mp-facts dd { margin: 2px 0 0; font-size: 14px; }
+  .mp-installs { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; border-top: 1px solid var(--line); padding-top: 12px; font-size: 13px; }
+  .mp-installs ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+  .mp-installs .combination-link { font-weight: 600; }
+  .no-page { color: var(--muted); font-size: 12px; cursor: help; }
+
+  /* ---------- sections ---------- */
+  .mp-section { overflow: visible; }
+  .mp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--panel-2); border-radius: 10px 10px 0 0; }
+  .mp-head h2 { padding: 0; border: 0; background: none; font-family: inherit; font-size: 14px; font-weight: 700; display: block; }
+  .mp-empty { color: var(--muted); margin: 0; padding: 10px 14px; font-size: 13px; }
+  h3 { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+
+  /* ---------- now ---------- */
+  .mp-now-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 16px 24px; padding: 12px 14px 14px; align-items: start; }
+  .mp-jobs > h3:first-child { margin-top: 0; }
+  .mp-jobs .mp-empty { padding: 2px 0 4px; }
+  .mp-idle { margin: 0; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); }
+  .mp-running { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--line); border-left: 4px solid var(--run); border-radius: 8px; background: var(--panel-2); }
+  .mp-job-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 14px; }
+  .mp-job-head .stack-label { font-size: 14px; }
+  .mp-story { font-size: 14px; }
+  .mp-story a.story-run-link { font-size: inherit; margin: 0; color: var(--ink); font-weight: 600; }
+  .mp-title-text { color: var(--muted); }
+  .mp-times { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13px; color: var(--muted); }
+  .mp-times b { color: var(--ink); font-size: 15px; }
+  .now-stuck { color: var(--bad); font-weight: 700; }
+  .mp-activity { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; font-size: 13px; border-top: 1px solid var(--line); padding-top: 6px; }
+  .mp-activity .label { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+  .mp-activity .log { flex-basis: 100%; }
+  .mp-queue, .mp-ended { list-style: none; margin: 0; padding: 0; }
+  .mp-job:not(.mp-running) { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 6px 0; font-size: 13px; }
+  .mp-pos { min-width: 30px; font-weight: 700; color: var(--muted); }
+  .mp-ops { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+  .mp-running .mp-ops { font-size: 12px; }
+  .mp-ops button, .mp-ops .confirm button { font: inherit; font-size: 12px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+  .mp-ops button.danger { background: var(--bad); color: #fff; border-color: var(--bad); }
+  .mp-ops button.quiet { border-style: dashed; color: var(--muted); }
+  .mp-ops .log-view, .mp-ops .note { flex-basis: 100%; }
+  .mp-job .mp-ops:has(.log-view) { flex-basis: 100%; }
+  .job-name { font-size: 12px; color: var(--muted); cursor: help; white-space: nowrap; }
+  .job-status { font-weight: 600; }
+  .j-running { color: var(--run); } .j-done { color: var(--ok); } .j-failed, .j-cancelled, .j-stopped { color: var(--bad); } .j-queued { color: var(--muted); }
+  .queue-form { padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
+  .queue-form h3 { margin-top: 0; }
+  .queue-form label { grid-template-columns: 96px minmax(0, 1fr); }
+
+  /* ---------- history ---------- */
+  .history-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+  .history-combo { padding: 12px 14px 4px; }
+  .history-combo + .history-combo { border-top: 1px solid var(--line); }
+  .history-combo h3 { font-size: 14px; text-transform: none; letter-spacing: 0; color: var(--ink); margin: 0 0 6px; }
+  .history-combo h3 .combination-link { font-weight: 700; }
+  /* One set of column widths for every combination's table, so they line up down the page. */
+  table.history { min-width: 0; table-layout: fixed; font-size: 13px; margin-bottom: 8px; }
+  table.history col.c-run { width: 18%; } table.history col.c-status { width: 34%; } table.history col.c-stories { width: 28%; } table.history col.c-score { width: 20%; }
+  table.history th, table.history td { padding: 6px 8px; vertical-align: middle; overflow-wrap: normal; }
+  table.history thead th { white-space: nowrap; }
+  table.history thead th .term { display: inline; }
+  table.history tr.group-head th { background: var(--bg); text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--ink); border-top: 1px solid var(--line); }
+  .version-label { font-weight: 700; }
+  table.history th.h-run { text-transform: none; letter-spacing: 0; font-size: 14px; background: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  table.history th.h-run .run-link { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); }
+  table.history tbody tr:last-child td, table.history tbody tr:last-child th { border-bottom: 1px solid var(--line); }
+  .status-badge .status-word { font-size: 13px; }
+  .status-note { color: var(--muted); font-size: 12px; }
+  .mini-strip { display: inline-flex; align-items: center; gap: 8px; }
+  .mini-strip .cell { width: 11px; height: 11px; border-radius: 2px; }
+  .of-record strong { font-size: 16px; font-weight: 800; }
+  .of-record .of { color: var(--muted); font-weight: 600; }
+
+  @media (max-width: 1100px) {
+    .mp-now-grid { grid-template-columns: 1fr; }
+  }
+}
+
+/* The machines list. */
+.machines-index {
+  a:focus-visible, button:focus-visible, input:focus-visible, [tabindex="0"]:focus-visible { outline: 2px solid var(--run); outline-offset: 2px; border-radius: 3px; }
+  .mi-list { overflow: visible; }
+  .mi-list > h2 { font-family: inherit; font-size: 14px; }
+  .empty-note { margin: 0; padding: 10px 12px; color: var(--muted); }
+  table.machines { min-width: 0; table-layout: auto; font-size: 13px; }
+  table.machines th[scope="row"] { width: 1%; white-space: nowrap; text-transform: none; letter-spacing: 0; font-size: 15px; background: var(--panel); }
+  table.machines th[scope="row"] .machine-link { font-weight: 700; color: var(--ink); }
+  table.machines td { vertical-align: middle; overflow-wrap: normal; }
+  table.machines td.hw { color: var(--muted); max-width: 320px; }
+  table.machines td.q, table.machines thead th:last-child { width: 1%; white-space: nowrap; }
+  .missing { color: var(--faint); cursor: help; }
+}
+
+/* What a machine is doing now, in a line: shared by the overview and the machines list. */
+:is(.overview-page, .machines-index) {
+  .now-summary { display: inline; line-height: 1.6; }
+  .now-summary .stack-label { font-size: 13px; }
+  .now-summary a.story-run-link { font-size: inherit; margin: 0; color: var(--ink); }
+  .now-summary .sep { color: var(--faint); }
+  .now-title { color: var(--muted); }
+  .now-min { font-weight: 600; white-space: nowrap; }
+  .now-stuck { color: var(--bad); font-weight: 700; white-space: nowrap; }
+  .now-bad { color: var(--bad); font-weight: 600; }
+  .now-wait { color: var(--part); font-weight: 600; }
+  .queue-count { color: var(--muted); }
+}

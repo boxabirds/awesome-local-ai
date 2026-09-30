@@ -1,17 +1,13 @@
-// Where each run's time went: one bar per run, its recorded stories' splits summed, every run on one scale. The same
-// segments, colours and order as the story view's time bars, named from the glossary.
+// Where each run's time went: one bar per run, its recorded stories' splits summed, every run on one scale. Drawn
+// with TimeBars.tsx's SegmentBar and key: the same parts, order, colours and names as every other time bar.
 import type { Row } from "../../../shared/types.ts";
-import type { TermId } from "../../../shared/glossary.ts";
-import { runOrder, runSplit, SPLIT_PARTS, type SplitPart } from "../../../shared/combinationView.ts";
+import { runOrder, runSplit } from "../../../shared/combinationView.ts";
 import { duration } from "../../format.ts";
 import { RunLink } from "../EntityLinks.tsx";
+import { SEGMENTS, SegmentBar, SegmentKey, segName } from "../TimeBars.tsx";
 import { termName, termTip } from "./Term.tsx";
 
 const PERCENT = 100;
-const SEG_TERM: Record<SplitPart, TermId> = {
-  prefill: "segPrefill", decode: "segDecode", modelUnsplit: "segModelUnsplit", compaction: "segCompaction",
-  tools: "segTools", betweenSessions: "segBetweenSessions", other: "segOther",
-};
 
 export function RunTimeBars({ runs }: { runs: Row[] }) {
   const bars = runOrder(runs).map((r) => ({ r, s: runSplit(r) })).filter((b) => b.s);
@@ -20,7 +16,7 @@ export function RunTimeBars({ runs }: { runs: Row[] }) {
   return (
     <figure className="time-bars run-time-bars" aria-label={termName("runTimeSplit")}>
       <figcaption>
-        {SPLIT_PARTS.map((p) => <span key={p} className="legend" data-tip={`${termName(SEG_TERM[p])}: ${termTip(SEG_TERM[p])}`}><i className={`seg-${p}`} />{termName(SEG_TERM[p])}</span>)}
+        <SegmentKey />
       </figcaption>
       {bars.map(({ r, s }) => {
         const sp = s!;
@@ -34,12 +30,10 @@ export function RunTimeBars({ runs }: { runs: Row[] }) {
               {sp.unchecked ? <span className="check-unchecked" tabIndex={0} data-tip={`${sp.unchecked} of its stories' splits were recorded before the harness checked its accounting`}>unchecked</span> : null}
             </span>
             <span className="bar-track">
-              <span className="bar" style={{ width: `${(sp.wall / max) * PERCENT}%` }}>
-                {SPLIT_PARTS.filter((p) => sp.parts[p] > 0).map((p) => (
-                  <span key={p} data-seg={p} className={`seg seg-${p}`} style={{ width: `${(sp.parts[p] / sp.wall) * PERCENT}%` }}
-                    data-tip={`${termName(SEG_TERM[p])} ${duration(sp.parts[p])} (${Math.round((sp.parts[p] / sp.wall) * PERCENT)}%) over ${note}: ${termTip(SEG_TERM[p])}`} />
-                ))}
-              </span>
+              <SegmentBar parts={sp.parts} wall={sp.wall} scaleSeconds={max} tip={(p, secs) => {
+                const term = SEGMENTS.find((x) => x.seg === p)!.term;
+                return `${segName(p)} ${duration(secs)} (${Math.round((secs / sp.wall) * PERCENT)}%) over ${note}: ${termTip(term)}`;
+              }} />
             </span>
             <span className="bar-total num">{duration(sp.wall)}</span>
           </div>

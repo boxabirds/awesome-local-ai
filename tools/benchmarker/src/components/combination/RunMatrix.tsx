@@ -7,7 +7,7 @@ import type { TermId } from "../../../shared/glossary.ts";
 import { buildMatrix, DIVERGENCE, MECHANISM_TERM, METRICS, runTotal, type Matrix, type MatrixCell, type Metric, type StoryMedian } from "../../../shared/combinationView.ts";
 import { scoreOfRecord, unscoredReason } from "../../../shared/stats.ts";
 import { duration } from "../../format.ts";
-import { RunLink, StoryRunLink } from "../EntityLinks.tsx";
+import { RunLink, StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { Missing, Term, termName, termTip } from "./Term.tsx";
 
@@ -156,7 +156,11 @@ export function RunMatrix({ runs, metric, matrix: given }: { runs: Row[]; metric
           <tr>
             <th className="m-run" scope="col"><Term id="runsByStatus" /></th>
             <th className="m-score" scope="col"><Term id="scoreOfRecord" /></th>
-            {matrix.stories.map((id) => <th key={id} className="m-story" scope="col" data-tip={titles.get(id) ? `Story ${id}: ${titles.get(id)}` : `Story ${id}: not built by any run yet`}>{id}</th>)}
+            {matrix.stories.map((id) => (
+              <th key={id} className="m-story" scope="col" data-story={id} data-tip={`${titles.get(id) ? `Story ${id}: ${titles.get(id)}` : `Story ${id}: not built by any run yet`}. Opens the story's page: every combination on it.`}>
+                {runs[0] ? <StoryLink pack={runs[0].pack} story={id}>{id}</StoryLink> : id}
+              </th>
+            ))}
             <th className="m-total" scope="col"><Term id="runTotalMetric" /></th>
           </tr>
         </thead>

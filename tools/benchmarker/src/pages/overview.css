@@ -1,0 +1,42 @@
+/* The overview: "Needs you", "Now", then the Combinations table. Sparse (plan 5.7): each section a panel of its
+   own, one line per item. Scoped to the page; colours are styles.css's tokens only, so dark mode follows. */
+.overview-page {
+  &.page { background: none; border: 0; padding: 0; margin: 0; }
+  a:focus-visible, [tabindex="0"]:focus-visible, button:focus-visible { outline: 2px solid var(--run); outline-offset: 2px; border-radius: 3px; }
+
+  .ov-section { overflow: visible; }
+  .ov-section > h2 { font-family: inherit; font-size: 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+  .ov-section > h2 .count { display: inline-block; min-width: 22px; padding: 0 7px; border-radius: 999px; background: var(--chip); color: var(--ink);
+                            font-size: 12px; font-weight: 700; text-align: center; line-height: 20px; }
+  .ov-section > h2 .count:not([data-count="0"]) { background: var(--ink); color: var(--panel); }
+  .ov-section > h2 .small { margin-left: auto; }
+  .empty-note, .all-well { margin: 0; padding: 10px 12px; font-size: 13px; color: var(--muted); }
+  .all-well { color: var(--ok); font-weight: 600; }
+
+  /* Needs you: tag, what, where to resolve it. */
+  .needs { list-style: none; margin: 0; padding: 0; }
+  .needs li { display: grid; grid-template-columns: 128px minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline;
+              padding: 7px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .needs li:last-child { border-bottom: 0; }
+  .need-tag { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; color: var(--muted); }
+  .need-tag.k-silent, .need-tag.k-unreachable, .need-tag.k-ended, .need-tag.k-rescoreFault { color: var(--bad); }
+  .need-tag.k-idle { color: var(--part); }
+  .need-what { min-width: 0; overflow-wrap: anywhere; }
+  .need-what .stack-label { font-size: 13px; }
+  .need-what a.story-run-link { font-size: inherit; margin: 0; color: inherit; }
+  .resolve { white-space: nowrap; font-size: 12px; font-weight: 600; }
+
+  /* Now: one row per machine. */
+  table.now-table { min-width: 0; table-layout: auto; font-size: 13px; }
+  .now-table th[scope="row"] { width: 1%; white-space: nowrap; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--ink); background: var(--panel); }
+  .now-table thead th:last-child, .now-table td.q { width: 1%; white-space: nowrap; }
+  .now-table td { overflow-wrap: normal; }
+
+  /* The Combinations table keeps its own look (styles.css). */
+  .combinations { margin-bottom: 16px; }
+
+  @media (max-width: 1100px) {
+    .needs li { grid-template-columns: 110px minmax(0, 1fr); }
+    .needs li .resolve { grid-column: 2; }
+  }
+}
