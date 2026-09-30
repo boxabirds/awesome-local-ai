@@ -1141,3 +1141,9 @@ def test_memory_pressure_reaps_orphans_before_the_guard_stops_the_story(monkeypa
     _t.sleep(0.05)
     s.stop()
     assert "reap_pressure" in rec.calls
+
+
+def test_sandbox_hides_the_file_share_that_held_a_clone_of_this_repo():
+    # 25 Sep 2026: 27B canvas-pi-04 read the Opus reference build through a clone at ~/sambashare/tools on gruntus.
+    from drive import SANDBOX_DENY
+    assert Path.home() / "sambashare" in SANDBOX_DENY

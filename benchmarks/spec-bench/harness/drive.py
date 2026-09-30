@@ -58,7 +58,9 @@ WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", BENCH_HOME / "work")).resolve(
 # config/skills/sessions, and other runs' work directories (WORK_ROOT minus the agent's own).
 SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
                 (".claude", ".agents", ".codex", ".config/opencode", ".local/share/opencode", ".mtplx",
-                 ".dbench")),
+                 ".dbench",
+                 # gruntus's file share held a clone of this repo, reference builds and all (25 Sep 2026).
+                 "sambashare")),
                 # The private pack checkout, whichever pack is running: it holds every pack's held-out suite.
                 *[r for r in [packdir.private_checkout()] if r.is_dir()],
                 # The held-out suite's browsers: an agent's `playwright install` would delete them.
