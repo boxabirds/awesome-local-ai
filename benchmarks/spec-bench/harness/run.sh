@@ -232,5 +232,8 @@ uv run --quiet drive.py --run-dir "$RUN_DIR" --base-url "$AGENT_URL" --client "$
   ${ONLY:+--only "$ONLY"} ${RECORD:+--record} ${COMPACT_AT:+--compact-at "$COMPACT_AT"} \
   ${CLIENT_THINKING:+--client-thinking "$CLIENT_THINKING"} ${FROM_RUN:+--from-run "$FROM_RUN"}
 uv run --quiet report.py "$RUN_DIR"
+# The run's history as workspace.bundle, and its final build re-scored under the pack's suite (finalize.py),
+# so a finished run is scored and judgeable without anyone doing it by hand. Never fails the run.
+uv run --quiet finalize.py "$RUN_DIR" --pack "$PACK" ${RECORD:+--record} || true
 FINISHED=1
 record_event finished
