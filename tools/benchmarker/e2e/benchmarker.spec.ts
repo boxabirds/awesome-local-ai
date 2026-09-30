@@ -227,3 +227,70 @@ test("by story: pick a story, every job's numbers for it side by side, and one j
   await page.getByRole("button", { name: "Clear comparison" }).click();
   await expect(swift.locator("td.calls")).toHaveText("95");
 });
+
+test.describe("machines", () => {
+  const machine = (page: Page, name: string) => page.locator(`[data-machine-card="${name}"]`);
+
+  test("lists each machine with its hardware and installs; queue a run and it shows in Runs", async ({ page }) => {
+    await page.getByRole("tab", { name: "Machines" }).click();
+    const g = machine(page, "gruntus");
+    await expect(g).toContainText("NVIDIA GeForce RTX 4090");
+    // Jobs: running first, then the queue in its order.
+    expect(await g.locator("[data-job]").evaluateAll((js) => js.map((j) => (j as HTMLElement).dataset.job)))
+      .toEqual(["vidi-v2b-swift15-r1", "vidi-v2b-swift15-r2", "vidi-v2b-swift15-r3", "vidi-v2b-27b-r1", "vidi-v2b-27b-r2"]);
+    // The form starts on what the machine is running now.
+    await expect(g.getByLabel("Combination")).toHaveValue("swift15-qwen38-27b");
+    await expect(g).toContainText("qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi");
+    await g.getByLabel("Combination").selectOption("qwen38-27b");
+    await g.getByLabel("Run id").fill("v3-r1");
+    await g.getByRole("button", { name: "Queue" }).click();
+    await expect(g).toContainText("vidi-qwen38-27b-v3-r1 queued");
+    await page.getByRole("tab", { name: "Runs" }).click();
+    await page.getByLabel("Version").selectOption("all");
+    await expect(page.locator(`tr:not(.detail)[data-stack="${QWEN_27B}"][data-run="v3-r1"]`)).toContainText("queued");
+  });
+
+  test("stopping a running job asks first; restart resumes it; a queued one is removed without asking", async ({ page }) => {
+    await page.getByRole("tab", { name: "Machines" }).click();
+    const job = machine(page, "gruntus").locator('[data-job="vidi-v2b-swift15-r1"]');
+    await job.getByRole("button", { name: "Stop" }).click();
+    await expect(job).toContainText("throws away the story in progress");
+    await job.getByRole("button", { name: "Keep running" }).click();
+    await expect(job).toContainText("running");
+    await job.getByRole("button", { name: "Log" }).click();
+    await expect(job.locator("pre")).toContainText("fixture log");
+    await job.getByRole("button", { name: "Stop" }).click();
+    await job.getByRole("button", { name: "Yes, stop it" }).click();
+    await expect(job).toContainText("cancelled");
+    await job.getByRole("button", { name: "Restart" }).click();
+    await expect(machine(page, "gruntus").locator('[data-job="vidi-v2b-swift15-r1-again1"]')).toContainText("queued");
+    const queued = machine(page, "gruntus").locator('[data-job="vidi-v2b-swift15-r2"]');
+    await queued.getByRole("button", { name: "Remove" }).click();
+    await expect(queued).toContainText("cancelled");
+  });
+
+  test("adding a machine: its token over SSH, or, when SSH can't, the command to get it and a box to paste it", async ({ page }) => {
+    await page.getByRole("tab", { name: "Machines" }).click();
+    const add = page.getByRole("form", { name: "Add a machine" });
+    await add.getByLabel("Machine name").fill("sshbox");
+    await add.getByRole("button", { name: "Add" }).click();
+    await expect(machine(page, "sshbox")).toBeVisible();
+    await add.getByLabel("Machine name").fill("newbox");
+    await add.getByRole("button", { name: "Add" }).click();
+    await expect(add).toContainText("cat ~/.dbench/token");
+    await add.getByLabel("Token").fill("pasted-token-0123456789");
+    await add.getByRole("button", { name: "Add" }).click();
+    await expect(machine(page, "newbox")).toBeVisible();
+  });
+
+  test("setup explains how to make a machine a node", async ({ page }) => {
+    await page.getByRole("tab", { name: "Setup" }).click();
+    await expect(page.getByRole("heading", { name: "Make a machine a benchmark node" })).toBeVisible();
+    await expect(page.getByText("dbench service-unit")).toBeVisible();
+  });
+
+  test("the server refuses changes that don't come from the page", async ({ request }) => {
+    const r = await request.post("/api/jobs", { data: { node: "gruntus", installId: "qwen38-27b", pack: "benchmarks/vidi", runId: "x" } });
+    expect(r.status()).toBe(403);
+  });
+});

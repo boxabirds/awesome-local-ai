@@ -87,3 +87,24 @@ table.by-job tbody tr { cursor: pointer; }
 table.by-job tr[aria-selected="true"] td { background: var(--chip); }
 table.by-job tr[data-comparison="true"] td { box-shadow: inset 0 2px 0 var(--run), inset 0 -2px 0 var(--run); }
 .clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tabs { display: flex; gap: 2px; }
+.tabs button { border: 1px solid var(--line); background: var(--panel); color: var(--muted); font: inherit; padding: 3px 12px; cursor: pointer; }
+.tabs button:first-child { border-radius: 6px 0 0 6px; } .tabs button:last-child { border-radius: 0 6px 6px 0; }
+.tabs button[aria-selected="true"] { background: var(--chip); color: var(--ink); font-weight: 600; }
+.machine-card h2 { flex-wrap: wrap; }
+.machine-body { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); gap: 16px; padding: 10px 12px; }
+@media (max-width: 900px) { .machine-body { grid-template-columns: 1fr; } }
+.machine-card h3, .add-machine h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 6px; }
+.job-line { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--line); }
+.job-line button, .machine-card button, .queue-form button, .add-machine button { font: inherit; font-size: 12px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 2px 9px; cursor: pointer; }
+button.quiet { border-style: dashed; color: var(--muted); }
+button.danger { background: var(--bad); color: #fff; border-color: var(--bad); }
+.confirm { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font-size: 12px; color: var(--part); }
+.log-view { flex-basis: 100%; max-height: 260px; overflow: auto; font-size: 11px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; white-space: pre-wrap; }
+.queue-form, .add-machine { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.add-machine { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; max-width: 560px; }
+.queue-form label, .add-machine label { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px; align-items: center; }
+.queue-form input, .queue-form select, .add-machine input { background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font: inherit; min-width: 0; }
+.note { color: var(--ok); } .setup { max-width: 860px; line-height: 1.55; } .setup pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow-x: auto; font-size: 12px; }
+.setup h1 { font-size: 20px; } .setup h2 { font-size: 15px; margin-top: 22px; } .setup code { font-size: 12px; }
+table.access { min-width: 0; width: 100%; table-layout: auto; font-size: 13px; } .steps-list li { margin: 8px 0; }

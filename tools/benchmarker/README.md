@@ -47,6 +47,21 @@ Click a run (its first cell) to open one line per recorded story: held-out tests
 build (like the squares), agent minutes, calls, output tokens, read tokens and the cached share, tok/s (output over
 story time), the model-only decode and prefill tok/s where timed, and how many drafted tokens the model accepted.
 
+## Machines and Setup
+
+**Machines** lists the dbench nodes in `~/.config/dbench/nodes.toml` (shared with the `dbench` command
+line): each one's hardware, installed combinations and dbench version, and its jobs (running, then the
+queue in order, then the five latest ended). **Queue a run** takes a combination installed there, a pack,
+a run id and a number of runs. A running job can be **stopped** (after a confirmation: it throws away the
+story in progress); a queued one **removed**; a failed or cancelled one **restarted**, which queues the
+same run under a new job id so it resumes at its first unfinished story. **Log** shows the job's log.
+**Add a machine** takes its Tailscale name: the benchmarker reads its token over SSH if it can, else asks
+you to paste it (with the command to print it), checks the node answers, then saves it (mode 600).
+
+The job actions go through the `dbench` command line; the server accepts them only from the page (a
+header other sites can't send). **Setup** explains how to make a machine a node and what access each
+part needs.
+
 ## By story
 
 **By story** in the header turns the page round: the stories on the left, and for the one picked, a row

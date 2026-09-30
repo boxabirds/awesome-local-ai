@@ -9,6 +9,7 @@ import { parseArgs } from "node:util";
 import type { State } from "../shared/types.ts";
 import { buildRows, machines, webBase, type DbenchJob, type RunRecord } from "./domain.ts";
 import { BRANCH, git, loadFlowCounts, loadJobs, loadRuns } from "./sources.ts";
+import { fakeOps, realOps, type Ops } from "./ops.ts";
 
 const HERE = import.meta.dirname;
 const DIST = resolve(HERE, "../dist");
@@ -93,22 +94,79 @@ function state(): State {
   };
 }
 
+let ops: Ops;
 if (args.fixture) {
   // Fixed inputs for tests: run records, dbench jobs and suites, timestamps made current.
   const f = JSON.parse(readFileSync(resolve(args.fixture), "utf8"));
   // A job with no updated_at was just updated, so it counts as recent however old the fixture is.
   for (const jobs of Object.values(f.jobs as Record<string, DbenchJob[]>)) for (const j of jobs) j.updated_at ??= now();
   Object.assign(src, { records: f.records, suites: f.suites, jobs: f.jobs, web: f.web ?? null, flowCounts: f.flowCounts ?? {}, fetchedAt: now(), dbenchAt: now() });
+  ops = fakeOps(src.jobs, f.machines ?? {});
 } else {
   const repo = resolve(args.repo!);
   src.web = webBase(await git(repo, "remote", "get-url", "origin").catch(() => ""));
   const privateRepo = resolve(args.private ?? join(repo, "../awesome-local-ai-bench-private"));
   every(FETCH_EVERY_MS, () => refreshRepo(repo, privateRepo));
   every(DBENCH_EVERY_MS, refreshDbench);
+  ops = realOps();
 }
 
-createServer((req, res) => {
+/** Changing requests come from the page only: its header, and its own origin when the browser sends one.
+ * A page on another site can't set the header, so it can't queue or stop jobs through this server. */
+function fromPage(req: import("node:http").IncomingMessage): boolean {
+  const origin = req.headers.origin;
+  return req.headers["x-benchmarker"] === "1" && (!origin || origin === `http://127.0.0.1:${args.port}` || origin === `http://localhost:${args.port}`);
+}
+
+async function body(req: import("node:http").IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  for await (const c of req) chunks.push(c as Buffer);
+  try { return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"); } catch { return {}; }
+}
+
+/** The Machines tab's API. Returns false when the path isn't one of its routes. */
+async function machinesApi(req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse, path: string): Promise<boolean> {
+  const send = (code: number, data: unknown) => { res.writeHead(code, { "Content-Type": "application/json", "Cache-Control": "no-store" }); res.end(JSON.stringify(data)); };
+  const changes = req.method !== "GET";
+  if (!path.startsWith("/api/machines") && !path.startsWith("/api/jobs")) return false;
+  if (changes && !fromPage(req)) { send(403, { ok: false, message: "only the benchmarker page can change machines and jobs" }); return true; }
+  const refresh = async () => { if (!args.fixture) await refreshDbench(); };
+  let m: RegExpExecArray | null;
+  if (path === "/api/machines" && req.method === "GET") return send(200, await ops.machines()), true;
+  if (path === "/api/machines" && req.method === "POST") {
+    const b = await body(req);
+    const r = await ops.add({ name: String(b.name ?? ""), url: b.url ? String(b.url) : undefined, token: b.token ? String(b.token) : undefined });
+    if (r.ok) await refresh();
+    return send(r.ok ? 200 : 400, r), true;
+  }
+  if ((m = /^\/api\/machines\/([^/]+)$/.exec(path)) && req.method === "DELETE") return send(200, await ops.remove(decodeURIComponent(m[1]))), true;
+  if (path === "/api/jobs" && req.method === "POST") {
+    const b = await body(req);
+    const r = await ops.submit({
+      node: String(b.node ?? ""), installId: String(b.installId ?? ""), pack: String(b.pack ?? ""), runId: String(b.runId ?? ""),
+      scope: b.scope ? String(b.scope) : undefined, client: String(b.client ?? "pi"), repeat: Number(b.repeat) || 1, id: b.id ? String(b.id) : undefined,
+    });
+    await refresh();
+    return send(r.ok ? 200 : 400, r), true;
+  }
+  if ((m = /^\/api\/jobs\/([^/]+)\/([^/]+)\/(cancel|restart)$/.exec(path)) && req.method === "POST") {
+    const [node, id] = [decodeURIComponent(m[1]), decodeURIComponent(m[2])];
+    const r = m[3] === "cancel" ? await ops.cancel(node, id) : await ops.restart(node, id);
+    await refresh();
+    return send(r.ok ? 200 : 400, r), true;
+  }
+  if ((m = /^\/api\/jobs\/([^/]+)\/([^/]+)\/log$/.exec(path)) && req.method === "GET") {
+    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(await ops.log(decodeURIComponent(m[1]), decodeURIComponent(m[2])));
+    return true;
+  }
+  send(404, { ok: false, message: "no such route" });
+  return true;
+}
+
+createServer(async (req, res) => {
   const path = new URL(req.url ?? "/", "http://x").pathname;
+  if (await machinesApi(req, res, path)) return;
   if (path === "/api/state") {
     res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
     res.end(JSON.stringify(state()));

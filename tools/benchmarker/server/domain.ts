@@ -126,13 +126,22 @@ const packName = (pack: string | undefined) => (pack ?? "").split("/").filter(Bo
 const jobStack = (j: DbenchJob) => j.progress?.combination || j.spec.combination || j.spec.install_id || "";
 
 /** dbench jobs keyed by (combination, pack name, run id); the most recently updated job wins. */
+const live = (j: DbenchJob) => j.state.status === "queued" || j.state.status === "running";
+/** Which of two jobs of one run the run shows: a queued or running one (a restart) over an ended one; then the
+ * latest update; then the later submission. */
+function newer(j: DbenchJob, prev: DbenchJob): boolean {
+  if (live(j) !== live(prev)) return live(j);
+  const later = (j.updated_at ?? 0) - (prev.updated_at ?? 0) || (j.submitted_at ?? 0) - (prev.submitted_at ?? 0) || (j.seq ?? 0) - (prev.seq ?? 0);
+  return later > 0;
+}
+
 export function indexJobs(byNode: Record<string, DbenchJob[]>): Map<string, NodeJob> {
   const idx = new Map<string, NodeJob>();
   for (const [node, jobs] of Object.entries(byNode)) {
     for (const j of jobs) {
       const key = jobKey(jobStack(j), packName(j.spec.pack), j.spec.run_id ?? "");
       const prev = idx.get(key);
-      if (!prev || (j.updated_at ?? 0) > (prev.updated_at ?? 0)) idx.set(key, { ...j, node });
+      if (!prev || newer(j, prev)) idx.set(key, { ...j, node });
     }
   }
   return idx;

@@ -40,7 +40,7 @@ function storiesOf(rows: Row[]): { id: string; title: string }[] {
 }
 
 /** The story view: pick a story; every job's numbers for it side by side; one job as the comparison. */
-export function StoryView({ rows }: { rows: Row[] }) {
+export function StoryView({ rows, hidden = [] }: { rows: Row[]; hidden?: string[] }) {
   const [saved, setSaved] = useState<Saved>(load);
   const [selected, setSelected] = useState<string | null>(null);
   const stories = storiesOf(rows);
@@ -77,6 +77,7 @@ export function StoryView({ rows }: { rows: Row[] }) {
             <button type="button" disabled={!saved.comparison} onClick={() => update({ ...saved, comparison: undefined })}>Clear comparison</button>
           </span>
         </h2>
+        {hidden.length ? <div className="small compare-note">Jobs that are {hidden.join(", ")} are hidden by the status filter above.</div> : null}
         {base ? <div className="small compare-note">Numbers are % of <b>{base.r.label} {base.r.runId}</b> ({base.r.machine}), shown in full on its row; where its number is 0 or missing, each job shows its own.</div> : null}
         <table aria-label={`Story ${story.id} by job`} className="by-job">
           <thead>
