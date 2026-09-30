@@ -1,6 +1,12 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import {
+  initDoc,
+  snapshot,
+  snapshotObjects,
+  type BoardObject,
+  type StickySnapshot,
+} from '../../shared/board-model';
 import {
   connectBoard,
   useConnectionState,
@@ -14,8 +20,20 @@ export interface UseBoardDocResult {
   readonly doc: Y.Doc;
   /** Every sticky note, sorted by (z, id) ascending; recomputed on change. */
   readonly notes: readonly StickySnapshot[];
+  /**
+   * Every object of every kind the board can draw and select, in draw order. Story 7
+   * selects, moves and resizes objects rather than notes only, so the whole document
+   * is what the selection works over; a kind this screen does not know is not in it.
+   */
+  readonly objects: readonly BoardObject[];
   /** State of the live connection to this board's room. */
   readonly connectionState: ConnectionState;
+}
+
+/** Both views of the document, cached together so one change refreshes both. */
+interface BoardCache {
+  notes: readonly StickySnapshot[];
+  objects: readonly BoardObject[];
 }
 
 /**
@@ -37,7 +55,7 @@ export function useBoardDoc(boardId: string): UseBoardDocResult {
   }
   const doc = docRef.current;
 
-  const cacheRef = useRef<readonly StickySnapshot[] | null>(null);
+  const cacheRef = useRef<BoardCache | null>(null);
 
   const subscribe = useCallback(
     (onStoreChange: () => void): (() => void) => {
@@ -54,12 +72,14 @@ export function useBoardDoc(boardId: string): UseBoardDocResult {
     [doc],
   );
 
-  const getSnapshot = useCallback((): readonly StickySnapshot[] => {
-    if (cacheRef.current === null) cacheRef.current = snapshot(doc);
+  const getSnapshot = useCallback((): BoardCache => {
+    if (cacheRef.current === null) {
+      cacheRef.current = { notes: snapshot(doc), objects: snapshotObjects(doc) };
+    }
     return cacheRef.current;
   }, [doc]);
 
-  const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const cache = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   const connectionState = useConnectionState(
     useCallback(
@@ -71,5 +91,5 @@ export function useBoardDoc(boardId: string): UseBoardDocResult {
     ),
   );
 
-  return { doc, notes, connectionState };
+  return { doc, notes: cache.notes, objects: cache.objects, connectionState };
 }

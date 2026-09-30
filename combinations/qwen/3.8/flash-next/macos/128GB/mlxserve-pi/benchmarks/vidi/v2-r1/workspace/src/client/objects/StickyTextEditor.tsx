@@ -24,6 +24,8 @@ export interface StickyTextEditorProps {
   ytext: Y.Text;
   /** Font size the note's display had when editing started; re-fit from here. */
   fontPx: number;
+  /** The note's height in board units; the box the text has to fit (story 7). */
+  height?: number;
   /** Escape -> 'selected'; pointerdown outside the note -> 'unselected'. */
   onEnd(next: 'selected' | 'unselected'): void;
 }
@@ -37,6 +39,7 @@ export interface StickyTextEditorProps {
 export function StickyTextEditor({
   ytext,
   fontPx,
+  height,
   onEnd,
 }: StickyTextEditorProps): ReactNode {
   const ref = useRef<HTMLTextAreaElement | null>(null);
@@ -45,11 +48,15 @@ export function StickyTextEditor({
   const [overflow, setOverflow] = useState(false);
   const [length, setLength] = useState(() => ytext.toString().length);
 
+  // Kept in a ref so `measure` keeps its identity when the note is resized.
+  const heightRef = useRef(height);
+  heightRef.current = height;
+
   /** Re-measure the textarea and update font / overflow state (idempotent). */
   const measure = useCallback((): void => {
     const el = ref.current;
     if (!el) return;
-    const result = fitFontSize(el, stickyTextContentBox());
+    const result = fitFontSize(el, stickyTextContentBox(heightRef.current));
     setFont((prev) => (prev === result.fontPx ? prev : result.fontPx));
     setOverflow((prev) => (prev === result.overflow ? prev : result.overflow));
   }, []);

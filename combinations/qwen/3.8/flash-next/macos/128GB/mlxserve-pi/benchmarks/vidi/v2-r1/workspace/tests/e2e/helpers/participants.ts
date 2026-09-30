@@ -387,10 +387,12 @@ export async function selectNote(who: Participant, id: string): Promise<void> {
 }
 
 /**
- * One note's corner of the page: its toolbar, its swatches, its bin, its editor.
- * Every interaction with a particular note goes through this, because a board can
- * hold a selected note somewhere else on it — off this person's view, with a
- * toolbar of its own that a page-wide selector would find first.
+ * One note's corner of the page: its editor, and the id its element carries.
+ * Since story 7 the note's *tools* are not part of the note: the selection bar holds
+ * them (see `recolour` and `deleteNote`), and there is exactly one bar per screen,
+ * so a page-wide locator is now the right one — a board cannot hold two toolbars.
+ * What stays addressed by id is the note itself, which can be anywhere, and its
+ * editor, which belongs to the note.
  */
 const noteLocator = (who: Participant, id: string): Locator =>
   who.page.locator(`[data-testid="sticky-note"][data-id="${id}"]`);
@@ -398,24 +400,24 @@ const noteLocator = (who: Participant, id: string): Locator =>
 /** Recolour a note from the toolbar's swatch (the note has to be selected). */
 export async function recolour(who: Participant, id: string, colour: string): Promise<void> {
   await selectNote(who, id);
-  const note = noteLocator(who, id);
+  const bar = who.page.getByTestId('note-toolbar');
   await expect(
-    note.getByTestId('note-toolbar'),
-    `${who.name} has no toolbar up, so ${id} is not selected`,
+    bar,
+    `${who.name} has no toolbar up, so ${id} is not the one note selected`,
   ).toBeVisible();
-  await note.getByRole('button', { name: `${colour} colour` }).click();
+  await bar.getByRole('button', { name: `${colour} colour` }).click();
   await settle(who.page);
 }
 
 /** Delete a note with the toolbar's bin (the note has to be selected). */
 export async function deleteNote(who: Participant, id: string): Promise<void> {
   await selectNote(who, id);
-  const note = noteLocator(who, id);
+  const bar = who.page.getByTestId('note-toolbar');
   await expect(
-    note.getByTestId('note-toolbar'),
-    `${who.name} has no toolbar up, so ${id} is not selected`,
+    bar,
+    `${who.name} has no toolbar up, so ${id} is not the one note selected`,
   ).toBeVisible();
-  await note.getByRole('button', { name: 'Delete note' }).click();
+  await bar.getByRole('button', { name: 'Delete note' }).click();
   await settle(who.page);
 }
 

@@ -70,6 +70,21 @@ interface BoardViewportProps {
   onEmptyClick?(point: Point): void;
   /** A double-click on empty board space (creates a note at that point). */
   onEmptyDoubleClick?(point: Point): void;
+  /**
+   * Marquee selection (story 7). Shift held on a press on empty space draws a
+   * selection box instead of panning; without Shift, nothing here changes.
+   */
+  marquee?: MarqueeHandlers;
+}
+
+/** The four moments of a marquee drag, driven by the viewport's own pointer events. */
+export interface MarqueeHandlers {
+  begin(point: Point): void;
+  move(point: Point): void;
+  /** Release: whatever the box caught is selected. */
+  end(point: Point): void;
+  /** Interrupted: the box goes away and the selection stays as it was. */
+  cancel(): void;
 }
 
 /**
@@ -83,6 +98,7 @@ export function BoardViewport({
   chrome,
   onEmptyClick,
   onEmptyDoubleClick,
+  marquee,
 }: BoardViewportProps): ReactNode {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<Size>(measureWindow);
@@ -90,6 +106,8 @@ export function BoardViewport({
   // Tracks a press that started on empty space so we can tell a click (clear
   // selection) from a pan.
   const emptyDownRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  // A press that began the selection box rather than a pan.
+  const marqueeDownRef = useRef<boolean>(false);
 
   const {
     camera,
@@ -226,14 +244,25 @@ export function BoardViewport({
       if (event.target !== event.currentTarget) return;
       if (event.button !== 0) return;
       event.currentTarget.setPointerCapture?.(event.pointerId);
+      const point = { x: event.clientX, y: event.clientY };
+      // Shift on empty space is the selection box; without it, exactly the story 1 pan.
+      if (event.shiftKey && marquee) {
+        marqueeDownRef.current = true;
+        marquee.begin(point);
+        return;
+      }
       emptyDownRef.current = { x: event.clientX, y: event.clientY, moved: false };
-      beginPan({ x: event.clientX, y: event.clientY });
+      beginPan(point);
     },
-    [beginPan],
+    [beginPan, marquee],
   );
 
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (marqueeDownRef.current) {
+        marquee?.move({ x: event.clientX, y: event.clientY });
+        return;
+      }
       const down = emptyDownRef.current;
       if (down) {
         const dx = event.clientX - down.x;
@@ -242,19 +271,25 @@ export function BoardViewport({
       }
       panMove({ x: event.clientX, y: event.clientY });
     },
-    [panMove],
+    [panMove, marquee],
   );
 
   const onPointerEnd = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
+      if (marqueeDownRef.current) {
+        marqueeDownRef.current = false;
+        // The box selects on release, however short the drag was.
+        marquee?.end({ x: event.clientX, y: event.clientY });
+        return;
+      }
       endPan();
       const down = emptyDownRef.current;
       emptyDownRef.current = null;
       // A press+release on empty space that never panned clears the selection.
       if (down && !down.moved) onEmptyClick?.({ x: event.clientX, y: event.clientY });
     },
-    [endPan, onEmptyClick],
+    [endPan, onEmptyClick, marquee],
   );
 
   const onDoubleClick = useCallback(
@@ -269,9 +304,15 @@ export function BoardViewport({
 
 
   const onPointerCancel = useCallback(() => {
-    // A system interruption ends the drag; the board stays where it was.
+    // A system interruption ends the drag; the board stays where it was. A marquee
+    // that is interrupted selects nothing (TC-22).
+    if (marqueeDownRef.current) {
+      marqueeDownRef.current = false;
+      marquee?.cancel();
+      return;
+    }
     endPan();
-  }, [endPan]);
+  }, [endPan, marquee]);
 
   const onLostPointerCapture = useCallback(() => {
     endPan();

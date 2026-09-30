@@ -67,6 +67,31 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 /** The colour a freshly created note gets. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+// --- Selecting and transforming several objects at once (story 7) ------------
+
+/** Selection handles are this many screen pixels across, at any zoom. */
+export const HANDLE_SIZE_PX = 8;
+
+/**
+ * The shortest edge a selection may squeeze a sticky note to. Resize handles on
+ * the selection box, and any drag that ends up shrinking a note, stop at this
+ * size, so the text is never squeezed to nothing.
+ */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/**
+ * The largest edge any object may be given, by dragging a resize handle outwards
+ * or by any other route. Keeps a runaway drag inside the range the board can
+ * render and pan back to.
+ */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** How far one arrow key press moves a selection, in world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** How far one Shift + arrow key press moves a selection, in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 // --- Live collaboration (story 3) --------------------------------------------
 
 /**

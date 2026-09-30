@@ -3,7 +3,8 @@ import { fireEvent } from '@testing-library/react';
 /** Viewport the component tests run in (matches setup.ts). */
 export const VIEWPORT = { width: 1280, height: 800 };
 
-type PointerType =
+/** The pointer events a test may need to fake. */
+export type PointerType =
   | 'pointerdown'
   | 'pointermove'
   | 'pointerup'
@@ -13,6 +14,8 @@ type PointerType =
 interface PointerOptions {
   pointerId?: number;
   button?: number;
+  /** Shift is how a marquee starts and how a toggle-select is pressed. */
+  shiftKey?: boolean;
 }
 
 /**
@@ -20,9 +23,12 @@ interface PointerOptions {
  * bubbling event carrying the properties React's synthetic pointer events read
  * (clientX/clientY from the MouseEvent interface, pointerId/pointerType/isPrimary
  * from the PointerEvent interface).
+ *
+ * Pass `window` for the moves and releases a drag hands to the window listeners the
+ * transform gesture installs — which is exactly where they land in a real browser.
  */
 export function dispatchPointer(
-  element: Element,
+  element: Element | Window,
   type: PointerType,
   x: number,
   y: number,
@@ -53,6 +59,7 @@ export function dispatchPointer(
     button: options.button ?? 0,
     buttons: pressed ? 1 : 0,
     isPrimary: true,
+    shiftKey: options.shiftKey ?? false,
     detail: 0,
     view: window,
   });

@@ -20,10 +20,12 @@ export const STICKY_TEXT_PADDING_WORLD = 16;
 /**
  * The height a text element's `scrollHeight` must stay under to fit. The text
  * element fills the note (border-box), so its `clientHeight` is the full note
- * size and `scrollHeight` already includes the padding; comparing to the note
- * size is the correct fit test.
+ * height and `scrollHeight` already includes the padding; comparing to the note
+ * height is the correct fit test. Story 7 made notes resizable, so the box is the
+ * note's own height; the default is the size a note has never been resized from.
  */
-export const stickyTextContentBox = (): number => STICKY_SIZE_WORLD;
+export const stickyTextContentBox = (noteHeight?: number): number =>
+  noteHeight !== undefined && noteHeight > 0 ? noteHeight : STICKY_SIZE_WORLD;
 
 const isHighSurrogate = (code: number): boolean =>
   code >= 0xd800 && code <= 0xdbff;

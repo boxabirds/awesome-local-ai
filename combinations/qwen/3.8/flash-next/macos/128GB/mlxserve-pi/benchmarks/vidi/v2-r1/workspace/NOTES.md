@@ -150,3 +150,138 @@ task 3 (sticky-text unit tests, red), task 4 (`StickyText` + `StickyTextEditor`)
 (`StickyNote`, `NoteToolbar`, `Toolbar`, `useSelection`, `App` + `BoardViewport` wiring — these
 mount together and cannot be checked against the story's "Done when" apart), task 7 (component
 tests), task 8 (e2e).
+
+---
+
+# Story 7 — Select, move, resize and delete several objects at once
+
+Deviations from `spec/stories/007-select-move-resize-and-delete-several-objects-at-o/`
+and the open decisions the design left to the implementer. Nothing here drops a test or
+weakens a requirement: 307 unit/component tests and 7 new e2e tests are additions.
+
+## Model and geometry (`src/shared`)
+
+1. **`readObject` returns the whole object, `snapshot()` is a filter over it.** The design
+   lists `snapshotObjects(doc)` next to the story 2 `snapshot(doc)`; keeping two readers
+   would mean two places to get a field wrong. `readObject` now returns
+   `BoardObject = StickySnapshot | ObjectSnapshot` (sticky text/colour included),
+   `readableObjects` returns them in draw order, and
+   `snapshot(doc) = readableObjects(doc).filter(isStickySnapshot)`. The story 2
+   `ReadableObject` interface is gone; `data-*` attributes on a note are read from the
+   sticky half of the union. `toEqual` in the story 2 tests still passes because the extra
+   fields are `undefined` for non-stickies and `toEqual` ignores those.
+2. **Story 2's single-object functions are wrappers**: `moveObject(doc, id, x, y)` is
+   `moveObjects(doc, [id], …) > 0`, `bringToFront(doc, id)` is
+   `bringObjectsToFront(doc, [id]) > 0`. One implementation of "move" and "raise".
+3. **`bringObjectsToFront` raises in one transaction, keeping relative order**: it takes the
+   top unselected object's `z + 1, +2, …`, and returns 0 (no transaction, so no remote echo)
+   when the selection is already on top.
+4. **`resizeObjects` clamps per object**, to `[objectMinSize(type), MAX_OBJECT_SIZE_WORLD]`,
+   so one object reaching its floor cannot stop the rest of the group.
+   `resizeSelection` composes the box-level scale (`askedResizeScale` → `clampScale` →
+   `scaleRectByFactor` → `scaleWithin`) and hands the resulting map to `resizeObjects`.
+5. **`askedResizeScale` is exported separately** from `resizeRect`, because the gesture has
+   to know the scale it is *being asked* for before `clampScale` can judge it (a handle
+   dragged 3× past the maximum should land at the maximum, not overshoot and come back).
+   `resizeRect(start, handle, delta, aspectLocked)` stays the one-call version.
+6. **Type registration is split in two**, because `src/shared` is compiled for the Worker
+   with no DOM lib: `registerObjectTypeModel(type, minSize?)` (data only, used by
+   `board-model` to decide what is readable and how small it may go) and
+   `registerObjectType(type, spec)` (React component + per-type resize rules, client only).
+   `MAX_OBJECT_SIZE_WORLD` is one global ceiling, as the design wrote it; the floor is
+   per type (`STICKY_MIN_SIZE_WORLD = 50`, the test box's is 10).
+7. **Nudge steps are world units**, not screen pixels: `NUDGE_STEP_WORLD = 1`,
+   `NUDGE_LARGE_STEP_WORLD = 10` (Shift). At 400% a nudge is 40 screen pixels; at 25% it is
+   a quarter of one. That is what "the object moves" means on a zoomed board — a fixed pixel
+   step would move objects at different speeds depending on how far you are zoomed out.
+
+## Client wiring
+
+8. **`useSelection` does not drop actions for absent ids; it prunes instead.** The design says
+   "actions referring to absent ids are ignored". A guard that checks ids against the
+   *snapshot captured at render time* is wrong in one case that matters: double-click
+   creates a note and selects it in the same event handler, and the snapshot has not been
+   recomputed yet — the note would be created and never selected. Instead every action is
+   applied, and an effect dispatches `{type: 'prune', presentIds}` whenever the set of
+   present ids changes, which is what actually implements the two requirements the guard
+   was for: a deleted object leaves the selection (TC-15, e2e TC-35) and no ghost id is
+   ever in `selection.ids` by the time anything reads it. `selection.ids` is only ever read
+   after a render, and the prune runs before that.
+9. **Raise-on-press only for a lone selection.** Story 2 raised a note on every press that
+   selected it. With groups, raising a note that is one of six selected would drag it out
+   from under the group's own box. So `onObjectPointerDown` raises when the press leaves
+   exactly one object selected and Shift was not held. Double-click-to-front (story 2
+   TC-21) still holds: that press selects one note.
+10. **Shift-click toggles** (`selection.toggle`) rather than "click with add", which is the
+    only way a second Shift-press can *remove* (TC-13/TC-14). A Shift-press never raises.
+11. **The marquee is additive** (design: "objects already selected stay selected"). The e2e
+    tests that count what a box takes press Escape first, because a note left over from
+    creating it is already in the selection and the box keeps it.
+12. **`canEdit` is checked once, at the top of the key handler**, and a read-only board gets
+    no marquee at all (`Board` passes `undefined` for the viewport's `marquee` handlers). The
+    design gated each branch separately; a board nobody may edit has no selection to
+    select, move or delete, so gating the whole handler is the same rule stated once. The
+    `Toolbar`'s `disabled` prop is unchanged.
+13. **`SelectionBar` shows a count only when a count is the useful thing**: with exactly one
+    sticky note selected it holds that note's own tools (`NoteToolbar`, unchanged markup and
+    test id), with anything else it holds `N selected` (`aria-live="polite"`) and `Delete`
+    (`aria-label="Delete selection"`). So there is no `"1 selected"` text for a note — the
+    note's toolbar is a better description of one note than the number 1 is, and story 2's
+    toolbar tests keep passing untouched. `selection-count` is absent, not empty, in that
+    case; the e2e tests assert that.
+14. **Local constants in `SelectionBar`, not new config**: `TOOLBAR_WIDTH_PX`, `BAR_WIDTH_PX`,
+    `BAR_HEIGHT_PX`, `EDGE_INSET_PX`. The design's config list did not include them, and
+    they are the bar's own layout, not board behaviour. `MIN_SELECTION_BOUNDARY_PX` was
+    deliberately *not* added for the same reason.
+15. **The bar is clamped into the window** (max/min against the viewport size), so that a
+    selection near an edge still has a Delete button a real pointer can reach — Playwright
+    refuses to click anything drawn outside the viewport, which is the same physical fact a
+    person has.
+16. **`screenOf(rect, camera)` lives in `Marquee.tsx`** and is reused by `SelectionOverlay`:
+    both draw a world rectangle in screen space, and a projection duplicated across two
+    files is how the two eventually disagree.
+17. **`StickyTextEditor` gained an optional `height`** (a resized note clips its text at its
+    new height). It is held in a ref rather than added to the `measure` dependency list, so
+    the measuring function stays the same function across a resize and the auto-fit does not
+    restart on every animation frame.
+18. **The gesture listens on `window`, not via pointer capture.** The design says "pointer
+    capture during marquee/drag"; capture cannot be asserted in jsdom (it does not exist
+    there — see story 2 note 8) and window listeners are what actually survives a pointer
+    that leaves the object mid-drag. `setPointerCapture?.()` is still called where available.
+
+## Testing
+
+19. **A test object type, to prove the machinery is generic.** `tests/fixtures/testbox.tsx`
+    registers `testbox`: resizable, *not* aspect-locked, minimum 10 units. Without it, every
+    "the handles resize the selection" test would only ever prove that stickies stay square.
+    `registerTestboxType()` is idempotent because the registry throws on a duplicate name.
+20. **`tests/component/helpers/events.ts`** grew `shiftKey` on `PointerOptions`, accepts an
+    `Element | Window` target (a drag is owned by the window, a pan and a marquee by the
+    viewport element), and exports `PointerType`.
+21. **e2e helpers, additive**: `NoteInfo` gained `id` (the id one screen shows is the id
+    every screen shows — the only way to compare two people's boards), `createNote` returns
+    the id it created, and there are `selectedCount`, `selectedIds`, `selectionText`,
+    `selectAllOnBoard`, `clearSelection`, `marquee`, `marqueeCancelled`, `dragHandle`,
+    `gapBetween`. `selectionBar`/`deleteSelectionButton` address the bar by test id.
+22. **`tests/e2e/helpers/participants.ts`**: `recolour` and `deleteNote` now read the toolbar
+    from the page (`who.page.getByTestId('note-toolbar')`) instead of from inside the note,
+    because story 7 moved a note's tools into the selection bar — one bar per screen, not one
+    per note. No assertions in any existing test changed.
+23. **Pre-existing e2e failures, not story 7's.** `share-board.spec.ts` TC-27 and TC-28 fail
+    on all three browsers and TC-26 on Chromium at the commit this story started from:
+    verified with `git stash push -u` and re-running those specs on the stashed tree. The
+    types' `Property 'includes' does not exist on type 'never'` error at
+    `share-board.spec.ts:172` is the pre-existing `npm run typecheck` failure and is
+    untouched. Everything else (136 tests) passes.
+
+## Commits
+
+Three: `geometry.ts` + group operations and their unit tests (TC-01…TC-10, red first);
+the selection/gesture/marquee/overlay/bar/keyboard layer wired into `Board` with its unit
+and component tests; this e2e layer plus the helper updates.
+
+## Not done (out of scope, per the brief)
+
+Stories 6 and 13–17 are not implemented, so no hooks are taken for them: the selection is
+not broadcast to other people (story 6's presence would carry it), and there is no undo
+(story 13) — every group edit is one Y.Doc transaction, which is the granularity undo wants.
