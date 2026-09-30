@@ -66,8 +66,8 @@ def test_the_listening_process_is_found_from_ss_or_lsof_output():
 
 
 def test_home_is_never_written_into_the_record():
-    argv = ["/home/julian/.local/share/x/llama.cpp/build/bin/llama-server", "-m", "/home/julian/.local/share/x/models/m.gguf"]
-    assert I.tilde(argv, "/home/julian") == ["~/.local/share/x/llama.cpp/build/bin/llama-server", "-m",
+    argv = ["/home/you/.local/share/x/llama.cpp/build/bin/llama-server", "-m", "/home/you/.local/share/x/models/m.gguf"]
+    assert I.tilde(argv, "/home/you") == ["~/.local/share/x/llama.cpp/build/bin/llama-server", "-m",
                                             "~/.local/share/x/models/m.gguf"]
 
 
