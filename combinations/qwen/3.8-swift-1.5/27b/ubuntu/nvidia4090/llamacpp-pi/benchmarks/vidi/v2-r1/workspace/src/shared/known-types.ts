@@ -17,6 +17,7 @@ const knownTypes = new Set<string>();
 knownTypes.add('sticky');
 knownTypes.add('shape');
 knownTypes.add('connector');
+knownTypes.add('stroke');
 
 export function registerKnownType(type: string): void {
   knownTypes.add(type);

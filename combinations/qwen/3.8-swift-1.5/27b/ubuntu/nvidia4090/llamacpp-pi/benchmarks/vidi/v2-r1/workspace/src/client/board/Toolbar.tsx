@@ -124,6 +124,17 @@ export function Toolbar({ tool, onToolChange, onCreateSticky, disabled, canUndo,
       >
         →
       </button>
+      <button
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        data-testid="tool-pen"
+        title="Pen (P) – draw freehand"
+        disabled={disabled}
+        onClick={() => onToolChange('pen')}
+        style={toolButtonStyle(tool === 'pen', Boolean(disabled))}
+      >
+        ✎
+      </button>
       {onUndo && onRedo && (
         <UndoButtons
           canUndo={!!canUndo}

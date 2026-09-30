@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, ReactNode } from 'react';
 import { Camera, Point } from './camera';
-import { GRID_SPACING_WORLD } from '@shared/config';
+import { GRID_SPACING_WORLD, WHEEL_DELTA_LINE, WHEEL_DELTA_PAGE } from '@shared/config';
 
 interface BoardViewportProps {
   camera: Camera;
@@ -29,11 +29,16 @@ interface BoardViewportProps {
    */
   textToolActive?: boolean;
   onTextCreate?: (screenPoint: Point) => void;
+  /**
+   * Story 11: the Pen tool is active. Pointer drags are routed to the
+   * PenTool overlay and must NOT pan the board; wheel/pinch navigation is
+   * unchanged (PRD pen.navigation).
+   */
+  penToolActive?: boolean;
   children?: ReactNode;
 }
 
-const WHEEL_DELTA_LINE = 16;
-const WHEEL_DELTA_PAGE = 100;
+
 // Story 9: a Text-tool pointerup this close to the pointerdown is a click.
 const CLICK_SLOP_PX = 4;
 
@@ -55,6 +60,7 @@ export function BoardViewport({
   onMarqueeCancel,
   textToolActive,
   onTextCreate,
+  penToolActive,
   children,
 }: BoardViewportProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -82,6 +88,11 @@ export function BoardViewport({
     // Only start drag on the viewport/grid itself
     const target = e.target as HTMLElement;
     if (target !== ref.current && !target.classList.contains('board-grid')) return;
+    if (penToolActive) {
+      // Story 11: Pen tool — drags draw strokes (PenTool overlay owns the
+      // gesture); never pan, never move objects (PRD pen.navigation).
+      return;
+    }
     if (textToolActive) {
       // Story 9: Text tool — no pan, no marquee; a click creates text.
       textDownRef.current = getPoint(e);
@@ -102,7 +113,7 @@ export function BoardViewport({
     }
     marqueeRef.current = false;
     beginPan(getPoint(e));
-  }, [beginPan, getPoint, onMarqueeBegin, textToolActive]);
+  }, [beginPan, getPoint, onMarqueeBegin, textToolActive, penToolActive]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!draggingRef.current) return;

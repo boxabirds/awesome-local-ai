@@ -18,9 +18,11 @@ import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
 import type { TextSnapshot } from '@shared/objects/text';
+import { scaledPoints, type StrokeSnap } from '@shared/objects/stroke';
 import { distanceToPolyline } from '@shared/geometry/polyline';
-import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD } from '@shared/config';
+import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from '@shared/config';
 
 /** Props handed to every object component by the board renderer. */
 export interface ObjectProps {
@@ -53,7 +55,12 @@ export interface ObjectTypeSpec {
    * content and must not be scaled by a handle). Default 'all'.
    */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * True when a click at `worldPoint` hits this object. `zoom` is the
+   * current camera zoom, needed by types whose hit tolerance is expressed
+   * in screen pixels (story 10 connectors, story 11 strokes).
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const specs = new Map<string, ObjectTypeSpec>();
@@ -142,5 +149,28 @@ registerObjectType('connector', {
       ? { x: connector.to.x, y: connector.to.y }
       : { x: connector.to.fallback?.x ?? obj.x + obj.width, y: connector.to.fallback?.y ?? obj.y };
     return distanceToPolyline([from, to], p) <= CONNECTOR_HIT_TOLERANCE_PX;
+  },
+});
+
+// Story 11: freehand strokes. Selected by their line (distance to the
+// polyline, not the bbox); resized proportionally with unchanged
+// thickness (PRD pen.select / pen.resize).
+const StrokeObjectAdapter: ComponentType<ObjectProps> = (props) => (
+  <StrokeObject {...props} />
+);
+
+registerObjectType('stroke', {
+  Component: StrokeObjectAdapter,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, p, zoom = 1) => {
+    const s = obj as StrokeSnap;
+    const tolerance = Math.max(
+      PEN_THICKNESS_WORLD[s.thickness] / 2,
+      STROKE_HIT_TOLERANCE_PX / zoom,
+    );
+    return distanceToPolyline(scaledPoints(s), p) <= tolerance;
   },
 });

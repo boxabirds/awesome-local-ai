@@ -3,6 +3,7 @@ import { STICKY_SIZE_WORLD, STICKY_COLORS, DEFAULT_STICKY_COLOR, type StickyColo
 import type { TextSnapshot } from './objects/text';
 import type { ShapeSnap } from './objects/shape';
 import type { ConnectorSnap, Endpoint } from './objects/connector';
+import type { StrokeSnap, PenColor, PenThickness } from './objects/stroke';
 import { resolveEndpoints, connectorBBox } from './objects/connector';
 import { detachConnectorsTo } from './objects/connector';
 import { isKnownType } from './known-types';
@@ -318,6 +319,20 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       const labelObj = obj.get('label');
       const label = labelObj instanceof Y.Text ? labelObj.toString() : '';
       result.push({ ...base, kind, fill, stroke, label } as ShapeSnap);
+    } else if (type === 'stroke') {
+      const points = obj.get('points');
+      const color = obj.get('color') as PenColor;
+      const thickness = obj.get('thickness') as PenThickness;
+      if (Array.isArray(points) && typeof color === 'string' && typeof thickness === 'string') {
+        result.push({
+          ...base,
+          points,
+          baseWidth: positiveNumber(obj.get('baseWidth'), base.width),
+          baseHeight: positiveNumber(obj.get('baseHeight'), base.height),
+          color,
+          thickness,
+        } as StrokeSnap);
+      }
     } else if (type === 'connector') {
       const from = obj.get('from') as Endpoint;
       const to = obj.get('to') as Endpoint;

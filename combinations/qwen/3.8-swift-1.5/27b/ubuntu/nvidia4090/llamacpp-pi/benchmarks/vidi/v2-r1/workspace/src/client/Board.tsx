@@ -15,6 +15,9 @@ import { useBoardKeys } from './board/useBoardKeys';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
@@ -76,6 +79,9 @@ export function Board(props: { boardId: string }) {
     onSelect: (id) => selection.click(id),
     canEdit: editAllowed,
   });
+
+  // Story 11: session-only pen options (colour and thickness).
+  const penOptions = usePenOptions();
 
   // Story 8: create one undo controller per board doc.
   const undoCtrlRef = useRef<UndoController | null>(null);
@@ -305,6 +311,7 @@ export function Board(props: { boardId: string }) {
         onMarqueeCancel={marquee.cancel}
         textToolActive={toolState.tool === 'text'}
         onTextCreate={handleTextCreate}
+        penToolActive={toolState.tool === 'pen'}
       >
         {objects.map((obj) => {
           const spec = getObjectType(obj.type);
@@ -348,6 +355,28 @@ export function Board(props: { boardId: string }) {
           snapshot={objects}
           createdBy={SESSION_ID}
           onCreated={handleToolCreated}
+        />
+      )}
+      {/* Story 11: Pen tool overlay (local preview; strokes commit on
+          finish). The pen stays active after each stroke. */}
+      {toolState.tool === 'pen' && editAllowed && doc && (
+        <PenTool
+          camera={cam.camera}
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          doc={doc}
+          identityId={SESSION_ID}
+          onCommitted={() => undoController?.boundary()}
+          wheel={cam.wheel}
+        />
+      )}
+      {/* Story 11: pen options toolbar (visible while Pen is active). */}
+      {toolState.tool === 'pen' && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
         />
       )}
       {/* Story 10: Shape toolbar (when exactly one shape is selected) */}
