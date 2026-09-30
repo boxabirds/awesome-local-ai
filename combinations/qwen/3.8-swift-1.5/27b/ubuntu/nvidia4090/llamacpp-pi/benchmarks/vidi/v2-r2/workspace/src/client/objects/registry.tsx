@@ -2,12 +2,14 @@ import type { ComponentType } from 'react';
 import type * as Y from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds, registerKnownType } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from '../../shared/config';
 import type { Point } from '../canvas/camera';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
+import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
 import { TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 
@@ -55,8 +57,12 @@ export interface ObjectTypeSpec {
    * content).
    */
   handles?: 'all' | 'horizontal';
-  /** Hit-test in world coordinates (marquee uses bounds; types may override). */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Hit-test in world coordinates (marquee uses bounds; types may override).
+   * `zoom` is the current camera zoom, for types whose tolerance is defined
+   * in screen pixels (story 10 connectors, story 11 strokes).
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const REGISTRY = new Map<string, ObjectTypeSpec>();
@@ -124,6 +130,23 @@ registerObjectType('shape', {
   hitTest: (obj, p) => {
     const b = objectBounds(obj);
     return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+  },
+});
+
+// Strokes (story 11): select by the line — a click selects the stroke only
+// within max(thickness/2, STROKE_HIT_TOLERANCE_PX/zoom) world units of it;
+// clicks farther away (even inside the bbox) fall through to objects below.
+// Proportional resize: aspectLocked + scaledPoints; thickness is not scaled.
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, p, zoom = 1) => {
+    const s = obj as StrokeSnap;
+    const tol = Math.max(PEN_THICKNESS_WORLD[s.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom);
+    return distanceToPolyline(scaledPoints(s), p) <= tol;
   },
 });
 

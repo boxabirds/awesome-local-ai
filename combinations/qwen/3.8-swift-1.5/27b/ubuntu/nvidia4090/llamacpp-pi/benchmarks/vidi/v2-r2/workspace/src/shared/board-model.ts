@@ -1,9 +1,10 @@
 import * as Y from 'yjs';
-import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR, STICKY_COLORS, type StickyColor, TEXT_SIZES, type TextSize, SHAPE_FILL_COLORS, SHAPE_STROKE_COLORS, type FillColor, type StrokeColor, type ShapeKind } from './config';
+import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR, STICKY_COLORS, type StickyColor, TEXT_SIZES, type TextSize, SHAPE_FILL_COLORS, SHAPE_STROKE_COLORS, type FillColor, type StrokeColor, type ShapeKind, PEN_COLORS, PEN_THICKNESS_WORLD, type PenColor, type PenThickness } from './config';
 import { rectContains, type Rect, type Point } from './geometry';
 import type { TextSnapshot } from './objects/text';
 import type { ShapeSnap } from './objects/shape';
 import type { ConnectorSnap } from './objects/connector';
+import type { StrokeSnap } from './objects/stroke';
 import { detachConnectorsTo } from './objects/connector';
 import { resolveEndpoints as resolveEndpointsGeo, connectorBBox, type ConnectorEndpointSnap } from './geometry/connector-geometry';
 
@@ -367,6 +368,25 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       (entry as TextSnapshot).widthMode = widthMode === 'fixed' ? 'fixed' : 'auto';
       (entry as TextSnapshot).createdAt = typeof createdAt === 'number' ? createdAt : 0;
       (entry as TextSnapshot).createdBy = typeof createdBy === 'string' ? createdBy : '';
+    } else if (type === 'stroke') {
+      const points = obj.get('points');
+      const baseWidth = obj.get('baseWidth');
+      const baseHeight = obj.get('baseHeight');
+      const color = obj.get('color');
+      const thickness = obj.get('thickness');
+      if (
+        !Array.isArray(points) || points.some((v) => typeof v !== 'number' || !Number.isFinite(v)) ||
+        typeof baseWidth !== 'number' || typeof baseHeight !== 'number' ||
+        typeof color !== 'string' || !(color in PEN_COLORS) ||
+        typeof thickness !== 'string' || !(thickness in PEN_THICKNESS_WORLD)
+      ) {
+        return;
+      }
+      (entry as StrokeSnap).points = points as number[];
+      (entry as StrokeSnap).baseWidth = baseWidth;
+      (entry as StrokeSnap).baseHeight = baseHeight;
+      (entry as StrokeSnap).color = color as PenColor;
+      (entry as StrokeSnap).thickness = thickness as PenThickness;
     }
     result.push(entry);
   });

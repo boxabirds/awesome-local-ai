@@ -27,6 +27,9 @@ import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
 import { ShapeToolbar } from '../objects/ShapeToolbar';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import type { StickyColor, FillColor, StrokeColor, ShapeKind } from '../../shared/config';
 
 /** Stable per-client identity for object attribution (story 6 is out of scope). */
@@ -45,6 +48,7 @@ declare global {
       createText?(x: number, y: number): string | null;
       createShape?(x: number, y: number, kind?: ShapeKind): string | null;
       createConnector?(fromId: string, toId: string): string | null;
+      getCamera?(): import('../canvas/camera').Camera;
     };
   }
 }
@@ -79,6 +83,8 @@ export function Board({ boardId }: { boardId: string }) {
 
   const { camera, hasNavigated, beginPan, panMove, endPan, wheel, zoomStepFn, reset, setCamera } =
     useCamera(size);
+  const cameraRef = useRef(camera);
+  cameraRef.current = camera;
   const { doc, objects, connectionState } = useBoardDoc(boardId);
   const selection = useSelection(objects);
 
@@ -132,6 +138,9 @@ export function Board({ boardId }: { boardId: string }) {
       selection.click(id);
     },
   });
+
+  // Story 11: pen options (session-only colour/thickness state)
+  const penOptions = usePenOptions();
 
   // Shared move/resize gesture for the selection.
   const gesture = useTransformGesture({
@@ -254,6 +263,7 @@ export function Board({ boardId }: { boardId: string }) {
         const to = { kind: 'attached' as const, objectId: toId, fallback: { x: toObj.x + (toObj.width ?? 160) / 2, y: toObj.y + (toObj.height ?? 160) / 2 } };
         return createConnector(doc, from, to, CLIENT_ID);
       },
+      getCamera: () => cameraRef.current,
     };
     return () => {
       delete window.__vidi6;
@@ -280,6 +290,7 @@ export function Board({ boardId }: { boardId: string }) {
   const isShapeTool = activeTool.tool === 'shape';
   const isConnectorTool = activeTool.tool === 'connector';
   const isTextTool = tool === 'text';
+  const isPenTool = activeTool.tool === 'pen';
 
   // Shape toolbar: show when exactly one shape is selected
   const selectedShape = selection.ids.size === 1
@@ -359,6 +370,29 @@ export function Board({ boardId }: { boardId: string }) {
           createdBy={CLIENT_ID}
           onCreated={handleConnectorCreated}
           onBoundary={() => undoController.boundary()}
+        />
+      )}
+
+      {/* Story 11: Pen tool overlay (pointer drags draw; wheel is forwarded) */}
+      {isPenTool && editable && (
+        <PenTool
+          camera={camera}
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          doc={doc}
+          identityId={CLIENT_ID}
+          onBoundary={() => undoController.boundary()}
+          onWheel={wheel}
+        />
+      )}
+
+      {/* Story 11: Pen toolbar (visible while the Pen is active) */}
+      {isPenTool && editable && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
         />
       )}
 

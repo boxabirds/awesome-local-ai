@@ -209,6 +209,18 @@ export function Toolbar({
       >
         →
       </button>
+      {/* Story 11: Pen button */}
+      <button
+        type="button"
+        aria-label="Pen (P)"
+        aria-pressed={currentTool === 'pen'}
+        disabled={disabled}
+        style={currentTool === 'pen' ? activeButtonStyle : buttonStyle}
+        onClick={() => handleToolChange('pen')}
+        title="Pen (P)"
+      >
+        ✎
+      </button>
       <button
         type="button"
         aria-label="Undo (Ctrl+Z)"
