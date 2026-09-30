@@ -27,6 +27,12 @@ export interface ObjectProps {
   onObjectPointerDown: (e: ReactPointerEvent, id: string) => void;
   onStartEdit: (id: string) => void;
   onEndEdit: (next: 'selected' | 'unselected') => void;
+  /** Story 8: undo boundary (close capture window). */
+  onUndoBoundary?: () => void;
+  /** Story 8: undo the last step (for in-editor Ctrl+Z). */
+  onUndo?: () => void;
+  /** Story 8: redo the last step (for in-editor Ctrl+Shift+Z). */
+  onRedo?: () => void;
 }
 
 export interface ObjectTypeSpec {

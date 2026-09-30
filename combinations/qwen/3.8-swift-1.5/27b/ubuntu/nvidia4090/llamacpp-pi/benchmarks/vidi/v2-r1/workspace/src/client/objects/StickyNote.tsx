@@ -11,7 +11,7 @@ import type { ObjectProps } from './registry';
  * `onObjectPointerDown`. Story 2's own drag code is gone.
  */
 export function StickyNote(props: ObjectProps) {
-  const { obj, doc, selected, editing, onObjectPointerDown, onStartEdit, onEndEdit } = props;
+  const { obj, doc, selected, editing, onObjectPointerDown, onStartEdit, onEndEdit, onUndoBoundary, onUndo, onRedo } = props;
   const sticky = obj as StickySnapshot;
   const ref = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
@@ -103,6 +103,9 @@ export function StickyNote(props: ObjectProps) {
           ytext={ytext}
           fontPx={fontPx}
           onEnd={onEndEdit}
+          onBoundary={onUndoBoundary}
+          onUndo={onUndo}
+          onRedo={onRedo}
         />
       ) : (
         <div

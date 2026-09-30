@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
+import * as Y from 'yjs';
 import { BoardViewport } from './canvas/BoardViewport';
 import { ZoomControls } from './canvas/ZoomControls';
 import { NavigationHint } from './canvas/NavigationHint';
@@ -14,6 +15,8 @@ import { useBoardKeys } from './board/useBoardKeys';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
+import { createUndo, type UndoController } from './board/undo';
+import { useUndo } from './board/useUndo';
 import { getObjectType } from './objects/registry';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
@@ -55,6 +58,28 @@ export function Board(props: { boardId: string }) {
 
   const editAllowed = canEdit(connectionState);
 
+  // Story 8: create one undo controller per board doc.
+  const undoCtrlRef = useRef<UndoController | null>(null);
+  const undoDocRef = useRef<Y.Doc | null>(null);
+  if (doc && undoDocRef.current !== doc) {
+    undoCtrlRef.current?.destroy();
+    undoCtrlRef.current = createUndo(doc);
+    undoDocRef.current = doc;
+  }
+  const undoController = undoCtrlRef.current;
+
+  // Destroy controller on unmount or board change.
+  useEffect(() => {
+    return () => {
+      undoCtrlRef.current?.destroy();
+      undoCtrlRef.current = null;
+      undoDocRef.current = null;
+    };
+  }, [doc]);
+
+  // Story 8: React binding for undo/redo state.
+  const undoState = useUndo(undoController!, editAllowed);
+
   // Multi-object selection (story 7).
   const selection = useSelection(objects);
 
@@ -68,9 +93,11 @@ export function Board(props: { boardId: string }) {
     canEdit: editAllowed,
     onGestureStart: () => {
       gestureStartedRef.current = true;
+      undoController?.boundary();
     },
     onGestureEnd: () => {
       gestureStartedRef.current = false;
+      undoController?.boundary();
     },
   });
 
@@ -86,22 +113,26 @@ export function Board(props: { boardId: string }) {
     selection,
     snapshot: objects,
     canEdit: editAllowed,
-    isBusy: () => false, // story 8 will feed gesture state in
+    isBusy: () => gestureStartedRef.current,
     isMarqueeActive: () => marquee.rect !== null,
     onEscape: () => {
       marquee.cancel();
       selection.clear();
     },
+    onUndo: () => undoController?.undo(),
+    onRedo: () => undoController?.redo(),
+    isEditing: () => selection.editingId !== null,
   });
 
   // Create a sticky note at a world point
   const createStickyAt = useCallback((worldPoint: Point) => {
     if (!canEdit(connectionState)) return;
+    undoController?.boundary();
     const id = createSticky(doc, worldPoint);
     if (id) {
       selection.startEdit(id);
     }
-  }, [doc, selection, connectionState]);
+  }, [doc, selection, connectionState, undoController]);
 
   // Handle double-click on empty board space
   const handleDoubleClickEmpty = useCallback((screenPoint: Point) => {
@@ -116,7 +147,7 @@ export function Board(props: { boardId: string }) {
     const centre: Point = { x: size.width / 2, y: size.height / 2 };
     const worldPoint = screenToWorld(cam.camera, centre);
     createStickyAt(worldPoint);
-  }, [cam.camera, size, createStickyAt, connectionState]);
+  }, [cam.camera, size, createStickyAt, connectionState, undoController]);
 
   // Handle clear selection (click on empty space)
   const handlePointerUpEmpty = useCallback(() => {
@@ -126,16 +157,20 @@ export function Board(props: { boardId: string }) {
   // Handle colour change from the single-note toolbar
   const handleColorChange = useCallback((color: StickyColor) => {
     if (selection.ids.size === 1 && editAllowed) {
+      undoController?.boundary();
       const [id] = selection.ids;
       setStickyColor(doc, id, color);
+      undoController?.boundary();
     }
-  }, [doc, selection, editAllowed]);
+  }, [doc, selection, editAllowed, undoController]);
 
   // Handle delete from the selection bar / single-note toolbar
   const handleDelete = useCallback(() => {
     if (selection.ids.size === 0 || !editAllowed) return;
+    undoController?.boundary();
     deleteObjects(doc, [...selection.ids]);
-  }, [doc, selection, editAllowed]);
+    undoController?.boundary();
+  }, [doc, selection, editAllowed, undoController]);
 
   // Object props for the registry components
   const onObjectPointerDown = useCallback(
@@ -148,6 +183,9 @@ export function Board(props: { boardId: string }) {
   const onEndEdit = useCallback((next: 'selected' | 'unselected') => {
     selection.endEdit(next);
   }, [selection]);
+  const onUndoBoundary = useCallback(() => undoController?.boundary(), [undoController]);
+  const onUndo = useCallback(() => undoController?.undo(), [undoController]);
+  const onRedo = useCallback(() => undoController?.redo(), [undoController]);
 
   return (
     <div ref={viewportRef} style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
@@ -184,6 +222,9 @@ export function Board(props: { boardId: string }) {
               onObjectPointerDown={onObjectPointerDown}
               onStartEdit={onStartEdit}
               onEndEdit={onEndEdit}
+              onUndoBoundary={onUndoBoundary}
+              onUndo={onUndo}
+              onRedo={onRedo}
             />
           );
         })}
@@ -203,7 +244,14 @@ export function Board(props: { boardId: string }) {
           onColor={handleColorChange}
         />
       </div>
-      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editAllowed} />
+      <Toolbar
+        onCreateSticky={handleCreateSticky}
+        disabled={!editAllowed}
+        canUndo={undoState.canUndo}
+        canRedo={undoState.canRedo}
+        onUndo={undoState.undo}
+        onRedo={undoState.redo}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(cam.camera)}
         canZoomIn={canZoomIn(cam.camera)}

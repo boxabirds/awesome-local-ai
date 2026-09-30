@@ -1,9 +1,15 @@
+import { UndoButtons } from './UndoButtons';
+
 interface ToolbarProps {
   onCreateSticky: () => void;
   disabled?: boolean;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
-export function Toolbar({ onCreateSticky, disabled }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled, canUndo, canRedo, onUndo, onRedo }: ToolbarProps) {
   const handlePointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
   };
@@ -49,6 +55,14 @@ export function Toolbar({ onCreateSticky, disabled }: ToolbarProps) {
       >
         +
       </button>
+      {onUndo && onRedo && (
+        <UndoButtons
+          canUndo={!!canUndo}
+          canRedo={!!canRedo}
+          undo={onUndo}
+          redo={onRedo}
+        />
+      )}
     </div>
   );
 }

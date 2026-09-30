@@ -7,13 +7,22 @@ interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
   onEnd: (next: 'selected' | 'unselected') => void;
+  onBoundary?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
+export function StickyTextEditor({ ytext, fontPx, onEnd, onBoundary, onUndo, onRedo }: StickyTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
+  const onBoundaryRef = useRef(onBoundary);
+  onBoundaryRef.current = onBoundary;
+  const onUndoRef = useRef(onUndo);
+  onUndoRef.current = onUndo;
+  const onRedoRef = useRef(onRedo);
+  onRedoRef.current = onRedo;
 
-  // On mount: set value, focus, caret at end
+  // On mount: set value, focus, caret at end; call boundary (edit start)
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -21,6 +30,11 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     el.value = text;
     el.focus();
     el.setSelectionRange(text.length, text.length);
+    onBoundaryRef.current?.();
+    // Call boundary on unmount (edit end)
+    return () => {
+      onBoundaryRef.current?.();
+    };
   }, [ytext]);
 
   // Handle outside pointerdown to end editing.
@@ -54,6 +68,23 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   }, [ytext]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.shiftKey) {
+        onRedoRef.current?.();
+      } else {
+        onUndoRef.current?.();
+      }
+      return;
+    }
+    if (mod && (e.key === 'y' || e.key === 'Y')) {
+      e.preventDefault();
+      e.stopPropagation();
+      onRedoRef.current?.();
+      return;
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();

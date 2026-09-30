@@ -27,6 +27,9 @@ export function useBoardKeys(opts: {
   isBusy: () => boolean;
   isMarqueeActive: () => boolean;
   onEscape(): void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  isEditing?: () => boolean;
 }) {
   const { doc, canEdit, onEscape } = opts;
   const selectionRef = useRef(opts.selection);
@@ -41,6 +44,12 @@ export function useBoardKeys(opts: {
   isMarqueeActiveRef.current = opts.isMarqueeActive;
   const onEscapeRef = useRef(onEscape);
   onEscapeRef.current = onEscape;
+  const onUndoRef = useRef(opts.onUndo);
+  onUndoRef.current = opts.onUndo;
+  const onRedoRef = useRef(opts.onRedo);
+  onRedoRef.current = opts.onRedo;
+  const isEditingRef = useRef(opts.isEditing);
+  isEditingRef.current = opts.isEditing;
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -59,6 +68,27 @@ export function useBoardKeys(opts: {
 
       const sel = selectionRef.current;
       const mod = e.ctrlKey || e.metaKey;
+
+      // Story 8: Undo / Redo shortcuts.
+      // Ignored while a sticky is being edited (the editor handles it).
+      if (mod && (e.key === 'z' || e.key === 'Z')) {
+        if (isEditingRef.current?.()) return; // editor handles it
+        if (!canEditRef.current) return;
+        e.preventDefault();
+        if (e.shiftKey) {
+          onRedoRef.current?.();
+        } else {
+          onUndoRef.current?.();
+        }
+        return;
+      }
+      if (mod && (e.key === 'y' || e.key === 'Y')) {
+        if (isEditingRef.current?.()) return;
+        if (!canEditRef.current) return;
+        e.preventDefault();
+        onRedoRef.current?.();
+        return;
+      }
 
       if (mod && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
