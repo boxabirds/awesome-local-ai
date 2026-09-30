@@ -62,3 +62,5 @@ button.chip.link { border-style: dashed; }
 .status-word { font-weight: 600; }
 .s-unknown { color: var(--muted); }
 .clip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.score + .score { margin-top: 6px; }
+.score-main strong { font-size: 16px; }
