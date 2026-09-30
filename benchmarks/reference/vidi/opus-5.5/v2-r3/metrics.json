@@ -3518,7 +3518,17 @@
           "found": 4,
           "total": 4
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/benchmarks/reference/vidi/opus-5.5/v2-r3/workspace/tests/fixtures/images/screenshot.png",
+          "~/.spec-bench/awesome-local-ai/benchmarks/reference/vidi/opus-5.5/v2-r3/workspace/tests/fixtures/images/photo.jpg",
+          "~/.spec-bench/awesome-local-ai/benchmarks/reference/vidi/opus-5.5/v2-r3/workspace/tests/fixtures/images/screenshot-2.png"
+        ],
+        "commit": "91a37449"
+      }
     }
   },
   "pack": "vidi",
