@@ -11,23 +11,18 @@ import { NoteLayer } from './objects/NoteLayer';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
+import { useRoute } from './router';
+import { HomePage } from './pages/HomePage';
+import { BoardPage } from './pages/BoardPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import {
   createSticky,
   deleteObject,
   setStickyColor,
 } from '@shared/board-model';
-import { newBoardId } from '@shared/board-id';
 import { STICKY_SIZE_WORLD, type StickyColor } from '@shared/config';
 import type { Point } from '@client/canvas/camera';
 
-function getBoardIdFromPath(): string {
-  const match = location.pathname.match(/^\/b\/([^/]+)/);
-  if (match) return match[1];
-  // Redirect to a new board
-  const id = newBoardId();
-  history.replaceState(null, '', `/b/${id}`);
-  return id;
-}
 
 /**
  * Editing is disabled only while the board cannot be loaded (load_failed). All
@@ -55,8 +50,7 @@ function BoardOverlay(): ReactElement {
   );
 }
 
-export function App(): ReactElement {
-  const boardId = getBoardIdFromPath();
+export function Board({ boardId }: { boardId: string }): ReactElement {
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const editable = canEdit(connectionState);
   const selection = useSelection(doc, notes);
@@ -243,4 +237,16 @@ function NoteToolbarScreenSpace({
       <NoteToolbar color={note.color} onColor={onColor} onDelete={onDelete} />
     </div>
   );
+}
+
+/**
+ * Top-level router (story 5): `/` -> Home, `/b/:id` -> Board page, anything else
+ * -> Board not found. The story 3 client-side redirect from `/` to a random id is
+ * removed: boards are created server-side and opened by explicit link.
+ */
+export function App(): ReactElement {
+  const route = useRoute();
+  if (route.name === 'home') return <HomePage />;
+  if (route.name === 'board') return <BoardPage id={route.id} />;
+  return <NotFoundPage />;
 }

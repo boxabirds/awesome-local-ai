@@ -54,13 +54,6 @@ export class BoardRoom extends DurableObject<Env> {
     this.loadCount += 1;
     this.resetDoc();
     const t0 = Date.now();
-    try {
-      this.store.migrate();
-    } catch (e: unknown) {
-      this.lastLoadMs = Date.now() - t0;
-      this.failLoad('sql-error', e instanceof Error ? e.message : String(e));
-      return;
-    }
     let result: LoadResult;
     try {
       result = this.store.load(this.doc);
@@ -158,9 +151,33 @@ export class BoardRoom extends DurableObject<Env> {
 
   // ---- connection lifecycle ----------------------------------------------
 
+  /**
+   * RPC (share.board_api): create the board. Migrates the tables and records
+   * `created_at` if absent. Idempotent: returns `exists` when the board already
+   * exists and never re-initialises it (TC-15). Callable on the DO stub. The
+   * constructor has already loaded the (empty for a fresh id) doc by the time
+   * this RPC runs, so it only touches storage metadata.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    const created = this.store.setCreatedAtIfAbsent(Date.now());
+    return created ? 'created' : 'exists';
+  }
+
+  /** RPC (share.board_api): read-only existence check; writes nothing. */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   async fetch(request: Request): Promise<Response> {
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('Expected websocket', { status: 426 });
+    }
+
+    // Unknown or never-created boards are rejected before accepting: connecting
+    // can no longer implicitly create a board (share.not_found).
+    if (!this.store.existsReadOnly()) {
+      return new Response('Not found', { status: 404 });
     }
 
     // Decide whether to (re)load before admitting the new socket.

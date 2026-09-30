@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 import {
   createParticipant,
+  createBoardViaUi,
   getNoteCount,
   getBoardSnapshot,
   createNoteAtPoint,
   expectEventually,
   type Participant,
 } from './helpers/participants';
-import { newBoardId } from '@shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '@shared/config';
 
 test.describe.configure({ timeout: 180_000 });
@@ -15,7 +15,10 @@ test.describe.configure({ timeout: 180_000 });
 test.describe('Nightly: idle connection stability', () => {
   // TC-29: two contexts connected, no activity for 45s, badge never shows "Reconnecting…"
   test('TC-29: idle 45s → connectionState stays "connected"', async ({ browser }) => {
-    const boardId = newBoardId();
+    const ctx0 = await browser.newContext();
+    const p0 = await ctx0.newPage();
+    const boardId = await createBoardViaUi(p0);
+    await ctx0.close();
     const alex = await createParticipant(browser, boardId);
     const sam = await createParticipant(browser, boardId);
 
@@ -52,7 +55,10 @@ test.describe('Nightly: idle connection stability', () => {
 test.describe('Nightly: capacity soak with latency report', () => {
   // TC-30: MAX_CONCURRENT_EDITORS contexts continuous edits for 60s, all converge
   test('TC-30: convergence at capacity', async ({ browser }) => {
-    const boardId = newBoardId();
+    const ctx0 = await browser.newContext();
+    const p0 = await ctx0.newPage();
+    const boardId = await createBoardViaUi(p0);
+    await ctx0.close();
     const participants: Participant[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) {
       const p = await createParticipant(browser, boardId);

@@ -382,3 +382,147 @@ body {
   background: rgba(220, 38, 38, 0.95);
   color: #fff;
 }
+
+/* ---- Story 5: Home / Not found / Loading / Share ---- */
+
+.home-page,
+.not-found-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.home-title {
+  font-size: 40px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.home-tagline {
+  font-size: 18px;
+  color: #4b5563;
+  margin: 0;
+}
+
+.new-board-button {
+  margin-top: 16px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.new-board-button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.new-board-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.home-error {
+  color: #b91c1c;
+  margin: 4px 0 0;
+}
+
+.not-found-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.not-found-text {
+  color: #4b5563;
+  margin: 0;
+}
+
+.board-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4b5563;
+  font-size: 16px;
+}
+
+.share-button {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 120;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.share-button:hover {
+  background: #1d4ed8;
+}
+
+.share-panel {
+  position: fixed;
+  top: 56px;
+  right: 16px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.share-panel input[readonly] {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.copy-link-button {
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: #16a34a;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.copy-link-button:hover {
+  background: #15803d;
+}
+
+.share-note {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.share-manual {
+  font-size: 12px;
+  color: #b45309;
+  margin: 0;
+}

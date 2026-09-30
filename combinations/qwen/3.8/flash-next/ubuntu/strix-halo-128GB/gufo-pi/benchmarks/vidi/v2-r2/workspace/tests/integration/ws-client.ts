@@ -1,4 +1,5 @@
 import * as Y from 'yjs';
+import { env } from 'cloudflare:test';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import * as syncProtocol from 'y-protocols/sync';
@@ -160,12 +161,23 @@ export async function openWebSocket(
 }
 
 /**
+ * Create the board at `boardId` (POST-equivalent) so a socket can connect. Since
+ * story 5, connecting no longer implicitly creates a board (share.not_found),
+ * so integration tests must initialise the Durable Object first.
+ */
+export async function initializeBoard(boardId: string): Promise<void> {
+  const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+  await stub.initialize();
+}
+
+/**
  * Create a connected TestSyncClient
  */
 export async function createSyncClient(
   SELF: Fetcher,
   boardId: string,
 ): Promise<TestSyncClient> {
+  await initializeBoard(boardId);
   const client = new TestSyncClient();
   client.startListening();
   const ws = await openWebSocket(SELF, boardId);

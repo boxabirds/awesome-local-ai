@@ -1,4 +1,5 @@
 import { isValidBoardId } from '@shared/board-id';
+import { createBoard } from './create-board';
 import { BoardRoom } from './board-room';
 
 export interface Env {
@@ -53,12 +54,41 @@ export default {
       }
     }
 
+    // Board creation / existence API (story 5).
+    if (url.pathname === '/api/boards') {
+      if (req.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const result = await createBoard(env);
+      if (result.ok) {
+        return Response.json({ id: result.id }, { status: 201 });
+      }
+      return Response.json({ error: 'create_failed' }, { status: 500 });
+    }
+
+    const boardMatch = url.pathname.match(/^\/api\/boards\/([^/]+)$/);
+    if (boardMatch) {
+      const boardId = decodeURIComponent(boardMatch[1]);
+      // Malformed ids are rejected before touching the namespace, so they never
+      // instantiate a Durable Object (TC-07). Unknown ids return the same 404
+      // (no distinction, nothing leaked).
+      if (!isValidBoardId(boardId)) {
+        return Response.json({ error: 'not_found' }, { status: 404 });
+      }
+      const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+      const exists = await stub.exists();
+      if (!exists) {
+        return Response.json({ error: 'not_found' }, { status: 404 });
+      }
+      return Response.json({ id: boardId }, { status: 200 });
+    }
+
     // Route /api/rooms/:boardId to the Durable Object
     const match = url.pathname.match(/^\/api\/rooms\/([^/]+)$/);
     if (match) {
       const boardId = match[1];
       if (!isValidBoardId(boardId)) {
-        return new Response('Bad Request: invalid board id', { status: 400 });
+        return new Response('Not Found: unknown board', { status: 404 });
       }
       if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
         return new Response('Upgrade Required', { status: 426 });

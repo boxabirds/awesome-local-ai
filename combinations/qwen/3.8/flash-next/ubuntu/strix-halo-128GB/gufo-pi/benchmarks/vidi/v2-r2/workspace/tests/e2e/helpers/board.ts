@@ -11,7 +11,9 @@ export interface Camera {
 }
 
 export async function gotoBoard(page: Page): Promise<void> {
+  // Story 5: `/` is the Home page; create a fresh board via the New board button.
   await page.goto('/');
+  await page.getByRole('button', { name: 'New board' }).click();
   await page.waitForSelector('[data-testid="board-viewport"]');
 }
 

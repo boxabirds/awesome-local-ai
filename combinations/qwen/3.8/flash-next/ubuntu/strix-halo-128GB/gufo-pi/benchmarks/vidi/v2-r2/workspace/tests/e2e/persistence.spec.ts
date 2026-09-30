@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import { newBoardId } from '@shared/board-id';
 import { PERSIST_TESTED_NOTES, BOARD_LOAD_BUDGET_MS } from '@shared/config';
 import { getNoteCount } from './helpers/board';
-import { waitForConnected } from './helpers/participants';
+import { waitForConnected, createBoardViaUi } from './helpers/participants';
 import { startWrangler, cleanupDir, type WranglerProc } from './helpers/wrangler-process';
 
 // Serialize within this file: each test manages its own wrangler dev on a fixed
@@ -69,11 +69,10 @@ async function allTexts(page: import('@playwright/test').Page): Promise<string[]
 // TC-19: reload the page (no server restart); everything comes back. A second tab
 // joins, the first tab closes, and the surviving tab still sees everything.
 test('TC-19: reload restores notes, position, text and colour', async ({ browser }) => {
-  const id = newBoardId();
   const ctxA = await browser.newContext();
   const pageA = await ctxA.newPage();
-  await pageA.goto(`/b/${id}`);
-  await waitForConnected(pageA);
+  // Story 5: create the board via the UI so its link exists before editing.
+  const id = await createBoardViaUi(pageA);
 
   await addNote(pageA, 400, 300, 'first note', 'pink');
   await addNote(pageA, 700, 420, 'second note with a longer line\nand a second line');
@@ -114,10 +113,8 @@ test('TC-20: notes survive a full server restart', async ({ browser }) => {
   const ctx = await browser.newContext();
   try {
     proc = await startWrangler({ port, testHooks: true, persistDir });
-    const id = newBoardId();
     const page = await ctx.newPage();
-    await page.goto(`${proc.url}/b/${id}`);
-    await waitForConnected(page);
+    const id = await createBoardViaUi(page, `${proc.url}/`);
 
     await addNote(page, 400, 300, 'persisted before restart', 'violet');
     await addNote(page, 720, 480, 'also persisted');

@@ -12,7 +12,7 @@ import {
   getStickyText,
   snapshot,
 } from '@shared/board-model';
-import { createSyncClient, openWebSocket, TestSyncClient } from './ws-client';
+import { createSyncClient, openWebSocket, initializeBoard, TestSyncClient } from './ws-client';
 import { CLOSE_UNSUPPORTED_DATA, MESSAGE_SYNC } from '@shared/protocol';
 import * as encoding from 'lib0/encoding';
 
@@ -425,6 +425,11 @@ describe('TC-18: room restart simulation', () => {
     // and just reconnect with the same doc content.
 
     const boardId2 = newBoardId();
+    // Create the board (share.not_found: a socket can no longer create a board by
+    // connecting). The new room is empty, so when it receives SyncStep1 from us
+    // (with our full state) it applies our data - a reconnecting client populating
+    // an empty, existing board.
+    await initializeBoard(boardId2);
     // Client A reconnects to board2 with its existing doc (already has data)
     // The new room is empty, so when it receives SyncStep1 from us (with our full state),
     // it will apply our data.

@@ -6,13 +6,13 @@ import { MAX_CONCURRENT_EDITORS } from '@shared/config';
 import { createSticky } from '@shared/board-model';
 import { createSyncClient, type TestSyncClient } from './ws-client';
 
-describe('TC-04: invalid board id returns 400', () => {
-  it('GET /api/rooms/bad!id with Upgrade → 400', async () => {
+describe('TC-04: invalid board id returns 404 (story 5)', () => {
+  it('GET /api/rooms/bad!id with Upgrade → 404', async () => {
     const req = new Request('http://localhost/api/rooms/bad!id', {
       headers: { Upgrade: 'websocket' },
     });
     const resp = await SELF.fetch(req);
-    expect(resp.status).toBe(400);
+    expect(resp.status).toBe(404);
   });
 });
 

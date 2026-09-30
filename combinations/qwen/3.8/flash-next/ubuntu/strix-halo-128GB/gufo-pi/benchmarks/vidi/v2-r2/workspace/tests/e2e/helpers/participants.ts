@@ -8,6 +8,20 @@ export interface Participant {
   boardUrl: string;
 }
 
+/**
+ * Create a brand-new board through the Home page UI (story 5) and return its id.
+ * Used to seed a board before other participants join the same link.
+ */
+export async function createBoardViaUi(page: Page, homeUrl = '/'): Promise<string> {
+  await page.goto(homeUrl);
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.waitForSelector('[data-testid="board-viewport"]', {
+    timeout: E2E_EVENTUAL_TIMEOUT_MS,
+  });
+  await waitForConnected(page);
+  return new URL(page.url()).pathname.split('/')[2];
+}
+
 export async function createParticipant(browser: Browser, boardId: string): Promise<Participant> {
   const context = await browser.newContext();
   const page = await context.newPage();

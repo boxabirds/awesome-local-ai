@@ -71,3 +71,121 @@
 - `tests/e2e/collaboration.spec.ts` — Multi-browser collaboration e2e tests
 - `tests/e2e/collaboration-nightly.spec.ts` — Nightly soak and idle stability tests
 - `tests/e2e/helpers/participants.ts` — E2E helpers for multi-participant tests
+
+## Story 5: Share a board with others using a link
+
+### Decisions
+
+- **Boards are created server-side; `/` no longer auto-redirects.** Story 3 used a
+  client-side `getBoardIdFromPath()` that minted a random id and `history.replaceState`d
+  to it on any visit. Story 5 replaces that: a board exists only after `POST /api/boards`.
+  Opening a link whose board does not exist is a real `not_found`, not an implicit create.
+
+- **`BoardStore` no longer creates tables on read.** Previously `attemptLoad()` called
+  `migrate()` on every WebSocket connect, which created storage tables as a *side effect
+  of a GET/upgrade* — that would make an unknown board "exist". Now `load()` checks
+  `hasTables()` and, when absent, returns an empty-but-OK result without writing anything.
+  `migrate()` only runs through `initialize()` (creation) or lazily inside `append()`
+  (the first real write). `tablesReady` tracks the instance state so the lazy path stays
+  cheap. This is what makes TC-06/TC-09 ("probe leaves no storage") observable.
+
+- **Two Durable Object RPCs added.** `initialize(): 'created' | 'exists'` (create path:
+  migrate + stamp `created_at` if absent) and `exists(): boolean` (existence check). The
+  Worker's `fetch()` for `/api/rooms/:id` now calls `existsReadOnly()` first and returns
+  404 for an unknown board, so a WebSocket upgrade to a never-created id is refused with
+  404 and never opens a socket (TC-09).
+
+- **`existsReadOnly()` treats legacy boards as existing.** Boards that pre-date story 5
+  (story 3/4 seeded rows via the test hooks without a `created_at`) are considered to
+  exist when they have any `updates` rows even with no `created_at` marker. This keeps
+  story 4's broken-board and large-board-persistence e2e scenarios (which seed data
+  directly) opening normally — no data is re-initialised or overwritten.
+
+- **`nextBoardPageState` takes a 4th `boardId` argument.** The design signature
+  `(state, result, attempt)` cannot produce the `ready` state's `{ boardId }`, so the
+  id is threaded through as a 4th parameter and echoed into `{ kind: 'ready', boardId }`.
+  Retry delay is `BOARD_CHECK_RETRY_BASE_MS * 2^(attempt-1)` (first retry is exactly the
+  base) capped at `RECONNECT_MAX_BACKOFF_MS`.
+
+- **`App` split into router host + `Board` component.** `App.tsx` exports `App` (a thin
+  `useRoute()` switch to HomePage/BoardPage/NotFoundPage) and `Board` (the stories 1–4
+  board UI, now taking a `boardId` prop). `BoardPage` renders `Board` + `SharePanel` once
+  the board is `ready`. `SharePanel` lives at `src/client/share/SharePanel.tsx`, owned by
+  `BoardPage` (matching the design's BoardPage→Board / BoardPage→Share diagram). The
+  circular `App ↔ BoardPage` import is safe: `Board` is a hoisted function declaration and
+  is only referenced inside component bodies.
+
+- **Minimal History-API router.** `src/client/router.ts` uses `useSyncExternalStore` over
+  `location.pathname`, re-rendering on `popstate`; `navigate()` pushes state and dispatches
+  a `PopStateEvent` so the hook updates. Routes: `/` → home, `/b/:id` → board, else
+  → not_found (a malformed id inside `/b/:id` is resolved by `BoardPage` via
+  `isValidBoardId`, so it never issues a request — TC-23).
+
+- **Clipboard fallback.** `SharePanel` copy uses `navigator.clipboard.writeText`. When
+  `clipboard` is missing or the promise rejects, it marks the field with the manual-copy
+  message and calls `input.select()` so the whole link is highlighted for Ctrl+C. The
+  Share button is always mounted (the panel is conditionally rendered alongside it) so
+  Escape/outside-close can return focus to it.
+
+- **No-referrer.** `index.html` adds `<meta name="referrer" content="no-referrer" />` so
+  the board id in a shared URL is not leaked to third parties (asserted in TC-32, served
+  document).
+
+- **E2E board creation.** `gotoBoard()` and a new `createBoardViaUi()` helper create a
+  board through the Home "New board" button (the old story-3 implicit redirect is gone).
+  `collaboration`, `collaboration-nightly`, and `persistence` now create a board first,
+  then join the same link. Multi-client e2e tests use `createParticipant` for *joining*
+  an existing board (it no longer creates one).
+
+- **TC-12 via a fake `Env`.** A 500 `create_failed` is exercised by handing `createBoard`
+  (and the Worker `fetch` directly) a fake `Env` whose `BOARD_ROOM.get()` stub throws on
+  `initialize()`. Injecting an RPC fault through the live `SELF`/Durable Object isn't
+  possible, so the failure is injected at the stub boundary; the routing/mapping under
+  test is the real Worker code.
+
+- **Test-only adaptation (not weakened).** `tests/component/LoadFailed.test.tsx` renders
+  the extracted `Board` component (imported from `App`) instead of `App`, because `App` is
+  now the router. Assertions are unchanged. `tests/integration/worker.test.ts` TC-04 now
+  expects 404 (not 400) for an invalid board id, matching the story-5 "unknown board →
+  not found" model; integration `ws-client.createSyncClient` calls the `initialize` RPC
+  before connecting so story 3/4 sync tests keep their intent.
+
+- **Pre-existing flaky tests observed (unrelated to story 5 logic).** Two tests are
+  intrinsically timing/random sensitive and occasionally fail only when the whole suite
+  runs at high parallelism, but pass reliably in isolation and on re-run:
+  integration `board-room-persistence` TC-15 (corrupts the snapshot with `Math.random()`
+  bytes — damage strength varies) and e2e `collaboration` TC-23 (concurrent CRDT typing
+  under 16 Playwright workers). Neither touches the story-5 code paths; they were left
+  unchanged rather than weakened.
+
+### What was built
+
+- `src/shared/config.ts` — added `CREATE_BUDGET_MS`, `LINK_COPIED_MS`, `BOARD_CHECK_RETRY_BASE_MS`
+- `index.html` — added the `no-referrer` meta tag
+- `src/worker/board-store.ts` — `existsReadOnly()`, `setCreatedAtIfAbsent()`, `getCreatedAt()`,
+  `hasTables()`; read path no longer creates tables; lazy migrate on first write
+- `src/worker/board-room.ts` — `initialize()` / `exists()` RPCs; 404 for unknown boards on
+  WebSocket/`fetch`; removed the read-time `migrate()`
+- `src/worker/create-board.ts` — `createBoard(env): { ok, id } | { ok:false, reason }`
+- `src/worker/index.ts` — `POST /api/boards` (201 / 500 / 405), `GET /api/boards/:id`
+  (200 / 404); invalid `/api/rooms/:id` id now 404
+- `src/client/api.ts` — `createBoardRequest()`, `checkBoard()` with typed responses
+- `src/client/router.ts` — `useRoute()`, `navigate()`, `parseRoute()`
+- `src/client/pages/state.ts` — `HomePageState`, `BoardPageState`, `nextBoardPageState()`
+- `src/client/pages/useCreateBoard.ts` — shared "New board" create action
+- `src/client/pages/HomePage.tsx` — vidi6 hero + New board button (Creating…/error states)
+- `src/client/pages/NotFoundPage.tsx` — Board not found + New board + back-home link
+- `src/client/pages/BoardPage.tsx` — existence check, "Opening board…", retry with
+  exponential backoff, not-found, ready (Board + SharePanel)
+- `src/client/share/SharePanel.tsx` — Share button, panel, copy-to-clipboard, manual-copy
+  fallback, Escape/outside close with focus restore
+- `src/client/App.tsx` — now exports `App` (router) and `Board` (board UI); removed the
+  implicit-redirect board-id minting
+- `src/client/styles.css` — Home / not-found / loading / share styles
+- `tests/unit/create-board.test.ts` — TC-04 (link-code strength/uniqueness)
+- `tests/integration/board-api.test.ts` — TC-05–TC-10, TC-12, TC-14, TC-15, TC-32
+- `tests/component/{HomePage,BoardPage,SharePanel}.test.tsx` — TC-16, TC-17, TC-19–TC-25
+- `tests/e2e/share.spec.ts` — TC-26, TC-27, TC-28, TC-29, TC-31
+- Modified e2e helpers (`board.gotoBoard`, `participants.createBoardViaUi`) and the
+  existing collaboration / navigation / sticky-notes / persistence specs to create boards
+  explicitly

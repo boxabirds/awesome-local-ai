@@ -7,10 +7,11 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import * as Y from 'yjs';
 import { ConnectionStatus } from '@client/sync/ConnectionStatus';
 import { wireConnection, type ConnectionState } from '@client/sync/connectBoard';
-import { App, canEdit } from '@client/App';
+import { Board, canEdit } from '@client/App';
 import { initDoc, createSticky, snapshot, type StickySnapshot } from '@shared/board-model';
 
-// Controlled inputs for the mocked useBoardDoc used by App in TC-23.
+// Controlled inputs for the mocked useBoardDoc used by the board (story 5: the
+// router lives in `App`; the board UI itself is `Board`, mounted by `BoardPage`).
 let mockDoc: Y.Doc;
 let mockNotes: readonly StickySnapshot[];
 let mockState: ConnectionState = 'load_failed';
@@ -104,7 +105,7 @@ describe('editing blocked while load_failed (TC-23)', () => {
     const onUpd = () => updateCount++;
     mockDoc.on('update', onUpd);
 
-    render(<App />);
+    render(<Board boardId="test-board" />);
 
     // Load-failure banner is shown.
     expect(screen.getByText("This board couldn't be loaded. Retrying…")).toBeInTheDocument();
@@ -142,7 +143,7 @@ describe('editing blocked while load_failed (TC-23)', () => {
     let updateCount = 0;
     mockDoc.on('update', () => updateCount++);
 
-    render(<App />);
+    render(<Board boardId="test-board" />);
 
     const stickyBtn = screen.getByTestId('sticky-note-btn');
     expect((stickyBtn as HTMLButtonElement).disabled).toBe(false);

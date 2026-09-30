@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   createParticipant,
+  createBoardViaUi,
   waitForConnected,
   getNoteCount,
   getNoteText,
@@ -10,14 +11,18 @@ import {
   expectEventually,
   type Participant,
 } from './helpers/participants';
-import { newBoardId } from '@shared/board-id';
 
 test.describe('Two-person workshop', () => {
   let alex: Participant;
   let sam: Participant;
+  let boardId: string;
 
   test.beforeEach(async ({ browser }) => {
-    const boardId = newBoardId();
+    // Story 5: create the board through the UI, then both join its link.
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+    boardId = await createBoardViaUi(p);
+    await ctx.close();
     alex = await createParticipant(browser, boardId);
     sam = await createParticipant(browser, boardId);
   });
@@ -168,7 +173,10 @@ test.describe('Two-person workshop', () => {
 test.describe('Full-capacity session', () => {
   // TC-26: 5 contexts each create 5 notes → every change seen by all others
   test('TC-26: all participants see all notes', async ({ browser }) => {
-    const boardId = newBoardId();
+    const ctx0 = await browser.newContext();
+    const p0 = await ctx0.newPage();
+    const boardId = await createBoardViaUi(p0);
+    await ctx0.close();
     const participants: Participant[] = [];
     for (let i = 0; i < 5; i++) {
       const p = await createParticipant(browser, boardId);
@@ -206,7 +214,10 @@ test.describe('Full-capacity session', () => {
 test.describe('Flaky Wi-Fi', () => {
   // TC-27: Alex goes offline for a while, both create notes, reconnect → all notes visible
   test('TC-27: offline recovery', async ({ browser }) => {
-    const boardId = newBoardId();
+    const ctx0 = await browser.newContext();
+    const p0 = await ctx0.newPage();
+    const boardId = await createBoardViaUi(p0);
+    await ctx0.close();
     const alex = await createParticipant(browser, boardId);
     const sam = await createParticipant(browser, boardId);
 

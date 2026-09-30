@@ -73,6 +73,11 @@ export class BoardStore {
   private logCount = 0;
   private logBytes = 0;
 
+  // Whether the SQL tables are known to exist for this board. Set by migrate()
+  // and by a load() that finds them. Unknown boards never create tables (probing
+  // a link must leave no storage behind), so append() migrates lazily on first use.
+  private tablesReady = false;
+
   /** Test-only hook: throw at a specific point inside a compaction transaction. */
   __failDuringCompaction?: () => void;
 
@@ -84,6 +89,71 @@ export class BoardStore {
   /** Current log row count and byte total (for tests and the compaction check). */
   get stats(): { count: number; bytes: number } {
     return { count: this.logCount, bytes: this.logBytes };
+  }
+
+  /** Whether the SQL tables exist for this board (never creates them). */
+  private hasTables(): boolean {
+    const row = this.sql
+      .exec<{ c: number }>(
+        `SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table' AND name='updates'`,
+      )
+      .one();
+    return row.c > 0;
+  }
+
+  /**
+   * Read-only existence check (share.not_found, share.legacy_boards). A board
+   * exists if `storage_meta.created_at` is set, OR it has any `updates` or
+   * `snapshot_chunks` rows (a legacy board that predates created_at). Returns
+   * false without touching (or creating) any table for a never-seen id.
+   */
+  existsReadOnly(): boolean {
+    if (!this.hasTables()) return false;
+    const created = this.sql
+      .exec<{ value: string }>(
+        `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+      )
+      .toArray();
+    if (created.length > 0) return true;
+    const upd = this.sql.exec<{ c: number }>(`SELECT COUNT(*) AS c FROM updates`).one().c;
+    if (upd > 0) return true;
+    const snap = this.sql
+      .exec<{ c: number }>(`SELECT COUNT(*) AS c FROM snapshot_chunks`)
+      .one().c;
+    return snap > 0;
+  }
+
+  /**
+   * Record the board's creation time if it has not been created yet (idempotent).
+   * Requires migrate() to have run. Returns true when this call created the board,
+   * false when it already existed (TC-15: never re-initialised).
+   */
+  setCreatedAtIfAbsent(now: number): boolean {
+    const existing = this.sql
+      .exec<{ value: string }>(
+        `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+      )
+      .toArray();
+    if (existing.length > 0) return false;
+    this.sql
+      .exec(
+        `INSERT INTO storage_meta (key, value) VALUES (?, ?)`,
+        'created_at',
+        String(now),
+      )
+      .toArray();
+    return true;
+  }
+
+  /** Read the creation timestamp, or null when the board has no created_at. */
+  getCreatedAt(): number | null {
+    if (!this.hasTables()) return null;
+    const rows = this.sql
+      .exec<{ value: string }>(
+        `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+      )
+      .toArray();
+    return rows.length > 0 ? Number.parseInt(rows[0].value, 10) : null;
   }
 
   /** Create tables if absent and record the storage schema version. Writes no update rows. */
@@ -125,10 +195,18 @@ export class BoardStore {
         )
         .toArray();
     }
+    this.tablesReady = true;
   }
 
   /** Append one Yjs update to the log. Rethrows SQL errors (caller resets the room). */
   append(update: Uint8Array): void {
+    // Legacy path: a board with content but never explicitly initialised (no
+    // created_at) still has tables from a prior session. A board reaching append
+    // without tables would be a programming error, but migrate lazily to be safe.
+    if (!this.tablesReady) {
+      if (!this.hasTables()) this.migrate();
+      else this.tablesReady = true;
+    }
     const bytes = update.length;
     this.sql
       .exec(`INSERT INTO updates (data, bytes) VALUES (?, ?)`, toArrayBuffer(update), bytes)
@@ -145,6 +223,14 @@ export class BoardStore {
    * remaining rows still apply (ok:true with a quarantined count).
    */
   load(doc: Y.Doc): LoadResult {
+    // A never-created board has no tables. Treat it as an empty board WITHOUT
+    // creating them, so probing an unknown link writes nothing (TC-06, TC-09).
+    if (!this.hasTables()) {
+      this.logCount = 0;
+      this.logBytes = 0;
+      return { ok: true, quarantined: 0 };
+    }
+    this.tablesReady = true;
     let throughSeq = 0;
     let chunkRows: { idx: number; data: ArrayBuffer }[];
     let logRows: { seq: number; data: ArrayBuffer }[];
