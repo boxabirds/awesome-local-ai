@@ -7,7 +7,20 @@ import { RunTime } from "../components/run/RunTime.tsx";
 import { RunCost } from "../components/run/RunCost.tsx";
 import { HeldOut, Jobs } from "../components/run/HeldOutAndJobs.tsx";
 import { CompareRuns, RelatedRuns } from "../components/run/CompareAndRelated.tsx";
+import { InvalidBanner, InterventionList } from "../components/RunMarks.tsx";
+import { Section } from "../components/run/bits.tsx";
 import "./run.css";
+
+/** Every intervention in the run, with the stories they were in; only for a run that has any. */
+function Interventions({ run }: { run: Row }) {
+  const list = run.interventions ?? [];
+  if (!list.length) return null;
+  return (
+    <Section term="interventions" id="interventions" aside={<span className="small">{list.length} in all; the run stays in every figure</span>}>
+      <InterventionList list={list} />
+    </Section>
+  );
+}
 
 /** Everything about one run, in reading order: identity, outcome, where the time went, cost, evidence, provenance
  * (plan section 4.3). */
@@ -16,12 +29,14 @@ export function RunPage({ run, state, params }: { run: Row; state: State; server
   return (
     <div className="page run-page" data-page="run">
       <Breadcrumb trail={[{ label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> }, { label: run.runId }]} />
+      <InvalidBanner invalid={run.invalid} what="run" />
       <RunHeader run={run} state={state} />
       <StoryStrip run={run} />
       <RunTime run={run} />
       <RunCost run={run} />
       <HeldOut run={run} />
       <Jobs run={run} />
+      <Interventions run={run} />
       {/* Keyed by run: moving to another run's page starts its comparison afresh. */}
       <CompareRuns key={`${run.stack}|${run.runId}`} run={run} others={others} params={params} />
       <RelatedRuns run={run} others={others} />

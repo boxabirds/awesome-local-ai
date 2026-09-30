@@ -2,7 +2,8 @@
 // a link to its story run.
 import type { ReactNode } from "react";
 import type { Row, Story, Usage } from "../../../shared/types.ts";
-import { runTotals, whyMissing, whyRunMissing } from "../../../shared/runView.ts";
+import { interventionsOf, runTotals, whyMissing, whyRunMissing } from "../../../shared/runView.ts";
+import { InterventionMark } from "../RunMarks.tsx";
 import type { TermId } from "../../../shared/glossary.ts";
 import { StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
@@ -71,7 +72,7 @@ function StoryCostTable({ run }: { run: Row }) {
             const q = run.storiesWorking.squares.find((x) => x.id === s.id);
             return (
               <tr key={s.id} data-story={s.id}>
-                <td className="story-cell"><StoryRunLink pack={run.pack} stack={run.stack} runId={run.runId} story={s.id}>{s.id}. {s.title || `story ${s.id}`}</StoryRunLink></td>
+                <td className="story-cell"><StoryRunLink pack={run.pack} stack={run.stack} runId={run.runId} story={s.id}>{s.id}. {s.title || `story ${s.id}`}</StoryRunLink> <InterventionMark list={interventionsOf(run, s.id)} compact /></td>
                 <td>{q?.total ? <span className={`held q-text-${q.state}`}>{q.passed}/{q.total}</span> : <Missing why="No held-out result for this story against the latest build." />}</td>
                 {s.usage
                   ? COLS.map((c) => <td key={c.term} className="n">{c.cell(s.usage!, s)}</td>)

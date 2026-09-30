@@ -73,8 +73,8 @@ test.describe("header", () => {
     await open(page, "2");
     const f = section(page, "header").locator('[data-fact="tests"]');
     await expect(f.locator(".big-n")).toHaveText("14");
-    await expect(f.locator(".tests-differ")).toHaveText("in 4 runs; 10 in 2");
-    await expect(f.locator(".tests-differ")).toHaveAttribute("data-tip", /14 in 4 runs, 10 in 2 runs\. Runs scored under another suite version/);
+    await expect(f.locator(".tests-differ")).toHaveText("in 5 runs; 10 in 2");   // the invalid run counts tests too: a count of tests, not a result
+    await expect(f.locator(".tests-differ")).toHaveAttribute("data-tip", /14 in 5 runs, 10 in 2 runs\. Runs scored under another suite version/);
   });
 
   test("held-out tests not recorded by any run: — with why", async ({ page }) => {
@@ -86,7 +86,7 @@ test.describe("header", () => {
 
   test("how many story runs, in how many combinations, and how many runs haven't built it", async ({ page }) => {
     await open(page, "2");
-    await expect(section(page, "header").locator('[data-fact="runs"]')).toContainText("7 in 2 combinations · 5 runs not built");
+    await expect(section(page, "header").locator('[data-fact="runs"]')).toContainText("8 in 2 combinations · 5 runs not built");
   });
 
   test("previous and next: the first story has no previous", async ({ page }) => {
@@ -229,7 +229,7 @@ test.describe("by combination", () => {
   test("runs in run order: finished first, then running", async ({ page }) => {
     await open(page, "1");
     const runs = await group(page, SWIFT).locator("tr.sp-entry").evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run));
-    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r1"]);
+    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r8", "v2-r1"]);
   });
 
   test("a missing number is — with why, never 0", async ({ page }) => {
@@ -442,7 +442,7 @@ test.describe("where the time went", () => {
     const groups = await bars(page).locator(".sp-time-group").evaluateAll((gs) => gs.map((g) => (g as HTMLElement).dataset.stack));
     expect(groups).toEqual([OPUS, SWIFT, MLX]);
     const runs = await bars(page).locator(`.sp-time-group[data-stack="${SWIFT}"] .bar-row`).evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run));
-    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r1"]);
+    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r8", "v2-r1"]);
     const segs = await bars(page).locator('[data-run="v2-r4"] [data-seg]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.seg));
     expect(segs).toEqual(["prefill", "decode", "compaction", "tools", "other"]);
   });

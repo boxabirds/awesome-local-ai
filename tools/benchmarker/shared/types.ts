@@ -88,7 +88,29 @@ export interface JobRef {
   /** Unix seconds. */
   submittedAt: number | null;
   updatedAt: number | null;
+  /** When it ended (Unix seconds): dbench's own log line recording the end, else its last update; null while it is
+   * queued or running, or when neither says. */
+  endedAt: number | null;
   reason: string;
+}
+
+/** A run marked invalid in its run.json (`"invalid": {"reason": …, "since": "2026-09-30"}`): its result can't stand (it
+ * saw the reference build, say). It is shown, struck through with the reason on hover, and left out of every figure. */
+export interface Invalid {
+  reason: string;
+  /** The date it was marked, as written; "" when the mark gives none. */
+  since: string;
+}
+
+/** One line of a run's interventions.md: something done to the run by hand, by the operator or the harness's
+ * watchdog (a frozen machine restarted, a silent tool call killed, a story ended at its cap). The run stays in every
+ * figure; its pages mark it. */
+export interface Intervention {
+  /** Unix seconds. */
+  at: number;
+  /** The story it was in ("3"); null for one about the run as a whole. */
+  story: string | null;
+  text: string;
 }
 
 /** One finished story of a run. */
@@ -191,6 +213,10 @@ export interface Row {
   live: Live | null;
   /** Every dbench job of this run, oldest first. */
   jobs: JobRef[];
+  /** Set when the record marks the run invalid: left out of every figure. */
+  invalid: Invalid | null;
+  /** interventions.md, oldest first; [] when it has none. */
+  interventions: Intervention[];
 }
 
 /** One dbench node: the job it runs now (null: idle) and how many wait behind it. */

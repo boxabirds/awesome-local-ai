@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rescoreStoryPaths, rescoredStory } from "./sources.ts";
+import { rescoreStoryPaths, rescoredStory, runNotes, runNotePaths } from "./sources.ts";
 
 // A re-scored story's counts: since 30 Sep 2026 a record has only the public summary (accept-summary.json);
 // the full result (accept.json) is private. Older records have only the full result.
@@ -23,5 +23,27 @@ describe("a re-scored story's counts", () => {
   it("fall back past a summary that doesn't parse, and are null when there is nothing", () => {
     expect(rescoredStory(new Map([[SUMMARY, "{not json"], [FULL, counts(2)]]), DIR, V, "12")?.by_story?.["12"].passed).toBe(2);
     expect(rescoredStory(new Map(), DIR, V, "12")).toBeNull();
+  });
+});
+
+// ---------- what the record says about the run itself ----------
+
+describe("a run's notes: its invalid mark (run.json) and interventions (interventions.md)", () => {
+  const RUN = `${DIR}/run.json`;
+  const IV = `${DIR}/interventions.md`;
+  const meta = (extra: Record<string, unknown>) => JSON.stringify({ pack: "vidi", pack_version: V, ...extra }, null, 2);
+
+  it("are read from run.json and interventions.md beside it", () => expect(runNotePaths(DIR)).toEqual([RUN, IV]));
+  it("both present", () => {
+    const n = runNotes(new Map([[RUN, meta({ invalid: { reason: "read the reference build in story 7", since: "2026-09-30" } })], [IV, "- 2026-09-26T08:57:29Z story 3: quintus froze"]]), DIR);
+    expect(n.invalid).toEqual({ reason: "read the reference build in story 7", since: "2026-09-30" });
+    expect(n.interventions).toEqual([{ at: Date.parse("2026-09-26T08:57:29Z") / 1000, story: "3", text: "quintus froze" }]);
+  });
+  it("neither: a valid run with no interventions", () => {
+    expect(runNotes(new Map([[RUN, meta({})]]), DIR)).toEqual({ invalid: null, interventions: [] });
+    expect(runNotes(new Map(), DIR)).toEqual({ invalid: null, interventions: [] });
+  });
+  it("a run.json that doesn't parse says nothing about validity", () => {
+    expect(runNotes(new Map([[RUN, "{not json"]]), DIR).invalid).toBeNull();
   });
 });

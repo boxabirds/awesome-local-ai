@@ -1,5 +1,5 @@
 // Pure logic: from repo paths, run records and dbench jobs to the rows the page shows. No I/O here.
-import type { ConversationProfile, JobRef, Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, Usage, Score, Stages, Story } from "../shared/types.ts";
+import type { ConversationProfile, Intervention, Invalid, JobRef, Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, Usage, Score, Stages, Story } from "../shared/types.ts";
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
 export const RECENT_S = 24 * 3600;
@@ -63,6 +63,56 @@ export interface RunRecord extends RunRef {
   stateAt: string;
   stories: Story[];
   scores: Record<string, Score>;
+  /** run.json's "invalid" mark; absent in records read before it existed (and in fixtures): valid. */
+  invalid?: Invalid | null;
+  /** interventions.md, parsed; absent: none. */
+  interventions?: Intervention[];
+}
+
+// ---------- what the record says about the run itself ----------
+
+const NO_REASON = "marked invalid with no reason given";
+
+/** run.json's "invalid": {"reason", "since"} (a bare string is its reason). Absent, null or false: valid. Any other
+ * mark still makes the run invalid, saying it gave no reason: a mark is never silently dropped. */
+export function parseInvalid(raw: unknown): Invalid | null {
+  if (raw === undefined || raw === null || raw === false) return null;
+  if (typeof raw === "string") return { reason: raw.trim() || NO_REASON, since: "" };
+  if (typeof raw === "object") {
+    const o = raw as { reason?: unknown; since?: unknown };
+    const reason = typeof o.reason === "string" ? o.reason.trim() : "";
+    return { reason: reason || NO_REASON, since: typeof o.since === "string" ? o.since.trim() : "" };
+  }
+  return { reason: NO_REASON, since: "" };
+}
+
+// interventions.md lines, as the operator writes them ("- 2026-09-26T08:57:29Z story 3: quintus froze …", or a heading
+// "## 2026-09-29T07:21Z: harness restarted …") and as the harness's watchdog does ("2026-09-29T23:00:53Z 05:
+// interrupted a tool call …"). The time as history.py reads it; a ":" straight after it is dropped.
+const INTERVENTION_RE = /^(?:[-*]\s*|#{1,6}\s*)?(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z)\s*:?\s*(.*)$/;
+/** "story 3: …" or the watchdog's "05: …". */
+const INTERVENTION_STORY_RE = /^(?:story\s+)?(\d+)\s*:\s*(.*)$/i;
+const BOLD = /\*\*/g;
+const MS_PER_S = 1000;
+/** "2026-09-25T16:10Z": a time without seconds is on the minute. */
+const MINUTE_ONLY = /T\d{2}:\d{2}Z$/;
+
+/** Every well-formed line, oldest first. Lines without a time, or with nothing after it, are prose or headings: skipped. */
+export function parseInterventions(text: string | undefined): Intervention[] {
+  const out: Intervention[] = [];
+  for (const raw of (text ?? "").split(/\r?\n/)) {
+    const m = INTERVENTION_RE.exec(raw.trim().replace(BOLD, ""));
+    if (!m) continue;
+    const at = Date.parse(MINUTE_ONLY.test(m[1]) ? m[1].replace(/Z$/, ":00Z") : m[1]) / MS_PER_S;
+    if (!Number.isFinite(at)) continue;
+    const rest = m[2].trim();
+    const st = INTERVENTION_STORY_RE.exec(rest);
+    const story = st ? String(Number(st[1])) : null;
+    const said = (st ? st[2] : rest).trim();
+    if (!said) continue;
+    out.push({ at, story, text: said });
+  }
+  return out.toSorted((a, b) => a.at - b.at);
 }
 
 const RUN_RE =
@@ -123,6 +173,25 @@ export function webBase(remote: string): string | null {
 // ---------- dbench jobs ----------
 
 const jobKey = (stack: string, pack: string, runId: string) => [stack, pack, runId].join("\u0000");
+
+// dbench's own line recording a job's end: "[dbench 2026-09-29T02:13:20Z] harness exited 0; job done", "… cancelled
+// while queued by …", "… adopted harness ended; cancelled".
+const DBENCH_LINE = /^\[dbench (\S+)\] (.*)$/;
+const END_WORDS = /\bjob (?:done|failed|cancelled)\b|\bcancelled\b/;
+
+/** When a job ended, in Unix seconds: the last line of its log tail in which dbench recorded the end, else its last
+ * update (dbench stamps updated_at when it ends a job); null for a queued or running job, or when neither says. */
+export function jobEndedAt(j: DbenchJob): number | null {
+  const st = j.state.status;
+  if (st === "queued" || st === "running") return null;
+  for (const line of (j.progress?.log_tail ?? []).toReversed()) {
+    const m = DBENCH_LINE.exec(line);
+    if (!m || !END_WORDS.test(m[2])) continue;
+    const t = Date.parse(m[1]) / MS_PER_S;
+    if (Number.isFinite(t)) return t;
+  }
+  return j.updated_at ?? null;
+}
 const packName = (pack: string | undefined) => (pack ?? "").split("/").filter(Boolean).pop() ?? "";
 const jobStack = (j: DbenchJob) => j.progress?.combination || j.spec.combination || j.spec.install_id || "";
 
@@ -156,7 +225,7 @@ export function jobsByRun(byNode: Record<string, DbenchJob[]>): Map<string, JobR
       const key = jobKey(jobStack(j), packName(j.spec.pack), j.spec.run_id ?? "");
       out.set(key, [...(out.get(key) ?? []), {
         id: j.id, node, status: j.state.status ?? "", submittedAt: j.submitted_at ?? null, updatedAt: j.updated_at ?? null,
-        reason: j.state.reason ?? "",
+        endedAt: jobEndedAt(j), reason: j.state.reason ?? "",
       }]);
     }
   }
@@ -462,6 +531,8 @@ export function buildRows(
       ),
       live: job ? liveFromJob(job, queue.get(job.id)) : null,
       jobs: allJobs.get(jobKey(r.stack, r.pack, r.runId)) ?? [],
+      invalid: r.invalid ?? null,
+      interventions: r.interventions ?? [],
     };
   }));
 }

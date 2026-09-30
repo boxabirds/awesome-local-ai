@@ -1,6 +1,7 @@
 // The story run page's header, what's known of a story run that isn't recorded, and the ways around it.
 import type { Row, State } from "../../../shared/types.ts";
-import { neighbours, otherRuns, storyRunState, type StoryRunState } from "../../../shared/runView.ts";
+import { interventionsOf, neighbours, otherRuns, storyRunState, type StoryRunState } from "../../../shared/runView.ts";
+import { InterventionMark } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { CombinationLink, MachineLink, RunLink, StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
@@ -33,7 +34,8 @@ export function StoryRunHeader({ run, st, storyId, title }: { run: Row; st: Stor
       <div className="eyebrow">Story run</div>
       <h1>Story {storyId}{title ? <span className="story-title-h"> · {title}</span> : <span className="small"> · title not known yet</span>}</h1>
       <div className="of-run">
-        <RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} /> <span className="small">on <MachineLink machine={run.machine} host={run.host} /> · run</span> <StatusBadge run={run} />
+        <RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} invalid={run.invalid} /> <span className="small">on <MachineLink machine={run.machine} host={run.host} /> · run</span> <StatusBadge run={run} />
+        {" "}<InterventionMark list={interventionsOf(run, storyId)} />
       </div>
       <div className="outcome">
         <Stat term="storyStatus"><span data-fact="storyStatus"><StoryStatus st={st} /></span></Stat>
@@ -93,7 +95,7 @@ export function StoryNav({ run, state, storyId }: { run: Row; state: State; stor
                   const s = storyRunState(r, storyId);
                   return (
                     <li key={r.runId} data-run={r.runId}>
-                      <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId}>{r.runId} · story {storyId}</StoryRunLink>{" "}
+                      <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId} invalid={r.invalid}>{r.runId} · story {storyId}</StoryRunLink>{" "}
                       <span className="small">{s.kind === "recorded" ? s.story.status || "recorded" : s.kind === "inProgress" ? "in progress" : s.kind === "notBuilt" ? "not built" : "not in scope"}</span>
                     </li>
                   );
@@ -103,7 +105,7 @@ export function StoryNav({ run, state, storyId }: { run: Row; state: State; stor
           </dd>
         </div>
         <div data-row="story"><dt>Story {storyId} in every combination</dt><dd><StoryLink pack={run.pack} story={storyId}>story {storyId}: every combination's runs</StoryLink></dd></div>
-        <div data-row="run"><dt>The run</dt><dd><RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} /></dd></div>
+        <div data-row="run"><dt>The run</dt><dd><RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} invalid={run.invalid} /></dd></div>
         <div data-row="combination"><dt>The combination</dt><dd><CombinationLink pack={run.pack} stack={run.stack} label={run.label} /></dd></div>
       </dl>
     </Section>

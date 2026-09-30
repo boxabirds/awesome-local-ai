@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildMatrix, buildingStory, cellOf, classifyMechanism, DIVERGENCE, divergence, HUNG_COMMAND_SECONDS, HUNG_TOOL_SHARE, heldOutState,
   MANY_CALLS_RATIO, MECHANISM_PRECEDENCE, metricValue, MIN_RUNS_FOR_MEDIAN, NEAR_RATIO, runOrder, runSplit, runTotal, SHARE_RATIO,
-  SLOWER_DECODE_RATIO, storyIds, storyMedians, tally, THINKING_RATIO, TIME_SHARE, MECHANISM_TERM, modelOf,
+  SLOWER_DECODE_RATIO, siblings, storyIds, storyMedians, tally, THINKING_RATIO, TIME_SHARE, MECHANISM_TERM, modelOf,
 } from "./combinationView.ts";
 import { GLOSSARY } from "./glossary.ts";
 import { INDISTINGUISHABLE_TESTS, SMALL_N } from "./stats.ts";
@@ -42,13 +42,14 @@ function story(id: string, o: { usage?: Usage | null; conversation?: Conversatio
   return { id, title: `Story ${id}`, status: "DONE", passed: null, total: null, ownPassed, ownTotal, usage: o.usage === undefined ? usage() : o.usage, conversation: o.conversation === undefined ? profile() : o.conversation };
 }
 let seq = 0;
-function run(stories: Story[], o: { status?: RunStatus; runId?: string; scope?: string[]; current?: string | null; running?: string | null; tokS?: number | null } = {}): Row {
+function run(stories: Story[], o: { status?: RunStatus; runId?: string; scope?: string[]; current?: string | null; running?: string | null; tokS?: number | null; invalid?: boolean } = {}): Row {
   const status = o.status ?? "finished";
   return {
     pack: "p", stack: "s", runId: o.runId ?? `r${++seq}`, status, suite: "v2", scores: {}, stories,
     storiesWorking: { working: 0, scope: 0, squares: (o.scope ?? stories.map((s) => s.id)).map((id) => ({ id, state: "unbuilt", passed: null, total: null })) },
     live: status === "running" || status === "queued" ? { status, currentStory: o.current ?? null, runningStory: o.running ?? null } : null,
     usage: { tokS: o.tokS ?? null },
+    invalid: o.invalid ? { reason: "read the reference build in story 7", since: "2026-09-30" } : null, interventions: [],
   } as unknown as Row;
 }
 /** Three ordinary siblings of story 1. */
@@ -393,5 +394,55 @@ describe("names", () => {
     expect(GLOSSARY.smallN.what).toContain(`${SMALL_N} runs or fewer`);
     expect(GLOSSARY.smallN.what).toContain(`${INDISTINGUISHABLE_TESTS} held-out tests`);
     expect(GLOSSARY.divergence.what).toContain(`${DIVERGENCE * 100}%`);
+  });
+});
+
+// ---------- invalid runs: in the matrix, struck through, but in no figure ----------
+
+describe("an invalid run in the matrix", () => {
+  const mins = (secs: number, conv?: Partial<ConversationProfile>) => story("1", { usage: usage({ agentSeconds: secs, split: split({ wall: secs }) }), conversation: profile(conv) });
+  const runs = [
+    run([mins(600)], { runId: "a" }), run([mins(660)], { runId: "b" }), run([mins(630)], { runId: "c" }),
+    run([mins(6000, { thinkingChars: CALLS * THINK_PER_CALL * 10 })], { runId: "bad", invalid: true }),
+  ];
+  const m = buildMatrix(runs, "minutes");
+  const at = (runId: string) => m.rows.find((r) => r.run.runId === runId)!.cells[0];
+
+  it("is not in the story's median (n counts valid finished runs only)", () => {
+    expect(storyMedians(runs, ["1"], "minutes").get("1")).toEqual({ median: 630 / 60, n: 3 });
+    expect(m.medians.get("1")).toEqual({ median: 630 / 60, n: 3 });
+  });
+  it("its only run left out, a story has no median", () => {
+    expect(storyMedians([run([mins(600)], { invalid: true })], ["1"], "minutes").get("1")).toBeNull();
+  });
+  it("still has its row and its value, in run order", () => {
+    expect(m.rows.map((r) => r.run.runId)).toEqual(["a", "b", "bad", "c"]);
+    expect(at("bad")).toMatchObject({ state: "recorded", value: 100 });
+  });
+  it("is never flagged, however far from the median, and has no mechanism", () => {
+    expect(at("bad")).toMatchObject({ divergence: null, mechanism: null });
+  });
+  it("is not a sibling a valid run's mechanism is judged against", () => {
+    expect(siblings(runs, runs[0], "1").length).toBe(2);
+    // Two valid runs think 100 chars a call, two invalid ones 1000. A slow run thinking 300 a call is verbose against
+    // the valid ones (3×); against all four (median 550) it would not be.
+    const think = (perCall: number) => ({ thinkingChars: CALLS * perCall });
+    const set = [
+      run([mins(600, think(100))], { runId: "a" }), run([mins(600, think(100))], { runId: "b" }),
+      run([mins(600, think(1000))], { runId: "x", invalid: true }), run([mins(600, think(1000))], { runId: "y", invalid: true }),
+      run([mins(3000, think(300))], { runId: "slow" }),
+    ];
+    const slow = buildMatrix(set, "minutes").rows.find((r) => r.run.runId === "slow")!.cells[0];
+    expect(slow.mechanism?.label).toBe("verbose thinking");
+    const unmarked = buildMatrix(set.map((r) => ({ ...r, invalid: null })), "minutes").rows.find((r) => r.run.runId === "slow")!.cells[0];
+    expect(unmarked.mechanism?.fired.map((f) => f.label) ?? []).not.toContain("verbose thinking");
+  });
+  it("is not in the tally: neither flagged nor counted as a story run", () => {
+    expect(tally(m)).toEqual({ lines: [], flagged: 0, storyRuns: 3 });
+  });
+  it("the same run unmarked would be flagged and counted (the control)", () => {
+    const plain = buildMatrix(runs.map((r) => ({ ...r, invalid: null })), "minutes");
+    expect(plain.rows.find((r) => r.run.runId === "bad")!.cells[0].divergence?.direction).toBe("above");
+    expect(tally(plain).storyRuns).toBe(4);
   });
 });

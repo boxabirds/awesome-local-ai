@@ -1,12 +1,13 @@
 // The run and story-run pages' rules, organised by dimension: the run's state, the story's state, data present
 // or absent, held-out, jobs, and comparisons. Each dimension's cases are exhaustive for the values it can take.
 import { describe, expect, it } from "vitest";
-import type { ConversationProfile, Live, Row, RunStatus, Score, Story, StorySquare, TimeSplit, Usage } from "./types.ts";
+import type { ConversationProfile, Intervention, Live, Row, RunStatus, Score, Story, StorySquare, TimeSplit, Usage } from "./types.ts";
 import {
   AGAINST_MEASURES, COMPARE_MEASURES, DIFF_THRESHOLD, SEGMENTS, STATUS_ICON, againstCombination, agentTime, compareRuns,
   conversationView, divergence, heldOutAgreement, isOver, jobsView, liveProgress, median, neighbours, otherRuns, relDiff,
   runTimeBars, runTotals, scopeIds, scoreOfRecord, segmentTip, signedPercent, splitParts, squareTip, statusView,
   storyRunState, storyTitle, toolKinds, whyMissing, whyRunMissing,
+  groupInterventions, interventionsOf, interventionTip, invalidTip, MAX_TIP_INTERVENTIONS,
 } from "./runView.ts";
 import { GLOSSARY } from "./glossary.ts";
 
@@ -45,7 +46,7 @@ const row = (over: Partial<Row> = {}): Row => ({
   storiesWorking: { working: 0, scope: 3, squares: squares(["ok", "ok", "unbuilt"]) },
   usage: { outTokens: 2000, inTokens: 200, readTokens: 2000, calls: 20, tokS: 1.7, decodeTokS: 2.25, prefillTokS: 1.7 },
   statusNote: "", stories: [story("1"), story("2")], rescores: [], scores: {}, hasBundle: false,
-  stages: { build: "finished", score: "", judge: "" }, live: null, jobs: [], ...over,
+  stages: { build: "finished", score: "", judge: "" }, live: null, jobs: [], invalid: null, interventions: [], ...over,
 });
 
 const ALL_STATUSES: RunStatus[] = ["running", "queued", "finished", "failed", "stopped", "cancelled", "unknown"];
@@ -660,5 +661,113 @@ describe("comparisons", () => {
         expect(flags.minutes).toMatchObject({ value: null, flagged: false, n: 3 });
       });
     });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+describe("an invalid run", () => {
+  const INVALID = { reason: "read the reference build in story 7", since: "2026-09-30" };
+
+  describe("its score of record", () => {
+    it("has none, and says why, naming the re-score it isn't", () => {
+      const r = scoreOfRecord(row({ invalid: INVALID, rescores: [SUITE], scores: { [SUITE]: score(70, 75) } }));
+      expect(r).toMatchObject({ kind: "none", reason: "invalid" });
+      expect(r.kind === "none" && r.why).toBe(`Invalid: read the reference build in story 7 (marked 2026-09-30). Its re-score, 70/75 under ${SUITE}, is not a result: it is left out of every figure.`);
+    });
+    it("unscored as well: says so without a number", () => {
+      const r = scoreOfRecord(row({ invalid: INVALID }));
+      expect(r.kind === "none" && r.why).toBe("Invalid: read the reference build in story 7 (marked 2026-09-30). It is left out of every figure.");
+    });
+    it("a mark with no date leaves the date out", () => {
+      const r = scoreOfRecord(row({ invalid: { reason: "leak", since: "" } }));
+      expect(r.kind === "none" && r.why).toBe("Invalid: leak. It is left out of every figure.");
+    });
+    it("whatever its status: running and invalid is still invalid", () => {
+      expect(scoreOfRecord(row({ invalid: INVALID, status: "running" }))).toMatchObject({ reason: "invalid" });
+    });
+    it("the live figure has nothing of record to agree with", () => {
+      expect(heldOutAgreement(row({ invalid: INVALID, scores: { [SUITE]: score(5, 10) } }))).toMatchObject({ kind: "incomparable" });
+    });
+  });
+
+  it("its hover: the reason, the date, and what being invalid does", () => {
+    expect(invalidTip(INVALID)).toBe("Invalid run: read the reference build in story 7 (marked 2026-09-30). Shown for the record, struck through, and left out of every figure: rankings, medians, ranges, pooled scores and needs you.");
+    expect(invalidTip({ reason: "leak", since: "" })).toMatch(/^Invalid run: leak\. Shown/);
+  });
+
+  describe("against the combination", () => {
+    const at = (id: string, runId: string, secs: number, over: Partial<Row> = {}) => row({ runId, stories: [story(id, { usage: usage({ agentSeconds: secs, outTokens: secs, calls: secs, split: split({ wall: secs }) }) })], ...over });
+    const me = at("1", "me", 1000);
+    const rows = [me, at("1", "a", 1000), at("1", "b", 1000), at("1", "bad", 100, { invalid: INVALID })];
+
+    it("the median of the other runs leaves an invalid one out", () => {
+      const { flags } = againstCombination(me, rows, "1");
+      expect(flags.minutes).toMatchObject({ median: 1000, n: 2, flagged: false });
+      expect(flags.calls).toMatchObject({ n: 2, flagged: false });
+    });
+    it("it is still shown among the combination's runs, on the same scale", () => {
+      const { entries, scaleSeconds } = againstCombination(me, rows, "1");
+      expect(entries.map((e) => e.run.runId)).toEqual(["a", "b", "bad", "me"]);
+      expect(scaleSeconds).toBe(1000);
+    });
+    it("an invalid run's own page still compares it with the valid runs", () => {
+      const bad = rows[3];
+      expect(againstCombination(bad, rows, "1").flags.minutes).toMatchObject({ median: 1000, n: 3, flagged: true });
+    });
+    it("unmarked, it would pull the median (the control)", () => {
+      expect(againstCombination(me, rows.map((r) => ({ ...r, invalid: null })), "1").flags.minutes).toMatchObject({ n: 3 });
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+describe("interventions", () => {
+  const T = Date.parse("2026-09-26T14:17:23Z") / 1000;
+  const iv = (story: string | null, text: string, at = T): Intervention => ({ at, story, text });
+
+  describe("which apply", () => {
+    const list = [iv("3", "froze"), iv(null, "suite fixed"), iv("11", "capped"), iv("3", "restarted", T + 60)];
+    it("to the run: all of them, oldest first", () => expect(interventionsOf({ interventions: list }).map((i) => i.text)).toEqual(["froze", "suite fixed", "capped", "restarted"]));
+    it("to a story run: those naming that story, whatever its padding", () => {
+      expect(interventionsOf({ interventions: list }, "3").map((i) => i.text)).toEqual(["froze", "restarted"]);
+      expect(interventionsOf({ interventions: list }, "03").map((i) => i.text)).toEqual(["froze", "restarted"]);
+    });
+    it("to a story nobody intervened in: none", () => expect(interventionsOf({ interventions: list }, "5")).toEqual([]));
+    it("a run-wide one belongs to no story run", () => expect(interventionsOf({ interventions: [iv(null, "x")] }, "1")).toEqual([]));
+    it("a row from an older server (no field): none", () => expect(interventionsOf({} as Pick<Row, "interventions">)).toEqual([]));
+  });
+
+  describe("grouped: a watchdog repeating itself reads as one line", () => {
+    it("consecutive identical lines for one story collapse, with the count and the first and last time", () => {
+      const reps = Array.from({ length: 95 }, (_, i) => iv("7", "interrupted a tool call silent for 600s", T + i * 30));
+      expect(groupInterventions([iv("5", "other"), ...reps])).toEqual([
+        { story: "5", text: "other", count: 1, first: T, last: T },
+        { story: "7", text: "interrupted a tool call silent for 600s", count: 95, first: T, last: T + 94 * 30 },
+      ]);
+    });
+    it("the same text in different stories stays apart", () => {
+      expect(groupInterventions([iv("2", "x"), iv("4", "x")])).toHaveLength(2);
+    });
+    it("not consecutive: stays apart, so the order stays true", () => {
+      expect(groupInterventions([iv("2", "x"), iv("2", "y"), iv("2", "x")]).map((g) => g.text)).toEqual(["x", "y", "x"]);
+    });
+  });
+
+  describe("the hover", () => {
+    it("says how many, then one line each: when, which story, what", () => {
+      expect(interventionTip([iv("3", "froze"), iv(null, "suite fixed", T + 3600)])).toBe(
+        "Operator interventions (2):\n2026-09-26 14:17 UTC · story 3: froze\n2026-09-26 15:17 UTC · the run: suite fixed");
+    });
+    it("a repeated line once, with how many times and over when", () => {
+      const reps = Array.from({ length: 3 }, (_, i) => iv("7", "killed a silent tool call", T + i * 60));
+      expect(interventionTip(reps)).toBe("Operator interventions (3):\n2026-09-26 14:17–14:19 UTC · story 7: killed a silent tool call (3 times)");
+    });
+    it(`at most ${MAX_TIP_INTERVENTIONS} lines, then how many more`, () => {
+      const many = Array.from({ length: MAX_TIP_INTERVENTIONS + 3 }, (_, i) => iv(String(i + 1), `line ${i + 1}`, T + i * 60));
+      const tip = interventionTip(many);
+      expect(tip.split("\n")).toHaveLength(1 + MAX_TIP_INTERVENTIONS + 1);
+      expect(tip.split("\n").at(-1)).toBe("… and 3 more on the run page");
+    });
+    it("none: empty", () => expect(interventionTip([])).toBe(""));
   });
 });

@@ -1105,6 +1105,218 @@
       ],
       "scores": {},
       "host": "Intel Core i9 + RTX 4090 64GB"
+    },
+    {
+      "pack": "vidi",
+      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+      "runId": "v2-r8",
+      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r8",
+      "rescores": [
+        "vidi-v2.0-pre1"
+      ],
+      "hasBundle": true,
+      "packVersion": "vidi-v2.0-pre1",
+      "state": "finished",
+      "stateAt": "2026-09-30T12:10:00Z",
+      "stories": [
+        {
+          "id": "1",
+          "title": "Pan and zoom",
+          "status": "DONE",
+          "passed": 6,
+          "total": 6,
+          "ownPassed": 6,
+          "ownTotal": 6,
+          "usage": {
+            "outTokens": 9000,
+            "inTokens": 500000,
+            "cacheRead": 4500000,
+            "readTokens": 5000000,
+            "calls": 20,
+            "agentSeconds": 180,
+            "tokS": 83.33333333333333,
+            "decodeTokens": 54000,
+            "decodeSeconds": 591.7159763313609,
+            "decodeTokS": 101.4,
+            "prefillTokens": 45000,
+            "prefillSeconds": null,
+            "prefillTokS": 750.0,
+            "draftAcceptance": null,
+            "compactions": 1,
+            "nudges": 2,
+            "split": {
+              "wall": 180,
+              "prefill": 0,
+              "decode": 0,
+              "tools": 170,
+              "compaction": 0,
+              "other": 10,
+              "modelUnsplit": 0,
+              "toolsByKind": {
+                "e2e": 60,
+                "bash": 30
+              },
+              "betweenSessions": 0,
+              "check": {
+                "status": "ok",
+                "problems": []
+              }
+            }
+          },
+          "conversation": {
+            "calls": 89,
+            "toolCalls": 89,
+            "thinkingChars": 8000,
+            "textChars": 2100,
+            "toolArgChars": 88000,
+            "thinkingMedian": 82,
+            "thinkingMedianBefore": 80,
+            "thinkingMedianAfter": 85,
+            "largestThinking": {
+              "chars": 3900,
+              "call": 12,
+              "atS": 150
+            },
+            "contextStart": 9000,
+            "contextEnd": 61000,
+            "largestContextJump": {
+              "tokens": 4100,
+              "call": 40
+            },
+            "toolsByName": {
+              "bash": 40,
+              "read": 25,
+              "edit": 20,
+              "write": 10
+            },
+            "toolErrors": 2,
+            "longestTool": {
+              "seconds": 41.0,
+              "name": "bash",
+              "gist": "npx playwright test"
+            },
+            "signals": []
+          }
+        },
+        {
+          "id": "2",
+          "title": "Sticky notes",
+          "status": "DONE",
+          "passed": 20,
+          "total": 20,
+          "ownPassed": 14,
+          "ownTotal": 14,
+          "usage": {
+            "outTokens": 30000,
+            "inTokens": 500000,
+            "cacheRead": 4500000,
+            "readTokens": 5000000,
+            "calls": 40,
+            "agentSeconds": 900,
+            "tokS": 36.3,
+            "decodeTokens": 174827,
+            "decodeSeconds": 591.7159763313609,
+            "decodeTokS": 41.7,
+            "prefillTokens": 45000,
+            "prefillSeconds": null,
+            "prefillTokS": 750.0,
+            "draftAcceptance": null,
+            "compactions": 2,
+            "nudges": 0,
+            "split": {
+              "wall": 900,
+              "prefill": 60,
+              "decode": 700,
+              "tools": 100,
+              "compaction": 30,
+              "other": 10,
+              "modelUnsplit": 0,
+              "betweenSessions": 0,
+              "toolsByKind": {
+                "unit": 62,
+                "e2e": 43,
+                "build": 11,
+                "bash": 1
+              },
+              "check": {
+                "status": "ok",
+                "problems": []
+              }
+            }
+          },
+          "conversation": {
+            "calls": 207,
+            "toolCalls": 204,
+            "thinkingChars": 328750,
+            "textChars": 4889,
+            "toolArgChars": 279940,
+            "thinkingMedian": 424,
+            "thinkingMedianBefore": 80,
+            "thinkingMedianAfter": 464,
+            "largestThinking": {
+              "chars": 64543,
+              "call": 14,
+              "atS": 480
+            },
+            "contextStart": 9000,
+            "contextEnd": 120000,
+            "largestContextJump": {
+              "tokens": 16607,
+              "call": 15
+            },
+            "toolsByName": {
+              "bash": 115,
+              "edit": 40,
+              "read": 21,
+              "write": 28
+            },
+            "toolErrors": 5,
+            "longestTool": {
+              "seconds": 61.7,
+              "name": "bash",
+              "gist": "npm run test:unit"
+            },
+            "signals": [
+              "long-thinking-block"
+            ]
+          }
+        }
+      ],
+      "scores": {
+        "vidi-v2.0-pre1": {
+          "passed": 74,
+          "total": 75,
+          "flaky": 0,
+          "at": "2026-09-30T13:00:00Z"
+        }
+      },
+      "host": "Intel Core i9 + RTX 4090 64GB",
+      "invalid": {
+        "reason": "read the reference build in story 2, through a clone of the repo the sandbox did not hide",
+        "since": "2026-09-30"
+      },
+      "interventions": [
+        {
+          "at": 1790755800.0,
+          "story": "1",
+          "text": "interrupted a tool call silent for 600s (killed processes under the workspace)"
+        },
+        {
+          "at": 1790755830.0,
+          "story": "1",
+          "text": "interrupted a tool call silent for 600s (killed processes under the workspace)"
+        },
+        {
+          "at": 1790758800.0,
+          "story": null,
+          "text": "gruntus rebooted by the operator; the run resumed at story 2"
+        },
+        {
+          "at": 1790764200.0,
+          "story": "2",
+          "text": "story ended by the operator at its cap"
+        }
+      ]
     }
   ],
   "jobs": {

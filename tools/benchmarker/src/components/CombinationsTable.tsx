@@ -4,6 +4,7 @@ import { closeCalls, compareRanked, INDISTINGUISHABLE_TESTS, NOT_COUNTED_ORDER, 
 import type { TermId } from "../../shared/glossary.ts";
 import { qualityClass } from "../format.ts";
 import { CombinationLink } from "./EntityLinks.tsx";
+import { invalidTip } from "../../shared/runView.ts";
 import { termName, termTip } from "./combination/Term.tsx";
 import { fmtCount, fmtHours, fmtTokens, SpreadText } from "./combination/Spread.tsx";
 
@@ -47,8 +48,11 @@ function cell(c: RankedCombination, cls: string) {
     case "toks": return spreadCell(c.tokS, (n) => n.toFixed(SPEED_DECIMALS));
     case "read": return spreadCell(c.readPerStory, fmtTokens);
     case "not-counted": {
-      const parts = NOT_COUNTED_ORDER.filter((s) => c.notCounted[s]).map((s) => `${c.notCounted[s]} ${s}`);
-      return parts.length ? <span className="small not-counted-list">{parts.map((p) => <span key={p}>{p}</span>)}</span> : <span className="small">none</span>;
+      const parts = NOT_COUNTED_ORDER.filter((s) => c.notCounted[s]).map((s) => ({ s, text: `${c.notCounted[s]} ${s}` }));
+      // Invalid runs are named, struck through, with each reason on hover.
+      const tip = (s: string) => (s === "invalid" ? c.invalid.map((r) => `${r.runId}: ${invalidTip(r.invalid!)}`).join("\n") : undefined);
+      return parts.length ? <span className="small not-counted-list">{parts.map((p) => <span key={p.s} data-standing={p.s} data-tip={tip(p.s)} tabIndex={p.s === "invalid" ? 0 : undefined}>
+        {p.text}{p.s === "invalid" ? <> (<span className="invalid-run">{c.invalid.map((r) => r.runId).join(", ")}</span>)</> : null}</span>)}</span> : <span className="small">none</span>;
     }
   }
   return null;

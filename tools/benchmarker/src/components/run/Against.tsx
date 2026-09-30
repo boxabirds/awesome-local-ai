@@ -38,10 +38,10 @@ export function Against({ run, state, storyId }: { run: Row; state: State; story
             {entries.map(({ run: r, story, isThis }) => {
               const split = story?.usage?.split ?? null;
               return (
-                <tr key={r.runId} data-run={r.runId} className={isThis ? "is-this" : undefined} aria-current={isThis ? "page" : undefined}>
+                <tr key={r.runId} data-run={r.runId} className={isThis ? "is-this" : undefined} aria-current={isThis ? "page" : undefined} data-invalid={r.invalid && !isThis ? "true" : undefined}>
                   <td className="nowrap">
-                    <RunLink pack={r.pack} stack={r.stack} runId={r.runId} />
-                    {isThis ? <span className="this-mark">this story run</span> : <> · <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId} /></>}
+                    <RunLink pack={r.pack} stack={r.stack} runId={r.runId} invalid={r.invalid} />
+                    {isThis ? <span className="this-mark">this story run</span> : <> · <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId} invalid={r.invalid} /></>}
                   </td>
                   <td className="bar-col">
                     {split ? <span className="bar-track"><SplitBar split={split} usage={story!.usage ?? null} scaleSeconds={scaleSeconds} label={`${r.runId}: ${duration(split.wall)}`} /><CheckMark check={split.check} /></span>

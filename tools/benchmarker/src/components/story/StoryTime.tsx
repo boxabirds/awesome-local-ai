@@ -28,14 +28,14 @@ export function StoryTime({ view, storyId }: { view: StoryPageView; storyId: str
               {bars.map(({ e, story }) => (
                 <BarRow key={e.run.runId} data-run={e.run.runId} split={story.usage!.split!} usage={story.usage} scaleSeconds={view.scaleSeconds} total={duration(story.usage!.split!.wall)}
                   label={<>
-                    <RunLink pack={e.run.pack} stack={e.run.stack} runId={e.run.runId} /> <StoryRunLink pack={e.run.pack} stack={e.run.stack} runId={e.run.runId} story={storyId}>this story</StoryRunLink>
+                    <RunLink pack={e.run.pack} stack={e.run.stack} runId={e.run.runId} invalid={e.run.invalid} /> <StoryRunLink pack={e.run.pack} stack={e.run.stack} runId={e.run.runId} story={storyId} invalid={e.run.invalid}>this story</StoryRunLink>
                     <span className="bar-machine-inline small"> · <MachineLink machine={e.run.machine} host={e.run.host} /></span>
                   </>} />
               ))}
               {without.length ? (
                 <p className="sp-time-without small">
                   No split: {without.map((e, i) => (
-                    <span key={e.run.runId} data-run={e.run.runId}>{i ? ", " : ""}<RunLink pack={e.run.pack} stack={e.run.stack} runId={e.run.runId} /> ({e.attempt.kind === "building" ? "being built" : e.attempt.kind === "unrecorded" ? "no record yet" : "recorded without one"})</span>
+                    <span key={e.run.runId} data-run={e.run.runId}>{i ? ", " : ""}<RunLink pack={e.run.pack} stack={e.run.stack} runId={e.run.runId} invalid={e.run.invalid} /> ({e.attempt.kind === "building" ? "being built" : e.attempt.kind === "unrecorded" ? "no record yet" : "recorded without one"})</span>
                   ))}
                 </p>
               ) : null}

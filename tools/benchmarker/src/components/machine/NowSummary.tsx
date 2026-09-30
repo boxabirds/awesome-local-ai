@@ -21,7 +21,7 @@ export function NowSummary({ line }: { line: NowLine }) {
       return (
         <span className="now-summary" data-now="running">
           <span aria-hidden="true" className="s-running">▶ </span>
-          {run.pack ? <RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} />
+          {run.pack ? <RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} invalid={run.invalid} />
             : <span data-tip="dbench names this run, but no run record or job for it has reached the page yet, so it has no page."><span className="stack-label">{run.label} </span><b>{run.runId}</b></span>}
           <span className="sep" aria-hidden="true"> · </span>
           {line.story === null ? <span className="small">starting</span> : <>

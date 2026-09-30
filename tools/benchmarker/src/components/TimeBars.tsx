@@ -102,7 +102,7 @@ export function TimeBars({ storyId, jobs }: { storyId: string; jobs: { r: Row; u
         <BarRow key={`${r.stack}:${r.runId}`} data-job={`${r.stack}|${r.runId}`} split={u!.split!} usage={u} scaleSeconds={max} total={min(u!.split!.wall)}
           label={<>
             <span className="bar-machine"><MachineLink machine={r.machine} host={r.host} /></span>
-            <RunLink pack={r.pack} stack={r.stack} runId={r.runId} label={r.label} /> <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId}>this story</StoryRunLink>
+            <RunLink pack={r.pack} stack={r.stack} runId={r.runId} label={r.label} invalid={r.invalid} /> <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId} invalid={r.invalid}>this story</StoryRunLink>
           </>} />
       ))}
     </figure>

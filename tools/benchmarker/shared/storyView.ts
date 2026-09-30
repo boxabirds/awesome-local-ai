@@ -7,7 +7,7 @@
 // the mechanism behind a flag (classifyMechanism against the story's other runs in the combination).
 import type { Row, Story, StorySquare, Usage } from "./types.ts";
 import type { TermId } from "./glossary.ts";
-import { spread, type Spread } from "./stats.ts";
+import { isInvalid, spread, type Spread } from "./stats.ts";
 import {
   buildingStory, cellOf, classifyMechanism, divergence, metricValue, runOrder, siblings, storyIds,
   type Divergence, type MechanismResult, type Metric, type StoryMedian,
@@ -141,9 +141,10 @@ export interface Entry {
 export interface Summary { spread: Spread | null; /** For the divergence rule: the same median and n. */ median: StoryMedian | null }
 
 /** Per summarised measure, the median, range and n over the combination's finished runs that have a value for the
- * story: the combination page's storyMedians, with the range. Missing values are left out; zeros count. */
+ * story: the combination page's storyMedians, with the range. Missing values are left out; zeros count; invalid runs
+ * are left out. */
 export function combinationSummary(runs: Row[], id: string): Record<SummaryKey, Summary> {
-  const finished = runs.filter((r) => r.status === "finished");
+  const finished = runs.filter((r) => r.status === "finished" && !isInvalid(r));
   const one = (metric: Metric): Summary => {
     const xs = finished.map((r) => cellOf(r, String(Number(id)), metric).value).filter((x): x is number => x !== null);
     const s = spread(xs);
@@ -158,7 +159,7 @@ export interface Group {
   pack: string;
   machines: { machine: string; host: string }[];
   summary: Record<SummaryKey, Summary>;
-  /** Finished runs that recorded the story: what the summary is over (each measure's own n can be smaller). */
+  /** Valid finished runs that recorded the story: what the summary is over (each measure's own n can be smaller). */
   finishedRecorded: number;
   /** Runs that built the story or are building it, in run order. */
   entries: Entry[];
@@ -177,7 +178,7 @@ function groupOf(stack: string, runs: Row[], id: string): Group {
     const attempt = attemptOf(run, id);
     if (attempt.kind === "notBuilt") { notBuilt.push({ run, why: attempt.why }); continue; }
     const story = attempt.kind === "recorded" ? attempt.story : null;
-    const flags = story
+    const flags = story && !isInvalid(run)
       ? Object.fromEntries(SUMMARY_KEYS.map((k) => [k, divergence(STORY_MEASURES.find((m) => m.key === k)!.value(story), summary[k].median)])) as Record<SummaryKey, Divergence | null>
       : NO_FLAGS;
     const flagged = SUMMARY_KEYS.some((k) => flags[k]);
@@ -192,7 +193,7 @@ function groupOf(stack: string, runs: Row[], id: string): Group {
     stack, label: ordered[0].label, pack: ordered[0].pack,
     machines: [...machines].map(([machine, host]) => ({ machine, host })),
     summary,
-    finishedRecorded: ordered.filter((r) => r.status === "finished" && r.stories.some((s) => sameStory(s.id, id))).length,
+    finishedRecorded: ordered.filter((r) => r.status === "finished" && !isInvalid(r) && r.stories.some((s) => sameStory(s.id, id))).length,
     entries, notBuilt,
   };
 }

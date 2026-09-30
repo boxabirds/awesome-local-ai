@@ -1,9 +1,9 @@
 // What the run and story-run pages show, worked out from the state: pure functions, so every rule (what counts
 // as the score of record, when a story run differs from the others, why a number is missing) is tested once
 // here and the components only lay it out.
-import type { ConversationProfile, JobRef, Row, RunStatus, Score, Story, StorySquare, TimeSplit, Usage } from "./types.ts";
+import type { ConversationProfile, Intervention, Invalid, JobRef, Row, RunStatus, Score, Story, StorySquare, TimeSplit, Usage } from "./types.ts";
 import { GLOSSARY, type TermId } from "./glossary.ts";
-import { scoreOf } from "./stats.ts";
+import { isInvalid, scoreOf } from "./stats.ts";
 
 /** A difference counts when it is more than this share of the number it is compared with (the plan's 10% rule). */
 export const DIFF_THRESHOLD = 0.1;
@@ -43,15 +43,24 @@ export function statusView(run: Pick<Row, "status" | "statusNote" | "live" | "st
 
 export type RecordView =
   | { kind: "scored"; passed: number; total: number; version: string; at: string; flaky: number; currentSuite: boolean }
-  | { kind: "none"; reason: "not-finished" | "ended-early" | "not-rescored" | "no-result"; why: string };
+  | { kind: "none"; reason: "invalid" | "not-finished" | "ended-early" | "not-rescored" | "no-result"; why: string };
 
 const ENDED_EARLY: Partial<Record<RunStatus, string>> = {
   failed: "failed", stopped: "stopped", cancelled: "was cancelled", unknown: "is in an unknown state",
 };
 
-/** The run's score of record, or why it has none. A run that is running or queued again has none, whatever an
- * earlier attempt was scored: its build is about to change. */
-export function scoreOfRecord(run: Pick<Row, "status" | "scores" | "suite">): RecordView {
+/** "Invalid: <reason> (marked <since>)". */
+const invalidHead = (inv: Invalid) => `Invalid: ${inv.reason}${inv.since ? ` (marked ${inv.since})` : ""}.`;
+
+/** The run's score of record, or why it has none. An invalid run has none, whatever its re-score. A run that is
+ * running or queued again has none, whatever an earlier attempt was scored: its build is about to change. */
+export function scoreOfRecord(run: Pick<Row, "status" | "scores" | "suite"> & Partial<Pick<Row, "invalid">>): RecordView {
+  if (run.invalid) {
+    const found = scoreOf(run as Row);
+    const s = found?.[1];
+    const was = s && s.passed !== null && s.total !== null ? ` Its re-score, ${s.passed}/${s.total} under ${found![0]}, is not a result: it is left out of every figure.` : " It is left out of every figure.";
+    return { kind: "none", reason: "invalid", why: `${invalidHead(run.invalid)}${was}` };
+  }
   if (run.status === "running" || run.status === "queued") {
     return { kind: "none", reason: "not-finished", why: `Not finished: the run is ${run.status}. The score of record comes from re-scoring a finished run's final build.` };
   }
@@ -389,14 +398,15 @@ export const AGAINST_MEASURES: { key: AgainstKey; term: TermId; value: (s: Story
 export interface AgainstEntry { run: Row; story: Story | null; isThis: boolean }
 
 /** The same story in every run of the combination (this one marked), on one time scale, with this story run's
- * divergence from the median of the others on time, output tokens and calls. */
+ * divergence from the median of the others (invalid ones left out) on time, output tokens and calls. */
 export function againstCombination(run: Row, rows: Row[], id: string): {
   entries: AgainstEntry[]; scaleSeconds: number; flags: Record<AgainstKey, Divergence | null>;
 } {
   const all = rows.filter((r) => r.pack === run.pack && r.stack === run.stack).toSorted(byRunId);
   const entries = all.map((r) => ({ run: r, story: r.stories.find((s) => s.id === id) ?? null, isThis: r.runId === run.runId }));
   const mine = entries.find((e) => e.isThis)?.story ?? null;
-  const others = entries.filter((e) => !e.isThis && e.story);
+  // Invalid runs are shown among them, but are no yardstick.
+  const others = entries.filter((e) => !e.isThis && e.story && !isInvalid(e.run));
   const flags = Object.fromEntries(AGAINST_MEASURES.map(({ key, value }) =>
     [key, divergence(mine ? value(mine) : null, others.map((e) => value(e.story!)))])) as Record<AgainstKey, Divergence | null>;
   const scaleSeconds = Math.max(1, ...entries.map((e) => e.story?.usage?.split?.wall ?? 0));
@@ -444,4 +454,54 @@ export function conversationView(c: ConversationProfile | null | undefined): Con
     toolErrors: c.toolErrors, longestTool: c.longestTool,
     signals: c.signals.filter((s) => !RETIRED_SIGNALS.has(s)).map((s) => SIGNAL_TEXT[s] ?? s),
   };
+}
+
+// ---------- invalid runs and interventions ----------
+
+/** An invalid run's hover, wherever it is named. */
+export function invalidTip(inv: Invalid): string {
+  return `Invalid run: ${inv.reason}${inv.since ? ` (marked ${inv.since})` : ""}. Shown for the record, struck through, and left out of every figure: rankings, medians, ranges, pooled scores and needs you.`;
+}
+
+/** The run's interventions, or with `story` those in that story run (a run-wide one belongs to none). */
+export function interventionsOf(run: Partial<Pick<Row, "interventions">>, story?: string): Intervention[] {
+  const all = run.interventions ?? [];
+  return story === undefined ? all : all.filter((i) => i.story !== null && Number(i.story) === Number(story));
+}
+
+export interface InterventionGroup { story: string | null; text: string; count: number; first: number; last: number }
+
+/** Consecutive identical lines about one story as one (a watchdog killing the same silent call every 30 s). */
+export function groupInterventions(list: Intervention[]): InterventionGroup[] {
+  const out: InterventionGroup[] = [];
+  for (const i of list) {
+    const prev = out.at(-1);
+    if (prev && prev.story === i.story && prev.text === i.text) { prev.count += 1; prev.last = i.at; continue; }
+    out.push({ story: i.story, text: i.text, count: 1, first: i.at, last: i.at });
+  }
+  return out;
+}
+
+/** Lines a hover lists before it says how many more there are. */
+export const MAX_TIP_INTERVENTIONS = 8;
+const ISO_DATE = 10, ISO_MINUTE = 16, HH_MM_FROM = 11;
+const MS = 1000;
+const iso = (t: number) => new Date(t * MS).toISOString();
+
+/** When a group happened: "2026-09-26 14:17 UTC", or a span "2026-09-26 14:17–14:19 UTC" for repeats. */
+export function interventionWhen(g: InterventionGroup): string {
+  const a = iso(g.first), b = iso(g.last);
+  if (g.count === 1 || a.slice(0, ISO_MINUTE) === b.slice(0, ISO_MINUTE)) return `${a.slice(0, ISO_MINUTE).replace("T", " ")} UTC`;
+  const end = a.slice(0, ISO_DATE) === b.slice(0, ISO_DATE) ? b.slice(HH_MM_FROM, ISO_MINUTE) : b.slice(0, ISO_MINUTE).replace("T", " ");
+  return `${a.slice(0, ISO_MINUTE).replace("T", " ")}–${end} UTC`;
+}
+
+/** The intervened marker's hover: how many, then one line each (repeats collapsed), at most MAX_TIP_INTERVENTIONS. */
+export function interventionTip(list: Intervention[]): string {
+  if (!list.length) return "";
+  const groups = groupInterventions(list);
+  const lines = groups.slice(0, MAX_TIP_INTERVENTIONS).map((g) =>
+    `${interventionWhen(g)} · ${g.story === null ? "the run" : `story ${g.story}`}: ${g.text}${g.count > 1 ? ` (${g.count} times)` : ""}`);
+  const more = groups.length - MAX_TIP_INTERVENTIONS;
+  return [`Operator interventions (${list.length}):`, ...lines, ...(more > 0 ? [`… and ${more} more on the run page`] : [])].join("\n");
 }

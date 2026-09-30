@@ -3,7 +3,8 @@
 import type { Row, RunStatus } from "../../../shared/types.ts";
 import { machineHistory, type VersionGroup } from "../../../shared/overviewView.ts";
 import { scoreOfRecord, unscoredReason } from "../../../shared/stats.ts";
-import { scoreOfRecord as recordView, squareTip } from "../../../shared/runView.ts";
+import { interventionsOf, scoreOfRecord as recordView, squareTip } from "../../../shared/runView.ts";
+import { InterventionMark, InvalidTag } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { qualityClass } from "../../format.ts";
 import { CombinationLink, RunLink } from "../EntityLinks.tsx";
@@ -18,6 +19,7 @@ function noScoreWhy(r: Row): string {
 }
 
 function Score({ run }: { run: Row }) {
+  if (run.invalid) return <InvalidTag invalid={run.invalid} />;
   const s = scoreOfRecord(run);
   if (!s) return <Missing why={noScoreWhy(run)} />;
   return <span className="of-record" data-tip={GLOSSARY.scoreOfRecord.what}><strong className={qualityClass(s.passed! / s.total!)}>{s.passed}</strong><span className="of">/{s.total}</span></span>;
@@ -47,8 +49,8 @@ function Group({ g }: { g: VersionGroup }) {
         </th>
       </tr>
       {g.runs.map((r) => (
-        <tr key={r.runId} data-run={r.runId} data-status={r.status}>
-          <th scope="row" className="h-run"><RunLink pack={r.pack} stack={r.stack} runId={r.runId} /></th>
+        <tr key={r.runId} data-run={r.runId} data-status={r.status} data-invalid={r.invalid ? "true" : undefined}>
+          <th scope="row" className="h-run"><RunLink pack={r.pack} stack={r.stack} runId={r.runId} invalid={r.invalid} /> <InterventionMark list={interventionsOf(r)} /></th>
           <td><StatusBadge run={r} /></td>
           <td><Stories run={r} /></td>
           <td className="h-score"><Score run={r} /></td>

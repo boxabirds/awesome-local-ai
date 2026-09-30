@@ -20,7 +20,7 @@ const TAG: Record<NeedKind, { term: TermId; icon: string }> = {
   accounting: { term: "needAccounting", icon: "⚑" },
 };
 
-const Run = ({ run }: { run: RunRef }) => <RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} />;
+const Run = ({ run }: { run: RunRef }) => <RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} invalid={run.invalid} />;
 const Resolve = ({ href, children }: { href: string; children: ReactNode }) => <a className="resolve" href={href}>{children} →</a>;
 
 function Line({ need, now }: { need: Need; now: number }): ReactNode {

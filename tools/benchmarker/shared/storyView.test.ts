@@ -38,7 +38,7 @@ const mins = (m: number, o: Partial<Usage> = {}) => usage({ agentSeconds: m * MI
 let seq = 0;
 interface RunOpts {
   status?: RunStatus; runId?: string; stack?: string; label?: string; machine?: string;
-  squares?: StorySquare[]; live?: Partial<Live> | null; scope?: number;
+  squares?: StorySquare[]; live?: Partial<Live> | null; scope?: number; invalid?: boolean;
 }
 function run(stories: Story[], o: RunOpts = {}): Row {
   const status = o.status ?? "finished";
@@ -49,6 +49,7 @@ function run(stories: Story[], o: RunOpts = {}): Row {
     storiesWorking: { working: 0, scope: o.scope ?? squares.length, squares },
     live: o.live === undefined ? null : o.live === null ? null : ({ status, currentStory: null, runningStory: null, storyTitle: null, agentMinutes: null, calls: null, outputTokens: null, ...o.live } as Live),
     usage: { tokS: null }, jobs: [],
+    invalid: o.invalid ? { reason: "read the reference build in story 7", since: "2026-09-30" } : null, interventions: [],
   } as unknown as Row;
 }
 const sq = (id: string, state: StorySquare["state"], passed: number | null = null, total: number | null = null): StorySquare => ({ id, state, passed, total });
@@ -383,5 +384,48 @@ describe("time-bar segments", () => {
   });
   it("every segment is named and explained by the glossary", () => {
     for (const s of SEGMENTS) expect(GLOSSARY[s.term].name && GLOSSARY[s.term].what).toBeTruthy();
+  });
+});
+
+// ---------- invalid runs: shown on the story page, struck through, but in no figure ----------
+
+describe("an invalid run on the story page", () => {
+  const set = () => [
+    run([story("1", { usage: mins(10), own: [10, 10] })], { runId: "a" }),
+    run([story("1", { usage: mins(12), own: [8, 10] })], { runId: "b" }),
+    run([story("1", { usage: mins(11), own: [9, 10] })], { runId: "c" }),
+    run([story("1", { usage: mins(2, { outTokens: 1, calls: 1 }), own: [10, 10] })], { runId: "bad", invalid: true }),
+  ];
+
+  it("is left out of the combination's median, range and n on every summarised measure", () => {
+    const sum = combinationSummary(set(), "1");
+    expect(sum.minutes.spread).toEqual({ median: 11, min: 10, max: 12, n: 3 });
+    expect(sum.heldOut.spread).toEqual({ median: 0.9, min: 0.8, max: 1, n: 3 });
+    expect(sum.outTokens.spread?.n).toBe(3);
+    expect(sum.calls.spread).toEqual({ median: 100, min: 100, max: 100, n: 3 });
+  });
+  it("is not counted among the finished runs the summary is over", () => {
+    expect(storyPage(set(), "1").groups[0].finishedRecorded).toBe(3);
+  });
+  it("still has its entry, with its attempt, and is never flagged", () => {
+    const g = storyPage(set(), "1").groups[0];
+    const bad = g.entries.find((e) => e.run.runId === "bad")!;
+    expect(bad.attempt.kind).toBe("recorded");
+    expect(bad.divergence).toEqual({ minutes: null, outTokens: null, calls: null, heldOut: null });
+    expect(bad.mechanism).toBeNull();
+    expect(g.entries.map((e) => e.run.runId)).toEqual(["a", "b", "bad", "c"]);
+  });
+  it("a combination whose only run of the story is invalid has no median, and sorts as unmeasured", () => {
+    const only = run([story("1", { usage: mins(5), own: [10, 10] })], { runId: "bad", stack: "z/only", label: "Z", invalid: true });
+    const measured = run([story("1", { usage: mins(50), own: [1, 10] })], { runId: "ok", stack: "y/measured", label: "Y" });
+    const v = storyPage([only, measured], "1");
+    expect(v.groups.map((g) => g.stack)).toEqual(["y/measured", "z/only"]);
+    expect(v.groups[1].summary.minutes.spread).toBeNull();
+    expect(v.groups[1].finishedRecorded).toBe(0);
+  });
+  it("the same run unmarked is in the median, and flagged (the control)", () => {
+    const plain = set().map((r) => ({ ...r, invalid: null }));
+    expect(combinationSummary(plain, "1").minutes.spread?.n).toBe(4);
+    expect(storyPage(plain, "1").groups[0].entries.find((e) => e.run.runId === "bad")!.divergence.minutes?.direction).toBe("below");
   });
 });

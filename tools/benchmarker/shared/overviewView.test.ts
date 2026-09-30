@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import type { JobRef, Live, Machine, Row, RunStatus, Score, Story, TimeSplit, Usage } from "./types.ts";
 import {
-  NEED_KINDS, RECENT_END_S, SILENT_MINUTES, endedAt, jobPlace, machineHistory, machineJobs, needsYou, nowLines,
+  NEED_KINDS, RECENT_END_S, SILENT_MINUTES, endedAt, jobEndedAt, jobPlace, machineHistory, machineJobs, needsYou, nowLines,
   runningStory, silentMinutes, subject, suiteFamily, type Need, type Reachability,
 } from "./overviewView.ts";
 
@@ -29,7 +29,7 @@ const live = (over: Partial<Live> = {}): Live => ({
   outputTokens: null, tasksWritten: null, tasksTotal: null, lastActivity: null, storyStartedAt: null, storyTitle: null,
   storiesInScope: null, runStartedAt: null, totalAgentMinutes: null, logTail: [], queue: null, ...over,
 });
-const job = (id: string, status: string, updatedAt: number | null, reason = ""): JobRef => ({ id, node: "gruntus", status, submittedAt: null, updatedAt, reason });
+const job = (id: string, status: string, updatedAt: number | null, reason = "", ended: number | null = null): JobRef => ({ id, node: "gruntus", status, submittedAt: null, updatedAt, reason, endedAt: ended });
 const score = (passed: number | null, total: number | null): Score => ({ passed, total, flaky: 0, at: "2026-09-30T18:30:00Z" });
 
 const row = (over: Partial<Row> = {}): Row => ({
@@ -38,7 +38,7 @@ const row = (over: Partial<Row> = {}): Row => ({
   storiesWorking: { working: 0, scope: 0, squares: [] },
   usage: { outTokens: null, inTokens: null, readTokens: null, calls: null, tokS: null, decodeTokS: null, prefillTokS: null },
   statusNote: "", stories: [story("1")], rescores: [SUITE], scores: { [SUITE]: score(60, 75) }, hasBundle: false,
-  stages: { build: "finished", score: "", judge: "" }, live: null, jobs: [], ...over,
+  stages: { build: "finished", score: "", judge: "" }, live: null, jobs: [], invalid: null, interventions: [], ...over,
 });
 
 /** A running row on story 3 that started `startedMinAgo` minutes ago and last reported `agentMinutes`. */
@@ -322,14 +322,104 @@ describe("a machine's jobs now", () => {
       q("third", 3), row({ runId: "old", live: live({ jobId: "old", status: "done" }), jobs: [job("old", "done", 100)] }),
       running(1, 1), q("second", 2), row({ runId: "new", live: live({ jobId: "new", status: "cancelled" }), jobs: [job("new", "cancelled", 200)] }),
     ];
-    const j = machineJobs("gruntus", rows);
+    const j = machineJobs("gruntus", rows, 300);
     expect(j.running.map((r) => r.runId)).toEqual(["run"]);
     expect(j.queued.map((r) => r.runId)).toEqual(["second", "third"]);
     expect(j.ended.map((r) => r.runId)).toEqual(["new", "old"]);
   });
   it("only this machine's jobs, and only runs with a job", () => {
-    const j = machineJobs("gruntus", [{ ...running(1, 1), node: "tritus" }, row({ live: null })]);
+    const j = machineJobs("gruntus", [{ ...running(1, 1), node: "tritus" }, row({ live: null })], NOW);
     expect(j).toEqual({ running: [], queued: [], ended: [] });
+  });
+});
+
+// The bug of 30 Sep: tritus's page listed jobs that ended on 27-29 Sep under "Ended in the last day". dbench keeps
+// ended jobs for days; the list took every one it kept. What ended in the last day is judged on the job's own end.
+describe("a machine's jobs that ended in the last day", () => {
+  const ended = (runId: string, agoS: number | null, status = "done", over: Partial<Row> = {}) => row({
+    runId, live: live({ jobId: runId, status }), jobs: agoS === null ? [job(runId, status, null)] : [job(runId, status, NOW - agoS, "", NOW - agoS)], ...over,
+  });
+  const listed = (rows: Row[]) => machineJobs("gruntus", rows, NOW).ended.map((r) => r.runId);
+
+  it("a job that ended days ago is not listed (tritus: ended 27-29 Sep, shown on 30 Sep)", () => {
+    expect(listed([ended("canvas-vk-01", 4 * DAY), ended("canvas-gufo-r2", 2 * DAY), ended("v2-r2", 6 * 3600)])).toEqual(["v2-r2"]);
+  });
+  it(`listed up to exactly ${RECENT_END_S / 3600} hours after it ended, and not a second after`, () => {
+    expect(listed([ended("edge", RECENT_END_S)])).toEqual(["edge"]);
+    expect(listed([ended("past", RECENT_END_S + 1)])).toEqual([]);
+  });
+  it("every ended status is judged the same way: done, failed, cancelled", () => {
+    for (const status of ["done", "failed", "cancelled"]) {
+      expect(listed([ended("new", 60, status), ended("old", 2 * DAY, status)])).toEqual(["new"]);
+    }
+  });
+  it("a job whose end can't be told is not called recent", () => {
+    expect(listed([ended("unknown", null)])).toEqual([]);
+  });
+  it("judged on the job the run shows, not a later record time (a record re-written after the job ended)", () => {
+    const r = ended("rewritten", 3 * DAY, "done", { stateAt: new Date((NOW - 60) * 1000).toISOString() });
+    expect(listed([r])).toEqual([]);
+  });
+  it("judged on the job the run shows, not on another of the run's jobs", () => {
+    const r = row({ runId: "restarted", live: live({ jobId: "first", status: "cancelled" }),
+      jobs: [job("first", "cancelled", NOW - 3 * DAY, "", NOW - 3 * DAY), job("second", "running", NOW, "", null)] });
+    expect(listed([r])).toEqual([]);
+  });
+  it("latest first", () => {
+    expect(listed([ended("a", 3 * 3600), ended("b", 60), ended("c", 2 * 3600)])).toEqual(["b", "c", "a"]);
+  });
+  it("running and queued jobs are never ended, however old their last report", () => {
+    const j = machineJobs("gruntus", [running(1, 1), row({ runId: "q", status: "queued", live: live({ jobId: "q", status: "queued" }), jobs: [job("q", "queued", NOW - 5 * DAY)] })], NOW);
+    expect(j.ended).toEqual([]);
+    expect(j.running).toHaveLength(1);
+    expect(j.queued).toHaveLength(1);
+  });
+});
+
+describe("when a machine's job ended", () => {
+  it("the end dbench recorded for the job the run shows", () => {
+    expect(jobEndedAt({ jobs: [job("a", "done", 900, "", 500)], live: live({ jobId: "a", status: "done" }), stateAt: "" })).toBe(500);
+  });
+  it("its last report when dbench recorded no end", () => {
+    expect(jobEndedAt({ jobs: [job("a", "done", 900, "", null)], live: live({ jobId: "a", status: "done" }), stateAt: "" })).toBe(900);
+  });
+  it("the run's end when the job it shows isn't among its jobs, or it shows none", () => {
+    expect(jobEndedAt({ jobs: [job("b", "done", 700, "", 600)], live: live({ jobId: "a", status: "done" }), stateAt: "" })).toBe(600);
+    expect(jobEndedAt({ jobs: [], live: null, stateAt: "1970-01-01T00:05:00Z" })).toBe(300);
+  });
+  it("null when nothing says", () => expect(jobEndedAt({ jobs: [job("a", "done", null)], live: live({ jobId: "a", status: "done" }), stateAt: "" })).toBeNull());
+  it("a run's end uses its last job's recorded end over its last report", () => {
+    expect(endedAt({ jobs: [job("a", "done", 900, "", 500)], stateAt: "" })).toBe(500);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+describe("an invalid run needs nothing from you: it is left out", () => {
+  const INVALID = { reason: "read the reference build in story 7", since: "2026-09-30" };
+  const bad = (over: Partial<Row>) => row({ invalid: INVALID, ...over });
+  it("not unscored, not a re-score fault", () => {
+    expect(needs({ rows: [bad({ rescores: [], scores: {} })] })).toEqual([]);
+    expect(needs({ rows: [bad({ rescores: [SUITE], scores: {} })] })).toEqual([]);
+  });
+  it("not a failure or stop from the last day", () => {
+    expect(needs({ rows: [bad({ status: "failed", scores: {}, rescores: [], jobs: [job("j", "failed", NOW - 60)] })] })).toEqual([]);
+  });
+  it("not an accounting problem", () => {
+    expect(needs({ rows: [bad({ stories: [story("1", { usage: usage({ split: split({ status: "problems", problems: ["x"] }) }) })] })] })).toEqual([]);
+  });
+  it("not a silent story", () => {
+    expect(needs({ all: [{ ...running(120, 5), invalid: INVALID }] })).toEqual([]);
+  });
+  it("the same run without the mark does need you (the control)", () => {
+    expect(kinds(needs({ rows: [row({ rescores: [], scores: {} })] }))).toEqual(["unscored"]);
+  });
+  it("its machine is still judged as a machine: busy with it is not idle", () => {
+    expect(needs({ machines: [busy("gruntus")], all: [{ ...running(1, 1), invalid: INVALID }] })).toEqual([]);
+  });
+  it("the machine's now line names the run with its mark, so it can be struck through", () => {
+    const r = { ...running(1, 1), invalid: INVALID };
+    const [line] = nowLines([busy("gruntus")], [r], null, NOW);
+    expect(line.run?.invalid).toEqual(INVALID);
   });
 });
 

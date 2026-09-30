@@ -15,6 +15,7 @@ const QWEN_27B = "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi";
 const OPUS = "reference/opus-5.5";
 const MIN = 60;
 const HOUR = 3600;
+const DAY = 24 * HOUR;
 const NARROW = 1000;
 const enc = encodeURIComponent;
 const runHref = (stack: string, run: string) => `#/vidi/r/${enc(stack)}/${enc(run)}`;
@@ -161,13 +162,46 @@ test.describe("now", () => {
   });
 
   test("the queue in dbench's order, with each place; then jobs ended in the last day", async ({ page }) => {
-    await patchState(page);
+    // The fixture's done job ended at a fixed time; here it ended an hour ago, so it is in the last day.
+    await patchState(page, (s) => { const j = rowOf(s, SWIFT, "v2-r5").jobs.find((x) => x.id === "vidi-v2b-swift15-r5-again1")!; j.endedAt = s.now - HOUR; });
     await open(page, "gruntus");
     expect(await ids(page, '[data-section="now"] .mp-queue [data-job]', "data-job")).toEqual(["vidi-v2b-swift15-r2", "vidi-v2b-swift15-r3", "vidi-v2b-27b-r1"]);
     await expect(nowSec(page).locator(".mp-queue .mp-pos")).toHaveText(["2nd", "3rd", "4th"]);
     await expect(job(page, "vidi-v2b-27b-r1").locator("a.run-link")).toHaveAttribute("href", runHref(QWEN_27B, "v2-r1"));
     expect(await ids(page, '[data-section="now"] .mp-ended [data-job]', "data-job")).toEqual(["vidi-v2b-27b-r2", "vidi-v2b-swift15-r5-again1"]);
     await expect(job(page, "vidi-v2b-swift15-r5-again1").locator(".job-name")).toContainText("job 2 of 2");
+  });
+
+  // The bug of 30 Sep: tritus listed jobs that ended on 27-29 Sep here. dbench keeps ended jobs for days.
+  test("a job that ended more than a day ago is not under 'Ended in the last day'; one that ended just inside it is", async ({ page }) => {
+    await patchState(page, (s) => {
+      rowOf(s, SWIFT, "v2-r5").jobs.find((x) => x.id === "vidi-v2b-swift15-r5-again1")!.endedAt = s.now - DAY - MIN;
+      rowOf(s, QWEN_27B, "v2-r2").jobs.find((x) => x.id === "vidi-v2b-27b-r2")!.endedAt = s.now - DAY + MIN;
+    });
+    await open(page, "gruntus");
+    expect(await ids(page, '[data-section="now"] .mp-ended [data-job]', "data-job")).toEqual(["vidi-v2b-27b-r2"]);
+    await expect(job(page, "vidi-v2b-swift15-r5-again1")).toHaveCount(0);
+    // It is still in the machine's history, with its run.
+    await expect(history(page).locator('tr[data-run="v2-r5"]')).toHaveCount(1);
+  });
+
+  test("the fixture's done job, which ended days ago by the real clock, is not listed as ended in the last day", async ({ page }) => {
+    await patchState(page);
+    await open(page, "gruntus");
+    await expect(job(page, "vidi-v2b-swift15-r5-again1")).toHaveCount(0);
+  });
+
+  test("no job ended in the last day: no 'Ended in the last day' list at all", async ({ page }) => {
+    await patchState(page, (s) => { for (const r of s.rows) for (const j of r.jobs) if (j.endedAt !== null || j.status === "cancelled" || j.status === "done") j.endedAt = s.now - 3 * DAY; });
+    await open(page, "gruntus");
+    await expect(nowSec(page).locator(".mp-ended")).toHaveCount(0);
+    await expect(nowSec(page)).not.toContainText("Ended in the last day");
+  });
+
+  test("an ended job shows when it ended: the end dbench recorded for it", async ({ page }) => {
+    await patchState(page, (s) => { rowOf(s, QWEN_27B, "v2-r2").jobs.find((x) => x.id === "vidi-v2b-27b-r2")!.endedAt = Date.parse("2026-09-30T20:15:00Z") / 1000; s.now = Date.parse("2026-09-30T21:00:00Z") / 1000; });
+    await open(page, "gruntus");
+    await expect(job(page, "vidi-v2b-27b-r2")).toContainText("2026-09-30 20:15 UTC");
   });
 
   test("idle: nothing running, nothing queued, said plainly", async ({ page }) => {
@@ -278,9 +312,9 @@ test.describe("history", () => {
     await expect(swift.locator("h3 a.combination-link")).toHaveAttribute("href", `#/vidi/c/${enc(SWIFT)}`);
     expect(await swift.locator("tbody").evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.group))).toEqual(["vidi|vidi-v2", "vidi|vidi-v1"]);
     await expect(swift.locator(".version-label")).toHaveText(["vidi · vidi-v2", "vidi · vidi-v1"]);
-    await expect(swift.locator('tbody[data-group="vidi|vidi-v2"] .group-head')).toContainText("vidi-v2.0-pre1, vidi-v2.0-pre0 · 7 runs");
+    await expect(swift.locator('tbody[data-group="vidi|vidi-v2"] .group-head')).toContainText("vidi-v2.0-pre1, vidi-v2.0-pre0 · 8 runs");
     expect(await swift.locator('tbody[data-group="vidi|vidi-v2"] tr[data-run]').evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run)))
-      .toEqual(["v2-r1", "v2-r2", "v2-r3", "v2-r5", "v2-r6", "v2-r4", "v2-r7"]);
+      .toEqual(["v2-r1", "v2-r2", "v2-r3", "v2-r5", "v2-r8", "v2-r6", "v2-r4", "v2-r7"]);
     expect(await swift.locator('tbody[data-group="vidi|vidi-v1"] tr[data-run]').evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run))).toEqual(["canvas-s-01"]);
   });
 
@@ -318,10 +352,10 @@ test.describe("history", () => {
   test("the status filter: a toggle per status with counts; its choice is in the address and survives a reload", async ({ page }) => {
     await open(page, "gruntus");
     const f = history(page).getByRole("group", { name: "Status" });
-    await expect(f.getByRole("button")).toHaveText(["running 1", "queued 3", "finished 5", "cancelled 1"]);
+    await expect(f.getByRole("button")).toHaveText(["running 1", "queued 3", "finished 6", "cancelled 1"]);
     await f.getByRole("button", { name: "cancelled 1" }).click();
     await expect(history(page).locator(`[data-stack="${QWEN_27B}"] tr[data-run="v2-r2"]`)).toHaveCount(0);
-    await expect(history(page).locator(".mp-head")).toContainText("9 of 10 runs");
+    await expect(history(page).locator(".mp-head")).toContainText("10 of 11 runs");
     await expect(page).toHaveURL(/#\/m\/gruntus\?hide=cancelled$/);
     await page.reload();
     await expect(history(page).getByRole("group", { name: "Status" }).getByRole("button", { name: "cancelled 1" })).toHaveAttribute("aria-pressed", "false");

@@ -441,7 +441,9 @@ test.describe("links and keyboard", () => {
       }
       if (route.page === "storyRun") {
         await expect(page.locator('[data-page="storyRun"] .rp-header h1'), href).toContainText(`Story ${route.story}`);
-        await expect(page.locator('[data-page="storyRun"] .breadcrumb a.run-link'), href).toHaveAttribute("data-tip", `${route.stack} · ${route.runId}`);
+        // An invalid run's link adds why it is invalid after its name.
+        const name = `${route.stack} · ${route.runId}`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        await expect(page.locator('[data-page="storyRun"] .breadcrumb a.run-link'), href).toHaveAttribute("data-tip", new RegExp(`^${name}($|\\. Invalid run: )`));
         continue;
       }
       throw new Error(`${href} names no page`);
