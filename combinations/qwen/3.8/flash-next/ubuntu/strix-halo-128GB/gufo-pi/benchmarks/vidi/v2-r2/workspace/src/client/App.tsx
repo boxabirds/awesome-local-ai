@@ -1,12 +1,17 @@
-import { useCallback, useEffect, useRef, type ReactElement } from 'react';
+import { useCallback, useRef, type ReactElement } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
 import { useBoard } from './canvas/BoardContext';
 import { ZoomControls } from './canvas/ZoomControls';
 import { NavigationHint } from './canvas/NavigationHint';
-import { zoomPercent, canZoomIn, canZoomOut, worldToScreen } from './canvas/camera';
+import { type Camera, zoomPercent, canZoomIn, canZoomOut, worldToScreen } from './canvas/camera';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { useTransformGesture } from './board/useTransformGesture';
+import { useBoardKeys } from './board/useBoardKeys';
+import { useMarquee } from './board/Marquee';
+import { SelectionOverlay } from './board/SelectionOverlay';
+import { SelectionBar } from './board/SelectionBar';
 import { NoteLayer } from './objects/NoteLayer';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
@@ -17,12 +22,14 @@ import { BoardPage } from './pages/BoardPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import {
   createSticky,
-  deleteObject,
+  deleteObjects,
   setStickyColor,
+  objectBounds,
+  objectsInRect,
 } from '@shared/board-model';
-import { STICKY_SIZE_WORLD, type StickyColor } from '@shared/config';
+import type { Rect } from '@shared/geometry';
+import { type StickyColor } from '@shared/config';
 import type { Point } from '@client/canvas/camera';
-
 
 /**
  * Editing is disabled only while the board cannot be loaded (load_failed). All
@@ -53,54 +60,42 @@ function BoardOverlay(): ReactElement {
 export function Board({ boardId }: { boardId: string }): ReactElement {
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const editable = canEdit(connectionState);
-  const selection = useSelection(doc, notes);
-  const { selectedId, editingId, select, startEdit, endEdit } = selection;
+  const selection = useSelection(notes);
 
-  // Refs for stable access in global keydown handler
-  const selectionRef = useRef(selection);
-  selectionRef.current = selection;
-  const docRef = useRef(doc);
-  docRef.current = doc;
-  const editableRef = useRef(editable);
-  editableRef.current = editable;
+  // Camera ref - updated by BoardViewport on every render
+  const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 1 });
 
-  // Global keyboard handler for Enter, Delete, Backspace
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!editableRef.current) return; // read-only board (load_failed)
-      const sel = selectionRef.current;
-      const d = docRef.current;
-      const activeEl = document.activeElement;
-      const isInputFocused =
-        activeEl !== null &&
-        (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+  // Transform gesture (group move and resize)
+  const { onObjectPointerDown, onHandlePointerDown } = useTransformGesture({
+    doc,
+    cameraRef,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+  });
 
-      if (e.key === 'Enter') {
-        if (sel.selectedId && !sel.editingId && !isInputFocused) {
-          e.preventDefault();
-          sel.startEdit(sel.selectedId);
-        }
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (sel.selectedId && !sel.editingId && !isInputFocused) {
-          e.preventDefault();
-          deleteObject(d, sel.selectedId);
-          sel.select(null);
-        }
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  // Keyboard commands
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+  });
+
+  // Marquee
+  const marquee = useMarquee(cameraRef, (ids) => {
+    selection.setMany(ids, true);
+  }, (rect: Rect) => objectsInRect(notes, rect));
 
   const handleCreateSticky = useCallback(
     (worldPoint: Point) => {
       if (!editable) return;
       const id = createSticky(doc, worldPoint);
       if (id) {
-        startEdit(id);
+        selection.startEdit(id);
       }
     },
-    [doc, startEdit, editable],
+    [doc, selection, editable],
   );
 
   const handleEmptyDoubleClick = useCallback(
@@ -111,78 +106,90 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
   );
 
   const handleEmptyClick = useCallback(() => {
-    if (editingId) {
-      endEdit('unselected');
-    }
-    select(null);
-  }, [editingId, endEdit, select]);
+    selection.clear();
+  }, [selection]);
 
   const handleColorChange = useCallback(
     (color: StickyColor) => {
       if (!editable) return;
-      if (selectedId) {
-        setStickyColor(doc, selectedId, color);
+      if (selection.ids.size === 1) {
+        const id = [...selection.ids][0];
+        setStickyColor(doc, id, color);
       }
     },
-    [doc, selectedId, editable],
+    [doc, selection, editable],
   );
 
   const handleDelete = useCallback(() => {
     if (!editable) return;
-    if (selectedId) {
-      deleteObject(doc, selectedId);
-      select(null);
+    if (selection.ids.size > 0) {
+      deleteObjects(doc, [...selection.ids]);
+      selection.clear();
     }
-  }, [doc, selectedId, select, editable]);
+  }, [doc, selection, editable]);
+
+  // Determine which object to show NoteToolbar for (single sticky, not editing)
+  const singleSticky: import('@shared/board-model').StickySnapshot | null =
+    selection.ids.size === 1 && !selection.editingId
+      ? (notes.find((n) => n.id === [...selection.ids][0] && n.type === 'sticky') ?? null)
+      : null;
 
   return (
     <div className="vidi6-app">
       <ConnectionStatus state={connectionState} />
       <BoardViewport
+        cameraRef={cameraRef}
         onEmptyDoubleClick={handleEmptyDoubleClick}
         onEmptyClick={handleEmptyClick}
+        onMarqueeBegin={(screen) => marquee.begin(screen)}
+        onMarqueeMove={(screen) => marquee.move(screen)}
+        onMarqueeEnd={() => marquee.end()}
+        onMarqueeCancel={() => marquee.cancel()}
         overlay={
           <AppChrome
             doc={doc}
             notes={notes}
-            selectedId={selectedId}
-            editingId={editingId}
+            selection={selection}
+            singleSticky={singleSticky}
             editable={editable}
             onColorChange={handleColorChange}
             onDelete={handleDelete}
             onCreateSticky={handleCreateSticky}
+            onHandlePointerDown={onHandlePointerDown}
           />
         }
       >
         <NoteLayer
           notes={notes}
           doc={doc}
-          selectedId={selectedId}
-          editingId={editingId}
+          selection={selection}
           editable={editable}
-          onSelect={select}
-          onStartEdit={startEdit}
-          onEndEdit={endEdit}
+          onObjectPointerDown={onObjectPointerDown}
+          onStartEdit={selection.startEdit}
+          onEndEdit={() => selection.endEdit()}
         />
       </BoardViewport>
     </div>
   );
 }
 
+
+
 interface AppChromeProps {
   doc: import('yjs').Doc;
   notes: readonly import('@shared/board-model').StickySnapshot[];
-  selectedId: string | null;
-  editingId: string | null;
+  selection: import('./board/useSelection').SelectionApi;
+  singleSticky: import('@shared/board-model').StickySnapshot | null;
   editable: boolean;
   onColorChange(c: StickyColor): void;
   onDelete(): void;
   onCreateSticky(p: Point): void;
+  onHandlePointerDown(e: PointerEvent, h: import('@shared/geometry').Handle): void;
 }
 
 function AppChrome(props: AppChromeProps): ReactElement {
   const { camera, viewport } = useBoard();
-  const selectedNote = props.notes.find((n) => n.id === props.selectedId) || null;
+  const { selection } = props;
 
   const handleCreateFromToolbar = useCallback(() => {
     const worldPoint: Point = {
@@ -196,9 +203,31 @@ function AppChrome(props: AppChromeProps): ReactElement {
     <>
       <BoardOverlay />
       <Toolbar onCreateSticky={handleCreateFromToolbar} disabled={!props.editable} />
-      {selectedNote && !props.editingId && (
+
+      {/* Selection overlay (bounding box + handles) */}
+      {selection.ids.size > 0 && (
+        <SelectionOverlay
+          ids={selection.ids}
+          snapshot={props.notes}
+          camera={camera}
+          onHandlePointerDown={props.onHandlePointerDown}
+        />
+      )}
+
+      {/* Selection bar for 2+ selected */}
+      {selection.ids.size >= 2 && (
+        <SelectionBar
+          ids={selection.ids}
+          snapshot={props.notes}
+          camera={camera}
+          onDelete={props.onDelete}
+        />
+      )}
+
+      {/* NoteToolbar for single sticky */}
+      {props.singleSticky && !props.selection.editingId && (
         <NoteToolbarScreenSpace
-          note={selectedNote}
+          note={props.singleSticky}
           camera={camera}
           onColor={props.onColorChange}
           onDelete={props.onDelete}
@@ -219,9 +248,10 @@ function NoteToolbarScreenSpace({
   onColor(c: StickyColor): void;
   onDelete(): void;
 }): ReactElement {
+  const bounds = objectBounds(note);
   const screenPos = worldToScreen(camera, {
-    x: note.x + STICKY_SIZE_WORLD / 2,
-    y: note.y,
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y,
   });
 
   return (
@@ -241,8 +271,7 @@ function NoteToolbarScreenSpace({
 
 /**
  * Top-level router (story 5): `/` -> Home, `/b/:id` -> Board page, anything else
- * -> Board not found. The story 3 client-side redirect from `/` to a random id is
- * removed: boards are created server-side and opened by explicit link.
+ * -> Board not found.
  */
 export function App(): ReactElement {
   const route = useRoute();

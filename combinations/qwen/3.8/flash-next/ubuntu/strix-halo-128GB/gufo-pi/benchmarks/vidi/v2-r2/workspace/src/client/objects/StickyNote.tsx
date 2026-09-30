@@ -2,15 +2,12 @@ import {
   useRef,
   useCallback,
   useEffect,
-  useState,
   type ReactElement,
-  type PointerEvent as ReactPointerEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import * as Y from 'yjs';
 import type { StickySnapshot } from '@shared/board-model';
-import { moveObject, bringToFront } from '@shared/board-model';
-import { STICKY_SIZE_WORLD, STICKY_COLORS, DRAG_THRESHOLD_PX } from '@shared/config';
+import { STICKY_SIZE_WORLD, STICKY_COLORS } from '@shared/config';
 import { StickyTextEditor } from './StickyTextEditor';
 import { getStickyText } from '@shared/board-model';
 
@@ -22,57 +19,70 @@ export interface StickyNoteProps {
   editing: boolean;
   /** When false (e.g. board not loaded), drag and edit are disabled; selection stays. */
   editable?: boolean;
+  onObjectPointerDown(e: PointerEvent, id: string): void;
   onSelect(id: string): void;
+  onToggle(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
 }
 
-type InteractionState = 'unselected' | 'pressed' | 'selected' | 'dragging';
-
 export function StickyNote({
   note,
   doc,
-  zoom,
+  zoom: _zoom,
   selected,
   editing,
   editable = true,
+  onObjectPointerDown,
   onSelect,
+  onToggle,
   onStartEdit,
   onEndEdit,
 }: StickyNoteProps): ReactElement {
   const elRef = useRef<HTMLDivElement | null>(null);
-  const stateRef = useRef<InteractionState>(editing ? 'selected' : 'unselected');
-  const [isDragging, setIsDragging] = useState(false);
-  const dragOriginRef = useRef<{ px: number; py: number; nx: number; ny: number } | null>(null);
-  const rafRef = useRef<number>(0);
-  const pendingPosRef = useRef<{ x: number; y: number } | null>(null);
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
+  const pressedRef = useRef(false);
+  const movedRef = useRef(false);
+  const downPosRef = useRef<{ x: number; y: number } | null>(null);
   const docRef = useRef(doc);
   docRef.current = doc;
   const noteIdRef = useRef(note.id);
   noteIdRef.current = note.id;
-  const onEndEditRef = useRef(onEndEdit);
-  onEndEditRef.current = onEndEdit;
   const editableRef = useRef(editable);
   editableRef.current = editable;
+  const onObjectPointerDownRef = useRef(onObjectPointerDown);
+  onObjectPointerDownRef.current = onObjectPointerDown;
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+  const onToggleRef = useRef(onToggle);
+  onToggleRef.current = onToggle;
 
-  // End interaction if note is deleted mid-drag or mid-edit
+  // End interaction if note is deleted mid-edit
   useEffect(() => {
-    if (!selected && !editing && stateRef.current === 'unselected') return;
-    // Check if note still exists in doc
+    if (!selected && !editing) return;
     const objects = doc.getMap<Y.Map<unknown>>('objects');
     if (!objects.has(note.id)) {
-      stateRef.current = 'unselected';
-      setIsDragging(false);
+      pressedRef.current = false;
     }
   }, [note.id, selected, editing, doc]);
 
   const handlePointerDown = useCallback(
-    (e: ReactPointerEvent) => {
+    (e: globalThis.PointerEvent | React.PointerEvent) => {
       if (e.button !== 0) return;
       e.stopPropagation();
-      e.preventDefault();
+
+      // Shift+click toggles selection
+      if (e.shiftKey) {
+        onToggleRef.current(noteIdRef.current);
+        return;
+      }
+
+      const nativeEvent = ('nativeEvent' in e ? e.nativeEvent : e) as globalThis.PointerEvent;
+
+      // Check if already selected (multi-select move) or not (select + move)
+      pressedRef.current = true;
+      movedRef.current = false;
+      downPosRef.current = { x: e.clientX, y: e.clientY };
+
       const el = elRef.current;
       if (el) {
         try {
@@ -81,97 +91,28 @@ export function StickyNote({
           /* jsdom may not support */
         }
       }
-      stateRef.current = 'pressed';
-      dragOriginRef.current = {
-        px: e.clientX,
-        py: e.clientY,
-        nx: note.x,
-        ny: note.y,
-      };
-    },
-    [note.x, note.y],
-  );
 
-  const handlePointerMove = useCallback(
-    (e: ReactPointerEvent) => {
-      if (!editableRef.current) return; // read-only board: no drag / no z change
-      if (stateRef.current !== 'pressed' && stateRef.current !== 'dragging') return;
-      const origin = dragOriginRef.current;
-      if (!origin) return;
-      const dx = e.clientX - origin.px;
-      const dy = e.clientY - origin.py;
-
-      if (stateRef.current === 'pressed') {
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < DRAG_THRESHOLD_PX) return;
-        // Transition to dragging
-        stateRef.current = 'dragging';
-        setIsDragging(true);
-        bringToFront(docRef.current, noteIdRef.current);
-      }
-
-      // Update position via rAF
-      const newNX = origin.nx + dx / zoomRef.current;
-      const newNY = origin.ny + dy / zoomRef.current;
-      pendingPosRef.current = { x: newNX, y: newNY };
-
-      if (!rafRef.current) {
-        rafRef.current = requestAnimationFrame(() => {
-          rafRef.current = 0;
-          const pos = pendingPosRef.current;
-          if (pos) {
-            const ok = moveObject(docRef.current, noteIdRef.current, pos.x, pos.y);
-            if (!ok) {
-              // Note deleted mid-drag, end silently
-              stateRef.current = 'selected';
-              setIsDragging(false);
-            }
-          }
-        });
-      }
+      onObjectPointerDownRef.current(nativeEvent, noteIdRef.current);
     },
     [],
   );
 
   const handlePointerUp = useCallback(
-    (_e: ReactPointerEvent) => {
-      if (stateRef.current === 'pressed') {
-        // Short press without movement -> select
-        stateRef.current = 'selected';
-        onSelect(note.id);
-      } else if (stateRef.current === 'dragging') {
-        stateRef.current = 'selected';
-        setIsDragging(false);
+    (_e: ReactMouseEvent | globalThis.PointerEvent) => {
+      if (pressedRef.current && !movedRef.current) {
+        // Simple click without drag: just select (the gesture already selected)
+        // But if shift wasn't held and we didn't move, the gesture handles it
       }
-      dragOriginRef.current = null;
-    },
-    [note.id, onSelect],
-  );
-
-  const handlePointerCancel = useCallback(
-    () => {
-      if (stateRef.current === 'dragging') {
-        stateRef.current = 'selected';
-        setIsDragging(false);
-      }
-      dragOriginRef.current = null;
-    },
-    [],
-  );
-
-  const handleLostPointerCapture = useCallback(
-    () => {
-      if (stateRef.current === 'dragging') {
-        stateRef.current = 'selected';
-        setIsDragging(false);
-      }
+      pressedRef.current = false;
+      movedRef.current = false;
+      downPosRef.current = null;
     },
     [],
   );
 
   const handleDoubleClick = useCallback(
     (e: ReactMouseEvent) => {
-      if (!editableRef.current) return; // read-only board: no editing
+      if (!editableRef.current) return;
       e.stopPropagation();
       e.preventDefault();
       onStartEdit(note.id);
@@ -179,7 +120,6 @@ export function StickyNote({
     [note.id, onStartEdit],
   );
 
-  // Handle outside click for editing - use a ref-based approach
   const handleEditorEnd = useCallback(
     (next: 'selected' | 'unselected') => {
       onEndEdit(next);
@@ -190,7 +130,10 @@ export function StickyNote({
   const ytext = getStickyText(doc, note.id);
   const bgColor = STICKY_COLORS[note.color];
 
-  // Compute font size for display mode (simplified - in e2e fitFontSize would run)
+  const noteWidth = note.width ?? STICKY_SIZE_WORLD;
+  const noteHeight = note.height ?? STICKY_SIZE_WORLD;
+
+  // Compute font size for display mode
   const displayFontPx = note.text.length > 200 ? 14 : note.text.length > 50 ? 18 : 24;
 
   return (
@@ -198,23 +141,21 @@ export function StickyNote({
       ref={elRef}
       role="group"
       aria-label="Sticky note"
-      className={`sticky-note${selected ? ' sticky-note--selected' : ''}${isDragging ? ' sticky-note--dragging' : ''}`}
+      className={`sticky-note${selected ? ' sticky-note--selected' : ''}`}
       data-selected={selected ? 'true' : 'false'}
+      data-object-id={note.id}
       data-testid={`sticky-note-${note.id}`}
       tabIndex={0}
       style={{
         position: 'absolute',
         left: note.x,
         top: note.y,
-        width: STICKY_SIZE_WORLD,
-        height: STICKY_SIZE_WORLD,
+        width: noteWidth,
+        height: noteHeight,
         backgroundColor: bgColor,
       }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
-      onLostPointerCapture={handleLostPointerCapture}
+      onPointerDown={handlePointerDown as (e: React.PointerEvent<HTMLDivElement>) => void}
+      onPointerUp={handlePointerUp as (e: React.PointerEvent<HTMLDivElement>) => void}
       onDoubleClick={handleDoubleClick}
     >
       {editing && ytext && editable ? (

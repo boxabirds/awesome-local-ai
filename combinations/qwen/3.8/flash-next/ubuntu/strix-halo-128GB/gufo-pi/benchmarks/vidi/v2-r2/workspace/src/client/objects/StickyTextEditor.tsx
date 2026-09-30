@@ -58,6 +58,10 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     (e: React.KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        // Prevent useBoardKeys from also processing this Escape event
+        // (React 18 flushes discrete events synchronously, so the textarea
+        // may unmount before the window handler fires)
+        (window as any).__vidi6_escapeHandled = true;
         onEnd('selected');
       }
       // Enter inserts newline in textarea (default behaviour), don't prevent

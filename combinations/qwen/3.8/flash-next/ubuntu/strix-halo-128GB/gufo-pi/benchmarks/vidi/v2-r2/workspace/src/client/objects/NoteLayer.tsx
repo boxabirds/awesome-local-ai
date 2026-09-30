@@ -1,16 +1,16 @@
 import type { ReactElement } from 'react';
 import { useBoard } from '@client/canvas/BoardContext';
 import { StickyNote } from './StickyNote';
-import type { StickySnapshot } from '@shared/board-model';
+import type { ObjectSnapshot } from '@shared/board-model';
 import type * as Y from 'yjs';
+import type { SelectionApi } from '@client/board/useSelection';
 
 interface NoteLayerProps {
-  notes: readonly StickySnapshot[];
+  notes: readonly ObjectSnapshot[];
   doc: Y.Doc;
-  selectedId: string | null;
-  editingId: string | null;
+  selection: SelectionApi;
   editable: boolean;
-  onSelect(id: string | null): void;
+  onObjectPointerDown(e: PointerEvent, id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
 }
@@ -18,10 +18,9 @@ interface NoteLayerProps {
 export function NoteLayer({
   notes,
   doc,
-  selectedId,
-  editingId,
+  selection,
   editable,
-  onSelect,
+  onObjectPointerDown,
   onStartEdit,
   onEndEdit,
 }: NoteLayerProps): ReactElement {
@@ -34,10 +33,12 @@ export function NoteLayer({
           note={note}
           doc={doc}
           zoom={camera.zoom}
-          selected={note.id === selectedId}
-          editing={note.id === editingId}
+          selected={selection.ids.has(note.id)}
+          editing={note.id === selection.editingId}
           editable={editable}
-          onSelect={onSelect}
+          onObjectPointerDown={onObjectPointerDown}
+          onSelect={selection.click}
+          onToggle={selection.toggle}
           onStartEdit={onStartEdit}
           onEndEdit={onEndEdit}
         />

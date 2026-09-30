@@ -26,6 +26,8 @@ function defaultViewport(): Size {
 }
 
 interface BoardViewportProps {
+  // A mutable ref that receives the current camera each render.
+  cameraRef?: React.MutableRefObject<import('@client/canvas/camera').Camera>;
   // Objects rendered in world coordinates (sticky notes etc. in later stories).
   children?: ReactNode;
   // Fixed-position UI (zoom controls, hint) rendered inside the board context but
@@ -35,18 +37,34 @@ interface BoardViewportProps {
   onEmptyDoubleClick?(worldPoint: Point): void;
   // Click on empty board space without drag -> clear selection
   onEmptyClick?(): void;
+  // Shift+pointerdown on empty space -> start marquee
+  onMarqueeBegin?(screenPoint: Point): void;
+  // pointermove during marquee
+  onMarqueeMove?(screenPoint: Point): void;
+  // pointerup during marquee
+  onMarqueeEnd?(): void;
+  // pointercancel during marquee
+  onMarqueeCancel?(): void;
 }
 
 export function BoardViewport({
+  cameraRef,
   children,
   overlay,
   onEmptyDoubleClick,
   onEmptyClick,
+  onMarqueeBegin,
+  onMarqueeMove,
+  onMarqueeEnd,
+  onMarqueeCancel,
 }: BoardViewportProps): ReactElement {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<Size>(() => defaultViewport());
   const api = useCamera(viewport);
   const { camera, beginPan, panMove, endPan, wheel, gestureZoom, zoomStep, reset } = api;
+
+  // Keep the external ref in sync with the current camera
+  if (cameraRef) cameraRef.current = camera;
   const setCamera = api.setCamera;
 
   // Panning: a ref drives the input logic (no stale closures), React state drives
@@ -57,6 +75,9 @@ export function BoardViewport({
   // Track whether we moved during a pointer sequence (to distinguish click from drag)
   const movedRef = useRef(false);
   const downPosRef = useRef<Point | null>(null);
+
+  // Marquee state
+  const marqueeRef = useRef(false);
 
   // --- viewport size (design: ResizeObserver; fall back to window.resize) ---
   useLayoutEffect(() => {
@@ -96,9 +117,23 @@ export function BoardViewport({
     endPan();
   }, [endPan]);
 
-  // Callbacks ref for double-click and empty click
-  const callbacksRef = useRef({ onEmptyDoubleClick, onEmptyClick });
-  callbacksRef.current = { onEmptyDoubleClick, onEmptyClick };
+  // Callbacks ref for double-click, empty click, and marquee
+  const callbacksRef = useRef({
+    onEmptyDoubleClick,
+    onEmptyClick,
+    onMarqueeBegin,
+    onMarqueeMove,
+    onMarqueeEnd,
+    onMarqueeCancel,
+  });
+  callbacksRef.current = {
+    onEmptyDoubleClick,
+    onEmptyClick,
+    onMarqueeBegin,
+    onMarqueeMove,
+    onMarqueeEnd,
+    onMarqueeCancel,
+  };
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -110,6 +145,20 @@ export function BoardViewport({
       if (e.target !== el) return;
       movedRef.current = false;
       downPosRef.current = { x: e.clientX, y: e.clientY };
+
+      // Shift+pointerdown on empty space -> marquee
+      if (e.shiftKey && callbacksRef.current.onMarqueeBegin) {
+        marqueeRef.current = true;
+        try {
+          el.setPointerCapture?.(e.pointerId);
+        } catch {
+          /* pointer capture unsupported (e.g. jsdom) */
+        }
+        callbacksRef.current.onMarqueeBegin(pointFromClient(e.clientX, e.clientY));
+        return;
+      }
+
+      // Normal pan
       panningRef.current = true;
       setIsPanning(true);
       try {
@@ -120,6 +169,17 @@ export function BoardViewport({
       beginPan(pointFromClient(e.clientX, e.clientY));
     };
     const onMove = (e: PointerEvent) => {
+      if (marqueeRef.current) {
+        if (downPosRef.current) {
+          const dx = e.clientX - downPosRef.current.x;
+          const dy = e.clientY - downPosRef.current.y;
+          if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+            movedRef.current = true;
+          }
+        }
+        callbacksRef.current.onMarqueeMove?.(pointFromClient(e.clientX, e.clientY));
+        return;
+      }
       if (!panningRef.current) return;
       if (downPosRef.current) {
         const dx = e.clientX - downPosRef.current.x;
@@ -131,25 +191,49 @@ export function BoardViewport({
       panMove(pointFromClient(e.clientX, e.clientY));
     };
     const onUp = (e: PointerEvent) => {
+      if (marqueeRef.current) {
+        marqueeRef.current = false;
+        if (movedRef.current) {
+          callbacksRef.current.onMarqueeEnd?.();
+        } else {
+          callbacksRef.current.onMarqueeCancel?.();
+        }
+        return;
+      }
       if (panningRef.current && !movedRef.current && e.target === el) {
         // Click on empty board space without dragging: clear selection
         callbacksRef.current.onEmptyClick?.();
       }
       finishPan();
     };
+    const onCancel = () => {
+      if (marqueeRef.current) {
+        marqueeRef.current = false;
+        callbacksRef.current.onMarqueeCancel?.();
+        return;
+      }
+      finishPan();
+    };
     // move/up/cancel are tracked on window so a drag that leaves the element (or
     // an interrupted drag) still ends cleanly; pointer events bubble to window.
     el.addEventListener('pointerdown', onDown);
-    el.addEventListener('lostpointercapture', finishPan);
+    el.addEventListener('lostpointercapture', () => {
+      if (marqueeRef.current) {
+        marqueeRef.current = false;
+        callbacksRef.current.onMarqueeCancel?.();
+        return;
+      }
+      finishPan();
+    });
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', finishPan);
+    window.addEventListener('pointercancel', onCancel);
     return () => {
       el.removeEventListener('pointerdown', onDown);
-      el.removeEventListener('lostpointercapture', finishPan);
+      el.removeEventListener('lostpointercapture', () => {});
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', finishPan);
+      window.removeEventListener('pointercancel', onCancel);
     };
   }, [beginPan, panMove, finishPan, pointFromClient]);
 

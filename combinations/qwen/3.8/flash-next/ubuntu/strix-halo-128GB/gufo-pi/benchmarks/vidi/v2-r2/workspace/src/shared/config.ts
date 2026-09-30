@@ -40,6 +40,13 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS;
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+// Selection and transform settings (story 7).
+export const HANDLE_SIZE_PX = 8;
+export const STICKY_MIN_SIZE_WORLD = 50;
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+export const NUDGE_STEP_WORLD = 1;
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 // Zoom limits and step size (PRD "Settings").
 export const ZOOM_MIN = 0.1;
 export const ZOOM_MAX = 4;

@@ -189,3 +189,49 @@
 - Modified e2e helpers (`board.gotoBoard`, `participants.createBoardViaUi`) and the
   existing collaboration / navigation / sticky-notes / persistence specs to create boards
   explicitly
+
+## Story 7: Select, move, resize and delete several objects at once
+
+### Decisions
+
+- **Camera ref pattern**: The `BoardViewport` component owns the camera state, but `useTransformGesture` and `useMarquee` are called in the parent `Board` component (above the context provider). Passing the camera via React context is impossible because the context is provided *below* where the hooks are called. Solution: a `MutableRefObject<Camera>` prop on `BoardViewport` that's updated on every render, read at event-handler time inside gesture/marquee closures. This avoids stale-closure bugs at non-1.0 zoom levels.
+
+- **Group move delta computation**: Uses the raw screen-pixel delta divided by `cameraRef.current.zoom` rather than `screenToWorld` for the drag delta. This is simpler, avoids jitter from rounding in world-coordinate conversions, and exactly matches the spec’s “screen delta / zoom = world delta” requirement.
+
+- **`startEdit` replaces selection**: The `edit` action in the selection reducer now also sets `ids = new Set([id])`, matching the behavior of other design tools (double-clicking a note selects it exclusively and enters editing). `endEdit()` only clears `editingId`, leaving the note selected so the toolbar appears.
+
+- **Escape double-handling fix**: React 18 flushes discrete-event (keydown) state updates synchronously. After `StickyTextEditor` handles Escape and dispatches `endEdit()`, the textarea unmounts before the native event bubbles to the `window` listener in `useBoardKeys`, making `isEditingText()` return false. Fix: `StickyTextEditor` sets a transient `window.__vidi6_escapeHandled` flag; `useBoardKeys` checks and clears it, preventing the second Escape handler from clearing selection.
+
+- **`useSelection` prune optimization**: Uses a stringified key (sorted ids joined) to detect when the set of present objects actually changes, avoiding re-renders when `snapshot(doc)` produces a new array with same ids on each render.
+
+- **`useTransformGesture` handles unselected notes**: When a drag starts on a note not yet in `selection.ids`, the gesture captures `draggedId` and adds it to the set used for `startRects`. This fixes the race where `selection.click(id)` dispatches a state update that hasn't been applied when the drag threshold is crossed.
+
+- **Object type registry**: `src/client/objects/registry.tsx` provides a type-keyed map of object capabilities (resizable, aspectLocked, minSize, editableText, etc). Story 7 registers the `sticky` type. Future object types add entries here without changing the gesture or selection logic.
+
+- **Geometry module**: `src/shared/geometry.ts` contains pure rect/resize math (`resizeRect`, `clampScale`, `scaleWithin`, `unionRects`) shared by the resize gesture and unit-tested independently.
+
+- **`data-object-id` attribute**: Added to `StickyNote` DOM element to enable e2e tests to identify notes by their Yjs id (stable across z-order re-sorting) rather than relying on DOM order.
+
+### What was built
+
+- `src/shared/geometry.ts` — Rect, Point, Handle types; rectContains, unionRects, normalizeRect, resizeRect, clampScale, scaleWithin
+- `src/client/objects/registry.tsx` — ObjectTypeSpec interface, registerObjectType, getObjectType, sticky type registration
+- `src/client/board/useSelection.ts` — Rewritten as a reducer: click, toggle, setMany, clear, prune, edit actions; SelectionApi interface
+- `src/client/board/useTransformGesture.ts` — Group move and handle resize; cameraRef, draggedId, async state handling
+- `src/client/board/Marquee.tsx` — useMarquee hook (shift+drag), MarqueeRect component
+- `src/client/board/SelectionOverlay.tsx` — Per-object outlines + bounding box + 8 resize handles
+- `src/client/board/SelectionBar.tsx` — “N selected” + Delete for 2+; returns null for single sticky
+- `src/client/board/useBoardKeys.ts` — Ctrl+A, Escape, arrows (nudge), Delete/Backspace; escapeHandled flag
+- `tests/unit/geometry.test.ts` — 14 tests for rect math
+- `tests/unit/board-model-group.test.ts` — 14 tests for batch model ops (moveObjects, resizeObjects, deleteObjects, objectsInRect, bringObjectsToFront)
+- `tests/unit/selection-reducer.test.ts` — 10 tests for selection reducer
+- `tests/unit/registry.test.ts` — 5 tests for object type registry
+- `tests/component/Story7.test.tsx` — 18 tests (TC-16–TC-31)
+- `tests/e2e/select-move-resize.spec.ts` — 5 tests (TC-32–TC-36)
+- Modified `src/shared/config.ts` — HANDLE_SIZE_PX, STICKY_MIN_SIZE_WORLD, MAX_OBJECT_SIZE_WORLD, NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD
+- Modified `src/shared/board-model.ts` — objectBounds, objectsInRect, allObjectIds, moveObjects, resizeObjects, bringObjectsToFront, deleteObjects
+- Modified `src/client/objects/StickyNote.tsx` — Delegates drag to onObjectPointerDown; shift-click toggle; data-object-id
+- Modified `src/client/objects/NoteLayer.tsx` — Passes SelectionApi
+- Modified `src/client/canvas/BoardViewport.tsx` — cameraRef prop, marquee callbacks
+- Modified `src/client/App.tsx` — Wires all new hooks/components together
+- Modified `src/client/objects/StickyTextEditor.tsx` — escapeHandled flag

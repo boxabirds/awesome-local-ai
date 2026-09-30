@@ -1,3 +1,33 @@
+commit db49fddb9279f02fac723192a329753d35cd6a04
+vidi-agent  Wed Sep 30 12:37:01 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                |  46 +++
+ src/client/App.tsx                      | 175 ++++++-----
+ src/client/board/Marquee.tsx            |  93 ++++++
+ src/client/board/SelectionBar.tsx       |  91 ++++++
+ src/client/board/SelectionOverlay.tsx   | 162 ++++++++++
+ src/client/board/useBoardKeys.ts        | 108 +++++++
+ src/client/board/useSelection.ts        | 140 +++++++--
+ src/client/board/useTransformGesture.ts | 284 +++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  98 +++++-
+ src/client/objects/NoteLayer.tsx        |  23 +-
+ src/client/objects/StickyNote.tsx       | 165 ++++------
+ src/client/objects/StickyTextEditor.tsx |   4 +
+ src/client/objects/registry.tsx         |  75 +++++
+ src/shared/board-model.ts               | 234 +++++++++++++-
+ src/shared/config.ts                    |   7 +
+ src/shared/geometry.ts                  | 211 +++++++++++++
+ tests/component/StickyNote.test.tsx     |  80 ++++-
+ tests/component/Story7.test.tsx         | 520 ++++++++++++++++++++++++++++++++
+ tests/e2e/select-move-resize.spec.ts    | 351 +++++++++++++++++++++
+ tests/unit/board-model-group.test.ts    | 295 ++++++++++++++++++
+ tests/unit/geometry.test.ts             | 150 +++++++++
+ tests/unit/registry.test.ts             | 107 +++++++
+ tests/unit/selection-reducer.test.ts    |  81 +++++
+ 23 files changed, 3249 insertions(+), 251 deletions(-)
 commit fba9d304b2bf09ca3d2988cda532e124f2887da6
 vidi-agent  Wed Sep 30 11:45:59 2026 +0000
 
