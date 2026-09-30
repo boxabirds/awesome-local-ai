@@ -53,14 +53,33 @@ export type ModelTypeReader = (base: ObjectSnapshot, obj: Y.Map<unknown>) => Obj
 const READERS = new Map<string, ModelTypeReader>();
 
 /**
+ * Derives a snapshot's geometry from other objects (story 10 connectors: the
+ * bbox follows the objects the ends are attached to). `rects` holds every
+ * non-derived object's rect, in (z, id) order.
+ */
+export type ModelTypeDeriver = (snap: ObjectSnapshot, rects: ReadonlyMap<string, Rect>) => ObjectSnapshot;
+
+const DERIVERS = new Map<string, ModelTypeDeriver>();
+
+/** Runs inside every `deleteObjects` transaction, before the objects are removed (story 10). */
+export type DeleteHook = (doc: Y.Doc, deletedIds: string[]) => void;
+
+const DELETE_HOOKS = new Set<DeleteHook>();
+
+export function registerDeleteHook(hook: DeleteHook): void {
+  DELETE_HOOKS.add(hook);
+}
+
+/**
  * Declares an object type readable by `objectsSnapshot`, `allObjectIds` and
  * `objectsInRect`. Called by the client object registry (story 7) and by
  * type modules with a `read` that adds the type's own fields; idempotent (a
  * later call without `read` keeps an earlier reader).
  */
-export function registerModelType(type: string, read?: ModelTypeReader): void {
+export function registerModelType(type: string, read?: ModelTypeReader, derive?: ModelTypeDeriver): void {
   KNOWN_TYPES.add(type);
   if (read) READERS.set(type, read);
+  if (derive) DERIVERS.set(type, derive);
 }
 
 const HALF = 2;
@@ -264,21 +283,33 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = [...new Set(ids)].filter((id) => objects(doc).has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Story 10: arrows attached to these objects keep their ends where they were.
+    for (const hook of DELETE_HOOKS) hook(doc, present);
     for (const id of present) objects(doc).delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
 }
 
-/** An object's rect in world units (implicit STICKY_SIZE_WORLD for legacy notes). */
+/**
+ * An object's rect in world units (implicit STICKY_SIZE_WORLD for legacy notes).
+ * A zero size is kept: a horizontal or vertical arrow's box (story 10) is flat.
+ */
 export function objectBounds(obj: ObjectSnapshot): Rect {
   const width = (obj as Partial<ObjectSnapshot>).width;
   const height = (obj as Partial<ObjectSnapshot>).height;
   return {
     x: obj.x,
     y: obj.y,
-    width: isFiniteNumber(width) && width > 0 ? width : STICKY_SIZE_WORLD,
-    height: isFiniteNumber(height) && height > 0 ? height : STICKY_SIZE_WORLD,
+    width: isFiniteNumber(width) && width >= 0 ? width : STICKY_SIZE_WORLD,
+    height: isFiniteNumber(height) && height >= 0 ? height : STICKY_SIZE_WORLD,
   };
+}
+
+/** Rects of every object whose geometry is stored (not derived), in list order. */
+export function storedRects(list: readonly ObjectSnapshot[]): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const o of list) if (!DERIVERS.has(o.type)) rects.set(o.id, objectBounds(o));
+  return rects;
 }
 
 /** Ids of known-type objects lying entirely inside `rect` (marquee rule). */
@@ -342,6 +373,13 @@ export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (s) list.push(s);
   });
   list.sort(byZ);
+  if (DERIVERS.size > 0 && list.some((o) => DERIVERS.has(o.type))) {
+    const rects = storedRects(list);
+    for (let i = 0; i < list.length; i++) {
+      const derive = DERIVERS.get(list[i].type);
+      if (derive) list[i] = Object.freeze(derive(list[i], rects));
+    }
+  }
   return Object.freeze(list);
 }
 

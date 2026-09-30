@@ -20,7 +20,7 @@ import {
   type Rect,
 } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
-import { getObjectType, type ObjectTypeSpec } from '../objects/registry';
+import { getObjectType, type ObjectTransformHook, type ObjectTypeSpec } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
 
 export type TransformPhase = 'idle' | 'pressed' | 'moving' | 'resizing';
@@ -48,6 +48,8 @@ interface Gesture {
   horizontalOnly: boolean;
   /** Types that write their own resize frames (registry `resize`). */
   resizeHooks: Map<string, NonNullable<ObjectTypeSpec['resize']>>;
+  /** Derived-geometry objects (story 10 arrows) and their state at activation. */
+  transforms: Map<string, { hook: ObjectTransformHook; start: unknown }>;
   pending: { client: Point; shift: boolean } | null;
   frame: number | null;
   detach(): void;
@@ -98,8 +100,13 @@ export function useTransformGesture(opts: {
     const delta = { x: (next.client.x - g.startClient.x) / camera.zoom, y: (next.client.y - g.startClient.y) / camera.zoom };
     if (g.kind === 'move') {
       const positions = new Map<string, Point>();
-      for (const [id, r] of g.startRects) positions.set(id, { x: r.x + delta.x, y: r.y + delta.y });
-      moveObjects(doc, positions);
+      for (const [id, r] of g.startRects) {
+        if (!g.transforms.has(id)) positions.set(id, { x: r.x + delta.x, y: r.y + delta.y });
+      }
+      doc.transact(() => {
+        moveObjects(doc, positions);
+        for (const [id, t] of g.transforms) t.hook.apply(doc, id, t.start, (p) => ({ x: p.x + delta.x, y: p.y + delta.y }));
+      }, LOCAL_ORIGIN);
       return;
     }
     const box = g.box!;
@@ -113,6 +120,7 @@ export function useTransformGesture(opts: {
     const own: [string, Rect, Rect][] = [];
     for (const [id, r] of g.startRects) {
       const scaled = scaleWithin(r, box, to);
+      if (g.transforms.has(id)) continue;
       if (g.resizeHooks.has(id)) own.push([id, scaled, r]);
       // Non-resizable types keep their size and only follow the layout.
       else out.set(id, g.resizable.get(id) ? scaled : { ...scaled, width: r.width, height: r.height });
@@ -121,6 +129,11 @@ export function useTransformGesture(opts: {
     doc.transact(() => {
       if (out.size > 0) resizeObjects(doc, out);
       for (const [id, scaled, r] of own) g.resizeHooks.get(id)!(doc, id, scaled, r, g.horizontalOnly);
+      const map = (p: Point) => {
+        const s = scaleWithin({ x: p.x, y: p.y, width: 0, height: 0 }, box, to);
+        return { x: s.x, y: s.y };
+      };
+      for (const [id, t] of g.transforms) t.hook.apply(doc, id, t.start, map);
     }, LOCAL_ORIGIN);
   }, []);
 
@@ -155,6 +168,7 @@ export function useTransformGesture(opts: {
       g.minSizes.push(horizontal && !g.horizontalOnly ? 0 : (spec?.minSize ?? 0));
       g.minHeights.push(horizontal ? 0 : (spec?.minSize ?? 0));
       if (spec?.resize) g.resizeHooks.set(obj.id, spec.resize);
+      if (spec?.transform) g.transforms.set(obj.id, { hook: spec.transform, start: spec.transform.capture(doc, obj.id) });
       if (spec?.aspectLocked) g.aspectLocked = true;
     }
     if (g.startRects.size === 0) return false;
@@ -214,6 +228,7 @@ export function useTransformGesture(opts: {
         minHeights: [],
         horizontalOnly: false,
         resizeHooks: new Map(),
+        transforms: new Map(),
         pending: null,
         frame: null,
         detach: () => {

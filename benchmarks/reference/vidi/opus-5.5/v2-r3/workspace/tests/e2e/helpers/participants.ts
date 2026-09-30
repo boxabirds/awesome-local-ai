@@ -90,6 +90,8 @@ export async function openParticipant(
   browser: Browser,
   name: string,
   boardId: string,
+  /** Runs before the board opens (story 10: route the page's WebSocket). */
+  beforeOpen?: (page: Page) => Promise<void>,
 ): Promise<Participant> {
   const context = await browser.newContext({ viewport: VIEWPORT });
   await context.addInitScript(recorder);
@@ -103,6 +105,7 @@ export async function openParticipant(
     consoleErrors.push(`dialog: ${d.message()}`);
     void d.dismiss();
   });
+  await beforeOpen?.(page);
   await page.goto(`/b/${boardId}`);
   await page.waitForFunction(() => window.__vidi6 !== undefined);
   await waitConnected(page);

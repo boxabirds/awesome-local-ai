@@ -126,3 +126,43 @@ export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 export const TEXT_CARET_ALLOWANCE_WORLD = 4;
 /** Estimated average glyph width as a fraction of the font size, used when text cannot be measured. */
 export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.55;
+
+// Story 10 — shapes and connectors.
+
+/** Shape kinds offered by the Shape tool's menu. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+/** Width and height of a shape dropped with a click (or a too-small drag). */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** Smallest dragged shape; a drag below this on either axis counts as a click. Also the resize minimum. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Maximum number of characters in a shape's label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Shape outline width in world units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent', white: '#FFFFFF', blue: '#BBDEFB', green: '#C8E6C9',
+  yellow: '#FFF9C4', pink: '#F8BBD0', grey: '#E0E0E0',
+} as const;
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238', blue: '#1E88E5', green: '#43A047', orange: '#FB8C00', red: '#E53935', grey: '#9E9E9E',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+/** Shorter arrows are not created (accidental clicks). */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** A click within this many screen pixels of an arrow's line selects it. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Arrow line width in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Arrowhead length in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius of the connection dots shown by the Connector tool, in screen pixels. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+/** Colour of arrows (story 10 has no arrow styling). */
+export const CONNECTOR_COLOR = '#263238';
+/** Font size of shape labels in world units. */
+export const SHAPE_LABEL_FONT_PX = 16;
+/** Inner padding of a shape's label box in world units. */
+export const SHAPE_LABEL_PADDING_WORLD = 8;

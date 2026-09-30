@@ -1,7 +1,10 @@
 import type { SyntheticEvent } from 'react';
 import { isSticky, type ObjectSnapshot } from '../../shared/board-model';
-import type { StickyColor, TextSize } from '../../shared/config';
+import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
+import { isConnector } from '../../shared/objects/connector';
+import { isShape } from '../../shared/objects/shape';
 import { isText } from '../../shared/objects/text';
+import { ConnectorToolbar, ShapeToolbar } from '../objects/ShapeToolbar';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
 
@@ -16,7 +19,8 @@ export function selectedLabel(count: number): string {
 /**
  * Above the selection: "N selected" and a Delete button for two or more
  * objects, story 2's note toolbar when exactly one sticky note is selected, or
- * story 9's text toolbar when exactly one text object is selected.
+ * story 9's text toolbar when exactly one text object is selected, or story 10's
+ * shape or arrow toolbar for exactly one shape or arrow.
  */
 export function SelectionBar(props: {
   ids: ReadonlySet<string>;
@@ -24,6 +28,7 @@ export function SelectionBar(props: {
   onDelete(): void;
   onColor?(id: string, color: StickyColor): void;
   onTextSize?(id: string, size: TextSize): void;
+  onShapeStyle?(id: string, style: { fill?: FillColor; stroke?: StrokeColor }): void;
 }) {
   const selected = props.snapshot.filter((o) => props.ids.has(o.id));
   if (selected.length === 1) {
@@ -31,6 +36,18 @@ export function SelectionBar(props: {
     if (isText(only)) {
       return <TextToolbar size={only.size} onSize={(s) => props.onTextSize?.(only.id, s)} onDelete={props.onDelete} />;
     }
+    if (isShape(only)) {
+      return (
+        <ShapeToolbar
+          fill={only.fill}
+          stroke={only.stroke}
+          onFill={(fill) => props.onShapeStyle?.(only.id, { fill })}
+          onStroke={(stroke) => props.onShapeStyle?.(only.id, { stroke })}
+          onDelete={props.onDelete}
+        />
+      );
+    }
+    if (isConnector(only)) return <ConnectorToolbar onDelete={props.onDelete} />;
     if (!isSticky(only)) return null;
     return (
       <NoteToolbar color={only.color} onColor={(c) => props.onColor?.(only.id, c)} onDelete={props.onDelete} />

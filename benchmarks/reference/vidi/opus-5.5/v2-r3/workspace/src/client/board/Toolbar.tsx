@@ -1,16 +1,37 @@
 import type { ReactNode } from 'react';
+import { SHAPE_KINDS } from '../../shared/config';
+import type { ShapeKind } from '../../shared/objects/shape';
+import { SHAPE_KIND_NAMES } from '../objects/ShapeObject';
 import type { Tool } from './useTool';
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note (N) – or double-click the board';
 
-/** Left-side vertical toolbar: Select and Text tools (story 9), Sticky note, then children (undo). */
+function ShapeKindIcon({ kind }: { kind: ShapeKind }) {
+  const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.4 };
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+      {kind === 'rect' && <rect x="2.5" y="4.5" width="13" height="9" rx="0.5" {...common} />}
+      {kind === 'ellipse' && <ellipse cx="9" cy="9" rx="6.5" ry="5" {...common} />}
+      {kind === 'diamond' && <path d="M9 2.5 15.5 9 9 15.5 2.5 9Z" strokeLinejoin="round" {...common} />}
+    </svg>
+  );
+}
+
+/**
+ * Left-side vertical toolbar: Select and Text tools (story 9), Sticky note,
+ * Shape (with its kind menu while active) and Connector (story 10), then
+ * children (undo).
+ */
 export function Toolbar(props: {
   onCreateSticky(): void;
   disabled?: boolean;
   tool?: Tool;
   onTool?(t: Tool): void;
+  shapeKind?: ShapeKind;
+  onShapeKind?(k: ShapeKind): void;
   children?: ReactNode;
 }) {
+  const shapeKind = props.shapeKind ?? 'rect';
   const tool = props.tool ?? 'select';
   return (
     <div className="toolbar" role="toolbar" aria-label="Tools" aria-orientation="vertical">
@@ -68,6 +89,55 @@ export function Toolbar(props: {
             strokeLinejoin="round"
           />
           <path d="M18.5 13.5h-4.5a.5.5 0 0 0-.5.5v4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <div className="toolbar-shape">
+        <button
+          type="button"
+          className="toolbar-button"
+          aria-label="Shape (S)"
+          title="Shape (S)"
+          aria-pressed={tool === 'shape'}
+          aria-haspopup="true"
+          aria-expanded={tool === 'shape'}
+          disabled={props.disabled}
+          onClick={() => props.onTool?.('shape')}
+        >
+          <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+            <rect x="3.5" y="3.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1.4" />
+            <circle cx="14" cy="14" r="4.5" fill="#fff" stroke="currentColor" strokeWidth="1.4" />
+          </svg>
+        </button>
+        {tool === 'shape' && (
+          <div className="shape-kind-menu" role="group" aria-label="Shape kind">
+            {SHAPE_KINDS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                className="shape-kind-button"
+                aria-label={SHAPE_KIND_NAMES[k]}
+                title={SHAPE_KIND_NAMES[k]}
+                aria-pressed={shapeKind === k}
+                onClick={() => props.onShapeKind?.(k)}
+              >
+                <ShapeKindIcon kind={k} />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        className="toolbar-button"
+        aria-label="Connector (L)"
+        title="Connector (L)"
+        aria-pressed={tool === 'connector'}
+        disabled={props.disabled}
+        onClick={() => props.onTool?.('connector')}
+      >
+        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+          <path d="M4.5 17.5 16 6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M10.5 5.5h6v6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
       {props.children}

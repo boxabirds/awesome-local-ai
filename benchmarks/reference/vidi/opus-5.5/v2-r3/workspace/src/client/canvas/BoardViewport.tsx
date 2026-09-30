@@ -54,8 +54,11 @@ export function BoardViewport(props: {
   marquee?: Marquee;
   /** Screen-space layer above the world (selection box, handles, selection bar). */
   overlay?: ReactNode;
-  /** Active tool (story 9). With 'text', a press anywhere on the board calls `onToolClick`. */
-  tool?: 'select' | 'text';
+  /**
+   * Active tool (stories 9–10). With 'text', a press anywhere on the board calls
+   * `onToolClick`; the Shape and Connector tools render their own layer in `overlay`.
+   */
+  tool?: string;
   /** Press with a creating tool active, in world coordinates (also on top of objects). */
   onToolClick?(world: Point): void;
 }) {

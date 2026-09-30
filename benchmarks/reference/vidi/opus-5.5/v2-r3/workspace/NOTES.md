@@ -393,3 +393,69 @@ Decisions made where the spec was silent or ambiguous:
   and `StickyText.ts` re-exports them.
 - **Not done:** Firefox/WebKit are not installed here, so TC-26 ran in Chromium only.
 - **Commits.** The whole story went into a single commit, per the session instructions.
+
+## Story 10 — Draw shapes and connect them with arrows that follow when moved
+
+- **Active tool hook.** `src/client/tools/useActiveTool.ts` holds the contract (`ToolId`, `TOOL_SHORTCUTS`,
+  `useActiveTool` with `shapeKind`, `setShapeKind`, `toolCreated`). It takes an options object
+  (`canEdit`, `select`) because selection lives in `Board` (story 7's `useSelection`), and `toolCreated`
+  calls `select` (selection `click`). Story 9's `board/useTool.ts` is kept as a thin wrapper. Only
+  select/text/shape/connector can be chosen; P/I/C (stories 11–17 tools not in this build) are ignored.
+  The single-letter keys stay in `useBoardKeys` (which already ignores them while editing or typing in
+  a field), now driven by `TOOL_SHORTCUTS`; there is no second window listener in the hook.
+- **Toolbar.** "Shape (S)" and "Connector (L)" come after "Sticky note (N)". While the Shape tool is
+  active a `role="group"` "Shape kind" menu to its right shows "Rectangle", "Ellipse", "Diamond"
+  (`aria-pressed`). Shape and Connector are disabled on a board that failed to load, like Text.
+- **Tools own the pointer.** `ShapeTool` and `ConnectorTool` render a full-viewport layer in the board's
+  screen-space overlay, so presses over objects never select or move them (TC-28); wheel zoom still
+  bubbles to the viewport. They take an extra `doc` prop (the contract lists none, and the board doc
+  is not in a context). Escape unmounts the layer, which abandons an unfinished drag.
+- **Shape creation.** `createShape` always receives the dragged world rect plus the press point `at`;
+  a click is a 0×0 rect, so "rect null or below SHAPE_MIN_SIZE_WORLD" both give the standard size
+  centred on the press. With Shift, the square is anchored at the drag origin and grows in the dragged
+  direction (`shapeRect`, also used for the preview so it shows exactly what release creates).
+- **Shape rendering.** The design mentions a `foreignObject`; the shape is instead an HTML box
+  holding an SVG outline plus an HTML label box. The label box is the largest centred rectangle
+  inside the outline (the whole rectangle, 1/√2 of an ellipse, half of a diamond). Its size comes from
+  the object's size, so resizing re-wraps and re-centres the label. The label uses the story 9
+  `TextEditor` (limit `SHAPE_LABEL_MAX_CHARS`, textbox "Shape label"). Extra settings:
+  `SHAPE_LABEL_FONT_PX` (16), `SHAPE_LABEL_PADDING_WORLD` (8), `CONNECTOR_COLOR`, and the
+  `FillColor`/`StrokeColor` types. Shapes are named "<Kind>" or "<Kind>: <label>".
+- **Shape toolbar.** `role="toolbar"` "Shape": "No fill", "White fill" … "Grey fill", "Dark outline" …
+  "Grey outline", and "Delete shape". A single selected arrow gets toolbar "Arrow" with "Delete arrow".
+- **Model plumbing without import cycles.** `board-model.ts` must not import `objects/connector.ts`
+  (connector imports board-model at load). So two hooks were added: `registerDeleteHook`, which
+  `deleteObjects` runs inside its transaction before removing ids (connector.ts registers
+  `detachConnectorsTo`; one update, one undo step), and a third `derive` argument to
+  `registerModelType`. After sorting, `objectsSnapshot` runs `derive` with the stored rects of every
+  non-derived object (`storedRects`), and connectors get their bbox and resolved `ends` there.
+  `objectBounds` now keeps a zero width/height (a horizontal arrow's box is flat) instead of
+  falling back to the sticky size.
+- **Endpoint resolution.** Each attached end uses the side of its object facing the *other end's
+  reference point*: the other object's centre, or the free point. `createConnector` and
+  `setConnectorEndpoint` recompute an attached end's `fallback` from the target's current rect,
+  and keep the caller's fallback only when the target is already gone (the delete race). A write to
+  one end of an arrow whose other end is orphaned also turns the orphaned end into a free point at its
+  fallback (the "Orphaned → Free" state).
+- **Arrows cannot attach to arrows.** Registry specs got `attachable` (false for connectors) and
+  `hitTest(obj, p, zoom?)`. The connector's `hitTest` is `distanceToPolyline ≤ CONNECTOR_HIT_TOLERANCE_PX / zoom`.
+  In the browser the transparent hit stroke is exactly that wide (round caps), and the press handler
+  re-checks it with the camera, so jsdom tests can exercise it too. `ObjectProps` gained optional
+  `zoom` and `rects`.
+- **Moving arrows with the selection.** Arrows store no position, so registry specs got an optional
+  `transform` hook (`capture` + `apply(map)`). Move, group resize and arrow-key nudge map an arrow's
+  *free* ends with the selection. Attached ends stay attached and follow their objects. An arrow is
+  not resizable, and a lone selected arrow shows its two end handles ("Arrow start", "Arrow end")
+  instead of the selection box.
+- **Re-attach.** Handle drags hit-test the attachable rects (topmost first). Releasing on the object
+  at the other end snaps back without writing. A press without movement changes nothing.
+- **Connector tool details.** A drag is too short when the pointer moved less than
+  `CONNECTOR_MIN_LENGTH_WORLD`, and the model also rejects resolved arrows shorter than that. While
+  dragging, the object under the pointer (other than the start object) shows its dots with the
+  attach side highlighted. The preview line is dashed.
+- **E2E.** `openParticipant` got an optional `beforeOpen(page)` so TC-27 can install
+  `page.routeWebSocket` on Sam's page and hold back Sam's outgoing frames (2.5 s) to force the
+  delete race. TC-24 checks horizontal centring within 0.3 em, because a wrapped line's trailing space
+  is part of its line box. Fixture: `tests/fixtures/checkout-flow.ts`, seeded via `seedBoard`.
+- **E2E browsers:** only Chromium is installed here, so TC-23 did not run on Firefox or WebKit.
+- **Commits.** The whole story went into a single commit, per the session instructions.

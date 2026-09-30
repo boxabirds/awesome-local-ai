@@ -4,9 +4,19 @@
 import type { ComponentType, PointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, registerModelType, type ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { rectContains, type Point, type Rect } from '../../shared/geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import {
+  CONNECTOR_TYPE,
+  getConnectorEnds,
+  transformConnector,
+  type ConnectorSnap,
+} from '../../shared/objects/connector';
+import { SHAPE_TYPE } from '../../shared/objects/shape';
 import { TEXT_TYPE } from '../../shared/objects/text';
+import { ConnectorObject } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { resizeText, TextObject } from './TextObject';
 
@@ -28,6 +38,21 @@ export interface ObjectProps {
   onPointerDown(e: PointerEvent<Element>, id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /** Current zoom (story 10: arrow hit tolerance and handles are in screen pixels). */
+  zoom?: number;
+  /** Rects of every attachable object in (z, id) order (story 10 arrows resolve their ends from them). */
+  rects?: ReadonlyMap<string, Rect>;
+}
+
+/**
+ * For types whose geometry is derived rather than stored (story 10 arrows):
+ * a move, resize or nudge captures the object's state when it starts and then
+ * writes its points mapped through the selection's transform, instead of x/y.
+ */
+export interface ObjectTransformHook {
+  capture(doc: Y.Doc, id: string): unknown;
+  /** Called inside the frame's transaction; `start` is what `capture` returned. */
+  apply(doc: Y.Doc, id: string, start: unknown, map: (p: Point) => Point): void;
 }
 
 export interface ObjectTypeSpec {
@@ -46,7 +71,12 @@ export interface ObjectTypeSpec {
    * object has horizontal handles. Called inside the frame's transaction.
    */
   resize?(doc: Y.Doc, id: string, next: Rect, start: Rect, horizontalOnly: boolean): void;
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /** Derived-geometry types move through this hook (story 10). */
+  transform?: ObjectTransformHook;
+  /** Whether a press at `worldPoint` hits the object; `zoom` for tolerances given in screen pixels. */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
+  /** Arrows can attach to this type (default true; false for arrows themselves). */
+  attachable?: boolean;
 }
 
 const types = new Map<string, ObjectTypeSpec>();
@@ -86,3 +116,49 @@ registerObjectType(TEXT_TYPE, {
   resize: resizeText,
   hitTest: boundsHitTest,
 });
+
+registerObjectType(SHAPE_TYPE, {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: boundsHitTest,
+});
+
+/** Within CONNECTOR_HIT_TOLERANCE_PX screen pixels of the drawn line (connector.select). */
+export function connectorHitTest(obj: ObjectSnapshot, p: Point, zoom = 1): boolean {
+  const c = obj as ConnectorSnap;
+  if (!c.ends) return false;
+  return distanceToPolyline([c.ends.from, c.ends.to], p) <= CONNECTOR_HIT_TOLERANCE_PX / zoom;
+}
+
+registerObjectType(CONNECTOR_TYPE, {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  attachable: false,
+  transform: {
+    capture: (doc, id) => getConnectorEnds(doc, id),
+    apply: (doc, id, start, map) => {
+      if (start) transformConnector(doc, id, start as NonNullable<ReturnType<typeof getConnectorEnds>>, map);
+    },
+  },
+  hitTest: connectorHitTest,
+});
+
+/**
+ * The topmost attachable object whose hit test contains `p` (story 10 connector
+ * targets). `list` is in (z, id) order; `exclude` is skipped.
+ */
+export function attachableAt(list: readonly ObjectSnapshot[], p: Point, zoom: number, exclude?: string): ObjectSnapshot | null {
+  for (let i = list.length - 1; i >= 0; i--) {
+    const o = list[i];
+    const spec = getObjectType(o.type);
+    if (!spec || spec.attachable === false || o.id === exclude) continue;
+    if (spec.hitTest(o, p, zoom)) return o;
+  }
+  return null;
+}

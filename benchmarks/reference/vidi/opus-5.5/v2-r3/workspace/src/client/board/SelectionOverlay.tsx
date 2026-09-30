@@ -60,6 +60,8 @@ export function SelectionOverlay(props: {
   const selected = props.snapshot.filter((o) => props.ids.has(o.id));
   const box = unionRects(selected.map(objectBounds));
   if (!box) return null;
+  // A lone arrow shows its own end handles instead of a box (story 10).
+  if (selected.length === 1 && getObjectType(selected[0].type)?.transform) return null;
   const s = toScreenRect(props.camera, box);
   const resizable = selected.some((o) => getObjectType(o.type)?.resizable);
   const showHandles = (props.showHandles ?? true) && resizable;

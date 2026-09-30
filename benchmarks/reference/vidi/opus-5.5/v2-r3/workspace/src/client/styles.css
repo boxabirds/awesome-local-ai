@@ -691,3 +691,208 @@ body {
   background: #dde7fb;
   color: #1d4fb8;
 }
+
+/* Story 10 — shapes, arrows, and the Shape and Connector tools. */
+
+.toolbar-shape {
+  position: relative;
+}
+
+.shape-kind-menu {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 0;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #d8d8d4;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+}
+
+.shape-kind-button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: #1f2328;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.shape-kind-button:hover {
+  background: #efefec;
+}
+
+.shape-kind-button[aria-pressed='true'] {
+  background: #dde7fb;
+  color: #1d4fb8;
+}
+
+.shape-object {
+  position: absolute;
+  cursor: default;
+  outline: none;
+  touch-action: none;
+  color: #1f2328;
+}
+
+.shape-object:focus-visible {
+  outline: calc(1.5px / var(--zoom, 1)) dashed #2f6feb;
+}
+
+.shape-object.is-dragging {
+  cursor: grabbing;
+}
+
+.shape-outline {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.shape-label {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  justify-content: safe center;
+  align-items: stretch;
+  overflow: hidden;
+  text-align: center;
+  user-select: none;
+  pointer-events: none;
+}
+
+.shape-label-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.shape-label-edit {
+  position: absolute;
+  overflow: hidden;
+}
+
+.shape-label-editor {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: inherit;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  cursor: text;
+}
+
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+  outline: none;
+}
+
+.board-object.connector-object[data-selected='true'] {
+  outline: none;
+}
+
+.connector-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-hit {
+  cursor: pointer;
+}
+
+.connector-handle {
+  fill: #fff;
+  stroke: #2f6feb;
+  cursor: move;
+}
+
+.tool-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.shape-preview {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px dashed #2f6feb;
+  background: rgb(47 111 235 / 6%);
+  pointer-events: none;
+}
+
+.shape-preview-ellipse {
+  border-radius: 50%;
+}
+
+.shape-preview-diamond {
+  border: none;
+  background: rgb(47 111 235 / 18%);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.connector-tool-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connection-dot {
+  fill: #fff;
+  stroke: #2f6feb;
+  stroke-width: 1.5;
+}
+
+.connection-dot.is-highlighted {
+  fill: #2f6feb;
+}
+
+.connector-preview {
+  stroke: #2f6feb;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+
+.swatch-none {
+  background-image: linear-gradient(
+    to top right,
+    transparent calc(50% - 1px),
+    #e53935 calc(50% - 1px),
+    #e53935 calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+
+.swatch.swatch-outline {
+  background: #fff;
+  border-width: 4px;
+  border-style: solid;
+}

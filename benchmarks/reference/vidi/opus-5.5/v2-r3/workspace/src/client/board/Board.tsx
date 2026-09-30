@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { createSticky, deleteObjects, setStickyColor } from '../../shared/board-model';
+import { createSticky, deleteObjects, setStickyColor, storedRects } from '../../shared/board-model';
+import { setShapeStyle } from '../../shared/objects/shape';
 import { createText, setTextSize } from '../../shared/objects/text';
 import { localAuthor } from '../objects/TextObject';
 import { getTextMeasurer } from '../objects/textLayout';
 import { remeasureText } from '../objects/useTextBoxSync';
-import { useTool } from './useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { ShapeTool } from '../tools/ShapeTool';
 import { Toolbar } from './Toolbar';
 import { useBoardDoc } from './useBoardDoc';
 import { useBoardKeys } from './useBoardKeys';
@@ -25,7 +28,7 @@ import { getObjectType, type ObjectGesturePhase } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
 import { installTestHooks } from '../testHooks';
-import type { StickyColor, TextSize } from '../../shared/config';
+import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
 import type * as Y from 'yjs';
 
 /** A board that could not be loaded is never editable (it would look empty). */
@@ -47,7 +50,7 @@ export function Board({ boardId, children }: { boardId: string; children?: React
   const { doc, objects, connection } = useBoardDoc(boardId);
   const undoController = useUndoControllerFor(doc);
   const selection = useSelection(objects);
-  const { ids: selectedIds, editingId, clear, setMany, startEdit, endEdit } = selection;
+  const { ids: selectedIds, editingId, clear, setMany, startEdit, endEdit, click } = selection;
 
   const cameraRef = useRef(camera);
   cameraRef.current = camera;
@@ -95,7 +98,8 @@ export function Board({ boardId, children }: { boardId: string; children?: React
   }, [createAt]);
 
   // Story 9: the Text tool places a text object where the board is pressed.
-  const tool = useTool(editable);
+  // Story 10: Shape and Connector tools select what they create and return to Select.
+  const tool = useActiveTool({ canEdit: editable, select: click });
   const { setTool } = tool;
   const placeText = useCallback(
     (world: Point) => {
@@ -115,6 +119,16 @@ export function Board({ boardId, children }: { boardId: string; children?: React
       undoController.boundary();
       // Top-left stays; the box is re-measured in the same undo step.
       if (setTextSize(doc, id, size)) remeasureText(doc, id, getTextMeasurer());
+      undoController.boundary();
+    },
+    [doc, undoController],
+  );
+
+  const setShapeStyleFor = useCallback(
+    (id: string, style: { fill?: FillColor; stroke?: StrokeColor }) => {
+      if (!editableRef.current) return;
+      undoController.boundary();
+      setShapeStyle(doc, id, style);
       undoController.boundary();
     },
     [doc, undoController],
@@ -157,6 +171,9 @@ export function Board({ boardId, children }: { boardId: string; children?: React
     onGestureEnd: undoController.boundary,
   });
 
+  // Arrows resolve their ends from the attachable objects' current rects (story 10).
+  const rects = useMemo(() => storedRects(objects), [objects]);
+
   const busy = gesture.phase === 'moving' || gesture.phase === 'resizing';
   const box = selectionBounds(selectedIds, objects);
   const screenBox = box ? toScreenRect(camera, box) : null;
@@ -182,8 +199,15 @@ export function Board({ boardId, children }: { boardId: string; children?: React
             onDelete={deleteSelection}
             onColor={setColor}
             onTextSize={setSize}
+            onShapeStyle={setShapeStyleFor}
           />
         </div>
+      )}
+      {editable && tool.tool === 'shape' && (
+        <ShapeTool kind={tool.shapeKind} camera={camera} doc={doc} onCreated={tool.toolCreated} />
+      )}
+      {editable && tool.tool === 'connector' && (
+        <ConnectorTool camera={camera} snapshot={objects} doc={doc} onCreated={tool.toolCreated} />
       )}
     </>
   );
@@ -217,13 +241,22 @@ export function Board({ boardId, children }: { boardId: string; children?: React
                   onPointerDown={gesture.onObjectPointerDown}
                   onStartEdit={startEdit}
                   onEndEdit={onEndEdit}
+                  zoom={camera.zoom}
+                  rects={rects}
                 />
               );
             })}
             <MarqueeRect rect={marquee.rect} camera={camera} />
           </BoardViewport>
           <SelectionAnnouncer count={selectedIds.size} />
-          <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} tool={tool.tool} onTool={setTool}>
+          <Toolbar
+            onCreateSticky={onCreateSticky}
+            disabled={!editable}
+            tool={tool.tool}
+            onTool={setTool}
+            shapeKind={tool.shapeKind}
+            onShapeKind={tool.setShapeKind}
+          >
             <UndoButtons {...history} />
           </Toolbar>
           <ZoomControls

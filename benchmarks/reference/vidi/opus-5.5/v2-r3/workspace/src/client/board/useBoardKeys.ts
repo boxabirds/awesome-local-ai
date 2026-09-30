@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
-import { allObjectIds, deleteObjects, moveObjects, type ObjectSnapshot } from '../../shared/board-model';
+import { LOCAL_ORIGIN, allObjectIds, deleteObjects, moveObjects, type ObjectSnapshot } from '../../shared/board-model';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
-import { getObjectType } from '../objects/registry';
+import { getObjectType, type ObjectTransformHook } from '../objects/registry';
 import type { UndoController } from './undo';
 import type { SelectionApi } from './useSelection';
+import { TOOL_SHORTCUTS } from '../tools/useActiveTool';
 import type { ToolApi } from './useTool';
 
 const ARROWS: Record<string, Point> = {
@@ -46,7 +47,8 @@ function focusedObjectId(target: EventTarget | null): string | undefined {
  * Board keyboard commands (sel.keyboard): Ctrl/Cmd+A select all, Escape clear,
  * arrows nudge, Delete/Backspace delete, Enter edits a single text object;
  * Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (story 8); V/T tools,
- * N new sticky note, Escape leaves the Text tool (story 9).
+ * N new sticky note, Escape leaves the Text tool (story 9); S/L Shape and
+ * Connector tools, Escape leaves them too (story 10).
  * Nothing happens while text is being edited (the editor handles its own
  * undo) or a text field has focus; the mutating keys also need `canEdit`.
  * Each mutation is its own undo step (boundaries before and after).
@@ -105,13 +107,11 @@ export function useBoardKeys(opts: {
 
       // Tool shortcuts (text.tool_ui); Shift is allowed so Caps Lock never blocks them.
       const letter = e.key.length === 1 ? e.key.toLowerCase() : '';
-      if (tool && letter === 'v') {
-        tool.setTool('select');
-        return;
-      }
-      if (tool && letter === 't') {
-        if (canEdit) tool.setTool('text');
-        return;
+      const shortcut = TOOL_SHORTCUTS[letter];
+      if (tool && shortcut && shortcut !== 'sticky') {
+        // Story 10 adds S (Shape) and L (Connector); tools outside this build are ignored.
+        if (shortcut === 'select' || canEdit) tool.setTool(shortcut);
+        if (shortcut === 'select' || shortcut === 'text' || shortcut === 'shape' || shortcut === 'connector') return;
       }
       if (onCreateSticky && letter === 'n') {
         if (canEdit) onCreateSticky();
@@ -132,11 +132,20 @@ export function useBoardKeys(opts: {
         const dist = e.shiftKey ? NUDGE_LARGE_STEP_WORLD : NUDGE_STEP_WORLD;
         const byId = new Map(snapshot.map((o) => [o.id, o]));
         const positions = new Map<string, Point>();
+        const derived: [string, ObjectTransformHook][] = [];
         for (const id of ids) {
           const o = byId.get(id)!;
-          positions.set(id, { x: o.x + dir.x * dist, y: o.y + dir.y * dist });
+          const hook = getObjectType(o.type)?.transform;
+          if (hook) derived.push([id, hook]); // story 10 arrows move their free ends
+          else positions.set(id, { x: o.x + dir.x * dist, y: o.y + dir.y * dist });
         }
-        step(() => moveObjects(doc, positions));
+        const by = (p: Point) => ({ x: p.x + dir.x * dist, y: p.y + dir.y * dist });
+        step(() =>
+          doc.transact(() => {
+            moveObjects(doc, positions);
+            for (const [id, hook] of derived) hook.apply(doc, id, hook.capture(doc, id), by);
+          }, LOCAL_ORIGIN),
+        );
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
