@@ -1,3 +1,41 @@
+commit 728653aa6a087a96e7ea7087cd1c3710c29ea3da
+vidi-agent  Wed Sep 30 15:15:59 2026 +0000
+
+    story 12: Drop images onto the board
+
+
+ src/client/App.tsx                    |  58 ++++-
+ src/client/board/Toolbar.tsx          |  17 ++
+ src/client/images/DropHighlight.tsx   |  12 +
+ src/client/images/uploadImage.ts      |  51 ++++
+ src/client/images/useImageInsert.ts   | 287 ++++++++++++++++++++++
+ src/client/images/validateFiles.ts    |  40 +++
+ src/client/objects/ImageLayer.tsx     |  55 +++++
+ src/client/objects/ImageObject.tsx    | 187 ++++++++++++++
+ src/client/objects/registry.tsx       |  29 ++-
+ src/client/styles.css                 | 136 +++++++++++
+ src/client/ui/Toast.tsx               |  50 ++++
+ src/shared/board-model.ts             |  23 +-
+ src/shared/config.ts                  |  11 +
+ src/shared/image-format.ts            |  47 ++++
+ src/shared/objects/image.ts           | 213 ++++++++++++++++
+ src/worker/assets.ts                  |  94 ++++++++
+ src/worker/index.ts                   |  19 ++
+ tests/component/images.test.tsx       | 441 ++++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/drop-files.ts       |  58 +++++
+ tests/e2e/images.spec.ts              | 195 +++++++++++++++
+ tests/fixtures/images/corrupt.png     |   1 +
+ tests/fixtures/images/renamed.pdf.png |   1 +
+ tests/fixtures/images/test.gif        | Bin 0 -> 34 bytes
+ tests/fixtures/images/test.jpg        | Bin 0 -> 22 bytes
+ tests/fixtures/images/test.png        | Bin 0 -> 69 bytes
+ tests/fixtures/images/test.svg        |   1 +
+ tests/fixtures/images/test.webp       | Bin 0 -> 44 bytes
+ tests/integration/assets.test.ts      | 207 ++++++++++++++++
+ tests/unit/image-format.test.ts       | 135 +++++++++++
+ tests/unit/image-model.test.ts        | 204 ++++++++++++++++
+ wrangler.jsonc                        |   6 +
+ 31 files changed, 2574 insertions(+), 4 deletions(-)
 commit 2ec522e719b27cf5dda9fb6e9e4eb89e26a906ab
 vidi-agent  Wed Sep 30 14:48:17 2026 +0000
 
