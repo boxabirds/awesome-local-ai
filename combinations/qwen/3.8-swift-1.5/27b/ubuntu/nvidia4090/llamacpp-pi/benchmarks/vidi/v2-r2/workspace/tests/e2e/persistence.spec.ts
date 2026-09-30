@@ -367,7 +367,7 @@ test.describe('Story 4: persistence e2e (TC-19 to TC-24)', () => {
       // Dblclick and the Sticky note button create nothing. (The button is
       // disabled; force-click so Playwright does not wait for it to enable.)
       await page.mouse.dblclick(400, 300);
-      await page.getByLabel('Sticky note').click({ force: true });
+      await page.getByLabel('Sticky note (N)').click({ force: true });
       await page.waitForTimeout(500);
       expect(await getSnapshot(page)).toHaveLength(0);
 

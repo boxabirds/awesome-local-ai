@@ -1,9 +1,14 @@
+import { useMemo } from 'react';
 import type { ReactElement } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, setStickyColor, type ObjectSnapshot, type StickySnapshot } from '../../shared/board-model';
+import { setTextSize, type TextSnapshot } from '../../shared/objects/text';
 import { unionRects } from '../../shared/geometry';
 import { worldToScreen, type Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
+import { createCanvasMeasurer } from '../objects/textLayout';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
 
 /**
  * Selection action bar (story 7, sel.ui). Exactly one sticky → the story-2
@@ -27,31 +32,54 @@ export function SelectionBar({
 }): ReactElement | null {
   if (ids.size === 0) return null;
 
-  // Exactly one sticky: reuse the story-2 note toolbar.
+  const measure = useMemo(() => createCanvasMeasurer(), []);
+
+  // Exactly one object: the type-specific toolbar (sticky colours or text
+  // sizes) above the object.
   if (ids.size === 1) {
     const id = [...ids][0];
     const obj = snapshot.find((o) => o.id === id);
-    if (!obj || obj.type !== 'sticky') return null;
-    const note = obj as StickySnapshot;
-    const b = objectBounds(note);
+    if (!obj) return null;
+    const b = objectBounds(obj);
     const topCenter = worldToScreen(camera, { x: b.x + b.width / 2, y: b.y });
-    return (
-      <div
-        style={{
-          position: 'absolute',
-          left: topCenter.x,
-          top: topCenter.y,
-          transform: 'translate(-50%, -100%) translateY(-6px)',
-          zIndex: 950,
-        }}
-      >
-        <NoteToolbar
-          color={note.color}
-          onColor={(c) => setStickyColor(doc, note.id, c)}
-          onDelete={onDelete}
-        />
-      </div>
-    );
+    const wrapperStyle: React.CSSProperties = {
+      position: 'absolute',
+      left: topCenter.x,
+      top: topCenter.y,
+      transform: 'translate(-50%, -100%) translateY(-6px)',
+      zIndex: 950,
+    };
+
+    if (obj.type === 'sticky') {
+      const note = obj as StickySnapshot;
+      return (
+        <div style={wrapperStyle}>
+          <NoteToolbar
+            color={note.color}
+            onColor={(c) => setStickyColor(doc, note.id, c)}
+            onDelete={onDelete}
+          />
+        </div>
+      );
+    }
+
+    if (obj.type === 'text') {
+      const text = obj as TextSnapshot;
+      return (
+        <div style={wrapperStyle} onPointerDown={(e) => e.stopPropagation()}>
+          <TextToolbar
+            currentSize={text.size}
+            onSizeChange={(size) => {
+              setTextSize(doc, text.id, size);
+              remeasureTextBox(doc, text.id, measure);
+            }}
+            onDelete={onDelete}
+          />
+        </div>
+      );
+    }
+
+    return null;
   }
 
   // Two or more: count + delete bar.

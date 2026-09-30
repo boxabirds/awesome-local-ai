@@ -101,8 +101,8 @@ describe('undo.controls: component tests (TC-18 to TC-21)', () => {
     const controller = createFakeController();
     render(<UndoButtonHarness controller={controller} canEdit={true} />);
 
-    const undoBtn = screen.getByLabelText('Undo');
-    const redoBtn = screen.getByLabelText('Redo');
+    const undoBtn = screen.getByLabelText('Undo (Ctrl+Z)');
+    const redoBtn = screen.getByLabelText('Redo (Ctrl+Shift+Z)');
 
     expect(undoBtn).toBeDisabled();
     expect(redoBtn).toBeDisabled();
@@ -171,8 +171,8 @@ describe('undo.controls: component tests (TC-18 to TC-21)', () => {
     );
 
     // Buttons should be disabled
-    const undoBtn = screen.getByLabelText('Undo');
-    const redoBtn = screen.getByLabelText('Redo');
+    const undoBtn = screen.getByLabelText('Undo (Ctrl+Z)');
+    const redoBtn = screen.getByLabelText('Redo (Ctrl+Shift+Z)');
     expect(undoBtn).toBeDisabled();
     expect(redoBtn).toBeDisabled();
 

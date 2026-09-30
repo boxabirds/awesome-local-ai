@@ -10,6 +10,7 @@ import {
 import { getObjectType } from '../objects/registry';
 import type { Selection } from './useSelection';
 import type { Point } from '../canvas/camera';
+import type { Tool } from './useTool';
 import type { UndoController } from './undo';
 
 /**
@@ -32,14 +33,17 @@ export function useBoardKeys(opts: {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undoController?: UndoController;
+  tool?: Tool;
+  setTool?: (t: Tool) => void;
+  onCreateSticky?: () => void;
 }): void {
-  const { doc, selection, snapshot, canEdit, undoController } = opts;
-  const stateRef = useRef({ doc, selection, snapshot, canEdit, undoController });
-  stateRef.current = { doc, selection, snapshot, canEdit, undoController };
+  const { doc, selection, snapshot, canEdit, undoController, tool, setTool, onCreateSticky } = opts;
+  const stateRef = useRef({ doc, selection, snapshot, canEdit, undoController, tool, setTool, onCreateSticky });
+  stateRef.current = { doc, selection, snapshot, canEdit, undoController, tool, setTool, onCreateSticky };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const { doc: d, selection: sel, snapshot: snap, canEdit: editable, undoController: uc } = stateRef.current;
+      const { doc: d, selection: sel, snapshot: snap, canEdit: editable, undoController: uc, setTool: setToolFn, onCreateSticky: createSticky } = stateRef.current;
 
       // Never hijack keys while editing text (board-level or page-level).
       if (sel.editingId !== null) return;
@@ -50,6 +54,25 @@ export function useBoardKeys(opts: {
         (target instanceof HTMLElement && target.isContentEditable)
       ) {
         return;
+      }
+
+      // Tool shortcuts (story 9): V → Select, T → Text, N → new sticky note.
+      // Plain keys only (never combined with Ctrl/Meta/Alt). T and N require
+      // the editable state; V is always safe.
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        const k = e.key.toLowerCase();
+        if (k === 'v') {
+          setToolFn?.('select');
+          return;
+        }
+        if (k === 't') {
+          if (editable) setToolFn?.('text');
+          return;
+        }
+        if (k === 'n') {
+          if (editable) createSticky?.();
+          return;
+        }
       }
 
       // Undo: Ctrl/Cmd+Z
@@ -81,6 +104,8 @@ export function useBoardKeys(opts: {
       }
 
       if (e.key === 'Escape') {
+        // Return to the Select tool and clear the selection.
+        setToolFn?.('select');
         sel.clear();
         return;
       }

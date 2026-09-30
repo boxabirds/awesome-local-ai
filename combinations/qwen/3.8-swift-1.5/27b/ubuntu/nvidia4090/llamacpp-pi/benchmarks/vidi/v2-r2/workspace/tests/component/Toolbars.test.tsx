@@ -42,7 +42,7 @@ describe('sticky.toolbar (ui-component)', () => {
     const doc = app.getDoc();
 
     act(() => {
-      screen.getByLabelText('Sticky note').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      screen.getByLabelText('Sticky note (N)').dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
     const notes = snapshot(doc);

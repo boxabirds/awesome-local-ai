@@ -5,6 +5,8 @@ import { objectBounds, registerKnownType } from '../../shared/board-model';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
 import type { Point } from '../canvas/camera';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
+import { TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 
 /**
  * Props passed to every board-object component (story 7, sel.registry).
@@ -43,6 +45,13 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Enter key (and double click) opens an in-place text editor. */
   editableText: boolean;
+  /**
+   * Which resize handles the selection overlay draws for a single object of
+   * this type: 'all' (default, eight handles) or 'horizontal' (only the
+   * west/east handles — text objects, whose height is always measured from
+   * content).
+   */
+  handles?: 'all' | 'horizontal';
   /** Hit-test in world coordinates (marquee uses bounds; types may override). */
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
@@ -68,6 +77,11 @@ export function getObjectType(type: string): ObjectTypeSpec | undefined {
   return REGISTRY.get(type);
 }
 
+/** The resize-handle mode for a type id (default 'all'). */
+export function typeHandles(type: string): 'all' | 'horizontal' {
+  return REGISTRY.get(type)?.handles ?? 'all';
+}
+
 // ---- built-in types --------------------------------------------------------
 
 registerObjectType('sticky', {
@@ -76,6 +90,21 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: (obj, p) => {
+    const b = objectBounds(obj);
+    return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+  },
+});
+
+// Free text objects (story 9): horizontal-only resize handles; height is
+// always measured from content and never set by a drag.
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: (obj, p) => {
     const b = objectBounds(obj);
     return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;

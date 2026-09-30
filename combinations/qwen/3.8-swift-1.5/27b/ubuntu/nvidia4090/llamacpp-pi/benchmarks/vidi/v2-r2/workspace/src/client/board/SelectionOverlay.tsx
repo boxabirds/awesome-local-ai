@@ -3,7 +3,7 @@ import { HANDLE_SIZE_PX } from '../../shared/config';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { unionRects, type Handle, type Rect } from '../../shared/geometry';
 import { worldToScreen, type Camera } from '../canvas/camera';
-import { getObjectType } from '../objects/registry';
+import { getObjectType, typeHandles } from '../objects/registry';
 
 interface ScreenRect {
   x: number;
@@ -77,6 +77,16 @@ export function SelectionOverlay({
   const bounds = unionRects(rects);
   if (!bounds) return null;
 
+  // A single text object shows only the horizontal (w/e) handles; its height
+  // is measured from content and never set by a drag (story 9).
+  let handleMode: 'all' | 'horizontal' = 'all';
+  if (ids.size === 1) {
+    const single = snapshot.find((o) => ids.has(o.id));
+    if (single) handleMode = typeHandles(single.type);
+  }
+  const activeHandles =
+    handleMode === 'horizontal' ? HANDLES.filter((h) => h.handle === 'w' || h.handle === 'e') : HANDLES;
+
   const topLeft = worldToScreen(camera, { x: bounds.x, y: bounds.y });
   const box: ScreenRect = {
     x: topLeft.x,
@@ -100,7 +110,7 @@ export function SelectionOverlay({
         }}
       />
       {resizable &&
-        HANDLES.map(({ handle, label, cursor }) => {
+        activeHandles.map(({ handle, label, cursor }) => {
           const c = handleCenter(box, handle);
           return (
             <div

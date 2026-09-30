@@ -216,7 +216,7 @@ test.describe('sticky-notes (ui-e2e)', () => {
     // Pan far away from the origin using the test hook.
     await setCamera(page, -9000, -7000, 1);
 
-    await page.getByLabel('Sticky note').click();
+    await page.getByLabel('Sticky note (N)').click();
 
     const box = await noteBox(page);
     const c = centerOf(box);

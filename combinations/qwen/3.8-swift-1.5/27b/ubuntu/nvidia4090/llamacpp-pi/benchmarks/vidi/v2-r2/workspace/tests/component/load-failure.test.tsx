@@ -115,7 +115,7 @@ describe('Story 4: load-failure client state (TC-22, TC-23, TC-28)', () => {
     expect(boardModel.createSticky).not.toHaveBeenCalled();
 
     // 2) Sticky note button is disabled.
-    const button = screen.getByRole('button', { name: 'Sticky note' });
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
     expect(button).toBeDisabled();
     fireEvent.click(button);
 

@@ -1,8 +1,6 @@
-import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
-import { LOCAL_ORIGIN } from '../../shared/board-model';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { TextEditor } from './TextEditor';
 
 interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -15,201 +13,28 @@ interface StickyTextEditorProps {
 }
 
 /**
- * Text editing inside a sticky note.
- *
- * - On mount: value from Y.Text, focused, caret at the end.
- * - On `input` (skipped during IME composition; handled on `compositionend`):
- *   clamp to STICKY_TEXT_MAX_CHARS, restore the caret if truncated, then apply
- *   the minimal diff to Y.Text.
- * - Escape → onEnd('selected'). Pointerdown outside the note →
- *   onEnd('unselected'). Ending editing performs no extra write (every input
- *   was already written); blur flushes defensively.
- * - Enter inserts a new line (default textarea behaviour).
- * - The counter shows `n/1000` only within 50 chars of the limit.
+ * Text editing inside a sticky note (story 2). A thin wrapper around the
+ * generalized {@link TextEditor} (story 9) with the sticky-note styling:
+ * centred text, 16px padding, and the character counter near the limit.
  */
 export function StickyTextEditor({ ytext, fontPx, onEnd, boundary, undoController }: StickyTextEditorProps) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  const composingRef = useRef(false);
-  const onEndRef = useRef(onEnd);
-  onEndRef.current = onEnd;
-  const boundaryRef = useRef(boundary);
-  boundaryRef.current = boundary;
-  const undoControllerRef = useRef(undoController);
-  undoControllerRef.current = undoController;
-
-  // Mount: focus, put the caret at the end of the text, and call boundary()
-  // to close any prior capture window (edit start = new undo step boundary).
-  useEffect(() => {
-    boundaryRef.current?.();
-    const el = ref.current;
-    if (!el) return;
-    el.focus();
-    const len = el.value.length;
-    el.setSelectionRange(len, len);
-  }, []);
-
-  // Merge remote updates into the textarea while editing. Every local
-  // keystroke is already written to Y.Text, so the doc is the source of
-  // truth; without this a remote char would be clobbered by the next local
-  // diff (concurrent typing, story 3 TC-23). Local-origin writes are
-  // skipped: the DOM already holds those characters.
-  useEffect(() => {
-    const handler = (_event: unknown, transaction: { origin: unknown }) => {
-      if (transaction.origin === LOCAL_ORIGIN) return;
-      const el = ref.current;
-      if (!el) return;
-      const next = ytext.toString();
-      if (el.value === next) return;
-      const focused = document.activeElement === el;
-      const oldLen = el.value.length;
-      const caret = focused ? el.selectionStart : 0;
-      const atEnd = focused && caret === oldLen;
-      el.value = next;
-      if (focused) {
-        // Caret at the end stays at the end; otherwise preserve the
-        // distance from the end (exact when remote inserts land at the
-        // end, the common typing case).
-        const target = atEnd
-          ? next.length
-          : Math.max(0, Math.min(next.length, next.length - (oldLen - caret)));
-        el.setSelectionRange(target, target);
-      }
-    };
-    ytext.observe(handler);
-    return () => {
-      ytext.unobserve(handler);
-    };
-  }, [ytext]);
-
-  // A pointerdown anywhere outside the editor ends editing as unselected.
-  // Capture phase so a stopPropagation on another note cannot swallow it.
-  useEffect(() => {
-    const handler = (e: PointerEvent) => {
-      const el = ref.current;
-      if (el && e.target instanceof Node && el.contains(e.target)) return;
-      boundaryRef.current?.();
-      onEndRef.current('unselected');
-    };
-    window.addEventListener('pointerdown', handler, true);
-    return () => window.removeEventListener('pointerdown', handler, true);
-  }, []);
-
-  const syncToDoc = (el: HTMLTextAreaElement) => {
-    let value = el.value;
-    const clamped = clampToLimit(value);
-    if (clamped !== value) {
-      // Truncated: restore the caret to the end of the kept text.
-      value = clamped;
-      el.value = value;
-      el.setSelectionRange(value.length, value.length);
-    }
-    applyTextDiff(ytext, value, LOCAL_ORIGIN);
-  };
-
-  const handleInput = () => {
-    const el = ref.current;
-    if (!el || composingRef.current) return;
-    syncToDoc(el);
-  };
-
-  const handleCompositionStart = () => {
-    composingRef.current = true;
-  };
-
-  const handleCompositionEnd = () => {
-    composingRef.current = false;
-    const el = ref.current;
-    if (!el) return;
-    syncToDoc(el);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      boundaryRef.current?.();
-      onEndRef.current('selected');
-      return;
-    }
-    // Intercept Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z / Ctrl+Y inside the editor
-    // so the browser's native textarea undo never diverges from Y.Text.
-    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
-      e.preventDefault();
-      undoControllerRef.current?.undo();
-      return;
-    }
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Z') {
-      e.preventDefault();
-      // Redo is not handled inside the editor; fall through to board keys.
-      return;
-    }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-      e.preventDefault();
-      return;
-    }
-    // Enter: default behaviour inserts a newline.
-  };
-
-  const handleBlur = () => {
-    // Defensive flush; every input event was already written to Y.Text.
-    const el = ref.current;
-    if (el && !composingRef.current && el.value !== ytext.toString()) {
-      syncToDoc(el);
-    }
-    boundaryRef.current?.();
-  };
-
-  const length = ytext.length;
-
   return (
-    <div style={{ position: 'absolute', inset: 0, userSelect: 'text' }}>
-      <textarea
-        ref={ref}
-        data-testid="sticky-editor"
-        aria-label="Sticky note text"
-        defaultValue={ytext.toString()}
-        spellCheck={false}
-        onInput={handleInput}
-        onCompositionStart={handleCompositionStart}
-        onCompositionEnd={handleCompositionEnd}
-        onKeyDown={handleKeyDown}
-        onBlur={handleBlur}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          boxSizing: 'border-box',
-          padding: 16,
-          background: 'transparent',
-          border: 'none',
-          outline: 'none',
-          resize: 'none',
-          overflow: 'hidden',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          fontFamily: 'system-ui, -apple-system, sans-serif',
-          fontSize: `${fontPx}px`,
-          lineHeight: 1.2,
-          textAlign: 'center',
-          color: '#333',
-          cursor: 'text',
-        }}
-      />
-      {counterVisible(length) && (
-        <span
-          data-testid="sticky-counter"
-          style={{
-            position: 'absolute',
-            right: 4,
-            bottom: 2,
-            fontSize: 10,
-            color: 'rgba(0,0,0,0.55)',
-            pointerEvents: 'none',
-          }}
-        >
-          {length}/{STICKY_TEXT_MAX_CHARS}
-        </span>
-      )}
-    </div>
+    <TextEditor
+      ytext={ytext}
+      fontPx={fontPx}
+      maxChars={STICKY_TEXT_MAX_CHARS}
+      padding={16}
+      lineHeight={1.2}
+      textAlign="center"
+      testId="sticky-editor"
+      ariaLabel="Sticky note text"
+      showCounter
+      onInput={() => {
+        // Sticky notes do not remeasure a box (fixed square size).
+      }}
+      onEnd={onEnd}
+      boundary={boundary}
+      undoController={undoController}
+    />
   );
 }

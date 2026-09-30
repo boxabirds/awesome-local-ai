@@ -1,6 +1,7 @@
 import * as Y from 'yjs';
-import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR, STICKY_COLORS, type StickyColor } from './config';
+import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR, STICKY_COLORS, type StickyColor, TEXT_SIZES, type TextSize } from './config';
 import { rectContains, type Rect, type Point } from './geometry';
+import type { TextSnapshot } from './objects/text';
 
 // Origin used for all local transactions (story 8 undo and story 3 echo suppression).
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
@@ -311,6 +312,18 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       (entry as StickySnapshot).color = color as StickyColor;
       (entry as StickySnapshot).text = text instanceof Y.Text ? text.toString() : '';
       (entry as StickySnapshot).createdAt = typeof createdAt === 'number' ? createdAt : 0;
+    } else if (type === 'text') {
+      const size = obj.get('size');
+      if (typeof size !== 'string' || !(size in TEXT_SIZES)) return;
+      const text = obj.get('text');
+      const widthMode = obj.get('widthMode');
+      const createdAt = obj.get('createdAt');
+      const createdBy = obj.get('createdBy');
+      (entry as TextSnapshot).text = text instanceof Y.Text ? text.toString() : '';
+      (entry as TextSnapshot).size = size as TextSize;
+      (entry as TextSnapshot).widthMode = widthMode === 'fixed' ? 'fixed' : 'auto';
+      (entry as TextSnapshot).createdAt = typeof createdAt === 'number' ? createdAt : 0;
+      (entry as TextSnapshot).createdBy = typeof createdBy === 'string' ? createdBy : '';
     }
     result.push(entry);
   });

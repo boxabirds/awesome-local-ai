@@ -15,11 +15,17 @@ import { SelectionBar } from './SelectionBar';
 import { Toolbar } from './Toolbar';
 import { getObjectType } from '../objects/registry';
 import { createSticky, deleteObjects, objectSnapshot, snapshot } from '../../shared/board-model';
+import { createText } from '../../shared/objects/text';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit, type ConnectionState } from '../sync/connectBoard';
 import { createUndo, type UndoController } from './undo';
 import { useUndo } from './useUndo';
+import { useTool } from './useTool';
 import type { StickyColor } from '../../shared/config';
+
+/** Stable per-client identity for object attribution (story 6 is out of scope). */
+const CLIENT_ID =
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : 'local-client';
 
 declare global {
   interface Window {
@@ -30,6 +36,7 @@ declare global {
       objects?(): readonly import('../../shared/board-model').ObjectSnapshot[];
       connectionState?: ConnectionState;
       createSticky?(x: number, y: number, color?: StickyColor): string | false;
+      createText?(x: number, y: number): string | null;
     };
   }
 }
@@ -106,6 +113,9 @@ export function Board({ boardId }: { boardId: string }) {
   // Story 8: undo/redo binding.
   const { canUndo, canRedo, undo, redo } = useUndo(undoController, editable);
 
+  // Story 9: tool state (Select / Text). Reverts to Select when not editable.
+  const { tool, setTool } = useTool(editable);
+
   // Shared move/resize gesture for the selection.
   const gesture = useTransformGesture({
     doc,
@@ -129,9 +139,6 @@ export function Board({ boardId }: { boardId: string }) {
     return () => window.removeEventListener('keydown', handler);
   }, [marquee]);
 
-  // Keyboard: select-all, clear, nudge, delete, enter-to-edit, undo/redo.
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undoController });
-
   // Create a sticky note centred on a viewport point; select and edit it.
   const createStickyAtScreenPoint = useCallback(
     (p: Point) => {
@@ -152,6 +159,36 @@ export function Board({ boardId }: { boardId: string }) {
     createStickyAtScreenPoint({ x: size.width / 2, y: size.height / 2 });
   }, [createStickyAtScreenPoint, size]);
 
+  // Story 9: text-tool click on empty space (or on an object) creates a text
+  // object with its top-left at the point, switches back to Select, and starts
+  // editing it. The new object is not in the snapshot yet, so select+edit
+  // without the presence check.
+  const createTextAtScreenPoint = useCallback(
+    (p: Point) => {
+      if (!canEdit(connectionState)) return;
+      const world = screenToWorld(camera, p);
+      const id = createText(doc, world, CLIENT_ID);
+      if (id) {
+        setTool('select');
+        selection.selectAndEdit(id);
+      }
+    },
+    [camera, doc, selection, connectionState, setTool]
+  );
+
+  // Keyboard: select-all, clear, nudge, delete, enter-to-edit, undo/redo,
+  // and the story-9 tool shortcuts (V/T/N/Escape).
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undoController,
+    tool,
+    setTool,
+    onCreateSticky: createStickyAtCentre,
+  });
+
   const deleteSelection = useCallback(() => {
     if (!canEdit(connectionState) || selection.ids.size === 0) return;
     deleteObjects(doc, [...selection.ids]);
@@ -167,11 +204,28 @@ export function Board({ boardId }: { boardId: string }) {
       objects: () => objectSnapshot(doc),
       connectionState,
       createSticky: (x: number, y: number, color?: StickyColor) => createSticky(doc, { x, y }, color),
+      createText: (x: number, y: number) => createText(doc, { x, y }, CLIENT_ID),
     };
     return () => {
       delete window.__vidi6;
     };
   }, [setCamera, doc, connectionState]);
+
+  // Object pointer-down: start a move/resize gesture. In the text tool (story
+  // 9) a click on an object instead creates text on top of it at that point.
+  const handleObjectPointerDown = useCallback(
+    (e: React.PointerEvent, id: string) => {
+      if (tool === 'text') {
+        e.stopPropagation();
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        createTextAtScreenPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        return;
+      }
+      gesture.onObjectPointerDown(e, id);
+    },
+    [tool, gesture, createTextAtScreenPoint]
+  );
 
   return (
     <div ref={containerRef} style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
@@ -189,6 +243,8 @@ export function Board({ boardId }: { boardId: string }) {
         onKeyReset={reset}
         onEmptyClick={() => selection.clear()}
         onCreateSticky={createStickyAtScreenPoint}
+        textToolActive={tool === 'text'}
+        onCreateText={createTextAtScreenPoint}
         onMarqueeBegin={marquee.begin}
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
@@ -211,7 +267,7 @@ export function Board({ boardId }: { boardId: string }) {
                 selected={selection.ids.has(obj.id)}
                 editing={selection.editingId === obj.id}
                 editable={editable}
-                onPointerDown={gesture.onObjectPointerDown}
+                onPointerDown={handleObjectPointerDown}
                 onStartEdit={selection.startEdit}
                 onEndEdit={() => selection.endEdit()}
                 boundary={() => undoController.boundary()}
@@ -240,6 +296,8 @@ export function Board({ boardId }: { boardId: string }) {
         canRedo={canRedo}
         onUndo={undo}
         onRedo={redo}
+        tool={tool}
+        onToolChange={setTool}
       />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

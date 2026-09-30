@@ -264,3 +264,84 @@ are grouped by Yjs's `captureTimeout` (500 ms). History is session-only
 - `src/client/objects/StickyNote.tsx` — Passes `boundary` + `undoController` through
 - `src/client/objects/registry.tsx` — Added `boundary?` + `undoController?` to `ObjectProps`
 
+
+# Story 9: Write free text anywhere on the board
+
+Free text objects (`text` type) can be created with the Text tool (T) at any
+board point, edited in place, resized horizontally, and sized S/M/L. Content
+lives in a `Y.Text`; the measured box (`width`/`height`) is stored in the
+object map and written only by the client that made the local change.
+
+## Test coverage
+
+| Suite | Tests | Status |
+|-------|-------|--------|
+| Unit (text.model TC-01–06) | 6 | ✅ Pass |
+| Unit (text.layout TC-07–11, TC-32) | 6 | ✅ Pass |
+| Component (box sync TC-12–13) | 2 | ✅ Pass |
+| Component (tool mode TC-14–18) | 5 | ✅ Pass |
+| Component (text object TC-19–25) | 7 | ✅ Pass |
+| E2E (text workflow TC-26–31) | 6 | ✅ Pass |
+
+## Key decisions
+
+- **`TEXT_BOX_PADDING = 4`** world units per horizontal side. Not in the
+  spec's named-settings list; a small judgement call so text does not touch the
+  selection-box edges. The width formula is
+  `min(longestLine + 2·TEXT_BOX_PADDING, TEXT_MAX_AUTO_WIDTH_WORLD)` (auto) or
+  `fixedWidth` (fixed).
+- **`AVERAGE_GLYPH_WIDTH_RATIO = 0.6`** is the estimate fallback used when the
+  canvas 2D measurer is unavailable (jsdom); the browser uses real canvas
+  measurement.
+- **Box sync is local-only.** `useTextBoxSync` exposes
+  `remeasureAfterLocalChange()`; it does not subscribe to doc updates, so
+  remote edits never trigger a box write (TC-12/TC-13). Yjs change descriptors
+  carry only `oldValue`, so a change is detected by comparing
+  `oldValue !== obj.get(key)`.
+- **Horizontal-only handles.** The registry gains
+  `ObjectTypeSpec.handles?: 'all' | 'horizontal'`; `text` registers
+  `'horizontal'`. `SelectionOverlay` shows only the west/east handles for a
+  single text. A horizontal handle drag on a single text calls
+  `setTextWidthFixed` (commits fixed width); the height is remeasured from
+  content at gesture end.
+- **`isEmptyText`** is true only for zero characters (whitespace is not empty),
+  so Escape on empty text deletes the object.
+- **`CLIENT_ID`** is a module-level `crypto.randomUUID()` in `Board.tsx`
+  (story 6 identity is out of scope).
+
+## Files created/modified
+
+### New files
+- `src/shared/objects/text.ts` — text model (createText, setTextSize,
+  setTextWidthFixed, setTextBox, getTextContent, isEmptyText, deleteIfEmpty)
+- `src/shared/text-edit.ts` — `clampToLimit`, `applyTextDiff` (shared with sticky)
+- `src/client/objects/textLayout.ts` — `layoutText`, `createCanvasMeasurer`,
+  `estimateTextWidth`, `wrapLine`, `TEXT_BOX_PADDING`
+- `src/client/objects/useTextBoxSync.ts` — `remeasureTextBox`, `useTextBoxSync`
+- `src/client/objects/TextEditor.tsx` — generalized in-object editor
+- `src/client/objects/TextObject.tsx` — text object component
+- `src/client/objects/TextToolbar.tsx` — S/M/L + delete toolbar
+- `src/client/board/useTool.ts` — tool state hook (Select/Text/Sticky)
+- `tests/unit/text-model.test.ts` — TC-01 to TC-06
+- `tests/unit/text-layout.test.ts` — TC-07 to TC-11, TC-32
+- `tests/component/TextBoxSync.test.tsx` — TC-12, TC-13
+- `tests/component/Tool.test.tsx` — TC-14 to TC-18
+- `tests/component/TextObject.test.tsx` — TC-19 to TC-25
+- `tests/e2e/text-notes.spec.ts` — TC-26 to TC-31
+
+### Modified files
+- `src/shared/config.ts` — text settings (sizes, line height, max width, padding ratio)
+- `src/shared/board-model.ts` — `objectSnapshot` handles `text`; `TextSnapshot`
+- `src/client/objects/StickyText.ts` — re-exports from `text-edit.ts`
+- `src/client/objects/StickyTextEditor.tsx` — thin wrapper around `TextEditor`
+- `src/client/objects/registry.tsx` — `handles` field; registers `text`
+- `src/client/board/SelectionOverlay.tsx` — horizontal-only handles
+- `src/client/board/SelectionBar.tsx` — `TextToolbar` for selected text
+- `src/client/board/useTransformGesture.ts` — fixed-width horizontal resize
+- `src/client/board/Board.tsx` — tool wiring, `createTextAtScreenPoint`, `__vidi6.createText`
+- `src/client/board/Toolbar.tsx` — Select/Text/Sticky buttons + labels
+- `src/client/board/useBoardKeys.ts` — V/T/N shortcuts + Escape → Select
+- `src/client/canvas/BoardViewport.tsx` — text-tool click-to-create, text cursor
+- `tests/component/{Toolbars,UndoControls,load-failure}.test.tsx`,
+  `tests/e2e/{sticky-notes,persistence}.spec.ts` — updated for the
+  "Sticky note (N)" / "Undo (Ctrl+Z)" / "Redo (Ctrl+Shift+Z)" labels

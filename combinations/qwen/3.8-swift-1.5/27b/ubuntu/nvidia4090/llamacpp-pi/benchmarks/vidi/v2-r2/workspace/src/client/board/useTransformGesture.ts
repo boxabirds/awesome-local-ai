@@ -19,6 +19,9 @@ import {
   type Rect,
 } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
+import { setTextWidthFixed } from '../../shared/objects/text';
+import { createCanvasMeasurer } from '../objects/textLayout';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
 import type { Selection } from './useSelection';
 
 export interface CameraLike {
@@ -54,6 +57,8 @@ interface ResizeState {
   startRects: Map<string, Rect>;
   aspectLocked: boolean;
   started: boolean;
+  /** Set when the selection is a single text object (horizontal-only resize). */
+  singleTextId: string | null;
 }
 
 type State = MoveState | ResizeState;
@@ -75,6 +80,7 @@ export function useTransformGesture(opts: GestureOptions) {
   const stateRef = useRef<State | null>(null);
   const rafRef = useRef<number | null>(null);
   const pendingRef = useRef<(() => void) | null>(null);
+  const measureRef = useRef(createCanvasMeasurer());
 
   const captureRects = useCallback((): Map<string, Rect> | null => {
     const { snapshot, selection } = optsRef.current;
@@ -101,6 +107,34 @@ export function useTransformGesture(opts: GestureOptions) {
     const state = stateRef.current;
     if (state?.kind !== 'resize') return;
     const delta: WorldPoint = { x: clientDelta.x / camera.zoom, y: clientDelta.y / camera.zoom };
+
+    // Single text object: horizontal-only resize (w/e handles). The drag
+    // commits a fixed width (setTextWidthFixed); the height is remeasured
+    // from content at gesture end.
+    if (state.singleTextId && (state.handle === 'w' || state.handle === 'e')) {
+      const obj = snapshot.find((o) => o.id === state.singleTextId);
+      if (!obj || obj.type !== 'text') return;
+      const start = state.startBounds;
+      let newWidth: number;
+      let newX = start.x;
+      if (state.handle === 'e') {
+        newWidth = start.width + delta.x;
+      } else {
+        newWidth = start.width - delta.x;
+        newX = start.x + delta.x;
+      }
+      const minSize = getObjectType('text')?.minSize ?? 0;
+      newWidth = Math.max(minSize, Math.min(MAX_OBJECT_SIZE_WORLD, newWidth));
+      if (state.handle === 'w') newX = start.x + start.width - newWidth;
+      // A horizontal handle drag on a single text commits a fixed width
+      // (design: "calls setTextWidthFixed"); the height is remeasured from
+      // content at the end of the gesture.
+      setTextWidthFixed(doc, state.singleTextId, newWidth);
+      if (newX !== start.x) {
+        moveObjects(doc, new Map([[state.singleTextId, { x: newX, y: start.y }]]));
+      }
+      return;
+    }
 
     const aspectLocked = state.aspectLocked || shiftKey;
     const newBounds = resizeRect(state.startBounds, state.handle, delta, aspectLocked);
@@ -156,6 +190,12 @@ export function useTransformGesture(opts: GestureOptions) {
       if (!state || state.pointerId !== pointerId) return;
       const started = state.kind === 'move' ? state.startRects !== null : state.started;
       if (started) flush();
+      // Remeasure a single text object's box after a horizontal resize so the
+      // height reflects the content at the new width (auto) or the committed
+      // width (fixed).
+      if (started && state.kind === 'resize' && state.singleTextId) {
+        remeasureTextBox(optsRef.current.doc, state.singleTextId, measureRef.current);
+      }
       stateRef.current = null;
       optsRef.current.onGestureEnd?.();
     },
@@ -275,6 +315,13 @@ export function useTransformGesture(opts: GestureOptions) {
     const bounds = unionRects([...rects.values()]);
     if (!bounds || bounds.width <= 0 || bounds.height <= 0) return;
 
+    // A single text object resizes horizontally only (story 9).
+    const singleTextId =
+      selection.ids.size === 1 &&
+      snapshot.find((o) => selection.ids.has(o.id))?.type === 'text'
+        ? [...selection.ids][0]
+        : null;
+
     stateRef.current = {
       kind: 'resize',
       pointerId: e.pointerId,
@@ -284,6 +331,7 @@ export function useTransformGesture(opts: GestureOptions) {
       startRects: rects,
       aspectLocked: anyAspectLocked,
       started: false,
+      singleTextId,
     };
   }, []);
 

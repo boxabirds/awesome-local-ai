@@ -1,58 +1,24 @@
-import * as Y from 'yjs';
 import {
   STICKY_TEXT_MAX_CHARS,
   STICKY_COUNTER_THRESHOLD_CHARS,
   STICKY_FONT_MAX_PX,
   STICKY_FONT_MIN_PX,
 } from '../../shared/config';
+import { clampToLimit as sharedClampToLimit, applyTextDiff } from '../../shared/text-edit';
+
+// Story 9: clampToLimit/applyTextDiff now live in the shared text-edit module
+// so sticky notes and free text share them. Re-exported here (with the sticky
+// default limit) so story 2 callers and tests are unchanged.
+export { applyTextDiff };
 
 /** Keeps at most `max` characters (default STICKY_TEXT_MAX_CHARS). */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  return next.length > max ? next.slice(0, max) : next;
+  return sharedClampToLimit(next, max);
 }
 
 /** True when `length` is within STICKY_COUNTER_THRESHOLD_CHARS of the limit. */
 export function counterVisible(length: number): boolean {
   return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;
-}
-
-/**
- * Updates `ytext` to `next` with the minimal change: common prefix + common
- * suffix computed in code points, so at most one delete and one insert inside
- * one transaction. Boundaries always land on code-point boundaries, so emoji
- * surrogate pairs are never split. Required (not a full replace) so concurrent
- * typing by others (story 3) is never destroyed.
- */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-
-  const cur = [...current];
-  const nxt = [...next];
-  const minCp = Math.min(cur.length, nxt.length);
-
-  let prefixCp = 0;
-  while (prefixCp < minCp && cur[prefixCp] === nxt[prefixCp]) prefixCp++;
-  let suffixCp = 0;
-  while (
-    suffixCp < minCp - prefixCp &&
-    cur[cur.length - 1 - suffixCp] === nxt[nxt.length - 1 - suffixCp]
-  ) {
-    suffixCp++;
-  }
-
-  // Code-unit indices of the (code-point aligned) boundaries.
-  const prefixIdx = cur.slice(0, prefixCp).join('').length;
-  const suffixIdx = suffixCp === 0 ? 0 : cur.slice(cur.length - suffixCp).join('').length;
-
-  const delLen = current.length - prefixIdx - suffixIdx;
-  const ins = next.slice(prefixIdx, next.length - suffixIdx);
-
-  const doc = ytext.doc;
-  doc!.transact(() => {
-    if (delLen > 0) ytext.delete(prefixIdx, delLen);
-    if (ins.length > 0) ytext.insert(prefixIdx, ins);
-  }, origin);
 }
 
 /**
