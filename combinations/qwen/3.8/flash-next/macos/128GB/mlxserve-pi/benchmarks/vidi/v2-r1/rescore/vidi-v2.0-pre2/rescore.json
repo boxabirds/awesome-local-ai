@@ -1,0 +1,28 @@
+{
+  "pack_version": "vidi-v2.0-pre2",
+  "harness_commit": "669c99e6",
+  "host": "Quintus",
+  "held_out_workers": 9,
+  "host_limits": {
+    "cores": 18,
+    "memory_gb": 128.0,
+    "free_gb": 121.6
+  },
+  "finished_at": "2026-09-30T14:29:40Z",
+  "results": [
+    {
+      "story": 12,
+      "passed": 66,
+      "total": 75,
+      "fallbacks": 0,
+      "scores": [
+        66,
+        66,
+        66
+      ],
+      "flaky": 0,
+      "harness_fault": null,
+      "seconds": 182
+    }
+  ]
+}
