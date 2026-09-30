@@ -44,7 +44,7 @@ test("stories working: one square per story in scope, against the latest build, 
   await expect(sw.locator("[data-story='3']")).toHaveAttribute("data-state", "running");
   await expect(sw.locator("[data-story='4']")).toHaveAttribute("data-state", "unbuilt");
   await expect(sw).toContainText("1 of 11 pass");
-  await expect(sw.locator("[data-story='2']")).toHaveAttribute("title", /9\/10 hidden flows/);
+  await expect(sw.locator("[data-story='2']")).toHaveAttribute("data-tip", /9\/10 hidden flows/);
 });
 
 test("queued runs say queued and their place on the node, in dbench's order, and nothing else", async ({ page }) => {
@@ -73,7 +73,7 @@ test("tokens and tok/s per run, and per story on click", async ({ page }) => {
   const stack = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi";
   const r = row(page, stack, "canvas-gufo-r3");
   await expect(r.locator("td.tokens")).toContainText("56k out");
-  await expect(r.locator("td.tokens")).toContainText("6.3M read"); // 45,179 fresh + 6,230,043 cached
+  await expect(r.locator("td.tokens")).toContainText("6.3M in"); // input tokens: 45,179 fresh + 6,230,043 cached
   await expect(r.locator("td.speed")).toContainText("74 tok/s"); // 55,968 output tokens over the story's 760.3 s
   await r.locator("td").first().click();
   const detail = page.locator(`tr.detail[data-stack="${stack}"][data-run="canvas-gufo-r3"]`);
@@ -301,13 +301,13 @@ test("each combination heads its runs with hours per story and held-out quality,
   await expect(head).toContainText("3.8-swift-1.5/27b llamacpp");
   await expect(head).toContainText(/\d+(\.\d+)? h per story/);
   await expect(head).toContainText(/held-out quality \d+%/);
-  for (const q of await head.locator(".explain").all()) expect((await q.getAttribute("title"))!.length).toBeGreaterThan(40);
+  for (const q of await head.locator(".explain").all()) expect((await q.getAttribute("data-tip"))!.length).toBeGreaterThan(40);
   // The combination's runs follow its heading.
   await expect(page.locator(`tr.combo-head[data-stack="${SWIFT}"] + tr`)).toHaveAttribute("data-stack", SWIFT);
 });
 
 test("every column heading explains itself on hover", async ({ page }) => {
-  const titles = await page.locator("section[data-machine] thead th").evaluateAll((ths) => ths.map((th) => th.getAttribute("title") ?? ""));
+  const titles = await page.locator("section[data-machine] thead th").evaluateAll((ths) => ths.map((th) => th.getAttribute("data-tip") ?? ""));
   expect(titles.length).toBeGreaterThan(0);
   expect(titles.filter((t) => t.length < 20)).toEqual([]);
 });
@@ -320,7 +320,7 @@ test("combinations: one row each across machines, over the runs shown, sortable,
   await expect(swift).toContainText("1 running");
   await expect(swift).toContainText("2 queued");
   await expect(page.locator("section.combinations")).toContainText(/over the \d+ runs? shown/);
-  for (const t of await table.locator("thead th").evaluateAll((ths) => ths.map((th) => th.getAttribute("title") ?? ""))) expect(t.length).toBeGreaterThan(20);
+  for (const t of await table.locator("thead th").evaluateAll((ths) => ths.map((th) => th.getAttribute("data-tip") ?? ""))) expect(t.length).toBeGreaterThan(20);
   // Sorting: a click sorts by the column, a second click reverses it; runs without a number stay last.
   const calls = async () => (await table.locator("tbody td.calls").allInnerTexts()).filter((x) => x !== "—").map(Number);
   await table.getByRole("columnheader", { name: /Calls per story/ }).click();
@@ -331,4 +331,17 @@ test("combinations: one row each across machines, over the runs shown, sortable,
   expect([...first].toSorted((a, b) => a - b).join()).toBe([first, [...first].reverse()].find((x) => x.join() === [...first].toSorted((a, b) => a - b).join())!.join());
   await page.getByRole("button", { name: "By story" }).click();
   await expect(table).toBeVisible();   // above both views
+});
+
+test("hovers show at once, on the page itself: the ? explanations and the column headings", async ({ page }) => {
+  const tip = page.getByRole("tooltip");
+  await page.locator(`tr.combo-head[data-stack="${SWIFT}"] .explain`).first().hover();
+  await expect(tip).toBeVisible({ timeout: 500 });
+  await expect(tip).toContainText("Agent hours per story");
+  await page.getByRole("columnheader", { name: "Held-out quality" }).hover();
+  await expect(tip).toContainText("Held-out tests passing");
+  await page.mouse.move(1, 1);
+  await expect(tip).toBeHidden();
+  await page.locator(`tr.combo-head[data-stack="${SWIFT}"] .explain`).first().focus();  // the keyboard gets it too
+  await expect(tip).toContainText("Agent hours per story");
 });

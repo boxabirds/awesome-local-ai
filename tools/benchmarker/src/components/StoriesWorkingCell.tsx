@@ -18,7 +18,7 @@ export function StoriesWorkingCell({ row }: { row: Row }) {
         <strong>{working}</strong> of {scope} pass
       </div>
       <div className="strip">
-        {squares.map((q) => <span key={q.id} className={`cell q-${q.state}`} title={title(q)} data-story={q.id} data-state={q.state} />)}
+        {squares.map((q) => <span key={q.id} className={`cell q-${q.state}`} data-tip={title(q)} data-story={q.id} data-state={q.state} />)}
       </div>
     </>
   );

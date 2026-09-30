@@ -117,3 +117,5 @@ section.combinations h2 { display: flex; gap: 12px; align-items: baseline; font-
 table.combos { min-width: 0; table-layout: auto; }
 table.combos th { cursor: pointer; }
 table.combos td.combo .stack-label { font-size: 13px; color: var(--ink); font-weight: 600; }
+.tooltip { position: fixed; z-index: 20; background: var(--ink); color: var(--bg); font-size: 12px; line-height: 1.45; padding: 7px 10px; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.35); pointer-events: none; white-space: normal; font-weight: 400; text-transform: none; letter-spacing: 0; }
+[data-tip] { cursor: help; }

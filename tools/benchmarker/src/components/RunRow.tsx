@@ -18,8 +18,8 @@ export function RunRow({ row, state, serverNow, columns }: Props) {
   return (
     <>
     <tr data-stack={row.stack} data-run={row.runId} className={open ? "opened" : undefined}>
-      <td className="run-cell" onClick={() => setOpen(!open)} title="Per-story tokens and speed">
-        <div className="stack-label" title={row.stack}>{row.label}</div>
+      <td className="run-cell" onClick={() => setOpen(!open)} data-tip="Per-story tokens and speed">
+        <div className="stack-label" data-tip={row.stack}>{row.label}</div>
         <div className="run">
           <button type="button" className="expand" aria-expanded={open} aria-label={`per-story detail for ${row.runId}`}>{open ? "▾" : "▸"}</button>
           {row.runId}

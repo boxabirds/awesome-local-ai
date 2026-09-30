@@ -18,16 +18,16 @@ const COLUMNS: { head: string; cls: string; title: string; value: (c: Combinatio
   { head: "Hours per story", cls: "hours", title: "Agent hours per recorded story, over every story of the runs shown: how long the combination takes to deliver a story.", value: (c) => c.stats.hoursPerStory },
   { head: "tok/s", cls: "toks", title: "Output tokens over the time the stories took (model, tools and all), over every recorded story.", value: (c) => c.tokS },
   { head: "Calls per story", cls: "calls", title: "Tool calls per recorded story: how many steps the agent takes. A cost measure, not a quality one.", value: (c) => c.callsPerStory },
-  { head: "Read tokens per story", cls: "read", title: "Everything the model read per story (input plus cache reads and writes). Every call re-reads the conversation, so this grows with calls.", value: (c) => c.readPerStory },
+  { head: "Input tokens per story", cls: "read", title: "Input tokens: everything the model had to read to answer, summed over all its calls. On every call it re-reads the whole conversation so far (spec, code, tool output), mostly from its cache, so this grows with the number of calls. The bigger this is, the more work each story costs.", value: (c) => c.readPerStory },
 ];
 
 function cell(c: Combination, cls: string) {
   switch (cls) {
-    case "combo": return <span className="stack-label" title={c.stack}>{c.label}</span>;
+    case "combo": return <span className="stack-label" data-tip={c.stack}>{c.label}</span>;
     case "machines": return c.machines.join(", ");
     case "runs": return STATUS_ORDER.filter((s) => c.byStatus[s]).map((s) => `${c.byStatus[s]} ${s}`).join(" · ");
     case "quality": return c.stats.quality === null ? "—" : `${Math.round(c.stats.quality * PERCENT)}%`;
-    case "score": return c.score ? <span title={`${c.score.n} run${c.score.n === 1 ? "" : "s"} with a score of record`}>{c.score.mean.toFixed(1)} <span className="small">(n={c.score.n})</span></span> : "—";
+    case "score": return c.score ? <span data-tip={`${c.score.n} run${c.score.n === 1 ? "" : "s"} with a score of record`}>{c.score.mean.toFixed(1)} <span className="small">(n={c.score.n})</span></span> : "—";
     case "hours": return c.stats.hoursPerStory === null ? "—" : c.stats.hoursPerStory.toFixed(HOUR_DECIMALS);
     case "toks": return c.tokS === null ? "—" : c.tokS.toFixed(SPEED_DECIMALS);
     case "calls": return c.callsPerStory === null ? "—" : String(Math.round(c.callsPerStory));
@@ -53,7 +53,7 @@ export function CombinationsTable({ rows }: { rows: Row[] }) {
       <table aria-label="Combinations" className="combos">
         <thead>
           <tr>{COLUMNS.map((c) => (
-            <th key={c.cls} title={c.title} aria-sort={sort.cls === c.cls ? (sort.dir === 1 ? "ascending" : "descending") : "none"} onClick={() => click(c.cls)}>
+            <th key={c.cls} data-tip={c.title} aria-sort={sort.cls === c.cls ? (sort.dir === 1 ? "ascending" : "descending") : "none"} onClick={() => click(c.cls)}>
               {c.head}{sort.cls === c.cls ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
             </th>))}</tr>
         </thead>
