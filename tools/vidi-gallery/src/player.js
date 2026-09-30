@@ -72,6 +72,15 @@ const SCRUB = 0.05;           // - = and left/right in the tests and steps panes
 const FINE_SCRUB = 0.01;      // with shift: 1%
 const TENTHS = 10;            // digits jump to tenths of the recording
 
+// Where a scrub of frac from seek-bar position pos lands: {pos} on the bar, or, with cross, {path: ±1} for the
+// next or previous test when the press starts at that end. A press that reaches an end stops there first.
+const END_EPS = 1e-6;
+function scrubStep(pos, frac, cross) {
+  if (cross && frac > 0 && pos >= 1 - END_EPS) return { path: 1 };
+  if (cross && frac < 0 && pos <= END_EPS) return { path: -1 };
+  return { pos: Math.max(0, Math.min(1, pos + frac)) };
+}
+
 // The review has three panes, left to right: the stories, a story's held-out tests, and the browser steps
 // of the test being played. Each pane's up/down moves within it; Tab and shift-Tab (or Esc) move between
 // panes; left/right go into the tests from the stories and scrub the recording in the other two.
@@ -86,7 +95,10 @@ function paneMove(pane, dir) {
 // position (code) for digits and - = , . so shift and keyboard layouts don't change them.
 function keyAction(e, pane) {
   if (e.metaKey || e.ctrlKey || e.altKey) return null;  // reload, zoom, tabs: the browser's
-  const shift = e.shiftKey, code = e.code, scrub = dir => ({ do: "scrub", frac: dir * (shift ? FINE_SCRUB : SCRUB) });
+  const shift = e.shiftKey, code = e.code;
+  // In the tests pane a scrub carries on into the next or previous test at either end (hold to fly through).
+  const step = dir => ({ frac: dir * (shift ? FINE_SCRUB : SCRUB), ...(pane === "tests" ? { cross: true } : {}) });
+  const scrub = dir => ({ do: "scrub", ...step(dir) });
   const digit = /^(Digit|Numpad)(\d)$/.exec(code);
   if (digit) return { do: "jump", frac: Number(digit[2]) / TENTHS };
   // Moving within and between panes.
@@ -111,13 +123,14 @@ function keyAction(e, pane) {
     case "Space": return { do: "play" };
     case "Period": return shift ? { do: "speed", dir: 1 } : { do: "frame", dir: 1 };
     case "Comma": return shift ? { do: "speed", dir: -1 } : { do: "frame", dir: -1 };
-    case "Equal": return scrub(1);
-    case "Minus": return scrub(-1);
+    // = agrees and - disagrees with the test, then each goes on like the right arrow.
+    case "Equal": return pane === "stories" ? null : { do: "verdict", v: "agree", scrub: step(1) };
+    case "Minus": return pane === "stories" ? null : { do: "verdict", v: "disagree", scrub: step(1) };
     case "Home": return { do: "jump", frac: 0 };
     case "End": return { do: "jump", frac: 1 };
-    case "KeyA": return { do: "verdict", v: "agree" };
-    case "KeyD": return { do: "verdict", v: "disagree" };
-    case "KeyS": return { do: "verdict", v: "skip" };
+    case "KeyA": return { do: "verdict", v: "agree", next: true };
+    case "KeyD": return { do: "verdict", v: "disagree", next: true };
+    case "KeyS": return { do: "verdict", v: "skip", next: true };
     case "KeyN": return { do: "note" };
     case "KeyO": return { do: "open" };
     case "KeyW": return { do: "waits" };
@@ -126,4 +139,4 @@ function keyAction(e, pane) {
   }
 }
 
-if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, nextFrame, keyAction, PANES, SCRUB, FINE_SCRUB };
+if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, nextFrame, keyAction, scrubStep, PANES, SCRUB, FINE_SCRUB };
