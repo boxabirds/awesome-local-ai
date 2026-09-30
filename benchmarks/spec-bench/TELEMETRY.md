@@ -88,7 +88,8 @@ tool call the engine returned as text instead of running it; see gufo-org/gufo#3
 
 `harness/accounting.py` (tests: `test_accounting.py`). The story's window, agent start to agent done, is laid out
 as one timeline and every second has exactly one owner: a compaction, a tool call, the model's prefill, its
-decode, or other. Where things overlap the higher owns the second (compaction > tool > prefill > decode), and
+decode, the wait between the agent's sessions, or other. Where things overlap the higher owns the second
+(compaction > tool > prefill > decode > between sessions), and
 anything outside the window (an earlier attempt of a restarted story) doesn't count. So the parts never overlap,
 never go negative, and always sum to `wall_s`.
 
@@ -98,8 +99,9 @@ never go negative, and always sum to `wall_s`.
 | `model` | the agent's model calls: `source` (`llama-log`: llama-server's own log, used when it has requests in the window; `client-stream`: the agent's own streamed events, request sent, first chunk, last chunk, which match the server's log to within 0.5% where both exist), `requests`, `prefill_s` and `decode_s` (the seconds each owns on the timeline), `prefill_tokens` (tokens actually processed, not served from the prompt cache), `cached_tokens`, `prefill_tok_s` and `decode_tok_s` (from the counted calls' own durations), `decode_tokens`, `draft_acceptance` (MTP drafts accepted / drafted), `mean_accepted_len` (tokens per verification step, weighted by tokens generated). A call is counted in `requests`, tokens and rates when it lies wholly inside the window and isn't a compaction's own call |
 | `tools_s`, `tools_by_kind` | time inside tool calls, by kind: `e2e`, `unit`, `build` (the agent's own tests and builds), `bash` (any other shell command), `read`, `edit`, `write` |
 | `compaction_s`, `compactions` | time spent compacting the context, including the compaction's own model call |
+| `between_sessions_s` | from the end of one agent session to the start of the next: the harness resuming the agent after its session ended in an error (it waits 60 s first) or nudging it after it stopped without committing. The agent's own clock (`agent.seconds`) runs only while a session does |
 | `other_s` | the rest: the client's own overhead, and gaps |
-| `accounting` | the checks recorded with the split: `version` of the calculation, `ok`, `problems` (a tool call or compaction that never ended or ended without starting, parts not summing to the wall, tools by kind not summing to tools, the wall disagreeing with the agent's own clock by more than 1%), `abandoned_calls` (model calls cut off before they ended: a session killed mid-reply) |
+| `accounting` | the checks recorded with the split: `version` of the calculation, `ok`, `problems` (a tool call or compaction that never ended or ended without starting, parts not summing to the wall, tools by kind not summing to tools, the wall disagreeing with the agent's own clock plus the time between sessions by more than 1%), `abandoned_calls` (model calls cut off before they ended: a session killed mid-reply) |
 
 `model` is null when neither source has a model call: a cloud model (Claude Code logs no stream), or a record
 made before the accounting timed every engine and not yet backfilled. `harness/backfill_timing.py` recomputes a
