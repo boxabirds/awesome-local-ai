@@ -13,8 +13,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 3 | 4/7 | 0 | 0 | 21/27 |
 | 4 | 4/4 | 0 | 0 | 25/31 |
 | 5 | 5/5 | 0 | 0 | 30/36 |
+| 7 | 8/8 | 0 | 1 | 39/44 |
 
-**New work** 26/32, **regressions** 0, **repairs** 0, **cumulative** 30/36.
+**New work** 34/40, **regressions** 0, **repairs** 1, **cumulative** 39/44.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -23,8 +24,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 3 | See other people's edits appear live on the same board | DONE | 161.9 | None | None | None | — | — | green | 21/27 |  | 0 / 0 | 5 | — | throttled 78%, server peak 94 GB |
 | 4 | Return to a board and find everything as it was left | DONE | 117.7 | None | None | None | — | — | green | 25/31 |  | 0 / 0 | 4 | — | throttled 88%, server peak 94 GB |
 | 5 | Share a board with others using a link | DONE | 63.4 | None | None | None | — | — | red | 30/36 |  | 0 / 0 | 3 | — | throttled 98%, server peak 94 GB |
+| 7 | Select, move, resize and delete several objects at once | DONE | 133.0 | None | None | None | — | — | red | 39/44 |  | 0 / 0 | 6 | — | throttled 96%, server peak 94 GB |
 
-**Totals:** 5 stories, 437 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/5, final acceptance 30/36, stalled 0, partial 0, 14333 lines in src+tests.
+**Totals:** 6 stories, 570 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/6, final acceptance 39/44, stalled 0, partial 0, 18682 lines in src+tests.
 
 ## How it happened
 
@@ -37,10 +39,12 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 3 | 5 by the agent | 5446 / 72 | `board-room.ts` (184), `connectBoard.ts` (177), `index.ts` (139), `protocol.ts` (114), `App.tsx` (65), `ConnectionStatus.tsx` (60), +11 more |
 | 4 | 1 by the agent | 3758 / 219 | `board-room.ts` (506), `board-store.ts` (389), `test-hooks.ts` (203), `room-state.ts` (121), `connectBoard.ts` (57), `config.ts` (38), +7 more |
 | 5 | 2 by the agent, + harness snapshot | 2220 / 358 | `App.tsx` (297), `Board.tsx` (242), `SharePanel.tsx` (224), `board-store.ts` (102), `HomePage.tsx` (96), `BoardPage.tsx` (77), +10 more |
+| 7 | 3 by the agent | 4910 / 426 | `board-model.ts` (408), `useTransformGesture.ts` (355), `geometry.ts` (286), `Board.tsx` (278), `StickyNote.tsx` (231), `useSelection.ts` (161), +11 more |
 
 ### Earlier stories broken or fixed
 
-No story changed an earlier story's held-out results.
+- **Story 7 broke 0, fixed 1** earlier held-out tests (story 7: Select, move, resize and delete several objects at once; story 7: selection, gesture, marquee, overlay, bar and keyboard, wired into the board; story 7: geometry and generic group operations (TC-01 to TC-10)). Source files it changed most: `board-model.ts` (408), `useTransformGesture.ts` (355), `geometry.ts` (286), `Board.tsx` (278), `StickyNote.tsx` (231), `useSelection.ts` (161), +11 more.
+  - story 3: 4/7 → 5/7; fixed 1
 
 ### Interruptions and dead time
 

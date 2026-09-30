@@ -1,3 +1,56 @@
+commit 8abe131ee70c40226fe946563dce4bec6503dd75
+vidi-agent  Wed Sep 30 06:54:35 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                  | 135 +++++++
+ src/client/board/Board.tsx                |   6 +-
+ src/client/board/useBoardKeys.ts          |   7 +-
+ src/client/board/useTransformGesture.ts   |  19 +-
+ tests/component/Selection.test.tsx        | 626 ++++++++++++++++++++++++++++++
+ tests/component/TransformGesture.test.tsx | 333 ++++++++++++++++
+ tests/component/helpers/events.ts         |  11 +-
+ tests/e2e/group-selection.spec.ts         | 422 ++++++++++++++++++++
+ tests/e2e/helpers/participants.ts         |  26 +-
+ tests/e2e/helpers/sticky.ts               | 135 ++++++-
+ tests/fixtures/testbox.tsx                |  80 ++++
+ 11 files changed, 1775 insertions(+), 25 deletions(-)
+commit a5775a3e934503f7528457409735eb6c4fd779fb
+vidi-agent  Wed Sep 30 06:04:43 2026 +0100
+
+    story 7: selection, gesture, marquee, overlay, bar and keyboard, wired into the board
+
+
+ src/client/board/Board.tsx              | 272 +++++++++++++++-----------
+ src/client/board/Marquee.tsx            | 120 ++++++++++++
+ src/client/board/SelectionBar.tsx       | 128 ++++++++++++
+ src/client/board/SelectionOverlay.tsx   | 137 +++++++++++++
+ src/client/board/useBoardDoc.ts         |  32 ++-
+ src/client/board/useBoardKeys.ts        | 130 ++++++++++++
+ src/client/board/useSelection.ts        | 161 ++++++++++++---
+ src/client/board/useTransformGesture.ts | 336 ++++++++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  53 ++++-
+ src/client/objects/StickyNote.tsx       | 231 +++++-----------------
+ src/client/objects/StickyText.ts        |   8 +-
+ src/client/objects/StickyTextEditor.tsx |   9 +-
+ src/client/objects/registry.tsx         | 113 +++++++++++
+ src/shared/board-model.ts               |  57 +++---
+ tests/unit/registry.test.ts             |  82 ++++++++
+ tests/unit/selection.test.ts            | 126 ++++++++++++
+ 16 files changed, 1623 insertions(+), 372 deletions(-)
+commit e8ed2bf3329a0cf45aecb4069d53de350616ee5b
+vidi-agent  Wed Sep 30 05:31:41 2026 +0100
+
+    story 7: geometry and generic group operations (TC-01 to TC-10)
+
+
+ src/shared/board-model.ts            | 351 ++++++++++++++++++++--
+ src/shared/config.ts                 |  25 ++
+ src/shared/geometry.ts               | 286 ++++++++++++++++++
+ tests/unit/board-model-group.test.ts | 545 +++++++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts          | 334 +++++++++++++++++++++
+ 5 files changed, 1512 insertions(+), 29 deletions(-)
 commit 59369c7c4d04a94a9b8619dc8a2889e92e94995a
 vidi-agent  Wed Sep 30 04:46:32 2026 +0100
 
