@@ -28,7 +28,11 @@ export interface Usage {
 
 /** Where a story's wall time went, in seconds. Without a timed model (a cloud model, or a run from before the
  * harness timed every engine) the model's time can't be told from the agent's own: both are modelUnsplit. */
-export interface TimeSplit { wall: number; prefill: number; decode: number; tools: number; compaction: number; other: number; modelUnsplit: number }
+export interface TimeSplit {
+  wall: number; prefill: number; decode: number; tools: number; compaction: number; other: number; modelUnsplit: number;
+  /** Tools time by kind: the agent's tests (unit, e2e, …), builds, file reads and edits, and "bash" for every other command. */
+  toolsByKind?: Record<string, number>;
+}
 
 /** A run's totals over its recorded stories; speeds weighted by tokens. */
 export interface RunUsage {

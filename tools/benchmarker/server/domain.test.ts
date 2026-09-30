@@ -369,7 +369,13 @@ describe("tokens and speed", () => {
   it("keeps where the story's time went: prefill, generation, tools, compaction, and the rest", () => {
     const st = storyEntry("3", { agent: { seconds: 4800, tokens: {} }, time_split: { wall_s: 4800, tools_s: 420, compaction_s: 240, other_s: 60,
       model: { prefill_s: 1020, prefill_tokens: 1230000, decode_s: 3060, decode_tokens: 159000 } } } as never);
-    expect(st.usage!.split).toEqual({ wall: 4800, prefill: 1020, decode: 3060, tools: 420, compaction: 240, other: 60, modelUnsplit: 0 });
+    expect(st.usage!.split).toMatchObject({ wall: 4800, prefill: 1020, decode: 3060, tools: 420, compaction: 240, other: 60, modelUnsplit: 0 });
+  });
+
+  it("keeps the tools time by kind, so the agent's own tests, builds and other commands can be told apart", () => {
+    const st = storyEntry("4", { agent: { seconds: 7300, tokens: {} }, time_split: { wall_s: 7300, tools_s: 1158, compaction_s: 0, other_s: 0,
+      tools_by_kind: { bash: 816, unit: 210, e2e: 114, build: 24 }, model: { prefill_s: 1, decode_s: 1 } } } as never);
+    expect(st.usage!.split!.toolsByKind).toEqual({ bash: 816, unit: 210, e2e: 114, build: 24 });
   });
 
   it("a cloud model's time isn't split: it is what's left of the wall time after tools and compaction", () => {
