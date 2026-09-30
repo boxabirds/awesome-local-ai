@@ -20,6 +20,8 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** When false (e.g. board not loaded), drag and edit are disabled; selection stays. */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -33,6 +35,7 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  editable = true,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -51,6 +54,8 @@ export function StickyNote({
   noteIdRef.current = note.id;
   const onEndEditRef = useRef(onEndEdit);
   onEndEditRef.current = onEndEdit;
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
 
   // End interaction if note is deleted mid-drag or mid-edit
   useEffect(() => {
@@ -89,6 +94,7 @@ export function StickyNote({
 
   const handlePointerMove = useCallback(
     (e: ReactPointerEvent) => {
+      if (!editableRef.current) return; // read-only board: no drag / no z change
       if (stateRef.current !== 'pressed' && stateRef.current !== 'dragging') return;
       const origin = dragOriginRef.current;
       if (!origin) return;
@@ -165,6 +171,7 @@ export function StickyNote({
 
   const handleDoubleClick = useCallback(
     (e: ReactMouseEvent) => {
+      if (!editableRef.current) return; // read-only board: no editing
       e.stopPropagation();
       e.preventDefault();
       onStartEdit(note.id);
@@ -210,7 +217,7 @@ export function StickyNote({
       onLostPointerCapture={handleLostPointerCapture}
       onDoubleClick={handleDoubleClick}
     >
-      {editing && ytext ? (
+      {editing && ytext && editable ? (
         <StickyTextEditor
           ytext={ytext}
           fontPx={displayFontPx}

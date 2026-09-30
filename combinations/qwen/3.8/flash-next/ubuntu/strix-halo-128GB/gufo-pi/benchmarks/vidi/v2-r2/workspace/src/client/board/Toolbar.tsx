@@ -2,9 +2,10 @@ import type { ReactElement } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  disabled?: boolean;
 }
 
-export function Toolbar({ onCreateSticky }: ToolbarProps): ReactElement {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): ReactElement {
   return (
     <div
       className="board-toolbar"
@@ -16,6 +17,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): ReactElement {
         title="Sticky note – or double-click the board"
         className="board-toolbar-btn"
         onClick={onCreateSticky}
+        disabled={disabled}
         data-testid="sticky-note-btn"
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">

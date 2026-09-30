@@ -4,11 +4,54 @@ import { BoardRoom } from './board-room';
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  // Set to '1' to enable the /__test/* control routes (used by e2e persistence and
+  // broken-board specs). Never set in production.
+  TEST_HOOKS?: string;
 }
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+
+    // Test-only control routes, enabled when TEST_HOOKS=1 (e2e persistence specs).
+    if (env.TEST_HOOKS === "1") {
+      const hook = url.pathname.match(/^\/__(?:test)\/([a-z-]+)$/);
+      if (hook) {
+        const room = url.searchParams.get("room");
+        if (!room || !isValidBoardId(room)) {
+          return Response.json({ ok: false, error: "bad room" }, { status: 400 });
+        }
+        const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(room));
+        switch (hook[1]) {
+          case "seed": {
+            const count = Number(url.searchParams.get("count") ?? "100");
+            const seed = Number(url.searchParams.get("seed") ?? "1");
+            const notes = await stub.__testSeed(count, seed);
+            return Response.json({ ok: true, notes });
+          }
+          case "note-count":
+            return Response.json({ ok: true, notes: await stub.__testNoteCount() });
+          case "corrupt-snapshot":
+            await stub.__testCorruptSnapshot();
+            return Response.json({ ok: true });
+          case "repair-snapshot":
+            await stub.__testRepairSnapshot();
+            return Response.json({ ok: true });
+          case "reload":
+            await stub.__testReload();
+            return Response.json({ ok: true, state: await stub.__testGetState() });
+          case "state":
+            return Response.json({
+              ok: true,
+              state: await stub.__testGetState(),
+              loadMs: await stub.__testLoadMs(),
+              notes: await stub.__testNoteCount(),
+            });
+          default:
+            return Response.json({ ok: false, error: "unknown hook" }, { status: 404 });
+        }
+      }
+    }
 
     // Route /api/rooms/:boardId to the Durable Object
     const match = url.pathname.match(/^\/api\/rooms\/([^/]+)$/);

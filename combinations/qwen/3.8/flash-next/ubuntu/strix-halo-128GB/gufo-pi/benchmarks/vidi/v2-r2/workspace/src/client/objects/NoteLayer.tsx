@@ -9,6 +9,7 @@ interface NoteLayerProps {
   doc: Y.Doc;
   selectedId: string | null;
   editingId: string | null;
+  editable: boolean;
   onSelect(id: string | null): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -19,6 +20,7 @@ export function NoteLayer({
   doc,
   selectedId,
   editingId,
+  editable,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -34,6 +36,7 @@ export function NoteLayer({
           zoom={camera.zoom}
           selected={note.id === selectedId}
           editing={note.id === editingId}
+          editable={editable}
           onSelect={onSelect}
           onStartEdit={onStartEdit}
           onEndEdit={onEndEdit}

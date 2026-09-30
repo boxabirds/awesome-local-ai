@@ -28,5 +28,13 @@ export function ConnectionStatus({ state }: { state: ConnectionState }): ReactEl
     );
   }
 
+  if (state === 'load_failed') {
+    return (
+      <div role="status" className="connection-badge connection-load-failed">
+        This board couldn't be loaded. Retrying…
+      </div>
+    );
+  }
+
   return null;
 }

@@ -2,6 +2,12 @@ export const MESSAGE_SYNC = 0;
 export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+// A saved board could not be loaded. Application range (4000-4999) so the client
+// provider keeps retrying (y-websocket only stops retrying for 4400-4499).
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+// The room hit a storage write failure; sockets are closed and the doc discarded.
+// The board is still readable on the next connection, so this is transient.
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }

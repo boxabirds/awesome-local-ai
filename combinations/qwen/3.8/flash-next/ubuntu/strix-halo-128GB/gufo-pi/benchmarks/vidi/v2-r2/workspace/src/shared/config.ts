@@ -1,5 +1,14 @@
 // Product settings shared across the app. Stories 2-5 add to this file.
 
+// Persistence settings (story 4).
+export const COMPACTION_UPDATE_COUNT = 500;          // compact when this many log rows exist
+export const COMPACTION_BYTES = 4 * 1024 * 1024;     // or when log bytes reach this
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;      // keeps every row well under the platform per-row size limit
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;      // LoadFailed room retries load at most this often
+export const PERSIST_TESTED_NOTES = 2000;            // PRD persist.large_board
+export const BOARD_LOAD_BUDGET_MS = 3000;            // PRD persist.large_board
+export const STORAGE_SCHEMA_VERSION = 1;
+
 // Live collaboration settings (story 3).
 export const MAX_CONCURRENT_EDITORS = 5;
 export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;

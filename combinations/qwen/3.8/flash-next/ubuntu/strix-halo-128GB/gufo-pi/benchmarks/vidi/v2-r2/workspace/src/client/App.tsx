@@ -10,6 +10,7 @@ import { useSelection } from './board/useSelection';
 import { NoteLayer } from './objects/NoteLayer';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import {
   createSticky,
   deleteObject,
@@ -26,6 +27,15 @@ function getBoardIdFromPath(): string {
   const id = newBoardId();
   history.replaceState(null, '', `/b/${id}`);
   return id;
+}
+
+/**
+ * Editing is disabled only while the board cannot be loaded (load_failed). All
+ * other connection states (connecting/connected/reconnecting/confirmed) allow
+ * editing so a transient storage hiccup never locks the user out.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
 }
 
 function BoardOverlay(): ReactElement {
@@ -48,6 +58,7 @@ function BoardOverlay(): ReactElement {
 export function App(): ReactElement {
   const boardId = getBoardIdFromPath();
   const { doc, notes, connectionState } = useBoardDoc(boardId);
+  const editable = canEdit(connectionState);
   const selection = useSelection(doc, notes);
   const { selectedId, editingId, select, startEdit, endEdit } = selection;
 
@@ -56,10 +67,13 @@ export function App(): ReactElement {
   selectionRef.current = selection;
   const docRef = useRef(doc);
   docRef.current = doc;
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
 
   // Global keyboard handler for Enter, Delete, Backspace
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (!editableRef.current) return; // read-only board (load_failed)
       const sel = selectionRef.current;
       const d = docRef.current;
       const activeEl = document.activeElement;
@@ -86,12 +100,13 @@ export function App(): ReactElement {
 
   const handleCreateSticky = useCallback(
     (worldPoint: Point) => {
+      if (!editable) return;
       const id = createSticky(doc, worldPoint);
       if (id) {
         startEdit(id);
       }
     },
-    [doc, startEdit],
+    [doc, startEdit, editable],
   );
 
   const handleEmptyDoubleClick = useCallback(
@@ -110,19 +125,21 @@ export function App(): ReactElement {
 
   const handleColorChange = useCallback(
     (color: StickyColor) => {
+      if (!editable) return;
       if (selectedId) {
         setStickyColor(doc, selectedId, color);
       }
     },
-    [doc, selectedId],
+    [doc, selectedId, editable],
   );
 
   const handleDelete = useCallback(() => {
+    if (!editable) return;
     if (selectedId) {
       deleteObject(doc, selectedId);
       select(null);
     }
-  }, [doc, selectedId, select]);
+  }, [doc, selectedId, select, editable]);
 
   return (
     <div className="vidi6-app">
@@ -136,6 +153,7 @@ export function App(): ReactElement {
             notes={notes}
             selectedId={selectedId}
             editingId={editingId}
+            editable={editable}
             onColorChange={handleColorChange}
             onDelete={handleDelete}
             onCreateSticky={handleCreateSticky}
@@ -147,6 +165,7 @@ export function App(): ReactElement {
           doc={doc}
           selectedId={selectedId}
           editingId={editingId}
+          editable={editable}
           onSelect={select}
           onStartEdit={startEdit}
           onEndEdit={endEdit}
@@ -161,6 +180,7 @@ interface AppChromeProps {
   notes: readonly import('@shared/board-model').StickySnapshot[];
   selectedId: string | null;
   editingId: string | null;
+  editable: boolean;
   onColorChange(c: StickyColor): void;
   onDelete(): void;
   onCreateSticky(p: Point): void;
@@ -181,7 +201,7 @@ function AppChrome(props: AppChromeProps): ReactElement {
   return (
     <>
       <BoardOverlay />
-      <Toolbar onCreateSticky={handleCreateFromToolbar} />
+      <Toolbar onCreateSticky={handleCreateFromToolbar} disabled={!props.editable} />
       {selectedNote && !props.editingId && (
         <NoteToolbarScreenSpace
           note={selectedNote}
