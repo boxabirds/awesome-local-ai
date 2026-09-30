@@ -133,3 +133,20 @@ tr.combo-head .stack-label { font-size: 14px; font-weight: 700; }
 .run { font-size: 14px; }
 .status-word { font-size: 14px; }
 .log { color: var(--faint); }
+
+/* Where the time went: one bar per job on one scale. */
+:root { --seg-prefill: #3d7be0; --seg-decode: #8b5cf6; --seg-unsplit: #14a39a; --seg-compaction: #e0533d; --seg-tools: #e3a21a; --seg-other: #9a998f; }
+figure.time-bars { margin: 0; padding: 10px 12px 12px; border-bottom: 1px solid var(--line); }
+figure.time-bars figcaption { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
+figure.time-bars figcaption b { color: var(--ink); font-size: 13px; margin-right: 6px; }
+.legend { display: inline-flex; gap: 5px; align-items: center; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.bar-row { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) 70px; gap: 10px; align-items: center; padding: 3px 0; }
+.bar-label { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { display: block; }
+.bar { display: flex; height: 18px; border-radius: 4px; overflow: hidden; min-width: 2px; }
+.seg { display: block; height: 100%; }
+.seg:hover { filter: brightness(1.25); }
+.seg-prefill { background: var(--seg-prefill); } .seg-decode { background: var(--seg-decode); } .seg-modelUnsplit { background: var(--seg-unsplit); }
+.seg-compaction { background: var(--seg-compaction); } .seg-tools { background: var(--seg-tools); } .seg-other { background: var(--seg-other); }
+.bar-total { text-align: right; font-size: 13px; }

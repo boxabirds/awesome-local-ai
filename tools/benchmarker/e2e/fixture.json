@@ -31,15 +31,24 @@
             "calls": 95,
             "agentSeconds": 720,
             "tokS": 83.33333333333333,
-            "decodeTokens": 60000,
+            "decodeTokens": 54000,
             "decodeSeconds": 591.7159763313609,
             "decodeTokS": 101.4,
-            "prefillTokens": null,
+            "prefillTokens": 45000,
             "prefillSeconds": null,
-            "prefillTokS": null,
+            "prefillTokS": 750.0,
             "draftAcceptance": null,
             "compactions": 1,
-            "nudges": 2
+            "nudges": 2,
+            "split": {
+              "wall": 720,
+              "prefill": 60,
+              "decode": 540,
+              "tools": 90,
+              "compaction": 20,
+              "other": 10,
+              "modelUnsplit": 0
+            }
           }
         }
       ],
@@ -83,7 +92,16 @@
             "prefillTokS": null,
             "draftAcceptance": null,
             "compactions": 0,
-            "nudges": 0
+            "nudges": 0,
+            "split": {
+              "wall": 480,
+              "prefill": 0,
+              "decode": 0,
+              "tools": 0,
+              "compaction": 0,
+              "other": 0,
+              "modelUnsplit": 480
+            }
           }
         },
         {

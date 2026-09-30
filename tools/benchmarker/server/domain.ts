@@ -226,10 +226,20 @@ export function normaliseByStory(by: Record<string, { passed?: number; total?: n
 /** metrics.json's per-story agent and time-split sections, as far as usage goes. */
 export interface RawUsage {
   agent?: { seconds?: number; tool_calls?: number; compactions?: number; nudges?: number; tokens?: { input?: number; output?: number; cache_read?: number; cache_write?: number } };
-  time_split?: { model?: {
+  time_split?: { wall_s?: number; tools_s?: number; compaction_s?: number; other_s?: number; model?: {
     decode_tokens?: number; decode_s?: number; decode_tok_s?: number;
     prefill_tokens?: number; prefill_s?: number; prefill_tok_s?: number; draft_acceptance?: number | null;
   } };
+}
+
+function splitOf(ts: RawUsage["time_split"]): Usage["split"] {
+  if (!ts || ts.wall_s == null) return null;
+  const m = ts.model, other = ts.other_s ?? 0;
+  return {
+    wall: ts.wall_s, prefill: m?.prefill_s ?? 0, decode: m?.decode_s ?? 0, tools: ts.tools_s ?? 0, compaction: ts.compaction_s ?? 0,
+    // Untimed model: "other" holds the model's time and the agent's own, which can't be told apart.
+    other: m ? other : 0, modelUnsplit: m ? 0 : other,
+  };
 }
 
 function usageOf(raw: RawUsage): Usage | null {
@@ -244,6 +254,7 @@ function usageOf(raw: RawUsage): Usage | null {
     prefillTokens: m?.prefill_tokens ?? null, prefillSeconds: m?.prefill_s ?? null, prefillTokS: m?.prefill_tok_s ?? null,
     draftAcceptance: m?.draft_acceptance ?? null,
     compactions: a?.compactions ?? null, nudges: a?.nudges ?? null,
+    split: splitOf(raw.time_split),
   };
 }
 

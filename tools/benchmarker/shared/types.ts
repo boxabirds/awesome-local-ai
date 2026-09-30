@@ -23,7 +23,12 @@ export interface Usage {
   compactions: number | null;
   /** Times the harness had to nudge the agent to carry on. */
   nudges: number | null;
+  split?: TimeSplit | null;
 }
+
+/** Where a story's wall time went, in seconds. Without a timed model (a cloud model, or a run from before the
+ * harness timed every engine) the model's time can't be told from the agent's own: both are modelUnsplit. */
+export interface TimeSplit { wall: number; prefill: number; decode: number; tools: number; compaction: number; other: number; modelUnsplit: number }
 
 /** A run's totals over its recorded stories; speeds weighted by tokens. */
 export interface RunUsage {
