@@ -783,14 +783,18 @@
           "e2e": 743.3,
           "bash": 243.1,
           "build": 106.5,
-          "unit": 18.5,
-          "edit": 0.0,
-          "write": 0.0,
-          "read": 0.0
+          "unit": 18.5
         },
         "compaction_s": 169.1,
         "compactions": 2,
-        "other_s": 6.3,
+        "between_sessions_s": 0.0,
+        "other_s": 6.4,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -1630,14 +1634,18 @@
           "e2e": 691.5,
           "unit": 16.8,
           "bash": 10.7,
-          "build": 8.0,
-          "edit": 0.0,
-          "read": 0.0,
-          "write": 0.0
+          "build": 8.0
         },
         "compaction_s": 67.7,
         "compactions": 1,
+        "between_sessions_s": 0.0,
         "other_s": 5.7,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -3379,13 +3387,18 @@
           "unit": 60.2,
           "build": 26.0,
           "bash": 1.0,
-          "edit": 0.1,
-          "write": 0.0,
-          "read": 0.0
+          "edit": 0.1
         },
         "compaction_s": 477.9,
         "compactions": 3,
-        "other_s": 13.5,
+        "between_sessions_s": 0.0,
+        "other_s": 13.6,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
@@ -5075,19 +5088,25 @@
           "decode_tok_s": 51.5,
           "cached_tokens": 18978508
         },
-        "tools_s": 381.6,
+        "tools_s": 381.5,
         "tools_by_kind": {
           "e2e": 250.8,
           "unit": 92.6,
           "build": 24.4,
           "bash": 13.6,
-          "read": 0.1,
           "edit": 0.1,
-          "write": 0.0
+          "read": 0.1
         },
         "compaction_s": 672.7,
         "compactions": 4,
+        "between_sessions_s": 0.0,
         "other_s": 12.7,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {

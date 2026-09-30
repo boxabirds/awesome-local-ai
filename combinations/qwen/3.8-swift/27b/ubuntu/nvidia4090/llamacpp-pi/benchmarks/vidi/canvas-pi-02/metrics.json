@@ -135,29 +135,36 @@
       "time_split": {
         "wall_s": 1487.0,
         "model": {
+          "source": "llama-log",
           "requests": 83,
-          "prefill_s": 59.7,
+          "prefill_s": 59.1,
           "prefill_tokens": 60085,
           "prefill_tok_s": 1005.9,
           "decode_s": 1204.5,
           "decode_tokens": 93255,
           "decode_tok_s": 77.4,
+          "cached_tokens": 0,
           "draft_acceptance": 0.617,
           "mean_accepted_len": 3.57
         },
-        "tools_s": 155.0,
+        "tools_s": 154.9,
         "tools_by_kind": {
           "e2e": 127.4,
           "build": 15.3,
           "unit": 9.7,
-          "bash": 2.4,
-          "edit": 0.0,
-          "write": 0.0,
-          "read": 0.0
+          "bash": 2.4
         },
         "compaction_s": 58.8,
         "compactions": 1,
-        "other_s": 9.1
+        "between_sessions_s": 0.0,
+        "other_s": 9.8,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 17,
@@ -439,29 +446,36 @@
       "time_split": {
         "wall_s": 1932.2,
         "model": {
+          "source": "llama-log",
           "requests": 135,
-          "prefill_s": 89.9,
+          "prefill_s": 88.6,
           "prefill_tokens": 84771,
           "prefill_tok_s": 942.9,
           "decode_s": 1425.5,
           "decode_tokens": 111190,
           "decode_tok_s": 78.0,
+          "cached_tokens": 0,
           "draft_acceptance": 0.646,
           "mean_accepted_len": 3.67
         },
-        "tools_s": 348.0,
+        "tools_s": 347.9,
         "tools_by_kind": {
           "e2e": 327.3,
           "unit": 16.1,
           "build": 3.5,
-          "bash": 1.0,
-          "edit": 0.1,
-          "read": 0.0,
-          "write": 0.0
+          "bash": 1.0
         },
         "compaction_s": 53.0,
         "compactions": 1,
-        "other_s": 15.9
+        "between_sessions_s": 0.0,
+        "other_s": 17.2,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 32,
@@ -771,29 +785,38 @@
       "time_split": {
         "wall_s": 11579.1,
         "model": {
+          "source": "llama-log",
           "requests": 564,
-          "prefill_s": 429.1,
+          "prefill_s": 425.9,
           "prefill_tokens": 406790,
           "prefill_tok_s": 948.0,
           "decode_s": 5491.1,
           "decode_tokens": 409284,
           "decode_tok_s": 74.5,
+          "cached_tokens": 0,
           "draft_acceptance": 0.622,
           "mean_accepted_len": 3.56
         },
-        "tools_s": 5085.4,
+        "tools_s": 5085.3,
         "tools_by_kind": {
           "e2e": 4636.3,
-          "unit": 409.2,
-          "build": 33.5,
+          "unit": 409.1,
+          "build": 33.4,
           "bash": 6.0,
-          "edit": 0.3,
-          "read": 0.1,
-          "write": 0.0
+          "edit": 0.2,
+          "read": 0.1
         },
         "compaction_s": 504.2,
         "compactions": 6,
-        "other_s": 69.3
+        "between_sessions_s": 0.0,
+        "other_s": 72.7,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 49,
@@ -1113,29 +1136,38 @@
       "time_split": {
         "wall_s": 12658.9,
         "model": {
+          "source": "llama-log",
           "requests": 713,
-          "prefill_s": 519.2,
+          "prefill_s": 515.7,
           "prefill_tokens": 473766,
           "prefill_tok_s": 912.4,
           "decode_s": 5723.3,
           "decode_tokens": 409456,
           "decode_tok_s": 71.5,
+          "cached_tokens": 0,
           "draft_acceptance": 0.6,
           "mean_accepted_len": 3.52
         },
-        "tools_s": 5709.3,
+        "tools_s": 5709.2,
         "tools_by_kind": {
           "e2e": 4131.1,
           "bash": 887.4,
           "unit": 660.8,
           "build": 29.6,
           "edit": 0.2,
-          "read": 0.1,
-          "write": 0.0
+          "read": 0.1
         },
         "compaction_s": 613.0,
         "compactions": 7,
-        "other_s": 94.1
+        "between_sessions_s": 0.0,
+        "other_s": 97.6,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 61,
@@ -1455,29 +1487,38 @@
       "time_split": {
         "wall_s": 5875.0,
         "model": {
+          "source": "llama-log",
           "requests": 394,
-          "prefill_s": 265.4,
+          "prefill_s": 263.7,
           "prefill_tokens": 225926,
           "prefill_tok_s": 851.2,
           "decode_s": 2992.4,
           "decode_tokens": 215213,
           "decode_tok_s": 71.9,
+          "cached_tokens": 0,
           "draft_acceptance": 0.591,
           "mean_accepted_len": 3.46
         },
-        "tools_s": 2358.2,
+        "tools_s": 2358.1,
         "tools_by_kind": {
           "e2e": 1694.4,
           "unit": 455.3,
-          "bash": 124.3,
+          "bash": 124.2,
           "build": 84.1,
           "edit": 0.1,
-          "read": 0.1,
-          "write": 0.0
+          "read": 0.1
         },
         "compaction_s": 205.5,
         "compactions": 3,
-        "other_s": 53.5
+        "between_sessions_s": 0.0,
+        "other_s": 55.3,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 73,
@@ -1782,13 +1823,15 @@
       "time_split": {
         "wall_s": 4839.6,
         "model": {
+          "source": "llama-log",
           "requests": 337,
-          "prefill_s": 297.9,
+          "prefill_s": 296.0,
           "prefill_tokens": 324934,
           "prefill_tok_s": 1090.7,
           "decode_s": 3495.3,
           "decode_tokens": 252138,
           "decode_tok_s": 72.1,
+          "cached_tokens": 0,
           "draft_acceptance": 0.614,
           "mean_accepted_len": 3.56
         },
@@ -1799,12 +1842,19 @@
           "build": 19.8,
           "bash": 2.5,
           "edit": 0.1,
-          "read": 0.1,
-          "write": 0.0
+          "read": 0.1
         },
         "compaction_s": 284.2,
         "compactions": 4,
-        "other_s": 39.5
+        "between_sessions_s": 0.0,
+        "other_s": 41.5,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 87,
@@ -2181,13 +2231,15 @@
       "time_split": {
         "wall_s": 3056.9,
         "model": {
+          "source": "llama-log",
           "requests": 226,
-          "prefill_s": 170.0,
+          "prefill_s": 169.1,
           "prefill_tokens": 166783,
           "prefill_tok_s": 981.0,
           "decode_s": 2049.1,
           "decode_tokens": 150255,
           "decode_tok_s": 73.3,
+          "cached_tokens": 0,
           "draft_acceptance": 0.602,
           "mean_accepted_len": 3.53
         },
@@ -2198,12 +2250,19 @@
           "build": 8.2,
           "bash": 0.6,
           "read": 0.1,
-          "edit": 0.1,
-          "write": 0.0
+          "edit": 0.1
         },
         "compaction_s": 128.3,
         "compactions": 2,
-        "other_s": 25.9
+        "between_sessions_s": 0.0,
+        "other_s": 26.8,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 96,
@@ -2518,29 +2577,38 @@
       "time_split": {
         "wall_s": 3323.0,
         "model": {
+          "source": "llama-log",
           "requests": 223,
-          "prefill_s": 210.8,
+          "prefill_s": 209.9,
           "prefill_tokens": 245012,
           "prefill_tok_s": 1162.2,
           "decode_s": 2011.4,
           "decode_tokens": 146883,
           "decode_tok_s": 73.0,
+          "cached_tokens": 0,
           "draft_acceptance": 0.629,
           "mean_accepted_len": 3.63
         },
-        "tools_s": 876.1,
+        "tools_s": 876.0,
         "tools_by_kind": {
           "e2e": 833.8,
           "unit": 32.8,
           "build": 9.0,
           "bash": 0.3,
-          "read": 0.1,
           "edit": 0.1,
-          "write": 0.0
+          "read": 0.1
         },
         "compaction_s": 197.0,
         "compactions": 3,
-        "other_s": 27.7
+        "between_sessions_s": 0.0,
+        "other_s": 28.7,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 110,
@@ -2893,29 +2961,38 @@
       "time_split": {
         "wall_s": 3286.0,
         "model": {
+          "source": "llama-log",
           "requests": 211,
-          "prefill_s": 232.3,
+          "prefill_s": 231.7,
           "prefill_tokens": 282785,
           "prefill_tok_s": 1217.3,
           "decode_s": 2519.0,
           "decode_tokens": 192449,
           "decode_tok_s": 76.4,
+          "cached_tokens": 0,
           "draft_acceptance": 0.659,
           "mean_accepted_len": 3.75
         },
-        "tools_s": 293.8,
+        "tools_s": 293.7,
         "tools_by_kind": {
           "e2e": 259.3,
           "unit": 26.6,
           "build": 7.4,
           "bash": 0.2,
-          "read": 0.1,
           "edit": 0.1,
-          "write": 0.0
+          "read": 0.1
         },
         "compaction_s": 215.1,
         "compactions": 3,
-        "other_s": 25.8
+        "between_sessions_s": 0.0,
+        "other_s": 26.5,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 128,
@@ -3257,29 +3334,38 @@
       "time_split": {
         "wall_s": 2783.0,
         "model": {
+          "source": "llama-log",
           "requests": 199,
-          "prefill_s": 162.6,
+          "prefill_s": 161.6,
           "prefill_tokens": 181405,
           "prefill_tok_s": 1115.5,
           "decode_s": 1707.9,
           "decode_tokens": 128282,
           "decode_tok_s": 75.1,
+          "cached_tokens": 0,
           "draft_acceptance": 0.643,
           "mean_accepted_len": 3.68
         },
-        "tools_s": 771.5,
+        "tools_s": 771.4,
         "tools_by_kind": {
           "e2e": 751.3,
           "unit": 16.2,
           "build": 3.2,
           "bash": 0.7,
           "edit": 0.1,
-          "read": 0.1,
-          "write": 0.0
+          "read": 0.1
         },
         "compaction_s": 119.9,
         "compactions": 2,
-        "other_s": 21.1
+        "between_sessions_s": 0.0,
+        "other_s": 22.2,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 139,
@@ -3579,29 +3665,38 @@
       "time_split": {
         "wall_s": 3204.9,
         "model": {
+          "source": "llama-log",
           "requests": 268,
-          "prefill_s": 213.8,
+          "prefill_s": 213.0,
           "prefill_tokens": 208538,
           "prefill_tok_s": 975.6,
           "decode_s": 2056.6,
           "decode_tokens": 151876,
           "decode_tok_s": 73.8,
+          "cached_tokens": 0,
           "draft_acceptance": 0.627,
           "mean_accepted_len": 3.6
         },
-        "tools_s": 778.6,
+        "tools_s": 778.5,
         "tools_by_kind": {
-          "e2e": 516.6,
+          "e2e": 516.5,
           "bash": 114.7,
           "unit": 107.8,
           "build": 39.2,
-          "edit": 0.1,
           "read": 0.1,
-          "write": 0.0
+          "edit": 0.1
         },
         "compaction_s": 121.3,
         "compactions": 2,
-        "other_s": 34.7
+        "between_sessions_s": 0.0,
+        "other_s": 35.5,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 164,

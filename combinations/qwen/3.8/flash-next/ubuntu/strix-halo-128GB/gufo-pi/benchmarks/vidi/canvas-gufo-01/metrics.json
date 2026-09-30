@@ -156,13 +156,18 @@
           "bash": 119.8,
           "unit": 103.2,
           "build": 28.2,
-          "write": 0.1,
-          "edit": 0.0,
-          "read": 0.0
+          "write": 0.1
         },
         "compaction_s": 413.0,
         "compactions": 3,
-        "other_s": 27.0,
+        "between_sessions_s": 0.0,
+        "other_s": 27.1,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
         "backfilled": true
       },
       "loc": {
