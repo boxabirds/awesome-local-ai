@@ -25,7 +25,7 @@ export function RunRow({ row, state, serverNow }: Props) {
       <td><ActivityCell row={row} /></td>
       <td><StoriesWorkingCell row={row} /></td>
       <td><ScoreCell row={row} building={building} web={state.web} branch={state.branch} /></td>
-      <td><JudgeCell judge={row.stages.judge} building={building} url={state.judgeUrl} /></td>
+      <td><JudgeCell row={row} building={building} url={state.judgeUrl} /></td>
       <td><LinksCell row={row} web={state.web} branch={state.branch} /></td>
     </tr>
   );

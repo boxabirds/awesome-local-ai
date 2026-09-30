@@ -49,7 +49,7 @@ pub struct Cost {
     pub output_tokens: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct Run {
     /// Unique, URL- and file-safe: the setup and run joined with "__".
     pub slug: String,
@@ -68,6 +68,8 @@ pub struct Run {
     pub story_status: BTreeMap<u64, String>,
     /// The record holds the run's git history (workspace.bundle), so any story's commit can be built.
     pub has_history: bool,
+    /// run.json's pack_version, e.g. "vidi-v2.0-pre2" ("" for records from before versions).
+    pub pack_version: String,
     pub score: Score,
     pub judging: Option<Judging>,
     pub cost: Cost,
@@ -75,6 +77,14 @@ pub struct Run {
 
 fn read_json(p: &Path) -> Option<Value> {
     serde_json::from_str(&std::fs::read_to_string(p).ok()?).ok()
+}
+
+/// The major version a pack version belongs to: "vidi-v2.0-pre1+94b980f-dirty" -> "vidi-v2". Results,
+/// and builds under review, compare only within one; "" for an unversioned record.
+pub fn family(version: &str) -> String {
+    let Some(i) = version.find("-v") else { return String::new() };
+    let digits: String = version[i + 2..].chars().take_while(char::is_ascii_digit).collect();
+    if digits.is_empty() { String::new() } else { format!("{}-v{digits}", &version[..i]) }
 }
 
 pub fn slug(setup: &str, run: &str) -> String {
@@ -338,6 +348,9 @@ pub fn load(repo: &Path) -> Vec<Run> {
                     })
                     .unwrap_or_default(),
                 has_history: path.join("workspace.bundle").is_file(),
+                pack_version: read_json(&path.join("run.json"))
+                    .and_then(|m| m.get("pack_version").and_then(Value::as_str).map(String::from))
+                    .unwrap_or_default(),
                 stories_in_scope: in_scope,
                 score: score(&path),
                 judging: std::fs::read_to_string(path.join("audit.jsonl")).ok().map(|t| judging(&t)),
@@ -389,6 +402,15 @@ pub fn judges(private_repo: &Path, keys: &Path) -> Vec<JudgeResult> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn family_is_the_major_version() {
+        assert_eq!(family("vidi-v2.0-pre1+94b980f-dirty"), "vidi-v2");
+        assert_eq!(family("vidi-v2.0-pre2"), "vidi-v2");
+        assert_eq!(family("vidi-v1.3.2"), "vidi-v1");
+        assert_eq!(family("todoodle-v1"), "todoodle-v1");
+        assert_eq!(family(""), "");
+    }
 
     fn tmp(tag: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("vidi-gallery-{tag}-{}", std::process::id()));

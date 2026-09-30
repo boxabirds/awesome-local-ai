@@ -1,7 +1,7 @@
 // node --test tools/vidi-gallery/tests/  — the review player's time maths (src/player.js).
 const test = require("node:test");
 const assert = require("node:assert");
-const { frameAt, timeline, defaultSpeed, nextCheck, nextSpot } = require("../src/player.js");
+const { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, keyAction, nextFrame, SCRUB_MS, FINE_SCRUB_MS } = require("../src/player.js");
 
 test("the frame shown at t is the last one at or before t, for each page separately", () => {
   const p1 = [[10, "a"], [20, "b"], [30, "c"]], p2 = [[25, "x"]];
@@ -58,4 +58,68 @@ test("moving on from a path goes to the next path, then off the end of the story
   assert.deepStrictEqual(nextSpot(3, 0, -1), {story: -1});    // first path → previous story
   assert.deepStrictEqual(nextSpot(3, -1, 1), {path: 0});      // nothing selected yet → the first
   assert.deepStrictEqual(nextSpot(0, -1, 1), {story: 1});     // a story with no recorded paths
+});
+
+const key = (k, code, mods = {}) => ({ key: k, code, shiftKey: false, metaKey: false, ctrlKey: false, altKey: false, ...mods });
+
+test("keys: moving between paths and stories", () => {
+  for (const [k, code] of [["ArrowDown", "ArrowDown"], ["j", "KeyJ"], ["Tab", "Tab"]]) assert.deepStrictEqual(keyAction(key(k, code)), { do: "path", dir: 1 });
+  for (const [k, code, m] of [["ArrowUp", "ArrowUp", {}], ["k", "KeyK", {}], ["Tab", "Tab", { shiftKey: true }]]) assert.deepStrictEqual(keyAction(key(k, code, m)), { do: "path", dir: -1 });
+  assert.deepStrictEqual(keyAction(key("]", "BracketRight")), { do: "story", dir: 1 });
+  assert.deepStrictEqual(keyAction(key("PageUp", "PageUp")), { do: "story", dir: -1 });
+});
+
+test("keys: playing, checks, steps and frames", () => {
+  assert.deepStrictEqual(keyAction(key(" ", "Space")), { do: "play" });
+  assert.deepStrictEqual(keyAction(key("ArrowRight", "ArrowRight")), { do: "check", dir: 1 });
+  assert.deepStrictEqual(keyAction(key("ArrowLeft", "ArrowLeft", { shiftKey: true })), { do: "step", dir: -1 });
+  assert.deepStrictEqual(keyAction(key(".", "Period")), { do: "frame", dir: 1 });
+  assert.deepStrictEqual(keyAction(key(",", "Comma")), { do: "frame", dir: -1 });
+  assert.deepStrictEqual(keyAction(key(">", "Period", { shiftKey: true })), { do: "speed", dir: 1 });
+  assert.deepStrictEqual(keyAction(key("<", "Comma", { shiftKey: true })), { do: "speed", dir: -1 });
+});
+
+test("keys: - and = scrub a second; with shift, a tenth; by key position, whatever the layout prints", () => {
+  assert.deepStrictEqual(keyAction(key("=", "Equal")), { do: "scrub", ms: SCRUB_MS });
+  assert.deepStrictEqual(keyAction(key("-", "Minus")), { do: "scrub", ms: -SCRUB_MS });
+  assert.deepStrictEqual(keyAction(key("+", "Equal", { shiftKey: true })), { do: "scrub", ms: FINE_SCRUB_MS });
+  assert.deepStrictEqual(keyAction(key("_", "Minus", { shiftKey: true })), { do: "scrub", ms: -FINE_SCRUB_MS });
+  assert.ok(FINE_SCRUB_MS < SCRUB_MS);
+});
+
+test("keys: digits jump to tenths of the recording; Home and End to its ends", () => {
+  assert.deepStrictEqual(keyAction(key("0", "Digit0")), { do: "jump", frac: 0 });
+  assert.deepStrictEqual(keyAction(key("5", "Digit5")), { do: "jump", frac: 0.5 });
+  assert.deepStrictEqual(keyAction(key("9", "Numpad9")), { do: "jump", frac: 0.9 });
+  assert.deepStrictEqual(keyAction(key("Home", "Home")), { do: "jump", frac: 0 });
+  assert.deepStrictEqual(keyAction(key("End", "End")), { do: "jump", frac: 1 });
+});
+
+test("keys: Return agrees and moves on; shift-Return disagrees and asks why; the rest", () => {
+  assert.deepStrictEqual(keyAction(key("Enter", "Enter")), { do: "verdict", v: "agree", next: true });
+  assert.deepStrictEqual(keyAction(key("Enter", "Enter", { shiftKey: true })), { do: "verdict", v: "disagree", note: true });
+  assert.deepStrictEqual(keyAction(key("a", "KeyA")), { do: "verdict", v: "agree" });
+  assert.deepStrictEqual(keyAction(key("d", "KeyD")), { do: "verdict", v: "disagree" });
+  assert.deepStrictEqual(keyAction(key("s", "KeyS")), { do: "verdict", v: "skip" });
+  assert.deepStrictEqual(keyAction(key("n", "KeyN")), { do: "note" });
+  assert.deepStrictEqual(keyAction(key("o", "KeyO")), { do: "open" });
+  assert.deepStrictEqual(keyAction(key("w", "KeyW")), { do: "waits" });
+  assert.deepStrictEqual(keyAction(key("Escape", "Escape")), { do: "escape" });
+  assert.deepStrictEqual(keyAction(key("?", "Slash", { shiftKey: true })), { do: "help" });
+});
+
+test("keys: browser and system shortcuts pass through untouched", () => {
+  assert.strictEqual(keyAction(key("r", "KeyR", { metaKey: true })), null);   // reload
+  assert.strictEqual(keyAction(key("=", "Equal", { metaKey: true })), null);  // zoom
+  assert.strictEqual(keyAction(key("Tab", "Tab", { ctrlKey: true })), null);  // next tab
+  assert.strictEqual(keyAction(key("q", "KeyQ")), null);
+});
+
+test("the next and previous frame across everyone's screens", () => {
+  const people = [[[10, "a"], [30, "b"]], [[20, "x"], [40, "y"]]];
+  assert.strictEqual(nextFrame(people, 10, 1), 20);
+  assert.strictEqual(nextFrame(people, 25, 1), 30);
+  assert.strictEqual(nextFrame(people, 30, -1), 20);
+  assert.strictEqual(nextFrame(people, 40, 1), null);
+  assert.strictEqual(nextFrame(people, 10, -1), null);
 });

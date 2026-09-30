@@ -291,7 +291,8 @@ mod tests {
         let prd = parse_prd(&std::fs::read_to_string(dir.path().join("prd.md")).unwrap());
         let create = prd.requirements.iter().find(|r| r.anchor == "share.create").unwrap();
         assert_eq!(create.title, "Create a board");
-        assert!(create.text.starts_with("WHEN a person clicks Create a board on the home page THE SYSTEM SHALL create a new empty board"), "{}", create.text);
+        // v2 names the home page's button "New board" (v1 said "Create a board").
+        assert!(create.text.starts_with("WHEN a person clicks New board on the home page THE SYSTEM SHALL create a new empty board"), "{}", create.text);
         let copy = prd.requirements.iter().find(|r| r.anchor == "share.copy").unwrap();
         assert!(copy.text.contains("Verification: after clicking"), "{}", copy.text);
         let tasks = parse_tasks(&std::fs::read_to_string(dir.path().join("tasks.md")).unwrap());

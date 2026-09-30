@@ -77,7 +77,9 @@ test("a finished, scored run with its bundle can be judged, and links to its rec
   // The score is one number under a heading that carries the total.
   await expect(page.getByRole("columnheader", { name: "Score / 75" }).first()).toBeVisible();
   await expect(cell(page, "reference/opus-5.5", "run-9", 6)).toHaveText("74");
-  await expect(cell(page, "reference/opus-5.5", "run-9", 7).getByRole("link", { name: "Judge →" })).toBeVisible();
+  // The link opens this run in the review, not the review's first build.
+  await expect(cell(page, "reference/opus-5.5", "run-9", 7).getByRole("link", { name: "Judge →" }))
+    .toHaveAttribute("href", "http://127.0.0.1:7800/review?setup=reference%2Fopus-5.5&run=run-9");
   const record = cell(page, "reference/opus-5.5", "run-9", 8).getByRole("link", { name: "record" });
   await expect(record).toHaveAttribute("href", "https://github.com/boxabirds/awesome-local-ai/tree/main/benchmarks/reference/vidi/opus-5.5/run-9");
 });
