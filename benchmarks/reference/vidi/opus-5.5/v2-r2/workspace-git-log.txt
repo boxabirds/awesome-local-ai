@@ -1,3 +1,46 @@
+commit fa9cec0e1628f0f748fbc4eef5f556923afc4dba
+vidi-agent  Wed Sep 30 04:55:55 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  |  60 ++++++
+ src/client/App.tsx                        | 189 ++++++++++++-------
+ src/client/board/SelectionBar.tsx         |  40 +++-
+ src/client/board/SelectionOverlay.tsx     |  15 +-
+ src/client/board/Toolbar.tsx              |  66 ++++++-
+ src/client/board/useBoardKeys.ts          |  15 +-
+ src/client/board/useSelection.ts          |   7 +-
+ src/client/board/useTool.ts               |  24 +--
+ src/client/board/useTransformGesture.ts   |   6 +-
+ src/client/canvas/BoardViewport.tsx       |   6 +-
+ src/client/canvas/testHooks.ts            |   6 +
+ src/client/objects/BoardObjectsContext.ts |   9 +
+ src/client/objects/ConnectorObject.tsx    | 291 ++++++++++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 174 ++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  80 ++++++++
+ src/client/objects/hitTest.ts             |  35 ++++
+ src/client/objects/registry.tsx           |  42 ++++-
+ src/client/styles.css                     | 178 ++++++++++++++++++
+ src/client/tools/ConnectorTool.tsx        | 202 +++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 150 +++++++++++++++
+ src/client/tools/useActiveTool.ts         |  65 +++++++
+ src/shared/board-model.ts                 | 196 ++++++++++++++++----
+ src/shared/config.ts                      |  46 +++++
+ src/shared/geometry/connector-geometry.ts |  79 ++++++++
+ src/shared/geometry/polyline.ts           |  20 ++
+ src/shared/objects/connector.ts           | 230 +++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 136 ++++++++++++++
+ tests/component/Connector.test.tsx        | 209 +++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 166 +++++++++++++++++
+ tests/component/useActiveTool.test.tsx    | 113 ++++++++++++
+ tests/e2e/connectors.spec.ts              | 165 +++++++++++++++++
+ tests/e2e/helpers/participants.ts         |   8 +-
+ tests/e2e/shapes.spec.ts                  | 115 ++++++++++++
+ tests/fixtures/checkout-flow.ts           |  43 +++++
+ tests/unit/connector-model.test.ts        | 230 +++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 114 ++++++++++++
+ 36 files changed, 3391 insertions(+), 139 deletions(-)
 commit 32da04aefe254678d7bb12abeedeafe9c19d486d
 vidi-agent  Wed Sep 30 04:35:59 2026 +0100
 
