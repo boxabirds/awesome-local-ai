@@ -13,5 +13,5 @@ export function ScoreCell({ row, building, web, branch }: Props) {
   const link = web && row.dir ? `${web}/blob/${branch}/${row.dir}/rescore/${version}/per-story.md` : null;
   const title = `${s.passed} of ${s.total} hidden flows pass · suite ${version}${s.flaky ? ` · ${s.flaky} flaky` : ""} · per-story results`;
   const n = <strong className="score-n">{s.passed}</strong>;
-  return link ? <a href={link} target="_blank" rel="noopener" title={title}>{n}</a> : <span title={title}>{n}</span>;
+  return link ? <a href={link} target="_blank" rel="noopener" data-tip={title}>{n}</a> : <span data-tip={title}>{n}</span>;
 }

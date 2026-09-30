@@ -22,7 +22,7 @@ const MEASURES: { cls: string; head: string; title: string; value: (u: Usage) =>
   { cls: "minutes", head: "Agent min", title: "time the story took", value: (u) => u.agentSeconds, show: (v) => String(Math.round(v / SECONDS_PER_MINUTE)) },
   { cls: "calls", head: "Calls", title: "tool calls", value: (u) => u.calls, show: (v) => String(v) },
   { cls: "out", head: "Out tokens", title: "output tokens", value: (u) => u.outTokens, show: short },
-  { cls: "read", head: "Read tokens", title: "everything the model read: input plus cache reads and writes", value: (u) => u.readTokens, show: short },
+  { cls: "read", head: "Input tokens", title: "Input tokens: everything the model had to read to answer, summed over all its calls. On every call it re-reads the whole conversation so far (spec, code, tool output), mostly from its cache, so this grows with the number of calls. The bigger this is, the more work each story costs.", value: (u) => u.readTokens, show: short },
   { cls: "toks", head: "tok/s", title: "output tokens over the story's time", value: (u) => u.tokS, show: (v) => v.toFixed(1) },
   { cls: "decode", head: "Decode tok/s", title: "the model alone, where the harness timed it", value: (u) => u.decodeTokS, show: (v) => v.toFixed(1) },
   { cls: "compactions", head: "Compactions", title: "times the context was compacted", value: (u) => u.compactions, show: (v) => String(v) },
@@ -82,8 +82,8 @@ export function StoryView({ rows, hidden = [] }: { rows: Row[]; hidden?: string[
         <table aria-label={`Story ${story.id} by job`} className="by-job">
           <thead>
             <tr>
-              <th>Job</th><th title="this story's held-out tests passing against the job's latest build">Held-out passing (latest build)</th>
-              {MEASURES.map((m) => <th key={m.cls} title={m.title}>{m.head}</th>)}
+              <th>Job</th><th data-tip="this story's held-out tests passing against the job's latest build">Held-out passing (latest build)</th>
+              {MEASURES.map((m) => <th key={m.cls} data-tip={m.title}>{m.head}</th>)}
             </tr>
           </thead>
           <tbody>

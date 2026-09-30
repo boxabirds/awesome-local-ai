@@ -21,7 +21,7 @@ const COLUMNS: [string, string, string][] = [
   ["Time", "9%", "Running: minutes on this story and how long the run has gone. Otherwise the agent time over its stories."],
   ["Activity", "11%", "The running story's tool calls, output tokens, tasks, and the agent's latest action."],
   ["Stories passing held-out tests", "11%", "How many of the run's stories pass all their held-out tests (hidden from the agent) on its latest build; one square per story: green all pass, amber some, red none, grey not built, blue being built."],
-  ["Tokens", "8%", "Output tokens over the recorded stories; under it everything the model read (input plus cache) and its tool calls."],
+  ["Tokens", "8%", "Output tokens (what the model wrote) over the recorded stories; under it the input tokens (everything it read, re-reading the conversation on every call) and its tool calls."],
   ["tok/s", "8%", "Output tokens over the time the stories took (model, tools and all). The per-story table has the model-only decode rate where it was timed."],
   ["Score", "7%", "The score of record: held-out tests passing in the re-score of the finished run's final build, under the current suite."],
   ["Judge", "7%", "Judge → opens the run in the review page, to check the automated verdicts against the recordings, once it is scored and has its history."],
@@ -46,10 +46,10 @@ function ComboHead({ stack, rows, span }: { stack: string; rows: Row[]; span: nu
   return (
     <tr className="combo-head" data-stack={stack}>
       <td colSpan={span}>
-        <span className="stack-label" title={stack}>{rows[0].label}</span>
+        <span className="stack-label" data-tip={stack}>{rows[0].label}</span>
         <span className="small">{s.runs} run{s.runs === 1 ? "" : "s"}</span>
-        <span>{s.hoursPerStory === null ? "—" : `${s.hoursPerStory.toFixed(HOUR_DECIMALS)} h per story`} <span className="explain" title={EXPLAIN.hours}>?</span></span>
-        <span>held-out quality {s.quality === null ? "—" : `${Math.round(s.quality * PERCENT)}%`} <span className="explain" title={EXPLAIN.quality}>?</span></span>
+        <span>{s.hoursPerStory === null ? "—" : `${s.hoursPerStory.toFixed(HOUR_DECIMALS)} h per story`} <span className="explain" tabIndex={0} data-tip={EXPLAIN.hours} aria-label="What is hours per story?">?</span></span>
+        <span>held-out quality {s.quality === null ? "—" : `${Math.round(s.quality * PERCENT)}%`} <span className="explain" tabIndex={0} data-tip={EXPLAIN.quality} aria-label="What is held-out quality?">?</span></span>
       </td>
     </tr>
   );
@@ -88,7 +88,7 @@ export function MachineSection({ group, state, serverNow, scoreTotal }: Props) {
         <table>
           <colgroup>{COLUMNS.map(([name, width]) => <col key={name} style={{ width }} />)}</colgroup>
           <thead>
-            <tr>{COLUMNS.map(([name, , title]) => <th key={name} title={title}>{name === "Score" && scoreTotal ? `Score / ${scoreTotal}` : name}</th>)}</tr>
+            <tr>{COLUMNS.map(([name, , title]) => <th key={name} data-tip={title}>{name === "Score" && scoreTotal ? `Score / ${scoreTotal}` : name}</th>)}</tr>
           </thead>
           {byCombination(group.rows).map(([stack, rows]) => (
             <tbody key={stack}>

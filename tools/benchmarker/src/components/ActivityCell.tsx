@@ -20,7 +20,7 @@ export function ActivityCell({ row }: { row: Row }) {
   return (
     <>
       <div className="small">{bits.join(" · ")}</div>
-      {action ? <div className="log" title={action}>{action}</div> : null}
+      {action ? <div className="log" data-tip={action}>{action}</div> : null}
     </>
   );
 }

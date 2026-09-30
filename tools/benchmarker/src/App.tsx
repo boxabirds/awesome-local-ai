@@ -6,6 +6,7 @@ import { StoryView } from "./components/StoryView.tsx";
 import { MachinesTab } from "./components/MachinesTab.tsx";
 import { SetupTab } from "./components/SetupTab.tsx";
 import { CombinationsTable } from "./components/CombinationsTable.tsx";
+import { Tooltip } from "./components/Tooltip.tsx";
 import { StaleBanner } from "./components/StaleBanner.tsx";
 import { MachineSection } from "./components/MachineSection.tsx";
 import { scoreOf } from "../shared/stats.ts";
@@ -115,6 +116,7 @@ export function App() {
 
   return (
     <div className={stale ? "stale" : undefined}>
+      <Tooltip />
       <Header
         state={data}
         serverNow={serverNow}

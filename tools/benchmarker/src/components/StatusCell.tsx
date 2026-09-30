@@ -11,7 +11,7 @@ export function StatusCell({ row }: { row: Row }) {
   return (
     <>
       <div className={`status-word s-${row.status}`}>{row.status}</div>
-      {note ? <div className="small" title={note}>{note}</div> : null}
+      {note ? <div className="small" data-tip={note}>{note}</div> : null}
     </>
   );
 }
