@@ -70,7 +70,7 @@ requirements and its **must-nots**. Below, one row per finished build:
   | tests: `←` `→` (`⇧` finer) | scrub 5% of the recording (1%); at an end, on to the next / previous test (hold `→` to fly through the story) |
   | steps: `←` `→` (`⇧` finer) | scrub 5% (1%), stopping at the ends |
   | `Space` | play / pause |
-  | `=` · `-` | agree · disagree with the test, then on exactly like `→` (hold `=` to agree as you fly through) |
+  | `=` · `-` | agree · disagree, and on to the next test |
   | `.` `,` | next / previous frame |
   | `1`…`9` · `0` · `Home` `End` | jump to 10%…90% · the start · the ends |
   | `>` `<` | faster / slower |
@@ -81,6 +81,8 @@ requirements and its **must-nots**. Below, one row per finished build:
 
   Keys go by position for digits and `-` `=` `,` `.`, so shift and keyboard layouts don't change them.
   Cmd, Ctrl and Alt combinations are left to the browser.
+- **Your place is in the address** (`#story=…&key=…&idx=…&pane=…`). When the gallery restarts (for
+  example after a rebuild), an open review page reloads itself onto the new code and comes back to it.
 - **One run:** `/review?setup=<setup>&run=<run>` (the benchmarker's **Judge →** link) shows only that
   build, with a link to all of them. If the run isn't under review yet, the page waits for it.
 

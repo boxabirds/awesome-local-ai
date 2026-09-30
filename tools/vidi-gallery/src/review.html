@@ -112,8 +112,13 @@ function focusPane() {
 }
 document.addEventListener("focusin", e => {
   const p = e.target.closest?.("#nav") ? "stories" : e.target.closest?.("#builds") ? "tests" : e.target.closest?.("#steps") ? "steps" : null;
-  if (p) pane = p;
+  if (p && p !== pane) { pane = p; remember(); }
 });
+// The place (story, test, pane) in the address, so the reload after a gallery rebuild comes back to it.
+function remember() {
+  if (!S) return;
+  history.replaceState(null, "", location.pathname + location.search + placeToHash({story: sidNow(), key: cur?.key ?? null, idx: cur?.idx ?? null, pane}));
+}
 const builds = () => focus === null ? S.builds : S.builds.filter(b => b.key === focus);
 let cur = null;  // the selected path: {key, idx}
 const NOTE_SAVE_MS = 700, POLL_MS = 3000;
@@ -233,7 +238,7 @@ function renderStory() {
     <section style="margin-top:8px"><h2>Requirements (${s.requirements.length})</h2><ul>${s.requirements.map(r => `<li><b>${esc(r.title)}</b> <span class="muted small">${esc(r.anchor)}</span></li>`).join("")}</ul></section>
     </details>
     <div class="work"><div><div id="builds" tabindex="0" aria-label="Held-out tests"></div><div class="reveal" id="reveal"></div></div><div id="player"><section class="muted">Pick a path on the left (or press <kbd>j</kbd>) to play its recording.</section></div></div>
-    <div class="keys"><kbd>Tab</kbd> / <kbd>⇧Tab</kbd> move between stories, held-out tests and browser steps · <kbd>↑</kbd><kbd>↓</kbd> within one · <kbd>←</kbd><kbd>→</kbd> scrub, and on to the next test at the end · <kbd>=</kbd> agree / <kbd>-</kbd> disagree, then on · <kbd>Space</kbd> play · <kbd>?</kbd> all keys<br>
+    <div class="keys"><kbd>Tab</kbd> / <kbd>⇧Tab</kbd> move between stories, held-out tests and browser steps · <kbd>↑</kbd><kbd>↓</kbd> within one · <kbd>←</kbd><kbd>→</kbd> scrub, and on to the next test at the end · <kbd>=</kbd> agree / <kbd>-</kbd> disagree and on to the next test · <kbd>Space</kbd> play · <kbd>?</kbd> all keys<br>
     A verdict says whether <b>you agree with the automated result</b> of that path, having watched it. Each build opens as it was after story ${s.review_build}. Reviews save to <code>${esc(S.file)}</code>.</div>`;
   renderBuilds();
 }
@@ -242,7 +247,7 @@ async function go(i) {
   story = Math.max(0, Math.min(i, S.stories.length - 1)); cur = null; stopPlayer();
   await fetch(`/api/review/story/${sidNow()}`, {method: "POST"});
   status = {}; await poll(); await loadPaths();
-  renderNav(); renderStory();
+  renderNav(); renderStory(); remember();
 }
 
 // ---------- the player ----------
@@ -261,7 +266,7 @@ function flat() {  // every (key, idx) in page order, for j/k
 }
 
 async function select(key, idx) {
-  cur = {key, idx}; renderBuilds();
+  cur = {key, idx}; renderBuilds(); remember();
   document.querySelector(".prow.on")?.scrollIntoView({block: "nearest"});
   stopPlayer();
   const sid = sidNow(), p = paths(sid, key)[idx];
@@ -499,7 +504,7 @@ const KEYS = [
   ["Tests: ← →", "scrub 5% (⇧: 1%); at an end, on to the next / previous test: hold → to fly through"],
   ["Steps: ← →", "scrub 5% (⇧: 1%)"],
   ["Space", "play / pause"],
-  ["= -", "agree / disagree, then on like → (hold = to agree as you fly through)"],
+  ["= -", "agree / disagree, and on to the next test"],
   [". ,", "next / previous frame"],
   ["1 … 9 · 0", "jump to 10% … 90% · the start"],
   ["Home End", "start / end"],
@@ -551,7 +556,7 @@ async function act(a) {
     case "pane":
       if (a.to === "tests" && !cur) { const f = flat(); if (f.length) await select(f[0].key, f[0].idx); }
       if (a.to === "steps" && !$("steps")) return;  // nothing playing yet
-      pane = a.to; paneEl(pane)?.focus({preventScroll: true}); return;
+      pane = a.to; paneEl(pane)?.focus({preventScroll: true}); remember(); return;
     case "path": return movePath(a.dir);
     case "story": return go(story + a.dir);
     case "play": return togglePlay();
@@ -616,8 +621,16 @@ document.addEventListener("keydown", e => {
     ? `judging <b>${esc(one.label)}</b>${S.builds.length > 1 ? ` · <a href="/review">all ${S.builds.length} builds</a>` : " (the only one under review)"} · <kbd>?</kbd> keys`
     : (want.get("run") && !S.blind ? `<span class="fail">${esc(want.get("setup"))} · ${esc(want.get("run"))} isn't under review (it must be finished, scored and have its workspace.bundle, in ${esc(S.family)})</span> · ` : "")
       + `${S.builds.length} ${esc(S.family)} builds · ${S.blind ? "blind (letters are shuffled each session)" : "labelled"} · <kbd>?</kbd> keys`;
-  await go(0);
+  // Back to where the address says (a reload after the gallery was rebuilt), else the first story.
+  const at = placeFromHash(location.hash);
+  const si = S.stories.findIndex(x => x.id === at.story);
+  await go(si >= 0 ? si : 0);
+  if (at.key !== null && at.idx !== null && builds().some(b => b.key === at.key)) await select(at.key, at.idx);
+  if (at.pane) { pane = at.pane; focusPane(); remember(); }
   setInterval(async () => {
+    // The gallery was restarted (rebuilt): reload into the new page, keeping the place.
+    const now = await fetch("/api/review/started").then(r => r.json()).catch(() => null);
+    if (now && now.started !== S.started) { remember(); location.reload(); return; }
     const before = JSON.stringify([status, builds().map(b => pathsCache[`${sidNow()}:${b.key}`]?.state)]);
     await poll(); await loadPaths();
     // The list only: the player keeps playing.

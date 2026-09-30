@@ -72,6 +72,17 @@ const SCRUB = 0.05;           // - = and left/right in the tests and steps panes
 const FINE_SCRUB = 0.01;      // with shift: 1%
 const TENTHS = 10;            // digits jump to tenths of the recording
 
+// The place in the review, kept in the address so a reload (the gallery rebuilt) comes back to it.
+function placeToHash({ story, key, idx, pane }) {
+  const parts = [["story", story], ["key", key], ["idx", idx], ["pane", pane]].filter(([, v]) => v !== null && v !== undefined);
+  return "#" + parts.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
+}
+function placeFromHash(hash) {
+  const q = new URLSearchParams((hash || "").replace(/^#/, ""));
+  const num = k => (q.has(k) && /^\d+$/.test(q.get(k)) ? Number(q.get(k)) : null);
+  return { story: num("story"), key: num("key"), idx: num("idx"), pane: PANES.includes(q.get("pane")) ? q.get("pane") : null };
+}
+
 // Where a scrub of frac from seek-bar position pos lands: {pos} on the bar, or, with cross, {path: ±1} for the
 // next or previous test when the press starts at that end. A press that reaches an end stops there first.
 const END_EPS = 1e-6;
@@ -123,9 +134,9 @@ function keyAction(e, pane) {
     case "Space": return { do: "play" };
     case "Period": return shift ? { do: "speed", dir: 1 } : { do: "frame", dir: 1 };
     case "Comma": return shift ? { do: "speed", dir: -1 } : { do: "frame", dir: -1 };
-    // = agrees and - disagrees with the test, then each goes on like the right arrow.
-    case "Equal": return pane === "stories" ? null : { do: "verdict", v: "agree", scrub: step(1) };
-    case "Minus": return pane === "stories" ? null : { do: "verdict", v: "disagree", scrub: step(1) };
+    // = agrees and - disagrees with the test, and each goes straight on to the next test.
+    case "Equal": return pane === "stories" ? null : { do: "verdict", v: "agree", next: true };
+    case "Minus": return pane === "stories" ? null : { do: "verdict", v: "disagree", next: true };
     case "Home": return { do: "jump", frac: 0 };
     case "End": return { do: "jump", frac: 1 };
     case "KeyA": return { do: "verdict", v: "agree", next: true };
@@ -139,4 +150,4 @@ function keyAction(e, pane) {
   }
 }
 
-if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, nextFrame, keyAction, scrubStep, PANES, SCRUB, FINE_SCRUB };
+if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, nextFrame, keyAction, scrubStep, placeToHash, placeFromHash, PANES, SCRUB, FINE_SCRUB };
