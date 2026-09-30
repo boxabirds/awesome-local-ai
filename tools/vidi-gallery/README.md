@@ -65,7 +65,7 @@ requirements and its **must-nots**. Below, one row per finished build:
   | `Space` | play / pause |
   | `→` `←` · `⇧→` `⇧←` | next / previous check · step |
   | `.` `,` | next / previous frame |
-  | `=` `-` · `⇧=` `⇧-` | scrub a second · a tenth of a second (hold to keep going) |
+  | `=` `-` · `⇧=` `⇧-` | scrub 5% · 1% of the recording (hold to keep going) |
   | `1`…`9` · `0` · `Home` `End` | jump to 10%…90% · the start · the ends |
   | `>` `<` | faster / slower |
   | `Return` · `⇧Return` | agree and on to the next path · disagree and write why |
