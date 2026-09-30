@@ -9,6 +9,7 @@ import { StatusCell } from "./StatusCell.tsx";
 import { StoryCell } from "./StoryCell.tsx";
 import { TimeCell } from "./TimeCell.tsx";
 import { SpeedCell, StoryUsageTable, TokensCell } from "./UsageCells.tsx";
+import { RunLink } from "./EntityLinks.tsx";
 
 interface Props { row: Row; state: State; serverNow: number | null; columns: number }
 
@@ -22,7 +23,7 @@ export function RunRow({ row, state, serverNow, columns }: Props) {
         <div className="stack-label" data-tip={row.stack}>{row.label}</div>
         <div className="run">
           <button type="button" className="expand" aria-expanded={open} aria-label={`per-story detail for ${row.runId}`}>{open ? "▾" : "▸"}</button>
-          {row.runId}
+          <span onClick={(e) => e.stopPropagation()}><RunLink pack={row.pack} stack={row.stack} runId={row.runId} /></span>
         </div>
         <div className="small mono">{row.packVersion || row.suite}</div>
       </td>

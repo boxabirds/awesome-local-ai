@@ -51,6 +51,46 @@ export interface RunUsage {
   prefillTokS: number | null;
 }
 
+/** What the agent's conversation on one story looked like, counted from its event log by the harness (no LLM):
+ * metrics.json's per-story "conversation". Sizes are characters; context is tokens. */
+export interface ConversationProfile {
+  /** Model calls, and the tool calls they made. */
+  calls: number;
+  toolCalls: number;
+  thinkingChars: number;
+  textChars: number;
+  /** Characters of tool arguments: file contents written, edits, commands. */
+  toolArgChars: number;
+  /** Median thinking characters per model call; and before and after the largest thinking block. */
+  thinkingMedian: number;
+  thinkingMedianBefore: number | null;
+  thinkingMedianAfter: number | null;
+  /** The single largest thinking block: its size, the call it was in (1-based), and seconds into the story. */
+  largestThinking: { chars: number; call: number; atS: number } | null;
+  /** Context the model read on its first and last call, and the largest jump between two consecutive calls. */
+  contextStart: number | null;
+  contextEnd: number | null;
+  largestContextJump: { tokens: number; call: number } | null;
+  toolsByName: Record<string, number>;
+  /** Tool calls that returned an error; shell commands that exited non-zero. */
+  toolErrors: number;
+  /** The longest single tool call, in seconds, and what it ran. */
+  longestTool: { seconds: number; name: string; gist: string } | null;
+  /** Signs the harness saw on their own (not relative to other runs): "long-thinking-block", "hung-command". */
+  signals: string[];
+}
+
+/** One dbench job of a run: a run restarted twice has three. */
+export interface JobRef {
+  id: string;
+  node: string;
+  status: string;
+  /** Unix seconds. */
+  submittedAt: number | null;
+  updatedAt: number | null;
+  reason: string;
+}
+
 /** One finished story of a run. */
 export interface Story {
   id: string;
@@ -65,6 +105,8 @@ export interface Story {
   /** Every story's own tests against the build after this story, keyed "1", "2", …; null if not recorded. */
   byStory?: Record<string, { passed: number | null; total: number | null }> | null;
   usage?: Usage | null;
+  /** The conversation's profile; null for a story recorded before the harness kept one, or a client whose log it can't read. */
+  conversation?: ConversationProfile | null;
 }
 
 export interface QueuePlace {
@@ -147,6 +189,8 @@ export interface Row {
   hasBundle: boolean;
   stages: Stages;
   live: Live | null;
+  /** Every dbench job of this run, oldest first. */
+  jobs: JobRef[];
 }
 
 /** One dbench node: the job it runs now (null: idle) and how many wait behind it. */

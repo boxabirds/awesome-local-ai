@@ -3,6 +3,7 @@ import type { Row } from "../../shared/types.ts";
 import { combinations, type Combination } from "../../shared/stats.ts";
 import { short } from "./UsageCells.tsx";
 import { qualityClass } from "../format.ts";
+import { CombinationLink } from "./EntityLinks.tsx";
 
 const PERCENT = 100;
 const HOUR_DECIMALS = 1;
@@ -24,7 +25,7 @@ const COLUMNS: { head: string; cls: string; title: string; value: (c: Combinatio
 
 function cell(c: Combination, cls: string) {
   switch (cls) {
-    case "combo": return <span className="stack-label" data-tip={c.stack}>{c.label}</span>;
+    case "combo": return <span className="stack-label"><CombinationLink pack={c.pack} stack={c.stack} label={c.label} /></span>;
     case "machines": return c.machines.join(", ");
     case "runs": return STATUS_ORDER.filter((s) => c.byStatus[s]).map((s) => `${c.byStatus[s]} ${s}`).join(" · ");
     case "quality": return c.stats.quality === null ? "—" : <span className={`num-xl ${qualityClass(c.stats.quality)}`}>{Math.round(c.stats.quality * PERCENT)}%</span>;

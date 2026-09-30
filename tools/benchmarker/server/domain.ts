@@ -1,5 +1,5 @@
 // Pure logic: from repo paths, run records and dbench jobs to the rows the page shows. No I/O here.
-import type { Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, Usage, Score, Stages, Story } from "../shared/types.ts";
+import type { ConversationProfile, JobRef, Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, Usage, Score, Stages, Story } from "../shared/types.ts";
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
 export const RECENT_S = 24 * 3600;
@@ -147,6 +147,22 @@ export function indexJobs(byNode: Record<string, DbenchJob[]>): Map<string, Node
   return idx;
 }
 
+/** Every job of each run, keyed as indexJobs keys them, oldest first. */
+export function jobsByRun(byNode: Record<string, DbenchJob[]>): Map<string, JobRef[]> {
+  const out = new Map<string, JobRef[]>();
+  for (const [node, jobs] of Object.entries(byNode)) {
+    for (const j of jobs) {
+      const key = jobKey(jobStack(j), packName(j.spec.pack), j.spec.run_id ?? "");
+      out.set(key, [...(out.get(key) ?? []), {
+        id: j.id, node, status: j.state.status ?? "", submittedAt: j.submitted_at ?? null, updatedAt: j.updated_at ?? null,
+        reason: j.state.reason ?? "",
+      }]);
+    }
+  }
+  for (const js of out.values()) js.sort((a, b) => (a.submittedAt ?? 0) - (b.submittedAt ?? 0) || a.id.localeCompare(b.id));
+  return out;
+}
+
 /** "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi" -> "3.8-swift-1.5/27b". */
 export function shortStack(combination: string): string {
   const parts = combination.split("/");
@@ -283,7 +299,29 @@ export function runUsage(stories: Story[]): RunUsage {
   };
 }
 
-export function storyEntry(id: string, raw: { title?: string; status?: string; accept?: RawAccept | null } & RawUsage): Story {
+/** metrics.json's per-story "conversation", as the harness writes it (conversation.py). */
+export interface RawConversation {
+  version?: number; calls?: number; tool_calls?: number; thinking_chars?: number; text_chars?: number; tool_arg_chars?: number;
+  thinking_median?: number; thinking_median_before?: number | null; thinking_median_after?: number | null;
+  largest_thinking?: { chars: number; call: number; at_s: number } | null; context_start?: number | null; context_end?: number | null;
+  largest_context_jump?: { tokens: number; call: number } | null; tools_by_name?: Record<string, number>; tool_errors?: number;
+  longest_tool?: { seconds: number; name: string; gist: string } | null; signals?: string[];
+}
+
+function conversationOf(c: RawConversation | undefined | null): ConversationProfile | null {
+  if (!c || c.calls == null) return null;
+  return {
+    calls: c.calls, toolCalls: c.tool_calls ?? 0, thinkingChars: c.thinking_chars ?? 0, textChars: c.text_chars ?? 0,
+    toolArgChars: c.tool_arg_chars ?? 0, thinkingMedian: c.thinking_median ?? 0,
+    thinkingMedianBefore: c.thinking_median_before ?? null, thinkingMedianAfter: c.thinking_median_after ?? null,
+    largestThinking: c.largest_thinking ? { chars: c.largest_thinking.chars, call: c.largest_thinking.call, atS: c.largest_thinking.at_s } : null,
+    contextStart: c.context_start ?? null, contextEnd: c.context_end ?? null,
+    largestContextJump: c.largest_context_jump ?? null, toolsByName: c.tools_by_name ?? {}, toolErrors: c.tool_errors ?? 0,
+    longestTool: c.longest_tool ?? null, signals: c.signals ?? [],
+  };
+}
+
+export function storyEntry(id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null } & RawUsage): Story {
   const acc = raw.accept ?? {};
   const own = acc.by_story?.[/^\d+$/.test(id) ? id.padStart(2, "0") : id] ?? {};
   return {
@@ -296,6 +334,7 @@ export function storyEntry(id: string, raw: { title?: string; status?: string; a
     ownTotal: own.total ?? null,
     byStory: acc.by_story ? normaliseByStory(acc.by_story) : null,
     usage: usageOf(raw),
+    conversation: conversationOf(raw.conversation),
   };
 }
 
@@ -398,6 +437,7 @@ export function buildRows(
   flowCounts: Record<string, Record<string, number>> = {},
 ): Row[] {
   const queue = queuePositions(byNode);
+  const allJobs = jobsByRun(byNode);
   return assignMachines(mergeRows(records, indexJobs(byNode), now).map(({ job, ...r }) => {
     const suite = suites[r.pack] ?? "";
     const stories = job ? mergeStories(r.stories, job.progress?.stories) : r.stories;
@@ -420,6 +460,7 @@ export function buildRows(
         r.rescored?.[suite],
       ),
       live: job ? liveFromJob(job, queue.get(job.id)) : null,
+      jobs: allJobs.get(jobKey(r.stack, r.pack, r.runId)) ?? [],
     };
   }));
 }

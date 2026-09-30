@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Row, Usage } from "../../shared/types.ts";
 import { short } from "./UsageCells.tsx";
 import { TimeBars } from "./TimeBars.tsx";
+import { CombinationLink, RunLink, StoryRunLink } from "./EntityLinks.tsx";
 
 const SAVED_KEY = "benchmarker:story-view:v1";
 const PERCENT = 100;
@@ -94,7 +95,7 @@ export function StoryView({ rows, hidden = [] }: { rows: Row[]; hidden?: string[
               return (
                 <tr key={key} data-stack={r.stack} data-run={r.runId} aria-selected={selected === key}
                     data-comparison={isBase ? "true" : undefined} onClick={() => setSelected(selected === key ? null : key)}>
-                  <td><div className="stack-label">{r.label}</div><div className="run">{r.runId}</div><div className="small">{r.machine}</div></td>
+                  <td><div className="stack-label"><CombinationLink pack={r.pack} stack={r.stack} label={r.label} /></div><div className="run"><RunLink pack={r.pack} stack={r.stack} runId={r.runId} /> · <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={story.id}>story {story.id}</StoryRunLink></div><div className="small">{r.machine}</div></td>
                   <td>{q && q.total ? `${q.passed}/${q.total}` : "—"}</td>
                   {MEASURES.map((m) => <td key={m.cls} className={m.cls}>{cell(s?.usage, m, isBase)}</td>)}
                 </tr>

@@ -29,6 +29,7 @@ export function scoreOf(row: Row): [string, Score] | null {
 }
 
 export interface Combination {
+  pack: string;
   stack: string;
   label: string;
   machines: string[];
@@ -54,7 +55,7 @@ export function combinations(rows: Row[]): Combination[] {
     const byStatus: Record<string, number> = {};
     for (const r of rs) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
     return {
-      stack, label: rs[0].label, machines: [...new Set(rs.map((r) => r.machine))].toSorted(), byStatus, stats: comboStats(rs),
+      pack: rs[0].pack, stack, label: rs[0].label, machines: [...new Set(rs.map((r) => r.machine))].toSorted(), byStatus, stats: comboStats(rs),
       tokS: secs > 0 ? sum((u) => u.outTokens) / secs : null,
       callsPerStory: us.length ? sum((u) => u.calls) / us.length : null,
       readPerStory: us.length ? sum((u) => u.readTokens) / us.length : null,

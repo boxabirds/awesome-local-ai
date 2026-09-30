@@ -12,7 +12,6 @@ import { BRANCH, git, loadFlowCounts, loadJobs, loadRuns } from "./sources.ts";
 import { fakeOps, realOps, type Ops } from "./ops.ts";
 
 const HERE = import.meta.dirname;
-const DIST = resolve(HERE, "../dist");
 const DEFAULT_PORT = 7760; // clear of the gallery (7800-7999) and the benchmark (8787, 18010-19811)
 const FETCH_EVERY_MS = 60_000;
 const DBENCH_EVERY_MS = 10_000;
@@ -29,8 +28,11 @@ const { values: args } = parseArgs({
     // The private held-out suite, for the number of flows in each suite version (default: next to the repo).
     private: { type: "string" },
     fixture: { type: "string" },
+    // The built page to serve. The live page serves dist/ (a release); tests and work in progress use dist-test/.
+    dist: { type: "string", default: resolve(HERE, "../dist") },
   },
 });
+const DIST = resolve(args.dist!);
 
 interface Sources {
   records: RunRecord[];

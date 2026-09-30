@@ -12,6 +12,12 @@ import { MachineSection } from "./components/MachineSection.tsx";
 import { scoreOf } from "../shared/stats.ts";
 import { groupByMachine } from "../shared/grouping.ts";
 import { useBenchState } from "./useBenchState.ts";
+import { useRoute } from "./router.ts";
+import { overviewHref } from "../shared/routes.ts";
+import { RunPage } from "./pages/RunPage.tsx";
+import { StoryRunPage } from "./pages/StoryRunPage.tsx";
+import { CombinationPage } from "./pages/CombinationPage.tsx";
+import { NotFound } from "./pages/NotFound.tsx";
 
 const SAVED_KEY = "benchmarker:v2"; // versioned: selections saved by older builds are ignored
 const ALL = "all";
@@ -78,11 +84,16 @@ function pickFamily(families: string[], current: string, wanted: string | undefi
 
 export function App() {
   const { data, error, age, stale, serverNow } = useBenchState();
+  const route = useRoute();
   const [choice, setChoice] = useState<Partial<Selection>>(loadSaved);
   const [hidden, setHidden] = useState<Set<RunStatus>>(loadHidden);
   const [view, setView] = useState<View>(loadView);
   const [tab, setTab] = useState<Tab>(loadTab);
-  const chooseTab = (t: Tab) => { setTab(t); try { localStorage.setItem(TAB_KEY, t); } catch { /* not remembered */ } };
+  const chooseTab = (t: Tab) => {
+    setTab(t);
+    if (route.page !== "overview") location.hash = overviewHref();  // the tabs are the overview's
+    try { localStorage.setItem(TAB_KEY, t); } catch { /* not remembered */ }
+  };
   const chooseView = (v: View) => { setView(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* not remembered */ } };
 
   if (!data) {
@@ -129,9 +140,9 @@ export function App() {
         onFamily={(f) => choose({ pack, family: f })}
       >
         <div className="tabs" role="tablist" aria-label="Sections">
-          {TABS.map(([t, name]) => <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => chooseTab(t)}>{name}</button>)}
+          {TABS.map(([t, name]) => <button key={t} type="button" role="tab" aria-selected={route.page === "overview" && tab === t} onClick={() => chooseTab(t)}>{name}</button>)}
         </div>
-        {tab !== "runs" ? null : <>
+        {tab !== "runs" || route.page !== "overview" ? null : <>
         <div className="view-switch" role="group" aria-label="View">
           <button type="button" aria-pressed={view === "machine"} className="chip" onClick={() => chooseView("machine")}>By machine</button>
           <button type="button" aria-pressed={view === "story"} className="chip" onClick={() => chooseView("story")}>By story</button>
@@ -141,6 +152,7 @@ export function App() {
       </Header>
       <StaleBanner stale={stale} age={age} error={error} />
       <main>
+        {route.page !== "overview" ? <EntityPage route={route} state={data} serverNow={serverNow} /> : <>
         {tab === "runs" ? <CombinationsTable rows={shown} /> : null}
         {tab === "machines" ? <MachinesTab state={data} /> : tab === "setup" ? <SetupTab /> : view === "story" ? <StoryView rows={shown} hidden={[...hidden]} /> : (
           <>
@@ -153,7 +165,28 @@ export function App() {
         {shown.length === 0 ? <p className="empty">No runs for this pack, version and status.</p> : null}
           </>
         )}
+        </>}
       </main>
     </div>
   );
+}
+
+/** A page of its own for one entity, found in the whole state (not only what the overview's filters show). */
+function EntityPage({ route, state, serverNow }: { route: Exclude<ReturnType<typeof useRoute>, { page: "overview" }>; state: NonNullable<ReturnType<typeof useBenchState>["data"]>; serverNow: number | null }) {
+  switch (route.page) {
+    case "combination": {
+      const runs = state.rows.filter((r) => r.pack === route.pack && r.stack === route.stack);
+      return runs.length ? <CombinationPage stack={route.stack} runs={runs} state={state} serverNow={serverNow} /> : <NotFound what={`combination ${route.stack}`} />;
+    }
+    case "run":
+    case "storyRun": {
+      const run = state.rows.find((r) => r.pack === route.pack && r.stack === route.stack && r.runId === route.runId);
+      if (!run) return <NotFound what={`run ${route.runId} of ${route.stack}`} />;
+      if (route.page === "run") return <RunPage run={run} state={state} serverNow={serverNow} />;
+      const story = run.stories.find((s) => s.id === route.story) ?? null;
+      return <StoryRunPage run={run} story={story} storyId={route.story} state={state} serverNow={serverNow} />;
+    }
+    case "notFound":
+      return <NotFound what={`page at "${route.path}"`} />;
+  }
 }
