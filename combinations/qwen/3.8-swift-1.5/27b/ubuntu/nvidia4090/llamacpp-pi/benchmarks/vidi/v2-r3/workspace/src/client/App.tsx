@@ -9,20 +9,36 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import {
   createSticky,
   deleteObject,
   setStickyColor,
 } from '../shared/board-model';
+import { newBoardId } from '../shared/board-id';
 import { STICKY_SIZE_WORLD, type StickyColor } from '../shared/config';
 import { useState, useEffect, useRef, useCallback } from 'react';
+
+function getBoardIdFromPath(): string | null {
+  const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]{22})$/);
+  return match ? match[1] : null;
+}
 
 export function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const cam = useCamera(viewport);
 
-  const { doc, notes } = useBoardDoc();
+  // Read board ID from URL; redirect to a new board if on `/`
+  const [boardId] = useState<string | null>(() => {
+    const id = getBoardIdFromPath();
+    if (id) return id;
+    const newId = newBoardId();
+    window.history.replaceState(null, '', `/b/${newId}`);
+    return newId;
+  });
+
+  const { doc, notes, connectionState } = useBoardDoc(boardId ?? undefined);
   const sel = useSelection();
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -122,6 +138,16 @@ export function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [selectedId, editingId, sel, handleDeleteSelected]);
 
+  // Clear selection/editing when a note is deleted remotely
+  useEffect(() => {
+    if (selectedId && !notes.some((n) => n.id === selectedId)) {
+      sel.select(null);
+    }
+    if (editingId && !notes.some((n) => n.id === editingId)) {
+      sel.endEdit('unselected');
+    }
+  }, [notes, selectedId, editingId, sel]);
+
   // Render notes in a stable order (by id) so that changing a note's z (e.g.
   // bringToFront during a drag) only changes its z-index and never reorders the
   // DOM. Reordering a DOM node mid-drag would reset the active pointer capture.
@@ -143,6 +169,7 @@ export function App() {
 
   return (
     <div ref={containerRef} style={{ position: 'fixed', inset: 0 }}>
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={cam.camera}
         beginPan={cam.beginPan}

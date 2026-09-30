@@ -17,4 +17,31 @@ export default defineWorkspace([
       include: ['tests/component/**/*.test.tsx'],
     },
   },
+  {
+    test: {
+      name: 'integration',
+      include: ['tests/integration/**/*.test.ts'],
+      pool: '@cloudflare/vitest-pool-workers',
+      poolOptions: {
+        workers: {
+          main: './src/worker/index.ts',
+          wranglerConfigPath: './wrangler.jsonc',
+          miniflare: {
+            compatibilityDate: '2025-01-01',
+            durableObjects: {
+              BOARD_ROOM: 'BoardRoom',
+            },
+            assets: {
+              directory: './dist/client',
+            },
+          },
+        },
+      },
+      server: {
+        deps: {
+          external: [/cloudflare:test/, /cloudflare:workers/],
+        },
+      },
+    },
+  },
 ]);
