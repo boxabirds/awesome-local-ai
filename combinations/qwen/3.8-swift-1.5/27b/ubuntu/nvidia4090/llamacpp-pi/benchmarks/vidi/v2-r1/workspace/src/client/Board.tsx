@@ -12,19 +12,28 @@ import { useSelection } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { useBoardKeys } from './board/useBoardKeys';
+import { useTool } from './board/useTool';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
 import { createUndo, type UndoController } from './board/undo';
 import { useUndo } from './board/useUndo';
 import { getObjectType } from './objects/registry';
+import { syncTextBox } from './objects/useTextBoxSync';
+import { defaultMeasurer } from './objects/textLayout';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
 import {
   createSticky, deleteObjects, setStickyColor,
 } from '@shared/board-model';
-import type { StickyColor } from '@shared/config';
+import { createText, setTextSize } from '@shared/objects/text';
+import type { StickyColor, TextSize } from '@shared/config';
 import type { Point } from './canvas/camera';
+
+// Story 6 (presence/identity) is out of scope for this build; the text
+// model's `createdBy` needs a stable per-tab session id, so we generate one
+// here (stable for the life of the tab).
+const SESSION_ID = crypto.randomUUID();
 
 /**
  * Story 7 board UI: multi-object selection, group move, bounding-box
@@ -57,6 +66,9 @@ export function Board(props: { boardId: string }) {
   }, [cam, doc]);
 
   const editAllowed = canEdit(connectionState);
+
+  // Story 9: active tool (Select / Text).
+  const toolState = useTool(editAllowed);
 
   // Story 8: create one undo controller per board doc.
   const undoCtrlRef = useRef<UndoController | null>(null);
@@ -99,6 +111,13 @@ export function Board(props: { boardId: string }) {
       gestureStartedRef.current = false;
       undoController?.boundary();
     },
+    // Story 9: after a handle resize that touched text objects, re-measure
+    // their height from the (possibly new fixed) width. Runs before the
+    // end boundary so the box write lands in the same capture window as
+    // the drag (PRD text.undo / text.height).
+    onTextsResized: (ids) => {
+      for (const id of ids) syncTextBox(doc, id, defaultMeasurer);
+    },
   });
 
   // Marquee: Shift+drag over empty space adds fully-contained objects.
@@ -106,23 +125,6 @@ export function Board(props: { boardId: string }) {
     (ids: string[]) => selection.setMany(ids, true),
     [selection],
   ));
-
-  // Board-level keyboard shortcuts.
-  useBoardKeys({
-    doc,
-    selection,
-    snapshot: objects,
-    canEdit: editAllowed,
-    isBusy: () => gestureStartedRef.current,
-    isMarqueeActive: () => marquee.rect !== null,
-    onEscape: () => {
-      marquee.cancel();
-      selection.clear();
-    },
-    onUndo: () => undoController?.undo(),
-    onRedo: () => undoController?.redo(),
-    isEditing: () => selection.editingId !== null,
-  });
 
   // Create a sticky note at a world point
   const createStickyAt = useCallback((worldPoint: Point) => {
@@ -154,6 +156,51 @@ export function Board(props: { boardId: string }) {
     selection.clear();
   }, [selection]);
 
+  // Board-level keyboard shortcuts (after the handlers they reference).
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editAllowed,
+    isBusy: () => gestureStartedRef.current,
+    isMarqueeActive: () => marquee.rect !== null,
+    onEscape: () => {
+      marquee.cancel();
+      selection.clear();
+    },
+    onUndo: () => undoController?.undo(),
+    onRedo: () => undoController?.redo(),
+    isEditing: () => selection.editingId !== null,
+    onToolChange: toolState.setTool,
+    onCreateStickyAtCentre: handleCreateSticky,
+  });
+
+  // Story 9: create a text object at a SCREEN point (Text tool click):
+  // top-left at the converted world point, tool reverts to Select, the new
+  // object enters Editing immediately (PRD text.create / tool.mode).
+  const handleTextCreate = useCallback((screenPoint: Point) => {
+    if (!canEdit(connectionState)) return;
+    const worldPoint = screenToWorld(cam.camera, screenPoint);
+    const id = createText(doc, worldPoint, SESSION_ID);
+    if (id) {
+      undoController?.boundary();
+      toolState.setTool('select');
+      selection.startEdit(id);
+    }
+  }, [cam.camera, doc, selection, connectionState, toolState, undoController]);
+
+  // Story 9: size preset from the single-text toolbar (PRD text.size).
+  // x/y are untouched; the box is re-measured in the same capture window.
+  const handleTextSize = useCallback((size: TextSize) => {
+    if (selection.ids.size !== 1 || !editAllowed) return;
+    const [id] = selection.ids;
+    undoController?.boundary();
+    if (setTextSize(doc, id, size)) {
+      syncTextBox(doc, id, defaultMeasurer);
+    }
+    undoController?.boundary();
+  }, [doc, selection, editAllowed, undoController]);
+
   // Handle colour change from the single-note toolbar
   const handleColorChange = useCallback((color: StickyColor) => {
     if (selection.ids.size === 1 && editAllowed) {
@@ -174,8 +221,16 @@ export function Board(props: { boardId: string }) {
 
   // Object props for the registry components
   const onObjectPointerDown = useCallback(
-    (e: React.PointerEvent, id: string) => gesture.onObjectPointerDown(e, id),
-    [gesture],
+    (e: React.PointerEvent, id: string) => {
+      // Story 9: with the Text tool active, clicking an existing object
+      // creates text on top at that point (PRD text.create).
+      if (toolState.tool === 'text' && canEdit(connectionState)) {
+        handleTextCreate({ x: e.clientX, y: e.clientY });
+        return;
+      }
+      gesture.onObjectPointerDown(e, id);
+    },
+    [gesture, toolState.tool, connectionState, handleTextCreate],
   );
   const onStartEdit = useCallback((id: string) => {
     if (editAllowed) selection.startEdit(id);
@@ -206,6 +261,8 @@ export function Board(props: { boardId: string }) {
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
         onMarqueeCancel={marquee.cancel}
+        textToolActive={toolState.tool === 'text'}
+        onTextCreate={handleTextCreate}
       >
         {objects.map((obj) => {
           const spec = getObjectType(obj.type);
@@ -242,9 +299,12 @@ export function Board(props: { boardId: string }) {
           snapshot={objects}
           onDelete={handleDelete}
           onColor={handleColorChange}
+          onTextSize={handleTextSize}
         />
       </div>
       <Toolbar
+        tool={toolState.tool}
+        onToolChange={toolState.setTool}
         onCreateSticky={handleCreateSticky}
         disabled={!editAllowed}
         canUndo={undoState.canUndo}

@@ -175,7 +175,7 @@ test.describe('Sticky notes - Brainstorm golden path', () => {
     await setCamera(page, -5000, -5000, 1);
     
     // Click the Sticky note button
-    await page.getByLabel('Sticky note').click();
+    await page.getByLabel('Sticky note (N)').click();
     
     // A note should be visible at the centre of the screen
     const note = page.getByTestId('sticky-note');

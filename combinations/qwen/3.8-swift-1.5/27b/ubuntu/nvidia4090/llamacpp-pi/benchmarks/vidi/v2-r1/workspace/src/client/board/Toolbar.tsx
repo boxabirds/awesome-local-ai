@@ -1,6 +1,11 @@
+import type { CSSProperties } from 'react';
 import { UndoButtons } from './UndoButtons';
+import type { Tool } from './useTool';
 
 interface ToolbarProps {
+  /** Story 9: the active tool (Select / Text). */
+  tool: Tool;
+  onToolChange: (t: Tool) => void;
   onCreateSticky: () => void;
   disabled?: boolean;
   canUndo?: boolean;
@@ -9,7 +14,24 @@ interface ToolbarProps {
   onRedo?: () => void;
 }
 
-export function Toolbar({ onCreateSticky, disabled, canUndo, canRedo, onUndo, onRedo }: ToolbarProps) {
+function toolButtonStyle(active: boolean, disabled: boolean): CSSProperties {
+  return {
+    width: 40,
+    height: 40,
+    border: '1px solid rgba(0,0,0,0.1)',
+    borderRadius: 6,
+    backgroundColor: active ? '#2196F3' : disabled ? '#e0e0e0' : '#fff',
+    color: active ? '#fff' : '#333',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: 16,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: disabled && !active ? 0.6 : 1,
+  };
+}
+
+export function Toolbar({ tool, onToolChange, onCreateSticky, disabled, canUndo, canRedo, onUndo, onRedo }: ToolbarProps) {
   const handlePointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
   };
@@ -34,9 +56,30 @@ export function Toolbar({ onCreateSticky, disabled, canUndo, canRedo, onUndo, on
       }}
     >
       <button
-        aria-label="Sticky note"
+        aria-label="Select (V)"
+        aria-pressed={tool === 'select'}
+        data-testid="tool-select"
+        title="Select (V)"
+        onClick={() => onToolChange('select')}
+        style={toolButtonStyle(tool === 'select', false)}
+      >
+        ⬚
+      </button>
+      <button
+        aria-label="Text (T)"
+        aria-pressed={tool === 'text'}
+        data-testid="tool-text"
+        title="Text (T) – click the board to write"
+        disabled={disabled}
+        onClick={() => onToolChange('text')}
+        style={toolButtonStyle(tool === 'text', Boolean(disabled))}
+      >
+        T
+      </button>
+      <button
+        aria-label="Sticky note (N)"
         data-testid="create-sticky"
-        title="Sticky note – or double-click the board"
+        title="Sticky note (N) – or double-click the board"
         onClick={onCreateSticky}
         disabled={disabled}
         style={{

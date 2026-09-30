@@ -18,6 +18,9 @@ const HANDLE_META: Record<Handle, { dx: number; dy: number; cursor: string; labe
 };
 
 const ALL_HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+// Story 9: text objects expose only east/west handles (height is derived
+// from content, never scaled by a handle; PRD text.resize).
+const HORIZONTAL_HANDLES: Handle[] = ['e', 'w'];
 
 interface SelectionOverlayProps {
   ids: ReadonlySet<string>;
@@ -46,6 +49,14 @@ export function SelectionOverlay({ ids, snapshot, camera, onHandlePointerDown }:
   const resizable = selected.some((o) => getObjectType(o.type)?.resizable === true);
   if (!resizable) return null;
 
+  // Story 9: when EVERY selected object's spec is horizontal-only (e.g. a
+  // single text, or text + text), show only the e/w handles. Any mix with
+  // an 'all'-handle type (stickies) shows the full 8-handle box.
+  const allHorizontal = selected.every(
+    (o) => getObjectType(o.type)?.handles === 'horizontal',
+  );
+  const handles = allHorizontal ? HORIZONTAL_HANDLES : ALL_HANDLES;
+
   const topLeft = worldToScreen(camera, { x: bounds.x, y: bounds.y });
   const w = bounds.width * camera.zoom;
   const h = bounds.height * camera.zoom;
@@ -68,7 +79,7 @@ export function SelectionOverlay({ ids, snapshot, camera, onHandlePointerDown }:
           pointerEvents: 'none',
         }}
       />
-      {ALL_HANDLES.map((handle) => {
+      {handles.map((handle) => {
         const meta = HANDLE_META[handle];
         const hx = topLeft.x + w * meta.dx;
         const hy = topLeft.y + h * meta.dy;

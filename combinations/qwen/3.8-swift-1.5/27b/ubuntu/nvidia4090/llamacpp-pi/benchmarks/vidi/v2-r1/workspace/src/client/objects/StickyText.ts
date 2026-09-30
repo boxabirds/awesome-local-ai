@@ -1,53 +1,13 @@
-import * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS, STICKY_COUNTER_THRESHOLD_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX } from '@shared/config';
+import { clampToLimit as clampToLimitAt, applyTextDiff } from '@shared/text-edit';
 
+// Story 9: the shared helpers live in src/shared/text-edit.ts so free text
+// and stickies share them. Re-exported here with the sticky default so
+// story 2 callers and tests are unchanged.
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (next.length <= max) return next;
-  return next.slice(0, max);
+  return clampToLimitAt(next, max);
 }
-
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-
-  // Find common prefix
-  let prefixLen = 0;
-  const minLen = Math.min(current.length, next.length);
-  while (prefixLen < minLen && current[prefixLen] === next[prefixLen]) {
-    prefixLen++;
-  }
-
-  // Find common suffix (not overlapping with prefix)
-  let suffixLen = 0;
-  while (
-    suffixLen < minLen - prefixLen &&
-    current[current.length - 1 - suffixLen] === next[next.length - 1 - suffixLen]
-  ) {
-    suffixLen++;
-  }
-
-  const deleteLen = current.length - prefixLen - suffixLen;
-  const insertStr = next.slice(prefixLen, next.length - suffixLen);
-
-  const doc = (ytext as any).doc as Y.Doc | undefined;
-  if (doc) {
-    doc.transact(() => {
-      if (deleteLen > 0) {
-        ytext.delete(prefixLen, deleteLen);
-      }
-      if (insertStr.length > 0) {
-        ytext.insert(prefixLen, insertStr);
-      }
-    }, origin);
-  } else {
-    if (deleteLen > 0) {
-      ytext.delete(prefixLen, deleteLen);
-    }
-    if (insertStr.length > 0) {
-      ytext.insert(prefixLen, insertStr);
-    }
-  }
-}
+export { applyTextDiff };
 
 export function counterVisible(length: number): boolean {
   return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;

@@ -35,7 +35,12 @@ export function StickyNote(props: ObjectProps) {
     if (e.button !== 0) return;
     e.stopPropagation();
     onObjectPointerDown(e, obj.id);
-  }, [onObjectPointerDown, obj.id]);
+    // Clicking a sticky that is being edited ends the editing (it stays
+    // selected), so board keys (Delete, arrows) reach the board — the
+    // editor covers the whole note, so an inside click is the only way to
+    // "click the note".
+    if (editing) onEndEdit('selected');
+  }, [onObjectPointerDown, obj.id, editing, onEndEdit]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

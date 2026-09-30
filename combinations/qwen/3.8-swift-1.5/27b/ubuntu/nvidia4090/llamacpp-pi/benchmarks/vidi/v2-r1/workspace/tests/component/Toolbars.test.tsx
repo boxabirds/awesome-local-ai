@@ -43,11 +43,18 @@ describe('sticky.toolbar', () => {
       return id;
     });
 
-    render(<Toolbar onCreateSticky={onCreateSticky} />);
+    render(
+      <Toolbar
+        tool="select"
+        onToolChange={vi.fn()}
+        onCreateSticky={onCreateSticky}
+      />
+    );
 
-    const button = screen.getByLabelText('Sticky note');
+    // Story 9: the button label gains the N shortcut (PRD tool.mode).
+    const button = screen.getByLabelText('Sticky note (N)');
     expect(button).toBeDefined();
-    expect(button.getAttribute('title')).toBe('Sticky note – or double-click the board');
+    expect(button.getAttribute('title')).toBe('Sticky note (N) – or double-click the board');
 
     fireEvent.click(button);
     expect(onCreateSticky).toHaveBeenCalled();

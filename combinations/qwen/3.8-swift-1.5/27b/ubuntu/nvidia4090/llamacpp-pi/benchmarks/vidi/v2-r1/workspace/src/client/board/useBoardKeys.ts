@@ -4,6 +4,8 @@ import { deleteObjects, moveObjects, allObjectIds, objectBounds, type ObjectSnap
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '@shared/config';
 import type { Point } from '@shared/geometry';
 import type { Selection } from './useSelection';
+import type { Tool } from './useTool';
+import { getObjectType } from '@client/objects/registry';
 
 /**
  * Story 7: board-level keyboard shortcuts (PRD sel.keys).
@@ -30,6 +32,8 @@ export function useBoardKeys(opts: {
   onUndo?: () => void;
   onRedo?: () => void;
   isEditing?: () => boolean;
+  onToolChange?: (t: Tool) => void;
+  onCreateStickyAtCentre?: () => void;
 }) {
   const { doc, canEdit, onEscape } = opts;
   const selectionRef = useRef(opts.selection);
@@ -50,6 +54,10 @@ export function useBoardKeys(opts: {
   onRedoRef.current = opts.onRedo;
   const isEditingRef = useRef(opts.isEditing);
   isEditingRef.current = opts.isEditing;
+  const onToolChangeRef = useRef(opts.onToolChange);
+  onToolChangeRef.current = opts.onToolChange;
+  const onCreateStickyAtCentreRef = useRef(opts.onCreateStickyAtCentre);
+  onCreateStickyAtCentreRef.current = opts.onCreateStickyAtCentre;
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -106,6 +114,24 @@ export function useBoardKeys(opts: {
         }
         sel.clear();
         onEscapeRef.current();
+        // Story 9: Escape also reverts to the Select tool (PRD tool.mode).
+        onToolChangeRef.current?.('select');
+        return;
+      }
+
+      // Story 9: tool shortcuts V (Select) and T (Text). Inert while
+      // editing text (guarded above) so 'T' types a character (TC-16).
+      if (e.key === 'v' || e.key === 'V') {
+        onToolChangeRef.current?.('select');
+        return;
+      }
+      if (e.key === 't' || e.key === 'T') {
+        if (canEditRef.current) onToolChangeRef.current?.('text');
+        return;
+      }
+      // N: new sticky note at the view centre (PRD tool.mode).
+      if (e.key === 'n' || e.key === 'N') {
+        if (canEditRef.current) onCreateStickyAtCentreRef.current?.();
         return;
       }
 
@@ -138,7 +164,9 @@ export function useBoardKeys(opts: {
         if (sel.ids.size === 1) {
           const [id] = sel.ids;
           const obj = snapshotRef.current.find((o) => o.id === id);
-          if (obj?.type === 'sticky') {
+          // Story 9: Enter edits a single selected sticky OR text (PRD
+          // text.edit).
+          if (obj && getObjectType(obj.type)?.editableText) {
             e.preventDefault();
             sel.startEdit(id);
           }

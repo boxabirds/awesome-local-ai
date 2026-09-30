@@ -4,6 +4,7 @@ import {
   objectBounds, moveObjects, resizeObjects, bringObjectsToFront,
   type ObjectSnapshot,
 } from '@shared/board-model';
+import { setTextWidthFixed } from '@shared/objects/text';
 import {
   resizeRect, clampScale, scaleWithin, unionRects,
   type Rect, type Point, type Handle,
@@ -80,6 +81,13 @@ export function useTransformGesture(opts: {
   canEdit: boolean;
   onGestureStart?(): void;
   onGestureEnd?(): void;
+  /**
+   * Story 9: called at the end of a handle resize that touched text
+   * objects, so the board can re-measure their heights from the (possibly
+   * new fixed) width. Fires before `onGestureEnd` so the box write lands
+   * in the same undo capture window as the drag.
+   */
+  onTextsResized?(ids: string[]): void;
 }): {
   onObjectPointerDown: (e: React.PointerEvent, id: string) => void;
   onHandlePointerDown: (e: React.PointerEvent, handle: Handle) => void;
@@ -97,12 +105,15 @@ export function useTransformGesture(opts: {
   onGestureStartRef.current = opts.onGestureStart;
   const onGestureEndRef = useRef(opts.onGestureEnd);
   onGestureEndRef.current = opts.onGestureEnd;
+  const onTextsResizedRef = useRef(opts.onTextsResized);
+  onTextsResizedRef.current = opts.onTextsResized;
 
   const gestureRef = useRef<Gesture>({ kind: 'idle' });
   const startedRef = useRef(false);
   const pendingRef = useRef<
     | { kind: 'move'; positions: Map<string, Point> }
     | { kind: 'resize'; rects: Map<string, Rect> }
+    | { kind: 'textWidth'; id: string; width: number }
     | null
   >(null);
   const rafRef = useRef(0);
@@ -111,12 +122,21 @@ export function useTransformGesture(opts: {
     return snapshotRef.current.find((o) => o.id === id)?.type;
   }, []);
 
+  // Story 9: the widthMode of a text object, read straight from the doc
+  // (the snapshot is updated on the next render; the doc is current).
+  const widthModeOf = useCallback((id: string): 'auto' | 'fixed' => {
+    const obj = doc.getMap('objects').get(id) as Y.Map<unknown> | undefined;
+    if (!obj || obj.get('type') !== 'text') return 'auto';
+    return obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
+  }, [doc]);
+
   const applyPending = useCallback(() => {
     const p = pendingRef.current;
     pendingRef.current = null;
     if (!p) return;
     if (p.kind === 'move') moveObjects(doc, p.positions);
-    else resizeObjects(doc, p.rects);
+    else if (p.kind === 'resize') resizeObjects(doc, p.rects);
+    else setTextWidthFixed(doc, p.id, p.width);
   }, [doc]);
 
   const schedule = useCallback((pending: NonNullable<typeof pendingRef.current>) => {
@@ -153,11 +173,17 @@ export function useTransformGesture(opts: {
       // Keep the last applied state (no rollback).
       flush();
       if (startedRef.current) {
+        // Story 9: re-measure text heights after a handle resize, BEFORE
+        // the end boundary (same capture window as the drag).
+        if (g.kind === 'handle') {
+          const textIds = g.ids.filter((id) => typeOf(id) === 'text');
+          if (textIds.length > 0) onTextsResizedRef.current?.(textIds);
+        }
         onGestureEndRef.current?.();
         startedRef.current = false;
       }
     }
-  }, [detach, flush]);
+  }, [detach, flush, typeOf]);
 
   const applyMoveFrame = useCallback((g: ObjectGesture, e: PointerEvent) => {
     if (!canEditRef.current || !g.startRects) return;
@@ -186,15 +212,44 @@ export function useTransformGesture(opts: {
       y: raw.height / g.startBounds.height,
     };
     const rects = [...g.startRects.values()];
-    const minSizes = g.ids.map((id) => specOf(typeOf(id) ?? '')?.minSize ?? 0);
+    // Story 9: an AUTO-width text's width is content-driven, so it must not
+    // constrain the group scale (its min size applies to fixed widths only).
+    const minSizes = g.ids.map((id) => {
+      const t = typeOf(id) ?? '';
+      if (t === 'text' && widthModeOf(id) !== 'fixed') return 0;
+      return specOf(t)?.minSize ?? 0;
+    });
     const clamped = clampScale(scale, rects, minSizes, MAX_OBJECT_SIZE_WORLD);
     const to = applyScaleToRect(g.startBounds, g.handle, clamped);
     const out = new Map<string, Rect>();
+    let allText = true;
     for (const [id, r] of g.startRects) {
-      out.set(id, scaleWithin(r, g.startBounds, to));
+      const isText = typeOf(id) === 'text';
+      if (!isText) allText = false;
+      const scaled = scaleWithin(r, g.startBounds, to);
+      if (isText) {
+        // Story 9: text height is derived from content and never scaled by
+        // a handle; the width scales only when fixed (PRD text.resize).
+        out.set(id, {
+          x: scaled.x,
+          y: scaled.y,
+          width: widthModeOf(id) === 'fixed' ? scaled.width : r.width,
+          height: r.height,
+        });
+      } else {
+        out.set(id, scaled);
+      }
     }
-    schedule({ kind: 'resize', rects: out });
-  }, [schedule, typeOf]);
+    if (allText && g.ids.length === 1) {
+      // Story 9: a single text gets a FIXED width from its side handle
+      // (min TEXT_MIN_WIDTH_WORLD, enforced in setTextWidthFixed); the
+      // height is re-measured by the board on gesture end.
+      const [id] = g.ids;
+      schedule({ kind: 'textWidth', id, width: out.get(id)!.width });
+    } else {
+      schedule({ kind: 'resize', rects: out });
+    }
+  }, [schedule, typeOf, widthModeOf]);
 
   const beginObjectMove = useCallback((g: ObjectGesture): ObjectGesture => {
     const startRects = new Map<string, Rect>();

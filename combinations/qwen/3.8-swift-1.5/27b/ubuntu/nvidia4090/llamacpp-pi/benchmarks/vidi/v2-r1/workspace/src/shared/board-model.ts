@@ -1,5 +1,6 @@
 import * as Y from 'yjs';
-import { STICKY_SIZE_WORLD, STICKY_COLORS, DEFAULT_STICKY_COLOR, type StickyColor } from './config';
+import { STICKY_SIZE_WORLD, STICKY_COLORS, DEFAULT_STICKY_COLOR, type StickyColor, type TextSize } from './config';
+import type { TextSnapshot } from './objects/text';
 import { isKnownType } from './known-types';
 import { rectContains, type Rect, type Point } from './geometry';
 
@@ -298,6 +299,12 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       const textObj = obj.get('text');
       const text = textObj instanceof Y.Text ? textObj.toString() : '';
       result.push({ ...base, color, text } as StickySnapshot);
+    } else if (type === 'text') {
+      const textObj = obj.get('text');
+      const text = textObj instanceof Y.Text ? textObj.toString() : '';
+      const size = (obj.get('size') as TextSize) ?? 'M';
+      const widthMode = obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
+      result.push({ ...base, text, size, widthMode } as TextSnapshot);
     } else {
       result.push(base);
     }

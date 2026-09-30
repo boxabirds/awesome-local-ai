@@ -12,9 +12,11 @@ import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '@shared/board-model';
 import type { Point } from '@shared/geometry';
-import { STICKY_MIN_SIZE_WORLD } from '@shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '@shared/config';
 import { registerKnownType } from '@shared/known-types';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
+import type { TextSnapshot } from '@shared/objects/text';
 
 /** Props handed to every object component by the board renderer. */
 export interface ObjectProps {
@@ -41,6 +43,12 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  /**
+   * Story 9: which resize handles a selection of ONLY this type shows.
+   * 'horizontal' → east/west handles only (text: height is derived from
+   * content and must not be scaled by a handle). Default 'all'.
+   */
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -65,6 +73,25 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: (obj, p) => {
+    const b = objectBounds(obj);
+    return p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;
+  },
+});
+
+// Story 9: free text. Horizontal-only handles (height is derived from
+// content); no aspect lock; minimum width TEXT_MIN_WIDTH_WORLD.
+const TextObjectAdapter: ComponentType<ObjectProps> = (props) => (
+  <TextObject {...props} note={props.obj as TextSnapshot} />
+);
+
+registerObjectType('text', {
+  Component: TextObjectAdapter,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: (obj, p) => {
     const b = objectBounds(obj);
     return p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;

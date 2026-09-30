@@ -23,11 +23,19 @@ interface BoardViewportProps {
   onMarqueeMove?: (screen: Point) => void;
   onMarqueeEnd?: () => void;
   onMarqueeCancel?: () => void;
+  /**
+   * Story 9: the Text tool is active. Empty-space clicks create text at
+   * the point (PRD tool.mode / text.create); no pan, no marquee.
+   */
+  textToolActive?: boolean;
+  onTextCreate?: (screenPoint: Point) => void;
   children?: ReactNode;
 }
 
 const WHEEL_DELTA_LINE = 16;
 const WHEEL_DELTA_PAGE = 100;
+// Story 9: a Text-tool pointerup this close to the pointerdown is a click.
+const CLICK_SLOP_PX = 4;
 
 export function BoardViewport({
   camera,
@@ -45,24 +53,41 @@ export function BoardViewport({
   onMarqueeMove,
   onMarqueeEnd,
   onMarqueeCancel,
+  textToolActive,
+  onTextCreate,
   children,
 }: BoardViewportProps) {
   const ref = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const marqueeRef = useRef(false);
+  // Story 9: where the Text-tool pointer went down (to tell a click from a
+  // drag).
+  const textDownRef = useRef<Point | null>(null);
 
   const getPoint = useCallback((e: { clientX: number; clientY: number }): Point => {
     const rect = ref.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    // Guard against events without coordinates (some test environments).
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return { x: 0, y: 0 };
+    return { x, y };
   }, []);
 
   // Pointer events for drag panning
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.button !== 0) return;
+    // `e.button` is undefined in jsdom (no PointerEvent); treat it as the
+    // primary button so component tests can dispatch pointer events.
+    if (e.button) return;
     // Only start drag on the viewport/grid itself
     const target = e.target as HTMLElement;
     if (target !== ref.current && !target.classList.contains('board-grid')) return;
+    if (textToolActive) {
+      // Story 9: Text tool — no pan, no marquee; a click creates text.
+      textDownRef.current = getPoint(e);
+      return;
+    }
+    textDownRef.current = null;
     draggingRef.current = true;
     try {
       ref.current?.setPointerCapture(e.pointerId);
@@ -77,7 +102,7 @@ export function BoardViewport({
     }
     marqueeRef.current = false;
     beginPan(getPoint(e));
-  }, [beginPan, getPoint, onMarqueeBegin]);
+  }, [beginPan, getPoint, onMarqueeBegin, textToolActive]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!draggingRef.current) return;
@@ -97,6 +122,20 @@ export function BoardViewport({
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     const wasMarquee = marqueeRef.current;
     marqueeRef.current = false;
+    if (textToolActive) {
+      const start = textDownRef.current;
+      textDownRef.current = null;
+      const pt = getPoint(e);
+      const target = e.target as HTMLElement;
+      if (
+        start !== null &&
+        (target === ref.current || target.classList.contains('board-grid')) &&
+        Math.hypot(pt.x - start.x, pt.y - start.y) <= CLICK_SLOP_PX
+      ) {
+        onTextCreate?.(pt);
+      }
+      return;
+    }
     endDrag();
     if (wasMarquee) {
       // The marquee selects; a marquee up must NOT clear the selection.
@@ -108,7 +147,7 @@ export function BoardViewport({
     if (target === ref.current || target.classList.contains('board-grid')) {
       onPointerUpEmpty?.();
     }
-  }, [endDrag, onPointerUpEmpty, onMarqueeEnd]);
+  }, [endDrag, onPointerUpEmpty, onMarqueeEnd, textToolActive, onTextCreate, getPoint]);
 
   const onDoubleClick = useCallback((e: React.MouseEvent) => {
     // Only handle dblclick on empty space (viewport/grid), not on notes
@@ -241,7 +280,9 @@ export function BoardViewport({
         // transform gesture (PRD sel.group_move / sel.resize).
         userSelect: 'none',
         WebkitUserSelect: 'none',
-        cursor: isPanning ? 'grabbing' : 'grab',
+        // Story 9: cursor: text over the board when the Text tool is active
+        // (PRD tool.mode).
+        cursor: textToolActive ? 'text' : isPanning ? 'grabbing' : 'grab',
         backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)',
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${bgPosX}px ${bgPosY}px`,

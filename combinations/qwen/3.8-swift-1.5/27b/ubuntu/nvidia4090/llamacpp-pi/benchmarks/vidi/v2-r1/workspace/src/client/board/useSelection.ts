@@ -130,10 +130,15 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   }, []);
 
   const startEdit = useCallback((id: string) => {
-    if (!present(id)) return;
+    // No `present` guard: startEdit is called both for objects that are
+    // already in the snapshot (double-click) and immediately after
+    // creation, when the Y write has landed in the doc but the React
+    // snapshot has not re-rendered yet. A ghost editingId is harmless —
+    // only a rendered object with `editing` true shows an editor, and
+    // `prune` clears it if the object disappears.
     dispatch({ type: 'click', id });
     dispatch({ type: 'edit', id });
-  }, [present]);
+  }, []);
 
   const endEdit = useCallback((next: 'selected' | 'unselected') => {
     dispatch({ type: 'edit', id: null });
