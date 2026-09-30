@@ -6,7 +6,6 @@ A checkpoint with a failing test was scored three times; each test counts its ma
 
 | Story | New work | Regressions | Repairs | Cumulative | Flaky |
 |---|---|---|---|---|---|
-| 9 | 5/6 | 0 | 0 | 50/57 | 0 |
-| 12 | 5/5 | 0 | 1 | 68/75 | 0 |
+| 12 | 0/5 | 0 | 0 | 61/75 | 0 |
 
-**New work** 10/11, **regressions** 0, **repairs** 1, **cumulative** 68/75.
+**New work** 0/5, **regressions** 0, **repairs** 0, **cumulative** 61/75.

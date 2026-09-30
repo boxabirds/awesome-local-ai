@@ -6,23 +6,23 @@
   "host_limits": {
     "cores": 8,
     "memory_gb": 16.0,
-    "free_gb": 8.0
+    "free_gb": 8.2
   },
-  "finished_at": "2026-09-30T10:28:29Z",
+  "finished_at": "2026-09-30T10:25:35Z",
   "results": [
     {
       "story": 12,
-      "passed": 68,
+      "passed": 61,
       "total": 75,
       "fallbacks": 0,
       "scores": [
-        68,
-        68,
-        68
+        61,
+        61,
+        61
       ],
       "flaky": 0,
       "harness_fault": null,
-      "seconds": 173
+      "seconds": 339
     }
   ]
 }
