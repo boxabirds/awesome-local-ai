@@ -8,7 +8,8 @@
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     // Room connections always reach the Worker, never the SPA fallback.
-    "run_worker_first": ["/api/*"]
+    // "/__test/*" hooks exist only when TEST_HOOKS=1 (e2e); otherwise they fall back to the client.
+    "run_worker_first": ["/api/*", "/__test/*"]
   },
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]

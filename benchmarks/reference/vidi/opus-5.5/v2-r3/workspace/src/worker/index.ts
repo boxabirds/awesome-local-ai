@@ -2,12 +2,15 @@
 // else to the static client (SPA fallback configured in wrangler.jsonc).
 import { isValidBoardId } from '../shared/board-id';
 import type { BoardRoom } from './board-room';
+import { TEST_HOOK_PATH, routeTestHook } from './test-hooks';
 
 export { BoardRoom } from './board-room';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** '1' only in the e2e `wrangler dev` (enables src/worker/test-hooks.ts); never set in production. */
+  TEST_HOOKS?: string;
 }
 
 const ROOM_PATH = /^\/api\/rooms\/([^/]*)\/?$/;
@@ -15,6 +18,7 @@ const ROOM_PATH = /^\/api\/rooms\/([^/]*)\/?$/;
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    if (url.pathname.startsWith(TEST_HOOK_PATH) && env.TEST_HOOKS === '1') return routeTestHook(req, env);
     const match = ROOM_PATH.exec(url.pathname);
     if (!match) return env.ASSETS.fetch(req);
     let boardId: string;

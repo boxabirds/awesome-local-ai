@@ -3,13 +3,16 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 /** The part of WebsocketProvider the state mapping listens to (fakeable in tests). */
 export interface ProviderLike {
   on(event: 'status', handler: (e: { status: 'connected' | 'disconnected' | 'connecting' }) => void): void;
   on(event: 'sync', handler: (synced: boolean) => void): void;
+  /** `event` is null when the provider closed the socket itself. */
+  on(event: 'connection-close', handler: (event: { code: number } | null) => void): void;
   destroy(): void;
 }
 
@@ -31,7 +34,10 @@ const createWebsocketProvider: CreateProvider = (doc, boardId) =>
 /**
  * connecting → connected on the first sync; a lost connection → reconnecting;
  * the next sync → confirmed for CONNECTED_CONFIRMATION_MS, then connected.
- * The board stays editable in every state (edits go into the local Y.Doc).
+ * A close with CLOSE_BOARD_LOAD_FAILED → load_failed (the provider keeps
+ * retrying) until a sync succeeds → connected. Every other close code, including
+ * CLOSE_STORAGE_FAILURE, is an ordinary lost connection: the board stays
+ * editable and unsaved changes are re-sent on reconnection.
  */
 export function connectBoard(
   doc: Y.Doc,
@@ -57,7 +63,9 @@ export function connectBoard(
   const provider = createProvider(doc, boardId);
   provider.on('sync', (synced) => {
     if (!synced) return;
-    if (state === 'reconnecting') {
+    if (state === 'load_failed') {
+      set('connected');
+    } else if (state === 'reconnecting') {
       set('confirmed');
       clearConfirm();
       confirmTimer = setTimeout(() => {
@@ -68,9 +76,19 @@ export function connectBoard(
       set('connected');
     }
   });
+  provider.on('connection-close', (event) => {
+    if (event?.code === CLOSE_BOARD_LOAD_FAILED) {
+      clearConfirm();
+      set('load_failed');
+    } else if (state !== 'connecting' && state !== 'load_failed') {
+      clearConfirm();
+      set('reconnecting');
+    }
+  });
   provider.on('status', ({ status }) => {
-    // Before the first sync every failure just keeps "Connecting…".
-    if (status === 'disconnected' && state !== 'connecting') {
+    // Before the first sync every failure just keeps "Connecting…"; a board that
+    // could not be loaded keeps saying so while retrying.
+    if (status === 'disconnected' && state !== 'connecting' && state !== 'load_failed') {
       clearConfirm();
       set('reconnecting');
     }

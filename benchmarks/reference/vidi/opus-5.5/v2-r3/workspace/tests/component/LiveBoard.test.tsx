@@ -50,7 +50,7 @@ describe('App live board wiring (sync.client)', () => {
       act(() => current().onState(state));
       const badge = document.querySelector('.connection-status');
       if (state === 'connected') expect(badge).toBeNull();
-      else expect(badge).toHaveTextContent(expected[state]);
+      else expect(badge).toHaveTextContent(expected[state as keyof typeof expected]);
       act(() => screen.getByRole('button', { name: 'Sticky note' }).click());
       expect(noteElements()).toHaveLength(i + 1);
     });

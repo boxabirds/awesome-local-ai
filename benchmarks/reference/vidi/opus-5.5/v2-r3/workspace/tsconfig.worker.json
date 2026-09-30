@@ -13,6 +13,6 @@
     "noEmit": true,
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["src/worker", "src/shared", "tests/integration", "tests/fixtures/random-ops.ts"],
+  "include": ["src/worker", "src/shared", "tests/integration", "tests/fixtures/random-ops.ts", "tests/fixtures/boards.ts", "tests/unit/board-store-chunks.test.ts", "tests/unit/room-state.test.ts"],
   "exclude": ["tests/integration/node_modules", "tests/integration/vitest.config.ts"]
 }

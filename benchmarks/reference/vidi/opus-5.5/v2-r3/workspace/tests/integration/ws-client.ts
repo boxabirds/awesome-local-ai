@@ -77,6 +77,13 @@ export class TestClient {
     return client;
   }
 
+  /** Opens a socket without waiting for the sync (the room may close it at once). */
+  static async open(boardId: string, doc = new Y.Doc()): Promise<TestClient> {
+    const { status, ws } = await openSocket(boardId);
+    if (status !== 101 || !ws) throw new Error(`upgrade failed: ${status}`);
+    return new TestClient(ws, doc);
+  }
+
   waitForSync(): Promise<void> {
     return waitFor(() => this.synced, 'initial sync');
   }

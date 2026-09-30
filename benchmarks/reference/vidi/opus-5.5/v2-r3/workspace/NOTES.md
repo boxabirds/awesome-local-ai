@@ -132,3 +132,65 @@ Decisions made where the spec was silent or ambiguous:
 - **E2E browsers:** only Chromium is installed here, so e2e (including TC-22/TC-23) ran in
   Chromium only.
 - **Commits.** The whole story went into a single commit, per the session instructions.
+
+## Story 4 — Return to a board and find everything as it was left
+
+- **Per-row limit.** Cloudflare documents a 2 MB maximum for a SQLite string, BLOB or row in
+  Durable Objects. `SNAPSHOT_CHUNK_BYTES` (512 KB) is well under that limit. This was checked
+  against the documented limit as I remember it; I did not re-check it online.
+- **One damaged log row.** A Yjs client's updates form a clock chain. If one row is quarantined,
+  every later update from that writer would stay pending, and most of the board would
+  disappear. After replaying the log, `BoardStore.load` fills each such clock gap with a GC
+  (deleted) placeholder, so later changes still integrate and only the damaged change is
+  missing (persist.partial_damage). Stored rows are fully decoded (`Y.decodeUpdate`) before they
+  are applied, so a damaged row is rejected before anything is integrated. A snapshot that
+  still leaves unresolved references after it is applied also counts as `snapshot-unreadable`.
+- **Room lifecycle.** `src/worker/room-state.ts` has `nextRoomState(state, event)`, with states
+  loading / ready / compacting / storage-failed / hibernated / load-failed. `BoardRoom` drives its
+  state through it. Its `state` getter exposes the contract's `RoomState` (plus `loading`).
+  The room cannot observe hibernation itself: waking simply runs the constructor again
+  (loading).
+- **Extra members.** `BoardStore.compact(doc)` forces a compaction, which `compactIfNeeded`
+  uses and which the test hook and tests call. `BoardStore.needsCompaction()` and an optional
+  `{ chunkBytes }` constructor option exist so TC-08 can force several chunks, because a 2,000-note
+  board encodes below 512 KB. `BoardRoom.createStore` and `loadAttempts` are test seams used
+  through `runInDurableObject`.
+- **Restarts in integration tests** use `evictDurableObject` from the pool.
+  `{ webSockets: 'close' }` stands for "everyone left, then restart". The default mode
+  (hibernate) is used for TC-18: sockets stay open, the object is rebuilt from storage, and
+  broadcasts reach those sockets through `ctx.getWebSockets()`. TC-16 waits a real
+  `LOAD_RETRY_MIN_INTERVAL_MS`.
+- **Test hooks.** `src/worker/test-hooks.ts` serves `POST /__test/boards/:id/compact`,
+  `/corrupt-snapshot` and `/repair`. `compact` was added because the TC-24 workflow compacts
+  first. `corrupt-snapshot` also closes the room's sockets and reloads the room (it simulates a
+  restart). The routes are gated at runtime by `env.TEST_HOOKS === '1'`, not at compile time.
+  Only the e2e `wrangler dev` command lines pass `--var TEST_HOOKS:1`; `wrangler.jsonc` never
+  sets it. An integration test checks that without the variable the path is not routed to a
+  room. `"/__test/*"` was added to `run_worker_first` so that POSTs reach the Worker. In
+  production they fall through to the static client.
+- **E2E process control.** `tests/e2e/persistence.spec.ts` runs in its own Playwright project,
+  `persistence` (Chromium). It is excluded from the browser projects. Each test starts
+  `wrangler dev --persist-to <tmp>` on free ports through `tests/e2e/helpers/wrangler-process.ts`
+  and restarts it by SIGKILLing the whole process group, like a crash. TC-19 restarts right away
+  instead of waiting the PRD's 5 minutes: a process restart is the stronger check. Boards for
+  TC-21 and TC-24 are seeded by a Node y-protocols client (`tests/e2e/helpers/seed.ts`).
+- **Large-board load time.** TC-21 first took about 7 s. Each note's font fitting forces
+  synchronous reflows, and with 2,000 notes each reflow laid out the whole board. Adding
+  `contain: size layout style` to `.sticky-note` (fixed 200×200) makes each note its own layout
+  boundary. After that, a cold open of 2,000 notes renders in about 1 s locally. The time is
+  logged against `BOARD_LOAD_BUDGET_MS`, not asserted.
+- **Client state.** `connectBoard` also listens to the provider's `connection-close`.
+  4500 → `load_failed`, which stays through retries until a sync succeeds → `connected`.
+  Any other code, including 1011 and 1003, → `reconnecting`, or stays `connecting` before the
+  first sync. y-websocket treats 4500 as a transient code (only 4400–4499 is permanent), so it
+  keeps retrying with story 3's backoff.
+- **Edit lock.** While `!canEdit`, the Sticky note button is disabled. Double-click create,
+  Delete/Backspace/Enter, drag and text editing do nothing, and the note toolbar (colour and
+  delete) is hidden. Selecting a note still works, since it changes nothing. An edit in progress
+  ends if the board becomes unloadable.
+- **Opening a board writes one row.** Each browser's `initDoc` sets `meta.schemaVersion`. That
+  is a real document change, so the first real client to open a never-edited board stores one
+  small update. TC-25 (no rows just from opening) is checked at the storage/room level, where
+  no client writes anything.
+- **E2E browsers:** only Chromium is installed here, so e2e ran in Chromium only.
+- **Commits.** The whole story went into a single commit, per the session instructions.

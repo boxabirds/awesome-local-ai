@@ -13,7 +13,13 @@ import { CameraContext, useCamera, type CameraContextValue } from './canvas/useC
 import { NoteToolbar } from './objects/NoteToolbar';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { installTestHooks } from './testHooks';
+
+/** A board that could not be loaded is never editable (it would look empty). */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 const HALF = 2;
 
@@ -57,6 +63,9 @@ export function App() {
   cameraRef.current = camera;
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
+  const editable = canEdit(connection);
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
   useEffect(() => {
     if (import.meta.env.MODE !== 'test') return;
     return installTestHooks({
@@ -77,8 +86,14 @@ export function App() {
     if (selectedId !== null && !notes.some((n) => n.id === selectedId)) select(null);
   }, [notes, selectedId, select]);
 
+  // Losing the board mid-edit ends the edit (nothing more can be saved into it).
+  useEffect(() => {
+    if (!editable && editingId !== null) endEdit('selected');
+  }, [editable, editingId, endEdit]);
+
   const createAt = useCallback(
     (world: Point) => {
+      if (!editableRef.current) return;
       const id = createSticky(doc, world);
       if (id) startEdit(id);
     },
@@ -86,11 +101,13 @@ export function App() {
   );
 
   const onCreateSticky = () => {
+    if (!editableRef.current) return;
     createAt(screenToWorld(cameraRef.current, { x: viewport.width / HALF, y: viewport.height / HALF }));
   };
 
   const deleteNote = useCallback(
     (id: string) => {
+      if (!editableRef.current) return;
       deleteObject(doc, id);
       select(null);
     },
@@ -111,6 +128,7 @@ export function App() {
         e.target instanceof HTMLElement ? e.target.closest<HTMLElement>('[data-note-id]')?.dataset.noteId : undefined;
       const id = focused ?? sel;
       if (!id) return;
+      if (!editableRef.current) return;
       if (e.key === 'Enter') {
         e.preventDefault();
         startEdit(id);
@@ -127,7 +145,7 @@ export function App() {
     setDraggingId((cur) => (dragging ? id : cur === id ? null : cur));
   }, []);
 
-  const showNoteToolbar = selectedNote && editingId === null && draggingId !== selectedNote.id;
+  const showNoteToolbar = editable && selectedNote && editingId === null && draggingId !== selectedNote.id;
 
   return (
     <CameraContext.Provider value={ctx}>
@@ -141,7 +159,8 @@ export function App() {
               zoom={camera.zoom}
               zIndex={zIndex}
               selected={note.id === selectedId}
-              editing={note.id === editingId}
+              editing={editable && note.id === editingId}
+              readOnly={!editable}
               onSelect={select}
               onStartEdit={startEdit}
               onEndEdit={endEdit}
@@ -166,7 +185,7 @@ export function App() {
             </div>
           )}
         </BoardViewport>
-        <Toolbar onCreateSticky={onCreateSticky} />
+        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}

@@ -1,7 +1,7 @@
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
 /** Left-side vertical toolbar. */
-export function Toolbar(props: { onCreateSticky(): void }) {
+export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
   return (
     <div className="toolbar" role="toolbar" aria-label="Tools" aria-orientation="vertical">
       <button
@@ -9,6 +9,7 @@ export function Toolbar(props: { onCreateSticky(): void }) {
         className="toolbar-button"
         aria-label="Sticky note"
         title={STICKY_BUTTON_TOOLTIP}
+        disabled={props.disabled}
         onClick={props.onCreateSticky}
       >
         <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false">

@@ -41,6 +41,8 @@ export function StickyNote(props: {
   zIndex?: number;
   /** Reports Dragging on/off so the note toolbar can hide while dragging. */
   onDragChange?(dragging: boolean): void;
+  /** No dragging or editing (the board could not be loaded, story 4). Selection still works. */
+  readOnly?: boolean;
 }) {
   const { note, doc } = props;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -93,7 +95,7 @@ export function StickyNote(props: {
     frameRef.current = null;
     const next = pendingRef.current;
     pendingRef.current = null;
-    if (next) moveObject(doc, note.id, next.x, next.y);
+    if (next && !propsRef.current.readOnly) moveObject(doc, note.id, next.x, next.y);
   };
 
   const finish = (commitPending: boolean) => {
@@ -135,6 +137,7 @@ export function StickyNote(props: {
     const dx = e.clientX - press.startX;
     const dy = e.clientY - press.startY;
     if (!draggingRef.current) {
+      if (propsRef.current.readOnly) return;
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
       draggingRef.current = true;
       setPhase('dragging');
@@ -162,7 +165,7 @@ export function StickyNote(props: {
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation(); // never creates a note underneath
-    if (!props.editing) props.onStartEdit(note.id);
+    if (!props.editing && !props.readOnly) props.onStartEdit(note.id);
   };
 
   const ytext = props.editing ? getStickyText(doc, note.id) : undefined;

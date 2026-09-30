@@ -60,3 +60,20 @@ export const CONNECTED_CONFIRMATION_MS = 2000;
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
 /** Functional wait in e2e (all stories); latency is logged, not asserted. */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+// Story 4 — persistence.
+
+/** Compact the update log into a snapshot when this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** …or when the log's total bytes reach this. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/** Snapshot chunk size; keeps every row far below the platform's 2 MB per-row limit. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A room whose board failed to load retries the load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** PRD persist.large_board: tested board size. */
+export const PERSIST_TESTED_NOTES = 2000;
+/** PRD persist.large_board: open-time target (logged in e2e, not asserted). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the room's SQLite tables (not the Yjs document schema). */
+export const STORAGE_SCHEMA_VERSION = 1;

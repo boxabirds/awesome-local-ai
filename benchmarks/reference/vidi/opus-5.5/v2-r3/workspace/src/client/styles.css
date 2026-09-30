@@ -159,7 +159,7 @@ body {
   cursor: pointer;
 }
 
-.toolbar-button:hover {
+.toolbar-button:hover:not(:disabled) {
   background: #efefec;
 }
 
@@ -178,6 +178,9 @@ body {
   cursor: default;
   outline: none;
   touch-action: none;
+  /* Fixed-size notes are layout boundaries: fitting one note's font never re-lays-out
+     the rest of a large board (story 4, persist.large_board). */
+  contain: size layout style;
 }
 
 .sticky-note:focus-visible {
@@ -342,4 +345,15 @@ body {
   background: #e3f5e1;
   border-color: #6fbf73;
   color: #1a5e20;
+}
+
+.connection-status.is-load_failed {
+  background: #fde8e8;
+  border-color: #d64545;
+  color: #a01c1c;
+}
+
+.toolbar-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
