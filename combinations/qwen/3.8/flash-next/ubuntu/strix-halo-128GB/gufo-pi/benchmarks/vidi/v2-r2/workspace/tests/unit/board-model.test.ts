@@ -47,7 +47,7 @@ describe('board-model', () => {
       expect(snap[0].id).toBe(id);
       expect(snap[0].type).toBe('sticky');
       expect((snap[0] as StickySnapshot).color).toBe(DEFAULT_STICKY_COLOR);
-      expect(snap[0].text).toBe('');
+      expect((snap[0] as any).text).toBe('');
       expect(snap[0].z).toBe(1);
       // centred: top-left = point - STICKY_SIZE_WORLD/2
       expect(snap[0].x).toBeCloseTo(100 - STICKY_SIZE_WORLD / 2, 9);
@@ -98,7 +98,7 @@ describe('board-model', () => {
       expect(snap[0].x).toBe(10);
       expect(snap[0].y).toBe(-20);
       expect((snap[0] as StickySnapshot).color).toBe(DEFAULT_STICKY_COLOR);
-      expect(snap[0].text).toBe('');
+      expect((snap[0] as any).text).toBe('');
       expect(snap[0].z).toBe(1);
       expect(updateCount).toBe(1);
     });
@@ -142,7 +142,7 @@ describe('board-model', () => {
       expect((snap[0] as StickySnapshot).color).toBe('green');
       expect(snap[0].x).toBe(10);
       expect(snap[0].y).toBe(20);
-      expect(snap[0].text).toBe('hello');
+      expect((snap[0] as any).text).toBe('hello');
       expect(snap[0].z).toBe(1);
       expect(updateCount).toBe(1);
     });

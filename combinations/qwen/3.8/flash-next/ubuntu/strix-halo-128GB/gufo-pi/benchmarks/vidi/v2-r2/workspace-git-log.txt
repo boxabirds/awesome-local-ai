@@ -1,3 +1,38 @@
+commit 10aa6afc68264d2c0caa833813bd333a7a7e19cd
+vidi-agent  Wed Sep 30 14:10:46 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ src/client/App.tsx                        | 191 ++++++++++++++++--
+ src/client/board/Toolbar.tsx              |  81 +++++++-
+ src/client/board/useBoardKeys.ts          |  22 +-
+ src/client/board/useTool.ts               |   8 +-
+ src/client/canvas/BoardViewport.tsx       |   6 +-
+ src/client/objects/ConnectorLayer.tsx     |  62 ++++++
+ src/client/objects/ConnectorObject.tsx    | 109 ++++++++++
+ src/client/objects/ShapeLayer.tsx         |  52 +++++
+ src/client/objects/ShapeObject.tsx        | 191 ++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  88 ++++++++
+ src/client/objects/registry.tsx           |  58 +++++-
+ src/client/tools/ConnectorTool.tsx        | 270 +++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 150 ++++++++++++++
+ src/client/tools/useActiveTool.ts         |  93 +++++++++
+ src/shared/board-model.ts                 |  89 +++++++-
+ src/shared/config.ts                      |  21 ++
+ src/shared/geometry/connector-geometry.ts | 107 ++++++++++
+ src/shared/geometry/polyline.ts           |  42 ++++
+ src/shared/objects/connector.ts           | 274 +++++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 179 ++++++++++++++++
+ tests/component/Connector.test.tsx        | 112 ++++++++++
+ tests/component/ShapeTool.test.tsx        |  53 +++++
+ tests/component/useActiveTool.test.tsx    |  45 +++++
+ tests/e2e/shapes.spec.ts                  | 325 ++++++++++++++++++++++++++++++
+ tests/unit/board-model.test.ts            |   6 +-
+ tests/unit/connector-model.test.ts        | 298 +++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 226 +++++++++++++++++++++
+ tests/unit/undo-history.test.ts           |   4 +-
+ 28 files changed, 3134 insertions(+), 28 deletions(-)
 commit 603c7625f6cae5884922fdafcc140d8d41f18576
 vidi-agent  Wed Sep 30 13:40:21 2026 +0000
 

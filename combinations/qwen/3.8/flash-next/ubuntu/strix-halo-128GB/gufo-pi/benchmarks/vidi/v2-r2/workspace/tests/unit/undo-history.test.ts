@@ -146,7 +146,7 @@ describe('undo.history', () => {
       expect(note.x).toBe(expected[i].x);
       expect(note.y).toBe(expected[i].y);
       expect((note as StickySnapshot).color).toBe('orange');
-      expect(note.text).toBe(`text-${i}`);
+      expect((note as any).text).toBe(`text-${i}`);
     }
   });
 
@@ -245,7 +245,7 @@ describe('undo.history', () => {
 
     const note = snapshot(doc).find((n) => n.id === idA)!;
     expect(note).toBeDefined();
-    expect(note.text).toBe('peer added text');
+    expect((note as any).text).toBe('peer added text');
   });
 
   // TC-09: UNDO_MAX_STEPS steps + 1 → length stays UNDO_MAX_STEPS, oldest dropped

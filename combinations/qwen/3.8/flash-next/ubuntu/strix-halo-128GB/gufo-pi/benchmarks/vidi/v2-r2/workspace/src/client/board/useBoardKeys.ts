@@ -103,9 +103,9 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
           return;
         }
         if (!editingText) {
-          // If text tool is active, switch back to select
+          // If shape/connector/text tool is active, switch back to select
           const o = optsRef.current;
-          if (o.setTool && o.tool === 'text') {
+          if (o.setTool && (o.tool === 'text' || o.tool === 'shape' || o.tool === 'connector')) {
             o.setTool('select');
             return;
           }
@@ -130,6 +130,22 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         }
       }
 
+      // S: switch to shape tool (only if canEdit)
+      if (e.key === 's' || e.key === 'S') {
+        if (!editingText && canEdit && optsRef.current.setTool) {
+          optsRef.current.setTool('shape');
+          return;
+        }
+      }
+
+      // L: switch to connector tool (only if canEdit)
+      if (e.key === 'l' || e.key === 'L') {
+        if (!editingText && canEdit && optsRef.current.setTool) {
+          optsRef.current.setTool('connector');
+          return;
+        }
+      }
+
       // N: create sticky note at view centre
       if (e.key === 'n' || e.key === 'N') {
         if (!editingText && canEdit && optsRef.current.onCreateSticky) {
@@ -144,7 +160,7 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         if (selection.ids.size === 1) {
           const id = [...selection.ids][0];
           const obj = snap.find((o) => o.id === id);
-          if (obj && (obj.type === 'sticky' || obj.type === 'text')) {
+          if (obj && (obj.type === 'sticky' || obj.type === 'text' || obj.type === 'shape')) {
             e.preventDefault();
             selection.startEdit(id);
           }

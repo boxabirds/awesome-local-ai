@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import type { ObjectSnapshot } from '@shared/board-model';
 import { objectBounds } from '@shared/board-model';
 import type { Point } from '@shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '@shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from '@shared/config';
 
 export interface ObjectProps {
   obj: ObjectSnapshot;
@@ -102,6 +102,8 @@ export function _resetRegistryForTesting(): void {
   registry.clear();
   stickyRegistered = false;
   textTypeRegistered = false;
+  shapeTypeRegistered = false;
+  connectorTypeRegistered = false;
 }
 
 /**
@@ -112,5 +114,59 @@ export function allHandlesHorizontal(types: readonly string[]): boolean {
   return types.every((t) => {
     const spec = registry.get(t);
     return spec?.handles === 'horizontal';
+  });
+}
+
+// Allow tests to reset connector registration
+let shapeTypeRegistered = false;
+let connectorTypeRegistered = false;
+
+export function registerShapeType(component: ObjectTypeSpec['Component']): void {
+  if (shapeTypeRegistered) return;
+  shapeTypeRegistered = true;
+  registerObjectType('shape', {
+    Component: component,
+    resizable: true,
+    aspectLocked: false,
+    minSize: SHAPE_MIN_SIZE_WORLD,
+    editableText: true,
+    handles: 'all',
+    hitTest: (obj, worldPoint) => {
+      const bounds = objectBounds(obj);
+      return (
+        worldPoint.x >= bounds.x &&
+        worldPoint.x <= bounds.x + bounds.width &&
+        worldPoint.y >= bounds.y &&
+        worldPoint.y <= bounds.y + bounds.height
+      );
+    },
+  });
+}
+
+export function registerConnectorType(component: ObjectTypeSpec['Component']): void {
+  if (connectorTypeRegistered) return;
+  connectorTypeRegistered = true;
+  registerObjectType('connector', {
+    Component: component,
+    resizable: false,
+    aspectLocked: false,
+    minSize: 0,
+    editableText: false,
+    hitTest: (obj, worldPoint) => {
+      // For connector hit test, we use the resolved endpoints from the snapshot
+      const snap = obj as any;
+      if (!snap.from || !snap.to) return false;
+      // We can't compute resolved endpoints here without the rects map,
+      // so use bbox approximation. Actual hit testing is done by the parent.
+      const bounds = objectBounds(obj);
+      // Expand by hit tolerance
+      const tolerance = CONNECTOR_HIT_TOLERANCE_PX; // will be divided by zoom in parent
+      return (
+        worldPoint.x >= bounds.x - tolerance &&
+        worldPoint.x <= bounds.x + bounds.width + tolerance &&
+        worldPoint.y >= bounds.y - tolerance &&
+        worldPoint.y <= bounds.y + bounds.height + tolerance
+      );
+    },
   });
 }

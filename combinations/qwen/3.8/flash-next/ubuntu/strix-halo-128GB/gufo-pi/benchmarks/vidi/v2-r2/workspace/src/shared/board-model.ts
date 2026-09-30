@@ -6,6 +6,8 @@ import {
   type StickyColor,
 } from '@shared/config';
 import { type Rect, rectContains } from '@shared/geometry';
+import { resolveEndpoints as _resolveConnEPs, connectorBBox as _connBBox } from '@shared/geometry/connector-geometry';
+import { DEFAULT_SHAPE_FILL, DEFAULT_SHAPE_STROKE, type ShapeKind, type FillColor, type StrokeColor } from '@shared/config';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
 
@@ -36,7 +38,16 @@ export interface TextObjectSnapshot {
   widthMode: 'auto' | 'fixed';
 }
 
-export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot;
+import type { ShapeSnap } from '@shared/objects/shape';
+import type { ConnectorSnap } from '@shared/objects/connector';
+
+export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeSnap | ConnectorSnap;
+
+// Callback registered by connector.ts to handle detach-on-delete.
+let _detachFn: ((doc: Y.Doc, deletedIds: string[]) => void) | null = null;
+export function _registerDetachConnectors(fn: (doc: Y.Doc, deletedIds: string[]) => void): void {
+  _detachFn = fn;
+}
 
 const VALID_COLORS = new Set<string>(Object.keys(STICKY_COLORS));
 
@@ -273,6 +284,8 @@ export function deleteObjects(
   if (existing.length === 0) return 0;
 
   doc.transact(() => {
+    // Detach connectors attached to deleted objects (before removing them)
+    if (_detachFn) _detachFn(doc, existing);
     for (const id of existing) {
       objects.delete(id);
     }
@@ -329,6 +342,22 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects = doc.getMap<Y.Map<unknown>>('objects');
   const result: ObjectSnapshot[] = [];
+
+  // First pass: collect rects for connector resolution
+  const rectsMap = new Map<string, Rect>();
+  objects.forEach((obj, id) => {
+    const type = obj.get('type') as string;
+    if (type === 'connector') return;
+    const w = (obj.get('width') as number) ?? 200;
+    const h = (obj.get('height') as number) ?? 200;
+    rectsMap.set(id, {
+      x: obj.get('x') as number,
+      y: obj.get('y') as number,
+      width: w,
+      height: h,
+    });
+  });
+
   objects.forEach((obj, id) => {
     const type = obj.get('type') as string;
     if (type === 'sticky') {
@@ -362,6 +391,50 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         widthMode: (obj.get('widthMode') as 'auto' | 'fixed') ?? 'auto',
       };
       result.push(entry);
+    } else if (type === 'shape') {
+      const labelYText = obj.get('label');
+      // Skip incomplete shape objects (e.g. test fixtures that lack required fields)
+      if (!(labelYText instanceof Y.Text)) {
+        return;
+      }
+      const entry: ShapeSnap = {
+        id,
+        type: 'shape',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: obj.get('width') as number,
+        height: obj.get('height') as number,
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        createdBy: (obj.get('createdBy') as string) ?? '',
+        kind: obj.get('kind') as ShapeKind,
+        fill: (obj.get('fill') as FillColor) ?? DEFAULT_SHAPE_FILL,
+        stroke: (obj.get('stroke') as StrokeColor) ?? DEFAULT_SHAPE_STROKE,
+        label: labelYText.toString(),
+      };
+      result.push(entry);
+    } else if (type === 'connector') {
+      const fromMap = obj.get('from') as Y.Map<unknown> | undefined;
+      const toMap = obj.get('to') as Y.Map<unknown> | undefined;
+      if (!fromMap || !toMap) return; // Skip incomplete connector objects
+      const from = readEndpointInline(fromMap);
+      const to = readEndpointInline(toMap);
+      const resolved = _resolveConnEPs({ from, to }, rectsMap);
+      const bbox = _connBBox(resolved.from, resolved.to);
+      const entry: ConnectorSnap = {
+        id,
+        type: 'connector',
+        x: bbox.x,
+        y: bbox.y,
+        width: bbox.width,
+        height: bbox.height,
+        z: (obj.get('z') as number) ?? 0,
+        createdAt: obj.get('createdAt') as number,
+        createdBy: (obj.get('createdBy') as string) ?? '',
+        from,
+        to,
+      };
+      result.push(entry);
     }
   });
   result.sort((a, b) => {
@@ -369,4 +442,18 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
   return result;
+}
+
+// Inline endpoint reader to avoid importing from connector.ts (circular dep avoidance)
+function readEndpointInline(epMap: Y.Map<unknown>): { kind: 'attached'; objectId: string; fallback: { x: number; y: number } } | { kind: 'free'; x: number; y: number } {
+  const kind = epMap.get('kind') as string;
+  if (kind === 'free') {
+    return { kind: 'free', x: epMap.get('x') as number, y: epMap.get('y') as number };
+  }
+  const fb = epMap.get('fallback') as Y.Map<number>;
+  return {
+    kind: 'attached',
+    objectId: epMap.get('objectId') as string,
+    fallback: { x: fb.get('x') as number, y: fb.get('y') as number },
+  };
 }

@@ -28,6 +28,8 @@ function defaultViewport(): Size {
 interface BoardViewportProps {
   // A mutable ref that receives the current camera each render.
   cameraRef?: React.MutableRefObject<import('@client/canvas/camera').Camera>;
+  // A mutable ref that receives the viewport element.
+  viewportRef?: React.MutableRefObject<HTMLElement | null>;
   // Objects rendered in world coordinates (sticky notes etc. in later stories).
   children?: ReactNode;
   // Fixed-position UI (zoom controls, hint) rendered inside the board context but
@@ -53,6 +55,7 @@ interface BoardViewportProps {
 
 export function BoardViewport({
   cameraRef,
+  viewportRef: viewportRefProp,
   children,
   overlay,
   onEmptyDoubleClick,
@@ -69,8 +72,9 @@ export function BoardViewport({
   const api = useCamera(viewport);
   const { camera, beginPan, panMove, endPan, wheel, gestureZoom, zoomStep, reset } = api;
 
-  // Keep the external ref in sync with the current camera
+  // Keep the external refs in sync
   if (cameraRef) cameraRef.current = camera;
+  if (viewportRefProp) viewportRefProp.current = viewportRef.current;
   const setCamera = api.setCamera;
 
   // Panning: a ref drives the input logic (no stale closures), React state drives

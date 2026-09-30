@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-export type Tool = 'select' | 'text';
+export type Tool = 'select' | 'text' | 'shape' | 'connector';
 
 export interface UseToolResult {
   tool: Tool;
@@ -8,8 +8,8 @@ export interface UseToolResult {
 }
 
 /**
- * Manages the active tool mode. When canEdit becomes false, an active Text tool
- * reverts to Select.
+ * Manages the active tool mode. When canEdit becomes false, non-select tools
+ * revert to Select.
  */
 export function useTool(canEdit: boolean): UseToolResult {
   const [tool, setToolState] = useState<Tool>('select');
@@ -25,7 +25,7 @@ export function useTool(canEdit: boolean): UseToolResult {
 
   const setTool = useCallback(
     (t: Tool) => {
-      if (t === 'text' && !canEditRef.current) return;
+      if (t !== 'select' && !canEditRef.current) return;
       setToolState(t);
     },
     [],

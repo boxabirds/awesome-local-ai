@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
 import { useBoard } from './canvas/BoardContext';
 import { ZoomControls } from './canvas/ZoomControls';
@@ -19,6 +19,11 @@ import { NoteLayer } from './objects/NoteLayer';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { TextLayer } from './objects/TextLayer';
 import { TextToolbar } from './objects/TextToolbar';
+import { ShapeLayer } from './objects/ShapeLayer';
+import { ShapeToolbar } from './objects/ShapeToolbar';
+import { ConnectorLayer } from './objects/ConnectorLayer';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
 import { useRoute } from './router';
@@ -33,10 +38,12 @@ import {
   objectsInRect,
 } from '@shared/board-model';
 import type { ObjectSnapshot, StickySnapshot, TextObjectSnapshot } from '@shared/board-model';
+import type { ShapeSnap } from '@shared/objects/shape';
+import { setShapeStyle } from '@shared/objects/shape';
 import { createText, setTextSize } from '@shared/objects/text';
 import type { Rect } from '@shared/geometry';
-import { type StickyColor, type TextSize } from '@shared/config';
-import type { Point } from '@client/canvas/camera';
+import { type StickyColor, type TextSize, type ShapeKind, type FillColor, type StrokeColor } from '@shared/config';
+import type { Point } from './canvas/camera';
 
 /**
  * Editing is disabled only while the board cannot be loaded (load_failed). All
@@ -72,6 +79,9 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
   // Camera ref - updated by BoardViewport on every render
   const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 1 });
 
+  // Viewport ref for tool overlays
+  const viewportElRef = useRef<HTMLElement | null>(null);
+
   // Undo controller: one per board doc, destroyed on board change/unmount
   const undoController: UndoController | null = useMemo(() => {
     if (!doc) return null;
@@ -90,6 +100,9 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
 
   // Tool state
   const { tool, setTool } = useTool(editable);
+
+  // Shape kind state
+  const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
 
   // Transform gesture (group move and resize) with boundary hooks
   const { onObjectPointerDown, onHandlePointerDown } = useTransformGesture({
@@ -184,6 +197,12 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
       ? (notes.find((n) => n.id === [...selection.ids][0] && n.type === 'text') as TextObjectSnapshot ?? null)
       : null;
 
+  // Determine which shape to show ShapeToolbar for (single shape, not editing)
+  const singleShape: ShapeSnap | null =
+    selection.ids.size === 1 && !selection.editingId
+      ? (notes.find((n) => n.id === [...selection.ids][0] && n.type === 'shape') as ShapeSnap ?? null)
+      : null;
+
   const handleToolClick = useCallback(
     (worldPoint: Point) => {
       if (!editable) return;
@@ -214,19 +233,74 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
     [doc, selection, editable, undoController],
   );
 
+  const handleShapeFillChange = useCallback(
+    (c: FillColor) => {
+      if (!editable) return;
+      if (selection.ids.size === 1) {
+        const id = [...selection.ids][0];
+        if (undoController) undoController.boundary();
+        setShapeStyle(doc, id, { fill: c });
+        if (undoController) undoController.boundary();
+      }
+    },
+    [doc, selection, editable, undoController],
+  );
+
+  const handleShapeStrokeChange = useCallback(
+    (c: StrokeColor) => {
+      if (!editable) return;
+      if (selection.ids.size === 1) {
+        const id = [...selection.ids][0];
+        if (undoController) undoController.boundary();
+        setShapeStyle(doc, id, { stroke: c });
+        if (undoController) undoController.boundary();
+      }
+    },
+    [doc, selection, editable, undoController],
+  );
+
+  const handleShapeCreated = useCallback(
+    (id: string) => {
+      selection.click(id);
+      setTool('select');
+    },
+    [selection, setTool],
+  );
+
+  const handleConnectorCreated = useCallback(
+    (id: string) => {
+      selection.click(id);
+      setTool('select');
+    },
+    [selection, setTool],
+  );
+
+  // Connector handle re-attach support
+  const handleConnectorHandlePointerDown = useCallback(
+    (_e: PointerEvent, connId: string, _end: 'from' | 'to') => {
+      // For now, just select the connector
+      selection.click(connId);
+    },
+    [selection],
+  );
+
+  // Get the viewport element from BoardViewport for tool overlays
+  const viewportEl = viewportElRef.current;
+
   return (
     <div className="vidi6-app">
       <ConnectionStatus state={connectionState} />
       <BoardViewport
         cameraRef={cameraRef}
-        onEmptyDoubleClick={handleEmptyDoubleClick}
-        onEmptyClick={handleEmptyClick}
-        onMarqueeBegin={(screen) => marquee.begin(screen)}
-        onMarqueeMove={(screen) => marquee.move(screen)}
-        onMarqueeEnd={() => marquee.end()}
-        onMarqueeCancel={() => marquee.cancel()}
-        tool={tool}
+        onEmptyDoubleClick={tool === 'select' ? handleEmptyDoubleClick : undefined}
+        onEmptyClick={tool === 'select' ? handleEmptyClick : undefined}
+        onMarqueeBegin={tool === 'select' ? (screen) => marquee.begin(screen) : undefined}
+        onMarqueeMove={tool === 'select' ? (screen) => marquee.move(screen) : undefined}
+        onMarqueeEnd={tool === 'select' ? () => marquee.end() : undefined}
+        onMarqueeCancel={tool === 'select' ? () => marquee.cancel() : undefined}
+        tool={tool === 'text' ? 'text' : 'select'}
         onToolClick={handleToolClick}
+        viewportRef={viewportElRef}
         overlay={
           <AppChrome
             doc={doc}
@@ -234,13 +308,18 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
             selection={selection}
             singleSticky={singleSticky}
             singleText={singleText}
+            singleShape={singleShape}
             editable={editable}
             tool={tool}
+            shapeKind={shapeKind}
             onToolChange={setTool}
+            onShapeKindChange={setShapeKind}
             onColorChange={handleColorChange}
             onDelete={handleDelete}
             onCreateSticky={handleCreateSticky}
             onTextSizeChange={handleTextSizeChange}
+            onShapeFillChange={handleShapeFillChange}
+            onShapeStrokeChange={handleShapeStrokeChange}
             onHandlePointerDown={onHandlePointerDown}
             undoState={undoState}
           />
@@ -266,12 +345,46 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
           onEndEdit={() => selection.endEdit()}
           undoController={undoController}
         />
+        <ShapeLayer
+          notes={notes}
+          doc={doc}
+          selection={selection}
+          editable={editable}
+          onObjectPointerDown={onObjectPointerDown}
+          onStartEdit={selection.startEdit}
+          onEndEdit={() => selection.endEdit()}
+          undoController={undoController}
+        />
+        <ConnectorLayer
+          notes={notes}
+          doc={doc}
+          selection={selection}
+          onConnectorHandlePointerDown={handleConnectorHandlePointerDown}
+        />
+        {tool === 'shape' && (
+          <ShapeTool
+            kind={shapeKind}
+            camera={cameraRef.current}
+            doc={doc}
+            viewportEl={viewportEl}
+            onCreated={handleShapeCreated}
+            onGestureBoundary={undoController ? () => undoController.boundary() : undefined}
+          />
+        )}
+        {tool === 'connector' && (
+          <ConnectorTool
+            camera={cameraRef.current}
+            doc={doc}
+            snapshot={notes}
+            viewportEl={viewportEl}
+            onCreated={handleConnectorCreated}
+            onGestureBoundary={undoController ? () => undoController.boundary() : undefined}
+          />
+        )}
       </BoardViewport>
     </div>
   );
 }
-
-
 
 interface AppChromeProps {
   doc: import('yjs').Doc;
@@ -279,13 +392,18 @@ interface AppChromeProps {
   selection: import('./board/useSelection').SelectionApi;
   singleSticky: StickySnapshot | null;
   singleText: TextObjectSnapshot | null;
+  singleShape: ShapeSnap | null;
   editable: boolean;
   tool: Tool;
+  shapeKind: ShapeKind;
   onToolChange?(t: Tool): void;
+  onShapeKindChange?(k: ShapeKind): void;
   onColorChange(c: StickyColor): void;
   onDelete(): void;
   onCreateSticky(p: Point): void;
   onTextSizeChange(s: TextSize): void;
+  onShapeFillChange(c: FillColor): void;
+  onShapeStrokeChange(c: StrokeColor): void;
   onHandlePointerDown(e: PointerEvent, h: import('@shared/geometry').Handle): void;
   undoState: ReturnType<typeof useUndo>;
 }
@@ -311,6 +429,10 @@ function AppChrome(props: AppChromeProps): ReactElement {
         undo={props.undoState}
         tool={props.tool}
         onToolChange={props.onToolChange}
+        shapeKind={props.shapeKind}
+        onShapeKindChange={props.onShapeKindChange}
+        onShapeToolClick={() => props.onToolChange?.('shape')}
+        onConnectorToolClick={() => props.onToolChange?.('connector')}
       />
 
       {/* Selection overlay (bounding box + handles) */}
@@ -349,6 +471,17 @@ function AppChrome(props: AppChromeProps): ReactElement {
           textObj={props.singleText}
           camera={camera}
           onSize={props.onTextSizeChange}
+          onDelete={props.onDelete}
+        />
+      )}
+
+      {/* ShapeToolbar for single shape */}
+      {props.singleShape && !props.selection.editingId && (
+        <ShapeToolbarScreenSpace
+          shape={props.singleShape}
+          camera={camera}
+          onFill={props.onShapeFillChange}
+          onStroke={props.onShapeStrokeChange}
           onDelete={props.onDelete}
         />
       )}
@@ -427,6 +560,40 @@ function TextToolbarScreenSpace({
       }}
     >
       <TextToolbar size={textObj.size as TextSize} onSize={onSize} onDelete={onDelete} />
+    </div>
+  );
+}
+
+function ShapeToolbarScreenSpace({
+  shape,
+  camera,
+  onFill,
+  onStroke,
+  onDelete: _onDelete,
+}: {
+  shape: ShapeSnap;
+  camera: { x: number; y: number; zoom: number };
+  onFill(c: FillColor): void;
+  onStroke(c: StrokeColor): void;
+  onDelete(): void;
+}): ReactElement {
+  const bounds = objectBounds(shape);
+  const screenPos = worldToScreen(camera, {
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y,
+  });
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: screenPos.x,
+        top: screenPos.y - 40,
+        transform: 'translateX(-50%)',
+        zIndex: 20,
+      }}
+    >
+      <ShapeToolbar fill={shape.fill} stroke={shape.stroke} onFill={onFill} onStroke={onStroke} />
     </div>
   );
 }
