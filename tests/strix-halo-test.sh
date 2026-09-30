@@ -101,7 +101,7 @@ assert_ok "...and the combination's own advice" grep -q 'UD-Q3_K_XL is still' <<
 fake_gpu 122880 512
 out="$(adapter '_sh_gtt_budget "$(_sh_gpu_dir)"; _sh_qualify_budget' 2>&1)"; rc=$?
 assert_eq "amd-ttm --set 120 qualifies"        "0" "$rc"
-# tritus's real MemTotal: 125131 MiB (the fake adds the 512 MiB carve-out back)
+# the 128GB Strix Halo box's real MemTotal: 125131 MiB (the fake adds the 512 MiB carve-out back)
 FAKE_RAM_MIB=$(( 125131 + 512 )); fake_gpu 122880 512
 out="$(adapter '_sh_gtt_budget "$(_sh_gpu_dir)"; _sh_qualify_budget' 2>&1)"
 assert_ok "...but with no swap, 120 GiB of 128 leaves Linux too little: warned" \

@@ -20,7 +20,7 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 
 ### Stories ended early (PARTIAL) and what was built on them
 
-- **Story 5 PARTIAL**, ended by the operator (operator (quintus)): runaway story: ~7.5 h agent time and 20 nudges without committing; operator cut-off at 4 h / 5 nudges adopted 2026-09-25. Verdict **amber**: gate green, tasks not verified [1, 2, 3, 4, 5, 6, 7] (implementation: [2, 4, 5]), held-out 5/5 (floor 1.0).
+- **Story 5 PARTIAL**, ended by the operator (operator (Apple M5 Max 128GB)): runaway story: ~7.5 h agent time and 20 nudges without committing; operator cut-off at 4 h / 5 nudges adopted 2026-09-25. Verdict **amber**: gate green, tasks not verified [1, 2, 3, 4, 5, 6, 7] (implementation: [2, 4, 5]), held-out 5/5 (floor 1.0).
 - **Story 7 PARTIAL**, ended by the operator (harness (cap)): story cap: 5 nudges without committing (cap 5). Verdict **amber**: gate green, tasks not verified [2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] (implementation: [2, 8, 10, 11, 12, 13]), held-out 6/8 (floor 1.0).
 - Story 7, built on partial 5: held-out tests on the partial base 11/13; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - **Story 8 PARTIAL**, ended by the operator (harness (cap)): story cap: 5 nudges without committing (cap 5). Verdict **amber**: gate green, tasks not verified [2, 5, 6, 7, 8, 9, 10, 11] (implementation: [2, 8, 10]), held-out 7/7 (floor 1.0).
@@ -78,7 +78,7 @@ A gap in a story's agent events with a restart or a logged intervention inside i
 |---|---|---|---|---|
 | 7 | 25 Sep 20:36 | 2 min | operator restart | harness restarted by the operator. |
 | 7 | 25 Sep 20:39 | 2 min | restart (no intervention logged) | — |
-| 11 | 26 Sep 03:20 | 46 min | machine freeze | quintus froze (last system log 03:20:22Z, power collector's last rows 03:20:33Z) and the watchdog restarted it at 03:23Z. |
+| 11 | 26 Sep 03:20 | 46 min | machine freeze | the M5 Max froze (last system log 03:20:22Z, power collector's last rows 03:20:33Z) and the watchdog restarted it at 03:23Z. |
 
 | Story | Active | Dead | Recorded |
 |---|---|---|---|

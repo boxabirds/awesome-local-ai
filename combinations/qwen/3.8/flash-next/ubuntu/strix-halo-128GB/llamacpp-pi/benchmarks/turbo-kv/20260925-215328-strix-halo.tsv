@@ -1,4 +1,4 @@
-# turbo-kv 2026-09-25T21:53:28+00:00 on tritus; kernel 7.0.0-34-generic
+# turbo-kv 2026-09-25T21:53:28+00:00 on the Strix Halo box; kernel 7.0.0-34-generic
 # base llama.cpp 6fcaa16; fork a3d5603
 # gpu clock level: high; power mode: performance
 # MTP depth 4, p-min 0, temperature 0, prompt cache off, thinking off, 400 tokens decoded per request

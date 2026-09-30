@@ -19,7 +19,7 @@ we already know.
 ## Each note has
 
 - **What it is**, in two or three lines, with links to its sources.
-- **Where it could run** (tritus, gruntus Ubuntu or Windows, quintus) and what it would be compared with.
+- **Where it could run** (the Strix Halo box, the RTX 4090 machine on Ubuntu or Windows, the M5 Max) and what it would be compared with.
 - **Status**, the date it was set, and the reason.
 - **Checks before a run**: the concrete tests that gate it (e.g. tool calls over the API; a multi-turn
   conversation past 120k tokens that keeps its cache between turns).
@@ -40,16 +40,16 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 
 | Note | Status | Machine | One line |
 |---|---|---|---|
-| [NInfer (Swift 1.5)](ninfer.md) | queued | gruntus (Windows) | Windows-only 4090 engine for Swift 1.5; waiting for the Windows setup |
-| [TensorFold](tensorfold.md) | blocked | quintus | MLX/CUDA exact speculative decoding; blocked on cache retention past ~100k |
-| [MTPLX](mtplx.md) | blocked | quintus | memory admission deadlocks long agent sessions (507); recheck on 2.14 |
-| [BeeLlama.cpp](beellama.md) | candidate | gruntus (Ubuntu) | llama.cpp fork: KV cache in fewer bits for the same context; MTP/DFlash speculation |
-| [TurboQuant](turboquant.md) | candidate | gruntus (Ubuntu) | llama.cpp fork: turbo KV cache (no re-quant) and Config I TQ4_1S weights (re-quant; merge with Unsloth Dynamic 3.0 to test) |
-| [Strata](strata.md) | gated | gruntus | Flash-Next (125B MoE) on one 4090 by offloading experts to RAM |
-| [Prompt lookup (n-gram speculation)](ngram-speculation.md) | parked | gruntus (Ubuntu) | engine setting; test on the dense 27B; eliminated for sparse MoE |
-| [llama.cpp Vulkan on tritus](llamacpp-vulkan-tritus.md) | parked | tritus | dropped from v2: prompt reading 4-7x slower than gufo |
-| [llama.cpp Metal on quintus](llamacpp-metal-quintus.md) | parked | quintus | paused after canvas-metal-01 story 1 |
+| [NInfer (Swift 1.5)](ninfer.md) | queued | RTX 4090 (Windows) | Windows-only 4090 engine for Swift 1.5; waiting for the Windows setup |
+| [TensorFold](tensorfold.md) | blocked | M5 Max | MLX/CUDA exact speculative decoding; blocked on cache retention past ~100k |
+| [MTPLX](mtplx.md) | blocked | M5 Max | memory admission deadlocks long agent sessions (507); recheck on 2.14 |
+| [BeeLlama.cpp](beellama.md) | candidate | RTX 4090 (Ubuntu) | llama.cpp fork: KV cache in fewer bits for the same context; MTP/DFlash speculation |
+| [TurboQuant](turboquant.md) | candidate | RTX 4090 (Ubuntu) | llama.cpp fork: turbo KV cache (no re-quant) and Config I TQ4_1S weights (re-quant; merge with Unsloth Dynamic 3.0 to test) |
+| [Strata](strata.md) | gated | RTX 4090 | Flash-Next (125B MoE) on one 4090 by offloading experts to RAM |
+| [Prompt lookup (n-gram speculation)](ngram-speculation.md) | parked | RTX 4090 (Ubuntu) | engine setting; test on the dense 27B; eliminated for sparse MoE |
+| [llama.cpp Vulkan on Strix Halo](llamacpp-vulkan-strix-halo.md) | parked | Strix Halo | dropped from v2: prompt reading 4-7x slower than gufo |
+| [llama.cpp Metal on the M5 Max](llamacpp-metal-m5-max.md) | parked | M5 Max | paused after canvas-metal-01 story 1 |
 | [Fable 5.1 reference](fable-5.1-reference.md) | parked | this Mac | a second frontier reference next to Opus 5.5; after the Opus v2 runs |
 | [pi 0.99](pi-0.99.md) | parked | every machine | client update released the day v2 started; v2 pins pi 0.87.1 |
 | [DeepSeek V4.1](deepseek-v4.1.md) | eliminated | none | about 750B parameters in total; V4.1-Flash size not checked |
-| Swift 1.5 Qwen3.8-27B (llama.cpp) | adopted | gruntus | [combination](../combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/README.md) |
+| Swift 1.5 Qwen3.8-27B (llama.cpp) | adopted | RTX 4090 | [combination](../combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/README.md) |

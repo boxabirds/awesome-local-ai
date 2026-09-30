@@ -21,7 +21,7 @@ import engine_settings as E
 
 # --- real-shaped command lines -------------------------------------------------------------------
 
-# gruntus, swift15-qwen38-27b, vidi v2-r1 run.json identity.server_command (verbatim)
+# the RTX 4090 machine, swift15-qwen38-27b, vidi v2-r1 run.json identity.server_command (verbatim)
 LLAMA_SWIFT = ["~/.local/share/swift15-qwen38-27b/llama.cpp/build/bin/llama-server", "-m",
                "~/.local/share/swift15-qwen38-27b/models/Swift-1.5-Qwen3.8-27B-Q4_K_M.gguf", "-a",
                "qwen3.8-swift-1.5-27b", "-ngl", "99", "-c", "131072", "-fa", "on", "--jinja", "--cache-type-k",
@@ -30,7 +30,7 @@ LLAMA_SWIFT = ["~/.local/share/swift15-qwen38-27b/llama.cpp/build/bin/llama-serv
                "--reasoning-effort", "low", "--spec-type", "draft-mtp", "--spec-draft-n-max", "4"]
 LLAMA_SWIFT_VERSION = "version: 0.5.0-dev (build 1, commit 6a2743f)"
 
-# tritus/Mac flash-next llamacpp-pi: server-llamacpp.sh with a separate MTP head (-md), SPEC_DRAFT_P_MIN=0.0
+# Strix Halo/Mac flash-next llamacpp-pi: server-llamacpp.sh with a separate MTP head (-md), SPEC_DRAFT_P_MIN=0.0
 # and LLAMA_EXTRA_ARGS="-lm dio --ctx-checkpoints 8", QUANT=UD-IQ4_XS, MTP_QUANT=shared-Q8_0
 LLAMA_FLASH = ["~/.local/share/qwen38-flash-next/llama.cpp/build/bin/llama-server",
                "-m", "~/models/Qwen3.8-Flash-Next-GGUF/UD-IQ4_XS/Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf",
@@ -68,7 +68,7 @@ MLX = ["~/.local/share/awesome-local-ai/mlx-serve/v26.9.6/mlx-serve-macos-arm64/
 MLX_VERSION = "mlx-serve 26.9.6"
 MLX_GENCFG_ON = {"eos_token_id": [1], "default_chat_template_kwargs": {"enable_thinking": True}}
 
-# quintus, MTPLX 2.12.0: the listening process as `ps` shows it (docs/20260924-mtplx-memory-report.md)
+# the M5 Max, MTPLX 2.12.0: the listening process as `ps` shows it (docs/20260924-mtplx-memory-report.md)
 MTPLX_PY = ["python", "-m", "mtplx.server.openai", "--model",
             "~/.mtplx/models/Youssofal--Qwen3.8-Flash-Next-MTPLX-Optimized-Speed", "--backend-id", "native_mtp",
             "--host", "127.0.0.1", "--port", "18010", "--depth", "3", "--generation-mode", "mtp", "--profile",
@@ -144,7 +144,7 @@ def test_a_name_that_states_no_quantisation_gives_none():
 # --- 3. each engine's parser ---------------------------------------------------------------------
 
 class TestLlamaCpp:
-    def test_the_swift_run_on_gruntus(self):
+    def test_the_swift_run_on_the_rtx_4090(self):
         s = settings("llamacpp", LLAMA_SWIFT, LLAMA_SWIFT_VERSION)
         assert s["engine"] == "llama.cpp" and s["engine_version"] == LLAMA_SWIFT_VERSION
         assert val(s, "context_size") == 131072
@@ -193,7 +193,7 @@ class TestLlamaCpp:
 
 
 class TestGufo:
-    def test_the_gufo_container_on_tritus(self):
+    def test_the_gufo_container_on_the_strix_halo(self):
         s = settings("gufo", GUFO, GUFO_VERSION)
         assert s["engine"] == "gufo" and s["engine_version"] == GUFO_VERSION
         assert val(s, "context_size") == 131072
@@ -387,7 +387,7 @@ def test_no_serving_process_makes_every_setting_unknown_with_why():
         assert st["value"] == E.UNKNOWN and "no engine command line" in st["evidence"], name
 
 
-# tritus gufo-pi v2-r1 identity.server_command, recorded before identity followed containers
+# the Strix Halo box, gufo-pi v2-r1 identity.server_command, recorded before identity followed containers
 PASTA = ["/usr/bin/pasta", "--config-net", "-t", "127.0.0.1/18010-18010:8080-8080", "--quiet"]
 
 

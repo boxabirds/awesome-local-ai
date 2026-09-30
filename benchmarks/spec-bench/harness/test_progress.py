@@ -5,6 +5,8 @@ import threading
 import time
 from pathlib import Path
 
+import pytest
+
 import drive
 import progress
 from clients import empty_state
@@ -165,6 +167,18 @@ def test_skip_request_matches_only_its_story_and_is_marked_applied(tmp_path):
     drive.mark_skip_applied(tmp_path, 3)
     assert drive.pending_skip(tmp_path, 3) is None
     assert (tmp_path / "control" / "skip-story-3.applied.json").exists()
+
+
+@pytest.mark.parametrize("by", ["192.0.2.10", "made-up-laptop", "made-up-laptop.local", None])
+def test_a_skip_request_is_recorded_as_the_operators_whoever_sent_it(tmp_path, by):
+    """dbench writes the caller's address into the request; metrics.json, interventions.md and summary.md are
+    public, so what the harness takes from the request says only that the operator ended the story."""
+    (tmp_path / "control").mkdir()
+    req = {"story": 3, "reason": "3 h, no commit", "at": 1}
+    (tmp_path / "control" / "skip-story.json").write_text(json.dumps(req if by is None else {**req, "by": by}))
+    got = drive.pending_skip(tmp_path, 3)
+    assert got == {**req, "by": drive.OPERATOR}
+    assert by is None or by not in json.dumps(got)
 
 
 class SleepyClient:

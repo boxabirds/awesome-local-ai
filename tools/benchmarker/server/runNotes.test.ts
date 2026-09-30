@@ -34,8 +34,8 @@ describe("run.json's invalid", () => {
 // ---------------------------------------------------------------------------------------------------------------
 describe("interventions.md", () => {
   it("an operator's line: time, story, text", () => {
-    expect(parseInterventions("- 2026-09-26T08:57:29Z story 3: quintus froze; restarted by the operator")).toEqual([
-      { at: at("2026-09-26T08:57:29Z"), story: "3", text: "quintus froze; restarted by the operator" },
+    expect(parseInterventions("- 2026-09-26T08:57:29Z story 3: node-c froze; restarted by the operator")).toEqual([
+      { at: at("2026-09-26T08:57:29Z"), story: "3", text: "node-c froze; restarted by the operator" },
     ]);
   });
   it("the harness watchdog's line (no bullet, a zero-padded story): the same", () => {
@@ -112,7 +112,7 @@ describe("when a dbench job ended", () => {
     }
   });
   it("each of a run's jobs carries its end time", () => {
-    const jobs = [...jobsByRun({ gruntus: [job({ id: "a", updated_at: 500, submitted_at: 1 }), job({ id: "b", state: { status: "running" }, updated_at: 600, submitted_at: 2 })] }).values()][0];
+    const jobs = [...jobsByRun({ "node-a": [job({ id: "a", updated_at: 500, submitted_at: 1 }), job({ id: "b", state: { status: "running" }, updated_at: 600, submitted_at: 2 })] }).values()][0];
     expect(jobs.map((j) => [j.id, j.endedAt])).toEqual([["a", 500], ["b", null]]);
   });
 });
@@ -134,7 +134,7 @@ describe("each row carries its record's invalid mark and interventions", () => {
     expect(r.interventions).toEqual([]);
   });
   it("a job with no record yet: valid, and none", () => {
-    const [r] = buildRows([], { gruntus: [{ id: "j", spec: { pack: "benchmarks/vidi", run_id: "v2-r2" }, progress: { combination: SWIFT }, state: { status: "queued" } }] }, {}, 0);
+    const [r] = buildRows([], { "node-a": [{ id: "j", spec: { pack: "benchmarks/vidi", run_id: "v2-r2" }, progress: { combination: SWIFT }, state: { status: "queued" } }] }, {}, 0);
     expect(r.invalid).toBeNull();
     expect(r.interventions).toEqual([]);
   });

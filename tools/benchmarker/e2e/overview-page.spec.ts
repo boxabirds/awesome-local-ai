@@ -72,7 +72,7 @@ test.beforeEach(async ({ request }) => {
 
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("needs you: the fixture as it is", () => {
-  test("idle tritus, unscored v2-r7 and v2-r1's accounting, in that order, and a count", async ({ page }) => {
+  test("idle node-d, unscored v2-r7 and v2-r1's accounting, in that order, and a count", async ({ page }) => {
     await patchState(page);
     await open(page);
     expect(await needs(page).locator("li").evaluateAll((ls) => ls.map((l) => (l as HTMLElement).dataset.need))).toEqual(["idle", "unscored", "accounting"]);
@@ -98,8 +98,8 @@ test.describe("needs you: each kind", () => {
     await open(page);
     const n = need(page, "silent");
     await expect(n).toHaveCount(1);
-    await expect(n).toContainText("gruntus: 3.8-swift-1.5/27b llamacpp v2-r1 on story 3 has reported nothing for 20 min");
-    await expect(n.locator("a.machine-link")).toHaveAttribute("href", "#/m/gruntus");
+    await expect(n).toContainText("node-a: 3.8-swift-1.5/27b llamacpp v2-r1 on story 3 has reported nothing for 20 min");
+    await expect(n.locator("a.machine-link")).toHaveAttribute("href", "#/m/node-a");
     await expect(n.locator("a.run-link")).toHaveAttribute("href", runHref(SWIFT, "v2-r1"));
     await expect(n.locator("a.story-run-link")).toHaveAttribute("href", storyRunHref(SWIFT, "v2-r1", "3"));
     await n.locator("a.resolve").click();
@@ -117,9 +117,9 @@ test.describe("needs you: each kind", () => {
 
   test("an unreachable machine: its error, resolved on its page; it is not also called idle", async ({ page }) => {
     await patchState(page);
-    await patchMachines(page, (ms) => { const t = ms.find((m) => m.name === "tritus")!; t.ok = false; t.error = "connection refused"; delete t.node; });
+    await patchMachines(page, (ms) => { const t = ms.find((m) => m.name === "node-d")!; t.ok = false; t.error = "connection refused"; delete t.node; });
     await open(page);
-    await expect(need(page, "unreachable")).toContainText("tritus doesn't answer: connection refused");
+    await expect(need(page, "unreachable")).toContainText("node-d doesn't answer: connection refused");
     await expect(need(page, "idle")).toHaveCount(0);
     await need(page, "unreachable").locator("a.resolve").click();
     await expect(page.locator('[data-page="machine"] [data-fact="reach"]')).toContainText("✕ unreachable: connection refused");
@@ -133,10 +133,10 @@ test.describe("needs you: each kind", () => {
     });
     await open(page);
     await expect(need(page, "ended")).toHaveCount(1);
-    await expect(need(page, "ended")).toContainText("3.8-swift-1.5/27b llamacpp v2-r5 failed 1h00m ago on gruntus: agent crashed");
+    await expect(need(page, "ended")).toContainText("3.8-swift-1.5/27b llamacpp v2-r5 failed 1h00m ago on node-a: agent crashed");
     await expect(need(page, "ended").locator(".need-tag")).toContainText("failed");
     await expect(need(page, "ended").locator("a.run-link")).toHaveAttribute("href", runHref(SWIFT, "v2-r5"));
-    await expect(need(page, "ended").locator("a.resolve")).toHaveAttribute("href", "#/m/gruntus");
+    await expect(need(page, "ended").locator("a.resolve")).toHaveAttribute("href", "#/m/node-a");
   });
 
   test("a stopped run from the last day is listed too, tagged stopped", async ({ page }) => {
@@ -148,14 +148,14 @@ test.describe("needs you: each kind", () => {
   test("an idle machine: resolved by queueing a run on its page", async ({ page }) => {
     await patchState(page);
     await open(page);
-    await expect(need(page, "idle")).toContainText("tritus is idle: nothing running, nothing queued");
+    await expect(need(page, "idle")).toContainText("node-d is idle: nothing running, nothing queued");
     await need(page, "idle").locator("a.resolve").click();
-    await expect(page).toHaveURL(/#\/m\/tritus$/);
+    await expect(page).toHaveURL(/#\/m\/node-d$/);
     await expect(page.locator('[data-page="machine"] [data-section="now"]')).toContainText("Idle: nothing running, nothing queued.");
   });
 
   test("a machine with a queue but nothing running is not idle", async ({ page }) => {
-    await patchState(page, (s) => { s.machines.find((m) => m.node === "tritus")!.queued = 2; });
+    await patchState(page, (s) => { s.machines.find((m) => m.node === "node-d")!.queued = 2; });
     await open(page);
     await expect(need(page, "idle")).toHaveCount(0);
   });
@@ -222,15 +222,15 @@ test.describe("now: one line per machine", () => {
   test("every machine, by name, each linking to its page", async ({ page }) => {
     await patchState(page);
     await open(page);
-    expect(await now(page).locator("tbody tr").evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.machine))).toEqual(["gruntus", "macbook-air", "quintus", "tritus"]);
-    await nowRow(page, "quintus").locator("a.machine-link").click();
-    await expect(page.locator('[data-page="machine"] h1')).toHaveText("quintus");
+    expect(await now(page).locator("tbody tr").evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.machine))).toEqual(["node-a", "node-b", "node-c", "node-d"]);
+    await nowRow(page, "node-c").locator("a.machine-link").click();
+    await expect(page.locator('[data-page="machine"] h1')).toHaveText("node-c");
   });
 
   test("running: the run, the story with its title, minutes on it, and the queue; each a link", async ({ page }) => {
     await patchState(page);
     await open(page);
-    const g = nowRow(page, "gruntus");
+    const g = nowRow(page, "node-a");
     await expect(g).toHaveAttribute("data-state", "running");
     await expect(g.locator("td").first()).toHaveText("▶ 3.8-swift-1.5/27b llamacpp v2-r1 · story 3 See other people's edits live · 4 min");
     await expect(g.locator("td.q")).toHaveText("3 queued");
@@ -242,42 +242,42 @@ test.describe("now: one line per machine", () => {
   test("running and silent: flagged in the line", async ({ page }) => {
     await patchState(page, (s) => { const l = rowOf(s, SWIFT, "v2-r1").live!; l.agentMinutes = 4; l.storyStartedAt = s.now - 2 * HOUR; });
     await open(page);
-    await expect(nowRow(page, "gruntus").locator(".now-stuck")).toHaveText(" ⚠ no activity for 1h56m");
+    await expect(nowRow(page, "node-a").locator(".now-stuck")).toHaveText(" ⚠ no activity for 1h56m");
   });
 
   test("running, finishing: says the gates are running, and is never called silent", async ({ page }) => {
     await patchState(page, (s) => {
       const l = rowOf(s, SWIFT, "v2-r1").live!; l.currentStory = null; l.storyStartedAt = s.now - 2 * HOUR;
-      s.machines.find((m) => m.node === "gruntus")!.running!.finishing = true;
+      s.machines.find((m) => m.node === "node-a")!.running!.finishing = true;
     });
     await open(page);
-    await expect(nowRow(page, "gruntus")).toContainText("(finishing: gates and scoring)");
-    await expect(nowRow(page, "gruntus").locator(".now-stuck")).toHaveCount(0);
+    await expect(nowRow(page, "node-a")).toContainText("(finishing: gates and scoring)");
+    await expect(nowRow(page, "node-a").locator(".now-stuck")).toHaveCount(0);
   });
 
   test("idle: says so; nothing queued", async ({ page }) => {
     await patchState(page);
     await open(page);
-    await expect(nowRow(page, "tritus")).toHaveAttribute("data-state", "idle");
-    await expect(nowRow(page, "tritus").locator("td").first()).toHaveText("idle");
-    await expect(nowRow(page, "tritus").locator("td.q")).toHaveText("nothing queued");
+    await expect(nowRow(page, "node-d")).toHaveAttribute("data-state", "idle");
+    await expect(nowRow(page, "node-d").locator("td").first()).toHaveText("idle");
+    await expect(nowRow(page, "node-d").locator("td.q")).toHaveText("nothing queued");
   });
 
   test("queued only: nothing running, the queue waiting", async ({ page }) => {
-    await patchState(page, (s) => { s.machines.find((m) => m.node === "tritus")!.queued = 2; });
+    await patchState(page, (s) => { s.machines.find((m) => m.node === "node-d")!.queued = 2; });
     await open(page);
-    await expect(nowRow(page, "tritus")).toHaveAttribute("data-state", "queuedOnly");
-    await expect(nowRow(page, "tritus").locator("td").first()).toHaveText("nothing running (2 waiting)");
-    await expect(nowRow(page, "tritus").locator("td.q")).toHaveText("2 queued");
+    await expect(nowRow(page, "node-d")).toHaveAttribute("data-state", "queuedOnly");
+    await expect(nowRow(page, "node-d").locator("td").first()).toHaveText("nothing running (2 waiting)");
+    await expect(nowRow(page, "node-d").locator("td.q")).toHaveText("2 queued");
   });
 
   test("unreachable: says so with the error; its queue can't be told", async ({ page }) => {
     await patchState(page);
-    await patchMachines(page, (ms) => { const t = ms.find((m) => m.name === "gruntus")!; t.ok = false; t.error = "timed out"; });
+    await patchMachines(page, (ms) => { const t = ms.find((m) => m.name === "node-a")!; t.ok = false; t.error = "timed out"; });
     await open(page);
-    await expect(nowRow(page, "gruntus")).toHaveAttribute("data-state", "unreachable");
-    await expect(nowRow(page, "gruntus").locator("td").first()).toHaveText("unreachable timed out");
-    await expect(nowRow(page, "gruntus").locator("td.q .missing")).toHaveText("—");
+    await expect(nowRow(page, "node-a")).toHaveAttribute("data-state", "unreachable");
+    await expect(nowRow(page, "node-a").locator("td").first()).toHaveText("unreachable timed out");
+    await expect(nowRow(page, "node-a").locator("td.q .missing")).toHaveText("—");
   });
 
   test("a machine in the list that dbench's job list doesn't have is listed, as unreachable", async ({ page }) => {
@@ -319,7 +319,7 @@ test.describe("the glossary: every heading and tag explains itself", () => {
     await expect(need(page, "unscored").locator(".need-tag")).toHaveAttribute("data-tip", GLOSSARY.needUnscored.what);
     await expect(need(page, "accounting").locator(".need-tag")).toHaveAttribute("data-tip", GLOSSARY.needAccounting.what);
     await expect(now(page).locator("thead th").last()).toHaveAttribute("data-tip", GLOSSARY.queue.what);
-    await expect(nowRow(page, "gruntus").locator(".now-min")).toHaveAttribute("data-tip", GLOSSARY.storyMinutes.what);
+    await expect(nowRow(page, "node-a").locator(".now-min")).toHaveAttribute("data-tip", GLOSSARY.storyMinutes.what);
   });
 });
 
@@ -335,7 +335,7 @@ test.describe("keyboard", () => {
     await page.keyboard.press("Tab");
     await expect(need(page, "idle").locator("a.resolve")).toBeFocused();
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/#\/m\/tritus$/);
+    await expect(page).toHaveURL(/#\/m\/node-d$/);
   });
 });
 

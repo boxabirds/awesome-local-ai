@@ -1,11 +1,11 @@
 # gufo on long agent sessions: where the time goes
 
-28 Sep 2026, overnight on tritus (Ryzen AI MAX+ 395, Radeon 8060S, 128 GB). Qwen3.8 Flash-Next, the
+28 Sep 2026, overnight on the Strix Halo box (Ryzen AI MAX+ 395, Radeon 8060S, 128 GB). Qwen3.8 Flash-Next, the
 pi agent, the vidi canvas benchmark. Data, scripts and a timestamped log are in
-`benchmarks/gufo-eval/results/20260928-long-session/` on tritus; the tools are in
+`benchmarks/gufo-eval/results/20260928-long-session/` on the Strix Halo box; the tools are in
 [`benchmarks/gufo-eval/long-session/`](../benchmarks/gufo-eval/long-session/).
 
-**Status:** complete (28 Sep, 07:15 BST). tritus left idle, no servers or containers running.
+**Status:** complete (28 Sep, 07:15 BST). The Strix Halo box left idle, no servers or containers running.
 
 ## In short
 
@@ -27,7 +27,7 @@ pi agent, the vidi canvas benchmark. Data, scripts and a timestamped log are in
 
 ## The question
 
-In gufo's first agent run on tritus (canvas-gufo-01, vidi story 5), the engine looked fast by every
+In gufo's first agent run on the Strix Halo box (canvas-gufo-01, vidi story 5), the engine looked fast by every
 measure (decode 45.7 tok/s median, draft acceptance 76%, time to first token 0.6 s, prompt reading
 ~1,230 tok/s) yet after 73 minutes the agent had written 2 of 7 tasks and produced ~158k output
 tokens, while llama.cpp (canvas-vk-01) finished the same story in 80 minutes with 102k. Why, and is
@@ -246,7 +246,7 @@ evidence the model wrote raw line breaks there).
 
 ## Recommended configuration
 
-- **Engine: gufo** for long agent sessions on tritus, with its current settings (effort low,
+- **Engine: gufo** for long agent sessions on the Strix Halo box, with its current settings (effort low,
   thinking on, the agents' sampler, draft depth 7 — depth 4 was no faster). It is several times
   faster where agent sessions spend their waiting time (prompt reading after a compaction or a
   cache miss) and no less careful per turn.
@@ -261,7 +261,7 @@ evidence the model wrote raw line breaks there).
      characters before parsing, as lenient JSON parsers do).
 - **`--preserve-thinking off`** cuts the prompt by 20–24% and would reduce compactions, but
   changes what the model sees; test it on real stories before adopting it.
-- **llama.cpp on tritus stays stopped** (prefill 170–350 tok/s; see
+- **llama.cpp on the Strix Halo box stays stopped** (prefill 170–350 tok/s; see
   [the findings](20260927-strix-halo-llamacpp-findings.md)).
 
 ## Decisions needed
@@ -287,7 +287,7 @@ evidence the model wrote raw line breaks there).
 - **gufo's best case beats llama.cpp's** on the same stories and in less time on story 1.
 - **The leaks are not rare enough to ignore:** 4 in ~790 gufo turns across the night. In exp2's
   story 2 the harness answered two of them with its "stopped without committing" nudge
-  (`dbench logs tritus canvas-gufo-exp2`), which continued the session and cost little. In exp1's
+  (`dbench logs <node> canvas-gufo-exp2`), which continued the session and cost little. In exp1's
   story 1 the leak came after commits, so no nudge fired and the story simply ended. Whether a leak
   costs nothing or a whole story is luck — hence the guard in the recommendations.
 - Story 2 of exp2 used more output (195k) and time (94 min) than exp1's, and needed 3 nudges;

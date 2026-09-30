@@ -21,14 +21,14 @@ A plan is a JSON file in `plans/`: which probes to run with what settings, and p
 
 | Plan | Question | About |
 |---|---|---|
-| [`effort-low.json`](plans/effort-low.json) | Does low reasoning effort shorten thinking on real agent turns without breaking tool calls? Which effort does a server apply when none is named? | 15 min on quintus |
+| [`effort-low.json`](plans/effort-low.json) | Does low reasoning effort shorten thinking on real agent turns without breaking tool calls? Which effort does a server apply when none is named? | 15 min on the M5 Max |
 | [`context-262k.json`](plans/context-262k.json) | Can the server run at the native 262,144-token context: does a ~200k-token agent request fit without swapping, generate at a usable speed and end in a valid tool call? Start the server with `CTX=262144`. | 10–15 min |
 
 Results so far:
 
 | Plan | Where | When | Verdict |
 |---|---|---|---|
-| `effort-low` | quintus, mlx-serve | 28 Sep 2026 | **FAIL**: on real agent turns low effort didn't shorten thinking (median 485 as captured, 533 at low). With no effort named, mlx-serve behaved between low and xhigh on a short prompt, not like xhigh. |
+| `effort-low` | M5 Max, mlx-serve | 28 Sep 2026 | **FAIL**: on real agent turns low effort didn't shorten thinking (median 485 as captured, 533 at low). With no effort named, mlx-serve behaved between low and xhigh on a short prompt, not like xhigh. |
 
 ## Probes
 

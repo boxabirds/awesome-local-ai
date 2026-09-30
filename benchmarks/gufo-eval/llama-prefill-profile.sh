@@ -12,8 +12,8 @@ UBATCHES="512 2048"
 CONTROL_SIZE=32768
 [[ "${1:-}" == --dry-run ]] && { SIZES="512"; UBATCHES="512"; OUT="$OUT-dry-run"; }
 mkdir -p "$OUT"
-# nothing else may hold the GPU: one model at a time (two OOM'd tritus on 27 Sep)
-pgrep -fl "[l]lama-server|[l]lama-bench|[g]ufo serve" && { echo "tritus is busy; not starting"; exit 1; }
+# nothing else may hold the GPU: one model at a time (two ran the Strix Halo box out of memory on 27 Sep)
+pgrep -fl "[l]lama-server|[l]lama-bench|[g]ufo serve" && { echo "the GPU is busy; not starting"; exit 1; }
 common=(-m "$MODEL" -ngl 99 -fa on -b 2048 -n 0 -r 1 -lm dio --device Vulkan0 -o jsonl)
 for ub in $UBATCHES; do
   for p in $SIZES; do

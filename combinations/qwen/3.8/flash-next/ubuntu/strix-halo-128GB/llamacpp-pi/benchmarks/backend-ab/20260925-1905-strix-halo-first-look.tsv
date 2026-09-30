@@ -1,4 +1,4 @@
-# backend-ab first look, 2026-09-25 ~19:05 on tritus (Minisforum MS-S1 MAX), by the ad-hoc script backend-ab.sh grew from
+# backend-ab first look, 2026-09-25 ~19:05 on the Strix Halo box (Minisforum MS-S1 MAX), by the ad-hoc script backend-ab.sh grew from
 # kernel 7.0.0-34-generic; llama.cpp 6fcaa16 (PR #28243 branch), GPU_API=both build
 # gpu clock level: auto (NOT pinned); power mode: performance (BIOS, set by hand)
 # ONE run per backend, vulkan first, so the vulkan load time includes a cold page cache.

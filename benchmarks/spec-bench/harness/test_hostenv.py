@@ -7,7 +7,7 @@ import pytest
 
 import hostenv
 
-GRUNTUS_MEMINFO = """MemTotal:       65643972 kB
+RTX4090_BOX_MEMINFO = """MemTotal:       65643972 kB
 MemFree:         1000000 kB
 MemAvailable:   57553088 kB
 SwapTotal:       2097148 kB
@@ -16,7 +16,7 @@ SwapFree:        2032892 kB
 
 
 def test_meminfo_free_pct_and_swap():
-    m = hostenv.parse_meminfo(GRUNTUS_MEMINFO)
+    m = hostenv.parse_meminfo(RTX4090_BOX_MEMINFO)
     assert round(hostenv.free_pct_from_meminfo(m)) == 88
     assert abs(hostenv.swap_used_gb_from_meminfo(m) - (2097148 - 2032892) / 1024 ** 2) < 1e-9
 
@@ -38,7 +38,7 @@ def test_nvidia_thermal():
 
 
 def test_linux_power_ignores_device_batteries():
-    # gruntus: a desktop whose only "battery" is a Logitech mouse (scope=Device).
+    # the RTX 4090 machine: a desktop whose only "battery" is a Logitech mouse (scope=Device).
     mouse = {"type": "Battery", "scope": "Device", "status": "Discharging"}
     assert hostenv.parse_linux_power([mouse], platform_profile=None) == {"ac": True, "low_power": False}
 
@@ -78,7 +78,7 @@ def test_bwrap_masks_then_reopens_own_dir(tmp_path):
 
 
 def fake_amdgpu(root: Path) -> Path:
-    """tritus's card1 sysfs, values as read during story 4."""
+    """The Strix Halo box's card1 sysfs, values as read during story 4."""
     dev = root / "card1" / "device"
     hw = dev / "hwmon" / "hwmon3"
     hw.mkdir(parents=True)
@@ -109,7 +109,7 @@ def test_gpu_summary_shows_a_clock_drop_under_load():
     assert hostenv.summarise_gpu([]) is None
 
 
-def test_nvidia_sample_from_gruntus_smi_line():
+def test_nvidia_sample_from_the_rtx_4090_smi_line():
     # utilization.gpu, clocks.sm, clocks.max.sm, power.draw, temperature.gpu, memory.used, throttle reasons
     s = hostenv.parse_nvidia_gpu("98, 2745, 3105, 405.08, 68, 22622, 0x0000000000000000\n")
     assert s == {"busy_pct": 98, "sclk_mhz": 2745, "power_w": 405.08, "temp_c": 68.0, "vram_gb": 22.09,
@@ -134,7 +134,7 @@ PS_OUT = """  101 20971520 /home/u/.local/share/x/llama-server -m /home/u/models
 
 
 def test_memory_snapshot_ranks_processes_and_totals_by_program():
-    """What held the memory when free memory ran low (gruntus canvas-pi-03 story 5: about 28 GB we
+    """What held the memory when free memory ran low (the RTX 4090 machine's canvas-pi-03 story 5: about 28 GB we
     couldn't attribute). Per-program totals catch many small processes, e.g. a dozen browsers."""
     from hostenv import parse_memory_snapshot
     snap = parse_memory_snapshot(PS_OUT, home="/home/u", top=3)
@@ -164,7 +164,7 @@ def test_memory_snapshot_names_programs_whose_path_has_spaces():
 
 def test_agent_is_the_first_to_go_when_linux_runs_out_of_memory():
     """The kernel's OOM killer picks the biggest process, which on a bench machine is the model
-    server (gruntus llama-server: score 810 of 1000). The agent's command raises its own tree's
+    server (the RTX 4090 machine's llama-server: score 810 of 1000). The agent's command raises its own tree's
     score instead, so a runaway test dies first. Raising needs no root; nothing outlives the process."""
     from hostenv import oom_first, AGENT_OOM_SCORE_ADJ
     cmd = oom_first(["bwrap", "--", "pi", "-p", "a prompt with 'quotes'"], linux=True)
@@ -180,3 +180,34 @@ def test_oom_first_is_inherited_by_children():
     out = subprocess.run(oom_first(["sh", "-c", "sh -c 'cat /proc/self/oom_score_adj'"], linux=True),
                          capture_output=True, text=True).stdout.strip()
     assert out == str(AGENT_OOM_SCORE_ADJ)
+
+
+# ---------- host_desc: a machine is named in records by its hardware, never its hostname ----------
+
+def test_host_desc_is_host_desc_shs_one_line():
+    """The same line run.sh puts in run.json: one definition of how a machine is named."""
+    import subprocess as sp
+    seen = []
+
+    def run(cmd, **kw):
+        seen.append(cmd)
+        return sp.CompletedProcess(cmd, 0, stdout="Made-up CPU 64GB, Made-up GPU 24 GB\n", stderr="")
+    assert hostenv.host_desc(run=run) == "Made-up CPU 64GB, Made-up GPU 24 GB"
+    assert "host-desc.sh" in " ".join(seen[0])
+
+
+@pytest.mark.parametrize("fail", ["exit", "raise"])
+def test_host_desc_is_empty_when_the_hardware_cant_be_read(fail):
+    import subprocess as sp
+
+    def run(cmd, **kw):
+        if fail == "raise":
+            raise OSError("no bash")
+        return sp.CompletedProcess(cmd, 1, stdout="partial", stderr="boom")
+    assert hostenv.host_desc(run=run) == ""
+
+
+def test_host_desc_on_this_machine_names_hardware_not_the_hostname():
+    import socket
+    desc = hostenv.host_desc()
+    assert desc and socket.gethostname().split(".")[0].lower() not in desc.lower()

@@ -67,7 +67,7 @@ mod tests {
         let mut req = SkipStory {
             story: 3,
             reason: "no commit for 107 min".into(),
-            by: "100.71.150.106".into(),
+            by: "192.0.2.10".into(),
             at: 1_790_303_000,
         };
         let path = write_skip_story(&dir, &req).unwrap();
@@ -76,7 +76,7 @@ mod tests {
             serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         assert_eq!(
             got,
-            serde_json::json!({"story": 3, "reason": "no commit for 107 min", "by": "100.71.150.106", "at": 1_790_303_000u64})
+            serde_json::json!({"story": 3, "reason": "no commit for 107 min", "by": "192.0.2.10", "at": 1_790_303_000u64})
         );
         req.reason = "second thoughts".into();
         write_skip_story(&dir, &req).unwrap();

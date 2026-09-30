@@ -167,7 +167,7 @@ LLAMA_BATCH=2048
 LLAMA_EXTRA_ARGS="-lm dio --ctx-checkpoints 8"
 
 # MTP: draft 4 tokens a step and keep every one the head proposes (p-min 0).
-# 4, not drluoto's 3: at depth 3 a pi coding session on tritus accepted 0.86-0.89
+# 4, not drluoto's 3: at depth 3 a pi coding session on the Strix Halo box accepted 0.86-0.89
 # of drafts, 3.6 tokens a step of a possible 4, so most steps used every draft.
 # Chosen to watch in the canvas run, not yet measured against 3 (Unsloth's
 # default for their heads is 2). MTP is a win for one request at a time and was

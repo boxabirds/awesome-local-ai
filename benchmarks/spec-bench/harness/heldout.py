@@ -10,8 +10,9 @@ publicise.py says what may be public; this applies it to a run directory:
 - the full detail is copied to the private repo (copy_private), at runs/<the run's path in this repo>/, so it
   outlives the machine. find() looks for a detail file in the run, then in that copy: on the Mac, where a run's
   directory comes from git, the detail is only in the copy.
-- staged_problems is the check record_story runs before every commit: a private file, or a held-out test title
-  (publicise.fingerprints of the private suite) in any staged file of the run, and nothing is committed.
+- staged_problems is the check record_story runs before every commit: a private file, a held-out test title
+  (publicise.fingerprints of the private suite), or a local machine name (machine_names.py: the dbench node list's
+  names and this machine's hostname, read at run time) in any staged file of the run, and nothing is committed.
 Tests: test_publish_gate.py, which also takes a whole run through drive.record_story.
 """
 from __future__ import annotations
@@ -25,6 +26,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import machine_names as mn
 import packdir
 import publicise as pub
 
@@ -251,20 +253,35 @@ def _text(rel: str, data: bytes) -> str:
 
 PRIVATE_FILE = "private file"
 HELD_OUT = "held-out detail"
+MACHINE_NAME = "machine name"
 CHECK_FAILED = "check failed"
+NODE_LIST_UNREADABLE = f"{CHECK_FAILED}: the local dbench node list can't be read"
 
 
-def staged_problems(repo_root: Path, rel: str, git: list[str], fps: set[str], env: dict | None = None) -> list[dict]:
+def local_names() -> tuple[set[str], list[dict]]:
+    """The local machine names (machine_names.local_names), read now; a node list that can't be read is a
+    CHECK_FAILED problem (it fails closed), named without its path, which is under the owner's home."""
+    try:
+        return mn.local_names(), []
+    except ValueError:
+        return set(), [{"file": mn.NODES_REL, "why": NODE_LIST_UNREADABLE, "fingerprint": None}]
+
+
+def staged_problems(repo_root: Path, rel: str, git: list[str], fps: set[str], env: dict | None = None,
+                    names: set[str] | None = None) -> list[dict]:
     """Every staged file under rel that must not be committed, as {"file", "why", "fingerprint"}: why is
     PRIVATE_FILE (a private path, whatever it holds), HELD_OUT (fingerprint is the held-out title, or the anchor
-    mark, found in it) or CHECK_FAILED (the check could not read it: it fails closed). The staged content is what
+    mark, found in it), MACHINE_NAME (fingerprint is a local machine name found in its path or text; names, else
+    local_names()) or CHECK_FAILED (the check could not read it: it fails closed). The staged content is what
     is read (the index, not the working tree; env may name another index, GIT_INDEX_FILE)."""
+    problems: list[dict] = []
+    if names is None:
+        names, problems = local_names()
     listed = subprocess.run([*git, "diff", "--cached", "--name-only", "-z", "--diff-filter=ACMRT", "--", rel],
                             cwd=repo_root, capture_output=True, env=env)
     if listed.returncode != 0:
-        return [{"file": rel, "why": f"{CHECK_FAILED}: {listed.stderr.decode(errors='replace')[-200:]}",
-                 "fingerprint": None}]
-    problems = []
+        return [*problems, {"file": rel, "why": f"{CHECK_FAILED}: {listed.stderr.decode(errors='replace')[-200:]}",
+                            "fingerprint": None}]
     for path in filter(None, listed.stdout.decode().split("\0")):
         if pub.is_private(path):
             problems.append({"file": path, "why": PRIVATE_FILE, "fingerprint": None})
@@ -275,6 +292,12 @@ def staged_problems(repo_root: Path, rel: str, git: list[str], fps: set[str], en
         if blob.returncode != 0:
             problems.append({"file": path, "why": f"{CHECK_FAILED}: could not read the staged file", "fingerprint": None})
             continue
-        problems += [{"file": path, "why": HELD_OUT, "fingerprint": fp}
-                     for fp in pub.leaks_in_file(path, _text(path, blob.stdout), fps)]
+        text = _text(path, blob.stdout)
+        problems += [{"file": path, "why": HELD_OUT, "fingerprint": fp} for fp in pub.leaks_in_file(path, text, fps)]
+        problems += [{"file": path, "why": MACHINE_NAME, "fingerprint": n} for n in mn.in_file(path, text, names)]
     return problems
+
+
+def message_problems(message: str, names: set[str], where: str) -> list[dict]:
+    """A commit message is as public as the files: the local machine names in it, as problems of `where`."""
+    return [{"file": where, "why": MACHINE_NAME, "fingerprint": n} for n in mn.found(message, names)]

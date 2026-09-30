@@ -176,8 +176,8 @@ test.describe("by combination", () => {
     const head = group(page, SWIFT).locator("tr.sp-group");
     await expect(head.locator("a.combination-link")).toHaveText("3.8-swift-1.5/27b llamacpp");
     await expect(head.locator("a.combination-link")).toHaveAttribute("href", `#/vidi/c/${enc(SWIFT)}`);
-    await expect(head.locator("a.machine-link")).toHaveText(["gruntus"]);
-    await expect(group(page, OPUS).locator("tr.sp-group a.machine-link")).toHaveText(["Apple M2 16GB", "macbook-air"]);
+    await expect(head.locator("a.machine-link")).toHaveText(["node-a"]);
+    await expect(group(page, OPUS).locator("tr.sp-group a.machine-link")).toHaveText(["Apple M2 16GB", "node-b"]);
   });
 
   test("median and range over the finished runs, with n; running runs aren't in it", async ({ page }) => {
@@ -222,7 +222,7 @@ test.describe("by combination", () => {
     const r = row(page, SWIFT, "v2-r4");
     await expect(r.locator("a.run-link")).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r4`);
     await expect(r.locator("a.story-run-link")).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r4/s/1`);
-    await expect(r.locator(".sp-run-meta")).toContainText("✓ finished · gruntus");
+    await expect(r.locator(".sp-run-meta")).toContainText("✓ finished · node-a");
     await expect(row(page, SWIFT, "v2-r1").locator(".sp-run-meta")).toContainText("▶ running");
   });
 
@@ -495,7 +495,7 @@ test.describe("every link lands on its entity", () => {
     await follow(page, group(page, SWIFT).locator("tr.sp-group a.combination-link"), "combination", "v2-r5");
     await follow(page, row(page, SWIFT, "v2-r5").locator("a.run-link"), "run", "v2-r5");
     await follow(page, row(page, SWIFT, "v2-r5").locator("a.story-run-link"), "storyRun", "Story 1");
-    await follow(page, row(page, SWIFT, "v2-r5").locator("a.machine-link"), "machine", "gruntus");
+    await follow(page, row(page, SWIFT, "v2-r5").locator("a.machine-link"), "machine", "node-a");
     await follow(page, group(page, SWIFT).locator('tr.sp-not-built [data-run="v2-r2"] a.run-link'), "run", "v2-r2");
   });
 
@@ -505,14 +505,14 @@ test.describe("every link lands on its entity", () => {
     await follow(page, g.locator(".sp-time-head a.combination-link"), "combination");
     await follow(page, g.locator('[data-run="v2-r6"] a.run-link'), "run", "v2-r6");
     await follow(page, g.locator('[data-run="v2-r6"] a.story-run-link'), "storyRun", "Story 1");
-    await follow(page, g.locator('[data-run="v2-r6"] a.machine-link'), "machine", "gruntus");
+    await follow(page, g.locator('[data-run="v2-r6"] a.machine-link'), "machine", "node-a");
   });
 
   test("the comparison note's run and machine", async ({ page }) => {
     await open(page, "2", cmpOf(SWIFT, "v2-r4"));
     const note = section(page, "combinations").locator(".compare-note");
     await follow(page, note.locator("a.run-link"), "run", "v2-r4");
-    await follow(page, note.locator("a.machine-link"), "machine", "gruntus");
+    await follow(page, note.locator("a.machine-link"), "machine", "node-a");
   });
 
   test("every link on the page is an entity page's address, and has a name", async ({ page }) => {

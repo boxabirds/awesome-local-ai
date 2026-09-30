@@ -7,8 +7,8 @@
 # Each round loads the server once per backend and sends every prompt; rounds alternate the order
 # (vulkan,rocm then rocm,vulkan) so warm-up and drift do not favour one arm. Needs the GPU to itself.
 #
-# Writes backend-ab/<timestamp>-<host>.tsv next to this script: a header recording the machine
-# (kernel, llama.cpp commit, GPU clock level, power mode) and one row per run/backend/prompt.
+# Writes backend-ab/<timestamp>.tsv next to this script: a header recording the machine
+# (its hardware, kernel, llama.cpp commit, GPU clock level, power mode) and one row per run/backend/prompt.
 # The power mode cannot be read from Linux: pass it, e.g. POWER_MODE=performance.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -64,9 +64,11 @@ PROMPT_ORDER="code rewrite prose"
 
 # ---- output ------------------------------------------------------------------------------------------
 mkdir -p "$HERE/backend-ab"
-OUT="$HERE/backend-ab/$(date +%Y%m%d-%H%M%S)-$(hostname -s).tsv"
+# The machine by its hardware (harness host-desc.sh), never its hostname; empty if unavailable.
+hw_desc() { local f="$HERE/../../../../../../../../benchmarks/spec-bench/harness/host-desc.sh"; [[ -f "$f" ]] || return 0; ( . "$f" && host_desc ) 2>/dev/null || true; }
+OUT="$HERE/backend-ab/$(date +%Y%m%d-%H%M%S).tsv"
 {
-  echo "# backend-ab $(date -Is) on $(hostname -s)"
+  echo "# backend-ab $(date -Is) on $(hw_desc)"
   echo "# kernel $(uname -r); llama.cpp $(git -C "$INSTALL_ROOT/llama.cpp" rev-parse --short HEAD 2>/dev/null || echo '?')"
   echo "# gpu clock level: $(cat "$GPU_SYSFS/power_dpm_force_performance_level" 2>/dev/null || echo '?'); power mode: ${POWER_MODE:-not recorded (set POWER_MODE)}"
   echo "# build backends: $(sed -n 's/^GPU_BACKENDS="\(.*\)"/\1/p' "$INSTALL_ROOT/install.env")"

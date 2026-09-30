@@ -2,5 +2,5 @@
   "state": "failed",
   "reason": "exit 1: return io.open(self, mode, buffering, encoding, errors, newline) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ FileNotFoundError: [Errno 2] No such file or directory: '~/.spec-bench/awesome-local-ai/benchmarks/todoodle/spec/stories/009-cut-off-anyone-who-has-an-old-li",
   "at": "2026-09-27T00:15:34Z",
-  "host": "Julians-MacBook-Air.local"
+  "host": "Apple M2 16GB"
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The overnight long-session experiments on tritus, one server at a time, each stopped on exit.
+# The overnight long-session experiments on the Strix Halo box, one server at a time, each stopped on exit.
 #   experiments.sh DIR [--dry-run] [--only "E1 E2 ..."]
 # E1 gufo as the benchmark runs it: effort probe + replays (as sent, and with effort low).
 # E2 llama.cpp as the benchmark runs it (UD-IQ4_XS, Vulkan): effort probe + replays.

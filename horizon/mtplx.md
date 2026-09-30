@@ -2,7 +2,7 @@
 
 **Status:** blocked (29 Sep 2026; retired from runs since late Sep 2026). Its memory admission can deadlock a
 long coding-agent conversation, and neither report has a fix yet.
-**Machine:** quintus (M5 Max). mlx-serve replaced it as the MLX engine; it is not used as a baseline.
+**Machine:** the M5 Max (128 GB). mlx-serve replaced it as the MLX engine; it is not used as a baseline.
 Three vidi runs exist under [mtplx-pi](../combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/).
 
 ## Why it's blocked
@@ -19,7 +19,7 @@ Three vidi runs exist under [mtplx-pi](../combinations/qwen/3.8/flash-next/macos
    SSD session cache served no restores while costing time.
    [Field notes](../docs/20260904-mtplx-feedback.md).
 
-Every vidi story on quintus is one long agent conversation near the context limit, which is exactly where
+Every vidi story on the M5 Max is one long agent conversation near the context limit, which is exactly where
 1 and 2 happen: a stopped story would score what it had built so far, and look like a model result.
 
 ## What would unblock it
@@ -27,7 +27,7 @@ Every vidi story on quintus is one long agent conversation near the context limi
 A release that fixes memory admission for long agent sessions (compaction requests admitted; idle-session KV
 evictable), then:
 
-1. The same long-context multi-turn test as [TensorFold](tensorfold.md) on quintus: a conversation grown past
+1. The same long-context multi-turn test as [TensorFold](tensorfold.md) on the M5 Max: a conversation grown past
    120k tokens, including a compaction request near the limit, answered without 507 and with the cache kept.
 2. A one-story smoke test.
 

@@ -73,13 +73,13 @@ describe("story and machine pages", () => {
     expect(storyHref("vidi", "07")).toBe(storyHref("vidi", "7"));
   });
   it("a machine page isn't: a machine runs every pack", () => {
-    expect(parseRoute(machineHref("gruntus"))).toEqual({ page: "machine", machine: "gruntus", params: {} });
-    expect(parseRoute(machineHref("macbook-air.local"))).toMatchObject({ machine: "macbook-air.local" });
+    expect(parseRoute(machineHref("node-a"))).toEqual({ page: "machine", machine: "node-a", params: {} });
+    expect(parseRoute(machineHref("node-b.local"))).toMatchObject({ machine: "node-b.local" });
   });
   it.each([
     ["a story that isn't a number", "#/vidi/s/two"],
     ["a machine with no name", "#/m"],
-    ["a machine with extra segments", "#/m/gruntus/x"],
+    ["a machine with extra segments", "#/m/node-a/x"],
   ])("%s is not found", (_, h) => expect(parseRoute(h).page).toBe("notFound"));
 });
 
@@ -90,7 +90,7 @@ describe("page state rides along as query parameters", () => {
     expect(parseRoute(withParams(runHref("vidi", SWIFT, "v2-r5"), { compare: "v2 r4&x" })).params).toEqual({ compare: "v2 r4&x" });
   });
   it("empty values are left out, and no parameters means a plain address", () => {
-    expect(withParams(machineHref("gruntus"), { a: "", b: undefined })).toBe(machineHref("gruntus"));
+    expect(withParams(machineHref("node-a"), { a: "", b: undefined })).toBe(machineHref("node-a"));
   });
   it("the overview keeps its parameters too", () => {
     expect(parseRoute(withParams(overviewHref(), { tab: "machines" }))).toEqual({ page: "overview", params: { tab: "machines" } });

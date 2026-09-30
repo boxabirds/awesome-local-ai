@@ -1,7 +1,7 @@
 # BeeLlama.cpp (llama.cpp fork: smaller KV cache, adaptive speculation)
 
 **Status:** candidate (30 Sep 2026): no known blocker; not scheduled.
-**Machine:** gruntus (Ubuntu, CUDA). Compared with Swift 1.5 on llama.cpp on the same GPU: only the engine
+**Machine:** the RTX 4090 machine (Ubuntu, CUDA). Compared with Swift 1.5 on llama.cpp on the same GPU: only the engine
 and its KV-cache settings differ.
 
 ## What it is
@@ -44,7 +44,7 @@ identity records the server command line). Its speculation settings differ from 
 lags upstream by an unknown amount.
 
 **Last checked:** 30 Sep 2026 (project README and GitHub metadata; nothing run). **Recheck when:** a v2
-Swift 1.5 result exists to compare with, or gruntus has a free window.
+Swift 1.5 result exists to compare with, or the RTX 4090 machine has a free window.
 
 Sources: [repository](https://github.com/Anbeeld/beellama.cpp) ·
 [releases](https://github.com/Anbeeld/beellama.cpp/releases)

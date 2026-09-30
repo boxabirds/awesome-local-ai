@@ -81,19 +81,19 @@ describe("links", () => {
 describe("dbench jobs", () => {
   it("are matched to runs by stack, pack and run id; the newest job wins", () => {
     const idx = indexJobs({
-      gruntus: [
+      "node-a": [
         job({ id: "new", state: { status: "running" }, updated_at: 2 }),
         job({ id: "old", state: { status: "failed" }, updated_at: 1 }),
       ],
     });
     const j = idx.get(`${SWIFT}\u0000vidi\u0000v2-r1`);
     expect(j?.id).toBe("new");
-    expect(j?.node).toBe("gruntus");
+    expect(j?.node).toBe("node-a");
   });
 
   it("queued jobs know their place and what is ahead, in dbench's order", () => {
     const q = queuePositions({
-      gruntus: [
+      "node-a": [
         job({ id: "s1", state: { status: "running" }, spec: { pack: "benchmarks/vidi", run_id: "v2-r1" } }),
         job({ id: "s3", spec: { pack: "benchmarks/vidi", run_id: "v2-r3" }, submitted_at: 5, seq: 2 }),
         job({ id: "s2", spec: { pack: "benchmarks/vidi", run_id: "v2-r2" }, submitted_at: 5, seq: 1 }),
@@ -204,12 +204,12 @@ describe("every job of a run", () => {
 
   it("lists a run's jobs oldest first, whatever node or order dbench gives them in", () => {
     const by = jobsByRun({
-      gruntus: [job({ id: "v2-r1-again1", spec, state: { status: "running" }, submitted_at: 300, updated_at: 400 }),
+      "node-a": [job({ id: "v2-r1-again1", spec, state: { status: "running" }, submitted_at: 300, updated_at: 400 }),
                 job({ id: "v2-r1", spec, state: { status: "cancelled", reason: "stopped by the operator" }, submitted_at: 100, updated_at: 200 })],
     });
     const jobs = [...by.values()][0];
     expect(jobs.map((j) => j.id)).toEqual(["v2-r1", "v2-r1-again1"]);
-    expect(jobs[0]).toEqual({ id: "v2-r1", node: "gruntus", status: "cancelled", submittedAt: 100, updatedAt: 200, endedAt: 200, reason: "stopped by the operator" });
+    expect(jobs[0]).toEqual({ id: "v2-r1", node: "node-a", status: "cancelled", submittedAt: 100, updatedAt: 200, endedAt: 200, reason: "stopped by the operator" });
   });
 
   it("keeps different runs, packs and combinations apart", () => {
@@ -225,7 +225,7 @@ describe("every job of a run", () => {
   it("each row carries its own jobs, and a run with no job has none", () => {
     const rec = { pack: "vidi", stack: SWIFT, runId: "v2-r1", dir: "d", rescores: [], rescoreLast: {}, hasBundle: false,
       host: "", packVersion: "", state: "finished", stateAt: "", stories: [], scores: {} };
-    const rows = buildRows([rec, { ...rec, runId: "v2-r9", dir: "e" }], { gruntus: [job({ id: "j1", spec, state: { status: "done" } })] }, {}, 0);
+    const rows = buildRows([rec, { ...rec, runId: "v2-r9", dir: "e" }], { "node-a": [job({ id: "j1", spec, state: { status: "done" } })] }, {}, 0);
     expect(rows.find((r) => r.runId === "v2-r1")!.jobs.map((j) => j.id)).toEqual(["j1"]);
     expect(rows.find((r) => r.runId === "v2-r9")!.jobs).toEqual([]);
   });
@@ -265,20 +265,20 @@ describe("machines", () => {
     ({ stack, runId, node, pack: "vidi", live: { status, currentStory: story, agentMinutes: 25 } }) as unknown as Row;
 
   it("names the story being finished between stories, not \"starting\"", () => {
-    const r = { stack: SWIFT, runId: "v2-r1", node: "gruntus", pack: "vidi", live: { status: "running", currentStory: "", runningStory: "3", agentMinutes: 33 } } as unknown as Row;
-    expect(machines(["gruntus"], [r])[0].running).toMatchObject({ story: "3", finishing: true });
+    const r = { stack: SWIFT, runId: "v2-r1", node: "node-a", pack: "vidi", live: { status: "running", currentStory: "", runningStory: "3", agentMinutes: 33 } } as unknown as Row;
+    expect(machines(["node-a"], [r])[0].running).toMatchObject({ story: "3", finishing: true });
   });
 
   it("says what each node runs now and how many wait, and names idle nodes", () => {
     const rows = [
-      row(SWIFT, "v2-r1", "gruntus", "running", "3"),
-      row(SWIFT, "v2-r2", "gruntus", "queued"),
-      row("qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi", "v2-r1", "gruntus", "queued"),
-      row(SWIFT, "smoke-v2-01", "gruntus", "done"),
+      row(SWIFT, "v2-r1", "node-a", "running", "3"),
+      row(SWIFT, "v2-r2", "node-a", "queued"),
+      row("qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi", "v2-r1", "node-a", "queued"),
+      row(SWIFT, "smoke-v2-01", "node-a", "done"),
     ];
-    expect(machines(["tritus", "gruntus"], rows)).toEqual([
-      { node: "gruntus", running: { stack: SWIFT, short: "3.8-swift-1.5/27b llamacpp", runId: "v2-r1", story: "3", finishing: false, agentMinutes: 25 }, queued: 2 },
-      { node: "tritus", running: null, queued: 0 },
+    expect(machines(["node-d", "node-a"], rows)).toEqual([
+      { node: "node-a", running: { stack: SWIFT, short: "3.8-swift-1.5/27b llamacpp", runId: "v2-r1", story: "3", finishing: false, agentMinutes: 25 }, queued: 2 },
+      { node: "node-d", running: null, queued: 0 },
     ]);
   });
 });
@@ -288,12 +288,12 @@ describe("assignMachines", () => {
 
   it("files a run by its dbench node, else by the node its host was seen on, else by its host", () => {
     const rows = assignMachines([
-      r("v2-r1", "quintus", "Apple M5 Max 128GB"),
-      r("canvas-mlx-01", null, "Apple M5 Max 128GB"), // finished before dbench knew it: same host, so quintus
+      r("v2-r1", "node-c", "Apple M5 Max 128GB"),
+      r("canvas-mlx-01", null, "Apple M5 Max 128GB"), // finished before dbench knew it: same host, so node-c
       r("run-2", null, "Apple M2 16GB"),              // no node ever ran on this host
       r("old", null, ""),
     ]);
-    expect(rows.map((x) => x.machine)).toEqual(["quintus", "quintus", "Apple M2 16GB", "unknown machine"]);
+    expect(rows.map((x) => x.machine)).toEqual(["node-c", "node-c", "Apple M2 16GB", "unknown machine"]);
   });
 });
 

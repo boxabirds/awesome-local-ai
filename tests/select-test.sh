@@ -122,7 +122,7 @@ assert_fails "a Strix Halo is not offered the 24GB NVIDIA rows" \
   grep -q nvidia <<< "$(candidates_for_host qwen | cut -d'|' -f2)"
 assert_eq "an unmeasured row is still what a Strix Halo is offered, as the only one" \
   "$STRIX" "$(best_for_host qwen)"
-# tritus: a 128GB Strix Halo reports 126155 MiB, inside selection's 5% slack
+# the real one: a 128GB Strix Halo (Minisforum MS-S1 MAX) reports 126155 MiB, inside selection's 5% slack
 HOST_OS=ubuntu; HOST_ACCEL=strix-halo; HOST_MEM_MIB=126155
 assert_eq "a real 128GB Strix Halo (126155 MiB) is offered the 128GB row" "$STRIX" "$(best_for_host qwen)"
 why="$(explain_no_match pi 2>&1)"
@@ -147,9 +147,9 @@ echo "the menu names why a combination does not suit this machine"
 MAC="qwen/3.8/27b/macos/64GB/mtplx-opencode"
 N4090="qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi"
 HOST_OS=ubuntu; HOST_ARCH=x86_64; HOST_ACCEL=strix-halo; HOST_MEM_MIB=126155
-assert_eq "tritus: its own row suits it"          ""                          "$(combo_misfit "$STRIX")"
-assert_eq "tritus: a macOS row needs a Mac"       "needs a Mac"               "$(combo_misfit "$MAC")"
-assert_eq "tritus: a 4090 row needs NVIDIA"       "needs an NVIDIA GPU"       "$(combo_misfit "$N4090")"
+assert_eq "a real Strix Halo: its own row suits it" ""                          "$(combo_misfit "$STRIX")"
+assert_eq "a real Strix Halo: a macOS row needs a Mac" "needs a Mac"               "$(combo_misfit "$MAC")"
+assert_eq "a real Strix Halo: a 4090 row needs NVIDIA" "needs an NVIDIA GPU"       "$(combo_misfit "$N4090")"
 HOST_MEM_MIB=65024
 assert_eq "a 64GB Strix Halo lacks RAM for the 128GB row" "not enough RAM (needs 128 GB)" "$(combo_misfit "$STRIX")"
 HOST_ACCEL=cuda; HOST_MEM_MIB=12288

@@ -81,7 +81,7 @@ test.describe("combination page", () => {
     await expect(crumbs.locator('[aria-current="page"]')).toHaveText("3.8-swift-1.5/27b llamacpp");
     await expect(heading(page)).toHaveText("3.8-swift-1.5/27b llamacpp");
     await expect(page.locator(".combo-id")).toHaveText(SWIFT);
-    await expect(page.locator(".combo-on")).toContainText("on gruntus (Intel Core i9 + RTX 4090 64GB)");
+    await expect(page.locator(".combo-on")).toContainText("on node-a (Intel Core i9 + RTX 4090 64GB)");
     await expect(page.locator('[data-kpi="score"] dd')).toHaveText("63 (58–68) n=3 / 75 · pooled 84%");
     await expect(page.locator('[data-kpi="hoursPerStory"] dd')).toHaveText("0.4 (0.2–0.8)");
     await expect(page.locator('[data-kpi="outPerStory"] dd')).toHaveText("71k (63k–118k)");
@@ -242,8 +242,8 @@ test.describe("combination page", () => {
 
   test("related: each machine links to its page; no other combination of this model", async ({ page }) => {
     const related = page.locator('[data-section="related"]');
-    await expect(related.locator(".related-machines li")).toHaveText(["gruntus Intel Core i9 + RTX 4090 64GB"]);
-    await expect(related.locator(".related-machines a.machine-link")).toHaveAttribute("href", "#/m/gruntus");
+    await expect(related.locator(".related-machines li")).toHaveText(["node-a Intel Core i9 + RTX 4090 64GB"]);
+    await expect(related.locator(".related-machines a.machine-link")).toHaveAttribute("href", "#/m/node-a");
     await expect(related.locator('[data-related="none"]')).toHaveText("No other combination of qwen/3.8-swift-1.5/27b in vidi.");
   });
 

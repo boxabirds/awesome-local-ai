@@ -23,7 +23,7 @@ const ERROR_LOG_EVERY: Duration = Duration::from_secs(60);
 const DISCOVERY_TARGET: &str = "255.255.255.255";
 const DISCOVERY_TIMEOUT_S: u64 = 3;
 const MILLIWATTS_PER_WATT: f64 = 1000.0;
-/// Long enough for a restarted collector to rediscover a plug on the LAN (about 75 s seen on quintus).
+/// Long enough for a restarted collector to rediscover a plug on the LAN (about 75 s seen on the M5 Max).
 const VERIFY_TIMEOUT: Duration = Duration::from_secs(180);
 
 #[derive(Parser)]

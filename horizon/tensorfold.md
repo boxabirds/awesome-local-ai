@@ -1,7 +1,7 @@
 # TensorFold
 
 **Status:** blocked (29 Sep 2026): a large-context defect is a blocker until our own test passes.
-**Machine:** quintus (M5 Max, MLX). Compared with mlx-serve on the same model.
+**Machine:** the M5 Max (128 GB, MLX). Compared with mlx-serve on the same model.
 
 ## What it is
 
@@ -16,11 +16,11 @@ tool calls, streaming and `reasoning_effort`.
 TensorFold issue 71 (closed 28 Sep 2026, no named fix): on 0.3.5.1 with Qwen3.8-27B and DFlash2 on a 64 GB
 M5 Pro, prompts past about 100-125k tokens are served but their cache checkpoint is not kept, so every later
 turn re-reads the whole context (7-11 minutes per turn). Our agent sessions run to about 131k tokens. It may
-not apply to quintus (128 GB, Flash-Next, MTP without DFlash2), but that is untested.
+not apply to the M5 Max (128 GB, Flash-Next, MTP without DFlash2), but that is untested.
 
 ## Checks before a run
 
-1. On quintus, with the exact config we'd benchmark (TensorFold version, model, draft method, context
+1. On the M5 Max, with the exact config we'd benchmark (TensorFold version, model, draft method, context
    limit): a multi-turn conversation grown past 120k tokens where every turn reuses the cache (only new
    tokens prefilled; check the server's cached-token count and prefill time).
 2. Tool calls over `/v1/chat/completions` with pi's real requests.

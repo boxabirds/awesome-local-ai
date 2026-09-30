@@ -38,6 +38,7 @@ import gates
 import heldout
 import history
 import hostenv
+import machine_names
 import pack as packmod
 import packdir
 import progress
@@ -66,7 +67,7 @@ WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", BENCH_HOME / "work")).resolve(
 SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
                 (".claude", ".agents", ".codex", ".config/opencode", ".local/share/opencode", ".mtplx",
                  ".dbench",
-                 # gruntus's file share held a clone of this repo, reference builds and all (25 Sep 2026).
+                 # the RTX 4090 machine's file share held a clone of this repo, reference builds and all (25 Sep 2026).
                  "sambashare")),
                 # The private pack checkout, whichever pack is running: it holds every pack's held-out suite.
                 *[r for r in [packdir.private_checkout()] if r.is_dir()],
@@ -374,6 +375,7 @@ control/
 # Held-out detail (publicise.py): kept on this machine and in the private repo, never in this one.
 """ + "\n".join(publicise.gitignore_lines()) + "\n"
 REFUSED_SHOWN = 3       # problems a refused commit names in its one-line error; the rest are in PUBLISH_REFUSED
+COMMIT_MESSAGE = "(the commit message)"   # where a refused commit's message problem is said to be
 COMMIT_TRAILER = "\n\nCo-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 
@@ -426,9 +428,11 @@ def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None
         add = subprocess.run([*git, "add", "--", rel], cwd=repo_root, capture_output=True, text=True, env=env)
         if add.returncode != 0:
             return {**out, "error": add.stderr[-500:]}
-        problems = heldout.staged_problems(repo_root, rel, git, heldout.fingerprints(private), env)
+        names, problems = heldout.local_names()
+        problems += heldout.staged_problems(repo_root, rel, git, heldout.fingerprints(private), env, names)
+        problems += heldout.message_problems(message, names, COMMIT_MESSAGE)
         if problems:
-            return {**out, **refuse(run, problems)}
+            return {**out, **refuse(run, problems, names)}
         (run / publicise.PUBLISH_REFUSED).unlink(missing_ok=True)
         commit = subprocess.run([*git, "commit", "-q", "-m", message + COMMIT_TRAILER], cwd=repo_root,
                                 capture_output=True, text=True, env=env)
@@ -481,15 +485,15 @@ def untrack_private(repo_root: Path, rel: str, git: list[str], env: dict | None 
     return tracked
 
 
-def refuse(run: Path, problems: list[dict]) -> dict:
+def refuse(run: Path, problems: list[dict], names: set[str] = frozenset()) -> dict:
     """Don't commit (the index the commit was built in is thrown away): keep what was found in a private file and
-    name it on stdout. What is returned goes into metrics.json, which is public, so it names each file and a digest
-    of any title found, not the title."""
+    name it on stdout. What is returned goes into metrics.json, which is public, so it names each file (with any
+    local machine name in its path masked) and a digest of any title or name found, not the title or name."""
     (run / publicise.PUBLISH_REFUSED).write_text(json.dumps({"at": time.time(), "problems": problems}, indent=2))
     for p in problems:
         print(f"record: NOT COMMITTED, {p['why']} in {p['file']}"
               f"{': ' + p['fingerprint'] if p['fingerprint'] else ''}", flush=True)
-    found = [{"file": p["file"], "why": p["why"],
+    found = [{"file": machine_names.redact(p["file"], names), "why": p["why"],
               "fingerprint": heldout.digest(p["fingerprint"]) if p["fingerprint"] else None} for p in problems]
     shown = ", ".join(f"{f['file']} ({f['why']}{' ' + f['fingerprint'] if f['fingerprint'] else ''})"
                       for f in found[:REFUSED_SHOWN])
@@ -1249,7 +1253,7 @@ class ConditionSampler(threading.Thread):
                 self._abort(f"MEMORY GUARD: free memory {free:.0f}% < {MEM_FREE_ABORT_PCT}%")
 
     def _snapshot(self, free: float) -> None:
-        """What held the memory at the story's lowest point so far (gruntus canvas-pi-03 story 5 lost
+        """What held the memory at the story's lowest point so far (the RTX 4090 machine's canvas-pi-03 story 5 lost
         about 28 GB to processes nobody could name afterwards)."""
         try:
             self.memory_snapshot = {"t": time.time(), "free_pct": free, **hostenv.memory_snapshot()}
@@ -1301,6 +1305,7 @@ DONE = "DONE"          # the agent finished the story by itself
 PARTIAL = "PARTIAL"    # the story was ended before it was complete (dbench skip-story)
 CONTROL_DIR = "control"
 SKIP_FILE = "skip-story.json"
+OPERATOR = "operator"  # who ended a story by request, as public records say it (never the caller's address or name)
 SKIP_POLL_S = 5
 PROGRESS_POLL_S = 60
 # Set when the operator ends the running story: no resume, no nudge; the run goes on to the next story.
@@ -1318,13 +1323,15 @@ def load_processed(metrics: dict, stories: list[dict]) -> list[dict]:
 
 
 def pending_skip(run: Path, sid: int) -> dict | None:
-    """The operator's skip-story request for story sid, if one is waiting."""
+    """The operator's skip-story request for story sid, if one is waiting. Who sent it (dbench writes the caller's
+    address) stays in the git-ignored request: what the harness takes from it goes into public records, so its
+    "by" is OPERATOR."""
     f = run / CONTROL_DIR / SKIP_FILE
     try:
         req = json.loads(f.read_text())
     except (OSError, json.JSONDecodeError):
         return None
-    return req if req.get("story") == sid else None
+    return {**req, "by": OPERATOR} if req.get("story") == sid else None
 
 
 def mark_skip_applied(run: Path, sid: int) -> None:

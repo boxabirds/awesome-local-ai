@@ -2,7 +2,7 @@
 # combinations/qwen/3.8/flash-next/macos/128GB/llamacpp-pi/config.sh
 #
 # Qwen3.8-Flash-Next (Unsloth UD-IQ4_XS GGUF + the shared-Q8_0 MTP head) on a 128 GB Apple silicon
-# Mac, served by llama.cpp's Metal backend, with pi as the client. It is the tritus stack
+# Mac, served by llama.cpp's Metal backend, with pi as the client. It is the Strix Halo stack
 # (ubuntu/strix-halo-128GB/llamacpp-pi) moved to a Mac: same llama.cpp branch and commit, same
 # weights, same MTP settings, same sampling and context. Only the GPU backend differs (Metal, not
 # Vulkan). It exists to separate the engine from the hardware when comparing against MTPLX on the
@@ -135,7 +135,7 @@ LLAMA_BATCH=2048
 LLAMA_EXTRA_ARGS="-lm dio --ctx-checkpoints 8"
 
 # MTP: draft 4 tokens a step and keep every one the head proposes (p-min 0).
-# 4, not drluoto's 3: at depth 3 a pi coding session on tritus accepted 0.86-0.89
+# 4, not drluoto's 3: at depth 3 a pi coding session on the Strix Halo box accepted 0.86-0.89
 # of drafts, 3.6 tokens a step of a possible 4, so most steps used every draft.
 # Chosen to watch in the canvas run, not yet measured against 3 (Unsloth's
 # default for their heads is 2). MTP is a win for one request at a time and was
@@ -167,7 +167,7 @@ low_memory_advice() {
 
 combination_performance() {
   cat <<'TXT'
-NOT MEASURED BY THIS REPO YET on a Mac. The same stack on Strix Halo (Vulkan, tritus) measured
+NOT MEASURED BY THIS REPO YET on a Mac. The same stack on Strix Halo (Vulkan) measured
 52.3 / 42.9 / 30.9 tok/s decode at 2k / 32k / 120k context with MTP depth 4; see
 ../../ubuntu/strix-halo-128GB/llamacpp-pi/README.md.
 TXT

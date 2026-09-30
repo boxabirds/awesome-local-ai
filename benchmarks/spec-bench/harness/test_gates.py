@@ -39,7 +39,7 @@ def test_app_failures_are_not_harness_faults():
 
 def test_the_gate_runs_the_agents_tests_against_the_agents_browsers(tmp_path: Path, monkeypatch):
     """The agent installs its own Playwright's browsers into agent_playwright_cache (the sandbox hides
-    the held-out suite's). The gate must look there too: on a fresh node (tritus) the default cache
+    the held-out suite's). The gate must look there too: on a fresh node (the Strix Halo box) the default cache
     held only the suite's older build, so every e2e run skipped every browser and failed with
     'No tests found' although the agent's own runs of the same tests had a browser."""
     import hostenv
@@ -59,7 +59,7 @@ def test_the_gate_runs_the_agents_tests_against_the_agents_browsers(tmp_path: Pa
     assert e2e.get("PLAYWRIGHT_BROWSERS_PATH") == str(hostenv.agent_playwright_cache(Path.home()))
 
 
-# What tritus's gate really printed (story 1, canvas-vk-01): the agent's playwright.config skips
+# What the Strix Halo box's gate really printed (story 1, canvas-vk-01): the agent's playwright.config skips
 # every browser it can't find, then Playwright finds no tests at all.
 SKIPPED_ALL = ("[playwright.config] skipping chromium, firefox, webkit (browser not installed; run "
                "`npx playwright install --with-deps`)\n[WebServer] Ready on http://127.0.0.1:8787\n"

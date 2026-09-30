@@ -74,12 +74,13 @@ The plist sets `KeepAlive` and `AbandonProcessGroup`, and records your current P
 Create `~/.config/dbench/nodes.toml`, or pass `--config FILE`:
 
 ```toml
-[nodes.gruntus]
-url = "http://gruntus:7717"
-token = "<contents of gruntus:~/.dbench/token>"
+# one table per machine; the name is yours (below: node-a is the RTX 4090 machine, node-c the M5 Max, node-d the Strix Halo box)
+[nodes.node-a]
+url = "http://node-a:7717"
+token = "<contents of node-a:~/.dbench/token>"
 
-[nodes.quintus]
-url = "http://quintus:7717"
+[nodes.node-c]
+url = "http://node-c:7717"
 token = "..."
 ```
 
@@ -92,15 +93,15 @@ Nothing ties a node to the machine that set it up.
 
 ```sh
 cd tools/dbench && cargo build --release          # or copy the binary from another Mac (same target)
-mkdir -p ~/.config/dbench && ssh gruntus cat .dbench/token   # paste into nodes.toml as above
+mkdir -p ~/.config/dbench && ssh node-a cat .dbench/token    # paste into nodes.toml as above
 ./target/release/dbench nodes                      # status of every node
-./target/release/dbench status gruntus vidi-canvas-4090-01
-./target/release/dbench logs gruntus vidi-canvas-4090-01 -f
+./target/release/dbench status node-a vidi-canvas-4090-01
+./target/release/dbench logs node-a vidi-canvas-4090-01 -f
 git pull                                           # results, as each story is recorded
 ```
 
 - **Several clients at once:** submits are idempotent by job id, and each node runs its queue in order.
-- **Raw HTTP:** the API is plain HTTP+JSON, so `curl -H "Authorization: Bearer $TOKEN" http://gruntus:7717/v1/jobs` works without the client.
+- **Raw HTTP:** the API is plain HTTP+JSON, so `curl -H "Authorization: Bearer $TOKEN" http://node-a:7717/v1/jobs` works without the client.
 - **Staying up:** a node's service survives the client going away. On Linux it only runs with no one logged in on the node, and starts at boot, if linger is enabled (see above).
 
 ## Security model
@@ -132,25 +133,25 @@ git pull                                           # results, as each story is r
 
 ```sh
 dbench nodes                                   # every node in parallel; unreachable ones say so
-dbench submit gruntus --id canvas-pi-02 --combination qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi \
+dbench submit node-a --id canvas-pi-02 --combination qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi \
   --pack benchmarks/vidi --scope canvas --run-id canvas-pi-02 [--client pi] [--stories 1,2] [--no-record]
                                                # or --install-id qwen38-27b: the name the node installed it under
-dbench submit gruntus --id vidi-4090 --install-id qwen38-27b --pack benchmarks/vidi --run-id canvas-pi --repeat 3
+dbench submit node-a --id vidi-4090 --install-id qwen38-27b --pack benchmarks/vidi --run-id canvas-pi --repeat 3
                                                # 3 queued jobs vidi-4090-r1..r3 / runs canvas-pi-r1..r3, run one after
                                                # another; each keeps its own record, resume and status
 dbench submit … --repeat 2 --repeat-from 4     # add runs r4, r5 to an existing series
-dbench submit tritus --id canvas-rocm-01 --install-id qwen38-flash-next-strix --pack benchmarks/vidi \
+dbench submit node-d --id canvas-rocm-01 --install-id qwen38-flash-next-strix --pack benchmarks/vidi \
   --scope canvas --run-id canvas-rocm-01 --server-env GPU_BACKEND=rocm --server-env SPEC_DRAFT_N_MAX=4
                                                # a two-backend build on ROCm, draft depth 4; name the run for it
 dbench status                                  # all jobs on all nodes
-dbench status gruntus                          # one node
-dbench status gruntus canvas-pi-02             # one job: state, stories, history, log tail
-dbench logs gruntus canvas-pi-02 -f            # follow; reconnects from the last byte if the connection drops
-dbench events gruntus canvas-pi-02
-dbench cancel gruntus canvas-pi-02
-dbench skip-story gruntus canvas-pi-02 --story 3 --reason "3h, no commit for 107 min"
+dbench status node-a                           # one node
+dbench status node-a canvas-pi-02              # one job: state, stories, history, log tail
+dbench logs node-a canvas-pi-02 -f             # follow; reconnects from the last byte if the connection drops
+dbench events node-a canvas-pi-02
+dbench cancel node-a canvas-pi-02
+dbench skip-story node-a canvas-pi-02 --story 3 --reason "3h, no commit for 107 min"
                                                # end the running story as PARTIAL; the run goes on
-dbench --json status gruntus canvas-pi-02      # --json: nodes, submit, status, events, cancel, skip-story
+dbench --json status node-a canvas-pi-02       # --json: nodes, submit, status, events, cancel, skip-story
 ```
 
 ## Stories and tasks in `status`

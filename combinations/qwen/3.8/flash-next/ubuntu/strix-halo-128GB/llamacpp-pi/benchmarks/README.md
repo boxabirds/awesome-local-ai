@@ -30,7 +30,7 @@ with anyone else's Strix Halo:
 | 7 | **Greedy output identical with and without MTP** | the claim that MTP does not change output | same prompts at temperature 0, `SPEC_MTP=0` against default; compare the token streams (open issue #25618 reports divergence on quantised targets) |
 | 8 | **Draft depth 2 vs 3, head Q8_0 vs Q4_K_M, p-min 0 vs default** | `SPEC_DRAFT_N_MAX`, `SPEC_DRAFT_P_MIN`, `MTP_QUANT` | rerun 5 with `SPEC_DRAFT_N_MAX=2`, `SPEC_DRAFT_P_MIN=`, then `MTP_QUANT=shared-Q4_K_M` (a reinstall) |
 | 9 | **MTP on the `agents` profile**, three concurrent requests | whether that profile should run MTP at all | `PROFILE=agents`, 3 parallel `tokbench.sh` runs, MTP on and off |
-| 10 | **Clock `auto` vs `high`** | the clock advice in `help.txt` | **Done for decode:** +1–2% with `high` ([`backend-ab/20260925-191643-tritus.tsv`](backend-ab/20260925-191643-tritus.tsv) against [`20260925-190847`](backend-ab/20260925-190847-tritus.tsv)). Prefill at long prompts still to check. |
+| 10 | **Clock `auto` vs `high`** | the clock advice in `help.txt` | **Done for decode:** +1–2% with `high` ([`backend-ab/20260925-191643-strix-halo.tsv`](backend-ab/20260925-191643-strix-halo.tsv) against [`20260925-190847`](backend-ab/20260925-190847-strix-halo.tsv)). Prefill at long prompts still to check. |
 | 11 | **Does the vision profile load?** | the "unverified" note on `vision` | `PROFILE=vision qwen38-flash-next-strix-server`, send one image |
 
 Harnesses that read `nvidia-smi` (`refit.sh`, `ctxprobe*.sh`, `vprobe.sh`,

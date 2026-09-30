@@ -35,9 +35,9 @@ describe("a run's notes: its invalid mark (run.json) and interventions (interven
 
   it("are read from run.json and interventions.md beside it", () => expect(runNotePaths(DIR)).toEqual([RUN, IV]));
   it("both present", () => {
-    const n = runNotes(new Map([[RUN, meta({ invalid: { reason: "read the reference build in story 7", since: "2026-09-30" } })], [IV, "- 2026-09-26T08:57:29Z story 3: quintus froze"]]), DIR);
+    const n = runNotes(new Map([[RUN, meta({ invalid: { reason: "read the reference build in story 7", since: "2026-09-30" } })], [IV, "- 2026-09-26T08:57:29Z story 3: node-c froze"]]), DIR);
     expect(n.invalid).toEqual({ reason: "read the reference build in story 7", since: "2026-09-30" });
-    expect(n.interventions).toEqual([{ at: Date.parse("2026-09-26T08:57:29Z") / 1000, story: "3", text: "quintus froze" }]);
+    expect(n.interventions).toEqual([{ at: Date.parse("2026-09-26T08:57:29Z") / 1000, story: "3", text: "node-c froze" }]);
   });
   it("neither: a valid run with no interventions", () => {
     expect(runNotes(new Map([[RUN, meta({})]]), DIR)).toEqual({ invalid: null, interventions: [] });

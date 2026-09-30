@@ -46,7 +46,7 @@ test.describe("header: identity", () => {
     await expect(h.locator("h1 a.combination-link")).toHaveText("3.8-swift-1.5/27b llamacpp");
     await expect(h.locator("h1 a.combination-link")).toHaveAttribute("href", `#/vidi/c/${enc(SWIFT)}`);
     await expect(h.locator("h1 .run-id")).toHaveText("v2-r5");
-    await expect(h.locator('[data-fact="machine"]')).toHaveText("gruntus");
+    await expect(h.locator('[data-fact="machine"]')).toHaveText("node-a");
     await expect(h.locator('[data-fact="machine"] [data-tip]')).toHaveAttribute("data-tip", "Intel Core i9 + RTX 4090 64GB");
     await expect(h.locator('[data-fact="packVersion"]')).toHaveText("vidi-v2.0-pre1");
     await expect(h.locator('[data-fact="suite"]')).toHaveText("vidi-v2.0-pre1");
@@ -79,7 +79,7 @@ test.describe("header: status", () => {
 
   test("queued: ⏸ and its place on the machine", async ({ page }) => {
     await open(page, SWIFT, "v2-r2");
-    await expect(section(page, "header").locator('[data-fact="status"]')).toHaveText("⏸ queued · 2nd on gruntus");
+    await expect(section(page, "header").locator('[data-fact="status"]')).toHaveText("⏸ queued · 2nd on node-a");
   });
 
   test("cancelled: ⊘", async ({ page }) => {
@@ -400,7 +400,7 @@ test.describe("jobs", () => {
     const first = j.locator('tr[data-job="vidi-v2b-swift15-r5"]');
     const second = j.locator('tr[data-job="vidi-v2b-swift15-r5-again1"]');
     await expect(first.locator("td").nth(0)).toHaveText("job 1 of 2 for v2-r5");
-    await expect(first.locator("td").nth(2)).toHaveText("gruntus");
+    await expect(first.locator("td").nth(2)).toHaveText("node-a");
     await expect(first.locator("td").nth(3)).toHaveText("cancelled");
     await expect(first.locator("td").nth(4)).toHaveText("2026-09-29 00:00 UTC");
     await expect(first.locator("td").nth(5)).toHaveText("2026-09-29 02:46 UTC");

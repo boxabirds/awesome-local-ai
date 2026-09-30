@@ -837,13 +837,13 @@ mod tests {
     #[test]
     fn nodes_toml() {
         let f: NodesFile = toml::from_str(
-            "[nodes.gruntus]\nurl = \"http://gruntus:7717\"\ntoken = \"abc\"\n[nodes.quintus]\nurl = \"http://quintus:7717/\"\n",
+            "[nodes.node-a]\nurl = \"http://node-a:7717\"\ntoken = \"abc\"\n[nodes.node-c]\nurl = \"http://node-c:7717/\"\n",
         )
         .unwrap();
-        assert_eq!(f.nodes["gruntus"].token.as_deref(), Some("abc"));
+        assert_eq!(f.nodes["node-a"].token.as_deref(), Some("abc"));
         assert_eq!(
-            Api::new(&f.nodes["quintus"]).unwrap().base,
-            "http://quintus:7717"
+            Api::new(&f.nodes["node-c"]).unwrap().base,
+            "http://node-c:7717"
         );
     }
 

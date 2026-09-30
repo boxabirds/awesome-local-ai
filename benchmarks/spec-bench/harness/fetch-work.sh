@@ -2,7 +2,7 @@
 # fetch-work.sh <host> <run-dir> -- copy a run's harness work folder (the agent's workspace, with
 # its git history, and its session files) from another machine, so the run can continue here.
 #
-#   benchmarks/spec-bench/harness/fetch-work.sh quintus benchmarks/reference/vidi/opus-5.5/run-2
+#   benchmarks/spec-bench/harness/fetch-work.sh <node> benchmarks/reference/vidi/opus-5.5/run-2
 #
 # The folder's name comes from the run's place in the repo (drive.work_dir_for), so it's the same on
 # every machine. Needs ssh access to <host> (e.g. Tailscale SSH). Refuses to overwrite a local copy.

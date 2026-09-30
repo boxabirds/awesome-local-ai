@@ -121,7 +121,7 @@ The reference stack runs through the same harness as the local setups: the same 
 cd ~/expts/awesome-local-ai && git pull                                        # public repo, with push access
 benchmarks/reference/save-claude-token.sh                                       # `claude setup-token`, saved with mode 600
 benchmarks/spec-bench/harness/setup-node.sh --stack benchmarks/reference/vidi/opus-5.5   # tools, private pack, preflight -> "ready"
-benchmarks/spec-bench/harness/fetch-work.sh quintus benchmarks/reference/vidi/opus-5.5/run-2   # only to continue a run begun elsewhere
+benchmarks/spec-bench/harness/fetch-work.sh <node> benchmarks/reference/vidi/opus-5.5/run-2   # only to continue a run begun elsewhere
 benchmarks/spec-bench/harness/run-series.sh claude-code-opus-5-5 --client claude --runs run-2,run-3 --background
 benchmarks/spec-bench/harness/run-series.sh --status      # or: tail -f ~/.vidi-bench/series.log
 benchmarks/spec-bench/harness/run-series.sh --stop        # stops; the same command later resumes where it stopped

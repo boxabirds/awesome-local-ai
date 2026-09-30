@@ -2,8 +2,8 @@
 
 **Status:** candidate (30 Sep 2026): no known blocker; not scheduled. Needs a re-quantised model for its weight
 types (below).
-**Machine:** gruntus (Ubuntu, CUDA) first: Swift 1.5 / Qwen3.8 27B, compared with Swift 1.5 on llama.cpp on the
-same GPU. Possibly Flash-Next on gruntus too (expert streaming, below), which would compete with
+**Machine:** the RTX 4090 machine (Ubuntu, CUDA) first: Swift 1.5 / Qwen3.8 27B, compared with Swift 1.5 on llama.cpp on the
+same GPU. Possibly Flash-Next on the RTX 4090 machine too (expert streaming, below), which would compete with
 [Strata](strata.md).
 
 ## What it is
@@ -75,7 +75,7 @@ the model file's hash and the server command line (the run identity does). Overl
 adopting either.
 
 **Last checked:** 30 Sep 2026 (release notes, `docs/KV-cache-quantization.md`, quantiser source including
-`ggml-turbo-quant.c`, PRs #362 and #364, the Config I paper and results table; nothing run). **Recheck when:** gruntus has a free Linux window, or the author confirms how Unsloth's imatrix fits the pipeline.
+`ggml-turbo-quant.c`, PRs #362 and #364, the Config I paper and results table; nothing run). **Recheck when:** the RTX 4090 machine has a free Linux window, or the author confirms how Unsloth's imatrix fits the pipeline.
 
 Sources: [repository](https://github.com/TheTom/llama-cpp-turboquant) ·
 [Config I paper](https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md) ·
