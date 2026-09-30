@@ -34,6 +34,15 @@ export interface BoardViewportProps {
    * something at that point.
    */
   onEmptyDblClick?(point: Point): void;
+  /**
+   * Shift+pointerdown on empty space: begins a marquee.
+   * If provided, a Shift+drag on empty space will call onMarqueeBegin/Move/End
+   * instead of panning.
+   */
+  onMarqueeBegin?(point: Point): void;
+  onMarqueeMove?(point: Point): void;
+  onMarqueeEnd?(): void;
+  onMarqueeCancel?(): void;
 }
 
 /** `deltaMode` values from the WheelEvent spec. */
@@ -68,26 +77,39 @@ export function BoardViewport({
   camera: cameraApi,
   onEmptyClick,
   onEmptyDblClick,
+  onMarqueeBegin,
+  onMarqueeMove,
+  onMarqueeEnd,
+  onMarqueeCancel,
 }: BoardViewportProps) {
   const { camera } = cameraApi;
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [panning, setPanning] = useState(false);
+  const [marqueeing, setMarqueeing] = useState(false);
   const activePointerRef = useRef<number | null>(null);
   /** Where the current press on the board started, to tell a click from a drag. */
   const pressRef = useRef<Point | null>(null);
+  const isMarqueeRef = useRef(false);
 
   // The listeners below are attached natively (React's onWheel is passive) and
   // must survive re-renders, so they read the camera API through a ref.
   const apiRef = useRef(cameraApi);
   apiRef.current = cameraApi;
 
+  const marqueeBeginRef = useRef(onMarqueeBegin);
+  marqueeBeginRef.current = onMarqueeBegin;
+  const marqueeMoveRef = useRef(onMarqueeMove);
+  marqueeMoveRef.current = onMarqueeMove;
+  const marqueeEndRef = useRef(onMarqueeEnd);
+  marqueeEndRef.current = onMarqueeEnd;
+  const marqueeCancelRef = useRef(onMarqueeCancel);
+  marqueeCancelRef.current = onMarqueeCancel;
+
   useEffect(() => {
     const element = viewportRef.current;
     if (!element) return undefined;
 
     const onWheel = (event: WheelEvent) => {
-      // The board owns every wheel over itself: no page scroll and, with Ctrl or
-      // Cmd held, no browser page zoom.
       event.preventDefault();
       const rect = element.getBoundingClientRect();
       apiRef.current.wheel({
@@ -113,9 +135,6 @@ export function BoardViewport({
       const rect = element.getBoundingClientRect();
       apiRef.current.wheel({
         deltaX: 0,
-        // Safari hands us a scale ratio; the hook takes the same shape as a
-        // Ctrl/Cmd wheel, so convert it to the equivalent deltaY using
-        // factor = exp(-deltaY * WHEEL_ZOOM_SENSITIVITY).
         deltaY: -Math.log(ratio) / WHEEL_ZOOM_SENSITIVITY,
         ctrlOrMeta: true,
         point: {
@@ -155,43 +174,73 @@ export function BoardViewport({
       try {
         element.setPointerCapture(event.pointerId);
       } catch {
-        // No pointer capture (or the pointer already went away): the drag still
-        // works for events that reach the viewport.
+        // No pointer capture (or the pointer already went away).
       }
     }
     activePointerRef.current = event.pointerId;
     pressRef.current = { x: event.clientX, y: event.clientY };
-    setPanning(true);
-    cameraApi.beginPan({ x: event.clientX, y: event.clientY });
+
+    // Shift+drag on empty space: marquee
+    if (event.shiftKey && marqueeBeginRef.current) {
+      isMarqueeRef.current = true;
+      setMarqueeing(true);
+      marqueeBeginRef.current({ x: event.clientX, y: event.clientY });
+    } else {
+      isMarqueeRef.current = false;
+      setPanning(true);
+      cameraApi.beginPan({ x: event.clientX, y: event.clientY });
+    }
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (activePointerRef.current !== event.pointerId) return;
-    cameraApi.panMove({ x: event.clientX, y: event.clientY });
+    if (isMarqueeRef.current) {
+      marqueeMoveRef.current?.({ x: event.clientX, y: event.clientY });
+    } else {
+      cameraApi.panMove({ x: event.clientX, y: event.clientY });
+    }
   };
 
   const handleDragEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (activePointerRef.current !== event.pointerId) return;
-    // pointerup, pointercancel and lostpointercapture all end the drag and leave
-    // the board where it was at the moment of interruption.
     activePointerRef.current = null;
     const press = pressRef.current;
     pressRef.current = null;
-    setPanning(false);
-    cameraApi.endPan();
-    // A press on empty space with no real travel is a click on the board, and a
-    // click on the board clears the selection.
-    const travelled =
-      press === null
-        ? Number.POSITIVE_INFINITY
-        : Math.hypot(event.clientX - press.x, event.clientY - press.y);
-    if (travelled <= DRAG_THRESHOLD_PX && isBoardSurface(event.target)) {
-      onEmptyClick?.({ x: event.clientX, y: event.clientY });
+
+    if (isMarqueeRef.current) {
+      isMarqueeRef.current = false;
+      setMarqueeing(false);
+      marqueeEndRef.current?.();
+    } else {
+      setPanning(false);
+      cameraApi.endPan();
+      // A press on empty space with no real travel is a click on the board.
+      const travelled =
+        press === null
+          ? Number.POSITIVE_INFINITY
+          : Math.hypot(event.clientX - press.x, event.clientY - press.y);
+      if (travelled <= DRAG_THRESHOLD_PX && isBoardSurface(event.target)) {
+        onEmptyClick?.({ x: event.clientX, y: event.clientY });
+      }
+    }
+  };
+
+  const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (activePointerRef.current !== event.pointerId) return;
+    activePointerRef.current = null;
+    pressRef.current = null;
+
+    if (isMarqueeRef.current) {
+      isMarqueeRef.current = false;
+      setMarqueeing(false);
+      marqueeCancelRef.current?.();
+    } else {
+      setPanning(false);
+      cameraApi.endPan();
     }
   };
 
   const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
-    // Only empty board space: a double-click on a note is handled by the note.
     if (!isBoardSurface(event.target)) return;
     onEmptyDblClick?.({ x: event.clientX, y: event.clientY });
   };
@@ -207,6 +256,7 @@ export function BoardViewport({
       data-testid="viewport"
       data-board-surface="true"
       data-panning={panning ? 'true' : 'false'}
+      data-marqueeing={marqueeing ? 'true' : 'false'}
       data-camera-x={camera.x}
       data-camera-y={camera.y}
       data-camera-zoom={camera.zoom}
@@ -217,8 +267,8 @@ export function BoardViewport({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handleDragEnd}
-      onPointerCancel={handleDragEnd}
-      onLostPointerCapture={handleDragEnd}
+      onPointerCancel={handlePointerCancel}
+      onLostPointerCapture={handlePointerCancel}
       onDoubleClick={handleDoubleClick}
     >
       <div
@@ -235,10 +285,7 @@ export function BoardViewport({
 }
 
 /**
- * Small crosshair at the board's starting point (world 0,0). Its own box is
- * empty, so its bounding rect is exactly the screen position of world 0,0 —
- * which makes it a stable target for the e2e pixel tests as well as a cue for
- * people who have panned away.
+ * Small crosshair at the board's starting point (world 0,0).
  */
 function OriginMarker() {
   return (

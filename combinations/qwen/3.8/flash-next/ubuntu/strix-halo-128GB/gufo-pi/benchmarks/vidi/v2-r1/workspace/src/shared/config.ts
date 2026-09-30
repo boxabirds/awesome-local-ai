@@ -59,6 +59,19 @@ export const LINK_COPIED_MS = 2000;
 /** Base backoff interval when checking board existence (doubles each attempt). */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
 
+// ---- Selection and transform (story 7: select, move, resize and delete several objects at once) ----
+
+/** Size of each resize handle in screen pixels (stays constant at any zoom). */
+export const HANDLE_SIZE_PX = 8;
+/** Minimum width/height for a sticky note after resize, in world units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Maximum width/height for any board object, in world units. */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** Arrow-key nudge step, in world units. */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift+arrow nudge step, in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 /** Zoom step values are snapped to `ZOOM_STEP_FACTOR^n` within this epsilon. */
 export const ZOOM_STEP_SNAP_EPSILON = 1e-9;
 

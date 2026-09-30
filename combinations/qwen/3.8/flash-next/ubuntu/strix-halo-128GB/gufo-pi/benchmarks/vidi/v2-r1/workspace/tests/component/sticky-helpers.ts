@@ -160,7 +160,7 @@ export function dragNote(index: number, delta: Point, options: DragOptions = {})
   const from = pointOnNote(index, grab.dx, grab.dy);
   fireEvent.pointerDown(element, { clientX: from.x, clientY: from.y, pointerId, button: 0 });
   for (let step = 1; step <= steps; step += 1) {
-    fireEvent.pointerMove(element, {
+    fireEvent.pointerMove(window, {
       clientX: from.x + (delta.x * step) / steps,
       clientY: from.y + (delta.y * step) / steps,
       pointerId,
@@ -168,9 +168,9 @@ export function dragNote(index: number, delta: Point, options: DragOptions = {})
     });
   }
   const to = { clientX: from.x + delta.x, clientY: from.y + delta.y };
-  if (release === 'cancel') fireEvent.pointerCancel(element, { ...to, pointerId });
-  else if (release === 'lost') fireEvent.lostPointerCapture(element, { ...to, pointerId });
-  else fireEvent.pointerUp(element, { ...to, pointerId, button: 0 });
+  if (release === 'cancel') fireEvent.pointerCancel(window, { ...to, pointerId });
+  else if (release === 'lost') fireEvent.pointerCancel(window, { ...to, pointerId });
+  else fireEvent.pointerUp(window, { ...to, pointerId, button: 0 });
 }
 
 /** A press that stops after a given screen travel, without releasing. */
@@ -184,7 +184,7 @@ export function pressAndMove(
   const from = pointOnNote(index, grab.dx, grab.dy);
   fireEvent.pointerDown(element, { clientX: from.x, clientY: from.y, pointerId, button: 0 });
   for (let step = 1; step <= steps; step += 1) {
-    fireEvent.pointerMove(element, {
+    fireEvent.pointerMove(window, {
       clientX: from.x + (delta.x * step) / steps,
       clientY: from.y + (delta.y * step) / steps,
       pointerId,
@@ -194,9 +194,9 @@ export function pressAndMove(
   return {
     release: (release: DragOptions['release'] = 'up') => {
       const to = { clientX: from.x + delta.x, clientY: from.y + delta.y, pointerId };
-      if (release === 'cancel') fireEvent.pointerCancel(element, to);
-      else if (release === 'lost') fireEvent.lostPointerCapture(element, to);
-      else fireEvent.pointerUp(element, { ...to, button: 0 });
+      if (release === 'cancel') fireEvent.pointerCancel(window, to);
+      else if (release === 'lost') fireEvent.pointerCancel(window, to);
+      else fireEvent.pointerUp(window, { ...to, button: 0 });
     },
   };
 }

@@ -8,20 +8,31 @@ import { useCamera, useViewportSize } from './canvas/useCamera';
 import { TEST_MODE } from './canvas/testHooks';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
-import { isTextEntryTarget, useSelection } from './board/useSelection';
+import { useSelection } from './board/useSelection';
+import { useBoardKeys } from './board/useBoardKeys';
+import { useTransformGesture } from './board/useTransformGesture';
+import { useMarquee, MarqueeRect } from './board/Marquee';
+import { SelectionOverlay } from './board/SelectionOverlay';
+import { SelectionBar } from './board/SelectionBar';
 import { StickyNote } from './objects/StickyNote';
+import { getObjectType } from './objects/registry';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
 import { SharePanel } from './share/SharePanel';
-import { createSticky, deleteObject, type StickySnapshot } from '../shared/board-model';
+import {
+  createSticky,
+  deleteObjects,
+  objectSnapshots,
+  objectsInRect,
+  setStickyColor,
+  type ObjectSnapshot,
+  type StickySnapshot,
+} from '../shared/board-model';
 
 /**
  * The board: an infinite canvas (story 1) holding sticky notes (story 2),
- * shared live with others (story 3).
- *
- * The camera lives here so the viewport, the zoom controls and the navigation
- * hint share one camera; the document and the selection live here too, because
- * the toolbar, the notes and the keyboard shortcuts all act on them.
+ * shared live with others (story 3), with multi-selection, move, resize,
+ * nudge and delete (story 7).
  */
 export function App(props: { boardId: string }) {
   const { boardId } = props;
@@ -29,12 +40,43 @@ export function App(props: { boardId: string }) {
   const cameraApi = useCamera(viewport);
   const { camera, hasNavigated } = cameraApi;
   const { doc, notes, connectionState } = useBoardDoc(boardId);
-  const selection = useSelection();
+  const selection = useSelection(notes);
   const editing = canEdit(connectionState);
 
   /** Latest camera, readable synchronously inside event handlers. */
   const cameraRef = useRef(camera);
   cameraRef.current = camera;
+
+  // Object snapshots for group operations
+  const objSnapshots: readonly ObjectSnapshot[] = useMemo(() => objectSnapshots(doc), [notes]);
+
+  // Transform gesture
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: objSnapshots,
+    canEdit: editing,
+  });
+
+  // Marquee selection
+  const marquee = useMarquee(
+    camera,
+    objSnapshots,
+    useCallback(
+      (ids: string[]) => selection.setMany(ids, true),
+      [selection],
+    ),
+    objectsInRect,
+  );
+
+  // Keyboard commands
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objSnapshots,
+    canEdit: editing,
+  });
 
   /**
    * Create a note centred on a screen point of the board area (a double-click),
@@ -45,48 +87,21 @@ export function App(props: { boardId: string }) {
       if (!editing) return;
       const world = screenToWorld(cameraRef.current, screen);
       const id = createSticky(doc, world);
-      if (id !== '') selection.startEdit(id);
+      if (id !== '') {
+        selection.click(id);
+        selection.startEdit(id);
+      }
     },
     [doc, selection, editing],
   );
 
-  /** Create a note in the middle of what the user can see, wherever they panned. */
+  /** Create a note in the middle of what the user can see. */
   const createAtCentre = useCallback(() => {
     if (!editing) return;
     createAtScreenPoint({ x: viewport.width / 2, y: viewport.height / 2 });
   }, [createAtScreenPoint, viewport.height, viewport.width, editing]);
 
-  // Keyboard: Enter edits the selected note, Delete/Backspace removes it. While
-  // a note is being edited - or while focus is in any field - these keys belong
-  // to the text, so the note is never deleted from under the cursor.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (selection.editingId !== null || isTextEntryTarget(event.target)) return;
-      const selectedId = selection.selectedId;
-      if (selectedId === null) return;
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        selection.startEdit(selectedId);
-      } else if (event.key === 'Delete' || event.key === 'Backspace') {
-        event.preventDefault();
-        deleteObject(doc, selectedId);
-        selection.select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selection]);
-
-  // A note can also disappear from under the selection (story 3 removes notes
-  // somebody else deleted), so the selection never points at nothing.
-  useEffect(() => {
-    const focused = selection.editingId ?? selection.selectedId;
-    if (focused === null) return;
-    if (!notes.some((note) => note.id === focused)) selection.select(null);
-  }, [notes, selection]);
-
-  // Test-only: hand the board document to the test suites (component tests make
-  // model calls directly, for example deleting a note mid-drag).
+  // Test-only hooks
   useEffect(() => {
     const hooks = TEST_MODE ? window.__vidi6 : undefined;
     if (!hooks) return undefined;
@@ -100,6 +115,7 @@ export function App(props: { boardId: string }) {
         createSticky(doc, { x: (i % 50) * 220, y: Math.floor(i / 50) * 220 });
       }
     };
+    hooks.addNoteAt = (pos: { x: number; y: number }) => createSticky(doc, pos);
     return () => {
       hooks.getDoc = prevGetDoc;
       hooks.getNoteCount = prevGetNoteCount;
@@ -107,11 +123,45 @@ export function App(props: { boardId: string }) {
     };
   }, [doc, notes.length]);
 
+  const handleDeleteSelection = useCallback(() => {
+    if (!editing) return;
+    deleteObjects(doc, [...selection.ids]);
+    selection.clear();
+  }, [doc, selection, editing]);
+
+  const handleColor = useCallback(
+    (id: string, color: string) => {
+      setStickyColor(doc, id, color);
+    },
+    [doc],
+  );
+
+  // Determine if any selected type is resizable
+  const anyResizable = useMemo(() => {
+    for (const id of selection.ids) {
+      const obj = objSnapshots.find((o) => o.id === id);
+      if (obj) {
+        const spec = getObjectType(obj.type);
+        if (spec?.resizable) return true;
+      }
+    }
+    return false;
+  }, [selection.ids, objSnapshots]);
+
+  // Marquee event handlers
+  const handleMarqueeBegin = useCallback(
+    (point: Point) => marquee.begin(point),
+    [marquee],
+  );
+  const handleMarqueeMove = useCallback(
+    (point: Point) => marquee.move(point),
+    [marquee],
+  );
+  const handleMarqueeEnd = useCallback(() => marquee.end(), [marquee]);
+  const handleMarqueeCancel = useCallback(() => marquee.cancel(), [marquee]);
+
   /**
-   * Notes are painted by CSS `z-index`, and rendered in a stable order. Sorting
-   * the elements themselves would look identical - until a drag raises a note:
-   * moving the element under the pointer drops its pointer capture and the drag
-   * dies mid-gesture. Ordering by id keeps every node where it is.
+   * Notes are painted by CSS `z-index`, and rendered in a stable order (by id).
    */
   const painted: StickySnapshot[] = useMemo(() => [...notes].sort(byId), [notes]);
 
@@ -120,8 +170,12 @@ export function App(props: { boardId: string }) {
       <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={cameraApi}
-        onEmptyClick={() => selection.select(null)}
+        onEmptyClick={() => selection.clear()}
         onEmptyDblClick={createAtScreenPoint}
+        onMarqueeBegin={handleMarqueeBegin}
+        onMarqueeMove={handleMarqueeMove}
+        onMarqueeEnd={handleMarqueeEnd}
+        onMarqueeCancel={handleMarqueeCancel}
       >
         {painted.map((note) => (
           <StickyNote
@@ -129,13 +183,24 @@ export function App(props: { boardId: string }) {
             note={note}
             doc={doc}
             zoom={camera.zoom}
-            selected={note.id === selection.selectedId}
+            selected={selection.ids.has(note.id)}
             editing={note.id === selection.editingId}
-            onSelect={selection.select}
+            onPointerDown={gesture.onObjectPointerDown}
+            onSelect={selection.toggle}
             onStartEdit={selection.startEdit}
             onEndEdit={selection.endEdit}
+            multiSelected={selection.ids.size > 1}
+            dragging={gesture.isDragging && selection.ids.has(note.id)}
           />
         ))}
+        <SelectionOverlay
+          ids={selection.ids}
+          snapshot={objSnapshots}
+          camera={camera}
+          onHandlePointerDown={gesture.onHandlePointerDown}
+          resizable={anyResizable}
+        />
+        <MarqueeRect rect={marquee.rect} />
       </BoardViewport>
       <Toolbar onCreateSticky={createAtCentre} disabled={!editing} />
       <ZoomControls
@@ -146,10 +211,19 @@ export function App(props: { boardId: string }) {
         onZoomOut={() => cameraApi.zoomStep('out')}
         onReset={cameraApi.reset}
       />
-      {/* The first-use hint is for an empty board; once there are notes, the
-          user has clearly started working. */}
       <NavigationHint visible={!hasNavigated && notes.length === 0} />
       <SharePanel boardId={boardId} />
+      {/* Selection bar renders in a fixed position overlay */}
+      <div className="selection-bar-overlay" data-testid="selection-bar-overlay">
+        <SelectionBar
+          ids={selection.ids}
+          snapshot={notes}
+          onDelete={handleDeleteSelection}
+          onColor={handleColor}
+          editingId={selection.editingId}
+          isDragging={gesture.isDragging}
+        />
+      </div>
     </>
   );
 }

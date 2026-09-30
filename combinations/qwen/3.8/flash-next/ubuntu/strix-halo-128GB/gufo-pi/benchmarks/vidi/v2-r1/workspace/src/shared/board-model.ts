@@ -40,6 +40,7 @@ import {
   isStickyColor,
   type StickyColor,
 } from './config';
+import { type Rect, rectContains } from './geometry';
 
 /** Origin tag for mutations made on this client. */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
@@ -48,6 +49,12 @@ export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
 const META_MAP = 'meta';
 const OBJECTS_MAP = 'objects';
 const SCHEMA_VERSION = 1;
+
+/** A point in world coordinates. */
+export interface Point {
+  x: number;
+  y: number;
+}
 
 /** What the renderer needs to know about one sticky note. */
 export interface StickySnapshot {
@@ -59,6 +66,19 @@ export interface StickySnapshot {
   text: string;
   z: number;
   createdAt: number;
+  width?: number;
+  height?: number;
+}
+
+/** Generic snapshot for any object type (used for group operations). */
+export interface ObjectSnapshot {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  z: number;
+  width?: number;
+  height?: number;
 }
 
 export type ObjectMap = Y.Map<Y.Map<unknown> | undefined>;
@@ -153,6 +173,115 @@ export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolea
 }
 
 /**
+ * Move multiple objects to absolute positions. Returns the count of objects
+ * actually written. Skips missing ids; rejects all if any position is non-finite.
+ */
+export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): number {
+  if (positions.size === 0) return 0;
+  // Validate all positions first
+  for (const pos of positions.values()) {
+    if (!isFinitePoint(pos.x, pos.y)) return 0;
+  }
+  let count = 0;
+  doc.transact(() => {
+    for (const [id, pos] of positions) {
+      const entry = entryOf(doc, id);
+      if (entry === undefined) continue;
+      entry.set('x', pos.x);
+      entry.set('y', pos.y);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Resize multiple objects (writes x, y, width, height). Returns the count of
+ * objects actually written. Skips missing ids; rejects all if any rect is non-finite.
+ */
+export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): number {
+  if (rects.size === 0) return 0;
+  for (const r of rects.values()) {
+    if (!Number.isFinite(r.x) || !Number.isFinite(r.y) || !Number.isFinite(r.width) || !Number.isFinite(r.height)) return 0;
+  }
+  let count = 0;
+  doc.transact(() => {
+    for (const [id, r] of rects) {
+      const entry = entryOf(doc, id);
+      if (entry === undefined) continue;
+      entry.set('x', r.x);
+      entry.set('y', r.y);
+      entry.set('width', r.width);
+      entry.set('height', r.height);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Bring multiple objects above all unselected objects, preserving their
+ * relative z-order among themselves. Returns count of objects whose z changed.
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const idSet = new Set(ids);
+  const objects = objectsOf(doc);
+
+  // Find max z among unselected objects
+  let maxUnselectedZ = 0;
+  for (const [otherId, other] of objects) {
+    if (idSet.has(otherId)) continue;
+    const otherZ = other instanceof Y.Map ? other.get('z') : undefined;
+    if (typeof otherZ === 'number' && Number.isFinite(otherZ) && otherZ > maxUnselectedZ) {
+      maxUnselectedZ = otherZ;
+    }
+  }
+
+  // Sort selected entries by their current z to preserve relative order
+  const entries: Array<{ id: string; entry: Y.Map<unknown>; z: number }> = [];
+  for (const id of ids) {
+    const entry = entryOf(doc, id);
+    if (entry === undefined) continue;
+    const z = entry.get('z');
+    entries.push({ id, entry, z: typeof z === 'number' && Number.isFinite(z) ? z : 0 });
+  }
+  entries.sort((a, b) => (a.z === b.z ? (a.id < b.id ? -1 : 1) : a.z - b.z));
+
+  let count = 0;
+  doc.transact(() => {
+    for (let i = 0; i < entries.length; i++) {
+      const newZ = maxUnselectedZ + i + 1;
+      if (entries[i].entry.get('z') !== newZ) {
+        entries[i].entry.set('z', newZ);
+        count++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Delete multiple objects. Returns the count actually removed.
+ * Skips missing ids; empty list returns 0 without a transaction.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const objects = objectsOf(doc);
+  let count = 0;
+  doc.transact(() => {
+    for (const id of ids) {
+      const entry = objects.get(id);
+      if (entry instanceof Y.Map) {
+        objects.delete(id);
+        count++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
  * Restack an object above every other one. Returns false (and writes nothing,
  * so story 3 sends no pointless sync traffic) when the object is already on
  * top - including when it is tied on `z` but sorted last by id.
@@ -202,6 +331,75 @@ export function deleteObject(doc: Y.Doc, id: string): boolean {
     objects.delete(id);
   }, LOCAL_ORIGIN);
   return true;
+}
+
+/** Get the bounding rect for any object snapshot, using width/height or fallback to STICKY_SIZE_WORLD. */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  const w = obj.width ?? STICKY_SIZE_WORLD;
+  const h = obj.height ?? STICKY_SIZE_WORLD;
+  return { x: obj.x, y: obj.y, width: w, height: h };
+}
+
+/** Return ids of objects whose bounds lie entirely within `rect`. */
+export function objectsInRect(
+  snapshotList: readonly ObjectSnapshot[],
+  rect: Rect,
+): string[] {
+  const result: string[] = [];
+  for (const obj of snapshotList) {
+    if (rectContains(rect, objectBounds(obj))) {
+      result.push(obj.id);
+    }
+  }
+  return result;
+}
+
+/**
+ * Return ids of all objects in the snapshot whose type is registered
+ * (i.e., type is a known string). Filters out unknown types.
+ * Uses a simple heuristic: only types explicitly present in the snapshot list
+ * that have a known `type` field (i.e. 'sticky' for now; other stories will add more).
+ */
+const KNOWN_TYPES = new Set(['sticky']);
+
+/** Register a type as known (called by the object registry module). */
+export function registerKnownType(type: string): void {
+  KNOWN_TYPES.add(type);
+}
+
+/** Return ids of all objects whose type is known/registered. */
+export function allObjectIds(snapshotList: readonly ObjectSnapshot[]): string[] {
+  return snapshotList.filter((obj) => KNOWN_TYPES.has(obj.type)).map((obj) => obj.id);
+}
+
+/**
+ * Build an ObjectSnapshot list from a Y.Doc (includes all types, not just stickies).
+ */
+export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const list: ObjectSnapshot[] = [];
+  for (const [id, entry] of objectsOf(doc)) {
+    if (!(entry instanceof Y.Map)) continue;
+    const type = entry.get('type');
+    const x = entry.get('x');
+    const y = entry.get('y');
+    const z = entry.get('z');
+    if (typeof type !== 'string') continue;
+    if (typeof x !== 'number' || typeof y !== 'number') continue;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const width = entry.get('width');
+    const height = entry.get('height');
+    const obj: ObjectSnapshot = {
+      id,
+      type,
+      x,
+      y,
+      z: typeof z === 'number' && Number.isFinite(z) ? z : 0,
+      width: typeof width === 'number' && Number.isFinite(width) ? width : undefined,
+      height: typeof height === 'number' && Number.isFinite(height) ? height : undefined,
+    };
+    list.push(obj);
+  }
+  return Object.freeze(list);
 }
 
 /** The note's text as a shared `Y.Text`, or undefined when there is no such note. */

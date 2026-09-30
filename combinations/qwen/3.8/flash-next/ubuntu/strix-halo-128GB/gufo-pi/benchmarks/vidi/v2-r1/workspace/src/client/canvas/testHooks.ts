@@ -25,6 +25,8 @@ export interface Vidi6TestHooks {
   getNoteCount?(): number;
   /** Adds n random sticky notes to the document. */
   addRandomNotes?(n: number): void;
+  /** Adds a sticky note at a specific world position; returns its id. */
+  addNoteAt?(pos: { x: number; y: number }): string;
 }
 
 export function installTestHooks(hooks: Vidi6TestHooks | null): void {

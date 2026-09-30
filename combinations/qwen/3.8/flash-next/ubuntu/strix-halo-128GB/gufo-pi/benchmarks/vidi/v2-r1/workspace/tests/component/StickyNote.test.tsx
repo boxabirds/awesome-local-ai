@@ -54,8 +54,8 @@ describe('creating and selecting a note', () => {
 
     const at = centreOf(0);
     fireEvent.pointerDown(note(), { clientX: at.x, clientY: at.y, pointerId: 1, button: 0 });
-    // pressed is not yet selected: a press that turns into a drag must not select
-    expect(view(0).selected).toBe(false);
+    // story 7: pointerdown selects the object immediately
+    expect(view(0).selected).toBe(true);
 
     fireEvent.pointerUp(note(), { clientX: at.x, clientY: at.y, pointerId: 1, button: 0 });
 
@@ -72,14 +72,14 @@ describe('creating and selecting a note', () => {
     const at = centreOf(0);
     const element = note();
     fireEvent.pointerDown(element, { clientX: at.x, clientY: at.y, pointerId: 1, button: 0 });
-    fireEvent.pointerMove(element, {
+    fireEvent.pointerMove(window, {
       clientX: at.x + DRAG_THRESHOLD_PX - 1,
       clientY: at.y,
       pointerId: 1,
       buttons: 1,
     });
     expect(view(0).dragging).toBe(false);
-    fireEvent.pointerUp(element, {
+    fireEvent.pointerUp(window, {
       clientX: at.x + DRAG_THRESHOLD_PX - 1,
       clientY: at.y,
       pointerId: 1,
@@ -103,7 +103,7 @@ describe('creating and selecting a note', () => {
     const at = centreOf(0);
     const element = note();
     fireEvent.pointerDown(element, { clientX: at.x, clientY: at.y, pointerId: 1, button: 0 });
-    fireEvent.pointerMove(element, {
+    fireEvent.pointerMove(window, {
       clientX: at.x + DRAG_THRESHOLD_PX,
       clientY: at.y,
       pointerId: 1,
@@ -111,7 +111,7 @@ describe('creating and selecting a note', () => {
     });
     // 3 px of travel is a drag, not a click
     expect(view(0).dragging).toBe(true);
-    fireEvent.pointerUp(element, {
+    fireEvent.pointerUp(window, {
       clientX: at.x + DRAG_THRESHOLD_PX,
       clientY: at.y,
       pointerId: 1,
@@ -137,7 +137,7 @@ describe('creating and selecting a note', () => {
     const at = centreOf(0);
     const element = note();
     fireEvent.pointerDown(element, { clientX: at.x, clientY: at.y, pointerId: 1, button: 0 });
-    fireEvent.pointerMove(element, {
+    fireEvent.pointerMove(window, {
       clientX: at.x + 60,
       clientY: at.y + 40,
       pointerId: 1,
@@ -145,7 +145,7 @@ describe('creating and selecting a note', () => {
     });
     expect(view(0).dragging).toBe(true);
 
-    fireEvent.pointerCancel(element, { clientX: at.x + 60, clientY: at.y + 40, pointerId: 1 });
+    fireEvent.pointerCancel(window, { clientX: at.x + 60, clientY: at.y + 40, pointerId: 1 });
 
     expect(view(0).dragging).toBe(false);
     expect(view(0).selected).toBe(true);
@@ -223,14 +223,14 @@ describe('dragging notes', () => {
     const element = note();
     fireEvent.pointerDown(element, { clientX: grab.x, clientY: grab.y, pointerId: 1, button: 0 });
     for (let step = 1; step <= 4; step += 1) {
-      fireEvent.pointerMove(element, {
+      fireEvent.pointerMove(window, {
         clientX: grab.x + (delta.x * step) / 4,
         clientY: grab.y + (delta.y * step) / 4,
         pointerId: 1,
         buttons: 1,
       });
     }
-    fireEvent.pointerUp(element, {
+    fireEvent.pointerUp(window, {
       clientX: grab.x + delta.x,
       clientY: grab.y + delta.y,
       pointerId: 1,
@@ -345,7 +345,7 @@ describe('a note that disappears during an interaction', () => {
     const at = centreOf(0);
     const element = note();
     fireEvent.pointerDown(element, { clientX: at.x, clientY: at.y, pointerId: 1, button: 0 });
-    fireEvent.pointerMove(element, {
+    fireEvent.pointerMove(window, {
       clientX: at.x + 40,
       clientY: at.y + 40,
       pointerId: 1,
