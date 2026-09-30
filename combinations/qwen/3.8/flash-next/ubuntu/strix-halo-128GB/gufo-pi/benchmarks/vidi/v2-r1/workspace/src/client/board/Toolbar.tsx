@@ -1,24 +1,34 @@
 import type { JSX } from 'react';
 
 import { UndoButtons, type UndoButtonsProps } from './UndoButtons';
+import type { Tool } from './useTool';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
   disabled?: boolean;
   undo?: UndoButtonsProps;
+  /** Current active tool */
+  tool?: Tool;
+  /** Set the active tool */
+  onToolChange?(tool: Tool): void;
 }
 
 /** The tooltip of the Sticky note button, exactly as the product names it. */
-export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
+export const STICKY_BUTTON_TOOLTIP = 'Sticky note (N) – or double-click the board';
 
 /**
- * The left-side board toolbar. In this story it holds one tool, the Sticky note
- * button; later stories add their tools here.
+ * The left-side board toolbar: Select, Text, Sticky note tool buttons + undo.
  *
  * Pointer events stop at the toolbar so clicking a tool never reaches the board
  * (which would pan it or clear the selection).
  */
-export function Toolbar({ onCreateSticky, disabled, undo }: ToolbarProps): JSX.Element {
+export function Toolbar({
+  onCreateSticky,
+  disabled,
+  undo,
+  tool = 'select',
+  onToolChange,
+}: ToolbarProps): JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -32,8 +42,44 @@ export function Toolbar({ onCreateSticky, disabled, undo }: ToolbarProps): JSX.E
       <button
         type="button"
         className="board-toolbar__button"
+        data-testid="tool-select"
+        aria-label="Select (V)"
+        aria-pressed={tool === 'select'}
+        title="Select (V)"
+        onClick={() => onToolChange?.('select')}
+        disabled={disabled}
+      >
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M4 2l12 9.5-5.5 1.2L13 18l-2.5 1-2.5-5.2L4 17V2z"
+          />
+        </svg>
+        <span>Select</span>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar__button"
+        data-testid="tool-text"
+        aria-label="Text (T)"
+        aria-pressed={tool === 'text'}
+        title="Text (T)"
+        onClick={() => onToolChange?.('text')}
+        disabled={disabled}
+      >
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M4 4h12v3h-2V6h-3v9h2v2H7v-2h2V6H6v1H4V4z"
+          />
+        </svg>
+        <span>Text</span>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar__button"
         data-testid="create-sticky"
-        aria-label="Sticky note"
+        aria-label="Sticky note (N)"
         title={STICKY_BUTTON_TOOLTIP}
         onClick={onCreateSticky}
         disabled={disabled}

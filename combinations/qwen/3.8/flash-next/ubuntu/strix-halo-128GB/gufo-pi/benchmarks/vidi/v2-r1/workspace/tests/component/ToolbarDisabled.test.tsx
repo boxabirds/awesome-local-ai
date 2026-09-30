@@ -11,7 +11,7 @@ describe('Toolbar disabled in load_failed (TC-23)', () => {
     const onCreateSticky = vi.fn();
     render(<Toolbar onCreateSticky={onCreateSticky} disabled={true} />);
 
-    const button = screen.getByRole('button', { name: 'Sticky note' }) as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
   });
 
@@ -19,7 +19,7 @@ describe('Toolbar disabled in load_failed (TC-23)', () => {
     const onCreateSticky = vi.fn();
     render(<Toolbar onCreateSticky={onCreateSticky} disabled={false} />);
 
-    const button = screen.getByRole('button', { name: 'Sticky note' }) as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
   });
 
@@ -27,7 +27,7 @@ describe('Toolbar disabled in load_failed (TC-23)', () => {
     const onCreateSticky = vi.fn();
     render(<Toolbar onCreateSticky={onCreateSticky} />);
 
-    const button = screen.getByRole('button', { name: 'Sticky note' }) as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
   });
 });

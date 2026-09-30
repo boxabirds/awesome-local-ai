@@ -4,6 +4,7 @@ import { HANDLE_SIZE_PX } from '../../shared/config';
 import { unionRects, type Handle } from '../../shared/geometry';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import type { Camera } from '../canvas/camera';
+import { getObjectType } from '../objects/registry';
 
 export interface SelectionOverlayProps {
   ids: ReadonlySet<string>;
@@ -14,7 +15,7 @@ export interface SelectionOverlayProps {
   resizable: boolean;
 }
 
-const HANDLE_POSITIONS: Array<{ handle: Handle; label: string; xFrac: number; yFrac: number }> = [
+const ALL_HANDLES: Array<{ handle: Handle; label: string; xFrac: number; yFrac: number }> = [
   { handle: 'nw', label: 'Resize top-left', xFrac: 0, yFrac: 0 },
   { handle: 'n', label: 'Resize top', xFrac: 0.5, yFrac: 0 },
   { handle: 'ne', label: 'Resize top-right', xFrac: 1, yFrac: 0 },
@@ -22,6 +23,11 @@ const HANDLE_POSITIONS: Array<{ handle: Handle; label: string; xFrac: number; yF
   { handle: 'se', label: 'Resize bottom-right', xFrac: 1, yFrac: 1 },
   { handle: 's', label: 'Resize bottom', xFrac: 0.5, yFrac: 1 },
   { handle: 'sw', label: 'Resize bottom-left', xFrac: 0, yFrac: 1 },
+  { handle: 'w', label: 'Resize left', xFrac: 0, yFrac: 0.5 },
+];
+
+const HORIZONTAL_HANDLES: Array<{ handle: Handle; label: string; xFrac: number; yFrac: number }> = [
+  { handle: 'e', label: 'Resize right', xFrac: 1, yFrac: 0.5 },
   { handle: 'w', label: 'Resize left', xFrac: 0, yFrac: 0.5 },
 ];
 
@@ -48,6 +54,13 @@ export function SelectionOverlay({
 
   const zoom = camera.zoom || 1;
   const handleSize = HANDLE_SIZE_PX / zoom; // Screen-space size in world units
+
+  // Determine if all selected objects have horizontal-only handles
+  const allHorizontal = selectedObjects.every((obj) => {
+    const spec = getObjectType(obj.type);
+    return spec?.handles === 'horizontal';
+  });
+  const handlePositions = allHorizontal ? HORIZONTAL_HANDLES : ALL_HANDLES;
 
   return (
     <>
@@ -91,7 +104,7 @@ export function SelectionOverlay({
       >
         {/* Handles (only if resizable) */}
         {resizable &&
-          HANDLE_POSITIONS.map(({ handle, label, xFrac, yFrac }) => (
+          handlePositions.map(({ handle, label, xFrac, yFrac }) => (
             <div
               key={handle}
               className="selection-handle"

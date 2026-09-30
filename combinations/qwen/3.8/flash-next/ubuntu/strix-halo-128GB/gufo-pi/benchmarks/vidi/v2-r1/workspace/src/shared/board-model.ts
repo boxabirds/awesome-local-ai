@@ -360,7 +360,7 @@ export function objectsInRect(
  * Uses a simple heuristic: only types explicitly present in the snapshot list
  * that have a known `type` field (i.e. 'sticky' for now; other stories will add more).
  */
-const KNOWN_TYPES = new Set(['sticky']);
+const KNOWN_TYPES = new Set(['sticky', 'text']);
 
 /** Register a type as known (called by the object registry module). */
 export function registerKnownType(type: string): void {

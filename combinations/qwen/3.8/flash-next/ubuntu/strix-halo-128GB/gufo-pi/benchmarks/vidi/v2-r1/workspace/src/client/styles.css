@@ -404,3 +404,100 @@ body {
 .board-toolbar__button:disabled:hover {
   background: transparent;
 }
+
+/* --- Tool mode (story 9) --- */
+.board-toolbar__divider {
+  width: 1px;
+  height: 20px;
+  background: #e0e0e0;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* --- Text objects (story 9) --- */
+.text-object {
+  outline: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  font-family: Inter, system-ui, sans-serif;
+  line-height: 1.3;
+  word-break: break-word;
+  white-space: pre-wrap;
+  overflow: hidden;
+}
+
+.text-object__content {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.text-object__toolbar-anchor {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform-origin: bottom center;
+  pointer-events: auto;
+}
+
+/* --- Text toolbar (story 9) --- */
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -8px);
+  white-space: nowrap;
+}
+
+.text-toolbar__size {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #374151;
+}
+
+.text-toolbar__size:hover {
+  background: #f3f4f6;
+}
+
+.text-toolbar__divider {
+  width: 1px;
+  height: 16px;
+  background: #e0e0e0;
+  margin: 0 2px;
+}
+
+.text-toolbar__delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #b3261e;
+}
+
+.text-toolbar__delete:hover {
+  background: #fdeceb;
+}
+
+/* --- Text editor (story 9) --- */
+.text-editor {
+  outline: 0;
+  min-width: 40px;
+  min-height: 1em;
+}

@@ -79,6 +79,26 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Maximum number of undo steps kept in memory. */
 export const UNDO_MAX_STEPS = 200;
 
+// ---- Free text (story 9: write free text anywhere on the board) ----
+
+/** Maximum automatic width for a text object, in world units. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Minimum fixed width for a text object, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Hard limit on the characters a text object keeps. */
+export const TEXT_MAX_CHARS = 5000;
+/** Size presets for text objects, in world units (font size). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Default size for a newly created text object. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Line height of text objects, as a multiple of the font size. */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** Font family for text objects. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/** Average glyph width ratio (used as fallback when canvas is unavailable). */
+export const TEXT_AVG_GLYPH_RATIO = 0.6;
+
 /** Zoom step values are snapped to `ZOOM_STEP_FACTOR^n` within this epsilon. */
 export const ZOOM_STEP_SNAP_EPSILON = 1e-9;
 

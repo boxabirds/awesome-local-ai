@@ -12,12 +12,16 @@ import { useSelection } from './board/useSelection';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useUndo } from './board/useUndo';
+import { useTool } from './board/useTool';
 import { createUndo, type UndoController } from './board/undo';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { StickyNote } from './objects/StickyNote';
+import { TextObject } from './objects/TextObject';
 import { getObjectType } from './objects/registry';
+import { createCanvasMeasurer, type Measurer } from './objects/textLayout';
+import { createText } from '../shared/objects/text';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
 import { SharePanel } from './share/SharePanel';
@@ -30,11 +34,12 @@ import {
   type ObjectSnapshot,
   type StickySnapshot,
 } from '../shared/board-model';
+import type { TextSnapshot } from '../shared/objects/text';
 
 /**
- * The board: an infinite canvas (story 1) holding sticky notes (story 2),
- * shared live with others (story 3), with multi-selection, move, resize,
- * nudge and delete (story 7), and per-user undo/redo (story 8).
+ * The board: an infinite canvas (story 1) holding sticky notes (story 2) and
+ * text objects (story 9), shared live with others (story 3), with multi-selection,
+ * move, resize, nudge and delete (story 7), and per-user undo/redo (story 8).
  */
 export function App(props: { boardId: string }) {
   const { boardId } = props;
@@ -42,8 +47,22 @@ export function App(props: { boardId: string }) {
   const cameraApi = useCamera(viewport);
   const { camera, hasNavigated } = cameraApi;
   const { doc, notes, connectionState } = useBoardDoc(boardId);
-  const selection = useSelection(notes);
+
+  // Object snapshots for group operations (must be computed before useSelection for prune)
+  const objSnapshots: readonly ObjectSnapshot[] = useMemo(() => objectSnapshots(doc), [notes]);
+
+  const selection = useSelection(objSnapshots);
   const editing = canEdit(connectionState);
+
+  // Tool mode
+  const { tool, setTool } = useTool(editing);
+
+  // Text measurer (shared across all text objects)
+  const measureRef = useRef<Measurer | null>(null);
+  if (measureRef.current === null) {
+    measureRef.current = createCanvasMeasurer();
+  }
+  const measure = measureRef.current;
 
   /** Latest camera, readable synchronously inside event handlers. */
   const cameraRef = useRef(camera);
@@ -75,9 +94,6 @@ export function App(props: { boardId: string }) {
     [],
   );
 
-  // Object snapshots for group operations
-  const objSnapshots: readonly ObjectSnapshot[] = useMemo(() => objectSnapshots(doc), [notes]);
-
   // Transform gesture — boundary on start and end
   const gesture = useTransformGesture({
     doc,
@@ -100,21 +116,8 @@ export function App(props: { boardId: string }) {
     objectsInRect,
   );
 
-  // Keyboard commands
-  useBoardKeys({
-    doc,
-    selection,
-    snapshot: objSnapshots,
-    canEdit: editing,
-    undo: undoApi.undo,
-    redo: undoApi.redo,
-    undoBoundary,
-  });
-
-  /**
-   * Create a note centred on a screen point of the board area (a double-click),
-   * and start typing straight away.
-   */
+  /** Create a note centred on a screen point of the board area (a double-click),
+   * and start typing straight away. */
   const createAtScreenPoint = useCallback(
     (screen: Point) => {
       if (!editing) return;
@@ -135,6 +138,37 @@ export function App(props: { boardId: string }) {
     if (!editing) return;
     createAtScreenPoint({ x: viewport.width / 2, y: viewport.height / 2 });
   }, [createAtScreenPoint, viewport.height, viewport.width, editing]);
+
+  /** Handle text tool click: create text at the clicked point, start editing, switch to Select. */
+  const handleTextToolClick = useCallback(
+    (screen: Point) => {
+      if (!editing) return;
+      const world = screenToWorld(cameraRef.current, screen);
+      undoBoundary();
+      const id = createText(doc, world, 'local');
+      undoBoundary();
+      if (id !== null) {
+        setTool('select');
+        selection.click(id);
+        selection.startEdit(id);
+      }
+    },
+    [doc, selection, editing, undoBoundary, setTool],
+  );
+
+  // Keyboard commands
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objSnapshots,
+    canEdit: editing,
+    undo: undoApi.undo,
+    redo: undoApi.redo,
+    undoBoundary,
+    tool,
+    setTool,
+    onCreateSticky: createAtCentre,
+  });
 
   // Test-only hooks
   useEffect(() => {
@@ -199,10 +233,35 @@ export function App(props: { boardId: string }) {
   const handleMarqueeEnd = useCallback(() => marquee.end(), [marquee]);
   const handleMarqueeCancel = useCallback(() => marquee.cancel(), [marquee]);
 
-  /**
-   * Notes are painted by CSS `z-index`, and rendered in a stable order (by id).
-   */
-  const painted: StickySnapshot[] = useMemo(() => [...notes].sort(byId), [notes]);
+  /** Separate sticky notes and text objects for rendering. */
+  const paintedNotes: StickySnapshot[] = useMemo(() => [...notes].sort(byId), [notes]);
+
+  const textObjects: TextSnapshot[] = useMemo(() => {
+    const result: TextSnapshot[] = [];
+    const objects = doc.getMap('objects');
+    for (const [id, entry] of objects) {
+      if (entry instanceof (entry as any).constructor) {
+        // Check type field
+        const type = (entry as any).get?.('type');
+        if (type === 'text') {
+          const snap = objSnapshots.find((o) => o.id === id);
+          if (snap) {
+            const textVal = (entry as any).get?.('text');
+            const size = (entry as any).get?.('size') ?? 'M';
+            const widthMode = (entry as any).get?.('widthMode') ?? 'auto';
+            result.push({
+              ...snap,
+              type: 'text',
+              text: textVal?.toString?.() ?? '',
+              size,
+              widthMode,
+            });
+          }
+        }
+      }
+    }
+    return result.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }, [objSnapshots, doc, notes]);
 
   return (
     <>
@@ -215,8 +274,10 @@ export function App(props: { boardId: string }) {
         onMarqueeMove={handleMarqueeMove}
         onMarqueeEnd={handleMarqueeEnd}
         onMarqueeCancel={handleMarqueeCancel}
+        tool={tool}
+        onTextToolClick={handleTextToolClick}
       >
-        {painted.map((note) => (
+        {paintedNotes.map((note) => (
           <StickyNote
             key={note.id}
             note={note}
@@ -234,6 +295,26 @@ export function App(props: { boardId: string }) {
             undoCtrl={undoCtrlRef}
           />
         ))}
+        {textObjects.map((tobj) => (
+          <TextObject
+            key={tobj.id}
+            note={tobj}
+            doc={doc}
+            zoom={camera.zoom}
+            selected={selection.ids.has(tobj.id)}
+            editing={tobj.id === selection.editingId}
+            canEdit={editing}
+            onPointerDown={gesture.onObjectPointerDown}
+            onSelect={selection.toggle}
+            onStartEdit={selection.startEdit}
+            onEndEdit={selection.endEdit}
+            multiSelected={selection.ids.size > 1}
+            dragging={gesture.isDragging && selection.ids.has(tobj.id)}
+            undoBoundary={undoBoundary}
+            undoCtrl={undoCtrlRef}
+            measure={measure}
+          />
+        ))}
         <SelectionOverlay
           ids={selection.ids}
           snapshot={objSnapshots}
@@ -243,7 +324,13 @@ export function App(props: { boardId: string }) {
         />
         <MarqueeRect rect={marquee.rect} />
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtCentre} disabled={!editing} undo={undoApi} />
+      <Toolbar
+        onCreateSticky={createAtCentre}
+        disabled={!editing}
+        undo={undoApi}
+        tool={tool}
+        onToolChange={setTool}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

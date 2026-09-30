@@ -68,11 +68,11 @@ describe('the Sticky note button', () => {
     expect((screen.getByTestId('sticky-editor') as HTMLTextAreaElement).value).toBe('');
   });
 
-  it('the button is named "Sticky note" and offers the double-click in its tooltip', () => {
-    const button = screen.getByRole('button', { name: 'Sticky note' });
+  it('the button is named "Sticky note (N)" and offers the double-click in its tooltip', () => {
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
 
     expect(button.getAttribute('title')).toBe(STICKY_BUTTON_TOOLTIP);
-    expect(STICKY_BUTTON_TOOLTIP).toBe('Sticky note – or double-click the board');
+    expect(STICKY_BUTTON_TOOLTIP).toBe('Sticky note (N) – or double-click the board');
   });
 
   it('pressing it twice adds two notes, one on top of the other, and types into the newest', () => {

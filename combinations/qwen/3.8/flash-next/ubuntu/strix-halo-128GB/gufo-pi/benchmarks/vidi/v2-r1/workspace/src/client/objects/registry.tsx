@@ -1,12 +1,13 @@
 /**
  * Object type registry: each board object type declares its component,
- * resizability, aspect lock, minimum size, text editability and hit-test.
- * Stories 9-12 add new types here without duplicating selection/transform code.
+ * resizability, aspect lock, minimum size, text editability, handle mode
+ * and hit-test. Stories 9-12 add new types here without duplicating
+ * selection/transform code.
  */
 
 import type { ObjectSnapshot, Point } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 
 export interface ObjectTypeSpec {
   Component: React.ComponentType<any> | null;
@@ -14,6 +15,8 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  /** Handle set: 'all' (8 handles) or 'horizontal' (e/w only). Default 'all'. */
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -42,14 +45,24 @@ function boundsHitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
 }
 
 // Register the sticky type at module load.
-// The Component field is set by App.tsx via setComponent() once the actual
-// StickyNote component is available (avoids circular imports).
 registerObjectType('sticky', {
   Component: null,
   resizable: true,
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  handles: 'all',
+  hitTest: boundsHitTest,
+});
+
+// Register the text type (story 9).
+registerObjectType('text', {
+  Component: null,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: boundsHitTest,
 });
 

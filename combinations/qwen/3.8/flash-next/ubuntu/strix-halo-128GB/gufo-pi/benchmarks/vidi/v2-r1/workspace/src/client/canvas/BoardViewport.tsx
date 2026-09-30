@@ -43,6 +43,10 @@ export interface BoardViewportProps {
   onMarqueeMove?(point: Point): void;
   onMarqueeEnd?(): void;
   onMarqueeCancel?(): void;
+  /** Active tool: when 'text', cursor becomes text and click creates text. */
+  tool?: 'select' | 'text';
+  /** Called on click when text tool is active. Screen point of the click. */
+  onTextToolClick?(point: Point): void;
 }
 
 /** `deltaMode` values from the WheelEvent spec. */
@@ -81,6 +85,8 @@ export function BoardViewport({
   onMarqueeMove,
   onMarqueeEnd,
   onMarqueeCancel,
+  tool,
+  onTextToolClick,
 }: BoardViewportProps) {
   const { camera } = cameraApi;
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -169,6 +175,15 @@ export function BoardViewport({
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (activePointerRef.current !== null) return;
     if (!isBoardSurface(event.target)) return;
+
+    // When text tool is active, don't pan or marquee
+    if (tool === 'text') {
+      activePointerRef.current = event.pointerId;
+      pressRef.current = { x: event.clientX, y: event.clientY };
+      isMarqueeRef.current = false;
+      return;
+    }
+
     const element = viewportRef.current;
     if (element) {
       try {
@@ -207,6 +222,18 @@ export function BoardViewport({
     const press = pressRef.current;
     pressRef.current = null;
 
+    // When text tool is active: a click (no travel) calls onTextToolClick
+    if (tool === 'text') {
+      const travelled =
+        press === null
+          ? Number.POSITIVE_INFINITY
+          : Math.hypot(event.clientX - press.x, event.clientY - press.y);
+      if (travelled <= DRAG_THRESHOLD_PX) {
+        onTextToolClick?.({ x: event.clientX, y: event.clientY });
+      }
+      return;
+    }
+
     if (isMarqueeRef.current) {
       isMarqueeRef.current = false;
       setMarqueeing(false);
@@ -229,6 +256,10 @@ export function BoardViewport({
     if (activePointerRef.current !== event.pointerId) return;
     activePointerRef.current = null;
     pressRef.current = null;
+
+    if (tool === 'text') {
+      return;
+    }
 
     if (isMarqueeRef.current) {
       isMarqueeRef.current = false;
@@ -260,9 +291,11 @@ export function BoardViewport({
       data-camera-x={camera.x}
       data-camera-y={camera.y}
       data-camera-zoom={camera.zoom}
+      data-tool={tool ?? 'select'}
       style={{
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px`,
+        cursor: tool === 'text' ? 'text' : undefined,
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
