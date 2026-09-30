@@ -95,6 +95,12 @@ export interface ActiveToolOptions {
   canEdit?: boolean;
   /** Make this object the selection — what the board does with a thing it just drew. */
   onSelect?(id: string): void;
+  /**
+   * The Image tool was asked for — by its rail button or the `i` shortcut. It is not a
+   * mode you are ever *in*: asking for it opens the file picker and leaves the board in
+   * Select, whether a file is then chosen or the picker is cancelled (`image.pick`).
+   */
+  onImagePicker?(): void;
 }
 
 export interface ActiveTool {
@@ -119,12 +125,19 @@ export interface ActiveTool {
 }
 
 export function useActiveTool(options: ActiveToolOptions = {}): ActiveTool {
-  const { canEdit = true, onSelect } = options;
+  const { canEdit = true, onSelect, onImagePicker } = options;
   const [tool, setToolState] = useState<ToolId>(TOOL_SELECT);
   const [shapeKind, setShapeKindState] = useState<ShapeKind>(DEFAULT_SHAPE_KIND);
 
   const setTool = useCallback(
     (next: ToolId): void => {
+      // The Image tool is the rail's one-shot shape: it opens the picker and the board is
+      // left in Select. A board you cannot edit gets neither the picker nor a tool.
+      if (next === 'image') {
+        if (canEdit) onImagePicker?.();
+        setToolState(TOOL_SELECT);
+        return;
+      }
       // A tool with no behaviour here, and the sticky note's one-shot button, are both
       // answered the same way: the board is left in Select.
       if (!BUILT_TOOLS.includes(next)) {
@@ -139,7 +152,7 @@ export function useActiveTool(options: ActiveToolOptions = {}): ActiveTool {
       }
       setToolState(next);
     },
-    [canEdit],
+    [canEdit, onImagePicker],
   );
 
   const setShapeKind = useCallback((kind: ShapeKind): void => {

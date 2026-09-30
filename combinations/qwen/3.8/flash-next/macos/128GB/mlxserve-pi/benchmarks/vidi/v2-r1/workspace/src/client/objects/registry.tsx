@@ -13,6 +13,7 @@
 // draw, and those must stay invisible rather than be moved or resized blindly
 // (TC-08, TC-12).
 import type { ComponentType, ReactNode } from 'react';
+import { useContext } from 'react';
 import type * as Y from 'yjs';
 import type { BoardObject, ObjectSnapshot } from '../../shared/board-model';
 import {
@@ -28,6 +29,7 @@ import {
   STICKY_MIN_SIZE_WORLD,
   STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
 } from '../../shared/config';
 import {
   readTextSnapshot,
@@ -50,6 +52,9 @@ import { StrokeObject } from './StrokeObject';
 import { TextObject } from './TextObject';
 import { boardMeasurer } from './textLayout';
 import { measureTextBox } from './useTextBoxSync';
+import { ImageObject } from './ImageObject';
+import { ImageObjectContext } from './imageContext';
+import { isImageSnapshot } from '../../shared/objects/image';
 
 /** What the board hands every object component, whatever kind it is. */
 export interface ObjectProps {
@@ -366,4 +371,51 @@ registerObjectType('stroke', {
     isStrokeSnapshot(object)
       ? hitTestStroke(object, point, zoom ?? 1)
       : rectContains(objectBounds(object), { ...point, width: 0, height: 0 }),
+});
+
+/**
+ * An image (`image.object`).
+ *
+ * Resizable, and the second type whose resize must keep proportions — an image stretched
+ * on one axis only is that picture distorted (`image.aspect_resize`), exactly as a drawing
+ * is. It holds no text, and it is hit by its box: an image is a solid rectangle, so picking
+ * it is picking the rectangle it is drawn in, with no empty-air exception like a line or an
+ * arrow. It is the one type whose *rendering* is not decided by its own fields alone: the
+ * same `uploading` object is a percentage to the tab that uploaded it and a plain
+ * "Uploading…" to everyone else, a failure is only ever *yours* to see, and `unfinished`
+// needs a clock. Those are per-tab facts held in `useImageInsert`, so the wrapper reads
+ * them out of `ImageObjectContext` and hands the pure `ImageObject` its five per-viewer
+ * props; the object writes nothing to the document through them (`image.status_owner`).
+ */
+function ImageObjectType(props: ObjectProps): ReactNode {
+  if (!isImageSnapshot(props.object)) return null;
+  const ctx = useContext(ImageObjectContext);
+  const image = props.object;
+  return (
+    <ImageObject
+      image={image}
+      isUploader={image.uploaderId === ctx.localId}
+      progress={ctx.progress.get(image.id)}
+      canRetry={ctx.canRetry(image.id)}
+      now={ctx.now}
+      onRetry={() => ctx.retry(image.id)}
+      onRemove={() => ctx.remove(image.id)}
+      selected={props.selected}
+      editable={props.editable}
+      onObjectPointerDown={props.onObjectPointerDown}
+    />
+  );
+}
+
+registerObjectType('image', {
+  Component: ImageObjectType,
+  resizable: true,
+  // An image keeps its proportions when resized (`image.aspect_resize`).
+  aspectLocked: true,
+  // The same floor an image is never placed smaller than, so it means one thing.
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  // The whole rectangle: an image is solid, so hitting its box is hitting the image.
+  hitTest: (object: ObjectSnapshot, point: Point) =>
+    rectContains(objectBounds(object), { ...point, width: 0, height: 0 }),
 });

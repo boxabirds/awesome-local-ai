@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type * as Y from 'yjs';
 import { createSticky, deleteObjects } from '../../shared/board-model';
 import { createText } from '../../shared/objects/text';
@@ -38,6 +38,10 @@ import { reportConnectionState } from '../canvas/testHooks';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
 import { getObjectType } from '../objects/registry';
+import { ImageObjectContext } from '../objects/imageContext';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { Toast } from '../ui/Toast';
 import { SharePanel } from '../share/SharePanel';
 
 /**
@@ -131,7 +135,65 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
   // state lived in `useTool`; with a Shape tool and a Connector tool, the rule they all
   // share — a tool is put away once it has drawn the thing it draws — is here, and the
   // object it just drew becomes the selection, because that is the thing you want to fix.
-  const tools = useActiveTool({ canEdit, onSelect: selectCreated });
+  // The Image tool is not a mode you stay in — it opens the file picker and the tool is
+  // back on Select before a file is chosen (`tools.return_to_select`). The picker itself
+  // lives in `useImageInsert`, made below; this ref lets the tool hand off to it without
+  // the two hooks depending on each other's creation order.
+  const openPickerRef = useRef<() => void>(() => {});
+
+  const tools = useActiveTool({ canEdit, onSelect: selectCreated, onImagePicker: () => openPickerRef.current() });
+
+  // One refusal / notice line at the bottom of the screen (`image.insert`). Each add
+  // action shows at most the reasons it refused, and it clears itself.
+  const [toast, setToast] = useState<string | null>(null);
+  const showToast = useCallback((message: string): void => setToast(message), []);
+  const dismissToast = useCallback((): void => setToast(null), []);
+
+  // Adding images (`image.insert`): the one place drop, paste and the picker all run
+  // through. It reads the camera, connection and document live through its own ref, and
+  // the picker hand-off above now points at it.
+  const images = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    connection: connectionState,
+    identityId: identity.id,
+    undo: undoController,
+    onToast: showToast,
+  });
+  openPickerRef.current = images.openPicker;
+
+  // Remove one image by id — the placeholder's own Remove button, and story 7's
+  // `deleteObjects` under one undo step. It deselects the id first so a removed object
+  // cannot leave a handle drawn around nothing.
+  const removeImage = useCallback(
+    (id: string): void => {
+      undoController.boundary();
+      deleteObjects(doc, [id]);
+      undoController.boundary();
+      selection.setMany([id], false);
+    },
+    [doc, selection, undoController],
+  );
+
+  // A clock that only keeps time while some image on this board is still uploading,
+  // ticking often enough that `image.unfinished` appears on its own with nobody touching
+  // anything. When nothing is uploading there is nothing to age and no timer is set.
+  const now = useUploadingClock(objects);
+
+  // What an `image` object is shown as depends on these per-tab facts; the registry's
+  // wrapper reads them out of this context (`image.object`).
+  const imageContext = useMemo(
+    () => ({
+      localId: identity.id,
+      progress: images.progress,
+      canRetry: images.canRetry,
+      retry: images.retry,
+      remove: removeImage,
+      now,
+    }),
+    [identity.id, images.progress, images.canRetry, images.retry, removeImage, now],
+  );
 
   // What the Pen draws with next (`pen.options`): a colour and a thickness this screen
   // holds for the rest of the session, and nothing else. Not in the document — a finished
@@ -249,8 +311,9 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
   const marqueeForViewport: MarqueeHandlers | undefined = canEdit ? marqueeHandlers : undefined;
 
   return (
-    <BoardViewport
-      chrome={
+    <ImageObjectContext.Provider value={imageContext}>
+      <BoardViewport
+        chrome={
         <BoardChrome
           doc={doc}
           boardId={boardId}
@@ -275,11 +338,16 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
           undo={undoState}
         />
       }
-      onEmptyClick={onEmptyClick}
-      onEmptyDoubleClick={onEmptyDoubleClick}
-      marquee={marqueeForViewport}
-      textToolActive={tools.isText}
-      overlay={
+        onEmptyClick={onEmptyClick}
+        onEmptyDoubleClick={onEmptyDoubleClick}
+        marquee={marqueeForViewport}
+        textToolActive={tools.isText}
+        onDragEnter={images.onDragEnter}
+        onDragOver={images.onDragOver}
+        onDragLeave={images.onDragLeave}
+        onDrop={images.onDrop}
+        onPaste={images.onPaste}
+        overlay={
         tools.isShape ? (
           <ShapeTool
             doc={doc}
@@ -312,17 +380,23 @@ export function Board({ boardId }: { boardId: string }): ReactNode {
           />
         ) : undefined
       }
-    >
-      <BoardObjects
-        doc={doc}
-        objects={objects}
-        selection={selection}
-        gesture={gesture}
-        canEdit={canEdit}
-        endObjectEdit={endObjectEdit}
-        undo={undoController}
-      />
-    </BoardViewport>
+      >
+        <BoardObjects
+          doc={doc}
+          objects={objects}
+          selection={selection}
+          gesture={gesture}
+          canEdit={canEdit}
+          endObjectEdit={endObjectEdit}
+          undo={undoController}
+        />
+      </BoardViewport>
+      {/* A dashed outline while image files are dragged over the board, and the one line
+          a refusal shows (`image.drop`, `image.insert`). Both are screen-space overlays
+          that take no clicks of their own. */}
+      <DropHighlight visible={images.isDragging} />
+      <Toast message={toast} onDismiss={dismissToast} />
+    </ImageObjectContext.Provider>
   );
 }
 
@@ -484,3 +558,28 @@ function BoardObjects({
 
 /** The camera before the viewport has measured itself: the board's own start point. */
 const INITIAL_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
+
+/** How often the `unfinished` clock is re-read while an upload is in flight. */
+const UPLOADING_CLOCK_TICK_MS = 30_000;
+
+/**
+ * A clock in ms that keeps time only while some image is still `uploading`.
+ *
+ * `image.unfinished` is derived from a clock handed to `displayStatus`, not from the
+ * document, so nothing writes when an upload goes stale — the state has to *appear* on
+ * its own once IMAGE_UPLOAD_STALE_MS has passed with the uploader gone. This re-renders
+ * the board every so often while an upload is running (and not at all otherwise), which
+ * is what lets the switch to "didn't finish" happen with nobody touching anything.
+ */
+function useUploadingClock(objects: readonly BoardObject[]): number {
+  const uploading = objects.some(
+    (object) => object.type === 'image' && (object as { status?: unknown }).status === 'uploading',
+  );
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!uploading) return;
+    const timer = setInterval(() => setNow(Date.now()), UPLOADING_CLOCK_TICK_MS);
+    return () => clearInterval(timer);
+  }, [uploading]);
+  return now;
+}

@@ -17,6 +17,7 @@ import type { BoardRoom } from './board-room';
 import { isValidBoardId } from '../shared/board-id';
 import { handleTestHook } from './test-hooks';
 import { createBoard } from './create-board';
+import { handleServe, handleUpload } from './assets';
 
 /** What this Worker is wired to: one room object namespace and the client assets. */
 export interface Env {
@@ -24,6 +25,8 @@ export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client assets. */
   ASSETS: Fetcher;
+  /** Story 12: uploaded images, stored under an unguessable `<boardId>/<assetId>`. */
+  ASSETS_BUCKET: R2Bucket;
   /**
    * Set to `1` by the story 4 e2e suite's own `wrangler dev` and by nothing else
    * — no committed configuration sets it, so a deployed Worker never serves the
@@ -39,6 +42,12 @@ const BOARDS_PATH = '/api/boards';
 
 /** /api/boards/:id — GET here asks whether the board exists. */
 const BOARD_PATH = /^\/api\/boards\/([^/?#]+)$/;
+
+/** POST here uploads an image file for a board (assets.api, story 12). */
+const BOARD_ASSETS_PATH = /^\/api\/boards\/([^/?#]+)\/assets$/;
+
+/** GET here serves a stored image back to the board page (assets.api, story 12). */
+const ASSET_PATH = /^\/api\/assets\/([^/?#]+)\/([^/?#]+)$/;
 
 /** The only header the routing decision depends on. */
 const isWebSocketUpgrade = (request: Request): boolean =>
@@ -90,6 +99,30 @@ export default {
       }
       console.error('[vidi6] board could not be created', { reason: created.reason });
       return json({ error: 'create_failed' }, 500);
+    }
+
+    // The image assets API (assets.api, story 12): an upload that stores a file for
+    // a board, and a read that serves a stored image back. Both live under /api/, so
+    // the SPA asset fallback never sees them. They are matched before the plain
+    // board path so `/api/boards/:id/assets` is never mistaken for an id check.
+    const uploadMatch = BOARD_ASSETS_PATH.exec(pathname);
+    if (uploadMatch !== null) {
+      if (request.method !== 'POST') {
+        return json({ error: 'method_not_allowed' }, 405);
+      }
+      return handleUpload(request, env, decodeURIComponent(uploadMatch[1]!));
+    }
+
+    const serveMatch = ASSET_PATH.exec(pathname);
+    if (serveMatch !== null) {
+      if (request.method !== 'GET') {
+        return json({ error: 'method_not_allowed' }, 405);
+      }
+      // The two path halves are re-joined into the stored key; `handleServe` is the
+      // one that decides whether that key is well-shaped, so a `../` here is simply
+      // not a key and gets the same 404 as any other.
+      const key = `${decodeURIComponent(serveMatch[1]!)}/${decodeURIComponent(serveMatch[2]!)}`;
+      return handleServe(env, key);
     }
 
     const boardMatch = BOARD_PATH.exec(pathname);

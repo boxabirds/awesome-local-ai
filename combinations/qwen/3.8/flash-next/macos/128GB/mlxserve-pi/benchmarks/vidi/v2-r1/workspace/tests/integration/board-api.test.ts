@@ -159,6 +159,7 @@ describe('creating a board (share.board_api)', () => {
         get: () => ({ initialize: async () => { throw new Error('the object would not start'); } }),
       } as unknown as Env['BOARD_ROOM'],
       ASSETS: env.ASSETS,
+      ASSETS_BUCKET: env.ASSETS_BUCKET,
     };
     expect(await createBoardServer(throwing)).toEqual({ ok: false, reason: 'create_failed' });
 
@@ -170,6 +171,7 @@ describe('creating a board (share.board_api)', () => {
         get: () => ({ initialize: async () => 'exists' as const }),
       } as unknown as Env['BOARD_ROOM'],
       ASSETS: env.ASSETS,
+      ASSETS_BUCKET: env.ASSETS_BUCKET,
     };
     expect(await createBoardServer(collision)).toEqual({ ok: false, reason: 'create_failed' });
   });

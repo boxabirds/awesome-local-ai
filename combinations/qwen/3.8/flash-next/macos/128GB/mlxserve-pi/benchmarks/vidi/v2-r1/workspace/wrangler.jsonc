@@ -22,6 +22,15 @@
       }
     ]
   },
+  // Story 12: uploaded images live in R2 under an unguessable key. `wrangler dev`
+  // and the integration pool both back this with a local (Miniflare) bucket, so
+  // the same binding is real in e2e and in integration (design: Mock vs real).
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   // SQLite-backed from the start, so story 4 (which persists the board in this
   // same class) needs no class migration.
   "migrations": [

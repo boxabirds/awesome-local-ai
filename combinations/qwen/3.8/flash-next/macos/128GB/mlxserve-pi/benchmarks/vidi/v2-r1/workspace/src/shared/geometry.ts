@@ -27,6 +27,12 @@ export interface Point {
   y: number;
 }
 
+/** A width and a height, in whichever space the caller is working in. */
+export interface Size {
+  width: number;
+  height: number;
+}
+
 /** The eight resize handles, named for the edge(s) they sit on. */
 export type Handle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 

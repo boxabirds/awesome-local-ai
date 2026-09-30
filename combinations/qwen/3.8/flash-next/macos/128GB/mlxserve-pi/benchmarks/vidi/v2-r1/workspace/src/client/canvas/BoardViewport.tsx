@@ -6,6 +6,8 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ClipboardEvent as ReactClipboardEvent,
+  type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -100,6 +102,18 @@ interface BoardViewportProps {
    * a press on it never reaches an object underneath.
    */
   overlay?: ReactNode;
+  /**
+   * Image files dragged over and dropped on the board (`image.drop`). These are the
+   * browser's own drag events, handed straight to `useImageInsert` — the viewport adds no
+   * logic of its own, it is only the surface a drop lands on. Absent means a drop does
+   * nothing but the browser's default.
+   */
+  onDragEnter?(event: ReactDragEvent<HTMLDivElement>): void;
+  onDragOver?(event: ReactDragEvent<HTMLDivElement>): void;
+  onDragLeave?(event: ReactDragEvent<HTMLDivElement>): void;
+  onDrop?(event: ReactDragEvent<HTMLDivElement>): void;
+  /** Image files pasted onto the board (`image.paste`); a text paste is left alone. */
+  onPaste?(event: ReactClipboardEvent<HTMLDivElement>): void;
 }
 
 /** The four moments of a marquee drag, driven by the viewport's own pointer events. */
@@ -126,6 +140,11 @@ export function BoardViewport({
   marquee,
   textToolActive = false,
   overlay,
+  onDragEnter,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onPaste,
 }: BoardViewportProps): ReactNode {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<Size>(measureWindow);
@@ -402,6 +421,11 @@ export function BoardViewport({
         onPointerCancel={onPointerCancel}
         onLostPointerCapture={onLostPointerCapture}
         onDoubleClick={onDoubleClick}
+        onDragEnter={onDragEnter}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        onPaste={onPaste}
       >
         <div data-testid="board-world" data-placing={textToolActive ? 'true' : 'false'} style={worldStyle}>
           <div

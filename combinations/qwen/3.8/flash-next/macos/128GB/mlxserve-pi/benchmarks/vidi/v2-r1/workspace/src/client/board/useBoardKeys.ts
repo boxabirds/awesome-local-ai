@@ -145,6 +145,14 @@ export function useBoardKeys(options: BoardKeyOptions): void {
           onCreateSticky?.();
           return;
         }
+        // `I` is not a mode either: like the rail's Image button it opens the file picker
+        // and leaves the board on Select (`image.pick`). It is routed through `onTool` so
+        // the one place that opens the picker — `useActiveTool` — is the only one.
+        if (shortcut === 'image') {
+          event.preventDefault();
+          onTool?.('image');
+          return;
+        }
         // A letter that belongs to a tool this build has not drawn — story 10's `P`, `I`
         // and `C` are pen, image and comment — does nothing here, and is not swallowed:
         // a key that draws nothing must not be taken off the browser either.

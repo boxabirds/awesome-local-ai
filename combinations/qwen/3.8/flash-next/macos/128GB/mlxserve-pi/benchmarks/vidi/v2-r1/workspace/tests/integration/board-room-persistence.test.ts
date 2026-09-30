@@ -457,7 +457,7 @@ describe('the test-hook route (TC-24 ask)', () => {
       new Request(`https://vidi6.test/api/rooms/${boardId}?__test=compact`, { method }),
       // The flag is the only thing in this environment that differs from the
       // deployed one, which is the point of the test.
-      { BOARD_ROOM: env.BOARD_ROOM, ASSETS: env.ASSETS, TEST_HOOKS: '1' },
+      { BOARD_ROOM: env.BOARD_ROOM, ASSETS: env.ASSETS, ASSETS_BUCKET: env.ASSETS_BUCKET, TEST_HOOKS: '1' },
     );
 
   it('is not a hook when the flag is not set', async () => {

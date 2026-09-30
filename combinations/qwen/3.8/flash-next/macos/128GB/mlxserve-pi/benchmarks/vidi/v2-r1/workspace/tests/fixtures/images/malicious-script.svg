@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- An SVG that carries a script. It must never be stored or served as an image:
+     its bytes say "svg", and `sniffImageType` answers null for it, which is the
+     whole point of refusing by content (`assets.api`, TC-13). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="120" viewBox="0 0 200 120">
+  <rect width="200" height="120" fill="#90CAF9" />
+  <text x="16" y="64" font-family="sans-serif" font-size="18">not an image</text>
+  <script type="text/javascript"><![CDATA[
+    // This line is why SVG is refused: an image that can execute is not an image.
+    document.body.innerHTML = '<h1>pwned</h1>';
+  ]]></script>
+</svg>

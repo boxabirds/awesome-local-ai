@@ -388,3 +388,72 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
  * flat underline still has a box this tall to grab.
  */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// --- Images (story 12) -------------------------------------------------------
+
+/**
+ * The image types the board accepts (`image.types`), judged by their content and
+ * never by a file name or `Content-Type`. The keys are the MIME types a stored
+ * asset carries and the `accept` list the file picker is filtered to.
+ */
+export const IMAGE_ACCEPTED_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+] as const;
+export type AcceptedImageMime = (typeof IMAGE_ACCEPTED_TYPES)[number];
+
+/**
+ * The largest an image file may be (`image.size_limit`). A file over this is
+ * refused in the browser before it is uploaded, and the server re-checks it and
+ * answers 413, so nothing over this size is ever stored.
+ */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * How many supported files one drop, paste or pick may add
+ * (`image.count_limit`). More than this arriving together keeps the first so many
+ * and explains the rest with a toast.
+ */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/**
+ * The longest side, in board units, a newly placed image may have
+ * (`image.placement_size`). An image whose natural longest side is over this is
+ * scaled down to exactly this; a smaller image keeps its natural size and is never
+ * enlarged.
+ */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/**
+ * The smallest an image's box may be squeezed to, by a resize handle or any other
+ * route (`image.aspect_resize`). Board units, and this kind's resize floor.
+ */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/**
+ * The gap left between images laid out in a row (`image.drop`, `image.paste`,
+ * `image.pick`), in board units.
+ */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/**
+ * How long an image may sit in `uploading` before it is shown as not going to
+ * finish (`image.unfinished`) — the uploader reloaded or closed the page. Once
+ * `now - uploadStartedAt` exceeds this, `displayStatus` returns `unfinished`.
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/**
+ * How long a served asset is cached (`assets.api`). Asset keys never change, so
+ * the cache is `immutable` — one year, in seconds.
+ */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/**
+ * How many leading bytes of an upload are looked at to decide its type
+ * (`assets.api`). Enough for every accepted signature: PNG is 8 bytes, WebP needs
+ * 12 (`RIFF` + size + `WEBP`).
+ */
+export const IMAGE_SNIFF_BYTES = 12;

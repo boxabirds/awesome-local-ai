@@ -223,6 +223,25 @@ export function Toolbar({
           {"\u270E"}
         </span>
       </button>
+      {/* Adding an image is the rail's one-shot action, not a mode: it opens the file
+          picker and the board is back on Select (`image.pick`). A board you cannot edit
+          gets neither the picker nor a pressed button (`image.offline`). */}
+      <button
+        type="button"
+        data-testid="tool-image"
+        aria-label="Image (I)"
+        title="Image (I) \u2013 add a PNG, JPEG, GIF or WebP"
+        className="vidi6-icon-button"
+        disabled={disabled}
+        aria-disabled={disabled}
+        onClick={() => {
+          onTool?.('image');
+        }}
+      >
+        <span style={glyphStyle} aria-hidden="true">
+          {"\uD83D\uDBBC"}
+        </span>
+      </button>
       <button
         type="button"
         data-testid="create-sticky"
