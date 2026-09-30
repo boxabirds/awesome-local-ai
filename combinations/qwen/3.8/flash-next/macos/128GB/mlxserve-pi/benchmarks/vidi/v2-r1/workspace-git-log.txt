@@ -1,3 +1,60 @@
+commit 59369c7c4d04a94a9b8619dc8a2889e92e94995a
+vidi-agent  Wed Sep 30 04:46:32 2026 +0100
+
+    harness: snapshot after story 5 (uncommitted agent work)
+
+
+ src/worker/test-hooks.ts               |  24 +++-
+ tests/e2e/board-persistence.spec.ts    |   4 +
+ tests/e2e/helpers/board.ts             |  12 +-
+ tests/e2e/helpers/participants.ts      |  48 ++++++--
+ tests/e2e/helpers/persistent-server.ts |  35 ++++++
+ tests/e2e/share-board.spec.ts          | 208 +++++++++++++++++++++++++++++++++
+ 6 files changed, 313 insertions(+), 18 deletions(-)
+commit 2033b81d990a4fbc6b8d0564c0ed876c299c9759
+vidi-agent  Wed Sep 30 04:31:02 2026 +0100
+
+    wip story 5: client router, pages, SharePanel, component tests
+
+
+ src/client/App.tsx                        | 297 +++---------------------------
+ src/client/api.ts                         |  54 ++++++
+ src/client/board/Board.tsx                | 242 ++++++++++++++++++++++++
+ src/client/pages/BoardPage.tsx            |  77 ++++++++
+ src/client/pages/HomePage.tsx             |  96 ++++++++++
+ src/client/pages/NotFoundPage.tsx         |  48 +++++
+ src/client/pages/state.ts                 |  52 ++++++
+ src/client/router.ts                      |  51 +++++
+ src/client/share/SharePanel.tsx           | 224 ++++++++++++++++++++++
+ tests/component/BoardUnavailable.test.tsx |  12 +-
+ tests/component/BoardViewport.test.tsx    |   9 +-
+ tests/component/ConnectionStatus.test.tsx |  10 +-
+ tests/component/NavigationHint.test.tsx   |  15 +-
+ tests/component/SharePanel.test.tsx       | 142 ++++++++++++++
+ tests/component/StickyNote.test.tsx       |  37 ++--
+ tests/component/StickyTextEditor.test.tsx |  23 ++-
+ tests/component/pages.test.tsx            | 175 ++++++++++++++++++
+ 17 files changed, 1242 insertions(+), 322 deletions(-)
+commit 14bdab414938613b888c63869f6335ebd33fc497
+vidi-agent  Wed Sep 30 04:18:59 2026 +0100
+
+    wip story 5: server-side board API (create, exists, 404), board-api integration tests
+
+
+ index.html                                       |   1 +
+ src/shared/config.ts                             |  25 +++
+ src/worker/board-room.ts                         |  63 ++++++-
+ src/worker/board-store.ts                        | 102 ++++++++++
+ src/worker/create-board.ts                       |  36 ++++
+ src/worker/index.ts                              |  63 ++++++-
+ src/worker/test-hooks.ts                         |  42 ++++-
+ tests/integration/board-api.test.ts              | 225 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |   8 +-
+ tests/integration/board-room.test.ts             |   6 +
+ tests/integration/helpers/ws-client.ts           |  39 +++-
+ tests/integration/worker.test.ts                 |  17 +-
+ tests/unit/create-board.test.ts                  |  56 ++++++
+ 13 files changed, 665 insertions(+), 18 deletions(-)
 commit a7f15cb8b6645f80a13616bbb4851bfaf9b2a09d
 vidi-agent  Wed Sep 30 03:37:06 2026 +0100
 
