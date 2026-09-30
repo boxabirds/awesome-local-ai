@@ -1,0 +1,171 @@
+:root {
+  --vidi6-grid-dot: rgba(15, 23, 42, 0.18);
+  --vidi6-bg: #f8fafc;
+  --vidi6-fg: #0f172a;
+  --vidi6-control-bg: rgba(255, 255, 255, 0.9);
+  --vidi6-control-border: rgba(15, 23, 42, 0.12);
+  --vidi6-control-fg: #0f172a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--vidi6-fg);
+  background: var(--vidi6-bg);
+  overflow: hidden;
+  /* Prevent the browser's own overscroll / pinch behaviour interfering. */
+  overscroll-behavior: none;
+}
+
+.vidi6-app {
+  position: fixed;
+  inset: 0;
+}
+
+/* ---- Board viewport ---- */
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  /* The board owns all wheel/pinch gestures over it. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  background-color: var(--vidi6-bg);
+  background-repeat: repeat;
+}
+
+.board-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.origin-marker {
+  position: absolute;
+  /* Placed at world (0,0) inside the world layer. */
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: '';
+  position: absolute;
+  /* Counter-scale so the marker stays a constant screen size regardless of zoom. */
+  background: rgba(59, 130, 246, 0.9);
+}
+
+.origin-marker::before {
+  /* vertical bar */
+  left: -0.5px;
+  top: -8px;
+  width: 1px;
+  height: 16px;
+}
+
+.origin-marker::after {
+  /* horizontal bar */
+  left: -8px;
+  top: -0.5px;
+  width: 16px;
+  height: 1px;
+}
+
+/* ---- Zoom controls ---- */
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--vidi6-control-bg);
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  color: var(--vidi6-control-fg);
+  font-size: 14px;
+  z-index: 10;
+}
+
+.zoom-controls button {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.zoom-controls button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.zoom-controls .zoom-reset {
+  font-size: 13px;
+  padding: 0 8px;
+}
+
+.zoom-controls .zoom-label {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Navigation hint ---- */
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 13px;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+}
