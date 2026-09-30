@@ -28,14 +28,19 @@ import { ConnectorTool } from './tools/ConnectorTool';
 import { PenTool } from './tools/PenTool';
 import { PenToolbar } from './tools/PenToolbar';
 import { usePenOptions } from './tools/usePenOptions';
-import { registerStrokeType } from './objects/registry';
+import { registerStrokeType, registerImageType } from './objects/registry';
 import { StrokeObject } from './objects/StrokeObject';
+import { ImageObjectWrapper } from './objects/ImageObject';
+import { ImageLayer } from './objects/ImageLayer';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
 import { useRoute } from './router';
 import { HomePage } from './pages/HomePage';
 import { BoardPage } from './pages/BoardPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { useImageInsert } from './images/useImageInsert';
+import { DropHighlight } from './images/DropHighlight';
+import { useToast, ToastContainer } from './ui/Toast';
 import {
   createSticky,
   deleteObjects,
@@ -62,6 +67,7 @@ export function canEdit(state: ConnectionState): boolean {
 
 // Register stroke type with the registry (side effect on module load)
 registerStrokeType(StrokeObject as any);
+registerImageType(ImageObjectWrapper as any);
 
 function BoardOverlay(): ReactElement {
   const { camera, hasNavigated, zoomStep, reset } = useBoard();
@@ -90,6 +96,28 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
 
   // Viewport ref for tool overlays
   const viewportElRef = useRef<HTMLElement | null>(null);
+
+  // Toast for image messages
+  const toast = useToast();
+
+  // Image insertion
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    cameraRef,
+    connection: connectionState,
+    identityId: 'local',
+    viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1280,
+    viewportHeight: typeof window !== 'undefined' ? window.innerHeight : 800,
+    toast,
+  });
+
+  // Paste handler on window
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => imageInsert.onPaste(e);
+    window.addEventListener('paste', handler);
+    return () => window.removeEventListener('paste', handler);
+  }, [imageInsert.onPaste]);
 
   // Undo controller: one per board doc, destroyed on board change/unmount
   const undoController: UndoController | null = useMemo(() => {
@@ -299,8 +327,18 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
   // Get the viewport element from BoardViewport for tool overlays
   const viewportEl = viewportElRef.current;
 
+  const handleImageToolClick = useCallback(() => {
+    imageInsert.openPicker();
+  }, [imageInsert.openPicker]);
+
   return (
-    <div className="vidi6-app">
+    <div
+      className="vidi6-app"
+      onDragEnter={imageInsert.onDragEnter}
+      onDragOver={imageInsert.onDragOver}
+      onDragLeave={imageInsert.onDragLeave}
+      onDrop={imageInsert.onDrop}
+    >
       <ConnectionStatus state={connectionState} />
       <BoardViewport
         cameraRef={cameraRef}
@@ -338,6 +376,7 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
             penThickness={penOptions.thickness}
             onPenColor={penOptions.setColor}
             onPenThickness={penOptions.setThickness}
+            onImageToolClick={handleImageToolClick}
           />
         }
       >
@@ -382,6 +421,17 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
           selection={selection}
           onObjectPointerDown={onObjectPointerDown}
         />
+        <ImageLayer
+          notes={notes}
+          doc={doc}
+          selection={selection}
+          editable={editable}
+          onObjectPointerDown={onObjectPointerDown}
+          identityId="local"
+          progress={imageInsert.progress}
+          canRetry={imageInsert.canRetry}
+          onRetry={imageInsert.retry}
+        />
       </BoardViewport>
 
       {/* Tool overlays rendered outside board-world to avoid transform context */}
@@ -417,6 +467,8 @@ export function Board({ boardId }: { boardId: string }): ReactElement {
           onGestureBoundary={undoController ? () => undoController.boundary() : undefined}
         />
       )}
+      <DropHighlight visible={imageInsert.dropHighlightVisible} />
+      <ToastContainer messages={toast.messages} />
     </div>
   );
 }
@@ -445,6 +497,7 @@ interface AppChromeProps {
   onShapeStrokeChange(c: StrokeColor): void;
   onHandlePointerDown(e: PointerEvent, h: import('@shared/geometry').Handle): void;
   undoState: ReturnType<typeof useUndo>;
+  onImageToolClick?(): void;
 }
 
 function AppChrome(props: AppChromeProps): ReactElement {
@@ -473,6 +526,7 @@ function AppChrome(props: AppChromeProps): ReactElement {
         onShapeToolClick={() => props.onToolChange?.('shape')}
         onConnectorToolClick={() => props.onToolChange?.('connector')}
         onPenToolClick={() => props.onToolChange?.('pen')}
+        onImageToolClick={props.onImageToolClick}
       />
 
       {/* Pen toolbar (visible while Pen is active) */}

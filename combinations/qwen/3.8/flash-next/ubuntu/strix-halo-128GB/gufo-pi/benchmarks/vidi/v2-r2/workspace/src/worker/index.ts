@@ -1,10 +1,12 @@
 import { isValidBoardId } from '@shared/board-id';
 import { createBoard } from './create-board';
 import { BoardRoom } from './board-room';
+import { handleUpload, handleServe } from './assets';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   // Set to '1' to enable the /__test/* control routes (used by e2e persistence and
   // broken-board specs). Never set in production.
   TEST_HOOKS?: string;
@@ -81,6 +83,23 @@ export default {
         return Response.json({ error: 'not_found' }, { status: 404 });
       }
       return Response.json({ id: boardId }, { status: 200 });
+    }
+
+    // Image asset upload: POST /api/boards/:boardId/assets
+    const uploadMatch = url.pathname.match(/^\/api\/boards\/([^/]+)\/assets$/);
+    if (uploadMatch) {
+      if (req.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const boardId = decodeURIComponent(uploadMatch[1]);
+      return handleUpload(req, env, boardId);
+    }
+
+    // Image asset serving: GET /api/assets/:boardId/:assetId
+    const serveMatch = url.pathname.match(/^\/api\/assets\/([^/]+)\/([^/]+)$/);
+    if (serveMatch) {
+      const key = `${decodeURIComponent(serveMatch[1])}/${decodeURIComponent(serveMatch[2])}`;
+      return handleServe(env, key);
     }
 
     // Route /api/rooms/:boardId to the Durable Object

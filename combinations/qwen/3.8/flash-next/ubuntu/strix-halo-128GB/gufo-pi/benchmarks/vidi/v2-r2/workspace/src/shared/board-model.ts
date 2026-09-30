@@ -41,8 +41,9 @@ export interface TextObjectSnapshot {
 import type { ShapeSnap } from '@shared/objects/shape';
 import type { ConnectorSnap } from '@shared/objects/connector';
 import type { StrokeSnap } from '@shared/objects/stroke';
+import type { ImageSnap } from '@shared/objects/image';
 
-export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeSnap | ConnectorSnap | StrokeSnap;
+export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeSnap | ConnectorSnap | StrokeSnap | ImageSnap;
 
 // Callback registered by connector.ts to handle detach-on-delete.
 let _detachFn: ((doc: Y.Doc, deletedIds: string[]) => void) | null = null;
@@ -454,6 +455,26 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         baseHeight: obj.get('baseHeight') as number,
         color: obj.get('color') as StrokeSnap['color'],
         thickness: obj.get('thickness') as StrokeSnap['thickness'],
+      };
+      result.push(entry);
+    } else if (type === 'image') {
+      const entry: ImageSnap = {
+        id,
+        type: 'image',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: obj.get('width') as number,
+        height: obj.get('height') as number,
+        z: (obj.get('z') as number) ?? 0,
+        createdAt: (obj.get('createdAt') as number) ?? 0,
+        createdBy: (obj.get('createdBy') as string) ?? '',
+        assetKey: (obj.get('assetKey') as string | null) ?? null,
+        contentType: (obj.get('contentType') as string) ?? 'image/png',
+        naturalWidth: (obj.get('naturalWidth') as number) ?? 0,
+        naturalHeight: (obj.get('naturalHeight') as number) ?? 0,
+        status: (obj.get('status') as ImageSnap['status']) ?? 'uploading',
+        uploadStartedAt: (obj.get('uploadStartedAt') as number) ?? 0,
+        uploaderId: (obj.get('uploaderId') as string) ?? '',
       };
       result.push(entry);
     }

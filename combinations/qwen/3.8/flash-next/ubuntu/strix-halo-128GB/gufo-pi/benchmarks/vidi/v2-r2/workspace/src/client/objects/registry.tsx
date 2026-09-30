@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import type { ObjectSnapshot } from '@shared/board-model';
 import { objectBounds } from '@shared/board-model';
 import type { Point } from '@shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD } from '@shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, IMAGE_MIN_SIZE_WORLD } from '@shared/config';
 import { distanceToPolyline } from '@shared/geometry/polyline';
 import { scaledPoints } from '@shared/objects/stroke';
 import type { StrokeSnap } from '@shared/objects/stroke';
@@ -108,6 +108,7 @@ export function _resetRegistryForTesting(): void {
   shapeTypeRegistered = false;
   connectorTypeRegistered = false;
   strokeTypeRegistered = false;
+  imageTypeRegistered = false;
 }
 
 /**
@@ -198,6 +199,32 @@ export function registerStrokeType(component: ObjectTypeSpec['Component']): void
       const effectiveZoom = zoom ?? 1;
       const tolerance = Math.max(thicknessHalf, STROKE_HIT_TOLERANCE_PX / effectiveZoom);
       return dist <= tolerance;
+    },
+  });
+}
+
+// --- Register image type ---
+
+let imageTypeRegistered = false;
+
+export function registerImageType(component: ObjectTypeSpec['Component']): void {
+  if (imageTypeRegistered) return;
+  imageTypeRegistered = true;
+  registerObjectType('image', {
+    Component: component,
+    resizable: true,
+    aspectLocked: true,
+    minSize: IMAGE_MIN_SIZE_WORLD,
+    editableText: false,
+    handles: 'all',
+    hitTest: (obj: ObjectSnapshot, worldPoint: Point) => {
+      const bounds = objectBounds(obj);
+      return (
+        worldPoint.x >= bounds.x &&
+        worldPoint.x <= bounds.x + bounds.width &&
+        worldPoint.y >= bounds.y &&
+        worldPoint.y <= bounds.y + bounds.height
+      );
     },
   });
 }

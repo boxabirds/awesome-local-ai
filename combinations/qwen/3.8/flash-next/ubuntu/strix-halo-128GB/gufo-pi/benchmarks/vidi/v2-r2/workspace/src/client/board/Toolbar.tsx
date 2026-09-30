@@ -14,6 +14,7 @@ export interface ToolbarProps {
   onShapeToolClick?(): void;
   onConnectorToolClick?(): void;
   onPenToolClick?(): void;
+  onImageToolClick?(): void;
 }
 
 export function Toolbar({
@@ -27,6 +28,7 @@ export function Toolbar({
   onShapeToolClick,
   onConnectorToolClick,
   onPenToolClick,
+  onImageToolClick,
 }: ToolbarProps): ReactElement {
   return (
     <div
@@ -115,6 +117,21 @@ export function Toolbar({
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <path d="M3 17l1.5-4L14 3.5 16.5 6 7 15.5 3 17z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none" />
           <path d="M12.5 5L15 7.5" stroke="currentColor" strokeWidth="1" />
+        </svg>
+      </button>
+      {/* Image button */}
+      <button
+        aria-label="Image"
+        title="Image"
+        className="board-toolbar-btn"
+        onClick={onImageToolClick}
+        disabled={disabled}
+        data-testid="image-tool-btn"
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+          <circle cx="7" cy="7" r="1.5" fill="currentColor" />
+          <path d="M18 13l-4.5-4.5L4 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
       {undo && <UndoButtons {...undo} />}
