@@ -342,6 +342,13 @@ def test_the_pipeline_records_exactly_the_known_answer(run_copy, monkeypatch):
     assert env["node"].startswith("v") and env["npm"] and env["os"] and env["workers"] == 1
     guard = json.loads((run_copy / finalize.STATUS).read_text())["guard"]
     assert (guard["live"], guard["record"], guard["difference"], guard["flagged"]) == ("3/5", "4/5", 1, None)
+    # Every story records the engine settings it ran under (None: the fake server's run.json has none) and, from
+    # finalize, whether its agent reached outside its workspace: the scripted agent never does.
+    m = heldout.load_metrics(run_copy)
+    for sid in ("1", "2"):
+        assert "engine_settings" in m["stories"][sid]
+        assert m["stories"][sid]["outside_workspace"]["ok"] is True, m["stories"][sid]["outside_workspace"]
+    assert json.loads((run_copy / finalize.STATUS).read_text())["outside_workspace"] == {"ok": True, "reached": [], "unjudged": []}
 
 
 def test_the_live_scores_and_commits_are_recorded_per_story(run_copy):

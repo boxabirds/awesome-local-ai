@@ -160,11 +160,31 @@ def guard(run: Path, version: str) -> dict:
     return out
 
 
+def contain(run: Path) -> dict:
+    """Each story's containment verdict (logscan.py: did its agent reach outside its workspace for anything that
+    could give it answers?), recorded in metrics.json per story, and the run's summary. It runs here, on the
+    machine that ran the stories, where their full logs still are."""
+    import heldout
+    import logscan
+    verdicts = logscan.scan_run(run)                       # {"07": verdict}; metrics.json keys stories "7"
+    metrics = heldout.load_metrics(run)
+    stories = metrics.get("stories") or {}
+    for sid, verdict in verdicts.items():
+        if (rec := stories.get(str(int(sid)))) is not None:
+            rec["outside_workspace"] = verdict   # not "containment": that is the systemd scope record
+    if stories:
+        heldout.save_metrics(run, metrics)
+    return {"ok": all(v["ok"] is not False for v in verdicts.values()),
+            "reached": sorted(s for s, v in verdicts.items() if v["ok"] is False),
+            "unjudged": sorted(s for s, v in verdicts.items() if v["ok"] is None)}
+
+
 def finalize(run: Path, pack_ref: str, version: str, rescore: Rescore, record: Callable[[str], None] | None) -> dict:
     work = Path((run / "work_dir.txt").read_text().strip()).expanduser()
     out: dict = {"version": version, "pack_ref": pack_ref, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     bundle(work / "workspace", run / BUNDLE)
     out["bundle"] = BUNDLE
+    out["outside_workspace"] = contain(run)
     action, why = decide(version, pack_ref, already=(run / "rescore" / version / "rescore.json").is_file())
     if action == "skip" and why.startswith("already"):
         return {**out, "rescore": "done", "reason": why}   # nothing new to record
@@ -190,6 +210,8 @@ def finalize(run: Path, pack_ref: str, version: str, rescore: Rescore, record: C
         out.update(rescore="skipped", reason=why)
         message = f"not re-scored: {why}"
     (run / STATUS).write_text(json.dumps(out, indent=2) + "\n")
+    if out["outside_workspace"]["reached"]:
+        message += "; reached outside its workspace in " + ", ".join(f"story {int(s)}" for s in out["outside_workspace"]["reached"])
     if record:
         record(message)
     return out
