@@ -73,3 +73,23 @@ def test_a_story_recorded_before_the_harness_kept_a_time_split_gets_one(tmp_path
     assert backfill_timing.backfill(run) == ["1"]
     ts = json.loads((run / "metrics.json").read_text())["stories"]["1"]["time_split"]
     assert ts["wall_s"] == 60.0 and ts["model"]["prefill_s"] == 2.0 and ts["accounting"]["ok"]
+
+
+def test_conversation_profiles_are_filled_where_missing_and_kept_where_present(tmp_path):
+    run = run_with(tmp_path)
+    m = json.loads((run / "metrics.json").read_text())
+    for rec in m["stories"].values():
+        rec["agent_finished"] = 60.0
+    m["stories"]["2"]["conversation"] = {"version": 1, "calls": 99}
+    (run / "metrics.json").write_text(json.dumps(m))
+    assert backfill_timing.backfill_conversation(run) == ["1"]
+    got = json.loads((run / "metrics.json").read_text())["stories"]
+    assert got["1"]["conversation"]["calls"] == 1 and got["2"]["conversation"] == {"version": 1, "calls": 99}
+    assert backfill_timing.backfill_conversation(run) == []           # a second pass changes nothing
+
+
+def test_a_log_that_cant_be_profiled_records_nothing(tmp_path):
+    run = run_with(tmp_path)
+    (run / "stories" / "01" / "agent-events.jsonl").write_text('{"type": "session"}\n')  # no stamps, no calls
+    assert "1" not in backfill_timing.backfill_conversation(run)
+    assert "conversation" not in json.loads((run / "metrics.json").read_text())["stories"]["1"]

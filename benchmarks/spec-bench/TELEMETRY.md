@@ -108,6 +108,25 @@ made before the accounting timed every engine and not yet backfilled. `harness/b
 finished run's splits with the current calculation from the full event logs its machine kept.
 `python3 harness/llama_log.py <server.log> [from to]` prints llama-server's own summary for any window.
 
+### `conversation`: what the agent's conversation looked like
+
+`harness/conversation.py` (tests: `test_conversation.py`), counted from the story's event log inside its window;
+no LLM. Null when the log has no receive stamps (runs before the harness stamped them) or no model call pi logged
+(Claude Code runs).
+
+| Field | What |
+|---|---|
+| `calls`, `tool_calls` | model calls, and the tool calls they made |
+| `thinking_chars`, `text_chars`, `tool_arg_chars` | characters of reasoning, of reply text, and of tool arguments (file contents written, edits, commands) |
+| `thinking_median`, `thinking_median_before`, `thinking_median_after` | median reasoning characters per call; and before and after the largest block (null when there is nothing on that side) |
+| `largest_thinking` | the longest reasoning block: `chars`, `call` (1-based), `at_s` (seconds into the story) |
+| `context_start`, `context_end`, `largest_context_jump` | what the model read on its first and last call (fresh plus cached tokens), and the largest growth between two consecutive calls (`tokens`, `call`) |
+| `tools_by_name`, `tool_errors` | tool calls by tool, and results marked as errors |
+| `longest_tool` | the longest tool call: `seconds`, `name`, `gist` (its command or path); one that never ended runs to the story's end |
+| `signals` | `long-thinking-block` (a block of 20,000 characters or more), `hung-command` (a tool call of 600 s or more) |
+
+`backfill_timing.py` fills it for past stories from the full logs each machine keeps.
+
 ### `requests`: the server's own request log (MTPLX only)
 
 `requests`, `prompt_tokens`, `completion_tokens`, `cached_tokens`, `ttft_median_s`,
