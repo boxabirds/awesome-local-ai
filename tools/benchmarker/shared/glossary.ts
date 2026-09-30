@@ -1,7 +1,9 @@
 // One definition per measure: its name, unit, and what it counts. Every page's headings and hovers read from here,
 // so a number means the same thing wherever it appears. Add a measure here before showing it anywhere.
 
-import { SILENT_MINUTES } from "./overviewView.ts";
+import { RECENT_END_S, SILENT_MINUTES } from "./overviewView.ts";
+
+const SECONDS_PER_HOUR = 3600;
 
 export interface Term {
   /** The heading or label. */
@@ -76,13 +78,16 @@ export const GLOSSARY = {
   segTools: { name: "Tools", what: "the agent waiting on its own tool calls: its test runs, builds, file reads and edits, and any other command" },
   segBetweenSessions: { name: "Between sessions", what: "the harness starting the agent's next session after one ended: it waits before resuming an agent whose session ended in an error, and nudges one that stopped without committing" },
   segOther: { name: "Other", what: "the agent's own overhead between steps" },
+  invalidRun: { name: "Invalid", what: "The run's record marks it invalid: its result can't stand (it saw the reference build, say). It is shown, struck through with the reason on hover, and left out of every figure: rankings, medians, ranges, pooled scores, divergence medians and needs you." },
+  intervened: { name: "intervened", what: "Someone did something to this run by hand (the operator, or the harness's watchdog): a frozen machine restarted, a silent tool call killed, a story ended at its cap. The run stays in every figure; this marks it so its numbers are read with that in mind. The hover lists each one." },
+  interventions: { name: "Interventions", what: "Every line of the run's interventions.md, oldest first: what was done to the run by hand, by the operator or the harness's watchdog, and in which story. Repeated lines are shown once, with how many times." },
   storyNav: { name: "Around this story", what: "The story before and after this one in the run, the same story in the combination's other runs, and the run and combination it belongs to." },
 
   // The ranking (overview) and the combination page.
   combination: { name: "Combination", what: "A stack: model, quant, engine and client, on one hardware class. Its short label; the full id (its folder under combinations/) on hover." },
   comboMachines: { name: "Machines", what: "The machines its runs ran on, counted or not." },
   pooledPassRate: { name: "Pooled", what: "Held-out tests passing over all held-out tests, summed over the same finished runs of record as the score: like with like, so it is fine beside the median. Running runs and other suite versions are never in it." },
-  notCounted: { name: "Not counted", what: "Runs left out of this row's numbers, and why: running or queued (not finished), unscored (finished, but not re-scored under the current suite: never re-scored, or only under another version), failed, stopped or cancelled." },
+  notCounted: { name: "Not counted", what: "Runs left out of this row's numbers, and why: running or queued (not finished), unscored (finished, but not re-scored under the current suite: never re-scored, or only under another version), invalid (marked so in its record), failed, stopped or cancelled." },
   unranked: { name: "Not ranked", what: "No finished run with a score of record under the current suite, so there is nothing to rank it by. Live numbers never rank." },
   outPerStory: { name: "Output tokens per story", what: "Output tokens per story, over the finished runs of record: each run's own tokens per story, then the median over runs, with the range." },
   callsPerStory: { name: "Calls per story", what: "Tool calls per story, over the finished runs of record: how many steps the agent takes. Each run's own figure, then the median over runs, with the range. A cost measure, not a quality one." },
@@ -94,7 +99,7 @@ export const GLOSSARY = {
   runsByStatus: { name: "Runs", what: "Every run of this combination in the pack, by status. Only finished runs with a score of record are in its numbers; the rest are counted apart." },
   matrix: { name: "Runs × stories", what: "One row per run, one column per story: each cell is one story run and links to it. Its colour is that story's held-out result; its text is the metric chosen above." },
   metricSwitch: { name: "Show", what: "What each cell's text shows. The colour always stays the story's held-out result." },
-  storyMedian: { name: "Median", what: "Each story's median over this combination's finished runs (scored or not: a story's cost doesn't depend on the re-score). A cell more than 10% from it is flagged." },
+  storyMedian: { name: "Median", what: "Each story's median over this combination's finished runs (scored or not: a story's cost doesn't depend on the re-score; invalid runs left out). A cell more than 10% from it is flagged." },
   runTotalMetric: { name: "Run", what: "The run's own figure on the chosen metric: summed over its stories for minutes, tokens and calls; how many stories pass all their tests for held-out; its overall rate for tok/s." },
   storyRunHeldOut: { name: "Held-out", what: "This story's own held-out tests against the build right after it, recorded when the story finished. Only a run's final build is re-scored, so a story run has no score of record of its own." },
   runTimeSplit: { name: "Where the time went, per run", what: "One bar per run: every second of its recorded stories, summed, by owner. All runs on one scale, so a longer bar is a longer run." },
@@ -112,7 +117,7 @@ export const GLOSSARY = {
   related: { name: "Related", what: "The machines this combination's runs ran on, and the other combinations of the same model." },
 
   // The overview and the machine pages.
-  needsYou: { name: "Needs you", what: "Exceptions that ask for action, each linked to where it is resolved: a stuck story, an unreachable or idle machine, a run that failed or stopped in the last day, a finished run with no score of record, and stories whose time accounting failed its checks. Machines are looked at whatever the pack; runs in the pack and version chosen above." },
+  needsYou: { name: "Needs you", what: "Exceptions that ask for action, each linked to where it is resolved: a stuck story, an unreachable or idle machine, a run that failed or stopped in the last day, a finished run with no score of record, and stories whose time accounting failed its checks. Machines are looked at whatever the pack; runs in the pack and version chosen above. Invalid runs are left out." },
   needSilent: { name: "no activity", what: `The harness has reported nothing on this running story for ${SILENT_MINUTES} minutes or more. It rewrites the story's progress once a minute while the agent works, however slowly, so this silence means the harness, the agent or the machine has stopped. Stop it and restart the run, or read its log.` },
   needUnreachable: { name: "unreachable", what: "The machine's dbench service didn't answer. Nothing can be queued or stopped on it until it does." },
   needEnded: { name: "ended early", what: "The run failed or was stopped in the last day, before it finished: it has no score of record. Restart it from the machine's page, which resumes it at its first unfinished story." },
@@ -135,7 +140,7 @@ export const GLOSSARY = {
   dbenchVersion: { name: "dbench", what: "The version of the dbench service on the machine: the program that queues and runs the benchmark jobs there." },
   installs: { name: "Installs", what: "The combinations installed on the machine, which it can run. Each links to its combination's page once it has a run." },
   machineNow: { name: "Now", what: "The job running on this machine, with its live activity, then the queue in the order dbench will run it, then jobs that ended in the last day. Each job has its operations." },
-  endedJobs: { name: "Ended in the last day", what: "Jobs dbench still lists after they ended: finished, failed, stopped or cancelled. A failed, stopped or cancelled one can be restarted, which resumes its run at its first unfinished story." },
+  endedJobs: { name: "Ended in the last day", what: `Jobs that ended in the last ${RECENT_END_S / SECONDS_PER_HOUR} hours, by the end dbench recorded for each: finished, failed, stopped or cancelled. dbench keeps ended jobs for days; older ones are on their runs' pages. A failed, stopped or cancelled one can be restarted, which resumes its run at its first unfinished story.` },
   history: { name: "History", what: "Every run on this machine, by combination, then by pack and spec version: runs of different spec versions built different specs, so they are never grouped together. Each shows its status and its score of record." },
   activity: { name: "Activity", what: "Live: the running story's model calls and output tokens so far, the tasks written, and the agent's latest action. Claude runs count calls and tokens only at the end of a story." },
   machineRow: { name: "Machine", what: "A dbench node: the machine a run runs on. Its page has its hardware, installs, jobs and history." },

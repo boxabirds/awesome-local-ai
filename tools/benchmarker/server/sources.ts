@@ -1,8 +1,8 @@
 // Reading the two sources: the repo's fetched origin/main (git) and dbench.
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
-import type { Score } from "../shared/types.ts";
-import { countTests, finalScore, findRuns, normaliseByStory, type RawRescore, type RawUsage, storyEntry, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
+import type { Intervention, Invalid, Score } from "../shared/types.ts";
+import { countTests, finalScore, findRuns, normaliseByStory, parseInterventions, parseInvalid, type RawRescore, type RawUsage, storyEntry, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
 
 const run = promisify(execFile);
 export const REF = "origin/main";
@@ -73,6 +73,18 @@ function json<T>(text: string | undefined): T | null {
   }
 }
 
+/** The files a run's notes are read from: its run.json (the "invalid" mark) and interventions.md. */
+export const runNotePaths = (dir: string) => [`${dir}/run.json`, `${dir}/interventions.md`];
+
+/** What the record says about the run itself: whether it is invalid, and what was done to it by hand. */
+export function runNotes(blobs: Map<string, string>, dir: string): { invalid: Invalid | null; interventions: Intervention[] } {
+  const [meta, notes] = runNotePaths(dir);
+  return {
+    invalid: parseInvalid(json<{ invalid?: unknown }>(blobs.get(meta))?.invalid),
+    interventions: parseInterventions(blobs.get(notes)),
+  };
+}
+
 type RawStory = { title?: string; status?: string; accept?: { passed?: number; total?: number } | null } & RawUsage;
 
 /** Every pushed run record, and each pack's current version (bench.json pack_ref). */
@@ -82,7 +94,7 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
   const runs = findRuns(paths);
   const packs = [...new Set(runs.map((r) => r.pack))].sort();
   const wanted = runs.flatMap((r) => [
-    `${r.dir}/run.json`, `${r.dir}/run-status.json`, `${r.dir}/metrics.json`,
+    ...runNotePaths(r.dir), `${r.dir}/run-status.json`, `${r.dir}/metrics.json`,
     ...r.rescores.map((v) => `${r.dir}/rescore/${v}/rescore.json`),
     ...Object.entries(r.rescoreLast).flatMap(([v, id]) => rescoreStoryPaths(r.dir, v, id)),
   ]).concat(packs.map((p) => `benchmarks/${p}/bench.json`));
@@ -108,7 +120,7 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
       if (acc?.by_story) rescored[v] = { after: id, byStory: normaliseByStory(acc.by_story) };
     }
     return { ...r, rescored, host: meta.host ?? "", packVersion: meta.pack_version ?? "", state: status.state ?? "", stateAt: status.at ?? "",
-      stories: pairs.map(([id, s]) => storyEntry(id, s)), scores };
+      stories: pairs.map(([id, s]) => storyEntry(id, s)), scores, ...runNotes(blobs, r.dir) };
   });
   return { records, suites };
 }

@@ -128,7 +128,7 @@ test.describe("needs you: each kind", () => {
   test("a failed run from the last day: how long ago, the reason, resolved on its machine; one older than a day is not", async ({ page }) => {
     await patchState(page, (s) => {
       Object.assign(rowOf(s, SWIFT, "v2-r5"), { status: "failed", statusNote: "agent crashed" });
-      rowOf(s, SWIFT, "v2-r5").jobs.at(-1)!.updatedAt = s.now - HOUR;
+      Object.assign(rowOf(s, SWIFT, "v2-r5").jobs.at(-1)!, { updatedAt: s.now - HOUR, endedAt: s.now - HOUR });
       Object.assign(rowOf(s, SWIFT, "v2-r4"), { status: "stopped", statusNote: "", stateAt: new Date((s.now - 2 * DAY) * 1000).toISOString() });
     });
     await open(page);

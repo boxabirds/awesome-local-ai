@@ -41,7 +41,7 @@ export function CompareRuns({ run, others, params }: { run: Row; others: Row[]; 
         : !other ? <p className="rp-empty">Choose a run to compare with.</p>
         : rows.length === 0 ? <p className="rp-empty">Neither run has recorded a story yet.</p> : <>
           <p className="small compare-key">
-            Each cell: <b>{run.runId}</b> over <RunLink pack={other.pack} stack={other.stack} runId={other.runId} />; <span className="diff flagged">marked</span> where {run.runId} differs from {other.runId} by more than 10%.
+            Each cell: <b>{run.runId}</b> over <RunLink pack={other.pack} stack={other.stack} runId={other.runId} invalid={other.invalid} />; <span className="diff flagged">marked</span> where {run.runId} differs from {other.runId} by more than 10%.
           </p>
           <div className="table-scroll">
             <table className="rp-table compare" aria-label={`${run.runId} against ${other.runId}`}>
@@ -90,7 +90,7 @@ export function RelatedRuns({ run, others }: { run: Row; others: Row[] }) {
             return (
               <li key={r.runId} data-run={r.runId}>
                 <span className={`s-${v.status}`} aria-hidden="true">{v.icon}</span>{" "}
-                <RunLink pack={r.pack} stack={r.stack} runId={r.runId} />{" "}
+                <RunLink pack={r.pack} stack={r.stack} runId={r.runId} invalid={r.invalid} />{" "}
                 <span className={`status-word s-${v.status}`}>{v.status}</span>
                 <span className="small"> · <MachineLink machine={r.machine} host={r.host} /> · {r.stories.length} {r.stories.length === 1 ? "story" : "stories"} recorded · </span>
                 {rec.kind === "scored" ? <span className="small">score <b>{rec.passed}/{rec.total}</b></span> : <span className="small" data-tip={rec.why}>no score of record</span>}

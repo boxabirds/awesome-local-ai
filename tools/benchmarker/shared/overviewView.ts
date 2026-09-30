@@ -1,8 +1,8 @@
 // What the overview and the machine pages show, worked out from the state: pure functions, so every rule (what
 // needs you, what a machine is doing now, how a machine's history is grouped) is tested once here and the
 // components only lay it out (plan sections 4.1 and 4.6).
-import type { Machine, Row, RunStatus } from "./types.ts";
-import { scoreOfRecord, unscoredReason } from "./stats.ts";
+import type { Invalid, Machine, Row, RunStatus } from "./types.ts";
+import { isInvalid, scoreOfRecord, unscoredReason } from "./stats.ts";
 
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_HOUR = 3600;
@@ -52,7 +52,8 @@ export function silentMinutes(row: Pick<Row, "live">, now: number): number | nul
 export const NEED_KINDS = ["silent", "unreachable", "ended", "idle", "rescoreFault", "unscored", "accounting"] as const;
 export type NeedKind = (typeof NEED_KINDS)[number];
 
-export interface RunRef { pack: string; stack: string; runId: string; label: string; machine: string }
+/** A run as a need or a now line names it; `invalid` so the link can be struck through. */
+export interface RunRef { pack: string; stack: string; runId: string; label: string; machine: string; invalid?: Invalid | null }
 
 export type Need =
   /** A running story whose harness has been silent for SILENT_MINUTES or more. */
@@ -70,15 +71,18 @@ export type Need =
   /** A run with stories whose time split failed its own checks. */
   | { kind: "accounting"; key: string; run: RunRef; stories: { id: string; problems: string[] }[] };
 
-const ref = (r: Row): RunRef => ({ pack: r.pack, stack: r.stack, runId: r.runId, label: r.label, machine: r.machine });
+const ref = (r: Row): RunRef => ({ pack: r.pack, stack: r.stack, runId: r.runId, label: r.label, machine: r.machine, invalid: r.invalid ?? null });
 const runKey = (r: Row) => `${r.pack}\u0000${r.stack}\u0000${r.runId}`;
 
 /** The version family a suite belongs to: "vidi-v2" for "vidi-v2.0-pre1" (as the header picks the current one). */
 export const suiteFamily = (suite: string) => /^(.*?-v\d+)/.exec(suite)?.[1] ?? "";
 
-/** When a run ended, in Unix seconds: its last job's last report, else its record's time; null if neither. */
+/** A job's end as dbench recorded it, else its last report. */
+const jobEnd = (j: Row["jobs"][number] | undefined): number | null => j?.endedAt ?? j?.updatedAt ?? null;
+
+/** When a run ended, in Unix seconds: the later of its last job's end and its record's time; null if neither. */
 export function endedAt(r: Pick<Row, "jobs" | "stateAt">): number | null {
-  const job = r.jobs.at(-1)?.updatedAt ?? null;
+  const job = jobEnd(r.jobs.at(-1));
   const rec = r.stateAt ? Date.parse(r.stateAt) / 1000 : NaN;
   const times = [job, Number.isFinite(rec) ? rec : null].filter((t): t is number => t !== null);
   return times.length ? Math.max(...times) : null;
@@ -97,12 +101,15 @@ export interface NeedsInput {
 }
 
 /** Everything that asks for action, each with the entity it is about. Missing data never raises one: a story with
- * no start time is never called stuck, a run with no end time never called recent. */
-export function needsYou({ rows, all, machines, reach, now }: NeedsInput): Need[] {
+ * no start time is never called stuck, a run with no end time never called recent. An invalid run raises nothing:
+ * it is left out of "needs you" like every other figure (its machine is still judged as a machine). */
+export function needsYou({ rows: shown, all, machines, reach, now }: NeedsInput): Need[] {
   const out: Need[] = [];
+  const rows = shown.filter((r) => !isInvalid(r));
 
   // Machines: a stuck story, an unreachable node, an idle one.
   for (const r of all) {
+    if (isInvalid(r)) continue;
     const m = silentMinutes(r, now);
     const story = runningStory(r).story;
     if (m !== null && m >= SILENT_MINUTES && story) {
@@ -199,15 +206,24 @@ export function nowLines(machines: Machine[], all: Row[], reach: Reachability, n
 
 // ---------- a machine's jobs now ----------
 
-/** A machine's live jobs: the running one, the queue in dbench's order, and jobs that ended recently (dbench keeps
- * them a day), latest first. */
-export function machineJobs(machine: string, all: Row[]): { running: Row[]; queued: Row[]; ended: Row[] } {
+/** When the job a run shows (its live job) ended: dbench's recorded end for that job, else its last report; the
+ * run's end when the job isn't among the run's jobs. Never a later record time: the job is what is listed. */
+export function jobEndedAt(r: Pick<Row, "jobs" | "live" | "stateAt">): number | null {
+  const j = r.live ? r.jobs.find((x) => x.id === r.live!.jobId) : undefined;
+  return j ? jobEnd(j) : endedAt(r);
+}
+
+/** A machine's live jobs: the running one, the queue in dbench's order, and jobs that ended within RECENT_END_S of
+ * `now`, latest first. dbench keeps ended jobs for days, so each is judged on its own end; one whose end can't be told
+ * isn't called recent. (30 Sep: tritus listed jobs ended on 27-29 Sep here, with no time limit at all.) */
+export function machineJobs(machine: string, all: Row[], now: number): { running: Row[]; queued: Row[]; ended: Row[] } {
   const mine = all.filter((r) => r.node === machine && r.live);
+  const recent = (r: Row) => { const t = jobEndedAt(r); return t !== null && now - t <= RECENT_END_S; };
   return {
     running: mine.filter((r) => r.live!.status === "running"),
     queued: mine.filter((r) => r.live!.status === "queued").toSorted((a, b) => (a.live!.queue?.position ?? 0) - (b.live!.queue?.position ?? 0)),
-    ended: mine.filter((r) => r.live!.status !== "running" && r.live!.status !== "queued")
-      .toSorted((a, b) => (endedAt(b) ?? 0) - (endedAt(a) ?? 0)),
+    ended: mine.filter((r) => r.live!.status !== "running" && r.live!.status !== "queued" && recent(r))
+      .toSorted((a, b) => (jobEndedAt(b) ?? 0) - (jobEndedAt(a) ?? 0)),
   };
 }
 

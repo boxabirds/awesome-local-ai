@@ -209,7 +209,7 @@ describe("every job of a run", () => {
     });
     const jobs = [...by.values()][0];
     expect(jobs.map((j) => j.id)).toEqual(["v2-r1", "v2-r1-again1"]);
-    expect(jobs[0]).toEqual({ id: "v2-r1", node: "gruntus", status: "cancelled", submittedAt: 100, updatedAt: 200, reason: "stopped by the operator" });
+    expect(jobs[0]).toEqual({ id: "v2-r1", node: "gruntus", status: "cancelled", submittedAt: 100, updatedAt: 200, endedAt: 200, reason: "stopped by the operator" });
   });
 
   it("keeps different runs, packs and combinations apart", () => {

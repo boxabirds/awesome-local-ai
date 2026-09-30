@@ -24,7 +24,7 @@ export function RunTimeBars({ runs }: { runs: Row[] }) {
         return (
           <div className="bar-row" key={r.runId} data-run={r.runId}>
             <span className="bar-label">
-              <RunLink pack={r.pack} stack={r.stack} runId={r.runId} /> <span className={`small s-${r.status}`}>{r.status}</span>
+              <RunLink pack={r.pack} stack={r.stack} runId={r.runId} invalid={r.invalid} /> <span className={`small s-${r.status}`}>{r.status}</span>
               <span className="small"> · {note}</span>
               {sp.problems.length ? <span className="check-flag" tabIndex={0} role="img" aria-label="accounting check failed" data-tip={`${termName("accountingCheck")} failed, so treat these parts with care: ${sp.problems.join("; ")}`}>⚠</span> : null}
               {sp.unchecked ? <span className="check-unchecked" tabIndex={0} data-tip={`${sp.unchecked} of its stories' splits were recorded before the harness checked its accounting`}>unchecked</span> : null}

@@ -2,7 +2,7 @@
 // Everything here is mechanical: medians, the 10% divergence rule, and the mechanism label from the story's
 // conversation profile and usage against the same story's other runs. No LLM, nothing guessed.
 import type { ConversationProfile, Row, Story, TimeSplit, Usage } from "./types.ts";
-import { median } from "./stats.ts";
+import { isInvalid, median } from "./stats.ts";
 import type { TermId } from "./glossary.ts";
 
 const SECONDS_PER_MINUTE = 60;
@@ -95,9 +95,9 @@ const FLOAT_TOLERANCE = 1e-9;
 
 export interface StoryMedian { median: number; n: number }
 
-/** Per story, the median over the finished runs that have a value for it. */
+/** Per story, the median over the finished runs that have a value for it; invalid runs left out. */
 export function storyMedians(runs: Row[], ids: string[], metric: Metric): Map<string, StoryMedian | null> {
-  const finished = runs.filter((r) => r.status === "finished");
+  const finished = runs.filter((r) => r.status === "finished" && !isInvalid(r));
   return new Map(ids.map((id) => {
     const xs = finished.map((r) => cellOf(r, id, metric).value).filter((x): x is number => x !== null);
     const m = median(xs);
@@ -217,9 +217,9 @@ export function classifyMechanism(target: Story, others: Story[]): MechanismResu
   return { label: "unexplained", fired: [], evidence: "None of the rules fired: thinking, steps, tool calls, compaction, restarts and generation speed are all near the other runs'." };
 }
 
-/** The same story in the combination's other runs: what a story run is compared with. */
+/** The same story in the combination's other runs: what a story run is compared with. Invalid runs are no yardstick. */
 export function siblings(runs: Row[], run: Row, storyId: string): Story[] {
-  return runs.filter((r) => r !== run).map((r) => cellOf(r, storyId, DEFAULT_METRIC).story).filter((s): s is Story => !!s);
+  return runs.filter((r) => r !== run && !isInvalid(r)).map((r) => cellOf(r, storyId, DEFAULT_METRIC).story).filter((s): s is Story => !!s);
 }
 
 // ---------- the matrix ----------
@@ -228,7 +228,8 @@ export interface MatrixCell extends Cell { divergence: Divergence | null; mechan
 export interface MatrixRow { run: Row; cells: MatrixCell[] }
 export interface Matrix { stories: string[]; rows: MatrixRow[]; medians: Map<string, StoryMedian | null> }
 
-/** Runs × stories on one metric, each cell with its divergence from the story's median and, when flagged, its mechanism. */
+/** Runs × stories on one metric, each cell with its divergence from the story's median and, when flagged, its mechanism.
+ * An invalid run keeps its row and values, but is never flagged: it is in no figure. */
 export function buildMatrix(runs: Row[], metric: Metric): Matrix {
   const stories = storyIds(runs);
   const medians = storyMedians(runs, stories, metric);
@@ -236,7 +237,7 @@ export function buildMatrix(runs: Row[], metric: Metric): Matrix {
     run,
     cells: stories.map((id): MatrixCell => {
       const cell = cellOf(run, id, metric);
-      const d = cell.state === "recorded" ? divergence(cell.value, medians.get(id) ?? null) : null;
+      const d = cell.state === "recorded" && !isInvalid(run) ? divergence(cell.value, medians.get(id) ?? null) : null;
       return { ...cell, divergence: d, mechanism: d && cell.story ? classifyMechanism(cell.story, siblings(runs, run, id)) : null };
     }),
   }));
@@ -245,9 +246,10 @@ export function buildMatrix(runs: Row[], metric: Metric): Matrix {
 
 export interface TallyLine { label: Mechanism; count: number }
 
-/** How many flagged story runs each mechanism explains, in precedence order, out of every story run with a value. */
+/** How many flagged story runs each mechanism explains, in precedence order, out of every story run with a value
+ * (invalid runs' left out). */
 export function tally(m: Matrix): { lines: TallyLine[]; flagged: number; storyRuns: number } {
-  const cells = m.rows.flatMap((r) => r.cells).filter((c) => c.state === "recorded" && c.value !== null);
+  const cells = m.rows.filter((r) => !isInvalid(r.run)).flatMap((r) => r.cells).filter((c) => c.state === "recorded" && c.value !== null);
   const flagged = cells.filter((c) => c.mechanism);
   const order: Mechanism[] = [...MECHANISM_PRECEDENCE, "unexplained", "not recorded"];
   const lines = order.map((label) => ({ label, count: flagged.filter((c) => c.mechanism!.label === label).length })).filter((l) => l.count > 0);

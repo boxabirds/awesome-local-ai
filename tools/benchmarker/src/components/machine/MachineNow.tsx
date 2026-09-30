@@ -1,7 +1,7 @@
 // What the machine is doing: the running job with its live activity, the queue in dbench's order, and jobs that
 // ended in the last day; each with its operations, and a form to queue a run beside them.
 import type { Row } from "../../../shared/types.ts";
-import { jobPlace, machineJobs, runningStory, silentMinutes, SILENT_MINUTES, endedAt } from "../../../shared/overviewView.ts";
+import { jobEndedAt, jobPlace, machineJobs, runningStory, silentMinutes, SILENT_MINUTES } from "../../../shared/overviewView.ts";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { duration, ordinal, shortAction } from "../../format.ts";
 import { RunLink, StoryRunLink } from "../EntityLinks.tsx";
@@ -20,7 +20,7 @@ function JobName({ row }: { row: Row }) {
   return <span className="job-name" tabIndex={0} data-tip={`${GLOSSARY.jobPlace.what} dbench id: ${id}`}>{p ? `job ${p.place} of ${p.of}` : "job"}<span className="sr-only"> ({id})</span></span>;
 }
 
-const Run = ({ row }: { row: Row }) => <RunLink pack={row.pack} stack={row.stack} runId={row.runId} label={row.label} />;
+const Run = ({ row }: { row: Row }) => <RunLink pack={row.pack} stack={row.stack} runId={row.runId} label={row.label} invalid={row.invalid} />;
 
 function Activity({ row }: { row: Row }) {
   const l = row.live!;
@@ -88,7 +88,7 @@ function QueuedJob({ row }: { row: Row }) {
 
 function EndedJob({ row }: { row: Row }) {
   const l = row.live!;
-  const at = endedAt(row);
+  const at = jobEndedAt(row);
   return (
     <li className="job-line mp-job" data-job={l.jobId} data-status={l.status}>
       <span className={`job-status j-${l.status}`}>{l.status}</span>
@@ -102,7 +102,7 @@ function EndedJob({ row }: { row: Row }) {
 
 /** `isNode`: dbench knows the machine (it answered for it, or it is in the machine list). */
 export function MachineNow({ machine, all, info, listed, isNode, now }: { machine: string; all: Row[]; info: MachineInfo | undefined; listed: boolean; isNode: boolean; now: number }) {
-  const jobs = machineJobs(machine, all);
+  const jobs = machineJobs(machine, all, now);
   return (
     <section className="mp-section" data-section="now" aria-labelledby="h-mp-now">
       <div className="mp-head"><h2 id="h-mp-now"><Term id="machineNow" /></h2>

@@ -118,7 +118,7 @@ section.combinations h2 { display: flex; gap: 12px; align-items: baseline; font-
 table.combos { min-width: 0; table-layout: auto; }
 table.combos th { cursor: pointer; }
 table.combos td.combo .stack-label { font-size: 13px; color: var(--ink); font-weight: 600; }
-.tooltip { position: fixed; z-index: 20; background: var(--ink); color: var(--bg); font-size: 12px; line-height: 1.45; padding: 7px 10px; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.35); pointer-events: none; white-space: normal; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.tooltip { position: fixed; z-index: 20; background: var(--ink); color: var(--bg); font-size: 12px; line-height: 1.45; padding: 7px 10px; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.35); pointer-events: none; white-space: pre-line; font-weight: 400; text-transform: none; letter-spacing: 0; }
 [data-tip] { cursor: help; }
 
 /* Emphasis: headline numbers are large, bold and coloured by how good they are; the rest steps down. */
@@ -181,3 +181,18 @@ table.combos td.score .spread .range { display: inline; }
 
 /* A term with a definition on hover (shared/glossary.ts). */
 .term { cursor: help; }
+
+/* A run's record marks (RunMarks.tsx). Neither takes a held-out or status colour: an invalid run is struck through and
+   muted; an intervened one carries a hand in a dashed outline. */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.invalid-run, .invalid-run b, .invalid-run .stack-label { text-decoration: line-through; text-decoration-thickness: 1.5px; color: var(--muted); }
+tr[data-invalid="true"] > td { opacity: .55; }
+tr[data-invalid="true"] > td:hover, tr[data-invalid="true"] > td:focus-within { opacity: 1; }
+.invalid-tag { display: inline-block; font-size: 11px; font-weight: 650; letter-spacing: .02em; text-transform: uppercase; color: var(--ink);
+  border: 1.5px solid var(--ink); border-radius: 4px; padding: 0 5px; line-height: 16px; }
+.invalid-banner { margin: 10px 0 14px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-left: 5px solid var(--ink);
+  border-radius: 6px; font-size: 14px; }
+.intervened { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--ink); white-space: nowrap;
+  border: 1.5px dashed var(--muted); border-radius: 10px; padding: 0 6px; line-height: 16px; vertical-align: 1px; }
+.intervened.compact { padding: 0 3px; border-radius: 8px; font-size: 10px; line-height: 14px; }
+.intervention-list { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
