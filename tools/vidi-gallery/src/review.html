@@ -78,7 +78,8 @@ kbd { background:var(--chip); border-radius:3px; padding:0 4px; font:11px ui-mon
 .reveal { margin-top:8px; }
 .fail { color:var(--fail); }
 a { color:var(--accent); }
-#nav:focus-visible, #builds:focus-visible, #steps:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
+/* Drawn inside the pane: outside, the page edge clips the stories column's ring. */
+#nav:focus-visible, #builds:focus-visible, #steps:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; border-radius:6px; }
 #nav:focus, #builds:focus, #steps:focus { outline-color:var(--accent); }
 #help { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:10; }
 .helpbox { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 18px; max-height:90vh; overflow:auto; min-width:min(520px, 92vw); }
@@ -123,6 +124,7 @@ const FRAME_FETCHES = 6;          // frames fetched at once when a path opens
 const LONG_WAIT_MS = 2000;       // a timed wait longer than this is skipped in playback and drawn compressed
 const WAIT_SHOWN_MS = 400;       // how much seek-bar time a skipped wait keeps
 const EPS_MS = 0.5;
+const SHORT_MS = 2000;
 const timers = {};
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -395,7 +397,9 @@ function show() {
     else { img.style.display = "none"; none.style.display = ""; }
   });
   if ($("head")) $("head").style.left = `${pos(t) * 100}%`;
-  if ($("clock")) $("clock").textContent = `${((t - w.start) / 1000).toFixed(1)} s of ${((w.end - w.start) / 1000).toFixed(1)} s`;
+  // A recording under SHORT_MS shows hundredths, or its clock would read 0.0 throughout.
+  const dp = w.end - w.start < SHORT_MS ? 2 : 1;
+  if ($("clock")) $("clock").textContent = `${((t - w.start) / 1000).toFixed(dp)} s of ${((w.end - w.start) / 1000).toFixed(dp)} s`;
   let curStep = -1;
   w.steps.forEach((s, i) => { if (s.start <= t + EPS_MS) curStep = i; });
   document.querySelectorAll("[data-s]").forEach(el => el.classList.toggle("cur", +el.dataset.s === curStep));
@@ -492,9 +496,9 @@ const KEYS = [
   ["Stories: → Return", "into the story's held-out tests"],
   ["Tests: ↑ ↓", "previous / next held-out test"],
   ["Steps: ↑ ↓", "previous / next browser step"],
-  ["Tests, steps: ← →", "scrub a second (⇧: a tenth)"],
+  ["Tests, steps: ← →", "scrub 5% of the recording (⇧: 1%)"],
   ["Space", "play / pause"],
-  ["= -", "scrub a second forward / back (⇧: a tenth)"],
+  ["= -", "scrub 5% forward / back (⇧: 1%)"],
   [". ,", "next / previous frame"],
   ["1 … 9 · 0", "jump to 10% … 90% · the start"],
   ["Home End", "start / end"],
@@ -553,7 +557,7 @@ async function act(a) {
     case "check": return stepCheck(a.dir);
     case "step": return stepAny(a.dir);
     case "frame": { if (!P?.w) return; pause(); const t = nextFrame(P.w.people.map(pp => pp.frames), P.t, a.dir); if (t !== null) seek(t); return; }
-    case "scrub": if (P?.w) { pause(); seek(P.t + a.ms); } return;
+    case "scrub": if (P?.w) { pause(); seek(timeAt(pos(P.t) + a.frac)); } return;  // a share of the seek bar
     case "jump": if (P?.w) { pause(); seek(a.frac >= 1 ? P.w.end : a.frac <= 0 ? P.w.start : timeAt(a.frac)); } return;
     case "speed": return setSpeed(a.dir);
     case "waits": if (P) { P.skipWaits = !P.skipWaits; if ($("skipw")) $("skipw").checked = P.skipWaits; } return;

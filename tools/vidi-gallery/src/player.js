@@ -66,8 +66,10 @@ function nextFrame(people, t, dir) {
 
 // ---------- the keyboard layer ----------
 
-const SCRUB_MS = 1000;        // - and =: a second of the recording per press (hold to keep going)
-const FINE_SCRUB_MS = 100;    // with shift: a tenth of that
+// A scrub moves a share of the seek bar, not a fixed time: held-out tests record from a tenth of a second
+// to a minute, and a fixed second would cross a short one end to end in one press.
+const SCRUB = 0.05;           // - = and left/right in the tests and steps panes: 5% per press (hold to keep going)
+const FINE_SCRUB = 0.01;      // with shift: 1%
 const TENTHS = 10;            // digits jump to tenths of the recording
 
 // The review has three panes, left to right: the stories, a story's held-out tests, and the browser steps
@@ -84,7 +86,7 @@ function paneMove(pane, dir) {
 // position (code) for digits and - = , . so shift and keyboard layouts don't change them.
 function keyAction(e, pane) {
   if (e.metaKey || e.ctrlKey || e.altKey) return null;  // reload, zoom, tabs: the browser's
-  const shift = e.shiftKey, code = e.code, scrub = dir => ({ do: "scrub", ms: dir * (shift ? FINE_SCRUB_MS : SCRUB_MS) });
+  const shift = e.shiftKey, code = e.code, scrub = dir => ({ do: "scrub", frac: dir * (shift ? FINE_SCRUB : SCRUB) });
   const digit = /^(Digit|Numpad)(\d)$/.exec(code);
   if (digit) return { do: "jump", frac: Number(digit[2]) / TENTHS };
   // Moving within and between panes.
@@ -124,4 +126,4 @@ function keyAction(e, pane) {
   }
 }
 
-if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, nextFrame, keyAction, PANES, SCRUB_MS, FINE_SCRUB_MS };
+if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, nextFrame, keyAction, PANES, SCRUB, FINE_SCRUB };
