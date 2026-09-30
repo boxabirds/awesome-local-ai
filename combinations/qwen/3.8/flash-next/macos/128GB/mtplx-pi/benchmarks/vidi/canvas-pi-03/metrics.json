@@ -2871,28 +2871,28 @@
         "wall_s": 9946.2,
         "model": {
           "source": "client-stream",
-          "requests": 465,
-          "prefill_s": 824.3,
-          "prefill_tokens": 455740,
-          "prefill_tok_s": 552.9,
-          "decode_s": 6821.1,
-          "decode_tokens": 406290,
-          "decode_tok_s": 59.6,
-          "cached_tokens": 32350593
+          "requests": 376,
+          "prefill_s": 641.5,
+          "prefill_tokens": 336723,
+          "prefill_tok_s": 524.9,
+          "decode_s": 4699.9,
+          "decode_tokens": 289149,
+          "decode_tok_s": 61.5,
+          "cached_tokens": 26597979
         },
-        "tools_s": 3762.9,
+        "tools_s": 3734.9,
         "tools_by_kind": {
           "e2e": 2399.2,
-          "bash": 743.5,
-          "unit": 590.0,
+          "bash": 741.2,
+          "unit": 564.4,
           "build": 30.0,
           "edit": 0.1,
-          "write": 0.0,
-          "read": 0.0
+          "read": 0.0,
+          "write": 0.0
         },
-        "compaction_s": 847.8,
-        "compactions": 7,
-        "other_s": -2310.0,
+        "compaction_s": 769.4,
+        "compactions": 6,
+        "other_s": 100.4,
         "backfilled": true
       },
       "loc": {
@@ -3874,28 +3874,28 @@
         "wall_s": 3528.9,
         "model": {
           "source": "client-stream",
-          "requests": 574,
-          "prefill_s": 1299.2,
-          "prefill_tokens": 745524,
-          "prefill_tok_s": 573.8,
-          "decode_s": 6496.1,
-          "decode_tokens": 406706,
-          "decode_tok_s": 62.6,
-          "cached_tokens": 39105798
+          "requests": 163,
+          "prefill_s": 483.5,
+          "prefill_tokens": 355244,
+          "prefill_tok_s": 734.7,
+          "decode_s": 1760.0,
+          "decode_tokens": 100735,
+          "decode_tok_s": 57.2,
+          "cached_tokens": 10888123
         },
-        "tools_s": 3458.0,
+        "tools_s": 254.9,
         "tools_by_kind": {
-          "unit": 1602.0,
-          "bash": 1157.8,
-          "e2e": 673.1,
-          "build": 25.0,
+          "unit": 248.1,
+          "build": 4.6,
+          "bash": 1.5,
+          "e2e": 0.8,
+          "read": 0.0,
           "edit": 0.0,
-          "write": 0.0,
-          "read": 0.0
+          "write": 0.0
         },
-        "compaction_s": 1495.1,
-        "compactions": 20,
-        "other_s": -9219.5,
+        "compaction_s": 818.8,
+        "compactions": 5,
+        "other_s": 211.6,
         "backfilled": true
       },
       "loc": {
@@ -9638,16 +9638,16 @@
         "wall_s": 9733.6,
         "model": {
           "source": "client-stream",
-          "requests": 412,
-          "prefill_s": 968.5,
-          "prefill_tokens": 605226,
-          "prefill_tok_s": 624.9,
-          "decode_s": 6466.4,
-          "decode_tokens": 314285,
+          "requests": 405,
+          "prefill_s": 952.2,
+          "prefill_tokens": 589449,
+          "prefill_tok_s": 619.0,
+          "decode_s": 6459.9,
+          "decode_tokens": 313774,
           "decode_tok_s": 48.6,
-          "cached_tokens": 27886497
+          "cached_tokens": 27829191
         },
-        "tools_s": 895.7,
+        "tools_s": 895.6,
         "tools_by_kind": {
           "unit": 864.3,
           "build": 27.2,
@@ -9659,7 +9659,7 @@
         },
         "compaction_s": 1133.3,
         "compactions": 8,
-        "other_s": 269.7,
+        "other_s": 292.6,
         "backfilled": true
       },
       "loc": {
@@ -10989,12 +10989,12 @@
         "wall_s": 6521.4,
         "model": {
           "source": "client-stream",
-          "requests": 297,
-          "prefill_s": 943.1,
-          "prefill_tokens": 621108,
-          "prefill_tok_s": 658.5,
-          "decode_s": 4635.9,
-          "decode_tokens": 213918,
+          "requests": 296,
+          "prefill_s": 935.4,
+          "prefill_tokens": 618410,
+          "prefill_tok_s": 661.1,
+          "decode_s": 4634.9,
+          "decode_tokens": 213837,
           "decode_tok_s": 46.1,
           "cached_tokens": 20071367
         },
@@ -11010,7 +11010,7 @@
         },
         "compaction_s": 629.5,
         "compactions": 15,
-        "other_s": 246.7,
+        "other_s": 255.4,
         "backfilled": true
       },
       "loc": {
@@ -11853,14 +11853,14 @@
         "wall_s": 3217.1,
         "model": {
           "source": "client-stream",
-          "requests": 193,
-          "prefill_s": 503.9,
-          "prefill_tokens": 441304,
-          "prefill_tok_s": 875.7,
-          "decode_s": 2102.0,
-          "decode_tokens": 95106,
+          "requests": 190,
+          "prefill_s": 499.2,
+          "prefill_tokens": 437819,
+          "prefill_tok_s": 877.0,
+          "decode_s": 2099.4,
+          "decode_tokens": 94849,
           "decode_tok_s": 45.2,
-          "cached_tokens": 11843833
+          "cached_tokens": 11835144
         },
         "tools_s": 3.9,
         "tools_by_kind": {
@@ -11872,7 +11872,7 @@
         },
         "compaction_s": 392.8,
         "compactions": 4,
-        "other_s": 214.5,
+        "other_s": 221.8,
         "backfilled": true
       },
       "loc": {
