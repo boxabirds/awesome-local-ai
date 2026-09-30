@@ -1,8 +1,9 @@
 """accounting.py — where a story's wall time went, as a partition of its window, with the checks recorded beside it.
 
 Every second of the story's window [t_from, t_to] has exactly one owner: compaction, a tool call, the model's prefill,
-its generation (decode), or other (the agent's own overhead and gaps). When things overlap the higher one owns the
-second: compaction > tool > prefill > decode. So the parts can't overlap, can't go negative, and always sum to the wall
+its generation (decode), the harness waiting to start the agent's next session after one ended (between sessions), or
+other (the agent's own overhead and gaps). When things overlap the higher one owns the second: compaction > tool >
+prefill > decode > between sessions. So the parts can't overlap, can't go negative, and always sum to the wall
 time, whatever the log holds: an earlier attempt of the story, a tool call that never ended, a compaction's own model
 call, concurrent requests.
 
@@ -23,12 +24,12 @@ from pathlib import Path
 
 import llama_log
 
-VERSION = 2                     # bump when the calculation changes; records say which one made them
+VERSION = 3                     # bump when the calculation changes; records say which one made them
 TOLERANCE_S = 0.3               # rounding each part to 0.1 s can move a sum by this much
 AGENT_CLOCK_TOLERANCE = 0.01    # the wall and the agent's own clock agree within 1% (or 1 s)
 DECIMALS = 1
 MS_PER_S = 1000.0
-PRIORITY = ("compaction", "tool", "prefill", "decode")
+PRIORITY = ("compaction", "tool", "prefill", "decode", "between_sessions")
 
 TOOL_KINDS = [("e2e", re.compile(r"playwright|test:e2e")),
               ("unit", re.compile(r"vitest|test:unit|test:component|test:integration|npm (run )?test")),
@@ -59,6 +60,7 @@ class Call:
 class Parsed:
     tools: list = field(default_factory=list)        # (start, end, kind)
     compactions: list = field(default_factory=list)  # (start, end)
+    between: list = field(default_factory=list)      # (session ended, next session started)
     calls: list = field(default_factory=list)        # Call, from the client's stream
     problems: list = field(default_factory=list)
     abandoned: int = 0
@@ -70,7 +72,8 @@ def parse(events: Path, t_to: float) -> Parsed:
     starts: dict = {}              # tool call id -> (start, kind)
     comp_open = None
     call = None                    # [sent, first] of the model call in flight
-    steps: list[float] = []        # when the agent started each model call: a tool that never ended stopped by then
+    steps: list[float] = []        # when the agent started each model call or its session ended: a tool that never ended stopped by then
+    settled = None                 # when the last session ended, until the next one starts
     try:
         f = Path(events).open(errors="replace")
     except OSError:
@@ -96,6 +99,12 @@ def parse(events: Path, t_to: float) -> Parsed:
                     out.problems.append(f"a tool call ended without starting ({e.get('toolCallId')})")
                 else:
                     out.tools.append((s[0], rx, s[1]))
+            elif t in ("agent_end", "agent_settled"):
+                settled = rx
+                steps.append(rx)
+            elif t == "session" and settled is not None:
+                out.between.append((settled, max(settled, rx)))
+                settled = None
             elif t == "compaction_start":
                 comp_open = rx
             elif t == "compaction_end" and comp_open is not None:
@@ -115,7 +124,7 @@ def parse(events: Path, t_to: float) -> Parsed:
     if call is not None:
         out.abandoned += 1
     for tid, (start, kind) in starts.items():
-        stop = next((s for s in steps if s > start), t_to)
+        stop = min((s for s in steps if s > start), default=t_to)
         out.tools.append((start, max(start, stop), kind))
         out.problems.append(f"tool call {tid} never ended; counted to the agent's next step")
     if comp_open is not None:
@@ -188,7 +197,8 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
     else:
         source, spans, counted = None, [], []
     intervals = ([(a, b, "compaction", None) for a, b in comps] + [(a, b, "tool", k) for a, b, k in p.tools]
-                 + [(s, f, "prefill", None) for s, f, _ in spans] + [(f, e, "decode", None) for _, f, e in spans])
+                 + [(s, f, "prefill", None) for s, f, _ in spans] + [(f, e, "decode", None) for _, f, e in spans]
+                 + [(a, b, "between_sessions", None) for a, b in p.between])
     owned, kinds = _partition(t_from, t_to, intervals)
     r = lambda x: round(x, DECIMALS)
     model = None
@@ -204,6 +214,7 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
         "tools_by_kind": {k: r(v) for k, v in sorted(kinds.items(), key=lambda kv: -kv[1]) if r(v) > 0},
         "compaction_s": r(owned["compaction"]),
         "compactions": sum(1 for a, b in comps if min(b, t_to) > max(a, t_from)),
+        "between_sessions_s": r(owned["between_sessions"]),
         "other_s": r(owned["other"]),
     }
     problems += check(split)
@@ -215,7 +226,7 @@ def check(split: dict, agent_seconds: float | None = None) -> list[str]:
     """The invariants of a split, re-derived from its numbers (so a stored record can be checked too)."""
     m = split.get("model") or {}
     parts = {"prefill": m.get("prefill_s", 0.0), "decode": m.get("decode_s", 0.0), "tools": split["tools_s"],
-             "compaction": split["compaction_s"], "other": split["other_s"]}
+             "compaction": split["compaction_s"], "between_sessions": split.get("between_sessions_s", 0.0), "other": split["other_s"]}
     out = [f"negative {k}: {v} s" for k, v in parts.items() if v < 0]
     wall = split["wall_s"]
     if abs(sum(parts.values()) - wall) > TOLERANCE_S:
@@ -223,6 +234,9 @@ def check(split: dict, agent_seconds: float | None = None) -> list[str]:
     kinds = split.get("tools_by_kind") or {}
     if abs(sum(kinds.values()) - split["tools_s"]) > 0.05 * (len(kinds) + 1):
         out.append(f"tools by kind sum to {sum(kinds.values()):.1f} s, not tools' {split['tools_s']:.1f} s")
-    if agent_seconds is not None and abs(agent_seconds - wall) > max(1.0, AGENT_CLOCK_TOLERANCE * wall):
-        out.append(f"wall {wall:.1f} s differs from the agent's own clock ({agent_seconds:.1f} s)")
+    if agent_seconds is not None:   # the agent's clock runs only while a session does
+        expected = agent_seconds + parts["between_sessions"]
+        if abs(expected - wall) > max(1.0, AGENT_CLOCK_TOLERANCE * wall):
+            out.append(f"wall {wall:.1f} s differs from the agent's own clock ({agent_seconds:.1f} s"
+                       + (f" + {parts['between_sessions']:.1f} s between sessions" if parts["between_sessions"] else "") + ")")
     return out

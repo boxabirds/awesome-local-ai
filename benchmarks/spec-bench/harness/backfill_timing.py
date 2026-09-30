@@ -15,7 +15,7 @@ import drive
 
 
 def backfill(run: Path, recompute: bool = False) -> list[str]:
-    """Fill stories with no model time. With recompute, also redo stories filled before (marked "backfilled"), any
+    """Fill stories with no model time (or no time split at all). With recompute, also redo stories filled before (marked "backfilled"), any
     whose parts added up to more than its wall time (other_s < 0), and any made by an older accounting version."""
     path = run / "metrics.json"
     metrics = json.loads(path.read_text())
@@ -24,7 +24,7 @@ def backfill(run: Path, recompute: bool = False) -> list[str]:
         ts = rec.get("time_split")
         raw = run / "stories" / sid.zfill(2) / "agent-events.jsonl"
         stale = (ts or {}).get("accounting", {}).get("version", 0) < accounting.VERSION
-        wanted = ts and (ts.get("model") is None or (recompute and (ts.get("backfilled") or ts.get("other_s", 0) < 0 or stale)))
+        wanted = not ts or (ts.get("model") is None or (recompute and (ts.get("backfilled") or ts.get("other_s", 0) < 0 or stale)))
         if not wanted or not raw.is_file() or "started" not in rec or "agent_finished" not in rec:
             continue
         new = drive.time_split(raw, run / "server.log", rec["started"], rec["agent_finished"])

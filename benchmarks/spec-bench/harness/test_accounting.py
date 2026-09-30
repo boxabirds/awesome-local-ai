@@ -56,6 +56,13 @@ class Log:
             self.events.append({"_rx": end, "type": "message_end", "message": {"role": "assistant", "usage": {"input": fresh, "cacheRead": cached, "output": out}}})
         return self
 
+    def restart(self, settled, next_session):
+        """The agent's session ended at settled; the harness started the next one at next_session."""
+        self.events.append({"_rx": settled, "type": "agent_settled"})
+        self.events.append({"_rx": next_session, "type": "session", "id": "s"})
+        self.events.append({"_rx": next_session, "type": "agent_start"})
+        return self
+
     def user(self, at):
         self.events.append({"_rx": at, "type": "message_start", "message": {"role": "user"}})
         self.events.append({"_rx": at, "type": "message_end", "message": {"role": "user"}})
@@ -77,7 +84,7 @@ def split(tmp_path, log: Log, server_log: str | None = None, t_from=T0, t_to=T1)
 def parts(s: dict) -> dict:
     m = s["model"] or {}
     return {"prefill": m.get("prefill_s", 0.0), "decode": m.get("decode_s", 0.0), "tools": s["tools_s"],
-            "compaction": s["compaction_s"], "other": s["other_s"]}
+            "compaction": s["compaction_s"], "between_sessions": s["between_sessions_s"], "other": s["other_s"]}
 
 
 def llama(requests: list[tuple[float, float, int, float, int]]) -> str:
@@ -97,13 +104,13 @@ def llama(requests: list[tuple[float, float, int, float, int]]) -> str:
 
 def test_A1_an_empty_log_is_all_other(tmp_path):
     s = split(tmp_path, Log())
-    assert parts(s) == {"prefill": 0.0, "decode": 0.0, "tools": 0.0, "compaction": 0.0, "other": WALL}
+    assert parts(s) == {"prefill": 0.0, "decode": 0.0, "tools": 0.0, "compaction": 0.0, "between_sessions": 0.0, "other": WALL}
     assert s["model"] is None and s["accounting"]["ok"]
 
 
 def test_A2_model_calls_only(tmp_path):
     s = split(tmp_path, Log().call(T0 + 10, T0 + 12, T0 + 20).call(T0 + 30, T0 + 31, T0 + 35))
-    assert parts(s) == {"prefill": 3.0, "decode": 12.0, "tools": 0.0, "compaction": 0.0, "other": 85.0}
+    assert parts(s) == {"prefill": 3.0, "decode": 12.0, "tools": 0.0, "compaction": 0.0, "between_sessions": 0.0, "other": 85.0}
 
 
 def test_A3_tool_calls_only_by_kind(tmp_path):
@@ -119,7 +126,17 @@ def test_A4_compactions_only(tmp_path):
 
 def test_A5_everything_apart(tmp_path):
     log = Log().call(T0 + 0, T0 + 2, T0 + 10).tool(T0 + 11, T0 + 21).compaction(T0 + 30, T0 + 50).call(T0 + 60, T0 + 61, T0 + 70)
-    assert parts(split(tmp_path, log)) == {"prefill": 3.0, "decode": 17.0, "tools": 10.0, "compaction": 20.0, "other": 50.0}
+    assert parts(split(tmp_path, log)) == {"prefill": 3.0, "decode": 17.0, "tools": 10.0, "compaction": 20.0, "between_sessions": 0.0, "other": 50.0}
+
+
+def test_A6_the_harness_waiting_to_restart_the_agent_is_its_own_part(tmp_path):
+    s = split(tmp_path, Log().call(T0 + 0, T0 + 2, T0 + 10).restart(T0 + 10, T0 + 70).call(T0 + 71, T0 + 72, T0 + 80))
+    assert parts(s) == {"prefill": 3.0, "decode": 16.0, "tools": 0.0, "compaction": 0.0, "between_sessions": 60.0, "other": 21.0}
+
+
+def test_A7_a_restart_from_an_earlier_attempt_of_the_story_is_outside_the_window(tmp_path):
+    s = split(tmp_path, Log().restart(T0 - 100, T0 - 40).restart(T0 + 90, T0 + 130))
+    assert s["between_sessions_s"] == 10.0 and s["other_s"] == 90.0
 
 
 # ---------- B. where it lies against the window ----------
@@ -149,16 +166,16 @@ def test_B3_a_model_call_across_the_window_start_counts_its_part_inside_but_not_
 
 def test_B4_an_empty_or_reversed_window(tmp_path):
     s = split(tmp_path, Log().tool(T0, T0 + 5), t_from=T0, t_to=T0)
-    assert parts(s) == {"prefill": 0.0, "decode": 0.0, "tools": 0.0, "compaction": 0.0, "other": 0.0}
+    assert parts(s) == {"prefill": 0.0, "decode": 0.0, "tools": 0.0, "compaction": 0.0, "between_sessions": 0.0, "other": 0.0}
     r = split(tmp_path, Log(), t_from=T1, t_to=T0)
     assert r["wall_s"] == 0.0 and not r["accounting"]["ok"]
 
 
-# ---------- C. how parts overlap: one owner per second, compaction > tool > prefill > decode ----------
+# ---------- C. how parts overlap: one owner per second, compaction > tool > prefill > decode > between sessions ----------
 
 def test_C1_tool_over_model_the_tool_owns_the_overlap(tmp_path):
     s = split(tmp_path, Log().call(T0 + 10, T0 + 12, T0 + 30).tool(T0 + 20, T0 + 25))
-    assert parts(s) == {"prefill": 2.0, "decode": 13.0, "tools": 5.0, "compaction": 0.0, "other": 80.0}
+    assert parts(s) == {"prefill": 2.0, "decode": 13.0, "tools": 5.0, "compaction": 0.0, "between_sessions": 0.0, "other": 80.0}
 
 
 def test_C2_compaction_over_its_own_model_call_owns_the_time_and_the_call_is_not_counted(tmp_path):
@@ -213,6 +230,11 @@ def test_D4_a_compaction_that_never_ended_runs_to_the_window_end_and_is_reported
 def test_D5_a_model_call_cut_off_before_it_ended_is_counted_as_abandoned_not_as_a_call(tmp_path):
     s = split(tmp_path, Log().call(T0 + 10, T0 + 12, None, ended=False).call(T0 + 50, T0 + 51, T0 + 60))
     assert s["model"]["requests"] == 1 and s["accounting"]["abandoned_calls"] == 1
+
+
+def test_D7_a_tool_that_never_ended_stopped_when_its_session_ended(tmp_path):
+    s = split(tmp_path, Log().tool(T0 + 10).restart(T0 + 20, T0 + 80).call(T0 + 85, T0 + 86, T0 + 90))
+    assert s["tools_s"] == 10.0 and s["between_sessions_s"] == 60.0
 
 
 def test_D6_user_and_system_messages_are_not_model_calls(tmp_path):
@@ -288,11 +310,17 @@ def test_G3_reconciles_with_the_agents_own_clock_when_given(tmp_path):
     assert any("agent's own clock" in p for p in accounting.check(s, agent_seconds=WALL * 2))
 
 
+def test_G4_the_agents_clock_leaves_out_the_waits_between_its_sessions(tmp_path):
+    s = split(tmp_path, Log().restart(T0 + 10, T0 + 70))
+    assert accounting.check(s, agent_seconds=WALL - 60) == []
+    assert any("agent's own clock" in p for p in accounting.check(s, agent_seconds=WALL))
+
+
 # ---------- H. the shape of the result ----------
 
 def test_H1_keys_units_and_rounding_match_what_the_records_and_the_page_read(tmp_path):
     s = split(tmp_path, Log().call(T0 + 10.04, T0 + 12.06, T0 + 20.11).tool(T0 + 30.01, T0 + 31.02, "npx playwright test"))
-    assert set(s) == {"wall_s", "model", "tools_s", "tools_by_kind", "compaction_s", "compactions", "other_s", "accounting"}
+    assert set(s) == {"wall_s", "model", "tools_s", "tools_by_kind", "compaction_s", "compactions", "between_sessions_s", "other_s", "accounting"}
     assert set(s["model"]) >= {"source", "requests", "prefill_s", "prefill_tokens", "prefill_tok_s", "decode_s", "decode_tokens", "decode_tok_s", "cached_tokens"}
     for v in (s["wall_s"], s["tools_s"], s["other_s"], s["model"]["prefill_s"], s["model"]["decode_s"]):
         assert round(v, 1) == v
@@ -304,8 +332,9 @@ spans = st.tuples(st.floats(T0 - 50, T1 + 50), st.floats(0, 60))
 
 
 @settings(max_examples=150, deadline=None)
-@given(tools=st.lists(spans, max_size=6), comps=st.lists(spans, max_size=3), calls=st.lists(st.tuples(st.floats(T0 - 50, T1 + 50), st.floats(0, 10), st.floats(0, 30)), max_size=6))
-def test_I1_parts_never_negative_never_overlap_and_always_sum_to_the_wall(tmp_path_factory, tools, comps, calls):
+@given(tools=st.lists(spans, max_size=6), comps=st.lists(spans, max_size=3), calls=st.lists(st.tuples(st.floats(T0 - 50, T1 + 50), st.floats(0, 10), st.floats(0, 30)), max_size=6),
+       restarts=st.lists(spans, max_size=3))
+def test_I1_parts_never_negative_never_overlap_and_always_sum_to_the_wall(tmp_path_factory, tools, comps, calls, restarts):
     tmp = tmp_path_factory.mktemp("prop")
     log = Log()
     for a, d in tools:
@@ -314,6 +343,8 @@ def test_I1_parts_never_negative_never_overlap_and_always_sum_to_the_wall(tmp_pa
         log.compaction(a, a + d)
     for a, pre, dec in calls:
         log.call(a, a + pre, a + pre + dec)
+    for a, d in restarts:
+        log.restart(a, a + d)
     s = split(tmp, log)
     p = parts(s)
     assert all(v >= 0 for v in p.values())

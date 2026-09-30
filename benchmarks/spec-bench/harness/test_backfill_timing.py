@@ -63,3 +63,13 @@ def test_recompute_redoes_any_story_made_by_an_older_version_of_the_accounting(t
     (run / "metrics.json").write_text(json.dumps(m))
     assert "2" in backfill_timing.backfill(run, recompute=True)
     assert json.loads((run / "metrics.json").read_text())["stories"]["2"]["time_split"]["accounting"]["version"] == accounting.VERSION
+
+
+def test_a_story_recorded_before_the_harness_kept_a_time_split_gets_one(tmp_path):
+    run = run_with(tmp_path)
+    m = json.loads((run / "metrics.json").read_text())
+    del m["stories"]["1"]["time_split"]
+    (run / "metrics.json").write_text(json.dumps(m))
+    assert backfill_timing.backfill(run) == ["1"]
+    ts = json.loads((run / "metrics.json").read_text())["stories"]["1"]["time_split"]
+    assert ts["wall_s"] == 60.0 and ts["model"]["prefill_s"] == 2.0 and ts["accounting"]["ok"]
