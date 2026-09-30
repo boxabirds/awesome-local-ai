@@ -1,3 +1,81 @@
+commit fac3fc008097961efee1fd9a81c1b3d2d53c4267
+vidi-agent  Wed Sep 30 01:37:23 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ package.json                                     |   3 +-
+ playwright.config.ts                             |   4 +
+ src/client/objects/StickyTextEditor.tsx          |  30 ++
+ src/worker/board-room.ts                         |  15 +
+ tests/component/StickyTextEditor.remote.test.tsx | 111 +++++
+ tests/e2e/helpers/participants.ts                | 609 +++++++++++++++++++++++
+ tests/e2e/live-collaboration.spec.ts             | 378 ++++++++++++++
+ tests/e2e/nightly/idle-and-soak.spec.ts          | 268 ++++++++++
+ tests/integration/board-room.test.ts             |  41 ++
+ tests/integration/helpers/ws-client.ts           |  22 +-
+ 10 files changed, 1477 insertions(+), 4 deletions(-)
+commit 2a803b2e5d15a8414cadeab88f8925828e14a2d0
+vidi-agent  Wed Sep 30 00:14:11 2026 +0100
+
+    task 4+7: y-websocket client connection, /b/:boardId, connection badge and its component tests
+
+
+ src/client/App.tsx                        |  65 ++++-
+ src/client/board/useBoardDoc.ts           |  27 +-
+ src/client/canvas/testHooks.ts            |  25 +-
+ src/client/sync/ConnectionStatus.tsx      |  60 +++++
+ src/client/sync/connectBoard.ts           | 177 ++++++++++++
+ tests/component/ConnectionStatus.test.tsx | 431 ++++++++++++++++++++++++++++++
+ 6 files changed, 776 insertions(+), 9 deletions(-)
+commit 3b902a616493d7209c46da7578bc0db345b9653a
+vidi-agent  Wed Sep 30 00:14:11 2026 +0100
+
+    task 3+5+6: BoardRoom relay in workerd, integration tests for routing and merging
+
+
+ src/worker/board-room.ts                | 154 ++++++++++++-
+ src/worker/index.ts                     |  91 +++++---
+ tests/integration/board-room.test.ts    | 391 ++++++++++++++++++++++++++++++++
+ tests/integration/cloudflare-test.d.ts  |   7 +
+ tests/integration/helpers/random-ops.ts | 114 ++++++++++
+ tests/integration/helpers/ws-client.ts  | 337 +++++++++++++++++++++++++++
+ tests/integration/worker.test.ts        | 173 ++++++++++++++
+ vitest.config.ts                        |  10 +
+ 8 files changed, 1241 insertions(+), 36 deletions(-)
+commit 2126f498240e638a94fee96b6fa785d11d43750d
+vidi-agent  Tue Sep 29 23:12:53 2026 +0100
+
+    task 2: Worker entry, board ids and protocol framing
+
+
+ package-lock.json           |  8 +++++
+ package.json                |  4 ++-
+ src/shared/board-id.ts      | 29 +++++++++++++++---
+ src/shared/protocol.ts      | 73 +++++++++++++++++++++++++++++++++++++++++----
+ src/worker/board-room.ts    | 15 ++++++++++
+ src/worker/index.ts         | 48 +++++++++++++++++++++++++++++
+ tests/unit/protocol.test.ts | 19 +++++++-----
+ tsconfig.json               |  5 +++-
+ tsconfig.worker.json        | 13 ++++++++
+ vitest.config.ts            | 16 ++++++++++
+ wrangler.jsonc              | 30 ++++++++++++++++---
+ 11 files changed, 237 insertions(+), 23 deletions(-)
+commit ed2ba6bf741769d9373f15975ddbb015d0873f2c
+vidi-agent  Tue Sep 29 23:06:14 2026 +0100
+
+    task 1: board id, protocol decode and live settings unit tests (red)
+
+
+ package-lock.json              | 1347 ++++++++++++++++++++++++++++++++++++++++
+ package.json                   |    4 +
+ src/shared/board-id.ts         |   26 +
+ src/shared/config.ts           |   34 +
+ src/shared/protocol.ts         |   41 ++
+ tests/unit/board-id.test.ts    |   68 ++
+ tests/unit/live-config.test.ts |   29 +
+ tests/unit/protocol.test.ts    |  166 +++++
+ 8 files changed, 1715 insertions(+)
 commit 2d767160d80a39badfbb9263386bc682acf4d8ed
 vidi-agent  Tue Sep 29 22:53:41 2026 +0100
 

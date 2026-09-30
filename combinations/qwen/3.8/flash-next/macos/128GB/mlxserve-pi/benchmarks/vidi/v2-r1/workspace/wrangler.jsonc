@@ -1,11 +1,33 @@
-// vidi6 static-asset serving. The Worker `main` (Durable Objects, yjs sync)
-// arrives in story 3; for now wrangler only serves the built client.
+// vidi6 serving: the built client as static assets plus the Worker that routes
+// each board's live connection to its own BoardRoom Durable Object (story 3).
+//
+// `run_worker_first` is on because the Worker owns the /api/rooms/* route and
+// forwards everything else to the assets binding, which is what serves
+// /b/<boardId> through the single-page-application fallback.
 {
   "name": "vidi6",
   "compatibility_date": "2025-09-17",
+  "main": "src/worker/index.ts",
   "assets": {
     "directory": "./dist/client",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": false
-  }
+    "run_worker_first": true
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  // SQLite-backed from the start, so story 4 (which persists the board in this
+  // same class) needs no class migration.
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ]
 }

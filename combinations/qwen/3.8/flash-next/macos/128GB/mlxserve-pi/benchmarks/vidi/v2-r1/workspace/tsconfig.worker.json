@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // The Workers runtime has no DOM; @cloudflare/workers-types provides the
+    // globals (Response, WebSocket, DurableObjectNamespace, crypto, ...) and
+    // @cloudflare/vitest-pool-workers provides the `cloudflare:test` module the
+    // integration tests import.
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"]
+  },
+  "include": ["src/worker", "src/shared", "tests/integration"],
+  "exclude": []
+}

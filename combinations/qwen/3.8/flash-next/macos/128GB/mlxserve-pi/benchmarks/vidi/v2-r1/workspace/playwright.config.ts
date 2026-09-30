@@ -15,6 +15,10 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     viewport: VIEWPORT,
+    // An interaction that cannot happen says so in twenty seconds rather than
+    // eating the whole test budget: a covered button, a note that never opens.
+    actionTimeout: 20_000,
+    navigationTimeout: 30_000,
   },
   webServer: {
     // Test mode build so the `window.__vidi6` test hook is present (design: Fixtures).

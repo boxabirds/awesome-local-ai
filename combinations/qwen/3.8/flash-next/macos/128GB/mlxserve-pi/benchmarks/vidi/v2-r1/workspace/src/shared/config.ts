@@ -66,3 +66,37 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** The colour a freshly created note gets. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// --- Live collaboration (story 3) --------------------------------------------
+
+/**
+ * How many people a board is designed and tested for while they all edit at
+ * the same time. This is a soft target: it is never enforced — a 6th person is
+ * connected and can edit like anyone else (PRD live.over_capacity). Every test
+ * that needs "full capacity" reads this setting instead of a literal number.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/**
+ * Change-delivery budget: the time from a change appearing on the sender's
+ * screen to it appearing on every other connected screen (PRD live.propagate).
+ * Reported (not asserted) by the e2e suite, which shares one machine with the
+ * model and the server; see design.md "Timing policy".
+ */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Upper bound of the reconnect backoff while the connection is down. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays up after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** Outage length used by the catch-up test (PRD live.catch_up). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/**
+ * Functional wait used by every e2e story when waiting for something that
+ * another participant (or the runtime) makes happen. Latency is measured and
+ * logged against LIVE_UPDATE_LATENCY_BUDGET_MS, never asserted here.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;

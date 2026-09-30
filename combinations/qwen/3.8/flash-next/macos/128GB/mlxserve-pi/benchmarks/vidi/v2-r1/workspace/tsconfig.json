@@ -19,5 +19,8 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
+  // The Worker and the workerd integration tests are type-checked with the
+  // Workers types instead of the DOM (see tsconfig.worker.json).
+  "exclude": ["src/worker", "tests/integration"]
 }

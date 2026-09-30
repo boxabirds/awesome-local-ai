@@ -92,6 +92,36 @@ export function StickyTextEditor({
     }
   }, [ytext, measure]);
 
+  // A remote change to the same text — the other person typing in this very
+  // note while we are in it — arrives in `ytext` before it can appear on this
+  // screen. The textarea holds its own value, so it has to be brought in line:
+  // writing the stale local value back would delete their characters. The caret
+  // stays where it can, and the next keystroke goes in on top of the merged text.
+  useEffect(() => {
+    const onRemoteText = (_event: Y.YTextEvent, transaction: Y.Transaction): void => {
+      if (transaction.local) return; // our own writes: the textarea is already ahead
+      const el = ref.current;
+      if (!el) return;
+      const next = ytext.toString();
+      const selectionStart = el.selectionStart ?? next.length;
+      const selectionEnd = el.selectionEnd ?? next.length;
+      el.value = next;
+      const from = Math.min(selectionStart, next.length);
+      const to = Math.min(Math.max(selectionEnd, from), next.length);
+      try {
+        el.setSelectionRange(from, to);
+      } catch {
+        // selection unsupported in this environment; ignore
+      }
+      setLength(next.length);
+      measure();
+    };
+    ytext.observe(onRemoteText);
+    return () => {
+      ytext.unobserve(onRemoteText);
+    };
+  }, [ytext, measure]);
+
   // A pointerdown anywhere outside the note ends editing as 'unselected'.
   useEffect(() => {
     const onPointerDown = (event: PointerEvent): void => {
