@@ -8,6 +8,10 @@ export interface Vidi6TestHooks {
   getCamera(): Camera;
   /** Current sticky notes in the board document. */
   getNotes?(): readonly StickySnapshot[];
+  /** Ids of the objects selected by this client (story 7). */
+  getSelection?(): string[];
+  /** Adds sticky notes (top-left, optional size) in one go; returns their ids (e2e fixtures). */
+  seedNotes?(notes: readonly { x: number; y: number; text?: string; color?: string; size?: number }[]): string[];
   /** Current live connection state, and every state since the page loaded. */
   connectionState?: ConnectionState;
   connectionStates?: readonly ConnectionState[];

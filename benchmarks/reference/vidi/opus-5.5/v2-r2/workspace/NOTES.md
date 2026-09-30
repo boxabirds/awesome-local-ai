@@ -226,3 +226,57 @@ Decisions made where the spec was open or self-contradictory:
   story 3 notes. The Share button (top right, y < 48 px) is outside the soak's note area (y ≥ 80 px).
 - **Red phase.** As in earlier stories, the test-first phases were not committed separately (single
   story commit).
+
+## Story 7 — Select, move, resize and delete several objects at once
+
+- **`snapshot(doc)` stays stickies-only; `objectsSnapshot(doc)` is new.** Story 2's `snapshot` contract (and its
+  TC-12, "unknown types are skipped") and many tests type its result as `StickySnapshot[]`. The board now reads
+  `objectsSnapshot(doc)`: every object of a *known* type as `ObjectSnapshot` (`id, type, x, y, width, height, z,
+  createdAt`, plus `color`/`text` for stickies). `snapshot` = its sticky subset. `stickiesOf(objects)` and
+  `isSticky` help narrow. `useBoardDoc` returns `objects` instead of `notes`.
+- **Known types live in board-model.** `allObjectIds`/`objectsInRect` (shared code) must skip unregistered
+  types, but the registry is client code (it holds React components). `registerObjectType` therefore also calls
+  `markObjectTypeKnown(type)` in board-model; `sticky` is known by default. Unknown types are never shown,
+  selected or changed.
+- **`clampScale` has an optional 5th parameter `uniform`** (default `scale.x === scale.y`). Without it, a
+  non-aspect-locked resize that collapses both axes to 0 would look uniform and be clamped as one scale.
+- **`resizeRect` with aspect lock:** a corner uses the axis that changed more; an edge handle scales the other axis
+  around the box's centre. Unlocked resizes compute edges directly (no float drift). `scaleFromHandle(box, handle,
+  scale)` (extra export) rebuilds the box from the clamped scale, anchored at the opposite side/corner.
+- **Non-resizable types** (none yet) in a group resize keep their size and follow their scaled centre.
+- **Sticky note size.** The note's content is laid out at `STICKY_SIZE_WORLD` and CSS-scaled to the note's width,
+  so text fitting (`fitFontSize`) is unchanged and a bigger note shows proportionally bigger text (emphasis).
+  The overflow fade height scales via `--sticky-scale`.
+- **Selection chrome is generic.** `SelectionOverlay` (screen space, above the board) draws a thin outline per
+  selected object, the bounding box and the 8 handles for every type, so the sticky's own CSS outline was removed
+  (`data-selected`/`is-selected` stay). Handles are `role="button"` divs labelled "Resize top-left", "Resize
+  top", … "Resize left"; they are hidden while editing text or when the board cannot be edited. The box and
+  handles also show for a single selected object.
+- **SelectionBar extras.** Besides the contract props it takes `camera` (placement above the box, like story 2's
+  toolbar), `onColor(id, colour)` (for the single-sticky NoteToolbar) and `hidden` (while dragging/resizing,
+  editing, or when the board cannot be edited). The bar reuses the note-toolbar look; its role is
+  `toolbar` "Selection". The `aria-live="polite"` announcer is a separate visually hidden element that is
+  always rendered (so changes are announced).
+- **Clicks.** Press on an unselected object selects only it at pointerdown (then it can be dragged). A click
+  (no drag) on a member of a multi-selection selects just that object on release; dragging it moves the group.
+  Shift+press on an object toggles it immediately and never starts a drag. Shift+press on empty space with no
+  movement selects nothing and keeps the selection.
+- **`useSelection` ignores ids not in the snapshot** for `click/toggle/setMany`, but not for `startEdit`: a note
+  created a moment ago (double-click / Sticky note button) is not in the snapshot yet. `endEdit(next?)` keeps
+  story 2's `'selected' | 'unselected'` argument (default `'selected'`). Pruned ids are hidden in the same
+  render (derived) and removed from state by the prune effect.
+- **`useTransformGesture` also returns `active`** (`'move' | 'resize' | null`) so notes show their dragging
+  state and the bar hides mid-gesture. Pointer move/up/cancel listeners are attached natively to the pressed
+  element (with pointer capture), replacing story 2's per-note drag code. With `canEdit` false a press still
+  selects on release, but nothing moves or resizes.
+- **Keys.** Arrow keys with a selection are always `preventDefault`ed (no scroll or pan), even on a read-only
+  board where they do nothing. Escape during a Shift+drag cancels only the rectangle (capture-phase listener),
+  not the selection. Enter edits the single selected object when its type has `editableText`.
+- **Test hooks (test builds only).** `window.__vidi6.getSelection()` and `seedNotes([...])` (adds notes with
+  text/colour/size in one go, used by the story 7 e2e fixture `tests/fixtures/selection-board.ts`).
+- **Test-only type.** `tests/fixtures/testbox.tsx` registers `testbox` (resizable, not aspect-locked, minimum 10)
+  and is imported only by tests.
+- **E2E.** `tests/e2e/selection.spec.ts` (TC-32–TC-36 plus select-all). Chromium only: Firefox and WebKit are not
+  installed here, so TC-32 was not run in them.
+- **Red phase.** As in earlier stories, test-first phases were not committed separately (single story commit).
+- **Presence (story 6) is not built**: the selection is not published to others.

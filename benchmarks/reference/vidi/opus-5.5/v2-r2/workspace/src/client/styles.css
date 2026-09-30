@@ -180,9 +180,12 @@ body,
   outline: none;
 }
 
-.sticky-note.is-selected {
-  outline-style: solid;
-  outline-color: #2f6fed;
+/* Story 7: the selection outline is drawn by the SelectionOverlay for every object type. */
+.sticky-content {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
 }
 
 .sticky-note:focus-visible:not(.is-selected) {
@@ -215,7 +218,7 @@ body,
   left: 0;
   right: 0;
   bottom: 0;
-  height: 56px;
+  height: calc(56px * var(--sticky-scale, 1));
   background: linear-gradient(to bottom, transparent, var(--sticky-color) 70%);
   pointer-events: none;
 }
@@ -509,4 +512,59 @@ body,
   margin: 8px 0 0;
   font-size: 13px;
   color: #4a5060;
+}
+
+/* Story 7: multi-object selection */
+
+.selection-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.selection-outline {
+  position: absolute;
+  outline: 1.5px solid #2f6fed;
+}
+
+.selection-box {
+  position: absolute;
+  border: 1px solid #2f6fed;
+}
+
+.selection-handle {
+  position: absolute;
+  background: #fff;
+  border: 1.5px solid #2f6fed;
+  border-radius: 1px;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.marquee-rect {
+  position: absolute;
+  border-style: solid;
+  border-color: rgb(47 111 237 / 0.8);
+  background: rgb(47 111 237 / 0.12);
+  pointer-events: none;
+}
+
+.selection-bar-count {
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }

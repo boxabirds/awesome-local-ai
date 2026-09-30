@@ -47,12 +47,16 @@ export function BoardViewport(props: {
   onEmptyDoubleClick?(world: Point): void;
   /** Press and release on empty board space without dragging. */
   onEmptyClick?(): void;
+  /** Shift+drag on empty board space draws this selection rectangle instead of panning. */
+  marquee?: { begin(screen: Point): void; move(screen: Point): void; end(): void; cancel(): void };
 }): React.JSX.Element {
   const board = useBoardCamera();
   const { camera, setViewportSize } = board;
   const ref = useRef<HTMLDivElement>(null);
   const [panning, setPanning] = useState(false);
+  const [selecting, setSelecting] = useState(false);
   const activePointer = useRef<number | null>(null);
+  const mode = useRef<'pan' | 'marquee'>('pan');
   const pressStart = useRef<Point | null>(null);
   // Latest handlers for native listeners attached once.
   const boardRef = useRef(board);
@@ -141,6 +145,17 @@ export function BoardViewport(props: {
     activePointer.current = null;
     const start = pressStart.current;
     pressStart.current = null;
+    if (mode.current === 'marquee') {
+      mode.current = 'pan';
+      setSelecting(false);
+      if (released) {
+        props.marquee?.move(released);
+        props.marquee?.end();
+      } else {
+        props.marquee?.cancel();
+      }
+      return;
+    }
     if (released && start && Math.hypot(released.x - start.x, released.y - start.y) < DRAG_THRESHOLD_PX) {
       props.onEmptyClick?.();
     }
@@ -161,13 +176,21 @@ export function BoardViewport(props: {
     activePointer.current = e.pointerId;
     pressStart.current = localPoint(e.clientX, e.clientY);
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    if (e.shiftKey && e.button === PRIMARY_BUTTON && props.marquee) {
+      mode.current = 'marquee';
+      setSelecting(true);
+      props.marquee.begin(localPoint(e.clientX, e.clientY));
+      return;
+    }
+    mode.current = 'pan';
     setPanning(true);
     board.beginPan(localPoint(e.clientX, e.clientY));
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (activePointer.current !== e.pointerId) return;
-    board.panMove(localPoint(e.clientX, e.clientY));
+    if (mode.current === 'marquee') props.marquee?.move(localPoint(e.clientX, e.clientY));
+    else board.panMove(localPoint(e.clientX, e.clientY));
   };
 
   const grid = gridStyle(camera);
@@ -177,7 +200,7 @@ export function BoardViewport(props: {
       ref={ref}
       className={panning ? 'board-viewport is-panning' : 'board-viewport'}
       data-testid="board-viewport"
-      data-state={panning ? 'panning' : 'idle'}
+      data-state={panning ? 'panning' : selecting ? 'selecting' : 'idle'}
       tabIndex={0}
       aria-label="Board"
       role="application"

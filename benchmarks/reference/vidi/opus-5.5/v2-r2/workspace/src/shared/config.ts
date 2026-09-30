@@ -74,3 +74,14 @@ export const CREATE_BUDGET_MS = 2000;
 export const LINK_COPIED_MS = 2000;
 /** First retry delay when a board link cannot be checked; doubles up to RECONNECT_MAX_BACKOFF_MS. */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+/** Side of a selection resize handle in screen pixels (same size at every zoom). */
+export const HANDLE_SIZE_PX = 8;
+/** Smallest sticky note side in world units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Largest width or height of any object in world units (every type). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** Arrow key nudge distance in world units. */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift + arrow key nudge distance in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;

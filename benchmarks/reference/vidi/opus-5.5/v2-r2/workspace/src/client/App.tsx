@@ -1,18 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
-import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
+import {
+  LOCAL_ORIGIN,
+  createSticky,
+  deleteObjects,
+  getStickyText,
+  isStickyColor,
+  resizeObjects,
+  setStickyColor,
+  stickiesOf,
+} from '../shared/board-model';
 import { STICKY_SIZE_WORLD } from '../shared/config';
+import { MarqueeRect, useMarquee } from './board/Marquee';
+import { SelectionBar } from './board/SelectionBar';
+import { SelectionOverlay } from './board/SelectionOverlay';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
+import { useBoardKeys } from './board/useBoardKeys';
 import { useSelection } from './board/useSelection';
-import { type Point, type Size, canZoomIn, canZoomOut, screenToWorld, worldToScreen, zoomPercent } from './canvas/camera';
-import { BoardViewport, isEditableTarget } from './canvas/BoardViewport';
+import { useTransformGesture } from './board/useTransformGesture';
+import { type Point, type Size, canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
+import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
 import { installTestHooks } from './canvas/testHooks';
 import { BoardCameraContext, useCamera } from './canvas/useCamera';
-import { NoteToolbar } from './objects/NoteToolbar';
-import { StickyNote } from './objects/StickyNote';
+import { getObjectType } from './objects/registry';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
 
@@ -38,10 +51,9 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React
   const board = useCamera(viewportSize);
   const context = useMemo(() => ({ ...board, setViewportSize }), [board]);
   const { camera } = board;
-  const { doc, notes, connection } = useBoardDoc(props.boardId, props.doc);
-  const selection = useSelection();
-  const { selectedId, editingId, select, startEdit, endEdit } = selection;
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const { doc, objects, connection } = useBoardDoc(props.boardId, props.doc);
+  const selection = useSelection(objects);
+  const { ids: selectedIds, editingId, startEdit, endEdit } = selection;
   // A board that could not be loaded is never presented as an empty editable board.
   const editable = canEdit(connection);
   const editableRef = useRef(editable);
@@ -50,13 +62,28 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React
     if (!editable) endEdit('selected');
   }, [editable, endEdit]);
 
-  const selectedNote = notes.find((n) => n.id === selectedId) ?? null;
-  // A note deleted while selected, dragged or edited leaves no stale selection behind.
-  useEffect(() => {
-    if (selectedId !== null && !notes.some((n) => n.id === selectedId)) select(null);
-  }, [notes, selectedId, select]);
+  const gesture = useTransformGesture({ doc, camera, selection, snapshot: objects, canEdit: editable });
+  const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
 
-  useEffect(() => installTestHooks({ getNotes: () => [...notes] }), [notes]);
+  useEffect(
+    () =>
+      installTestHooks({
+        getNotes: () => stickiesOf(objects),
+        getSelection: () => [...selectedIds],
+        seedNotes: (notes) =>
+          notes.map((n) => {
+            const size = n.size ?? STICKY_SIZE_WORLD;
+            const color = isStickyColor(n.color) ? n.color : undefined;
+            const id = createSticky(doc, { x: n.x + STICKY_SIZE_WORLD / 2, y: n.y + STICKY_SIZE_WORLD / 2 }, color);
+            if (id === false) throw new Error('seed rejected');
+            if (n.text) doc.transact(() => getStickyText(doc, id)?.insert(0, n.text!), LOCAL_ORIGIN);
+            if (size !== STICKY_SIZE_WORLD) resizeObjects(doc, new Map([[id, { x: n.x, y: n.y, width: size, height: size }]]));
+            return id;
+          }),
+      }),
+    [objects, selectedIds, doc],
+  );
   const connectionStates = useRef<ConnectionState[]>([]);
   useEffect(() => {
     if (!props.boardId) return;
@@ -76,67 +103,55 @@ export function App(props: { boardId?: string | null; doc?: Y.Doc } = {}): React
   const createAtViewportCentre = () =>
     createAt(screenToWorld(camera, { x: viewportSize.width / 2, y: viewportSize.height / 2 }));
 
-  // Enter edits the selected note; Delete/Backspace delete it — never while editing text.
-  const keyState = useRef({ selectedId, editingId });
-  keyState.current = { selectedId: selectedNote ? selectedId : null, editingId };
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const { selectedId: id, editingId: editing } = keyState.current;
-      if (id === null || editing !== null || e.defaultPrevented || !editableRef.current) return;
-      if (isEditableTarget(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key === 'Enter') {
-        // Enter on a focused button activates the button instead.
-        if (e.target instanceof HTMLButtonElement) return;
-        e.preventDefault();
-        startEdit(id);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        deleteObject(doc, id);
-        select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, select, startEdit]);
+  const deleteSelection = () => {
+    deleteObjects(doc, [...selectedIds]);
+    selection.clear();
+  };
 
-  const showNoteToolbar =
-    editable && selectedNote !== null && editingId !== selectedNote.id && draggingId !== selectedNote.id;
-  const toolbarAnchor = selectedNote
-    ? worldToScreen(camera, { x: selectedNote.x + STICKY_SIZE_WORLD / 2, y: selectedNote.y })
-    : null;
+  const transforming = gesture.active !== null;
 
   return (
     <BoardCameraContext.Provider value={context}>
       <main className="app">
-        <BoardViewport onEmptyDoubleClick={createAt} onEmptyClick={() => select(null)}>
-          {[...notes].sort(byId).map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={doc}
-              zoom={camera.zoom}
-              selected={note.id === selectedId}
-              editing={note.id === editingId}
-              editable={editable}
-              onSelect={select}
-              onStartEdit={startEdit}
-              onEndEdit={endEdit}
-              onDragChange={(dragging) => setDraggingId(dragging ? note.id : null)}
-            />
-          ))}
+        <BoardViewport onEmptyDoubleClick={createAt} onEmptyClick={selection.clear} marquee={marquee}>
+          {[...objects].sort(byId).map((obj) => {
+            const spec = getObjectType(obj.type);
+            if (!spec) return null;
+            const selected = selectedIds.has(obj.id);
+            return (
+              <spec.Component
+                key={obj.id}
+                object={obj}
+                doc={doc}
+                zoom={camera.zoom}
+                selected={selected}
+                editing={obj.id === editingId}
+                editable={editable}
+                transforming={transforming && selected}
+                onPointerDown={gesture.onObjectPointerDown}
+                onSelect={selection.click}
+                onStartEdit={startEdit}
+                onEndEdit={endEdit}
+              />
+            );
+          })}
+          <MarqueeRect rect={marquee.rect} camera={camera} />
         </BoardViewport>
-        {showNoteToolbar && toolbarAnchor && (
-          <div className="note-toolbar-anchor" style={{ left: toolbarAnchor.x, top: toolbarAnchor.y }}>
-            <NoteToolbar
-              color={selectedNote.color}
-              onColor={(color) => setStickyColor(doc, selectedNote.id, color)}
-              onDelete={() => {
-                deleteObject(doc, selectedNote.id);
-                select(null);
-              }}
-            />
-          </div>
-        )}
+        <SelectionOverlay
+          ids={selectedIds}
+          snapshot={objects}
+          camera={camera}
+          onHandlePointerDown={gesture.onHandlePointerDown}
+          showHandles={editable && editingId === null}
+        />
+        <SelectionBar
+          ids={selectedIds}
+          snapshot={objects}
+          camera={camera}
+          onDelete={deleteSelection}
+          onColor={(id, color) => setStickyColor(doc, id, color)}
+          hidden={!editable || editingId !== null || transforming}
+        />
         <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} />
         {props.boardId && <ConnectionStatus state={connection} />}
         <NavigationHint visible={!board.hasNavigated} />
