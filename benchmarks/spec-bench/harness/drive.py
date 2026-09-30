@@ -1496,6 +1496,11 @@ def story_time_split(rec: dict, events: Path, server_log: Path) -> dict:
         splits = [split if a["source"] == "harness" else attempts.split_of(events, server_log, a) for a in each]
         for a, s in zip(each, splits):
             a["time_split"] = s
+            if a["source"] == "log":
+                # A log gives an attempt's span, its waits between sessions included; the agent's clock (what the
+                # harness records for the attempt it ran) runs only while a session does. Same meaning for both.
+                a["seconds"] = round(s["wall_s"] - s.get("between_sessions_s", 0.0), 1)
+        rec["agent"]["seconds"] = round(sum(a.get("seconds") or 0 for a in each), 1)
         split = attempts.sum_splits(splits)
     acc = split["accounting"]
     clock = accounting.check(split, agent_seconds=(rec.get("agent") or {}).get("seconds"))
