@@ -1,3 +1,45 @@
+commit ba8b59a3fa12c5cfd3bf16b901a24e67acd398dc
+vidi-agent  Wed Sep 30 03:14:23 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                        |   55 ++
+ package-lock.json                               | 1117 +++++++++++++++++++++--
+ package.json                                    |   13 +-
+ playwright.config.ts                            |   13 +-
+ src/client/App.tsx                              |   33 +-
+ src/client/board/useBoardDoc.ts                 |   22 +-
+ src/client/canvas/testHooks.ts                  |    4 +
+ src/client/main.tsx                             |    6 +-
+ src/client/objects/StickyTextEditor.tsx         |   38 +
+ src/client/styles.css                           |   29 +
+ src/client/sync/ConnectionStatus.tsx            |   17 +
+ src/client/sync/connectBoard.ts                 |  107 +++
+ src/shared/board-id.ts                          |   18 +
+ src/shared/config.ts                            |   13 +
+ src/shared/protocol.ts                          |   49 +
+ src/worker/board-room.ts                        |  115 +++
+ src/worker/index.ts                             |   26 +
+ tests/component/ConnectionStatus.test.tsx       |  178 ++++
+ tests/component/StickyTextEditorRemote.test.tsx |   57 ++
+ tests/e2e/helpers/board.ts                      |   14 +-
+ tests/e2e/helpers/participants.ts               |  119 +++
+ tests/e2e/live-collaboration.nightly.spec.ts    |  221 +++++
+ tests/e2e/live-collaboration.spec.ts            |  274 ++++++
+ tests/fixtures/random-ops.ts                    |   88 ++
+ tests/integration/board-room.test.ts            |  241 +++++
+ tests/integration/env.d.ts                      |    7 +
+ tests/integration/worker.test.ts                |   67 ++
+ tests/integration/ws-client.ts                  |  156 ++++
+ tests/unit/board-id.test.ts                     |   33 +
+ tests/unit/protocol.test.ts                     |   73 ++
+ tsconfig.json                                   |    3 +-
+ tsconfig.worker.json                            |   17 +
+ vite.config.ts                                  |    4 +
+ vitest.config.ts                                |   14 +-
+ wrangler.jsonc                                  |   14 +-
+ 35 files changed, 3169 insertions(+), 86 deletions(-)
 commit 02a8ef772442aba7c1d3c6d4d0390f278ce1e54b
 vidi-agent  Wed Sep 30 02:04:56 2026 +0100
 

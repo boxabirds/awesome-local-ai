@@ -10,15 +10,17 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 |---|---|---|---|---|
 | 1 | 6/6 | 0 | 0 | 6/6 |
 | 2 | 10/10 | 0 | 0 | 20/20 |
+| 3 | 7/7 | 0 | 0 | 27/27 |
 
-**New work** 16/16, **regressions** 0, **repairs** 0, **cumulative** 20/20.
+**New work** 23/23, **regressions** 0, **repairs** 0, **cumulative** 27/27.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 7.3 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 0 | — | throttled 0% |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 10.9 | None | None | None | — | — | green | 20/20 |  | 0 / 0 | 0 | — | throttled 0% |
+| 3 | See other people's edits appear live on the same board | DONE | 68.7 | None | None | None | — | — | green | 27/27 |  | 0 / 1 | 0 | — | throttled 0% |
 
-**Totals:** 2 stories, 18 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 20/20, stalled 0, partial 0, 3798 lines in src+tests.
+**Totals:** 3 stories, 87 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/3, final acceptance 27/27, stalled 0, partial 0, 5775 lines in src+tests.
 
 ## How it happened
 
@@ -28,6 +30,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 1 by the agent | 5602 / 0 | `BoardViewport.tsx` (190), `useCamera.ts` (142), `styles.css` (125), `camera.ts` (71), `package.json` (34), `playwright.config.ts` (34), +13 more |
 | 2 | 1 by the agent | 2381 / 21 | `StickyNote.tsx` (250), `styles.css` (190), `board-model.ts` (170), `StickyText.ts` (132), `App.tsx` (103), `StickyTextEditor.tsx` (98), +9 more |
+| 3 | 1 by the agent | 3169 / 86 | `board-room.ts` (115), `connectBoard.ts` (107), `NOTES.md` (55), `protocol.ts` (49), `StickyTextEditor.tsx` (38), `App.tsx` (33), +15 more |
 
 ### Earlier stories broken or fixed
 
