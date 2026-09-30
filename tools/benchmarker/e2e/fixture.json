@@ -47,7 +47,11 @@
               "tools": 90,
               "compaction": 20,
               "other": 10,
-              "modelUnsplit": 0
+              "modelUnsplit": 0,
+              "toolsByKind": {
+                "e2e": 60,
+                "bash": 30
+              }
             }
           }
         }

@@ -12,7 +12,7 @@ const SEGMENTS: { seg: Seg; name: string; what: string }[] = [
   { seg: "decode", name: "Generation", what: "the model writing its output" },
   { seg: "modelUnsplit", name: "Model, not split", what: "a model whose time wasn't split into reading and writing (a cloud model), together with the agent's own time" },
   { seg: "compaction", name: "Compaction", what: "the model summarising its own conversation to make room" },
-  { seg: "tools", name: "Tools", what: "commands the agent ran and waited on: builds, tests, file edits" },
+  { seg: "tools", name: "Tools", what: "the agent waiting on its own tool calls: its test runs (npm run test, vitest, playwright), builds, file reads and edits, and any other command (dev servers, scripts)" },
   { seg: "other", name: "Other", what: "the agent's own overhead between steps" },
 ];
 
@@ -25,9 +25,23 @@ function tip(seg: Seg, s: number, u: Usage): string {
     case "decode": return `Generation ${m}: ${short(u.decodeTokens)} tokens at ${u.decodeTokS?.toFixed(0) ?? "?"} tok/s`;
     case "modelUnsplit": return `Model and agent ${m}: not split into reading and writing (a cloud model, or a run not timed)`;
     case "compaction": return `Compaction ${m}, over ${u.compactions ?? "?"} compactions`;
-    case "tools": return `Tools ${m}: commands and tests over ${u.calls ?? "?"} calls`;
+    case "tools": return `Tools ${m} over ${u.calls ?? "?"} calls: ${toolKinds(u.split?.toolsByKind ?? {})}`;
     case "other": return `Other ${m}: the agent's own overhead`;
   }
+}
+
+const TEST_KINDS = new Set(["unit", "e2e", "component", "integration", "test"]);
+const KIND_NAME: Record<string, string> = { e2e: "end-to-end", unit: "unit", component: "component", integration: "integration", build: "builds", read: "reading files", edit: "editing files", write: "writing files", bash: "other commands" };
+const tenths = (s: number) => (s / SECONDS_PER_MINUTE).toFixed(1);
+
+/** "the agent's tests 5.4 min (unit 3.5, end-to-end 1.9), builds 0.4, other commands 13.6": biggest first. */
+function toolKinds(kinds: Record<string, number>): string {
+  const tests = Object.entries(kinds).filter(([k, v]) => TEST_KINDS.has(k) && v > 0).toSorted((a, b) => b[1] - a[1]);
+  const rest = Object.entries(kinds).filter(([k, v]) => !TEST_KINDS.has(k) && v >= SECONDS_PER_MINUTE / 10).toSorted((a, b) => b[1] - a[1]);
+  const parts: [number, string][] = rest.map(([k, v]) => [v, `${KIND_NAME[k] ?? k} ${tenths(v)}`]);
+  const t = tests.reduce((a, [, v]) => a + v, 0);
+  if (t > 0) parts.push([t, `the agent's tests ${tenths(t)} (${tests.map(([k, v]) => `${KIND_NAME[k] ?? k} ${tenths(v)}`).join(", ")})`]);
+  return parts.toSorted((a, b) => b[0] - a[0]).map(([, s]) => s).join(", ") + " min";
 }
 
 /** A bar per job for one story, all on one minutes scale, coloured by where the time went. */

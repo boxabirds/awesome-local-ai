@@ -362,4 +362,7 @@ test("by story: a bar per job on one scale, coloured by where the time went, eac
   await swift.locator('[data-seg="decode"]').hover();
   await expect(page.getByRole("tooltip")).toContainText("Generation 9 min: 54k tokens at 101 tok/s");
   await expect(bars).toContainText("Prefill");                          // the legend
+  // Tools says what the agent was waiting on: its own tests, and other commands (dev servers, scripts).
+  await swift.locator('[data-seg="tools"]').hover();
+  await expect(page.getByRole("tooltip")).toContainText("the agent's tests 1.0 (end-to-end 1.0), other commands 0.5 min");
 });
