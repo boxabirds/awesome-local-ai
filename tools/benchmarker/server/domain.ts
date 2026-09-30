@@ -229,6 +229,7 @@ function usageOf(raw: RawUsage): Usage | null {
   return {
     outTokens: a?.tokens?.output ?? null, inTokens: a?.tokens?.input ?? null, cacheRead: a?.tokens?.cache_read ?? null,
     calls: a?.tool_calls ?? null, agentSeconds: a?.seconds ?? null,
+    tokS: a?.tokens?.output != null && a?.seconds ? a.tokens.output / a.seconds : null,
     decodeTokens: m?.decode_tokens ?? null, decodeSeconds: m?.decode_s ?? null, decodeTokS: m?.decode_tok_s ?? null,
     prefillTokens: m?.prefill_tokens ?? null, prefillSeconds: m?.prefill_s ?? null, prefillTokS: m?.prefill_tok_s ?? null,
     draftAcceptance: m?.draft_acceptance ?? null,
@@ -236,7 +237,8 @@ function usageOf(raw: RawUsage): Usage | null {
 }
 
 /** A run's tokens and speeds over its recorded stories. Speeds are total tokens over total seconds, so a
- * long story counts for more than a short one; null when no story was timed (a cloud model). */
+ * long story counts for more than a short one. tokS (output tokens over story time) exists for every run;
+ * the model-only decode and prefill rates only where the harness timed the model. */
 export function runUsage(stories: Story[]): RunUsage {
   const us = stories.map((s) => s.usage).filter((u): u is Usage => !!u);
   const sum = (f: (u: Usage) => number | null) => (us.some((u) => f(u) != null) ? us.reduce((t, u) => t + (f(u) ?? 0), 0) : null);
@@ -247,6 +249,7 @@ export function runUsage(stories: Story[]): RunUsage {
   };
   return {
     outTokens: sum((u) => u.outTokens), inTokens: sum((u) => u.inTokens),
+    tokS: rate((u) => u.outTokens, (u) => u.agentSeconds),
     decodeTokS: rate((u) => u.decodeTokens, (u) => u.decodeSeconds),
     prefillTokS: rate((u) => u.prefillTokens, (u) => u.prefillSeconds),
   };

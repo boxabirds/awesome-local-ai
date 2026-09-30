@@ -28,20 +28,11 @@ export function TokensCell({ row }: { row: Row }) {
   );
 }
 
-/** Decode speed over the run's recorded stories (tokens over seconds); prefill under it. */
+/** Output tokens over the time the run's recorded stories took. */
 export function SpeedCell({ row }: { row: Row }) {
   const u = row.usage;
-  if (u.decodeTokS === null) {
-    // The harness times the model from llama.cpp's server log, or through its metering proxy when a run
-    // turns that on; cloud models and other unmetered servers have no timing to show.
-    return <span className="wait" title="The model wasn't timed on this run: a cloud model, or a server the harness didn't meter">{u.outTokens === null ? "—" : "not timed"}</span>;
-  }
-  return (
-    <>
-      <div title="decode: output tokens per second of generation">{Math.round(u.decodeTokS)} tok/s</div>
-      {u.prefillTokS !== null ? <div className="small" title="prefill: input tokens per second of reading">prefill {Math.round(u.prefillTokS)}/s</div> : null}
-    </>
-  );
+  if (u.tokS === null) return <span className="wait">—</span>;
+  return <div title="output tokens ÷ the time the stories took (the whole story: model, tools and all)">{Math.round(u.tokS)} tok/s</div>;
 }
 
 const flowsNow = (q: StorySquare | undefined) => (q && q.total ? `${q.passed}/${q.total}` : "—");
@@ -54,7 +45,8 @@ export function StoryUsageTable({ stories, squares }: { stories: Story[]; square
       <thead>
         <tr>
           <th>Story</th><th title="Its hidden flows passing against the latest build, as the squares show">Flows now</th><th>Agent min</th><th>Calls</th><th>Out tokens</th><th>In tokens</th>
-          <th>Cache read</th><th>Decode tok/s</th><th>Prefill tok/s</th><th>Draft accepted</th>
+          <th>Cache read</th><th title="output tokens ÷ the time the story took">tok/s</th>
+          <th title="the model alone, where the harness timed it">Decode tok/s</th><th title="the model alone, where the harness timed it">Prefill tok/s</th><th>Draft accepted</th>
         </tr>
       </thead>
       <tbody>
@@ -69,6 +61,7 @@ export function StoryUsageTable({ stories, squares }: { stories: Story[]; square
               <td>{full(u?.outTokens ?? null)}</td>
               <td>{full(u?.inTokens ?? null)}</td>
               <td>{short(u?.cacheRead ?? null)}</td>
+              <td>{speed(u?.tokS ?? null)}</td>
               <td>{speed(u?.decodeTokS ?? null)}</td>
               <td>{speed(u?.prefillTokS ?? null)}</td>
               <td>{u?.draftAcceptance != null ? `${Math.round(u.draftAcceptance * PERCENT)}%` : "—"}</td>

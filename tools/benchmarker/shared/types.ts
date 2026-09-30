@@ -8,6 +8,8 @@ export interface Usage {
   cacheRead: number | null;
   calls: number | null;
   agentSeconds: number | null;
+  /** Output tokens over the time the story took (agent seconds). */
+  tokS: number | null;
   decodeTokens: number | null;
   decodeSeconds: number | null;
   decodeTokS: number | null;
@@ -21,6 +23,8 @@ export interface Usage {
 export interface RunUsage {
   outTokens: number | null;
   inTokens: number | null;
+  /** Output tokens over the time the recorded stories took. */
+  tokS: number | null;
   decodeTokS: number | null;
   prefillTokS: number | null;
 }

@@ -71,12 +71,13 @@ test("tokens and tok/s per run, and per story on click", async ({ page }) => {
   const stack = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi";
   const r = row(page, stack, "canvas-gufo-r3");
   await expect(r.locator("td.tokens")).toContainText("56k out");
-  await expect(r.locator("td.speed")).toContainText("99 tok/s");
+  await expect(r.locator("td.speed")).toContainText("74 tok/s"); // 55,968 output tokens over the story's 760.3 s
   await r.locator("td").first().click();
   const detail = page.locator(`tr.detail[data-stack="${stack}"][data-run="canvas-gufo-r3"]`);
   await expect(detail).toBeVisible();
   await expect(detail.locator("tbody tr").first()).toContainText("55,968");
-  await expect(detail.locator("tbody tr").first()).toContainText("98.9");
+  await expect(detail.locator("tbody tr").first()).toContainText("73.6");  // tok/s: out ÷ story time
+  await expect(detail.locator("tbody tr").first()).toContainText("98.9");  // decode tok/s, where the model was timed
   await expect(detail.locator("thead")).toContainText("Flows now"); // against the latest build, like the squares
   await r.locator("td").first().click();
   await expect(detail).toHaveCount(0);
