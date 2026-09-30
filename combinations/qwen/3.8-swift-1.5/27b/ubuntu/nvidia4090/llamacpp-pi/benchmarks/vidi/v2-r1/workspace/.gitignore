@@ -3,3 +3,13 @@ dist
 .wrangler
 playwright-report
 test-results
+
+# Generated image fixtures are committed (story 12); regenerate with
+# `node scripts/generate-image-fixtures.mjs`.
+tests/fixtures/images/*
+!tests/fixtures/images/*.png
+!tests/fixtures/images/*.jpg
+!tests/fixtures/images/*.gif
+!tests/fixtures/images/*.webp
+!tests/fixtures/images/*.svg
+!tests/fixtures/images/*.ts

@@ -1,5 +1,5 @@
 import { Camera } from '@client/canvas/camera';
-import { createSticky, getStickyText } from '@shared/board-model';
+import { createSticky, getStickyText, snapshot } from '@shared/board-model';
 import type * as Y from 'yjs';
 
 interface CameraApi {
@@ -41,5 +41,10 @@ export function setupTestHooks(cam: CameraApi, doc?: Y.Doc) {
       }
       return ids;
     },
+    /**
+     * Story 12: read the current object snapshot so e2e tests can assert on
+     * board state (image status transitions etc.).
+     */
+    getObjects: () => (doc ? snapshot(doc) : []),
   };
 }

@@ -22,7 +22,8 @@ import { StrokeObject } from './StrokeObject';
 import type { TextSnapshot } from '@shared/objects/text';
 import { scaledPoints, type StrokeSnap } from '@shared/objects/stroke';
 import { distanceToPolyline } from '@shared/geometry/polyline';
-import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from '@shared/config';
+import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, IMAGE_MIN_SIZE_WORLD } from '@shared/config';
+import { ImageObject } from './ImageObject';
 
 /** Props handed to every object component by the board renderer. */
 export interface ObjectProps {
@@ -41,6 +42,13 @@ export interface ObjectProps {
   onUndo?: () => void;
   /** Story 8: redo the last step (for in-editor Ctrl+Shift+Z). */
   onRedo?: () => void;
+  // Story 12: image-specific props (only meaningful for type 'image').
+  imageProgress?: number;
+  imageIsUploader?: boolean;
+  imageNow?: number;
+  imageCanRetry?: boolean;
+  onImageRetry?: () => void;
+  onImageRemove?: () => void;
 }
 
 export interface ObjectTypeSpec {
@@ -172,5 +180,22 @@ registerObjectType('stroke', {
       STROKE_HIT_TOLERANCE_PX / zoom,
     );
     return distanceToPolyline(scaledPoints(s), p) <= tolerance;
+  },
+});
+
+// Story 12: images — resizable with the aspect ratio locked; hit by bbox.
+const ImageObjectAdapter: ComponentType<ObjectProps> = (props) => (
+  <ImageObject {...props} />
+);
+
+registerObjectType('image', {
+  Component: ImageObjectAdapter,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, p) => {
+    const b = objectBounds(obj);
+    return p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;
   },
 });

@@ -90,6 +90,34 @@ interface Fetcher {
   fetch(input: Request | string, init?: RequestInit): Promise<Response>;
 }
 
+// Cloudflare R2 (story 12: image assets)
+interface R2HTTPMetadata {
+  contentType?: string;
+  cacheControl?: string;
+  [key: string]: string | undefined;
+}
+
+interface R2Object {
+  key: string;
+  size: number;
+  httpMetadata?: R2HTTPMetadata;
+  body?: ReadableStream;
+  arrayBuffer(): Promise<ArrayBuffer>;
+  text(): Promise<string>;
+}
+
+interface R2ListResult {
+  objects: R2Object[];
+  truncated: boolean;
+}
+
+interface R2Bucket {
+  put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string, options?: { httpMetadata?: R2HTTPMetadata }): Promise<R2Object | null>;
+  get(key: string): Promise<R2Object | null>;
+  delete(key: string | string[]): Promise<void>;
+  list(options?: { prefix?: string; limit?: number }): Promise<R2ListResult>;
+}
+
 interface ExportedHandler<Env = any> {
   fetch?(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> | Response;
 }

@@ -35,6 +35,12 @@ interface BoardViewportProps {
    * unchanged (PRD pen.navigation).
    */
   penToolActive?: boolean;
+  /**
+   * Story 12: file-drop support. The board wires these so dropping image
+   * files inserts them at the drop point (PRD image.insert).
+   */
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
   children?: ReactNode;
 }
 
@@ -61,6 +67,8 @@ export function BoardViewport({
   textToolActive,
   onTextCreate,
   penToolActive,
+  onDragOver,
+  onDrop,
   children,
 }: BoardViewportProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -304,6 +312,8 @@ export function BoardViewport({
       onPointerCancel={onPointerCancel}
       onLostPointerCapture={onPointerCancel}
       onDoubleClick={onDoubleClick}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
     >
       <div
         className="board-grid"

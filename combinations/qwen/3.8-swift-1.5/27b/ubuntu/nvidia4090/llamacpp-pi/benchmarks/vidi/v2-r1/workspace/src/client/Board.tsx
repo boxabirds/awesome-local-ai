@@ -29,6 +29,10 @@ import { syncTextBox } from './objects/useTextBoxSync';
 import { defaultMeasurer } from './objects/textLayout';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
+import { useImageInsert } from './images/useImageInsert';
+import { DropHighlight } from './images/DropHighlight';
+import { ToastStack, useToasts } from './ui/Toast';
+import type { ImageSnap } from '@shared/objects/image';
 import {
   createSticky, deleteObjects, setStickyColor,
 } from '@shared/board-model';
@@ -67,6 +71,14 @@ export function Board(props: { boardId: string }) {
   const cam = useCamera(size);
   const { doc, objects, connectionState } = useBoardDoc(boardId);
 
+  // Story 12: toasts + image insertion (drop, paste, picker, retry).
+  const { toasts, push: pushToast } = useToasts();
+  const {
+    addFilesAt, openPicker, retryImage,
+    progress: imageProgress, failedIds, pickerOpen, renderInput: renderFileInput,
+  } = useImageInsert({ doc, boardId, onToast: pushToast });
+  const clientId = String(doc.clientID);
+
   // Set up test hooks
   useEffect(() => {
     setupTestHooks(cam, doc);
@@ -79,6 +91,67 @@ export function Board(props: { boardId: string }) {
     onSelect: (id) => selection.click(id),
     canEdit: editAllowed,
   });
+
+  // Story 12: the Image tool is not persistent — activating it (button or
+  // 'i') opens the file picker at the viewport centre and reverts to
+  // Select (image.insert / tool.mode).
+  useEffect(() => {
+    if (toolState.tool !== 'image') return;
+    const centre = screenToWorld(cam.camera, { x: size.width / 2, y: size.height / 2 });
+    openPicker(centre);
+    toolState.setTool('select');
+    // Only the tool state triggers this; the rest is stable enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolState.tool]);
+
+  // Story 12: re-render every 30s while any image is uploading so
+  // 'uploading' ages into 'unfinished' (image.upload_failure).
+  const [now, setNow] = useState(() => Date.now());
+  const anyImageUploading = objects.some(
+    (o) => o.type === 'image' && (o as ImageSnap).status === 'uploading',
+  );
+  useEffect(() => {
+    if (!anyImageUploading) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, [anyImageUploading]);
+
+  // Story 12: file drop → insert at the drop point (image.insert).
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    if (!canEdit(connectionState)) return;
+    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
+    if (files.length === 0) return;
+    const worldPoint = screenToWorld(cam.camera, { x: e.clientX, y: e.clientY });
+    addFilesAt(files, worldPoint);
+  }, [cam.camera, connectionState, addFilesAt]);
+
+  // Story 12: paste images at the viewport centre (Select tool only, and
+  // never while typing in an editor — image.insert).
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (toolState.tool !== 'select') return;
+      if (!canEdit(connectionState)) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')
+      ) {
+        return;
+      }
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
+      if (files.length === 0) return;
+      e.preventDefault();
+      const centre = screenToWorld(cam.camera, { x: size.width / 2, y: size.height / 2 });
+      addFilesAt(files, centre);
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [toolState.tool, connectionState, cam.camera, size, addFilesAt]);
 
   // Story 11: session-only pen options (colour and thickness).
   const penOptions = usePenOptions();
@@ -248,6 +321,14 @@ export function Board(props: { boardId: string }) {
     undoController?.boundary();
   }, [doc, selection, editAllowed, undoController]);
 
+  // Story 12: remove an image (failed / unfinished placeholder).
+  const handleImageRemove = useCallback((id: string) => {
+    if (!editAllowed) return;
+    undoController?.boundary();
+    deleteObjects(doc, [id]);
+    undoController?.boundary();
+  }, [doc, editAllowed, undoController]);
+
   // Handle delete from the selection bar / single-note toolbar
   const handleDelete = useCallback(() => {
     if (selection.ids.size === 0 || !editAllowed) return;
@@ -312,6 +393,8 @@ export function Board(props: { boardId: string }) {
         textToolActive={toolState.tool === 'text'}
         onTextCreate={handleTextCreate}
         penToolActive={toolState.tool === 'pen'}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       >
         {objects.map((obj) => {
           const spec = getObjectType(obj.type);
@@ -332,6 +415,14 @@ export function Board(props: { boardId: string }) {
               onUndo={onUndo}
               onRedo={onRedo}
               {...(obj.type === 'connector' ? { rects: rectsMap } : {})}
+              {...(obj.type === 'image' ? {
+                imageProgress: imageProgress[obj.id],
+                imageIsUploader: (obj as ImageSnap).uploaderId === clientId,
+                imageNow: now,
+                imageCanRetry: failedIds.has(obj.id),
+                onImageRetry: () => retryImage(obj.id),
+                onImageRemove: () => handleImageRemove(obj.id),
+              } : {})}
             />
           );
         })}
@@ -432,6 +523,10 @@ export function Board(props: { boardId: string }) {
         onReset={cam.reset}
       />
       <NavigationHint visible={!cam.hasNavigated} />
+      {/* Story 12: drop highlight + toasts + hidden picker input */}
+      <DropHighlight imageToolActive={pickerOpen} />
+      <ToastStack toasts={toasts} />
+      {renderFileInput()}
     </div>
   );
 }

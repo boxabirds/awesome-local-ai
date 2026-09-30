@@ -4,6 +4,9 @@ import type { TextSnapshot } from './objects/text';
 import type { ShapeSnap } from './objects/shape';
 import type { ConnectorSnap, Endpoint } from './objects/connector';
 import type { StrokeSnap, PenColor, PenThickness } from './objects/stroke';
+// Type-only: objects/image imports LOCAL_ORIGIN/nextZ from this module at
+// runtime, so this must stay `import type` (erased) to avoid a cycle.
+import type { ImageSnap, ImageStatus } from './objects/image';
 import { resolveEndpoints, connectorBBox } from './objects/connector';
 import { detachConnectorsTo } from './objects/connector';
 import { isKnownType } from './known-types';
@@ -356,6 +359,18 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
           z, createdAt, from, to,
         } as ConnectorSnap);
       }
+    } else if (type === 'image') {
+      const status = (obj.get('status') as ImageStatus) ?? 'uploading';
+      result.push({
+        ...base,
+        assetKey: (obj.get('assetKey') as string | null) ?? null,
+        contentType: (obj.get('contentType') as string) ?? '',
+        naturalWidth: positiveNumber(obj.get('naturalWidth'), base.width),
+        naturalHeight: positiveNumber(obj.get('naturalHeight'), base.height),
+        status,
+        uploadStartedAt: positiveNumber(obj.get('uploadStartedAt'), 0),
+        uploaderId: (obj.get('uploaderId') as string) ?? '',
+      } as ImageSnap);
     } else {
       result.push(base);
     }

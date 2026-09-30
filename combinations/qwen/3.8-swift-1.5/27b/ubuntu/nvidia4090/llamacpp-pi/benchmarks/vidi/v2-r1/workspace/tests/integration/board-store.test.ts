@@ -162,7 +162,7 @@ describe('TC-06: Compaction at COMPACTION_UPDATE_COUNT rows', () => {
     const reloadedSnap = snapshot(reloadedDoc);
     const originalSnap = snapshot(freshDoc);
     expect(reloadedSnap.length).toBe(originalSnap.length);
-  });
+  }, 20000); // 20s: 500 updates + compaction + reload, near the 5s default under parallel load
 });
 
 describe('TC-07: SnapshotPlusLog - updates after compaction', () => {

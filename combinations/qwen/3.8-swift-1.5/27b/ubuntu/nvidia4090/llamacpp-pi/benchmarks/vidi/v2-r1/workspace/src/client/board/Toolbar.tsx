@@ -81,6 +81,17 @@ export function Toolbar({ tool, onToolChange, onCreateSticky, disabled, canUndo,
         T
       </button>
       <button
+        aria-label="Image (I)"
+        aria-pressed={tool === 'image'}
+        data-testid="tool-image"
+        title="Image (I) – choose an image file"
+        disabled={disabled}
+        onClick={() => onToolChange('image')}
+        style={toolButtonStyle(tool === 'image', Boolean(disabled))}
+      >
+        🖼
+      </button>
+      <button
         aria-label="Sticky note (N)"
         data-testid="create-sticky"
         title="Sticky note (N) – or double-click the board"

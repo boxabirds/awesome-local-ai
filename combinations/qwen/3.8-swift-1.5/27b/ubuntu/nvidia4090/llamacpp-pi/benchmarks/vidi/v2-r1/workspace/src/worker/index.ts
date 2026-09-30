@@ -2,16 +2,44 @@ import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { handleSeedLegacyBoard } from './test-hooks';
+import { handleUpload, handleServe } from './assets';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   TEST_HOOKS?: string;
 }
 
 const worker = {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+
+    // Story 12: image asset upload (assets.api). Checked before the generic
+    // /api/boards/ route: POST /api/boards/:id/assets, nothing else.
+    // Malformed ids match here too and are rejected with 404 in handleUpload
+    // (PRD security: nothing is stored).
+    const uploadMatch = url.pathname.match(/^\/api\/boards\/([^/]+)\/assets$/);
+    if (uploadMatch) {
+      if (req.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      return handleUpload(req, env, decodeURIComponent(uploadMatch[1]));
+    }
+
+    // Story 12: image asset serving (assets.api). Any /api/assets/ path that
+    // does not carry a valid key gets 404 here, so malformed keys never fall
+    // through to the SPA/static handler (TC-16).
+    if (url.pathname.startsWith('/api/assets/')) {
+      if (req.method !== 'GET') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const parts = url.pathname.slice('/api/assets/'.length).split('/');
+      if (parts.length !== 2) {
+        return Response.json({ error: 'not_found' }, { status: 404 });
+      }
+      return handleServe(env, `${decodeURIComponent(parts[0])}/${decodeURIComponent(parts[1])}`);
+    }
 
     // Board API: POST /api/boards, GET /api/boards/:id (share.board_api)
     if (url.pathname === '/api/boards' || url.pathname.startsWith('/api/boards/')) {
