@@ -9,7 +9,7 @@ export default defineConfig({
   timeout: 60_000,
   use: { baseURL: `http://127.0.0.1:${PORT}` },
   webServer: {
-    command: `node server/main.ts --port ${PORT} --fixture e2e/fixture.json`,
+    command: `bun server/main.ts --port ${PORT} --fixture e2e/fixture.json`,
     url: `http://127.0.0.1:${PORT}/api/state`,
     reuseExistingServer: false,
   },

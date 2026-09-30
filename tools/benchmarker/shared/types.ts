@@ -30,6 +30,11 @@ export interface Usage {
  * harness timed every engine) the model's time can't be told from the agent's own: both are modelUnsplit. */
 export interface TimeSplit {
   wall: number; prefill: number; decode: number; tools: number; compaction: number; other: number; modelUnsplit: number;
+  /** The harness waiting to start the agent's next session after one ended (a resume after an error, or a nudge). */
+  betweenSessions: number;
+  /** The split's own checks, recorded with it: parts sum to the wall, none negative, every tool call ended, the wall
+   * agrees with the agent's clock. "unchecked": recorded before the harness checked (a cloud model's run, or older). */
+  check: { status: "ok" | "problems" | "unchecked"; problems: string[] };
   /** Tools time by kind: the agent's tests (unit, e2e, …), builds, file reads and edits, and "bash" for every other command. */
   toolsByKind?: Record<string, number>;
 }

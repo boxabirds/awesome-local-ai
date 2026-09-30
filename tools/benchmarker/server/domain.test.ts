@@ -378,6 +378,21 @@ describe("tokens and speed", () => {
     expect(st.usage!.split!.toolsByKind).toEqual({ bash: 816, unit: 210, e2e: 114, build: 24 });
   });
 
+  it("keeps the wait between the agent's sessions as its own part", () => {
+    const st = storyEntry("4", { agent: { seconds: 3348.8, tokens: {} }, time_split: { wall_s: 3528.9, tools_s: 900, compaction_s: 0, between_sessions_s: 180.1, other_s: 48.8,
+      model: { prefill_s: 400, decode_s: 2000 }, accounting: { version: 3, ok: true, problems: [] } } } as never);
+    expect(st.usage!.split).toMatchObject({ wall: 3528.9, betweenSessions: 180.1, other: 48.8 });
+  });
+
+  it("says whether the split passed its checks, failed them (and why), or was recorded before there were checks", () => {
+    const ts = (accounting?: object) => ({ agent: { seconds: 100, tokens: {} }, time_split: { wall_s: 100, tools_s: 0, compaction_s: 0, other_s: 100, model: null, accounting } });
+    expect(storyEntry("1", ts({ version: 3, ok: true, problems: [] }) as never).usage!.split!.check).toEqual({ status: "ok", problems: [] });
+    expect(storyEntry("1", ts({ version: 3, ok: false, problems: ["tool call t1 never ended; counted to the agent's next step"] }) as never).usage!.split!.check)
+      .toEqual({ status: "problems", problems: ["tool call t1 never ended; counted to the agent's next step"] });
+    expect(storyEntry("1", ts() as never).usage!.split!.check).toEqual({ status: "unchecked", problems: [] });
+    expect(storyEntry("1", ts() as never).usage!.split!.betweenSessions).toBe(0);
+  });
+
   it("a cloud model's time isn't split: it is what's left of the wall time after tools and compaction", () => {
     const st = storyEntry("3", { agent: { seconds: 1400, tokens: {} }, time_split: { wall_s: 1400, tools_s: 0, compaction_s: 0, other_s: 1400, model: null } } as never);
     expect(st.usage!.split).toMatchObject({ prefill: 0, decode: 0, modelUnsplit: 1400, other: 0 });

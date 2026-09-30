@@ -51,6 +51,13 @@
               "toolsByKind": {
                 "e2e": 60,
                 "bash": 30
+              },
+              "betweenSessions": 0,
+              "check": {
+                "status": "problems",
+                "problems": [
+                  "tool call t9 never ended; counted to the agent's next step"
+                ]
               }
             }
           }
@@ -104,7 +111,12 @@
               "tools": 0,
               "compaction": 0,
               "other": 0,
-              "modelUnsplit": 480
+              "modelUnsplit": 480,
+              "betweenSessions": 0,
+              "check": {
+                "status": "unchecked",
+                "problems": []
+              }
             }
           }
         },
@@ -163,7 +175,24 @@
             "tokS": 73.6130474812574,
             "readTokens": 6275222,
             "compactions": 0,
-            "nudges": 0
+            "nudges": 0,
+            "split": {
+              "wall": 760.3,
+              "prefill": 59.2,
+              "decode": 565.7,
+              "tools": 60,
+              "compaction": 0,
+              "betweenSessions": 60,
+              "other": 15.4,
+              "modelUnsplit": 0,
+              "toolsByKind": {
+                "unit": 60
+              },
+              "check": {
+                "status": "ok",
+                "problems": []
+              }
+            }
           }
         }
       ],

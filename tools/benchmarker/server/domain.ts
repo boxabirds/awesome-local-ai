@@ -226,7 +226,8 @@ export function normaliseByStory(by: Record<string, { passed?: number; total?: n
 /** metrics.json's per-story agent and time-split sections, as far as usage goes. */
 export interface RawUsage {
   agent?: { seconds?: number; tool_calls?: number; compactions?: number; nudges?: number; tokens?: { input?: number; output?: number; cache_read?: number; cache_write?: number } };
-  time_split?: { wall_s?: number; tools_s?: number; compaction_s?: number; other_s?: number; tools_by_kind?: Record<string, number>; model?: {
+  time_split?: { wall_s?: number; tools_s?: number; compaction_s?: number; between_sessions_s?: number; other_s?: number; tools_by_kind?: Record<string, number>;
+    accounting?: { version?: number; ok?: boolean; problems?: string[] }; model?: {
     decode_tokens?: number; decode_s?: number; decode_tok_s?: number;
     prefill_tokens?: number; prefill_s?: number; prefill_tok_s?: number; draft_acceptance?: number | null;
   } };
@@ -240,6 +241,9 @@ function splitOf(ts: RawUsage["time_split"]): Usage["split"] {
     // Untimed model: "other" holds the model's time and the agent's own, which can't be told apart.
     other: m ? other : 0, modelUnsplit: m ? 0 : other,
     toolsByKind: ts.tools_by_kind ?? {},
+    betweenSessions: ts.between_sessions_s ?? 0,
+    check: !ts.accounting ? { status: "unchecked", problems: [] }
+      : { status: ts.accounting.ok ? "ok" : "problems", problems: ts.accounting.problems ?? [] },
   };
 }
 
