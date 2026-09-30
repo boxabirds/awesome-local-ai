@@ -1,7 +1,8 @@
 // node --test tools/vidi-gallery/tests/  — the review player's time maths (src/player.js).
 const test = require("node:test");
 const assert = require("node:assert");
-const { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, keyAction, nextFrame, scrubStep, placeToHash, placeFromHash, SCRUB, FINE_SCRUB } = require("../src/player.js");
+const { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, keyAction, nextFrame, scrubStep, placeToHash, placeFromHash, SCRUB, FINE_SCRUB,
+  answered, ownOf, pathView, stepMark, bulkTargets, KEYS } = require("../src/player.js");
 
 test("the frame shown at t is the last one at or before t, for each page separately", () => {
   const p1 = [[10, "a"], [20, "b"], [30, "c"]], p2 = [[25, "x"]];
@@ -103,7 +104,7 @@ test("in every pane: digits jump, frames, speed, stories by bracket", () => {
   assert.ok(FINE_SCRUB < SCRUB);
 });
 
-test("verdicts move on: a d s score and go to the next test", () => {
+test("verdicts move on: a d s agree / disagree / skip, as before, and go to the next test", () => {
   for (const pane of ["tests", "steps"]) {
     assert.deepStrictEqual(keyAction(key("a", "KeyA"), pane), { do: "verdict", v: "agree", next: true });
     assert.deepStrictEqual(keyAction(key("d", "KeyD"), pane), { do: "verdict", v: "disagree", next: true });
@@ -114,13 +115,14 @@ test("verdicts move on: a d s score and go to the next test", () => {
   assert.deepStrictEqual(keyAction(key("w", "KeyW"), "steps"), { do: "waits" });
 });
 
-test("= agrees and - disagrees, and each goes straight on to the next test", () => {
+test("= says the test passes and - that it fails, as the judge sees it, and each goes straight on", () => {
   for (const pane of ["tests", "steps"]) {
-    assert.deepStrictEqual(keyAction(key("=", "Equal"), pane), { do: "verdict", v: "agree", next: true });
-    assert.deepStrictEqual(keyAction(key("-", "Minus"), pane), { do: "verdict", v: "disagree", next: true });
-    assert.deepStrictEqual(keyAction(key("+", "Equal", SH), pane), { do: "verdict", v: "agree", next: true });
+    assert.deepStrictEqual(keyAction(key("=", "Equal"), pane), { do: "verdict", v: "pass", next: true });
+    assert.deepStrictEqual(keyAction(key("-", "Minus"), pane), { do: "verdict", v: "fail", next: true });
+    assert.deepStrictEqual(keyAction(key("+", "Equal", SH), pane), { do: "verdict", v: "pass", next: true });
   }
   assert.strictEqual(keyAction(key("=", "Equal"), "stories"), null);  // no test to score from the stories
+  assert.strictEqual(keyAction(key("-", "Minus"), "stories"), null);
 });
 
 test("the place in the review survives a reload: story, test and pane in the address", () => {
@@ -150,6 +152,7 @@ test("cmd/ctrl = or Return agrees with every test of the story; cmd/ctrl - disag
     assert.deepStrictEqual(keyAction(key("-", "Minus", mod), pane), { do: "all", v: "disagree" });
     assert.deepStrictEqual(keyAction(key("Escape", "Escape", mod), pane), { do: "all", v: "" });
   }
+  assert.strictEqual(keyAction(key("=", "Equal", { metaKey: true, altKey: true }), "tests"), null);  // alt: the browser's
 });
 
 test("browser and system shortcuts pass through untouched", () => {
@@ -183,15 +186,123 @@ test("Space plays and stops in every pane; p does too", () => {
   }
 });
 
-test("Return is = in the tests (agree and on), the right arrow in the stories, the down arrow in the steps", () => {
+test("Return is = in the tests (passes, and on), the right arrow in the stories, the down arrow in the steps", () => {
   assert.deepStrictEqual(keyAction(key("Enter", "Enter"), "tests"), keyAction(key("=", "Equal"), "tests"));
   assert.deepStrictEqual(keyAction(key("Enter", "Enter"), "stories"), keyAction(key("ArrowRight", "ArrowRight"), "stories"));
   assert.deepStrictEqual(keyAction(key("Enter", "Enter"), "steps"), keyAction(key("ArrowDown", "ArrowDown"), "steps"));
-  assert.deepStrictEqual(keyAction(key("Enter", "Enter", SH), "tests"), { do: "verdict", v: "disagree", note: true });
+  assert.deepStrictEqual(keyAction(key("Enter", "Enter", SH), "tests"), { do: "verdict", v: "fail", note: true });
 });
 
 test("Esc on a held-out test clears its verdict back to 'to review'; in the steps it goes back to the tests", () => {
   assert.deepStrictEqual(keyAction(key("Escape", "Escape"), "tests"), { do: "verdict", v: "" });
   assert.deepStrictEqual(keyAction(key("Escape", "Escape"), "steps"), { do: "pane", to: "tests" });
   assert.deepStrictEqual(keyAction(key("Escape", "Escape"), "stories"), { do: "escape" });
+});
+
+// ---------- the automated result stays hidden until the judge has given their own verdict ----------
+
+// A held-out test as /api/review/paths sends it: title only until answered, then its result too.
+const HIDDEN = { title: "two people see the same note", answered: false, video: false };
+const SHOWN = (status) => ({ title: "two people see the same note", answered: true, status, error: "boom", trace: "x/trace.zip", video: false });
+
+test("only the judge's own verdict counts as answered: not a skip, a note alone or nothing", () => {
+  for (const v of ["agree", "disagree", "pass", "fail"]) assert.strictEqual(answered(v), true, v);
+  for (const v of ["", "skip", undefined, null]) assert.strictEqual(answered(v), false, String(v));
+});
+
+test("the judge's own pass / fail comes back from the stored agree / disagree and the result", () => {
+  assert.strictEqual(ownOf("agree", "passed"), "pass");
+  assert.strictEqual(ownOf("disagree", "passed"), "fail");
+  assert.strictEqual(ownOf("agree", "failed"), "fail");
+  assert.strictEqual(ownOf("disagree", "failed"), "pass");
+  assert.strictEqual(ownOf("agree", "timedOut"), "fail");     // a timeout is not a pass
+  assert.strictEqual(ownOf("pass", undefined), "pass");       // an earlier verdict given as pass / fail
+  assert.strictEqual(ownOf("fail", "passed"), "fail");
+  for (const v of ["", "skip", undefined]) assert.strictEqual(ownOf(v, "passed"), null, String(v));
+  assert.strictEqual(ownOf("agree", undefined), null, "no result to compare with: no guess");
+});
+
+test("an unanswered test shows no result: not in its row, its mark, its tooltip or its colours", () => {
+  for (const v of ["", "skip", undefined]) {
+    const view = pathView(HIDDEN, v);
+    assert.strictEqual(view.automated, null);
+    assert.strictEqual(view.own, null);
+    assert.strictEqual(view.pill, "?");
+    assert.strictEqual(view.pillClass, "hidden");
+    assert.strictEqual(view.header, "Automated result: hidden until you judge");
+    assert.strictEqual(view.headerClass, "hidden");
+    const text = JSON.stringify(view);
+    for (const tell of ["passed", "failed", "timedOut", "agree", "boom", "trace"]) assert.ok(!text.includes(tell), `${tell} in ${text}`);
+  }
+  assert.deepStrictEqual([pathView(HIDDEN, "").mark, pathView(HIDDEN, "").markClass], ["to review", "todo"]);
+  assert.deepStrictEqual([pathView(HIDDEN, "skip").mark, pathView(HIDDEN, "skip").markClass], ["skip", "skip"]);
+});
+
+test("even a payload that did carry the result shows nothing until the judge answers", () => {
+  // The page does not trust the server alone: the row, mark and header ignore a result sent too early.
+  const early = { ...SHOWN("failed"), answered: false };
+  const view = pathView(early, "");
+  assert.strictEqual(view.automated, null);
+  assert.ok(!JSON.stringify(view).includes("failed"));
+});
+
+test("once answered, the automated result shows beside the judge's own", () => {
+  const cases = [
+    ["agree", "failed", "fail", "you: fail · agree"],
+    ["disagree", "failed", "pass", "you: pass · disagree"],
+    ["agree", "passed", "pass", "you: pass · agree"],
+    ["disagree", "timedOut", "pass", "you: pass · disagree"],
+  ];
+  for (const [verdict, status, own, mark] of cases) {
+    const view = pathView(SHOWN(status), verdict);
+    assert.strictEqual(view.automated, status);
+    assert.strictEqual(view.own, own);
+    assert.strictEqual(view.mark, mark);
+    assert.strictEqual(view.markClass, verdict);
+    assert.deepStrictEqual([view.pill, view.pillClass], [status, status]);
+    assert.strictEqual(view.header, `Automated: ${status.toUpperCase()} · you: ${own.toUpperCase()}`);
+    assert.strictEqual(view.headerClass, status);
+  }
+});
+
+test("an earlier verdict stored as pass / fail reads as agree or disagree once shown", () => {
+  assert.deepStrictEqual([pathView(SHOWN("failed"), "fail").mark, pathView(SHOWN("failed"), "fail").markClass], ["you: fail · agree", "agree"]);
+  assert.deepStrictEqual([pathView(SHOWN("failed"), "pass").mark, pathView(SHOWN("failed"), "pass").markClass], ["you: pass · disagree", "disagree"]);
+});
+
+test("browser steps: no tick or cross, and one colour for every check, until the judge answers", () => {
+  const check = { kind: "check", error: "" }, failedCheck = { kind: "check", error: "expected visible" }, action = { kind: "action", error: "" };
+  assert.deepStrictEqual(stepMark(check, false), stepMark(failedCheck, false), "a hidden walkthrough never marks a check");
+  assert.deepStrictEqual(stepMark(check, false), { sym: "•", cls: "hid", tick: "chk" });
+  assert.deepStrictEqual(stepMark(action, false), { sym: "", cls: "", tick: "act" });
+  assert.deepStrictEqual(stepMark(check, true), { sym: "✓", cls: "ok", tick: "ok" });
+  assert.deepStrictEqual(stepMark(failedCheck, true), { sym: "✗", cls: "bad", tick: "bad" });
+  assert.deepStrictEqual(stepMark(action, true), { sym: "", cls: "", tick: "act" });
+});
+
+test("a whole-story agree or disagree covers every test of the story, overwriting earlier verdicts; only changes are saved", () => {
+  const verdicts = ["agree", "disagree", "", "skip", undefined, "fail"];
+  assert.deepStrictEqual(bulkTargets(verdicts, "agree"), [1, 2, 3, 4, 5], "every test not already agreed, judged or not");
+  assert.deepStrictEqual(bulkTargets(verdicts, "disagree"), [0, 2, 3, 4, 5]);
+  assert.deepStrictEqual(bulkTargets(verdicts, ""), [0, 1, 3, 5], "only tests with a verdict need clearing");
+  assert.deepStrictEqual(bulkTargets([], "agree"), []);
+});
+
+test("a bulk agree or disagree is a verdict: each test's result shows after it", () => {
+  for (const v of ["agree", "disagree"]) {
+    assert.strictEqual(answered(v), true);
+    assert.strictEqual(pathView(SHOWN("failed"), v).automated, "failed");
+  }
+});
+
+test("the keys sheet says what a verdict and the whole-story keys mean with the result hidden", () => {
+  const sheet = Object.fromEntries(KEYS);
+  assert.match(sheet["Tests: = Return · -"], /passes · fails, as you see it/);
+  assert.match(sheet["a d s"], /agree \/ disagree .*without seeing it.* \/ skip/);
+  const bulk = sheet["⌘= ⌘Return · ⌘- · ⌘Esc"];
+  assert.match(bulk, /agree with every test · disagree with every test/);
+  assert.match(bulk, /whatever it is/);
+  assert.match(bulk, /overwrites earlier verdicts/);
+  assert.match(bulk, /results then show/);
+  assert.match(sheet["Hidden"], /automated result.*hidden until you give your own/);
 });

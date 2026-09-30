@@ -28,6 +28,9 @@ pub struct Step {
     pub start: f64,
     pub end: f64,
     pub error: String,
+    /// Listed only because it failed (plumbing, or a nested non-check): its presence alone tells the result.
+    #[serde(skip)]
+    pub only_for_error: bool,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -137,7 +140,8 @@ pub fn parse(test: &str, contexts: &[String]) -> Walkthrough {
                     "test.step" => "step",
                     _ => "noise", // hooks and fixtures
                 };
-                if (kind == "noise" || !top && kind != "check") && err.is_empty() {
+                let only_for_error = kind == "noise" || !top && kind != "check";
+                if only_for_error && err.is_empty() {
                     continue;
                 }
                 let start = f(e, "startTime").unwrap_or(0.0);
@@ -148,6 +152,7 @@ pub fn parse(test: &str, contexts: &[String]) -> Walkthrough {
                     start,
                     end: a.and_then(|a| f(a, "endTime")).unwrap_or(start),
                     error: err,
+                    only_for_error,
                 });
             }
             _ => {}
@@ -160,6 +165,17 @@ pub fn parse(test: &str, contexts: &[String]) -> Walkthrough {
     let (start, end) = times.fold((f64::MAX, f64::MIN), |(lo, hi), t| (lo.min(t), hi.max(t)));
     let (start, end) = if start > end { (0.0, 0.0) } else { (start, end) };
     Walkthrough { start, end, people, steps, error }
+}
+
+impl Walkthrough {
+    /// The walkthrough as the judge sees it before giving their verdict: every step the test takes and
+    /// every frame, but no errors and none of the steps listed only because they failed.
+    pub fn hidden(mut self) -> Self {
+        self.steps.retain(|s| !s.only_for_error);
+        self.steps.iter_mut().for_each(|s| s.error.clear());
+        self.error.clear();
+        self
+    }
 }
 
 /// A trace zip's walkthrough.
@@ -250,6 +266,33 @@ mod tests {
         ]);
         assert_eq!(w.steps[2].error, "expect(locator).toBeVisible() failed\n\nLocator: x");
         assert_eq!(w.error, "", "the test's error is already on its failing step");
+    }
+
+    #[test]
+    fn a_hidden_walkthrough_keeps_what_the_test_did_but_not_how_it_ended() {
+        let (test, ctx) = fixture();
+        // Plumbing that failed is listed only because it failed: its presence alone gives the result away.
+        let failed_plumbing = [
+            l(serde_json::json!({"type": "before", "callId": "pw:api@20", "stepId": "pw:api@20", "startTime": 5000.5, "class": "Test", "method": "pw:api", "title": "Screenshot"})),
+            l(serde_json::json!({"type": "after", "callId": "pw:api@20", "endTime": 5000.6, "error": {"message": "screenshot failed"}})),
+        ].concat();
+        // and a whole-test error that no step carries
+        let timeout = l(serde_json::json!({"type": "error", "message": "Test timeout of 30000ms exceeded."}));
+        let full = parse(&(failed_plumbing + &test.replace("\"type\":\"error\"", "\"type\":\"ignored\"") + &timeout), &ctx);
+        assert!(full.steps.iter().any(|s| s.title == "Screenshot"), "the fixture lists the failed plumbing");
+        assert!(!full.error.is_empty() && full.steps.iter().any(|s| !s.error.is_empty()), "the fixture carries errors");
+
+        let hidden = full.clone().hidden();
+        assert_eq!(hidden.steps.iter().map(|s| s.title.as_str()).collect::<Vec<_>>(),
+            ["Click getByRole('button', { name: 'Create a board' })", "Wait for timeout", "Expect \"toBeVisible\""],
+            "every step the test takes stays, the failed plumbing goes");
+        assert!(hidden.steps.iter().all(|s| s.error.is_empty()), "no step says it failed");
+        assert_eq!(hidden.error, "", "nor does the test");
+        assert_eq!((hidden.start, hidden.end, &hidden.people), (full.start, full.end, &full.people), "the recording itself is untouched");
+        let json = serde_json::to_string(&hidden).unwrap();
+        for tell in ["failed", "timeout of", "toBeVisible() failed"] {
+            assert!(!json.contains(tell), "the hidden walkthrough mentions {tell:?}: {json}");
+        }
     }
 
     #[test]

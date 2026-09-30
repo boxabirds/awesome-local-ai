@@ -1,4 +1,4 @@
-// The review player's time maths, shared by review.html and its tests (tests/player.test.cjs).
+// The review player's time maths, keys and verdict display, shared by review.html and its tests (tests/player.test.cjs).
 
 // The frame on screen at time t: the last one at or before t (frames: [[time, name]], in time order),
 // or null before the page's first frame.
@@ -105,8 +105,9 @@ function paneMove(pane, dir) {
 // What a key press does in the review, given the pane with focus, or null to leave it to the browser. By key
 // position (code) for digits and - = , . so shift and keyboard layouts don't change them.
 function keyAction(e, pane) {
-  // cmd/ctrl with = or Return, - or Esc: one verdict for every held-out test of the story. Everything else
-  // with cmd, ctrl or alt (reload, reset zoom, tabs) is the browser's.
+  // cmd/ctrl with = or Return, - or Esc: agree, disagree or back to review for every held-out test of the
+  // story (bulkTargets); the results show once agreed or disagreed. Everything else with cmd, ctrl or alt
+  // (reload, reset zoom, tabs) is the browser's.
   if ((e.metaKey || e.ctrlKey) && !e.altKey) {
     const all = { Equal: "agree", Enter: "agree", Minus: "disagree", Escape: "" }[e.code];
     return all === undefined ? null : { do: "all", v: all };
@@ -116,7 +117,7 @@ function keyAction(e, pane) {
   // In the tests pane a scrub carries on into the next or previous test at either end (hold to fly through).
   const step = dir => ({ frac: dir * (shift ? FINE_SCRUB : SCRUB), ...(pane === "tests" ? { cross: true } : {}) });
   const scrub = dir => ({ do: "scrub", ...step(dir) });
-  // Return is = in the tests (agree and on), the right arrow in the stories and the down arrow in the steps.
+  // Return is = in the tests (passes, and on), the right arrow in the stories and the down arrow in the steps.
   if (code === "Space") return { do: "play" };  // play / stop, whichever pane has focus
   if (code === "Enter" && !shift) {
     const as = { stories: "ArrowRight", tests: "Equal", steps: "ArrowDown" }[pane];
@@ -136,7 +137,7 @@ function keyAction(e, pane) {
     if (pane === "stories") return code === "ArrowRight" ? { do: "pane", to: "tests" } : { do: "none" };
     return scrub(code === "ArrowRight" ? 1 : -1);
   }
-  if (code === "Enter") return pane === "tests" ? { do: "verdict", v: "disagree", note: true } : null;  // shift-Return
+  if (code === "Enter") return pane === "tests" ? { do: "verdict", v: "fail", note: true } : null;  // shift-Return
   // The same in every pane.
   switch (code) {
     case "BracketRight": case "PageDown": return { do: "story", dir: 1 };
@@ -144,11 +145,13 @@ function keyAction(e, pane) {
     case "KeyP": return { do: "play" };
     case "Period": return shift ? { do: "speed", dir: 1 } : { do: "frame", dir: 1 };
     case "Comma": return shift ? { do: "speed", dir: -1 } : { do: "frame", dir: -1 };
-    // = agrees and - disagrees with the test, and each goes straight on to the next test.
-    case "Equal": return pane === "stories" ? null : { do: "verdict", v: "agree", next: true };
-    case "Minus": return pane === "stories" ? null : { do: "verdict", v: "disagree", next: true };
+    // = says the test passes and - that it fails, as the judge sees it, and each goes straight on to the next
+    // test. The server saves it as agree / disagree with the automated result the page hasn't been shown.
+    case "Equal": return pane === "stories" ? null : { do: "verdict", v: "pass", next: true };
+    case "Minus": return pane === "stories" ? null : { do: "verdict", v: "fail", next: true };
     case "Home": return { do: "jump", frac: 0 };
     case "End": return { do: "jump", frac: 1 };
+    // agree / disagree with the (hidden) automated result, as before: a verdict, so the result then shows
     case "KeyA": return { do: "verdict", v: "agree", next: true };
     case "KeyD": return { do: "verdict", v: "disagree", next: true };
     case "KeyS": return { do: "verdict", v: "skip", next: true };
@@ -160,4 +163,83 @@ function keyAction(e, pane) {
   }
 }
 
-if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, nextFrame, keyAction, scrubStep, placeToHash, placeFromHash, PANES, SCRUB, FINE_SCRUB };
+// ---------- the automated result, hidden until the judge has given their own verdict ----------
+
+// The judge's own verdicts. A skip defers the test and an empty verdict is a note alone: neither shows the result.
+const ANSWERED = ["agree", "disagree", "pass", "fail"];
+const AUTOMATED_PASS = "passed";   // failed, timedOut, interrupted and skipped are not passes
+function answered(verdict) { return ANSWERED.includes(verdict); }
+
+// What the judge said of the test themselves: "pass" / "fail", from the stored agree / disagree and the
+// automated result (an earlier verdict may be stored as pass / fail already); null when unanswered or unknown.
+function ownOf(verdict, automated) {
+  if (verdict === "pass" || verdict === "fail") return verdict;
+  if ((verdict !== "agree" && verdict !== "disagree") || !automated) return null;
+  return (automated === AUTOMATED_PASS) === (verdict === "agree") ? "pass" : "fail";
+}
+
+// How a held-out test shows in its row and the player's header. Nothing of the automated result, not
+// its text, its colour nor a tooltip, until the judge has answered, even if a payload carried it.
+function pathView(path, verdict) {
+  const shown = answered(verdict) && path?.answered === true && path.status ? path.status : null;
+  const own = shown ? ownOf(verdict, shown) : null;
+  if (!shown) return {
+    automated: null, own: null, pill: "?", pillClass: "hidden",
+    mark: verdict === "skip" ? "skip" : "to review", markClass: verdict === "skip" ? "skip" : "todo",
+    header: "Automated result: hidden until you judge", headerClass: "hidden",
+  };
+  // An earlier verdict stored as pass / fail still reads as agree or disagree with the result.
+  const rel = verdict === "agree" || verdict === "disagree" ? verdict : own === ownOf("agree", shown) ? "agree" : "disagree";
+  return {
+    automated: shown, own, pill: shown, pillClass: shown,
+    mark: `you: ${own} · ${rel}`, markClass: rel,
+    header: `Automated: ${shown.toUpperCase()} · you: ${own.toUpperCase()}`, headerClass: shown,
+  };
+}
+
+// A browser step's mark in the steps list and its tick on the seek bar: before an answer every check
+// looks the same, so neither a cross nor a missing tick gives the result away.
+function stepMark(step, isAnswered) {
+  if (!isAnswered) return step.kind === "check" ? { sym: "•", cls: "hid", tick: "chk" } : { sym: "", cls: "", tick: "act" };
+  if (step.error) return { sym: "✗", cls: "bad", tick: "bad" };
+  return step.kind === "check" ? { sym: "✓", cls: "ok", tick: "ok" } : { sym: "", cls: "", tick: "act" };
+}
+
+// The tests (by position in verdicts) a whole-story key changes: every test of the story whose verdict isn't
+// already v, overwriting earlier verdicts (only changes are saved). A bulk agree or disagree is a verdict, so
+// each test's result shows after it; "" (Esc) takes every test back to review and hides them again.
+function bulkTargets(verdicts, v) {
+  return verdicts.flatMap((x, i) => (x || "") !== v ? [i] : []);
+}
+
+// The keys sheet (? on the page): what each key does.
+const KEYS = [
+  ["Three panes", "stories · held-out tests · browser steps (the focused one has a ring)"],
+  ["Hidden", "a test's automated result is hidden until you give your own verdict; then it shows beside yours, as agree or disagree"],
+  ["Tab · ⇧Tab", "next pane · previous pane"],
+  ["Stories: ↑ ↓", "previous / next story"],
+  ["Space p", "play / stop, in any pane (a test plays by itself when you move to it, at 2×)"],
+  ["Stories: → Return", "into the story's held-out tests"],
+  ["Tests: ↑ ↓", "previous / next held-out test"],
+  ["Tests: → · ←", "scrub 5% (⇧: 1%); at an end, on to the next / previous test: hold to fly through"],
+  ["Tests: = Return · -", "passes · fails, as you see it, and on to the next test"],
+  ["Tests: ⇧Return", "fails, and write why"],
+  ["Tests: Esc", "clear the verdict back to “to review” (the result hides again)"],
+  ["Steps: ↑ ↓ Return", "previous / next browser step"],
+  ["Steps: → · ←", "scrub 5% (⇧: 1%)"],
+  ["Steps: Esc", "back to the held-out tests"],
+  [". ,", "next / previous frame"],
+  ["1 … 9 · 0", "jump to 10% … 90% · the start"],
+  ["Home End", "start / end"],
+  ["> <", "faster / slower"],
+  ["] [ · PgDn PgUp", "next / previous story, from any pane"],
+  ["a d s", "agree / disagree with the automated result, without seeing it / skip, and on to the next test"],
+  ["⌘= ⌘Return · ⌘- · ⌘Esc", "the whole story: agree with every test · disagree with every test (with each automated result, whatever it is: results then show) · every test back to “to review”, results hidden again; each overwrites earlier verdicts, notes stay (Ctrl on Windows and Linux)"],
+  ["n", "write a note (Esc or Return to leave it)"],
+  ["o", "open this build"],
+  ["w", "skip long waits on / off"],
+  ["?", "show / hide these keys (Esc closes)"],
+];
+
+if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot, nextFrame, keyAction, scrubStep, placeToHash, placeFromHash, PANES, SCRUB, FINE_SCRUB,
+  answered, ownOf, pathView, stepMark, bulkTargets, KEYS };
