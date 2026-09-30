@@ -43,6 +43,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [NInfer (Swift 1.5)](ninfer.md) | queued | gruntus (Windows) | Windows-only 4090 engine for Swift 1.5; waiting for the Windows setup |
 | [TensorFold](tensorfold.md) | blocked | quintus | MLX/CUDA exact speculative decoding; blocked on cache retention past ~100k |
 | [MTPLX](mtplx.md) | blocked | quintus | memory admission deadlocks long agent sessions (507); recheck on 2.14 |
+| [BeeLlama.cpp](beellama.md) | candidate | gruntus (Ubuntu) | llama.cpp fork: KV cache in fewer bits for the same context; MTP/DFlash speculation |
 | [Strata](strata.md) | gated | gruntus | Flash-Next (125B MoE) on one 4090 by offloading experts to RAM |
 | [Prompt lookup (n-gram speculation)](ngram-speculation.md) | parked | gruntus (Ubuntu) | engine setting; test on the dense 27B; eliminated for sparse MoE |
 | [llama.cpp Vulkan on tritus](llamacpp-vulkan-tritus.md) | parked | tritus | dropped from v2: prompt reading 4-7x slower than gufo |
