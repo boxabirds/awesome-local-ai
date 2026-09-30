@@ -19,6 +19,10 @@ export interface WsClient {
   doc: Y.Doc;
   ws: WebSocket;
   received: ArrayBuffer[];
+  /** Close code observed when the socket closes (null until then). */
+  closeCode: number | null;
+  /** Resolves with the close code when the socket closes. */
+  closed: Promise<number>;
   /** Wait until no new messages for 100ms. */
   waitForQuiet(timeoutMs?: number): Promise<void>;
   /** Send raw bytes on the WebSocket. */
@@ -44,6 +48,11 @@ export async function createWsClient(
 
   const received: ArrayBuffer[] = [];
   let messageResolvers: Array<(data: ArrayBuffer) => void> = [];
+  let closeCode: number | null = null;
+  let resolveClosed: ((code: number) => void) | null = null;
+  const closed = new Promise<number>((r) => {
+    resolveClosed = r;
+  });
 
   // When the local doc changes, send the update to the server
   doc.on('update', (update: Uint8Array, origin: unknown) => {
@@ -80,7 +89,9 @@ export async function createWsClient(
     }
   });
 
-  ws.addEventListener('close', () => {
+  ws.addEventListener('close', (ev) => {
+    closeCode = (ev as CloseEvent).code;
+    if (resolveClosed) resolveClosed(closeCode);
     for (const r of messageResolvers) r(new ArrayBuffer(0));
   });
 
@@ -138,6 +149,10 @@ export async function createWsClient(
     doc,
     ws,
     received,
+    get closeCode() {
+      return closeCode;
+    },
+    closed,
 
     waitForQuiet(timeoutMs = 5000): Promise<void> {
       return new Promise<void>((resolve, reject) => {

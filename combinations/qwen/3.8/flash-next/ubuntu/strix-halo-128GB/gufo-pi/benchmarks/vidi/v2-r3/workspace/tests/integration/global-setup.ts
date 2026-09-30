@@ -15,11 +15,15 @@ export async function setup() {
   } catch {}
 
   await new Promise<void>((resolvePromise, reject) => {
-    wranglerProcess = spawn('npx', ['wrangler', 'dev', '--port', String(PORT), '--local'], {
-      cwd: resolve(import.meta.dirname, '../..'),
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, NODE_ENV: 'development' },
-    });
+    wranglerProcess = spawn(
+      'npx',
+      ['wrangler', 'dev', '--port', String(PORT), '--local', '--var', 'TEST_HOOKS:1'],
+      {
+        cwd: resolve(import.meta.dirname, '../..'),
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, NODE_ENV: 'development' },
+      },
+    );
 
     let output = '';
     let resolved = false;

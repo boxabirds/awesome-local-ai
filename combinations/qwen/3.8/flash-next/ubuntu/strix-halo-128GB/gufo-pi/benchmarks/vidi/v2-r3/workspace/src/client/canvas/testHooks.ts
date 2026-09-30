@@ -7,6 +7,8 @@ declare global {
       setCamera(cam: Camera): void;
       /** Current board snapshot, for assertions in end-to-end tests. */
       getBoard(): readonly StickySnapshot[];
+      /** Create a sticky in world space with optional text/colour (test mode). */
+      addSticky?(at: { x: number; y: number }, text?: string, color?: string): string;
       /** Current connection state for e2e tests. */
       connectionState?: string;
     };

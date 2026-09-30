@@ -10,6 +10,7 @@ export interface ConnectionStatusProps {
  * - "Connecting…" while first loading
  * - amber "Reconnecting…" while disconnected after having been connected
  * - green "Connected" for CONNECTED_CONFIRMATION_MS after reconnection
+ * - red "This board couldn't be loaded. Retrying…" while the board failed to load
  * - hidden when in the normal `connected` state
  */
 export function ConnectionStatus({ state }: ConnectionStatusProps) {
@@ -26,22 +27,26 @@ export function ConnectionStatus({ state }: ConnectionStatusProps) {
     fontWeight: 500,
     zIndex: 1000,
     pointerEvents: 'none',
-    ...(state === 'reconnecting'
-      ? { backgroundColor: '#FFA000', color: '#fff' }
-      : state === 'confirmed'
-        ? { backgroundColor: '#4CAF50', color: '#fff' }
-        : { backgroundColor: '#90A4AE', color: '#fff' }),
+    ...(state === 'load_failed'
+      ? { backgroundColor: '#E53935', color: '#fff' }
+      : state === 'reconnecting'
+        ? { backgroundColor: '#FFA000', color: '#fff' }
+        : state === 'confirmed'
+          ? { backgroundColor: '#4CAF50', color: '#fff' }
+          : { backgroundColor: '#90A4AE', color: '#fff' }),
   };
 
   const text =
-    state === 'reconnecting'
-      ? 'Reconnecting\u2026'
-      : state === 'confirmed'
-        ? 'Connected'
-        : 'Connecting\u2026';
+    state === 'load_failed'
+      ? 'This board couldn\u2019t be loaded. Retrying\u2026'
+      : state === 'reconnecting'
+        ? 'Reconnecting\u2026'
+        : state === 'confirmed'
+          ? 'Connected'
+          : 'Connecting\u2026';
 
   return (
-    <div role="status" aria-label="Connection status" style={styles}>
+    <div role="status" aria-label="Connection status" data-testid="connection-status" style={styles}>
       {text}
     </div>
   );

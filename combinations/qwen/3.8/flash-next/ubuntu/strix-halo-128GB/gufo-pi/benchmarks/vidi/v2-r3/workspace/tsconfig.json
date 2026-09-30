@@ -16,5 +16,5 @@
     "types": ["vitest/globals"]
   },
   "include": ["src", "tests"],
-  "exclude": ["src/worker", "tests/integration", "tests/e2e"]
+  "exclude": ["src/worker", "tests/integration", "tests/integration-do", "tests/e2e"]
 }

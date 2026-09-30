@@ -35,4 +35,18 @@ export default defineWorkspace([
       passWithNoTests: true,
     },
   },
+  defineWorkersProject({
+    test: {
+      name: 'integration-do',
+      include: ['tests/integration-do/**/*.{test,spec}.ts'],
+      poolOptions: {
+        workers: {
+          singleWorker: true,
+          main: './src/worker/index.ts',
+          wrangler: { configPath: './wrangler.jsonc' },
+        },
+      },
+      testTimeout: 30000,
+    },
+  }),
 ]);

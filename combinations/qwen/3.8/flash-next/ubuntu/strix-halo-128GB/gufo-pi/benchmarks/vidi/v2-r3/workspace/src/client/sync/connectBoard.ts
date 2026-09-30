@@ -1,11 +1,38 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { RECONNECT_MAX_BACKOFF_MS, CONNECTED_CONFIRMATION_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
+
+/** Editing is disabled only while the board could not be loaded. */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 export interface ConnectionHandle {
   destroy(): void;
+}
+
+/**
+ * The subset of a y-websocket provider that connectBoard depends on. A fake
+ * implementing this can be injected for tests (TC-28).
+ */
+export interface ProviderLike {
+  on(event: string, cb: (arg?: any) => void): void;
+  destroy(): void;
+  wsconnected: boolean;
+  synced: boolean;
+}
+
+export interface ConnectBoardOptions {
+  /** Inject a provider (tests). Defaults to a real WebsocketProvider. */
+  providerFactory?: (doc: Y.Doc, boardId: string, url: string) => ProviderLike;
 }
 
 /**
@@ -17,14 +44,17 @@ export function connectBoard(
   doc: Y.Doc,
   boardId: string,
   onState: (s: ConnectionState) => void,
+  options: ConnectBoardOptions = {},
 ): ConnectionHandle {
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const serverUrl = `${wsProtocol}//${window.location.host}/api/rooms`;
 
-  const provider = new WebsocketProvider(serverUrl, boardId, doc, {
-    maxBackoffTime: RECONNECT_MAX_BACKOFF_MS,
-    disableBc: true,
-  });
+  const provider: ProviderLike = options.providerFactory
+    ? options.providerFactory(doc, boardId, serverUrl)
+    : new WebsocketProvider(serverUrl, boardId, doc, {
+        maxBackoffTime: RECONNECT_MAX_BACKOFF_MS,
+        disableBc: true,
+      });
 
   let currentState: ConnectionState = 'connecting';
   let hasBeenSynced = false;
@@ -40,7 +70,24 @@ export function connectBoard(
     onState(next);
   }
 
+  // A board that fails to load is closed by the room with CLOSE_BOARD_LOAD_FAILED
+  // (4500). We surface that as `load_failed` (read-only, red message). Every
+  // other close code (including CLOSE_STORAGE_FAILURE 1011) is a transient drop
+  // that the provider reconnects from: `reconnecting`, editing still enabled.
+  provider.on('connection-close', (event: { code: number } | null) => {
+    const code = event?.code ?? 0;
+    if (code === CLOSE_BOARD_LOAD_FAILED) {
+      setState('load_failed');
+    } else if (hasBeenSynced || currentState === 'connected' || currentState === 'confirmed') {
+      setState('reconnecting');
+    }
+  });
+
   provider.on('status', (event: { status: string }) => {
+    // While a board is known to have failed to load, stay in load_failed until a
+    // sync succeeds (the provider keeps retrying in the background).
+    if (currentState === 'load_failed') return;
+
     if (event.status === 'connecting') {
       if (hasBeenSynced) {
         // Reconnecting after a previous successful connection
@@ -69,7 +116,10 @@ export function connectBoard(
   provider.on('sync', (synced: boolean) => {
     if (synced) {
       hasBeenSynced = true;
-      if (currentState === 'connecting' || currentState === 'reconnecting') {
+      if (currentState === 'load_failed') {
+        // A later successful sync recovers the board; editing re-enabled, no reload.
+        setState('connected');
+      } else if (currentState === 'connecting' || currentState === 'reconnecting') {
         // First sync → connected (no "connected" flash on first connect)
         setState('connected');
       } else if (currentState === 'confirmed') {

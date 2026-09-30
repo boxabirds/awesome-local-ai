@@ -2,13 +2,15 @@ import React from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /** When true the create button is disabled (e.g. the board failed to load). */
+  disabled?: boolean;
 }
 
 /**
  * Left-side creation toolbar. Pointer events are stopped here so a click never
  * reaches the viewport (which would pan the board or clear the selection).
  */
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
   return (
     <div
       data-testid="toolbar"
@@ -35,6 +37,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
         data-testid="create-sticky-button"
+        disabled={disabled}
         onClick={onCreateSticky}
         style={{
           display: 'flex',
@@ -46,7 +49,8 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
           borderRadius: 8,
           backgroundColor: '#FFF59D',
           color: '#5f5324',
-          cursor: 'pointer',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.5 : 1,
           fontSize: 18,
           lineHeight: 1,
         }}

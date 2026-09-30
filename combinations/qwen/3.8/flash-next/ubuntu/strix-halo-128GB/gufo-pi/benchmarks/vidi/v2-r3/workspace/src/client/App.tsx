@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback, useState } from 'react';
+import type * as Y from 'yjs';
 import { useCamera } from './canvas/useCamera';
 import { BoardViewport } from './canvas/BoardViewport';
 import { ZoomControls } from './canvas/ZoomControls';
@@ -7,6 +8,7 @@ import type { Size } from './canvas/camera';
 import { zoomPercent, canZoomIn, canZoomOut, screenToWorld } from './canvas/camera';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { canEdit } from './sync/connectBoard';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
@@ -69,6 +71,10 @@ export function App() {
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
+  // A board that failed to load is read-only: creates, drags, colour, delete and
+  // text editing are all disabled until it loads (no page reload needed).
+  const editable = canEdit(connectionState);
+
   // Track viewport size
   useEffect(() => {
     const handleResize = () => {
@@ -85,7 +91,19 @@ export function App() {
 
   // Register test hooks (no-op outside the test build mode)
   useEffect(() => {
-    registerTestHooks({ setCamera, getBoard: () => snapshot(doc) });
+    registerTestHooks({
+      setCamera,
+      getBoard: () => snapshot(doc),
+      addSticky: (at, text, color) => {
+        const id = createSticky(doc, at, (color as any) ?? undefined);
+        if (id && text) {
+          const m = doc.getMap('objects').get(id) as Y.Map<unknown>;
+          const t = m.get('text') as Y.Text;
+          t.insert(0, text);
+        }
+        return id;
+      },
+    });
   }, [setCamera, doc]);
 
   // Expose connection state for e2e tests
@@ -117,10 +135,12 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [zoomStep, reset]);
 
-  // Enter edits the selected note; Delete removes it. Never while typing.
+  // Enter edits the selected note; Delete removes it. Never while typing, and
+  // never while the board is read-only.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (editingId || !selectedId || isTextEntry(e.target)) return;
+      if (!editable) return;
       if (e.key === 'Enter') {
         e.preventDefault();
         startEdit(selectedId);
@@ -133,7 +153,7 @@ export function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, editingId, doc, startEdit, select]);
+  }, [selectedId, editingId, doc, startEdit, select, editable]);
 
   const handleGestureZoom = useCallback(
     (scale: number, point: { x: number; y: number }) => {
@@ -145,11 +165,12 @@ export function App() {
   // A new note lands centred on the given screen point and opens for typing.
   const createAtScreenPoint = useCallback(
     (point: { x: number; y: number }) => {
+      if (!editable) return;
       const world = screenToWorld(camera, point);
       const id = createSticky(doc, world);
       if (id) startEdit(id);
     },
-    [camera, doc, startEdit],
+    [camera, doc, startEdit, editable],
   );
 
   const handleToolbarCreate = useCallback(() => {
@@ -191,10 +212,11 @@ export function App() {
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
+            editable={editable}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={handleToolbarCreate} />
+      <Toolbar onCreateSticky={handleToolbarCreate} disabled={!editable} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

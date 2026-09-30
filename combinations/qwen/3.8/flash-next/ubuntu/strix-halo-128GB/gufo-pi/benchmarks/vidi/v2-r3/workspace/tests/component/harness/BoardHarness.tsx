@@ -28,6 +28,8 @@ export function isTextEntry(target: EventTarget | null): boolean {
 export interface BoardHarnessProps {
   handleRef: React.MutableRefObject<HarnessHandle | null>;
   viewport?: Size;
+  /** When true, editing (create / drag / colour / delete / text) is disabled. */
+  readOnly?: boolean;
 }
 
 /**
@@ -35,7 +37,7 @@ export interface BoardHarnessProps {
  * handles a component test needs. Mirrors App.tsx; kept here so tests can reach
  * the Y.Doc and the local state without exposing them in production.
  */
-export function BoardHarness({ handleRef, viewport = { width: 1280, height: 800 } }: BoardHarnessProps) {
+export function BoardHarness({ handleRef, viewport = { width: 1280, height: 800 }, readOnly = false }: BoardHarnessProps) {
   const { camera, beginPan, panMove, endPan, wheel, gestureZoom } = useCamera(viewport);
   const { doc, notes } = useBoardDoc(null);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
@@ -59,6 +61,7 @@ export function BoardHarness({ handleRef, viewport = { width: 1280, height: 800 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (editingId || !selectedId || isTextEntry(e.target)) return;
+      if (readOnly) return;
       if (e.key === 'Enter') {
         e.preventDefault();
         startEdit(selectedId);
@@ -70,14 +73,15 @@ export function BoardHarness({ handleRef, viewport = { width: 1280, height: 800 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, editingId, doc, startEdit, select]);
+  }, [selectedId, editingId, doc, startEdit, select, readOnly]);
 
   const createAtScreenPoint = useCallback(
     (point: { x: number; y: number }) => {
+      if (readOnly) return;
       const id = createSticky(doc, screenToWorld(camera, point));
       if (id) startEdit(id);
     },
-    [camera, doc, startEdit],
+    [camera, doc, startEdit, readOnly],
   );
 
   const handleEmptyDblClick = useCallback(
@@ -112,10 +116,11 @@ export function BoardHarness({ handleRef, viewport = { width: 1280, height: 800 
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
+            editable={!readOnly}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={handleToolbarCreate} />
+      <Toolbar onCreateSticky={handleToolbarCreate} disabled={readOnly} />
     </>
   );
 }

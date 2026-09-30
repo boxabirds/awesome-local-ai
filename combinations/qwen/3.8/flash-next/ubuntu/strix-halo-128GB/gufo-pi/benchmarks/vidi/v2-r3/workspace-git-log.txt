@@ -1,3 +1,40 @@
+commit 354ff74d6e4a989d9d6f547551e4b7cece1f8f38
+vidi-agent  Wed Sep 30 19:18:07 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ package.json                                     |   2 +-
+ playwright.config.ts                             |  11 +
+ src/client/App.tsx                               |  32 +-
+ src/client/board/Toolbar.tsx                     |   8 +-
+ src/client/canvas/testHooks.ts                   |   2 +
+ src/client/objects/StickyNote.tsx                |  16 +-
+ src/client/sync/ConnectionStatus.tsx             |  27 +-
+ src/client/sync/connectBoard.ts                  |  62 ++-
+ src/shared/config.ts                             |   9 +
+ src/shared/protocol.ts                           |   2 +
+ src/worker/board-room.ts                         | 327 +++++++++++++--
+ src/worker/board-store-pure.ts                   |  52 +++
+ src/worker/board-store.ts                        | 192 +++++++++
+ src/worker/index.ts                              |  12 +
+ src/worker/room-state.ts                         |  63 +++
+ src/worker/test-hooks.ts                         |  92 +++++
+ tests/component/LoadFailure.test.tsx             | 176 ++++++++
+ tests/component/harness/BoardHarness.tsx         |  13 +-
+ tests/e2e/broken-board.spec.ts                   | 134 +++++++
+ tests/e2e/helpers/wrangler-process.ts            | 131 ++++++
+ tests/e2e/persistence.spec.ts                    | 205 ++++++++++
+ tests/fixtures/boards.ts                         | 126 ++++++
+ tests/integration-do/board-store.test.ts         | 490 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts | 228 +++++++++++
+ tests/integration/global-setup.ts                |  14 +-
+ tests/integration/ws-client.ts                   |  17 +-
+ tests/unit/board-store-chunks.test.ts            |  62 +++
+ tests/unit/room-state.test.ts                    | 150 +++++++
+ tsconfig.json                                    |   2 +-
+ vitest.workspace.ts                              |  14 +
+ 30 files changed, 2603 insertions(+), 68 deletions(-)
 commit d000303923f85f0419b3e070905496a82c40b360
 vidi-agent  Wed Sep 30 18:11:06 2026 +0000
 

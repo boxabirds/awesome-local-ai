@@ -25,6 +25,8 @@ export interface StickyNoteProps {
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /** When false (board failed to load), drag/edit/colour/delete are no-ops. */
+  editable?: boolean;
 }
 
 interface DragState {
@@ -61,6 +63,7 @@ export function StickyNote({
   onSelect,
   onStartEdit,
   onEndEdit,
+  editable = true,
 }: StickyNoteProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -180,6 +183,8 @@ export function StickyNote({
       e.stopPropagation();
       // While editing, a press inside the note belongs to the text caret.
       if (editing) return;
+      // A read-only board starts no drag.
+      if (!editable) return;
       dragRef.current = {
         pointerId: e.pointerId,
         startClientX: e.clientX,
@@ -194,16 +199,17 @@ export function StickyNote({
       };
       attachWindow();
     },
-    [note.x, note.y, editing],
+    [note.x, note.y, editing, editable],
   );
 
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       // Editing this note, never creating a new one behind it.
       e.stopPropagation();
+      if (!editable) return;
       onStartEdit(note.id);
     },
-    [note.id, onStartEdit],
+    [note.id, onStartEdit, editable],
   );
 
   // Focus returns to the note when editing ends, so Delete still works.
@@ -213,15 +219,17 @@ export function StickyNote({
 
   const handleColor = useCallback(
     (color: StickyColor) => {
+      if (!editable) return;
       setStickyColor(doc, note.id, color);
     },
-    [doc, note.id],
+    [doc, note.id, editable],
   );
 
   const handleDelete = useCallback(() => {
+    if (!editable) return;
     deleteObject(doc, note.id);
     onEndEdit('unselected');
-  }, [doc, note.id, onEndEdit]);
+  }, [doc, note.id, onEndEdit, editable]);
 
   const background = STICKY_COLORS[note.color] ?? STICKY_COLORS.yellow;
   const ytext = editing ? getStickyText(doc, note.id) : undefined;
