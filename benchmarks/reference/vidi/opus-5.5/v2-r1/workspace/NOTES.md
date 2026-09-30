@@ -398,3 +398,49 @@ Decisions made while implementing without anyone to ask.
 - **E2E browsers.** TC-23 runs in every configured browser, the rest in Chromium only (design).
   Firefox still cannot start in this environment; runs used `E2E_BROWSERS=chromium,webkit`.
 - **Red-phase commits skipped** (tasks 7, 9), as in earlier stories: one story commit.
+
+## Story 11 — Sketch freehand with a pen
+
+- **Picking strokes.** Strokes reuse story 10's hit-test picking (`pickByHitTest: true`): the
+  stroke's DOM takes no pointer events and the board picks it in the capture phase when a press
+  is within `max(thickness / 2, STROKE_HIT_TOLERANCE_PX / zoom)` of its line. A press elsewhere
+  in its box falls through to the object underneath (or empty board). A selected stroke uses the
+  generic selection box and handles (aspect-locked, `STROKE_MIN_SIZE_WORLD`).
+- **Pen tool routing.** The Pen uses the `toolLayer` from story 10: a transparent layer over the
+  board that owns every press (so a pen drag never pans or moves an object), while wheel/pinch
+  still navigate. `pen` joined `MODE_TOOLS`; unlike Shape/Connector it never calls
+  `toolCreated`, so it stays active until Escape or another tool. Button: "Pen (P)".
+- **Pen toolbar.** Shown next to the Pen button while it is active (like the Shape kind menu), as
+  `role="group"` "Pen options": swatches named `<colour> pen` with the `PEN_COLORS` keys
+  (`black pen` … `purple pen`) and Thin / Medium / Thick, all with `aria-pressed`.
+- **Options memory.** `usePenOptions` keeps colour/thickness in a module-level store, so the
+  choice survives switching tools and opening another board in the same tab, and resets on
+  reload (never stored).
+- **Preview.** The in-progress line is a screen-space SVG path in the tool layer, redrawn in a
+  `requestAnimationFrame` callback with `flushSync`, so the DOM changes within the frame after
+  the pointer moved. It is never written to the Y.Doc (others cannot see it). Coalesced events
+  are used when the browser provides them; exact duplicate points are skipped.
+- **Dots.** A press/release that never moves `DRAG_THRESHOLD_PX` from the press point commits a
+  single point (a thickness-square box; rendered as a zero-length round-capped path).
+- **Long strokes.** When the current part reaches `STROKE_MAX_POINTS` recorded points it is
+  simplified and committed, and drawing continues from its last point. A final part consisting
+  of just that join point (release right after a split) is not committed as a separate dot.
+- **Leaving the Pen mid-drag** (Escape or another tool while the button is held) keeps the
+  stroke drawn so far, like an interrupted drag.
+- **Stroke box and scaling.** The box is the points' bounds padded by half the thickness; stored
+  points are relative to it with `baseWidth/baseHeight`. Resizing scales the points (padding
+  included) but never the line width. Malformed stored points read as no points (nothing drawn).
+- **Accessibility.** The stroke element is `role="img"` named "Drawing" (focusable; focus selects
+  it, as for arrows); the SVG inside is `aria-hidden`, so the name is announced once rather than
+  also on the `path`.
+- **Round cursor.** A CSS cursor image (SVG data URL) of diameter thickness × zoom (clamped to
+  3–120 px so it stays visible and within browser cursor limits); `data-cursor-size` exposes the
+  unclamped size for tests.
+- **E2E.** Synthetic mouse moves cost ~0.1 s each on this machine (panning too), so recorded
+  paths are replayed at every 2nd/3rd point and pen tests allow 90 s. TC-17 checks the preview
+  against frames: in every frame that follows pointer moves the preview path differs from the
+  previous frame. Headless WebKit throttles animation frames heavily (≈1 fps while driven), so
+  the check counts only frames that actually ran. TC-17 runs in every configured browser, the
+  rest in Chromium only (design). Firefox still cannot start here; runs used
+  `E2E_BROWSERS=chromium,webkit`.
+- **Red-phase commits skipped** (task 1), as in earlier stories: one story commit.

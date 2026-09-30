@@ -16,6 +16,8 @@ import { BoardViewport } from './canvas/BoardViewport';
 import { type Camera, type Point, type Size, screenToWorld } from './canvas/camera';
 import { getObjectType } from './objects/registry';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { usePenOptions } from './tools/usePenOptions';
 import { ShapeTool } from './tools/ShapeTool';
 import { useActiveTool } from './tools/useActiveTool';
 import { syncTextBox } from './objects/useTextBoxSync';
@@ -74,6 +76,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
   const viewportRef = useRef<Size | null>(null);
   const getCamera = useCallback(() => cameraRef.current ?? INITIAL_CAMERA, []);
   const tool = useActiveTool({ canEdit: editable, select: selectNew });
+  const pen = usePenOptions();
 
   // One undo history per board document, for this tab only: gone on board change or reload.
   const [history, setHistory] = useState<UndoController | null>(null);
@@ -190,6 +193,14 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
               by={localIdentity()}
               onCreated={tool.toolCreated}
             />
+          ) : tool.tool === 'pen' ? (
+            <PenTool
+              camera={camera}
+              color={pen.color}
+              thickness={pen.thickness}
+              doc={doc}
+              identityId={localIdentity()}
+            />
           ) : tool.tool === 'connector' ? (
             <ConnectorTool
               camera={camera}
@@ -244,6 +255,12 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
               onShapeKind={(k) => {
                 tool.setShapeKind(k);
                 tool.setTool('shape');
+              }}
+              pen={{
+                color: pen.color,
+                thickness: pen.thickness,
+                onColor: pen.setColor,
+                onThickness: pen.setThickness,
               }}
               onCreateSticky={() =>
                 createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }))

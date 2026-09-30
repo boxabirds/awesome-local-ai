@@ -5,7 +5,8 @@
 //   meta:    Y.Map { schemaVersion: 1 }
 //   objects: Y.Map<id, Y.Map { type: 'sticky', x, y, width?, height?, color, text: Y.Text, z, createdAt }>
 //            (story 9 adds type 'text', see objects/text.ts; story 10 adds 'shape' and
-//            'connector', see objects/shape.ts and objects/connector.ts)
+//            'connector', see objects/shape.ts and objects/connector.ts; story 11 adds 'stroke',
+//            see objects/stroke.ts)
 //
 // `width`/`height` (story 7) are optional: objects without them are STICKY_SIZE_WORLD square.
 import * as Y from 'yjs';
@@ -19,6 +20,7 @@ import {
   unresolvedEnds,
 } from './objects/connector';
 import { readShapeFields } from './objects/shape';
+import { readStrokeFields } from './objects/stroke';
 import { readTextFields } from './objects/text';
 import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 
@@ -49,7 +51,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 }
 
 /** Object types this model knows how to read. */
-export const MODEL_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector']);
+export const MODEL_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector', 'stroke']);
 
 type ObjectMap = Y.Map<unknown>;
 
@@ -174,6 +176,7 @@ function readObject(id: string, value: unknown): ObjectSnapshot | undefined {
   };
   if (type === 'text') return Object.freeze({ ...base, type: 'text', ...readTextFields(obj) });
   if (type === 'shape') return Object.freeze({ ...base, type: 'shape', ...readShapeFields(obj) });
+  if (type === 'stroke') return Object.freeze({ ...base, type: 'stroke', ...readStrokeFields(obj, base) });
   // The box is derived from the ends once every other object has been read (objectsSnapshot).
   if (type === 'connector') {
     const fields = readConnectorFields(obj);

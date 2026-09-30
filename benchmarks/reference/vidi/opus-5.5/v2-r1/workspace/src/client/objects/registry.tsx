@@ -8,16 +8,21 @@ import { LOCAL_ORIGIN, type ObjectSnapshot, moveObjects, objectBounds } from '..
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
   SHAPE_MIN_SIZE_WORLD,
+  PEN_THICKNESS_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import type { Point, Rect } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { type ConnectorSnap, translateConnector } from '../../shared/objects/connector';
+import { type StrokeSnap, scaledPoints } from '../../shared/objects/stroke';
 import { type TextSnapshot, setTextWidthFixed } from '../../shared/objects/text';
 import { ConnectorEntry } from './ConnectorObject';
 import { ShapeEntry } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeEntry } from './StrokeObject';
 import { TextObject } from './TextObject';
 import { textMeasurer } from './textLayout';
 import { syncTextBox } from './useTextBoxSync';
@@ -169,4 +174,24 @@ registerObjectType('connector', {
     translateConnector(doc, start as ConnectorSnap, dx, dy);
   },
   hitTest: connectorHitTest,
+});
+
+/**
+ * Within STROKE_HIT_TOLERANCE_PX screen pixels of the stroke's line, or within half its
+ * thickness when that is larger (story 11).
+ */
+export function strokeHitTest(obj: ObjectSnapshot, p: Point, zoom = 1): boolean {
+  const s = obj as StrokeSnap;
+  const tolerance = Math.max(PEN_THICKNESS_WORLD[s.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom);
+  return distanceToPolyline(scaledPoints(s), p) <= tolerance;
+}
+
+registerObjectType('stroke', {
+  Component: StrokeEntry,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  pickByHitTest: true,
+  hitTest: strokeHitTest,
 });

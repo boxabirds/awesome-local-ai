@@ -152,3 +152,25 @@ export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 export const CONNECTOR_DOT_RADIUS_PX = 4;
 /** Font size of shape labels, world units (px at 100% zoom). */
 export const SHAPE_LABEL_FONT_PX = 16;
+
+/** Pen colours (story 11), in pen toolbar order. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+/** Pen line widths, world units (strokes scale with zoom like everything else). */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export const DEFAULT_PEN_COLOR = 'black';
+export const DEFAULT_PEN_THICKNESS = 'medium';
+/** A finished stroke stays within this many screen px (at the drawing zoom) of the drawn path. */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/** A stroke being drawn is finished and continued as a new stroke at this many recorded points. */
+export const STROKE_MAX_POINTS = 5000;
+/** A click within this distance (screen px) of a stroke's line selects it. */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** Smallest width/height a stroke can be resized to, world units. */
+export const STROKE_MIN_SIZE_WORLD = 4;

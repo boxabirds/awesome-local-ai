@@ -923,3 +923,61 @@ body,
   cursor: move;
   touch-action: none;
 }
+
+/* Story 11: Pen tool, pen toolbar and strokes. */
+.pen-tool {
+  cursor: crosshair;
+}
+
+.pen-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.pen-toolbar {
+  align-items: center;
+}
+
+.pen-swatch-dot {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 15%);
+}
+
+.pen-swatch[aria-pressed='true'],
+.pen-thickness[aria-pressed='true'] {
+  background: #ddf4ff;
+  color: #0969da;
+  box-shadow: inset 0 0 0 2px #1a73e8;
+}
+
+.toolbar-separator {
+  align-self: stretch;
+  width: 1px;
+  margin: 2px 4px;
+  background: #d0d7de;
+}
+
+.stroke-object {
+  position: absolute;
+  pointer-events: none;
+  outline: none;
+}
+
+.stroke-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.stroke-object:focus-visible .stroke-path {
+  filter: drop-shadow(0 0 2px #1a73e8);
+}
