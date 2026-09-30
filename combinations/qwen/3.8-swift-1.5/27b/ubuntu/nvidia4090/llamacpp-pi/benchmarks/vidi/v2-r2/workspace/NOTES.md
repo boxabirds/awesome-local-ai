@@ -188,3 +188,79 @@ proves binary sync works end-to-end under `wrangler dev`.
 - **TC-27 note positions**: notes are 200 world units square, centred on the
   click; the old 50px-apart coordinates landed on the previous note (select,
   not create), so fewer than 3 notes were made per side. Now 250px apart.
+
+---
+
+# Story 8: Undo and redo my own changes without undoing anyone else's
+
+## Summary
+Per-user undo/redo using Yjs `UndoManager` with `trackedOrigins: [LOCAL_ORIGIN]`.
+Only the local user's changes are tracked; remote peers' changes and the
+initial load are invisible to undo/redo. Gestures (drag, marquee) are wrapped
+in `boundary()` calls so a multi-frame drag is one undo step. Typing bursts
+are grouped by Yjs's `captureTimeout` (500 ms). History is session-only
+(destroyed on unmount) and capped at `UNDO_MAX_STEPS` (200).
+
+## Key decisions
+- **Origin filtering, not user filtering**: `trackedOrigins: [LOCAL_ORIGIN]`
+  means only transactions with the `'local'` origin are tracked. Remote peers
+  use their socket's origin (a unique string), and the initial load uses
+  `'load'`. This is simpler and more robust than filtering by user ID.
+- **`boundary()` = `stopCapturing()`**: Called at gesture start and end
+  (pointerdown/pointerup/pointercancel) and at edit session start/end
+  (StickyTextEditor mount/unmount). This ensures each gesture is exactly one
+  undo step regardless of how many Yjs transactions it produces.
+- **`captureTimeout` for typing**: Yjs's built-in `captureTimeout` (500 ms)
+  groups rapid keystrokes into one step. No explicit `boundary()` calls are
+  needed between keystrokes — only at edit session start/end.
+- **Session-only history**: The `UndoManager` is created per `Y.Doc` instance
+  and destroyed on component unmount. No persistence — a page reload starts
+  with empty undo/redo stacks.
+- **`maxSteps` trimming**: Yjs's `UndoManager` automatically trims the stack
+  from the front when it exceeds `maxSteps` (200). No custom trimming logic
+  needed.
+- **Yjs `captureTimeout` uses `Date.now` at module load time**: `lib0/time.js`
+  captures `Date.now` as a constant at import time, so `vi.useFakeTimers()`
+  does NOT affect the internal timeout comparison. Unit tests use extreme
+  `captureTimeoutMs` values (0 or 10 000) instead of fake timers.
+
+## E2E test notes
+- **Capture timeout merging in e2e**: `seedNotes` creates notes via the test
+  hook (which uses `LOCAL_ORIGIN`). If the subsequent delete happens within
+  500 ms, Yjs merges them into one undo step. E2E tests add a 600 ms delay
+  after seeding to ensure the creates are a separate step from the delete.
+- **Viewport constraints**: Notes must be positioned within the browser
+  viewport (typically 1280×720) for marquee selection and drag to work.
+  TC-22 uses a 4×2 grid; TC-24 uses a row of 5 notes at 200 px spacing.
+
+## Test coverage
+
+| Suite | Tests | Status |
+|-------|-------|--------|
+| Unit (undo-history TC-01–11) | 11 | ✅ Pass |
+| Unit (undo-boundaries TC-12–13) | 4 | ✅ Pass |
+| Component (UndoBoundaries TC-14–17) | 4 | ✅ Pass |
+| Component (UndoControls TC-18–21) | 4 | ✅ Pass |
+| E2E (undo TC-22–24) | 3 | ✅ Pass |
+
+## Files created/modified
+
+### New files
+- `src/client/board/undo.ts` — `createUndo()` factory + `UndoController` type
+- `src/client/board/useUndo.ts` — React hook for undo/redo state
+- `src/client/board/UndoButtons.tsx` — Undo/redo toolbar buttons
+- `tests/unit/undo-history.test.ts` — TC-01 to TC-11
+- `tests/unit/undo-boundaries.test.ts` — TC-12 to TC-13
+- `tests/component/UndoBoundaries.test.tsx` — TC-14 to TC-17
+- `tests/component/UndoControls.test.tsx` — TC-18 to TC-21
+- `tests/e2e/undo.spec.ts` — TC-22 to TC-24
+
+### Modified files
+- `src/shared/config.ts` — Added `UNDO_CAPTURE_TIMEOUT_MS`, `UNDO_MAX_STEPS`
+- `src/client/board/Board.tsx` — Creates `UndoController`, wires `boundary()` to gestures
+- `src/client/board/Toolbar.tsx` — Added undo/redo button props
+- `src/client/board/useBoardKeys.ts` — Added Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y shortcuts
+- `src/client/objects/StickyTextEditor.tsx` — Added `boundary` + `undoController` props
+- `src/client/objects/StickyNote.tsx` — Passes `boundary` + `undoController` through
+- `src/client/objects/registry.tsx` — Added `boundary?` + `undoController?` to `ObjectProps`
+

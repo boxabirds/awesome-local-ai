@@ -22,6 +22,10 @@ export interface ObjectProps {
   onPointerDown(e: React.PointerEvent, id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(): void;
+  /** Story 8: close the undo capture window. */
+  boundary?: () => void;
+  /** Story 8: undo controller for in-editor shortcuts. */
+  undoController?: { undo(): boolean };
 }
 
 /**

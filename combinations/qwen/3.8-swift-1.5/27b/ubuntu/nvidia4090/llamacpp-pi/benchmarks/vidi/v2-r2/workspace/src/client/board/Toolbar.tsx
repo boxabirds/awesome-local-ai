@@ -2,6 +2,10 @@ interface ToolbarProps {
   onCreateSticky(): void;
   /** When true the Sticky note button is disabled (board cannot be loaded). */
   disabled?: boolean;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 /**
@@ -9,7 +13,7 @@ interface ToolbarProps {
  * of the visible board area (see App). Clicks stop propagation so the
  * viewport never pans or clears the selection.
  */
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled = false, canUndo, canRedo, onUndo, onRedo }: ToolbarProps) {
   return (
     <div
       data-testid="toolbar"
@@ -59,6 +63,61 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
           <line x1="4" y1="12" x2="10" y2="12" stroke="#8a6d1a" strokeWidth="1" />
         </svg>
       </button>
+      {onUndo && onRedo && (
+        <>
+          <div style={{ height: 1, background: 'rgba(0,0,0,0.15)', margin: '0 4px' }} />
+          <button
+            type="button"
+            aria-label="Undo"
+            title="Undo (Ctrl/Cmd+Z)"
+            disabled={!canUndo}
+            onClick={onUndo}
+            style={{
+              width: 36,
+              height: 36,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid rgba(0,0,0,0.15)',
+              borderRadius: 6,
+              background: canUndo ? '#fff' : '#E5E7EB',
+              cursor: canUndo ? 'pointer' : 'not-allowed',
+              boxShadow: canUndo ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
+              opacity: canUndo ? 1 : 0.6,
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M7 5L3 9l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M3 9h8a4 4 0 0 1 0 8H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            aria-label="Redo"
+            title="Redo (Ctrl/Cmd+Shift+Z)"
+            disabled={!canRedo}
+            onClick={onRedo}
+            style={{
+              width: 36,
+              height: 36,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid rgba(0,0,0,0.15)',
+              borderRadius: 6,
+              background: canRedo ? '#fff' : '#E5E7EB',
+              cursor: canRedo ? 'pointer' : 'not-allowed',
+              boxShadow: canRedo ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
+              opacity: canRedo ? 1 : 0.6,
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M11 5l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M15 9H7a4 4 0 0 0 0 8h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -8,6 +8,10 @@ interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
   onEnd(next: 'selected' | 'unselected'): void;
+  /** Called on edit start and end to close the undo capture window. */
+  boundary?: () => void;
+  /** Undo controller for handling Ctrl/Cmd+Z inside the editor. */
+  undoController?: { undo(): boolean };
 }
 
 /**
@@ -23,14 +27,20 @@ interface StickyTextEditorProps {
  * - Enter inserts a new line (default textarea behaviour).
  * - The counter shows `n/1000` only within 50 chars of the limit.
  */
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
+export function StickyTextEditor({ ytext, fontPx, onEnd, boundary, undoController }: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
+  const boundaryRef = useRef(boundary);
+  boundaryRef.current = boundary;
+  const undoControllerRef = useRef(undoController);
+  undoControllerRef.current = undoController;
 
-  // Mount: focus and put the caret at the end of the text.
+  // Mount: focus, put the caret at the end of the text, and call boundary()
+  // to close any prior capture window (edit start = new undo step boundary).
   useEffect(() => {
+    boundaryRef.current?.();
     const el = ref.current;
     if (!el) return;
     el.focus();
@@ -77,6 +87,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     const handler = (e: PointerEvent) => {
       const el = ref.current;
       if (el && e.target instanceof Node && el.contains(e.target)) return;
+      boundaryRef.current?.();
       onEndRef.current('unselected');
     };
     window.addEventListener('pointerdown', handler, true);
@@ -115,7 +126,25 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Escape') {
       e.preventDefault();
+      boundaryRef.current?.();
       onEndRef.current('selected');
+      return;
+    }
+    // Intercept Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z / Ctrl+Y inside the editor
+    // so the browser's native textarea undo never diverges from Y.Text.
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+      e.preventDefault();
+      undoControllerRef.current?.undo();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Z') {
+      e.preventDefault();
+      // Redo is not handled inside the editor; fall through to board keys.
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+      e.preventDefault();
+      return;
     }
     // Enter: default behaviour inserts a newline.
   };
@@ -126,6 +155,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     if (el && !composingRef.current && el.value !== ytext.toString()) {
       syncToDoc(el);
     }
+    boundaryRef.current?.();
   };
 
   const length = ytext.length;

@@ -30,6 +30,8 @@ export function StickyNote({
   onPointerDown,
   onStartEdit,
   onEndEdit,
+  boundary,
+  undoController,
 }: ObjectProps) {
   const note = obj as StickySnapshot;
   const noteElRef = useRef<HTMLDivElement>(null);
@@ -102,7 +104,7 @@ export function StickyNote({
       onKeyDown={handleKeyDown}
     >
       {editing && ytext ? (
-        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} />
+        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} boundary={boundary} undoController={undoController} />
       ) : (
         <>
           <div

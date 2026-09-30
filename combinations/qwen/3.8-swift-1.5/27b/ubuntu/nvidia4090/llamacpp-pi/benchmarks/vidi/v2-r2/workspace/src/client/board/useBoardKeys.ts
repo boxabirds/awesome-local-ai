@@ -10,6 +10,7 @@ import {
 import { getObjectType } from '../objects/registry';
 import type { Selection } from './useSelection';
 import type { Point } from '../canvas/camera';
+import type { UndoController } from './undo';
 
 /**
  * Board keyboard shortcuts (story 7, sel.keys), active when not editing and
@@ -30,14 +31,15 @@ export function useBoardKeys(opts: {
   selection: Selection;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  undoController?: UndoController;
 }): void {
-  const { doc, selection, snapshot, canEdit } = opts;
-  const stateRef = useRef({ doc, selection, snapshot, canEdit });
-  stateRef.current = { doc, selection, snapshot, canEdit };
+  const { doc, selection, snapshot, canEdit, undoController } = opts;
+  const stateRef = useRef({ doc, selection, snapshot, canEdit, undoController });
+  stateRef.current = { doc, selection, snapshot, canEdit, undoController };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const { doc: d, selection: sel, snapshot: snap, canEdit: editable } = stateRef.current;
+      const { doc: d, selection: sel, snapshot: snap, canEdit: editable, undoController: uc } = stateRef.current;
 
       // Never hijack keys while editing text (board-level or page-level).
       if (sel.editingId !== null) return;
@@ -47,6 +49,28 @@ export function useBoardKeys(opts: {
         target instanceof HTMLTextAreaElement ||
         (target instanceof HTMLElement && target.isContentEditable)
       ) {
+        return;
+      }
+
+      // Undo: Ctrl/Cmd+Z
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        if (!editable || !uc) return;
+        e.preventDefault();
+        uc.undo();
+        return;
+      }
+
+      // Redo: Ctrl/Cmd+Shift+Z or Ctrl+Y
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        if (!editable || !uc) return;
+        e.preventDefault();
+        uc.redo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
+        if (!editable || !uc) return;
+        e.preventDefault();
+        uc.redo();
         return;
       }
 

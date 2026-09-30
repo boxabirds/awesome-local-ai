@@ -17,6 +17,8 @@ import { getObjectType } from '../objects/registry';
 import { createSticky, deleteObjects, objectSnapshot, snapshot } from '../../shared/board-model';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit, type ConnectionState } from '../sync/connectBoard';
+import { createUndo, type UndoController } from './undo';
+import { useUndo } from './useUndo';
 import type { StickyColor } from '../../shared/config';
 
 declare global {
@@ -64,6 +66,20 @@ export function Board({ boardId }: { boardId: string }) {
   const { doc, objects, connectionState } = useBoardDoc(boardId);
   const selection = useSelection(objects);
 
+  // Story 8: one undo controller per board doc; destroyed on board change/unmount.
+  const undoRef = useRef<UndoController | null>(null);
+  if (undoRef.current === null) {
+    undoRef.current = createUndo(doc);
+  }
+  // Destroy and recreate when doc changes (board change).
+  useEffect(() => {
+    return () => {
+      undoRef.current?.destroy();
+      undoRef.current = null;
+    };
+  }, [doc]);
+  const undoController = undoRef.current;
+
   const [isPanning, setIsPanning] = useState(false);
 
   const handlePointerDown = (p: { x: number; y: number }) => {
@@ -87,6 +103,9 @@ export function Board({ boardId }: { boardId: string }) {
   // are re-sent on reconnect.
   const editable = canEdit(connectionState);
 
+  // Story 8: undo/redo binding.
+  const { canUndo, canRedo, undo, redo } = useUndo(undoController, editable);
+
   // Shared move/resize gesture for the selection.
   const gesture = useTransformGesture({
     doc,
@@ -94,6 +113,8 @@ export function Board({ boardId }: { boardId: string }) {
     selection,
     snapshot: objects,
     canEdit: editable,
+    onGestureStart: () => undoController.boundary(),
+    onGestureEnd: () => undoController.boundary(),
   });
 
   // Marquee: Shift + drag on empty space select-adds fully-contained objects.
@@ -108,8 +129,8 @@ export function Board({ boardId }: { boardId: string }) {
     return () => window.removeEventListener('keydown', handler);
   }, [marquee]);
 
-  // Keyboard: select-all, clear, nudge, delete, enter-to-edit.
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  // Keyboard: select-all, clear, nudge, delete, enter-to-edit, undo/redo.
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undoController });
 
   // Create a sticky note centred on a viewport point; select and edit it.
   const createStickyAtScreenPoint = useCallback(
@@ -193,6 +214,8 @@ export function Board({ boardId }: { boardId: string }) {
                 onPointerDown={gesture.onObjectPointerDown}
                 onStartEdit={selection.startEdit}
                 onEndEdit={() => selection.endEdit()}
+                boundary={() => undoController.boundary()}
+                undoController={undoController}
               />
             );
           })}
@@ -210,7 +233,14 @@ export function Board({ boardId }: { boardId: string }) {
         doc={doc}
         onDelete={deleteSelection}
       />
-      <Toolbar onCreateSticky={createStickyAtCentre} disabled={!editable} />
+      <Toolbar
+        onCreateSticky={createStickyAtCentre}
+        disabled={!editable}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
