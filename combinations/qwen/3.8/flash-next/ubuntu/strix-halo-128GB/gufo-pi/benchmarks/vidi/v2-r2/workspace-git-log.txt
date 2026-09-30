@@ -1,3 +1,32 @@
+commit 1b1ef89bd8d50a81043222bdd8071cf17ed7b5e5
+vidi-agent  Wed Sep 30 10:55:20 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ src/client/App.tsx                               |  28 +-
+ src/client/board/Toolbar.tsx                     |   4 +-
+ src/client/objects/NoteLayer.tsx                 |   3 +
+ src/client/objects/StickyNote.tsx                |   9 +-
+ src/client/styles.css                            |   5 +
+ src/client/sync/ConnectionStatus.tsx             |   8 +
+ src/client/sync/connectBoard.ts                  | 117 +++++--
+ src/shared/config.ts                             |   9 +
+ src/shared/protocol.ts                           |   6 +
+ src/worker/board-room.ts                         | 372 ++++++++++++++++++-----
+ src/worker/board-store.ts                        | 323 ++++++++++++++++++++
+ src/worker/index.ts                              |  43 +++
+ src/worker/room-state.ts                         |  92 ++++++
+ tests/component/LoadFailed.test.tsx              | 154 ++++++++++
+ tests/e2e/broken-board.spec.ts                   |  90 ++++++
+ tests/e2e/helpers/wrangler-process.ts            | 141 +++++++++
+ tests/e2e/persistence.spec.ts                    | 191 ++++++++++++
+ tests/fixtures/boards.ts                         | 153 ++++++++++
+ tests/integration/board-room-persistence.test.ts | 302 ++++++++++++++++++
+ tests/integration/board-store.test.ts            | 367 ++++++++++++++++++++++
+ tests/unit/board-store-chunks.test.ts            |  61 ++++
+ tests/unit/room-state.test.ts                    |  91 ++++++
+ 22 files changed, 2458 insertions(+), 111 deletions(-)
 commit c1865087e3ea46472a1a7c9217d7adda1740e541
 vidi-agent  Wed Sep 30 08:52:10 2026 +0000
 
