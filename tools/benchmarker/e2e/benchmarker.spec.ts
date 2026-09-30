@@ -80,7 +80,10 @@ test("tokens and tok/s per run, and per story on click", async ({ page }) => {
   await expect(detail.locator("tbody tr").first()).toContainText("55,968");
   await expect(detail.locator("tbody tr").first()).toContainText("73.6");  // tok/s: out ÷ story time
   await expect(detail.locator("tbody tr").first()).toContainText("98.9");  // decode tok/s, where the model was timed
-  await expect(detail.locator("thead")).toContainText("Flows now"); // against the latest build, like the squares
+  await expect(detail.locator("thead")).toContainText("Held-out passing (latest build)"); // like the squares
+  // A long story name wraps to three lines before it is cut.
+  const name = detail.locator("tbody td.story-name").first();
+  expect(await name.evaluate((el) => getComputedStyle(el).whiteSpace)).not.toBe("nowrap");
   await r.locator("td").first().click();
   await expect(detail).toHaveCount(0);
 });
@@ -200,4 +203,27 @@ test("a tab left in the background is not called stale, and is current as soon a
   await page.clock.fastForward(1_000);
   await refetched; // shown: it fetches at once rather than waiting for the next poll
   await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("by story: pick a story, every job's numbers for it side by side, and one job as the comparison", async ({ page }) => {
+  await page.getByRole("button", { name: "By story" }).click();
+  await page.getByRole("button", { name: /^1\. / }).click();
+  const table = page.getByRole("table", { name: "Story 1 by job" });
+  const swift = table.locator(`tr[data-stack="${SWIFT}"][data-run="v2-r1"]`);
+  const opus = table.locator(`tr[data-stack="reference/opus-5.5"][data-run="run-9"]`);
+  await expect(swift).toContainText("12");        // agent minutes: 720 s
+  await expect(swift).toContainText("95");        // calls
+  await expect(opus).toContainText("20");
+  await opus.click();
+  await expect(opus).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("button", { name: "Set as comparison job" }).click();
+  await expect(opus).toHaveAttribute("data-comparison", "true");
+  await expect(opus.locator("td.calls")).toHaveText("20");       // the comparison keeps its own numbers
+  await expect(swift.locator("td.calls")).toHaveText("475%");    // 95 calls against 20
+  await expect(swift.locator("td.minutes")).toHaveText("150%");  // 12 min against 8
+  // Where the comparison's value is 0 or missing a percentage means nothing: the job's own number shows.
+  await expect(swift.locator("td.compactions")).toHaveText("1");
+  await expect(swift.locator("td.decode")).toHaveText("101.4");
+  await page.getByRole("button", { name: "Clear comparison" }).click();
+  await expect(swift.locator("td.calls")).toHaveText("95");
 });

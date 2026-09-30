@@ -346,6 +346,7 @@ describe("tokens and speed", () => {
     expect(st.usage).toMatchObject({ outTokens: 55968, inTokens: 45179, cacheRead: 1000, calls: 100, agentSeconds: 600 });
     expect(st.usage!.decodeTokS).toBeCloseTo(98.9, 1);
     expect(st.usage!.draftAcceptance).toBe(0.85);
+    expect(storyEntry("3", { agent: { compactions: 2, nudges: 1, tokens: {} } }).usage).toMatchObject({ compactions: 2, nudges: 1 });
   });
 
   it("read is everything the model read: fresh input plus cache reads and writes, however the client splits it", () => {

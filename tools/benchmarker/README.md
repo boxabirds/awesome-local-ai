@@ -43,9 +43,18 @@ job (from before dbench, or aged out) goes under the node another run on the sam
 
 ## Per-story detail
 
-Click a run (its first cell) to open one line per recorded story: flows passing now (against the latest
-build, like the squares), agent minutes, calls, output tokens, read tokens and the cached share, tok/s (output over
+Click a run (its first cell) to open one line per recorded story: held-out tests passing on the latest
+build (like the squares), agent minutes, calls, output tokens, read tokens and the cached share, tok/s (output over
 story time), the model-only decode and prefill tok/s where timed, and how many drafted tokens the model accepted.
+
+## By story
+
+**By story** in the header turns the page round: the stories on the left, and for the one picked, a row
+per job with that story's numbers side by side: held-out tests passing on the job's latest build, agent
+minutes, calls, output and read tokens, tok/s, decode tok/s, compactions and nudges. Click a row to
+select it, then **Set as comparison job**: every other job's numbers become a percentage of that job's
+(its own row stays in full; where its number is 0 or missing, each job shows its own). The view, the
+story and the comparison are remembered in the browser.
 
 ## Filters
 
