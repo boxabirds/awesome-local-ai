@@ -334,7 +334,7 @@ def checks(o: Observed) -> list[Check]:
     add("`ps` shows nothing of the sandbox, the job runner or the harness", not _no((*(w.lower() for w in SANDBOX_WORDS), RUN_NAME.lower(), "bench"), ps), ps)
     if not mac:
         add("process 1 is `init` and nothing is behind its name", out.get("ps_pid1", "").strip() == "init", out.get("ps_pid1", ""))
-    add("it can serve on its own port", out.get("own_port", "").strip() == "served", out.get("own_port", ""))
+    add("it can serve on its own port", out.get("own_port", "").strip().endswith("served"), out.get("own_port", ""))     # node may warn first
     if mac:
         add("on macOS it cannot serve on a port it was not given", "EPERM" in out.get("foreign_port", ""), out.get("foreign_port", ""))
     group[0] = "privileges"
