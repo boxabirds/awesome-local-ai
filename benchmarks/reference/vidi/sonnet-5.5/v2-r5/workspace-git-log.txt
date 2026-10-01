@@ -1,3 +1,42 @@
+commit 332952fbeea6f76f48c4cc4696754bba3cfabc43
+vidi-agent  Thu Oct 1 13:17:43 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                  |   12 +
+ package-lock.json                         | 1368 +++++++++++++++++++++++++++++
+ package.json                              |   13 +-
+ src/client/App.tsx                        |   25 +-
+ src/client/board/useBoardDoc.ts           |   17 +-
+ src/client/canvas/testHooks.ts            |    1 +
+ src/client/objects/StickyTextEditor.tsx   |   29 +-
+ src/client/styles.css                     |   15 +
+ src/client/sync/ConnectionStatus.tsx      |   16 +
+ src/client/sync/connectBoard.ts           |   67 ++
+ src/shared/board-id.ts                    |   13 +
+ src/shared/config.ts                      |    7 +
+ src/shared/protocol.ts                    |   37 +
+ src/worker/board-room.ts                  |  108 +++
+ src/worker/index.ts                       |   23 +
+ tests/component/ConnectionStatus.test.tsx |   97 ++
+ tests/component/setup.ts                  |   20 +
+ tests/e2e/helpers/participants.ts         |   78 ++
+ tests/e2e/live-collaboration.spec.ts      |  179 ++++
+ tests/e2e/live-nightly.spec.ts            |   84 ++
+ tests/integration/board-room.test.ts      |  226 +++++
+ tests/integration/env.d.ts                |    6 +
+ tests/integration/helpers/random-ops.ts   |   42 +
+ tests/integration/helpers/ws-client.ts    |  126 +++
+ tests/integration/worker.test.ts          |   62 ++
+ tests/unit/board-id.test.ts               |   23 +
+ tests/unit/protocol.test.ts               |   35 +
+ tsconfig.json                             |   22 +-
+ tsconfig.worker.json                      |   25 +
+ vitest.config.ts                          |    2 +
+ vitest.integration.config.ts              |   13 +
+ wrangler.jsonc                            |   10 +-
+ 32 files changed, 2785 insertions(+), 16 deletions(-)
 commit 7025c2366740eeba9100c48d07d71544486fbc87
 vidi-agent  Thu Oct 1 13:04:32 2026 +0100
 
