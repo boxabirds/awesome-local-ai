@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 10:27 UTC
+**Last updated:** 2026-10-01 10:56 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -99,6 +99,16 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 
 ## Open — being watched
 
+### A-027 — Watch: the first job to run the harness from a release (not an anomaly yet)
+- **Opened:** 2026-10-01 10:55, at the owner's request.
+- **Where:** the RTX 4090 machine: Swift 1.5 v2-r5, queued behind v2-r4 (on story 8 at 10:52). Release
+  `harness-v2026.10.01.1` (tag on `ed7e0cc6`, CI green). The other three machines still run from the
+  checkout.
+- **To check when it starts:** the hold releases after v2-r4 ends; the job is not refused; preflight and
+  self-test pass; no restart; its run directory and records reach origin/main as usual; `run.json` and
+  each story's provenance carry `harness_release: harness-v2026.10.01.1`.
+- **Bucket:** none yet. **Status:** waiting for v2-r4 to end.
+
 ### A-012 — Every held-out test fails for several stories in a row (Swift 1.5, v2-r4 stories 2–4)
 - **First seen:** 2026-09-29 (v2-r1) · **Last seen:** 2026-10-01 08:41 (v2-r4 story 4)
 - **Where:** qwen 3.8 Swift 1.5 27B, llamacpp-pi, the RTX 4090 machine. v2-r4: story 2 0/20, story 3 0/27,
@@ -174,6 +184,9 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   with the model server holding most of the memory: that is the likely trigger. At 10:25 the machine had
   3.9 GB of swap in use and 94% of memory free (model not yet reloaded), so the new attempt starts from a
   higher swap baseline.
+- **Note 2026-10-01 10:52:** story 11 finished on attempt 3 (98 agent-min over both attempts, one nudge,
+  with the new wording, then a commit): gate green, 64/70 overall, but 1/5 of its own held-out tests
+  against 5/5 in v2-r1. Whether the interruption cost it those tests can't be told from one peer.
 - **Suggested action:** if it stops a third time the job fails with no restarts left: resubmit by hand.
   Consider capping the browsers' workers for this stack's memory, or counting a guard stop as a wait.
 
@@ -216,6 +229,11 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Bucket:** internal bug — **confidence medium**. Story 4: the between-sessions time looks counted
   inside the agent's seconds for a restarted story as well as beside them. Story 9: an earlier attempt's
   unfinished call is attributed to the later attempt too (`attempts.py` / `accounting.py`).
+- **Note 2026-10-01 10:52 (recurred):** story 11, restarted after the second swap-guard stop (A-005), fails
+  the check the same way as story 9: the killed tool call is "never ended" in attempt 1 and in attempt 2
+  under one call id. The profile then reports that call as the longest tool (1460 s, spanning the time the
+  harness was down) and raises `hung-command`, which is false here. The run's `interventions.md` lists
+  neither swap-guard stop nor the restarts, although it is meant to list every intervention.
 - **Status:** watching; a backfill after the run ends may clear stories 1–4.
 - **Suggested action:** after the run, run the backfill with `--recompute` and see whether 4 and 9 still
   fail; if 9 does, the call belongs to attempt 1 only.
