@@ -539,24 +539,32 @@
           "decode_s": 1742.9,
           "decode_tokens": 103365,
           "decode_tok_s": 59.3,
-          "cached_tokens": 6223844
+          "cached_tokens": 6223844,
+          "draft_acceptance": 0.724,
+          "mean_accepted_len": 3.16
         },
         "tools_s": 625.1,
         "tools_by_kind": {
           "e2e": 520.3,
           "bash": 59.4,
           "build": 38.1,
-          "unit": 7.2
+          "unit": 7.2,
+          "edit": 0.0,
+          "write": 0.0,
+          "read": 0.0
         },
         "compaction_s": 102.9,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 4.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -701,12 +709,11 @@
         "commit": "e2a8f918"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 116,
         "tool_calls": 116,
+        "thinking_visible": true,
         "thinking_chars": 205043,
-        "text_chars": 3067,
-        "tool_arg_chars": 151456,
         "thinking_median": 275,
         "thinking_median_before": 178,
         "thinking_median_after": 286,
@@ -715,6 +722,11 @@
           "call": 36,
           "at_s": 645.3
         },
+        "text_chars": 3067,
+        "tool_arg_chars": 151456,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2093,
         "context_end": 58075,
         "largest_context_jump": {
@@ -733,7 +745,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace && npx playwri"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "ea82b135",
+        "pack_version": "vidi-v2.0-pre1",
+        "run_started_at": "2026-09-29T20:17:58Z",
+        "source": "run-history"
       }
     },
     "2": {
@@ -1453,24 +1472,32 @@
           "decode_s": 2502.5,
           "decode_tokens": 120732,
           "decode_tok_s": 48.2,
-          "cached_tokens": 7546087
+          "cached_tokens": 7546087,
+          "draft_acceptance": 0.714,
+          "mean_accepted_len": 2.93
         },
         "tools_s": 65.9,
         "tools_by_kind": {
           "e2e": 35.2,
           "unit": 22.7,
           "build": 7.0,
-          "bash": 0.9
+          "bash": 0.9,
+          "read": 0.0,
+          "edit": 0.0,
+          "write": 0.0
         },
         "compaction_s": 108.9,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 4.7,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -1634,12 +1661,11 @@
         "commit": "f2ab33d5"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 114,
         "tool_calls": 128,
+        "thinking_visible": true,
         "thinking_chars": 281201,
-        "text_chars": 9027,
-        "tool_arg_chars": 142425,
         "thinking_median": 341,
         "thinking_median_before": 127,
         "thinking_median_after": 379,
@@ -1648,6 +1674,11 @@
           "call": 11,
           "at_s": 477.0
         },
+        "text_chars": 9027,
+        "tool_arg_chars": 142425,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2107,
         "context_end": 97247,
         "largest_context_jump": {
@@ -1666,7 +1697,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace && npm run tes"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "ea82b135",
+        "pack_version": "vidi-v2.0-pre1",
+        "run_started_at": "2026-09-29T20:17:58Z",
+        "source": "run-history"
       }
     },
     "3": {
@@ -3452,7 +3490,9 @@
           "decode_s": 5937.5,
           "decode_tokens": 336341,
           "decode_tok_s": 56.6,
-          "cached_tokens": 29508399
+          "cached_tokens": 29508399,
+          "draft_acceptance": 0.67,
+          "mean_accepted_len": 2.98
         },
         "tools_s": 2299.9,
         "tools_by_kind": {
@@ -3460,17 +3500,22 @@
           "unit": 199.7,
           "bash": 48.6,
           "build": 11.5,
-          "edit": 0.1
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 632.9,
         "compactions": 5,
         "between_sessions_s": 0.0,
         "other_s": 17.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -3639,12 +3684,11 @@
         "commit": "face84c6"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 438,
         "tool_calls": 446,
+        "thinking_visible": true,
         "thinking_chars": 661654,
-        "text_chars": 2243,
-        "tool_arg_chars": 526257,
         "thinking_median": 467,
         "thinking_median_before": 152,
         "thinking_median_after": 491,
@@ -3653,6 +3697,11 @@
           "call": 16,
           "at_s": 276.7
         },
+        "text_chars": 2243,
+        "tool_arg_chars": 526257,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2120,
         "context_end": 94999,
         "largest_context_jump": {
@@ -3671,7 +3720,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace && timeout 300"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "ea82b135",
+        "pack_version": "vidi-v2.0-pre1",
+        "run_started_at": "2026-09-29T20:17:58Z",
+        "source": "run-history"
       }
     },
     "4": {
@@ -5058,7 +5114,9 @@
           "decode_s": 5128.3,
           "decode_tokens": 273658,
           "decode_tok_s": 53.4,
-          "cached_tokens": 18879587
+          "cached_tokens": 18879587,
+          "draft_acceptance": 0.683,
+          "mean_accepted_len": 2.72
         },
         "tools_s": 876.2,
         "tools_by_kind": {
@@ -5066,17 +5124,22 @@
           "e2e": 281.4,
           "unit": 192.8,
           "build": 16.3,
-          "edit": 0.1
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 415.3,
         "compactions": 4,
         "between_sessions_s": 0.0,
         "other_s": 11.2,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -5242,12 +5305,11 @@
         "commit": "404054c5"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 287,
         "tool_calls": 298,
+        "thinking_visible": true,
         "thinking_chars": 569156,
-        "text_chars": 3790,
-        "tool_arg_chars": 417954,
         "thinking_median": 570,
         "thinking_median_before": 205,
         "thinking_median_after": 607,
@@ -5256,6 +5318,11 @@
           "call": 24,
           "at_s": 433.7
         },
+        "text_chars": 3790,
+        "tool_arg_chars": 417954,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2117,
         "context_end": 101355,
         "largest_context_jump": {
@@ -5274,7 +5341,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace && sed -i '' '"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "ea82b135",
+        "pack_version": "vidi-v2.0-pre1",
+        "run_started_at": "2026-09-29T20:17:58Z",
+        "source": "run-history"
       }
     },
     "5": {
@@ -6173,24 +6247,31 @@
           "decode_s": 2887.2,
           "decode_tokens": 155103,
           "decode_tok_s": 53.7,
-          "cached_tokens": 13013434
+          "cached_tokens": 13013434,
+          "draft_acceptance": 0.672,
+          "mean_accepted_len": 2.92
         },
         "tools_s": 41.5,
         "tools_by_kind": {
           "unit": 33.5,
           "build": 6.6,
           "bash": 1.2,
-          "edit": 0.1
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 442.6,
         "compactions": 3,
         "between_sessions_s": 0.0,
         "other_s": 7.5,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -6329,12 +6410,11 @@
         "commit": "6d6d175d"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 201,
         "tool_calls": 221,
+        "thinking_visible": true,
         "thinking_chars": 375076,
-        "text_chars": 4506,
-        "tool_arg_chars": 186764,
         "thinking_median": 472,
         "thinking_median_before": 160,
         "thinking_median_after": 533,
@@ -6343,6 +6423,11 @@
           "call": 16,
           "at_s": 261.9
         },
+        "text_chars": 4506,
+        "tool_arg_chars": 186764,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2099,
         "context_end": 48325,
         "largest_context_jump": {
@@ -6361,7 +6446,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace && npx vitest "
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "ea82b135",
+        "pack_version": "vidi-v2.0-pre1",
+        "run_started_at": "2026-09-29T20:17:58Z",
+        "source": "run-history"
       }
     },
     "7": {
@@ -8038,7 +8130,9 @@
           "decode_s": 5808.1,
           "decode_tokens": 310010,
           "decode_tok_s": 53.4,
-          "cached_tokens": 20811853
+          "cached_tokens": 20811853,
+          "draft_acceptance": 0.693,
+          "mean_accepted_len": 2.99
         },
         "tools_s": 498.2,
         "tools_by_kind": {
@@ -8046,17 +8140,22 @@
           "unit": 46.2,
           "build": 16.4,
           "bash": 1.3,
-          "edit": 0.1
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 838.9,
         "compactions": 6,
         "between_sessions_s": 0.0,
         "other_s": 11.5,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -8270,12 +8369,11 @@
         "commit": "b25e52a7"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 320,
         "tool_calls": 319,
+        "thinking_visible": true,
         "thinking_chars": 613272,
-        "text_chars": 2453,
-        "tool_arg_chars": 471518,
         "thinking_median": 541,
         "thinking_median_before": 128,
         "thinking_median_after": 560,
@@ -8284,6 +8382,11 @@
           "call": 16,
           "at_s": 553.1
         },
+        "text_chars": 2453,
+        "tool_arg_chars": 471518,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2117,
         "context_end": 81332,
         "largest_context_jump": {
@@ -8302,7 +8405,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace && npx playwri"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "ea82b135",
+        "pack_version": "vidi-v2.0-pre1",
+        "run_started_at": "2026-09-29T20:17:58Z",
+        "source": "run-history"
       }
     },
     "8": {
@@ -9210,24 +9320,32 @@
           "decode_s": 3108.6,
           "decode_tokens": 157304,
           "decode_tok_s": 50.6,
-          "cached_tokens": 13135153
+          "cached_tokens": 13135153,
+          "draft_acceptance": 0.656,
+          "mean_accepted_len": 2.95
         },
         "tools_s": 119.3,
         "tools_by_kind": {
           "e2e": 80.8,
           "unit": 27.9,
           "build": 9.4,
-          "bash": 1.2
+          "bash": 1.2,
+          "edit": 0.0,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 177.7,
         "compactions": 2,
         "between_sessions_s": 0.0,
         "other_s": 7.9,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -9375,12 +9493,11 @@
         "commit": "0e60b64a"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 201,
         "tool_calls": 210,
+        "thinking_visible": true,
         "thinking_chars": 374334,
-        "text_chars": 9105,
-        "tool_arg_chars": 187206,
         "thinking_median": 509,
         "thinking_median_before": 192,
         "thinking_median_after": 577,
@@ -9389,6 +9506,11 @@
           "call": 21,
           "at_s": 261.2
         },
+        "text_chars": 9105,
+        "tool_arg_chars": 187206,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2137,
         "context_end": 110754,
         "largest_context_jump": {
@@ -9407,7 +9529,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace && CI=1 npx pl"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "ea82b135",
+        "pack_version": "vidi-v2.0-pre1",
+        "run_started_at": "2026-09-29T20:17:58Z",
+        "source": "run-history"
       }
     },
     "9": {
@@ -10655,7 +10784,9 @@
           "decode_s": 4192.0,
           "decode_tokens": 237121,
           "decode_tok_s": 56.6,
-          "cached_tokens": 19612235
+          "cached_tokens": 19612235,
+          "draft_acceptance": 0.697,
+          "mean_accepted_len": 2.93
         },
         "tools_s": 572.2,
         "tools_by_kind": {
@@ -10663,17 +10794,22 @@
           "unit": 50.2,
           "build": 12.4,
           "bash": 1.0,
-          "edit": 0.1
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 450.0,
         "compactions": 4,
         "between_sessions_s": 0.0,
         "other_s": 11.3,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -10855,12 +10991,11 @@
         "commit": "0d7bf3f0"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 303,
         "tool_calls": 315,
+        "thinking_visible": true,
         "thinking_chars": 415766,
-        "text_chars": 1831,
-        "tool_arg_chars": 429734,
         "thinking_median": 503,
         "thinking_median_before": 135,
         "thinking_median_after": 536,
@@ -10869,6 +11004,11 @@
           "call": 20,
           "at_s": 375.8
         },
+        "text_chars": 1831,
+        "tool_arg_chars": 429734,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2103,
         "context_end": 87503,
         "largest_context_jump": {
@@ -10887,7 +11027,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace && npx playwri"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "ea82b135",
+        "pack_version": "vidi-v2.0-pre1",
+        "run_started_at": "2026-09-29T20:17:58Z",
+        "source": "run-history"
       }
     },
     "10": {
@@ -12529,24 +12676,32 @@
           "decode_s": 5778.2,
           "decode_tokens": 319002,
           "decode_tok_s": 55.2,
-          "cached_tokens": 24619973
+          "cached_tokens": 24619973,
+          "draft_acceptance": 0.698,
+          "mean_accepted_len": 2.93
         },
         "tools_s": 395.7,
         "tools_by_kind": {
           "e2e": 259.1,
           "unit": 74.3,
           "build": 48.5,
-          "bash": 13.7
+          "bash": 13.7,
+          "read": 0.0,
+          "write": 0.0,
+          "edit": 0.0
         },
         "compaction_s": 650.3,
         "compactions": 6,
         "between_sessions_s": 0.0,
         "other_s": 13.2,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -12714,12 +12869,11 @@
         "commit": "a395719d"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 363,
         "tool_calls": 374,
+        "thinking_visible": true,
         "thinking_chars": 519973,
-        "text_chars": 2470,
-        "tool_arg_chars": 604773,
         "thinking_median": 529,
         "thinking_median_before": 205,
         "thinking_median_after": 574,
@@ -12728,6 +12882,11 @@
           "call": 28,
           "at_s": 468.0
         },
+        "text_chars": 2470,
+        "tool_arg_chars": 604773,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2134,
         "context_end": 104572,
         "largest_context_jump": {
@@ -12746,7 +12905,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace && timeout 180"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "ea82b135",
+        "pack_version": "vidi-v2.0-pre1",
+        "run_started_at": "2026-09-29T20:17:58Z",
+        "source": "run-history"
       }
     },
     "11": {
@@ -14296,7 +14462,9 @@
           "decode_s": 5102.2,
           "decode_tokens": 284795,
           "decode_tok_s": 55.8,
-          "cached_tokens": 25376643
+          "cached_tokens": 25376643,
+          "draft_acceptance": 0.691,
+          "mean_accepted_len": 2.82
         },
         "tools_s": 1017.3,
         "tools_by_kind": {
@@ -14305,17 +14473,21 @@
           "build": 14.0,
           "bash": 1.2,
           "edit": 0.1,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0
         },
         "compaction_s": 772.6,
         "compactions": 6,
         "between_sessions_s": 0.0,
         "other_s": 14.3,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -14437,12 +14609,11 @@
         "commit": "3ab74e80"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 373,
         "tool_calls": 398,
+        "thinking_visible": true,
         "thinking_chars": 512176,
-        "text_chars": 3001,
-        "tool_arg_chars": 481879,
         "thinking_median": 467,
         "thinking_median_before": 206,
         "thinking_median_after": 555,
@@ -14451,6 +14622,11 @@
           "call": 40,
           "at_s": 567.8
         },
+        "text_chars": 3001,
+        "tool_arg_chars": 481879,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2110,
         "context_end": 106457,
         "largest_context_jump": {
@@ -14469,7 +14645,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace && pkill -f wr"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "ea82b135",
+        "pack_version": "vidi-v2.0-pre1",
+        "run_started_at": "2026-09-29T20:17:58Z",
+        "source": "run-history"
       }
     },
     "12": {
@@ -15423,7 +15606,9 @@
           "decode_s": 2648.3,
           "decode_tokens": 146113,
           "decode_tok_s": 55.2,
-          "cached_tokens": 19653418
+          "cached_tokens": 19653418,
+          "draft_acceptance": 0.717,
+          "mean_accepted_len": 2.74
         },
         "tools_s": 149.9,
         "tools_by_kind": {
@@ -15432,17 +15617,21 @@
           "build": 15.6,
           "bash": 3.0,
           "read": 0.2,
-          "edit": 0.1
+          "edit": 0.1,
+          "write": 0.0
         },
         "compaction_s": 513.4,
         "compactions": 5,
         "between_sessions_s": 0.0,
         "other_s": 10.9,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -15611,12 +15800,11 @@
         "commit": "b87f5b5d"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 278,
         "tool_calls": 313,
+        "thinking_visible": true,
         "thinking_chars": 229397,
-        "text_chars": 4908,
-        "tool_arg_chars": 276363,
         "thinking_median": 286,
         "thinking_median_before": 257,
         "thinking_median_after": 308,
@@ -15625,6 +15813,11 @@
           "call": 134,
           "at_s": 1991.3
         },
+        "text_chars": 4908,
+        "tool_arg_chars": 276363,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2106,
         "context_end": 84929,
         "largest_context_jump": {
@@ -15643,7 +15836,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r1/workspace && timeout 580"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "ea82b135",
+        "pack_version": "vidi-v2.0-pre1",
+        "run_started_at": "2026-09-29T20:17:58Z",
+        "source": "run-history"
       }
     }
   },

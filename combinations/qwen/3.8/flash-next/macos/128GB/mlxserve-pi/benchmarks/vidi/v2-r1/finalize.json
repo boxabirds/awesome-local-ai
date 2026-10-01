@@ -5,5 +5,24 @@
   "bundle": "workspace.bundle",
   "rescore": "done",
   "reason": "",
-  "score": "66/75"
+  "score": "66/75",
+  "repair": {
+    "repaired": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ],
+    "left": {},
+    "accounting_version": 4,
+    "harness_commit": "89cc9ebd",
+    "at": "2026-10-01T15:18:43Z"
+  }
 }
