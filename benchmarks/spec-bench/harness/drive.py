@@ -46,17 +46,12 @@ import packdir
 import progress
 import provenance
 import publicise
-import roots
 from hostenv import IS_MAC, THERMAL_OK, mem_free_pct
 from clients import CLIENTS, PI_THINKING_LEVELS, empty_state
 
 HARNESS = Path(__file__).resolve().parent
-# Two roots (roots.py), the same checkout unless $SPEC_BENCH_RESULTS_ROOT says otherwise. REPO_ROOT is where results
-# live: run directories, the records committed and pushed, other runs' records, combination config. CODE_ROOT is
-# the tree this harness is in (a release's own directory on a benchmark node): only its own files are read there.
-REPO_ROOT = roots.RESULTS_ROOT
-CODE_ROOT = roots.CODE_ROOT
-BENCHMARKS = CODE_ROOT / "benchmarks"
+REPO_ROOT = HARNESS.parent.parent.parent       # benchmarks/spec-bench/harness -> repo
+BENCHMARKS = REPO_ROOT / "benchmarks"
 # drive.py's exit code when the machine lacks something the run needs (a browser, …). Distinct from a
 # crash (1) so a supervisor (dbench) stops instead of restarting into the same wall.
 EXIT_MISSING_RESOURCES = 3
@@ -69,10 +64,9 @@ PACK = PK.dir
 # folder per run), keys/ (grading keys), reference/ (imported builds and transcripts), series logs.
 BENCH_HOME = hostenv.bench_home()
 WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", BENCH_HOME / "work")).resolve()
-# Nothing the agent runs may read these: the harness + held-out suite and every run's records (both roots: the
-# results checkout, and the code's own directory when it is a release), the user's own agent
+# Nothing the agent runs may read these: the harness + held-out suite, the user's own agent
 # config/skills/sessions, and other runs' work directories (WORK_ROOT minus the agent's own).
-SANDBOX_DENY = [*dict.fromkeys([REPO_ROOT, CODE_ROOT]), *(Path.home() / p for p in
+SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
                 (".claude", ".agents", ".codex", ".config/opencode", ".local/share/opencode", ".mtplx",
                  ".dbench",
                  # the RTX 4090 machine's file share held a clone of this repo, reference builds and all (25 Sep 2026).
@@ -1716,12 +1710,6 @@ def story_time_split(rec: dict, events: Path, server_log: Path) -> dict:
     return split
 
 
-def harness_provenance(code_root: Path) -> dict:
-    """The harness this process loaded: its commit, whether it had uncommitted edits, and the release it is
-    (harness_release: the tag dbench materialised it from, None when it runs from a checkout)."""
-    return {**provenance.at_start(code_root), "harness_release": roots.release_tag(code_root)}
-
-
 def story_provenance(harness: dict, started_under: str, scored_under: str) -> dict:
     """What a story ran under: the harness this process loaded, and the pack version when it was scored; the pack
     version at the story's start too, when the pack's checkout moved while the story ran."""
@@ -1820,7 +1808,7 @@ def main() -> None:
         kill_strays(ws)
     derived("progress file", lambda: progress.write_progress(run, scope, stories, metrics, None), run=run)
     # Before any story is recorded: HEAD then is the harness this process loaded (the records move HEAD on).
-    harness = harness_provenance(CODE_ROOT)
+    harness = provenance.at_start(REPO_ROOT)
 
     for story in stories:
         sid = story["id"]
