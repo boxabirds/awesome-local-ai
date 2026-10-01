@@ -6,7 +6,7 @@ import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 import { connectBoard, type ConnectionState, type ProviderLike } from '../../src/client/sync/connectBoard';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { createSticky } from '../../src/shared/board-model';
-import { canEdit } from '../../src/client/App';
+import { canEdit } from '../../src/client/board/Board';
 import { Harness, newDoc } from './helpers';
 
 class FakeProvider implements ProviderLike {

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
-import { App } from '../../src/client/App';
+import { App } from './TestApp';
 import { snapshot } from '../../src/shared/board-model';
 import { OVER_LIMIT_TEXT } from '../fixtures/texts';
 import { Harness, newDoc } from './helpers';

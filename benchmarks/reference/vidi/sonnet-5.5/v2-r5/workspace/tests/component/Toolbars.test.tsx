@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { App } from '../../src/client/App';
+import { App } from './TestApp';
 import { STICKY_COLORS, STICKY_SIZE_WORLD } from '../../src/shared/config';
 import './helpers';
 

@@ -9,7 +9,7 @@ import {
 } from '../shared/protocol';
 import { BoardStore, LOAD_ORIGIN, type LoadResult } from './board-store';
 import { nextRoomState, type RoomLifecycle } from './room-state';
-import { corruptSnapshot, repairSnapshot } from './test-hooks';
+import { corruptSnapshot, repairSnapshot, unhex } from './test-hooks';
 import type { Env } from './index';
 
 const WS_OPEN = 1;
@@ -40,7 +40,7 @@ export class BoardRoom extends DurableObject<Env> {
     const doc = new Y.Doc();
     let result: LoadResult;
     try {
-      this.store.migrate();
+      if (this.store.hasTables()) this.store.migrate();
       result = this.store.load(doc);
     } catch (e) {
       result = { ok: false, reason: 'sql-error', error: e instanceof Error ? e.message : String(e) };
@@ -102,6 +102,20 @@ export class BoardRoom extends DurableObject<Env> {
     }
   }
 
+  private boardExists(): boolean {
+    try { return this.store.existsReadOnly(); } catch { return true; } // real storage trouble is reported by the load-failed path
+  }
+
+  /** RPC: creates the board's storage and records created_at once. */
+  initialize(): 'created' | 'exists' {
+    return this.store.initialize();
+  }
+
+  /** RPC: read-only existence check. */
+  exists(): boolean {
+    return this.store.existsReadOnly();
+  }
+
   async fetch(req: Request): Promise<Response> {
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Upgrade Required', { status: 426 });
@@ -111,6 +125,7 @@ export class BoardRoom extends DurableObject<Env> {
       this.transition({ type: 'connection', sinceLoadFailedMs: Date.now() - this.loadFailedAt });
       this.load();
     }
+    if (!this.boardExists()) return new Response('Not Found', { status: 404 });
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
@@ -179,8 +194,15 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   /** Test-only RPC; refuses unless the e2e worker was started with TEST_HOOKS=1. */
-  testHook(op: 'corrupt-snapshot' | 'repair'): string {
+  testHook(op: 'corrupt-snapshot' | 'repair' | 'seed-legacy', payload = ''): string {
     if (this.env.TEST_HOOKS !== '1') throw new Error('test hooks disabled');
+    if (op === 'seed-legacy') {
+      // A board from before story 5: saved updates and tables, but no created_at.
+      this.store.migrate();
+      for (const hex of payload.split(',').filter(Boolean)) this.store.append(unhex(hex));
+      this.load();
+      return 'seeded';
+    }
     if (op === 'corrupt-snapshot') {
       if (this.doc) this.store.compactIfNeeded(this.doc, true);
       const done = corruptSnapshot(this.ctx.storage);

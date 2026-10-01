@@ -10,14 +10,14 @@ import { WsClient, openSocket, settle, waitUntil } from './helpers/ws-client';
 const upgrade = { headers: { Upgrade: 'websocket' } };
 
 describe('worker entry (sync.worker_entry)', () => {
-  it('TC-04 invalid board id → 400 and the namespace is never touched', async () => {
+  it('TC-04 invalid board id → 404 and the namespace is never touched', async () => {
     const idFromName = vi.fn();
     const fakeEnv = { BOARD_ROOM: { idFromName, get: vi.fn() }, ASSETS: env.ASSETS } as never;
     const res = await worker.fetch(new Request('http://example.com/api/rooms/bad!id', upgrade), fakeEnv);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(idFromName).not.toHaveBeenCalled();
     const real = await SELF.fetch('http://example.com/api/rooms/bad!id', upgrade);
-    expect(real.status).toBe(400);
+    expect(real.status).toBe(404);
   });
 
   it('TC-05 valid id without Upgrade → 426', async () => {

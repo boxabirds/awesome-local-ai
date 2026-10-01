@@ -1,8 +1,8 @@
 import { mkdtempSync, rmSync } from 'node:fs';
+import { createBoardAt } from './helpers/create';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test, type Browser, type Page } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
 import { BOARD_LOAD_BUDGET_MS, E2E_EVENTUAL_TIMEOUT_MS, PERSIST_TESTED_NOTES } from '../../src/shared/config';
 import { PERSIST_PORT } from '../../playwright.persistence.config';
 import { buildLargeBoard } from '../fixtures/boards';
@@ -47,6 +47,7 @@ async function open(browser: Browser, boardId: string) {
 }
 
 async function waitConnected(page: Page): Promise<void> {
+  await expect(page.getByTestId('board-viewport')).toBeVisible(EVENTUALLY); // the page checks the link first (story 5)
   await expect(page.getByRole('status').filter({ hasText: /^(Connecting…|Reconnecting…|Connected)$/ }))
     .toHaveCount(0, EVENTUALLY);
 }
@@ -60,7 +61,7 @@ async function zoomOutTo(page: Page, zoom: number): Promise<void> {
 }
 
 test('TC-19 Overnight return: 25 varied notes are identical after a process restart', async ({ browser }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoardAt(server.baseURL);
   const { context, page } = await open(browser, boardId);
   await waitConnected(page);
   await zoomOutTo(page, 0.5);
@@ -99,7 +100,7 @@ test('TC-19 Overnight return: 25 varied notes are identical after a process rest
 });
 
 test('TC-20 Leave immediately: a change another person saw survives exit and restart', async ({ browser }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoardAt(server.baseURL);
   const alex = await open(browser, boardId);
   const sam = await open(browser, boardId);
   await Promise.all([waitConnected(alex.page), waitConnected(sam.page)]);
@@ -121,7 +122,7 @@ test('TC-20 Leave immediately: a change another person saw survives exit and res
 });
 
 test(`TC-21 Big board open: ${PERSIST_TESTED_NOTES} notes all render (time logged against budget)`, async ({ browser }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoardAt(server.baseURL);
   // One update per write: the room compacts several times and a restart loads snapshot + log.
   await seedBoard(server.baseURL, boardId, (doc) => { buildLargeBoard(PERSIST_TESTED_NOTES, doc, { perNote: true }); });
   await server.restart();

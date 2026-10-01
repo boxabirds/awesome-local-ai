@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { App } from './TestApp';
 import { BoardViewport } from '../../src/client/canvas/BoardViewport';
 import type { Camera } from '../../src/client/canvas/camera';
 import type { CameraApi } from '../../src/client/canvas/useCamera';

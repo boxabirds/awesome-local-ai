@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { App } from './TestApp';
 import { createSticky, deleteObject, getStickyText, snapshot } from '../../src/shared/board-model';
 import { Harness, newDoc } from './helpers';
 

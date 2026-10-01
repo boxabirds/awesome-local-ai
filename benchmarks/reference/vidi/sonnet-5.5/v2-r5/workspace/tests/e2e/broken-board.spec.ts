@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoardVia } from './helpers/create';
 import { E2E_EVENTUAL_TIMEOUT_MS, LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
 import { build25NoteBoard } from '../fixtures/boards';
 import { settled } from './helpers/board';
@@ -9,7 +9,7 @@ import { seedBoard } from './helpers/seed';
 const MESSAGE = "This board couldn't be loaded. Retrying…";
 
 test('TC-24 Broken board: honest failure, editing blocked, recovery without reload', async ({ browser, request, baseURL }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoardVia(request);
   await seedBoard(baseURL!, boardId, (doc) => { build25NoteBoard(doc); });
 
   const corrupt = await request.post(`/__test/boards/${boardId}/corrupt-snapshot`);

@@ -1,4 +1,4 @@
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
@@ -10,7 +10,8 @@ const REMOTE = Symbol('remote');
 const SYNC_STEP2 = 1;
 const SYNC_UPDATE = 2;
 
-export async function openSocket(boardId: string): Promise<WebSocket> {
+export async function openSocket(boardId: string, init = true): Promise<WebSocket> {
+  if (init) await env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).initialize(); // boards must exist since story 5
   const res = await SELF.fetch(`http://example.com/api/rooms/${boardId}`, { headers: { Upgrade: 'websocket' } });
   if (res.status !== 101 || !res.webSocket) throw new Error(`upgrade failed: ${res.status}`);
   res.webSocket.accept();
@@ -40,8 +41,8 @@ export class WsClient {
     this.doc = doc;
   }
 
-  static async connect(boardId: string, doc: Y.Doc = new Y.Doc()): Promise<WsClient> {
-    const client = new WsClient(await openSocket(boardId), doc);
+  static async connect(boardId: string, doc: Y.Doc = new Y.Doc(), init = true): Promise<WsClient> {
+    const client = new WsClient(await openSocket(boardId, init), doc);
     client.boardId = boardId;
     client.start();
     return client;

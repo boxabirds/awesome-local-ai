@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { App } from './TestApp';
 import { NavigationHint } from '../../src/client/canvas/NavigationHint';
 
 const HINT = 'Drag to move around · Ctrl/Cmd + scroll or pinch to zoom';

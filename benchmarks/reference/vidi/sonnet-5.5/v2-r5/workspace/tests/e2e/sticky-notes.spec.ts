@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openNewBoard } from './helpers/create';
 import { getCamera, setCamera, settled } from './helpers/board';
 import { STICKY_COLORS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX, STICKY_SIZE_WORLD } from '../../src/shared/config';
 import { LONG_TEXT } from '../fixtures/texts';
@@ -29,7 +30,7 @@ async function drag(page: Page, from: { x: number; y: number }, dx: number, dy: 
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await openNewBoard(page);
   await settled(page);
 });
 

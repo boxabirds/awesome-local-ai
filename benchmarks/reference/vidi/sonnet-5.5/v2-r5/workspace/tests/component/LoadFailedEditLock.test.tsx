@@ -28,7 +28,7 @@ vi.mock('../../src/shared/board-model', async (importOriginal) => {
 });
 
 import * as model from '../../src/shared/board-model';
-import { App } from '../../src/client/App';
+import { App } from './TestApp';
 
 const MUTATIONS = [model.createSticky, model.moveObject, model.bringToFront, model.setStickyColor, model.deleteObject];
 

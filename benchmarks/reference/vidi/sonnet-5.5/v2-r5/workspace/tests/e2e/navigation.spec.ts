@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openNewBoard } from './helpers/create';
 import {
   getCamera, gridInfo, GRID_WORLD, offGrid, originCentre, setCamera, settled, zoomLabel,
 } from './helpers/board';
@@ -8,7 +9,7 @@ const HINT = 'Drag to move around · Ctrl/Cmd + scroll or pinch to zoom';
 const TOL = 1;
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await openNewBoard(page);
   await settled(page);
 });
 

@@ -1,7 +1,7 @@
 import { expect, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
 import { settled } from './board';
+import { createBoardVia } from './create';
 
 export interface Participant { name: string; context: BrowserContext; page: Page; errors: string[] }
 
@@ -14,15 +14,22 @@ export const notesOf = (page: Page): Locator => page.getByRole('group', { name: 
 
 /** Opens N isolated contexts on the same board and waits until each is connected and synced. */
 export async function openParticipants(
-  browser: Browser, names: string[], boardId: string = newBoardId(),
+  browser: Browser, names: string[], boardId?: string,
 ): Promise<Participant[]> {
+  let id = boardId;
+  if (!id) {
+    const creator = await browser.newContext();
+    id = await createBoardVia(creator.request);
+    await creator.close();
+  }
   return Promise.all(names.map(async (name) => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-    await page.goto(`/b/${boardId}`);
+    await page.goto(`/b/${id}`);
+    await expect(page.getByTestId('board-viewport')).toBeVisible({ timeout: E2E_EVENTUAL_TIMEOUT_MS });
     await settled(page);
     await expect(badge(page)).toHaveCount(0, { timeout: E2E_EVENTUAL_TIMEOUT_MS });
     return { name, context, page, errors };

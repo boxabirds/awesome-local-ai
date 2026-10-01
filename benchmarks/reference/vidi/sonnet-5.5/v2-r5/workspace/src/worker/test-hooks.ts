@@ -3,7 +3,7 @@ import type { Env } from './index';
 
 const SAVED_KEY = 'test_saved_chunk0';
 const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
-const unhex = (s: string) => new Uint8Array((s.match(/../g) ?? []).map((h) => parseInt(h, 16)));
+export const unhex = (s: string) => new Uint8Array((s.match(/../g) ?? []).map((h) => parseInt(h, 16)));
 
 /** Saves the original chunk 0 (once) and overwrites it with a truncated copy that cannot be decoded. */
 export function corruptSnapshot(storage: DurableObjectStorage): string {
@@ -23,7 +23,7 @@ export function repairSnapshot(storage: DurableObjectStorage): string {
   return 'repaired';
 }
 
-const ROUTE = /^\/__test\/boards\/([^/]+)\/(corrupt-snapshot|repair)$/;
+const ROUTE = /^\/__test\/boards\/([^/]+)\/(corrupt-snapshot|repair|seed-legacy)$/;
 
 /** Handles the test-only routes; returns null for anything else. Registered only when env.TEST_HOOKS === '1'. */
 export async function handleTestHook(req: Request, env: Env): Promise<Response | null> {
@@ -31,5 +31,6 @@ export async function handleTestHook(req: Request, env: Env): Promise<Response |
   const match = ROUTE.exec(new URL(req.url).pathname);
   if (!match || !isValidBoardId(match[1])) return null;
   const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(match[1]));
-  return new Response(await stub.testHook(match[2] as 'corrupt-snapshot' | 'repair'));
+  const op = match[2] as 'corrupt-snapshot' | 'repair' | 'seed-legacy';
+  return new Response(await stub.testHook(op, op === 'seed-legacy' ? await req.text() : ''));
 }

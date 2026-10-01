@@ -38,6 +38,7 @@ const toBytes = (v: unknown) => new Uint8Array(v as ArrayBuffer);
 export class BoardStore {
   private count = 0;
   private bytes = 0;
+  private migrated = false;
 
   constructor(private readonly storage: StorageLike) {}
 
@@ -53,7 +54,35 @@ export class BoardStore {
       'INSERT OR IGNORE INTO storage_meta (key, value) VALUES (?, ?)',
       'storage_schema_version', String(STORAGE_SCHEMA_VERSION),
     );
+    this.migrated = true;
     this.refreshTotals();
+  }
+
+  private tableExists(name: string): boolean {
+    return this.sql.exec("SELECT 1 AS x FROM sqlite_master WHERE type = 'table' AND name = ?", name).toArray().length > 0;
+  }
+
+  /** True when any board table exists (created by initialize, a first append, or an earlier story). */
+  hasTables(): boolean {
+    return this.tableExists('storage_meta') || this.tableExists('updates') || this.tableExists('snapshot_chunks');
+  }
+
+  /** Read-only: created_at is set, or (legacy) any updates / snapshot rows exist. Never creates tables. */
+  existsReadOnly(): boolean {
+    if (this.tableExists('storage_meta')
+      && this.sql.exec("SELECT 1 AS x FROM storage_meta WHERE key = 'created_at'").toArray().length > 0) return true;
+    for (const table of ['updates', 'snapshot_chunks']) {
+      if (this.tableExists(table) && this.sql.exec(`SELECT 1 AS x FROM ${table} LIMIT 1`).toArray().length > 0) return true;
+    }
+    return false;
+  }
+
+  /** Creates the schema and records created_at once. */
+  initialize(now: number = Date.now()): 'created' | 'exists' {
+    this.migrate();
+    if (this.meta('created_at') !== null) return 'exists';
+    this.sql.exec('INSERT OR IGNORE INTO storage_meta (key, value) VALUES (?, ?)', 'created_at', String(now));
+    return 'created';
   }
 
   private refreshTotals(): void {
@@ -68,6 +97,7 @@ export class BoardStore {
   }
 
   append(update: Uint8Array): void {
+    if (!this.migrated) this.migrate();
     this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length);
     this.count += 1;
     this.bytes += update.length;
@@ -77,6 +107,7 @@ export class BoardStore {
     let chunks: Uint8Array[];
     let throughSeq: number;
     try {
+      if (!this.hasTables()) return { ok: true, quarantined: 0 };
       chunks = this.sql.exec('SELECT data FROM snapshot_chunks ORDER BY idx').toArray().map((r) => toBytes(r.data));
       throughSeq = Number(this.meta('snapshot_through_seq') ?? 0);
     } catch (e) {

@@ -223,6 +223,7 @@ describe('persistent BoardRoom (persist.room)', () => {
     const id = newBoardId();
     await seed25(id);
     const stub = stubOf(id);
+    await stub.initialize(); // the board exists before its storage starts failing
     const restore = await runInDurableObject(stub, (room: BoardRoom, state) => {
       const original = room.store;
       const failing = {
@@ -241,7 +242,7 @@ describe('persistent BoardRoom (persist.room)', () => {
       return () => original;
     });
     void restore;
-    const c = await WsClient.connect(id);
+    const c = await WsClient.connect(id, new Y.Doc(), false);
     await closed(c);
     expect(c.closeCode).toBe(CLOSE_BOARD_LOAD_FAILED);
     expect(await runInDurableObject(stub, (room: BoardRoom) => room.state)).toBe('load-failed');
