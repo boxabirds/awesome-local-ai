@@ -1,6 +1,6 @@
 /**
  * useBoardKeys: handles keyboard commands for selection — select all, clear,
- * nudge, delete, and Enter-to-edit.
+ * nudge, delete, Enter-to-edit, and undo/redo.
  */
 import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
@@ -8,12 +8,14 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { allObjectIds, deleteObjects, moveObjects } from '../../shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
 import type { SelectionApi } from './useSelection';
+import type { UndoController } from './undo';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  undo?: UndoController;
 }
 
 /** True when focus is in a text-editing element. */
@@ -25,7 +27,7 @@ function isTextEntry(target: EventTarget | null): boolean {
 }
 
 export function useBoardKeys(opts: BoardKeysOptions): void {
-  const { doc, selection, snapshot, canEdit } = opts;
+  const { doc, selection, snapshot, canEdit, undo } = opts;
 
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
@@ -33,6 +35,8 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
   snapshotRef.current = snapshot;
   const canEditRef = useRef(canEdit);
   canEditRef.current = canEdit;
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -40,6 +44,44 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
 
       const sel = selectionRef.current;
       const snap = snapshotRef.current;
+      const ctrl = undoRef.current;
+
+      // Undo/redo shortcuts (must be checked before text-entry guard for
+      // the case where editingId is null but focus is on the board)
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key === 'z') {
+        // If editing text, the editor handles it
+        if (sel.editingId !== null) return;
+        if (isTextEntry(event.target)) return;
+        if (!canEditRef.current || !ctrl) return;
+        event.preventDefault();
+        ctrl.boundary();
+        ctrl.undo();
+        ctrl.boundary();
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'z' || event.key === 'Z')) {
+        if (sel.editingId !== null) return;
+        if (isTextEntry(event.target)) return;
+        if (!canEditRef.current || !ctrl) return;
+        event.preventDefault();
+        ctrl.boundary();
+        ctrl.redo();
+        ctrl.boundary();
+        return;
+      }
+
+      // Ctrl+Y: redo (Windows convention)
+      if (event.ctrlKey && !event.metaKey && event.key === 'y') {
+        if (sel.editingId !== null) return;
+        if (isTextEntry(event.target)) return;
+        if (!canEditRef.current || !ctrl) return;
+        event.preventDefault();
+        ctrl.boundary();
+        ctrl.redo();
+        ctrl.boundary();
+        return;
+      }
 
       // If editing text, don't intercept
       if (sel.editingId !== null) return;

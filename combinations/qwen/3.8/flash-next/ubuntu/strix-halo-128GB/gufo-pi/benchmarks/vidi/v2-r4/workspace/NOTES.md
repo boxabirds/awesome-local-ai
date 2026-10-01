@@ -216,3 +216,61 @@ Decisions and deviations recorded while implementing the stories.
   truly-simultaneous ones to avoid Yjs CRDT non-determinism in the test. The
   assertion confirms all contexts converge to identical positions, which is the
   spec requirement ("all contexts end with identical positions").
+
+## Story 8 — Undo and redo my own changes without undoing anyone else's
+
+- **`createUndo` wraps `Y.UndoManager` with a single tracked origin.**
+  The manager tracks only `LOCAL_ORIGIN`. The Y.UndoManager constructor
+  automatically adds itself to `trackedOrigins` (so its own undo/redo
+  transactions are excluded from the undo stack). Peer and LOAD operations
+  use different origins and are therefore invisible to the undo history.
+
+- **`boundary()` calls `stackItemClean()` to close the current capture group.**
+  This is how the app maps discrete user gestures (one drag, one colour change,
+  one typing session) onto individual undo steps. Between boundaries, Yjs's
+  internal `captureTimeout` (set from `UNDO_CAPTURE_TIMEOUT_MS = 500ms`) groups
+  transactions that arrive close together.
+
+- **`lib0/time.js` captures `Date.now` by reference at module load.**
+  `export const getUnixTime = Date.now` means `vi.useFakeTimers()` cannot
+  intercept the Yjs capture-timeout timer. Tests that need to cross the capture
+  boundary use real timers with a short `captureTimeoutMs` (e.g., 50ms) or rely
+  on explicit `boundary()` calls instead of waiting for the timeout to elapse.
+
+- **Stack trimming to `UNDO_MAX_STEPS` (200).** The `stack-item-added` event
+  fires twice per stack item (once for undo, once for redo). A `_depth` counter
+  deduplicates so trimming runs once per item. The oldest entries are spliced
+  off the bottom of `undoStack`.
+
+- **`useUndo(controller, canEdit)` is a thin React hook** that subscribes to
+  `onChange` for re-renders and gates `undo()`/`redo()` on `canEdit`. When
+  `canEdit` is false (load_failed), `canUndo`/`canRedo` always return false and
+  calling `undo()` is a no-op.
+
+- **`UndoButtons` in the Toolbar.** Rendered as `aria-label="Undo"` /
+  `aria-label="Redo"` buttons with `data-testid`. Disabled when the respective
+  stack is empty or editing is locked.
+
+- **Keyboard shortcuts in `useBoardKeys`.** Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z,
+  Ctrl+Y are handled on `window` keydown. The handler calls `boundary()` before
+  and after the undo/redo to ensure a clean capture group. Text-entry
+  contexts (`isTextEntry(target)`) are skipped so browser-native undo in
+  non-board inputs is preserved.
+
+- **`StickyTextEditor` intercepts Ctrl+Z / Ctrl+Shift+Z internally.** When the
+  textarea is focused, the editor's own keydown handler calls the controller's
+  undo/redo and then re-syncs the textarea value from the doc (because the undo
+  writes the new text to Yjs, which updates the snapshot, which the component
+  reads on re-render). This prevents Ctrl+Z in the editor from undoing an
+  earlier gesture.
+
+- **Edit-start/edit-end boundaries.** The `StickyTextEditor` calls
+  `undo?.boundary()` on mount (start of edit) and on blur/Escape (end of edit).
+  Colour-change and delete handlers call `boundary()` before and after the
+  model mutation. Gestures call `onGestureStart`/`onGestureEnd` which map to
+  `boundary()`.
+
+- **`tests/unit/helpers/peer.ts` simulates a remote collaborator.** Creates a
+  second `Y.Doc` and syncs bidirectionally via `Y.applyUpdate` with a
+  non-local origin. `loadTransact()` applies mutations with `LOAD_ORIGIN` to
+  simulate board initialisation.

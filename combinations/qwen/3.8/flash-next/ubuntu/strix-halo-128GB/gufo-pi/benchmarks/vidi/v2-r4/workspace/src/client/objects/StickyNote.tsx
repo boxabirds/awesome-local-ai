@@ -13,6 +13,7 @@ import {
 import { fitFontSize } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 import { NoteToolbar } from './NoteToolbar';
+import type { UndoController } from '../board/undo';
 
 export interface StickyNoteProps {
   note: StickySnapshot;
@@ -26,6 +27,7 @@ export interface StickyNoteProps {
   onStartEdit(id: string): void;
   onEndEdit(): void;
   onDeleted?(id: string): void;
+  undo?: UndoController;
 }
 
 /** Inner padding around the text, in world units. */
@@ -49,6 +51,7 @@ export function StickyNote({
   onStartEdit,
   onEndEdit,
   onDeleted,
+  undo,
 }: StickyNoteProps) {
   const textRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -147,6 +150,7 @@ export function StickyNote({
           fontPx={fontFit.fontPx}
           boxPx={width - NOTE_PADDING_WORLD * 2}
           onEnd={onEndEdit}
+          undo={undo}
         />
       ) : null}
       {/* Hidden while editing: it would sit under the pointer. */}
@@ -159,10 +163,14 @@ export function StickyNote({
           <NoteToolbar
             color={note.color}
             onColor={(color) => {
+              undo?.boundary();
               setStickyColor(doc, note.id, color);
+              undo?.boundary();
             }}
             onDelete={() => {
+              undo?.boundary();
               deleteObject(doc, note.id);
+              undo?.boundary();
               onDeleted?.(note.id);
             }}
           />

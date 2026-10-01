@@ -1,14 +1,17 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
+import type { UseUndoResult } from './useUndo';
+import { UndoButtons } from './UndoButtons';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  undo: UseUndoResult;
 }
 
 /**
  * The fixed left-side tool palette. In story 2 it holds the Sticky note
- * button; later stories add objects here.
+ * button; story 8 adds Undo and Redo below.
  */
-export function Toolbar({ onCreateSticky }: ToolbarProps): React.JSX.Element {
+export function Toolbar({ onCreateSticky, undo }: ToolbarProps): React.JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -33,6 +36,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): React.JSX.Element {
           <path fill="#e6d488" d="M13 17v-4h4l-4 4Z" />
         </svg>
       </button>
+      <UndoButtons {...undo} />
     </div>
   );
 }

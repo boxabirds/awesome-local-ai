@@ -13,6 +13,8 @@ import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { createUndo, type UndoController } from './board/undo';
+import { useUndo } from './board/useUndo';
 import * as Y from 'yjs';
 import { createSticky, deleteObjects } from '../shared/board-model';
 import { isTestMode, setTestConnectionState } from './testHooks';
@@ -48,18 +50,30 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
     }
   }, [connectionState]);
 
+  // Undo controller: one per board doc, destroyed on unmount
+  const [undoCtrl, setUndoCtrl] = useState<UndoController | null>(null);
+  useEffect(() => {
+    const ctrl = createUndo(doc);
+    setUndoCtrl(ctrl);
+    return () => { ctrl.destroy(); setUndoCtrl(null); };
+  }, [doc]);
+
+  const undoState = useUndo(undoCtrl, !isReadOnly);
+
   const selection = useSelection(notes);
   const bridgeRef = useRef<ViewportBridge | null>(null);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
   const onCameraChange = useCallback((cam: Camera) => setCamera(cam), []);
 
-  // Transform gesture: move and resize
+  // Transform gesture: move and resize (boundary on gesture start/end)
   const gesture = useTransformGesture({
     doc,
     camera,
     selection,
     snapshot: notes,
     canEdit: !isReadOnly,
+    onGestureStart: undoCtrl?.boundary,
+    onGestureEnd: undoCtrl?.boundary,
   });
 
   // Marquee: shift+drag on empty space
@@ -75,16 +89,19 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
     selection,
     snapshot: notes,
     canEdit: !isReadOnly,
+    undo: undoCtrl ?? undefined,
   });
 
   /** Centre a new note on a world point, select it and start typing. */
   const createAndEdit = useCallback(
     (world: Point) => {
       if (isReadOnly) return;
+      undoCtrl?.boundary();
       const id = createSticky(doc, world);
+      undoCtrl?.boundary();
       if (id) selection.startEdit(id);
     },
-    [doc, selection, isReadOnly],
+    [doc, selection, isReadOnly, undoCtrl],
   );
 
   const onCreateStickyWorld = useCallback(
@@ -113,9 +130,11 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
   const onDeleteSelection = useCallback(() => {
     if (selection.ids.size === 0) return;
     if (isReadOnly) return;
+    undoCtrl?.boundary();
     deleteObjects(doc, [...selection.ids]);
+    undoCtrl?.boundary();
     selection.clear();
-  }, [doc, selection, isReadOnly]);
+  }, [doc, selection, isReadOnly, undoCtrl]);
 
   const onHandlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>, handle: Handle) => {
@@ -194,10 +213,11 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
             onStartEdit={selection.startEdit}
             onEndEdit={selection.endEdit}
             onDeleted={onDeleted}
+            undo={undoCtrl ?? undefined}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={onCreateSticky} />
+      <Toolbar onCreateSticky={onCreateSticky} undo={undoState} />
     </div>
   );
 }

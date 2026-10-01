@@ -14,6 +14,7 @@ import {
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
 import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import type { UndoController } from '../board/undo';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -21,6 +22,7 @@ export interface StickyTextEditorProps {
   /** Text box height available for the text, in world units. */
   boxPx?: number;
   onEnd(): void;
+  undo?: UndoController;
 }
 
 const NOTE_PADDING_WORLD = 12;
@@ -40,12 +42,14 @@ export function StickyTextEditor({
   fontPx,
   boxPx = STICKY_SIZE_WORLD,
   onEnd,
+  undo,
 }: StickyTextEditorProps): React.JSX.Element {
   const ref = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const [length, setLength] = useState(() => ytext.toString().length);
 
   // Mount: seed the textarea from the document, focus it, caret at the end.
+  // Call boundary() to close any previous capture window (edit start).
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -54,6 +58,7 @@ export function StickyTextEditor({
     el.focus();
     const end = el.value.length;
     el.setSelectionRange(end, end);
+    undo?.boundary();
   }, [ytext]);
 
   const write = useCallback(
@@ -87,22 +92,60 @@ export function StickyTextEditor({
 
   const onKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+      // Undo inside the editor: Ctrl/Cmd+Z
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key === 'z') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (undo) {
+          undo.undo();
+          // Re-sync textarea from ytext after undo
+          const el = ref.current;
+          if (el) {
+            const newText = ytext.toString();
+            el.value = newText;
+            setLength(newText.length);
+          }
+        }
+        return;
+      }
+      // Redo inside the editor: Ctrl/Cmd+Shift+Z or Ctrl+Y
+      if (
+        ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'z' || event.key === 'Z')) ||
+        (event.ctrlKey && !event.metaKey && event.key === 'y')
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (undo) {
+          undo.redo();
+          const el = ref.current;
+          if (el) {
+            const newText = ytext.toString();
+            el.value = newText;
+            setLength(newText.length);
+          }
+        }
+        return;
+      }
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
+        // Close capture window at edit end
+        undo?.boundary();
         onEnd();
       }
       // Enter inserts a newline: the default behaviour of a textarea.
     },
-    [onEnd],
+    [onEnd, undo, ytext],
   );
 
   // Flush any value left over from an interrupted composition on blur.
+  // Also call boundary() at edit end to close capture window.
   const onBlur = useCallback(() => {
     const el = ref.current;
     if (!el) return;
     if (el.value !== ytext.toString()) write(el.value);
-  }, [write, ytext]);
+    undo?.boundary();
+  }, [write, ytext, undo]);
 
   const showCounter = counterVisible(length);
 
