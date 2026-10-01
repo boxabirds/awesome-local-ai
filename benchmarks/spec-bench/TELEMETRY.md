@@ -128,8 +128,20 @@ baselines and the review tool leave these runs out.
 `seconds` (the agent's time over every attempt of the story: summed per attempt, so the time the harness was down between attempts is left out; records before 30 Sep 2026 counted only the last attempt until backfilled), `steps` (model calls), `tool_calls`, `tool_interruptions`, `compactions`,
 `tokens` (`input`, `output`, `reasoning`, `cache_read`, `cache_write`, as the server reported them to
 the client), `exit`, `stalled` (the loop detector stopped it), `resumes` (after errors), `nudges`
-(after stopping without a commit), `toolcall_text_resumes` (continuations after the session ended on a
-tool call the engine returned as text instead of running it; see gufo-org/gufo#304), `errors`, `ended_by_operator`, `ended_in_error`, `sessions`.
+(times the stop message was sent: once for each clean stop that was not a verified finish, up to the cap of 5;
+see below), `toolcall_text_resumes` (stops whose last reply was a tool call the engine returned as text instead of
+running it, see gufo-org/gufo#304: each gets the stop message too and is counted here, not as a nudge, up to 3),
+`finished` (true when the story ended on a verified finish, false when it ended any other way: the cap, an error,
+a stall, a guard or the operator), `errors`, `ended_by_operator`, `ended_in_error`, `sessions`.
+
+The stop rule (`drive.py`: `story_finished`, `STOP_MESSAGE_TMPL`; tests: `test_stop_rule.py`), from the harness
+of 1 Oct 2026 that records `finished`: a story is finished only when the agent's last reply has the line
+`STORY <n> DONE <hash>` for that story, the hash is the workspace's HEAD and nothing is left uncommitted. Every
+other clean stop is answered with the same message, and after 5 the story is capped (PARTIAL, its work committed
+by the harness). The share of a run's stops that ended in a verified finish is `finished` stories over stories
+plus `nudges`. In records without `finished` (earlier harnesses) a nudge was the sentence "Continue with the
+task…", sent only when the agent stopped with no commit since the story began, and any commit ended the story;
+over the 227 such nudges in this repo's logs 15% led to a commit.
 
 Claude Code reports `tokens` per `result` event, one per stretch of a session (a session can end in more than one),
 and they are added. Until 30 Sep 2026 each overwrote the last, so a story ending in two kept only the second
@@ -138,7 +150,7 @@ from its event log; a record it changed has `tokens_recounted`: `previous` (what
 read) and `at`.
 
 A story the harness restarted mid-way (`harness/attempts.py`, tests: `test_attempts.py`) has these as totals over
-every attempt, how it ended (`exit`, `stalled`, `ended_in_error`) from the last, and also `restarted` (true),
+every attempt, how it ended (`exit`, `stalled`, `ended_in_error`, `finished`) from the last, and also `restarted` (true),
 `harness_attempts` (how many), and `attempts`: per attempt, `attempt` (1-based), `source` (`harness`: the harness's
 own record of the attempt it ran; `log`: an earlier attempt counted from the story's event log), `started`, `ended`,
 `seconds`, `steps`, `tool_calls`, `compactions`, `tokens`, `sessions`, the resume and nudge counts where the harness
@@ -346,6 +358,7 @@ null, when the scan itself failed (the run is still scored).
 | `time_split` tools and compaction | as above | as above | canvas-pi-03 (harness 61ac40e) and later |
 | `conditions.gpu` | as above, from sysfs | as above, from `nvidia-smi` | no (needs `powermetrics`, which needs root) |
 | lossless conversation log, every attempt counted, per-story `provenance` | runs started on the harness that adds them (30 Sep 2026) and later; earlier runs after `backfill_timing.py` (the log rebuild needs the machine's full logs) | as Strix Halo | as Strix Halo |
+| `agent.finished`, and `nudges` counting stop messages (the stop rule) | runs started on the harness that adds them (1 Oct 2026) and later | as Strix Halo | as Strix Halo |
 
 A server log without a start marker (before 0ef8480) can still be read by prepending a marker with
 the server's start time, which is the log file's creation time (`stat -c %W server.log`).
