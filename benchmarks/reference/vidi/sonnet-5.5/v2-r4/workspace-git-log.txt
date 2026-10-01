@@ -1,3 +1,43 @@
+commit 3870c4320d4ac1ec8c885a5ec7cc0827f54ec431
+vidi-agent  Thu Oct 1 09:10:11 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                  |   11 +
+ package-lock.json                         | 1117 +++++++++++++++++++++++++++--
+ package.json                              |   15 +-
+ playwright.config.ts                      |    7 +-
+ src/client/App.tsx                        |   20 +-
+ src/client/board/useBoardDoc.ts           |   23 +-
+ src/client/canvas/testHooks.ts            |   10 +-
+ src/client/main.tsx                       |    4 +-
+ src/client/objects/StickyTextEditor.tsx   |   27 +
+ src/client/sync/ConnectionStatus.tsx      |   34 +
+ src/client/sync/connectBoard.ts           |   98 +++
+ src/shared/board-id.ts                    |   13 +
+ src/shared/config.ts                      |    7 +
+ src/shared/protocol.ts                    |   36 +
+ src/worker/board-room.ts                  |  105 +++
+ src/worker/index.ts                       |   29 +
+ tests/component/ConnectionStatus.test.tsx |  105 +++
+ tests/component/StickyTextEditor.test.tsx |   23 +-
+ tests/e2e/helpers/participants.ts         |   88 +++
+ tests/e2e/live-collaboration.spec.ts      |  187 +++++
+ tests/e2e/navigation.spec.ts              |    7 -
+ tests/e2e/nightly.spec.ts                 |  121 ++++
+ tests/integration/board-room.test.ts      |  198 +++++
+ tests/integration/env.d.ts                |    9 +
+ tests/integration/random-ops.ts           |   41 ++
+ tests/integration/worker.test.ts          |   59 ++
+ tests/integration/ws-client.ts            |  118 +++
+ tests/unit/board-id.test.ts               |   29 +
+ tests/unit/protocol.test.ts               |   33 +
+ tsconfig.json                             |    3 +-
+ tsconfig.worker.json                      |   14 +
+ vitest.config.ts                          |    6 +
+ wrangler.jsonc                            |   12 +-
+ 33 files changed, 2521 insertions(+), 88 deletions(-)
 commit 1ddb5639fb2870eaae386227abba166580b2489c
 vidi-agent  Thu Oct 1 08:50:28 2026 +0100
 

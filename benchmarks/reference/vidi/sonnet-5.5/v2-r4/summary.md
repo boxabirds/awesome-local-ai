@@ -10,15 +10,17 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 |---|---|---|---|---|
 | 1 | 6/6 | 0 | 0 | 6/6 |
 | 2 | 10/10 | 0 | 0 | 20/20 |
+| 3 | 6/7 | 0 | 0 | 26/27 |
 
-**New work** 16/16, **regressions** 0, **repairs** 0, **cumulative** 20/20.
+**New work** 22/23, **regressions** 0, **repairs** 0, **cumulative** 26/27.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 6.9 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 0 | — | throttled 0% |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 5.1 | None | None | None | — | — | red | 20/20 |  | 0 / 0 | 0 | — | throttled 0% |
+| 3 | See other people's edits appear live on the same board | DONE | 15.7 | None | None | None | — | — | red | 26/27 |  | 0 / 0 | 0 | — | throttled 42% |
 
-**Totals:** 2 stories, 12 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/2, final acceptance 20/20, stalled 0, partial 0, 2542 lines in src+tests.
+**Totals:** 3 stories, 28 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/3, final acceptance 26/27, stalled 0, partial 0, 3930 lines in src+tests.
 
 ## How it happened
 
@@ -28,6 +30,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 1 by the agent | 5063 / 0 | `BoardViewport.tsx` (192), `useCamera.ts` (114), `camera.ts` (65), `ZoomControls.tsx` (51), `package.json` (35), `NavigationHint.tsx` (23), +12 more |
 | 2 | 1 by the agent | 1580 / 10 | `StickyNote.tsx` (240), `board-model.ts` (128), `StickyTextEditor.tsx` (112), `App.tsx` (79), `StickyText.ts` (67), `NoteToolbar.tsx` (60), +7 more |
+| 3 | 1 by the agent | 2521 / 88 | `board-room.ts` (105), `connectBoard.ts` (98), `protocol.ts` (36), `ConnectionStatus.tsx` (34), `index.ts` (29), `StickyTextEditor.tsx` (27), +13 more |
 
 ### Earlier stories broken or fixed
 
