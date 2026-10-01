@@ -1,15 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useActiveTool, type ToolId } from '../tools/useActiveTool';
 
-export type Tool = 'select' | 'text'; // stories 10-12 extend
+export type Tool = ToolId;
 
-/** The active board tool (per client, not persisted). Text needs an editable board. */
+/** The active board tool without shape state; see `useActiveTool`. */
 export function useTool(canEdit: boolean): { tool: Tool; setTool(t: Tool): void } {
-  const [tool, setToolState] = useState<Tool>('select');
-  const setTool = useCallback((t: Tool) => {
-    setToolState(t === 'select' || canEdit ? t : 'select');
-  }, [canEdit]);
-  useEffect(() => {
-    if (!canEdit) setToolState('select');
-  }, [canEdit]);
-  return { tool: canEdit ? tool : 'select', setTool };
+  const { tool, setTool } = useActiveTool({ canEdit });
+  return { tool, setTool };
 }

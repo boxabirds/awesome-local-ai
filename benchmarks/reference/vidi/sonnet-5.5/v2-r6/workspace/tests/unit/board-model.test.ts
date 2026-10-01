@@ -136,7 +136,7 @@ describe('board model', () => {
     const { doc } = setup();
     const m = new Y.Map<unknown>();
     objects(doc).set('s', m);
-    m.set('type', 'shape');
+    m.set('type', 'hologram');
     make(doc);
     expect(() => snapshot(doc)).not.toThrow();
     expect(snapshot(doc)).toHaveLength(1);

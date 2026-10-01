@@ -6,6 +6,8 @@ import {
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { UndoController } from './undo';
 import type { useSelection } from './useSelection';
+import { getObjectType } from '../objects/registry';
+import { TOOL_SHORTCUTS } from '../tools/useActiveTool';
 import type { Tool } from './useTool';
 
 const TEXT_INPUT = 'input, textarea, select, [contenteditable]';
@@ -50,7 +52,8 @@ export function useBoardKeys(opts: {
       }
       if (mod || e.altKey) return;
       if (e.key === 'Escape') {
-        if (latest.current.tool === 'text') latest.current.setTool?.('select');
+        const active = latest.current.tool;
+        if (active !== undefined && active !== 'select') latest.current.setTool?.('select');
         else selection.clear();
         return;
       }
@@ -60,8 +63,9 @@ export function useBoardKeys(opts: {
           latest.current.setTool?.('select');
           return;
         }
-        if (letter === 't') {
-          if (canEdit) latest.current.setTool?.('text');
+        const shortcut = TOOL_SHORTCUTS[letter];
+        if (shortcut && shortcut !== 'select') {
+          if (canEdit) latest.current.setTool?.(shortcut);
           return;
         }
         if (letter === 'n') {
@@ -72,7 +76,9 @@ export function useBoardKeys(opts: {
       if (selection.ids.size === 0) return;
 
       if (e.key === 'Enter') {
+        const only = snapshot.find((o) => selection.ids.has(o.id));
         if (!canEdit || selection.ids.size !== 1 || target?.closest(ANY_CONTROL)) return;
+        if (!only || !getObjectType(only.type)?.editableText) return;
         e.preventDefault();
         selection.startEdit([...selection.ids][0]);
         return;

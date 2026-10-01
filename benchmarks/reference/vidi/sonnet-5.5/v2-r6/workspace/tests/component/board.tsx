@@ -23,6 +23,14 @@ export function renderBoard() {
   };
 }
 
+/** A board whose camera sits at the origin at 100%, so screen and board coordinates coincide. */
+export async function renderBoardAtOrigin() {
+  const board = renderBoard();
+  act(() => window.__vidi6?.setCamera({ x: 0, y: 0, zoom: 1 }));
+  await flushFrame();
+  return board;
+}
+
 export function addNote(doc: Y.Doc, x: number, y: number): string {
   let id = '';
   act(() => { id = createSticky(doc, { x, y }) as string; });

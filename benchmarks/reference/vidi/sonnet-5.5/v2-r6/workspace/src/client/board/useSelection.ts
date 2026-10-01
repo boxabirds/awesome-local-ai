@@ -10,7 +10,7 @@ export interface SelectionState {
 
 export type SelectionAction =
   | { type: 'click'; id: string } | { type: 'toggle'; id: string }
-  | { type: 'setMany'; ids: string[]; additive: boolean } | { type: 'clear' }
+  | { type: 'setMany'; ids: string[]; additive: boolean } | { type: 'clear' } | { type: 'select'; id: string }
   | { type: 'prune'; presentIds: ReadonlySet<string> } | { type: 'edit'; id: string | null }
   | { type: 'endEdit'; keepSelection: boolean };
 
@@ -26,6 +26,8 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
       if (state.ids.size === 1 && state.ids.has(action.id) && state.editingId === editingId) return state;
       return { ...state, ids: new Set([action.id]), editingId };
     }
+    case 'select': // an object just created here: not in the pruned set until the next snapshot
+      return { ...state, ids: new Set([action.id]), editingId: null };
     case 'toggle': {
       if (!known(state, action.id)) return state;
       const ids = new Set(state.ids);
@@ -62,6 +64,8 @@ export interface SelectionApi {
   editingId: string | null;
   click(id: string): void;
   toggle(id: string): void;
+  /** Makes `id` the only selected object, even one created a moment ago that no snapshot has shown yet. */
+  select(id: string): void;
   setMany(ids: string[], additive: boolean): void;
   clear(): void;
   startEdit(id: string): void;
@@ -79,6 +83,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): SelectionApi 
 
   const click = useCallback((id: string) => dispatch({ type: 'click', id }), []);
   const toggle = useCallback((id: string) => dispatch({ type: 'toggle', id }), []);
+  const select = useCallback((id: string) => dispatch({ type: 'select', id }), []);
   const setMany = useCallback((ids: string[], additive: boolean) => dispatch({ type: 'setMany', ids, additive }), []);
   const clear = useCallback(() => dispatch({ type: 'clear' }), []);
   const startEdit = useCallback((id: string) => dispatch({ type: 'edit', id }), []);
@@ -87,7 +92,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): SelectionApi 
   }, []);
 
   return useMemo(
-    () => ({ ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit }),
-    [state.ids, state.editingId, click, toggle, setMany, clear, startEdit, endEdit],
+    () => ({ ids: state.ids, editingId: state.editingId, click, toggle, select, setMany, clear, startEdit, endEdit }),
+    [state.ids, state.editingId, click, toggle, select, setMany, clear, startEdit, endEdit],
   );
 }

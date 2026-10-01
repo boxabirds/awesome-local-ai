@@ -1,10 +1,14 @@
-import { useRef } from 'react';
-import { createSticky, deleteObjects, setStickyColor } from '../../shared/board-model';
+import { useMemo, useRef } from 'react';
+import { createSticky, deleteObjects, objectBounds, setStickyColor } from '../../shared/board-model';
+import type { Rect } from '../../shared/geometry';
+import { setShapeStyle } from '../../shared/objects/shape';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { useActiveTool } from '../tools/useActiveTool';
 import { createText, setTextSize } from '../../shared/objects/text';
 import { defaultMeasurer } from '../objects/textLayout';
 import { remeasureText } from '../objects/useTextBoxSync';
 import { localIdentityId } from './identity';
-import { useTool } from './useTool';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
 import { SelectionBar } from './SelectionBar';
@@ -47,7 +51,13 @@ export function BoardApp({ board }: { board: BoardDoc }) {
     onGestureStart: () => { undo?.boundary(); undo?.hold?.(true); },
     onGestureEnd: () => { undo?.hold?.(false); undo?.boundary(); },
   });
-  const { tool, setTool } = useTool(editable);
+  const { tool, setTool, shapeKind, setShapeKind, toolCreated } = useActiveTool({ canEdit: editable, select: sel.select });
+  // Arrows redraw from these on every snapshot, so moves and resizes by anyone move them too.
+  const rects = useMemo(() => {
+    const m = new Map<string, Rect>();
+    for (const o of notes) if (o.type !== 'connector') m.set(o.id, objectBounds(o));
+    return m;
+  }, [notes]);
 
   const create = (centre: Point) => {
     if (!editable) return;
@@ -104,9 +114,22 @@ export function BoardApp({ board }: { board: BoardDoc }) {
         centreRef.current = ctx.centreWorld;
         return (
         <>
-          <Toolbar disabled={!editable} tool={tool} onTool={setTool} onCreateSticky={() => create(ctx.centreWorld())}>
+          <Toolbar
+            disabled={!editable}
+            tool={tool}
+            onTool={setTool}
+            shapeKind={shapeKind}
+            onShapeKind={setShapeKind}
+            onCreateSticky={() => create(ctx.centreWorld())}
+          >
             <UndoButtons {...undoState} />
           </Toolbar>
+          {tool === 'shape' && (
+            <ShapeTool kind={shapeKind} camera={ctx.camera} doc={doc} onCreated={toolCreated} />
+          )}
+          {tool === 'connector' && (
+            <ConnectorTool camera={ctx.camera} snapshot={notes} doc={doc} onCreated={toolCreated} />
+          )}
           {editingId === null && (
             <SelectionOverlay
               ids={ids}
@@ -124,6 +147,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
               onDelete={deleteSelection}
               onColor={(id, c) => { boundary(); setStickyColor(doc, id, c); boundary(); }}
               onSize={changeTextSize}
+              onShapeStyle={(id, style) => { boundary(); setShapeStyle(doc, id, style); boundary(); }}
             />
           )}
         </>
@@ -144,6 +168,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
             editing={note.id === editingId}
             dragging={moving && selected}
             readOnly={!editable}
+            rects={rects}
             onObjectPointerDown={gesture.onObjectPointerDown}
             onStartEdit={startEdit}
             onEndEdit={endEdit}

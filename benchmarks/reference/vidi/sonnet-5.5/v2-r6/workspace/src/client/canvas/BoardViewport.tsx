@@ -7,6 +7,7 @@ import { MarqueeRect, useMarquee } from '../board/Marquee';
 import {
   canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Camera, type Point, type Size,
 } from './camera';
+import type { Tool } from '../board/useTool';
 import { NavigationHint } from './NavigationHint';
 import { installTestHooks } from './testHooks';
 import { useCamera } from './useCamera';
@@ -50,7 +51,7 @@ export interface BoardViewportProps {
   /** Kept up to date with the current camera so gestures outside the viewport can read the zoom. */
   cameraRef?: { current: Camera };
   /** Active tool; with 'text' the board neither pans nor selects and a click reports a world point. */
-  tool?: 'select' | 'text';
+  tool?: Tool;
   /** A click on the board (also on top of objects) while the Text tool is active. */
   onTextToolClick?(world: Point): void;
 }
@@ -250,7 +251,7 @@ export function BoardViewport(props: BoardViewportProps) {
         className="board-viewport"
         data-testid="board-viewport"
         data-pan-state={cam.isPanning ? 'panning' : 'idle'}
-        data-tool={textTool ? 'text' : 'select'}
+        data-tool={props.tool ?? 'select'}
         onPointerDownCapture={onTextToolPointerDown}
         onClickCapture={onTextToolClick}
         data-board-surface=""

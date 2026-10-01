@@ -1,8 +1,9 @@
 import type { CSSProperties } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
-import type { StickyColor, TextSize } from '../../shared/config';
+import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
 import type { Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
 import { selectionScreenBox } from './SelectionOverlay';
 
@@ -17,6 +18,7 @@ const HALF = 2;
 export function SelectionBar(props: {
   ids: ReadonlySet<string>; snapshot: readonly ObjectSnapshot[]; onDelete(): void;
   camera?: Camera; onColor?(id: string, c: StickyColor): void; onSize?(id: string, s: TextSize): void;
+  onShapeStyle?(id: string, s: { fill?: FillColor; stroke?: StrokeColor }): void;
 }) {
   const { ids, snapshot, onDelete, camera } = props;
   const selected = snapshot.filter((o) => ids.has(o.id));
@@ -39,7 +41,23 @@ export function SelectionBar(props: {
       <>
         <div className="sr-only" aria-live="polite">1 selected</div>
         <div className="selection-bar-anchor" style={style}>
-          {note.type === 'text' ? (
+          {note.type === 'shape' ? (
+            <ShapeToolbar
+              fill={note.fill}
+              stroke={note.stroke}
+              onFill={(fill) => props.onShapeStyle?.(note.id, { fill })}
+              onStroke={(stroke) => props.onShapeStyle?.(note.id, { stroke })}
+              onDelete={onDelete}
+            />
+          ) : note.type === 'connector' ? (
+            <div className="note-toolbar" role="toolbar" aria-label="Arrow toolbar" onPointerDown={(e) => e.stopPropagation()}>
+              <button type="button" className="note-delete" aria-label="Delete arrow" title="Delete arrow" onClick={onDelete}>
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                  <path d="M6 7h12M9 7V5h6v2m-8 0 1 12h8l1-12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          ) : note.type === 'text' ? (
             <TextToolbar size={note.size} onSize={(s) => props.onSize?.(note.id, s)} onDelete={onDelete} />
           ) : (
             <NoteToolbar

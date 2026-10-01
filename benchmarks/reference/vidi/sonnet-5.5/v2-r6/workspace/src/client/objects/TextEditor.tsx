@@ -5,7 +5,7 @@ import { clampEdit, applyTextDiff, mapIndexThroughDelta } from '../../shared/tex
 import type { UndoController } from '../board/undo';
 
 /** The note or text element that contains the editor; a pointerdown outside it ends editing. */
-const EDIT_ROOTS = '[data-sticky-note], [data-text-object]';
+const EDIT_ROOTS = '[data-sticky-note], [data-text-object], [data-shape-object]';
 
 export interface TextEditorProps {
   ytext: Y.Text;

@@ -114,3 +114,23 @@ Decisions:
 
 E2E status: Chromium passes (text.spec.ts and the earlier specs); Firefox/WebKit not run here.
 - Story 7 e2e TC-36 now drags its marquee from the bottom-right corner: the left toolbar grew (Select, Text, Sticky, Undo, Redo) and covers the old start point. Story 8 e2e TC-24 compares against a snapshot taken before sync finishes and can fail occasionally (pre-existing race; passes on rerun).
+
+## Story 10 — Draw shapes and connect them with arrows that follow when moved
+
+Decisions:
+- Active tool: `src/client/tools/useActiveTool.ts` is the implementation (`ToolId` = select, text, shape, connector; sticky is not a mode and pen/image/comment belong to other stories). `board/useTool.ts` stays as a thin wrapper so earlier code and tests keep working. `useActiveTool` takes `{ canEdit, select }` because `toolCreated(id)` must select through the board's selection; `useSelection` gained `select(id)`, which skips the "known id" check (a just-created object is not in the pruned set until the next snapshot).
+- Shortcuts S and L live in `useBoardKeys` next to V/T/N via `TOOL_SHORTCUTS`; Escape leaves any non-Select tool before it clears the selection. Enter-to-edit now only applies to types with `editableText` (arrows have none).
+- Tools own their gesture through `tools/toolLayer.ts`: a `pointerdown` listener in the capture phase on the board surface (so objects underneath never see it and the wheel still zooms), window listeners until release, Escape/pointercancel cancel. The tool layer itself is `pointer-events: none`. `ShapeTool`/`ConnectorTool` also take `doc` (the design's props have no way to write).
+- Shapes are HTML `div`s with an inline SVG outline and a centred label (a flex box with the textarea auto-sized to its text, instead of a `foreignObject`). Label font is the named setting `SHAPE_LABEL_FONT_PX` (16). Text is inset per kind (4%/14%/20%) so it stays inside an ellipse or diamond, and is clipped if it still does not fit.
+- Swatch names are lower case, `"blue fill"`, `"no fill"`, `"red outline"`.
+- Shift while dragging a shape is squared from the drag start (towards the pointer); the model's `square` option squares from the rect's top-left. Dragging less than the drag threshold (3 px) counts as a click.
+- Arrows: stored as `from`/`to` endpoints (plain objects in the Y.Map), x/y/width/height stored 0 and derived in `snapshot()` together with the resolved `start`/`end` points. `createConnector`/`setConnectorEndpoint` recompute `fallback` from the live rectangles when the target exists (the given fallback is only kept for a target that is already missing). Arrows cannot attach to other arrows. Hit testing for attaching uses bounding boxes, also for ellipses and diamonds.
+- Arrow selection: a transparent line `stroke-width = 2 × 6px / zoom` carries the pointer events, so only clicks within 6 screen pixels select it. The registry `hitTest(obj, point, zoom)` implements the same rule for tests.
+- Moving: an arrow with both ends free moves with a selection (arrow ends and the box move together); an arrow with an attached end is left to follow its objects (a mixed one does not move on its own). Arrows are skipped by resize (not resizable).
+- A released end handle lands within one pixel of where it started = a click, nothing changes. Releasing over the object at the other end is rejected (end stays as it was).
+- `ObjectProps` has an optional `rects` (every non-arrow object's bounds, in stacking order); `BoardApp` builds it from the snapshot so arrows redraw on any local or remote move/resize with no writes.
+- `board-model.ts` imports `detachConnectorsTo` from `objects/connector.ts` (a cycle with `board-model.ts` that only matters at call time); `shape`/`connector` are selectable types from the start so unit tests work without the client registry.
+- Existing board-model unit test TC-12 used `'shape'` as its example of an unknown object type; it now uses `'hologram'` since shapes are known.
+- Component tests use `renderBoardAtOrigin` (camera at 0,0 at 100%, set through the test hook). Red-phase commits skipped; tests were written alongside the implementation.
+- Presence/comments/export hooks (stories 6, 15-17) left out.
+- E2E status: all story 10 specs pass in Chromium; TC-23 also passes in WebKit. In Firefox here the browser fails to create a context (an `EmptyDatabaseError` from Firefox's own services), so TC-23 could not be run there. Under a full parallel run, story 8 TC-24 failed again (the known race above); it passes alone, with and without this story.
