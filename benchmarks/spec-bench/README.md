@@ -32,6 +32,17 @@ held-out suite is run on the base first so regressions still count, and the summ
 diagnostic. It isn't mixed with full runs (EVALUATION-POLICY rule 7). The reference run must have been
 built from the same spec.
 
+To carry on from there to the end of the scope, give `--from-story N` in place of `--only N`:
+
+```sh
+benchmarks/spec-bench/harness/run.sh <install-id> --from-story 10 --from-run combinations/<combination>/benchmarks/vidi/<run-id> --run-id kg-from-10-01
+```
+
+Story N is built on the reference run's code as before, and every later story of the scope on the one before it
+in this new run, as a full run does from story 1. The reference run supplies only the base, so it need not have
+run the later stories. A restart resumes at the first unfinished story, like any run. Its record says which it
+was (`known_good.continues` in `metrics.json`), and it is as diagnostic as the one-story form.
+
 ## Protecting the machine
 
 While the agent works, the harness stops it if swap grows by more than 4 GB or free memory falls below 8%, and records which processes held the memory at the story's lowest point. On Linux the agent is also started with the highest OOM score (`oom_score_adj` 1000), which everything it runs inherits: its tests, dev servers and browsers. If memory runs out before the guard acts, the kernel kills one of those instead of the model server, which would otherwise be its first choice as the biggest process. Raising a score needs no root and lasts only as long as those processes; nothing on the machine changes.

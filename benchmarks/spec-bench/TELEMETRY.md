@@ -102,7 +102,9 @@ gives a story the settings of the start it ran under, stamped `server_started_at
 
 `processed` (the stories processed so far, in order, each with its `status` and `ended_by`), and for a
 known-good run (EVALUATION-POLICY rule 7) `known_good`: `from_run` (the reference run), `commit` (its
-code when the story before ended, the workspace's starting point), `story` (the one story run) and
+code when the story before ended, the workspace's starting point), `story` (the story run, or the first of
+them), `continues` (false: that one story, `--only N`; true: that story and every later story of the scope, each
+built on the one before in this run, `--from-story N`; absent in records before 1 Oct 2026, all of one story) and
 `spec_updated` (the reference predates this pack's spec, so the base got the current spec in a harness
 commit). A
 known-good run's earlier stories are in `processed` with `ended_by` "known-good base"; progress

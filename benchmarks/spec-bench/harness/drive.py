@@ -748,7 +748,8 @@ KNOWN_GOOD_BY = "known-good base"
 
 def known_good_base(ref_run: Path, sid: int) -> dict:
     """Another run's code as it was when the story before sid ended, and the stories it had processed
-    by then: the base a known-good run builds story sid on."""
+    by then: the base a known-good run builds story sid on (and, in a continuation, every story after it:
+    the reference run supplies only the base, so it need not have run those)."""
     bundle = ref_run / "workspace.bundle"
     if not bundle.exists():
         raise SystemExit(f"known-good: {ref_run} has no workspace.bundle")
@@ -1842,8 +1843,12 @@ def main() -> None:
                     help="don't wait for AC power and nominal thermals before each story (cloud models)")
     ap.add_argument("--only", help="comma list of story ids to run (smoke tests)")
     ap.add_argument("--from-run", type=Path,
-                    help="known-good mode (diagnostic): run the one --only story on this finished run's code "
-                         "as it was when the story before ended")
+                    help="known-good mode (diagnostic): build on this finished run's code as it was when the story "
+                         "before ended. With --only N: that one story. With --from-story N: story N and every later "
+                         "story of the scope")
+    ap.add_argument("--from-story", type=int, metavar="N",
+                    help="with --from-run: run story N and every later story of the scope in order, each built on "
+                         "the one before in this run (a known-good continuation)")
     ap.add_argument("--record", action="store_true",
                     help="after each story, commit this run's directory and push (a per-story record)")
     a = ap.parse_args()
@@ -1857,11 +1862,29 @@ def main() -> None:
         wanted = {int(x) for x in a.only.split(",")}
         stories = [s for s in stories if s["id"] in wanted]
     scope_label = a.scope or (f"epic:{a.epic}" if a.epic else "all")
+    # Known-good mode is told plainly which stories to run: one (--only N), or N and every later one (--from-story N).
+    if a.from_story is not None:
+        if not a.from_run:
+            ap.error("--from-story needs --from-run: the finished run whose code the stories are built on")
+        if a.only:
+            ap.error("--from-run takes --only N or --from-story N, not both")
+        in_scope = [s["id"] for s in scope["stories"]]
+        if a.from_story not in in_scope:
+            ap.error(f"--from-story {a.from_story}: story {a.from_story} is not in the scope "
+                     f"({scope_label}: stories {in_scope})")
+        stories = scope["stories"][in_scope.index(a.from_story):]
+    elif a.from_run:
+        if not a.only:
+            ap.error("--from-run needs --only N (that one story, built on the reference run's code) or "
+                     "--from-story N (story N and every later story of the scope)")
+        if len(stories) != 1:
+            ap.error("--from-run with --only runs exactly one story; for story N and every later one use "
+                     "--from-story N")
     if a.dry_run:
         print(f"pack {PK.name} at {PK.dir}")
         print(f"scope {scope_label}: stories {[s['id'] for s in stories]}")
         print(f"held-out suite: {PK.acceptance or 'none (acceptance reported n/a)'}; gate: {PK.gate}")
-        kg = known_good_base(a.from_run.resolve(), stories[0]["id"]) if a.from_run and len(stories) == 1 else None
+        kg = known_good_base(a.from_run.resolve(), stories[0]["id"]) if a.from_run else None
         if kg:
             print(f"known-good base: {kg['from_run']} at {kg['commit'][:12]}, "
                   f"processed {[p['id'] for p in kg['processed']]}")
@@ -1869,8 +1892,6 @@ def main() -> None:
             print("--- first prompt ---")
             print(render_prompt(stories[0], story_title(stories[0]), kg["processed"] if kg else [], scope))
         return
-    if a.from_run and len(stories) != 1:
-        ap.error("--from-run runs exactly one story: give it with --only")
     missing = [f"--{n.replace('_', '-')}" for n in ("run_dir", "base_url", "model_id") if not getattr(a, n)]
     if missing:
         ap.error(f"{', '.join(missing)} required (or --dry-run)")
@@ -1899,7 +1920,9 @@ def main() -> None:
         ref = known_good["from_run"]
         metrics.setdefault("known_good", {"from_run": str(ref.relative_to(REPO_ROOT)) if ref.is_relative_to(REPO_ROOT) else str(ref),
                                  "commit": known_good["commit"], "story": known_good["story"],
-                                 "spec_updated": known_good.get("spec_updated", False)})  # kept across restarts
+                                 "spec_updated": known_good.get("spec_updated", False),
+                                 # False: that one story. True: it and every later story of the scope.
+                                 "continues": a.from_story is not None})  # kept across restarts
         metrics.setdefault("processed", known_good["processed"])
     processed = load_processed(metrics, scope["stories"])
     metrics["processed"] = processed

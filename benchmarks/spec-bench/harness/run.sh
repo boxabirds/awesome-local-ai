@@ -3,7 +3,7 @@
 #
 #   benchmarks/spec-bench/harness/run.sh <install-id> [--pack benchmarks/vidi] [--client pi|opencode]
 #       [--scope NAME | --epic NAME] [--run-id ID] [--only 1,2] [--record] [--meter]
-#       [--only N --from-run DIR]
+#       [--from-run DIR (--only N | --from-story N)]
 #
 # Starts the combination's own server launcher (<install-id>-server) on a bench
 # port and drives a coding agent (pi by default) through the pack's stories one at
@@ -15,7 +15,8 @@
 # BENCH_CONTEXT=<tokens> overrides the context (server and agent together); CLIENT_THINKING=<level>
 # makes pi send a reasoning effort (for servers that can't apply one).
 # Known-good mode (diagnostic, not comparable with full runs): --only N --from-run <finished run dir>
-# runs story N alone on that run's code as it was when the story before ended.
+# runs story N alone on that run's code as it was when the story before ended; --from-story N --from-run <dir>
+# runs story N and every later story of the scope, each built on the one before in this run.
 set -euo pipefail
 
 HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,12 +32,12 @@ SERVER_READY_TIMEOUT_S=900
 POLL_S=5
 THERMAL_TIMEOUT_S=1800
 
-usage() { sed -n '2,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 [[ $# -ge 1 && "$1" != -h && "$1" != --help ]] || { usage; exit 0; }
 RESULTS_ROOT="$(python3 "$HARNESS/roots.py" results)" || exit 1
 INSTALL_ID="$1"; shift
-PACK="benchmarks/vidi"; SCOPE=""; EPIC=""; RUN_ID="$(date +%Y%m%d-%H%M)"; ONLY=""; METER=0; CLIENT_NAME=pi; RECORD=""; FROM_RUN=""
+PACK="benchmarks/vidi"; SCOPE=""; EPIC=""; RUN_ID="$(date +%Y%m%d-%H%M)"; ONLY=""; METER=0; CLIENT_NAME=pi; RECORD=""; FROM_RUN=""; FROM_STORY=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --pack) PACK="${2%/}"; shift 2 ;;
@@ -46,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     --only) ONLY="$2"; shift 2 ;;
     --client) CLIENT_NAME="$2"; shift 2 ;;
     --from-run) FROM_RUN="$(cd "$2" && pwd)"; shift 2 ;;
+    --from-story) FROM_STORY="$2"; shift 2 ;;
     # Commit and push this run's directory after every story (a per-story record).
     --record) RECORD=1; shift ;;
     # Diagnosis only: put the metering proxy between agent and server. It rewrites
@@ -56,7 +58,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -z "$FROM_RUN" || "$ONLY" =~ ^[0-9]+$ ]] || { echo "--from-run runs exactly one story: give it with --only N" >&2; exit 2; }
+[[ -z "$FROM_RUN" || "$ONLY" =~ ^[0-9]+$ || "$FROM_STORY" =~ ^[0-9]+$ ]] || { echo "--from-run needs --only N (that one story) or --from-story N (story N and every later story of the scope)" >&2; exit 2; }
 
 ENV_FILE="$HOME/.local/share/$INSTALL_ID/install.env"
 [[ -f "$ENV_FILE" ]] || { echo "$INSTALL_ID is not installed (no $ENV_FILE)" >&2; exit 1; }
@@ -279,6 +281,7 @@ uv run --quiet drive.py --run-dir "$RUN_DIR" --base-url "$AGENT_URL" --client "$
   --context-limit "$CONTEXT_LIMIT" --output-limit "$OUTPUT_LIMIT" \
   ${ONLY:+--only "$ONLY"} ${RECORD:+--record} ${COMPACT_AT:+--compact-at "$COMPACT_AT"} \
   ${CLIENT_THINKING:+--client-thinking "$CLIENT_THINKING"} ${FROM_RUN:+--from-run "$FROM_RUN"} \
+  ${FROM_STORY:+--from-story "$FROM_STORY"} \
   ${NO_CONDITION_WAIT:+--no-condition-wait}
 uv run --quiet report.py "$RUN_DIR"
 # The run's history as workspace.bundle, and its final build re-scored under the suite at the pack's tag
