@@ -55,7 +55,7 @@ TOOL_PATH="$(dirname "$(command -v node 2>/dev/null || echo /usr/bin/x)"):$(dirn
 drive() { # env... -- [driver args]; output in $WORK/out
   env -i PATH="$WORK/bin:$TOOL_PATH:/usr/bin:/bin:/usr/sbin" HOME="$FAKE_HOME" DBENCH_HOME="$WORK/dbench" \
       TENSORFOLD_BIN="$WORK/bin/tensorfold" TENSORFOLD_MODEL_STORE="$STORE" TFC_RUNS_ROOT="$WORK/runs" TFC_PYTHON="$REAL_PY" \
-      UV_CACHE_DIR="$WORK/uv-cache" UV_PYTHON_DOWNLOADS=never "$@" >"$WORK/out" 2>&1
+      UV_CACHE_DIR="$WORK/uv-cache" UV_PYTHON_DOWNLOADS=never "$@" >"${DRIVE_OUT:-$WORK/out}" 2>&1
 }
 printf '#!/usr/bin/env bash\n[[ "${1:-}" == --version ]] && { echo "tensorfold 0.6.0"; exit 0; }\necho "tensorfold: this checkpoint is refused"; exit 1\n' > "$WORK/bin/tensorfold-dies"
 chmod +x "$WORK/bin/tensorfold-dies"
@@ -66,6 +66,8 @@ PIN_COMMIT="$(bash -c ". '$CFG'; echo \$TENSORFOLD_COMMIT")"
 PIN_PYTHON="$(bash -c ". '$CFG'; echo \$TENSORFOLD_PYTHON")"
 bash -c ". '$CFG'; printf '%s\n' \"\$MODEL_SHA256\"" | grep . > "$WORK/sha.table"
 CALLS="$WORK/calls"; mkdir -p "$CALLS" "$WORK/netstub" "$WORK/pistub"
+# How often a held download looks to see whether the test has let it go, and how long a test waits for one to start.
+HOLD_POLL_S=0.2; HOLD_START_TRIES=150
 # Free space `df` reports unless a test says otherwise: more than any checkpoint.
 PLENTY_FREE_KB=999999999999
 # `uv venv --python V DIR` makes DIR/bin/python, which answers the pinned commit; `uv pip install` puts the fake
@@ -88,6 +90,10 @@ cat > "$WORK/netstub/hf" <<STUB
 echo "hf \$*" >> "$CALLS/hf.log"
 [[ "\$1" == download ]] || exit 0
 [[ -e "$CALLS/hf-fails" ]] && { echo "hf: connection reset"; exit 1; }
+# a download still in progress: the first one only, so that an overlapping second one shows up as a second download
+if [[ "\$(grep -c '^hf download ' "$CALLS/hf.log")" == 1 ]]; then
+  while [[ -e "$CALLS/hf-holds" ]]; do sleep "$HOLD_POLL_S"; done
+fi
 dir="\${@: -1}"; mkdir -p "\$dir"
 python3 - "\$dir" "$WORK/sha.table" <<'PY2'
 import json, pathlib, sys
@@ -180,6 +186,56 @@ assert_eq "busy, no option -> exit 2, not 3: there is nothing to wait for yet" 2
 prep PGREP_OUT="$BUSY_AGENT" /bin/bash "$DRIVER" --prepare-only
 assert_eq "--prepare-only -> exit 2" 2 "$?"
 assert_eq "...and no server was started" 0 "$(servers_started)"
+
+echo
+echo "one prepare at a time: a lock, held only while preparing"
+LOCK="$WORK/runs/.prepare.lock"
+# starts a prepare whose download stays in progress until hf-holds is removed; its exit code lands in first.rc
+start_held_prepare() {
+  unprepared; touch "$CALLS/hf-holds"
+  ( DRIVE_OUT="$WORK/first.out" prep /bin/bash "$DRIVER" --prepare-only; echo $? > "$WORK/first.rc" ) &
+  FIRST_JOB=$!
+  local tries=0
+  until [[ "$(calls hf '^hf download ')" == 1 ]] || (( tries++ >= HOLD_START_TRIES )); do sleep "$HOLD_POLL_S"; done
+}
+start_held_prepare
+assert_ok "while the first is downloading, the lock names a running process" bash -c "kill -0 \$(cat '$LOCK')"
+HOLDER="$(cat "$LOCK" 2>/dev/null)"
+prep /bin/bash "$DRIVER" --prepare-only
+assert_eq "a second --prepare-only meanwhile -> exit 2" 2 "$?"
+assert_ok "...naming the first one's PID" grep -q "pid ${HOLDER:-unknown})" "$WORK/out"
+prep /bin/bash "$DRIVER"
+assert_eq "a second run with no option meanwhile -> exit 2" 2 "$?"
+assert_eq "...and neither started a second download" 1 "$(calls hf '^hf download ')"
+assert_eq "...nor a server" 0 "$(servers_started)"
+assert_eq "the first one still holds the lock" "$HOLDER" "$(cat "$LOCK" 2>/dev/null)"
+rm "$CALLS/hf-holds"; wait "$FIRST_JOB"
+assert_eq "the first one finishes -> exit 0" 0 "$(cat "$WORK/first.rc")"
+assert_fails "...and lets the lock go" test -e "$LOCK"
+
+start_held_prepare
+HOLDER="$(cat "$LOCK" 2>/dev/null)"
+[[ -n "$HOLDER" ]] && kill -TERM "$HOLDER"
+rm "$CALLS/hf-holds"; wait "$FIRST_JOB"
+assert_eq "a prepare that is interrupted -> exit 130" 130 "$(cat "$WORK/first.rc")"
+assert_fails "...lets the lock go" test -e "$LOCK"
+
+unprepared; mkdir -p "$WORK/runs"
+true & GONE=$!; wait "$GONE"
+echo "$GONE" > "$LOCK"
+prep /bin/bash "$DRIVER" --prepare-only
+assert_eq "a lock left by a process that is no longer running is taken over -> exit 0" 0 "$?"
+assert_eq "...and the work is done" 1 "$(calls hf '^hf download ')"
+assert_fails "...and the lock is gone afterwards" test -e "$LOCK"
+
+unprepared; touch "$CALLS/hf-fails"
+prep /bin/bash "$DRIVER" --prepare-only
+assert_eq "a prepare that fails -> exit 2" 2 "$?"
+assert_fails "...lets the lock go" test -e "$LOCK"
+rm "$CALLS/hf-fails"
+prep PGREP_OUT="$BUSY_AGENT" /bin/bash "$DRIVER"
+assert_eq "the next one is not held up by it; busy, so the checks wait -> exit 3" 3 "$?"
+assert_fails "...and nothing holds the lock while the checks wait" test -e "$LOCK"
 
 echo
 echo "not enough disk for the checkpoint"
