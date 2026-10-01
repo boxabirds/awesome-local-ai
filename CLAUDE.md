@@ -33,3 +33,7 @@ When problems lead to recommended actions, give each one as:
 Never create a branch: not local, not remote, not temporary, not in a scratch clone, and not "to keep main safe". Work on the checked-out branch (main) and commit there. That rules out `git checkout -b`, `git switch -c`, `git checkout -B`, `git branch <name>`, `git worktree add` without `--detach`, and pushing to any new remote branch. Agents and subagents follow the same rule. If some work seems to need isolation, ask the owner first.
 
 Why: the owner works on main only. During the 30 September 2026 history rewrite a temporary `local-main` branch was created in a scratch clone, against this rule.
+
+## Build in Rust unless there's good reason not to
+
+Unless there's good reason, use Rust as the language to build. It's more efficient, tractable, provably eliminates entire classes of bugs, and runs faster. Only when compile times or tech stacks become a problem should other languages be considered.
