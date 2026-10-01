@@ -2,6 +2,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -57,9 +58,14 @@ export interface BoardViewportProps {
   /** With the Text tool active a click anywhere on the board (also on top of objects) places text there. */
   textToolActive?: boolean;
   onTextClick?: (world: Point) => void;
+  /** File drag and drop (images); the handlers get the React drag events of the board surface. */
+  onDragEnter?: (e: ReactDragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: ReactDragEvent<HTMLDivElement>) => void;
+  onDragLeave?: (e: ReactDragEvent<HTMLDivElement>) => void;
+  onDrop?: (e: ReactDragEvent<HTMLDivElement>) => void;
 }
 
-export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEmpty, snapshot = NO_OBJECTS, onMarqueeSelect, textToolActive = false, onTextClick }: BoardViewportProps) {
+export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEmpty, snapshot = NO_OBJECTS, onMarqueeSelect, textToolActive = false, onTextClick, onDragEnter, onDragOver, onDragLeave, onDrop }: BoardViewportProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>({ width: window.innerWidth, height: window.innerHeight });
   const cam = useCamera(size);
@@ -228,6 +234,10 @@ export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEm
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onDoubleClick={onDoubleClick}
+        onDragEnter={onDragEnter}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
         onPointerCancel={endPan}
         onLostPointerCapture={endPan}
         style={{

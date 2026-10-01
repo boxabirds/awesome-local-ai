@@ -25,6 +25,10 @@ import { BoardViewport } from './canvas/BoardViewport';
 import type { Camera } from './canvas/camera';
 import { setTestConnectionState } from './canvas/testHooks';
 import { getObjectType } from './objects/registry';
+import { ImageInsertContext } from './images/imageContext';
+import { DropHighlight } from './images/DropHighlight';
+import { useImageInsert } from './images/useImageInsert';
+import { ToastHost } from './ui/Toast';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
 
@@ -76,6 +80,18 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
     return m;
   }, [objects]);
   const viewCentreRef = useRef({ x: 0, y: 0 });
+  const identityId = localIdentityId();
+  const images = useImageInsert({ doc, boardId: boardId ?? '', camera: liveCamera, connection, identityId, undo: undoCtl });
+  const imageCtx = useMemo(
+    () => ({ identityId, progress: images.progress, canRetry: images.canRetry, retry: images.retry }),
+    [identityId, images.progress, images.canRetry, images.retry],
+  );
+  const onPasteImage = images.onPaste;
+  useEffect(() => {
+    const h = (e: ClipboardEvent) => onPasteImage(e);
+    window.addEventListener('paste', h);
+    return () => window.removeEventListener('paste', h);
+  }, [onPasteImage]);
 
   const deleteSelection = () => {
     if (!editable) return;
@@ -110,11 +126,14 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
     undo: undoCtl,
     setTool,
     onCreateSticky: () => create(viewCentreRef.current),
+    onOpenImagePicker: images.openPicker,
   });
 
   return (
     <UndoContext.Provider value={undoCtl}>
     <ObjectRectsContext.Provider value={rects}>
+    <ImageInsertContext.Provider value={imageCtx}>
+    <ToastHost />
     {boardId && <ConnectionStatus state={connection} />}
     <BoardViewport
       onDoubleClickEmpty={create}
@@ -123,6 +142,10 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
       onMarqueeSelect={(ids) => sel.setMany(ids, true)}
       textToolActive={tool === 'text'}
       onTextClick={placeText}
+      onDragEnter={images.onDragEnter}
+      onDragOver={images.onDragOver}
+      onDragLeave={images.onDragLeave}
+      onDrop={images.onDrop}
       overlay={(ctx) => {
         cameraRef.current = ctx.camera;
         viewCentreRef.current = ctx.viewCentre;
@@ -132,6 +155,7 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
             {tool === 'pen' && <PenTool camera={ctx.camera} color={pen.color} thickness={pen.thickness} doc={doc} identityId={localIdentityId()} undo={undoCtl} />}
             {tool === 'pen' && <PenToolbar color={pen.color} thickness={pen.thickness} onColor={pen.setColor} onThickness={pen.setThickness} />}
             {tool === 'connector' && <ConnectorTool camera={ctx.camera} snapshot={objects} doc={doc} undo={undoCtl} onCreated={toolCreated} />}
+            <DropHighlight active={images.dragActive} />
             <Toolbar
               disabled={!editable}
               tool={tool}
@@ -142,6 +166,7 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
                 setTool('shape');
               }}
               onCreateSticky={() => create(ctx.viewCentre)}
+              onImage={images.openPicker}
             >
               <UndoButtons {...undoState} />
             </Toolbar>
@@ -190,6 +215,7 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
           });
       }}
     </BoardViewport>
+    </ImageInsertContext.Provider>
     </ObjectRectsContext.Provider>
     </UndoContext.Provider>
   );

@@ -1,18 +1,23 @@
 import { isValidBoardId } from '../shared/board-id';
 import type { BoardRoom } from './board-room';
+import { handleServe, handleUpload } from './assets';
 import { createBoard } from './create-board';
 import { handleTestHook } from './test-hooks';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   TEST_HOOKS?: string; // '1' only in the e2e wrangler run
 }
 
 const ROOM_PATH = /^\/api\/rooms\/([^/]*)$/;
 const BOARD_PATH = /^\/api\/boards\/([^/]*)$/;
 
-const json = (body: unknown, status: number) =>
+const UPLOAD_PATH = /^\/api\/boards\/([^/]*)\/assets$/;
+const ASSET_PATH = /^\/api\/assets\/([^/]*)\/([^/]*)$/;
+
+const json =(body: unknown, status: number) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const notFound = () => json({ error: 'not_found' }, 404);
 
@@ -37,6 +42,24 @@ export default {
       const result = await createBoard(env);
       return result.ok ? json({ id: result.id }, 201) : json({ error: 'create_failed' }, 500);
     }
+
+    const upload = UPLOAD_PATH.exec(path);
+    if (upload) {
+      if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'POST' } });
+      const id = decodeId(upload[1]);
+      return id ? handleUpload(req, env, id) : notFound();
+    }
+    const asset = ASSET_PATH.exec(path);
+    if (asset) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET' } });
+      try {
+        return await handleServe(env, `${decodeURIComponent(asset[1])}/${decodeURIComponent(asset[2])}`);
+      } catch {
+        return notFound();
+      }
+    }
+
+    if (path.startsWith('/api/assets/')) return notFound();
 
     const board = BOARD_PATH.exec(path);
     if (board) {

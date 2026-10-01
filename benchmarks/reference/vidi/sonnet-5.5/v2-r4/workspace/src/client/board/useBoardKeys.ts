@@ -29,13 +29,15 @@ export function useBoardKeys(opts: {
   /** V, T and Escape switch tools; N creates a sticky note at the view centre. */
   setTool?(t: Tool): void;
   onCreateSticky?(): void;
+  /** I opens the image file picker. */
+  onOpenImagePicker?(): void;
 }): void {
   const ref = useRef(opts);
   ref.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, undo, setTool, onCreateSticky } = ref.current;
+      const { doc, selection, snapshot, canEdit, undo, setTool, onCreateSticky, onOpenImagePicker } = ref.current;
       if (selection.editingId !== null || isTextTarget(e.target)) return;
 
       if ((e.ctrlKey || e.metaKey) && !e.altKey) {
@@ -66,6 +68,10 @@ export function useBoardKeys(opts: {
       }
       if ((lower === 't' || lower === 's' || lower === 'l' || lower === 'p') && !e.shiftKey) {
         if (canEdit) setTool?.(TOOL_SHORTCUTS[lower]);
+        return;
+      }
+      if (lower === 'i' && !e.shiftKey) {
+        if (canEdit) onOpenImagePicker?.();
         return;
       }
       if (lower === 'n' && !e.shiftKey) {

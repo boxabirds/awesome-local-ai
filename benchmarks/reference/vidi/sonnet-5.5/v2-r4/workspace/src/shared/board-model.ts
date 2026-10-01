@@ -4,6 +4,7 @@ import type { TextSnapshot } from './objects/text';
 import type { ShapeSnap } from './objects/shape';
 import { isPenColor, isPenThickness, type StrokeSnap } from './objects/stroke';
 import { DEFAULT_PEN_COLOR, DEFAULT_PEN_THICKNESS } from './config';
+import type { ImageSnap, ImageStatus } from './objects/image';
 import { detachConnectorsTo, parseEndpoint, type ConnectorSnap } from './objects/connector';
 import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 import { DEFAULT_SHAPE_FILL, DEFAULT_SHAPE_STROKE, SHAPE_FILL_COLORS, SHAPE_KINDS, SHAPE_STROKE_COLORS } from './config';
@@ -34,7 +35,7 @@ export function isSticky(o: ObjectSnapshot): o is StickySnapshot {
 }
 
 /** Object types the client can render, select and transform (the registry adds its own). */
-const knownTypes = new Set<string>(['sticky', 'text', 'shape', 'connector', 'stroke']);
+const knownTypes = new Set<string>(['sticky', 'text', 'shape', 'connector', 'stroke', 'image']);
 export function registerKnownType(type: string): void {
   knownTypes.add(type);
 }
@@ -310,6 +311,21 @@ function readObjects(doc: Y.Doc, withConnectors: boolean): readonly ObjectSnapsh
         thickness: isPenThickness(thickness) ? thickness : DEFAULT_PEN_THICKNESS,
       };
       out.push(stroke);
+    } else if (type === 'image') {
+      const status = o.get('status');
+      const key = o.get('assetKey');
+      const image: ImageSnap = {
+        ...base,
+        type: 'image',
+        assetKey: typeof key === 'string' ? key : null,
+        contentType: typeof o.get('contentType') === 'string' ? (o.get('contentType') as string) : '',
+        naturalWidth: Number(o.get('naturalWidth')) || base.width,
+        naturalHeight: Number(o.get('naturalHeight')) || base.height,
+        status: (status === 'ready' || status === 'failed' ? status : 'uploading') as ImageStatus,
+        uploadStartedAt: Number(o.get('uploadStartedAt')) || 0,
+        uploaderId: typeof o.get('uploaderId') === 'string' ? (o.get('uploaderId') as string) : '',
+      };
+      out.push(image);
     } else if (type === 'connector') {
       if (withConnectors) connectors.push([id, o, base]);
     } else out.push(base);

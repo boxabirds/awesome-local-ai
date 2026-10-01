@@ -12,6 +12,8 @@ const BUTTON_STYLE = { width: 40, height: 40, border: 'none', borderRadius: 8 } 
 
 export function Toolbar(props: {
   onCreateSticky(): void;
+  /** The Image button opens the file picker (it is an action, not a mode). */
+  onImage?(): void;
   disabled?: boolean;
   tool?: Tool;
   onTool?(t: Tool): void;
@@ -150,6 +152,20 @@ export function Toolbar(props: {
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M4 20l1-4L16 5l3 3L8 19z" />
           <path d="M14 7l3 3" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        aria-label="Image (I)"
+        title="Image (I)"
+        disabled={props.disabled}
+        onClick={props.onImage}
+        style={{ ...BUTTON_STYLE, background: 'transparent', cursor: props.disabled ? 'not-allowed' : 'pointer', opacity: props.disabled ? 0.4 : 1 }}
+      >
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#444" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <circle cx="9" cy="10" r="1.6" />
+          <path d="M3 17l5-5 4 4 3-3 6 6" />
         </svg>
       </button>
       {props.children}

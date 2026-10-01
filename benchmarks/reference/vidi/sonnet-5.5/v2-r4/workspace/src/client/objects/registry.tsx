@@ -4,6 +4,8 @@ import { PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, CO
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
 import type { ConnectorSnap } from '../../shared/objects/connector';
+import { IMAGE_MIN_SIZE_WORLD } from '../../shared/config';
+import { ImageObjectHost } from './ImageObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
 import { ShapeObject } from './ShapeObject';
@@ -95,6 +97,15 @@ registerObjectType('connector', {
     const { from, to } = (obj as ConnectorSnap).ends;
     return distanceToPolyline([from, to], p) <= CONNECTOR_HIT_TOLERANCE_PX / zoom;
   },
+});
+
+registerObjectType('image', {
+  Component: ImageObjectHost,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: boundsHitTest,
 });
 
 registerObjectType('stroke', {
