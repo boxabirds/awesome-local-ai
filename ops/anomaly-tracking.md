@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 09:30 UTC
+**Last updated:** 2026-10-01 09:20 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -28,7 +28,7 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 ## Open — needs someone
 
 ### A-011 — Runs end with no score of record: the suite checkout is one commit off its tag
-- **First seen:** 2026-10-01 07:26 · **Last seen:** 2026-10-01 09:30 (still true for the running jobs)
+- **First seen:** 2026-10-01 07:26 · **Last seen:** 2026-10-01 09:12 (still true for the running jobs)
 - **Where:** gufo-pi on the Strix Halo box: v2-r4 (finished, unscored), v2-r5 (running, will end the same
   way). mlxserve-pi on the M5 Max: v2-r2 (running; its stories record the same kind of version).
 - **Observed:** gufo v2-r4 `finalize.json`: `rescore: skipped`, reason "the suite checkout is at
@@ -50,7 +50,7 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   11 stories.
 
 ### A-018 — Two machines will go idle when their current run ends (queues empty; two nodes held)
-- **First seen:** 2026-10-01 09:02 · **Last seen:** 2026-10-01 09:30
+- **First seen:** 2026-10-01 09:02 · **Last seen:** 2026-10-01 09:12
 - **Where:** the M5 Max (mlxserve-pi v2-r2 running, nothing queued; its v2-r3 job was cancelled while
   queued on 30 Sep) and the Strix Halo box (gufo-pi v2-r5 running, nothing queued).
 - **Observed:** `dbench status`: no queued job behind either. The M5 Max and the RTX 4090 machine are also
@@ -60,6 +60,23 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Status:** open. mlxserve-pi has one finished v2 run and one in progress, so it is short of three.
 - **Suggested action:** queue mlxserve-pi v2-r3 on the M5 Max and the next job on the Strix Halo box;
   check the holds release as intended when the running jobs end.
+
+### A-022 — The reference run shares the M2 MacBook Air with interactive work: on battery for a whole story, thermal waits
+- **First seen:** 2026-10-01 07:5x (story 3) · **Last seen:** 2026-10-01 09:12 (waiting before story 7)
+- **Where:** reference/sonnet-5.5 v2-r4, the M2 MacBook Air.
+- **Observed:** story 3: 13 of 31 condition samples thermally throttled (moderate or heavy), share 0.42.
+  Story 4: 65 of 74 samples on battery with Low Power Mode on, so the story is marked DEGRADED (timing
+  not comparable); it took 39 min against 11–18 min elsewhere. The harness waited for fit conditions
+  before stories 3, 5 and 7 ("thermal: heavy", and once "ac: False, low_power: True"). At 09:12 the
+  machine had a load average of 7 (16 over the previous 15 min), a video call using about 1.8 cores, and
+  several other interactive sessions, this monitor among them.
+- **Bucket:** environment — **confidence high** (the run's own condition samples and the machine's
+  process list).
+- **Status:** open. Held-out scores are unaffected so far (36/36 at story 5), but v2-r4's times are not a
+  clean reference, and A-010 and A-015 may be side effects.
+- **Suggested action:** keep the laptop on AC for the rest of v2-r4..r6; treat story 3 and 4 timings of
+  v2-r4 as not comparable; if a clean timing reference matters, run the reference when the machine is
+  otherwise idle.
 
 ---
 
@@ -81,6 +98,8 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   read individually (medium). The other reading, a scoring-side failure to start the app, is ruled out
   for v2-r4 by the agent's own e2e result on the same commit.
 - **Status:** watching for whether a later story repairs it, as happened in v2-r1 and v2-r3.
+- **Note 2026-10-01 09:12:** story 5 done in 22 min (the other runs: 87–128 min): 2/5 of its own held-out
+  tests and 3/36 overall, gate still red. The app now renders for a few tests; not repaired.
 - **Suggested action:** none for the harness. Worth knowing when reading this stack's story-level scores:
   stories 2–4 will show 0 own held-out tests although unit-level work exists.
 
@@ -104,17 +123,6 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   agent nothing it wasn't already told in the prompt). If not, consider stopping at the first nudge whose
   reply makes no tool call that changes a file, to save the 30+ minutes.
 
-### A-017 — mlx-serve v2-r2 story 10 is very long: 3 h 34 min, 650 calls, 10 compactions and still going
-- **First seen:** 2026-10-01 09:02 · **Last seen:** 2026-10-01 09:30
-- **Where:** qwen 3.8 flash-next, mlxserve-pi, the M5 Max, v2-r2 story 10 (job attempt 2 after A-005).
-- **Observed:** live: 213.7 agent-min, 650 calls, 442k output tokens, 10 compactions; the same story took
-  128 min, 363 calls and 6 compactions in v2-r1. It is not stuck: commits are still landing (last one
-  minutes before each check) and the recent tool calls are test runs and edits to its own e2e tests.
-- **Bucket:** genuine LLM behaviour — **confidence low** until the story ends and its log can be read
-  (chasing its own failing or flaky browser tests is the likely cause).
-- **Status:** watching. Under 3× its only peer, so not yet an outlier by the rule; flagged for the
-  compactions.
-
 ### A-010 — Sonnet 5.5 v2-r4: its own e2e suite fails in the gate on stories 2 and 3 while held-out passes
 - **First seen:** 2026-10-01 07:5x (story 2) · **Last seen:** 2026-10-01 08:2x (story 3)
 - **Where:** reference/sonnet-5.5 v2-r4, the M2 MacBook Air.
@@ -124,6 +132,9 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Bucket:** genuine LLM behaviour — **confidence medium**: the agent committed with one of its own tests
   failing where the gate runs it. Not yet separated from a test that only fails in the gate's environment
   (the agent's log on those stories would show whether it passed for the agent).
+- **Note 2026-10-01 09:12:** story 5's gate is red again (36/36 held-out). The machine was heavily loaded
+  during these stories (A-022), so a timing-sensitive test of the agent's own failing only under load is
+  now the likelier reading; bucket unchanged until a log is read.
 - **Status:** watching v2-r4's later stories and v2-r5/r6.
 
 ### A-015 — Sonnet 5.5 v2-r4 story 4: accounting check failed, and the story took 39 min
@@ -132,10 +143,13 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Observed:** `time_split.accounting.ok` false: wall 2352.1 s against the agent's own clock 2321.2 s
   (31 s, 1.3%; the limit is 1%). One session, no nudges, no time between sessions. Separately, 1710 s of the
   story (73%) is the agent running its own e2e tests; the same story took 17–18 min for Opus.
-- **Bucket:** internal bug — **confidence medium**: the split for Claude Code logs (added 1 Oct) leaves
+- **Bucket:** internal bug — **confidence low** (was medium): the split for Claude Code logs (added 1 Oct) leaves
   31 s unowned by the agent's clock; most likely time before the first or after the last logged event.
   The long e2e time is the agent's own doing and is measured correctly.
-- **Status:** watching for the same on later stories.
+- **Note 2026-10-01 09:12:** the story ran almost entirely on battery in Low Power Mode and is marked
+  DEGRADED (A-022), which explains its length. The 31 s gap may come from the same cause (the machine
+  pausing), which would make this environment rather than a bug: confidence lowered to low.
+- **Status:** watching for the same on later stories; stories 1–3 and 5 passed the check.
 
 ### A-016 — mlx-serve v2-r2: accounting unchecked on stories 1–3, failed on stories 4 and 9
 - **First seen:** 2026-09-30 · **Last seen:** 2026-10-01 07:0x (story 9)
@@ -262,6 +276,15 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   genuine) — high. **Resolved:** both marked invalid (`7e4840db` and the canvas-pi-04 record); every story
   now gets an outside-the-workspace verdict (`282b1c10`).
 
+### A-017 — mlx-serve v2-r2 story 10 was very long: 3 h 35 min, 652 calls, 10 compactions
+- **Seen:** 2026-10-01 09:02–09:10 · **Where:** mlxserve-pi v2-r2 story 10, the M5 Max.
+- **What:** 215 agent-min, 652 calls, 442k output tokens, 10 compactions, against 128 min, 363 calls and
+  6 compactions for the same story in v2-r1. It kept committing throughout; its last hour was spent on its
+  own e2e tests. It ended DONE with the gate green, 8/8 of its own held-out tests and 63/65 overall,
+  accounting check passed.
+- **Bucket:** genuine LLM behaviour — medium (the log's last hour was only seen through the live activity
+  feed, not read in full). Slow but the best result for this story on this stack; no action.
+
 ### A-014 — gufo v2-r4 story 4's record says "not pushed", but it is on main
 - **Seen:** 2026-10-01 03:13 · **Where:** gufo-pi v2-r4 story 4.
 - **What:** `record.pushed` false / `unpushed` true with a rejected-push error (the remote had moved); the
@@ -277,18 +300,18 @@ By bucket (A-018 is a scheduling flag and has no bucket):
 | Bucket | Open: needs someone | Open: watched | Explained / resolved | Total |
 |---|---|---|---|---|
 | internal bug | 0 | 3 (A-015, A-016, A-020) | 7 (A-001, A-002, A-003, A-004, A-008, A-009, A-014) | 10 |
-| genuine LLM behaviour | 0 | 4 (A-010, A-012, A-013, A-017) | 2 (A-006, A-007) | 6 |
+| genuine LLM behaviour | 0 | 3 (A-010, A-012, A-013) | 3 (A-006, A-007, A-017) | 6 |
 | stuck job | 0 | 0 | 0 | 0 |
 | broken pipeline | 1 (A-011) | 0 | 0 | 1 |
-| environment | 0 | 0 | 1 (A-005) | 1 |
+| environment | 1 (A-022) | 0 | 1 (A-005) | 2 |
 | unexplained | 0 | 2 (A-019, A-021) | 0 | 2 |
-| **Total** | **1** (+A-018) | **9** | **10** | **20** (+A-018) |
+| **Total** | **2** (+A-018) | **8** | **11** | **21** (+A-018) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
 | Combination | Machine | Anomalies |
 |---|---|---|
-| reference/sonnet-5.5 | the M2 MacBook Air | A-002, A-003, A-004, A-010, A-015, A-020 |
+| reference/sonnet-5.5 | the M2 MacBook Air | A-002, A-003, A-004, A-010, A-015, A-020, A-022 |
 | reference/opus-5.5 | the M2 MacBook Air | A-021 |
 | qwen 3.8 flash-next, mlxserve-pi | the M5 Max | A-001, A-005, A-016, A-017 (and A-011, A-018) |
 | qwen 3.8 flash-next, gufo-pi | the Strix Halo box | A-006, A-007, A-011, A-013, A-014, A-019 (and A-018) |
