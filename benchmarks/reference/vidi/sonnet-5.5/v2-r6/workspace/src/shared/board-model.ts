@@ -1,8 +1,8 @@
 import * as Y from 'yjs';
 import {
   DEFAULT_SHAPE_FILL, DEFAULT_SHAPE_STROKE, DEFAULT_STICKY_COLOR, DEFAULT_TEXT_SIZE, SHAPE_FILL_COLORS, SHAPE_KINDS,
-  SHAPE_STROKE_COLORS, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES,
-  type FillColor, type StickyColor, type StrokeColor, type TextSize,
+  PEN_COLORS, PEN_THICKNESS_WORLD, SHAPE_STROKE_COLORS, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES,
+  type FillColor, type PenColor, type PenThickness, type StickyColor, type StrokeColor, type TextSize,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
 import { connectorBBox, resolveEndpoints, type Endpoint } from './geometry/connector-geometry';
@@ -14,7 +14,7 @@ export const SCHEMA_VERSION = 1;
 const HALF = 2;
 
 /** Object types that can be selected, moved and resized. Stories 9–12 add theirs here and in the registry. */
-const SELECTABLE_TYPES = new Set<string>(['sticky', 'shape', 'connector']);
+const SELECTABLE_TYPES = new Set<string>(['sticky', 'shape', 'connector', 'stroke']);
 
 /** Called by the client's object registry so objects of the new type appear in snapshots and selections. */
 export function registerSelectableType(type: string): void {
@@ -88,8 +88,26 @@ export interface ConnectorSnapshot {
   createdAt: number;
 }
 
+export interface StrokeSnapshot {
+  text?: undefined;
+  id: string;
+  type: 'stroke';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Flattened [x0, y0, x1, y1, ...] relative to the box origin, at creation size. */
+  points: readonly number[];
+  baseWidth: number;
+  baseHeight: number;
+  color: PenColor;
+  thickness: PenThickness;
+  z: number;
+  createdAt: number;
+}
+
 /** Every board object; later stories widen this union. */
-export type ObjectSnapshot = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot;
+export type ObjectSnapshot = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot | StrokeSnapshot;
 
 function objectsOf(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects') as Y.Map<Y.Map<unknown>>;
@@ -343,6 +361,29 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         fill: hasKey(SHAPE_FILL_COLORS, fill) ? (fill as FillColor) : DEFAULT_SHAPE_FILL,
         stroke: hasKey(SHAPE_STROKE_COLORS, stroke) ? (stroke as StrokeColor) : DEFAULT_SHAPE_STROKE,
         label: label instanceof Y.Text ? label.toString() : '',
+        z: zOf(m),
+        createdAt: num(m.get('createdAt')),
+      });
+      return;
+    }
+    if (type === 'stroke') {
+      const pts = m.get('points');
+      const points = Array.isArray(pts) && pts.length >= 2 && pts.length % 2 === 0
+        && pts.every((v) => typeof v === 'number' && Number.isFinite(v))
+        ? (pts as number[]) : [0, 0];
+      const th = m.get('thickness');
+      out.push({
+        id,
+        type: 'stroke',
+        x: num(m.get('x')),
+        y: num(m.get('y')),
+        width: size(m.get('width')),
+        height: size(m.get('height')),
+        points,
+        baseWidth: size(m.get('baseWidth')),
+        baseHeight: size(m.get('baseHeight')),
+        color: hasKey(PEN_COLORS, color) ? (color as PenColor) : 'black',
+        thickness: hasKey(PEN_THICKNESS_WORLD, th) ? (th as PenThickness) : 'medium',
         z: zOf(m),
         createdAt: num(m.get('createdAt')),
       });

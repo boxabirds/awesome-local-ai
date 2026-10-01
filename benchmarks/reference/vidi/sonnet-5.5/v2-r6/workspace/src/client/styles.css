@@ -150,6 +150,25 @@ body { font-family: system-ui, sans-serif; background: #fff; overflow: hidden; }
 .board-viewport[data-tool="connector"], .board-viewport[data-tool="connector"] * { cursor: crosshair !important; }
 .shape-preview { position: absolute; overflow: visible; fill: rgba(26, 115, 232, 0.08); stroke: #1a73e8; stroke-width: 1.5; stroke-dasharray: 6 4; }
 .connector-preview { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; stroke: #1a73e8; stroke-width: 2; stroke-dasharray: 6 4; }
+.board-viewport[data-tool="pen"], .board-viewport[data-tool="pen"] * { cursor: none !important; }
+.pen-preview { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; }
+.pen-cursor {
+  position: absolute; left: 0; top: 0; box-sizing: border-box; border-radius: 50%; border: 1px solid #5f6368;
+  background: rgba(255, 255, 255, 0.4); pointer-events: none;
+}
+.pen-toolbar {
+  position: fixed; left: 72px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px;
+  padding: 6px; background: #fff; border: 1px solid #dadce0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); z-index: 20;
+}
+.pen-swatches { display: grid; grid-template-columns: repeat(3, 28px); gap: 4px; }
+.pen-swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #dadce0; cursor: pointer; }
+.pen-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px #1a73e8; }
+.pen-thickness { display: flex; gap: 4px; }
+.pen-thickness-button { width: 32px; height: 32px; border: 0; border-radius: 6px; background: transparent; color: #3c4043; cursor: pointer; }
+.pen-thickness-button:hover { background: #f1f3f4; }
+.pen-thickness-button[aria-pressed="true"] { background: #e8f0fe; color: #1a73e8; }
+.stroke-object { position: absolute; box-sizing: border-box; pointer-events: none; touch-action: none; }
+.stroke-svg { position: absolute; left: 0; top: 0; overflow: visible; display: block; }
 .connection-dot {
   position: absolute; box-sizing: border-box; border-radius: 50%; background: #fff; border: 2px solid #1a73e8;
   transform: scale(1); transition: transform 80ms;

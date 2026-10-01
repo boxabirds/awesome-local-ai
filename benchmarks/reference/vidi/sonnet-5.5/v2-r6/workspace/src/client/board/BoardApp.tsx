@@ -3,7 +3,10 @@ import { createSticky, deleteObjects, objectBounds, setStickyColor } from '../..
 import type { Rect } from '../../shared/geometry';
 import { setShapeStyle } from '../../shared/objects/shape';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
 import { ShapeTool } from '../tools/ShapeTool';
+import { usePenOptions } from '../tools/usePenOptions';
 import { useActiveTool } from '../tools/useActiveTool';
 import { createText, setTextSize } from '../../shared/objects/text';
 import { defaultMeasurer } from '../objects/textLayout';
@@ -52,6 +55,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
     onGestureEnd: () => { undo?.hold?.(false); undo?.boundary(); },
   });
   const { tool, setTool, shapeKind, setShapeKind, toolCreated } = useActiveTool({ canEdit: editable, select: sel.select });
+  const pen = usePenOptions();
   // Arrows redraw from these on every snapshot, so moves and resizes by anyone move them too.
   const rects = useMemo(() => {
     const m = new Map<string, Rect>();
@@ -126,6 +130,12 @@ export function BoardApp({ board }: { board: BoardDoc }) {
           </Toolbar>
           {tool === 'shape' && (
             <ShapeTool kind={shapeKind} camera={ctx.camera} doc={doc} onCreated={toolCreated} />
+          )}
+          {tool === 'pen' && (
+            <>
+              <PenToolbar color={pen.color} thickness={pen.thickness} onColor={pen.setColor} onThickness={pen.setThickness} />
+              <PenTool camera={ctx.camera} color={pen.color} thickness={pen.thickness} doc={doc} identityId={localIdentityId()} />
+            </>
           )}
           {tool === 'connector' && (
             <ConnectorTool camera={ctx.camera} snapshot={notes} doc={doc} onCreated={toolCreated} />

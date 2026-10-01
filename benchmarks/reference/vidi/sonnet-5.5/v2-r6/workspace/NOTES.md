@@ -134,3 +134,15 @@ Decisions:
 - Component tests use `renderBoardAtOrigin` (camera at 0,0 at 100%, set through the test hook). Red-phase commits skipped; tests were written alongside the implementation.
 - Presence/comments/export hooks (stories 6, 15-17) left out.
 - E2E status: all story 10 specs pass in Chromium; TC-23 also passes in WebKit. In Firefox here the browser fails to create a context (an `EmptyDatabaseError` from Firefox's own services), so TC-23 could not be run there. Under a full parallel run, story 8 TC-24 failed again (the known race above); it passes alone, with and without this story.
+
+## Story 11 — Sketch freehand with a pen
+
+Decisions:
+- `ToolId` gained `pen` (shortcut P, button "Pen (P)"); the pen toolbar (`role="toolbar"`, "Pen options") is a separate fixed panel next to the left toolbar, shown only while Pen is active. Colour/thickness live in `usePenOptions` inside `BoardApp` (reset on reload).
+- `PenTool` takes the same capture-phase `pointerdown` route as the other tools but has its own gesture code (it also needs `lostpointercapture`, coalesced events and a per-frame preview). Escape during a drag finishes (keeps) the stroke and leaves the tool; the design only specifies Escape while idle.
+- A press whose points never move DRAG_THRESHOLD_PX from the start is a dot. When a long stroke is split at STROKE_MAX_POINTS, a final part holding only the join point is not committed. Each commit is wrapped in undo boundaries (one undo step per stroke/part).
+- `scaledPoints` returns world coordinates (box origin + scaled points) so the registry hit test can use the world point directly; `StrokeObject` subtracts the box origin to draw inside its box. Only a transparent wide path along the line (`max(thickness, 2 x 6px / zoom)`) takes pointer events, so clicks elsewhere in the box fall through.
+- `smoothPath` follows the design literally (`M p0`, then `Q p[i] mid(p[i],p[i+1])`, last segment ends at the last point). For very sparse sharp corners the curve cuts the corner; with real, dense pointer input RDP at 1 px keeps the path within tolerance.
+- The pen cursor circle is updated through the DOM (no re-render per move); the native cursor is hidden over the board while Pen is active.
+- The left toolbar grew by the Pen button: story 4 persistence e2e TC-19 now clicks notes at x offset 80 so the toolbar does not cover them.
+- E2E: Chromium only. Mouse moves are slow on this machine (50-100 ms each), so TC-17/18 replay a thinned handwritten loop and the spec sets a 120 s timeout. Delivery times are logged (about 10-20 ms), not asserted.

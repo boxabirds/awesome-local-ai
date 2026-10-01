@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ShapeKind } from '../../shared/board-model';
 
 /** Tools that are modes of the board; 'sticky' creates at once and is not a mode (stories 11-12 add theirs). */
-export type ToolId = 'select' | 'text' | 'shape' | 'connector';
+export type ToolId = 'select' | 'text' | 'shape' | 'connector' | 'pen';
 
-export const TOOL_SHORTCUTS: Record<string, ToolId> = { v: 'select', t: 'text', s: 'shape', l: 'connector' };
+export const TOOL_SHORTCUTS: Record<string, ToolId> = { v: 'select', t: 'text', s: 'shape', l: 'connector', p: 'pen' };
 
 /** Tools that need an editable board and are left with Escape. */
-export const DRAWING_TOOLS: readonly ToolId[] = ['text', 'shape', 'connector'];
+export const DRAWING_TOOLS: readonly ToolId[] = ['text', 'shape', 'connector', 'pen'];
 
 export interface ActiveTool {
   tool: ToolId;

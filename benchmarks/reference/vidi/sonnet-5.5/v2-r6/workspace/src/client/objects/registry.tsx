@@ -2,13 +2,16 @@ import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, registerSelectableType, type ObjectSnapshot } from '../../shared/board-model';
 import {
-  CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD,
+  CONNECTOR_HIT_TOLERANCE_PX, PEN_THICKNESS_WORLD, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import type { Point, Rect } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { scaledPoints } from '../../shared/objects/stroke';
 import { ConnectorObject } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeObject } from './StrokeObject';
 import { TextObject } from './TextObject';
 
 /** What every board object component receives; selection, moving and resizing stay outside the component. */
@@ -84,6 +87,16 @@ registerObjectType('connector', {
   editableText: false,
   hitTest: (obj, p, zoom = 1) => obj.type === 'connector'
     && distanceToPolyline([obj.start, obj.end], p) <= CONNECTOR_HIT_TOLERANCE_PX / zoom,
+});
+
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, p, zoom = 1) => obj.type === 'stroke'
+    && distanceToPolyline(scaledPoints(obj), p) <= Math.max(PEN_THICKNESS_WORLD[obj.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom),
 });
 
 registerObjectType('text', {

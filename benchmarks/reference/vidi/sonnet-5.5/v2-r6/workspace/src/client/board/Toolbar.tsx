@@ -89,6 +89,18 @@ export function Toolbar(props: {
       </div>
       <button
         type="button"
+        aria-label="Pen (P)"
+        title="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        onClick={() => onTool?.('pen')}
+        disabled={props.disabled}
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path d="M4 20l1-4L16 5l3 3L8 19z M14 7l3 3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <button
+        type="button"
         aria-label="Connector (L)"
         title="Connector (L)"
         aria-pressed={tool === 'connector'}

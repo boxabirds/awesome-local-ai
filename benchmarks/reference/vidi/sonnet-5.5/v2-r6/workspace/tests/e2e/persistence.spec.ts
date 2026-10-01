@@ -59,7 +59,7 @@ test('TC-19: overnight return - 25 varied notes are identical after a real proce
     await page.keyboard.type(i % 3 === 0 ? `Idea ${i}\nsecond line` : `Note number ${i}`);
     await page.mouse.click(1200, 760);
     if (i % 2 === 1) {
-      await notesOf(page).nth(i).click({ position: { x: 20, y: 20 } });
+      await notesOf(page).nth(i).click({ position: { x: 80, y: 20 } });
       await page.getByRole('button', { name: `${COLOURS[i % COLOURS.length]} colour` }).click();
       await page.mouse.click(1200, 760);
     }
