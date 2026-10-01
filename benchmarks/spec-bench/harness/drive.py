@@ -492,7 +492,8 @@ def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None
                  private: Path | None = None) -> dict:
     """Commit exactly this run's directory and push, so every story leaves a durable record.
 
-    Only the run dir is staged: anything else uncommitted in the repo is left alone. Held-out detail never is
+    Only the run dir is staged: anything else uncommitted in the repo is left alone. A credential in a staged file
+    is replaced by a marker naming it before the commit, and counted (credentials_redacted). Held-out detail never is
     (publicise.py): each result gets its public summary, the run's private files are git-ignored (and untracked
     if an older harness committed them) and copied to the private repo (record_private), and every staged file
     is checked for held-out test titles first; if one has any, nothing is committed (refuse).
@@ -532,7 +533,14 @@ def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None
         add = subprocess.run([*git, "add", "--", rel], cwd=repo_root, capture_output=True, text=True, env=env)
         if add.returncode != 0:
             return {**out, "error": add.stderr[-500:]}
+        # The credential scan (credentials.py), on exactly what is staged: nothing reaches the commit round it.
+        redacted, unscanned = heldout.redact_staged(repo_root, rel, git, env)
+        if redacted:
+            out["credentials_redacted"] = {"count": len(redacted), "names": sorted(set(redacted))}
+            print(f"record: {len(redacted)} credential(s) redacted from what is published: "
+                  f"{', '.join(out['credentials_redacted']['names'])}", flush=True)
         names, problems = heldout.local_names()
+        problems += unscanned
         problems += heldout.staged_problems(repo_root, rel, git, heldout.fingerprints(private), env, names)
         problems += heldout.message_problems(message, names, COMMIT_MESSAGE)
         if problems:

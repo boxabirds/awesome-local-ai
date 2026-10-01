@@ -116,6 +116,13 @@ describe("the faults feed over the fixture", () => {
     expect(ofKind(fs, "agent_output_skipped")).toEqual([]);
   });
 
+  it("a story whose published files had credentials redacted: how many, and their names, never a value", () => {
+    const redacted = { count: 3, names: ["CLAUDE_CODE_MESSAGING_TOKEN", "DEEPSEEK_API_KEY"] };
+    const withRedacted = feed({ change: (f) => { f.records.find((r) => r.runId === "v2-r5")!.stories[0].credentialsRedacted = redacted; } });
+    expect(about(withRedacted, "credentials_redacted", "v2-r5", "1")!.detail).toEqual(redacted);
+    expect(ofKind(fs, "credentials_redacted")).toEqual([]);
+  });
+
   it("a cancelled or failed dbench job (the old Reason column): its id, reason as dbench kept it, and log tail", () => {
     const cancelled = about(fs, "job_cancelled", "v2-r5")!;
     expect(cancelled.detail).toMatchObject({ job_id: "vidi-v2b-swift15-r5", node: "node-a", status: "cancelled", reason: "stopped by the operator" });

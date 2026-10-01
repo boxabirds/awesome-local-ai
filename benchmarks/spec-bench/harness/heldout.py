@@ -26,6 +26,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import credentials
 import machine_names as mn
 import packdir
 import publicise as pub
@@ -296,6 +297,32 @@ def staged_problems(repo_root: Path, rel: str, git: list[str], fps: set[str], en
         problems += [{"file": path, "why": HELD_OUT, "fingerprint": fp} for fp in pub.leaks_in_file(path, text, fps)]
         problems += [{"file": path, "why": MACHINE_NAME, "fingerprint": n} for n in mn.in_file(path, text, names)]
     return problems
+
+
+def redact_staged(repo_root: Path, rel: str, git: list[str], env: dict | None = None) -> tuple[list[str], list[dict]]:
+    """The credential scan of the publishing step (credentials.py): every file staged under rel for this commit
+    (new or changed since HEAD) is redacted in place and staged again, so no path into a public commit goes round
+    it. Returns what was found, by name and never by value, and CHECK_FAILED problems where the scan could not be
+    done: it fails closed, and the commit is refused. Private files are skipped: they are never committed."""
+    failed = lambda why: {"file": rel, "why": f"{CHECK_FAILED}: {why}", "fingerprint": None}
+    listed = subprocess.run([*git, "diff", "--cached", "--name-only", "-z", "--diff-filter=ACMRT", "--", rel],
+                            cwd=repo_root, capture_output=True, env=env)
+    if listed.returncode != 0:
+        return [], [failed(f"the credential scan could not list the staged files: {listed.stderr.decode(errors='replace')[-200:]}")]
+    found: list[str] = []
+    changed: list[str] = []
+    for path in filter(None, listed.stdout.decode().split("\0")):
+        if pub.is_private(path):
+            continue
+        names = credentials.redact_file(repo_root / path)
+        if names:
+            found += names
+            changed.append(path)
+    if changed:
+        add = subprocess.run([*git, "add", "--", *changed], cwd=repo_root, capture_output=True, text=True, env=env)
+        if add.returncode != 0:
+            return found, [failed("a file redacted by the credential scan could not be staged again")]
+    return found, []
 
 
 def message_problems(message: str, names: set[str], where: str) -> list[dict]:
