@@ -334,11 +334,30 @@ def test_client_thinking_is_refused_for_a_client_other_than_pi(loop):
     assert str(e.value) == "--client-thinking applies to pi only" and loop.agent_runs() == []
 
 
-def test_known_good_mode_with_more_than_one_story_is_refused(whole, tmp_path, capsys):
+NEEDS_ONE = ("--from-run needs --only N (that one story, built on the reference run's code) or --from-story N "
+             "(story N and every later story of the scope)")
+NOT_BOTH = "--from-run takes --only N or --from-story N, not both"
+ONE_STORY = "--from-run with --only runs exactly one story; for story N and every later one use --from-story N"
+NEEDS_FROM_RUN = "--from-story needs --from-run: the finished run whose code the stories are built on"
+
+
+@pytest.mark.parametrize("args, message", [
+    (("--from-run", "REF"), NEEDS_ONE),
+    (("--from-run", "REF", "--only", "2", "--from-story", "2"), NOT_BOTH),
+    (("--from-run", "REF", "--only", "2,3"), ONE_STORY),
+    (("--from-run", "REF", "--only", "9"), ONE_STORY),                      # no such story in the scope: none to run
+    (("--from-story", "2"), NEEDS_FROM_RUN),
+    (("--from-story", "2", "--only", "2"), NEEDS_FROM_RUN),
+    (("--from-run", "REF", "--from-story", "9"), "--from-story 9: story 9 is not in the scope (all: stories [1, 2, 3])"),
+])
+@pytest.mark.parametrize("dry", [False, True])
+def test_known_good_mode_is_refused_unless_it_is_told_plainly_which_stories_to_run(whole, tmp_path, capsys, args, message, dry):
+    ref, _ = reference_run(whole, tmp_path)
+    given = [str(ref) if a == "REF" else a for a in args]
     with pytest.raises(SystemExit) as e:
-        whole.main("--from-run", str(tmp_path / "ref-run"))
-    assert e.value.code == 2 and "error: --from-run runs exactly one story: give it with --only" in capsys.readouterr().err
-    assert not whole.run.exists()
+        whole.bare("--dry-run", *given) if dry else whole.main(*given)
+    assert e.value.code == 2 and f"error: {message}\n" in capsys.readouterr().err
+    assert not whole.run.exists() and whole.agent_runs() == []
 
 
 # ======================= an ordinary run =======================
@@ -757,8 +776,8 @@ def test_a_restarted_story_with_no_record_of_where_it_began_begins_at_the_worksp
 
 # ======================= known-good mode =======================
 
-def reference_run(loop: Loop, root: Path) -> tuple[Path, dict]:
-    """A finished run of the same pack: its bundle (one commit per story) and its metrics."""
+def reference_run(loop: Loop, root: Path, ran: tuple[int, ...] = (1, 2, 3)) -> tuple[Path, dict]:
+    """A finished run of the same pack: its bundle (one commit per story it ran) and its metrics."""
     ws, run = root / "ref-ws", root / "ref-run"
     ws.mkdir()
     subprocess.run(["cp", "-R", str(loop.pack / "spec"), str(ws / "spec")], check=True)
@@ -766,7 +785,7 @@ def reference_run(loop: Loop, root: Path) -> tuple[Path, dict]:
     git(ws, "add", "-A")
     git(ws, "commit", "-qm", "harness: empty repository with spec")
     stories = {}
-    for sid in (1, 2, 3):
+    for sid in ran:
         (ws / f"ref{sid}.ts").write_text(f"reference story {sid}\n")
         git(ws, "add", "-A")
         git(ws, "commit", "-qm", f"story {sid}")
@@ -787,7 +806,8 @@ def test_a_known_good_run_builds_one_story_on_another_run_s_code_and_scores_the_
     monkeypatch.setattr(drive, "install_base_deps", installed.append)
     whole.main("--from-run", str(ref), "--only", "3")
     m = whole.metrics()
-    assert m["known_good"] == {"from_run": str(ref.resolve()), "commit": stories["2"]["commit"], "story": 3, "spec_updated": False}
+    assert m["known_good"] == {"from_run": str(ref.resolve()), "commit": stories["2"]["commit"], "story": 3,
+                               "spec_updated": False, "continues": False}
     assert m["processed"][:2] == known_good_processed() and [p["id"] for p in m["processed"]] == [1, 2, 3]
     assert sorted(m["stories"]) == ["3"] and m["stories"]["3"]["status"] == drive.DONE and m["scope"] == "all"
     assert installed == [whole.ws]
@@ -824,11 +844,113 @@ def test_a_dry_run_in_known_good_mode_names_the_base_and_prompts_with_its_storie
     assert not whole.run.exists()
 
 
-def test_a_dry_run_with_a_reference_but_more_than_one_story_shows_no_base(whole, tmp_path, capsys):
-    ref, _ = reference_run(whole, tmp_path)
-    whole.bare("--dry-run", "--from-run", str(ref))
+def base_entry(sid: int) -> dict:
+    return {"id": sid, "title": TITLES[sid], "status": drive.DONE, "ended_by": drive.KNOWN_GOOD_BY}
+
+
+def test_a_known_good_continuation_runs_the_story_and_every_later_one_each_built_on_the_one_before(whole, tmp_path, monkeypatch, capsys):
+    ref, stories = reference_run(whole, tmp_path)
+    monkeypatch.setattr(drive, "install_base_deps", lambda ws: None)
+    whole.main("--from-run", str(ref), "--from-story", "2")
+    m = whole.metrics()
+    assert m["known_good"] == {"from_run": str(ref.resolve()), "commit": stories["1"]["commit"], "story": 2,
+                               "spec_updated": False, "continues": True}
+    assert m["processed"][0] == base_entry(1) and [p["id"] for p in m["processed"]] == [1, 2, 3]
+    assert [(p["status"], p["ended_by"]) for p in m["processed"][1:]] == [(drive.DONE, "agent")] * 2
+    assert sorted(m["stories"]) == ["2", "3"]
+    assert git(whole.ws, "log", "--format=%s").split("\n") == [
+        "story 3: work", "story 2: work", "story 1", "harness: empty repository with spec"]
+    assert not (whole.ws / "ref2.ts").exists() and not (whole.ws / "ref3.ts").exists()   # none of the reference's later work
+    assert m["stories"]["3"]["commit"] == git(whole.ws, "rev-parse", "HEAD")
+    assert m["stories"]["2"]["commit"] == git(whole.ws, "rev-parse", "HEAD~1")           # story 3 was built on this run's story 2
+    runs = whole.agent_runs()
+    assert [r["story"] for r in runs] == [2, 3]
+    assert runs[0]["prompt"] == prompt(2, "Stories already implemented in this repository, in order: 1.", note="")
+    assert runs[1]["prompt"] == prompt(3, "Stories already implemented in this repository, in order: 1, 2.", note="")
     out = capsys.readouterr().out
-    assert "known-good base" not in out and f"STORY 1: First\n{no_story_so_far()}\n" in out
+    assert out.count("[known-good] scoring the base (stories [1])\n") == 1               # the base is scored once
+    doc = json.loads((whole.run / "progress.json").read_text())
+    assert [(s["id"], s["status"]) for s in doc["stories"]] == [(2, drive.DONE), (3, drive.DONE)]   # the stories it ran
+
+
+def test_a_known_good_continuation_survives_a_harness_restart_between_its_stories(whole, tmp_path, monkeypatch, capsys):
+    ref, stories = reference_run(whole, tmp_path)
+    monkeypatch.setattr(drive, "install_base_deps", lambda ws: None)
+    args = ("--from-run", str(ref), "--from-story", "2")
+    whole.plan(s3={"silent": True, "exit": 1})                               # the harness stops at story 3
+    with pytest.raises(SystemExit):
+        whole.main(*args)
+    first = whole.metrics()
+    assert sorted(first["stories"]) == ["2"] and [p["id"] for p in first["processed"]] == [1, 2]
+    capsys.readouterr()
+    whole.plan()
+    whole.main(*args)                                                        # started again, as run.sh does
+    m = whole.metrics()
+    assert m["known_good"] == first["known_good"] and m["known_good"]["continues"] is True
+    assert m["stories"]["2"] == first["stories"]["2"]                        # story 2 was not run again
+    assert [p["id"] for p in m["processed"]] == [1, 2, 3] and m["processed"][0] == base_entry(1)
+    assert [r["story"] for r in whole.agent_runs()] == [2, 3, 3]             # 3: the start that failed, then the one that ran
+    assert "[known-good]" not in capsys.readouterr().out                     # the base was not scored again
+    assert git(whole.ws, "log", "--format=%s").split("\n")[:3] == ["story 3: work", "story 2: work", "story 1"]
+
+
+def test_a_reference_run_that_stopped_before_the_end_of_the_scope_still_supplies_the_base(whole, tmp_path, monkeypatch):
+    ref, stories = reference_run(whole, tmp_path, ran=(1, 2))                # it never ran story 3
+    monkeypatch.setattr(drive, "install_base_deps", lambda ws: None)
+    whole.main("--from-run", str(ref), "--from-story", "2")
+    m = whole.metrics()
+    assert [p["id"] for p in m["processed"]] == [1, 2, 3] and m["known_good"]["commit"] == stories["1"]["commit"]
+    assert m["stories"]["3"]["status"] == drive.DONE
+
+
+def test_a_continuation_from_the_scope_s_last_story_runs_that_story(whole, tmp_path, monkeypatch):
+    ref, stories = reference_run(whole, tmp_path)
+    monkeypatch.setattr(drive, "install_base_deps", lambda ws: None)
+    whole.main("--from-run", str(ref), "--from-story", "3")
+    m = whole.metrics()
+    assert sorted(m["stories"]) == ["3"] and m["known_good"]["continues"] is True and m["known_good"]["story"] == 3
+
+
+def test_a_dry_run_of_a_known_good_continuation_names_the_base_and_the_stories_it_would_run(whole, tmp_path, capsys):
+    ref, stories = reference_run(whole, tmp_path)
+    whole.bare("--dry-run", "--from-run", str(ref), "--from-story", "2")
+    out = capsys.readouterr().out
+    assert "scope all: stories [2, 3]\n" in out
+    assert f"known-good base: {ref.resolve()} at {stories['1']['commit'][:12]}, processed [1]\n" in out
+    assert out.endswith(prompt(2, "Stories already implemented in this repository, in order: 1.", note="") + "\n")
+    assert not whole.run.exists()
+
+
+NOT_INSTALLED = "cov-no-such-install"     # run.sh stops at "not installed" once its arguments are accepted
+RUN_SH_REFUSAL = "--from-run needs --only N (that one story) or --from-story N (story N and every later story of the scope)"
+
+
+def run_sh(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["bash", str(drive.HARNESS / "run.sh"), NOT_INSTALLED, *args], capture_output=True, text=True)
+
+
+def test_run_sh_passes_the_story_to_continue_from_to_the_harness():
+    sh = (drive.HARNESS / "run.sh").read_text()
+    assert '--from-story) FROM_STORY="$2"; shift 2 ;;' in sh
+    assert '${FROM_STORY:+--from-story "$FROM_STORY"}' in sh
+
+
+@pytest.mark.parametrize("args, accepted", [
+    ((), False), (("--only", "2,3"), False), (("--from-story", "two"), False),
+    (("--only", "2"), True), (("--from-story", "2"), True),
+])
+def test_run_sh_refuses_known_good_mode_without_one_story_or_a_story_to_continue_from(tmp_path, args, accepted):
+    r = run_sh("--from-run", str(tmp_path), *args)
+    if accepted:
+        assert r.returncode == 1 and f"{NOT_INSTALLED} is not installed" in r.stderr and RUN_SH_REFUSAL not in r.stderr
+    else:
+        assert r.returncode == 2 and r.stderr.strip() == RUN_SH_REFUSAL
+
+
+def test_run_sh_s_help_describes_both_forms_of_known_good_mode():
+    out = subprocess.run(["bash", str(drive.HARNESS / "run.sh"), "--help"], capture_output=True, text=True).stdout
+    assert "[--from-run DIR (--only N | --from-story N)]" in out
+    assert out.rstrip().endswith("runs story N and every later story of the scope, each built on the one before in this run.")
 
 
 # ======================= --record =======================
