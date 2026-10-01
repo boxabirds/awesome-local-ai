@@ -707,7 +707,9 @@
           "decode_s": 2311.3,
           "decode_tokens": 144361,
           "decode_tok_s": 62.5,
-          "cached_tokens": 8914653
+          "cached_tokens": 8914653,
+          "draft_acceptance": 0.702,
+          "mean_accepted_len": 2.94
         },
         "tools_s": 1036.8,
         "tools_by_kind": {
@@ -1938,7 +1940,9 @@
           "decode_s": 3693.8,
           "decode_tokens": 180222,
           "decode_tok_s": 48.8,
-          "cached_tokens": 11841435
+          "cached_tokens": 11841435,
+          "draft_acceptance": 0.682,
+          "mean_accepted_len": 3.2
         },
         "tools_s": 106.0,
         "tools_by_kind": {
@@ -3389,7 +3393,9 @@
           "decode_s": 4402.4,
           "decode_tokens": 221555,
           "decode_tok_s": 50.3,
-          "cached_tokens": 18979411
+          "cached_tokens": 18979411,
+          "draft_acceptance": 0.674,
+          "mean_accepted_len": 2.88
         },
         "tools_s": 957.5,
         "tools_by_kind": {
@@ -3709,7 +3715,9 @@
                 "decode_s": 5739.7,
                 "decode_tokens": 294176,
                 "decode_tok_s": 51.3,
-                "cached_tokens": 19667593
+                "cached_tokens": 19667593,
+                "draft_acceptance": 0.678,
+                "mean_accepted_len": 2.71
               },
               "tools_s": 2573.8,
               "tools_by_kind": {
@@ -3766,7 +3774,9 @@
                 "decode_s": 542.0,
                 "decode_tokens": 35615,
                 "decode_tok_s": 65.7,
-                "cached_tokens": 4274530
+                "cached_tokens": 4274530,
+                "draft_acceptance": 0.644,
+                "mean_accepted_len": 2.85
               },
               "tools_s": 1324.9,
               "tools_by_kind": {
@@ -3822,7 +3832,9 @@
                 "decode_s": 203.0,
                 "decode_tokens": 14058,
                 "decode_tok_s": 69.2,
-                "cached_tokens": 2655061
+                "cached_tokens": 2655061,
+                "draft_acceptance": 0.675,
+                "mean_accepted_len": 2.63
               },
               "tools_s": 378.7,
               "tools_by_kind": {
@@ -3885,7 +3897,9 @@
                 "decode_s": 167.2,
                 "decode_tokens": 9945,
                 "decode_tok_s": 59.5,
-                "cached_tokens": 1428891
+                "cached_tokens": 1428891,
+                "draft_acceptance": 0.578,
+                "mean_accepted_len": 2.79
               },
               "tools_s": 16.6,
               "tools_by_kind": {
@@ -4090,7 +4104,9 @@
           "decode_tokens": 353794,
           "cached_tokens": 28026075,
           "prefill_tok_s": 876.8,
-          "decode_tok_s": 53.2
+          "decode_tok_s": 53.2,
+          "draft_acceptance": 0.671,
+          "mean_accepted_len": 2.72
         },
         "accounting": {
           "version": 4,
@@ -5424,7 +5440,9 @@
           "decode_s": 3233.5,
           "decode_tokens": 182095,
           "decode_tok_s": 56.3,
-          "cached_tokens": 19388610
+          "cached_tokens": 19388610,
+          "draft_acceptance": 0.723,
+          "mean_accepted_len": 2.69
         },
         "tools_s": 1123.1,
         "tools_by_kind": {
@@ -7391,7 +7409,9 @@
           "decode_s": 6334.0,
           "decode_tokens": 303877,
           "decode_tok_s": 48.0,
-          "cached_tokens": 24541217
+          "cached_tokens": 24541217,
+          "draft_acceptance": 0.688,
+          "mean_accepted_len": 2.63
         },
         "tools_s": 323.7,
         "tools_by_kind": {
@@ -8459,7 +8479,9 @@
           "decode_s": 2432.0,
           "decode_tokens": 115652,
           "decode_tok_s": 47.6,
-          "cached_tokens": 8818774
+          "cached_tokens": 8818774,
+          "draft_acceptance": 0.659,
+          "mean_accepted_len": 2.95
         },
         "tools_s": 172.1,
         "tools_by_kind": {
@@ -8829,7 +8851,9 @@
                 "decode_s": 4338.5,
                 "decode_tokens": 226853,
                 "decode_tok_s": 52.3,
-                "cached_tokens": 19838550
+                "cached_tokens": 19838550,
+                "draft_acceptance": 0.717,
+                "mean_accepted_len": 2.8
               },
               "tools_s": 218.3,
               "tools_by_kind": {
@@ -8897,7 +8921,9 @@
                 "decode_s": 635.8,
                 "decode_tokens": 36229,
                 "decode_tok_s": 57.0,
-                "cached_tokens": 4880987
+                "cached_tokens": 4880987,
+                "draft_acceptance": 0.62,
+                "mean_accepted_len": 2.62
               },
               "tools_s": 450.9,
               "tools_by_kind": {
@@ -9264,7 +9290,9 @@
           "decode_tokens": 263082,
           "cached_tokens": 24719537,
           "prefill_tok_s": 872.2,
-          "decode_tok_s": 52.9
+          "decode_tok_s": 52.9,
+          "draft_acceptance": 0.698,
+          "mean_accepted_len": 2.77
         },
         "accounting": {
           "version": 4,
@@ -11920,7 +11948,9 @@
           "decode_s": 7823.0,
           "decode_tokens": 442794,
           "decode_tok_s": 56.6,
-          "cached_tokens": 46384495
+          "cached_tokens": 46384495,
+          "draft_acceptance": 0.718,
+          "mean_accepted_len": 2.7
         },
         "tools_s": 2411.0,
         "tools_by_kind": {
@@ -12313,7 +12343,9 @@
                 "decode_s": 3292.8,
                 "decode_tokens": 175618,
                 "decode_tok_s": 53.3,
-                "cached_tokens": 15484520
+                "cached_tokens": 15484520,
+                "draft_acceptance": 0.714,
+                "mean_accepted_len": 2.98
               },
               "tools_s": 229.6,
               "tools_by_kind": {
@@ -12382,7 +12414,9 @@
                 "decode_s": 233.7,
                 "decode_tokens": 16404,
                 "decode_tok_s": 70.2,
-                "cached_tokens": 3317199
+                "cached_tokens": 3317199,
+                "draft_acceptance": 0.683,
+                "mean_accepted_len": 2.6
               },
               "tools_s": 929.0,
               "tools_by_kind": {
@@ -12613,7 +12647,9 @@
           "decode_tokens": 192022,
           "cached_tokens": 18801719,
           "prefill_tok_s": 944.6,
-          "decode_tok_s": 54.4
+          "decode_tok_s": 54.4,
+          "draft_acceptance": 0.711,
+          "mean_accepted_len": 2.95
         },
         "accounting": {
           "version": 4,
@@ -15139,7 +15175,9 @@
           "decode_s": 7571.5,
           "decode_tokens": 390403,
           "decode_tok_s": 51.6,
-          "cached_tokens": 36459784
+          "cached_tokens": 36459784,
+          "draft_acceptance": 0.693,
+          "mean_accepted_len": 2.79
         },
         "tools_s": 533.2,
         "tools_by_kind": {
