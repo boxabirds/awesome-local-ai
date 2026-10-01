@@ -133,12 +133,37 @@
       "requests": {},
       "time_split": {
         "wall_s": 408.1,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 22,
+          "prefill_s": 38.0,
+          "prefill_tokens": 76515,
+          "prefill_tok_s": null,
+          "decode_s": 289.3,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 1208423
+        },
+        "tools_s": 78.5,
+        "tools_by_kind": {
+          "e2e": 72.9,
+          "unit": 3.2,
+          "build": 1.8,
+          "read": 0.3,
+          "bash": 0.2,
+          "write": 0.1
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 408.1
+        "between_sessions_s": 0.0,
+        "other_s": 2.2,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 18,
@@ -462,12 +487,37 @@
       "requests": {},
       "time_split": {
         "wall_s": 597.7,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 37,
+          "prefill_s": 75.1,
+          "prefill_tokens": 125570,
+          "prefill_tok_s": null,
+          "decode_s": 470.0,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 3369847
+        },
+        "tools_s": 51.9,
+        "tools_by_kind": {
+          "e2e": 41.3,
+          "unit": 5.9,
+          "build": 2.2,
+          "bash": 2.0,
+          "read": 0.4,
+          "write": 0.2
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 597.7
+        "between_sessions_s": 0.0,
+        "other_s": 0.7,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 34,
@@ -819,12 +869,36 @@
       "requests": {},
       "time_split": {
         "wall_s": 1086.5,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 88,
+          "prefill_s": 203.2,
+          "prefill_tokens": 178590,
+          "prefill_tok_s": null,
+          "decode_s": 576.3,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 9933261
+        },
+        "tools_s": 306.2,
+        "tools_by_kind": {
+          "e2e": 168.5,
+          "unit": 123.6,
+          "build": 9.6,
+          "bash": 4.3,
+          "read": 0.3
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 1086.5
+        "between_sessions_s": 0.0,
+        "other_s": 0.7,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 55,
@@ -1183,12 +1257,38 @@
       "requests": {},
       "time_split": {
         "wall_s": 1109.4,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 66,
+          "prefill_s": 268.9,
+          "prefill_tokens": 189539,
+          "prefill_tok_s": null,
+          "decode_s": 619.3,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 9349151
+        },
+        "tools_s": 220.3,
+        "tools_by_kind": {
+          "e2e": 152.9,
+          "unit": 58.1,
+          "background": 5.5,
+          "bash": 2.8,
+          "build": 0.4,
+          "read": 0.3,
+          "write": 0.2
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 1109.4
+        "between_sessions_s": 0.0,
+        "other_s": 0.9,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 68,
@@ -1549,12 +1649,36 @@
       "requests": {},
       "time_split": {
         "wall_s": 589.3,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 45,
+          "prefill_s": 94.5,
+          "prefill_tokens": 139705,
+          "prefill_tok_s": null,
+          "decode_s": 307.1,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 4594014
+        },
+        "tools_s": 186.6,
+        "tools_by_kind": {
+          "e2e": 126.9,
+          "unit": 55.6,
+          "bash": 2.8,
+          "build": 1.1,
+          "read": 0.4
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 589.3
+        "between_sessions_s": 0.0,
+        "other_s": 1.0,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 85,
@@ -1890,12 +2014,37 @@
       "requests": {},
       "time_split": {
         "wall_s": 889.4,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 49,
+          "prefill_s": 118.9,
+          "prefill_tokens": 197579,
+          "prefill_tok_s": null,
+          "decode_s": 652.7,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 6361488
+        },
+        "tools_s": 116.0,
+        "tools_by_kind": {
+          "e2e": 87.9,
+          "unit": 23.5,
+          "bash": 3.1,
+          "build": 1.0,
+          "read": 0.3,
+          "write": 0.2
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 889.4
+        "between_sessions_s": 0.0,
+        "other_s": 1.8,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 99,
@@ -2311,12 +2460,36 @@
       "requests": {},
       "time_split": {
         "wall_s": 487.4,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 40,
+          "prefill_s": 97.0,
+          "prefill_tokens": 133169,
+          "prefill_tok_s": null,
+          "decode_s": 316.2,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 3584665
+        },
+        "tools_s": 73.2,
+        "tools_by_kind": {
+          "e2e": 42.2,
+          "unit": 25.9,
+          "bash": 3.0,
+          "build": 2.1,
+          "read": 0.1
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 487.4
+        "between_sessions_s": 0.0,
+        "other_s": 0.9,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 108,
@@ -2670,12 +2843,36 @@
       "requests": {},
       "time_split": {
         "wall_s": 1031.3,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 62,
+          "prefill_s": 93.2,
+          "prefill_tokens": 221542,
+          "prefill_tok_s": null,
+          "decode_s": 762.6,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 9863546
+        },
+        "tools_s": 174.5,
+        "tools_by_kind": {
+          "e2e": 131.9,
+          "unit": 35.7,
+          "bash": 4.4,
+          "build": 2.2,
+          "write": 0.2
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 1031.3
+        "between_sessions_s": 0.0,
+        "other_s": 1.0,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 122,
@@ -3067,12 +3264,36 @@
       "requests": {},
       "time_split": {
         "wall_s": 1004.9,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 62,
+          "prefill_s": 106.4,
+          "prefill_tokens": 239682,
+          "prefill_tok_s": null,
+          "decode_s": 765.8,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 10567863
+        },
+        "tools_s": 131.7,
+        "tools_by_kind": {
+          "e2e": 61.9,
+          "bash": 49.2,
+          "unit": 18.9,
+          "build": 1.1,
+          "read": 0.6
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 1004.9
+        "between_sessions_s": 0.0,
+        "other_s": 1.0,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 140,
@@ -3453,12 +3674,37 @@
       "requests": {},
       "time_split": {
         "wall_s": 820.2,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 56,
+          "prefill_s": 97.2,
+          "prefill_tokens": 170655,
+          "prefill_tok_s": null,
+          "decode_s": 450.0,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 6562714
+        },
+        "tools_s": 271.8,
+        "tools_by_kind": {
+          "e2e": 243.5,
+          "unit": 24.0,
+          "bash": 3.2,
+          "build": 0.6,
+          "read": 0.2,
+          "write": 0.2
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 820.2
+        "between_sessions_s": 0.0,
+        "other_s": 1.2,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 151,
@@ -3797,12 +4043,37 @@
       "requests": {},
       "time_split": {
         "wall_s": 1036.7,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 67,
+          "prefill_s": 189.6,
+          "prefill_tokens": 227344,
+          "prefill_tok_s": null,
+          "decode_s": 580.9,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 11058709
+        },
+        "tools_s": 265.2,
+        "tools_by_kind": {
+          "e2e": 169.3,
+          "background": 46.7,
+          "unit": 40.2,
+          "bash": 6.2,
+          "build": 2.2,
+          "read": 0.6
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 1036.7
+        "between_sessions_s": 0.0,
+        "other_s": 1.0,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 181,
