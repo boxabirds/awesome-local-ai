@@ -17,6 +17,7 @@ import {
   STICKY_COLORS,
 } from '../../src/shared/config';
 import type { StickyColor } from '../../src/shared/config';
+import type { StickySnapshot } from '../../src/shared/board-model';
 
 /** Counts Y.Doc `update` events (1 per successful transaction, 0 for rejections). */
 function updateCounter(doc: Y.Doc) {
@@ -66,8 +67,8 @@ describe('board.model — create (TC-01, TC-02)', () => {
     expect(notes).toHaveLength(1);
     expect(notes[0].id).toBe(id);
     expect(notes[0].type).toBe('sticky');
-    expect(notes[0].color).toBe(DEFAULT_STICKY_COLOR);
-    expect(notes[0].text).toBe('');
+    expect((notes[0] as StickySnapshot).color).toBe(DEFAULT_STICKY_COLOR);
+    expect((notes[0] as StickySnapshot).text).toBe('');
     expect(notes[0].z).toBe(1);
     // centred on the click point: top-left = point - size/2
     expect(notes[0].x).toBe(-STICKY_SIZE_WORLD / 2);
@@ -81,7 +82,7 @@ describe('board.model — create (TC-01, TC-02)', () => {
     const stop = updateCounter(doc);
     const id = createSticky(doc, { x: 10, y: 10 }, 'blue');
     const notes = snapshot(doc);
-    expect(notes.find((n) => n.id === id)?.color).toBe('blue');
+    expect((notes.find((n) => n.id === id) as StickySnapshot | undefined)?.color).toBe('blue');
     expect(stop()).toBe(1);
   });
 
@@ -113,13 +114,13 @@ describe('board.model — move (TC-03, TC-04, TC-09, TC-10)', () => {
   it('TC-03 moveObject updates only x and y', () => {
     const doc = new Y.Doc();
     const id = createAtOrigin(doc);
-    const before = snapshot(doc)[0];
+    const before = snapshot(doc)[0] as StickySnapshot;
     expect([before.x, before.y]).toEqual([0, 0]);
     const stop = updateCounter(doc);
 
     expect(moveObject(doc, id, 10, -20)).toBe(true);
 
-    const after = snapshot(doc)[0];
+    const after = snapshot(doc)[0] as StickySnapshot;
     expect([after.x, after.y]).toEqual([10, -20]);
     expect(after.color).toBe(before.color);
     expect(after.text).toBe(before.text);
@@ -177,12 +178,12 @@ describe('board.model — colour (TC-05, TC-06)', () => {
   it('TC-05 setStickyColor changes only the colour', () => {
     const doc = new Y.Doc();
     const id = createAtOrigin(doc);
-    const before = snapshot(doc)[0];
+    const before = snapshot(doc)[0] as StickySnapshot;
     const stop = updateCounter(doc);
 
     expect(setStickyColor(doc, id, 'green')).toBe(true);
 
-    const after = snapshot(doc)[0];
+    const after = snapshot(doc)[0] as StickySnapshot;
     expect(after.color).toBe('green');
     expect(after.x).toBe(before.x);
     expect(after.y).toBe(before.y);
@@ -198,7 +199,7 @@ describe('board.model — colour (TC-05, TC-06)', () => {
       // Start from a different colour: setting the current colour is a no-op.
       const id = createSticky(doc, { x: 0, y: 0 }, color === 'blue' ? 'pink' : 'blue');
       expect(setStickyColor(doc, id, color)).toBe(true);
-      expect(snapshot(doc)[0].color).toBe(color);
+      expect((snapshot(doc)[0] as StickySnapshot).color).toBe(color);
     },
   );
 
@@ -207,7 +208,7 @@ describe('board.model — colour (TC-05, TC-06)', () => {
     const id = createSticky(doc, { x: 0, y: 0 });
     const stop = updateCounter(doc);
     expect(setStickyColor(doc, id, DEFAULT_STICKY_COLOR)).toBe(false);
-    expect(snapshot(doc)[0].color).toBe(DEFAULT_STICKY_COLOR);
+    expect((snapshot(doc)[0] as StickySnapshot).color).toBe(DEFAULT_STICKY_COLOR);
     expect(stop()).toBe(0);
   });
 
@@ -217,7 +218,7 @@ describe('board.model — colour (TC-05, TC-06)', () => {
     const stop = updateCounter(doc);
 
     expect(setStickyColor(doc, id, 'teal')).toBe(false);
-    expect(snapshot(doc)[0].color).toBe(DEFAULT_STICKY_COLOR);
+    expect((snapshot(doc)[0] as StickySnapshot).color).toBe(DEFAULT_STICKY_COLOR);
     expect(stop()).toBe(0);
   });
 
@@ -303,7 +304,7 @@ describe('board.model — snapshot ordering and forward compatibility (TC-11, TC
     const notes = snapshot(doc);
     expect(notes[0].id).toBe(a);
     expect(notes[1].id).toBe(b);
-    expect(notes[1].color).toBe('pink');
+    expect((notes[1] as StickySnapshot).color).toBe('pink');
   });
 });
 
@@ -313,7 +314,7 @@ describe('board.model — non-finite coordinates (TC-39)', () => {
   it.each(bad)('moveObject rejects %s', (value) => {
     const doc = new Y.Doc();
     const id = createAtOrigin(doc);
-    const before = snapshot(doc)[0];
+    const before = snapshot(doc)[0] as StickySnapshot;
     const stop = updateCounter(doc);
 
     expect(moveObject(doc, id, value, 0)).toBe(false);

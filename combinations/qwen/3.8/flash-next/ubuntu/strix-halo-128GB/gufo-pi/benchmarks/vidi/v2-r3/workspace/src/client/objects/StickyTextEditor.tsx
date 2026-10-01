@@ -3,12 +3,14 @@ import type * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { applyTextDiff, clampToLimit, counterVisible, fitFontSize, NOTE_TEXT_INSET } from './StickyText';
+import type { UndoController } from '../board/undo';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
   /** Font size fitted for the note's current text, in board units. */
   fontPx: number;
   onEnd(next: 'selected' | 'unselected'): void;
+  undoController?: UndoController;
 }
 
 /**
@@ -17,7 +19,7 @@ export interface StickyTextEditorProps {
  * writes nothing further. IME composition is deferred to `compositionend` so
  * composition input never duplicates characters. Enter inserts a new line.
  */
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
+export function StickyTextEditor({ ytext, fontPx, onEnd, undoController }: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const endedRef = useRef(false);
@@ -52,6 +54,11 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     setLength(el.value.length);
     fit();
   }, [ytext, fit]);
+
+  // Edit start boundary: closes any open capture window from a prior action.
+  useEffect(() => {
+    undoController?.boundary();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Edit start: value from the document, focus, caret at the end of the text.
   useLayoutEffect(() => {
@@ -95,10 +102,38 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
         e.preventDefault();
         e.stopPropagation();
         finish('selected');
+        return;
+      }
+      // Intercept Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl+Y so native textarea
+      // undo never diverges from the shared Y.Text.
+      if (undoController) {
+        const mod = e.ctrlKey || e.metaKey;
+        if (mod && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+          e.preventDefault();
+          undoController.undo();
+          // Sync textarea value from Y.Text after undo
+          const el = ref.current;
+          if (el) { el.value = ytext.toString(); setLength(el.value.length); }
+          return;
+        }
+        if (mod && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+          e.preventDefault();
+          undoController.redo();
+          const el = ref.current;
+          if (el) { el.value = ytext.toString(); setLength(el.value.length); }
+          return;
+        }
+        if (e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
+          e.preventDefault();
+          undoController.redo();
+          const el = ref.current;
+          if (el) { el.value = ytext.toString(); setLength(el.value.length); }
+          return;
+        }
       }
       // Enter is left to the textarea, which inserts a new line.
     },
-    [finish],
+    [finish, undoController, ytext],
   );
 
   // A pointerdown anywhere outside the note ends editing and clears selection.
@@ -116,6 +151,13 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     document.addEventListener('pointerdown', handlePointerDown, true);
     return () => document.removeEventListener('pointerdown', handlePointerDown, true);
   }, [finish]);
+
+  // End-edit boundary: close capture window when the editor unmounts.
+  useEffect(() => {
+    return () => {
+      undoController?.boundary();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>

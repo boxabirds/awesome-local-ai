@@ -21,5 +21,11 @@
       "tag": "v1",
       "new_sqlite_classes": ["BoardRoom"]
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
   ]
 }

@@ -14,6 +14,7 @@ import type { StickyColor } from '../../shared/config';
 import { fitFontSize, NOTE_TEXT_INSET } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 import { NoteToolbar } from './NoteToolbar';
+import type { UndoController } from '../board/undo';
 
 export interface StickyNoteProps {
   note: StickySnapshot;
@@ -22,31 +23,15 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  dragging?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /** Generic transform gesture pointer handler (story 7). */
+  onObjectPointerDown?(e: React.PointerEvent<HTMLDivElement>, id: string): void;
   /** When false (board failed to load), drag/edit/colour/delete are no-ops. */
   editable?: boolean;
-}
-
-interface DragState {
-  pointerId: number;
-  startClientX: number;
-  startClientY: number;
-  latestClientX: number;
-  latestClientY: number;
-  startWorldX: number;
-  startWorldY: number;
-  zoom: number;
-  raf: number | null;
-  moved: boolean;
-}
-
-/** Current stored position, or null when the note no longer exists. */
-function stickyPosition(doc: Y.Doc, id: string): { x: number; y: number } | null {
-  const m = getObjectsMap(doc).get(id);
-  if (!m || m.get('type') !== 'sticky') return null;
-  return { x: m.get('x') as number, y: m.get('y') as number };
+  undoController?: UndoController;
 }
 
 /**
@@ -60,19 +45,21 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  dragging = false,
   onSelect,
   onStartEdit,
   onEndEdit,
+  onObjectPointerDown,
   editable = true,
+  undoController,
 }: StickyNoteProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<DragState | null>(null);
-  const [dragging, setDragging] = useState(false);
   const [fontPx, setFontPx] = useState(STICKY_FONT_MAX_PX);
   const [overflow, setOverflow] = useState(false);
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
+
+  const width = note.width ?? STICKY_SIZE_WORLD;
+  const height = note.height ?? STICKY_SIZE_WORLD;
 
   // Text auto-fit: the largest size that fits, recomputed when the text changes.
   useLayoutEffect(() => {
@@ -84,97 +71,7 @@ export function StickyNote({
     const result = fitFontSize(el, box);
     setFontPx((prev) => (prev === result.fontPx ? prev : result.fontPx));
     setOverflow((prev) => (prev === result.overflow ? prev : result.overflow));
-  }, [note.text, editing]);
-
-  const stopDrag = (selectAfter: boolean) => {
-    const drag = dragRef.current;
-    if (drag?.raf != null) cancelAnimationFrame(drag.raf);
-    dragRef.current = null;
-    detachWindow();
-    // Always cleared; React skips the re-render when it was already false.
-    setDragging(false);
-    if (selectAfter) onSelect(note.id);
-  };
-
-  // Applied once per animation frame: coalesces a burst of pointermoves into a
-  // single Yjs update.
-  const applyDragFrame = () => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    drag.raf = null;
-    const dx = (drag.latestClientX - drag.startClientX) / drag.zoom;
-    const dy = (drag.latestClientY - drag.startClientY) / drag.zoom;
-    const x = drag.startWorldX + dx;
-    const y = drag.startWorldY + dy;
-    const current = stickyPosition(doc, note.id);
-    // A missing note means it was deleted elsewhere: end the drag quietly.
-    if (!current) {
-      stopDrag(false);
-      return;
-    }
-    if (current.x !== x || current.y !== y) moveObject(doc, note.id, x, y);
-  };
-
-  // The drag listeners live on the window, not on the note: raising the note
-  // re-orders the world layer's children, which would drop a pointer capture
-  // taken on the element.
-  const impl = useRef<{
-    move: (e: PointerEvent) => void;
-    up: (e: PointerEvent) => void;
-    cancel: (e: PointerEvent) => void;
-  } | null>(null);
-
-  impl.current = {
-    move: (e: PointerEvent) => {
-      const drag = dragRef.current;
-      if (!drag || drag.pointerId !== e.pointerId) return;
-      const dx = e.clientX - drag.startClientX;
-      const dy = e.clientY - drag.startClientY;
-
-      if (!drag.moved) {
-        if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
-        drag.moved = true;
-        setDragging(true);
-        bringToFront(doc, note.id);
-      }
-
-      drag.latestClientX = e.clientX;
-      drag.latestClientY = e.clientY;
-      if (drag.raf === null) drag.raf = requestAnimationFrame(applyDragFrame);
-    },
-    up: (e: PointerEvent) => {
-      const drag = dragRef.current;
-      if (!drag || drag.pointerId !== e.pointerId) return;
-      if (drag.moved) {
-        // Land exactly under the pointer rather than one frame behind it.
-        drag.latestClientX = e.clientX;
-        drag.latestClientY = e.clientY;
-        applyDragFrame();
-      }
-      stopDrag(true);
-    },
-    // A cancelled pointer keeps the last position that was applied.
-    cancel: () => stopDrag(true),
-  };
-
-  // Stable function identities so the listeners can be removed again.
-  const winMoveRef = useRef((e: PointerEvent) => impl.current?.move(e));
-  const winUpRef = useRef((e: PointerEvent) => impl.current?.up(e));
-  const winCancelRef = useRef((e: PointerEvent) => impl.current?.cancel(e));
-
-  const attachWindow = () => {
-    window.addEventListener('pointermove', winMoveRef.current);
-    window.addEventListener('pointerup', winUpRef.current);
-    window.addEventListener('pointercancel', winCancelRef.current);
-  };
-
-  function detachWindow() {
-    window.removeEventListener('pointermove', winMoveRef.current);
-    window.removeEventListener('pointerup', winUpRef.current);
-    window.removeEventListener('pointercancel', winCancelRef.current);
-  }
-
-  useEffect(() => detachWindow, []);
+  }, [note.text, editing, width]);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -185,21 +82,13 @@ export function StickyNote({
       if (editing) return;
       // A read-only board starts no drag.
       if (!editable) return;
-      dragRef.current = {
-        pointerId: e.pointerId,
-        startClientX: e.clientX,
-        startClientY: e.clientY,
-        latestClientX: e.clientX,
-        latestClientY: e.clientY,
-        startWorldX: note.x,
-        startWorldY: note.y,
-        zoom: zoomRef.current || 1,
-        raf: null,
-        moved: false,
-      };
-      attachWindow();
+
+      // Delegate to the generic transform gesture
+      if (onObjectPointerDown) {
+        onObjectPointerDown(e, note.id);
+      }
     },
-    [note.x, note.y, editing, editable],
+    [editing, editable, note.id, onObjectPointerDown],
   );
 
   const handleDoubleClick = useCallback(
@@ -220,16 +109,20 @@ export function StickyNote({
   const handleColor = useCallback(
     (color: StickyColor) => {
       if (!editable) return;
+      undoController?.boundary();
       setStickyColor(doc, note.id, color);
+      undoController?.boundary();
     },
-    [doc, note.id, editable],
+    [doc, note.id, editable, undoController],
   );
 
   const handleDelete = useCallback(() => {
     if (!editable) return;
+    undoController?.boundary();
     deleteObject(doc, note.id);
+    undoController?.boundary();
     onEndEdit('unselected');
-  }, [doc, note.id, onEndEdit, editable]);
+  }, [doc, note.id, onEndEdit, editable, undoController]);
 
   const background = STICKY_COLORS[note.color] ?? STICKY_COLORS.yellow;
   const ytext = editing ? getStickyText(doc, note.id) : undefined;
@@ -248,14 +141,14 @@ export function StickyNote({
         position: 'absolute',
         left: note.x,
         top: note.y,
-        width: STICKY_SIZE_WORLD,
-        height: STICKY_SIZE_WORLD,
+        width,
+        height,
         backgroundColor: background,
         borderRadius: 4,
         boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
         outline: selected ? '2px solid #1976D2' : 'none',
         boxSizing: 'border-box',
-        cursor: dragging ? 'grabbing' : 'grab',
+        cursor: 'grab',
         touchAction: 'none',
         userSelect: 'none',
       }}
@@ -303,7 +196,7 @@ export function StickyNote({
         />
       )}
       {editing && ytext && (
-        <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} />
+        <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} undoController={undoController} />
       )}
       {selected && !editing && !dragging && (
         <div

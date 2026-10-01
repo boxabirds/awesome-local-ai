@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
+import type { ObjectSnapshot } from '../../shared/board-model';
 import { initDoc, snapshot, getObjectsMap } from '../../shared/board-model';
-import type { StickySnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 export interface BoardDoc {
   doc: Y.Doc;
-  /** Immutable notes sorted by (z, id). Recomputed on any document change. */
-  notes: readonly StickySnapshot[];
+  /** Immutable objects sorted by (z, id). Recomputed on any document change. */
+  notes: readonly ObjectSnapshot[];
   /** Connection state for the live sync provider. */
   connectionState: ConnectionState;
 }
@@ -40,7 +40,7 @@ export function useBoardDoc(boardId: string | null): BoardDoc {
   }, [doc, boardId]);
 
   const revisionRef = useRef(0);
-  const cacheRef = useRef<{ rev: number; value: readonly StickySnapshot[] } | null>(null);
+  const cacheRef = useRef<{ rev: number; value: readonly ObjectSnapshot[] } | null>(null);
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
@@ -57,7 +57,7 @@ export function useBoardDoc(boardId: string | null): BoardDoc {
     [doc],
   );
 
-  const getSnapshot = useCallback((): readonly StickySnapshot[] => {
+  const getSnapshot = useCallback((): readonly ObjectSnapshot[] => {
     if (!cacheRef.current || cacheRef.current.rev !== revisionRef.current) {
       cacheRef.current = { rev: revisionRef.current, value: snapshot(doc) };
     }

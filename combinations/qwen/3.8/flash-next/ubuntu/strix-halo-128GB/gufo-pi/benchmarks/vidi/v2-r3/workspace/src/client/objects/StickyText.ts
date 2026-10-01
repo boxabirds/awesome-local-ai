@@ -2,84 +2,29 @@
  * Sticky note text helpers (story 2): length clamp, minimal Y.Text diff,
  * counter visibility and font auto-fit. Pure logic lives here so it can be
  * unit-tested without a DOM layout engine.
+ *
+ * clampToLimit and applyTextDiff are re-exported from shared/text-edit.ts
+ * with STICKY_TEXT_MAX_CHARS as the default so story 2 callers are unchanged.
  */
-import type * as Y from 'yjs';
 import {
   STICKY_TEXT_MAX_CHARS,
   STICKY_COUNTER_THRESHOLD_CHARS,
   STICKY_FONT_MAX_PX,
   STICKY_FONT_MIN_PX,
 } from '../../shared/config';
+import { clampToLimit as _clampToLimit, applyTextDiff as _applyTextDiff } from '../../shared/text-edit';
 
 /** Padding between a note's edge and its text, in board units. */
 export const NOTE_TEXT_INSET = 12;
 
 /**
- * Keeps at most `max` characters. A surrogate pair that would straddle the
- * limit is dropped whole, so the kept text never contains a lone surrogate.
+ * Keeps at most `max` characters (defaults to STICKY_TEXT_MAX_CHARS).
  */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (next.length <= max) return next;
-  let kept = '';
-  for (const char of next) {
-    if (kept.length + char.length > max) break;
-    kept += char;
-  }
-  return kept;
+  return _clampToLimit(next, max);
 }
 
-/**
- * Writes `next` into `ytext` using the minimal change (common prefix and
- * suffix), so a concurrent typist (story 3) is never overwritten by a full
- * replace. Yjs indexes UTF-16 code units, so the diff runs over code points and
- * the boundaries are converted back to code-unit offsets.
- */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const currentCps = Array.from(ytext.toString());
-  const nextCps = Array.from(next);
-
-  let start = 0;
-  while (
-    start < currentCps.length &&
-    start < nextCps.length &&
-    currentCps[start] === nextCps[start]
-  ) {
-    start += 1;
-  }
-
-  let currentEnd = currentCps.length;
-  let nextEnd = nextCps.length;
-  while (
-    currentEnd > start &&
-    nextEnd > start &&
-    currentCps[currentEnd - 1] === nextCps[nextEnd - 1]
-  ) {
-    currentEnd -= 1;
-    nextEnd -= 1;
-  }
-
-  const deleteFrom = unitOffset(currentCps, start);
-  const deleteTo = unitOffset(currentCps, currentEnd);
-  const deleteCount = deleteTo - deleteFrom;
-  const insertText = nextCps.slice(start, nextEnd).join('');
-
-  if (deleteCount === 0 && insertText === '') return;
-
-  const apply = () => {
-    if (deleteCount > 0) ytext.delete(deleteFrom, deleteCount);
-    if (insertText !== '') ytext.insert(deleteFrom, insertText);
-  };
-
-  if (ytext.doc) ytext.doc.transact(apply, origin);
-  else apply();
-}
-
-/** UTF-16 offset of the code point at `index`. */
-function unitOffset(cps: string[], index: number): number {
-  let offset = 0;
-  for (let i = 0; i < index; i += 1) offset += cps[i].length;
-  return offset;
-}
+export const applyTextDiff = _applyTextDiff;
 
 /** True when the remaining budget is small enough to show the counter. */
 export function counterVisible(length: number): boolean {

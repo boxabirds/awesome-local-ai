@@ -50,7 +50,88 @@ export const PERSIST_TESTED_NOTES = 2000;            // PRD persist.large_board
 export const BOARD_LOAD_BUDGET_MS = 3000;            // PRD persist.large_board
 export const STORAGE_SCHEMA_VERSION = 1;
 
+// --- Story 7: select, move, resize and delete several objects at once ---
+export const HANDLE_SIZE_PX = 8;
+export const STICKY_MIN_SIZE_WORLD = 50;
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+export const NUDGE_STEP_WORLD = 1;
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// --- Story 8: undo and redo ---
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;   // typing pause that ends a burst
+export const UNDO_MAX_STEPS = 200;
+
+// --- Story 9: free text ---
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+export const TEXT_MIN_WIDTH_WORLD = 40;
+export const TEXT_MAX_CHARS = 5000;
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+export const TEXT_LINE_HEIGHT = 1.3;
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+// --- Story 10: shapes and connectors ---
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = typeof SHAPE_KINDS[number];
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+export const SHAPE_MIN_SIZE_WORLD = 20;
+export const SHAPE_LABEL_MAX_CHARS = 500;
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+export const SHAPE_FILL_COLORS = { none: 'transparent', white: '#FFFFFF', blue: '#BBDEFB', green: '#C8E6C9', yellow: '#FFF9C4', pink: '#F8BBD0', grey: '#E0E0E0' } as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export const SHAPE_STROKE_COLORS = { dark: '#263238', blue: '#1E88E5', green: '#43A047', orange: '#FB8C00', red: '#E53935', grey: '#9E9E9E' } as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+export const SHAPE_FILL_COLOR_NAMES: Record<FillColor, string> = {
+  none: 'No fill',
+  white: 'White',
+  blue: 'Light blue',
+  green: 'Light green',
+  yellow: 'Light yellow',
+  pink: 'Light pink',
+  grey: 'Grey',
+};
+export const SHAPE_STROKE_COLOR_NAMES: Record<StrokeColor, string> = {
+  dark: 'Dark',
+  blue: 'Blue',
+  green: 'Green',
+  orange: 'Orange',
+  red: 'Red',
+  grey: 'Grey',
+};
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+// --- Story 11: sketch freehand with a pen ---
+export const PEN_COLORS = { black: '#212121', blue: '#1E88E5', red: '#E53935', green: '#43A047', orange: '#FB8C00', purple: '#8E24AA' } as const;
+export type PenColor = keyof typeof PEN_COLORS;
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+export const STROKE_MAX_POINTS = 5000;
+export const STROKE_HIT_TOLERANCE_PX = 6;
+export const STROKE_MIN_SIZE_WORLD = 4;
+
 // --- Story 5: share a board with others using a link ---
 export const CREATE_BUDGET_MS = 2000;              // PRD share.create
 export const LINK_COPIED_MS = 2000;
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;     // backoff doubles up to RECONNECT_MAX_BACKOFF_MS
+
+// --- Story 12: drop images onto the board ---
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+export type AcceptedImageType = typeof IMAGE_ACCEPTED_TYPES[number];
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+export const IMAGE_MIN_SIZE_WORLD = 16;
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+export const IMAGE_SNIFF_BYTES = 12;

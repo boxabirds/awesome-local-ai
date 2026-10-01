@@ -78,7 +78,7 @@ describe('Board edit lock in load_failed (TC-23)', () => {
     fireEvent.doubleClick(note, { clientX: 200, clientY: 200 });
     const editor = container.querySelector('[data-testid="sticky-note-editor"]');
     expect(editor).toBeNull(); // no editor opened → no text mutation possible
-    expect(snapshot(doc)[0].text).toBe('immutable');
+    expect((snapshot(doc)[0] as any).text).toBe('immutable');
   });
 });
 

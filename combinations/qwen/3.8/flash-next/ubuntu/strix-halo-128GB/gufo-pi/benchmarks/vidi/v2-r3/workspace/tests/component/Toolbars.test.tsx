@@ -3,6 +3,7 @@ import React, { createRef } from 'react';
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { BoardHarness, type HarnessHandle } from './harness/BoardHarness';
 import { createSticky, getStickyText, snapshot } from '../../src/shared/board-model';
+import type { StickySnapshot } from '../../src/shared/board-model';
 import { STICKY_COLORS, STICKY_SIZE_WORLD, STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
 import type { StickyColor } from '../../src/shared/config';
 import { OVER_LIMIT_1200 } from '../fixtures/texts';
@@ -52,7 +53,7 @@ describe('Toolbars', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pink colour' }));
     frames();
 
-    expect(snapshot(doc)[0].color).toBe('pink');
+    expect((snapshot(doc)[0] as StickySnapshot).color).toBe('pink');
     expect(handle.getSelectedId()).toBe(id);
     expect(screen.getByTestId('note-toolbar')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pink colour' })).toHaveAttribute(
@@ -86,7 +87,7 @@ describe('Toolbars', () => {
     const { handle, doc } = setup();
     frames();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     frames();
 
     const notes = snapshot(doc);
@@ -96,7 +97,7 @@ describe('Toolbars', () => {
     const centre = { x: 640 / cam.zoom + cam.x, y: 400 / cam.zoom + cam.y };
     expect(notes[0].x).toBeCloseTo(centre.x - STICKY_SIZE_WORLD / 2, 6);
     expect(notes[0].y).toBeCloseTo(centre.y - STICKY_SIZE_WORLD / 2, 6);
-    expect(notes[0].color).toBe('yellow');
+    expect((notes[0] as StickySnapshot).color).toBe('yellow');
     expect(handle.getEditingId()).toBe(notes[0].id);
     expect(screen.getByTestId('sticky-note-editor')).toBeInTheDocument();
   });
@@ -104,8 +105,8 @@ describe('Toolbars', () => {
   it('the create button describes the double-click alternative', () => {
     setup();
     frames();
-    const button = screen.getByRole('button', { name: 'Sticky note' });
-    expect(button).toHaveAttribute('title', 'Sticky note – or double-click the board');
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
+    expect(button).toHaveAttribute('title', 'Sticky note (N)');
   });
 
   it('double-clicking empty board creates a note centred on the point, in edit mode', () => {

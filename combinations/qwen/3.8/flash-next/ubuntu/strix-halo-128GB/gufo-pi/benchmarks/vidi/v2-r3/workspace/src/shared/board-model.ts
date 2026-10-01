@@ -13,7 +13,24 @@
  */
 import * as Y from 'yjs';
 import type { StickyColor } from './config';
+import type { TextSize } from './config';
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD } from './config';
+import type { Rect } from './geometry';
+import { rectContains } from './geometry';
+import type { ShapeSnap } from './objects/shape';
+import { readShape } from './objects/shape';
+import type { ConnectorSnap } from './objects/connector';
+import { readConnector, detachConnectorsTo } from './objects/connector';
+import type { StrokeSnap } from './objects/stroke';
+import { readStroke } from './objects/stroke';
+import type { ImageSnap } from './objects/image';
+import { readImage } from './objects/image';
+
+export type { ShapeSnap } from './objects/shape';
+export type { ConnectorSnap } from './objects/connector';
+export type { Endpoint } from './objects/connector';
+export type { StrokeSnap } from './objects/stroke';
+export type { ImageSnap } from './objects/image';
 
 /** Transaction origin for local user edits (story 8 undo, story 3 echo filter). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6-local');
@@ -23,21 +40,68 @@ export const SCHEMA_VERSION = 1;
 const META = 'meta';
 const OBJECTS = 'objects';
 
-export interface StickySnapshot {
-  id: string;
+export interface StickySnapshot extends BaseObjectSnapshot {
   type: 'sticky';
-  /** Top-left in world units. */
-  x: number;
-  y: number;
   color: StickyColor;
   text: string;
-  /** Stacking order; higher is drawn on top. */
+}
+
+/** Generic object snapshot union (extensible for future types). */
+export type ObjectSnapshot = StickySnapshot | TextSnapshot | ShapeSnap | ConnectorSnap | StrokeSnap | ImageSnap;
+
+/** Minimal base interface for all object types. */
+export interface BaseObjectSnapshot {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
   z: number;
   createdAt: number;
 }
 
+/** Snapshot for text objects (story 9). */
+export interface TextSnapshot extends BaseObjectSnapshot {
+  type: 'text';
+  text: string;
+  size: TextSize;
+  widthMode: 'auto' | 'fixed';
+  createdBy: string;
+}
+
 export function isStickyColor(value: unknown): value is StickyColor {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(STICKY_COLORS, value);
+}
+
+/** Type guard for sticky snapshots. */
+export function isSticky(s: ObjectSnapshot): s is StickySnapshot {
+  return s.type === 'sticky';
+}
+
+/** Type guard for text snapshots. */
+export function isTextSnapshot(s: ObjectSnapshot): s is TextSnapshot {
+  return s.type === 'text';
+}
+
+/** Type guard for shape snapshots. */
+export function isShape(s: ObjectSnapshot): s is ShapeSnap {
+  return s.type === 'shape';
+}
+
+/** Type guard for connector snapshots. */
+export function isConnector(s: ObjectSnapshot): s is ConnectorSnap {
+  return s.type === 'connector';
+}
+
+/** Type guard for stroke snapshots. */
+export function isStroke(s: ObjectSnapshot): s is StrokeSnap {
+  return s.type === 'stroke';
+}
+
+/** Type guard for image snapshots. */
+export function isImage(s: ObjectSnapshot): s is ImageSnap {
+  return s.type === 'image';
 }
 
 function isFinitePoint(x: unknown, y: unknown): boolean {
@@ -69,11 +133,15 @@ function readSticky(id: string, m: Y.Map<unknown>): StickySnapshot | null {
   if (typeof x !== 'number' || !Number.isFinite(x)) return null;
   if (typeof y !== 'number' || !Number.isFinite(y)) return null;
   if (typeof z !== 'number') return null;
+  const width = m.get('width');
+  const height = m.get('height');
   return {
     id,
     type: 'sticky',
     x,
     y,
+    width: typeof width === 'number' && Number.isFinite(width) ? width : undefined,
+    height: typeof height === 'number' && Number.isFinite(height) ? height : undefined,
     color: isStickyColor(color) ? color : DEFAULT_STICKY_COLOR,
     text: text instanceof Y.Text ? text.toString() : typeof text === 'string' ? text : '',
     z,
@@ -144,6 +212,186 @@ export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolea
   return true;
 }
 
+// --- Story 7: group operations ---
+
+/** Returns the bounding rect of an object, using STICKY_SIZE_WORLD fallback. */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  return {
+    x: obj.x,
+    y: obj.y,
+    width: obj.width ?? STICKY_SIZE_WORLD,
+    height: obj.height ?? STICKY_SIZE_WORLD,
+  };
+}
+
+/** Returns ids of objects fully inside the given rect (for marquee selection). */
+export function objectsInRect(snapshot: readonly ObjectSnapshot[], rect: Rect): string[] {
+  const ids: string[] = [];
+  for (const obj of snapshot) {
+    if (rectContains(rect, objectBounds(obj))) {
+      ids.push(obj.id);
+    }
+  }
+  return ids;
+}
+
+/** Returns all object ids from the snapshot (already excludes unknown types). */
+export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
+  return snapshot.map((obj) => obj.id);
+}
+
+function isFiniteRect(r: Rect): boolean {
+  return Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.width) && Number.isFinite(r.height);
+}
+
+/**
+ * Move multiple objects to absolute positions. Returns count of objects actually moved.
+ * Skips missing ids; rejects non-finite values with 0 and no transaction.
+ */
+export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, { x: number; y: number }>): number {
+  if (positions.size === 0) return 0;
+  // Validate all positions are finite
+  for (const pos of positions.values()) {
+    if (!isFinitePoint(pos.x, pos.y)) return 0;
+  }
+
+  const objects = getObjectsMap(doc);
+  let count = 0;
+
+  doc.transact(() => {
+    for (const [id, pos] of positions) {
+      const m = objects.get(id);
+      if (!m) continue;
+      const curX = m.get('x') as number;
+      const curY = m.get('y') as number;
+      if (curX === pos.x && curY === pos.y) continue;
+      m.set('x', pos.x);
+      m.set('y', pos.y);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+
+  return count;
+}
+
+/**
+ * Resize multiple objects to absolute rects. Returns count of objects actually resized.
+ * Writes both width and height fields, making implicit-size objects explicit.
+ * Rejects non-finite rects with 0 and no transaction.
+ */
+export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): number {
+  if (rects.size === 0) return 0;
+  // Validate all rects are finite
+  for (const r of rects.values()) {
+    if (!isFiniteRect(r)) return 0;
+  }
+
+  const objects = getObjectsMap(doc);
+  let count = 0;
+
+  doc.transact(() => {
+    for (const [id, rect] of rects) {
+      const m = objects.get(id);
+      if (!m) continue;
+      const curX = m.get('x') as number;
+      const curY = m.get('y') as number;
+      const curW = (m.get('width') as number | undefined) ?? undefined;
+      const curH = (m.get('height') as number | undefined) ?? undefined;
+      // For legacy objects without explicit width/height, compare against STICKY_SIZE_WORLD
+      const effectiveW = curW ?? STICKY_SIZE_WORLD;
+      const effectiveH = curH ?? STICKY_SIZE_WORLD;
+      if (curX === rect.x && curY === rect.y && effectiveW === rect.width && effectiveH === rect.height) continue;
+      m.set('x', rect.x);
+      m.set('y', rect.y);
+      m.set('width', rect.width);
+      m.set('height', rect.height);
+      // Text objects: resizing horizontally makes them fixed-width
+      if (m.get('type') === 'text') {
+        m.set('widthMode', 'fixed');
+      }
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+
+  return count;
+}
+
+/**
+ * Raise all objects in `ids` above every unselected object, preserving their
+ * relative stacking order among themselves. Returns count of objects changed.
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+
+  const objects = getObjectsMap(doc);
+  const idSet = new Set(ids);
+
+  // Find max z of unselected objects
+  let maxUnselectedZ = 0;
+  let minSelectedZ = Infinity;
+  for (const [objId, m] of objects.entries()) {
+    const z = m.get('z');
+    if (typeof z !== 'number') continue;
+    if (idSet.has(objId)) {
+      if (z < minSelectedZ) minSelectedZ = z;
+    } else {
+      if (z > maxUnselectedZ) maxUnselectedZ = z;
+    }
+  }
+
+  if (minSelectedZ === Infinity) return 0; // no selected objects found
+
+  // Collect selected objects sorted by current z to preserve relative order
+  const selected: Array<{ id: string; m: Y.Map<unknown>; z: number }> = [];
+  for (const id of ids) {
+    const m = objects.get(id);
+    if (!m) continue;
+    const z = m.get('z');
+    if (typeof z !== 'number') continue;
+    selected.push({ id, m, z });
+  }
+  selected.sort((a, b) => a.z - b.z);
+
+  // Assign new z values above maxUnselectedZ
+  let count = 0;
+  doc.transact(() => {
+    for (let i = 0; i < selected.length; i++) {
+      const newZ = maxUnselectedZ + i + 1;
+      if (selected[i].z !== newZ) {
+        selected[i].m.set('z', newZ);
+        count++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+
+  return count;
+}
+
+/**
+ * Delete multiple objects. Returns count of objects actually deleted.
+ * Skips missing ids; empty list → 0, no transaction.
+ * Also detaches any connector endpoints pointing to deleted objects.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+
+  const objects = getObjectsMap(doc);
+  let count = 0;
+
+  doc.transact(() => {
+    // Detach connector endpoints first (inside this transaction)
+    detachConnectorsTo(doc, [...ids]);
+    for (const id of ids) {
+      if (objects.has(id)) {
+        objects.delete(id);
+        count++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+
+  return count;
+}
+
 /** Raises a note above every other note. Returns false when already topmost. */
 export function bringToFront(doc: Y.Doc, id: string): boolean {
   const m = getStickyMap(doc, id);
@@ -196,13 +444,60 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
  * agree on the render order even when concurrent edits produce equal `z`.
  * Objects of unknown `type` are skipped.
  */
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects = getObjectsMap(doc);
-  const notes: StickySnapshot[] = [];
+  const items: ObjectSnapshot[] = [];
   for (const [id, m] of objects.entries()) {
-    const note = readSticky(id, m);
-    if (note) notes.push(note);
+    const type = m.get('type');
+    if (type === 'sticky') {
+      const note = readSticky(id, m);
+      if (note) items.push(note);
+    } else if (type === 'text') {
+      const t = readText(id, m);
+      if (t) items.push(t);
+    } else if (type === 'shape') {
+      const s = readShape(id, m);
+      if (s) items.push(s);
+    } else if (type === 'connector') {
+      const c = readConnector(id, m);
+      if (c) items.push(c);
+    } else if (type === 'stroke') {
+      const s = readStroke(id, m);
+      if (s) items.push(s);
+    } else if (type === 'image') {
+      const img = readImage(id, m);
+      if (img) items.push(img);
+    }
   }
-  notes.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return notes;
+  items.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return items;
+}
+
+function readText(id: string, m: Y.Map<unknown>): TextSnapshot | null {
+  const x = m.get('x');
+  const y = m.get('y');
+  const z = m.get('z');
+  const width = m.get('width');
+  const height = m.get('height');
+  if (typeof x !== 'number' || !Number.isFinite(x)) return null;
+  if (typeof y !== 'number' || !Number.isFinite(y)) return null;
+  if (typeof z !== 'number') return null;
+  const text = m.get('text');
+  const size = m.get('size');
+  const widthMode = m.get('widthMode');
+  const createdBy = m.get('createdBy');
+  return {
+    id,
+    type: 'text',
+    x,
+    y,
+    width: typeof width === 'number' && Number.isFinite(width) ? width : 100,
+    height: typeof height === 'number' && Number.isFinite(height) ? height : 26,
+    text: text instanceof Y.Text ? text.toString() : typeof text === 'string' ? text : '',
+    size: (size === 'S' || size === 'M' || size === 'L' || size === 'XL') ? size : 'M',
+    widthMode: widthMode === 'fixed' ? 'fixed' : 'auto',
+    z,
+    createdAt: typeof m.get('createdAt') === 'number' ? (m.get('createdAt') as number) : 0,
+    createdBy: typeof createdBy === 'string' ? createdBy : '',
+  };
 }

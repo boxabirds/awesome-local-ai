@@ -1,16 +1,26 @@
 import type { Camera } from './camera';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot } from '../../shared/board-model';
+import type { ShapeKind } from '../../shared/config';
+import type { Endpoint } from '../../shared/objects/connector';
 
 declare global {
   interface Window {
     __vidi6?: {
       setCamera(cam: Camera): void;
       /** Current board snapshot, for assertions in end-to-end tests. */
-      getBoard(): readonly StickySnapshot[];
+      getBoard(): readonly ObjectSnapshot[];
       /** Create a sticky in world space with optional text/colour (test mode). */
       addSticky?(at: { x: number; y: number }, text?: string, color?: string): string;
+      /** Create a text object in world space with optional text/size (test mode). */
+      addText?(at: { x: number; y: number }, text?: string, size?: string): string;
+      /** Create a shape in world space (test mode). */
+      addShape?(opts: { kind?: ShapeKind; rect?: { x: number; y: number; width: number; height: number }; at?: { x: number; y: number } }): string;
+      /** Create a connector in world space (test mode). */
+      addConnector?(from: Endpoint, to: Endpoint): string;
       /** Current connection state for e2e tests. */
       connectionState?: string;
+      /** Currently selected object ids (test mode). */
+      getSelectedIds?(): string[];
     };
   }
 }
