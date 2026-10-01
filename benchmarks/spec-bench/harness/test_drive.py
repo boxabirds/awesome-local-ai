@@ -631,16 +631,6 @@ def test_hang_guard_spares_the_agent_whose_cwd_is_the_workspace(tmp_path):
             p.kill()
 
 
-def test_needs_nudge_only_when_agent_quit_without_committing():
-    """canvas-pi-01 story 2: the model ended a turn with reasoning only, pi exited 0 after 3 minutes, no commit."""
-    from drive import needs_nudge
-    clean = {"stalled": False, "error": None, "session": "s1"}
-    assert needs_nudge(clean, commits=0) is True
-    assert needs_nudge(clean, commits=2) is False                      # it committed: trust it finished
-    assert needs_nudge({**clean, "stalled": True}, commits=0) is False  # loops are not nudged
-    assert needs_nudge({**clean, "error": "boom"}, commits=0) is False  # errors go through fork-resume
-    assert needs_nudge({**clean, "session": None}, commits=0) is False  # nothing to continue
-
 
 def test_continue_uses_the_same_session_not_a_fork(tmp_path):
     from clients import PiClient, OpenCodeClient
@@ -701,22 +691,6 @@ def test_sampler_aborts_when_swap_grows(monkeypatch):
     drive.RUN_ABORT.clear()
 
 
-def test_nudges_are_unlimited_but_stop_when_a_nudge_makes_no_progress():
-    """keep_nudging is about progress only. The story-level cap (25 Sep: 4 h or 5 nudges) is cap_reason's."""
-    from drive import keep_nudging
-    progressing = {"stalled": False, "error": None, "session": "s", "steps": 5, "tool_calls": 4}
-    assert keep_nudging(progressing, commits=0, nudges=50) is True          # no cap
-    assert keep_nudging(progressing, commits=1, nudges=0) is False          # it committed
-    assert keep_nudging({**progressing, "steps": 0}, commits=0, nudges=3) is False  # no progress on a nudge
-
-
-def test_a_nudge_answered_without_any_tool_call_is_no_progress():
-    """canvas-pi-01 story 11 (25 Sep): 3,066 nudges each answered "Nothing left to do." with no tool
-    call and no commit. A reply is a model call but not progress; the story must end instead."""
-    from drive import keep_nudging
-    talked_only = {"stalled": False, "error": None, "session": "s", "steps": 1, "tool_calls": 0}
-    assert keep_nudging(talked_only, commits=0, nudges=1) is False
-    assert keep_nudging(talked_only, commits=0, nudges=0) is True   # the first stop still gets a nudge
 
 
 def test_last_session_is_found_so_a_restarted_story_continues_it(tmp_path):
@@ -915,7 +889,7 @@ def test_a_story_is_capped_at_4_hours_or_5_nudges():
     assert (MAX_STORY_AGENT_S, MAX_NUDGES) == (4 * 3600, 5)
     assert cap_reason(MAX_STORY_AGENT_S - 1, MAX_NUDGES - 1) is None
     assert "4.0 h" in cap_reason(MAX_STORY_AGENT_S, 0)
-    assert "5 nudges" in cap_reason(60, MAX_NUDGES)
+    assert "stop message was sent 5 times" in cap_reason(60, MAX_NUDGES)      # the stop rule: test_stop_rule.py
 
 
 def test_the_time_cap_ends_the_running_story_like_an_operator_skip(tmp_path):
@@ -933,56 +907,6 @@ def test_the_time_cap_ends_the_running_story_like_an_operator_skip(tmp_path):
         drive.STORY_SKIP.clear()
 
 
-def test_the_nudge_cap_ends_the_story_after_the_fifth_nudge(tmp_path, monkeypatch):
-    import drive
-    clean = {"stalled": False, "error": None, "session": "s", "steps": 3, "tool_calls": 2, "exit": 0,
-             "seconds": 60, "compactions": 0, "tokens": {"input": 1, "output": 1}}
-    monkeypatch.setattr(drive, "run_agent", lambda *a, **k: dict(clean))
-    monkeypatch.setattr(drive, "commits_since", lambda ws, head: 0)
-    monkeypatch.setattr(drive, "sh", lambda *a, **k: "HEAD")
-
-    class NoGuard:
-        def __init__(self, *a): pass
-        def start(self): pass
-        def stop(self): return 0
-    monkeypatch.setattr(drive, "ToolHangGuard", NoGuard)
-    capped = []
-    res = drive.run_story_agent(None, tmp_path, {}, "m", "go", tmp_path / "ev.jsonl", on_cap=capped.append)
-    assert res["nudges"] == drive.MAX_NUDGES
-    assert len(capped) == 1 and "5 nudges" in capped[0]
-
-
-
-def test_a_no_commit_nudge_says_the_work_must_be_committed_and_other_resumes_do_not(tmp_path, monkeypatch):
-    """gufo v2-r4 story 4 (1 Oct 2026): the agent finished, never committed, and was told five times only to
-    "continue from where you left off"; each time it answered that nothing was left, and 33 agent-minutes and the
-    story's DONE went on it. The no-commit nudge now says what is missing; a resume after an error and the
-    continuation after a harness restart keep the plain prompt."""
-    import drive
-    assert "commit" in drive.NUDGE_PROMPT.lower() and "hash" in drive.NUDGE_PROMPT.lower()
-    assert drive.NUDGE_PROMPT.startswith("Continue") and "commit" not in drive.RESUME_PROMPT.lower()
-    prompts = []
-    clean = {"stalled": False, "error": None, "session": "s", "steps": 3, "tool_calls": 2, "exit": 0,
-             "seconds": 60, "compactions": 0, "tokens": {"input": 1, "output": 1}}
-    replies = iter([dict(clean), {**clean, "error": "boom"}, dict(clean)])
-
-    def fake_run(client, ws, env, model_id, prompt, events_path, **k):
-        prompts.append(prompt)
-        return next(replies)
-    commits = iter([0, 1])                             # asked after each clean stop: no commit, then committed
-    monkeypatch.setattr(drive, "run_agent", fake_run)
-    monkeypatch.setattr(drive, "commits_since", lambda ws, head: next(commits))
-    monkeypatch.setattr(drive, "sh", lambda *a, **k: "HEAD")
-    monkeypatch.setattr(drive, "RESUME_BACKOFF_S", 0)
-
-    class NoGuard:
-        def __init__(self, *a): pass
-        def start(self): pass
-        def stop(self): return 0
-    monkeypatch.setattr(drive, "ToolHangGuard", NoGuard)
-    res = drive.run_story_agent(None, tmp_path, {}, "m", "the story", tmp_path / "ev.jsonl")
-    assert prompts == ["the story", drive.NUDGE_PROMPT, drive.RESUME_PROMPT]
-    assert res["nudges"] == 1 and res["resumes"] == 1
 
 
 def test_missing_resources_stop_the_run_with_their_own_exit_code_and_reason(capsys):
@@ -1115,57 +1039,7 @@ def test_a_tool_call_written_as_text_is_recognised():
     assert not drive.tool_call_as_text("")
 
 
-def _no_guard(monkeypatch):
-    import drive
 
-    class NoGuard:
-        def __init__(self, *a): pass
-        def start(self): pass
-        def stop(self): return 0
-    monkeypatch.setattr(drive, "ToolHangGuard", NoGuard)
-    monkeypatch.setattr(drive, "sh", lambda *a, **k: "HEAD")
-
-
-def test_a_session_that_ends_on_a_tool_call_written_as_text_is_continued_and_logged(tmp_path, monkeypatch):
-    import drive
-    clean = {"stalled": False, "error": None, "session": "s", "steps": 3, "tool_calls": 2, "exit": 0,
-             "seconds": 60, "compactions": 0, "tokens": {"input": 1, "output": 1}}
-    run = tmp_path / "run"
-    ev = run / "stories" / "01" / "agent-events.jsonl"
-    ev.parent.mkdir(parents=True)
-    finals = [LEAKED_CALL, "Done: all tasks committed."]
-    prompts = []
-
-    def fake_run_agent(client, ws, env, model_id, prompt, events_path, resume_from=None, fork=True):
-        prompts.append(prompt)
-        with events_path.open("a") as f:
-            f.write(_event("assistant", {"type": "text", "text": finals[len(prompts) - 1]}))
-        return dict(clean)
-    monkeypatch.setattr(drive, "run_agent", fake_run_agent)
-    monkeypatch.setattr(drive, "commits_since", lambda ws, head: 1)   # it had committed: no nudge
-    _no_guard(monkeypatch)
-    res = drive.run_story_agent(None, tmp_path, {}, "m", "go", ev)
-    assert prompts == ["go", drive.TOOLCALL_AS_TEXT_PROMPT]
-    assert res["toolcall_text_resumes"] == 1 and res["nudges"] == 0
-    assert "tool call written as text" in (run / "interventions.md").read_text()
-
-
-def test_tool_call_as_text_resumes_are_capped(tmp_path, monkeypatch):
-    import drive
-    clean = {"stalled": False, "error": None, "session": "s", "steps": 3, "tool_calls": 2, "exit": 0,
-             "seconds": 60, "compactions": 0, "tokens": {"input": 1, "output": 1}}
-    ev = tmp_path / "run" / "stories" / "01" / "agent-events.jsonl"
-    ev.parent.mkdir(parents=True)
-
-    def fake_run_agent(client, ws, env, model_id, prompt, events_path, resume_from=None, fork=True):
-        with events_path.open("a") as f:
-            f.write(_event("assistant", {"type": "text", "text": LEAKED_CALL}))
-        return dict(clean)
-    monkeypatch.setattr(drive, "run_agent", fake_run_agent)
-    monkeypatch.setattr(drive, "commits_since", lambda ws, head: 1)
-    _no_guard(monkeypatch)
-    res = drive.run_story_agent(None, tmp_path, {}, "m", "go", ev)
-    assert res["toolcall_text_resumes"] == drive.MAX_TOOLCALL_TEXT_RESUMES
 
 
 def _reference_run(tmp_path, spec_text="the spec"):

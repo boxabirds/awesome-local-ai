@@ -215,7 +215,8 @@ def test_operator_skip_stops_the_agent_with_no_resume_or_nudge(tmp_path, monkeyp
         (run / "control" / "skip-story.json").write_text(json.dumps({"story": 3, "reason": "too long", "by": "t"}))
     threading.Thread(target=request, daemon=True).start()
     t0 = time.monotonic()
-    res = drive.run_story_agent(SleepyClient(), ws, {}, "m", "p", run / "stories" / "03" / "agent-events.jsonl")
+    res = drive.run_story_agent(SleepyClient(), ws, {}, "m", "p", run / "stories" / "03" / "agent-events.jsonl",
+                                {"id": 3, "title": "A story", "tasks_path": "spec/stories/003-a-story/tasks.md"})
     assert time.monotonic() - t0 < 30, "the agent must be stopped, not waited for"
     assert skipper.stop()["reason"] == "too long"
     assert res["ended_by_operator"] and res["resumes"] == 0 and res["nudges"] == 0 and res["errors"] == []

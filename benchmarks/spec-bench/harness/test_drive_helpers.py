@@ -575,9 +575,11 @@ def test_the_prompt_fills_every_placeholder_of_the_pack_s_template(tmp_path, mon
     monkeypatch.setattr(drive, "PK", SimpleNamespace(app_line="the app", rules="1. a rule"))
     story = {"id": 7, "dir": "007-seventh"}
     so_far = drive.stories_so_far([], 7)
+    done_line = "\n\n" + drive.DONE_LINE_PROMPT_TMPL.format(n=7) + "\n"        # the harness's own last paragraph
     assert drive.render_prompt(story, "Seventh", [], {"out_of_scope_note": "not the eighth"}) == (
-        f"the app|1. a rule|7|Seventh|spec/|spec/stories/007-seventh|{so_far}|not the eighth")
-    assert drive.render_prompt(story, "Seventh", [], {}).endswith(f"{so_far}|")       # a scope without a note
+        f"the app|1. a rule|7|Seventh|spec/|spec/stories/007-seventh|{so_far}|not the eighth{done_line}")
+    assert drive.render_prompt(story, "Seventh", [], {}) == (                        # a scope without a note
+        f"the app|1. a rule|7|Seventh|spec/|spec/stories/007-seventh|{so_far}|{done_line}")
 
 
 def test_a_story_s_title_is_its_first_line_without_the_heading_marks(tmp_path, monkeypatch):
@@ -708,55 +710,6 @@ def test_a_record_rebuilt_from_a_log_without_times_has_no_seconds(tmp_path):
     ev.write_text(lines({"type": "session", "id": "s9"}))
     rec = drive.reconstruct_agent(PiClient(tmp_path), ev)
     assert rec["seconds"] == 0.0 and rec["steps"] == 0 and rec["sessions"] == ["s9"]
-
-
-# ---------- nudges and caps ----------
-
-CLEAN = {"stalled": False, "error": None, "session": "s", "steps": 2, "tool_calls": 1}
-
-
-@pytest.mark.parametrize("change, commits, expected", [
-    ({}, 0, True),
-    ({}, 1, False),                         # it committed
-    ({"stalled": True}, 0, False),          # stopped by the loop detector
-    ({"error": "boom"}, 0, False),          # ended in an error: resumed, not nudged
-    ({"session": None}, 0, False),          # no session to continue
-])
-def test_an_agent_is_nudged_only_after_a_clean_stop_without_a_commit(change, commits, expected):
-    assert drive.needs_nudge({**CLEAN, **change}, commits) is expected
-
-
-@pytest.mark.parametrize("change, nudges, expected", [
-    ({}, 0, True),
-    ({"steps": 0, "tool_calls": 0}, 0, True),       # the first nudge is always given
-    ({}, 3, True),                                  # the last nudge did something: nudge again
-    ({"steps": 0}, 1, False),                       # the last nudge made no model call
-    ({"tool_calls": 0}, 1, False),                  # the last nudge was only talk
-])
-def test_nudging_goes_on_while_the_last_nudge_made_progress(change, nudges, expected):
-    assert drive.keep_nudging({**CLEAN, **change}, 0, nudges) is expected
-
-
-def test_an_attempt_without_counts_is_no_progress_after_a_nudge():
-    assert drive.keep_nudging({"stalled": False, "error": None, "session": "s"}, 0, 1) is False
-
-
-def test_the_cap_reason_names_time_before_nudges():
-    hours = drive.MAX_STORY_AGENT_S / drive.SECONDS_PER_HOUR
-    assert drive.cap_reason(drive.MAX_STORY_AGENT_S - 0.1, drive.MAX_NUDGES - 1) is None
-    assert drive.cap_reason(drive.MAX_STORY_AGENT_S, drive.MAX_NUDGES) == (
-        f"story cap: {hours:.1f} h of agent time (cap {hours:.1f} h)")
-    assert drive.cap_reason(0, drive.MAX_NUDGES) == f"story cap: {drive.MAX_NUDGES} nudges without committing (cap {drive.MAX_NUDGES})"
-
-
-def test_commits_since_counts_the_commits_after_a_head(tmp_path):
-    git(tmp_path, "init", "-q", "-b", "main")
-    git(tmp_path, "commit", "-q", "--allow-empty", "-m", "base")
-    head = git(tmp_path, "rev-parse", "HEAD")
-    assert drive.commits_since(tmp_path, head) == 0
-    git(tmp_path, "commit", "-q", "--allow-empty", "-m", "one")
-    git(tmp_path, "commit", "-q", "--allow-empty", "-m", "two")
-    assert drive.commits_since(tmp_path, head) == 2
 
 
 # ---------- server statistics, lines of code ----------
