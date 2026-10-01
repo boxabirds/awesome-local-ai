@@ -99,3 +99,150 @@ body,
   min-width: 48px;
   text-align: center;
 }
+
+.sticky-note {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  outline: none;
+  user-select: none;
+  touch-action: none;
+}
+
+.sticky-note--selected {
+  outline: 3px solid #2563eb;
+}
+
+.sticky-note:focus-visible {
+  outline: 3px solid #1d4ed8;
+}
+
+.sticky-text {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  line-height: 1.2;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #1e293b;
+}
+
+.sticky-text-inner {
+  margin-block: auto;
+}
+
+.sticky-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 32px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.85));
+}
+
+.sticky-editor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  margin: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: #1e293b;
+  font-family: inherit;
+  line-height: 1.2;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  user-select: text;
+}
+
+.sticky-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.75);
+  color: #fff;
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.left-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.left-toolbar button,
+.note-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.left-toolbar button:hover,
+.note-toolbar .note-delete:hover {
+  background: #e2e8f0;
+}
+
+.left-toolbar button:focus-visible,
+.note-toolbar button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.note-toolbar-anchor {
+  position: fixed;
+  transform: translate(-50%, -100%);
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.note-toolbar .swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+}
+
+.note-toolbar .swatch[aria-pressed='true'] {
+  border-color: #1e293b;
+}
