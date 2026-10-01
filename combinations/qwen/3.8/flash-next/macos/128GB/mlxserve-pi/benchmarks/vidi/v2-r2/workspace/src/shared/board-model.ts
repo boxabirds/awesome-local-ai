@@ -10,10 +10,12 @@
 //   meta:    Y.Map { schemaVersion: 1 }
 //   objects: Y.Map<id, Y.Map> where each object is
 //     { type: 'sticky', x, y, width?, height?, color, text: Y.Text, z, createdAt }
-//   and, from stories 9 and 10, of type 'text', 'shape' and 'connector' - the
+//   and, from stories 9-11, of type 'text', 'shape', 'connector' and 'stroke' - the
 //   modules under objects/ own those entries' fields. A connector stores which
 //   objects its ends point at and keeps x/y/width/height at 0: where it is drawn
 //   is derived from those objects, which is what lets an arrow follow a move.
+//   A stroke stores its line as numbers relative to its own box, which is what
+//   lets a resize scale the drawing instead of shearing it (story 11).
 //   (x, y) is the note's top-left in world units; higher z draws on top. A
 //   sticky without stored width/height is STICKY_SIZE_WORLD wide and tall - the
 //   fields arrive with the first resize (story 7), so no migration rewrites the
@@ -34,6 +36,7 @@ import {
   STICKY_SIZE_WORLD,
   TYPE_CONNECTOR,
   TYPE_SHAPE,
+  TYPE_STROKE,
   TYPE_TEXT,
   type StickyColor,
 } from './config';
@@ -138,6 +141,7 @@ const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set<string>([
   TYPE_TEXT,
   TYPE_SHAPE,
   TYPE_CONNECTOR,
+  TYPE_STROKE,
 ]);
 
 /**

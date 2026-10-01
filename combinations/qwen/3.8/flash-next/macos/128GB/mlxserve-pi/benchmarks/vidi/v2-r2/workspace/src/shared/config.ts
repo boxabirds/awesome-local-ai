@@ -305,3 +305,68 @@ export const BOARD_CHECK_RETRY_BASE_MS = 1000;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** How many undo steps one person's history keeps; the oldest is dropped past it. */
 export const UNDO_MAX_STEPS = 200;
+
+// -----------------------------------------------------------------------------
+// Freehand strokes (story 11). A stroke is the line a Pen drag draws: sampled
+// points simplified to one polyline, stored in board units relative to the box
+// the stroke is drawn in, so a resize scales the line inside its box. The three
+// `*_PX` settings are screen measurements: each is divided by the zoom to get
+// board units, which is what makes a line drawn at 50% zoom the same line at 200%.
+// -----------------------------------------------------------------------------
+
+/** A freehand stroke (story 11). */
+export const TYPE_STROKE = 'stroke';
+
+/** The Pen tool's six colours: the sticky palette's own set, keyed by name. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+/** Stroke thickness in board units (px at 100% zoom), keyed by name. */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+export type PenColor = keyof typeof PEN_COLORS;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** The colour and thickness a Pen drag starts with, before anything is changed. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/** The six colours the Pen offers, in the order its toolbar shows them. */
+export const PEN_COLOR_KEYS: readonly PenColor[] = Object.freeze(
+  Object.keys(PEN_COLORS) as PenColor[],
+);
+
+/** The three thicknesses, thinnest first, in the order the Pen's toolbar shows them. */
+export const PEN_THICKNESS_KEYS: readonly PenThickness[] = Object.freeze(
+  Object.keys(PEN_THICKNESS_WORLD) as PenThickness[],
+);
+
+/**
+ * Ramer-Douglas-Peucker simplification tolerance, in SCREEN pixels: the board
+ * divides it by the zoom the line is drawn at, so the same gesture stores the
+ * same detail whatever the zoom is.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * One stroke stores at most this many raw points. A gesture longer than that is
+ * committed in parts, each part a stroke of its own, the next part beginning at
+ * the point the previous one ended at.
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/**
+ * How near a stroke's line a click must come to select it, in screen pixels
+ * (divided by zoom for board units), floored at half the stroke's own thickness
+ * so a thick line is hit across its whole width.
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/** The shortest edge a stroke's box may be resized to, in board units. */
+export const STROKE_MIN_SIZE_WORLD = 4;

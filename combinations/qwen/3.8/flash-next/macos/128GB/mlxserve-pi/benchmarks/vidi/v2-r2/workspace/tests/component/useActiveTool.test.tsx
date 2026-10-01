@@ -17,22 +17,28 @@ import {
   connectorCount,
   connectorToolButton,
   connectorToolLayer,
+  drawOnPen,
   forceConnectionState,
   flushFrames,
   holdConnectorTool,
+  holdPenTool,
   holdShapeTool,
   newShape,
+  penToolButton,
+  penToolLayer,
   pointerOnLayer,
   pressKey,
   renderBoard,
   screenOf,
   selectedConnectors,
   selectedShapes,
+  selectedStrokes,
   shapeAt,
   shapeBox,
   shapeCount,
   shapeToolButton,
   shapeToolLayer,
+  strokeCount,
   textToolSelectButton,
   textToolTextButton,
   useBoardTestLifecycle,
@@ -197,13 +203,49 @@ describe('the tool the pointer holds (TC-22)', () => {
     expect(shapeCount()).toBe(1);
   });
 
+  it('TC-22 P holds the Pen, and the Pen is the tool that keeps the pointer it drew with', () => {
+    renderBoard();
+
+    holdPenTool();
+    flushFrames();
+    expect(held(penToolButton())).toBe('true');
+    expect(held(SELECT())).toBe('false');
+    expect(penToolLayer()).not.toBeNull();
+    expect(shapeToolLayer()).toBeNull();
+
+    // A shape and an arrow hand the pointer back to Select, because what they make is
+    // about to be typed into or dragged. A line does not: the next thing a person
+    // holding a pen does is draw another line, so the Pen keeps the floor and only the
+    // selection moves to what was drawn.
+    drawOnPen(screenOf({ x: -240, y: -100 }), screenOf({ x: -40, y: 60 }));
+    expect(strokeCount()).toBe(1);
+    expect(selectedStrokes()).toHaveLength(1);
+    expect(penToolLayer()).not.toBeNull();
+    expect(held(penToolButton())).toBe('true');
+    expect(held(SELECT())).toBe('false');
+
+    // and the second line is drawn as easily as the first, which is the whole point
+    drawOnPen(screenOf({ x: 40, y: -60 }), screenOf({ x: 220, y: 80 }));
+    expect(strokeCount()).toBe(2);
+
+    // V is the way back, like every other tool
+    pressKey('v');
+    flushFrames();
+    expect(held(SELECT())).toBe('true');
+    expect(held(penToolButton())).toBe('false');
+    expect(penToolLayer()).toBeNull();
+    // nothing was deleted on the way out of the tool
+    expect(strokeCount()).toBe(2);
+  });
+
   it('a letter that names a tool this build does not ship holds nothing', () => {
     renderBoard();
 
-    // P, I and C are reserved for the pen, the image and the comment tools: a board
-    // left holding a tool with nothing to render it would eat the next click, so
-    // these letters stay the browser's
-    for (const key of ['p', 'i', 'c']) {
+    // I and C are reserved for the image and the comment tools: a board left holding a
+    // tool with nothing to render it would eat the next click, so these letters stay
+    // the browser's. P is not one of them any more - story 11 ships the Pen, and a
+    // pressing P holds it - which is what `the Pen tool` tests draw out.
+    for (const key of ['i', 'c']) {
       pressKey(key);
       flushFrames();
       expect(held(SELECT())).toBe('true');
@@ -233,6 +275,11 @@ describe('the tool the pointer holds (TC-22)', () => {
     holdShapeTool();
     expect(shapeToolLayer()).toBeNull();
     expect(held(shapeToolButton())).toBe('false');
+    // the Pen is a tool too, and a Pen that cannot draw is worse than none: it would
+    // swallow every press meant for the board
+    holdPenTool();
+    expect(penToolLayer()).toBeNull();
+    expect(held(penToolButton())).toBe('false');
     // the board's own keys still answer, and no tool is held on a board that is not
     // the reader's to change
     expect(held(SELECT())).toBe('true');

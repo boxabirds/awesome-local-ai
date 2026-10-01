@@ -13,6 +13,7 @@ import { initDoc, snapshotByCreation, type ObjectSnapshot, type StickySnapshot }
 import { textSnapshots, type TextSnapshot } from '../../shared/objects/text';
 import { shapeSnapshots, type ShapeSnapshot } from '../../shared/objects/shape';
 import { connectorSnapshots, type ConnectorSnapshot } from '../../shared/objects/connector';
+import { strokeSnapshots, type StrokeSnapshot } from '../../shared/objects/stroke';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 import {
   registerConnectionControl,
@@ -49,10 +50,16 @@ export interface BoardDocApi {
    */
   connectors: readonly ConnectorSnapshot[];
   /**
-   * Every renderable object, notes, then texts, then shapes, then arrows, in
-   * creation order within each type. The z order is each object's own business (they
-   * are drawn by `z`), so this order is only the order the DOM is built in - which
-   * never changes while a pointer is holding one of them.
+   * Renderable drawings (story 11), in the same shape as `notes`. A stroke is read
+   * from the numbers it stored and nothing else: it points at no other object, so a
+   * stroke a peer drew arrives as one object and is drawn the same on both boards.
+   */
+  strokes: readonly StrokeSnapshot[];
+  /**
+   * Every renderable object, notes, then texts, then shapes, then arrows, then
+   * drawings, in creation order within each type. The z order is each object's own
+   * business (they are drawn by `z`), so this order is only the order the DOM is
+   * built in - which never changes while a pointer is holding one of them.
    */
   objects: readonly ObjectSnapshot[];
   /**
@@ -70,6 +77,7 @@ export interface BoardObjects {
   texts: readonly TextSnapshot[];
   shapes: readonly ShapeSnapshot[];
   connectors: readonly ConnectorSnapshot[];
+  strokes: readonly StrokeSnapshot[];
   objects: readonly ObjectSnapshot[];
 }
 
@@ -112,12 +120,14 @@ function createStore(injected: Y.Doc | undefined): SnapshotStore {
         // objects its ends point at, so it is resolved against this same read of
         // the board and never against a board a moment older
         const connectors = connectorSnapshots(doc);
+        const strokes = strokeSnapshots(doc);
         cached = {
           notes,
           texts,
           shapes,
           connectors,
-          objects: [...notes, ...texts, ...shapes, ...connectors],
+          strokes,
+          objects: [...notes, ...texts, ...shapes, ...connectors, ...strokes],
         };
       }
       return cached;
@@ -136,7 +146,7 @@ export function useBoardDoc(injected?: Y.Doc, boardId?: string): BoardDocApi {
   const subscribe = useCallback((onStoreChange: () => void) => store.subscribe(onStoreChange), [store]);
   const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  const { notes, texts, shapes, connectors, objects } = snapshot;
+  const { notes, texts, shapes, connectors, strokes, objects } = snapshot;
 
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   useEffect(() => {
@@ -166,8 +176,8 @@ export function useBoardDoc(injected?: Y.Doc, boardId?: string): BoardDocApi {
     };
   }, [store, boardId]);
 
-  return { doc: store.doc, notes, texts, shapes, connectors, objects, connection };
+  return { doc: store.doc, notes, texts, shapes, connectors, strokes, objects, connection };
 }
 
 /** Re-export so callers do not import Yjs just to type a prop. */
-export type { StickySnapshot, TextSnapshot, ShapeSnapshot, ConnectorSnapshot };
+export type { StickySnapshot, TextSnapshot, ShapeSnapshot, ConnectorSnapshot, StrokeSnapshot };

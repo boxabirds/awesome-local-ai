@@ -15,6 +15,7 @@ import {
 import { textSnapshots } from '../../shared/objects/text';
 import { shapeSnapshots } from '../../shared/objects/shape';
 import { connectorSnapshots } from '../../shared/objects/connector';
+import { strokeSnapshots } from '../../shared/objects/stroke';
 import type { StickyColor } from '../../shared/config';
 import { COLLAB_ENDPOINT } from '../sync/endpoint';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -69,17 +70,19 @@ export function registerBoardDoc(doc: Y.Doc | null): void {
   patch({
     doc,
     // Every object on the board, of every type: notes, then text objects, then
-    // shapes, then arrows, each group in creation order. A board with nothing new on
-    // it reads exactly as it did before story 9, so the tests written against the
-    // older shape are unaffected; a test that wants only one type filters on `type`.
-    // An arrow comes out with the box around the two ends it resolved to at this
-    // moment, which is how a test reads an arrow following a shape: snapshot, move,
-    // snapshot, and compare the two boxes.
+    // shapes, then arrows, then drawings, each group in creation order. A board with
+    // nothing new on it reads exactly as it did before story 9, so the tests written
+    // against the older shape are unaffected; a test that wants only one type filters
+    // on `type`. An arrow comes out with the box around the two ends it resolved to at
+    // this moment, which is how a test reads an arrow following a shape: snapshot,
+    // move, snapshot, and compare the two boxes. A stroke comes out with the line it
+    // stored, which is how a test reads a drawing two browsers agreed on.
     snapshot: () => [
       ...snapshotByCreation(doc),
       ...textSnapshots(doc),
       ...shapeSnapshots(doc),
       ...connectorSnapshots(doc),
+      ...strokeSnapshots(doc),
     ],
     __serverMode: COLLAB_ENDPOINT !== '',
     /**

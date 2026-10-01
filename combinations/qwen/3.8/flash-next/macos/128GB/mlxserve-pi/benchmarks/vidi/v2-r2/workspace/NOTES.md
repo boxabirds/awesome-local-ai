@@ -1183,3 +1183,158 @@ stashed away, at the story 9 commit, and both fail there as they do here.
 new is skipped - and all 27 of this story's e2e cases (TC-23 to TC-27 and the fixture
 flow) are green in chromium, firefox and webkit in every run. The two cases written up
 above are the ones that come and go between runs, in stories that are not this one.
+
+---
+
+# Story 11 — Sketch freehand with a pen
+
+## What is here (story 11)
+
+**Shared, because the line is board content**
+
+- `src/shared/geometry/simplify.ts` — the three pure functions a gesture becomes:
+  `simplify` (Ramer–Douglas–Peucker, **iterative with an explicit stack** — see the
+  stack note below), `splitPoints` (chunks of `STROKE_MAX_POINTS` that *share* their
+  boundary point, so two strokes made from one long drag join with no gap) and
+  `smoothPath` (midpoint-quadratic: `M p0`, then `Q p[i] mid(p[i],p[i+1])`, ending
+  `L p[n-1]`; one point becomes a zero-length path, which a round cap draws as a dot).
+  No Yjs, no DOM, no React in this file.
+- `src/shared/objects/stroke.ts` — `createStroke` (validate first, then *one*
+  `LOCAL_ORIGIN` transaction; a rejected draw returns `null` and writes nothing),
+  `readStroke`, `strokeSnapshot`, `strokeSnapshots`, `scaledPoints`,
+  `strokeThicknessWorld`, `strokeColor`. The line is stored flattened
+  (`[x0,y0,x1,y1,…]`) relative to the box origin, at creation size, next to
+  `baseWidth`/`baseHeight`; `scaledPoints` is the only reader of that pairing, so
+  nobody else in the codebase multiplies by a ratio by hand.
+- `src/shared/config.ts` — `TYPE_STROKE`, `PEN_COLORS` / `PEN_THICKNESS_WORLD` with
+  `PenColor` / `PenThickness` and `PEN_COLOR_KEYS` / `PEN_THICKNESS_KEYS` (ordered
+  key lists, because `Object.keys` of an `as const` object is otherwise a cast
+  repeated in three components), `DEFAULT_PEN_COLOR`, `DEFAULT_PEN_THICKNESS`,
+  `STROKE_SIMPLIFY_TOLERANCE_PX` (1), `STROKE_MAX_POINTS` (5000),
+  `STROKE_HIT_TOLERANCE_PX` (6, *screen* pixels, divided by the zoom wherever used),
+  `STROKE_MIN_SIZE_WORLD` (4).
+- `src/shared/board-model.ts` — `stroke` joins `KNOWN_OBJECT_TYPES`, so a board
+  holding a drawing from a newer client is still a board that opens.
+
+**Client**
+
+- `src/client/tools/PenTool.tsx` — the gesture. Press captures the pointer; every move
+  appends *coalesced* events (`nativeEvent.getCoalescedEvents()`, falling back to the
+  event itself); the preview is repainted **at most once per animation frame** through
+  one scheduled `requestAnimationFrame`, never per event. Release simplifies by
+  `STROKE_SIMPLIFY_TOLERANCE_PX / zoom` and commits. The gesture lives in refs
+  (`press`, `frame`, `propsRef`, `cameraRef`) because a rAF callback and a commit run
+  outside the render that started them, and a closure over props would draw the colour
+  that was chosen two strokes ago.
+- `src/client/tools/PenToolbar.tsx`, `src/client/tools/usePenOptions.ts` — six colours
+  and three weights, held in session state: not in the document, not in storage, back
+  to the defaults on reload, remembered for the rest of the visit.
+- `src/client/objects/StrokeObject.tsx` — the drawing. An SVG whose `viewBox` *is* the
+  stroke's world-space box, so one user unit is one board unit and
+  `stroke-width` can stay the stored thickness however big the box is dragged. Three
+  paths: a fat invisible target (`pointer-events: stroke`, width
+  `max(thickness, 2·HIT_TOL/zoom)`) that is the only part taking a pointer, the halo
+  behind the ink while selected, and the ink itself.
+- Changed: `registry.tsx` (the `stroke` entry: `aspectLocked`, `minSize`,
+  `editableText: false`, and the line-distance `hitTest`), `Toolbar.tsx` (the Pen
+  button, `P`), `useActiveTool.ts` (`pen` shipped, and the one tool that does not call
+  `toolCreated`), `useBoardKeys.ts`, `useBoardDoc.ts`, `BoardPage.tsx`, `styles.css`,
+  `canvas/testHooks.ts`.
+
+**Tests** — `tests/unit/stroke.test.ts` (18), `tests/component/PenTool.test.tsx` (11),
+`StrokeObject.test.tsx` (11), one case moved and one added in
+`useActiveTool.test.tsx`, `tests/e2e/pen.spec.ts` (10 × 3 browsers) with
+`tests/e2e/helpers/pen.ts`, and `tests/fixtures/pen-paths.ts` (a wobbly loop, an
+underline, a 5,010-point spiral — jitter from a seeded mulberry32, so the point counts
+a simplification test asserts mean the same thing every run). TC-01 to TC-21 are each
+named in a test title.
+
+## Where the design and the code disagreed, and what won
+
+- **`BoardViewport.tsx` is not touched at all.** The design's file list has it modified
+  so that "while Pen is active, pointer drags go to PenTool instead of panning". Story
+  10 already added exactly that mechanism — the `overlay` slot, a child of the board
+  surface, above every object, whose `pointerdown` therefore never reaches the
+  viewport's own pan (which only starts on `event.target === el`) and whose release
+  never reaches an object's drag. The wheel and the `gesture*` listeners are attached to
+  the viewport element itself and still get what bubbles up, which is why TC-19's
+  scroll-pans-and-Ctrl-scroll-zooms-while-the-Pen-is-held needed no new code and none
+  of the existing wheel tests changed.
+- **`PenTool` takes three props more than the contract.** The contract's
+  `{ camera, color, thickness, doc, identityId }` cannot integrate with this board: the
+  design asks the tool itself to call `createStroke` and `stopCapturing()`, while
+  story 8's undo window and story 7's selection are owned by `BoardPage`. So
+  `canCreate` (a reader must not be left drawing into a document that will reject it),
+  `onCreated(id)` (the board selects what was drawn) and `onBoundary()` (the tool says
+  "open an undo stop here" rather than reaching into the undo manager). Nothing in the
+  contract's five was renamed or removed.
+- **`StrokeObject` names its snapshot `note`.** Every object on this board is rendered
+  through one `ObjectProps` shape whose snapshot field is `note`; the design's
+  `stroke` would have made the registry pass a different prop to one type. It is
+  `note: StrokeSnapshot`, and the type omits every editing prop a stroke cannot use,
+  so the registry cannot hand it an editor by accident.
+- **The preview is smoothed, not simplified.** The design's sequence diagram shows the
+  preview redrawn once per frame with no simplification step, and simplifying a line
+  that is still being drawn makes it visibly jump between two shapes as the RDP pivot
+  changes. The raw points go to `smoothPath` on screen; simplification happens once,
+  at commit, in world units.
+
+## Two things the browsers made clearer than the spec did
+
+- **A 5,000-point gesture recursed into a stack overflow.** A textbook recursive RDP
+  depth-bounds itself by the split, but only if the split actually happens: a
+  hand-drawn spiral whose points all lie within a tolerance of the chord keeps
+  recursing on nearly the whole range. `simplify` uses an explicit stack instead, so
+  the depth is heap and the recursion limit is not a thing a fast mouse can reach.
+- **Escape and `pointercancel` are deliberate opposites, and the test says so.** The
+  design asks that an interrupted stroke keeps its ink (a system taking the pointer is
+  no reason to lose a line), while Escape must create nothing (TC-13). Both end the
+  gesture, and Escape *also* unmounts the layer, which fires `lostpointercapture` in
+  a browser — so an Escape that simply let go of the gesture would commit the line it
+  was told to throw away. The Escape handler is registered on `window` (before React
+  flushes the unmount) and clears the gesture without committing; the pointer handlers
+  commit. TC-11 and TC-13 sit next to each other in `PenTool.test.tsx` for exactly
+  this reason.
+
+## Test decisions (story 11)
+
+- **`e2e/helpers/pen.ts` drives the pen by board points, and clicks the curve the
+  browser computed.** `strokeLineScreenPoint` asks the painted path's own
+  `getPointAtLength` where the ink is, rather than assuming the quadratic path passes
+  through a stored point (it does not). TC-20's "click the line" is then a click on
+  the line in every browser, not a point that happens to be near it in one.
+- **`dragPenThrough` batches its moves.** One `mouse.move` per fixture point is one
+  round trip per point, and the 400-point loop then could not be drawn inside the
+  test timeout at all — it was 30 s and failing before batching. A batched move with
+  `steps: n` still fires n real move events, which is what a hand does; `{ paceMs }`
+  puts a gap between batches for TC-17, whose whole subject is what the frames show.
+- **Latency is logged, not asserted, and the boards are waited for.** TC-18 prints the
+  release-to-visible time against `LIVE_UPDATE_LATENCY_BUDGET_MS` (2–4 ms here) and
+  waits with `E2E_EVENTUAL_TIMEOUT_MS`, per story 3's rule. The one thing that *is*
+  asserted is the negative: the watching board holds nothing while the pen moves.
+  After a reload a test calls `waitForBoardLoaded()` before reading a count, because a
+  page that has painted but not synced legitimately holds an empty document, and
+  asserting on that is asserting on nothing.
+- **`useActiveTool.test.tsx` was corrected, not worked around.** Its case "a letter
+  that names a tool this build does not ship holds nothing" held `p` in its list of
+  unshipped letters, so it went red the moment the Pen shipped. `p` moved out into its
+  own new case — which asserts the opposite, that P holds the Pen and that the Pen
+  keeps the pointer after it draws — and the read-only case now also checks the Pen is
+  dropped when the board stops being editable.
+
+## Known flakiness on this machine (story 11)
+
+- **Story 8's `undo.spec.ts` TC-24, firefox.** Five editors each move and type at once
+  and press Ctrl+Z twice; it read a note at x = -553 where the baseline said 260. It
+  fails in a full-suite run with `pen.spec.ts` removed entirely, and passes 8/8 in
+  isolation — the same one-cursor-on-macOS class written up under stories 9 and 10
+  above. Nothing in this story writes to a sticky note or to the undo manager.
+
+## Verification (story 11)
+
+`npm run typecheck` (both tsconfigs), `npm run build`, `test:unit` (312),
+`test:component` (227) and `test:integration` (70, unchanged) pass. `test:e2e` is
+205 passed, 4 skipped (story 9's chromium-only TC-36 and TC-30 skips, nothing new
+skipped) plus this story's 30 pen runs: TC-17 to TC-20 green in chromium, firefox and
+webkit. The delivery times the design budgets were logged, never asserted; the single
+failure was the story-8 case written up above.

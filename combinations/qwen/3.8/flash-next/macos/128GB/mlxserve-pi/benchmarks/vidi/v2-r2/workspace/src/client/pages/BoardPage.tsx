@@ -48,6 +48,9 @@ import { SelectionBar } from '../board/SelectionBar';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool, type ShapeCreateSpec } from '../tools/ShapeTool';
 import { ConnectorTool, type ConnectorCreateSpec } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit } from '../sync/connectBoard';
 import { getObjectType, handlesFor } from '../objects/registry';
@@ -186,7 +189,7 @@ export function BoardScreen({ doc: injected, boardId }: BoardScreenProps): JSX.E
 /** Everything that needs the board camera, the document and the selection. */
 function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element {
   const { camera, viewport, hasNavigated, zoomStep, reset } = useBoardCamera();
-  const { doc, notes, texts, shapes, connectors, objects, connection } = useBoardDoc(injected, boardId);
+  const { doc, notes, texts, shapes, connectors, strokes, objects, connection } = useBoardDoc(injected, boardId);
   const { selection: selectionState, select, toggle, setSelection, clear, startEdit, endEdit } =
     useSelection(objects);
   const selectedIds = selectionState.ids;
@@ -210,6 +213,11 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
   // one id of the same shape, made once and kept, because a `createdBy` that
   // changed every render would be a field that changes on every keystroke.
   const [actorId] = useState<string>(() => newObjectId());
+
+  // The colour and thickness the next stroke is drawn with (story 11). Screen state
+  // like the tool itself: nobody else is told what thickness was picked, nothing is
+  // written down, and a stroke already drawn keeps the colour it was drawn in.
+  const pen = usePenOptions();
 
   // This person's undo history, one controller for the life of this mounted board.
   // It is created here (not in App) because the document only exists once
@@ -309,7 +317,7 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
 
   // The keyboard comes last of the three ways a selection acts, because two of its
   // keys do the same things the toolbar's buttons do: N makes a sticky note in the
-  // middle of the view, and V, S, T, L and Escape hold and let go of a tool.
+  // middle of the view, and V, S, T, L, P and Escape hold and let go of a tool.
   useBoardKeys({
     doc,
     editable,
@@ -495,6 +503,23 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
             <ShapeTool kind={shapeKind} canCreate={editable} onCreate={createShapeFromTool} />
           ) : tool === 'connector' ? (
             <ConnectorTool doc={doc} canCreate={editable} onCreate={createConnectorFromTool} />
+          ) : tool === 'pen' ? (
+            // The Pen tool writes its own strokes - a finished line is stored the
+            // moment the pointer lifts, not whenever a render gets round to it - and
+            // asks for two things only: that the stroke it finished becomes the
+            // selection, and that each stroke is an undo step of its own. It is not
+            // given `toolCreated`, because `toolCreated` hands the pointer back to
+            // Select, and the next thing a person holding a pen does is draw.
+            <PenTool
+              camera={camera}
+              color={pen.color}
+              thickness={pen.thickness}
+              doc={doc}
+              identityId={actorId}
+              canCreate={editable}
+              onCreated={select}
+              onBoundary={undoBoundary}
+            />
           ) : null
         }
       >
@@ -617,6 +642,35 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
             />
           );
         })}
+        {/* Drawings last of all (story 11): a line drawn over the board goes over
+            what is on it, which is what annotating a board means. Same props, same
+            gesture - a stroke is grabbed, moved, resized and deleted like any object,
+            and only its line says where a click lands on it. */}
+        {strokes.map((stroke) => {
+          const spec = getObjectType(stroke.type);
+          if (spec === undefined) return null;
+          const Component = spec.Component;
+          return (
+            <Component
+              key={stroke.id}
+              note={stroke}
+              doc={doc}
+              zoom={camera.zoom}
+              selected={selectedIds.has(stroke.id)}
+              single={selectedIds.size <= 1}
+              dragging={gesture.draggingIds.has(stroke.id)}
+              editing={stroke.id === selectionState.editingId}
+              editable={editable}
+              onGesturePointerDown={(event) => gesture.onObjectPointerDown(event, stroke.id)}
+              onSelect={select}
+              onFocusNote={(id) => {
+                if (!gesture.isPressed()) select(id);
+              }}
+              onStartEdit={startEditObject}
+              onEndEdit={endEdit}
+            />
+          );
+        })}
       </BoardViewport>
       {selectionRect === null || selectionState.editingId !== null ? null : (
         <SelectionOverlay
@@ -694,6 +748,18 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
         disabledReason={BOARD_LOAD_FAILED_MESSAGE}
         undo={undo}
       />
+      {/* The Pen's own choices, beside the rail and only while the Pen is held - the
+          Shape tool's kind menu, for the colour and thickness of the next line. A
+          change here is a decision about the next stroke and nothing else: the
+          strokes already on the board keep the colour they were drawn in. */}
+      {tool === 'pen' ? (
+        <PenToolbar
+          color={pen.color}
+          thickness={pen.thickness}
+          onColor={pen.setColor}
+          onThickness={pen.setThickness}
+        />
+      ) : null}
       {boardId === undefined ? null : <SharePanel boardId={boardId} />}
       <NavigationHint visible={!hasNavigated} />
       <ZoomControls

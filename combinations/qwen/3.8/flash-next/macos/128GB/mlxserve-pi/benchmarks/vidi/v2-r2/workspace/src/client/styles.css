@@ -1218,3 +1218,182 @@ button:focus-visible,
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
+
+/* --- The Pen tool and its drawings (story 11) --- */
+
+/* The Pen's layer: over the whole board, above every object, screen-sized - the
+   Shape tool's rule for the same reason. The next press belongs to the pen whatever
+   it lands on, so a drag that begins on a sticky note draws a line across it instead
+   of moving the note, and the wheel and the trackpad gesture still reach the board's
+   own listeners above, so scrolling pans and Ctrl/Cmd+scroll zooms with the pen held.
+   `touch-action: none` because a line drawn with a finger is a drawing, not a scroll. */
+.pen-tool-layer {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* The stroke in flight. It is drawn in screen units and follows the pointer; it is
+   the local half of the tool - written nowhere, sent to nobody - and the only place
+   a line exists before it is finished. */
+.pen-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.pen-preview path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
+}
+
+/* The pen's tip: a round cursor the width of the line it is drawing, so the thickness
+   chosen can be seen before anything is drawn with it. */
+.pen-cursor {
+  position: absolute;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* The Pen's own panel: the six colours and the three thicknesses the next stroke is
+  drawn with, beside the tool rail the way the Shape tool's kind menu is. It is
+  present only while the Pen is held. */
+.pen-options {
+  position: fixed;
+  left: 68px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 11px;
+  box-shadow: 0 2px 8px rgba(20, 20, 30, 0.12);
+}
+
+.pen-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(20, 20, 30, 0.18);
+  border-radius: 50%;
+  background: var(--pen-swatch);
+  cursor: pointer;
+}
+
+.pen-swatch:hover {
+  transform: scale(1.12);
+}
+
+/* The colour the next stroke is drawn in is ringed; a colour is not a colour the
+   board would draw a selection with, so the mark goes outside the swatch. */
+.pen-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--select);
+  outline-offset: 1px;
+}
+
+.pen-options__divider {
+  align-self: stretch;
+  height: 1px;
+  margin: 2px 0;
+  background: var(--ui-border);
+}
+
+.pen-thickness {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.pen-thickness:hover {
+  background: rgba(20, 20, 30, 0.08);
+}
+
+.pen-thickness__dot {
+  display: block;
+  border-radius: 50%;
+  background: var(--ui-text);
+}
+
+.pen-thickness[aria-pressed='true'] {
+  background: var(--select);
+}
+
+.pen-thickness[aria-pressed='true'] .pen-thickness__dot {
+  background: #ffffff;
+}
+
+.pen-swatch:focus-visible,
+.pen-thickness:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* A drawing: the box the line was drawn in, with nothing in it but the line. The box
+   itself takes no pointer at all - only the line does, and only within the click
+   tolerance - which is what lets a click in the middle of a scribble reach the note
+   the scribble goes round, to move it or to write in it. */
+.stroke-object {
+  position: absolute;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.stroke-object.is-dragging {
+  cursor: grabbing;
+}
+
+.stroke-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+}
+
+/* The line a pointer can hit: as wide as the click tolerance on both sides, and
+   invisible. `stroke` rather than `visibleStroke`: an invisible line is still the
+   line a click can land on. */
+.stroke-hit {
+  stroke: transparent;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+/* The ink. Its width is the thickness the stroke was drawn with, in board units:
+   a resize makes the drawing bigger without making the line thicker. */
+.stroke-ink {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* Selected, the drawing wears the selection colour behind its own: the ink keeps the
+   colour it was drawn in - a stroke is its colour, and selecting it is not repainting
+   it - while the line that the handles belong to is unmistakable. */
+.stroke-halo {
+  stroke: var(--select);
+  fill: none;
+  opacity: 0.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}

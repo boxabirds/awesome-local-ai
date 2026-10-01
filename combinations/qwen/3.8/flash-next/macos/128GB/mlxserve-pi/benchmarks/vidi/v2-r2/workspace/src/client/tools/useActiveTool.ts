@@ -15,6 +15,9 @@
 //   - a tool that creates something hands the new object to `toolCreated`, which
 //     selects it and gives the pointer back to Select, so the thing just drawn can
 //     be adjusted without reaching for the toolbar (PRD `tools.return_to_select`).
+//     The Pen tool is the one tool that asks for neither: it selects the stroke it
+//     finished and stays held, because drawing the next line is what a person
+//     holding a pen does next (story 11).
 //
 // A board that cannot be edited has no tools to hold, so setting one does nothing
 // and holding one does not survive the board becoming uneditable.
@@ -70,6 +73,7 @@ export const SHIPPED_TOOLS: readonly ToolId[] = Object.freeze([
   'shape',
   'text',
   'connector',
+  'pen',
 ]);
 
 /** The word the button says, before its key. */

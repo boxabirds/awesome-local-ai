@@ -22,10 +22,13 @@ import {
   CONNECTOR_HIT_TOLERANCE_PX,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
   TYPE_CONNECTOR,
   TYPE_SHAPE,
   TYPE_STICKY,
+  TYPE_STROKE,
   TYPE_TEXT,
 } from '../../shared/config';
 import type { ObjectSnapshot } from '../../shared/board-model';
@@ -33,15 +36,23 @@ import type { StickySnapshot } from '../../shared/board-model';
 import type { TextSnapshot } from '../../shared/objects/text';
 import type { ShapeSnapshot } from '../../shared/objects/shape';
 import type { ConnectorSnapshot } from '../../shared/objects/connector';
+import type { StrokeSnapshot } from '../../shared/objects/stroke';
+import { scaledPoints, strokeThicknessWorld } from '../../shared/objects/stroke';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import type { StickyNoteProps } from './StickyNote';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
 
 /** Every object this build can draw. */
-export type BoardObject = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot;
+export type BoardObject =
+  | StickySnapshot
+  | TextSnapshot
+  | ShapeSnapshot
+  | ConnectorSnapshot
+  | StrokeSnapshot;
 
 /**
  * The props the board passes to any object component. Every object type in
@@ -212,6 +223,28 @@ registerObjectType(TYPE_CONNECTOR, {
 
 /** The two handles of a box whose height belongs to its content. */
 const SIDE_HANDLES: readonly Handle[] = ['e', 'w'];
+
+// A drawing is a box that holds a line rather than words: it is moved and resized like
+// any object - proportionally, because a drawing squashed sideways is a different
+// drawing - and it holds nothing to type into. Being "on" it is measured against the
+// line rather than the box, and the box of a scribble is mostly empty space: a click
+// in it belongs to whatever the line went round, which is the one thing the shared
+// rule cannot say and the reason this entry exists.
+registerObjectType(TYPE_STROKE, {
+  Component: componentForType<StrokeSnapshot>(StrokeObject),
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  handles: 'all',
+  hitTest: (object, point, zoom) => {
+    const stroke = object as StrokeSnapshot;
+    // Half the ink, or six screen pixels in board units, whichever is more: a thin
+    // line is still clickable, and a thick one is clickable over all of it.
+    const tolerance = Math.max(strokeThicknessWorld(stroke) / 2, STROKE_HIT_TOLERANCE_PX / zoom);
+    return distanceToPolyline(scaledPoints(stroke), point) <= tolerance;
+  },
+});
 
 /** Nothing a selection can be dragged by. */
 const NO_HANDLES: readonly Handle[] = [];

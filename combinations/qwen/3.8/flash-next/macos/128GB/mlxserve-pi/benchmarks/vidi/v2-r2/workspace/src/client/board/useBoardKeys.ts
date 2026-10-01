@@ -113,11 +113,11 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       // shortcuts in the viewport; Alt is nobody's here.
       if (modified || event.altKey) return;
 
-      // The tools (stories 9-12). V, S, T and L name one, N makes a sticky note
+      // The tools (stories 9-12). V, S, T, L and P name one, N makes a sticky note
       // where the view is. They are plain keys, so they answer after the
       // modified-key guard and after the typing-target guard at the top - which is
       // what keeps a T typed into an object from being taken away from the caret
-      // (TC-16). A key that names a tool this build does not ship - P, I, C - is
+      // (TC-16). A key that names a tool this build does not ship - I, C - is
       // nobody's, and stays with the browser.
       const named = toolIdForKey(event.key);
       if (named !== null && setTool !== undefined) {
@@ -134,7 +134,11 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       if (event.key === 'Escape') {
         // Escape backs out of one thing at a time: first the tool you are holding,
         // then the selection. A tool that is still held would place an object with
-        // the next click, so it is the thing to let go of first (story 9).
+        // the next click, so it is the thing to let go of first (story 9). A stroke
+        // the Pen is in the middle of drawing is discarded by the Pen itself, on the
+        // same keystroke: the tool going back to Select takes the pen's layer out of
+        // the page, and a stroke that outlives its own layer by one event would be
+        // written by the capture loss the tool change caused.
         if (tool !== undefined && tool !== 'select' && setTool !== undefined) {
           setTool('select');
           return;

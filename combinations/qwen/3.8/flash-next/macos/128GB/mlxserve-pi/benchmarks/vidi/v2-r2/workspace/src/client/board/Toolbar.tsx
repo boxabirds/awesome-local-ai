@@ -206,6 +206,41 @@ export function Toolbar({
         </svg>
       </button>
       <span className="board-toolbar__divider" aria-hidden="true" />
+      {/* The Pen tool (story 11): press and drag and a line is drawn, in the colour
+          and at the thickness the panel beside the rail offers. It is the one tool
+          that keeps itself held after it has drawn - drawing the next line is what a
+          person holding a pen does next - so the thing to say here is that the drag
+          draws, rather than that a click places. */}
+      <button
+        type="button"
+        className="board-tool"
+        data-testid="tool-pen"
+        aria-label={toolLabel('pen')}
+        aria-pressed={tool === 'pen'}
+        disabled={disabled}
+        title={reason ?? 'Freehand drawing – P, then drag'}
+        onClick={() => {
+          onTool?.('pen');
+        }}
+      >
+        <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+            d="M4 16l1-3.4 7.2-7.2 2.4 2.4L7.4 15z"
+          />
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+            d="M12.2 5.4l1.3-1.3a1.2 1.2 0 0 1 1.7 0l1.4 1.4a1.2 1.2 0 0 1 0 1.7l-1.3 1.3"
+          />
+        </svg>
+      </button>
+      <span className="board-toolbar__divider" aria-hidden="true" />
       <button
         type="button"
         className="board-tool"

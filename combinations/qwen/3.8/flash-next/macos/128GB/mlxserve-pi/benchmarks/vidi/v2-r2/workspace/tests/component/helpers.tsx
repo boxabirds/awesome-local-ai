@@ -35,7 +35,15 @@ import {
   centre,
 } from '../../src/shared/objects/connector';
 import { createShape, getShapeLabel } from '../../src/shared/objects/shape';
-import type { ShapeKind } from '../../src/shared/config';
+import {
+  createStroke,
+  scaledPoints,
+  strokeSnapshot,
+  strokeSnapshots,
+  type StrokeSnapshot,
+} from '../../src/shared/objects/stroke';
+import { smoothPath } from '../../src/shared/geometry/simplify';
+import type { PenColor, PenThickness, ShapeKind } from '../../src/shared/config';
 
 function number(value: string | undefined): number {
   if (value === undefined) throw new Error('missing data attribute');
@@ -1081,4 +1089,233 @@ export function screenOf(world: Point): Point {
 /** The world point a screen point names, right now. */
 export function worldOfScreen(screen: Point): Point {
   return screenToWorld(readCamera(), screen);
+}
+
+// --------------------------------------------------------------------------------
+// Drawing helpers (story 11)
+// --------------------------------------------------------------------------------
+
+/** The drawings, in the order the board builds them. */
+export function strokeElements(): HTMLElement[] {
+  return allTestId('stroke-object');
+}
+
+export function strokeAt(index: number): HTMLElement {
+  const el = strokeElements()[index];
+  if (el === undefined) {
+    throw new Error(`no stroke at index ${index} (${strokeElements().length} rendered)`);
+  }
+  return el;
+}
+
+export function strokeCount(): number {
+  return strokeElements().length;
+}
+
+/** The box a drawing is drawn in, in board units, read back from the element. */
+export function strokeBox(index: number): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const el = strokeAt(index);
+  return {
+    x: Number(el.dataset.strokeX),
+    y: Number(el.dataset.strokeY),
+    width: Number(el.dataset.strokeWidth),
+    height: Number(el.dataset.strokeHeight),
+  };
+}
+
+/** The ink: the path a drawing is painted with. */
+export function strokeInk(index = 0): HTMLElement {
+  const el = strokeAt(index).querySelector<HTMLElement>('[data-testid="stroke-ink"]');
+  if (el === null) throw new Error('strokeInk: the drawing draws no ink');
+  return el;
+}
+
+/** The fat invisible line a drawing is clicked through. */
+export function strokeHit(index = 0): HTMLElement {
+  const el = strokeAt(index).querySelector<HTMLElement>('[data-testid="stroke-hit"]');
+  if (el === null) throw new Error('strokeHit: the drawing draws no hit line');
+  return el;
+}
+
+/** The selection halo, or null while the drawing is not the selection. */
+export function strokeHalo(index = 0): HTMLElement | null {
+  return strokeAt(index).querySelector<HTMLElement>('[data-testid="stroke-halo"]');
+}
+
+/** The path data of a drawing's ink, as the board painted it. */
+export function strokePathOf(index = 0): string {
+  return strokeInk(index).getAttribute('d') ?? '';
+}
+
+export function strokeColorOf(index = 0): string {
+  return String(strokeAt(index).dataset.color);
+}
+
+export function strokeThicknessOf(index = 0): string {
+  return String(strokeAt(index).dataset.thickness);
+}
+
+/** Drawings carrying the selection mark. */
+export function selectedStrokes(): HTMLElement[] {
+  return strokeElements().filter((el) => el.dataset.selected === 'true');
+}
+
+export const penToolButton = (): HTMLElement | null => byTestId('tool-pen');
+/** The layer the Pen tool puts over the board, or null while it is not held. */
+export const penToolLayer = (): HTMLElement | null => byTestId('pen-tool-layer');
+/** The stroke in flight, or null while the pen is down on nothing. */
+export const penPreviewEl = (): HTMLElement | null => byTestId('pen-preview');
+export const penPreviewPath = (): HTMLElement | null => byTestId('pen-preview-path');
+export const penCursorEl = (): HTMLElement | null => byTestId('pen-cursor');
+/** The Pen's colour and thickness panel, shown only while the Pen is held. */
+export const penToolbarElement = (): HTMLElement | null => byTestId('pen-toolbar');
+export const penColorButton = (color: string): HTMLElement | null =>
+  byTestId(`pen-color-${color}`);
+export const penThicknessButton = (name: string): HTMLElement | null =>
+  byTestId(`pen-thickness-${name}`);
+
+/** The points the line in flight holds, as the layer reports them. */
+export function penPreviewPoints(): number {
+  return Number(penToolLayer()?.dataset.points ?? NaN);
+}
+
+/** Hold the Pen tool the way the keyboard does. */
+export function holdPenTool(): void {
+  pressKey('p');
+}
+
+/** Let go of the Pen tool the way the keyboard does. */
+export function dropPenTool(): void {
+  pressKey('v');
+}
+
+/**
+ * A press, some moves and a release on the Pen's layer, in screen points, with an
+ * animation frame after every point: the preview is drawn once per frame, so a test
+ * that looks at the line while it is being drawn has to let a frame pass.
+ */
+export function drawOnPen(from: Point, to: Point, steps = 4): void {
+  const layer = penToolLayer();
+  if (layer === null) throw new Error('drawOnPen: the Pen tool is not held');
+  pointerOnLayer(layer, 'pointerdown', from);
+  for (let i = 1; i <= steps; i += 1) {
+    pointerOnLayer(layer, 'pointermove', {
+      x: from.x + ((to.x - from.x) * i) / steps,
+      y: from.y + ((to.y - from.y) * i) / steps,
+    });
+    flushFrames();
+  }
+  pointerOnLayer(layer, 'pointerup', to);
+  flushFrames();
+}
+
+/**
+ * A long line, drawn point by point in screen coordinates, without waiting for a
+ * frame between the points: what a test does when it wants the gesture rather than
+ * the preview. The release is left out when the test has to end the stroke with
+ * something other than a pointerup.
+ */
+export function drawPointsOnPen(points: readonly Point[], release = true): void {
+  const layer = penToolLayer();
+  if (layer === null) throw new Error('drawPointsOnPen: the Pen tool is not held');
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (first === undefined || last === undefined) throw new Error('drawPointsOnPen: no points');
+  pointerOnLayer(layer, 'pointerdown', first);
+  for (let i = 1; i < points.length; i += 1) {
+    pointerOnLayer(layer, 'pointermove', points[i]!);
+  }
+  if (release) pointerOnLayer(layer, 'pointerup', last);
+  flushFrames();
+}
+
+/**
+ * A press on the ink of a drawing, at a board point, and a release: the way a person
+ * selects a drawing. jsdom does no geometry, so the test is the one that decides the
+ * point is on the line - which is what a browser's own hit testing would have done.
+ */
+export function clickOnStrokeLine(index: number, world: Point): void {
+  const at = screenOf(world);
+  const hit = strokeHit(index);
+  pointerOnLayer(hit, 'pointerdown', at);
+  pointerOnLayer(hit, 'pointerup', at);
+  flushFrames();
+}
+
+/** Add a drawing through the model, the way the app does, and return its id. */
+export function newStroke(
+  doc: Y.Doc,
+  points: readonly Point[],
+  options: { color?: PenColor; thickness?: PenThickness } = {},
+): string {
+  let id: string | null = null;
+  act(() => {
+    id = createStroke(
+      doc,
+      { points, color: options.color ?? 'black', thickness: options.thickness ?? 'medium' },
+      'g_test_creator',
+    );
+  });
+  if (id === null) throw new Error('newStroke: the model refused the line');
+  return id;
+}
+
+/** A straight line of `count` board points, from one corner to the other. */
+export function linePoints(from: Point, to: Point, count: number): Point[] {
+  const points: Point[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const t = count === 1 ? 0 : i / (count - 1);
+    points.push({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t });
+  }
+  return points;
+}
+
+/** What the document holds for a drawing, or null when it has no line. */
+export function storedStroke(
+  doc: Y.Doc,
+  id: string,
+): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  baseWidth: number;
+  baseHeight: number;
+  points: number[];
+  color: string;
+  thickness: string;
+} | null {
+  const snap = strokeSnapshot(doc, id);
+  if (snap === null) return null;
+  return {
+    x: snap.x,
+    y: snap.y,
+    width: snap.width,
+    height: snap.height,
+    baseWidth: snap.baseWidth,
+    baseHeight: snap.baseHeight,
+    points: [...snap.points],
+    color: snap.color,
+    thickness: snap.thickness,
+  };
+}
+
+/** The drawings on the board, in the order they were drawn. */
+export function snapshotStrokes(doc: Y.Doc): StrokeSnapshot[] {
+  return [...strokeSnapshots(doc)];
+}
+
+/**
+ * The ink a drawing would be painted with if the board painted it now: the stored
+ * line, scaled and smoothed. A test compares this against the `d` the element holds
+ * when it wants to know the board drew what the model holds.
+ */
+export function expectedInk(doc: Y.Doc, id: string): string {
+  const snap = strokeSnapshot(doc, id);
+  return snap === null ? '' : smoothPath(scaledPoints(snap));
 }
