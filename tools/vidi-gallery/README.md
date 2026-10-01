@@ -35,12 +35,18 @@ sticky notes, live sync, … images). For each story it shows what the user must
 PRD's one-line summary, its **golden path** (the steps to follow in every build), its named
 requirements and its **must-nots**. Below, one row per finished build:
 
-- **Everything is prepared at startup, in the background:** each story's commit of each build is
-  checked out, installed and built (story 1 first, three at a time). Builds with the same
-  package-lock.json share one node_modules, cloned copy-on-write. A row says "queued", then
-  "ready". Restarting the gallery skips what is already prepared.
-- **Open** only starts the prepared build's server (a few seconds) and opens it in its own tab;
-  after that the button goes to that tab, so you can switch between implementations.
+- **Everything is prepared and recorded at startup, in the background:** each story's commit of
+  each build is checked out, installed and built (story 1 first, three at a time, at most three
+  ahead of the recorder), then its walkthroughs are recorded. A row says "queued", then "ready".
+  Builds with the same package-lock.json share one node_modules store, cloned copy-on-write.
+- **The cache stays small.** Once a build's recordings are done (the recordings live in the private
+  repo, not the cache), its checkout keeps only its source and history (a few MB): node_modules,
+  dist/ and .wrangler/ go, at once or, if it is open, when it stops. At most six node_modules
+  stores are kept, least recently used evicted first; a store a prepared checkout was cloned from
+  is never evicted. Restarting the gallery only checks out builds that are already recorded.
+- **Open** starts the build's server and opens it in its own tab; a build whose recordings are done
+  is installed (from its store when kept) and built again first. After that the button goes to
+  that tab, so you can switch between implementations.
 - **One row per path** (a held-out test of the story); its automated result shows once you have judged it (below). Picking one
   opens the **player**: every person's screen side by side (from the test's Playwright trace), a
   seek bar with a tick per check (green passed, red failed, once judged), and the test's steps beside it; the
