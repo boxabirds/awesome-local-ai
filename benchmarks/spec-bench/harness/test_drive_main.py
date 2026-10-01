@@ -1,0 +1,825 @@
+"""drive.main, the story loop, pinned branch by branch before it is rebuilt (CLAUDE.md, "Refactor DELETE FIRST").
+
+The loop is the real one, from the command line to metrics.json: a small pack in tmp_path (three stories, a named
+scope, an epic, no held-out suite), a scripted agent (a real process printing pi's events, which commits in the real
+workspace), the real gate (which finds no package.json) and the real bookkeeping. What depends on the machine is
+replaced: the sandbox, the conditions sampler, containment, the stray-process sweep, other runs' baselines, the
+harness's own commit. It needs git and nothing else, and each run takes about a second; test_pipeline.py is the
+end-to-end test with a real build and a held-out suite.
+
+By what main does: the arguments it refuses; the dry run; an ordinary run and its records; a run started again;
+a story the operator ended (before a restart, while it ran, too late); a story continued after a harness restart;
+the guards and the stops; what the agent left behind (uncommitted work, a changed spec); known-good mode; --record.
+"""
+from __future__ import annotations
+
+import json
+import runpy
+import subprocess
+import sys
+import textwrap
+from pathlib import Path
+
+import pytest
+
+import attempts
+import containment
+import drive
+import gates
+import heldout
+import hostenv
+import machine_fit
+import progress
+from clients import PiClient
+
+PACK = "covpack"
+MODEL = "cov-model"
+BASE_URL = "http://127.0.0.1:9/v1"
+BASE_URL_PORT = 9
+NOMINAL = {"ac": True, "low_power": False, "thermal": "nominal"}
+HARNESS_PROVENANCE = {"harness_commit": "abc1234", "harness_dirty": False, "harness_release": None}
+PACK_VERSION = "covpack-v1"
+TEMPLATE = "STORY {{ID}}: {{TITLE}}\n{{STORIES_SO_FAR}}\n{{SCOPE_NOTE}}\n"
+SCOPE_NOTE = "Nothing beyond the second story."
+TITLES = {1: "First", 2: "Second", 3: "Third"}
+STORY_DIRS = {1: "001-first", 2: "002-second", 3: "003-third"}
+OUTPUT_TOKENS = 7
+OLD_LOG_T = 1_000_000.0          # when a story's earlier attempts ran, in logs written by hand: long before any test
+
+G = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
+
+
+def git(cwd: Path, *args: str) -> str:
+    return subprocess.run([*G, *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+
+
+# What the scripted agent does for a story, from plan.json ({story: {...}}); with no plan it writes one file,
+# commits it and reports one model call. Each run is appended to runs.jsonl with the prompt it was given.
+AGENT = textwrap.dedent(r'''
+    import json, os, subprocess, sys
+    from pathlib import Path
+    home = Path(@HOME@)
+    story = (home / "run" / "current_story").read_text().strip()
+    plan = json.loads((home / "plan.json").read_text()).get(story, {})
+    with (home / "runs.jsonl").open("a") as f:
+        f.write(json.dumps({"story": int(story), "prompt": sys.argv[1], "resume_from": sys.argv[2], "fork": sys.argv[3],
+                            "cwd": os.getcwd()}) + "\n")
+    n = len((home / "runs.jsonl").read_text().splitlines())
+    def emit(e):
+        print(json.dumps(e), flush=True)
+    def sh(*cmd):
+        subprocess.run(cmd, check=True, capture_output=True)
+    if plan.get("silent"):
+        sys.exit(plan.get("exit", 0))
+    emit({"type": "session", "id": f"cov-{story}"})
+    if plan.get("commit", True):
+        Path("src").mkdir(exist_ok=True)
+        Path(f"src/story{story}.ts").write_text(f"// story {story}, run {n}\n")
+        sh("git", "add", "-A", "src")
+        sh("git", "commit", "-qm", f"story {story}: work")
+    if plan.get("leave"):
+        Path(plan["leave"]).write_text("not committed\n")
+    if plan.get("tamper"):
+        target = Path("spec/README.md")
+        target.chmod(0o644)
+        target.write_text("# rewritten by the agent\n")
+        if plan["tamper"] == "committed":
+            sh("git", "add", "-A", "spec")
+            sh("git", "commit", "-qm", "spec: suit myself")
+    if plan.get("skip_request"):
+        control = home / "run" / "control"
+        control.mkdir(exist_ok=True)
+        (control / "skip-story.json").write_text(json.dumps({"story": int(story), "reason": "too slow", "by": "someone"}))
+    emit({"type": "tool_execution_start", "toolName": "bash", "args": {"command": "git commit"}})
+    emit({"type": "message_end", "message": {"role": "assistant", "stopReason": "stop",
+                                             "content": [{"type": "text", "text": f"Story {story} done."}],
+                                             "usage": {"input": 10, "output": @OUTPUT@}}})
+    sys.exit(plan.get("exit", 0))
+''')
+
+
+class Scripted(PiClient):
+    """pi's events, counting and config, with the scripted agent in place of `pi`."""
+    name = "cov"
+    script: Path
+    made: list = []
+
+    def __init__(self, work, thinking=None):
+        super().__init__(work, thinking)
+        Scripted.made.append(self)
+
+    def command(self, model_id, prompt, resume_from=None, fork=True):
+        return [sys.executable, str(self.script), prompt, str(resume_from), str(fork)]
+
+
+class Sampler:
+    """The conditions sampler, without reading the machine: what it was built with, and a record set by the test."""
+    made: list = []
+    record: dict = {}
+
+    def __init__(self, ws, server_port=None):
+        Sampler.made.append((ws, server_port))
+
+    def start(self):
+        pass
+
+    def stop(self):
+        return dict(Sampler.record)
+
+
+def never_skips(*a, **k):
+    return type("NeverSkips", (), {"start": lambda s: None, "cap": lambda s, reason: None, "stop": lambda s: None})()
+
+
+def ends_story(sid: int, request: dict):
+    """A skip watcher for which the operator ends story sid as its agent finishes."""
+    def make(run, story, ws, **k):
+        return type("Ends", (), {"start": lambda s: None, "cap": lambda s, reason: None,
+                                 "stop": lambda s: dict(request) if story == sid else None})()
+    return make
+
+
+class Loop:
+    """drive.main in tmp_path: the pack, the scripted agent, the machine's parts replaced; what it left behind."""
+
+    def __init__(self, root: Path, mp: pytest.MonkeyPatch, default_scope: str | None):
+        self.root, self.mp = root, mp
+        self.pack = (root / "pack").resolve()
+        self.run = root / "run"
+        self.work = root / "work" / "run"
+        self.ws = self.work / "workspace"
+        self.strays: list[Path] = []
+        self.recorded: list[tuple] = []
+        self.record_result: dict = {"committed": True, "pushed": True, "commit": "abc1234"}
+        self._make_pack(default_scope)
+        (root / "plan.json").write_text("{}")
+        script = root / "agent.py"
+        script.write_text(AGENT.replace("@HOME@", repr(str(root))).replace("@OUTPUT@", str(OUTPUT_TOKENS)))
+        for name in ("PK", "PACK", "SPEC", "PROMPT_TMPL"):                 # set_pack changes them: put back afterwards
+            mp.setattr(drive, name, getattr(drive, name))
+        mp.setenv("SPEC_BENCH_PACK_DIR", str(self.pack))
+        Scripted.made, Sampler.made = [], []
+        Sampler.record = {**drive.summarise_conditions(0, []), "aborted_swap": False, "aborted_memory": False}
+        mp.setattr(Scripted, "script", script, raising=False)
+        mp.setitem(drive.CLIENTS, Scripted.name, Scripted)
+        mp.setattr(drive, "WORK_ROOT", root / "work")
+        mp.setattr(drive, "sandboxed", lambda cmd, own_dir: cmd)
+        mp.setattr(hostenv, "oom_first", lambda cmd: cmd)
+        mp.setattr(drive, "conditions", lambda: dict(NOMINAL))
+        mp.setattr(drive, "ConditionSampler", Sampler)
+        real = containment.StoryContainment
+        mp.setattr(containment, "StoryContainment", lambda run, story: real(run, story, enabled=False))
+        mp.setattr(drive, "kill_strays", self.strays.append)
+        mp.setattr(progress, "baselines", lambda repo, sid, run: [])
+        mp.setattr(drive, "harness_provenance", lambda code_root: dict(HARNESS_PROVENANCE))
+        mp.setattr(drive.provenance, "pack_version", lambda pack_dir, name: PACK_VERSION)
+        mp.setattr(drive, "record_story", lambda repo, run, message, **k: self.recorded.append((repo, run, message))
+                   or dict(self.record_result))
+
+    def _make_pack(self, default_scope: str | None) -> None:
+        for n, slug in STORY_DIRS.items():
+            d = self.pack / "spec" / "stories" / slug
+            d.mkdir(parents=True)
+            (d / "story.md").write_text(f"# {TITLES[n]}\n\nThe story.\n")
+            (d / "tasks.md").write_text("# Tasks\n")
+        (self.pack / "spec" / "README.md").write_text("# covpack\n")
+        (self.pack / "spec" / "epics").mkdir()
+        (self.pack / "spec" / "epics" / "small.md").write_text("| Story | Title |\n|---|---|\n| 2 | Second |\n")
+        (self.pack / "scope").mkdir()
+        (self.pack / "scope" / "two.json").write_text(json.dumps(
+            {"name": "two", "stories": [{"id": 1}, {"id": 2}], "out_of_scope_note": SCOPE_NOTE}))
+        (self.pack / "prompts").mkdir()
+        (self.pack / "prompts" / "story.md.tmpl").write_text(TEMPLATE)
+        config = {"name": PACK, "gate": ["build"], **({"default_scope": default_scope} if default_scope else {})}
+        (self.pack / "bench.json").write_text(json.dumps(config))
+
+    def plan(self, **stories: dict) -> None:
+        (self.root / "plan.json").write_text(json.dumps({k.lstrip("s"): v for k, v in stories.items()}))
+
+    def args(self, *extra: str, client: str = Scripted.name) -> list[str]:
+        return ["drive.py", "--pack", PACK, "--run-dir", str(self.run), "--base-url", BASE_URL, "--model-id", MODEL,
+                "--client", client, *extra]
+
+    def main(self, *extra: str, **k) -> None:
+        self.mp.setattr(sys, "argv", self.args(*extra, **k))
+        drive.main()
+
+    def bare(self, *argv: str) -> None:
+        """main with exactly these arguments (no run directory, URL or model unless given)."""
+        self.mp.setattr(sys, "argv", ["drive.py", "--pack", PACK, *argv])
+        drive.main()
+
+    def metrics(self) -> dict:
+        return heldout.load_metrics(self.run)
+
+    def story(self, sid: int) -> dict:
+        return self.metrics()["stories"][str(sid)]
+
+    def agent_runs(self) -> list[dict]:
+        f = self.root / "runs.jsonl"
+        return [json.loads(l) for l in f.read_text().splitlines()] if f.exists() else []
+
+    def skip_request(self, **req) -> Path:
+        f = self.run / drive.CONTROL_DIR / drive.SKIP_FILE
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(req))
+        return f
+
+    def events(self, sid: int) -> Path:
+        return self.run / "stories" / f"{sid:02d}" / "agent-events.jsonl"
+
+
+@pytest.fixture(autouse=True)
+def clean_story_state(monkeypatch):
+    def reset():
+        drive.STORY_FAULTS.clear()
+        drive.STORY_SKIP.clear()
+        drive.RUN_ABORT.clear()
+    reset()
+    monkeypatch.setattr(drive, "CONTAINMENT", None)
+    yield
+    reset()
+
+
+@pytest.fixture
+def loop(tmp_path, monkeypatch) -> Loop:
+    """The pack's default scope is its named scope `two` (stories 1 and 2)."""
+    return Loop(tmp_path, monkeypatch, default_scope="two")
+
+
+@pytest.fixture
+def whole(tmp_path, monkeypatch) -> Loop:
+    """A pack with no default scope: every story (1, 2, 3)."""
+    return Loop(tmp_path, monkeypatch, default_scope=None)
+
+
+def no_story_so_far() -> str:
+    return "Stories already implemented in this repository, in order: none (empty repository)."
+
+
+# ======================= the dry run =======================
+
+def test_a_dry_run_prints_the_pack_the_scope_and_the_first_prompt_and_runs_nothing(loop, capsys):
+    loop.bare("--dry-run")
+    assert capsys.readouterr().out == (
+        f"pack {PACK} at {loop.pack}\n"
+        "scope two: stories [1, 2]\n"
+        "held-out suite: none (acceptance reported n/a); gate: ['build']\n"
+        "--- first prompt ---\n"
+        f"STORY 1: First\n{no_story_so_far()}\n{SCOPE_NOTE}\n\n")
+    assert not loop.run.exists() and not (loop.root / "work").exists() and loop.agent_runs() == []
+
+
+def test_a_dry_run_of_an_epic_takes_the_epic_s_stories_over_the_default_scope(loop, capsys):
+    loop.bare("--dry-run", "--epic", "small")
+    out = capsys.readouterr().out
+    assert "scope epic:small: stories [2]\n" in out and f"STORY 2: Second\n{no_story_so_far()}\n\n" in out
+
+
+def test_a_dry_run_of_a_pack_without_a_default_scope_takes_every_story(whole, capsys):
+    whole.bare("--dry-run")
+    out = capsys.readouterr().out
+    assert "scope all: stories [1, 2, 3]\n" in out and out.endswith(f"STORY 1: First\n{no_story_so_far()}\n\n\n")
+
+
+def test_a_dry_run_of_a_named_scope_narrowed_to_some_stories(whole, capsys):
+    whole.bare("--dry-run", "--scope", "two", "--only", "2,3")
+    out = capsys.readouterr().out
+    assert "scope two: stories [2]\n" in out and "STORY 2: Second\n" in out
+
+
+def test_a_dry_run_with_no_story_left_prints_no_prompt(loop, capsys):
+    loop.bare("--dry-run", "--only", "9")
+    out = capsys.readouterr().out
+    assert out.splitlines()[1] == "scope two: stories []" and "first prompt" not in out
+
+
+def test_a_dry_run_names_the_held_out_suite_when_the_pack_has_one(loop, capsys):
+    (loop.pack / "acceptance" / "tests").mkdir(parents=True)
+    loop.bare("--dry-run")
+    assert f"held-out suite: {loop.pack / 'acceptance'}; gate: ['build']\n" in capsys.readouterr().out
+
+
+# ======================= arguments main refuses =======================
+
+@pytest.mark.parametrize("given, missing", [
+    ([], "--run-dir, --base-url, --model-id"),
+    (["--run-dir", "RUN"], "--base-url, --model-id"),
+    (["--run-dir", "RUN", "--model-id", "m"], "--base-url"),
+])
+def test_a_run_without_its_directory_url_or_model_is_refused(loop, capsys, given, missing):
+    with pytest.raises(SystemExit) as e:
+        loop.bare(*[str(loop.run) if a == "RUN" else a for a in given])
+    assert e.value.code == 2
+    assert f"error: {missing} required (or --dry-run)" in capsys.readouterr().err
+    assert not loop.run.exists()
+
+
+def test_client_thinking_is_refused_for_a_client_other_than_pi(loop):
+    with pytest.raises(SystemExit) as e:
+        loop.main("--client-thinking", "high")
+    assert str(e.value) == "--client-thinking applies to pi only" and loop.agent_runs() == []
+
+
+def test_known_good_mode_with_more_than_one_story_is_refused(whole, tmp_path, capsys):
+    with pytest.raises(SystemExit) as e:
+        whole.main("--from-run", str(tmp_path / "ref-run"))
+    assert e.value.code == 2 and "error: --from-run runs exactly one story: give it with --only" in capsys.readouterr().err
+    assert not whole.run.exists()
+
+
+# ======================= an ordinary run =======================
+
+RECORD_KEYS = {"title", "conditions_start", "started", "engine_settings", "agent", "agent_finished", "conditions",
+               "containment", "agent_commits", "provenance", "gate", "accept", "commit", "requests", "time_split",
+               "conversation", "loc", "finished", "status", "ended_by", "partial_base", "tasks"}
+ENTRY_KEYS = {"id", "title", "status", "ended_by", "started_at", "ended_at", "agent_minutes", "calls", "output_tokens",
+              "compactions", "last_commit_at", "accept", "partial_base", "tasks", "baselines"}
+
+
+def test_each_story_in_scope_is_run_scored_snapshotted_and_recorded_in_order(loop, capsys):
+    loop.main()
+    m = loop.metrics()
+    assert {k: m[k] for k in ("pack", "scope", "model_id", "client", "compact_at", "client_thinking")} == {
+        "pack": PACK, "scope": "two", "model_id": MODEL, "client": Scripted.name, "compact_at": None, "client_thinking": None}
+    assert [p["id"] for p in m["processed"]] == [1, 2] and sorted(m["stories"]) == ["1", "2"]
+    assert "known_good" not in m
+    for sid in (1, 2):
+        rec, entry = m["stories"][str(sid)], m["processed"][sid - 1]
+        assert set(rec) == RECORD_KEYS and set(entry) == ENTRY_KEYS
+        assert (rec["title"], rec["status"], rec["ended_by"], rec["partial_base"], rec["tasks"]) == (TITLES[sid], drive.DONE, "agent", [], [])
+        assert rec["conditions_start"] == NOMINAL and rec["conditions"] == Sampler.record and rec["engine_settings"] is None
+        assert rec["started"] <= rec["agent_finished"] <= rec["finished"]
+        agent = rec["agent"]
+        assert (agent["steps"], agent["tool_calls"], agent["exit"], agent["stalled"], agent["sessions"]) == (1, 1, 0, False, [f"cov-{sid}"])
+        assert (agent["resumes"], agent["nudges"], agent["errors"], agent["ended_by_operator"]) == (0, 0, [], False)
+        assert agent["tokens"]["output"] == OUTPUT_TOKENS
+        assert rec["agent_commits"] == 1 and rec["commit"] == git(loop.ws, "rev-parse", f"HEAD~{2 - sid}")
+        assert rec["provenance"] == {**HARNESS_PROVENANCE, "pack_version": PACK_VERSION, "source": drive.provenance.LIVE}
+        assert rec["gate"] == {"steps": {}, "error": "no package.json"}
+        assert rec["accept"] == {"skipped": True, "build_exit": None, "runner_exit": None, "runner_tail": "", "passed": 0,
+                                 "total": 0, "on_partial": {"passed": 0, "total": 0}, "by_story": {}, "harness_fault": None}
+        assert rec["requests"] == {} and rec["loc"] == {"files": sid, "lines": sid}
+        assert rec["time_split"]["accounting"]["ok"] is True and rec["conversation"] is not None
+        assert "harness_faults" not in rec and "record" not in rec and "skip" not in rec and "spec_tampered" not in rec
+        assert entry == {"id": sid, "title": TITLES[sid], "status": drive.DONE, "ended_by": "agent",
+                         "started_at": rec["started"], "ended_at": rec["agent_finished"],
+                         "agent_minutes": round(agent["seconds"] / 60, 1), "calls": 1, "output_tokens": OUTPUT_TOKENS,
+                         "compactions": 0, "last_commit_at": entry["last_commit_at"], "accept": None, "partial_base": [],
+                         "tasks": [], "baselines": []}
+        assert isinstance(entry["last_commit_at"], (int, float))
+        sdir = loop.run / "stories" / f"{sid:02d}"
+        assert json.loads((sdir / "gate.json").read_text()) == rec["gate"]
+        assert json.loads((sdir / "accept.json").read_text())["tests"] == []
+        assert (sdir / "base-commit").read_text() == git(loop.ws, "rev-parse", f"HEAD~{3 - sid}")
+    out = capsys.readouterr().out
+    for sid in (1, 2):
+        assert f"[story {sid}] {TITLES[sid]} — agent starting\n" in out
+        assert f"[story {sid}] agent done in {m['stories'][str(sid)]['agent']['seconds']}s; running gates\n" in out
+        assert f"[story {sid}] DONE gate green=None accept n/a (no held-out suite) stalled=False\n" in out
+    assert "recorded:" not in out and loop.recorded == []
+
+
+def test_the_agent_gets_each_story_s_prompt_in_the_workspace_and_the_prompt_is_kept(loop):
+    loop.main()
+    first = f"STORY 1: First\n{no_story_so_far()}\n{SCOPE_NOTE}\n"
+    second = f"STORY 2: Second\nStories already implemented in this repository, in order: 1.\n{SCOPE_NOTE}\n"
+    assert loop.agent_runs() == [
+        {"story": 1, "prompt": first, "resume_from": "None", "fork": "True", "cwd": str(loop.ws.resolve())},
+        {"story": 2, "prompt": second, "resume_from": "None", "fork": "True", "cwd": str(loop.ws.resolve())}]
+    assert (loop.run / "stories" / "01" / "prompt.md").read_text() == first
+    assert (loop.run / "stories" / "02" / "prompt.md").read_text() == second
+
+
+def test_the_run_s_bookkeeping_files_and_the_workspace_are_where_local_tools_look(loop):
+    loop.main()
+    assert (loop.run / "work_dir.txt").read_text() == str(loop.work) and (loop.run / "current_story").read_text() == ""
+    doc = json.loads((loop.run / "progress.json").read_text())
+    assert doc["scope"] == "two" and [(s["id"], s["status"]) for s in doc["stories"]] == [(1, drive.DONE), (2, drive.DONE)]
+    assert git(loop.ws, "log", "--format=%s").split("\n") == ["story 2: work", "story 1: work", "harness: empty repository with spec"]
+    assert git(loop.ws, "status", "--porcelain") == ""
+    assert sorted(p.name for p in (loop.run / "workspace").iterdir()) == ["README.md", "src"]      # the mirror: no .git, no spec
+    assert "story 2: work" in (loop.run / "workspace-git-log.txt").read_text()
+    assert not (loop.run / "interventions.md").exists()
+
+
+def test_the_machine_is_sampled_by_port_and_swept_after_the_agent_and_after_the_gate(loop):
+    loop.main("--only", "1")
+    assert Sampler.made == [(loop.ws, BASE_URL_PORT)]
+    assert loop.strays == [loop.ws, loop.ws]
+
+
+def test_the_client_is_configured_with_the_server_and_the_limits_given(loop):
+    loop.main("--only", "1", "--context-limit", "9000", "--output-limit", "800", "--compact-at", "7000")
+    client, = Scripted.made
+    assert client.agent_dir == loop.work / "pi-agent" and client.thinking is None
+    model, = json.loads((client.agent_dir / "models.json").read_text())["providers"].popitem()[1]["models"]
+    assert (model["id"], model["contextWindow"], model["maxTokens"]) == (MODEL, 9000, 800)
+    assert json.loads((client.agent_dir / "settings.json").read_text())["compaction"] == {"reserveTokens": 2000}
+    assert loop.metrics()["compact_at"] == 7000
+
+
+def test_pi_is_given_the_thinking_level_asked_for(loop, monkeypatch):
+    monkeypatch.setitem(drive.CLIENTS, "pi", Scripted)
+    loop.main("--only", "1", "--client-thinking", "high", client="pi")
+    client, = Scripted.made
+    assert client.thinking == "high" and loop.metrics()["client_thinking"] == "high" and loop.metrics()["client"] == "pi"
+
+
+@pytest.mark.parametrize("flag, waited", [((), True), (("--no-condition-wait",), False)])
+def test_a_story_waits_for_a_fit_machine_unless_told_not_to(loop, monkeypatch, flag, waited):
+    asked = []
+    monkeypatch.setattr(drive, "wait_for_conditions", lambda wait=True: asked.append(wait) or dict(NOMINAL))
+    loop.main("--only", "1", *flag)
+    assert asked == [waited]
+
+
+def test_only_narrows_the_stories_run_and_the_rest_stay_pending(loop):
+    loop.main("--only", "2")
+    assert [p["id"] for p in loop.metrics()["processed"]] == [2] and [r["story"] for r in loop.agent_runs()] == [2]
+    doc = json.loads((loop.run / "progress.json").read_text())
+    assert [(s["id"], s["status"]) for s in doc["stories"]] == [(2, drive.DONE)]
+
+
+def test_a_run_started_again_runs_only_the_stories_not_yet_processed(loop):
+    loop.main("--only", "1")
+    first = loop.story(1)
+    loop.main()
+    assert [r["story"] for r in loop.agent_runs()] == [1, 2]                  # story 1's agent was not started again
+    assert loop.story(1) == first and [p["id"] for p in loop.metrics()["processed"]] == [1, 2]
+    loop.main()
+    assert len(loop.agent_runs()) == 2
+
+
+def test_the_server_s_request_log_is_read_for_the_story_s_window(loop, tmp_path):
+    log = tmp_path / "request-log.jsonl"
+    log.write_text(json.dumps({"logged_at_s": 1.0, "prompt_tokens": 5}) + "\n")
+    loop.main("--only", "1", "--server-log", str(log))
+    assert loop.story(1)["requests"]["requests"] == 0 and "decode_by_context" in loop.story(1)["requests"]
+
+
+def test_a_held_out_result_is_recorded_without_its_tests_and_printed_as_a_score(loop, monkeypatch, capsys):
+    calls = []
+
+    def accept(ws, processed, out, acceptance):
+        calls.append((ws, [dict(p) for p in processed], out, acceptance))
+        sid = processed[-1]["id"]
+        return {"skipped": False, "passed": 2, "total": 3, "by_story": {f"{sid:02d}": {"passed": 2, "total": 3}},
+                "harness_fault": None, "tests": [{"file": f"story-{sid:02d}.spec.ts", "title": "t", "status": "passed"}]}
+    monkeypatch.setattr(gates, "accept", accept)
+    loop.main()
+    assert loop.story(2)["accept"] == {"skipped": False, "passed": 2, "total": 3, "by_story": {"02": {"passed": 2, "total": 3}},
+                                       "harness_fault": None}
+    assert loop.metrics()["processed"][1]["accept"] == {"passed": 2, "total": 3}
+    assert calls[0] == (loop.ws, [{"id": 1, "status": drive.DONE}], loop.run / "stories" / "01", None)
+    assert [p["id"] for p in calls[1][1]] == [1, 2] and calls[1][1][1] == {"id": 2, "status": drive.DONE}
+    assert "[story 2] DONE gate green=None accept 2/3 stalled=False\n" in capsys.readouterr().out
+
+
+def test_a_story_run_under_poor_power_is_marked_degraded_in_its_last_line(loop, capsys):
+    Sampler.record = {**Sampler.record, "degraded": True}
+    loop.main("--only", "1")
+    assert "stalled=False DEGRADED (power/thermal) — timing not comparable\n" in capsys.readouterr().out
+
+
+def test_a_fault_in_the_bookkeeping_is_saved_with_the_story_even_without_record(loop, monkeypatch):
+    def broken(ws):
+        raise RuntimeError("no such tree")
+    monkeypatch.setattr(drive, "loc", broken)
+    loop.main("--only", "1")
+    rec = loop.story(1)
+    assert rec["loc"] == {} and [f["step"] for f in rec["harness_faults"]] == ["lines of code"]
+    assert "harness fault in lines of code: RuntimeError: no such tree" in (loop.run / "interventions.md").read_text()
+
+
+# ======================= what the agent left behind =======================
+
+def test_uncommitted_work_is_snapshotted_in_a_harness_commit_and_not_counted_as_the_agent_s(loop):
+    loop.plan(s1={"leave": "notes.txt"})
+    loop.main("--only", "1")
+    rec = loop.story(1)
+    assert git(loop.ws, "log", "--format=%an %s").split("\n")[:2] == [
+        "vidi-agent harness: snapshot after story 1 (uncommitted agent work)", "vidi-agent story 1: work"]
+    assert rec["commit"] == git(loop.ws, "rev-parse", "HEAD") and rec["agent_commits"] == 1
+    assert git(loop.ws, "show", "--name-only", "--format=", "HEAD") == "notes.txt" and git(loop.ws, "status", "--porcelain") == ""
+
+
+def test_a_spec_the_agent_edited_is_put_back_and_the_story_says_so(loop):
+    loop.plan(s1={"tamper": "uncommitted"})
+    loop.main()
+    assert loop.story(1)["spec_tampered"] is True and "spec_tampered" not in loop.story(2)
+    assert (loop.ws / "spec" / "README.md").read_text() == "# covpack\n"
+    assert git(loop.ws, "log", "--format=%s", "--", "spec") == "harness: empty repository with spec"
+
+
+@pytest.mark.xfail(strict=True, reason="suspected bug: `git checkout -- spec` restores the spec from the agent's own "
+                                       "commit, so a spec change the agent committed is flagged but never put back, "
+                                       "and every later story builds on (and is flagged for) the changed spec")
+def test_a_spec_change_the_agent_committed_is_put_back_too(loop):
+    loop.plan(s1={"tamper": "committed"})
+    loop.main()
+    assert loop.story(1)["spec_tampered"] is True
+    assert (loop.ws / "spec" / "README.md").read_text() == "# covpack\n"
+    assert "spec_tampered" not in loop.story(2)
+
+
+def test_an_agent_that_never_reached_the_model_stops_the_run_and_checkpoints_nothing(loop, capsys):
+    loop.plan(s1={"silent": True, "exit": 1})
+    with pytest.raises(SystemExit) as e:
+        loop.main()
+    assert str(e.value) == (f"[story 1] agent made no model calls (exit 1); see {loop.events(1)}. Not checkpointed.")
+    assert not (loop.run / "metrics.json").exists()
+    assert len(loop.agent_runs()) == 1 and (loop.run / "current_story").read_text() == ""
+    assert loop.strays == [loop.ws]                                         # swept after the agent; no gate was run
+
+
+# ======================= the guards and the stops =======================
+
+@pytest.mark.parametrize("guard", ["aborted_swap", "aborted_memory"])
+def test_a_story_a_guard_stopped_is_swept_and_ends_the_run_unfit_with_nothing_checkpointed(loop, guard):
+    Sampler.record = {**Sampler.record, guard: True, "swap_start_gb": 1.0, "swap_max_gb": 6.0, "free_min_pct": 5.0}
+    with pytest.raises(SystemExit) as e:
+        loop.main()
+    assert e.value.code == machine_fit.EXIT_MACHINE_UNFIT
+    assert loop.strays == [loop.ws] and (loop.run / "current_story").read_text() == ""
+    assert not (loop.run / "metrics.json").exists() and len(loop.agent_runs()) == 1
+    unfit = json.loads((loop.run / machine_fit.UNFIT_FILE).read_text())
+    assert unfit["story"] == 1 and unfit["reason"].startswith("memory guard" if guard == "aborted_memory" else "swap guard")
+
+
+def test_a_machine_that_cannot_run_the_tests_stops_the_run_after_recording_the_story(loop, monkeypatch, capsys):
+    fault = f"{gates.MISSING_RESOURCES} the agent's e2e tests have no browser"
+    monkeypatch.setattr(gates, "gate", lambda ws, steps: {"steps": {}, "all_green": False, "harness_fault": fault})
+    with pytest.raises(SystemExit) as e:
+        loop.main()
+    assert e.value.code == drive.EXIT_MISSING_RESOURCES
+    assert sorted(loop.metrics()["stories"]) == ["1"] and loop.story(1)["gate"]["harness_fault"] == fault
+    assert len(loop.agent_runs()) == 1                                      # story 2 was not started
+    captured = capsys.readouterr()
+    assert "[story 1] DONE gate green=False" in captured.out and captured.err.startswith("MISSING RESOURCES: the agent's e2e tests have no browser.")
+
+
+# ======================= a story the operator ended =======================
+
+REQUEST = {"story": 1, "reason": "stuck on the build", "by": drive.OPERATOR, "at": 5.0}
+
+
+def test_a_story_the_operator_ended_while_it_ran_is_partial_with_a_verdict_and_the_run_goes_on(loop, monkeypatch, capsys):
+    monkeypatch.setattr(drive, "SkipWatcher", ends_story(1, REQUEST))
+    loop.plan(s1={"skip_request": True})                                    # the request file appears while the agent runs
+    loop.main()
+    rec, entry = loop.story(1), loop.metrics()["processed"][0]
+    health = {"verdict": "red", "gate_green": False, "unverified_tasks": [], "unverified_implementation_tasks": [],
+              "heldout": None, "heldout_floor": 1.0, "heldout_ok": True}
+    assert (rec["status"], rec["ended_by"], rec["skip"], rec["verdict"]) == (drive.PARTIAL, "operator", REQUEST, health)
+    assert set(rec) == RECORD_KEYS | {"skip", "verdict"}
+    assert {k: entry[k] for k in ("status", "ended_by", "reason", "by", "requested_at", "verdict", "health")} == {
+        "status": drive.PARTIAL, "ended_by": "operator", "reason": "stuck on the build", "by": drive.OPERATOR,
+        "requested_at": 5.0, "verdict": "red", "health": health}
+    assert set(entry) == ENTRY_KEYS | {"reason", "by", "requested_at", "verdict", "health"}
+    control = loop.run / drive.CONTROL_DIR
+    assert sorted(p.name for p in control.iterdir()) == ["skip-story-1.applied.json"]
+    log = (loop.run / "interventions.md").read_text()
+    assert (f"story 1: ended by the operator (operator) after {entry['agent_minutes']} agent-min, 1 calls: stuck on the "
+            f"build. Recorded PARTIAL. Verdict red: gate red, tasks not verified none (implementation: none), held-out "
+            f"None/None (floor 1.0). The run continued with the next story.") in log
+    assert "[story 1] PARTIAL verdict red gate green=None accept n/a (no held-out suite) stalled=False\n" in capsys.readouterr().out
+    # The next story is built on the partial one: told so, and checked for stubs and held-out changes.
+    second = loop.story(2)
+    assert second["status"] == drive.DONE and second["partial_base"] == [1]
+    assert second["stub_markers"] == [] and second["partial_heldout_changes"] == {"1": {"fixed": [], "regressed": []}}
+    assert set(second) == RECORD_KEYS | {"stub_markers", "partial_heldout_changes"}
+    assert "Stories already processed in this repository, in order: 1 (partial)." in loop.agent_runs()[1]["prompt"]
+    assert loop.metrics()["processed"][1]["partial_base"] == [1]
+
+
+def test_a_partial_story_whose_held_out_result_is_gone_has_no_changes_to_report(loop, monkeypatch):
+    monkeypatch.setattr(drive, "SkipWatcher", ends_story(1, REQUEST))
+    real = heldout.read_json
+    monkeypatch.setattr(heldout, "read_json", lambda run, rel, *a: None if rel == "stories/01/accept.json" else real(run, rel, *a))
+    loop.main()
+    assert loop.story(2)["partial_heldout_changes"] == {} and "harness_faults" not in loop.story(2)
+
+
+def test_a_story_ended_by_the_operator_before_any_model_call_is_still_recorded_partial(loop, monkeypatch):
+    monkeypatch.setattr(drive, "SkipWatcher", ends_story(1, REQUEST))
+    loop.plan(s1={"silent": True, "exit": 143})
+    loop.main("--only", "1")
+    rec = loop.story(1)
+    assert rec["status"] == drive.PARTIAL and rec["agent"]["steps"] == 0 and rec["agent"]["exit"] == 143
+
+
+def test_a_request_that_arrives_as_the_agent_finishes_by_itself_is_kept_unapplied(loop, monkeypatch):
+    monkeypatch.setattr(drive, "SkipWatcher", never_skips)
+    loop.plan(s1={"skip_request": True})
+    loop.main("--only", "1")
+    rec = loop.story(1)
+    assert rec["status"] == drive.DONE and rec["ended_by"] == "agent" and "skip" not in rec
+    control = loop.run / drive.CONTROL_DIR
+    assert sorted(p.name for p in control.iterdir()) == ["skip-story-1.too-late.json"]
+    assert json.loads((control / "skip-story-1.too-late.json").read_text())["reason"] == "too slow"
+    assert not (loop.run / "interventions.md").exists()
+
+
+def stamped(*events: dict) -> str:
+    return "".join(json.dumps(e, separators=(",", ":")) + "\n" for e in events)
+
+
+def earlier_attempt(t: float, session: str, timestamp: bool = False) -> list[dict]:
+    """One attempt in a story's log, as run_agent stamps it: a session with one model call, 20 s long."""
+    first = {"_rx": t, "type": "session", "id": session, **({"timestamp": int(t * 1000)} if timestamp else {})}
+    return [first,
+            {"_rx": t + 20, "type": "message_end", "message": {"role": "assistant", "stopReason": "stop",
+                                                              "usage": {"input": 10, "output": OUTPUT_TOKENS}}}]
+
+
+def test_a_story_skipped_before_the_harness_restarted_is_ended_from_its_log_without_starting_the_agent(loop, capsys):
+    loop.events(1).parent.mkdir(parents=True)
+    loop.events(1).write_text(stamped(*earlier_attempt(OLD_LOG_T, "s-before", timestamp=True)))
+    loop.skip_request(story=1, reason="not worth the wait", by="someone@example.invalid", at=7.0)
+    loop.main()
+    assert [r["story"] for r in loop.agent_runs()] == [2]                    # story 1's agent was never started
+    rec = loop.story(1)
+    assert set(rec) == (RECORD_KEYS - {"conditions_start", "containment"}) | {"skip", "verdict"}
+    assert rec["status"] == drive.PARTIAL and rec["skip"] == {"story": 1, "reason": "not worth the wait", "by": drive.OPERATOR, "at": 7.0}
+    agent = rec["agent"]
+    assert agent["reconstructed_from_log"] is True and agent["ended_by_operator"] is True and agent["exit"] is None
+    assert (agent["steps"], agent["sessions"], agent["tokens"]["output"]) == (1, ["s-before"], OUTPUT_TOKENS)
+    assert "restarted" not in agent and "first_started" not in rec          # one attempt in the log: nothing to add up
+    assert rec["conditions"] == {"samples": 0, "degraded": False, "throttled_share": 0.0, "bad_samples": [],
+                                 "aborted_swap": False, "aborted_memory": False}
+    assert rec["agent_commits"] == 0 and Sampler.made == [(loop.ws, BASE_URL_PORT)]      # only story 2 was sampled
+    assert (loop.run / drive.CONTROL_DIR / "skip-story-1.applied.json").exists()
+    assert "[story 1] First — ended by the operator before the agent restarted\n" in capsys.readouterr().out
+    assert loop.story(2)["status"] == drive.DONE
+
+
+def test_a_story_skipped_before_a_restart_counts_the_agent_time_of_each_attempt_in_its_log(loop):
+    loop.events(1).parent.mkdir(parents=True)
+    loop.events(1).write_text(stamped(*earlier_attempt(OLD_LOG_T, "s-a")))
+    attempts.write_restart_mark(loop.events(1), OLD_LOG_T + 5000, 2, {})
+    with loop.events(1).open("a") as f:
+        f.write(stamped(*earlier_attempt(OLD_LOG_T + 5001, "s-b")))
+    loop.skip_request(story=1, reason="not worth the wait")
+    loop.main("--only", "1")
+    rec = loop.story(1)
+    agent = rec["agent"]
+    assert agent["restarted"] is True and agent["harness_attempts"] == 2 and rec["first_started"] == OLD_LOG_T
+    assert [(a["attempt"], a["source"], a["started"], a["sessions"]) for a in agent["attempts"]] == [
+        (1, "log", OLD_LOG_T, ["s-a"]), (2, "log", OLD_LOG_T + 5001, ["s-b"])]
+    assert agent["seconds"] == 40.0                                          # the two attempts, not the 5,000 s between them
+    assert "harness_faults" not in rec and rec["time_split"]["attempts"] == 2
+
+
+# ======================= a story continued after a harness restart =======================
+
+def test_a_story_whose_harness_restarted_continues_the_agent_s_session_from_where_the_story_began(loop, capsys):
+    Sampler.record = {**Sampler.record, "aborted_swap": True}                # the first start is stopped by a guard
+    with pytest.raises(SystemExit):
+        loop.main("--only", "1")
+    began = (loop.run / "stories" / "01" / "base-commit").read_text()
+    assert began == git(loop.ws, "rev-parse", "HEAD~1")                      # the agent had committed before the stop
+    Sampler.record = {**Sampler.record, "aborted_swap": False}
+    capsys.readouterr()
+    loop.main("--only", "1")
+    first, second = loop.agent_runs()
+    assert (first["resume_from"], first["fork"]) == ("None", "True")
+    assert (second["prompt"], second["resume_from"], second["fork"]) == (drive.RESUME_PROMPT, "cov-1", "False")
+    rec = loop.story(1)
+    assert rec["continued_session"] == "cov-1" and rec["status"] == drive.DONE
+    assert (loop.run / "stories" / "01" / "base-commit").read_text() == began       # still where the story began
+    assert rec["agent_commits"] == 1                                         # this attempt's; the story's evidence has both
+    agent = rec["agent"]
+    assert agent["restarted"] is True and agent["harness_attempts"] == 2 and agent["steps"] == 2
+    assert [a["source"] for a in agent["attempts"]] == ["log", "harness"] and rec["first_started"] < rec["started"]
+    kinds = [json.loads(l).get("type") for l in loop.events(1).read_text().splitlines()]
+    assert kinds.count("session") == 2 and kinds.count(attempts.RESTART_MARK) == 1   # the log was kept and marked
+    assert "[story 1] continuing the agent's own session cov-1 after a harness restart\n" in capsys.readouterr().out
+
+
+def test_a_restarted_story_with_no_record_of_where_it_began_begins_at_the_workspace_s_head(loop):
+    Sampler.record = {**Sampler.record, "aborted_swap": True}
+    with pytest.raises(SystemExit):
+        loop.main("--only", "1")
+    (loop.run / "stories" / "01" / "base-commit").unlink()
+    Sampler.record = {**Sampler.record, "aborted_swap": False}
+    loop.main("--only", "1")
+    assert (loop.run / "stories" / "01" / "base-commit").read_text() == git(loop.ws, "rev-parse", "HEAD~1")
+
+
+# ======================= known-good mode =======================
+
+def reference_run(loop: Loop, root: Path) -> tuple[Path, dict]:
+    """A finished run of the same pack: its bundle (one commit per story) and its metrics."""
+    ws, run = root / "ref-ws", root / "ref-run"
+    ws.mkdir()
+    subprocess.run(["cp", "-R", str(loop.pack / "spec"), str(ws / "spec")], check=True)
+    git(ws, "init", "-q", "-b", "main")
+    git(ws, "add", "-A")
+    git(ws, "commit", "-qm", "harness: empty repository with spec")
+    stories = {}
+    for sid in (1, 2, 3):
+        (ws / f"ref{sid}.ts").write_text(f"reference story {sid}\n")
+        git(ws, "add", "-A")
+        git(ws, "commit", "-qm", f"story {sid}")
+        stories[str(sid)] = {"title": TITLES[sid], "commit": git(ws, "rev-parse", "HEAD"), "finished": 1.0}
+    run.mkdir()
+    git(ws, "bundle", "create", str(run / "workspace.bundle"), "--all")
+    (run / "metrics.json").write_text(json.dumps({"stories": stories}))
+    return run, stories
+
+
+def known_good_processed() -> list[dict]:
+    return [{"id": n, "title": TITLES[n], "status": drive.DONE, "ended_by": drive.KNOWN_GOOD_BY} for n in (1, 2)]
+
+
+def test_a_known_good_run_builds_one_story_on_another_run_s_code_and_scores_the_base_first(whole, tmp_path, monkeypatch, capsys):
+    ref, stories = reference_run(whole, tmp_path)
+    installed = []
+    monkeypatch.setattr(drive, "install_base_deps", installed.append)
+    whole.main("--from-run", str(ref), "--only", "3")
+    m = whole.metrics()
+    assert m["known_good"] == {"from_run": str(ref.resolve()), "commit": stories["2"]["commit"], "story": 3, "spec_updated": False}
+    assert m["processed"][:2] == known_good_processed() and [p["id"] for p in m["processed"]] == [1, 2, 3]
+    assert sorted(m["stories"]) == ["3"] and m["stories"]["3"]["status"] == drive.DONE and m["scope"] == "all"
+    assert installed == [whole.ws]
+    assert git(whole.ws, "log", "--format=%s").split("\n") == [
+        "story 3: work", "story 2", "story 1", "harness: empty repository with spec"]
+    assert not (whole.ws / "ref3.ts").exists()                               # how the reference did story 3 is not there
+    base = json.loads((whole.run / drive.history.BASE_DIR / "accept.json").read_text())
+    assert base["skipped"] is True and (whole.run / drive.history.BASE_DIR / "accept-summary.json").exists()
+    assert whole.strays == [whole.ws] * 3                                    # after the base's scoring, the agent, the gate
+    out = capsys.readouterr().out
+    assert "[known-good] scoring the base (stories [1, 2])\n" in out
+    assert whole.agent_runs()[0]["prompt"].splitlines()[:2] == [
+        "STORY 3: Third", "Stories already implemented in this repository, in order: 1, 2."]
+    # Started again: the base is not scored twice, its record is kept, and the story is not run again.
+    whole.main("--from-run", str(ref), "--only", "3")
+    assert "[known-good]" not in capsys.readouterr().out and len(whole.agent_runs()) == 1
+    assert whole.metrics()["known_good"] == m["known_good"] and len(whole.strays) == 3
+
+
+def test_a_known_good_run_names_a_reference_inside_the_results_by_its_path_there(whole, tmp_path, monkeypatch):
+    ref, _ = reference_run(whole, tmp_path)
+    monkeypatch.setattr(drive, "REPO_ROOT", tmp_path.resolve())
+    monkeypatch.setattr(drive, "install_base_deps", lambda ws: None)
+    whole.main("--from-run", str(ref), "--only", "3")
+    assert heldout.load_metrics(whole.run)["known_good"]["from_run"] == "ref-run"
+
+
+def test_a_dry_run_in_known_good_mode_names_the_base_and_prompts_with_its_stories(whole, tmp_path, capsys):
+    ref, stories = reference_run(whole, tmp_path)
+    whole.bare("--dry-run", "--from-run", str(ref), "--only", "3")
+    out = capsys.readouterr().out
+    assert f"known-good base: {ref.resolve()} at {stories['2']['commit'][:12]}, processed [1, 2]\n" in out
+    assert out.endswith("STORY 3: Third\nStories already implemented in this repository, in order: 1, 2.\n\n\n")
+    assert not whole.run.exists()
+
+
+def test_a_dry_run_with_a_reference_but_more_than_one_story_shows_no_base(whole, tmp_path, capsys):
+    ref, _ = reference_run(whole, tmp_path)
+    whole.bare("--dry-run", "--from-run", str(ref))
+    out = capsys.readouterr().out
+    assert "known-good base" not in out and f"STORY 1: First\n{no_story_so_far()}\n" in out
+
+
+# ======================= --record =======================
+
+def test_each_story_is_recorded_with_its_summary_and_compacted_log(loop, monkeypatch, capsys):
+    monkeypatch.setattr(drive, "SkipWatcher", ends_story(2, {**REQUEST, "story": 2}))
+    loop.main("--record")
+    label = drive.combination_label(loop.run)
+    assert loop.recorded == [(drive.REPO_ROOT, loop.run.resolve(), f"{PACK} {label} run: story 1 done"),
+                             (drive.REPO_ROOT, loop.run.resolve(), f"{PACK} {label} run: story 2 partial (ended by operator)")]
+    for sid in (1, 2):
+        assert loop.story(sid)["record"] == loop.record_result and "harness_faults" not in loop.story(sid)
+        assert (loop.run / "stories" / f"{sid:02d}" / "agent-events.compact.jsonl.gz").exists()
+    assert (loop.run / "summary.md").exists()
+    out = capsys.readouterr().out
+    assert "[story 1] recorded: commit abc1234 pushed=True\n" in out
+
+
+def test_a_record_that_was_not_pushed_says_so_with_its_error(loop, capsys):
+    loop.record_result = {"committed": True, "pushed": False, "unpushed": True, "error": "remote: " + "e" * 300}
+    loop.main("--record", "--only", "1")
+    assert loop.story(1)["record"] == loop.record_result
+    assert ("[story 1] recorded: commit - pushed=False  NOT PUSHED, kept locally; the next story retries  remote: "
+            + "e" * 192 + "\n") in capsys.readouterr().out
+
+
+def test_a_record_that_fails_outright_leaves_the_story_saved_with_the_fault(loop, monkeypatch):
+    def broken(*a, **k):
+        raise OSError("disk full")
+    monkeypatch.setattr(drive, "record_story", broken)
+    loop.main("--record", "--only", "1")
+    rec = loop.story(1)
+    assert rec["record"] == {"committed": False, "pushed": False, "error": "recording failed: see harness_faults"}
+    assert [f["step"] for f in rec["harness_faults"]] == ["record"] and rec["status"] == drive.DONE
+
+
+# ======================= run as a script =======================
+
+def test_drive_py_run_as_a_script_runs_main(loop, monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["drive.py", "--pack", PACK, "--dry-run", "--only", "2"])
+    runpy.run_path(str(drive.HARNESS / "drive.py"), run_name="__main__")
+    assert "scope two: stories [2]\n" in capsys.readouterr().out
