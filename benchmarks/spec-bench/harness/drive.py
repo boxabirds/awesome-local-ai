@@ -1049,8 +1049,7 @@ def _stamped_events(events: Path):
                     e = json.loads(line)
                 except json.JSONDecodeError:
                     continue  # cut off when the agent was killed mid-write, or by a crash
-                if isinstance(e, dict):
-                    yield e
+                yield e  # always an object: the line starts with '{"_rx"' and parsed
 
 
 def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> dict:
