@@ -170,8 +170,8 @@ assert_ok "every profile row is labelled ESTIMATED (nothing measured)" \
 assert_eq "the default profile lets TensorFold fit the window" fit \
   "$(awk -F'|' -v p="$(bash -c ". '$CFG'; echo \$DEFAULT_PROFILE")" '$1==p{print $2}' "$PT")"
 assert_ok "help.txt and README.md exist" test -f "$REPO_ROOT/combinations/$COMBO/help.txt" -a -f "$REPO_ROOT/combinations/$COMBO/README.md"
-assert_fails "no machine names or home paths in the combination" \
-  grep -rIEn --exclude-dir=__pycache__ --exclude-dir=.pytest_cache '/Users/|/home/[a-z]|quintus|tritus|gruntus' "$REPO_ROOT/combinations/$COMBO" "$REPO_ROOT/lib/tensorfold.sh" "$REPO_ROOT/tools/tensorfold-check"
+assert_fails "no home paths in the combination (machine names: tests/privacy-test.sh)" \
+  grep -rIEn --exclude-dir=__pycache__ --exclude-dir=.pytest_cache '/Users/|/home/[a-z]' "$REPO_ROOT/combinations/$COMBO" "$REPO_ROOT/lib/tensorfold.sh" "$REPO_ROOT/tools/tensorfold-check"
 
 # ---- the server command line -----------------------------------------------------------------------------------
 echo
@@ -198,7 +198,7 @@ ARGV_150="$(argv_of /m/pack 18950 bench 150000 0)"
 assert_ok "an explicit window is passed as --context" pair "$ARGV_150" --context 150000
 assert_ok "drafts off is --no-drafts"     has "$ARGV_150" --no-drafts
 ENV_LINES="$(bash -c ". '$REPO_ROOT/lib/common.sh'; . '$CFG'; . '$REPO_ROOT/lib/tensorfold.sh'; tensorfold_serve_env")"
-assert_ok "memory budget as mlx-serve's: RAM less a 16 GiB OS reserve" has "$ENV_LINES" TENSORFOLD_MEMORY_LIMIT_GB=112
+assert_ok "memory budget: TensorFold's own default, 70% of RAM" has "$ENV_LINES" TENSORFOLD_MEMORY_LIMIT_GB=89.6
 assert_ok "no live terminal line in logs" has "$ENV_LINES" TENSORFOLD_NO_LIVE=1
 
 # ---- the launcher, end to end against stubs --------------------------------------------------------------
