@@ -886,10 +886,11 @@ def final_reply_text(events_path: Path) -> str:
         return ""
     for line in lines:
         try:
-            message = (json.loads(line).get("message") or {})
+            message = json.loads(line).get("message")
         except (ValueError, AttributeError):
             continue
-        if message.get("role") != "assistant" or not isinstance(message.get("content"), list):
+        # Not every event's message is a model message: Claude Code's record of a refused tool call has a string.
+        if not isinstance(message, dict) or message.get("role") != "assistant" or not isinstance(message.get("content"), list):
             continue
         last = "".join(c.get("text", "") for c in message["content"] if isinstance(c, dict) and c.get("type") == "text")
     return last
