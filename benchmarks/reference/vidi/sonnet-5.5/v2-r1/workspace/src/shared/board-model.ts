@@ -50,6 +50,13 @@ export interface ObjectSnapshot {
   baseWidth?: number;
   baseHeight?: number;
   thickness?: PenThickness;
+  assetKey?: string | null;
+  contentType?: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  status?: 'uploading' | 'ready' | 'failed';
+  uploadStartedAt?: number;
+  uploaderId?: string;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -58,7 +65,7 @@ export interface StickySnapshot extends ObjectSnapshot {
   text: string;
 }
 
-const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector', 'stroke']);
+const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector', 'stroke', 'image']);
 
 export function objectsOf(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects') as Y.Map<Y.Map<unknown>>;
@@ -294,6 +301,18 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       entry.baseHeight = baseHeight;
       entry.color = color as PenColor;
       entry.thickness = thickness as PenThickness;
+    }
+    if (type === 'image') {
+      const status = obj.get('status');
+      if (status !== 'uploading' && status !== 'ready' && status !== 'failed') return;
+      const str = (key: string): string => (typeof obj.get(key) === 'string' ? (obj.get(key) as string) : '');
+      entry.status = status;
+      entry.assetKey = typeof obj.get('assetKey') === 'string' ? (obj.get('assetKey') as string) : null;
+      entry.contentType = str('contentType');
+      entry.naturalWidth = num(obj.get('naturalWidth'));
+      entry.naturalHeight = num(obj.get('naturalHeight'));
+      entry.uploadStartedAt = num(obj.get('uploadStartedAt'));
+      entry.uploaderId = str('uploaderId');
     }
     result.push(entry);
   });

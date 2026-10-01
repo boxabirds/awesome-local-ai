@@ -1,16 +1,20 @@
 import { isValidBoardId } from '../shared/board-id';
 import type { BoardRoom } from './board-room';
+import { handleServe, handleUpload } from './assets';
 import { createBoard } from './create-board';
 import { handleTestHook } from './test-hooks';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   TEST_HOOKS?: string;
 }
 
 const BOARDS_ROUTE = /^\/api\/boards(?:\/([^/]*))?$/;
-const ROOM_ROUTE = /^\/api\/rooms\/([^/]*)$/;
+const UPLOAD_ROUTE = /^\/api\/boards\/([^/]*)\/assets$/;
+const SERVE_ROUTE = /^\/api\/assets\/([^/]*\/[^/]*)$/;
+const ROOM_ROUTE =/^\/api\/rooms\/([^/]*)$/;
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -26,6 +30,17 @@ export default {
     const hook = await handleTestHook(req, env);
     if (hook) return hook;
     const path = new URL(req.url).pathname;
+
+    const upload = UPLOAD_ROUTE.exec(path);
+    if (upload) {
+      if (req.method !== 'POST') return methodNotAllowed('POST');
+      return handleUpload(req, env, upload[1]);
+    }
+    const serve = SERVE_ROUTE.exec(path);
+    if (serve) {
+      if (req.method !== 'GET') return methodNotAllowed('GET');
+      return handleServe(env, serve[1]);
+    }
 
     const boards = BOARDS_ROUTE.exec(path);
     if (boards) {

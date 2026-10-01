@@ -1,3 +1,48 @@
+commit 46b79c9b652e003a7fe2e29e68aaf52af15f9731
+vidi-agent  Thu Oct 1 07:22:23 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                |  11 ++
+ src/client/App.tsx                      |  25 ++++
+ src/client/board/Toolbar.tsx            |  14 ++
+ src/client/board/useBoardKeys.ts        |   5 +-
+ src/client/canvas/BoardViewport.tsx     |  15 +-
+ src/client/images/DropHighlight.tsx     |   5 +
+ src/client/images/uploadImage.ts        |  32 +++++
+ src/client/images/useImageInsert.ts     | 244 ++++++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts      |  23 +++
+ src/client/objects/ImageObject.tsx      | 158 +++++++++++++++++++++
+ src/client/objects/registry.tsx         |  12 +-
+ src/client/styles.css                   |  82 +++++++++++
+ src/client/ui/Toast.tsx                 |  16 +++
+ src/shared/board-model.ts               |  21 ++-
+ src/shared/config.ts                    |  12 ++
+ src/shared/image-format.ts              |  24 ++++
+ src/shared/objects/image.ts             | 121 ++++++++++++++++
+ src/worker/assets.ts                    |  44 ++++++
+ src/worker/index.ts                     |  17 ++-
+ tests/component/ImageObject.test.tsx    | 102 +++++++++++++
+ tests/component/useImageInsert.test.tsx | 159 +++++++++++++++++++++
+ tests/e2e/helpers/drop-files.ts         |  33 +++++
+ tests/e2e/images.spec.ts                | 155 ++++++++++++++++++++
+ tests/fixtures/images.ts                |  28 ++++
+ tests/fixtures/images/animated.gif      | Bin 0 -> 313 bytes
+ tests/fixtures/images/corrupt.png       | Bin 0 -> 300 bytes
+ tests/fixtures/images/fake.png          |   4 +
+ tests/fixtures/images/photo.jpg         | Bin 0 -> 92732 bytes
+ tests/fixtures/images/photo.webp        | Bin 0 -> 430 bytes
+ tests/fixtures/images/screenshot.png    | Bin 0 -> 16844 bytes
+ tests/fixtures/images/script.svg        |   1 +
+ tests/fixtures/images/small.png         | Bin 0 -> 315 bytes
+ tests/integration/assets.test.ts        |  85 +++++++++++
+ tests/unit/image-format.test.ts         |  27 ++++
+ tests/unit/image-model.test.ts          | 107 ++++++++++++++
+ tests/unit/validate-files.test.ts       |  40 ++++++
+ worker-configuration.d.ts               |   3 +-
+ wrangler.jsonc                          |   1 +
+ 38 files changed, 1620 insertions(+), 6 deletions(-)
 commit f6e6bd2b21b266b1bee64f99e2807af3a53d6ee8
 vidi-agent  Thu Oct 1 07:07:39 2026 +0100
 

@@ -116,3 +116,14 @@
 - A split long stroke leaves no stray dot when the drag ends exactly on the split point.
 - Round cursor: a div sized thickness x zoom that follows the pointer inside the layer; the native cursor is hidden.
 - Only Chromium was run for e2e (firefox/webkit are not installed).
+
+# Notes — story 12
+
+- Image button and the I key call `useImageInsert.openPicker` directly; the tool stays Select (no `image` entry in `useTool`), so there is nothing to "return" to Select.
+- `useImageInsert` also returns `toast`, `dismissToast`, `dragActive` and the drag-enter/leave handlers; `App` renders `Toast` and `DropHighlight`. It takes optional `viewCentre` and `undo` (history boundaries around the placeholder transaction, so each add is its own undo step). Several refusals in one action show as one toast with the messages joined.
+- Retry/progress/identity reach `ImageObject` through `ImageActionsContext`; `ImageObjectView` is the registered component and `ImageObject` the presentational one.
+- Client type check is by the browser-reported `File.type`; real content is checked by decoding with `createImageBitmap` (failure gives the type message) and by server sniffing (415).
+- Non-ready image boxes use `overflow: visible` so Retry/Remove stay reachable on very small images.
+- Fixture generators for the 10 MB cases are in `tests/fixtures/images.ts` (header + padding); the other fixtures are real files in `tests/fixtures/images/`. `wrangler types` was re-run for the R2 binding.
+- Redo after undoing an insertion restores the `ready` state (asserted in TC-05).
+- Only Chromium was run for e2e.

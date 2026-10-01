@@ -32,6 +32,8 @@ export function useBoardKeys(opts: {
   tool?: { tool: Tool; setTool(t: Tool): void };
   /** N: the same action as the Sticky note button. */
   onCreateSticky?(): void;
+  /** I: the same action as the Image button (opens the file picker). */
+  onPickImage?(): void;
 }): void {
   const live = useRef(opts);
   live.current = opts;
@@ -62,8 +64,9 @@ export function useBoardKeys(opts: {
         else selection.clear();
         return;
       }
-      if (!e.shiftKey && (key === 'v' || key === 't' || key === 'n' || key === 's' || key === 'l' || key === 'p')) {
+      if (!e.shiftKey && (key === 'v' || key === 't' || key === 'n' || key === 's' || key === 'l' || key === 'p' || key === 'i')) {
         if (key === 'v') tool?.setTool('select');
+        else if (canEdit && key === 'i') live.current.onPickImage?.();
         else if (canEdit && key === 's') tool?.setTool('shape');
         else if (canEdit && key === 'p') tool?.setTool('pen');
         else if (canEdit && key === 'l') tool?.setTool('connector');

@@ -17,6 +17,10 @@ import { usePenOptions } from './tools/usePenOptions';
 import { ShapeTool } from './tools/ShapeTool';
 import { useActiveTool } from './tools/useActiveTool';
 import { getLocalUserId } from './identity';
+import { DropHighlight } from './images/DropHighlight';
+import { useImageInsert } from './images/useImageInsert';
+import { ImageActionsContext } from './objects/ImageObject';
+import { Toast } from './ui/Toast';
 import { getDefaultMeasurer } from './objects/textLayout';
 import { remeasureText } from './objects/useTextBoxSync';
 import { useTransformGesture } from './board/useTransformGesture';
@@ -75,7 +79,22 @@ export function App({ boardId }: { boardId?: string } = {}) {
     if (id) sel.startEdit(id);
   };
 
+  const images = useImageInsert({
+    doc,
+    boardId: boardId ?? '',
+    camera,
+    connection,
+    identityId: getLocalUserId(),
+    viewCentre: () => centerRef.current(),
+    undo: history,
+  });
+  const imageActions = useMemo(
+    () => ({ identityId: getLocalUserId(), progress: images.progress, retry: images.retry, canRetry: images.canRetry }),
+    [images.progress, images.retry, images.canRetry],
+  );
+
   useBoardKeys({
+    onPickImage: images.openPicker,
     doc,
     selection: sel,
     snapshot: objects,
@@ -103,7 +122,10 @@ export function App({ boardId }: { boardId?: string } = {}) {
 
   return (
     <UndoContext.Provider value={history}>
+    <ImageActionsContext.Provider value={imageActions}>
     <BoardViewport
+      fileDrop={images}
+      dropHighlight={<DropHighlight active={images.dragActive} />}
       onCreateAt={create}
       textToolActive={tool.tool === 'text'}
       tool={tool.tool}
@@ -128,6 +150,7 @@ export function App({ boardId }: { boardId?: string } = {}) {
           <ConnectionStatus state={connection} />
           <Toolbar
             onCreateSticky={() => create(ctx.centerWorld())}
+            onPickImage={images.openPicker}
             disabled={!editable}
             undo={undo}
             tool={tool.tool}
@@ -196,6 +219,8 @@ export function App({ boardId }: { boardId?: string } = {}) {
         })
       }
     </BoardViewport>
+    <Toast message={images.toast} onDismiss={images.dismissToast} />
+    </ImageActionsContext.Provider>
     </UndoContext.Provider>
   );
 }

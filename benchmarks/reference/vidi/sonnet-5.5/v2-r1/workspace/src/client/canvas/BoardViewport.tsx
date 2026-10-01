@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { MarqueeRect, useMarquee } from '../board/Marquee';
@@ -57,6 +57,14 @@ export function BoardViewport(props: {
   tool?: string;
   /** A full-board layer that owns the pointer while a drawing tool is active. */
   toolLayer?: ReactNode;
+  /** File drag-and-drop on the board (images), and the highlight drawn while files are dragged over it. */
+  fileDrop?: {
+    onDragEnter(e: ReactDragEvent<HTMLDivElement>): void;
+    onDragLeave(e: ReactDragEvent<HTMLDivElement>): void;
+    onDragOver(e: ReactDragEvent<HTMLDivElement>): void;
+    onDrop(e: ReactDragEvent<HTMLDivElement>): void;
+  };
+  dropHighlight?: ReactNode;
   /** Called after the camera changes (the transform gesture converts pointer movement with it). */
   onCameraChange?(camera: Camera): void;
 }) {
@@ -298,6 +306,10 @@ export function BoardViewport(props: {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onDoubleClick={onDoubleClick}
+        onDragEnter={props.fileDrop?.onDragEnter}
+        onDragLeave={props.fileDrop?.onDragLeave}
+        onDragOver={props.fileDrop?.onDragOver}
+        onDrop={props.fileDrop?.onDrop}
         onPointerCancel={onInterrupted}
         onLostPointerCapture={onInterrupted}
       >
@@ -314,6 +326,7 @@ export function BoardViewport(props: {
           <MarqueeRect rect={marquee.rect} camera={camera} />
         </div>
         {props.toolLayer}
+        {props.dropHighlight}
       </div>
       {props.overlay?.(ctx)}
       <NavigationHint visible={!nav.hasNavigated} />

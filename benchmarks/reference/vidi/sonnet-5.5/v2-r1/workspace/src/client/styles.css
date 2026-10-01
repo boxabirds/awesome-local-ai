@@ -735,3 +735,85 @@ body,
 .board-viewport[data-tool='pen'] * {
   cursor: none !important;
 }
+
+.drop-highlight {
+  position: absolute;
+  inset: 6px;
+  border: 3px dashed #1e88e5;
+  border-radius: 8px;
+  background: rgba(30, 136, 229, 0.06);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.image-object {
+  position: absolute;
+  box-sizing: border-box;
+  user-select: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: 14px/1.3 system-ui, sans-serif;
+  color: #475569;
+  cursor: pointer;
+}
+.image-object--uploading,
+.image-object--unavailable,
+.image-object--unfinished {
+  background: #e0e0e0;
+}
+.image-object--failed,
+.image-object--uploading,
+.image-object--unfinished,
+.image-object--unavailable {
+  overflow: visible;
+}
+.image-object--failed {
+  background: #fdecea;
+  border: 2px solid #e53935;
+  color: #b71c1c;
+}
+.image-object-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  object-fit: fill;
+}
+.image-progress {
+  width: 70%;
+  height: 8px;
+  border-radius: 4px;
+  background: #bdbdbd;
+  overflow: hidden;
+}
+.image-progress-bar {
+  height: 100%;
+  background: #1e88e5;
+}
+.image-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.toast-region {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 50;
+}
+.toast {
+  background: #263238;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font: 14px/1.3 system-ui, sans-serif;
+  max-width: 80vw;
+}

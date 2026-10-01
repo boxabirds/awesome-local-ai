@@ -13,6 +13,8 @@ export function Toolbar(props: {
   shapeKind?: ShapeKind;
   onShapeKind?(kind: ShapeKind): void;
   onCreateSticky(): void;
+  /** Image button: opens the file picker (the tool stays Select). */
+  onPickImage?(): void;
   disabled?: boolean;
   undo?: ReturnType<typeof useUndo>;
   tool?: Tool;
@@ -109,6 +111,18 @@ export function Toolbar(props: {
       >
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        aria-label="Image (I)"
+        title="Image (I)"
+        disabled={props.disabled}
+        onClick={props.onPickImage}
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M3 17l5-5 4 4 3-3 6 6M9 9h.01" />
         </svg>
       </button>
       <button
