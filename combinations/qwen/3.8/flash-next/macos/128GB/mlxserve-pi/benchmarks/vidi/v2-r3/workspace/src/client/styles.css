@@ -154,3 +154,221 @@ body,
   pointer-events: none;
   white-space: nowrap;
 }
+
+/* --- Story 2: sticky notes ------------------------------------------------- */
+
+/* A note is a square in world coordinates: position and size come from the
+   document as inline styles, so the board's transform does all the scaling. */
+.sticky-note {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: auto; /* the world layer itself ignores the pointer */
+  border-radius: 2px;
+  box-shadow: 0 6px 18px rgba(20, 20, 40, 0.18), 0 1px 3px rgba(20, 20, 40, 0.14);
+  color: var(--board-ink);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sticky-note[data-state='dragging'] {
+  cursor: grabbing;
+  box-shadow: 0 14px 30px rgba(20, 20, 40, 0.26);
+}
+
+/* Selection: a blue outline, plus the same ring when the note has focus. */
+.sticky-note[data-selected='true'],
+.sticky-note:focus-visible {
+  outline: 2px solid #4f8cff;
+  outline-offset: 3px;
+}
+
+.sticky-note:focus {
+  outline: none;
+}
+
+/* The note's text box: clipped, so nothing is ever drawn outside the note.
+   Font size (board units, so it scales with zoom) is set inline by auto-fit. */
+.sticky-text {
+  position: absolute;
+  inset: 14px;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+/* While editing, the display text is hidden behind the textarea but still
+   laid out, so auto-fit can keep measuring the text as it is typed. */
+.sticky-text.is-hidden-by-editor {
+  visibility: hidden;
+}
+
+/* Text that no longer fits at the minimum size is clipped and faded here. */
+.sticky-text.has-fade::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  background: linear-gradient(to bottom, rgba(250, 250, 250, 0), rgba(26, 26, 36, 0.45));
+  pointer-events: none;
+}
+
+/* The editor sits exactly over the text box. */
+.sticky-editor {
+  position: absolute;
+  inset: 14px;
+}
+
+.sticky-textarea {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  line-height: 1.25;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  resize: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.sticky-textarea:focus {
+  outline: none;
+}
+
+/* The counter only appears within STICKY_COUNTER_THRESHOLD_CHARS of the limit. */
+.sticky-counter {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  color: #4a4a56;
+  pointer-events: none;
+}
+
+/* Floating toolbar of the selected note: anchored to the note's top-left and
+   scaled by 1/zoom in CSS, so it keeps a constant size on screen and never
+   scales with the board. */
+.note-toolbar {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  transform: scale(var(--note-inv-zoom, 1));
+  transform-origin: 0 100%;
+  white-space: nowrap;
+}
+
+.note-swatch {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgba(20, 20, 40, 0.28);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.note-swatch:hover {
+  transform: scale(1.12);
+}
+
+.note-swatch[aria-pressed='true'] {
+  outline: 2px solid #4f8cff;
+  outline-offset: 1px;
+}
+
+.note-swatch:focus-visible {
+  outline: 2px solid #4f8cff;
+  outline-offset: 1px;
+}
+
+.note-delete-button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #b3261e;
+  cursor: pointer;
+}
+
+.note-delete-button:hover {
+  background: rgba(179, 38, 30, 0.12);
+}
+
+.note-delete-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Left-side board toolbar (screen space; it does not scale with zoom). */
+.toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: var(--panel-shadow);
+}
+
+.toolbar-button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.toolbar-button:hover {
+  background: rgba(20, 20, 40, 0.07);
+}
+
+.toolbar-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

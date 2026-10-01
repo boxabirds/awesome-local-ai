@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT } from '../../shared/config';
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT } from '../../shared/config';
 import type { Camera, Point, Size } from './camera';
 import type { WheelInput } from './useCamera';
 
@@ -26,6 +26,10 @@ export interface BoardViewportProps {
   onZoomAtPoint(point: Point, factor: number): void;
   onZoomStep(dir: 'in' | 'out'): void;
   onReset(): void;
+  /** Double-click on empty board space: create something at that point. */
+  onEmptyDblClick(point: Point): void;
+  /** Click (press and release without dragging) on empty board space. */
+  onEmptyClick(point: Point): void;
 }
 
 function mod(value: number, m: number): number {
@@ -51,6 +55,7 @@ export function BoardViewport(props: BoardViewportProps) {
   const [panning, setPanning] = useState(false);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const pointerIdRef = useRef<number | null>(null);
+  const downPointRef = useRef<Point | null>(null);
   const propsRef = useRef(props);
 
   useEffect(() => {
@@ -148,14 +153,23 @@ export function BoardViewport(props: BoardViewportProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  const isBoardSurface = (e: ReactPointerEvent<HTMLDivElement>): boolean =>
+  const isBoardSurface = (e: ReactPointerEvent<HTMLDivElement> | ReactMouseEvent<HTMLDivElement>): boolean =>
     e.target === e.currentTarget; // empty board space (the grid itself)
+
+  /** Viewport-relative coordinates (the camera's screen space). */
+  const relative = (clientX: number, clientY: number): Point => {
+    const el = surfaceRef.current;
+    if (el === null) return { x: clientX, y: clientY };
+    const rect = el.getBoundingClientRect();
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (!isBoardSurface(e)) return;
     pointerIdRef.current = e.pointerId;
+    downPointRef.current = relative(e.clientX, e.clientY);
     setPanning(true);
     const el = surfaceRef.current;
     if (el !== null && typeof el.setPointerCapture === 'function') {
@@ -173,9 +187,11 @@ export function BoardViewport(props: BoardViewportProps) {
     props.onPanMove({ x: e.clientX, y: e.clientY });
   };
 
-  const endDrag = (pointerId: number) => {
+  const endDrag = (pointerId: number, up: Point | null) => {
     if (pointerIdRef.current !== pointerId) return;
+    const down = downPointRef.current;
     pointerIdRef.current = null;
+    downPointRef.current = null;
     setPanning(false);
     const el = surfaceRef.current;
     if (el !== null && typeof el.releasePointerCapture === 'function') {
@@ -187,6 +203,11 @@ export function BoardViewport(props: BoardViewportProps) {
     }
     // The board simply stays where it was at the moment of interruption.
     props.onEndPan();
+    // A press and release in the same spot is a click on empty board space:
+    // it clears the selection (a note drag stops propagation and gets here).
+    if (up !== null && down !== null && Math.hypot(up.x - down.x, up.y - down.y) < DRAG_THRESHOLD_PX) {
+      props.onEmptyClick(up);
+    }
   };
 
   const { x, y, zoom } = camera;
@@ -207,9 +228,14 @@ export function BoardViewport(props: BoardViewportProps) {
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={(e) => endDrag(e.pointerId)}
-      onPointerCancel={(e) => endDrag(e.pointerId)}
-      onLostPointerCapture={(e) => endDrag(e.pointerId)}
+      onPointerUp={(e) => endDrag(e.pointerId, relative(e.clientX, e.clientY))}
+      onPointerCancel={(e) => endDrag(e.pointerId, null)}
+      onLostPointerCapture={(e) => endDrag(e.pointerId, null)}
+      onDoubleClick={(e) => {
+        // Only empty board space: a double-click on a note edits that note.
+        if (!isBoardSurface(e)) return;
+        props.onEmptyDblClick(relative(e.clientX, e.clientY));
+      }}
     >
       <div
         className="world-layer"

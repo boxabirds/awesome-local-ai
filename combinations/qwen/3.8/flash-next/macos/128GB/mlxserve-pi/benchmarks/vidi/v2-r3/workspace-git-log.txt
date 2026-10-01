@@ -1,3 +1,61 @@
+commit ed5bcdfc174b27262a3c34e9bdf10b5c8e94588d
+vidi-agent  Thu Oct 1 18:28:08 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                          | 108 ++++++++++++++
+ src/client/App.tsx                |  10 +-
+ src/client/objects/StickyNote.tsx |   3 +
+ tests/e2e/helpers/stickies.ts     | 212 ++++++++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts    | 307 ++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 638 insertions(+), 2 deletions(-)
+commit ab1a6d919b1c269dd370e2405259befcb0ef7538
+vidi-agent  Thu Oct 1 17:59:22 2026 +0100
+
+    wip story 2: sticky note interaction, editor, toolbars + component tests
+
+
+ src/client/App.tsx                        | 119 +++++++++++--
+ src/client/board/Toolbar.tsx              |  56 ++++++
+ src/client/board/useSelection.ts          |  43 +++++
+ src/client/canvas/BoardViewport.tsx       |  40 ++++-
+ src/client/objects/NoteToolbar.tsx        |  71 ++++++++
+ src/client/objects/StickyNote.tsx         | 269 +++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          | 132 ++++++++++++---
+ src/client/objects/StickyTextEditor.tsx   | 151 +++++++++++++++++
+ src/client/styles.css                     | 218 ++++++++++++++++++++++++
+ tests/component/StickyNote.test.tsx       | 273 ++++++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 220 ++++++++++++++++++++++++
+ tests/component/Toolbars.test.tsx         | 226 +++++++++++++++++++++++++
+ tests/component/helpers.tsx               |  84 ++++++++-
+ tests/unit/sticky-text.test.ts            |   4 +-
+ 14 files changed, 1864 insertions(+), 42 deletions(-)
+commit f24f57f32f749c4799e826d179133b4dfd464b50
+vidi-agent  Thu Oct 1 17:36:05 2026 +0100
+
+    tasks 2-3: Yjs board model + useBoardDoc hook; sticky text unit tests (failing)
+
+
+ src/client/board/useBoardDoc.ts  |  59 +++++++++++
+ src/client/objects/StickyText.ts |  27 +++++
+ src/shared/board-model.ts        | 212 +++++++++++++++++++++++++++++++++++----
+ tests/fixtures/texts.ts          |  37 +++++++
+ tests/unit/board-model.test.ts   |  23 +++--
+ tests/unit/sticky-text.test.ts   | 187 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 515 insertions(+), 30 deletions(-)
+commit f71d6d8d44f65546cf23b9ab1d62fd3e605a76e9
+vidi-agent  Thu Oct 1 17:29:03 2026 +0100
+
+    task 1: board model unit tests (failing) + sticky settings
+
+
+ package-lock.json              |  51 +++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  53 ++++++
+ src/shared/config.ts           |  45 ++++++
+ tests/unit/board-model.test.ts | 360 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 510 insertions(+), 2 deletions(-)
 commit 986f6e6d381c636e99386d28d0c54050510f5736
 vidi-agent  Thu Oct 1 17:23:37 2026 +0100
 
