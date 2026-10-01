@@ -35,8 +35,10 @@ def known_good_note(m: dict) -> list[str]:
     kg = m.get("known_good")
     if not kg:
         return []
-    return [f"**Known-good mode (diagnostic).** Story {kg['story']} only, built on `{kg['from_run']}` at commit "
-            f"`{kg['commit'][:SHORT_SHA]}` (its code when the story before ended). It measures that story on its own, "
+    which, measures = ((f"Story {kg['story']} and every later story of the scope", "those stories")
+                       if kg.get("continues") else (f"Story {kg['story']} only", "that story on its own"))
+    return [f"**Known-good mode (diagnostic).** {which}, built on `{kg['from_run']}` at commit "
+            f"`{kg['commit'][:SHORT_SHA]}` (its code when the story before ended). It measures {measures}, "
             "with no earlier mistakes carried in; not comparable with full runs."
             + (" The reference was built from an older spec, so the base's spec was brought up to this pack's version."
                if kg.get("spec_updated") else ""), ""]
