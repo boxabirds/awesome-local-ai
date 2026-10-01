@@ -61,6 +61,19 @@ def test_the_command_line_lists_only_tracked_files_over_their_limit(tmp_path):
     assert out == [f"{RUN}/summary.md\t{600 * KB}\t{512 * KB}"]
 
 
+def test_documentation_under_benchmarks_is_not_a_benchmark_record(tmp_path):
+    """2 Oct 2026: the interactive guide (benchmarks/docs/guide/index.html, 615 KB) is documentation, not evidence a run
+    published; the flat limit for records turned the privacy test red. Records under benchmarks/<anything else> keep it."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    _sized(tmp_path / "benchmarks/docs/guide/index.html", 615 * KB)
+    _sized(tmp_path / "benchmarks/insights/findings.md", 615 * KB)
+    _sized(tmp_path / "benchmarks/other-pack/summary.md", 600 * KB)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    out = subprocess.run([sys.executable, str(HERE / "publicise.py"), "over-limit", str(tmp_path)],
+                         capture_output=True, text=True, check=True).stdout.splitlines()
+    assert out == [f"benchmarks/other-pack/summary.md\t{600 * KB}\t{512 * KB}"]
+
+
 def test_the_privacy_test_takes_its_limits_from_the_same_table():
     text = PRIVACY_TEST.read_text()
     assert "publicise.py\" over-limit" in text or "publicise.py over-limit" in text

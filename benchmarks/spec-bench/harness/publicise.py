@@ -244,6 +244,8 @@ def size_limit(rel: str) -> int:
 
 
 TRACKED_RECORDS = ("combinations/**/benchmarks/*", "benchmarks/*")
+# Documentation that lives under benchmarks/ but is written by people, not published by a run: no record limit.
+DOCUMENTATION_FOLDERS = ("benchmarks/docs/", "benchmarks/insights/")
 
 
 def over_limit(repo: Path) -> list[tuple[str, int, int]]:
@@ -252,6 +254,8 @@ def over_limit(repo: Path) -> list[tuple[str, int, int]]:
                             check=True).stdout.decode().split("\0")
     out = []
     for rel in filter(None, listed):
+        if rel.startswith(DOCUMENTATION_FOLDERS):
+            continue
         f = repo / rel
         if f.is_file() and f.stat().st_size > size_limit(rel):
             out.append((rel, f.stat().st_size, size_limit(rel)))
