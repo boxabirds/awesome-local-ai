@@ -522,3 +522,30 @@ body,
   color: #e65100;
   margin: 0;
 }
+
+/* ------------------------------------------------------- images / toast ---- */
+
+.toast-notification {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #323232;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.image-object {
+  cursor: pointer;
+  user-select: none;
+}
+
+.image-object.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

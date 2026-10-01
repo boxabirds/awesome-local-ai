@@ -22,5 +22,11 @@
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "single-page-application",
     "binding": "ASSETS"
-  }
+  },
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ]
 }

@@ -32,6 +32,7 @@ import { ShapeObject } from './objects/ShapeObject';
 import { ShapeToolbar } from './objects/ShapeToolbar';
 import { ConnectorObject } from './objects/ConnectorObject';
 import { StrokeObject } from './objects/StrokeObject';
+import { ImageObject } from './objects/ImageObject';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
 import { PenTool } from './tools/PenTool';
@@ -41,6 +42,11 @@ import { installTestHooks } from './canvas/testHooks';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
 import type { Handle, Rect, Point } from '../shared/geometry';
+import type { ImageSnap } from '../shared/objects/image';
+import { deleteObject as deleteObj } from '../shared/board-model';
+import { useImageInsert } from './images/useImageInsert';
+import { useToast, Toast } from './ui/Toast';
+import { DropHighlight } from './images/DropHighlight';
 
 // Register object types (side effect)
 import './objects/registerSticky';
@@ -48,6 +54,7 @@ import './objects/registerText';
 import './objects/registerShape';
 import './objects/registerConnector';
 import './objects/registerStroke';
+import './objects/registerImage';
 
 /** Extract the boardId from /b/:boardId. */
 function readBoardIdFromPath(): string | undefined {
@@ -77,6 +84,72 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
   const { tool, setTool } = useTool(editable);
   const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
   const penOptions = usePenOptions();
+
+  // Toast
+  const { toast, showToast } = useToast();
+
+  // Image insert
+  const imageInsert = useImageInsert({
+    doc,
+    boardId: boardId ?? 'unknown',
+    camera,
+    viewportWidth: viewport.width,
+    viewportHeight: viewport.height,
+    connection: connectionState,
+    identityId: 'local',
+    showToast,
+  });
+
+  // Clock tick for unfinished status (30s interval while any image is uploading)
+  const [clockNow, setClockNow] = useState(() => Date.now());
+  const hasUploading = notes.some((n) => n.type === 'image' && (n as ImageSnap).status === 'uploading');
+  useEffect(() => {
+    if (!hasUploading) return;
+    const interval = setInterval(() => setClockNow(Date.now()), 30_000);
+    return () => clearInterval(interval);
+  }, [hasUploading]);
+
+  // Paste event listener
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => imageInsert.onPaste(e);
+    window.addEventListener('paste', handler);
+    return () => window.removeEventListener('paste', handler);
+  }, [imageInsert.onPaste]);
+
+  // Image I key shortcut (handled here since useActiveTool only handles shape/connector/select)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)) return;
+      if (e.key.toLowerCase() === 'i' && editable) {
+        e.preventDefault();
+        imageInsert.openPicker();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [imageInsert.openPicker, editable]);
+
+  // Drag-and-drop handlers on board viewport (native events)
+  useEffect(() => {
+    const vp = document.querySelector('[data-testid="board-viewport"]');
+    if (!vp) return;
+    const dragEnter = (e: Event) => imageInsert.onDragEnter(e as DragEvent);
+    const dragOver = (e: Event) => imageInsert.onDragOver(e as DragEvent);
+    const dragLeave = (e: Event) => imageInsert.onDragLeave(e as DragEvent);
+    const drop = (e: Event) => imageInsert.onDrop(e as DragEvent);
+    vp.addEventListener('dragenter', dragEnter);
+    vp.addEventListener('dragover', dragOver);
+    vp.addEventListener('dragleave', dragLeave);
+    vp.addEventListener('drop', drop);
+    return () => {
+      vp.removeEventListener('dragenter', dragEnter);
+      vp.removeEventListener('dragover', dragOver);
+      vp.removeEventListener('dragleave', dragLeave);
+      vp.removeEventListener('drop', drop);
+    };
+  }, [imageInsert.onDragEnter, imageInsert.onDragOver, imageInsert.onDragLeave, imageInsert.onDrop]);
 
   // Undo controller: one per board doc, destroyed on board change/unmount (session-only)
   const undoRef = useRef<UndoController | null>(null);
@@ -424,6 +497,27 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
               />
             );
           }
+          if (note.type === 'image') {
+            const img = note as ImageSnap;
+            return (
+              <ImageObject
+                key={note.id}
+                image={img}
+                isUploader={img.uploaderId === 'local'}
+                progress={imageInsert.progress.get(note.id)}
+                canRetry={imageInsert.canRetry(note.id)}
+                now={clockNow}
+                onRetry={() => imageInsert.retry(note.id)}
+                onRemove={() => { deleteObj(doc, note.id); selection.clear(); }}
+                selected={selection.ids.has(note.id)}
+                onSelect={selection.click}
+                onToggle={selection.toggle}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+                zoom={camera.zoom}
+                canEdit={editable}
+              />
+            );
+          }
           return (
             <StickyNote
               key={note.id}
@@ -484,7 +578,7 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
           />
         </div>
       )}
-      <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} undo={undoState} tool={tool} onToolChange={setTool} shapeKind={shapeKind} onShapeKindChange={setShapeKind} />
+      <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} undo={undoState} tool={tool} onToolChange={setTool} shapeKind={shapeKind} onShapeKindChange={setShapeKind} onImageClick={() => imageInsert.openPicker()} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
@@ -494,6 +588,8 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
         onReset={handlers.reset}
       />
       <NavigationHint visible={!hasNavigated} />
+      <DropHighlight visible={imageInsert.isDragging} />
+      <Toast toast={toast} />
     </div>
   );
 }

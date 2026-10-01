@@ -2,10 +2,12 @@ import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { handleTestHook } from './test-hooks';
+import { handleUpload, handleServe } from './assets';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   TEST_HOOKS?: string;
 }
 
@@ -34,6 +36,26 @@ export default {
       }
       // Other methods on /api/boards → 405
       return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    // POST /api/boards/:id/assets — upload image asset
+    const uploadMatch = url.pathname.match(/^\/api\/boards\/([^/]+)\/assets$/);
+    if (uploadMatch) {
+      if (request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const boardId = uploadMatch[1]!;
+      return handleUpload(request, env, boardId);
+    }
+
+    // GET /api/assets/:boardId/:assetId — serve image asset
+    const assetMatch = url.pathname.match(/^\/api\/assets\/([^/]+)\/([^/]+)$/);
+    if (assetMatch) {
+      if (request.method !== 'GET') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const key = `${assetMatch[1]}/${assetMatch[2]}`;
+      return handleServe(env, key);
     }
 
     // GET /api/boards/:id — check board existence

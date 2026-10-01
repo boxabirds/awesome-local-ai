@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  *
  * When `canEdit` becomes false while any non-select tool is active, reverts to 'select'.
  */
-export type Tool = 'select' | 'text' | 'shape' | 'connector' | 'pen';
+export type Tool = 'select' | 'text' | 'shape' | 'connector' | 'pen' | 'image';
 
 export interface UseToolResult {
   tool: Tool;

@@ -8,6 +8,8 @@ import type { ConnectorSnap } from './objects/connector';
 import { detachConnectorsTo } from './objects/connector';
 import type { StrokeSnap } from './objects/stroke';
 import { strokeFromMap } from './objects/stroke';
+import type { ImageSnap } from './objects/image';
+import { imageFromMap } from './objects/image';
 
 /**
  * Board document model: the Yjs schema and every mutation a user can perform on the board.
@@ -56,7 +58,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 }
 
 /** Union snapshot that includes all known object types. */
-export type CombinedSnapshot = StickySnapshot | TextSnapshot | ShapeSnap | ConnectorSnap | StrokeSnap;
+export type CombinedSnapshot = StickySnapshot | TextSnapshot | ShapeSnap | ConnectorSnap | StrokeSnap | ImageSnap;
 
 const metaMap = (doc: Y.Doc): Y.Map<unknown> => doc.getMap(META_MAP);
 
@@ -527,6 +529,9 @@ export function allObjectsSnapshot(doc: Y.Doc): readonly CombinedSnapshot[] {
       } as ConnectorSnap);
     } else if (type === 'stroke') {
       const snap = strokeFromMap(id, map);
+      if (snap) items.push(snap);
+    } else if (type === 'image') {
+      const snap = imageFromMap(id, map);
       if (snap) items.push(snap);
     }
   }

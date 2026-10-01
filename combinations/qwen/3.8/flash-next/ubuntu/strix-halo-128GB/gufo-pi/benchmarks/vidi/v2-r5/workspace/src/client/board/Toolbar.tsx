@@ -12,6 +12,7 @@ export interface ToolbarProps {
   onToolChange?(t: Tool): void;
   shapeKind?: ShapeKind;
   onShapeKindChange?(k: ShapeKind): void;
+  onImageClick?(): void;
 }
 
 /** Tooltip and accessible name of the sticky note button, exactly as the PRD words it. */
@@ -23,7 +24,7 @@ export const STICKY_NOTE_TOOLTIP = 'Sticky note (N) – or double-click the boar
  * Pointer events stop at the toolbar so a click never reaches the viewport (which would pan the
  * board or clear the selection).
  */
-export function Toolbar({ onCreateSticky, disabled, undo, tool, onToolChange }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled, undo, tool, onToolChange, onImageClick }: ToolbarProps) {
   const stop = (event: React.SyntheticEvent): void => {
     event.stopPropagation();
   };
@@ -122,6 +123,21 @@ export function Toolbar({ onCreateSticky, disabled, undo, tool, onToolChange }: 
           >
             <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
               <path fill="currentColor" d="M3 17l1.5-4L14 3.5 16.5 6 7 15.5 3 17zm10.5-12L15 4l2 2-1.5 1.5-2-2.5z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="board-toolbar-button"
+            data-testid="tool-image-button"
+            aria-label="Image (I)"
+            title="Image (I)"
+            onClick={onImageClick}
+            disabled={disabled}
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <rect x="2" y="3" width="16" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="7" cy="8" r="2" fill="currentColor" />
+              <path d="M2 14l4-4 3 3 4-5 5 6" fill="none" stroke="currentColor" strokeWidth="1.5" />
             </svg>
           </button>
         </>
