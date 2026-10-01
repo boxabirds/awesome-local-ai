@@ -129,3 +129,20 @@ export const LINK_COPIED_MS = 2000;
 
 /** Backoff base for board existence check retries. */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+/* Selection and transform (story 7) --------------------------------------- */
+
+/** Resize handle size in screen pixels (constant at any zoom). */
+export const HANDLE_SIZE_PX = 8;
+
+/** Minimum sticky note size in world units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/** Maximum object size in world units (any type). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** Arrow-key nudge step in world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Shift+arrow nudge step in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;

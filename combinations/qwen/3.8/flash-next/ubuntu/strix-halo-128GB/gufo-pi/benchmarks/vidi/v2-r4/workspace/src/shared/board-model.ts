@@ -28,6 +28,8 @@ import {
   STICKY_SIZE_WORLD,
   type StickyColor,
 } from './config';
+import type { Rect } from './geometry';
+import { rectContains } from './geometry';
 
 /** Origin tag for every local mutation (story 8 undo, story 3 echo filter). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6-local');
@@ -39,11 +41,15 @@ export interface StickySnapshot {
   type: 'sticky';
   x: number;
   y: number;
+  width?: number;
+  height?: number;
   color: StickyColor;
   text: string;
   z: number;
   createdAt: number;
 }
+
+export type ObjectSnapshot = StickySnapshot;
 
 function objectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap<Y.Map<unknown>>('objects') as unknown as Y.Map<Y.Map<unknown>>;
@@ -151,6 +157,160 @@ export function deleteObject(doc: Y.Doc, id: string): boolean {
   return true;
 }
 
+/* ---- Group operations (story 7) ---- */
+
+/** Return the bounding rect of an object snapshot. Falls back to STICKY_SIZE_WORLD. */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  return {
+    x: obj.x,
+    y: obj.y,
+    width: obj.width ?? STICKY_SIZE_WORLD,
+    height: obj.height ?? STICKY_SIZE_WORLD,
+  };
+}
+
+/**
+ * Return ids of objects fully inside `rect` (marquee rule: only fully-enclosed objects).
+ */
+export function objectsInRect(snapshotList: readonly ObjectSnapshot[], rect: Rect): string[] {
+  const result: string[] = [];
+  for (const obj of snapshotList) {
+    if (rectContains(rect, objectBounds(obj))) result.push(obj.id);
+  }
+  return result;
+}
+
+/**
+ * Return all registered object ids (skips unknown types).
+ * Currently 'sticky' is the only registered type; later stories add more.
+ */
+export function allObjectIds(snapshotList: readonly ObjectSnapshot[]): string[] {
+  return snapshotList.map((obj) => obj.id);
+}
+
+/**
+ * Move multiple objects to absolute positions.
+ * Returns the number of objects moved. Skips missing ids.
+ * Rejects non-finite positions; returns 0 if any are non-finite.
+ */
+export function moveObjects(
+  doc: Y.Doc,
+  positions: ReadonlyMap<string, { x: number; y: number }>,
+): number {
+  if (positions.size === 0) return 0;
+  const objects = objectsMap(doc);
+  // Validate all positions first
+  for (const pos of positions.values()) {
+    if (!isFinitePoint(pos.x, pos.y)) return 0;
+  }
+  let count = 0;
+  doc.transact(() => {
+    for (const [id, pos] of positions) {
+      const note = objects.get(id);
+      if (!note) continue;
+      note.set('x', pos.x);
+      note.set('y', pos.y);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Resize multiple objects to absolute rects.
+ * Returns the number of objects resized. Skips missing ids.
+ * Rejects non-finite rects; returns 0 if any are non-finite.
+ */
+export function resizeObjects(
+  doc: Y.Doc,
+  rects: ReadonlyMap<string, Rect>,
+): number {
+  if (rects.size === 0) return 0;
+  const objects = objectsMap(doc);
+  // Validate all rects first
+  for (const r of rects.values()) {
+    if (!Number.isFinite(r.x) || !Number.isFinite(r.y) || !Number.isFinite(r.width) || !Number.isFinite(r.height)) return 0;
+  }
+  let count = 0;
+  doc.transact(() => {
+    for (const [id, r] of rects) {
+      const note = objects.get(id);
+      if (!note) continue;
+      note.set('x', r.x);
+      note.set('y', r.y);
+      note.set('width', r.width);
+      note.set('height', r.height);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Bring selected objects to front, above all unselected objects,
+ * while preserving relative z-order among the selected ids.
+ * Returns the number of objects whose z changed.
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const objects = objectsMap(doc);
+  const idSet = new Set(ids);
+
+  // Find the max z among unselected objects and collect selected entries
+  let maxUnselectedZ = 0;
+  const selectedEntries: Array<{ key: string; z: number }> = [];
+  for (const [key, obj] of objects) {
+    const z = obj.get('z');
+    const zVal = typeof z === 'number' ? z : 0;
+    if (idSet.has(key)) {
+      selectedEntries.push({ key, z: zVal });
+    } else {
+      if (zVal > maxUnselectedZ) maxUnselectedZ = zVal;
+    }
+  }
+
+  // Sort selected by their current z to preserve relative order
+  selectedEntries.sort((a, b) => a.z - b.z);
+
+  // Check if all selected objects are already above unselected
+  const minSelectedZ = selectedEntries.length > 0 ? selectedEntries[0]!.z : Infinity;
+  if (minSelectedZ > maxUnselectedZ) return 0;
+
+  let count = 0;
+  doc.transact(() => {
+    for (let i = 0; i < selectedEntries.length; i++) {
+      const entry = selectedEntries[i]!;
+      const obj = objects.get(entry.key);
+      if (!obj) continue;
+      const newZ = maxUnselectedZ + i + 1;
+      if (obj.get('z') !== newZ) {
+        obj.set('z', newZ);
+        count++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Delete multiple objects by id.
+ * Returns the number of objects deleted. Skips missing ids.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const objects = objectsMap(doc);
+  let count = 0;
+  doc.transact(() => {
+    for (const id of ids) {
+      if (objects.has(id)) {
+        objects.delete(id);
+        count++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
 /** The shared Y.Text of a sticky note, for the text editor. */
 export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   const note = objectsMap(doc).get(id);
@@ -167,7 +327,9 @@ function readSticky(id: string, note: Y.Map<unknown>): StickySnapshot | null {
   const z = note.get('z');
   const createdAt = note.get('createdAt');
   const color = note.get('color');
-  return {
+  const width = note.get('width');
+  const height = note.get('height');
+  const snap: StickySnapshot = {
     id,
     type: 'sticky',
     x: typeof x === 'number' ? x : 0,
@@ -177,6 +339,9 @@ function readSticky(id: string, note: Y.Map<unknown>): StickySnapshot | null {
     z: typeof z === 'number' ? z : 0,
     createdAt: typeof createdAt === 'number' ? createdAt : 0,
   };
+  if (typeof width === 'number') snap.width = width;
+  if (typeof height === 'number') snap.height = height;
+  return snap;
 }
 
 /**

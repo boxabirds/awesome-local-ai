@@ -20,7 +20,7 @@ export interface StickyTextEditorProps {
   fontPx: number;
   /** Text box height available for the text, in world units. */
   boxPx?: number;
-  onEnd(next: 'selected' | 'unselected'): void;
+  onEnd(): void;
 }
 
 const NOTE_PADDING_WORLD = 12;
@@ -90,7 +90,7 @@ export function StickyTextEditor({
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        onEnd('selected');
+        onEnd();
       }
       // Enter inserts a newline: the default behaviour of a textarea.
     },

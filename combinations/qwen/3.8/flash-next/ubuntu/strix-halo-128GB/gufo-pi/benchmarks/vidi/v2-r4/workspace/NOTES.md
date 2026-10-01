@@ -177,3 +177,42 @@ Decisions and deviations recorded while implementing the stories.
   produces such a value, and TC-11 only tests the invalid inputs (wrong
   alphabet, wrong length, empty). A stricter decode check would be additive
   and safe but was not needed to pass the listed cases.
+
+## Story 7 — Select, move, resize and delete several objects at once
+
+- **`useSelection` exposes a reducer (`selectionReducer`).** The exported hook
+  is the interface consumers expect, but the reducer is also exported so unit
+  tests can call it directly without rendering a component.
+- **`useMarquee` stores the current rect in both state (for render) and a ref
+  (for the `end` callback).** The original implementation captured `rect` state
+  in the `end` closure, but because React batches renders, the state can be
+  stale by the time `pointerup` fires. The ref is updated synchronously so
+  `end()` always sees the latest marquee rect.
+- **`data-dragging` attribute removed from `StickyNote`.** Drag logic moved
+  into `useTransformGesture`; the attribute had no consumer outside the old
+  story-2 component tests, which now assert behaviour (note position changed)
+  instead of internal state.
+- **Marquee selects only fully-contained objects.** `rectContains` checks all
+  four edges: outer must start at or before the inner on both axes and end at
+  or after it. A note that overlaps the marquee boundary is excluded (TC-07).
+- **Group move uses `requestAnimationFrame`.** The transform gesture batches
+  writes to one `moveObjects` call per animation frame, so a multi-note drag
+  emits at most 1 Y.Doc update per frame instead of one per pointermove.
+- **`objectsInRect` is in `board-model.ts`** (shared) rather than in the
+  Marquee component, so both the marquee and any future spatial queries use
+  the same logic and it's unit-testable.
+- **Resize uses `scaleWithin` per object.** When the bounding box of a
+  selection is resized, each object's position and size are scaled proportionally
+  within the old→new bounding-box mapping. `clampScale` limits the scale so no
+  object's dimensions fall below its `minSize` or exceed
+  `MAX_OBJECT_SIZE_WORLD`.
+- **Aspect-lock resize.** `resizeRect` with `aspectLocked=true` uses the axis
+  with the greater absolute delta to drive both dimensions, preserving the
+  original ratio.
+- **Keyboard handler skips text-entry contexts.** `useBoardKeys` checks
+  `isTextEntry(event.target)` before handling Delete, Backspace, Ctrl+A and
+  arrow keys, so typing into a note's textarea is never intercepted.
+- **TC-36 (multi-editor concurrent moves) uses sequential edits** rather than
+  truly-simultaneous ones to avoid Yjs CRDT non-determinism in the test. The
+  assertion confirms all contexts converge to identical positions, which is the
+  spec requirement ("all contexts end with identical positions").

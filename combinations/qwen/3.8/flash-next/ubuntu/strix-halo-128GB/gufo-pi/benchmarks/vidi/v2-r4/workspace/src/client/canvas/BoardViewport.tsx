@@ -57,6 +57,16 @@ export interface BoardViewportProps {
   bridgeRef?: MutableRefObject<ViewportBridge | null>;
   /** Called whenever the camera changes, so object layers can scale with it. */
   onCameraChange?(camera: Camera): void;
+  /** Called when shift+drag starts on empty space (marquee). */
+  onMarqueeStart?(screen: Point): void;
+  /** Called when shift+drag moves. */
+  onMarqueeMove?(screen: Point): void;
+  /** Called when shift+drag ends. */
+  onMarqueeEnd?(): void;
+  /** Called when shift+drag is cancelled. */
+  onMarqueeCancel?(): void;
+  /** Overlay content rendered after the world layer (for marquee, selection overlay, etc.) */
+  overlay?: ReactNode;
 }
 
 /**
@@ -65,11 +75,11 @@ export interface BoardViewportProps {
  *
  * - Drag on empty board space pans (pointer capture; ends on pointerup,
  *   pointercancel or lost capture).
+ * - Shift+drag on empty board space starts a marquee selection.
  * - A non-passive wheel handler always calls `preventDefault`, so scrolling
  *   pans and Ctrl/Cmd-scroll (or a trackpad pinch) zooms the *board*, never the
  *   web page.
- * - Safari `gesturestart`/`gesturechange` are prevented and zoom around the
- *   pointer.
+ * - Safari `gesturestart`/`gesturechange` are prevented and zoom around the pointer.
  * - Ctrl/Cmd + `=`, `-` and `0` zoom one step or reset the view.
  * - A double-click on empty space asks for a sticky note there; a click on
  *   empty space without dragging clears the selection.
@@ -80,6 +90,11 @@ export function BoardViewport({
   onClearSelection,
   bridgeRef,
   onCameraChange,
+  onMarqueeStart,
+  onMarqueeMove,
+  onMarqueeEnd,
+  onMarqueeCancel,
+  overlay,
 }: BoardViewportProps): React.JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
@@ -88,6 +103,7 @@ export function BoardViewport({
   const controllerRef = useRef<CameraController>(controller);
   controllerRef.current = controller;
   const panningRef = useRef(false);
+  const marqueeRef = useRef(false);
   /** Pointer position at the last press on empty board space. */
   const pressStartRef = useRef<Point | null>(null);
   /** Farthest pointer travel since pointerdown, to tell a click from a drag. */
@@ -220,6 +236,11 @@ export function BoardViewport({
     controllerRef.current.endPan();
   }, []);
 
+  const stopMarquee = useCallback(() => {
+    if (!marqueeRef.current) return;
+    marqueeRef.current = false;
+  }, []);
+
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const el = viewportRef.current;
@@ -228,19 +249,41 @@ export function BoardViewport({
       if (event.target !== el) return;
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       el.setPointerCapture?.(event.pointerId);
-      panningRef.current = true;
       travelRef.current = 0;
       pressStartRef.current = pointOf(event.clientX, event.clientY);
+
+      // Shift+drag on empty space → marquee
+      if (event.shiftKey && onMarqueeStart) {
+        marqueeRef.current = true;
+        onMarqueeStart(pointOf(event.clientX, event.clientY));
+        return;
+      }
+
+      // Plain drag → pan
+      panningRef.current = true;
       setPanning(true);
       controllerRef.current.beginPan(pointOf(event.clientX, event.clientY));
     },
-    [pointOf],
+    [pointOf, onMarqueeStart],
   );
 
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!panningRef.current) return;
       const point = pointOf(event.clientX, event.clientY);
+
+      if (marqueeRef.current) {
+        const start = pressStartRef.current;
+        if (start) {
+          travelRef.current = Math.max(
+            travelRef.current,
+            Math.hypot(point.x - start.x, point.y - start.y),
+          );
+        }
+        onMarqueeMove?.(point);
+        return;
+      }
+
+      if (!panningRef.current) return;
       const start = pressStartRef.current;
       if (start) {
         travelRef.current = Math.max(
@@ -250,22 +293,40 @@ export function BoardViewport({
       }
       controllerRef.current.panMove(point);
     },
-    [pointOf],
+    [pointOf, onMarqueeMove],
   );
 
   const onPointerUp = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const el = viewportRef.current;
-      const wasEmptyPress = panningRef.current && travelRef.current < DRAG_THRESHOLD_PX;
+      const wasMarquee = marqueeRef.current;
+      const wasEmptyPress = !wasMarquee && panningRef.current && travelRef.current < DRAG_THRESHOLD_PX;
+
       if (el?.hasPointerCapture?.(event.pointerId)) {
         el.releasePointerCapture(event.pointerId);
       }
+
+      if (wasMarquee) {
+        stopMarquee();
+        onMarqueeEnd?.();
+        return;
+      }
+
       stopPanning();
       // A press on empty board space that never became a drag deselects.
       if (wasEmptyPress && event.target === el) onClearSelection?.();
     },
-    [stopPanning, onClearSelection],
+    [stopPanning, stopMarquee, onClearSelection, onMarqueeEnd],
   );
+
+  const onPointerCancel = useCallback(() => {
+    if (marqueeRef.current) {
+      stopMarquee();
+      onMarqueeCancel?.();
+      return;
+    }
+    stopPanning();
+  }, [stopPanning, stopMarquee, onMarqueeCancel]);
 
   /** A double-click on empty board space asks for a note at that world point. */
   const onDoubleClick = useCallback(
@@ -328,8 +389,8 @@ export function BoardViewport({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={stopPanning}
-        onLostPointerCapture={stopPanning}
+        onPointerCancel={onPointerCancel}
+        onLostPointerCapture={onPointerCancel}
         onDoubleClick={onDoubleClick}
       >
         <div
@@ -345,6 +406,7 @@ export function BoardViewport({
           />
           {children}
         </div>
+        {overlay}
       </div>
       <ZoomControls
         zoomPercent={controller.zoomPercent}
