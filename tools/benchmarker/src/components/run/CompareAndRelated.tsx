@@ -94,7 +94,7 @@ export function RelatedRuns({ run, others }: { run: Row; others: Row[] }) {
                 <span className={`status-word s-${v.status}`}>{v.status}</span>
                 <span className="small"> · <MachineLink machine={r.machine} host={r.host} /> · {r.stories.length} {r.stories.length === 1 ? "story" : "stories"} recorded · </span>
                 {rec.kind === "scored" ? <span className="small">score <b>{rec.passed}/{rec.total}</b></span>
-                  : <span className="small" data-score={rec.reason} data-tip={GLOSSARY.noScore.what}>{rec.reason === "pending" ? `score ${PENDING}` : "no score of record"}</span>}
+                  : <span className="small" data-score={rec.reason} data-tip={GLOSSARY.noScore.what}>{rec.reason === "pending" ? `score ${PENDING}` : "no score"}</span>}
               </li>
             );
           })}

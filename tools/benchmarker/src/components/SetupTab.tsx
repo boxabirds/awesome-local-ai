@@ -58,7 +58,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.awesome-local-ai.dbe
         <li>A node runs one job at a time, in the order queued. A job that fails is restarted up to three times, then marked failed.</li>
         <li>Stopping a running job throws away the story in progress. Restart queues the same run again, which resumes at its first unfinished story.</li>
         <li>Restarting dbench doesn't stop a running job: it's adopted when dbench comes back.</li>
-        <li>At the end of a run the harness saves the app's history (<code>workspace.bundle</code>) and re-scores the final build, so the run can be scored and judged.</li>
+        <li>At the end of a run the harness saves the app's history (<code>workspace.bundle</code>) so the run can be scored and judged.</li>
         <li>Details: <code>tools/dbench/README.md</code> and <code>benchmarks/spec-bench/harness/setup-node.sh</code>.</li>
       </ul>
     </article>

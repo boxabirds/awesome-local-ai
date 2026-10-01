@@ -107,7 +107,7 @@ describe("run state", () => {
     it.each(["running", "queued"] as RunStatus[])("%s: not finished, even with a score from an earlier attempt", (status) => {
       const r = scoreOfRecord(row({ status, scores: { [SUITE]: score(63, 75) } }));
       expect(r).toMatchObject({ kind: "none", reason: "not-finished" });
-      if (r.kind === "none") expect(r.why).toContain(status);
+      if (r.kind === "none") expect(r.why).toBe("Not scored yet.");
     });
 
     it.each([["failed", "failed"], ["stopped", "stopped"], ["cancelled", "was cancelled"], ["unknown", "is in an unknown state"]] as [RunStatus, string][])(
@@ -274,9 +274,9 @@ describe("story state", () => {
 
   describe("square hovers", () => {
     it.each([
-      ["ok", 5, 5, "story 1: all its held-out tests pass (5/5), against the latest build"],
-      ["part", 9, 10, "story 1: some of its held-out tests pass (9/10), against the latest build"],
-      ["bad", 0, 10, "story 1: none of its held-out tests pass (0/10), against the latest build"],
+      ["ok", 5, 5, "story 1: all its held-out tests pass (5/5)"],
+      ["part", 9, 10, "story 1: some of its held-out tests pass (9/10)"],
+      ["bad", 0, 10, "story 1: none of its held-out tests pass (0/10)"],
       ["unbuilt", null, null, "story 1: not built yet"],
       ["running", null, null, "story 1: being built now"],
     ] as [StorySquare["state"], number | null, number | null, string][])("%s", (state, passed, total, text) => {

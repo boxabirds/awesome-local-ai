@@ -29,7 +29,7 @@ const COLUMNS: { term: TermId; cls: string; value: (c: RankedCombination, p: Pre
   { term: "notCounted", cls: "not-counted", value: (c) => Object.values(c.notCounted).reduce((a, b) => a + (b ?? 0), 0) },
 ];
 
-const NONE = "no finished run of record";
+const NONE = "finished run";
 
 function spreadCell(s: Spread | null, fmt: (n: number) => string) {
   return s ? <SpreadText s={s} fmt={fmt} /> : <span className="missing" data-tip={`No ${NONE} recorded this.`}>—</span>;
@@ -45,7 +45,7 @@ function cell(c: RankedCombination, cls: string, p: Predictability) {
     case "combo": return <span className="stack-label"><CombinationLink pack={c.pack} stack={c.stack} label={c.label} /></span>;
     case "machines": return c.machines.join(", ");
     case RANK: return c.score
-      ? <span data-tip={`Score of record: the median of ${c.score.n} finished run${c.score.n === 1 ? "" : "s"} re-scored under the current suite, lowest–highest in brackets.`}>
+      ? <span data-tip={`Score: the median of ${c.score.n} finished run${c.score.n === 1 ? "" : "s"}, lowest–highest in brackets.`}>
           <SpreadText s={c.score} fmt={fmtCount} big={`num-xl ${qualityClass(c.score.total ? c.score.median / c.score.total : null)}`} showN />
         </span>
       : <span className="unranked" data-tip={termTip("unranked")}>not ranked: {c.unranked}</span>;
@@ -100,7 +100,7 @@ export function CombinationsTable({ rows }: { rows: Row[] }) {
     <section className="combinations">
       <h2>
         <span>Combinations</span>
-        <span className="small">ranked on finished runs' scores of record under {suite}: {counted} of the {rows.length} run{rows.length === 1 ? "" : "s"} shown (the filters above decide which)</span>
+        <span className="small">ranked on finished runs' scores: {counted} of the {rows.length} run{rows.length === 1 ? "" : "s"} shown (the filters above decide which)</span>
       </h2>
       <table aria-label="Combinations" className="combos">
         <thead>

@@ -112,7 +112,7 @@ test("combinations: one row each across machines, over the runs shown, sortable,
   await expect(swift).toContainText("node-a");
   await expect(swift).toContainText("1 running");
   await expect(swift).toContainText("2 queued");
-  await expect(page.locator("section.combinations")).toContainText(/ranked on finished runs' scores of record under vidi-v2\.0-pre1: \d+ of the \d+ runs? shown/);
+  await expect(page.locator("section.combinations")).toContainText(/ranked on finished runs' scores: \d+ of the \d+ runs? shown/);
   for (const t of await table.locator("thead th").evaluateAll((ths) => ths.map((th) => th.getAttribute("data-tip") ?? ""))) expect(t.length).toBeGreaterThan(20);
   // Sorting: a click sorts by the column, a second click reverses it; runs without a number stay last.
   const calls = async () => (await table.locator("tbody td.calls .median").allInnerTexts()).map(Number);   // "—" has no median
@@ -128,7 +128,7 @@ test("hovers show at once, on the page itself, and go when the pointer leaves", 
   const tip = page.getByRole("tooltip");
   await page.getByRole("table", { name: "Combinations" }).getByRole("columnheader", { name: /^Score/ }).hover();
   await expect(tip).toBeVisible({ timeout: 500 });
-  await expect(tip).toContainText("The score of record of this combination's finished runs");
+  await expect(tip).toContainText("The median, the lowest and highest of this combination's finished runs' scores");
   await page.mouse.move(1, 1);
   await expect(tip).toBeHidden();
 });

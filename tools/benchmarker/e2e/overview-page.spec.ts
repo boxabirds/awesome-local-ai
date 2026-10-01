@@ -157,11 +157,11 @@ test.describe("a finished run with no score of record: pending, on its own pages
     });
   }
 
-  test("the record doesn't say (one from before): its score under an older suite is shown as not the current suite's, and no more", async ({ page }) => {
+  test("the record doesn't say (one from before): its score under an older suite is shown plainly, with nothing about the suite", async ({ page }) => {
     await patchState(page);
     await page.goto(runHref(SWIFT, "v2-r7"));
     await expect(page.locator('[data-page="run"] [data-section="header"] [data-stat="scoreOfRecord"] .lead-n')).toHaveText("60/75");
-    await expect(page.locator('[data-page="run"] [data-section="header"]')).toContainText("not the current suite (vidi-v2.0-pre1)");
+    await expect(page.locator('[data-page="run"] [data-section="header"]')).not.toContainText(/current suite/);
     await expect(page.locator("body")).not.toContainText(/pending|re-score was|retr|skipped/i);
   });
 

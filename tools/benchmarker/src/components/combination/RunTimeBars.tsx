@@ -20,7 +20,7 @@ export function RunTimeBars({ runs }: { runs: Row[] }) {
       </figcaption>
       {bars.map(({ r, s }) => {
         const sp = s!;
-        const note = [`${sp.stories} recorded stor${sp.stories === 1 ? "y" : "ies"}`, sp.withoutSplit ? `${sp.withoutSplit} without a split` : ""].filter(Boolean).join(", ");
+        const note = [`${sp.stories} stor${sp.stories === 1 ? "y" : "ies"}`, sp.withoutSplit ? `${sp.withoutSplit} without a split` : ""].filter(Boolean).join(", ");
         return (
           <div className="bar-row" key={r.runId} data-run={r.runId}>
             <span className="bar-label">

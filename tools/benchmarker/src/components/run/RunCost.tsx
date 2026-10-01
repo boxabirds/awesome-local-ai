@@ -32,7 +32,7 @@ export function RunCost({ run }: { run: Row }) {
   const or = (v: number | null, show: (n: number) => string, why: Parameters<typeof whyRunMissing>[1]) =>
     v === null ? <Missing why={whyRunMissing(run, why)} /> : show(v);
   return (
-    <Section term="cost" id="cost" aside={<span className="small">over {t.stories} recorded {t.stories === 1 ? "story" : "stories"}</span>}>
+    <Section term="cost" id="cost" aside={<span className="small">over {t.stories} {t.stories === 1 ? "story" : "stories"}</span>}>
       <div className="stats">
         <Stat term="outTokens">{or(t.outTokens, short, "tokens")}</Stat>
         <Stat term="inputRead">{or(t.readTokens, short, "tokens")}</Stat>
@@ -73,7 +73,7 @@ function StoryCostTable({ run }: { run: Row }) {
         <thead>
           <tr>
             <th>Story</th>
-            <th><Term id="storyHeldOut">Held-out (latest build)</Term></th>
+            <th><Term id="storyHeldOut">Held-out</Term></th>
             {COLS.map((c) => <th key={c.term} className="n"><Term id={c.term}>{c.label}</Term></th>)}
           </tr>
         </thead>
@@ -83,7 +83,7 @@ function StoryCostTable({ run }: { run: Row }) {
             return (
               <tr key={s.id} data-story={s.id}>
                 <td className="story-cell"><StoryRunLink pack={run.pack} stack={run.stack} runId={run.runId} story={s.id}>{s.id}. {s.title || `story ${s.id}`}</StoryRunLink> <InterventionMark list={interventionsOf(run, s.id)} compact /></td>
-                <td>{q?.total ? <span className={`held q-text-${q.state}`}>{q.passed}/{q.total}</span> : <Missing why="No held-out result for this story against the latest build." />}</td>
+                <td>{q?.total ? <span className={`held q-text-${q.state}`}>{q.passed}/{q.total}</span> : <Missing why="No held-out result for this story." />}</td>
                 {s.usage
                   ? COLS.map((c) => <td key={c.term} className="n">{c.cell(s.usage!, isCloud(run))}</td>)
                   : <td colSpan={COLS.length} className="no-usage"><Missing why={whyMissing(null, "story")} /> no usage recorded for this story</td>}

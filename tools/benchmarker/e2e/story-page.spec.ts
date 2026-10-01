@@ -75,14 +75,14 @@ test.describe("header", () => {
     const f = section(page, "header").locator('[data-fact="tests"]');
     await expect(f.locator(".big-n")).toHaveText("14");
     await expect(f.locator(".tests-differ")).toHaveText("in 4 runs; 10 in 2");
-    await expect(f.locator(".tests-differ")).toHaveAttribute("data-tip", /14 in 4 runs, 10 in 2 runs\. Runs scored under another suite version/);
+    await expect(f.locator(".tests-differ")).toHaveAttribute("data-tip", /14 in 4 runs, 10 in 2 runs\.$/);
   });
 
   test("held-out tests not recorded by any run: — with why", async ({ page }) => {
     await open(page, "4");
     const m = section(page, "header").locator('[data-fact="tests"] .missing');
     await expect(m).toHaveText("—");
-    await expect(m).toHaveAttribute("data-tip", "No run has recorded this story's held-out tests yet.");
+    await expect(m).toHaveAttribute("data-tip", "No held-out tests for this story yet.");
   });
 
   test("how many story runs, in how many combinations, and how many runs haven't built it", async ({ page }) => {
@@ -246,12 +246,12 @@ test.describe("by combination", () => {
     await expect(cell(page, SWIFT, "v2-r4", "nudges")).toHaveText("0");
   });
 
-  test("held-out: the result right after the story, coloured, and the latest build's beneath it, labelled live", async ({ page }) => {
+  test("held-out: the result right after the story, coloured, and the run's current one beneath it", async ({ page }) => {
     await open(page, "2");
     const c = cell(page, SWIFT, "v2-r6", "heldOut");
     await expect(c.locator(".ho")).toHaveText("11/14");
     await expect(c.locator(".ho .sq")).toHaveClass(/q-part/);
-    await expect(c.locator("[data-latest]")).toHaveText("latest 11/14");
+    await expect(c.locator("[data-latest]")).toHaveText("now 11/14");
     await expect(c.locator("[data-latest] .live-n")).toHaveAttribute("data-tip", new RegExp(`^${GLOSSARY.storyLatestBuild.what.slice(0, 20)}`));
     await expect(section(page, "combinations").locator('thead th[data-measure="heldOut"] .tag-live')).toHaveCount(0);
   });
@@ -262,7 +262,7 @@ test.describe("by combination", () => {
     await expect(r).toHaveAttribute("data-attempt", "building");
     await expect(r.locator(".sp-run-meta .tag-live")).toHaveCount(0);
     await expect(cell(page, OPUS, "v2-r1", "minutes").locator(".live-n")).toHaveText("5 min");
-    await expect(cell(page, OPUS, "v2-r1", "minutes").locator(".live-n")).toHaveAttribute("data-tip", /^Live: agent time so far/);
+    await expect(cell(page, OPUS, "v2-r1", "minutes").locator(".live-n")).toHaveAttribute("data-tip", /^Agent time, so far/);
     await expect(cell(page, OPUS, "v2-r1", "readTokens").locator(".missing")).toHaveAttribute("data-tip", /Being built now/);
     await expect(r.locator(".sp-btn")).toHaveCount(0);   // nothing recorded to compare with
   });
@@ -275,7 +275,7 @@ test.describe("by combination", () => {
     await open(page, "2");
     await expect(row(page, SWIFT, "v2-r7")).toHaveAttribute("data-attempt", "unrecorded");
     await expect(row(page, SWIFT, "v2-r7").locator(".sp-run-meta")).toContainText("no record yet");
-    await expect(cell(page, SWIFT, "v2-r7", "minutes").locator(".missing")).toHaveAttribute("data-tip", /record hasn't arrived yet/);
+    await expect(cell(page, SWIFT, "v2-r7", "minutes").locator(".missing")).toHaveAttribute("data-tip", /Not available yet/);
   });
 
   test("runs that haven't built it: each a link, with its status, and why on hover", async ({ page }) => {

@@ -82,7 +82,7 @@ test.describe("invalid: not in the app at all", () => {
 
   test("combination page: not in the counts, the matrix, the time bars, the tally or the related runs", async ({ page }) => {
     await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
-    await expect(page.locator(".run-counts")).toHaveText("Runs: 4 finished (3 of record, 1 pending) · 1 running · 2 queued");
+    await expect(page.locator(".run-counts")).toHaveText("Runs: 4 finished (3 scored, 1 pending) · 1 running · 2 queued");
     await expect(mRow(page, "v2-r8")).toHaveCount(0);
     await expect(page.getByRole("figure", { name: "Where the time went, per run" }).locator('[data-run="v2-r8"]')).toHaveCount(0);
     await expect(matrix(page).locator('tfoot td[data-story="1"]')).toHaveText("12m");   // the median of the other finished runs

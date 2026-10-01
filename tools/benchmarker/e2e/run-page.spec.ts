@@ -96,21 +96,21 @@ test.describe("header: status", () => {
 });
 
 test.describe("header: the score of record", () => {
-  test("scored: the number, marked 'of record', when and under which suite, linked to the per-story results", async ({ page }) => {
+  test("scored: the number, under a plain label, linked to the per-story results", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
     const s = section(page, "header").locator('[data-stat="scoreOfRecord"]');
     await expect(s.locator(".stat-value .lead-n")).toHaveText("63/75");
-    await expect(s.locator(".tag-record")).toHaveText("of record");
-    await expect(s).toContainText("re-scored 2026-09-30 18:30 UTC · suite vidi-v2.0-pre1");
+    await expect(s.locator(".tag-record")).toHaveCount(0);
+    await expect(s).not.toContainText(/re-scored|suite vidi/);
     await expect(s.locator("a.record-link")).toHaveAttribute("href", `${WEB}/blob/main/combinations/${SWIFT}/benchmarks/vidi/v2-r5/rescore/vidi-v2.0-pre1/per-story.md`);
     await expect(s.locator(".tag-live")).toHaveCount(0);
   });
 
-  test("scored under an older suite: shown, and says it isn't the current suite", async ({ page }) => {
+  test("scored under an older suite: shown, with nothing about the suite", async ({ page }) => {
     await open(page, SWIFT, "v2-r7");
     const s = section(page, "header").locator('[data-stat="scoreOfRecord"]');
     await expect(s.locator(".stat-value .lead-n")).toHaveText("60/75");
-    await expect(s).toContainText("not the current suite (vidi-v2.0-pre1)");
+    await expect(s).not.toContainText(/current suite|re-scored/);
   });
 
   test("the page leads with it: '62/75 held-out tests pass', before the run's name", async ({ page }) => {
@@ -118,17 +118,17 @@ test.describe("header: the score of record", () => {
     const lead = section(page, "header").locator('[data-section="lead"]');
     await expect(lead).toHaveAttribute("data-lead", "record");
     await expect(lead).toContainText("63/75 held-out tests pass");
-    await expect(lead.locator(".tag-record")).toHaveText("of record");
+    await expect(lead.locator(".tag-record")).toHaveCount(0);
     const first = await section(page, "header").evaluate((el) => (el.firstElementChild as HTMLElement).dataset.section);
     expect(first).toBe("lead");
   });
 
-  test("running: the live score so far, said to be so far and over how many stories", async ({ page }) => {
+  test("running: its score over the stories it has finished, with no note about its source", async ({ page }) => {
     await open(page, SWIFT, "v2-r1");
     const lead = section(page, "header").locator('[data-section="lead"]');
     await expect(lead).toHaveAttribute("data-lead", "live");
     await expect(lead).toContainText("6/6 held-out tests pass");
-    await expect(lead).toContainText("so far, after 2 recorded stories");
+    await expect(lead).not.toContainText(/so far|recorded/);
     await expect(lead.locator(".tag-live")).toHaveCount(0);
   });
 
@@ -156,20 +156,20 @@ test.describe("header: the score of record", () => {
 });
 
 test.describe("header: agent time", () => {
-  test("finished: summed over its recorded stories", async ({ page }) => {
+  test("finished: summed over its stories", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
     const t = section(page, "header").locator('[data-stat="agentTime"]');
     await expect(t.locator(".stat-value")).toHaveText("1h31m");
-    await expect(t).toContainText("over 2 recorded stories");
+    await expect(t).toContainText("over 2 stories");
     await expect(t.locator(".tag-live")).toHaveCount(0);
   });
 
-  test("running: the recorded time, and the live total marked live", async ({ page }) => {
+  test("running: the finished stories' time, and the total with the running story", async ({ page }) => {
     await open(page, SWIFT, "v2-r1");
     const t = section(page, "header").locator('[data-stat="agentTime"]');
     await expect(t.locator(".stat-value")).toHaveText("12 min");
     await expect(t).toContainText("1 without a time");
-    await expect(t.locator(".live-line")).toContainText("28 min so far");
+    await expect(t.locator(".live-line")).toContainText("28 min including the running story");
     await expect(t.locator(".live-line .tag-live")).toHaveCount(0);
   });
 
@@ -177,7 +177,7 @@ test.describe("header: agent time", () => {
     await open(page, SWIFT, "v2-r2");
     const m = section(page, "header").locator('[data-stat="agentTime"] .missing');
     await expect(m).toHaveText("—");
-    await expect(m).toHaveAttribute("data-tip", "Nothing recorded yet: the run is queued.");
+    await expect(m).toHaveAttribute("data-tip", "Nothing yet: the run is queued.");
   });
 });
 
@@ -305,7 +305,7 @@ test.describe("cost", () => {
     ];
     for (const [term, text] of want) await expect(stat(page, term), term).toHaveText(text);
     await expect(section(page, "cost").locator('[data-stat="tokS"] .term')).toHaveText("generated tok/s");
-    await expect(section(page, "cost").locator(".rp-head")).toContainText("over 2 recorded stories");
+    await expect(section(page, "cost").locator(".rp-head")).toContainText("over 2 stories");
   });
 
   test("the engine's own speeds on one small line, not among the main figures: generation and reading", async ({ page }) => {
@@ -531,7 +531,7 @@ test.describe("related runs", () => {
     await expect(r.locator('li[data-run="v2-r5"]')).toHaveCount(0);
     await expect(r.locator('li[data-run="v2-r1"]')).toContainText("running");
     await expect(r.locator('li[data-run="v2-r4"]')).toContainText("score 68/75");
-    await expect(r.locator('li[data-run="v2-r2"]')).toContainText("no score of record");
+    await expect(r.locator('li[data-run="v2-r2"]')).toContainText("no score");
     await r.locator('li[data-run="v2-r4"] a.run-link').click();
     await expect(page.locator('[data-page="run"] .run-id')).toHaveText("v2-r4");
   });
