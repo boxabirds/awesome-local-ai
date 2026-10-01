@@ -1,3 +1,37 @@
+commit 87d9870461802076c74bffc3bbd338985b9286a9
+vidi-agent  Thu Oct 1 02:35:38 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ package-lock.json                         | 1331 +++++++++++++++++++++++++++++
+ package.json                              |    9 +-
+ playwright.config.ts                      |    1 +
+ src/client/App.tsx                        |   47 +-
+ src/client/board/useBoardDoc.ts           |   29 +-
+ src/client/styles.css                     |   31 +
+ src/client/sync/ConnectionStatus.tsx      |   40 +
+ src/client/sync/connectBoard.ts           |   99 +++
+ src/client/testHooks.ts                   |   17 +-
+ src/shared/board-id.ts                    |   20 +
+ src/shared/config.ts                      |   20 +
+ src/shared/protocol.ts                    |   58 ++
+ src/worker/board-room.ts                  |  148 ++++
+ src/worker/index.ts                       |   28 +
+ tests/component/ConnectionStatus.test.tsx |   86 ++
+ tests/e2e/live-collaboration.spec.ts      |  345 ++++++++
+ tests/e2e/nightly.spec.ts                 |  182 ++++
+ tests/integration/board-room.test.ts      |  260 ++++++
+ tests/integration/global-setup.ts         |   58 ++
+ tests/integration/worker.test.ts          |   85 ++
+ tests/integration/ws-client.ts            |  252 ++++++
+ tests/unit/board-id.test.ts               |   45 +
+ tests/unit/protocol.test.ts               |   75 ++
+ tsconfig.json                             |    2 +-
+ tsconfig.test.json                        |    2 +-
+ vitest.integration.config.ts              |   23 +
+ wrangler.jsonc                            |   18 +-
+ 27 files changed, 3290 insertions(+), 21 deletions(-)
 commit db27a942270019882fcc9c6327ebff5e282bf6a0
 vidi-agent  Thu Oct 1 01:55:38 2026 +0000
 
