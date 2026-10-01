@@ -3674,7 +3674,8 @@
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r1/workspace && npx"
         },
         "signals": []
-      }
+      },
+      "not_comparable": "This story run also built stories 11 and 12."
     },
     "11": {
       "title": "Sketch freehand with a pen",
@@ -4061,7 +4062,8 @@
           "gist": "E2E_BROWSERS=chromium npx playwright test tests/e2e/sticky-notes.spec.ts --project chromium --reporter=line --workers=1 "
         },
         "signals": []
-      }
+      },
+      "not_comparable": "Most of this story was built during story 10 of this run."
     },
     "12": {
       "title": "Drop images onto the board",
@@ -4507,7 +4509,8 @@
           "gist": "npx playwright test --project=chromium tests/e2e/images.spec.ts -g \"TC-28\" --reporter=line 2>&1 | tail -25"
         },
         "signals": []
-      }
+      },
+      "not_comparable": "Most of this story was built during story 10 of this run."
     }
   },
   "pack": "vidi",
