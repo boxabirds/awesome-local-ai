@@ -61,3 +61,9 @@ The benchmarker (and anything else a person reads results in) presents benchmark
 Internal faults go where they are worked on: the monitor's log (`ops/anomaly-tracking.md`), tests, and fixes. The fix for a fault is to make the system repair itself or not fail, not to explain the fault better on screen.
 
 Why: on 1 October 2026 the dashboard listed skipped re-scores and failed time-accounting checks under "Needs you", with causes and commands to run on bench machines, and then explained them at greater length. The owner: "Apps don't share their bugs with users like this. Stop it. Everywhere."
+
+## Keep the benchmark guide current
+
+`benchmarks/docs/guide/index.html` is the interactive guide to how the benchmark system works: its concepts, entities and their relationships, components, key flows and the operational insights that illustrate them. Whenever you make a major change to the benchmark system, update the guide in the same piece of work, and update the insights it embeds when a new analysis is added. Major means: a new or removed entity, component or flow; a change to how a run, a story, a stop or finish rule, scoring, a sandbox boundary, a release or the benchmarker's presentation works; a new combination kind; a change to what is measured or reported. The guide's own `README.md` lists where each entity, flow and insight lives and what to check. Say in the final report what you changed in the guide, or that nothing needed changing and why.
+
+Why: on 1 October 2026 the system's rules changed several times in a day (what ends a story, what the agent can see, how a score is made, what the app shows) while the only documentation was the code and a long conversation. A guide that is not updated with the system is wrong the first time someone relies on it.
