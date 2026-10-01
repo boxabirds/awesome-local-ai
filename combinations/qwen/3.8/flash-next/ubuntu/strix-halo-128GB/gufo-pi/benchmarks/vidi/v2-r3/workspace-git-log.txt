@@ -1,3 +1,200 @@
+commit f885b723455cfdde40a318e19083465e401b38bf
+vidi-agent  Wed Sep 30 23:56:02 2026 +0000
+
+    harness: snapshot after story 12 (uncommitted agent work)
+
+
+ NOTES.md                                      | 127 +++++-----
+ src/client/App.tsx                            |  74 +++++-
+ src/client/board/Toolbar.tsx                  |  37 ++-
+ src/client/images/DropHighlight.tsx           |  26 ++
+ src/client/images/uploadImage.ts              |  66 ++++++
+ src/client/images/useImageInsert.ts           | 309 ++++++++++++++++++++++++
+ src/client/images/validateFiles.ts            |  48 ++++
+ src/client/objects/ImageObject.tsx            | 234 ++++++++++++++++++
+ src/client/objects/registry.tsx               |  13 +-
+ src/client/ui/Toast.tsx                       |  86 +++++++
+ src/shared/board-model.ts                     |  13 +-
+ src/shared/config.ts                          |  12 +
+ src/shared/geometry.ts                        |   5 +
+ src/shared/image-format.ts                    |  49 ++++
+ src/shared/objects/image.ts                   | 267 +++++++++++++++++++++
+ src/worker/assets.ts                          | 112 +++++++++
+ src/worker/index.ts                           |  22 ++
+ tests/component/ImageObject.test.tsx          | 146 ++++++++++++
+ tests/component/useImageInsert.test.tsx       | 326 ++++++++++++++++++++++++++
+ tests/e2e/images.spec.ts                      | 244 +++++++++++++++++++
+ tests/fixtures/images/corrupt.png             |   1 +
+ tests/fixtures/images/disguised-as-png.png    |   1 +
+ tests/fixtures/images/photo-1x1.jpg           | Bin 0 -> 336 bytes
+ tests/fixtures/images/pixel-1x1.png           | Bin 0 -> 69 bytes
+ tests/fixtures/images/random-bytes.bin        |   1 +
+ tests/fixtures/images/screenshot-100x100.png  | Bin 0 -> 238 bytes
+ tests/fixtures/images/screenshot-100x100b.png | Bin 0 -> 238 bytes
+ tests/fixtures/images/test-1440x900.png       | Bin 0 -> 45 bytes
+ tests/fixtures/images/test-animated.gif       | Bin 0 -> 14 bytes
+ tests/fixtures/images/test-image.webp         | Bin 0 -> 28 bytes
+ tests/fixtures/images/test-photo.jpg          | Bin 0 -> 22 bytes
+ tests/fixtures/images/test-script.svg         |   1 +
+ tests/integration/assets.test.ts              | 187 +++++++++++++++
+ tests/unit/image-format.test.ts               |  78 ++++++
+ tests/unit/image-model.test.ts                | 205 ++++++++++++++++
+ tests/unit/validate-files.test.ts             |  65 +++++
+ wrangler.jsonc                                |   6 +
+ 37 files changed, 2692 insertions(+), 69 deletions(-)
+commit 468f25c16420329f9ff1153d9c9e81ddd54972c8
+vidi-agent  Wed Sep 30 23:15:57 2026 +0000
+
+    harness: snapshot after story 11 (uncommitted agent work)
+
+
+ src/client/App.tsx                       |  67 +++++++++-
+ src/client/board/Toolbar.tsx             |  36 +++++
+ src/client/board/useBoardKeys.ts         |   4 +
+ src/client/canvas/BoardViewport.tsx      |   4 +-
+ src/client/objects/StrokeObject.tsx      |  65 +++++++++
+ src/client/objects/registry.tsx          |  31 ++++-
+ src/client/tools/PenTool.tsx             | 211 ++++++++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx          | 110 ++++++++++++++++
+ src/client/tools/usePenOptions.ts        |  28 ++++
+ src/shared/board-model.ts                |  13 +-
+ src/shared/config.ts                     |  12 ++
+ src/shared/geometry/simplify.ts          | 116 ++++++++++++++++
+ src/shared/objects/stroke.ts             | 184 ++++++++++++++++++++++++++
+ tests/component/PenTool.test.tsx         | 218 +++++++++++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx    | 167 +++++++++++++++++++++++
+ tests/component/harness/BoardHarness.tsx |  81 ++++++++++--
+ tests/fixtures/pen-paths.ts              |  59 +++++++++
+ tests/unit/stroke.test.ts                | 184 ++++++++++++++++++++++++++
+ 18 files changed, 1571 insertions(+), 19 deletions(-)
+commit b2589e8847c664b669f9b65f7d1c7045066f8c06
+vidi-agent  Wed Sep 30 22:52:13 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  |  91 +++++---
+ src/client/App.tsx                        | 276 +++++++++++++++++++++++-
+ src/client/board/Toolbar.tsx              | 116 +++++++++-
+ src/client/board/useBoardKeys.ts          |  10 +-
+ src/client/board/useTool.ts               |   2 +-
+ src/client/canvas/BoardViewport.tsx       |  93 +++++++-
+ src/client/canvas/testHooks.ts            |   6 +
+ src/client/objects/ConnectorObject.tsx    | 117 +++++++++++
+ src/client/objects/ShapeObject.tsx        | 289 +++++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  82 ++++++++
+ src/client/objects/registry.tsx           |  37 +++-
+ src/client/tools/ConnectorTool.tsx        | 284 +++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 156 ++++++++++++++
+ src/client/tools/useActiveTool.ts         |  91 ++++++++
+ src/shared/board-model.ts                 |  29 ++-
+ src/shared/config.ts                      |  36 ++++
+ src/shared/geometry/connector-geometry.ts | 115 ++++++++++
+ src/shared/geometry/polyline.ts           |  42 ++++
+ src/shared/objects/connector.ts           | 338 ++++++++++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 205 ++++++++++++++++++
+ tests/component/ActiveTool.test.tsx       |  51 +++++
+ tests/component/Connector.test.tsx        | 179 ++++++++++++++++
+ tests/component/LoadFailure.test.tsx      |   2 +-
+ tests/component/ShapeTool.test.tsx        | 180 ++++++++++++++++
+ tests/component/harness/BoardHarness.tsx  | 307 ++++++++++++++++++++++++++-
+ tests/e2e/shapes-connectors.spec.ts       | 165 +++++++++++++++
+ tests/unit/board-model.test.ts            |   2 +-
+ tests/unit/connector-model.test.ts        | 276 ++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 209 ++++++++++++++++++
+ tests/unit/undo-history.test.ts           |   4 +-
+ 30 files changed, 3740 insertions(+), 50 deletions(-)
+commit 7ef99df8d3b378e629f036dce0c8287665d33668
+vidi-agent  Wed Sep 30 21:55:57 2026 +0000
+
+    story 9: Write free text anywhere on the board
+
+
+ src/client/App.tsx                       |  65 +++++-
+ src/client/board/SelectionOverlay.tsx    |  20 +-
+ src/client/board/Toolbar.tsx             |  64 +++++-
+ src/client/board/useBoardDoc.ts          |  10 +-
+ src/client/board/useBoardKeys.ts         |  30 ++-
+ src/client/board/useTool.ts              |  34 ++++
+ src/client/canvas/BoardViewport.tsx      |  43 +++-
+ src/client/canvas/testHooks.ts           |   6 +-
+ src/client/objects/StickyText.ts         |  69 +------
+ src/client/objects/TextEditor.tsx        | 274 +++++++++++++++++++++++++
+ src/client/objects/TextObject.tsx        | 202 +++++++++++++++++++
+ src/client/objects/TextToolbar.tsx       |  94 +++++++++
+ src/client/objects/registry.tsx          |  15 +-
+ src/client/objects/textLayout.ts         | 143 +++++++++++++
+ src/client/objects/useTextBoxSync.ts     |  45 +++++
+ src/shared/board-model.ts                |  92 +++++++--
+ src/shared/config.ts                     |  10 +
+ src/shared/objects/text.ts               | 121 +++++++++++
+ src/shared/text-edit.ts                  |  70 +++++++
+ tests/component/TextBoxSync.test.tsx     | 150 ++++++++++++++
+ tests/component/TextObject.test.tsx      | 258 ++++++++++++++++++++++++
+ tests/component/Tool.test.tsx            | 158 +++++++++++++++
+ tests/component/Toolbars.test.tsx        |  11 +-
+ tests/component/UndoBoundaries.test.tsx  |   2 +-
+ tests/component/harness/BoardHarness.tsx |  50 ++++-
+ tests/e2e/helpers/board.ts               |  58 +++++-
+ tests/e2e/text-workflows.spec.ts         | 333 +++++++++++++++++++++++++++++++
+ tests/unit/board-model.test.ts           |  23 ++-
+ tests/unit/text-layout.test.ts           |  86 ++++++++
+ tests/unit/text-model.test.ts            | 140 +++++++++++++
+ tests/unit/undo-history.test.ts          |   4 +-
+ 31 files changed, 2553 insertions(+), 127 deletions(-)
+commit 5c2da1c42b2383bebf35f0b7909747bcd5552fe8
+vidi-agent  Wed Sep 30 21:19:51 2026 +0000
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ NOTES.md                                 | 127 +++----------
+ src/client/App.tsx                       |  38 +++-
+ src/client/board/Toolbar.tsx             |   5 +-
+ src/client/board/UndoButtons.tsx         |  87 +++++++++
+ src/client/board/undo.ts                 | 116 ++++++++++++
+ src/client/board/useBoardKeys.ts         |  30 ++-
+ src/client/board/useUndo.ts              |  42 +++++
+ src/client/objects/StickyNote.tsx        |  13 +-
+ src/client/objects/StickyTextEditor.tsx  |  46 ++++-
+ src/shared/config.ts                     |   4 +
+ tests/component/UndoBoundaries.test.tsx  | 192 +++++++++++++++++++
+ tests/component/UndoControls.test.tsx    | 163 ++++++++++++++++
+ tests/component/harness/BoardHarness.tsx |  26 ++-
+ tests/e2e/undo.spec.ts                   | 305 ++++++++++++++++++++++++++++++
+ tests/unit/peer.ts                       |  77 ++++++++
+ tests/unit/undo-boundaries.test.ts       |  98 ++++++++++
+ tests/unit/undo-history.test.ts          | 315 +++++++++++++++++++++++++++++++
+ 17 files changed, 1569 insertions(+), 115 deletions(-)
+commit 92033884e3bcb696681609d9d29eb355e7092264
+vidi-agent  Wed Sep 30 20:51:49 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ src/client/App.tsx                            | 146 +++++---
+ src/client/board/Marquee.tsx                  | 111 ++++++
+ src/client/board/SelectionBar.tsx             |  72 ++++
+ src/client/board/SelectionOverlay.tsx         | 133 ++++++++
+ src/client/board/useBoardKeys.ts              |  87 +++++
+ src/client/board/useSelection.ts              | 139 ++++++--
+ src/client/board/useTransformGesture.ts       | 298 +++++++++++++++++
+ src/client/canvas/BoardViewport.tsx           |  56 +++-
+ src/client/canvas/testHooks.ts                |   2 +
+ src/client/objects/StickyNote.tsx             | 150 +--------
+ src/client/objects/registry.tsx               |  55 +++
+ src/shared/board-model.ts                     | 186 +++++++++++
+ src/shared/config.ts                          |   7 +
+ src/shared/geometry.ts                        | 177 ++++++++++
+ tests/component/SelectionInteraction.test.tsx | 334 ++++++++++++++++++
+ tests/component/harness/BoardHarness.tsx      | 140 ++++++--
+ tests/e2e/helpers/board.ts                    |  33 ++
+ tests/e2e/multi-selection.spec.ts             | 465 ++++++++++++++++++++++++++
+ tests/unit/board-model-group.test.ts          | 256 ++++++++++++++
+ tests/unit/geometry.test.ts                   | 151 +++++++++
+ tests/unit/registry.test.ts                   |  60 ++++
+ tests/unit/selection-reducer.test.ts          |  85 +++++
+ 22 files changed, 2901 insertions(+), 242 deletions(-)
 commit 57193bc06b3dc80eba6645aceab4705ecd7a2d6b
 vidi-agent  Wed Sep 30 20:00:48 2026 +0000
 

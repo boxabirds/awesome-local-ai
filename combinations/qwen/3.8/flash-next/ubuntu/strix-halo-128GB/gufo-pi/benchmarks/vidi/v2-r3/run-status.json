@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness e177726a, client pi, model qwen3.8-flash-next-gufo",
-  "at": "2026-09-30T15:23:36Z",
-  "host": "AMD RYZEN AI MAX+ 395 w/ Radeon 8060S 122GB"
+  "state": "finished",
+  "reason": "",
+  "at": "2026-09-30T23:59:35Z",
+  "host": "AMD RYZEN AI MAX+ 395 w/ Radeon 8060S 122GB, bd:00.0 Display controller: Advanced Micro Devices, Inc. [AMD/ATI] Strix Halo [Radeon Graphics / Radeon 8050S Graphics / Radeon 8060S Graphics] (rev c1)"
 }
