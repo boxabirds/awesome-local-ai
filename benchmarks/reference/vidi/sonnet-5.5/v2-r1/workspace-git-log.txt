@@ -1,3 +1,44 @@
+commit a6545976e85e88510c9fcf1f980c7d5e33c3a7fa
+vidi-agent  Thu Oct 1 02:22:23 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                  |    15 +
+ package-lock.json                         |  1109 +-
+ package.json                              |    15 +-
+ playwright.config.ts                      |     4 +
+ src/client/App.tsx                        |     8 +-
+ src/client/board/useBoardDoc.ts           |    24 +-
+ src/client/canvas/testHooks.ts            |    17 +-
+ src/client/main.tsx                       |    12 +-
+ src/client/objects/StickyText.ts          |    19 +
+ src/client/objects/StickyTextEditor.tsx   |     8 +-
+ src/client/styles.css                     |    27 +
+ src/client/sync/ConnectionStatus.tsx      |    16 +
+ src/client/sync/connectBoard.ts           |    74 +
+ src/shared/board-id.ts                    |    13 +
+ src/shared/config.ts                      |     7 +
+ src/shared/protocol.ts                    |    36 +
+ src/worker/board-room.ts                  |   101 +
+ src/worker/index.ts                       |    23 +
+ tests/component/ConnectionStatus.test.tsx |   136 +
+ tests/e2e/helpers/participants.ts         |   153 +
+ tests/e2e/live-collaboration.spec.ts      |   241 +
+ tests/e2e/nightly/live-soak.spec.ts       |   118 +
+ tests/fixtures/random-ops.ts              |    55 +
+ tests/integration/board-room.test.ts      |   245 +
+ tests/integration/worker.test.ts          |    67 +
+ tests/integration/ws-client.ts            |   116 +
+ tests/unit/board-id.test.ts               |    39 +
+ tests/unit/caret-mapping.test.ts          |    39 +
+ tests/unit/protocol.test.ts               |    48 +
+ tsconfig.json                             |     3 +-
+ tsconfig.worker.json                      |    14 +
+ vitest.config.ts                          |     5 +
+ worker-configuration.d.ts                 | 16187 ++++++++++++++++++++++++++++
+ wrangler.jsonc                            |    10 +-
+ 34 files changed, 18927 insertions(+), 77 deletions(-)
 commit e79d9d728ed304367372cfcd6d385d9ba4042b38
 vidi-agent  Thu Oct 1 02:05:32 2026 +0100
 
