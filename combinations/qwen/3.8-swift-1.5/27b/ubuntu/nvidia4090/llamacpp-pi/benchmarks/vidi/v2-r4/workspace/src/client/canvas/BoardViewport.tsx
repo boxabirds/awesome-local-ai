@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback, type JSX } from 'react';
 import type { Camera, Point } from './camera';
 import { GRID_SPACING_WORLD } from '../../shared/config';
+import type { Tool } from '../board/useTool';
 
 export interface BoardViewportProps {
   children?: React.ReactNode;
@@ -13,6 +14,10 @@ export interface BoardViewportProps {
   reset(): void;
   onDoubleClickEmpty?(p: Point): void;
   onPointerDownEmpty?(): void;
+  /** Active tool (story 9). While 'text', board clicks create text. */
+  tool?: Tool;
+  /** Text tool: pointerdown anywhere on the board (screen coords). */
+  onTextToolClick?(p: Point): void;
   onMarqueeBegin?(p: Point): void;
   onMarqueeMove?(p: Point): void;
   onMarqueeEnd?(): void;
@@ -138,6 +143,30 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     [props.onDoubleClickEmpty],
   );
 
+  // Text tool (story 9): while active, any pointerdown on the board creates
+  // a text object at that point (even over existing objects). Toolbar,
+  // selection bar and handles are excluded. Capture phase so object handlers
+  // never see the event. Empty-space pointerdowns neither pan nor marquee.
+  useEffect(() => {
+    if (props.tool !== 'text') return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handler = (e: PointerEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-testid="toolbar"]')) return;
+      if (target.closest('[data-testid="selection-bar"]')) return;
+      if (target.closest('[data-testid^="handle-"]')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = el.getBoundingClientRect();
+      props.onTextToolClick?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    };
+
+    el.addEventListener('pointerdown', handler, { capture: true });
+    return () => el.removeEventListener('pointerdown', handler, { capture: true });
+  }, [props.tool, props.onTextToolClick]);
+
   // Wheel event (non-passive)
   useEffect(() => {
     const el = containerRef.current;
@@ -241,7 +270,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         height: '100%',
         position: 'relative',
         overflow: 'hidden',
-        cursor: 'grab',
+        cursor: props.tool === 'text' ? 'text' : 'grab',
         backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)',
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${bgX}px ${bgY}px`,

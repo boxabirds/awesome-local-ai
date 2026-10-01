@@ -17,6 +17,7 @@ import {
   getStickyText,
   snapshot,
   type ObjectSnapshot,
+  type StickySnapshot,
 } from '../../src/shared/board-model';
 import { useTransformGesture } from '../../src/client/board/useTransformGesture';
 import { createUndo, type UndoController } from '../../src/client/board/undo';
@@ -187,7 +188,7 @@ describe('undo.boundaries: component-level gesture and typing steps', () => {
     const id = createSticky(doc, { x: 100, y: 100 });
     undo.current = createUndo(doc);
 
-    const start = snapshot(doc)[0];
+    const start = snapshot(doc)[0] as StickySnapshot;
     const snap = snapshot(doc) as readonly ObjectSnapshot[];
     const selection = makeSelection([id]);
 
@@ -220,13 +221,13 @@ describe('undo.boundaries: component-level gesture and typing steps', () => {
 
     // Undo #1: colour reverts, position stays at the dragged position
     expect(undo.current!.undo()).toBe(true);
-    let now = snapshot(doc)[0];
+    let now = snapshot(doc)[0] as StickySnapshot;
     expect(now.color).toBe(start.color);
     expect(now.x).toBe(afterDrag.x);
 
     // Undo #2: position reverts to the start
     expect(undo.current!.undo()).toBe(true);
-    now = snapshot(doc)[0];
+    now = snapshot(doc)[0] as StickySnapshot;
     expect(now.x).toBe(start.x);
     expect(now.y).toBe(start.y);
     expect(undo.current!.canUndo()).toBe(false);

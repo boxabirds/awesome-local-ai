@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import * as Y from 'yjs';
-import { initDoc, createSticky, snapshot, setStickyColor, deleteObjects } from '../../src/shared/board-model';
+import { initDoc, createSticky, snapshot, setStickyColor, deleteObjects, type StickySnapshot } from '../../src/shared/board-model';
+
+// Story 9 widened snapshot() to AnySnapshot; these tests only create sticky
+// notes, so cast at the boundary (no assertion changes).
+const sticky = (doc: Y.Doc, i = 0): StickySnapshot =>
+  snapshot(doc)[i] as StickySnapshot;
 import { Toolbar } from '../../src/client/board/Toolbar';
 import { NoteToolbar } from '../../src/client/objects/NoteToolbar';
 
@@ -22,7 +27,7 @@ describe('Toolbar component tests', () => {
     const doc = new Y.Doc();
     initDoc(doc);
     const id = createSticky(doc, { x: 100, y: 100 });
-    const note = snapshot(doc)[0];
+    const note = sticky(doc);
 
     expect(note.color).toBe('yellow');
 
@@ -41,7 +46,7 @@ describe('Toolbar component tests', () => {
       pinkBtn.click();
     });
 
-    const after = snapshot(doc)[0];
+    const after = sticky(doc);
     expect(after.color).toBe('pink');
     // Selection is kept (note still exists)
     expect(after.id).toBe(id);
@@ -65,7 +70,7 @@ describe('Toolbar component tests', () => {
       />
     );
 
-    const btn = container.querySelector('[aria-label="Sticky note"]') as HTMLButtonElement;
+    const btn = container.querySelector('[aria-label="Sticky note (N)"]') as HTMLButtonElement;
     expect(btn).toBeTruthy();
 
     act(() => {
@@ -82,7 +87,7 @@ describe('Toolbar component tests', () => {
     const doc = new Y.Doc();
     initDoc(doc);
     const id = createSticky(doc, { x: 100, y: 100 });
-    const note = snapshot(doc)[0];
+    const note = sticky(doc);
 
     let selectionCleared = false;
 

@@ -1,59 +1,19 @@
-import * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS, STICKY_COUNTER_THRESHOLD_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX } from '../../shared/config';
-import { LOCAL_ORIGIN } from '../../shared/board-model';
+import { clampToLimit as clampToLimitWithMax } from '../../shared/text-edit';
 
+export { applyTextDiff } from '../../shared/text-edit';
+
+/**
+ * Story 2 sticky-text clamp: defaults to STICKY_TEXT_MAX_CHARS so existing
+ * callers are unchanged (story 9 moved the implementation to the shared
+ * text-edit module).
+ */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (next.length <= max) return next;
-  return next.slice(0, max);
+  return clampToLimitWithMax(next, max);
 }
 
 export function counterVisible(length: number): boolean {
   return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;
-}
-
-/**
- * Applies a minimal diff (common prefix + common suffix) to a Y.Text.
- * This is surrogate-pair safe because we work with the string directly
- * and Y.Text handles the Unicode internally.
- */
-export function applyTextDiff(ytext: Y.Text, next: string, _origin?: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-
-  // Find common prefix
-  let prefixLen = 0;
-  const minLen = Math.min(current.length, next.length);
-  while (prefixLen < minLen && current[prefixLen] === next[prefixLen]) {
-    prefixLen++;
-  }
-
-  // Find common suffix (not overlapping with prefix)
-  let suffixLen = 0;
-  while (
-    suffixLen < minLen - prefixLen &&
-    current[current.length - 1 - suffixLen] === next[next.length - 1 - suffixLen]
-  ) {
-    suffixLen++;
-  }
-
-  const deleteStart = prefixLen;
-  const deleteEnd = current.length - suffixLen;
-  const insertStr = next.slice(prefixLen, next.length - suffixLen);
-
-  // One tracked transaction per keystroke so per-user undo (story 8) sees
-  // these edits as local changes with LOCAL_ORIGIN.
-  const apply = () => {
-    ytext.delete(deleteStart, deleteEnd - deleteStart);
-    if (insertStr.length > 0) {
-      ytext.insert(deleteStart, insertStr);
-    }
-  };
-  const ydoc = ytext.doc;
-  if (ydoc == null) {
-    apply(); // detached type: no doc to transact on (not reachable in the app)
-  } else {
-    ydoc.transact(apply, LOCAL_ORIGIN);
-  }
 }
 
 /**

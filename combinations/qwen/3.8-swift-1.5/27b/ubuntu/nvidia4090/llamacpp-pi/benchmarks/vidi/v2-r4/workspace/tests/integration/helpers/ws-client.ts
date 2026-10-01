@@ -162,7 +162,9 @@ export class WsClient {
   }
 
   getSnapshot(): readonly StickySnapshot[] {
-    return snapshot(this.doc);
+    // Story 9 widened snapshot() to AnySnapshot; all integration objects are
+    // sticky notes, so cast at the boundary (no semantic change).
+    return snapshot(this.doc) as readonly StickySnapshot[];
   }
 
   getNoteCount(): number {

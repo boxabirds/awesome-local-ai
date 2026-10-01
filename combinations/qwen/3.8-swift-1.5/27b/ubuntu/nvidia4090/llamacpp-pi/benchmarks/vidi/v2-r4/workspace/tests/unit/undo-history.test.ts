@@ -10,6 +10,7 @@ import {
   getStickyText,
   snapshot,
   type StickySnapshot,
+  type AnySnapshot,
 } from '../../src/shared/board-model';
 import { UNDO_MAX_STEPS } from '../../src/shared/config';
 import { createUndo, type UndoController } from '../../src/client/board/undo';
@@ -26,10 +27,12 @@ afterEach(() => {
   while (controllers.length > 0) controllers.pop()!.destroy();
 });
 
-function find(snap: readonly StickySnapshot[], id: string): StickySnapshot {
+// All objects created in these tests are sticky notes, so the lookup result
+// is a StickySnapshot (story 9 widened snapshot() to AnySnapshot).
+function find(snap: readonly AnySnapshot[], id: string): StickySnapshot {
   const found = snap.find((n) => n.id === id);
   if (!found) throw new Error(`object ${id} not found in snapshot`);
-  return found;
+  return found as StickySnapshot;
 }
 
 describe('undo.history: per-user undo over the objects map', () => {
@@ -124,7 +127,8 @@ describe('undo.history: per-user undo over the objects map', () => {
     expect(undo.undo()).toBe(true);
     const after = snapshot(doc);
     expect(after).toHaveLength(8);
-    for (const b of before) {
+    for (const bRaw of before) {
+      const b = bRaw as StickySnapshot; // all objects here are sticky notes
       const a = find(after, b.id);
       expect(a.x).toBe(b.x);
       expect(a.y).toBe(b.y);

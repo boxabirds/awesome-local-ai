@@ -1,6 +1,9 @@
 import type { JSX } from 'react';
 import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
+import type { TextSnapshot } from '../../shared/objects/text';
+import type { TextSize } from '../../shared/config';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 import { deleteObjects } from '../../shared/board-model';
 import type * as Y from 'yjs';
 
@@ -10,6 +13,8 @@ export interface SelectionBarProps {
   doc: Y.Doc;
   onDelete(): void;
   onColor(id: string, color: string): void;
+  /** Text size change from the text toolbar (story 9). */
+  onTextSize?(id: string, size: TextSize): void;
 }
 
 export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
@@ -17,7 +22,7 @@ export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
 
   if (ids.size === 0) return null;
 
-  // Exactly one sticky note → show NoteToolbar
+  // Exactly one object → show its type-specific toolbar
   if (ids.size === 1) {
     const id = [...ids][0];
     const obj = snapshot.find((o) => o.id === id);
@@ -36,6 +41,29 @@ export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
           <NoteToolbar
             color={sticky.color}
             onColor={(c) => props.onColor(id, c)}
+            onDelete={() => {
+              deleteObjects(doc, [id]);
+              onDelete();
+            }}
+          />
+        </div>
+      );
+    }
+    if (obj && obj.type === 'text') {
+      const text = obj as TextSnapshot;
+      return (
+        <div
+          data-testid="selection-bar"
+          style={{
+            position: 'absolute',
+            top: -50,
+            left: '50%',
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <TextToolbar
+            size={text.size}
+            onSize={(s) => props.onTextSize?.(id, s)}
             onDelete={() => {
               deleteObjects(doc, [id]);
               onDelete();

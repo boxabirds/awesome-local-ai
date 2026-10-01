@@ -10,8 +10,13 @@ import {
   getStickyText,
   snapshot,
   LOCAL_ORIGIN,
+  type StickySnapshot,
 } from '../../src/shared/board-model';
 import { STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR } from '../../src/shared/config';
+
+// Every object created in these tests is a sticky note; story 9 widened
+// snapshot() to AnySnapshot, so cast at the boundary (no assertion changes).
+const snapSticky = (d: Y.Doc): readonly StickySnapshot[] => snapshot(d) as readonly StickySnapshot[];
 
 function countUpdates(doc: Y.Doc): { count: () => number; off: () => void } {
   let count = 0;
@@ -38,7 +43,7 @@ describe('board-model unit tests', () => {
     expect(id).toBeTypeOf('string');
     expect(id.length).toBeGreaterThan(0);
 
-    const snap = snapshot(doc);
+    const snap = snapSticky(doc);
     expect(snap).toHaveLength(1);
     expect(snap[0].id).toBe(id);
     expect(snap[0].type).toBe('sticky');
@@ -58,7 +63,7 @@ describe('board-model unit tests', () => {
     createSticky(doc, { x: 100, y: 100 });
     const id3 = createSticky(doc, { x: 200, y: 200 });
 
-    const snap = snapshot(doc);
+    const snap = snapSticky(doc);
     expect(snap).toHaveLength(3);
     const note3 = snap.find((s) => s.id === id3)!;
     expect(note3.z).toBe(3);
@@ -67,14 +72,14 @@ describe('board-model unit tests', () => {
   // TC-03: moveObject updates x,y, other fields unchanged
   it('TC-03: moveObject updates x and y, other fields unchanged', () => {
     const id = createSticky(doc, { x: 0, y: 0 });
-    const before = snapshot(doc)[0];
+    const before = snapSticky(doc)[0];
 
     const up = countUpdates(doc);
     const result = moveObject(doc, id, 10, -20);
     expect(result).toBe(true);
     expect(up.count()).toBe(1);
 
-    const after = snapshot(doc)[0];
+    const after = snapSticky(doc)[0];
     expect(after.x).toBe(10);
     expect(after.y).toBe(-20);
     expect(after.color).toBe(before.color);
@@ -96,14 +101,14 @@ describe('board-model unit tests', () => {
   // TC-05: setStickyColor green → applied; text, x, y, z unchanged
   it('TC-05: setStickyColor applies colour, other fields unchanged', () => {
     const id = createSticky(doc, { x: 50, y: 50 });
-    const before = snapshot(doc)[0];
+    const before = snapSticky(doc)[0];
 
     const up = countUpdates(doc);
     const result = setStickyColor(doc, id, 'green');
     expect(result).toBe(true);
     expect(up.count()).toBe(1);
 
-    const after = snapshot(doc)[0];
+    const after = snapSticky(doc)[0];
     expect(after.color).toBe('green');
     expect(after.text).toBe(before.text);
     expect(after.x).toBe(before.x);
@@ -121,7 +126,7 @@ describe('board-model unit tests', () => {
     expect(result).toBe(false);
     expect(up.count()).toBe(0);
 
-    const after = snapshot(doc)[0];
+    const after = snapSticky(doc)[0];
     expect(after.color).toBe(DEFAULT_STICKY_COLOR);
     up.off();
   });
@@ -129,13 +134,13 @@ describe('board-model unit tests', () => {
   // TC-07: deleteObject → removed
   it('TC-07: deleteObject removes the note', () => {
     const id = createSticky(doc, { x: 0, y: 0 });
-    expect(snapshot(doc)).toHaveLength(1);
+    expect(snapSticky(doc)).toHaveLength(1);
 
     const up = countUpdates(doc);
     const result = deleteObject(doc, id);
     expect(result).toBe(true);
     expect(up.count()).toBe(1);
-    expect(snapshot(doc)).toHaveLength(0);
+    expect(snapSticky(doc)).toHaveLength(0);
     up.off();
   });
 
@@ -160,7 +165,7 @@ describe('board-model unit tests', () => {
     expect(result).toBe(true);
     expect(up.count()).toBe(1);
 
-    const snap = snapshot(doc);
+    const snap = snapSticky(doc);
     const note1 = snap.find((s) => s.id === id1)!;
     expect(note1.z).toBe(4);
     up.off();
@@ -208,14 +213,14 @@ describe('board-model unit tests', () => {
       objects.set('a-id', objB);
     }, LOCAL_ORIGIN);
 
-    const snap = snapshot(doc);
+    const snap = snapSticky(doc);
     expect(snap).toHaveLength(2);
     // 'a-id' < 'b-id' so a-id comes first
     expect(snap[0].id).toBe('a-id');
     expect(snap[1].id).toBe('b-id');
 
     // Stable across calls
-    const snap2 = snapshot(doc);
+    const snap2 = snapSticky(doc);
     expect(snap2[0].id).toBe('a-id');
     expect(snap2[1].id).toBe('b-id');
   });
@@ -236,7 +241,7 @@ describe('board-model unit tests', () => {
       objects.set('shape-id', obj);
     }, LOCAL_ORIGIN);
 
-    const snap = snapshot(doc);
+    const snap = snapSticky(doc);
     expect(snap).toHaveLength(1);
     expect(snap[0].id).toBe(id);
   });

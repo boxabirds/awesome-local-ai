@@ -88,3 +88,61 @@
   nightly-collab, broken-board specs, and share TC-27. They fail on
   `goto('/')`/unknown-board-URL setups that no longer match app
   routing (home page requires clicking "New board").
+
+## Story 9: Write free text anywhere on the board
+- `src/shared/objects/text.ts` — text object model: `createText`
+  (LOCAL_ORIGIN, z = max+1, initial estimated box), `setTextSize`,
+  `setTextWidthFixed` (clamped to TEXT_MIN_WIDTH_WORLD), `setTextBox`,
+  `getTextContent`, `isEmptyText` (zero characters only),
+  `deleteIfEmpty` (via story 7 `deleteObjects`). All setters reject
+  stale ids / non-finite numbers without a transaction.
+- `src/shared/text-edit.ts` — `clampToLimit` and `applyTextDiff`
+  extracted from story 2; `StickyText.ts` re-exports with
+  STICKY_TEXT_MAX_CHARS so story 2 callers/tests are unchanged.
+- `src/client/objects/textLayout.ts` — `createCanvasMeasurer`
+  (canvas measureText, estimate fallback `len × fontPx × 0.6` without
+  canvas — jsdom/SSR never throws) and pure `layoutText(text, size,
+  mode, fixedWidth, measure)`: auto width = min(longest line +
+  TEXT_PADDING_WORLD, TEXT_MAX_AUTO_WIDTH_WORLD) with greedy word-wrap
+  (char-split for unbroken words); fixed wraps at fixedWidth; height =
+  lines × TEXT_SIZES[size] × TEXT_LINE_HEIGHT.
+- `useTextBoxSync(doc, id, measure)` → `remeasureAfterLocalChange()`:
+  only the client that made the change (typing, size preset, width
+  handle drag) writes the box; remote updates never trigger a write,
+  so five clients never race to re-measure the same change.
+- `TextObject` observes its Y.Map with `observeDeep`; the handler
+  checks `transaction.origin === LOCAL_ORIGIN` (the observeDeep
+  callback's second argument is the Yjs **Transaction**, not the
+  origin) and remeasures on any local schema change.
+- `TextEditor` — generalized story 2 textarea editor (ytext, maxChars,
+  fontPx, width, onInput, onEnd, undo, counterThreshold, padding,
+  dataTestId); does NOT call `undo.boundary()` itself on end — the
+  parent decides so an empty-delete merges with the typing burst (one
+  undo step restores the text). `StickyTextEditor` is a thin wrapper
+  (12px padding, counter, `data-testid="sticky-text-editor"`).
+- `useTool` — `tool: 'select' | 'text'`; V/T/N/Escape shortcuts
+  (ignored while editing text or focus in an input; N creates a
+  sticky at view centre); canEdit false reverts Text→Select. Note:
+  React flushes the editingId update before the window keydown
+  listener runs, so Escape while editing ends the edit AND returns to
+  the select tool in one keypress.
+- Text tool: capture-phase pointerdown on the viewport container
+  (intercepts even over objects; toolbar/selection-bar/handles
+  excluded) → `createText(screenToWorld(pt))`, `setTool('select')`,
+  select + start editing.
+- Registry: `handles?: 'all' | 'horizontal'` on ObjectTypeSpec; text
+  registered with 'horizontal'. SelectionOverlay shows only e/w
+  handles when all selected specs are horizontal. Single-text e/w drag
+  → `setTextWidthFixed` (+ `moveObject` on 'w' to keep the right edge
+  fixed) + remeasure. Group resize: auto-text repositions only
+  (x/y), fixed-text also scales width (`setTextWidthFixed`), stickies
+  full `resizeObjects` — font size never changes via handles.
+- `snapshot()` returns `AnySnapshot[]` (StickySnapshot | TextSnapshot);
+  BoardUI renders objects via `getObjectType(obj.type).Component`.
+- `ObjectProps.onClearSelection?(id)` — a text object that removes
+  itself (empty on edit end) clears its own selection.
+- E2E: marquee selection requires **full containment** of an object;
+  shift-click on an object is NOT additive (only the marquee adds to a
+  selection). Text objects render `data-object-type="text"` (per-object
+  `data-testid="text-object-<id>"`), the editor
+  `data-testid="text-editor"`, handles `data-testid="handle-<h>"`.

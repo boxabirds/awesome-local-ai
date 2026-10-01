@@ -41,13 +41,21 @@ export function SelectionOverlay(props: {
   const boundingBox = unionRects(selectedBounds);
   if (!boundingBox) return null;
 
-  // Check if any selected type is resizable
-  const anyResizable = [...ids].some((id) => {
+  // Check if any selected type is resizable, and whether every selected
+  // type is horizontal-only (story 9: a single text shows just e/w handles;
+  // mixed selections keep all handles)
+  const selectedSpecs = [...ids].map((id) => {
     const obj = snapshot.find((o) => o.id === id);
-    if (!obj) return false;
-    const spec = getObjectType(obj.type);
-    return spec?.resizable ?? false;
+    if (!obj) return undefined;
+    return getObjectType(obj.type);
   });
+  const anyResizable = selectedSpecs.some((spec) => spec?.resizable ?? false);
+  const allHorizontal =
+    anyResizable && selectedSpecs.every((spec) => (spec?.handles ?? 'all') === 'horizontal');
+
+  const visibleHandles = allHorizontal
+    ? HANDLE_POSITIONS.filter(({ handle }) => handle === 'e' || handle === 'w')
+    : HANDLE_POSITIONS;
 
   const handleSize = HANDLE_SIZE_PX / camera.zoom;
 
@@ -69,7 +77,7 @@ export function SelectionOverlay(props: {
 
       {/* Resize handles (only if any selected type is resizable) */}
       {anyResizable &&
-        HANDLE_POSITIONS.map(({ handle, label, style }) => (
+        visibleHandles.map(({ handle, label, style }) => (
           <div
             key={handle}
             data-testid={`handle-${handle}`}

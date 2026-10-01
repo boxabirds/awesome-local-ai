@@ -10,6 +10,7 @@ import { useSelection } from '../board/useSelection';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { useTool } from '../board/useTool';
 import { createUndo, type UndoController } from '../board/undo';
 import { useUndo } from '../board/useUndo';
 import { SelectionOverlay } from '../board/SelectionOverlay';
@@ -23,11 +24,17 @@ import {
   setStickyColor,
   setRegisteredTypes,
 } from '../../shared/board-model';
-import { getRegisteredTypes } from '../objects/registry';
-import { StickyNoteComponent } from '../objects/StickyNote';
+import { createText, setTextSize } from '../../shared/objects/text';
+import { getRegisteredTypes, getObjectType } from '../objects/registry';
 
 // Initialize the registry types for board-model
 setRegisteredTypes(getRegisteredTypes());
+
+// Session identity for createdBy (story 6 identity is out of scope; a stable
+// per-tab id keeps the schema field meaningful).
+const SESSION_ID = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+  ? crypto.randomUUID()
+  : `session-${Math.random().toString(36).slice(2)}`;
 
 export function BoardUI({ boardId }: { boardId: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -101,8 +108,8 @@ export function BoardUI({ boardId }: { boardId: string }) {
 
   // Test hooks (only active in test mode)
   useEffect(() => {
-    installTestHooks(setCamera);
-  }, [setCamera]);
+    installTestHooks(setCamera, doc);
+  }, [setCamera, doc]);
 
   // Expose connection state for e2e tests
   useEffect(() => {
@@ -122,6 +129,56 @@ export function BoardUI({ boardId }: { boardId: string }) {
       undo?.boundary();
     },
     [doc, selection, canEdit, undo],
+  );
+
+  // N shortcut creates a sticky at the view centre (story 2 behaviour)
+  const createStickyAtCentre = useCallback(() => {
+    const centre = { x: viewportSize.width / 2, y: viewportSize.height / 2 };
+    const worldPoint = screenToWorld(camera, centre);
+    createStickyAt(worldPoint);
+  }, [camera, viewportSize, createStickyAt]);
+
+  // Tool mode (story 9): select | text, with V/T/N/Escape shortcuts
+  const { tool, setTool } = useTool({
+    canEdit,
+    editingId: selection.editingId,
+    onCreateStickyAtCentre: createStickyAtCentre,
+  });
+
+  // Create a text object at a world point, start editing it, and switch the
+  // tool back to Select (text.create sequence).
+  const createTextAt = useCallback(
+    (worldPoint: { x: number; y: number }) => {
+      if (!canEdit) return;
+      undo?.boundary();
+      const id = createText(doc, worldPoint, SESSION_ID);
+      if (id) {
+        setTool('select');
+        selection.startEdit(id);
+      }
+      undo?.boundary();
+    },
+    [doc, selection, canEdit, undo, setTool],
+  );
+
+  // Text tool: board click creates a text at the world point
+  const handleTextToolClick = useCallback(
+    (screenPoint: { x: number; y: number }) => {
+      const worldPoint = screenToWorld(camera, screenPoint);
+      createTextAt(worldPoint);
+    },
+    [camera, createTextAt],
+  );
+
+  // Text size change from the selection bar (bounded: one undo step; the box
+  // remeasure happens inside the same capture window via the object's local
+  // change observer).
+  const handleTextSize = useCallback(
+    (id: string, size: string) => {
+      if (!setTextSize(doc, id, size)) return;
+      undo?.boundary();
+    },
+    [doc, undo],
   );
 
   // Handle double-click on empty board space
@@ -211,22 +268,32 @@ export function BoardUI({ boardId }: { boardId: string }) {
         onMarqueeMove={handleMarqueeMove}
         onMarqueeEnd={handleMarqueeEnd}
         onMarqueeCancel={handleMarqueeCancel}
+        tool={tool}
+        onTextToolClick={handleTextToolClick}
       >
-        {notes.map((note) => (
-          <StickyNoteComponent
-            key={note.id}
-            obj={note}
-            doc={doc}
-            zoom={camera.zoom}
-            selected={selection.ids.has(note.id)}
-            editing={selection.editingId === note.id}
-            editable={canEdit}
-            onPointerDown={onObjectPointerDown}
-            onStartEdit={selection.startEdit}
-            onEndEdit={selection.endEdit}
-            undo={undo ?? undefined}
-          />
-        ))}
+        {notes.map((obj) => {
+          // Registry-based rendering (story 9: text is the first type added
+          // purely through the registry); unknown types are skipped.
+          const spec = getObjectType(obj.type);
+          if (!spec) return null;
+          const Component = spec.Component;
+          return (
+            <Component
+              key={obj.id}
+              obj={obj}
+              doc={doc}
+              zoom={camera.zoom}
+              selected={selection.ids.has(obj.id)}
+              editing={selection.editingId === obj.id}
+              editable={canEdit}
+              onPointerDown={onObjectPointerDown}
+              onStartEdit={selection.startEdit}
+              onEndEdit={selection.endEdit}
+              onClearSelection={(id) => selection.toggle(id)}
+              undo={undo ?? undefined}
+            />
+          );
+        })}
 
         {/* Marquee rectangle */}
         <MarqueeRect rect={marquee.rect} camera={camera} />
@@ -256,11 +323,18 @@ export function BoardUI({ boardId }: { boardId: string }) {
               doc={doc}
               onDelete={handleDeleteSelection}
               onColor={handleColorChange}
+              onTextSize={handleTextSize}
             />
           </div>
         )}
       </BoardViewport>
-      <Toolbar onCreateSticky={handleToolbarCreate} disabled={!canEdit} undo={undoControls} />
+      <Toolbar
+        onCreateSticky={handleToolbarCreate}
+        disabled={!canEdit}
+        undo={undoControls}
+        tool={tool}
+        setTool={setTool}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

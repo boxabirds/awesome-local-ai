@@ -1,11 +1,11 @@
 import { useRef, useSyncExternalStore, useCallback, useEffect, useState } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshot, type AnySnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 export function useBoardDoc(boardId: string): {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  notes: readonly AnySnapshot[];
   connectionState: ConnectionState;
 } {
   const docRef = useRef<Y.Doc | null>(null);
@@ -28,7 +28,7 @@ export function useBoardDoc(boardId: string): {
     };
   }, [doc, boardId]);
 
-  const snapshotCacheRef = useRef<{ key: string; value: readonly StickySnapshot[] }>({ key: '', value: [] });
+  const snapshotCacheRef = useRef<{ key: string; value: readonly AnySnapshot[] }>({ key: '', value: [] });
 
   const subscribe = useCallback(
     (callback: () => void) => {
@@ -41,9 +41,16 @@ export function useBoardDoc(boardId: string): {
 
   const getSnapshot = useCallback(() => {
     const snap = snapshot(doc);
-    // Create a stable key from the snapshot content (text and colour
-    // included: text-only edits must invalidate the cache, story 8)
-    const key = snap.map((o) => `${o.id}:${o.x}:${o.y}:${o.z}:${o.width ?? ''}:${o.height ?? ''}:${o.color}:${o.text}`).join('\0');
+    // Create a stable key from the snapshot content (text, colour and text
+    // size/width-mode included: text-only edits must invalidate the cache,
+    // story 8; size changes must too, story 9)
+    const key = snap
+      .map((o) => {
+        const extras =
+          o.type === 'sticky' ? o.color : `${o.size}:${o.widthMode}`;
+        return `${o.id}:${o.x}:${o.y}:${o.z}:${o.width ?? ''}:${o.height ?? ''}:${extras}:${o.text}`;
+      })
+      .join('\0');
     if (key !== snapshotCacheRef.current.key) {
       snapshotCacheRef.current = { key, value: snap };
     }

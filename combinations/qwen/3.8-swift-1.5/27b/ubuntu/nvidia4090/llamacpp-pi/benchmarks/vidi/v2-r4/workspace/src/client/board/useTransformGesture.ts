@@ -6,12 +6,14 @@ import type { Rect, Handle } from '../../shared/geometry';
 import { resizeRect, clampScale, scaleWithin, unionRects } from '../../shared/geometry';
 import {
   objectBounds,
+  moveObject,
   moveObjects,
   resizeObjects,
   bringObjectsToFront,
   type ObjectSnapshot,
 } from '../../shared/board-model';
-import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
+import { setTextWidthFixed, type TextSnapshot } from '../../shared/objects/text';
+import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
 import type { UseSelectionResult } from './useSelection';
 
@@ -150,6 +152,16 @@ export function useTransformGesture(opts: {
       const startScreenX = e.clientX;
       const startScreenY = e.clientY;
 
+      // Story 9: a single text object with a horizontal handle is a
+      // fixed-width drag (setTextWidthFixed); the height re-wraps via the
+      // object's local-change observer. Font size never changes via handles.
+      const singleText =
+        selectedObjs.length === 1 &&
+        selectedObjs[0].type === 'text' &&
+        (handle === 'e' || handle === 'w')
+          ? selectedObjs[0]
+          : null;
+
       // Determine if aspect is locked
       const anyAspectLocked = selectedObjs.some((o) => {
         const spec = getObjectType(o.type);
@@ -159,6 +171,18 @@ export function useTransformGesture(opts: {
       const handleMove = (ev: PointerEvent) => {
         const dx = (ev.clientX - startScreenX) / camera.zoom;
         const dy = (ev.clientY - startScreenY) / camera.zoom;
+
+        if (singleText) {
+          const startRect = objectBounds(singleText);
+          const newWidth = handle === 'e' ? startRect.width + dx : startRect.width - dx;
+          setTextWidthFixed(doc, singleText.id, newWidth);
+          if (handle === 'w') {
+            // Keep the right edge fixed while the left handle moves
+            const clamped = Math.max(TEXT_MIN_WIDTH_WORLD, newWidth);
+            moveObject(doc, singleText.id, startRect.x + (startRect.width - clamped), startRect.y);
+          }
+          return;
+        }
 
         const aspectLocked = anyAspectLocked || ev.shiftKey;
         const newBox = resizeRect(startBox, handle, { x: dx, y: dy }, aspectLocked);
@@ -183,15 +207,31 @@ export function useTransformGesture(opts: {
           height: startBox.height * clampedScale.y,
         };
 
+        // Story 9: in a group resize, text objects are repositioned
+        // proportionally; only fixed-width text also scales its width (the
+        // height re-wraps via the observer). Stickies resize as before.
         const rectsMap = new Map<string, Rect>();
+        const textPositions = new Map<string, { x: number; y: number }>();
+        const textWidths = new Map<string, number>();
         for (const [oid, startRect] of startRects) {
-          rectsMap.set(oid, scaleWithin(startRect, startBox, finalBox));
+          const scaled = scaleWithin(startRect, startBox, finalBox);
+          const obj = snapshot.find((o) => o.id === oid);
+          if (obj?.type === 'text') {
+            textPositions.set(oid, { x: scaled.x, y: scaled.y });
+            if ((obj as TextSnapshot).widthMode === 'fixed') {
+              textWidths.set(oid, scaled.width);
+            }
+          } else {
+            rectsMap.set(oid, scaled);
+          }
         }
 
         if (rafRef.current === 0) {
           rafRef.current = requestAnimationFrame(() => {
             rafRef.current = 0;
-            resizeObjects(doc, rectsMap);
+            if (rectsMap.size > 0) resizeObjects(doc, rectsMap);
+            if (textPositions.size > 0) moveObjects(doc, textPositions);
+            for (const [oid, w] of textWidths) setTextWidthFixed(doc, oid, w);
           });
         }
       };

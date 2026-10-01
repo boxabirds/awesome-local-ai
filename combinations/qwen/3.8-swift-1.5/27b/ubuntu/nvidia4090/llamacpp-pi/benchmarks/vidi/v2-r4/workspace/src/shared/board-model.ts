@@ -1,6 +1,7 @@
 import * as Y from 'yjs';
-import { STICKY_SIZE_WORLD, STICKY_COLORS, DEFAULT_STICKY_COLOR, type StickyColor } from './config';
+import { STICKY_SIZE_WORLD, STICKY_COLORS, DEFAULT_STICKY_COLOR, TEXT_SIZES, type StickyColor, type TextSize } from './config';
 import type { Rect, Point } from './geometry';
+import type { TextSnapshot } from './objects/text';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('LOCAL_ORIGIN');
 
@@ -20,6 +21,9 @@ export interface StickySnapshot extends ObjectSnapshot {
   text: string;
   createdAt: number;
 }
+
+/** Every object type the client knows how to render (story 9 adds text). */
+export type AnySnapshot = StickySnapshot | TextSnapshot;
 
 function getMeta(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap('meta');
@@ -127,31 +131,57 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   return undefined;
 }
 
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+export function snapshot(doc: Y.Doc): readonly AnySnapshot[] {
   const objects = getObjects(doc);
-  const result: StickySnapshot[] = [];
+  const result: AnySnapshot[] = [];
 
   objects.forEach((obj, id) => {
     const type = obj.get('type') as string;
-    if (type !== 'sticky') return;
+    if (type === 'sticky') {
+      const text = obj.get('text');
+      const textStr = text instanceof Y.Text ? text.toString() : '';
+      const width = obj.get('width') as number | undefined;
+      const height = obj.get('height') as number | undefined;
 
-    const text = obj.get('text');
-    const textStr = text instanceof Y.Text ? text.toString() : '';
-    const width = obj.get('width') as number | undefined;
-    const height = obj.get('height') as number | undefined;
+      result.push({
+        id,
+        type: 'sticky',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: typeof width === 'number' ? width : undefined,
+        height: typeof height === 'number' ? height : undefined,
+        color: obj.get('color') as StickyColor,
+        text: textStr,
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+      });
+      return;
+    }
 
-    result.push({
-      id,
-      type: 'sticky',
-      x: obj.get('x') as number,
-      y: obj.get('y') as number,
-      width: typeof width === 'number' ? width : undefined,
-      height: typeof height === 'number' ? height : undefined,
-      color: obj.get('color') as StickyColor,
-      text: textStr,
-      z: obj.get('z') as number,
-      createdAt: obj.get('createdAt') as number,
-    });
+    if (type === 'text') {
+      const text = obj.get('text');
+      const textStr = text instanceof Y.Text ? text.toString() : '';
+      const width = obj.get('width') as number | undefined;
+      const height = obj.get('height') as number | undefined;
+      const size = (obj.get('size') as TextSize) ?? 'M';
+      const widthMode = obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
+
+      result.push({
+        id,
+        type: 'text',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: typeof width === 'number' ? width : TEXT_SIZES.M,
+        height: typeof height === 'number' ? height : TEXT_SIZES.M,
+        text: textStr,
+        size,
+        widthMode,
+        z: obj.get('z') as number,
+      });
+      return;
+    }
+
+    // Unknown types are skipped, never rendered (compatibility).
   });
 
   result.sort((a, b) => a.z - b.z || a.id.localeCompare(b.id));
