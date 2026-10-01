@@ -1,0 +1,177 @@
+:root {
+  --bg: #fafafa;
+  --grid-dot: #c9ccd1;
+  --chrome-bg: #ffffff;
+  --chrome-border: #d8dbe0;
+  --chrome-text: #1f2328;
+  --chrome-muted: #57606a;
+  --focus-ring: #2563eb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  color: var(--chrome-text);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+}
+
+/* Board viewport ------------------------------------------------------- */
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--bg);
+  cursor: grab;
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+}
+
+.board-viewport[data-panning='true'] {
+  cursor: grabbing;
+}
+
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+  /* The layer itself is never a drag target; board objects opt back in. */
+  pointer-events: none;
+}
+
+.board-world > .board-object {
+  pointer-events: auto;
+}
+
+.origin-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* 16 CSS pixel crosshair centred on world (0,0); counter-scaled so it keeps
+     its size at every zoom level and its centre stays on the origin. */
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: '';
+  position: absolute;
+  background: #e0457b;
+}
+
+.origin-marker::before {
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  margin-left: -1px;
+}
+
+.origin-marker::after {
+  top: 50%;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  margin-top: -1px;
+}
+
+/* Zoom controls -------------------------------------------------------- */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+}
+
+.zoom-controls button {
+  font: inherit;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--chrome-text);
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #f0f2f5;
+}
+
+.zoom-controls button:disabled {
+  color: #a0a6ae;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible,
+.board-viewport:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.zoom-controls .zoom-label {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  min-width: 52px;
+  text-align: center;
+  color: var(--chrome-muted);
+}
+
+.zoom-controls .reset-button {
+  width: auto;
+  padding: 0 10px;
+}
+
+/* Navigation hint ------------------------------------------------------ */
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgb(31 35 40 / 82%);
+  color: #fff;
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}

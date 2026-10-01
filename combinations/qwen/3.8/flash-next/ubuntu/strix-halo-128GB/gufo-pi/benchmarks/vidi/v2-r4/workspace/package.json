@@ -1,0 +1,39 @@
+{
+  "name": "vidi6",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:test": "vite build --mode test",
+    "preview": "vite preview",
+    "e2e:server": "npm run build:test && wrangler dev --ip 127.0.0.1 --port ${E2E_PORT:-8787}",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
+    "test": "npm run test:unit && npm run test:component",
+    "test:unit": "vitest run --project unit",
+    "test:component": "vitest run --project component",
+    "test:e2e": "playwright test",
+    "test:e2e:all": "E2E_PROJECTS=chromium,firefox,webkit playwright test"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.0",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.1",
+    "wrangler": "^4.20.0"
+  }
+}
