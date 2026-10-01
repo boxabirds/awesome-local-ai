@@ -1,27 +1,21 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, allObjectsSnapshot, type CombinedSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState, type ConnectionHandle } from '../sync/connectBoard';
 
 export interface UseBoardDocResult {
   /** The board's shared document (story 3 attaches a provider, story 4 persists it). */
   doc: Y.Doc;
-  /** Render model: sticky notes sorted by `(z, id)`; identity is stable until a change. */
-  notes: readonly StickySnapshot[];
+  /** Render model: all objects sorted by `(z, id)`; identity is stable until a change. */
+  notes: readonly CombinedSnapshot[];
   /** Connection state (undefined when no boardId is provided, e.g. in tests). */
   connectionState: ConnectionState | undefined;
 }
 
 /**
- * Owns the single `Y.Doc` of this page and exposes its sticky notes to React through
+ * Owns the single `Y.Doc` of this page and exposes all objects to React through
  * `useSyncExternalStore`. The snapshot is recomputed only when the `objects` map (or
  * anything inside it) changes, so unrelated renders reuse the same immutable array.
- *
- * `provided` renders an existing document (tests seed one; from story 3 on it is the
- * provider-backed document). It is read once, when the board mounts.
- *
- * `boardId` attaches a WebsocketProvider for live collaboration. When absent (e.g. tests),
- * no provider is created.
  */
 export function useBoardDoc(provided?: Y.Doc, boardId?: string): UseBoardDocResult {
   const docRef = useRef<Y.Doc | null>(null);
@@ -46,15 +40,15 @@ export function useBoardDoc(provided?: Y.Doc, boardId?: string): UseBoardDocResu
   }, [doc, boardId]);
 
   // The snapshot cache lives outside React state: Yjs tells us when to refresh it.
-  const cache = useRef<{ current: readonly StickySnapshot[] } | null>(null);
-  if (cache.current === null) cache.current = { current: snapshot(doc) };
+  const cache = useRef<{ current: readonly CombinedSnapshot[] } | null>(null);
+  if (cache.current === null) cache.current = { current: allObjectsSnapshot(doc) };
   const store = cache.current;
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
       const objects = doc.getMap('objects');
       const observer = () => {
-        const next = snapshot(doc);
+        const next = allObjectsSnapshot(doc);
         if (next !== store.current) store.current = next;
         onStoreChange();
       };

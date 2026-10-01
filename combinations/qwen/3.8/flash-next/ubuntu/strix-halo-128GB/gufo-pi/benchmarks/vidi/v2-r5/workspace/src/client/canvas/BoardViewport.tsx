@@ -41,6 +41,10 @@ export interface BoardViewportProps {
   overlay?: ReactNode;
   /** Top-bar content rendered in screen-space above the board. */
   bar?: ReactNode;
+  /** When true, the Text tool is active: cursor is 'text' and click creates text. */
+  textToolActive?: boolean;
+  /** Called when the board is clicked with the Text tool active (world coordinates). */
+  onTextToolClick?(world: Point): void;
 }
 
 /** Safari trackpad gestures (`gesturestart` / `gesturechange` / `gestureend`). */
@@ -75,6 +79,8 @@ export function BoardViewport({
   onMarqueeCancel,
   overlay,
   bar,
+  textToolActive,
+  onTextToolClick,
 }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
@@ -93,6 +99,11 @@ export function BoardViewport({
   const marqueeCallbacksRef = useRef({ onMarqueeStart, onMarqueeMove, onMarqueeEnd, onMarqueeCancel });
   marqueeCallbacksRef.current = { onMarqueeStart, onMarqueeMove, onMarqueeEnd, onMarqueeCancel };
 
+  const textToolActiveRef = useRef(textToolActive);
+  textToolActiveRef.current = textToolActive;
+  const onTextToolClickRef = useRef(onTextToolClick);
+  onTextToolClickRef.current = onTextToolClick;
+
   /** Only the empty board (viewport or world layer itself) starts a pan. */
   const isBoardSurface = (target: EventTarget | null): boolean => {
     if (!(target instanceof Node)) return false;
@@ -103,9 +114,30 @@ export function BoardViewport({
     );
   };
 
+  /** When text tool is active, add a native capture-phase pointerdown listener on the viewport. */
+  useEffect(() => {
+    const vp = viewportRef.current;
+    if (!vp || !textToolActive) return;
+    const onCapture = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      if (e.button !== 0) return;
+      if (e.shiftKey) return; // Allow marquee (shift+drag) to work normally
+      e.stopPropagation();
+      pointerIdRef.current = e.pointerId;
+      pressRef.current = { x: e.clientX, y: e.clientY, moved: false };
+      try { vp.setPointerCapture(e.pointerId); } catch { /* best-effort */ }
+    };
+    vp.addEventListener('pointerdown', onCapture, true);
+    return () => vp.removeEventListener('pointerdown', onCapture, true);
+  }, [textToolActive]);
+
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'touch') return;
     if (event.button !== 0) return;
+
+    // If text tool captured this event (native capture listener set pressRef), skip
+    if (textToolActiveRef.current && pressRef.current) return;
+
     if (!isBoardSurface(event.target)) return;
 
     // Shift+drag on empty space: start marquee instead of pan
@@ -169,6 +201,13 @@ export function BoardViewport({
     handlersRef.current.endPan();
     const press = pressRef.current;
     pressRef.current = null;
+    // Text tool click: create text at world point
+    if (textToolActiveRef.current && press && !press.moved && onTextToolClickRef.current) {
+      const rect = viewportRef.current?.getBoundingClientRect();
+      const screenPoint = { x: press.x - (rect?.left ?? 0), y: press.y - (rect?.top ?? 0) };
+      onTextToolClickRef.current(screenToWorld(cameraRef.current, screenPoint));
+      return;
+    }
     // A press on empty board space that never dragged is a click: clear the selection.
     if (press && !press.moved && onClearSelection) onClearSelection();
   };
@@ -284,6 +323,7 @@ export function BoardViewport({
       -camera.y * camera.zoom,
       spacingPx,
     )}px`,
+    cursor: textToolActive ? 'text' : undefined,
   };
 
   const markerSize = ORIGIN_MARKER_SIZE / camera.zoom;

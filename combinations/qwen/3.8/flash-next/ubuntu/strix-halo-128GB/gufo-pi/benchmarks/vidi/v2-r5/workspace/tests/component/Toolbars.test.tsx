@@ -86,7 +86,7 @@ describe('board.toolbar', () => {
     renderStickyBoard(doc);
 
     const button = document.querySelector(`[data-testid="${STICKY_BUTTON}"]`) as HTMLElement;
-    expect(button.getAttribute('aria-label')).toBe('Sticky note');
+    expect(button.getAttribute('aria-label')).toBe('Sticky note (N)');
 
     click(button);
 

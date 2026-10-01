@@ -22,6 +22,8 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Whether this type has editable text. */
   editableText: boolean;
+  /** Which handles to show: 'all' for 8 handles, 'horizontal' for only e/w. */
+  handles?: 'all' | 'horizontal';
   /** Hit test: is `worldPoint` inside the object? */
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }

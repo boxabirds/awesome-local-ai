@@ -152,3 +152,28 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 
 /** Maximum number of undo steps retained per user per session. */
 export const UNDO_MAX_STEPS = 200;
+
+/* ------------------------------------------------------- text objects ---- */
+
+/** Maximum automatic width of a text object, in world units. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** Minimum fixed width of a text object, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Maximum number of characters a text object may contain. */
+export const TEXT_MAX_CHARS = 5000;
+
+/** Text size presets in board units (px at 100% zoom). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** Size of a newly created text object. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Line height multiplier for text objects. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** Font family for text objects. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';

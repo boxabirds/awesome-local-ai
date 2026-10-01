@@ -20,6 +20,11 @@ export interface UseBoardKeysOptions {
   canEdit: boolean;
   undoController?: UndoController;
   boundary?: () => void;
+  /** Tool state for V/T/Escape shortcuts */
+  tool?: string;
+  setTool?(t: 'select' | 'text'): void;
+  /** Called when N is pressed: creates a sticky at view centre */
+  onCreateSticky?(): void;
 }
 
 /** True when the keypress belongs to a text field, which owns Delete and Enter itself. */
@@ -33,7 +38,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 export function useBoardKeys(opts: UseBoardKeysOptions): void {
-  const { doc, selection, snapshot, canEdit, undoController, boundary } = opts;
+  const { doc, selection, snapshot, canEdit, undoController, boundary, setTool, onCreateSticky } = opts;
 
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
@@ -45,6 +50,10 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
   undoRef.current = undoController;
   const boundaryRef = useRef(boundary);
   boundaryRef.current = boundary;
+  const setToolRef = useRef(setTool);
+  setToolRef.current = setTool;
+  const onCreateStickyRef = useRef(onCreateSticky);
+  onCreateStickyRef.current = onCreateSticky;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -86,6 +95,30 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
       if (sel.editingId !== null) return;
       if (isTypingTarget(event.target)) return;
 
+      // Tool shortcuts: V, T, N, Escape (after editing guards)
+      const keyLower = event.key.toLowerCase();
+      if (keyLower === 'v' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (setToolRef.current) {
+          event.preventDefault();
+          setToolRef.current('select');
+        }
+        return;
+      }
+      if (keyLower === 't' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (setToolRef.current && canEditRef.current) {
+          event.preventDefault();
+          setToolRef.current('text');
+        }
+        return;
+      }
+      if (keyLower === 'n' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (onCreateStickyRef.current && canEditRef.current) {
+          event.preventDefault();
+          onCreateStickyRef.current();
+        }
+        return;
+      }
+
       // Ctrl/Cmd+A: select all
       if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
         event.preventDefault();
@@ -94,9 +127,10 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
         return;
       }
 
-      // Escape: clear selection
+      // Escape: clear selection and reset tool
       if (event.key === 'Escape') {
         sel.clear();
+        if (setToolRef.current) setToolRef.current('select');
         return;
       }
 

@@ -1,7 +1,8 @@
 import * as Y from 'yjs';
-import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
+import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor, DEFAULT_TEXT_SIZE, type TextSize, TEXT_SIZES } from './config';
 import type { Rect } from './geometry';
 import { rectContains } from './geometry';
+import type { TextSnapshot } from './objects/text';
 
 /**
  * Board document model: the Yjs schema and every mutation a user can perform on the board.
@@ -48,6 +49,9 @@ export interface StickySnapshot extends ObjectSnapshot {
   text: string;
   createdAt: number;
 }
+
+/** Union snapshot that includes all known object types. */
+export type CombinedSnapshot = StickySnapshot | TextSnapshot;
 
 const metaMap = (doc: Y.Doc): Y.Map<unknown> => doc.getMap(META_MAP);
 
@@ -376,4 +380,51 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
   }
   notes.sort((a, b) => (a.z === b.z ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.z - b.z));
   return notes;
+}
+
+const TEXT_SIZE_KEYS = new Set<string>(Object.keys(TEXT_SIZES));
+
+/**
+ * Immutable render model: every known object (sticky + text) sorted by `(z, id)`.
+ * Unknown types are skipped so later stories' objects do not break an older client.
+ */
+export function allObjectsSnapshot(doc: Y.Doc): readonly CombinedSnapshot[] {
+  const items: CombinedSnapshot[] = [];
+  for (const [id, map] of objectsMap(doc)) {
+    const type = map.get('type');
+    if (type === 'sticky') {
+      const text = map.get('text');
+      const color = map.get('color');
+      items.push({
+        id,
+        type: 'sticky',
+        x: numberField(map, 'x'),
+        y: numberField(map, 'y'),
+        width: typeof map.get('width') === 'number' ? map.get('width') as number : STICKY_SIZE_WORLD,
+        height: typeof map.get('height') === 'number' ? map.get('height') as number : STICKY_SIZE_WORLD,
+        color: isStickyColor(color) ? color : DEFAULT_STICKY_COLOR,
+        text: text instanceof Y.Text ? text.toString() : '',
+        z: numberField(map, 'z'),
+        createdAt: numberField(map, 'createdAt'),
+      } as StickySnapshot);
+    } else if (type === 'text') {
+      const text = map.get('text');
+      const size = map.get('size');
+      const widthMode = map.get('widthMode');
+      items.push({
+        id,
+        type: 'text',
+        x: numberField(map, 'x'),
+        y: numberField(map, 'y'),
+        width: typeof map.get('width') === 'number' ? map.get('width') as number : 40,
+        height: typeof map.get('height') === 'number' ? map.get('height') as number : 26,
+        z: numberField(map, 'z'),
+        text: text instanceof Y.Text ? text.toString() : '',
+        size: typeof size === 'string' && TEXT_SIZE_KEYS.has(size) ? size as TextSize : DEFAULT_TEXT_SIZE,
+        widthMode: widthMode === 'fixed' ? 'fixed' : 'auto',
+      } as TextSnapshot);
+    }
+  }
+  items.sort((a, b) => (a.z === b.z ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.z - b.z));
+  return items;
 }

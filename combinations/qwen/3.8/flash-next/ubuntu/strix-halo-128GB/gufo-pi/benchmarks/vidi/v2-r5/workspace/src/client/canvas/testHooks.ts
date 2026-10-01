@@ -1,5 +1,5 @@
 import type { Camera } from './camera';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { StickySnapshot, CombinedSnapshot } from '../../shared/board-model';
 
 /**
  * Test-only hooks. Enabled only when the app is built/run in `test` mode
@@ -13,6 +13,8 @@ export interface BoardTestHooks {
   setCamera(camera: Camera): void;
   /** Sticky notes as the model sees them, sorted by `(z, id)`. */
   getStickyNotes(): readonly StickySnapshot[];
+  /** All objects (sticky + text) as the model sees them, sorted by `(z, id)`. */
+  getAllObjects(): readonly CombinedSnapshot[];
   /** Current connection state (story 3). */
   connectionState?: string;
 }

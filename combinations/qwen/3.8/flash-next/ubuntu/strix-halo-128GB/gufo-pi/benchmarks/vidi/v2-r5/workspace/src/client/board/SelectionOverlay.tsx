@@ -69,16 +69,24 @@ export function SelectionOverlay({
   const bbox = unionRects(selectedRects);
   if (!bbox) return null;
 
-  // Check if any selected type is resizable
+  // Check if any selected type is resizable and determine handle mode
   let anyResizable = false;
+  let horizontalOnly = true;
   for (const obj of snapshot) {
     if (!ids.has(obj.id)) continue;
     const spec = getObjectType(obj.type);
     if (spec?.resizable) {
       anyResizable = true;
-      break;
+      if (spec.handles !== 'horizontal') {
+        horizontalOnly = false;
+      }
+    } else {
+      horizontalOnly = false;
     }
   }
+
+  // Only show horizontal handles when ALL selected resizable types are horizontal-only
+  const showHandles = anyResizable ? (horizontalOnly ? HANDLE_POSITIONS.filter(h => h.handle === 'e' || h.handle === 'w') : HANDLE_POSITIONS) : [];
 
   // Convert bounding box to screen coords
   const topLeft = worldToScreen(camera, { x: bbox.x, y: bbox.y });
@@ -117,8 +125,8 @@ export function SelectionOverlay({
         }}
       />
       {/* Handles (only when resizable) */}
-      {anyResizable &&
-        HANDLE_POSITIONS.map(({ handle, label, dx, dy }) => {
+      {showHandles.length > 0 &&
+        showHandles.map(({ handle, label, dx, dy }) => {
           const hx = screenLeft + screenWidth * dx - HANDLE_SIZE_PX / 2;
           const hy = screenTop + screenHeight * dy - HANDLE_SIZE_PX / 2;
           return (

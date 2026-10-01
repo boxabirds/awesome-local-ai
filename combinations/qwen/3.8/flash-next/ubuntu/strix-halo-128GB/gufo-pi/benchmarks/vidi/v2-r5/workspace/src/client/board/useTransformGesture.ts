@@ -33,6 +33,8 @@ export interface UseTransformGestureOptions {
   canEdit: boolean;
   onGestureStart?(): void;
   onGestureEnd?(): void;
+  /** Called after a resize completes. Receives the new rects by id. */
+  onResizeComplete?(rects: ReadonlyMap<string, Rect>): void;
 }
 
 export interface UseTransformGestureResult {
@@ -73,7 +75,7 @@ interface ResizeState {
 type GestureState = MoveState | ResizeState | null;
 
 export function useTransformGesture(opts: UseTransformGestureOptions): UseTransformGestureResult {
-  const { doc, camera, selection, snapshot, canEdit, onGestureStart, onGestureEnd } = opts;
+  const { doc, camera, selection, snapshot, canEdit, onGestureStart, onGestureEnd, onResizeComplete } = opts;
 
   const gestureRef = useRef<GestureState>(null);
   const cameraRef = useRef(camera);
@@ -86,6 +88,8 @@ export function useTransformGesture(opts: UseTransformGestureOptions): UseTransf
   onGestureStartRef.current = onGestureStart;
   const onGestureEndRef = useRef(onGestureEnd);
   onGestureEndRef.current = onGestureEnd;
+  const onResizeCompleteRef = useRef(onResizeComplete);
+  onResizeCompleteRef.current = onResizeComplete;
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
 
@@ -367,6 +371,7 @@ export function useTransformGesture(opts: UseTransformGestureOptions): UseTransf
       newRects.set(id, scaleWithin(startBounds, state.boundingBox, targetBBox));
     }
     resizeObjects(doc, newRects);
+    onResizeCompleteRef.current?.(newRects);
   };
 
   return { onObjectPointerDown, onHandlePointerDown };
