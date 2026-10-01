@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { createSticky, deleteObjects } from '../shared/board-model';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
+import { createUndo, NO_UNDO, type UndoController } from './board/undo';
+import { UndoButtons } from './board/UndoButtons';
+import { UndoContext, useUndo } from './board/useUndo';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
@@ -23,6 +26,16 @@ export function canEdit(state: ConnectionState): boolean {
 export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: string }) {
   const { doc, notes: objects, connection } = useBoardDoc(externalDoc, boardId);
   useEffect(() => setTestConnectionState(connection), [connection]);
+  // One controller per board doc; history is session-only, so it dies with the doc.
+  const [undoCtl, setUndoCtl] = useState<UndoController>(NO_UNDO);
+  useEffect(() => {
+    const c = createUndo(doc);
+    setUndoCtl(c);
+    return () => {
+      c.destroy();
+      setUndoCtl(NO_UNDO);
+    };
+  }, [doc]);
   const sel = useSelection(objects);
   const editable = canEdit(connection);
 
@@ -42,24 +55,29 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
     }),
     [],
   );
-  const gesture = useTransformGesture({ doc, camera: liveCamera, selection: sel, snapshot: objects, canEdit: editable });
+  const gesture = useTransformGesture({ doc, camera: liveCamera, selection: sel, snapshot: objects, canEdit: editable, onGestureStart: undoCtl.boundary, onGestureEnd: undoCtl.boundary });
+  const undoState = useUndo(undoCtl, editable);
 
-  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable });
+  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable, undo: undoCtl });
 
   const deleteSelection = () => {
     if (!editable) return;
+    undoCtl.boundary();
     deleteObjects(doc, [...sel.ids]);
+    undoCtl.boundary();
     sel.clear();
   };
 
   const create = (at: { x: number; y: number }) => {
     if (!editable) return;
+    undoCtl.boundary();
     const id = createSticky(doc, at);
+    undoCtl.boundary();
     if (id) sel.startEdit(id);
   };
 
   return (
-    <>
+    <UndoContext.Provider value={undoCtl}>
     {boardId && <ConnectionStatus state={connection} />}
     <BoardViewport
       onDoubleClickEmpty={create}
@@ -70,7 +88,9 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
         cameraRef.current = ctx.camera;
         return (
           <>
-            <Toolbar disabled={!editable} onCreateSticky={() => create(ctx.viewCentre)} />
+            <Toolbar disabled={!editable} onCreateSticky={() => create(ctx.viewCentre)}>
+              <UndoButtons {...undoState} />
+            </Toolbar>
             <SelectionOverlay
               ids={sel.ids}
               snapshot={objects}
@@ -83,6 +103,7 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
               snapshot={objects}
               camera={ctx.camera}
               doc={doc}
+              undo={undoCtl}
               editable={editable}
               hidden={gesture.active || sel.editingId !== null}
               onDelete={deleteSelection}
@@ -115,6 +136,6 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
           });
       }}
     </BoardViewport>
-    </>
+    </UndoContext.Provider>
   );
 }

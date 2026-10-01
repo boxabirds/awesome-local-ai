@@ -1,4 +1,6 @@
-export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
+import type { ReactNode } from 'react';
+
+export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean; children?: ReactNode }) {
   return (
     <div
       role="toolbar"
@@ -34,6 +36,7 @@ export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
           <path d="M14 20v-6h6" fill="none" />
         </svg>
       </button>
+      {props.children}
     </div>
   );
 }

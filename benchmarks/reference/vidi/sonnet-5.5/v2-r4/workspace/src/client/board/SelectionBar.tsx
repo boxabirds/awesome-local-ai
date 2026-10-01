@@ -1,6 +1,7 @@
 import type * as Y from 'yjs';
 import { isSticky, setStickyColor, type ObjectSnapshot } from '../../shared/board-model';
 import type { Camera } from '../canvas/camera';
+import type { UndoController } from './undo';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { selectionScreenBox } from './SelectionOverlay';
 
@@ -17,6 +18,7 @@ export function SelectionBar(props: {
   onDelete(): void;
   camera: Camera;
   doc: Y.Doc;
+  undo?: UndoController;
   /** False while the board is not loaded: Delete and colours are disabled. */
   editable?: boolean;
   /** Hide while a drag or text edit is in progress. */
@@ -44,7 +46,11 @@ export function SelectionBar(props: {
       {single && isSticky(single) ? (
         <NoteToolbar
           color={single.color}
-          onColor={(c) => setStickyColor(doc, single.id, c)}
+          onColor={(c) => {
+            props.undo?.boundary();
+            setStickyColor(doc, single.id, c);
+            props.undo?.boundary();
+          }}
           onDelete={props.onDelete}
         />
       ) : (

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { useUndoController } from '../board/useUndo';
 import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
 
 export const STICKY_PADDING_WORLD = 14;
@@ -11,6 +12,16 @@ export function StickyTextEditor(props: { ytext: Y.Text; fontPx: number; onEnd(n
   const { ytext, fontPx, onEnd } = props;
   const ref = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
+  const undo = useUndoController();
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+
+  // Edit start and end are step boundaries so typing never merges with neighbouring actions.
+  useEffect(() => {
+    const u = undoRef.current;
+    u.boundary();
+    return () => u.boundary();
+  }, []);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
 
@@ -102,6 +113,18 @@ export function StickyTextEditor(props: { ytext: Y.Text; fontPx: number; onEnd(n
         }}
         onBlur={flush}
         onKeyDown={(e) => {
+          if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+            const k = e.key.toLowerCase();
+            const redo = (k === 'z' && e.shiftKey) || (k === 'y' && e.ctrlKey && !e.shiftKey);
+            if (redo || (k === 'z' && !e.shiftKey)) {
+              e.preventDefault(); // native textarea undo would diverge from the Y.Text
+              e.stopPropagation();
+              if (composing.current) return;
+              if (redo) undo.redo();
+              else undo.undo();
+              return;
+            }
+          }
           if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();

@@ -56,3 +56,10 @@
 - Sticky text still fits within the 10-24px font range regardless of note size (only the height feeds the fit box).
 - "N selected" is announced through `role="status" aria-live="polite"` on the bar text, so only multi-selections announce.
 - `tests/fixtures/testbox.tsx` registers the test-only `testbox` type; e2e uses `tests/fixtures/selection-boards.ts`. Red-phase test commits were not made separately.
+
+## Story 8
+- `createUndo` sets the Y.UndoManager `captureTimeout` to Infinity and groups typing bursts itself (a `beforeTransaction` hook comparing `Date.now()` with the previous local transaction, split at >= UNDO_CAPTURE_TIMEOUT_MS). Yjs/lib0 bind the clock at import time, so the specified fake system time (`vi.setSystemTime`) would otherwise not affect it.
+- Undoing a step whose targets were all deleted remotely is skipped by Yjs in the same press, so the press undoes the next real step instead of doing nothing.
+- The controller reaches the text editor through `UndoContext` (set in `App`); the `NO_UNDO` inert controller is used until the real one exists (created in an effect, so StrictMode double-mount is safe).
+- Colour change and Delete/nudge/create call `boundary()` before and after the model call; useBoardKeys ignores undo keys while a note is being edited (the textarea handles them).
+- The e2e fixture (`tests/fixtures/undo-board.ts`) has an 8-note cluster plus 10 other notes.
