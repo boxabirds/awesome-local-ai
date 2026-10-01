@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { useUndoController } from '../board/useUndo';
 import { applyTextDiff, clampEdit, counterVisible, mapIndexThroughDelta } from './StickyText';
 
 export function StickyTextEditor(props: {
@@ -13,6 +14,13 @@ export function StickyTextEditor(props: {
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
   const [length, setLength] = useState(() => ytext.length);
+  const undo = useUndoController();
+
+  // Editing is its own undo step(s): never merged with the actions before or after it.
+  useEffect(() => {
+    undo?.boundary();
+    return () => undo?.boundary();
+  }, [undo]);
 
   useEffect(() => {
     const el = ref.current;
@@ -76,6 +84,16 @@ export function StickyTextEditor(props: {
         onCompositionEnd={() => { composing.current = false; sync(); }}
         onBlur={() => { if (!composing.current) sync(); }}
         onKeyDown={(e) => {
+          const key = e.key.toLowerCase();
+          if (undo && (e.ctrlKey || e.metaKey) && !e.altKey && (key === 'z' || (key === 'y' && e.ctrlKey))) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!composing.current) {
+              if (key === 'z' && !e.shiftKey) undo.undo();
+              else undo.redo();
+            }
+            return;
+          }
           if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();

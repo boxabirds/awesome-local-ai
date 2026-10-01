@@ -40,4 +40,6 @@ export const STORAGE_SCHEMA_VERSION = 1;
 
 export const CREATE_BUDGET_MS = 2000; // PRD share.create
 export const LINK_COPIED_MS = 2000;
+export const UNDO_CAPTURE_TIMEOUT_MS = 500; // typing pause that ends an undo step
+export const UNDO_MAX_STEPS = 200; // undo history length per person
 export const BOARD_CHECK_RETRY_BASE_MS = 1000; // backoff doubles up to RECONNECT_MAX_BACKOFF_MS

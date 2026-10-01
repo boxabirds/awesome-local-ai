@@ -1,4 +1,6 @@
-export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
+import type { ReactNode } from 'react';
+
+export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean; children?: ReactNode }) {
   return (
     <div
       className="left-toolbar"
@@ -17,6 +19,7 @@ export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
           <path d="M4 4h16v10l-6 6H4z M14 20v-6h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
         </svg>
       </button>
+      {props.children}
     </div>
   );
 }

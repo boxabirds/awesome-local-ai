@@ -86,3 +86,14 @@ Decisions:
 - Escape during a marquee is intercepted in the capture phase so it only cancels the marquee and does not clear the selection.
 - `tests/fixtures/testbox.tsx` is excluded from `tsconfig.worker.json` (it contains JSX). Component tests drive generic types through a harness around the hooks, since `BoardApp` is fed by `snapshot()`.
 - Task 6/7/9 red-phase commits skipped; tests were written alongside the implementation. Presence (story 6) hooks left out.
+
+## Story 8 — Undo and redo my own changes without undoing anyone else's
+
+Decisions:
+- The controller is created in `BoardApp` (via `useCreateUndo(doc)`), not `App.tsx`: `BoardApp` is where the doc, selection and toolbars meet, and component tests mount it directly. It is destroyed when the doc changes or on unmount. `UndoContext` hands it to `StickyTextEditor`, which works without one (existing tests).
+- `UndoController` has one optional extra, `hold(open)`: while a drag/resize is in progress the capture timeout is lifted, so frames that stall for 500 ms or more (busy or background tab) still form one step. Found via the 5-browser e2e (TC-24).
+- `undo()`/`redo()` hide the rest of the stack from Yjs while popping, so a step that only touched objects deleted by someone else is consumed with no visible effect instead of silently also undoing the next step.
+- Undo/Redo buttons sit under the sticky tool in the left toolbar (`Toolbar` takes children) and set both `disabled` and `aria-disabled`.
+- TC-12/13 import Yjs after `vi.useFakeTimers()` because lib0 captures `Date.now` at import time.
+- TC-23 e2e: Mia's note was created and typed into, so her "next undo" first reverts the typing, then the creation (typing and creation are separate steps by design).
+- Red-phase commits skipped; tests were written alongside the implementation.

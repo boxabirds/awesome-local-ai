@@ -4,6 +4,7 @@ import {
   allObjectIds, deleteObjects, moveObjects, objectBounds, snapshot as readSnapshot, type ObjectSnapshot,
 } from '../../shared/board-model';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
+import type { UndoController } from './undo';
 import type { useSelection } from './useSelection';
 
 const TEXT_INPUT = 'input, textarea, select, [contenteditable]';
@@ -15,14 +16,14 @@ const ARROWS: Record<string, [number, number]> = {
 /** Select all, clear, nudge, delete (and Enter to edit a single selected note) on the window. */
 export function useBoardKeys(opts: {
   doc: Y.Doc; selection: ReturnType<typeof useSelection>;
-  snapshot: readonly ObjectSnapshot[]; canEdit: boolean;
+  snapshot: readonly ObjectSnapshot[]; canEdit: boolean; undo?: UndoController | null;
 }): void {
   const latest = useRef(opts);
   latest.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit } = latest.current;
+      const { doc, selection, snapshot, canEdit, undo } = latest.current;
       if (selection.editingId !== null) return;
       const target = e.target instanceof Element ? e.target : null;
       if (target?.closest(TEXT_INPUT)) return;
@@ -32,6 +33,18 @@ export function useBoardKeys(opts: {
         e.preventDefault();
         selection.setMany(allObjectIds(snapshot), false);
         return;
+      }
+      if (mod && !e.altKey) {
+        const key = e.key.toLowerCase();
+        const isUndo = key === 'z' && !e.shiftKey;
+        const isRedo = (key === 'z' && e.shiftKey) || (key === 'y' && e.ctrlKey && !e.shiftKey);
+        if (isUndo || isRedo) {
+          e.preventDefault();
+          if (!canEdit) return;
+          if (isUndo) undo?.undo();
+          else undo?.redo();
+          return;
+        }
       }
       if (mod || e.altKey) return;
       if (e.key === 'Escape') {
@@ -57,13 +70,17 @@ export function useBoardKeys(opts: {
           const b = objectBounds(o);
           next.set(o.id, { x: b.x + arrow[0] * step, y: b.y + arrow[1] * step });
         }
+        undo?.boundary();
         moveObjects(doc, next);
+        undo?.boundary();
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         if (!canEdit) return;
+        undo?.boundary();
         deleteObjects(doc, [...selection.ids]);
+        undo?.boundary();
         selection.clear();
       }
     };

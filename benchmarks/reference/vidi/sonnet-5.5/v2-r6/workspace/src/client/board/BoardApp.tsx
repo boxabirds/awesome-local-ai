@@ -6,7 +6,9 @@ import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
 import { useBoardDoc, type BoardDoc } from './useBoardDoc';
+import { UndoButtons } from './UndoButtons';
 import { useBoardKeys } from './useBoardKeys';
+import { UndoContext, useCreateUndo, useUndo } from './useUndo';
 import { useSelection } from './useSelection';
 import { useTransformGesture } from './useTransformGesture';
 import { BoardViewport } from '../canvas/BoardViewport';
@@ -30,20 +32,29 @@ export function BoardApp({ board }: { board: BoardDoc }) {
   const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 1 });
 
   const editable = canEdit(board.connection);
+  const undo = useCreateUndo(doc);
+  const undoState = useUndo(undo, editable);
+  const boundary = () => undo?.boundary();
   const gesture = useTransformGesture({
     doc, camera: cameraRef, selection: sel, snapshot: notes, canEdit: editable,
+    onGestureStart: () => { undo?.boundary(); undo?.hold?.(true); },
+    onGestureEnd: () => { undo?.hold?.(false); undo?.boundary(); },
   });
-  useBoardKeys({ doc, selection: sel, snapshot: notes, canEdit: editable });
+  useBoardKeys({ doc, selection: sel, snapshot: notes, canEdit: editable, undo });
 
   const create = (centre: Point) => {
     if (!editable) return;
+    boundary();
     const id = createSticky(doc, centre);
+    boundary();
     if (id) startEdit(id);
   };
 
   const deleteSelection = () => {
     if (!editable) return;
+    boundary();
     deleteObjects(doc, [...ids]);
+    boundary();
     sel.clear();
   };
 
@@ -52,7 +63,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
   const moving = gesture.active === 'move';
 
   return (
-    <>
+    <UndoContext.Provider value={undo}>
     {board.connection && <ConnectionStatus state={board.connection} />}
     <BoardViewport
       cameraRef={cameraRef}
@@ -62,7 +73,9 @@ export function BoardApp({ board }: { board: BoardDoc }) {
       onEmptyClick={sel.clear}
       overlay={(ctx) => (
         <>
-          <Toolbar disabled={!editable} onCreateSticky={() => create(ctx.centreWorld())} />
+          <Toolbar disabled={!editable} onCreateSticky={() => create(ctx.centreWorld())}>
+            <UndoButtons {...undoState} />
+          </Toolbar>
           {editingId === null && (
             <SelectionOverlay
               ids={ids}
@@ -78,7 +91,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
               snapshot={notes}
               camera={ctx.camera}
               onDelete={deleteSelection}
-              onColor={(id, c) => { setStickyColor(doc, id, c); }}
+              onColor={(id, c) => { boundary(); setStickyColor(doc, id, c); boundary(); }}
             />
           )}
         </>
@@ -105,6 +118,6 @@ export function BoardApp({ board }: { board: BoardDoc }) {
         );
       })}
     </BoardViewport>
-    </>
+    </UndoContext.Provider>
   );
 }
