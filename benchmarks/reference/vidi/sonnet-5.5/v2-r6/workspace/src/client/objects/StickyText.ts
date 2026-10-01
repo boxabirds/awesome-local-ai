@@ -69,6 +69,25 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
   else run();
 }
 
+/** Maps a caret index through a Y.Text delta (inserts at or before the caret push it right). */
+export function mapIndexThroughDelta(
+  index: number, delta: readonly { insert?: unknown; delete?: number; retain?: number }[],
+): number {
+  let pos = 0;
+  let out = index;
+  for (const op of delta) {
+    if (op.retain !== undefined) {
+      pos += op.retain;
+    } else if (op.insert !== undefined) {
+      const len = typeof op.insert === 'string' ? op.insert.length : 1;
+      if (pos <= index) out += len;
+    } else if (op.delete !== undefined) {
+      if (pos < index) out -= Math.min(op.delete, index - pos);
+    }
+  }
+  return Math.max(0, out);
+}
+
 /** Largest integer font size in [MIN, MAX] at which the content fits `box` px; leaves it applied. */
 export function fitFontSize(el: HTMLElement, box: number): { fontPx: number; overflow: boolean } {
   const fits = (px: number) => {

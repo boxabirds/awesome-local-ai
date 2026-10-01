@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 
 export const viewportOf = (page: Page): Locator => page.getByTestId('board-viewport');
 export const originMarker = (page: Page): Locator => page.getByTestId('origin-marker');
-export const zoomLabel = (page: Page): Locator => page.getByRole('status');
+export const zoomLabel = (page: Page): Locator => page.getByTestId('zoom-label');
 
 export async function markerCentre(page: Page): Promise<{ x: number; y: number }> {
   const box = await originMarker(page).boundingBox();

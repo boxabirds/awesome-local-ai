@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
 import {
-  applyTextDiff, clampEdit, clampToLimit, counterVisible,
+  applyTextDiff, clampEdit, clampToLimit, counterVisible, mapIndexThroughDelta,
 } from '../../src/client/objects/StickyText';
 import { LONG_TEXT } from '../fixtures/texts';
 
@@ -83,5 +83,15 @@ describe('length limit', () => {
     expect(counterVisible(950)).toBe(true);
     expect(counterVisible(951)).toBe(true);
     expect(counterVisible(1000)).toBe(true);
+  });
+});
+
+describe('mapIndexThroughDelta', () => {
+  it('shifts a caret for inserts and deletes before it', () => {
+    expect(mapIndexThroughDelta(5, [{ insert: 'red ' }])).toBe(9);
+    expect(mapIndexThroughDelta(5, [{ retain: 5 }, { insert: ' blue' }])).toBe(10);
+    expect(mapIndexThroughDelta(5, [{ retain: 6 }, { insert: 'x' }])).toBe(5);
+    expect(mapIndexThroughDelta(5, [{ retain: 1 }, { delete: 2 }])).toBe(3);
+    expect(mapIndexThroughDelta(2, [{ delete: 10 }])).toBe(0);
   });
 });

@@ -27,3 +27,18 @@ Decisions:
 - Task 1/3 red-phase commits were skipped; tests were written alongside the implementation.
 
 E2E status: Chromium passes (run with `VIDI_E2E_CHROMIUM_ONLY=1`); Firefox/WebKit not run for story 2 in this environment.
+
+## Story 3 — See other people's edits appear live on the same board
+
+Decisions:
+- Upgraded `vitest` to 4.x because `@cloudflare/vitest-pool-workers` 0.22 requires it (existing unit/component tests pass unchanged). Integration project uses `cloudflareTest` against `wrangler.jsonc`; `npm run test:integration` runs `vite build` first so the SPA-fallback test (TC-06) has assets.
+- Worker/integration code is type-checked with `tsconfig.worker.json` (Workers types, no DOM); `npm run typecheck` runs both configs.
+- `decodeMessage` returns `payload` = bytes after the message-type header. Yjs swallows malformed updates inside `applyUpdate`, so `BoardRoom` pre-validates sync step2/update bytes with `Y.decodeUpdate` and closes 1003 on failure.
+- `connectBoard` takes an optional 4th argument (provider factory) so component tests can drive it with a fake provider. `useBoardDoc(boardId)` wraps a new `useLocalBoardDoc()` (no network) which component test harnesses use.
+- `StickyTextEditor` now observes the Y.Text and applies remote changes to the textarea (caret mapped through the delta via `mapIndexThroughDelta`). Without this, the next local keystroke would diff against a stale textarea value and delete other people's typing.
+- `/` redirects (replaceState) to `/b/<newBoardId()>`; any path other than `/b/:id` does this. Board creation proper arrives in story 5.
+- `window.__vidi6.connectionState` is exposed in test builds only. Existing e2e helper `zoomLabel` now uses `data-testid="zoom-label"` since the status badge is also `role=status`.
+- Chromium keeps an already-open WebSocket alive under `context.setOffline(true)`; the badge shows "Reconnecting…" after y-websocket's 30 s message timeout, so TC-27 waits up to 60 s for it and then keeps the outage at least `CATCH_UP_TEST_OUTAGE_MS`.
+- Nightly e2e (TC-29, TC-30) live in `tests/e2e/nightly/` and run via `npm run test:e2e:nightly` (Chromium only); excluded from `npm run test:e2e`.
+- Task 1 red-phase commit skipped; tests written alongside implementation.
+Chromium: all e2e and nightly pass. WebKit passes TC-22..26/28 (TC-27 and story-2 TC-32 failed once in the full multi-browser run; TC-32 passes alone). Firefox cannot launch in this sandbox.

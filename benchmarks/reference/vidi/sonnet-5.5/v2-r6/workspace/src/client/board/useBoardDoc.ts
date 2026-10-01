@@ -1,8 +1,15 @@
-import { useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
+import { setTestConnectionState } from '../canvas/testHooks';
 
-export interface BoardDoc { doc: Y.Doc; notes: readonly StickySnapshot[] }
+export interface BoardDoc {
+  doc: Y.Doc;
+  notes: readonly StickySnapshot[];
+  /** Absent when the doc is not connected to a room (component tests). */
+  connection?: ConnectionState;
+}
 
 interface Store {
   doc: Y.Doc;
@@ -29,9 +36,27 @@ function createStore(): Store {
   };
 }
 
-/** Owns the board's Y.Doc and exposes an immutable, memoised snapshot of it. */
-export function useBoardDoc(): BoardDoc {
-  const store = useMemo(createStore, []);
+/** A local-only board document (no network); component tests use this directly. */
+export function useLocalBoardDoc(key: string = ''): BoardDoc & { store: Store } {
+  // A new key means a new document, so nothing leaks between boards.
+  const store = useMemo(createStore, [key]);
   const notes = useSyncExternalStore(store.subscribe, store.getSnapshot);
-  return { doc: store.doc, notes };
+  return { doc: store.doc, notes, store };
+}
+
+/** Owns the board's Y.Doc, syncs it with the board's room, and exposes an immutable snapshot. */
+export function useBoardDoc(boardId: string): BoardDoc {
+  const { doc, notes, store } = useLocalBoardDoc(boardId);
+  const [connection, setConnection] = useState<ConnectionState>('connecting');
+
+  useEffect(() => {
+    setConnection('connecting');
+    const conn = connectBoard(store.doc, boardId, (s) => {
+      setConnection(s);
+      setTestConnectionState(s);
+    });
+    return () => conn.destroy();
+  }, [store, boardId]);
+
+  return { doc, notes, connection };
 }

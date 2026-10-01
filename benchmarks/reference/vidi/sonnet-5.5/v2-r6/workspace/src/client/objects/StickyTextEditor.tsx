@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
-import { applyTextDiff, clampEdit, counterVisible } from './StickyText';
+import { applyTextDiff, clampEdit, counterVisible, mapIndexThroughDelta } from './StickyText';
 
 export function StickyTextEditor(props: {
   ytext: Y.Text; fontPx: number; onEnd(next: 'selected' | 'unselected'): void;
@@ -21,6 +21,21 @@ export function StickyTextEditor(props: {
     el.value = text;
     el.focus();
     el.setSelectionRange(text.length, text.length);
+  }, [ytext]);
+
+  // Changes from other people land in the textarea without moving the caret off its place.
+  useEffect(() => {
+    const onChange = (event: Y.YTextEvent, tr: Y.Transaction) => {
+      const el = ref.current;
+      if (!el || tr.origin === LOCAL_ORIGIN) return;
+      const start = mapIndexThroughDelta(el.selectionStart, event.delta);
+      const end = mapIndexThroughDelta(el.selectionEnd, event.delta);
+      el.value = ytext.toString();
+      el.setSelectionRange(start, end);
+      setLength(ytext.length);
+    };
+    ytext.observe(onChange);
+    return () => ytext.unobserve(onChange);
   }, [ytext]);
 
   // A pointerdown anywhere outside the note ends editing.

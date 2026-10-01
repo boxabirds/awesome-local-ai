@@ -14,6 +14,14 @@ body { font-family: system-ui, sans-serif; background: #fff; overflow: hidden; }
     linear-gradient(#9aa0a6, #9aa0a6) center / 100% 1px no-repeat;
 }
 
+.connection-status {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 1000;
+  padding: 6px 14px; border-radius: 16px; font-size: 14px; font-weight: 500;
+  pointer-events: none; white-space: nowrap; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.connection-status--connecting, .connection-status--reconnecting { background: #ffb300; color: #3e2723; }
+.connection-status--confirmed { background: #43a047; color: #fff; }
+
 .navigation-hint {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
   padding: 8px 14px; border-radius: 8px; background: rgba(32, 33, 36, 0.85); color: #fff;

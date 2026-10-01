@@ -1,14 +1,14 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import type * as Y from 'yjs';
 import { BoardApp } from '../../src/client/App';
-import { useBoardDoc } from '../../src/client/board/useBoardDoc';
+import { useLocalBoardDoc } from '../../src/client/board/useBoardDoc';
 import { createSticky, snapshot } from '../../src/shared/board-model';
 import { flushFrame } from './helpers';
 
 let current: Y.Doc | null = null;
 
 function Harness() {
-  const board = useBoardDoc();
+  const board = useLocalBoardDoc();
   current = board.doc;
   return <BoardApp board={board} />;
 }
