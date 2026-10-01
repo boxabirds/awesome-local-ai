@@ -995,6 +995,8 @@ def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_pa
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
     if CONTAINMENT:
         CONTAINMENT.started(proc.pid)
+    global AGENT_ROOT_PID
+    AGENT_ROOT_PID = proc.pid
     loops = LoopDetector()
     st = empty_state()
     stalled = False
@@ -1018,6 +1020,7 @@ def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_pa
     except subprocess.TimeoutExpired:
         os.killpg(proc.pid, signal.SIGKILL)
         proc.wait()
+    AGENT_ROOT_PID = None
     if STORY_SKIP.is_set():
         st["error"] = None  # the operator ended the story: not an agent failure, nothing to resume
     elif proc.returncode not in (0, None) and not st["error"] and not stalled:
@@ -1178,12 +1181,47 @@ def _group_alive(pgid: int) -> bool:
         return False
 
 
+# The agent session the harness is running now (run_agent): the process it started, in a session of its own.
+AGENT_ROOT_PID: int | None = None
+
+
+def agent_started_pids(ws: Path) -> set[int]:
+    """What the running agent session started outside its own process group: its tools (pi starts each bash tool
+    call in a session of its own) and whatever they started. Found by parentage, so a tool that replaced its shell
+    and left the workspace, with no workspace path in its command line or working directory, is still found
+    (bash 5.2+ runs the last command of -c in place of the shell; `exec` does it in any). The agent's own group
+    (its sandbox wrapper, the agent, its helpers) and anything that is the agent by its command line are left out."""
+    root = AGENT_ROOT_PID
+    if not root:
+        return set()
+    children: dict[int, list[int]] = {}
+    group: dict[int, int] = {}
+    for line in subprocess.run(["ps", "-A", "-o", "pid=,ppid=,pgid="], capture_output=True, text=True).stdout.splitlines():
+        try:
+            pid, ppid, pgid = (int(x) for x in line.split())
+        except ValueError:
+            continue
+        children.setdefault(ppid, []).append(pid)
+        group[pid] = pgid
+    if root not in group:
+        return set()
+    found, queue = set(), [root]
+    while queue:
+        for c in children.get(queue.pop(), []):
+            if c not in found:
+                found.add(c)
+                queue.append(c)
+    run_dir = ws.resolve().parent
+    return {p for p in found if group[p] != group[root] and not is_agent_process(p, run_dir)}
+
+
 def kill_workspace_tools(ws: Path) -> None:
-    """The hang guard's kill: every tool process in the workspace with its whole group, sparing the
-    agent (and its group) and the harness."""
+    """The hang guard's kill: every tool process in the workspace, and everything the agent started outside its
+    own process group, each with its whole group, sparing the agent (and its group) and the harness."""
     everything = workspace_pids(ws)
-    tools = workspace_pids(ws, spare_agent=True)
-    spare = {os.getpgrp()} | {g for g in map(_pgid, everything - tools) if g is not None}
+    tools = (workspace_pids(ws, spare_agent=True) | agent_started_pids(ws)) - {AGENT_ROOT_PID}   # never the session itself
+    spare = {os.getpgrp()} | {g for g in map(_pgid, [*(everything - tools), *([AGENT_ROOT_PID] if AGENT_ROOT_PID else [])])
+                              if g is not None}
     kill_process_groups(tools, spare)
 
 

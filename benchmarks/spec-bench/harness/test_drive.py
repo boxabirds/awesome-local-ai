@@ -519,35 +519,49 @@ def test_hang_guard_kills_a_tool_child_that_left_the_workspace(tmp_path):
             pass
 
 
-@pytest.mark.xfail(strict=True, reason="harness gap, reported 1 Oct 2026 and not fixed (drive.workspace_pids): a tool "
-                   "that replaced its shell and left the workspace has neither the workspace path in its command "
-                   "line nor its working directory there, so the hang guard finds nothing to kill")
-def test_hang_guard_kills_a_tool_that_replaced_its_shell_and_left_the_workspace(tmp_path):
+# A stand-in for the agent: its own session (as the harness starts it), a tool started in another session (as pi
+# starts each bash tool call), the tool's pid printed, then it waits.
+FAKE_AGENT = """
+import subprocess, sys, time
+tool = subprocess.Popen(["/bin/bash", "-c", sys.argv[1]], start_new_session=True, stdout=subprocess.DEVNULL)
+print(tool.pid, flush=True)
+time.sleep(300)
+"""
+
+
+def test_hang_guard_kills_a_tool_that_replaced_its_shell_and_left_the_workspace(tmp_path, monkeypatch):
     """The case above, as a newer bash runs it (5.2 on the CI runner, 5.3 from Homebrew): the last command of
     `bash -c "cd <ws> && ...; find / ..."` is run in place of the shell, with no fork. There is then no shell
-    left whose command line names the workspace, and the tool itself has left it. `exec` makes any bash do that."""
-    import json as _json, os, subprocess, time
-    from drive import tool_hang_check
+    left whose command line names the workspace, and the tool itself has left it: `exec` makes any bash do that.
+    The guard can't find it by path; it is still something the agent started, outside the agent's own process
+    group, and is found and killed as that. The agent itself is left running."""
+    import json as _json, os, signal, subprocess, sys, time
+    import drive
     ws = tmp_path / "workspace"
     ws.mkdir()
-    tool = subprocess.Popen(["/bin/bash", "-c", f"cd {ws} && true; exec python3 -c "
-                             "'import os,time; os.chdir(\"/\"); time.sleep(300)'"],
-                            start_new_session=True, stdout=subprocess.PIPE)
+    script = f"cd {ws} && true; exec python3 -c 'import os,time; os.chdir(\"/\"); time.sleep(300)'"
+    agent = subprocess.Popen([sys.executable, "-c", FAKE_AGENT, script], start_new_session=True,
+                             stdout=subprocess.PIPE, text=True)
+    tool = int(agent.stdout.readline())
     events = tmp_path / "agent-events.jsonl"
     events.write_text(_json.dumps({"type": "tool_execution_start"}) + "\n")
     old = time.time() - 700
     os.utime(events, (old, old))
+    alive = lambda pid: subprocess.run(["ps", "-p", str(pid), "-o", "stat="], capture_output=True, text=True).stdout.strip() not in ("", "Z")
+    monkeypatch.setattr(drive, "AGENT_ROOT_PID", agent.pid, raising=False)
     try:
         time.sleep(1)
-        assert tool.poll() is None, "the tool should be running"
-        assert tool_hang_check(events, ws, idle_s=600)
+        assert alive(tool), "the tool should be running"
+        assert drive.tool_hang_check(events, ws, idle_s=600)
         time.sleep(1)
-        assert tool.poll() is not None, "the tool must be killed"
+        assert not alive(tool), "the tool must be killed"
+        assert agent.poll() is None, "the agent must be left running"
     finally:
-        try:
-            os.killpg(tool.pid, 9)
-        except ProcessLookupError:
-            pass
+        for pid in (tool, agent.pid):
+            try:
+                os.killpg(pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
 
 
 def test_hang_guard_is_not_fooled_by_a_workspace_path_that_names_a_client(tmp_path):
