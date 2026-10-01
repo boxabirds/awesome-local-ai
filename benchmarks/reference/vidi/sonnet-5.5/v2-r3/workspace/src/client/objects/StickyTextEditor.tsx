@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type Ke
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import { applyTextDiff, clampToLimit, counterVisible, transformIndex } from './StickyText';
 
 export function StickyTextEditor(props: {
   ytext: Y.Text;
@@ -25,6 +25,25 @@ export function StickyTextEditor(props: {
     setLength(text.length);
     el.focus();
     el.setSelectionRange(text.length, text.length);
+  }, [ytext]);
+
+  // Changes made by other people while this editor is open: show them and keep the caret where it was
+  // relative to the surrounding text. Without this the next keystroke would diff a stale textarea against
+  // the merged text and delete what the others typed.
+  useEffect(() => {
+    const onRemote = (event: Y.YTextEvent, tr: Y.Transaction) => {
+      const el = ref.current;
+      if (!el || tr.origin === LOCAL_ORIGIN) return;
+      const focused = document.activeElement === el;
+      const start = transformIndex(event.delta, el.selectionStart);
+      const end = transformIndex(event.delta, el.selectionEnd);
+      const text = ytext.toString();
+      el.value = text;
+      if (focused) el.setSelectionRange(start, end);
+      setLength(text.length);
+    };
+    ytext.observe(onRemote);
+    return () => ytext.unobserve(onRemote);
   }, [ytext]);
 
   // A pointerdown anywhere outside the note ends editing.

@@ -105,6 +105,30 @@ body,
   font-variant-numeric: tabular-nums;
 }
 
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2430;
+  pointer-events: none;
+}
+
+.connection-status--connecting,
+.connection-status--reconnecting {
+  background: #ffc107;
+}
+
+.connection-status--confirmed {
+  background: #2e9e4f;
+  color: #fff;
+}
+
 .navigation-hint {
   position: fixed;
   left: 50%;

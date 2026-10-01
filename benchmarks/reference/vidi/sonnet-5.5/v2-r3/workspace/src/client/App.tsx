@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -13,8 +15,30 @@ function focusInTextField(): boolean {
   return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el instanceof HTMLElement && el.isContentEditable);
 }
 
+const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
+
+/** Board id from `/b/:boardId`; anything else is sent to a fresh board (replaced by server-side creation in story 5). */
+function currentBoardId(): string {
+  const m = BOARD_PATH.exec(location.pathname);
+  let id = '';
+  try {
+    id = m ? decodeURIComponent(m[1]) : '';
+  } catch {
+    /* malformed escape: treated as invalid */
+  }
+  if (isValidBoardId(id)) return id;
+  const fresh = newBoardId();
+  history.replaceState(null, '', `/b/${fresh}${location.search}${location.hash}`);
+  return fresh;
+}
+
 export function App() {
-  const { doc, notes } = useBoardDoc();
+  const [boardId] = useState(currentBoardId);
+  return <Board key={boardId} boardId={boardId} />;
+}
+
+function Board({ boardId }: { boardId: string }) {
+  const { doc, notes, connection } = useBoardDoc(undefined, boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   const apiRef = useRef<BoardViewportApi | null>(null);
   // Stacking is expressed with z-index, so DOM order stays stable: re-ordering a note's element mid-drag
@@ -72,6 +96,7 @@ export function App() {
           ))
         }
       </BoardViewport>
+      <ConnectionStatus state={connection} />
       <Toolbar onCreateSticky={() => apiRef.current && createAt(apiRef.current.viewportCentreWorld())} />
     </>
   );

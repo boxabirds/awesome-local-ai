@@ -15,6 +15,9 @@ function installed(name: 'firefox' | 'webkit'): boolean {
 
 export default defineConfig({
   testDir: 'tests/e2e',
+  // Slow soak/idle tests run only via test:e2e:nightly (NIGHTLY=1).
+  testIgnore: process.env.NIGHTLY === '1' ? [] : ['**/nightly/**'],
+  testMatch: process.env.NIGHTLY === '1' ? ['**/nightly/**/*.spec.ts'] : ['**/*.spec.ts'],
   fullyParallel: true,
   reporter: 'list',
   use: { baseURL: `http://localhost:${PORT}`, viewport: { width: 1280, height: 800 } },

@@ -25,7 +25,7 @@ export async function gridState(page: Page) {
 }
 
 export async function setCamera(page: Page, x: number, y: number, zoom: number) {
-  await page.evaluate(([cx, cy, cz]) => window.__vidi6!.setCamera({ x: cx, y: cy, zoom: cz }), [x, y, zoom]);
+  await page.evaluate(([cx, cy, cz]) => window.__vidi6!.setCamera!({ x: cx, y: cy, zoom: cz }), [x, y, zoom]);
 }
 
 export async function drag(page: Page, from: Box, dx: number, dy: number) {

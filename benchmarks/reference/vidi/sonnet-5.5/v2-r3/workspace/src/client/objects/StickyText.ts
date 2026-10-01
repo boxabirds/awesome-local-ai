@@ -41,6 +41,26 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
   else apply();
 }
 
+/** Maps a caret index in the old text to the new text after applying a Y.Text delta. */
+export function transformIndex(
+  delta: readonly { insert?: unknown; delete?: number; retain?: number }[],
+  index: number,
+): number {
+  let old = 0;
+  let result = index;
+  for (const op of delta) {
+    if (op.retain !== undefined) {
+      old += op.retain;
+    } else if (op.insert !== undefined) {
+      if (old < index) result += typeof op.insert === 'string' ? op.insert.length : 1;
+    } else if (op.delete !== undefined) {
+      result -= Math.max(0, Math.min(old + op.delete, index) - old);
+      old += op.delete;
+    }
+  }
+  return result;
+}
+
 export function counterVisible(length: number): boolean {
   return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;
 }
