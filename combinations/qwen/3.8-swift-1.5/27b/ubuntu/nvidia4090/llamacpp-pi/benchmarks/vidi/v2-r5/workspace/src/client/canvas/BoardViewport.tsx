@@ -13,6 +13,8 @@ export interface BoardViewportProps {
   zoomIn: () => void;
   zoomOut: () => void;
   reset: () => void;
+  onDblClickEmpty?: (screenPoint: Point) => void;
+  onClickEmpty?: () => void;
   children?: ReactNode;
 }
 
@@ -20,9 +22,10 @@ const WHEEL_LINE_DELTA = 16;
 const WHEEL_PAGE_DELTA = 100;
 
 export function BoardViewport(props: BoardViewportProps): ReactElement {
-  const { camera, beginPan, panMove, endPan, wheel, zoomIn, zoomOut, reset } = props;
+  const { camera, beginPan, panMove, endPan, wheel, zoomIn, zoomOut, reset, onDblClickEmpty, onClickEmpty } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
+  const didPanRef = useRef(false);
 
   // Pointer drag handling
   const onPointerDown = useCallback((e: ReactPointerEvent) => {
@@ -31,6 +34,7 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
       return;
     }
     isPanningRef.current = true;
+    didPanRef.current = false;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     beginPan({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -38,6 +42,7 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
 
   const onPointerMove = useCallback((e: ReactPointerEvent) => {
     if (!isPanningRef.current) return;
+    didPanRef.current = true;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     panMove({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   }, [panMove]);
@@ -49,7 +54,14 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     } catch { /* already released */ }
     endPan();
-  }, [endPan]);
+    // If we didn't actually pan (no movement), treat as click on empty space
+    if (!didPanRef.current && onClickEmpty) {
+      const target = e.target as HTMLElement;
+      if (target.classList.contains('board-viewport') || target.classList.contains('board-grid')) {
+        onClickEmpty();
+      }
+    }
+  }, [endPan, onClickEmpty]);
 
   const onPointerCancel = useCallback((e: ReactPointerEvent) => {
     if (!isPanningRef.current) return;
@@ -170,6 +182,15 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onLostPointerCapture={onLostPointerCapture}
+      onDoubleClick={(e) => {
+        const target = e.target as HTMLElement;
+        // Only handle double-click on empty board space (not on notes)
+        if (target.classList.contains('board-viewport') || target.classList.contains('board-grid')) {
+          e.stopPropagation();
+          const rect = containerRef.current!.getBoundingClientRect();
+          onDblClickEmpty?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        }
+      }}
     >
       <div
         className="board-grid"

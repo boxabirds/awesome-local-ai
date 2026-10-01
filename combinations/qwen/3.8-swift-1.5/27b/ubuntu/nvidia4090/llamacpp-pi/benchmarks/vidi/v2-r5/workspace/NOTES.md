@@ -15,3 +15,27 @@
 5. **rAF batching removed**: The initial design mentioned batching camera updates with `requestAnimationFrame`, but this was simplified to direct state updates via `setCameraState` with functional updaters. This is simpler and avoids stale closure issues while still being performant enough for the use case (React batches state updates within event handlers automatically).
 
 6. **Pointer capture in jsdom**: `setPointerCapture`/`releasePointerCapture` are not available in jsdom and are mocked in component tests.
+
+## Story 2: Capture ideas on sticky notes and rearrange them
+
+### Decisions
+
+1. **Yjs document structure**: Board state lives in a `Y.Doc` with a `Y.Map<Y.Map<unknown>>` at `doc.getMap('objects')`. Each sticky note is a `Y.Map` with keys: `id`, `x`, `y`, `z`, `color`, and a nested `Y.Text` for content. The `useBoardDoc` hook owns the doc and exposes a cached snapshot via `useSyncExternalStore`.
+
+2. **Snapshot caching**: `useSyncExternalStore` requires `getSnapshot` to return a stable reference. The snapshot is cached in a ref and only recomputed when the Y.Map fires an `observeDeep` callback. This prevents infinite re-render loops.
+
+3. **DOM-based sticky notes**: Notes are rendered as absolutely-positioned divs inside the `board-world` transform container. Position is set via `left`/`top` in world coordinates. The `board-world` div applies `scale(zoom) translate(-camX, -camY)` so notes transform with the camera.
+
+4. **Drag implementation**: Pointer events on the note div with a 3px drag threshold. During drag, `moveObject` is called via `requestAnimationFrame` batching. `bringToFront` is called once when drag starts. The note's pointer handlers call `e.stopPropagation()` to prevent board panning.
+
+5. **Text editing**: A textarea overlay replaces the text display when editing. Text changes are applied to Y.Text via a minimal diff (common prefix/suffix comparison). The character counter uses local state (`textLen`) updated on each input event, since the component doesn't re-render on Y.Text changes.
+
+6. **Font auto-fit**: `fitFontSize` uses binary search on font size (10-28px range) by measuring text height in a hidden container. Runs after text changes via `useEffect`. When text overflows at minimum font size, a gradient fade is shown at the bottom.
+
+7. **Note toolbar positioning**: The NoteToolbar (colour swatches + delete) is positioned at `top: -40` relative to the note, scaled by `1/zoom` to maintain constant screen size. The note div does NOT use `overflow: hidden` (that would clip the toolbar); instead, the text container has `overflow: hidden`.
+
+8. **Double-click creation**: The `onDoubleClick` handler is on the `board-viewport` div (not `board-world` which has no size). It checks that the event target is the viewport or grid (not a note) before creating a new sticky at that world position.
+
+9. **Keyboard shortcuts**: Global `keydown` listener in `App.tsx` handles Enter (start editing selected note) and Delete/Backspace (delete selected note). The handler checks that focus is not in an input/textarea to avoid interfering with text editing.
+
+10. **E2E text input**: React's synthetic event system doesn't respond to native `dispatchEvent(new Event('input'))`. E2E tests use `page.keyboard.type()` which simulates real keystrokes and properly triggers React's event handlers.
