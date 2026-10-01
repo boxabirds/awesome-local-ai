@@ -11,7 +11,7 @@ afterEach(cleanup);
 
 function selectedNoteInApp() {
   render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
   const area = screen.getByRole('textbox');
   fireEvent.keyDown(area, { key: 'Escape' });
   return screen.getByRole('group', { name: 'Sticky note' });
@@ -54,7 +54,7 @@ describe('sticky text editor', () => {
   it('TC-26 Backspace while editing edits text and keeps the note', async () => {
     const user = userEvent.setup();
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     await user.keyboard('ab{Backspace}');
     expect(screen.getByRole('group', { name: 'Sticky note' })).toBeTruthy();
     expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('a');
@@ -63,7 +63,7 @@ describe('sticky text editor', () => {
   it('TC-38 typing then clicking outside ends editing and deselects', async () => {
     const user = userEvent.setup();
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     await user.keyboard('abc');
     fireEvent.pointerDown(screen.getByTestId('board-viewport'));
     expect(screen.queryByRole('textbox')).toBeNull();
@@ -75,7 +75,7 @@ describe('sticky text editor', () => {
   it('pasting over the limit keeps exactly 1,000 characters and shows 1000/1000', async () => {
     const user = userEvent.setup();
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     await user.paste(OVER_LIMIT_TEXT);
     const area = screen.getByRole('textbox') as HTMLTextAreaElement;
     expect(area.value).toBe(OVER_LIMIT_TEXT.slice(0, 1000));

@@ -56,7 +56,7 @@ describe('sticky note interaction', () => {
 
   it('TC-20 dragging a note in the app does not move the camera', async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     const world = screen.getByTestId('board-world');
     const transform = world.style.transform;
     const note = screen.getByRole('group', { name: 'Sticky note' });
@@ -103,7 +103,7 @@ describe('sticky note interaction', () => {
 
   it.each(['Delete', 'Backspace'])('TC-25 %s removes the selected note', async (key) => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
     expect(screen.getByRole('group', { name: 'Sticky note' })).toBeTruthy();
     fireEvent.keyDown(window, { key });
@@ -112,7 +112,7 @@ describe('sticky note interaction', () => {
 
   it('TC-35 dblclick on a note edits it and creates no new note', () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
     fireEvent.doubleClick(screen.getByRole('group', { name: 'Sticky note' }));
     expect(screen.getAllByRole('group', { name: 'Sticky note' })).toHaveLength(1);

@@ -1,4 +1,6 @@
-import { type StickyColor } from '../../shared/config';
+import { type StickyColor, type TextSize } from '../../shared/config';
+import type { TextSnapshot } from '../../shared/objects/text';
+import { TextToolbar } from '../objects/TextToolbar';
 import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
 import type { Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
@@ -16,6 +18,7 @@ export function SelectionBar(props: {
   ids: ReadonlySet<string>; snapshot: readonly ObjectSnapshot[]; onDelete(): void;
   camera?: Camera;
   onColor?(id: string, color: StickyColor): void;
+  onTextSize?(id: string, size: TextSize): void;
   /** No Delete button or note tools while the board cannot be edited. */
   readOnly?: boolean;
 }) {
@@ -28,6 +31,20 @@ export function SelectionBar(props: {
   const style = { left: box.x + box.width / HALF, top: Math.max(BAR_GAP_PX, box.y - BAR_GAP_PX) };
   const single = count === 1 && selected[0].type === 'sticky' ? (selected[0] as StickySnapshot) : null;
 
+  const text = count === 1 && selected[0].type === 'text' ? (selected[0] as TextSnapshot) : null;
+
+  if (text) {
+    return (
+      <>
+        <span className="visually-hidden" aria-live="polite">1 selected</span>
+        {!readOnly && (
+          <div className="selection-bar-anchor" style={style}>
+            <TextToolbar size={text.size} onSize={(s) => props.onTextSize?.(text.id, s)} onDelete={props.onDelete} />
+          </div>
+        )}
+      </>
+    );
+  }
   if (single) {
     return (
       <>

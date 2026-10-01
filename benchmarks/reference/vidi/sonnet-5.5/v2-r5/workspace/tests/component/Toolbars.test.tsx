@@ -7,7 +7,7 @@ import './helpers';
 afterEach(cleanup);
 
 function createAndSelect() {
-  fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
   fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
   return screen.getByRole('group', { name: 'Sticky note' });
 }
@@ -15,8 +15,8 @@ function createAndSelect() {
 describe('toolbars', () => {
   it('TC-28 Sticky note button creates a centred yellow note in edit mode', () => {
     render(<App />);
-    expect(screen.getByRole('button', { name: 'Sticky note' }).title).toBe('Sticky note – or double-click the board');
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    expect(screen.getByRole('button', { name: 'Sticky note (N)' }).title).toBe('Sticky note (N) – or double-click the board');
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     const note = screen.getByRole('group', { name: 'Sticky note' });
     expect(screen.getAllByRole('group', { name: 'Sticky note' })).toHaveLength(1);
     expect(note.style.background).toBe(hex(STICKY_COLORS.yellow));

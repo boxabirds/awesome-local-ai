@@ -104,7 +104,7 @@ test('TC-32 drag at 200% zoom and stacking', async ({ page }) => {
 });
 
 test('TC-33 text shrinks to the minimum, then clips with a fade', async ({ page }) => {
-  await page.getByRole('button', { name: 'Sticky note' }).click();
+  await page.getByRole('button', { name: 'Sticky note (N)' }).click();
   await page.keyboard.type('Word');
   const note = notes(page).first();
   const text = note.locator('.sticky-text');
@@ -127,7 +127,7 @@ test('TC-34 button creates a note at screen centre after panning far away', asyn
   const cam = await getCamera(page);
   await setCamera(page, { ...cam, x: cam.x + 500_000, y: cam.y - 300_000 });
   await settled(page);
-  await page.getByRole('button', { name: 'Sticky note' }).click();
+  await page.getByRole('button', { name: 'Sticky note (N)' }).click();
   const box = (await notes(page).first().boundingBox())!;
   const vp = page.viewportSize()!;
   expect(Math.abs(box.x + box.width / 2 - vp.width / 2)).toBeLessThanOrEqual(TOL);

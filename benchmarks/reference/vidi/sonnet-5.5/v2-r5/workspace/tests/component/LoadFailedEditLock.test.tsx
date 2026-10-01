@@ -54,7 +54,7 @@ describe('App in load_failed (persist.client_status)', () => {
     setup('load_failed');
     const user = userEvent.setup();
     const board = screen.getByTestId('board-viewport');
-    const button = screen.getByRole('button', { name: 'Sticky note' });
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
     expect((button as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.doubleClick(board);
@@ -86,6 +86,6 @@ describe('App in load_failed (persist.client_status)', () => {
 
   it('control: when reconnecting the Sticky note button is enabled', () => {
     setup('reconnecting');
-    expect((screen.getByRole('button', { name: 'Sticky note' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Sticky note (N)' }) as HTMLButtonElement).disabled).toBe(false);
   });
 });

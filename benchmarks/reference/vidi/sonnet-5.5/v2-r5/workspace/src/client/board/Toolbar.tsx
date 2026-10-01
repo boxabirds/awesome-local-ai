@@ -1,12 +1,40 @@
 import type { ReactNode } from 'react';
+import type { Tool } from './useTool';
 
-export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean; undoButtons?: ReactNode }) {
+export function Toolbar(props: {
+  onCreateSticky(): void; disabled?: boolean; undoButtons?: ReactNode;
+  tool?: Tool; onTool?(t: Tool): void;
+}) {
+  const { tool = 'select', onTool } = props;
   return (
     <div className="left-toolbar" role="toolbar" aria-label="Tools" onPointerDown={(e) => e.stopPropagation()}>
       <button
         type="button"
-        aria-label="Sticky note"
-        title="Sticky note – or double-click the board"
+        aria-label="Select (V)"
+        title="Select (V)"
+        aria-pressed={tool === 'select'}
+        onClick={() => onTool?.('select')}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M5 3l14 8-6 2-2 6z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        aria-label="Text (T)"
+        title="Text (T)"
+        aria-pressed={tool === 'text'}
+        disabled={props.disabled}
+        onClick={() => onTool?.('text')}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M5 6V4h14v2M12 4v16M9 20h6" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        aria-label="Sticky note (N)"
+        title="Sticky note (N) – or double-click the board"
         disabled={props.disabled}
         onClick={props.onCreateSticky}
       >

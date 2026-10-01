@@ -1,5 +1,8 @@
 import * as Y from 'yjs';
-import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
+import {
+  DEFAULT_STICKY_COLOR, DEFAULT_TEXT_SIZE, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES,
+  type StickyColor, type TextSize,
+} from './config';
 import { rectContains, type Point, type Rect } from './geometry';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
@@ -208,6 +211,16 @@ export function snapshotObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
         color: isColor(color) ? color : DEFAULT_STICKY_COLOR,
         text: text instanceof Y.Text ? text.toString() : '',
       } as StickySnapshot);
+    } else if (type === 'text') {
+      const text = obj.get('text');
+      const sizeKey = obj.get('size');
+      out.push({
+        ...base, type: 'text',
+        text: text instanceof Y.Text ? text.toString() : '',
+        size: typeof sizeKey === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, sizeKey)
+          ? sizeKey as TextSize : DEFAULT_TEXT_SIZE,
+        widthMode: obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto',
+      } as ObjectSnapshot);
     } else {
       out.push(base);
     }

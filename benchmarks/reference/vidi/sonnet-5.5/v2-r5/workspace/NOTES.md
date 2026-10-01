@@ -76,3 +76,15 @@
 - Unit test TC-12/13 call `vi.hoisted(() => vi.useFakeTimers())` because lib0 captures `Date.now` at import time; installing the fake clock afterwards would not move the Yjs capture clock.
 - Tests use a `Harness` `undo` prop (component) and `tests/unit/helpers/peer.ts` (simulated peer and LOAD-origin updates). e2e ran in Chromium only.
 - TC-26 (story 3) is flaky under parallel workers here; it passes alone. Run e2e as `npx vite build --mode test` first (a plain `npm run build` removes the test hooks from dist).
+
+## Story 9 decisions
+- Story 6 is not built, so `createdBy` comes from `src/client/board/localIdentity.ts` (a guest id kept in localStorage) instead of `useIdentity`.
+- Auto width is the longest *unwrapped* line plus `TEXT_PADDING_WORLD` (2), capped at `TEXT_MAX_AUTO_WIDTH_WORLD`; a wrapped paragraph therefore fills the cap exactly (e2e TC-26 expects 600 ±2). In fixed mode the width is the stored width.
+- `createText` stores an estimated initial box; later boxes are written only by the local client via `remeasureText` / `useTextBoxSync` (typing, size change, width drag). The fixed-width drag writes position, width and height in one transaction in `useTransformGesture`.
+- Text-tool placement happens on `click` (not pointerdown) so the new textarea keeps focus; a capture-phase pointerdown handler on the viewport stops pans, marquees and object drags while the tool is active.
+- A fresh empty text skips the editor's start undo boundary, so creating, typing and (if left empty) removing it are one undo step: undoing a new text removes it, and an abandoned empty text never leaves an undoable invisible object behind. Editing existing text keeps the usual start/end boundaries.
+- Escape while the Text tool is active only returns to Select (selection is untouched). Shift+V/T/N are not shortcuts.
+- Mixed selections: auto-width text is only repositioned; fixed-width text has its width scaled and height re-measured.
+- Size buttons are named by their label (`S`, `M`, `L`, `XL`, `aria-pressed`); the text toolbar's delete button is `Delete text`. Text objects are `role=group` with the content as accessible name (`Text` when empty).
+- Sticky note button label is now `Sticky note (N)`; story 2 tests were updated for the new name.
+- e2e ran in Chromium only (Firefox/WebKit not installed).

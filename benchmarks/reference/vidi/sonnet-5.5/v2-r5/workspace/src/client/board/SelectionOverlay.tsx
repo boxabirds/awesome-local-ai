@@ -38,7 +38,10 @@ export function SelectionOverlay(props: {
   const { ids, snapshot, camera, canEdit = true } = props;
   const box = selectionScreenBox(ids, snapshot, camera);
   if (!box) return null;
-  const resizable = snapshot.some((o) => ids.has(o.id) && getObjectType(o.type)?.resizable);
+  const selected = snapshot.filter((o) => ids.has(o.id));
+  const resizable = selected.some((o) => getObjectType(o.type)?.resizable);
+  const horizontalOnly = selected.length > 0 && selected.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+  const handles = horizontalOnly ? HANDLES.filter((h) => h.handle === 'e' || h.handle === 'w') : HANDLES;
   return (
     <div className="selection-overlay" data-testid="selection-overlay">
       <div
@@ -46,7 +49,7 @@ export function SelectionOverlay(props: {
         data-testid="selection-box"
         style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
       />
-      {resizable && canEdit && HANDLES.map((h) => (
+      {resizable && canEdit && handles.map((h) => (
         <button
           key={h.handle}
           type="button"

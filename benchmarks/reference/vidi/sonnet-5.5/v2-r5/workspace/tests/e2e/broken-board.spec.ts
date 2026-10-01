@@ -28,7 +28,7 @@ test('TC-24 Broken board: honest failure, editing blocked, recovery without relo
 
   // Not editable: neither double-click nor the Sticky note button creates anything.
   await page.mouse.dblclick(400, 300);
-  await expect(page.getByRole('button', { name: 'Sticky note' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Sticky note (N)' })).toBeDisabled();
   await page.keyboard.type('nope');
   await expect(notesOf(page)).toHaveCount(0);
 

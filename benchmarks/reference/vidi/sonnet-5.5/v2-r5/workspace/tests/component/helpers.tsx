@@ -7,6 +7,9 @@ import { useBoardKeys } from '../../src/client/board/useBoardKeys';
 import { useSelection, type Selection } from '../../src/client/board/useSelection';
 import { useTransformGesture } from '../../src/client/board/useTransformGesture';
 import type { UndoController } from '../../src/client/board/undo';
+import { setTextSize } from '../../src/shared/objects/text';
+import { sharedMeasurer } from '../../src/client/objects/textLayout';
+import { remeasureText } from '../../src/client/objects/useTextBoxSync';
 import { getObjectType } from '../../src/client/objects/registry';
 import '../fixtures/testbox';
 
@@ -74,6 +77,7 @@ export function Harness({ doc, zoom = 1, canEdit = true, undo, onGestureStart, o
             ids={sel.ids} snapshot={objects} camera={camera} readOnly={!canEdit}
             onDelete={() => { deleteObjects(doc, [...sel.ids]); sel.clear(); }}
             onColor={(id, c) => { setStickyColor(doc, id, c); }}
+            onTextSize={(id, size) => { if (setTextSize(doc, id, size)) remeasureText(doc, id, sharedMeasurer()); }}
           />
         </>
       )}

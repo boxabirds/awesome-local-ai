@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { createSticky, deleteObjects, setStickyColor } from '../../shared/board-model';
+import { createText, setTextSize } from '../../shared/objects/text';
+import { remeasureText } from '../objects/useTextBoxSync';
+import { sharedMeasurer } from '../objects/textLayout';
+import { localIdentityId } from './localIdentity';
+import { useTool } from './useTool';
+import type { TextSize } from '../../shared/config';
 import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
@@ -48,7 +54,7 @@ export function Board({ boardId }: { boardId: string }) {
     doc, camera: liveCamera, selection: sel, snapshot: objects, canEdit: editable,
     onGestureStart: boundary, onGestureEnd: boundary,
   });
-  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable, undo: undoCtl });
+  const { tool, setTool } = useTool(editable);
 
   // Stacking is CSS z-index (z, with id as DOM-order tie-break). The DOM order stays stable so that
   // raising objects never moves an element, which would drop its pointer capture mid-drag.
@@ -61,6 +67,27 @@ export function Board({ boardId }: { boardId: string }) {
     boundary();
     if (id) sel.startEdit(id);
   };
+  const createStickyAtCentre = () => {
+    const api = apiRef.current;
+    if (!api) return;
+    createAt(screenToWorld(api.getCamera(), { x: api.size.width / HALF, y: api.size.height / HALF }));
+  };
+  useBoardKeys({
+    doc, selection: sel, snapshot: objects, canEdit: editable, undo: undoCtl,
+    tools: { tool, setTool, createSticky: createStickyAtCentre },
+  });
+  const createTextAt = (world: Point) => {
+    if (!editable) return;
+    boundary();
+    const id = createText(doc, world, localIdentityId());
+    setTool('select');
+    if (id) sel.startEdit(id);
+  };
+  const changeTextSize = (id: string, size: TextSize) => {
+    boundary();
+    if (setTextSize(doc, id, size)) remeasureText(doc, id, sharedMeasurer());
+    boundary();
+  };
   const deleteSelection = () => {
     if (!editable) return;
     boundary();
@@ -72,6 +99,8 @@ export function Board({ boardId }: { boardId: string }) {
   return (
     <BoardViewport
       onDoubleClickEmpty={createAt}
+      textMode={tool === 'text'}
+      onTextClick={createTextAt}
       onEmptyClick={sel.clear}
       objects={objects}
       onMarqueeSelect={(ids) => sel.setMany(ids, true)}
@@ -87,15 +116,16 @@ export function Board({ boardId }: { boardId: string }) {
                 ids={sel.ids} snapshot={objects} camera={api.camera} readOnly={!editable}
                 onDelete={deleteSelection}
                 onColor={(id, c) => { boundary(); setStickyColor(doc, id, c); boundary(); }}
+                onTextSize={changeTextSize}
               />
             </>
           )}
           <Toolbar
             disabled={!editable}
             undoButtons={<UndoButtons {...undoState} />}
-            onCreateSticky={() => createAt(
-              screenToWorld(api.getCamera(), { x: api.size.width / HALF, y: api.size.height / HALF }),
-            )}
+            tool={tool}
+            onTool={setTool}
+            onCreateSticky={createStickyAtCentre}
           />
           <ConnectionStatus state={connection} />
           <NavigationHint visible={!api.hasNavigated} />

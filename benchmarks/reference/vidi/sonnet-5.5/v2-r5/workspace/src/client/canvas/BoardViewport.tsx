@@ -33,6 +33,9 @@ export function BoardViewport(props: {
   /** Objects a Shift+drag rectangle can select; ids of those fully inside go to onMarqueeSelect. */
   objects?: readonly ObjectSnapshot[];
   onMarqueeSelect?: (ids: string[]) => void;
+  /** While true the board shows a text cursor, does not pan or marquee, and a click reports its world point. */
+  textMode?: boolean;
+  onTextClick?: (world: Point) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>(() => ({
@@ -169,9 +172,21 @@ export function BoardViewport(props: {
         data-state={panning ? 'panning' : 'idle'}
         tabIndex={-1}
         style={{
-          cursor: panning ? 'grabbing' : 'grab',
+          cursor: props.textMode ? 'text' : panning ? 'grabbing' : 'grab',
           backgroundSize: `${spacing}px ${spacing}px`,
           backgroundPosition: `${gridX}px ${gridY}px`,
+        }}
+        onPointerDownCapture={(e) => {
+          // With the Text tool a press belongs to the click that places text, not to a pan, marquee or object drag.
+          if (props.textMode && (e.button ?? PRIMARY_BUTTON) === PRIMARY_BUTTON) e.stopPropagation();
+        }}
+        onClickCapture={(e) => {
+          if (!props.textMode || (e.button ?? PRIMARY_BUTTON) !== PRIMARY_BUTTON) return;
+          e.stopPropagation();
+          const r = e.currentTarget.getBoundingClientRect();
+          props.onTextClick?.(
+            screenToWorld(apiRef.current.getCamera(), { x: e.clientX - r.left, y: e.clientY - r.top }),
+          );
         }}
         onPointerDown={(e) => {
           if (e.target !== e.currentTarget || (e.button ?? PRIMARY_BUTTON) !== PRIMARY_BUTTON) return;

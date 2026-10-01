@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import {
-  bringObjectsToFront, hasObject, moveObjects, objectBounds, resizeObjects, type ObjectSnapshot,
+  bringObjectsToFront, hasObject, LOCAL_ORIGIN, moveObjects, objectBounds, resizeObjects, type ObjectSnapshot,
 } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
 import {
   clampScale, handleScale, scaleRectFrom, scaleWithin, unionRects, type Handle, type Point, type Rect,
 } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
+import { setTextWidthFixed, type TextSnapshot } from '../../shared/objects/text';
 import { getObjectType } from '../objects/registry';
+import { sharedMeasurer } from '../objects/textLayout';
+import { remeasureText } from '../objects/useTextBoxSync';
 import type { Selection } from './useSelection';
 
 const PRIMARY_BUTTON = 0;
@@ -70,7 +73,8 @@ export function useTransformGesture(opts: {
     const box = unionRects([...g.starts.values()]);
     if (!box || !g.handle) return;
     const specs = [...g.starts.keys()].map((id) => specOf(ref.current.snapshot, id));
-    const aspect = g.shift || specs.some((s) => s?.aspectLocked);
+    const horizontalOnly = specs.every((s) => s?.handles === 'horizontal');
+    const aspect = (g.shift && !horizontalOnly) || specs.some((s) => s?.aspectLocked);
     const wanted = handleScale(box, g.handle, { x: dx, y: dy }, aspect);
     const resizable = [...g.starts.entries()].filter(([id]) => specOf(ref.current.snapshot, id)?.resizable);
     const scale = clampScale(
@@ -81,11 +85,27 @@ export function useTransformGesture(opts: {
     );
     const to = scaleRectFrom(box, g.handle, scale);
     const rects = new Map<string, Rect>();
+    const texts: Array<[string, Rect]> = []; // text boxes: width scales only when fixed, height follows content
     g.starts.forEach((r, id) => {
       const scaled = scaleWithin(r, box, to);
+      const obj = ref.current.snapshot.find((o) => o.id === id);
+      if (obj?.type === 'text') {
+        const fixed = (obj as TextSnapshot).widthMode === 'fixed';
+        if (horizontalOnly || fixed) texts.push([id, scaled]);
+        else rects.set(id, { ...scaled, width: r.width, height: r.height });
+        return;
+      }
       rects.set(id, specOf(ref.current.snapshot, id)?.resizable ? scaled : { ...scaled, width: r.width, height: r.height });
     });
-    resizeObjects(doc, rects);
+    doc.transact(() => {
+      resizeObjects(doc, rects);
+      const measure = sharedMeasurer();
+      texts.forEach(([id, r]) => {
+        moveObjects(doc, new Map([[id, { x: r.x, y: r.y }]]));
+        setTextWidthFixed(doc, id, r.width);
+        remeasureText(doc, id, measure);
+      });
+    }, LOCAL_ORIGIN);
   }, []);
 
   const finish = useCallback((g: Gesture, flush: boolean) => {
