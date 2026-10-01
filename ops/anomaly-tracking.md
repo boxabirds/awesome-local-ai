@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 09:58 UTC
+**Last updated:** 2026-10-01 10:12 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -39,7 +39,11 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   other work's edits in it.
 - **Bucket:** internal bug — **confidence high** (the file list of origin/main, the commit's diff, CI's
   output).
-- **Status:** open and urgent. dbench pulls main before each job, so the next job to start (Swift 1.5
+- **Note 2026-10-01 10:10:** fixed in `55e01146` (`drive.py` as it was, plus the nudge change alone). A
+  clean export of origin/main imports `drive` (checked by the monitor, which now repeats that check
+  whenever main's harness changes). No job started between 09:39 and 10:10: the latest job start on any
+  machine is 08:26. CI on the fix was still running at 10:10.
+- **Status at first report:** open and urgent. dbench pulls main before each job, so the next job to start (Swift 1.5
   v2-r5 on the RTX 4090 machine when v2-r4 ends; Sonnet v2-r5 on the M2 MacBook Air; gufo v2-r4's
   re-score job on the Strix Halo box; any restart of a running job) will fail at import and spend its
   restarts on the same error. Running stories are safe until their process ends.
@@ -160,6 +164,17 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Suggested action:** decide whether the nudge may say "you have not committed your work" (it costs the
   agent nothing it wasn't already told in the prompt). If not, consider stopping at the first nudge whose
   reply makes no tool call that changes a file, to save the 30+ minutes.
+
+### A-026 — Swift 1.5 v2-r4 story 7: a tool call silent for 10 minutes, interrupted by the hang guard
+- **First seen / last seen:** 2026-10-01 09:42
+- **Where:** qwen 3.8 Swift 1.5 27B, llamacpp-pi, the RTX 4090 machine, v2-r4 story 7 (still running at
+  10:10, 44+ agent-min, no commit yet).
+- **Observed:** the job log: "tool call silent 10 min — interrupted (Ctrl-C equivalent)". The agent carried
+  on afterwards (edits and builds). Shortly before, its activity included probing a local server with curl,
+  so a command waiting on a server that never answers is the likely cause.
+- **Bucket:** genuine LLM behaviour — **confidence low** until the story's record shows which command it
+  was (`conversation.longest_tool`, `tool_interruptions`).
+- **Status:** watching; the guard did its job.
 
 ### A-010 — Sonnet 5.5 v2-r4: its own e2e suite fails in the gate on stories 2 and 3 while held-out passes
 - **First seen:** 2026-10-01 07:5x (story 2) · **Last seen:** 2026-10-01 08:2x (story 3)
@@ -295,6 +310,8 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   times (story 5 used all three continuations), v2-r2 twice, v2-r3 once, v2-r4 once (story 9).
 - **What:** the engine returns a tool call as plain text instead of running it; the harness continues the
   session (up to 3 per story) and lists each one in the run's interventions.
+- **Note 2026-10-01 09:50:** v2-r5 story 2 used all three continuations (the per-story limit) and still
+  ended DONE: 8/10 of its own held-out tests, 18/20 overall, gate red. Seen 2026-09-29 → 2026-10-01 09:50.
 - **Bucket:** genuine LLM behaviour (the model-plus-engine stack, measured correctly) — medium on the
   label: the cause is an engine bug reported upstream (gufo issue 304), which could as well be called
   environment. **Status:** handled by the harness; will recur until the engine is fixed.
@@ -370,12 +387,12 @@ By bucket (A-018 is a scheduling flag and has no bucket):
 | Bucket | Open: needs someone | Open: watched | Explained / resolved | Total |
 |---|---|---|---|---|
 | internal bug | 1 (A-025) | 3 (A-015, A-016, A-020) | 8 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-023) | 12 |
-| genuine LLM behaviour | 0 | 3 (A-010, A-012, A-013) | 3 (A-006, A-007, A-017) | 6 |
+| genuine LLM behaviour | 0 | 4 (A-010, A-012, A-013, A-026) | 3 (A-006, A-007, A-017) | 7 |
 | stuck job | 0 | 0 | 0 | 0 |
 | broken pipeline | 1 (A-011) | 0 | 1 (A-024) | 2 |
 | environment | 1 (A-022) | 0 | 1 (A-005) | 2 |
 | unexplained | 0 | 2 (A-019, A-021) | 0 | 2 |
-| **Total** | **3** (+A-018) | **8** | **13** | **24** (+A-018) |
+| **Total** | **3** (+A-018) | **9** | **13** | **25** (+A-018) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
@@ -385,7 +402,7 @@ By combination (an anomaly is listed under the one it mainly concerns):
 | reference/opus-5.5 | the M2 MacBook Air | A-021 |
 | qwen 3.8 flash-next, mlxserve-pi | the M5 Max | A-001, A-005, A-016, A-017 (and A-011, A-018) |
 | qwen 3.8 flash-next, gufo-pi | the Strix Halo box | A-006, A-007, A-011, A-013, A-014, A-019 (and A-018) |
-| qwen 3.8 Swift 1.5 27B, llamacpp-pi | the RTX 4090 machine | A-012 |
+| qwen 3.8 Swift 1.5 27B, llamacpp-pi | the RTX 4090 machine | A-012, A-026 |
 | qwen 3.8 27B and Swift 27B (v1), llamacpp-pi | the RTX 4090 machine | A-009 |
 | several | — | A-008 |
 | none (harness tests, CI) | the M2 MacBook Air, CI | A-023, A-024, A-025 |
