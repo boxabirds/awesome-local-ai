@@ -14,7 +14,9 @@ withheld (the blocks arrive empty), and while the model thinks the client stream
 thinking tokens, restarting with each message. So a Claude profile has thinking_visible False and every
 character count of thinking None (never 0: it isn't known), and estimated thinking tokens instead. The exact count
 exists only per invocation: each closing "result" event carries that invocation's own total (not cumulative over a
-resumed session), so thinking_tokens is their sum over the window; there is no exact count per call. A subagent's
+resumed session), so thinking_tokens is their sum over the window; there is no exact count per call. The client's
+running estimates are kept as recorded but nothing per call is derived from them: on 1 Oct 2026 they ran 13-28% over
+the exact totals, and 14-23% of the calls that thought had none. A subagent's
 messages (parent_tool_use_id set) are counted apart, as subagent_calls: they aren't the agent's own calls.
 Tests: test_conversation.py.
 """
@@ -24,7 +26,7 @@ import json
 import statistics
 from pathlib import Path
 
-VERSION = 2                    # 2: Claude's exact thinking total; estimated thinking per call around the largest
+VERSION = 3                    # 2: Claude's exact thinking total; 3: no per-call medians from estimates
 HUNG_TOOL_S = 600              # a single tool call of ten minutes: a dev server or watcher left running
 GIST_CHARS = 120
 UPDATE_PREFIX = 80             # message_update lines are most of a log; skip them without parsing
@@ -140,9 +142,6 @@ def profile(events: Path, t_from: float, t_to: float) -> dict | None:
         "thinking_estimated_tokens": sum(x for x in ests if x is not None) if est_big is not None else None,
         "largest_thinking_estimated": {"tokens": ests[est_big], "call": est_big + 1, "at_s": round(calls[est_big]["at"], 1)}
                                       if est_big is not None else None,
-        # per call, around the largest block; a call with no estimate before it didn't think (0)
-        "thinking_estimated_median_before": _median([x or 0 for x in ests[:est_big]]) if est_big is not None else None,
-        "thinking_estimated_median_after": _median([x or 0 for x in ests[est_big + 1:]]) if est_big is not None else None,
         "context_start": calls[0]["context"], "context_end": calls[-1]["context"],
         "largest_context_jump": {"tokens": jump[0], "call": jump[1] + 1} if jump[0] > 0 else None,
         "tools_by_name": by_name, "tool_errors": errors, "longest_tool": longest, "signals": signals,

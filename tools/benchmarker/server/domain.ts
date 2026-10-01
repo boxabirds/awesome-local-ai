@@ -465,8 +465,6 @@ export interface RawConversation {
   largest_context_jump?: { tokens: number; call: number } | null; tools_by_name?: Record<string, number>; tool_errors?: number;
   longest_tool?: { seconds: number; name: string; gist: string } | null; signals?: string[];
   thinking_visible?: boolean; thinking_tokens?: number | null;
-  largest_thinking_estimated?: { tokens: number; call: number; at_s: number } | null;
-  thinking_estimated_median_before?: number | null; thinking_estimated_median_after?: number | null;
 }
 
 function conversationOf(c: RawConversation | undefined | null): ConversationProfile | null {
@@ -481,10 +479,6 @@ function conversationOf(c: RawConversation | undefined | null): ConversationProf
     longestTool: c.longest_tool ?? null, signals: c.signals ?? [],
     // Profiles from before the field (version 1, pi) all showed their thinking.
     thinkingVisible: c.thinking_visible ?? true, thinkingTokens: c.thinking_tokens ?? null,
-    thinkingEstimated: c.thinking_estimated_median_before !== undefined || c.largest_thinking_estimated ? {
-      medianBefore: c.thinking_estimated_median_before ?? null, medianAfter: c.thinking_estimated_median_after ?? null,
-      largest: c.largest_thinking_estimated ? { tokens: c.largest_thinking_estimated.tokens, call: c.largest_thinking_estimated.call, atS: c.largest_thinking_estimated.at_s } : null,
-    } : null,
   };
 }
 

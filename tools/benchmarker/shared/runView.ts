@@ -645,8 +645,9 @@ export interface ConversationView {
   /** Thinking is counted in characters where the log shows it, in tokens where a cloud model withholds it. */
   thinkingUnit: "chars" | "tokens";
   thinkingTotal: number | null; thinkingMedian: number | null;
-  /** Per call (before, after, the largest block) from the client's running estimates, not exact counts. */
-  perCallEstimated: boolean;
+  /** Per call (before, after, the largest block) can't be counted: a cloud model withholds its thinking and the log
+   * has its exact count only per invocation. Only exact figures are shown. */
+  perCallUnavailable: boolean;
   before: number | null; after: number | null;
   /** How many times more the model thought per call after the largest block than before it. */
   afterRatio: number | null;
@@ -665,20 +666,18 @@ export interface ConversationView {
 const KILLED_BY = /killed by the harness/gi;
 export const toolGist = (gist: string) => gist.replace(KILLED_BY, "interrupted");
 
-type ThinkingView = Pick<ConversationView, "thinkingUnit" | "thinkingTotal" | "thinkingMedian" | "perCallEstimated" | "before" | "after" | "afterRatio" | "largest">;
+type ThinkingView = Pick<ConversationView, "thinkingUnit" | "thinkingTotal" | "thinkingMedian" | "perCallUnavailable" | "before" | "after" | "afterRatio" | "largest">;
 
 function thinkingOf(c: ConversationProfile): ThinkingView {
   const ratio = (a: number | null, b: number | null) => (a != null && b ? a / b : null);
   const at = (b: { call: number; atS: number }) => ({ call: b.call, minutesIn: b.atS / SECONDS_PER_MINUTE });
   if (c.thinkingVisible !== false) {          // a profile from before the field showed its thinking
-    return { thinkingUnit: "chars", thinkingTotal: c.thinkingChars, thinkingMedian: c.thinkingMedian, perCallEstimated: false,
+    return { thinkingUnit: "chars", thinkingTotal: c.thinkingChars, thinkingMedian: c.thinkingMedian, perCallUnavailable: false,
       before: c.thinkingMedianBefore, after: c.thinkingMedianAfter, afterRatio: ratio(c.thinkingMedianAfter, c.thinkingMedianBefore),
       largest: c.largestThinking ? { size: c.largestThinking.chars, ...at(c.largestThinking) } : null };
   }
-  const e = c.thinkingEstimated ?? null;
-  return { thinkingUnit: "tokens", thinkingTotal: c.thinkingTokens, thinkingMedian: null, perCallEstimated: e !== null,
-    before: e?.medianBefore ?? null, after: e?.medianAfter ?? null, afterRatio: ratio(e?.medianAfter ?? null, e?.medianBefore ?? null),
-    largest: e?.largest ? { size: e.largest.tokens, ...at(e.largest) } : null };
+  return { thinkingUnit: "tokens", thinkingTotal: c.thinkingTokens, thinkingMedian: null, perCallUnavailable: true,
+    before: null, after: null, afterRatio: null, largest: null };
 }
 
 export function conversationView(c: ConversationProfile | null | undefined): ConversationView | null {

@@ -112,12 +112,11 @@ PROFILE_KEYS = {"version", "calls", "tool_calls", "thinking_visible", "thinking_
                 "thinking_median_before", "thinking_median_after", "largest_thinking", "text_chars", "tool_arg_chars",
                 "thinking_estimated_tokens", "largest_thinking_estimated", "context_start", "context_end",
                 "largest_context_jump", "tools_by_name", "tool_errors", "longest_tool", "signals", "subagent_calls",
-                "thinking_tokens", "thinking_estimated_median_before", "thinking_estimated_median_after"}
+                "thinking_tokens"}
 # Profile fields that count events or tokens: a lossless log gives exactly what the full log gave.
 PROFILE_EXACT = ("version", "calls", "tool_calls", "thinking_visible", "thinking_estimated_tokens",
                  "largest_thinking_estimated", "context_start", "context_end", "largest_context_jump", "tools_by_name",
-                 "tool_errors", "signals", "subagent_calls", "thinking_tokens", "thinking_estimated_median_before",
-                 "thinking_estimated_median_after")
+                 "tool_errors", "signals", "subagent_calls", "thinking_tokens")
 # Profile fields that count characters: redaction can only have shortened what the published log holds.
 PROFILE_CHARS = ("thinking_chars", "text_chars", "tool_arg_chars")
 EARLIER_KEYS = {"attempt", "source", "started", "ended", "seconds", "steps", "tool_calls", "compactions", "tokens",

@@ -539,26 +539,25 @@ describe("tokens and speed", () => {
       largestThinking: { chars: 64543, call: 14, atS: 480 }, contextStart: 9000, contextEnd: 120000,
       largestContextJump: { tokens: 16607, call: 15 }, toolsByName: { bash: 115, edit: 40 }, toolErrors: 5,
       longestTool: { seconds: 61.7, name: "bash", gist: "npm run test:unit" }, signals: ["long-thinking-block"],
-      thinkingVisible: true, thinkingTokens: null, thinkingEstimated: null });
+      thinkingVisible: true, thinkingTokens: null });
     expect(storyEntry("3", { agent: { seconds: 1, tokens: {} } }).conversation).toBeNull();
   });
 
-  it("a cloud model's withheld thinking: unknown in characters (never 0), exact in tokens, estimated per call", () => {
+  it("a cloud model's withheld thinking: unknown in characters (never 0), exact in tokens, nothing estimated", () => {
     // Sonnet 5.5 v2-r4 story 3 (1 Oct 2026) read "0 chars": the log withholds the text, and null became 0.
     const st = storyEntry("3", { agent: { seconds: 940, tokens: {} }, conversation: {
       version: 2, calls: 58, tool_calls: 92, thinking_visible: false, thinking_chars: null, thinking_median: null,
       thinking_median_before: null, thinking_median_after: null, largest_thinking: null, thinking_tokens: 7986,
       thinking_estimated_tokens: 10203, largest_thinking_estimated: { tokens: 1000, call: 42, at_s: 457.6 },
-      thinking_estimated_median_before: 0, thinking_estimated_median_after: 207,
       context_start: 16000, context_end: 140000, tools_by_name: { Bash: 56 }, tool_errors: 3, signals: [] } } as never);
-    expect(st.conversation).toMatchObject({
-      thinkingVisible: false, thinkingChars: null, thinkingMedian: null, thinkingTokens: 7986,
-      thinkingEstimated: { medianBefore: 0, medianAfter: 207, largest: { tokens: 1000, call: 42, atS: 457.6 } } });
+    expect(st.conversation).toMatchObject({ thinkingVisible: false, thinkingChars: null, thinkingMedian: null, thinkingTokens: 7986 });
+    // The client's estimates ran 13-28% over the exact totals and missed calls that thought: not carried at all.
+    expect(JSON.stringify(st.conversation)).not.toMatch(/stimat/);
   });
 
   it("a profile from before thinking was told apart: visible, as it was then; no tokens", () => {
     const st = storyEntry("2", { agent: { seconds: 1, tokens: {} }, conversation: { version: 1, calls: 3, thinking_chars: 90, thinking_median: 30 } } as never);
-    expect(st.conversation).toMatchObject({ thinkingVisible: true, thinkingChars: 90, thinkingTokens: null, thinkingEstimated: null });
+    expect(st.conversation).toMatchObject({ thinkingVisible: true, thinkingChars: 90, thinkingTokens: null });
   });
 
   it("a cloud model's time isn't split: it is what's left of the wall time after tools and compaction", () => {
