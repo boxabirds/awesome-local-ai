@@ -205,7 +205,8 @@ def test_G1_keys_match_what_the_benchmarker_reads(tmp_path):
     assert set(p) == {"version", "calls", "tool_calls", "thinking_chars", "text_chars", "tool_arg_chars", "thinking_median",
                       "thinking_median_before", "thinking_median_after", "largest_thinking", "context_start", "context_end",
                       "largest_context_jump", "tools_by_name", "tool_errors", "longest_tool", "signals",
-                      "thinking_visible", "thinking_estimated_tokens", "largest_thinking_estimated", "subagent_calls"}
+                      "thinking_visible", "thinking_estimated_tokens", "largest_thinking_estimated", "subagent_calls",
+                      "thinking_tokens", "thinking_estimated_median_before", "thinking_estimated_median_after"}
     assert p["version"] == cv.VERSION
     json.dumps(p)
 
@@ -214,6 +215,8 @@ def test_G2_pi_shows_its_thinking_and_has_no_estimates(tmp_path):
     p = prof(tmp_path, Log().call(T0 + 1, thinking="xyz"))
     assert p["thinking_visible"] is True and p["thinking_chars"] == 3
     assert p["thinking_estimated_tokens"] is None and p["largest_thinking_estimated"] is None and p["subagent_calls"] == 0
+    assert p["thinking_tokens"] is None
+    assert p["thinking_estimated_median_before"] is None and p["thinking_estimated_median_after"] is None
 
 
 # ---------- H. the Claude client's log (stream-json: one event per content block, thinking text withheld) ----------
@@ -250,6 +253,11 @@ class ClaudeLog:
     def result(self, at, tool_id, error=False, parent=None):
         self.events.append({"_rx": at, "type": "user", "parent_tool_use_id": parent, "message": {"role": "user", "content": [
             {"type": "tool_result", "tool_use_id": tool_id, "content": "out", "is_error": error}]}})
+
+    def finish(self, at, thinking_tokens):
+        """The invocation's closing "result" event: its exact usage, thinking tokens included."""
+        self.events.append({"_rx": at, "type": "result", "subtype": "success", "usage": {
+            "output_tokens": thinking_tokens + 100, "output_tokens_details": {"thinking_tokens": thinking_tokens}}})
 
     write = Log.write
 
@@ -330,3 +338,43 @@ def test_H8_only_messages_inside_the_window_count(tmp_path):
     log.call(T1 + 5, text="after")
     p = prof(tmp_path, log)
     assert p["calls"] == 1 and p["text_chars"] == 2 and p["thinking_estimated_tokens"] == 300
+
+
+def test_H8_exact_thinking_tokens_are_the_sum_of_each_invocation_s_result_inside_the_window(tmp_path):
+    # Real logs (Sonnet 5.5 v2-r1 story 9): a story resumed after a nudge has one result per invocation, each
+    # its own total, not cumulative: 15,719 then 0, 0, ... So the story's thinking is their sum, in its window.
+    log = ClaudeLog()
+    log.call(T0 + 10, thinking_est=(50, 1200), text="a")
+    log.finish(T0 + 20, 7986)
+    log.call(T0 + 30, text="b")
+    log.finish(T0 + 40, 14)
+    log.finish(T0 - 5, 99999)                      # an earlier attempt's result: outside the window
+    p = prof(tmp_path, log)
+    assert p["thinking_tokens"] == 8000
+    assert p["thinking_estimated_tokens"] == 1200   # the client's running estimate stays as it was
+
+
+def test_H9_no_result_event_is_none_not_zero(tmp_path):
+    log = ClaudeLog()
+    log.call(T0 + 10, text="a")
+    assert prof(tmp_path, log)["thinking_tokens"] is None
+
+
+def test_H10_estimated_thinking_per_call_before_and_after_the_largest_block(tmp_path):
+    # A call with no estimate streamed before it didn't think: 0, once the log has any estimate at all.
+    log = ClaudeLog()
+    log.call(T0 + 10, thinking_est=(100,), text="a")
+    log.call(T0 + 20, text="b")
+    log.call(T0 + 30, thinking_est=(50, 3000), text="c")       # the largest
+    log.call(T0 + 40, thinking_est=(400,), text="d")
+    log.call(T0 + 50, thinking_est=(600,), text="e")
+    p = prof(tmp_path, log)
+    assert p["largest_thinking_estimated"]["call"] == 3
+    assert p["thinking_estimated_median_before"] == 50 and p["thinking_estimated_median_after"] == 500
+
+
+def test_H11_no_estimates_means_no_estimated_medians(tmp_path):
+    log = ClaudeLog()
+    log.call(T0 + 10, text="a")
+    p = prof(tmp_path, log)
+    assert p["thinking_estimated_median_before"] is None and p["thinking_estimated_median_after"] is None

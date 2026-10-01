@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import backfill_timing
+import conversation
 
 
 def run_with(tmp_path: Path) -> Path:
@@ -80,12 +81,25 @@ def test_conversation_profiles_are_filled_where_missing_and_kept_where_present(t
     m = json.loads((run / "metrics.json").read_text())
     for rec in m["stories"].values():
         rec["agent_finished"] = 60.0
-    m["stories"]["2"]["conversation"] = {"version": 1, "calls": 99}
+    m["stories"]["2"]["conversation"] = {"version": conversation.VERSION, "calls": 99}
     (run / "metrics.json").write_text(json.dumps(m))
     assert backfill_timing.backfill_conversation(run) == ["1"]
     got = json.loads((run / "metrics.json").read_text())["stories"]
-    assert got["1"]["conversation"]["calls"] == 1 and got["2"]["conversation"] == {"version": 1, "calls": 99}
+    assert got["1"]["conversation"]["calls"] == 1 and got["2"]["conversation"] == {"version": conversation.VERSION, "calls": 99}
     assert backfill_timing.backfill_conversation(run) == []           # a second pass changes nothing
+
+
+def test_a_profile_from_an_older_version_is_redone_from_the_log(tmp_path):
+    # 1 Oct 2026: version 1 had no exact thinking total for Claude, so every Opus and Sonnet story read as unknown.
+    run = run_with(tmp_path)
+    m = json.loads((run / "metrics.json").read_text())
+    for rec in m["stories"].values():
+        rec["agent_finished"] = 60.0
+        rec["conversation"] = {"version": conversation.VERSION - 1, "calls": 99}
+    (run / "metrics.json").write_text(json.dumps(m))
+    assert "1" in backfill_timing.backfill_conversation(run)
+    got = json.loads((run / "metrics.json").read_text())["stories"]["1"]["conversation"]
+    assert got["version"] == conversation.VERSION and got["calls"] == 1
 
 
 def test_a_log_that_cant_be_profiled_records_nothing(tmp_path):

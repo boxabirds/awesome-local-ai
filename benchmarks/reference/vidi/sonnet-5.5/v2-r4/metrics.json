@@ -251,7 +251,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 23,
         "tool_calls": 44,
         "thinking_visible": false,
@@ -261,13 +261,16 @@
         "thinking_median_after": null,
         "largest_thinking": null,
         "text_chars": 2059,
-        "tool_arg_chars": 52745,
+        "tool_arg_chars": 52229,
+        "thinking_tokens": 3506,
         "thinking_estimated_tokens": 4631,
         "largest_thinking_estimated": {
           "tokens": 1950,
           "call": 6,
           "at_s": 71.9
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 196,
         "context_start": 16293,
         "context_end": 77433,
         "largest_context_jump": {
@@ -284,7 +287,7 @@
         "longest_tool": {
           "seconds": 65.9,
           "name": "Bash",
-          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r4/workspace; for i in 1 2; do npm run tes"
+          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r4/workspace; for i in 1 2; do npm run test:e2e 2>&1 |"
         },
         "signals": [],
         "subagent_calls": 0
@@ -701,7 +704,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 25,
         "tool_calls": 50,
         "thinking_visible": false,
@@ -711,13 +714,16 @@
         "thinking_median_after": null,
         "largest_thinking": null,
         "text_chars": 1782,
-        "tool_arg_chars": 72255,
+        "tool_arg_chars": 71811,
+        "thinking_tokens": 8937,
         "thinking_estimated_tokens": 9526,
         "largest_thinking_estimated": {
           "tokens": 4650,
           "call": 7,
           "at_s": 93.8
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 208,
         "context_start": 16340,
         "context_end": 102866,
         "largest_context_jump": {
@@ -1260,7 +1266,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 58,
         "tool_calls": 92,
         "thinking_visible": false,
@@ -1270,13 +1276,16 @@
         "thinking_median_after": null,
         "largest_thinking": null,
         "text_chars": 2589,
-        "tool_arg_chars": 100726,
+        "tool_arg_chars": 99694,
+        "thinking_tokens": 7986,
         "thinking_estimated_tokens": 10203,
         "largest_thinking_estimated": {
           "tokens": 1000,
           "call": 42,
           "at_s": 457.6
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 207,
         "context_start": 16359,
         "context_end": 140092,
         "largest_context_jump": {
@@ -1295,7 +1304,7 @@
         "longest_tool": {
           "seconds": 120.2,
           "name": "Bash",
-          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r4/workspace; f=src/client/App.tsx\nsed -i "
+          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r4/workspace; f=src/client/App.tsx\nsed -i '' 's|^    <"
         },
         "signals": [],
         "subagent_calls": 0
@@ -2138,7 +2147,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 69,
         "tool_calls": 92,
         "thinking_visible": false,
@@ -2148,13 +2157,16 @@
         "thinking_median_after": null,
         "largest_thinking": null,
         "text_chars": 3086,
-        "tool_arg_chars": 116577,
+        "tool_arg_chars": 116229,
+        "thinking_tokens": 21021,
         "thinking_estimated_tokens": 23998,
         "largest_thinking_estimated": {
           "tokens": 6250,
           "call": 7,
           "at_s": 65.6
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 244,
         "context_start": 16382,
         "context_end": 175736,
         "largest_context_jump": {
@@ -2623,7 +2635,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 34,
         "tool_calls": 59,
         "thinking_visible": false,
@@ -2633,13 +2645,16 @@
         "thinking_median_after": null,
         "largest_thinking": null,
         "text_chars": 2363,
-        "tool_arg_chars": 72706,
+        "tool_arg_chars": 72034,
+        "thinking_tokens": 5291,
         "thinking_estimated_tokens": 6512,
         "largest_thinking_estimated": {
           "tokens": 850,
           "call": 14,
           "at_s": 100.8
         },
+        "thinking_estimated_median_before": 177,
+        "thinking_estimated_median_after": 215,
         "context_start": 16378,
         "context_end": 120776,
         "largest_context_jump": {
@@ -2656,7 +2671,7 @@
         "longest_tool": {
           "seconds": 40.4,
           "name": "Bash",
-          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r4/workspace; perl -0pi -e \"s/async \\(\\{ p"
+          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r4/workspace; perl -0pi -e \"s/async \\(\\{ page, request"
         },
         "signals": [],
         "subagent_calls": 0
@@ -3316,7 +3331,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 54,
         "tool_calls": 67,
         "thinking_visible": false,
@@ -3326,13 +3341,16 @@
         "thinking_median_after": null,
         "largest_thinking": null,
         "text_chars": 2936,
-        "tool_arg_chars": 133508,
+        "tool_arg_chars": 132752,
+        "thinking_tokens": 22858,
         "thinking_estimated_tokens": 25464,
         "largest_thinking_estimated": {
           "tokens": 10700,
           "call": 7,
           "at_s": 101.5
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 225,
         "context_start": 16411,
         "context_end": 184964,
         "largest_context_jump": {
@@ -3349,7 +3367,7 @@
         "longest_tool": {
           "seconds": 159.4,
           "name": "Bash",
-          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r4/workspace; python3 -c \"\np='tests/e2e/se"
+          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r4/workspace; python3 -c \"\np='tests/e2e/selection.spec"
         },
         "signals": [],
         "subagent_calls": 0
@@ -3944,7 +3962,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 31,
         "tool_calls": 46,
         "thinking_visible": false,
@@ -3954,13 +3972,16 @@
         "thinking_median_after": null,
         "largest_thinking": null,
         "text_chars": 2462,
-        "tool_arg_chars": 56487,
+        "tool_arg_chars": 56259,
+        "thinking_tokens": 6490,
         "thinking_estimated_tokens": 7293,
         "largest_thinking_estimated": {
           "tokens": 1500,
           "call": 18,
           "at_s": 241.8
         },
+        "thinking_estimated_median_before": 214,
+        "thinking_estimated_median_after": 0,
         "context_start": 16437,
         "context_end": 107578,
         "largest_context_jump": {
@@ -4517,7 +4538,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 52,
         "tool_calls": 90,
         "thinking_visible": false,
@@ -4527,13 +4548,16 @@
         "thinking_median_after": null,
         "largest_thinking": null,
         "text_chars": 2555,
-        "tool_arg_chars": 106794,
+        "tool_arg_chars": 105750,
+        "thinking_tokens": 15909,
         "thinking_estimated_tokens": 18471,
         "largest_thinking_estimated": {
           "tokens": 9850,
           "call": 8,
           "at_s": 103.1
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 202,
         "context_start": 16399,
         "context_end": 173853,
         "largest_context_jump": {
@@ -4551,7 +4575,7 @@
         "longest_tool": {
           "seconds": 120.2,
           "name": "Bash",
-          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r4/workspace/src/client/objects; cat > /de"
+          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r4/workspace/src/client/objects; cat > /dev/null 2>&1;"
         },
         "signals": [],
         "subagent_calls": 0
@@ -5037,7 +5061,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 53,
         "tool_calls": 86,
         "thinking_visible": false,
@@ -5047,13 +5071,16 @@
         "thinking_median_after": null,
         "largest_thinking": null,
         "text_chars": 2721,
-        "tool_arg_chars": 128075,
+        "tool_arg_chars": 127511,
+        "thinking_tokens": 21652,
         "thinking_estimated_tokens": 23095,
         "largest_thinking_estimated": {
           "tokens": 5800,
           "call": 22,
           "at_s": 246.9
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 192,
         "context_start": 16442,
         "context_end": 195966,
         "largest_context_jump": {
@@ -5544,7 +5571,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 34,
         "tool_calls": 47,
         "thinking_visible": false,
@@ -5554,13 +5581,16 @@
         "thinking_median_after": null,
         "largest_thinking": null,
         "text_chars": 2075,
-        "tool_arg_chars": 66112,
+        "tool_arg_chars": 65716,
+        "thinking_tokens": 3447,
         "thinking_estimated_tokens": 4348,
         "largest_thinking_estimated": {
           "tokens": 1650,
           "call": 9,
           "at_s": 30.5
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 0,
         "context_start": 16406,
         "context_end": 110797,
         "largest_context_jump": {
@@ -6009,7 +6039,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 62,
         "tool_calls": 100,
         "thinking_visible": false,
@@ -6019,13 +6049,16 @@
         "thinking_median_after": null,
         "largest_thinking": null,
         "text_chars": 3007,
-        "tool_arg_chars": 113031,
+        "tool_arg_chars": 111879,
+        "thinking_tokens": 11939,
         "thinking_estimated_tokens": 14169,
         "largest_thinking_estimated": {
           "tokens": 2600,
           "call": 14,
           "at_s": 103.3
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 233,
         "context_start": 16396,
         "context_end": 191760,
         "largest_context_jump": {
@@ -6042,7 +6075,7 @@
         "longest_tool": {
           "seconds": 94.7,
           "name": "Bash",
-          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r4/workspace; node -e \"\nconst fs=require('"
+          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r4/workspace; node -e \"\nconst fs=require('fs');\nfs.app"
         },
         "signals": [],
         "subagent_calls": 0

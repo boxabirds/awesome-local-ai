@@ -306,7 +306,7 @@
         "commit": "efed3b1a"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 22,
         "tool_calls": 25,
         "thinking_visible": false,
@@ -317,12 +317,15 @@
         "largest_thinking": null,
         "text_chars": 3098,
         "tool_arg_chars": 70791,
+        "thinking_tokens": 6726,
         "thinking_estimated_tokens": 7884,
         "largest_thinking_estimated": {
           "tokens": 3850,
           "call": 9,
           "at_s": 149.8
         },
+        "thinking_estimated_median_before": 116,
+        "thinking_estimated_median_after": 244,
         "context_start": 16225,
         "context_end": 86591,
         "largest_context_jump": {
@@ -679,7 +682,7 @@
         "commit": "cf2480e7"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 37,
         "tool_calls": 42,
         "thinking_visible": false,
@@ -690,12 +693,15 @@
         "largest_thinking": null,
         "text_chars": 3219,
         "tool_arg_chars": 107352,
+        "thinking_tokens": 14416,
         "thinking_estimated_tokens": 16743,
         "largest_thinking_estimated": {
           "tokens": 8350,
           "call": 12,
           "at_s": 215.9
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 249,
         "context_start": 16273,
         "context_end": 137269,
         "largest_context_jump": {
@@ -1063,7 +1069,7 @@
         "commit": "6159a286"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 88,
         "tool_calls": 88,
         "thinking_visible": false,
@@ -1074,12 +1080,15 @@
         "largest_thinking": null,
         "text_chars": 5924,
         "tool_arg_chars": 128820,
+        "thinking_tokens": 27278,
         "thinking_estimated_tokens": 32187,
         "largest_thinking_estimated": {
           "tokens": 4350,
           "call": 75,
           "at_s": 704.1
         },
+        "thinking_estimated_median_before": 266,
+        "thinking_estimated_median_after": 309,
         "context_start": 16292,
         "context_end": 190187,
         "largest_context_jump": {
@@ -1450,7 +1459,7 @@
         "commit": "2389e828"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 66,
         "tool_calls": 67,
         "thinking_visible": false,
@@ -1461,12 +1470,15 @@
         "largest_thinking": null,
         "text_chars": 5089,
         "tool_arg_chars": 131265,
+        "thinking_tokens": 30490,
         "thinking_estimated_tokens": 33189,
         "largest_thinking_estimated": {
           "tokens": 12250,
           "call": 9,
           "at_s": 164.2
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 237,
         "context_start": 16314,
         "context_end": 201180,
         "largest_context_jump": {
@@ -1813,7 +1825,7 @@
         "commit": "3d7ade55"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 45,
         "tool_calls": 45,
         "thinking_visible": false,
@@ -1824,12 +1836,15 @@
         "largest_thinking": null,
         "text_chars": 3447,
         "tool_arg_chars": 85325,
+        "thinking_tokens": 9675,
         "thinking_estimated_tokens": 12859,
         "largest_thinking_estimated": {
           "tokens": 1550,
           "call": 32,
           "at_s": 301.3
         },
+        "thinking_estimated_median_before": 236,
+        "thinking_estimated_median_after": 258,
         "context_start": 16311,
         "context_end": 151388,
         "largest_context_jump": {
@@ -2254,7 +2269,7 @@
         "commit": "e7f8523d"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 49,
         "tool_calls": 55,
         "thinking_visible": false,
@@ -2265,12 +2280,15 @@
         "largest_thinking": null,
         "text_chars": 4092,
         "tool_arg_chars": 147657,
+        "thinking_tokens": 25448,
         "thinking_estimated_tokens": 28219,
         "largest_thinking_estimated": {
           "tokens": 6600,
           "call": 23,
           "at_s": 374.5
         },
+        "thinking_estimated_median_before": 248,
+        "thinking_estimated_median_after": 256,
         "context_start": 16342,
         "context_end": 209254,
         "largest_context_jump": {
@@ -2633,7 +2651,7 @@
         "commit": "b084ac4d"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 40,
         "tool_calls": 43,
         "thinking_visible": false,
@@ -2644,12 +2662,15 @@
         "largest_thinking": null,
         "text_chars": 3037,
         "tool_arg_chars": 75702,
+        "thinking_tokens": 12942,
         "thinking_estimated_tokens": 14775,
         "largest_thinking_estimated": {
           "tokens": 2100,
           "call": 7,
           "at_s": 48.1
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 258,
         "context_start": 16366,
         "context_end": 144862,
         "largest_context_jump": {
@@ -3050,7 +3071,7 @@
         "commit": "27424652"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 62,
         "tool_calls": 77,
         "thinking_visible": false,
@@ -3061,12 +3082,15 @@
         "largest_thinking": null,
         "text_chars": 4370,
         "tool_arg_chars": 142001,
+        "thinking_tokens": 32989,
         "thinking_estimated_tokens": 35752,
         "largest_thinking_estimated": {
           "tokens": 18800,
           "call": 7,
           "at_s": 224.9
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 241,
         "context_start": 16330,
         "context_end": 233191,
         "largest_context_jump": {
@@ -3456,7 +3480,7 @@
         "commit": "7b752748"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 62,
         "tool_calls": 63,
         "thinking_visible": false,
@@ -3467,12 +3491,15 @@
         "largest_thinking": null,
         "text_chars": 4886,
         "tool_arg_chars": 165325,
+        "thinking_tokens": 29100,
         "thinking_estimated_tokens": 32526,
         "largest_thinking_estimated": {
           "tokens": 6550,
           "call": 12,
           "at_s": 135.3
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 248,
         "context_start": 16376,
         "context_end": 251331,
         "largest_context_jump": {
@@ -3821,7 +3848,7 @@
         "commit": "d7cf747b"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 56,
         "tool_calls": 63,
         "thinking_visible": false,
@@ -3832,12 +3859,15 @@
         "largest_thinking": null,
         "text_chars": 4273,
         "tool_arg_chars": 98599,
+        "thinking_tokens": 14672,
         "thinking_estimated_tokens": 18007,
         "largest_thinking_estimated": {
           "tokens": 4450,
           "call": 16,
           "at_s": 92.9
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 258,
         "context_start": 16338,
         "context_end": 182316,
         "largest_context_jump": {
@@ -4251,7 +4281,7 @@
         "commit": "91a37449"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 67,
         "tool_calls": 67,
         "thinking_visible": false,
@@ -4262,12 +4292,15 @@
         "largest_thinking": null,
         "text_chars": 5353,
         "tool_arg_chars": 148311,
+        "thinking_tokens": 22577,
         "thinking_estimated_tokens": 25548,
         "largest_thinking_estimated": {
           "tokens": 6150,
           "call": 14,
           "at_s": 104.5
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 263,
         "context_start": 16329,
         "context_end": 238981,
         "largest_context_jump": {
