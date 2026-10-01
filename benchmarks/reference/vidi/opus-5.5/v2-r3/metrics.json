@@ -3880,11 +3880,11 @@
         "compactions": 0,
         "tool_interruptions": 0,
         "tokens": {
-          "input": 6,
-          "output": 1230,
+          "input": 136,
+          "output": 91850,
           "reasoning": 0,
-          "cache_read": 476307,
-          "cache_write": 1044
+          "cache_read": 11058709,
+          "cache_write": 227208
         },
         "exit": 0,
         "stalled": false,
@@ -3896,7 +3896,18 @@
         "ended_in_error": false,
         "sessions": [
           "4b65118c-183d-45d8-9d6d-b3530f811041"
-        ]
+        ],
+        "tokens_recounted": {
+          "previous": {
+            "input": 6,
+            "output": 1230,
+            "reasoning": 0,
+            "cache_read": 476307,
+            "cache_write": 1044
+          },
+          "from": "stories/12/agent-events.jsonl",
+          "at": "2026-10-01T07:02:37Z"
+        }
       },
       "agent_finished": 1790753121.780425,
       "conditions": {
@@ -8755,7 +8766,7 @@
       "ended_at": 1790753121.780425,
       "agent_minutes": 17.3,
       "calls": 67,
-      "output_tokens": 1230,
+      "output_tokens": 91850,
       "compactions": 0,
       "last_commit_at": 1790753110.0,
       "accept": {
