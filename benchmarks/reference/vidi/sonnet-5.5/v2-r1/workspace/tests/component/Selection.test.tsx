@@ -116,8 +116,9 @@ describe('marquee and empty-space clicks (sel.marquee_ui)', () => {
   it('TC-20 Shift+drag adds fully enclosed notes to the existing selection; partly enclosed is left out', () => {
     // A (100..300) inside the box, C (230..430) half inside, B far away and already selected.
     appWithNotes([[200, 200], [700, 500], [330, 200]]);
-    const els = notes();
-    const [a, b, c] = [els[0], els[1], els[2]];
+    // DOM order follows random ids, so identify the notes by their position instead.
+    const els = notes().sort((p, q) => parseFloat(p.style.left) - parseFloat(q.style.left));
+    const [a, c, b] = [els[0], els[1], els[2]];
     press(b, 5, 5);
     release(b, 5, 5);
     shiftDrag([90, 90], [320, 320], false);

@@ -1,4 +1,7 @@
-export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
+import { UndoButtons } from './UndoButtons';
+import type { useUndo } from './useUndo';
+
+export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean; undo?: ReturnType<typeof useUndo> }) {
   return (
     <div
       className="left-toolbar"
@@ -19,6 +22,7 @@ export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
           <path d="M4 4h16v10l-6 6H4zM14 20v-6h6" />
         </svg>
       </button>
+      {props.undo && <UndoButtons {...props.undo} />}
     </div>
   );
 }

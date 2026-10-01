@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { UndoContext, useUndo, useUndoHistory } from './board/useUndo';
 import { createSticky, deleteObjects, setStickyColor } from '../shared/board-model';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
@@ -31,29 +32,42 @@ export function App({ boardId }: { boardId?: string } = {}) {
   const [camera, setCamera] = useState<Camera>(INITIAL_CAMERA);
 
   const editable = canEdit(connection);
+  const history = useUndoHistory(doc);
+  const undo = useUndo(history, editable);
   const gesture = useTransformGesture({
     doc,
     camera,
     selection: sel,
     snapshot: objects,
     canEdit: editable,
-    onGestureStart: () => setGesturing(true),
-    onGestureEnd: () => setGesturing(false),
+    onGestureStart: () => {
+      history.boundary();
+      setGesturing(true);
+    },
+    onGestureEnd: () => {
+      history.boundary();
+      setGesturing(false);
+    },
   });
-  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable });
+  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable, undo: history });
 
   const create = (at: Point) => {
     if (!editable) return;
+    history.boundary();
     const id = createSticky(doc, at);
+    history.boundary();
     if (id) sel.startEdit(id);
   };
 
   const deleteSelection = () => {
+    history.boundary();
     deleteObjects(doc, [...sel.ids]);
+    history.boundary();
     sel.clear();
   };
 
   return (
+    <UndoContext.Provider value={history}>
     <BoardViewport
       onCreateAt={create}
       onEmptyClick={sel.clear}
@@ -63,7 +77,7 @@ export function App({ boardId }: { boardId?: string } = {}) {
       overlay={(ctx) => (
         <>
           <ConnectionStatus state={connection} />
-          <Toolbar onCreateSticky={() => create(ctx.centerWorld())} disabled={!editable} />
+          <Toolbar onCreateSticky={() => create(ctx.centerWorld())} disabled={!editable} undo={undo} />
           {sel.editingId === null && (
             <SelectionOverlay
               ids={sel.ids}
@@ -78,7 +92,11 @@ export function App({ boardId }: { boardId?: string } = {}) {
               snapshot={objects}
               camera={ctx.camera}
               onDelete={deleteSelection}
-              onColor={(id, color) => setStickyColor(doc, id, color)}
+              onColor={(id, color) => {
+                history.boundary();
+                setStickyColor(doc, id, color);
+                history.boundary();
+              }}
             />
           )}
         </>
@@ -106,5 +124,6 @@ export function App({ boardId }: { boardId?: string } = {}) {
         })
       }
     </BoardViewport>
+    </UndoContext.Provider>
   );
 }

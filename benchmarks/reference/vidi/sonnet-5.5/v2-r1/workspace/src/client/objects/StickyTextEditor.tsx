@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { useUndoController } from '../board/useUndo';
 import { applyTextDiff, clampToLimit, counterVisible, mapCaretThroughDelta } from './StickyText';
 
 export function StickyTextEditor(props: {
@@ -13,12 +14,16 @@ export function StickyTextEditor(props: {
   const ref = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
   const [length, setLength] = useState(() => ytext.length);
+  const undo = useUndoController();
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    undoRef.current?.boundary();
     el.value = ytext.toString();
     el.focus();
     el.setSelectionRange(el.value.length, el.value.length);
@@ -34,7 +39,10 @@ export function StickyTextEditor(props: {
       setLength(text.length);
     };
     ytext.observe(onRemote);
-    return () => ytext.unobserve(onRemote);
+    return () => {
+      ytext.unobserve(onRemote);
+      undoRef.current?.boundary();
+    };
   }, [ytext]);
 
   // A pointerdown anywhere outside the note ends editing (capture phase: notes stop propagation).
@@ -78,6 +86,16 @@ export function StickyTextEditor(props: {
         }}
         onKeyDown={(e) => {
           e.stopPropagation();
+          const key = e.key.toLowerCase();
+          if ((e.ctrlKey || e.metaKey) && !e.altKey && (key === 'z' || (key === 'y' && e.ctrlKey))) {
+            e.preventDefault();
+            if (undo && !composing.current) {
+              flush();
+              if (key === 'y' || e.shiftKey) undo.redo();
+              else undo.undo();
+            }
+            return;
+          }
           if (e.key === 'Escape') {
             e.preventDefault();
             onEnd('selected');

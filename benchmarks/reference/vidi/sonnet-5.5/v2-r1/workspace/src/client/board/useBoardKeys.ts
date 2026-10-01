@@ -5,6 +5,7 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
+import type { UndoController } from './undo';
 import type { Selection } from './useSelection';
 
 const ARROWS: Record<string, Point> = {
@@ -25,17 +26,26 @@ export function useBoardKeys(opts: {
   selection: Selection;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  undo?: UndoController;
 }): void {
   const live = useRef(opts);
   live.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit } = live.current;
+      const { doc, selection, snapshot, canEdit, undo } = live.current;
       if (selection.editingId !== null || isTypingTarget(e.target)) return;
       const mod = e.ctrlKey || e.metaKey;
 
-      if (mod && !e.altKey && e.key.toLowerCase() === 'a') {
+      const key = e.key.toLowerCase();
+      if (mod && !e.altKey && (key === 'z' || (key === 'y' && e.ctrlKey && !e.shiftKey))) {
+        e.preventDefault();
+        if (!canEdit || !undo) return;
+        if (key === 'y' || e.shiftKey) undo.redo();
+        else undo.undo();
+        return;
+      }
+      if (mod && !e.altKey && key === 'a') {
         e.preventDefault();
         selection.setMany(allObjectIds(snapshot, (t) => getObjectType(t) !== undefined), false);
         return;
@@ -59,11 +69,15 @@ export function useBoardKeys(opts: {
             positions.set(o.id, { x: b.x + arrow.x * step, y: b.y + arrow.y * step });
           }
         }
+        undo?.boundary();
         moveObjects(doc, positions);
+        undo?.boundary();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         if (!canEdit) return;
+        undo?.boundary();
         deleteObjects(doc, [...selection.ids]);
+        undo?.boundary();
         selection.clear();
       } else if (e.key === 'Enter' && selection.ids.size === 1) {
         if ((e.target as HTMLElement | null)?.tagName === 'BUTTON' || !canEdit) return;

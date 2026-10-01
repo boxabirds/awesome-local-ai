@@ -72,3 +72,12 @@
 - `tests/fixtures/testbox.tsx` registers the test-only `testbox` type; `tsconfig.worker.json` excludes it (JSX, client only).
 - Only Chromium was run for e2e. The persistence e2e needs a test-mode build (`vite build --mode test`); `npm run build` overwrites `dist` with a production build that has no `window.__vidi6`.
 - Red-phase commits for the test-first tasks were skipped; tests and implementation are committed together.
+
+# Notes — story 8
+
+- `createUndo` sets the Y.UndoManager capture timeout to Infinity and enforces the typing pause itself (a `beforeTransaction` check against `Date.now()`), because lib0 captures the real `Date.now` at import so fake system time cannot drive the built-in timeout (TC-13 needs exact boundaries). `boundary()` is `stopCapturing()`.
+- `UndoController` has an extra `isDestroyed()` so `useUndoHistory` can recreate a controller after React StrictMode re-runs effects.
+- The text editor reaches the controller through `UndoContext` (provided in `App.tsx`) instead of a prop on every object type; without a provider it behaves as before.
+- Yjs `UndoManager.undo()` skips a step whose target was deleted remotely and continues with the next step in the same call, so undoing a move of a note a colleague deleted may also undo the following earlier step. Nothing is recreated and no error occurs.
+- Selection TC-20 (story 7) indexed notes by DOM order, which follows random ids, and failed intermittently; it now identifies notes by position.
+- Only Chromium was run for e2e.

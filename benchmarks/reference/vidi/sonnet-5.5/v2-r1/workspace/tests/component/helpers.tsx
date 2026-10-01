@@ -8,6 +8,8 @@ import { useBoardDoc } from '../../src/client/board/useBoardDoc';
 import { useBoardKeys } from '../../src/client/board/useBoardKeys';
 import { useSelection } from '../../src/client/board/useSelection';
 import { useTransformGesture } from '../../src/client/board/useTransformGesture';
+import { UndoContext, useUndoHistory } from '../../src/client/board/useUndo';
+import type { UndoController } from '../../src/client/board/undo';
 import { getObjectType } from '../../src/client/objects/registry';
 
 export const FRAME_MS = 20;
@@ -30,11 +32,13 @@ export interface Probe {
   editingId: string | null;
   gestureStarts: number;
   gestureEnds: number;
+  undo: UndoController;
 }
 
 export function Harness(props: { probe: Probe; zoom?: number; canEdit?: boolean }) {
   const { doc, objects } = useBoardDoc();
   const sel = useSelection(objects);
+  const history = useUndoHistory(doc);
   const camera = { x: 0, y: 0, zoom: props.zoom ?? 1 };
   const gesture = useTransformGesture({
     doc,
@@ -42,15 +46,23 @@ export function Harness(props: { probe: Probe; zoom?: number; canEdit?: boolean 
     selection: sel,
     snapshot: objects,
     canEdit: props.canEdit ?? true,
-    onGestureStart: () => props.probe.gestureStarts++,
-    onGestureEnd: () => props.probe.gestureEnds++,
+    onGestureStart: () => {
+      history.boundary();
+      props.probe.gestureStarts++;
+    },
+    onGestureEnd: () => {
+      history.boundary();
+      props.probe.gestureEnds++;
+    },
   });
-  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: props.canEdit ?? true });
+  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: props.canEdit ?? true, undo: history });
+  props.probe.undo = history;
   props.probe.doc = doc;
   props.probe.ids = sel.ids;
   props.probe.selectedId = sel.ids.size === 1 ? [...sel.ids][0] : null;
   props.probe.editingId = sel.editingId;
   return (
+    <UndoContext.Provider value={history}>
     <div data-testid="harness" onPointerDown={() => sel.clear()}>
       {objects.map((n) => {
         const spec = getObjectType(n.type);
@@ -77,6 +89,7 @@ export function Harness(props: { probe: Probe; zoom?: number; canEdit?: boolean 
       />
       <SelectionBar ids={sel.ids} snapshot={objects} onDelete={() => { deleteObjects(doc, [...sel.ids]); sel.clear(); }} />
     </div>
+    </UndoContext.Provider>
   );
 }
 
@@ -88,6 +101,7 @@ export function newProbe(): Probe {
     editingId: null,
     gestureStarts: 0,
     gestureEnds: 0,
+    undo: undefined as unknown as UndoController,
   };
 }
 
