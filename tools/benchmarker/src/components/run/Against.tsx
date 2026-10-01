@@ -1,18 +1,27 @@
-// The same story in each of the combination's runs: a small multiple of time bars on one scale, and the key
-// numbers, with this story run marked where it is more than 10% from the median of the others.
-import type { Row, State } from "../../../shared/types.ts";
-import { AGAINST_MEASURES, againstCombination, signedPercent, type AgainstKey } from "../../../shared/runView.ts";
-import { GLOSSARY } from "../../../shared/glossary.ts";
+// The same story in each of the combination's runs: a small multiple of time bars on one scale, each run's own
+// held-out result and the key numbers, with this story run marked where it is more than 10% from the median of the
+// others, and each mark carrying its mechanism (the combination page's rules) with the rules that fired on hover.
+import type { Row, State, Story } from "../../../shared/types.ts";
+import { AGAINST_MEASURES, againstCombination, againstFlagTip, signedPercent, type AgainstKey } from "../../../shared/runView.ts";
 import { RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
 import { Missing, Section, Term, full } from "./bits.tsx";
 import { CheckMark, SplitBar } from "./SplitBar.tsx";
+import { pct } from "./RunCost.tsx";
 
-const SHOW: Record<AgainstKey, (n: number) => string> = { minutes: duration, outTokens: short, calls: full, thinking: short, largestThinking: short };
+const SHOW: Record<AgainstKey, (n: number) => string> = { heldOut: pct, minutes: duration, outTokens: short, calls: full, thinking: short, largestThinking: short };
+
+/** A story run's own figure: held-out as its tests ("7/10"), the rest as SHOW. */
+const cellText = (key: AgainstKey, v: number, s: Story) => (key === "heldOut" ? `${s.ownPassed ?? 0}/${s.ownTotal}` : SHOW[key](v));
+
+const MISSING_WHY: Record<AgainstKey, string> = {
+  heldOut: "Its own held-out tests weren't recorded.", minutes: "Not recorded for this story run.", outTokens: "Not recorded for this story run.",
+  calls: "Not recorded for this story run.", thinking: "No conversation profile for this story run.", largestThinking: "No conversation profile for this story run.",
+};
 
 export function Against({ run, state, storyId }: { run: Row; state: State; storyId: string }) {
-  const { entries, scaleSeconds, flags } = againstCombination(run, state.rows, storyId);
+  const { entries, scaleSeconds, flags, mechanism } = againstCombination(run, state.rows, storyId);
   const others = entries.filter((e) => !e.isThis);
   const withStory = others.filter((e) => e.story).length;
   const aside = <span className="small">{withStory} of the combination's {others.length} other {others.length === 1 ? "run has" : "runs have"} recorded this story</span>;
@@ -31,7 +40,7 @@ export function Against({ run, state, storyId }: { run: Row; state: State; story
             <tr>
               <th>Run</th>
               <th className="bar-col"><Term id="timeSplit" /></th>
-              {AGAINST_MEASURES.map((m) => <th key={m.key} className="n"><Term id={m.term} /></th>)}
+              {AGAINST_MEASURES.map((m) => <th key={m.key} className={`n m-${m.key}`}><Term id={m.term} /></th>)}
             </tr>
           </thead>
           <tbody>
@@ -50,10 +59,12 @@ export function Against({ run, state, storyId }: { run: Row; state: State; story
                   {AGAINST_MEASURES.map((m) => {
                     const v = story ? m.value(story) : null;
                     const d = isThis ? flags[m.key] : null;
+                    const tip = d?.flagged ? againstFlagTip(m.key, d, SHOW[m.key](d.median), mechanism) : undefined;
                     return (
                       <td key={m.key} className="n" data-measure={m.key} data-flagged={d?.flagged ? "true" : undefined}>
-                        {v !== null ? SHOW[m.key](v) : story ? <Missing why={m.key === "thinking" || m.key === "largestThinking" ? "No conversation profile for this story run." : "Not recorded for this story run."} /> : ""}
-                        {d?.flagged ? <div className="diff flagged" tabIndex={0} data-tip={`${GLOSSARY.divergence.what} The median of the other ${d.n} ${d.n === 1 ? "run" : "runs"}: ${SHOW[m.key](d.median)}.`}>⚑ {signedPercent(d.rel)}</div> : null}
+                        {v !== null ? cellText(m.key, v, story!) : story ? <Missing why={MISSING_WHY[m.key]} /> : ""}
+                        {d?.flagged ? <div className="diff flagged" tabIndex={0} data-tip={tip}>⚑ {signedPercent(d.rel)}</div> : null}
+                        {d?.flagged && mechanism ? <div className="mech" data-mechanism={mechanism.label} data-tip={tip}>{mechanism.label}</div> : null}
                       </td>
                     );
                   })}

@@ -214,7 +214,9 @@ export function classifyMechanism(target: Story, others: Story[]): MechanismResu
   if (ordered.length) return { label: ordered[0].label, fired: ordered, evidence: ordered[0].evidence };
   if (!c) return { label: "not recorded", fired: [], evidence: "No conversation profile (recorded before the harness kept one), and nothing in its usage explains it." };
   if (!oc.length) return { label: "unexplained", fired: [], evidence: "No other run of this story has a conversation profile to compare with." };
-  return { label: "unexplained", fired: [], evidence: "None of the rules fired: thinking, steps, tool calls, compaction, restarts and generation speed are all near the other runs'." };
+  // The rules look only for more (time sinks, more thinking, more steps): say which didn't fire, never that the counts
+  // were near the others', which a run far below them would contradict.
+  return { label: "unexplained", fired: [], evidence: `None of the rules fired: no hung command or restart, and not at least ${THINKING_RATIO}× the thinking, ${MANY_CALLS_RATIO}× the model calls, a compaction-heavy story or slower generation, against the other runs.` };
 }
 
 /** The same story in the combination's other runs: what a story run is compared with. Invalid runs are no yardstick. */

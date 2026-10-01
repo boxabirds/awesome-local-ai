@@ -4,11 +4,12 @@ import { Breadcrumb, CombinationLink, RunLink } from "../components/EntityLinks.
 import { NotRecorded, StoryNav, StoryRunHeader } from "../components/run/StoryRunParts.tsx";
 import { Conversation, StoryCost, StoryTime } from "../components/run/StoryDetail.tsx";
 import { Against } from "../components/run/Against.tsx";
+import { WhatDiffered } from "../components/run/WhatDiffered.tsx";
 import { InvalidBanner } from "../components/RunMarks.tsx";
 import "./run.css";
 
 /** One run's work on one story (plan section 4.4). A story in scope but not recorded yet shows what is known. */
-export function StoryRunPage({ run, storyId, state }: { run: Row; story: Story | null; storyId: string; state: State; serverNow: number | null; params?: Record<string, string> }) {
+export function StoryRunPage({ run, storyId, state, params }: { run: Row; story: Story | null; storyId: string; state: State; serverNow: number | null; params?: Record<string, string> }) {
   const st = storyRunState(run, storyId);
   const title = storyTitle(run, state.rows, storyId);
   return (
@@ -26,6 +27,7 @@ export function StoryRunPage({ run, storyId, state }: { run: Row; story: Story |
         <Conversation story={st.story} />
       </> : <NotRecorded run={run} st={st} />}
       {st.kind === "outOfScope" ? null : <Against run={run} state={state} storyId={storyId} />}
+      {st.kind === "recorded" ? <WhatDiffered run={run} state={state} storyId={storyId} params={params} /> : null}
       <StoryNav run={run} state={state} storyId={storyId} />
     </div>
   );
