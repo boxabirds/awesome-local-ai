@@ -329,6 +329,31 @@ def test_a_checkout_named_off_limits_or_inside_one_is_not_recorded_in(tmp_path, 
     assert drive.record_refusal(repo, repo / "run", G) == why
 
 
+@pytest.mark.parametrize("sandbox_record, refused", [
+    ({"mode": "permissive"}, True),                                                   # no sandbox at all: it cannot publish
+    ({"mode": "enforced", "version": "0.2.0", "platform": "linux-x86_64", "policy_hash": "ab" * 32}, False),
+    (None, False),                                                                    # written before the sandbox was recorded
+])
+def test_a_run_whose_agent_had_no_sandbox_is_not_recorded(tmp_path, sandbox_record, refused):
+    repo, _ = pg.cloned(tmp_path, "public")
+    run = repo / "combinations" / "x" / "benchmarks" / "vidi" / "r1"
+    run.mkdir(parents=True)
+    (run / "run.json").write_text(json.dumps({"client": "pi", **({"sandbox": sandbox_record} if sandbox_record else {})}))
+    why = drive.record_refusal(repo, run, G)
+    assert why == ("the run's agent was not in the sandbox (SPEC_BENCH_SANDBOX=permissive)" if refused else None)
+    if refused:
+        assert drive.record_story(repo, run, MESSAGE, git=G) == {"committed": False, "pushed": False, "error": f"not recorded: {why}"}
+
+
+@pytest.mark.parametrize("text", [None, "{not json", "[]", '{"sandbox": "permissive"}'])
+def test_a_run_json_that_is_missing_or_unreadable_does_not_make_a_run_a_permissive_one(tmp_path, text):
+    run = tmp_path / "run"
+    run.mkdir()
+    if text is not None:
+        (run / "run.json").write_text(text)
+    assert drive._ran_without_sandbox(run) is False
+
+
 def test_a_rebase_in_progress_is_found_under_either_of_git_s_names(tmp_path):
     repo, _ = pg.cloned(tmp_path, "public")
     assert drive._rebase_in_progress(repo, G) is False

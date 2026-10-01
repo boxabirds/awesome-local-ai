@@ -1,5 +1,6 @@
 """uv run --with pytest pytest harness/test_clients.py"""
 import json
+import os
 from pathlib import Path
 
 from clients import PiClient, empty_state
@@ -102,16 +103,41 @@ def test_claude_command_is_headless_on_the_subscription_and_forks_on_resume():
     assert "--resume" in nudge and "--fork-session" not in nudge
 
 
-def test_claude_env_isolates_config_uses_the_token_and_drops_api_keys(tmp_path, monkeypatch):
+def test_claude_env_isolates_config_and_hands_the_token_over_in_a_descriptor_never_in_the_environment(tmp_path, monkeypatch):
     from clients import ClaudeClient
+    import sandbox
     token = tmp_path / "token"
     token.write_text("sk-ant-oat01-test\n")
     monkeypatch.setenv("CLAUDE_BENCH_TOKEN_FILE", str(token))
-    c = ClaudeClient(tmp_path / "work")
+    c = ClaudeClient(tmp_path / "work", view=Path("/w"))
     env = c.env()
-    assert env["CLAUDE_CONFIG_DIR"].startswith(str(tmp_path / "work"))
-    assert env["CLAUDE_CODE_OAUTH_TOKEN"] == "sk-ant-oat01-test"
-    assert set(c.env_remove) >= {"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"}
+    assert env["CLAUDE_CONFIG_DIR"] == "/w/claude-config"                  # as the agent sees it, not where the run is
+    assert "sk-ant-oat01-test" not in json.dumps(env) and "CLAUDE_CODE_OAUTH_TOKEN" not in env
+    assert "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB" not in env                   # it would force the permission prompts back on
+    assert c.secrets() == {"CLAUDE_CODE_OAUTH_TOKEN": "sk-ant-oat01-test"}
+    assert c.presets == ("claude",)
+    # What the sandbox does with it: a pipe, named by NAME_FILE_DESCRIPTOR, which the client reads once.
+    fd_env, fds = sandbox.secret_fds(c.secrets())
+    try:
+        assert os.read(fds[0], 100) == b"sk-ant-oat01-test" and fd_env == {"CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR": str(fds[0])}
+    finally:
+        os.close(fds[0])
+    assert set(env) | set(fd_env) <= set(sandbox.ENV_ALLOWED)
+
+
+def test_the_local_clients_need_no_secret_and_no_host_beyond_the_defaults(tmp_path):
+    from clients import OpenCodeClient
+    for c in (PiClient(tmp_path), OpenCodeClient(tmp_path)):
+        assert c.secrets() == {} and c.presets == ()
+
+
+def test_pi_is_told_the_paths_the_agent_sees_and_writes_its_config_where_the_run_is(tmp_path):
+    c = PiClient(tmp_path / "work", view=Path("/w"))
+    c.write_config("http://127.0.0.1:1/v1", "m", 131072, 32768)
+    assert (tmp_path / "work" / "pi-agent" / "models.json").is_file()
+    assert c.env()["PI_CODING_AGENT_DIR"] == "/w/pi-agent"
+    cmd = c.command("m", "do it")
+    assert cmd[cmd.index("--session-dir") + 1] == "/w/pi-sessions"
 
 
 def test_pi_sends_a_thinking_level_when_the_server_cannot_apply_one(tmp_path):

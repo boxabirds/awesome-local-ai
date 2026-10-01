@@ -57,26 +57,6 @@ def test_playwright_cache_is_per_os():
     assert hostenv.playwright_cache(home) == home / expected
 
 
-def test_bwrap_masks_then_reopens_own_dir(tmp_path):
-    work_root = tmp_path / "work"
-    own = work_root / "run-a"
-    secret_file = tmp_path / "token"
-    missing = tmp_path / "does-not-exist"
-    for d in (work_root, own):
-        d.mkdir(exist_ok=True)
-    secret_file.write_text("x")
-    cmd = hostenv.bwrap_wrap(["pi", "-p"], own_dir=own, deny=[work_root, secret_file, missing])
-    assert cmd[0] == "bwrap" and cmd[-2:] == ["pi", "-p"]
-    # `--bind / /` is nodev: without the real /dev, /dev/null can't be opened and every
-    # child spawned with ignored stdio (Chromium via Playwright) fails with EACCES.
-    assert "--dev-bind /dev /dev" in " ".join(cmd)
-    joined = " ".join(cmd)
-    assert f"--tmpfs {work_root.resolve()}" in joined          # directories: masked by an empty tmpfs
-    assert f"--ro-bind /dev/null {secret_file.resolve()}" in joined  # files: masked by /dev/null
-    assert str(missing) not in joined                          # never create paths on the host
-    assert cmd.index(str(own.resolve())) > cmd.index(str(work_root.resolve()))  # own_dir after the mask
-
-
 def fake_amdgpu(root: Path) -> Path:
     """The Strix Halo box's card1 sysfs, values as read during story 4."""
     dev = root / "card1" / "device"

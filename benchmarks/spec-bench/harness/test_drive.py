@@ -28,7 +28,8 @@ def test_same_tool_different_input_is_progress():
 import subprocess
 from pathlib import Path
 
-from drive import sandboxed, REPO_ROOT
+from drive import REPO_ROOT
+from sandbox_testing import agent_run
 
 VIDI = REPO_ROOT / "benchmarks" / "vidi"   # the in-repo copy of the pack, which the sandbox must hide
 SECRET = VIDI / "acceptance" / "package.json"
@@ -38,7 +39,8 @@ SECRET = VIDI / "acceptance" / "package.json"
 def test_sandbox_blocks_reading_the_acceptance_suite(tmp_path: Path):
     own = tmp_path / "run"
     (own / "workspace").mkdir(parents=True)
-    r = subprocess.run(sandboxed(["cat", str(SECRET)], own_dir=own), capture_output=True, text=True)
+    assert "vidi-acceptance" in SECRET.read_text()            # readable from outside: the refusal below is the sandbox's
+    r = agent_run(["cat", str(SECRET)], own)
     assert r.returncode != 0 and "vidi-acceptance" not in r.stdout
 
 
@@ -46,7 +48,7 @@ def test_sandbox_blocks_reading_the_acceptance_suite(tmp_path: Path):
 def test_sandbox_blocks_listing_the_repo(tmp_path: Path):
     own = tmp_path / "run"
     (own / "workspace").mkdir(parents=True)
-    r = subprocess.run(sandboxed(["ls", str(VIDI)], own_dir=own), capture_output=True, text=True)
+    r = agent_run(["ls", str(VIDI)], own)
     assert r.returncode != 0 and "acceptance" not in r.stdout
 
 
@@ -56,7 +58,7 @@ def test_sandbox_allows_own_workspace(tmp_path: Path):
     ws = own / "workspace"
     ws.mkdir(parents=True)
     (ws / "f.txt").write_text("mine")
-    r = subprocess.run(sandboxed(["cat", str(ws / "f.txt")], own_dir=own), capture_output=True, text=True)
+    r = agent_run(["cat", "f.txt"], own)
     assert r.returncode == 0 and r.stdout == "mine"
 
 
@@ -69,8 +71,8 @@ def test_sandbox_hides_sibling_runs_but_not_own():
         for d in (mine, other):
             (d / "workspace").mkdir(parents=True, exist_ok=True)
             (d / "workspace" / "f.txt").write_text(d.name)
-        own = subprocess.run(sandboxed(["cat", str(mine / "workspace/f.txt")], own_dir=mine), capture_output=True, text=True)
-        sib = subprocess.run(sandboxed(["cat", str(other / "workspace/f.txt")], own_dir=mine), capture_output=True, text=True)
+        own = agent_run(["cat", "f.txt"], mine)
+        sib = agent_run(["cat", str(other / "workspace/f.txt")], mine)
         assert own.returncode == 0 and own.stdout == "_test_mine"
         assert sib.returncode != 0 and "_test_other" not in sib.stdout
     finally:
@@ -81,15 +83,12 @@ def test_sandbox_hides_sibling_runs_but_not_own():
 @pytest.mark.needs_sandbox
 def test_agent_env_pwd_points_inside_sandbox(tmp_path: Path):
     """OpenCode lstat()s $PWD; an inherited PWD from the harness dir is denied (EPERM)."""
-    import os
-    from drive import agent_env, WORK_ROOT
+    from drive import WORK_ROOT
     work = WORK_ROOT / "_test_pwd"
     ws = work / "workspace"
     ws.mkdir(parents=True, exist_ok=True)
     try:
-        env = {**os.environ, **agent_env(work)}
-        r = subprocess.run(sandboxed(["node", "-e", "require('fs').lstatSync(process.env.PWD)"], own_dir=work), cwd=ws, env=env,
-                           capture_output=True, text=True)
+        r = agent_run(["node", "-e", "require('fs').lstatSync(process.env.PWD)"], work)
         assert r.returncode == 0, r.stderr
     finally:
         import shutil
@@ -150,7 +149,7 @@ def test_the_sandbox_refuses_every_change_to_the_workspace_s_spec(tmp_path: Path
     own = tmp_path / "run"
     ws = spec_workspace(own)
     before = spec_state(ws)
-    r = subprocess.run(sandboxed(["sh", "-c", SPEC_WRITES[how]], own_dir=own), cwd=ws, capture_output=True, text=True)
+    r = agent_run(["sh", "-c", SPEC_WRITES[how]], own)
     assert r.returncode != 0, f"{how}: the command succeeded"
     assert spec_state(ws) == before and (ws / SPEC_FILE).read_text() == SPEC_TEXT
     assert not (ws / "spec-old").exists()
@@ -162,7 +161,7 @@ def test_the_sandbox_lets_the_agent_read_the_spec_and_write_the_rest_of_its_work
     ws = spec_workspace(own)
     script = (f"cat {SPEC_FILE} && echo '| 1 | Build it | doing |' > PROGRESS.md && mkdir src && echo code > src/a.ts "
               f"&& {GIT_T} add -A && {GIT_T} commit -qm 'story 1: work' && {GIT_T} status --porcelain")
-    r = subprocess.run(sandboxed(["sh", "-c", script], own_dir=own), cwd=ws, capture_output=True, text=True)
+    r = agent_run(["sh", "-c", script], own)
     assert r.returncode == 0, r.stderr
     assert r.stdout == SPEC_TEXT                                   # the spec, read; and nothing left uncommitted
     assert (ws / "PROGRESS.md").read_text() == "| 1 | Build it | doing |\n" and (ws / "src" / "a.ts").read_text() == "code\n"
@@ -173,7 +172,7 @@ def test_the_harness_outside_the_sandbox_can_still_write_the_spec(tmp_path: Path
     """The restore after a story (drive.restore_spec) and the known-good spec update are the harness's own writes."""
     own = tmp_path / "run"
     ws = spec_workspace(own)
-    subprocess.run(sandboxed(["true"], own_dir=own), cwd=ws, check=True)          # a sandbox was made, and has ended
+    assert agent_run(["true"], own).returncode == 0          # a sandbox was made, and has ended
     (ws / SPEC_FILE).chmod(0o644)
     (ws / SPEC_FILE).write_text("the harness's own\n")
     assert (ws / SPEC_FILE).read_text() == "the harness's own\n"
@@ -529,16 +528,15 @@ def test_sandbox_allows_realpath_of_own_workspace():
     (work / "workspace" / "dist" / "client").mkdir(parents=True, exist_ok=True)
     try:
         js = ("const fs=require('fs');"
-              f"console.log(fs.realpathSync({json.dumps(str(work / 'workspace' / 'dist' / 'client'))}));"
-              f"fs.watch({json.dumps(str(work / 'workspace'))}).close();")
-        r = subprocess.run(sandboxed(["node", "-e", js], own_dir=work), capture_output=True, text=True,
-                           cwd=work / "workspace", env={**os.environ, "PWD": str(work / "workspace")})
+              "console.log(fs.realpathSync('dist/client'));"
+              "fs.watch(process.cwd()).close();")
+        r = agent_run(["node", "-e", js], work)
         assert r.returncode == 0, r.stderr
         # ...while a sibling run's files stay unreadable.
         sib = WORK_ROOT / "_test_realpath_sibling"
         sib.mkdir(exist_ok=True)
         (sib / "secret.txt").write_text("x")
-        r2 = subprocess.run(sandboxed(["cat", str(sib / "secret.txt")], own_dir=work), capture_output=True, text=True)
+        r2 = agent_run(["cat", str(sib / "secret.txt")], work)
         assert r2.returncode != 0
         shutil.rmtree(sib, ignore_errors=True)
     finally:
@@ -677,16 +675,19 @@ def test_hang_guard_is_not_fooled_by_a_workspace_path_that_names_a_client(tmp_pa
 def test_agent_home_has_playwright_browsers_where_playwright_looks_by_default(tmp_path, monkeypatch):
     """canvas-mlx-02 story 7: the agent looked for browsers in ~/Library/Caches/ms-playwright, found
     nothing (HOME is the sandbox home) and searched the whole disk. PLAYWRIGHT_BROWSERS_PATH points
-    to the agents' cache; the default location in the agent's home must lead there too."""
+    to the run's own browsers directory, which holds a link to each browser of the agents' shared cache (read-only
+    in the sandbox); the default location in the agent's home must lead there too."""
     import drive, hostenv
     real = tmp_path / "real-home"
     (real / ".cache" / "vidi-agent-ms-playwright" / "chromium-1").mkdir(parents=True)
     monkeypatch.setattr(drive.Path, "home", classmethod(lambda cls: real))
-    env = drive.agent_env(tmp_path / "run")
-    default = hostenv.playwright_cache(drive.Path(env["HOME"]))
+    work = tmp_path / "run"
+    env = drive.agent_env(work, view=work)
+    default = hostenv.playwright_cache(work / "agent-home")
     assert (default / "chromium-1").is_dir(), default
-    assert default.resolve() == drive.Path(env["PLAYWRIGHT_BROWSERS_PATH"]).resolve()
-    drive.agent_env(tmp_path / "run")      # idempotent on a resumed run
+    assert default.resolve() == drive.Path(env["PLAYWRIGHT_BROWSERS_PATH"]).resolve() == (work / "browsers").resolve()
+    assert (work / "browsers" / "chromium-1").resolve() == (real / ".cache" / "vidi-agent-ms-playwright" / "chromium-1").resolve()
+    drive.agent_env(work, view=work)      # idempotent on a resumed run
 
 
 def test_hang_guard_spares_the_agent_whose_cwd_is_the_workspace(tmp_path):
@@ -862,7 +863,7 @@ def test_private_pack_checkout_is_hidden_from_the_agent(tmp_path):
     """Moving the held-out suite out of the public repo must not make it readable: the sandbox
     hides the private checkout exactly as it hides the repo."""
     import subprocess
-    from drive import PACK, sandboxed
+    from drive import PACK
     from packdir import private_root
     root = private_root(PACK)
     if root is None:
@@ -870,7 +871,7 @@ def test_private_pack_checkout_is_hidden_from_the_agent(tmp_path):
         pytest.skip("pack is in-repo; covered by the repo-hiding test")
     own = tmp_path / "work" / "run"
     own.mkdir(parents=True)
-    r = subprocess.run(sandboxed(["ls", str(PACK / "acceptance")], own_dir=own), capture_output=True, text=True)
+    r = agent_run(["ls", str(PACK / "acceptance")], own)
     assert r.returncode != 0 or not r.stdout.strip(), r.stdout
 
 
@@ -878,22 +879,22 @@ def test_private_pack_checkout_is_hidden_from_the_agent(tmp_path):
 def test_dbench_home_is_hidden_except_its_tools(tmp_path, outside_shared_temp, monkeypatch):
     """Agents under dbench must not reach its jobs, token, repo checkouts or other runs' builds,
     but must still run the tools installed in ~/.dbench/tools (pi, uv)."""
-    import subprocess
-    import drive
+    import sandbox
     # Like the real ~/.dbench, not under /tmp: there (tmp_path on Linux) the sandbox's own /tmp covers it, tools and all.
     dbench = outside_shared_temp / "dotdbench"
     (dbench / "jobs").mkdir(parents=True)
     (dbench / "jobs" / "job.json").write_text("secret")
     (dbench / "tools" / "bin").mkdir(parents=True)
     (dbench / "tools" / "bin" / "tool.txt").write_text("usable")
-    monkeypatch.setattr(drive, "SANDBOX_DENY", [*drive.SANDBOX_DENY, dbench])
-    monkeypatch.setattr(drive, "SANDBOX_REOPEN_RO", [dbench / "tools"])
+    monkeypatch.setattr(sandbox, "read_only_paths", lambda: [dbench / "tools"])
     own = tmp_path / "work" / "run"
     own.mkdir(parents=True)
-    secret = subprocess.run(drive.sandboxed(["cat", str(dbench / "jobs" / "job.json")], own_dir=own), capture_output=True, text=True)
-    tool = subprocess.run(drive.sandboxed(["cat", str(dbench / "tools" / "bin" / "tool.txt")], own_dir=own), capture_output=True, text=True)
+    secret = agent_run(["cat", str(dbench / "jobs" / "job.json")], own)
+    tool = agent_run(["cat", str(dbench / "tools" / "bin" / "tool.txt")], own)
+    write = agent_run(["sh", "-c", f"echo x > {dbench / 'tools' / 'bin' / 'written'}"], own)
     assert secret.returncode != 0 and "secret" not in secret.stdout
     assert tool.returncode == 0 and tool.stdout == "usable"
+    assert write.returncode != 0 and not (dbench / "tools" / "bin" / "written").exists()
 
 
 def test_reference_runs_get_distinct_labels_and_work_dirs():
@@ -913,7 +914,7 @@ def test_agent_browsers_are_kept_apart_from_the_held_out_suites(tmp_path: Path):
     # (opus-5.5 run-2 stories 3-8 on the M2). The agent must never share the suite's browser cache.
     from drive import agent_env
     import hostenv
-    env = agent_env(tmp_path / "work")
+    env = agent_env(tmp_path / "work", view=tmp_path / "work")
     suite_cache = hostenv.playwright_cache(Path.home())
     agent_cache = Path(env["PLAYWRIGHT_BROWSERS_PATH"])
     assert agent_cache != suite_cache
@@ -928,15 +929,9 @@ def test_sandbox_blocks_the_held_out_suites_browsers(tmp_path: Path):
         pytest.skip("no Playwright browsers installed on this machine")
     own = tmp_path / "run"
     (own / "workspace").mkdir(parents=True)
-    r = subprocess.run(sandboxed(["ls", str(suite_cache)], own_dir=own), capture_output=True, text=True)
-    rm = subprocess.run(sandboxed(["touch", str(suite_cache / "agent-was-here")], own_dir=own),
-                        capture_output=True, text=True)
-    if hostenv.IS_MAC:
-        # sandbox-exec refuses the read and the write.
-        assert r.returncode != 0 and rm.returncode != 0
-    else:
-        # bwrap covers the folder with an empty tmpfs: it lists, as empty, and a write lands in the tmpfs.
-        assert r.stdout.strip() == ""
+    r = agent_run(["ls", str(suite_cache)], own)
+    rm = agent_run(["touch", str(suite_cache / "agent-was-here")], own)
+    assert r.returncode != 0 and rm.returncode != 0          # not there at all (Linux), or refused (macOS)
     assert "chromium" not in r.stdout
     assert not (suite_cache / "agent-was-here").exists()
 
@@ -954,9 +949,9 @@ def test_sandbox_hides_all_bench_state_but_the_agents_own_run():
         (mine / "workspace" / "f.txt").write_text("mine")
         secret.mkdir(parents=True, exist_ok=True)
         (secret / "key.json").write_text("the answer")
-        own = subprocess.run(sandboxed(["cat", str(mine / "workspace/f.txt")], own_dir=mine), capture_output=True, text=True)
-        leak = subprocess.run(sandboxed(["cat", str(secret / "key.json")], own_dir=mine), capture_output=True, text=True)
-        listing = subprocess.run(sandboxed(["ls", str(BENCH_HOME)], own_dir=mine), capture_output=True, text=True)
+        own = agent_run(["cat", "f.txt"], mine)
+        leak = agent_run(["cat", str(secret / "key.json")], mine)
+        listing = agent_run(["ls", str(BENCH_HOME)], mine)
         assert own.returncode == 0 and own.stdout == "mine"
         assert leak.returncode != 0 and "the answer" not in leak.stdout
         assert "_test_secret" not in listing.stdout
@@ -1221,6 +1216,9 @@ class _RecordingContainment:
     def wrap(self, cmd):
         self.calls.append("wrap")
         return cmd
+    def launcher_env(self):
+        self.calls.append("launcher_env")
+        return {}
     def started(self, pid):
         self.calls.append("started")
     def note_tool_start(self):
@@ -1247,15 +1245,16 @@ class _ScriptedClient:
 
 
 def test_the_agent_runs_contained_and_each_tool_call_is_noted(tmp_path, monkeypatch):
+    from sandbox_testing import unsandboxed
     """tools/agent-containment/PROPOSAL.md: the harness wraps the agent in its story's scope, tells it
     the agent's pid, and snapshots the scope at every tool call so an interrupted call can be reaped."""
     import drive, hostenv
-    monkeypatch.setattr(drive, "sandboxed", lambda cmd, own_dir: cmd)
+    monkeypatch.setattr(drive, "launch_agent", unsandboxed)
     monkeypatch.setattr(hostenv, "oom_first", lambda cmd: cmd)
     rec = _RecordingContainment()
     monkeypatch.setattr(drive, "CONTAINMENT", rec)
     drive.run_agent(_ScriptedClient(), tmp_path, {}, "m", "p", tmp_path / "events.jsonl")
-    assert rec.calls == ["wrap", "started", "tool_start"]
+    assert rec.calls == ["wrap", "launcher_env", "started", "tool_start"] or rec.calls == ["launcher_env", "wrap", "started", "tool_start"]
 
 
 def test_the_hang_guard_reaps_what_the_interrupted_call_started(tmp_path, monkeypatch):
@@ -1285,12 +1284,6 @@ def test_memory_pressure_reaps_orphans_before_the_guard_stops_the_story(monkeypa
     _t.sleep(0.05)
     s.stop()
     assert "reap_pressure" in rec.calls
-
-
-def test_sandbox_hides_the_file_share_that_held_a_clone_of_this_repo():
-    # 25 Sep 2026: 27B canvas-pi-04 read the Opus reference build through a clone at ~/sambashare/tools on the RTX 4090 machine.
-    from drive import SANDBOX_DENY
-    assert Path.home() / "sambashare" in SANDBOX_DENY
 
 
 def test_a_cloud_model_run_never_waits_for_the_machine(monkeypatch):

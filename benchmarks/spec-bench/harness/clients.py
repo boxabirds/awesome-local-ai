@@ -17,6 +17,11 @@ PROVIDER = "local"
 CLIENT_IDLE_TIMEOUT_MS = 60 * 60 * 1000
 
 
+# What a client needs reachable besides npm and Playwright's browsers (sandbox presets), and a secret it needs in a
+# descriptor of its own: neither is true of a client that talks to the local model server.
+NO_PRESETS: tuple[str, ...] = ()
+
+
 def empty_state() -> dict:
     return {"session": None, "error": None, "steps": 0, "tool_calls": 0, "compactions": 0,
             "tokens": {"input": 0, "output": 0, "reasoning": 0, "cache_read": 0, "cache_write": 0}}
@@ -33,15 +38,24 @@ class PiClient:
 
     name = "pi"
 
-    def __init__(self, work: Path, thinking: str | None = None):
+    presets = NO_PRESETS
+
+    def __init__(self, work: Path, thinking: str | None = None, view: Path | None = None):
         if thinking is not None and thinking not in PI_THINKING_LEVELS:
             raise ValueError(f"unknown pi thinking level {thinking!r}; one of {', '.join(PI_THINKING_LEVELS)}")
         self.thinking = thinking
         self.agent_dir = work / "pi-agent"
         self.session_dir = work / "pi-sessions"
+        # Where the agent sees them (the sandbox shows the run's directory at /w): the paths it is told.
+        view = view or work
+        self.seen_agent_dir = view / "pi-agent"
+        self.seen_session_dir = view / "pi-sessions"
 
     def env(self) -> dict:
-        return {"PI_CODING_AGENT_DIR": str(self.agent_dir), "PI_OFFLINE": "1"}
+        return {"PI_CODING_AGENT_DIR": str(self.seen_agent_dir), "PI_OFFLINE": "1"}
+
+    def secrets(self) -> dict[str, str]:
+        return {}
 
     def write_config(self, base_url: str, model_id: str, ctx: int, out: int, compact_at: int | None = None) -> None:
         self.agent_dir.mkdir(parents=True, exist_ok=True)
@@ -70,7 +84,7 @@ class PiClient:
         thinking = ["--thinking", self.thinking] if self.thinking else []
         return ["pi", "-p", "--mode", "json", "--model", f"{PROVIDER}/{model_id}", *thinking,
                 "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files",
-                "--no-approve", "--session-dir", str(self.session_dir), *resume, "--", prompt]
+                "--no-approve", "--session-dir", str(self.seen_session_dir), *resume, "--", prompt]
 
     def scan(self, e: dict, st: dict) -> str | None:
         """Update state from one event; return a loop key for a tool call, else None."""
@@ -103,11 +117,15 @@ class OpenCodeClient:
     """OpenCode: `opencode run --format json`, config under an isolated XDG_CONFIG_HOME."""
 
     name = "opencode"
+    presets = NO_PRESETS
 
-    def __init__(self, work: Path):
+    def __init__(self, work: Path, view: Path | None = None):
         self.cfg_dir = work / "agent-home" / ".config" / "opencode"
 
     def env(self) -> dict:
+        return {}
+
+    def secrets(self) -> dict[str, str]:
         return {}
 
     def write_config(self, base_url: str, model_id: str, ctx: int, out: int, compact_at: int | None = None) -> None:
@@ -166,18 +184,21 @@ CLAUDE_MESSAGES = "claude_messages"
 
 class ClaudeClient:
     """Claude Code headless: `claude -p --output-format stream-json`, config under an isolated
-    CLAUDE_CONFIG_DIR. Authenticates with the user's subscription via CLAUDE_CODE_OAUTH_TOKEN (from
-    `claude setup-token`); any API key is removed from the environment so usage can't silently
-    switch to API billing. No --bare: bare mode ignores the OAuth token."""
+    CLAUDE_CONFIG_DIR. Authenticates with the user's subscription via a token (from `claude setup-token`),
+    handed over in a descriptor of its own (CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR), never in the environment, where
+    every process of the agent's could read it; the agent's environment holds no API key, so usage can't silently
+    switch to API billing (ANTHROPIC_API_KEY outranks the token in -p mode). No --bare: bare mode ignores the token.
+    Its one outside host is its API (the `claude` preset)."""
 
     name = "claude"
-    # Removed from the agent's environment (ANTHROPIC_API_KEY outranks the OAuth token in -p mode).
-    env_remove = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+    presets = ("claude",)
     TOKEN_FILE_ENV = "CLAUDE_BENCH_TOKEN_FILE"
     DEFAULT_TOKEN_FILE = Path.home() / ".dbench" / "claude-oauth-token"
+    TOKEN_NAME = "CLAUDE_CODE_OAUTH_TOKEN"
 
-    def __init__(self, work: Path):
+    def __init__(self, work: Path, view: Path | None = None):
         self.config_dir = work / "claude-config"
+        self.seen_config_dir = (view or work) / "claude-config"
 
     def token(self) -> str:
         path = Path(os.environ.get(self.TOKEN_FILE_ENV) or self.DEFAULT_TOKEN_FILE).expanduser()
@@ -186,8 +207,13 @@ class ClaudeClient:
         return path.read_text().strip()
 
     def env(self) -> dict:
-        return {"CLAUDE_CONFIG_DIR": str(self.config_dir), "CLAUDE_CODE_OAUTH_TOKEN": self.token(),
-                "DISABLE_AUTOUPDATER": "1"}
+        # Not CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: it forces Claude Code out of --dangerously-skip-permissions (measured, 1 Oct
+        # 2026: every Bash call then asks for approval). The agent's environment holds no credential for it to scrub.
+        return {"CLAUDE_CONFIG_DIR": str(self.seen_config_dir), "DISABLE_AUTOUPDATER": "1",
+                "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}
+
+    def secrets(self) -> dict[str, str]:
+        return {self.TOKEN_NAME: self.token()}
 
     def write_config(self, base_url: str, model_id: str, ctx: int, out: int, compact_at: int | None = None) -> None:
         # base_url, ctx and out don't apply: the model is Anthropic's, with Claude Code's own compaction.

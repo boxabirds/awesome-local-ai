@@ -42,4 +42,3 @@ def no_sandbox(monkeypatch) -> None:
     monkeypatch.setattr(drive, "launch_agent", unsandboxed)
     monkeypatch.setattr(sandbox, "view_root", lambda work, enforced=None: work)
     monkeypatch.setattr(sandbox, "tmp_view", lambda view, enforced=None: view / sandbox.TMP_DIR)
-    monkeypatch.setattr(sandbox, "place_work_dir", lambda work, root=None, enforced=None: (work.mkdir(parents=True, exist_ok=True), work)[1])

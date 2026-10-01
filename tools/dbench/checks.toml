@@ -37,6 +37,9 @@ paths = [
 harness = [
   "benchmarks/spec-bench",
   "benchmarks/perf",
+  # The agent's sandbox, as source: the harness builds it once per change on the machine (sandbox.py binary(): cargo,
+  # --locked, kept by the hash of this directory), so a release never depends on a binary built by hand on a node.
+  "tools/agent-sandbox",
 ]
 
 # Every harness test, including the end-to-end self-tests of the story loop (test_pipeline.py), which

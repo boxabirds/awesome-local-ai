@@ -14,6 +14,9 @@ And the scoring home (scoring_tools.home(): the suites kept at their tags, the r
 gets a temporary one, set at import and removed when the tests end, so no test reads or writes the machine's own
 under the bench home. A test of the cache itself passes a directory in tmp_path.
 
+The agent-sandbox binary the tests run in is built once from tools/agent-sandbox into a cache the tests share
+(sandbox.CACHE_ENV, keyed by the source's hash), never into the machine's own under the bench home.
+
 A test that runs a command in the real sandbox is marked `needs_sandbox`. Where the platform's sandbox tool
 (SANDBOX_TOOL) is missing it is skipped with NO_SANDBOX_REASON, the same way in every test file; with
 $SPEC_BENCH_REQUIRE_SANDBOX set (CI sets it) it fails instead, so the sandbox can't go unproven there unnoticed."""
@@ -30,6 +33,7 @@ import heldout
 import hostenv
 import machine_names
 import roots
+import sandbox
 import scoring_tools
 
 # No test, and no process a test starts, records in the roots the tests run with (drive.record_refusal): the
@@ -41,6 +45,8 @@ os.environ.setdefault(roots.NO_RECORD_ENV,
 
 os.environ[scoring_tools.HOME_ENV] = tempfile.mkdtemp(prefix="spec-bench-test-scoring-home-")
 atexit.register(shutil.rmtree, os.environ[scoring_tools.HOME_ENV], ignore_errors=True)
+
+os.environ.setdefault(sandbox.CACHE_ENV, str(Path(tempfile.gettempdir()) / "spec-bench-test-agent-sandbox"))
 
 TEST_HOSTNAME = "made-up-bench-box.local"
 os.environ[machine_names.NODES_ENV] = "/nonexistent/dbench/nodes.toml"
@@ -89,9 +95,9 @@ def no_real_private_repo(tmp_path, monkeypatch):
 
 @pytest.fixture
 def outside_shared_temp():
-    """A directory of the test's own that is not under a shared temp dir (drive.SHARED_TMP). On Linux tmp_path
-    is under /tmp, which the sandbox replaces with the run's own temp dir: anything a test puts in tmp_path
-    and expects to see from inside the sandbox (other than the run's own dir) is not there."""
+    """A directory of the test's own that is not under /tmp. On Linux tmp_path is under /tmp, which the
+    sandbox replaces with the run's own temp dir: anything a test puts in tmp_path and expects to see from inside
+    the sandbox (other than the run's own dir) is not there."""
     d = Path.home() / f"{OUTSIDE_TEMP_PREFIX}{uuid.uuid4().hex[:OUTSIDE_TEMP_TAG_CHARS]}"
     d.mkdir()
     try:

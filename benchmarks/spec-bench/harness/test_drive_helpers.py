@@ -25,6 +25,7 @@ import accounting
 import attempts
 import drive
 import hostenv
+import sandbox
 from clients import PiClient
 
 G = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
@@ -104,94 +105,6 @@ def test_tree_hash_covers_names_and_contents_of_files_only(tmp_path):
     (b / "sub" / "f.md").write_text("same")
     (b / "sub" / "f.md").rename(b / "sub" / "g.md")
     assert drive.tree_hash(a) != drive.tree_hash(b)
-
-
-# ---------- the sandbox profile ----------
-
-def test_no_user_temp_dir_is_looked_up_off_macos(monkeypatch):
-    monkeypatch.setattr(drive, "IS_MAC", False)
-    calls = fake_run(monkeypatch, never)
-    assert drive.user_temp_dir.__wrapped__() is None and calls == []
-
-
-@pytest.mark.parametrize("answer, expected", [
-    (done("/var/folders/zz/abc/T/\n"), Path("/var/folders/zz/abc/T").resolve()),
-    (done("/var/folders/zz/abc/T/\n", returncode=1), None),      # getconf failed
-    (done("\n"), None),                                           # it answered nothing
-])
-def test_macos_user_temp_dir_is_what_getconf_says_or_none(monkeypatch, answer, expected):
-    monkeypatch.setattr(drive, "IS_MAC", True)
-    calls = fake_run(monkeypatch, lambda cmd, **k: answer)
-    assert drive.user_temp_dir.__wrapped__() == expected
-    assert [c for c, _ in calls] == [["getconf", "DARWIN_USER_TEMP_DIR"]]
-
-
-def test_macos_profile_without_a_user_temp_dir_reopens_only_tools_that_exist(tmp_path, monkeypatch):
-    monkeypatch.setattr(drive, "IS_MAC", True)
-    monkeypatch.setattr(drive, "user_temp_dir", lambda: None)
-    tools, absent = tmp_path / "tools", tmp_path / "absent-tools"
-    tools.mkdir()
-    monkeypatch.setattr(drive, "SANDBOX_REOPEN_RO", [tools, absent])
-    own = tmp_path / "run"
-    cmd = drive.sandboxed(["true", "x"], own_dir=own)
-    assert cmd[:2] == ["sandbox-exec", "-p"] and cmd[3:] == ["true", "x"]
-    profile = cmd[2]
-    assert (own / drive.AGENT_TMP).is_dir()                      # made for the agent, with its parents
-    assert "regex" not in profile                                # no user temp dir: none of its rules
-    assert f"(allow file-read* (subpath {drive._sb_quote(tools)}))" in profile
-    assert str(absent) not in profile
-    # stat, and only stat, on every ancestor of the run's own dir and of the re-opened tools.
-    metadata = profile[profile.index("(allow file-read-metadata "):profile.index("(allow file-read* (subpath")]
-    for d in (own, tools):
-        for ancestor in d.resolve().parents:
-            assert f"(literal {drive._sb_quote(ancestor)})" in metadata
-    # Last, so they win (SBPL applies the last rule that matches): the run's own dir re-opened, and in it the
-    # workspace's spec closed to writing again.
-    assert profile.endswith(f"(allow file-read* file-write* (subpath {drive._sb_quote(own)}))"
-                            f"(deny file-write* (subpath {drive._sb_quote(own / 'workspace' / 'spec')}))")
-    assert (drive.WORKSPACE_DIR, drive.SPEC_DIR) == ("workspace", "spec")
-
-
-def test_the_linux_sandbox_masks_what_is_denied_and_binds_the_run_s_temp_dir_over_the_shared_ones(tmp_path, monkeypatch):
-    monkeypatch.setattr(drive, "IS_MAC", False)
-    denied, tools = tmp_path / "denied", tmp_path / "tools"
-    denied.mkdir()
-    tools.mkdir()
-    monkeypatch.setattr(drive, "SANDBOX_DENY", [denied])
-    monkeypatch.setattr(drive, "SANDBOX_REOPEN_RO", [tools])
-    monkeypatch.setattr(drive, "WORK_ROOT", tmp_path / "work")
-    own = tmp_path / "work" / "run"
-    spec = own / "workspace" / "spec"
-    spec.mkdir(parents=True)
-    cmd = drive.sandboxed(["true", "x"], own_dir=own)
-    own_s, tmp_s, spec_s = str(own.resolve()), str((own / drive.AGENT_TMP).resolve()), str(spec.resolve())
-    assert (own / drive.AGENT_TMP).is_dir()
-    assert cmd[0] == "bwrap" and cmd[-3:] == ["--", "true", "x"]
-    # In order (bwrap mounts in order, a later mount over an earlier one): the masks, the tools re-opened read-only,
-    # the run's temp dir over each shared one, the run's own dir, and over it the workspace's spec, read-only.
-    tail = ["--ro-bind", str(tools.resolve()), str(tools.resolve()),
-            *(a for p in drive.SHARED_TMP for a in ("--bind", tmp_s, str(p))), "--bind", own_s, own_s,
-            "--ro-bind", spec_s, spec_s, "--", "true", "x"]
-    assert cmd[-len(tail):] == tail
-    masks = cmd[:-len(tail)]
-    for hidden in (denied, tmp_path / "work"):
-        assert masks[masks.index(str(hidden.resolve())) - 1] == "--tmpfs"
-
-
-def test_the_linux_sandbox_of_a_run_without_a_spec_binds_none(tmp_path, monkeypatch):
-    """bwrap can't bind a source that isn't there (the preflight's probe has a workspace and no spec)."""
-    monkeypatch.setattr(drive, "IS_MAC", False)
-    monkeypatch.setattr(drive, "SANDBOX_DENY", [])
-    monkeypatch.setattr(drive, "SANDBOX_REOPEN_RO", [])
-    monkeypatch.setattr(drive, "WORK_ROOT", tmp_path / "work")
-    own = tmp_path / "work" / "run"
-    cmd = drive.sandboxed(["true"], own_dir=own)
-    assert cmd[-5:] == ["--bind", str(own.resolve()), str(own.resolve()), "--", "true"] and "--ro-bind" not in cmd
-
-
-def test_a_path_is_quoted_for_the_sandbox_profile_with_its_quotes_and_backslashes_escaped(tmp_path):
-    odd = tmp_path / 'a"b\\c'
-    assert drive._sb_quote(odd) == '"' + str(tmp_path.resolve()) + '/a\\"b\\\\c"'
 
 
 # ---------- the conversation log: compaction, the cut past its cap, publishing ----------
@@ -624,35 +537,47 @@ def test_a_failed_install_of_the_base_s_dependencies_stops_the_run_with_npm_s_er
 # ---------- the agent's home ----------
 
 def test_the_agent_s_browsers_are_linked_once_and_an_existing_cache_is_left_alone(tmp_path):
-    home, real = tmp_path / "agent-home", tmp_path / "real-home"
-    default, target = hostenv.playwright_cache(home), hostenv.agent_playwright_cache(real)
-    drive.link_agent_browsers(home, real)
-    assert default.is_symlink() and os.readlink(default) == str(target)       # a link even though its target is absent
-    other = tmp_path / "other-real"
-    drive.link_agent_browsers(home, other)                                     # already a link: not repointed
-    assert os.readlink(default) == str(target)
+    work, real = tmp_path / "run", tmp_path / "real-home"
+    home, view = work / "agent-home", Path("/w")
+    shared = hostenv.agent_playwright_cache(real)
+    (shared / "chromium-1").mkdir(parents=True)
+    default = hostenv.playwright_cache(home)
+    drive.link_agent_browsers(work, home, view, real)
+    # The run's own browsers directory links each browser of the shared cache; the default place in the agent's home
+    # leads to that directory as the agent names it, even though that path does not exist here.
+    assert (work / "browsers" / "chromium-1").is_symlink() and (work / "browsers" / "chromium-1").resolve() == (shared / "chromium-1").resolve()
+    assert default.is_symlink() and os.readlink(default) == "/w/browsers"
+    (shared / "chromium-2").mkdir()
+    drive.link_agent_browsers(work, home, Path("/elsewhere"), real)           # later: a new browser is linked, the link kept
+    assert (work / "browsers" / "chromium-2").is_symlink() and os.readlink(default) == "/w/browsers"
     own_home = tmp_path / "home-with-cache"
     own = hostenv.playwright_cache(own_home)
     own.mkdir(parents=True)
-    drive.link_agent_browsers(own_home, real)
+    drive.link_agent_browsers(work, own_home, view, real)
     assert own.is_dir() and not own.is_symlink()
+    nothing = tmp_path / "no-cache-at-all"
+    drive.link_agent_browsers(tmp_path / "run2", tmp_path / "run2" / "agent-home", view, nothing)
+    assert (tmp_path / "run2" / "browsers").is_dir() and list((tmp_path / "run2" / "browsers").iterdir()) == []
 
 
-def test_the_agent_s_environment_is_its_own_home_temp_dir_and_identity(tmp_path):
+def test_the_agent_s_environment_is_its_own_home_temp_dir_ports_and_a_neutral_identity(tmp_path):
     work = tmp_path / "work" / "run"
-    env = drive.agent_env(work)
-    home, tmp, ws = work / "agent-home", work / drive.AGENT_TMP, work / "workspace"
-    assert home.is_dir() and tmp.is_dir()
+    view = Path("/w")
+    env = drive.agent_env(work, view)
+    first, last = sandbox.ports_for(work.name)
+    home, tmp, ws = view / "agent-home", sandbox.tmp_view(view, enforced=True), view / "workspace"
+    assert (work / "agent-home").is_dir() and (work / drive.AGENT_TMP).is_dir()
     assert env == {
-        "HOME": str(home), "TMPDIR": str(tmp), "TMP": str(tmp), "TEMP": str(tmp), "CLAUDE_CODE_TMPDIR": str(tmp),
+        "HOME": str(home), "TERM": "dumb", "TMPDIR": str(tmp), "TMP": str(tmp), "TEMP": str(tmp), "CLAUDE_CODE_TMPDIR": str(tmp),
         "PWD": str(ws), "OLDPWD": str(ws),
         "XDG_CONFIG_HOME": str(home / ".config"), "XDG_DATA_HOME": str(home / ".local" / "share"),
         "XDG_CACHE_HOME": str(home / ".cache"), "XDG_STATE_HOME": str(home / ".local" / "state"),
-        "npm_config_cache": str(Path.home() / ".npm"),
-        "PLAYWRIGHT_BROWSERS_PATH": str(hostenv.agent_playwright_cache(Path.home())),
-        "WRANGLER_SEND_METRICS": "false",
-        "GIT_AUTHOR_NAME": "vidi-agent", "GIT_AUTHOR_EMAIL": "agent@vidi.invalid",
-        "GIT_COMMITTER_NAME": "vidi-agent", "GIT_COMMITTER_EMAIL": "agent@vidi.invalid"}
+        "PLAYWRIGHT_BROWSERS_PATH": "/w/browsers",
+        "WRANGLER_SEND_METRICS": "false", "npm_config_update_notifier": "false",
+        "AGENT_PORT_FIRST": str(first), "AGENT_PORT_LAST": str(last),
+        "GIT_AUTHOR_NAME": "agent", "GIT_AUTHOR_EMAIL": "agent@localhost.invalid",
+        "GIT_COMMITTER_NAME": "agent", "GIT_COMMITTER_EMAIL": "agent@localhost.invalid"}
+    assert set(env) <= set(sandbox.ENV_ALLOWED)             # every name it makes is on the allow-list
 
 
 # ---------- the prompt ----------
@@ -1351,28 +1276,6 @@ def test_the_long_name_is_a_symlink_to_the_short_work_dir_and_a_run_from_before_
     assert str(link) in str(e.value) and str(work) in str(e.value)
 
 
-def test_the_harness_s_own_variables_are_not_inherited_by_the_agent():
-    """What the harness, run.sh and dbench set for themselves names the results checkout, the bench home and the
-    run: none of it is the agent's to see (PATH is, whatever is on it)."""
-    environ = {"PATH": "/x/.dbench/tools/bin:/x/awesome-local-ai/bin:/usr/bin", "LANG": "C.UTF-8", "CTX": "131072",
-               "VIDI_BENCH_HOME": "/x/.vidi-bench", "VIDI_WORK_ROOT": "/x/w", "SPEC_BENCH_RESULTS_ROOT": "/x/awesome-local-ai",
-               "SPEC_BENCH_PACK_NAME": "vidi", "DBENCH_JOB": "canvas-vk-03", "BENCH_CONTEXT": "131072",
-               # A tool's own variable naming a root the sandbox denies (pyenv's, when the harness ran from its dir).
-               "PYENV_DIR": "/x/awesome-local-ai/benchmarks/spec-bench/harness", "OLDPWD": "/x/.vidi-bench/work",
-               "RELEASE_DIR": "/x/releases/harness-v1/benchmarks"}
-    denied = (Path("/x/awesome-local-ai"), Path("/x/releases/harness-v1"), Path("/x/.vidi-bench"))
-    assert drive.inherited_env(environ, denied) == {"PATH": "/x/.dbench/tools/bin:/x/awesome-local-ai/bin:/usr/bin",
-                                                   "LANG": "C.UTF-8", "CTX": "131072"}
-    assert drive.HARNESS_ENV_PREFIXES == ("VIDI_", "SPEC_BENCH_", "DBENCH_", "BENCH_")
-    assert "PYENV_DIR" not in drive.inherited_env({"PYENV_DIR": str(drive.HARNESS)})       # the real roots by default
-
-
-def test_outside_packages_name_every_ancestor_s_package_dir_and_manifests(tmp_path):
-    got = drive.outside_packages(tmp_path / "a" / "b")
-    parents = list((tmp_path / "a" / "b").resolve().parents)
-    assert got == [p / n for p in parents for n in ("node_modules", "package.json", "package-lock.json")]
-
-
 def test_the_mirror_holds_the_source_without_build_output_and_the_git_log_beside_it(tmp_path):
     ws, dest = tmp_path / "ws", tmp_path / "run" / "workspace"
     for rel in ("src/a.ts", "spec/prd.md", "node_modules/p/i.js", "dist/out.js", ".wrangler/s", "test-results/r",
@@ -1422,3 +1325,31 @@ def test_a_story_s_end_reason_is_one_word_from_what_its_record_says(agent, skip,
 def test_the_interventions_of_a_story_are_counted_by_kind_and_in_all():
     assert drive.interventions_of(resumes=2, nudges=1, toolcall_text_resumes=3) == {
         "total": 6, "stop_message": 1, "toolcall_text_resumes": 3, "error_resumes": 2}
+
+
+# ---------- the agent's launch ----------
+
+def test_an_agent_is_launched_in_the_world_it_was_given_or_the_run_s_and_its_temp_dir_is_made(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(drive.sandbox, "launch", lambda *a: calls.append(a) or "launched")
+    mine, theirs = sandbox.World(run="mine"), sandbox.World(run="theirs")
+    own = tmp_path / "w"
+    assert drive.launch_agent(["pi"], own, {"HOME": "/h"}, {"T": "t"}, mine) == "launched"
+    assert (own / drive.AGENT_TMP).is_dir() and calls == [(["pi"], own, mine, {"HOME": "/h"}, {"T": "t"})]
+    monkeypatch.setattr(drive, "WORLD", theirs)
+    drive.launch_agent(["pi"], own, {})
+    assert calls[-1] == (["pi"], own, theirs, {}, None)
+
+
+def test_the_prompt_names_the_ports_the_agent_may_serve_on_by_their_variables():
+    paragraph = drive.harness_paragraph(3)
+    assert paragraph.endswith(drive.PORTS_PROMPT)
+    assert "$AGENT_PORT_FIRST to $AGENT_PORT_LAST" in drive.PORTS_PROMPT and "16 ports" in drive.PORTS_PROMPT
+    assert sandbox.PORT_FIRST_ENV == "AGENT_PORT_FIRST" and sandbox.PORT_LAST_ENV == "AGENT_PORT_LAST"
+
+
+def test_the_agent_s_own_commits_carry_a_name_that_says_nothing_and_the_harness_s_keep_theirs():
+    assert drive.AGENT_GIT_IDENTITY == {"GIT_AUTHOR_NAME": "agent", "GIT_AUTHOR_EMAIL": "agent@localhost.invalid",
+                                        "GIT_COMMITTER_NAME": "agent", "GIT_COMMITTER_EMAIL": "agent@localhost.invalid"}
+    assert drive.GIT_IDENTITY["GIT_AUTHOR_NAME"] == "vidi-agent"
+    assert "vidi" not in " ".join(drive.AGENT_GIT_IDENTITY.values())

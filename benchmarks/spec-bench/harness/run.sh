@@ -127,6 +127,16 @@ trap 'STOPPED=1; exit 143' INT TERM
 # dbench waits instead of counting a restart (1 Oct 2026: a restart 30 s after the swap guard, unchecked).
 (cd "$HARNESS" && uv run --quiet machine_fit.py "$RUN_DIR") || exit $?
 
+# The agent's sandbox (sandbox.py): every agent session runs in tools/agent-sandbox, which deny everything the run was
+# not given. It is built once per change of its source on this machine (cargo, from the release's own copy) and
+# kept; this fails before anything starts if it cannot be had. SPEC_BENCH_SANDBOX=permissive runs the agent with no
+# sandbox at all, for the harness's own tests: it cannot record a benchmark.
+if [[ "${SPEC_BENCH_SANDBOX:-enforced}" == permissive && -n "$RECORD" ]]; then
+  echo "SPEC_BENCH_SANDBOX=permissive runs the agent with no sandbox: it cannot record a benchmark (--record)" >&2; exit 1
+fi
+SANDBOX_JSON="$(python3 "$HARNESS/sandbox.py" identity)" || { echo "the agent's sandbox is not available; not starting the run" >&2; exit 1; }
+echo "agent sandbox: $SANDBOX_JSON"
+
 if [[ "$CLOUD" == 0 ]] && curl -s -m 2 "127.0.0.1:$BENCH_PORT/v1/models" >/dev/null; then
   echo "port $BENCH_PORT already serving; refusing to benchmark against an unknown server" >&2; exit 1
 fi
@@ -269,6 +279,7 @@ cat > "$RUN_DIR/run.json" <<JSON
  "pack": "$SPEC_BENCH_PACK_NAME", "scope": "${SCOPE:-${EPIC:+epic:$EPIC}}", "metered": $METER, "reasoning_effort": "$EFFORT_RECORDED", "client_thinking": "${CLIENT_THINKING:-}", "known_good_from": "${FROM_RUN#"$RESULTS_ROOT"/}", "context_limit": $CONTEXT_LIMIT,
  "output_limit": $OUTPUT_LIMIT, "backend_version": "$( [[ "$BACKEND" == mtplx ]] && mtplx --version 2>/dev/null | awk '{print $NF}' )", "mtplx_memory_limit_bytes": "$( [[ "$BACKEND" == mtplx ]] && echo "${MTPLX_MEMORY_LIMIT_BYTES:-default}" )", "compact_at": "${COMPACT_AT:-client default}", "client": "$CLIENT_NAME", "client_version": "$CLIENT_VERSION", "backend": "$BACKEND", "host": "$HOST_DESC",
  "harness_commit": "$HARNESS_COMMIT", "harness_release": $HARNESS_RELEASE_JSON, "pack_version": "$PACK_VERSION", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+ "sandbox": $SANDBOX_JSON,
  "identity": $IDENTITY_JSON,
  "engine_settings": $ENGINE_SETTINGS_JSON}
 JSON

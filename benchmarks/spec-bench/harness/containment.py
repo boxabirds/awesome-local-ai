@@ -24,6 +24,10 @@ UNIT_PREFIX = "spec-bench"
 SYSTEMCTL_TIMEOUT_S = 10
 
 
+# systemd-run finds the user's manager through these.
+LAUNCHER_ENV = ("XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS")
+
+
 class ContainmentError(RuntimeError):
     pass
 
@@ -286,6 +290,13 @@ class StoryContainment:
         self.scopes.append(Scope(unit))
         self.call_start = None
         return wrap(cmd, unit, self.memory_max)
+
+    def launcher_env(self) -> dict:
+        """What systemd-run needs in its own environment to reach the user's manager. agent-sandbox drops it before
+        the agent starts (--keep-env), so the agent never has it."""
+        if not self.enabled:
+            return {}
+        return {k: os.environ[k] for k in LAUNCHER_ENV if k in os.environ}
 
     def started(self, pid: int) -> None:
         self.agent_pid = pid
