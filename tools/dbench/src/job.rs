@@ -280,6 +280,9 @@ pub struct Job {
     /// Server-side interventions: restarts, recoveries, cancels, pull failures.
     #[serde(default)]
     pub history: Vec<Note>,
+    /// The last failed attempt that was restarted: the next failure is compared with it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_failure: Option<crate::failure::FailureMark>,
 }
 
 impl Job {
@@ -297,6 +300,7 @@ impl Job {
             last_pull: None,
             harness: None,
             history: Vec::new(),
+            last_failure: None,
         }
     }
 
