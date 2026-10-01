@@ -10,7 +10,11 @@ The rule now, and what is tested here:
   for this story on a line of its own, the hash is the workspace's HEAD, and nothing is left uncommitted.
 - Every other clean stop gets one message, the same every time (stop_message), naming the story, its title and its
   tasks file. A tool call written as text gets it too, counted and logged as before.
-- After MAX_NUDGES messages the story is capped: recorded PARTIAL, its work committed by the harness.
+- One message per story (MAX_NUDGES, the owner's decision of 1 Oct 2026: one intervention per story, logged and
+  disclosed). A second stop without a verified finish ends the story: recorded PARTIAL, ended by
+  "harness (stop message already sent)", its work committed by the harness. Engine faults are not interventions
+  about the model and are handled apart: a tool call written as text is continued (MAX_TOOLCALL_TEXT_RESUMES) and
+  an error fork-resumed (MAX_AGENT_RESUMES) without using up the message; all three are counted in `interventions`.
 - Errors, stalls, the guards and the operator's skip are as they were.
 - The story's prompt asks for the DONE line (render_prompt), so an agent that does as asked is never nudged.
 - The record says whether the story ended on a verified finish (`finished`).
@@ -325,7 +329,8 @@ def test_a_story_that_ends_with_the_done_line_on_its_first_stop_is_finished_and_
     assert result == {"seconds": 60.0, "steps": 3, "tool_calls": 2, "compactions": 1, "tool_interruptions": 2,
                       "tokens": {"input": 100, "output": 10, "reasoning": 0, "cache_read": 0, "cache_write": 0},
                       "exit": 0, "stalled": False, "resumes": 0, "nudges": 0, "toolcall_text_resumes": 0, "errors": [],
-                      "ended_by_operator": False, "ended_in_error": False, "sessions": ["s1"], "finished": True}
+                      "ended_by_operator": False, "ended_in_error": False, "sessions": ["s1"], "finished": True,
+                      "interventions": {"total": 0, "stop_message": 0, "toolcall_text_resumes": 0, "error_resumes": 0}}
     assert sent(calls) == [("the story prompt", None, True)]
     assert calls[0]["log_existed"] is False                           # a fresh story starts a fresh log
     assert calls[0]["args"] == ("the-client", loop.ws, {"E": "1"}, "the-model", loop.events)
@@ -353,31 +358,53 @@ def test_a_commit_without_the_done_line_no_longer_ends_the_story(loop):
     assert result["nudges"] == 1 and result["finished"] is True
 
 
-def test_an_agent_that_never_finishes_gets_the_same_message_until_the_cap(loop):
-    """(d) and (e): replies that only talk, with no tool call and no line, are answered every time; the cap, not
-    the absence of a tool call, ends it."""
+def test_an_agent_that_stops_again_after_the_one_message_ends_the_story_there(loop):
+    """(d) and (e): a reply that only talks, with no tool call and no line, gets the one message; the next stop
+    without a verified finish ends the story, by the harness, with the message already sent as the reason."""
     told = []
     talk = stop("Nothing left to do.", tool_calls=0)
-    result, calls = loop([stop("All tasks are complete.")] + [talk] * drive.MAX_NUDGES, on_cap=told.append)
-    assert sent(calls) == [("the story prompt", None, True)] + [THE_MESSAGE] * drive.MAX_NUDGES
-    assert result["nudges"] == drive.MAX_NUDGES and result["finished"] is False and result["ended_by_operator"] is False
-    assert told == [f"story cap: the stop message was sent {drive.MAX_NUDGES} times without the story finishing "
-                    f"(cap {drive.MAX_NUDGES})"]
+    result, calls = loop([stop("All tasks are complete."), talk], on_cap=lambda reason, by: told.append((reason, by)))
+    assert sent(calls) == [("the story prompt", None, True), THE_MESSAGE]
+    assert result["nudges"] == 1 == drive.MAX_NUDGES and result["finished"] is False and result["ended_by_operator"] is False
+    assert told == [(drive.STOP_SENT_REASON, drive.STOP_SENT_BY)]
+    assert drive.STOP_SENT_BY == "harness (stop message already sent)"
+    assert drive.STOP_SENT_REASON == "story cap: the stop message was sent and the story was still not finished (one message per story)"
+    assert result["interventions"] == {"total": 1, "stop_message": 1, "toolcall_text_resumes": 0, "error_resumes": 0}
 
 
 def test_each_stop_message_is_announced_in_plain_words_on_the_line_dbench_reads(loop, capsys):
     """The line says what happened (the agent stopped, the story isn't finished, which message of how many went out),
     not what used to trigger it (a stop without a commit). tools/dbench/src/events.rs counts a job's stop messages
     from lines that start this way, and one of its tests reads STOP_SENT_LINE from drive.py."""
-    loop([stop("Done."), stop("Done again."), stop(DONE, commits=True)])
+    loop([stop("Done."), stop(DONE, commits=True)])
     out = capsys.readouterr().out.splitlines()
-    assert out == [f"    agent stopped before the story was finished — message {n} of 5 sent" for n in (1, 2)]
-    assert drive.MAX_NUDGES == 5 and "without committing" not in "".join(out)
+    assert out == ["    agent stopped before the story was finished — message 1 of 1 sent"]
+    assert drive.MAX_NUDGES == 1 and "without committing" not in "".join(out)
 
 
 def test_the_cap_ends_the_story_when_nobody_asked_to_be_told(loop):
     result, calls = loop([stop("Still going.")] * (drive.MAX_NUDGES + 1))
     assert result["nudges"] == drive.MAX_NUDGES and len(calls) == drive.MAX_NUDGES + 1 and result["finished"] is False
+
+
+def test_a_story_finished_after_the_one_message_is_finished_with_one_intervention(loop):
+    result, calls = loop([stop("All done."), stop(DONE, commits=True)])
+    assert sent(calls) == [("the story prompt", None, True), THE_MESSAGE]
+    assert result["finished"] is True and result["nudges"] == 1
+    assert result["interventions"] == {"total": 1, "stop_message": 1, "toolcall_text_resumes": 0, "error_resumes": 0}
+
+
+def test_an_engine_fault_resume_does_not_use_up_the_one_message(loop):
+    """A tool call written as text is the engine's fault and is continued without the message; a clean stop after
+    it still gets the message, once; and every intervention is counted, by kind and in all."""
+    told = []
+    result, calls = loop([stop("Now fixing the import.\n" + LEAKED_CALL), stop("", session="s1", error="boom", exit=1),
+                          stop("All done, I think."), stop("Really done.")],
+                         on_cap=lambda reason, by: told.append(by))
+    assert sent(calls) == [("the story prompt", None, True), THE_MESSAGE, (drive.RESUME_PROMPT, "s1", True), THE_MESSAGE]
+    assert (result["toolcall_text_resumes"], result["resumes"], result["nudges"]) == (1, 1, 1)
+    assert result["interventions"] == {"total": 3, "stop_message": 1, "toolcall_text_resumes": 1, "error_resumes": 1}
+    assert result["finished"] is False and told == [drive.STOP_SENT_BY]            # "Really done." was the second stop
 
 
 def test_a_done_line_for_a_tree_with_work_left_uncommitted_gets_the_message_again(loop):
@@ -396,21 +423,21 @@ def test_a_tool_call_written_as_text_gets_the_message_and_is_counted_and_logged_
             f"(1/{drive.MAX_TOOLCALL_TEXT_RESUMES})") in log
 
 
-def test_tool_calls_written_as_text_past_their_cap_count_as_nudges_up_to_the_story_s_cap(loop):
+def test_tool_calls_written_as_text_past_their_cap_are_stops_like_any_other_one_message_then_the_end(loop):
     told = []
     n = drive.MAX_TOOLCALL_TEXT_RESUMES + drive.MAX_NUDGES
-    result, calls = loop([stop(LEAKED_CALL)] * (n + 1), on_cap=told.append)
+    result, calls = loop([stop(LEAKED_CALL)] * (n + 1), on_cap=lambda reason, by: told.append(by))
     assert sent(calls)[1:] == [THE_MESSAGE] * n
     assert result["toolcall_text_resumes"] == drive.MAX_TOOLCALL_TEXT_RESUMES and result["nudges"] == drive.MAX_NUDGES
-    assert result["finished"] is False and len(told) == 1
+    assert result["finished"] is False and told == [drive.STOP_SENT_BY]
+    assert result["interventions"]["total"] == n
     assert (loop.run / "interventions.md").read_text().count("tool call written as text") == drive.MAX_TOOLCALL_TEXT_RESUMES
 
 
 def test_every_message_in_a_story_is_the_same_text(loop):
-    """(h)"""
-    _, calls = loop([stop(""), stop("Shall I commit?"), stop(LEAKED_CALL), stop("Let me now run the tests."),
-                     stop(DONE, commits=True)])
-    assert {c["prompt"] for c in calls[1:]} == {MESSAGE_FOR_STORY_4} and len(calls) == 5
+    """(h): after a tool call written as text (continued, not counted as the message) and after the one stop."""
+    _, calls = loop([stop(LEAKED_CALL), stop(""), stop(DONE, commits=True)])
+    assert {c["prompt"] for c in calls[1:]} == {MESSAGE_FOR_STORY_4} and len(calls) == 3
 
 
 def test_the_message_names_the_story_being_run(loop):
@@ -516,13 +543,12 @@ def test_every_recorded_stop_gets_the_stop_message(loop):
 
 # ======================= the cap's reason, and the story's prompt =======================
 
-def test_a_story_is_capped_at_four_hours_of_agent_time_or_five_stop_messages():
+def test_a_story_is_capped_at_four_hours_of_agent_time_or_one_stop_message():
     hours = drive.MAX_STORY_AGENT_S / drive.SECONDS_PER_HOUR
-    assert (drive.MAX_STORY_AGENT_S, drive.MAX_NUDGES) == (4 * 3600, 5)
+    assert (drive.MAX_STORY_AGENT_S, drive.MAX_NUDGES) == (4 * 3600, 1)
     assert drive.cap_reason(drive.MAX_STORY_AGENT_S - 0.1, drive.MAX_NUDGES - 1) is None
     assert drive.cap_reason(drive.MAX_STORY_AGENT_S, drive.MAX_NUDGES) == f"story cap: {hours:.1f} h of agent time (cap {hours:.1f} h)"
-    assert drive.cap_reason(0, drive.MAX_NUDGES) == (f"story cap: the stop message was sent {drive.MAX_NUDGES} times "
-                                                     f"without the story finishing (cap {drive.MAX_NUDGES})")
+    assert drive.cap_reason(0, drive.MAX_NUDGES) == drive.STOP_SENT_REASON
 
 
 def test_the_story_s_prompt_ends_by_asking_for_the_done_line(tmp_path, monkeypatch):

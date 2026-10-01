@@ -969,10 +969,11 @@ def test_a_story_is_capped_at_4_hours_or_5_nudges():
     """User decision (25 Sep): across 51 finished stories none took over 3.84 h and none that needed
     nudging needed more than 3; Flash-Next canvas-pi-02 story 5 ran 7.5 h and 20 nudges uncommitted."""
     from drive import cap_reason, MAX_STORY_AGENT_S, MAX_NUDGES
-    assert (MAX_STORY_AGENT_S, MAX_NUDGES) == (4 * 3600, 5)
+    assert (MAX_STORY_AGENT_S, MAX_NUDGES) == (4 * 3600, 1)
     assert cap_reason(MAX_STORY_AGENT_S - 1, MAX_NUDGES - 1) is None
     assert "4.0 h" in cap_reason(MAX_STORY_AGENT_S, 0)
-    assert "stop message was sent 5 times" in cap_reason(60, MAX_NUDGES)      # the stop rule: test_stop_rule.py
+    from drive import STOP_SENT_REASON
+    assert cap_reason(60, MAX_NUDGES) == STOP_SENT_REASON                     # the stop rule: test_stop_rule.py
 
 
 def test_the_time_cap_ends_the_running_story_like_an_operator_skip(tmp_path):
