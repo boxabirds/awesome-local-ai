@@ -1,0 +1,67 @@
+{
+  "skipped": false,
+  "build_exit": 1,
+  "runner_exit": 1,
+  "passed": 0,
+  "total": 75,
+  "on_partial": {
+    "passed": 0,
+    "total": 0
+  },
+  "by_story": {
+    "01": {
+      "passed": 0,
+      "total": 10
+    },
+    "02": {
+      "passed": 0,
+      "total": 10
+    },
+    "03": {
+      "passed": 0,
+      "total": 7
+    },
+    "04": {
+      "passed": 0,
+      "total": 4
+    },
+    "05": {
+      "passed": 0,
+      "total": 5
+    },
+    "07": {
+      "passed": 0,
+      "total": 8
+    },
+    "08": {
+      "passed": 0,
+      "total": 7
+    },
+    "09": {
+      "passed": 0,
+      "total": 6
+    },
+    "10": {
+      "passed": 0,
+      "total": 8
+    },
+    "11": {
+      "passed": 0,
+      "total": 5
+    },
+    "12": {
+      "passed": 0,
+      "total": 5
+    }
+  },
+  "setup_fallbacks": {
+    "tests": 0,
+    "by_owner": {}
+  },
+  "harness_fault": "scoring interrupted: the app's build failed in the re-score (exit 1) but passed where the agent worked, on the same commit: .spec.ts(115,83): error TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+  "install": {
+    "ok": true,
+    "command": "npm ci --no-audit --no-fund",
+    "fallback": false
+  }
+}

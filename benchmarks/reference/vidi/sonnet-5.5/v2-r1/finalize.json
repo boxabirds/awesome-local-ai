@@ -1,0 +1,13 @@
+{
+  "version": "vidi-v2.0-pre2",
+  "pack_ref": "vidi-v2.0-pre2",
+  "at": "2026-10-01T06:26:56Z",
+  "bundle": "workspace.bundle",
+  "outside_workspace": {
+    "ok": true,
+    "reached": [],
+    "unjudged": []
+  },
+  "rescore": "failed",
+  "reason": "scoring interrupted: the app's build failed in the re-score (exit 1) but passed where the agent worked, on the same commit: .spec.ts(115,83): error TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types"
+}
