@@ -255,21 +255,28 @@
           "e2e": 25.7,
           "build": 11.0,
           "unit": 5.5,
-          "bash": 0.1
+          "bash": 0.1,
+          "write": 0.0,
+          "edit": 0.0,
+          "read": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 5.7,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 68,
         "tool_calls": 90,
         "thinking_visible": true,
@@ -283,7 +290,8 @@
           "at_s": 218.6
         },
         "text_chars": 4780,
-        "tool_arg_chars": 109354,
+        "tool_arg_chars": 108397,
+        "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
         "context_start": 2072,
@@ -302,7 +310,7 @@
         "longest_tool": {
           "seconds": 5.6,
           "name": "bash",
-          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/work"
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace && np"
         },
         "signals": [],
         "subagent_calls": 0
@@ -451,6 +459,17 @@
           "pushed": true
         },
         "commit": "63cde4e9"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 90
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -711,21 +730,28 @@
         "tools_by_kind": {
           "unit": 16.0,
           "build": 6.7,
-          "bash": 0.2
+          "bash": 0.2,
+          "edit": 0.0,
+          "write": 0.0,
+          "read": 0.0
         },
         "compaction_s": 45.4,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 9.8,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 102,
         "tool_calls": 112,
         "thinking_visible": true,
@@ -739,7 +765,8 @@
           "at_s": 871.1
         },
         "text_chars": 5591,
-        "tool_arg_chars": 287878,
+        "tool_arg_chars": 286635,
+        "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
         "context_start": 2086,
@@ -758,7 +785,7 @@
         "longest_tool": {
           "seconds": 1.3,
           "name": "bash",
-          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/work"
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace && np"
         },
         "signals": [],
         "subagent_calls": 0
@@ -926,6 +953,17 @@
           "pushed": true
         },
         "commit": "4ae0d19c"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 112
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "3": {
@@ -1191,25 +1229,32 @@
           "unit": 1303.1,
           "bash": 203.0,
           "build": 13.2,
-          "edit": 0.1
+          "edit": 0.1,
+          "write": 0.0,
+          "read": 0.0,
+          "e2e": 0.0
         },
         "compaction_s": 134.0,
         "compactions": 2,
         "between_sessions_s": 0.0,
         "other_s": 27.4,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 232,
         "tool_calls": 259,
         "thinking_visible": true,
-        "thinking_chars": 202270,
+        "thinking_chars": 202259,
         "thinking_median": 164,
         "thinking_median_before": 200,
         "thinking_median_after": 106,
@@ -1219,7 +1264,8 @@
           "at_s": 3196.0
         },
         "text_chars": 12636,
-        "tool_arg_chars": 265585,
+        "tool_arg_chars": 264144,
+        "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
         "context_start": 2099,
@@ -1238,7 +1284,7 @@
         "longest_tool": {
           "seconds": 180.1,
           "name": "bash",
-          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/work"
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace && np"
         },
         "signals": [],
         "subagent_calls": 0
@@ -1411,6 +1457,17 @@
           "pushed": true
         },
         "commit": "9b884ccf"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 259
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "4": {
@@ -1681,21 +1738,27 @@
           "build": 8.9,
           "bash": 0.8,
           "edit": 0.1,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0,
+          "e2e": 0.0
         },
         "compaction_s": 317.1,
         "compactions": 4,
         "between_sessions_s": 0.0,
         "other_s": 35.5,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 298,
         "tool_calls": 323,
         "thinking_visible": true,
@@ -1709,7 +1772,8 @@
           "at_s": 282.0
         },
         "text_chars": 16952,
-        "tool_arg_chars": 296064,
+        "tool_arg_chars": 294117,
+        "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
         "context_start": 2096,
@@ -1728,7 +1792,7 @@
         "longest_tool": {
           "seconds": 65.7,
           "name": "bash",
-          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/work"
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace\ntimeo"
         },
         "signals": [],
         "subagent_calls": 0
@@ -1898,6 +1962,17 @@
           "pushed": true
         },
         "commit": "b6740ad0"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 323
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "5": {
@@ -2171,21 +2246,27 @@
           "unit": 156.1,
           "build": 10.9,
           "bash": 0.3,
-          "edit": 0.1
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 49.5,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 18.1,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 171,
         "tool_calls": 194,
         "thinking_visible": true,
@@ -2199,7 +2280,8 @@
           "at_s": 305.6
         },
         "text_chars": 8827,
-        "tool_arg_chars": 189769,
+        "tool_arg_chars": 187635,
+        "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
         "context_start": 2078,
@@ -2218,7 +2300,7 @@
         "longest_tool": {
           "seconds": 14.3,
           "name": "bash",
-          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/work"
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace && np"
         },
         "signals": [],
         "subagent_calls": 0
@@ -2361,6 +2443,17 @@
           "pushed": true
         },
         "commit": "30ac6d24"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 194
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "7": {
@@ -2639,21 +2732,27 @@
           "bash": 629.7,
           "unit": 16.9,
           "build": 12.1,
-          "edit": 0.1
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 127.8,
         "compactions": 2,
         "between_sessions_s": 0.0,
         "other_s": 23.9,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 208,
         "tool_calls": 225,
         "thinking_visible": true,
@@ -2667,7 +2766,8 @@
           "at_s": 79.3
         },
         "text_chars": 9836,
-        "tool_arg_chars": 276471,
+        "tool_arg_chars": 275371,
+        "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
         "context_start": 2096,
@@ -2906,6 +3006,17 @@
           "pushed": true
         },
         "commit": "09b65227"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 225
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "8": {
@@ -3189,21 +3300,26 @@
           "unit": 48.1,
           "build": 6.4,
           "edit": 0.1,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0
         },
         "compaction_s": 276.5,
         "compactions": 3,
         "between_sessions_s": 0.0,
         "other_s": 33.8,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 262,
         "tool_calls": 282,
         "thinking_visible": true,
@@ -3217,7 +3333,8 @@
           "at_s": 394.6
         },
         "text_chars": 15462,
-        "tool_arg_chars": 223936,
+        "tool_arg_chars": 220988,
+        "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
         "context_start": 2116,
@@ -3236,7 +3353,7 @@
         "longest_tool": {
           "seconds": 601.8,
           "name": "bash",
-          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/work"
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace && PI"
         },
         "signals": [
           "hung-command"
@@ -3390,6 +3507,17 @@
           "pushed": true
         },
         "commit": "b1686022"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 282
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "9": {
@@ -3677,21 +3805,26 @@
           "unit": 34.0,
           "build": 11.4,
           "edit": 0.1,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0
         },
         "compaction_s": 251.8,
         "compactions": 3,
         "between_sessions_s": 0.0,
         "other_s": 31.7,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 262,
         "tool_calls": 295,
         "thinking_visible": true,
@@ -3705,7 +3838,8 @@
           "at_s": 383.9
         },
         "text_chars": 8699,
-        "tool_arg_chars": 248270,
+        "tool_arg_chars": 246653,
+        "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
         "context_start": 2082,
@@ -3724,7 +3858,7 @@
         "longest_tool": {
           "seconds": 630.2,
           "name": "bash",
-          "gist": "ss -tlnp 2>/dev/null | grep 8787 | head -2; cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia409"
+          "gist": "ss -tlnp 2>/dev/null | grep 8787 | head -2; cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp"
         },
         "signals": [
           "hung-command"
@@ -3912,6 +4046,17 @@
           "pushed": true
         },
         "commit": "f133fee8"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 295
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "10": {
@@ -4201,21 +4346,28 @@
           "e2e": 63.9,
           "unit": 14.4,
           "build": 9.1,
-          "bash": 0.1
+          "bash": 0.1,
+          "edit": 0.0,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 43.5,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 8.5,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 91,
         "tool_calls": 106,
         "thinking_visible": true,
@@ -4229,7 +4381,8 @@
           "at_s": 697.3
         },
         "text_chars": 4861,
-        "tool_arg_chars": 188453,
+        "tool_arg_chars": 187320,
+        "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
         "context_start": 2113,
@@ -4248,7 +4401,7 @@
         "longest_tool": {
           "seconds": 63.9,
           "name": "bash",
-          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/work"
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace && np"
         },
         "signals": [],
         "subagent_calls": 0
@@ -4419,6 +4572,17 @@
           "pushed": true
         },
         "commit": "76397ec4"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 106
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "11": {
@@ -4712,21 +4876,28 @@
           "e2e": 2019.5,
           "bash": 27.3,
           "unit": 23.8,
-          "build": 0.8
+          "build": 0.8,
+          "edit": 0.0,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 45.8,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 13.3,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 134,
         "tool_calls": 158,
         "thinking_visible": true,
@@ -4740,7 +4911,8 @@
           "at_s": 212.1
         },
         "text_chars": 5959,
-        "tool_arg_chars": 104922,
+        "tool_arg_chars": 104911,
+        "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
         "context_start": 2089,
@@ -4886,6 +5058,17 @@
           "pushed": true
         },
         "commit": "af67be6e"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 158
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "12": {
@@ -5208,7 +5391,7 @@
         "model": {
           "source": "llama-log",
           "requests": 302,
-          "prefill_s": 277.9,
+          "prefill_s": 278.1,
           "prefill_tokens": 317544,
           "prefill_tok_s": 1141.1,
           "decode_s": 2605.0,
@@ -5218,38 +5401,58 @@
           "draft_acceptance": 0.68,
           "mean_accepted_len": 3.78
         },
-        "tools_s": 1427.8,
+        "tools_s": 1246.9,
         "tools_by_kind": {
           "bash": 764.6,
-          "e2e": 517.8,
+          "e2e": 336.9,
           "unit": 128.3,
           "build": 17.0,
           "read": 0.1,
-          "edit": 0.1
+          "edit": 0.1,
+          "write": 0.0
         },
         "compaction_s": 289.2,
         "compactions": 4,
-        "between_sessions_s": 0.0,
-        "other_s": 33.2,
+        "between_sessions_s": 180.6,
+        "other_s": 33.3,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
-          "ok": false,
-          "problems": [
-            "tool call kPPTTFPNiecaAk2MVceB5CYGxwdMcb6B never ended; counted to the agent's next step",
-            "tool call Z4lhhbG5ahSx0t7E0yf9BgELoRrPxix1 never ended; counted to the agent's next step",
-            "tool call jbgMBtr3GjkvR9gP6omU32wXjFtOqv56 never ended; counted to the agent's next step",
-            "tool call LZXAknEo4UayjyPIzL8CZu4Lp8wbirTS never ended; counted to the agent's next step",
-            "wall 4633.1 s differs from the agent's own clock (4453.2 s)"
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [
+            {
+              "kind": "e2e",
+              "seconds": 0.0,
+              "ended_by": "the next session's start"
+            },
+            {
+              "kind": "e2e",
+              "seconds": 0.0,
+              "ended_by": "the next session's start"
+            },
+            {
+              "kind": "e2e",
+              "seconds": 0.0,
+              "ended_by": "the next session's start"
+            },
+            {
+              "kind": "e2e",
+              "seconds": 0.0,
+              "ended_by": "the window's end"
+            }
           ],
-          "abandoned_calls": 0
-        }
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 302,
         "tool_calls": 323,
         "thinking_visible": true,
-        "thinking_chars": 473501,
+        "thinking_chars": 473457,
         "thinking_median": 325,
         "thinking_median_before": 176,
         "thinking_median_after": 336,
@@ -5259,7 +5462,8 @@
           "at_s": 279.4
         },
         "text_chars": 16418,
-        "tool_arg_chars": 225478,
+        "tool_arg_chars": 224246,
+        "thinking_tokens": null,
         "thinking_estimated_tokens": null,
         "largest_thinking_estimated": null,
         "context_start": 2085,
@@ -5438,7 +5642,31 @@
           "found": 4,
           "total": 4
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4/server.log"
+        ],
+        "private": {
+          "copied": 57,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "e90a2670"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 323
+        },
+        "truncated": false,
+        "reaches": []
+      }
     }
   },
   "pack": "vidi",
