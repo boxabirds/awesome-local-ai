@@ -30,9 +30,12 @@ import {
 } from './config';
 import type { Rect } from './geometry';
 import { rectContains } from './geometry';
+import { readShape, type ShapeSnap } from './objects/shape';
+import { readConnector, detachConnectorsTo, type ConnectorSnap } from './objects/connector';
 
 /** Origin tag for every local mutation (story 8 undo, story 3 echo filter). */
-export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6-local');
+export { LOCAL_ORIGIN } from './local-origin';
+import { LOCAL_ORIGIN } from './local-origin';
 
 export const SCHEMA_VERSION = 1;
 
@@ -64,7 +67,7 @@ export interface TextObjectSnapshot {
   createdBy: string;
 }
 
-export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot;
+export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeSnap | ConnectorSnap;
 
 function objectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap<Y.Map<unknown>>('objects') as unknown as Y.Map<Y.Map<unknown>>;
@@ -167,6 +170,7 @@ export function deleteObject(doc: Y.Doc, id: string): boolean {
   const objects = objectsMap(doc);
   if (!objects.has(id)) return false;
   doc.transact(() => {
+    detachConnectorsTo(doc, [id]);
     objects.delete(id);
   }, LOCAL_ORIGIN);
   return true;
@@ -316,6 +320,8 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const objects = objectsMap(doc);
   let count = 0;
   doc.transact(() => {
+    // Detach connector endpoints that reference deleted objects
+    detachConnectorsTo(doc, ids);
     for (const id of ids) {
       if (objects.has(id)) {
         objects.delete(id);
@@ -371,7 +377,11 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     const sticky = readSticky(id, note);
     if (sticky) { out.push(sticky); continue; }
     const textObj = readTextObject(id, note);
-    if (textObj) out.push(textObj);
+    if (textObj) { out.push(textObj); continue; }
+    const shape = readShape(id, note);
+    if (shape) { out.push(shape); continue; }
+    const conn = readConnector(id, note);
+    if (conn) { out.push(conn); continue; }
   }
   out.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;

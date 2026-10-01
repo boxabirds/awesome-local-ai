@@ -14,16 +14,26 @@ import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { TextObject } from './objects/TextObject';
+import { ShapeObject } from './objects/ShapeObject';
+import { ConnectorObject } from './objects/ConnectorObject';
+import { ShapeToolbar } from './objects/ShapeToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createUndo, type UndoController } from './board/undo';
 import { useUndo } from './board/useUndo';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
 import * as Y from 'yjs';
 import { createSticky, deleteObjects } from '../shared/board-model';
+import type { StickySnapshot } from '../shared/board-model';
 import { createText } from '../shared/objects/text';
+import { createShape, setShapeStyle, type ShapeSnap } from '../shared/objects/shape';
+import { createConnector, type ConnectorSnap } from '../shared/objects/connector';
+import type { Endpoint } from '../shared/geometry/connector-geometry';
 import { isTestMode, setTestConnectionState } from './testHooks';
 import { canEdit } from './sync/connectBoard';
 import type { Camera, Point } from './canvas/camera';
-import type { Handle } from '../shared/geometry';
+import type { Handle, Rect } from '../shared/geometry';
 import { createCanvasMeasurer } from './objects/textLayout';
 
 // Register sticky note type (side effect: populates the registry)
@@ -69,8 +79,21 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
   const onCameraChange = useCallback((cam: Camera) => setCamera(cam), []);
 
-  // Tool state
-  const { tool, setTool } = useTool(!isReadOnly);
+  // Tool state — use useActiveTool for the extended tool set
+  const onSelect = useCallback(
+    (id: string) => { selection.click(id); },
+    [selection],
+  );
+  const activeTool = useActiveTool({ canEdit: !isReadOnly, onSelect });
+
+  // Keep useTool in sync for backward compat with existing code paths
+  const { setTool: legacySetTool } = useTool(!isReadOnly);
+
+  // Sync activeTool → legacyTool where they overlap
+  useEffect(() => {
+    if (activeTool.tool === 'text') legacySetTool('text');
+    else legacySetTool('select');
+  }, [activeTool.tool, legacySetTool]);
 
   // Measurer for text objects
   const measurer = useMemo(() => createCanvasMeasurer(), []);
@@ -127,11 +150,33 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
       const id = createText(doc, world, 'local');
       undoCtrl?.boundary();
       if (id) {
-        setTool('select');
+        activeTool.setTool('select');
         selection.startEdit(id);
       }
     },
-    [doc, selection, isReadOnly, undoCtrl, setTool],
+    [doc, selection, isReadOnly, undoCtrl, activeTool],
+  );
+
+  // Shape tool callbacks
+  const onCreateShape = useCallback(
+    (rect: { x: number; y: number; width: number; height: number } | null, at: Point, square: boolean): string | null => {
+      if (isReadOnly) return null;
+      return createShape(doc, { kind: activeTool.shapeKind, rect, at, square }, 'local');
+    },
+    [doc, isReadOnly, activeTool.shapeKind],
+  );
+
+  const undoBoundary = useCallback(() => {
+    undoCtrl?.boundary();
+  }, [undoCtrl]);
+
+  // Connector tool callbacks
+  const onCreateConnector = useCallback(
+    (from: Endpoint, to: Endpoint): string | null => {
+      if (isReadOnly) return null;
+      return createConnector(doc, from, to, 'local');
+    },
+    [doc, isReadOnly],
   );
 
   // Keyboard commands
@@ -141,8 +186,8 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
     snapshot: notes,
     canEdit: !isReadOnly,
     undo: undoCtrl ?? undefined,
-    tool,
-    setTool,
+    tool: activeTool.tool === 'text' ? 'text' : 'select',
+    setTool: (t) => activeTool.setTool(t),
     onCreateSticky,
   });
 
@@ -174,6 +219,20 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
   const onObjectPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>, id: string) => {
       gesture.onObjectPointerDown(e, id);
+    },
+    [gesture],
+  );
+
+  const onShapePointerDown = useCallback(
+    (e: React.PointerEvent<SVGElement>, id: string) => {
+      gesture.onObjectPointerDown(e as unknown as React.PointerEvent<HTMLDivElement>, id);
+    },
+    [gesture],
+  );
+
+  const onConnectorPointerDown = useCallback(
+    (e: React.PointerEvent<SVGElement>, id: string) => {
+      gesture.onObjectPointerDown(e as unknown as React.PointerEvent<HTMLDivElement>, id);
     },
     [gesture],
   );
@@ -215,9 +274,58 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
     </>
   );
 
-  // Separate sticky notes and text objects
-  const stickyNotes = notes.filter((n) => n.type === 'sticky');
+  // Separate objects by type
+  const stickyNotes = notes.filter((n): n is StickySnapshot => n.type === 'sticky');
   const textObjects = notes.filter((n) => n.type === 'text');
+  const shapes = notes.filter((n): n is ShapeSnap => n.type === 'shape');
+  const connectors = notes.filter((n): n is ConnectorSnap => n.type === 'connector');
+
+  // Build rects map for connector resolution
+  const rectsMap = useMemo(() => {
+    const m = new Map<string, Rect>();
+    for (const obj of notes) {
+      if (obj.type === 'connector') continue;
+      const w = 'width' in obj && obj.width !== undefined ? obj.width : 200;
+      const h = 'height' in obj && obj.height !== undefined ? obj.height : 200;
+      m.set(obj.id, { x: obj.x, y: obj.y, width: w, height: h });
+    }
+    return m;
+  }, [notes]);
+
+  // Shape toolbar: show when exactly one shape is selected
+  const selectedShape = shapes.length === 1 && selection.ids.size === 1 && selection.ids.has(shapes[0]?.id ?? '')
+    ? shapes[0]
+    : null;
+
+  const onShapeFill = useCallback(
+    (c: string) => {
+      if (!selectedShape) return;
+      undoCtrl?.boundary();
+      setShapeStyle(doc, selectedShape.id, { fill: c });
+      undoCtrl?.boundary();
+    },
+    [doc, selectedShape, undoCtrl],
+  );
+
+  const onShapeStroke = useCallback(
+    (c: string) => {
+      if (!selectedShape) return;
+      undoCtrl?.boundary();
+      setShapeStyle(doc, selectedShape.id, { stroke: c });
+      undoCtrl?.boundary();
+    },
+    [doc, selectedShape, undoCtrl],
+  );
+
+  // Shape toolbar screen position
+  const shapeToolbarPos = useMemo(() => {
+    if (!selectedShape) return null;
+    const sx = (selectedShape.x - camera.x) * camera.zoom;
+    const sy = (selectedShape.y - camera.y) * camera.zoom - 32;
+    return { left: sx, top: sy };
+  }, [selectedShape, camera]);
+
+  const activeToolId = activeTool.tool;
 
   return (
     <div className="app">
@@ -232,9 +340,49 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
         onMarqueeEnd={onMarqueeEnd}
         onMarqueeCancel={onMarqueeCancel}
         overlay={overlay}
-        tool={tool}
+        tool={activeToolId === 'text' ? 'text' : 'select'}
         onTextToolClick={onTextToolClick}
       >
+        {/* SVG layer for shapes and connectors */}
+        <svg
+          data-testid="svg-layer"
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: 1,
+            height: 1,
+            overflow: 'visible',
+            pointerEvents: 'none',
+          }}
+        >
+          {connectors.map((conn) => (
+            <ConnectorObject
+              key={conn.id}
+              connector={conn}
+              rects={rectsMap}
+              doc={doc}
+              selected={selection.ids.has(conn.id)}
+              zoom={camera.zoom}
+              camera={camera}
+              snapshot={notes}
+              onPointerDown={onConnectorPointerDown}
+            />
+          ))}
+          {shapes.map((shape) => (
+            <ShapeObject
+              key={shape.id}
+              shape={shape}
+              doc={doc}
+              zoom={camera.zoom}
+              selected={selection.ids.has(shape.id)}
+              editing={shape.id === selection.editingId}
+              onPointerDown={onShapePointerDown}
+              onStartEdit={selection.startEdit}
+              onEndEdit={selection.endEdit}
+            />
+          ))}
+        </svg>
         {stickyNotes.map((note) => (
           <StickyNote
             key={note.id}
@@ -268,12 +416,50 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
           />
         ))}
       </BoardViewport>
+
+      {/* Shape tool overlay (captures pointer events when shape tool is active) */}
+      {activeToolId === 'shape' && !isReadOnly && (
+        <ShapeTool
+          kind={activeTool.shapeKind}
+          camera={camera}
+          onCreated={(id) => activeTool.toolCreated(id)}
+          onCreateShape={onCreateShape}
+          undoBoundary={undoBoundary}
+        />
+      )}
+
+      {/* Connector tool overlay */}
+      {activeToolId === 'connector' && !isReadOnly && (
+        <ConnectorTool
+          camera={camera}
+          snapshot={notes}
+          zoom={camera.zoom}
+          onCreated={(id) => activeTool.toolCreated(id)}
+          onCreateConnector={onCreateConnector}
+          undoBoundary={undoBoundary}
+        />
+      )}
+
+      {/* Shape toolbar for selected shape */}
+      {selectedShape && activeToolId === 'select' && !isReadOnly && shapeToolbarPos && (
+        <div style={{ position: 'absolute', left: shapeToolbarPos.left, top: shapeToolbarPos.top, zIndex: 20 }}>
+          <ShapeToolbar
+            fill={selectedShape.fill}
+            stroke={selectedShape.stroke}
+            onFill={onShapeFill}
+            onStroke={onShapeStroke}
+          />
+        </div>
+      )}
+
       <Toolbar
-        tool={tool}
-        onToolChange={setTool}
+        tool={activeToolId}
+        onToolChange={(t) => activeTool.setTool(t)}
         canEdit={!isReadOnly}
         onCreateSticky={onCreateSticky}
         undo={undoState}
+        shapeKind={activeTool.shapeKind}
+        onShapeKindChange={activeTool.setShapeKind}
       />
     </div>
   );

@@ -175,11 +175,11 @@ describe('board-model group — allObjectIds', () => {
     const objects = doc.getMap<Y.Map<unknown>>('objects');
     doc.transact(() => {
       const shape = new Y.Map();
-      shape.set('type', 'shape');
+      shape.set('type', 'widget');
       shape.set('x', 0);
       shape.set('y', 0);
       shape.set('z', 99);
-      objects.set('shape-1', shape);
+      objects.set('widget-1', shape);
     });
 
     const snap = snapshot(doc); // snapshot already filters unknown types

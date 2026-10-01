@@ -1,18 +1,23 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
+import { useState } from 'react';
 import type { UseUndoResult } from './useUndo';
 import { UndoButtons } from './UndoButtons';
 import type { Tool } from './useTool';
+import type { ToolId } from '../tools/useActiveTool';
+import type { ShapeKind } from '../../shared/config';
 
 export interface ToolbarProps {
-  tool: Tool;
-  onToolChange(tool: Tool): void;
+  tool: ToolId | Tool;
+  onToolChange(tool: ToolId): void;
   canEdit: boolean;
   onCreateSticky(): void;
   undo: UseUndoResult;
+  shapeKind?: ShapeKind;
+  onShapeKindChange?(kind: ShapeKind): void;
 }
 
 /**
- * The fixed left-side tool palette: Select, Text, Sticky note buttons, plus Undo/Redo.
+ * The fixed left-side tool palette: Select, Text, Shape, Connector, Sticky note buttons, plus Undo/Redo.
  */
 export function Toolbar({
   tool,
@@ -20,7 +25,11 @@ export function Toolbar({
   canEdit,
   onCreateSticky,
   undo,
+  shapeKind = 'rect',
+  onShapeKindChange,
 }: ToolbarProps): React.JSX.Element {
+  const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
+
   return (
     <div
       className="board-toolbar"
@@ -60,6 +69,90 @@ export function Toolbar({
       >
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
           <path fill="currentColor" d="M4 4h12v3h-1.5V5.5h-4V15H12v1.5H8V15h1.5V5.5h-4V7H4V4Z" />
+        </svg>
+      </button>
+      {/* Shape button with kind menu */}
+      <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          className="board-toolbar-button"
+          data-testid="tool-shape"
+          aria-label="Shape (S)"
+          aria-pressed={tool === 'shape'}
+          title="Shape tool"
+          disabled={!canEdit}
+          onClick={(event: ReactMouseEvent) => {
+            event.stopPropagation();
+            onToolChange('shape');
+            setShapeMenuOpen(true);
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <rect x="3" y="5" width="14" height="10" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </button>
+        {shapeMenuOpen && tool === 'shape' && (
+          <div
+            data-testid="shape-kind-menu"
+            style={{
+              position: 'absolute',
+              left: '100%',
+              top: 0,
+              marginLeft: 4,
+              background: '#fff',
+              border: '1px solid #ccc',
+              borderRadius: 4,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              zIndex: 100,
+              display: 'flex',
+              flexDirection: 'column',
+              minWidth: 100,
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {(['rect', 'ellipse', 'diamond'] as const).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                data-testid={`shape-kind-${kind}`}
+                aria-pressed={shapeKind === kind}
+                style={{
+                  padding: '6px 12px',
+                  border: 'none',
+                  background: shapeKind === kind ? '#e3f2fd' : 'transparent',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontSize: 13,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShapeKindChange?.(kind);
+                  setShapeMenuOpen(false);
+                }}
+              >
+                {kind === 'rect' ? 'Rectangle' : kind === 'ellipse' ? 'Ellipse' : 'Diamond'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* Connector button */}
+      <button
+        type="button"
+        className="board-toolbar-button"
+        data-testid="tool-connector"
+        aria-label="Connector (L)"
+        aria-pressed={tool === 'connector'}
+        title="Connector tool"
+        disabled={!canEdit}
+        onClick={(event: ReactMouseEvent) => {
+          event.stopPropagation();
+          onToolChange('connector');
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path d="M3 17L17 3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M17 3l-4 1 1-4z" fill="currentColor" />
         </svg>
       </button>
       <button
