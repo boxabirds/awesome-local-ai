@@ -26,7 +26,7 @@ export function StoryTime({ view, storyId }: { view: StoryPageView; storyId: str
             <div className="sp-time-group" key={g.stack} data-stack={g.stack}>
               <div className="sp-time-head"><CombinationLink pack={g.pack} stack={g.stack} label={g.label} /></div>
               {bars.map(({ e, story }) => (
-                <BarRow key={e.run.runId} data-run={e.run.runId} split={story.usage!.split!} usage={story.usage} scaleSeconds={view.scaleSeconds} total={duration(story.usage!.split!.wall)}
+                <BarRow key={e.run.runId} data-run={e.run.runId} split={story.usage!.split!} usage={story.usage} run={e.run} scaleSeconds={view.scaleSeconds} total={duration(story.usage!.split!.wall)}
                   label={<>
                     <RunLink pack={e.run.pack} stack={e.run.stack} runId={e.run.runId} invalid={e.run.invalid} /> <StoryRunLink pack={e.run.pack} stack={e.run.stack} runId={e.run.runId} story={storyId} invalid={e.run.invalid}>this story</StoryRunLink>
                     <span className="bar-machine-inline small"> · <MachineLink machine={e.run.machine} host={e.run.host} /></span>

@@ -277,27 +277,21 @@ export interface RunSplit {
   /** Stories whose split is summed, and the recorded stories without one. */
   stories: number;
   withoutSplit: number;
-  /** Every accounting problem, with its story; and how many stories were never checked. */
-  problems: string[];
-  unchecked: number;
 }
 
-/** A run's time split summed over its recorded stories; null if none has one. */
+/** A run's time split summed over its recorded stories; null if none has one. Its accounting checks are
+ * accountingView.ts's runCheckSummary. */
 export function runSplit(run: Row): RunSplit | null {
   const with_ = run.stories.filter((s) => s.usage?.split);
   if (!with_.length) return null;
   const parts = Object.fromEntries(SPLIT_PARTS.map((p) => [p, 0])) as Record<SplitPart, number>;
   let wall = 0;
-  const problems: string[] = [];
-  let unchecked = 0;
   for (const s of with_) {
     const sp = s.usage!.split!;
     wall += sp.wall;
     for (const p of SPLIT_PARTS) parts[p] += sp[p] ?? 0;
-    if (sp.check.status === "problems") problems.push(...sp.check.problems.map((x) => `story ${Number(s.id)}: ${x}`));
-    if (sp.check.status === "unchecked") unchecked += 1;
   }
-  return { wall, parts, stories: with_.length, withoutSplit: run.stories.length - with_.length, problems, unchecked };
+  return { wall, parts, stories: with_.length, withoutSplit: run.stories.length - with_.length };
 }
 
 // ---------- names ----------

@@ -28,7 +28,7 @@ describe("a re-scored story's counts", () => {
 
 // ---------- what the record says about the run itself ----------
 
-describe("a run's notes: its invalid mark (run.json) and interventions (interventions.md)", () => {
+describe("a run's notes: its client and invalid mark (run.json), and interventions (interventions.md)", () => {
   const RUN = `${DIR}/run.json`;
   const IV = `${DIR}/interventions.md`;
   const meta = (extra: Record<string, unknown>) => JSON.stringify({ pack: "vidi", pack_version: V, ...extra }, null, 2);
@@ -40,8 +40,12 @@ describe("a run's notes: its invalid mark (run.json) and interventions (interven
     expect(n.interventions).toEqual([{ at: Date.parse("2026-09-26T08:57:29Z") / 1000, story: "3", text: "node-c froze" }]);
   });
   it("neither: a valid run with no interventions", () => {
-    expect(runNotes(new Map([[RUN, meta({})]]), DIR)).toEqual({ invalid: null, interventions: [] });
-    expect(runNotes(new Map(), DIR)).toEqual({ invalid: null, interventions: [] });
+    expect(runNotes(new Map([[RUN, meta({})]]), DIR)).toEqual({ client: "", invalid: null, interventions: [] });
+    expect(runNotes(new Map(), DIR)).toEqual({ client: "", invalid: null, interventions: [] });
+  });
+  it("the client that ran it, as run.json names it (Claude Code runs have no time accounting yet)", () => {
+    expect(runNotes(new Map([[RUN, meta({ client: "claude" })]]), DIR).client).toBe("claude");
+    expect(runNotes(new Map([[RUN, meta({ client: "pi" })]]), DIR).client).toBe("pi");
   });
   it("a run.json that doesn't parse says nothing about validity", () => {
     expect(runNotes(new Map([[RUN, "{not json"]]), DIR).invalid).toBeNull();

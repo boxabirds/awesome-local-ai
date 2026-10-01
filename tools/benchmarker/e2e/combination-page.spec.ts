@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import type { State } from "../shared/types.ts";
 
 // The ranking on the overview and the combination page, from the fixture. Swift 1.5 has four finished runs:
 // v2-r4 68, v2-r5 63, v2-r6 58 (scores of record under vidi-v2.0-pre1) and v2-r7 (re-scored only under pre0, so
@@ -226,8 +227,31 @@ test.describe("combination page", () => {
     await expect(tip(page)).toContainText("Tools 18 min (43%) over 2 recorded stories");
     await expect(bars.locator('[data-run="v2-r1"]')).toContainText("1 recorded story, 1 without a split");
     await bars.locator('[data-run="v2-r1"] .check-flag').hover();
-    await expect(tip(page)).toContainText("story 1: tool call t9 never ended");
+    await expect(tip(page)).toContainText("Accounting check failed on story 1: its time figures can't be trusted.");
+    await expect(tip(page)).toContainText("Story 1: tool call t9 has no end in the log");
     await expect(bars.locator("figcaption")).toContainText("Between sessions");
+  });
+
+  test("a Claude Code combination: 'unchecked' says why, that it isn't a fault, and how to fill it in, on keyboard focus", async ({ page }) => {
+    await open(page, OPUS);
+    const mark = page.getByRole("figure", { name: "Where the time went, per run" }).locator('[data-run="run-9"] .check-unchecked');
+    await expect(mark).toHaveAttribute("tabindex", "0");
+    await mark.focus();
+    await expect(tip(page)).toContainText("The one story with a time split is unchecked: recorded before the harness read Claude Code's logs for their time, so there is nothing to check. It isn't a fault, and the held-out results are unaffected.");
+    await expect(tip(page)).toContainText("To fill them in, recompute this record on ");
+  });
+
+  test("an older run's 'unchecked' says it was recorded before the harness checked, and how to check it", async ({ page }) => {
+    await page.route("**/api/state", async (route) => {
+      const res = await route.fetch();
+      const s = (await res.json()) as State;
+      for (const st of s.rows.find((r) => r.stack === SWIFT && r.runId === "v2-r5")!.stories) st.usage!.split!.check = { status: "unchecked", problems: [] };
+      await route.fulfill({ response: res, json: s });
+    });
+    await open(page, SWIFT);
+    await page.getByRole("figure", { name: "Where the time went, per run" }).locator('[data-run="v2-r5"] .check-unchecked').focus();
+    await expect(tip(page)).toContainText("All 2 stories with a time split are unchecked: recorded before the harness checked its time accounting.");
+    await expect(tip(page)).toContainText("without them they can't be checked");
   });
 
   test("the mechanism tally follows the metric shown", async ({ page }) => {

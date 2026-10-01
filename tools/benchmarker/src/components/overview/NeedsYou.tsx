@@ -6,6 +6,7 @@ import { GLOSSARY, type TermId } from "../../../shared/glossary.ts";
 import { machineHref, runHref, storyRunHref } from "../../../shared/routes.ts";
 import { duration } from "../../format.ts";
 import { MachineLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
+import { readProblem } from "../../../shared/accountingView.ts";
 
 const SECONDS_PER_MINUTE = 60;
 
@@ -51,7 +52,7 @@ function Line({ need, now }: { need: Need; now: number }): ReactNode {
     </>;
     case "accounting": return <>
       <span className="need-what"><Run run={need.run} />: the time accounting failed its checks on {need.stories.map((s, i) => (
-        <span key={s.id}>{i ? ", " : ""}<span data-tip={s.problems.join("; ") || "no problem recorded"}><StoryRunLink pack={need.run.pack} stack={need.run.stack} runId={need.run.runId} story={s.id}>story {s.id}</StoryRunLink></span></span>
+        <span key={s.id}>{i ? ", " : ""}<span data-tip={s.problems.map((p) => readProblem(p).text).join(" ") || "no problem recorded"}><StoryRunLink pack={need.run.pack} stack={need.run.stack} runId={need.run.runId} story={s.id}>story {s.id}</StoryRunLink></span></span>
       ))}</span>
       <Resolve href={storyRunHref(need.run.pack, need.run.stack, need.run.runId, need.stories[0].id)}>{need.stories.length === 1 ? "the story run" : `story ${need.stories[0].id} first`}</Resolve>
     </>;

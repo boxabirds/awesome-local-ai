@@ -22,7 +22,7 @@ export function StoryRunPage({ run, storyId, state, params }: { run: Row; story:
       <InvalidBanner invalid={run.invalid} what="story run" />
       <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
       {st.kind === "recorded" ? <>
-        <StoryTime story={st.story} />
+        <StoryTime story={st.story} run={run} />
         <StoryCost usage={st.story.usage} />
         <Conversation story={st.story} />
       </> : <NotRecorded run={run} st={st} />}

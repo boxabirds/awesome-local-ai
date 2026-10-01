@@ -33,7 +33,8 @@ export interface TimeSplit {
   /** The harness waiting to start the agent's next session after one ended (a resume after an error, or a nudge). */
   betweenSessions: number;
   /** The split's own checks, recorded with it: parts sum to the wall, none negative, every tool call ended, the wall
-   * agrees with the agent's clock. "unchecked": recorded before the harness checked (a cloud model's run, or older). */
+   * agrees with the agent's clock. "unchecked": no accounting recorded (a Claude Code run, or one recorded before the
+   * harness checked). shared/accountingView.ts says what each means. */
   check: { status: "ok" | "problems" | "unchecked"; problems: string[] };
   /** Tools time by kind: the agent's tests (unit, e2e, …), builds, file reads and edits, and "bash" for every other command. */
   toolsByKind?: Record<string, number>;
@@ -195,6 +196,8 @@ export interface Row {
   machine: string;
   /** Model and engine, e.g. "3.8-swift-1.5/27b llamacpp". */
   label: string;
+  /** The agent client that ran it, as run.json names it ("pi", "claude": Claude Code), else its job's; "" if neither says. */
+  client: string;
   packVersion: string;
   family: string;
   suite: string;

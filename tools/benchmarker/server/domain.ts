@@ -22,7 +22,7 @@ export interface DbenchStory {
 
 export interface DbenchJob {
   id: string;
-  spec: { pack?: string; run_id?: string; install_id?: string; combination?: string };
+  spec: { pack?: string; run_id?: string; install_id?: string; combination?: string; client?: string };
   progress?: {
     combination?: string;
     current_story?: string | null;
@@ -56,6 +56,8 @@ export interface Rescored { after: string; byStory: NonNullable<Story["byStory"]
 
 export interface RunRecord extends RunRef {
   host?: string;
+  /** run.json's client ("pi", "claude"); absent in fixtures and records read before it was kept. */
+  client?: string;
   /** Per re-scored version, the latest re-scored story's per-story results. */
   rescored?: Record<string, Rescored>;
   packVersion: string;
@@ -516,6 +518,7 @@ export function buildRows(
       host: r.host ?? "",
       machine: "",
       label: machineLabel(r.stack),
+      client: r.client || job?.spec.client || "",
       node: job?.node ?? null,
       family: rowFamily(r, suite),
       suite,

@@ -336,6 +336,12 @@ export type StoryRunState =
   | { kind: "notBuilt"; why: string }
   | { kind: "outOfScope" };
 
+const WENT_PAST = "Not built: the run went past this story without recording it.";
+
+/** A running run already recorded, or is on, a later story: it won't come back to this one. */
+const wentPast = (run: Pick<Row, "stories" | "live">, id: string) =>
+  run.stories.some((s) => Number(s.id) > Number(id)) || Number(run.live?.runningStory ?? 0) > Number(id);
+
 /** What is known about one story of a run: its record, the live figures while it is built, or why there's nothing. */
 export function storyRunState(run: Pick<Row, "stories" | "storiesWorking" | "status" | "live">, id: string): StoryRunState {
   const story = run.stories.find((s) => s.id === id);
@@ -348,10 +354,23 @@ export function storyRunState(run: Pick<Row, "stories" | "storiesWorking" | "sta
   if (!scopeIds(run).includes(id)) return { kind: "outOfScope" };
   const at = run.live?.runningStory;
   const why = run.status === "queued" ? "The run is queued: no story is built yet."
+    : run.status === "running" && wentPast(run, id) ? WENT_PAST
     : run.status === "running" ? `Not built yet: the run is ${at ? `at story ${at}` : "on an earlier story"}.`
     : run.status === "finished" ? "Not built: the run finished without recording this story."
     : `Not built: the run ${ENDED_EARLY[run.status] ?? "ended"} before it reached this story.`;
   return { kind: "notBuilt", why };
+}
+
+/** A run without this story, as the Against table says it: a short phrase, with the full why for its hover. A
+ * running run that hasn't reached the story yet says so, rather than that the story wasn't built. */
+export function againstAbsent(run: Pick<Row, "stories" | "storiesWorking" | "status" | "live">, id: string): { text: string; why: string } {
+  const st = storyRunState(run, id);
+  if (st.kind === "inProgress") return { text: "building this story now", why: "The run is building this story now: it has no record of it until the story ends." };
+  if (st.kind === "outOfScope") return { text: "not in this run's scope", why: "The run's scope doesn't include this story." };
+  const why = st.kind === "notBuilt" ? st.why : "";
+  if (run.status === "queued") return { text: "queued: not started yet", why };
+  if (run.status === "running" && !wentPast(run, id)) return { text: "hasn't reached this story yet", why };
+  return { text: "not built in this run", why };
 }
 
 /** The story before and after this one in the run's scope. */

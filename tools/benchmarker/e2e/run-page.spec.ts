@@ -18,6 +18,7 @@ const runPath = (stack: string, run: string) => `/#/vidi/r/${enc(stack)}/${enc(r
 const storyRunHref = (stack: string, run: string, story: string) => `#/vidi/r/${enc(stack)}/${enc(run)}/s/${story}`;
 const section = (page: Page, id: string) => page.locator(`[data-page="run"] [data-section="${id}"]`);
 const rowOf = (s: State, stack: string, runId: string) => s.rows.find((r) => r.stack === stack && r.runId === runId)!;
+const tip = (page: Page) => page.getByRole("tooltip");
 
 /** Serve the page a changed state for this test: the real one, passed through `change`. */
 async function patchState(page: Page, change: (s: State) => void) {
@@ -242,7 +243,39 @@ test.describe("where the time went", () => {
     await open(page, SWIFT, "v2-r1");
     const flag = section(page, "time").locator('[data-story="1"] .check-flag');
     await expect(flag).toHaveText("⚠");
-    await expect(flag).toHaveAttribute("data-tip", /tool call t9 never ended/);
+    await expect(flag).toHaveAttribute("data-tip", /Tool call t9 has no end in the log/);
+  });
+
+  test("a failed check: the summary names the story and what it means; its mark explains itself on keyboard focus", async ({ page }) => {
+    await open(page, SWIFT, "v2-r1");
+    const sum = section(page, "time").locator(".check-summary");
+    await expect(sum.locator(".check-summary-text")).toHaveText(/^Accounting check failed on story 1: its time figures can't be trusted\. Its held-out result is unaffected\./);
+    await sum.locator("[data-tip]").focus();
+    await expect(tip(page)).toContainText("Story 1: tool call t9 has no end in the log");
+    const flag = section(page, "time").locator('[data-story="1"] .check-flag');
+    await flag.focus();
+    await expect(tip(page)).toContainText("Accounting check failed. This story run's time figures (the bar, the agent time and the shares) can't be trusted.");
+  });
+
+  test("a Claude Code run: the summary says why it is unchecked and that it isn't a fault", async ({ page }) => {
+    await open(page, OPUS, "run-9");
+    await expect(section(page, "time").locator(".check-summary .check-summary-text")).toHaveText("The one story with a time split is unchecked: recorded before the harness read Claude Code's logs for their time, so there is nothing to check. It isn't a fault, and the held-out results are unaffected.");
+    await section(page, "time").locator('[data-story="1"] .check-unchecked').focus();
+    await expect(tip(page)).toContainText("Unchecked: no accounting check was made. This Claude Code run was recorded before the harness read Claude Code's logs");
+  });
+
+  test("an older run, unchecked: the summary says why, and how to check it on hover", async ({ page }) => {
+    await patchState(page, (s) => { for (const st of rowOf(s, SWIFT, "v2-r5").stories) st.usage!.split!.check = { status: "unchecked", problems: [] }; });
+    await open(page, SWIFT, "v2-r5");
+    const sum = section(page, "time").locator(".check-summary");
+    await expect(sum.locator(".check-summary-text")).toHaveText("All 2 stories with a time split are unchecked: recorded before the harness checked its time accounting. The held-out results are unaffected.");
+    await sum.locator("[data-tip]").focus();
+    await expect(tip(page)).toContainText("It needs the full logs that machine kept: without them they can't be checked.");
+  });
+
+  test("every check passed: no summary", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5");
+    await expect(section(page, "time").locator(".check-summary")).toHaveCount(0);
   });
 
   test("a cloud model: one unsplit part, marked unchecked", async ({ page }) => {
