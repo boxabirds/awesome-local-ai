@@ -25,3 +25,18 @@
 - Empty-board click is detected on pointerup (< `DRAG_THRESHOLD_PX` movement) in `BoardViewport`, via new `onBoardClick` / `onBoardDoubleClick` props.
 - The story 1 navigation hint is unchanged: it hides only after the user navigates, not when notes exist.
 - Only Chromium e2e was run; Firefox/WebKit are not installed here.
+
+## Story 3 decisions
+
+- `@cloudflare/vitest-pool-workers` (0.22) requires Vitest 4, so Vitest was moved from 5 to `^4.1` for the whole repo. The pool uses the `cloudflareTest` plugin in a third `integration` project (`npm run test:integration`).
+- `npm run typecheck` runs two programs: the root `tsconfig.json` (DOM client, tests) and `tests/integration/tsconfig.json` (workerd types for `src/worker`, `src/shared`, integration tests). They cannot share one program because the workers types conflict with the DOM lib.
+- `wrangler.jsonc` sets `assets.run_worker_first: ["/api/*"]` so the SPA fallback never swallows WebSocket upgrades; everything else is served by assets directly.
+- y-protocols' `readSyncMessage` swallows `applyUpdate` errors, so `BoardRoom` decodes sync messages itself (`readSyncStep1` / `Y.applyUpdate`) to close with 1003 on an invalid update, as the design requires.
+- `App` serves `/b/:boardId`; any other path (including `/`) redirects to `/b/<newBoardId()>`. When a `doc` prop is passed (component tests), `App` stays local with no provider. The component test setup stubs `y-websocket` and sets a `/b/<id>` URL.
+- `connectBoard` takes an optional 4th argument (a provider factory) so component tests can drive status and sync events with a fake provider.
+- Test builds expose `window.__vidi6.connectionState` for the nightly idle test.
+- The connection badge is a `div role="status"`; the story 1 zoom readout is also an `<output>` (implicit `status` role), so e2e tests select the badge with `div[role=status]`.
+- TC-27: Chromium's `setOffline` does not close an open WebSocket; the y-websocket no-message watchdog (about 30 s) notices, so the test waits up to 60 s for "Reconnecting…".
+- Story 2's component test "TC-20 a 3px move" picked `notes()[0]`, which is not stable (DOM order is createdAt then random id); it now looks the note up by id.
+- Nightly e2e (`npm run test:e2e:nightly`, tests tagged `@nightly`, chromium only) is excluded from `test:e2e`. The TC-30 soak uses simple UI actions (create, type, small drags) for 60 s; latency is logged, never asserted. Delete and recolour are covered by the seeded integration test TC-12 rather than the UI soak. The teardown check only asserts no new WebSocket opens after the contexts close.
+- Only Chromium was run (Firefox/WebKit not installed).

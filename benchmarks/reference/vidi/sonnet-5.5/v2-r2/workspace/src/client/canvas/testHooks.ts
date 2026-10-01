@@ -2,7 +2,7 @@ import type { Camera } from './camera';
 
 declare global {
   interface Window {
-    __vidi6?: { setCamera(camera: Camera): void };
+    __vidi6?: { setCamera(camera: Camera): void; connectionState?: string };
   }
 }
 

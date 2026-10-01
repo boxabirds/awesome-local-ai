@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type * as Y from 'yjs';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -11,17 +12,36 @@ import { installTestHooks } from './canvas/testHooks';
 import { useCamera } from './canvas/useCamera';
 import { ZoomControls } from './canvas/ZoomControls';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 
 function isTextTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 }
 
+function boardIdFromPath(pathname: string): string | null {
+  const match = /^\/b\/([^/]+)\/?$/.exec(pathname);
+  return match && isValidBoardId(match[1]) ? match[1] : null;
+}
+
+/**
+ * Routes `/b/:boardId` to a live board. `/` (and anything else) redirects to a fresh board
+ * until story 5 adds server-side creation. A caller-supplied `doc` is edited locally only.
+ */
 export function App({ doc: externalDoc }: { doc?: Y.Doc } = {}) {
+  const boardId = externalDoc ? undefined : boardIdFromPath(window.location.pathname);
+  useEffect(() => {
+    if (!externalDoc && !boardId) window.location.replace(`/b/${newBoardId()}`);
+  }, [externalDoc, boardId]);
+  if (!externalDoc && !boardId) return null;
+  return <Board doc={externalDoc} boardId={boardId ?? undefined} />;
+}
+
+function Board({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: string }) {
   const [size, setSize] = useState<Size>(() => ({ width: window.innerWidth, height: window.innerHeight }));
   const controller = useCamera(size);
   const { camera, setCamera } = controller;
-  const { doc, notes } = useBoardDoc(externalDoc);
+  const { doc, notes, connectionState } = useBoardDoc(externalDoc, boardId);
   const selection = useSelection();
   const { selectedId, editingId, select, startEdit, endEdit } = selection;
 
@@ -32,11 +52,15 @@ export function App({ doc: externalDoc }: { doc?: Y.Doc } = {}) {
   const stackIndex = useMemo(() => new Map(notes.map((n, i) => [n.id, i + 1])), [notes]);
 
   useEffect(() => installTestHooks(setCamera), [setCamera]);
-
-  // A note removed while selected or edited ends the interaction silently.
   useEffect(() => {
-    if (selectedId !== null && !notes.some((n) => n.id === selectedId)) select(null);
-  }, [notes, selectedId, select]);
+    if (window.__vidi6) window.__vidi6.connectionState = connectionState;
+  }, [connectionState]);
+
+  // A note removed (possibly by someone else) while selected or edited ends the interaction silently.
+  useEffect(() => {
+    const gone = (id: string | null) => id !== null && !notes.some((n) => n.id === id);
+    if (gone(selectedId) || gone(editingId)) select(null);
+  }, [notes, selectedId, editingId, select]);
 
   const createAt = useCallback((world: Point) => {
     const id = createSticky(doc, world);
@@ -89,6 +113,7 @@ export function App({ doc: externalDoc }: { doc?: Y.Doc } = {}) {
           />
         ))}
       </BoardViewport>
+      <ConnectionStatus state={connectionState} />
       <NavigationHint visible={!controller.hasNavigated} />
       <Toolbar onCreateSticky={createAtCentre} />
       <ZoomControls

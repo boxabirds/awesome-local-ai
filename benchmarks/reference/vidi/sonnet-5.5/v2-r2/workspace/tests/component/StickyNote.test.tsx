@@ -34,8 +34,9 @@ describe('sticky note interaction', () => {
   it('TC-20 a 3px move drags the note and never pans the board', () => {
     const { doc } = renderApp([{ x: 0, y: 0 }, { x: 50, y: 50 }]);
     const camera = cameraTransform();
-    const [a] = notes();
     const before = snapshot(doc).find((n) => n.x === -100)!;
+    // DOM order is (createdAt, id), so look the note up by id rather than by position.
+    const a = notes().find((el) => el.getAttribute('data-note-id') === before.id)!;
     pointer('pointerdown', a, 500, 400);
     pointer('pointermove', a, 503, 400);
     flush();
