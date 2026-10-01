@@ -317,6 +317,23 @@ def test_G4_the_agents_clock_leaves_out_the_waits_between_its_sessions(tmp_path)
     assert any("agent's own clock" in p for p in accounting.check(s, agent_seconds=WALL))
 
 
+# The tool calls of a real attempt (the MTPLX canvas-pi-03 story 9, before its harness restart): seven quick reads,
+# 54 ms in all, of two kinds. Tools round to 0.1 s; each kind rounds to 0.0 s and was dropped from tools_by_kind, so
+# the check counted no kinds, allowed one rounding step, and reported a broken invariant in a consistent split.
+QUICK_TOOLS = [(2.327, 0.009, "pwd && ls -la"), (4.479, 0.004, "cat spec/stories/009/prd.md"), (7.193, 0.014, "cat spec/stories/009/design.md"),
+               (13.235, 0.005, "cat spec/stories/009/tasks.md"), (18.205, 0.010, "cat package.json && cat playwright.config.ts"),
+               (21.468, 0.008, "find src tests scripts -type f | sort"), (23.981, 0.004, "cat src/shared/board-model.ts")]
+
+
+def test_G5_kinds_that_each_round_to_nothing_are_kept_so_the_check_can_allow_for_them(tmp_path):
+    log = Log()
+    for at, took, cmd in QUICK_TOOLS:
+        log.tool(T0 + at, T0 + at + took, cmd)
+    s = split(tmp_path, log)
+    assert s["accounting"]["problems"] == [] and accounting.check(s) == []
+    assert s["tools_s"] == 0.1 and s["tools_by_kind"] == {"bash": 0.0, "e2e": 0.0}
+
+
 # ---------- H. the shape of the result ----------
 
 def test_H1_keys_units_and_rounding_match_what_the_records_and_the_page_read(tmp_path):

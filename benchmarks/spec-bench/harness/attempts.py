@@ -197,7 +197,9 @@ def sum_splits(splits: list[dict]) -> dict:
     model = None
     if models:
         model = {"source": "+".join(sorted({m["source"] for m in models}))}
-        model.update({k: (r if k.endswith("_s") else int)(sum(m.get(k) or 0 for m in models)) for k in MODEL_SUMMED})
+        # A count no attempt knows (Claude Code's stream gives no output tokens: decode_tokens None) stays unknown.
+        model.update({k: (r if k.endswith("_s") else int)(sum(m.get(k) or 0 for m in models))
+                      if any(m.get(k) is not None for m in models) else None for k in MODEL_SUMMED})
         for rate, tokens in RATES:
             raw = sum(m[tokens] / m[rate] for m in models if m.get(rate))
             model[rate] = r(model[tokens] / raw) if raw else None

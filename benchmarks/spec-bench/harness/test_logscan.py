@@ -689,6 +689,13 @@ class TestTruncation:
         v = run_scan(tmp_path, [("write", {"path": "src/a.ts", "content": "z" * 50 + TRUNC})])
         assert v["truncated"] is False
 
+    def test_an_ellipsis_the_agent_wrote_is_not_a_cut(self, tmp_path):
+        """A real command (Sonnet v2-r1 story 4, a log with nothing cut): the agent's own text holds a "…". Every
+        "…" counted as the compaction's mark, so the verdict of a whole log said truncated."""
+        v = run_scan(tmp_path, [("Bash", {"command": "sed -i '' \"s|= {|= {\\n  load_failed: \\\"This board couldn't be loaded. "
+                                                     "Retrying…\\\",|\" src/client/sync/ConnectionStatus.tsx"})], fmt="cc")
+        assert v["ok"] is True and v["truncated"] is False
+
     def test_truncated_and_flagged(self, tmp_path):
         v = run_scan(tmp_path, [bash(f"ls {CLONE}/benchmarks/reference/vidi/bigmodel-1.0/works{TRUNC}")])
         assert v["ok"] is False and v["truncated"] is True
