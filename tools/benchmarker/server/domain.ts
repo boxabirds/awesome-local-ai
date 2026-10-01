@@ -87,6 +87,24 @@ export interface Invalid {
   since: string;
 }
 
+/** run.json's "sandbox": what the run's agent ran in (harness/sandbox.py identity): its mode ("enforced", or "permissive"
+ * for a run that had no sandbox at all), and for an enforced one agent-sandbox's version, platform and policy hash, so runs
+ * can be compared. Absent in records written before the agent ran in a sandbox. The page never shows it. */
+export interface RunSandbox {
+  mode: string;
+  version: string;
+  platform: string;
+  policyHash: string;
+}
+
+/** run.json's "sandbox" where it says a mode; null where it is absent or says nothing (a record from before). */
+export function parseSandbox(raw: unknown): RunSandbox | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  const text = (v: unknown) => (typeof v === "string" ? v : "");
+  return typeof o.mode === "string" && o.mode ? { mode: o.mode, version: text(o.version), platform: text(o.platform), policyHash: text(o.policy_hash) } : null;
+}
+
 /** finalize.json as finalize.py writes it, verbatim: at least `rescore` ("done", "skipped", "failed" or "flagged"),
  * with whatever else it recorded (reason, reason_kind, needs_person, attempts, history, guard, …). */
 export type RawFinalize = { rescore: string } & Record<string, unknown>;
@@ -106,6 +124,8 @@ export interface RunRecord extends RunRef {
   scores: Record<string, Score>;
   /** run.json's "invalid" mark; absent in records read before it existed: valid. */
   invalid?: Invalid | null;
+  /** run.json's "sandbox": what the agent ran in; null or absent: the record does not say (written before it did). */
+  sandbox?: RunSandbox | null;
   /** interventions.md, parsed; absent: none. */
   interventions?: Intervention[];
   /** finalize.json, verbatim; absent or null: none. */
@@ -622,6 +642,8 @@ export function mergeRows(records: RunRecord[], jobs: Map<string, NodeJob>, now:
 export interface FullRow extends Row {
   record: {
     invalid: Invalid | null;
+    /** What the run's agent ran in (run.json's "sandbox"); null where the record does not say. */
+    sandbox: RunSandbox | null;
     finalize: RawFinalize | null;
     /** The record's stories, with their checks and harness faults (the row's `stories` are the page's). */
     stories: RecordStory[];
@@ -644,7 +666,7 @@ export function buildFullRows(
     const suite = suites[r.pack] ?? "";
     const recorded = r.stories.map(publicStory);
     const stories = job ? mergeStories(recorded, job.progress?.stories) : recorded;
-    const { invalid, finalize, rescoreFaults, hasBundle, rescored: _rescored, rescoreLast: _last, stories: _stories, ...plain } = r;
+    const { invalid, sandbox, finalize, rescoreFaults, hasBundle, rescored: _rescored, rescoreLast: _last, stories: _stories, ...plain } = r;
     return {
       ...plain,
       host: r.host ?? "",
@@ -666,7 +688,7 @@ export function buildFullRows(
       live: job ? liveFromJob(job, queue.get(job.id)) : null,
       jobs: allJobs.get(jobKey(r.stack, r.pack, r.runId)) ?? [],
       interventions: r.interventions ?? [],
-      record: { invalid: invalid ?? null, finalize: finalize ?? null, stories: r.stories, rescoreFaults: rescoreFaults ?? {}, hasBundle },
+      record: { invalid: invalid ?? null, sandbox: sandbox ?? null, finalize: finalize ?? null, stories: r.stories, rescoreFaults: rescoreFaults ?? {}, hasBundle },
       dbenchJobs: wholeJobs.get(jobKey(r.stack, r.pack, r.runId)) ?? [],
     };
   }));

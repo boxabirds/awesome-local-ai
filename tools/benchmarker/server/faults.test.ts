@@ -176,6 +176,18 @@ describe("the faults feed over the fixture", () => {
     expect(ofKind(fs, "fetch_error")).toEqual([]);
   });
 
+  it("a run whose agent had no sandbox, or whose sandbox record is incomplete: the mode and identity verbatim; a run with no record, or a full one, is none", () => {
+    const withSandbox = (sandbox: unknown) => feed({ change: (f) => { f.records.find((r) => r.runId === "v2-r5")!.sandbox = sandbox as never; } });
+    const identity = { mode: "enforced", version: "0.2.0", platform: "linux-x86_64", policyHash: "ab".repeat(32) };
+    expect(ofKind(withSandbox(identity), "sandbox_not_enforced")).toEqual([]);
+    expect(ofKind(withSandbox(null), "sandbox_not_enforced")).toEqual([]);          // written before the sandbox was recorded
+    const permissive = about(withSandbox({ mode: "permissive", version: "", platform: "", policyHash: "" }), "sandbox_not_enforced", "v2-r5")!;
+    expect(permissive.detail).toEqual({ mode: "permissive", version: "", platform: "", policy_hash: "" });
+    expect(permissive.id).toMatch(/^sandbox_not_enforced:/);
+    expect(about(withSandbox({ ...identity, policyHash: "" }), "sandbox_not_enforced", "v2-r5")!.detail).toMatchObject({ mode: "enforced", policy_hash: "" });
+    expect(ofKind(fs, "sandbox_not_enforced")).toEqual([]);
+  });
+
   it("MECE: every kind the old pages showed is a kind here, and the fixture exercises each run-level one", () => {
     const exercised = new Set(fs.map((f) => f.kind));
     for (const k of ["run_invalid", "accounting_failed", "accounting_unchecked", "not_scored", "no_workspace_bundle", "job_cancelled", "job_restarted", "machine_idle"]) expect(exercised).toContain(k);
