@@ -17,8 +17,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 8 | 7/7 | 0 | 0 | 50/51 |
 | 9 | 6/6 | 0 | 0 | 56/57 |
 | 10 | 8/8 | 0 | 0 | 64/65 |
+| 11 | 5/5 | 0 | 0 | 69/70 |
 
-**New work** 60/61, **regressions** 0, **repairs** 0, **cumulative** 64/65.
+**New work** 65/66, **regressions** 0, **repairs** 0, **cumulative** 69/70.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -31,8 +32,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 10.6 | None | None | None | — | — | red | 50/51 |  | 0 / 0 | 0 | — | throttled 19% |
 | 9 | Write free text anywhere on the board | DONE | 9.2 | None | None | None | — | — | red | 56/57 |  | 0 / 0 | 0 | — | throttled 28% |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 12.0 | None | None | None | — | — | red | 64/65 |  | 0 / 0 | 0 | — | throttled 0% |
+| 11 | Sketch freehand with a pen | DONE | 11.3 | None | None | None | — | — | red | 69/70 |  | 0 / 0 | 0 | — | throttled 68% |
 
-**Totals:** 9 stories, 98 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/9, final acceptance 64/65, stalled 0, partial 0, 12256 lines in src+tests.
+**Totals:** 10 stories, 109 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/10, final acceptance 69/70, stalled 0, partial 0, 13345 lines in src+tests.
 
 ## How it happened
 
@@ -49,6 +51,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 8 | 1 by the agent | 805 / 14 | `undo.ts` (65), `useUndo.ts` (31), `UndoButtons.tsx` (24), `Board.tsx` (20), `StickyTextEditor.tsx` (17), `useBoardKeys.ts` (15), +5 more |
 | 9 | 1 by the agent | 1604 / 156 | `TextEditor.tsx` (118), `text.ts` (112), `StickyTextEditor.tsx` (108), `TextObject.tsx` (96), `textLayout.ts` (76), `styles.css` (51), +17 more |
 | 10 | 1 by the agent | 2137 / 36 | `ConnectorObject.tsx` (150), `connector.ts` (132), `ShapeObject.tsx` (111), `ConnectorTool.tsx` (107), `shape.ts` (101), `ShapeTool.tsx` (78), +20 more |
+| 11 | 1 by the agent | 1100 / 3 | `PenTool.tsx` (159), `stroke.ts` (67), `StrokeObject.tsx` (65), `simplify.ts` (63), `PenToolbar.tsx` (44), `registry.tsx` (19), +9 more |
 
 ### Earlier stories broken or fixed
 
