@@ -72,6 +72,18 @@ name = "power-collector tests"
 dir = "tools/power-collector"
 command = ["cargo", "test"]
 
+# The least-privilege agent sandbox: its policy, and the real sandbox on the machine the checks run on
+# (sandbox-exec on macOS, bubblewrap on Linux).
+[[check]]
+name = "agent-sandbox tests"
+dir = "tools/agent-sandbox"
+command = ["cargo", "test"]
+
+[[check]]
+name = "agent-sandbox clippy"
+dir = "tools/agent-sandbox"
+command = ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"]
+
 [[check]]
 name = "dbench clippy"
 dir = "tools/dbench"
