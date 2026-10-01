@@ -172,19 +172,150 @@ tokens for a story every time.
   4.0 of 30.5 hours by arithmetic on these runs, and leave the per-story variation at 19%. This is arithmetic, not a
   measurement: a capped model would behave differently.
 
+## The nudge, examined on every stack
+
+Finding 1 led to a look at every nudge in every local stack's logs (`nudges.py`): 227 nudges in 63 story runs,
+and 3,124 more in one story that looped on "Nothing left to do."
+
+The harness nudges when the agent stops and has made no commit since the story began. Until 1 October the nudge was
+one sentence: "Continue with the task from where you left off." It never read what the agent had said.
+
+| before the nudge the agent had… | nudges | then committed | worked on, no commit | only talked |
+|---|---|---|---|---|
+| said the story was done | 88 | 7 | 80 | 1 |
+| sent an empty reply | 87 | 17 | 41 | 29 |
+| said it would go on, and stopped | 6 | 4 | 2 | 0 |
+| asked a question or offered more | 2 | 1 | 0 | 1 |
+| written a tool call as text | 8 | 2 | 6 | 0 |
+| other | 36 | 2 | 32 | 2 |
+| all | 227 | 33 (15%) | | |
+
+- **A nudge led to a commit 15% of the time.**
+- **The commonest case is a finished story that is never committed.** 80 of 88 such agents did more work and still
+  did not commit. In their words: "I'd be inventing busywork to fill the turn", and "if you'd like me to … commit
+  the work … or start another story, tell me which and I'll proceed".
+- **The instruction is far behind them.** The story's prompt says to commit when complete, with the message to use,
+  and not to ask questions. By the end that is hundreds of calls and several compactions back.
+- **Questions get "continue" for an answer.** Two agents asked what to do next; one of them is `v2-r1` story 10,
+  which then built the next two stories.
+- **The rule has a second hole.** Any commit since the story began counts as finished, and agents commit task by
+  task. An agent that stalls after an early task's commit has its story accepted. Eight v2 stories on the local
+  stacks were recorded DONE with tasks the harness's own check found not started (two of them are `v2-r1`'s stories
+  11 and 12, built during story 10). The other six are candidates for an early end, not confirmed ones: the task
+  check looks for test-case names in the story's own commits and can miss work.
+
+### The replacement, approved 1 October 2026
+
+One message for every stop, the same each time, with the story's number, title and task file filled in:
+
+```
+This is an automated message from a script. Nobody reads your replies and
+nobody can answer questions. You will get this same message every time you
+stop, until story {n} is finished in the way described here.
+
+You are working on story {n}, "{title}", and nothing else.
+Its tasks are in {tasks_path}.
+
+Do the first of these that applies:
+
+1. Your last message contained a tool call written as text: it was not run.
+   Make the call again as a real tool call.
+2. A task in tasks.md is not finished: carry on with it now. Do not write a
+   summary first.
+3. Something cannot be done on this machine (for example a browser that is
+   not installed): write what and why in NOTES.md and treat that task as
+   finished.
+4. Every task is finished: do not re-check or improve anything. Run
+   git add -A && git commit -m "story {n}: {title}"
+   then git rev-parse HEAD.
+
+When the commit is made, reply with exactly this one line and stop:
+
+STORY {n} DONE <commit hash>
+
+Do not start any other story. Do not offer further work. Do not ask what to
+do next.
+```
+
+Why each part is there:
+
+| part | the case in the logs it answers |
+|---|---|
+| "a script … nobody can answer" | agents waiting for permission to commit, or asking what to do next |
+| the story's number and title, "nothing else", "do not start any other story" | `v2-r1` story 10 building stories 11 and 12; an offer to start story 13 |
+| branch 2, carry on | 93 nudges after an empty reply or "let me now…" |
+| branch 3, cannot be done here | an agent that correctly reported browsers it could not install, and so could never say every test passed |
+| branch 4, "do not re-check or improve" | finished agents re-running every suite on each nudge (35 minutes in `v2-r4` story 4) |
+| the exact commit command | the commit message is in the first prompt, long gone from view |
+| one fixed line with the commit hash | "the story is done" appears in ordinary summaries; a fixed line with a hash can be checked |
+
+The harness's side of it:
+
+- A story ends only on evidence: the reply holds the DONE line, the hash is the workspace's HEAD, and nothing is
+  left uncommitted. Anything else gets the same message again. A commit alone no longer ends a story, which closes
+  the second hole.
+- The cap stays. After five repeats the harness commits the work itself and records the story PARTIAL.
+
+What is not known: whether it works. The logs show only how agents answered the old sentence. The measure is the
+share of stops that end in a verified commit, against 15%.
+
+## What can be run again
+
+Every finished v2 run on the local stacks keeps its whole workspace history (`workspace.bundle`) and the commit each
+story ended on. The harness can already rebuild any story's exact starting point from those: its known-good mode
+(`run.sh … --only N --from-run <run>`) runs one story on a finished run's code as it was when the story before
+ended. So:
+
+| question | answer |
+|---|---|
+| Can any one story of a finished run be run again from where it started? | Yes, for all nine finished v2 runs on the local stacks. |
+| Will it give the same result? | No. It is a new sample: temperature 1.0, no fixed seed. It shows how the story goes from the same start, not the same story again. |
+| Can a run be repaired by replacing one story? | No. The stories after it were built on the code the original story left. A replayed story leaves different code. |
+| Can a run be continued from story N to the end? | Not yet. Known-good mode runs exactly one story. `v2-r1` would need stories 10, 11 and 12 in a chain. |
+| Can it be queued like a normal run? | Not yet. `run.sh` takes `--from-run`; the job queue's submit command does not. |
+
+The three v2 story runs the nudge kept going for more than five minutes after "done":
+
+| stack | run | story | said done at | nudged on for | what to do |
+|---|---|---|---|---|---|
+| gufo | `v2-r1` | 10 | 32 min | 171 min | not repairable: stories 11 and 12 were built inside it. Leave the three out of per-story comparisons and let `v2-r5` be the fourth clean run. |
+| mlx-serve | `v2-r2` | 4 | 200 min | 41 min | no rerun needed: count the story to its first "done". |
+| gufo | `v2-r4` | 4 | 57 min | 35 min | no rerun needed: count the story to its first "done". |
+
+Known-good mode is also what proposal D needs: story 2 five times from one run's story-1 commit.
+
+## Thinking spread as a headline figure
+
+How much the model's thinking for the same story differs from run to run turned out to be the largest cause that
+is the model's own (40% of the spread here). It is worth a figure of its own, because it says how predictable a
+stack's turnaround is, which speed alone does not.
+
+**Thinking spread:** for each story, the variation (CV) of total thinking across the runs; then the median over
+stories. It has no unit, so characters (local models) and tokens (Claude, whose thinking text is withheld) can sit
+side by side.
+
+| stack | runs | thinking spread | thinking per story, median | time spread per story | time per story, median |
+|---|---|---|---|---|---|
+| Flash-Next, gufo | 4 | 59% (46% to the first "done") | 80k chars | 23% | 35 min |
+| Flash-Next, mlx-serve | 2 | 14% | 464k chars | 18% | 101 min |
+| Swift 1.5 27B, llama.cpp | 3 | 55% | 164k chars | 28% | 35 min |
+| Opus 5.5 | 3 | 10% | 23k tokens | 10% | 15 min |
+| Sonnet 5.5 | 2 | 11% | 9k tokens | 15% | 11 min |
+
+How to read it, and its limits:
+
+- Low spread is not good on its own. The same model on mlx-serve thinks at length every time: steady, and nearly
+  three times slower per story than on gufo. Show the spread beside how much is thought, never alone.
+- It needs runs. With two runs the figure is provisional; three is the least to quote.
+- It is a property of model, engine settings and agent together. gufo and mlx-serve run the same model and differ
+  fourfold, because their reasoning settings differ.
+- A harness fault can inflate it, as the nudge did here. Count thinking to the story's first "done".
+
 ## Proposed actions
 
-None has been taken; each needs the owner's approval.
+A is approved and being built. The others need the owner's approval.
 
-**A. A finished story must not keep running**
-- **Problem:** an agent that finishes without committing is nudged to continue, up to five times. It cost 2.9 hours
-  in these runs and let one story absorb two others.
-- **Recommended solution:** the nudge today never says which story the agent is on ("Continue with the task from
-  where you left off…"). It should say so: "You are working on story 10, <its title>. If it is finished, commit it
-  now and stop. Do not start any other story." If the agent stops again with the work still uncommitted, the harness
-  commits it and ends the story, instead of nudging again.
-- **Proposed actions:** a test that reproduces `v2-r1` story 10 from its log (the agent says done, uncommitted), then
-  the change.
+**A. A finished story must not keep running** (approved 1 October 2026; see "The replacement" above)
 
 **B. Mark what is not comparable**
 - **Problem:** `v2-r1` stories 10, 11 and 12 are shown beside the other runs' as if they were the same work.
@@ -205,6 +336,19 @@ None has been taken; each needs the owner's approval.
   minutes here). Optionally repeat with a fixed seed, to see how much is sampling.
 - **Proposed actions:** about five story runs on the Strix Halo box.
 
+**E. Thinking spread on the comparison pages**
+- **Problem:** nothing shown today says how predictable a stack is.
+- **Recommended solution:** show thinking spread and time spread per stack, beside the amounts, once a stack has
+  three finished runs.
+- **Proposed actions:** the harness or benchmarker computes both from the records; a change to the pages.
+
+**F. Running stories again**
+- **Problem:** known-good mode runs one story and can't be queued, so `v2-r1` can't be continued from story 10 and
+  proposal D has to be run by hand.
+- **Recommended solution:** let the job queue submit a known-good story, and let known-good mode continue to the end
+  of the scope when asked.
+- **Proposed actions:** tests first, then the two changes; then D.
+
 ## Reproducing this
 
 - `analyse.py` prints every table (kept in `tables.md`) and writes `story-runs.csv`, from `data.json.gz`.
@@ -213,7 +357,7 @@ None has been taken; each needs the owner's approval.
 - `extract.py` builds `data.json.gz` from the published conversation logs, the server logs, and for `v2-r1` and
   `v2-r2` the full logs. The server logs and full logs stay on the machine that ran the runs; `slim_full_logs.py`
   prepares the full logs there.
-- `compare_stacks.py` reads only the repo.
+- `compare_stacks.py` and `nudges.py` read only the repo.
 
 ## Limits
 
