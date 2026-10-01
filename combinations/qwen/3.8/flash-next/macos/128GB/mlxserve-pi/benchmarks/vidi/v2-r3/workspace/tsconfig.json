@@ -14,5 +14,9 @@
     "resolveJsonModule": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  // `src/worker` and `tests/integration` are checked by tsconfig.worker.json
+  // instead: they run inside workerd, where the DOM library and the Workers
+  // type packages declare conflicting globals.
+  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
+  "exclude": ["src/worker", "tests/integration", "dist", "playwright-report", "test-results"]
 }

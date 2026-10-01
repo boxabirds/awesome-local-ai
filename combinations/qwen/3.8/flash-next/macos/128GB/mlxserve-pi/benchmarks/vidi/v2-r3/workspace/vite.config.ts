@@ -12,5 +12,13 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    proxy: {
+      // A board's room is served by the Worker, so developing against the dev
+      // server means running `npx wrangler dev` alongside it (`npm run dev` is
+      // otherwise a board nobody can reach: the socket would be aimed at this
+      // port, where only Vite listens). `ws: true` carries the board's
+      // WebSocket too, which is the whole of what a second person needs.
+      '/api': { target: 'http://localhost:8787', changeOrigin: true, ws: true },
+    },
   },
 });

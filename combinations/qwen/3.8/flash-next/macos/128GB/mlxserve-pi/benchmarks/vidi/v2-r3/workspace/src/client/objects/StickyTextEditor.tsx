@@ -11,7 +11,7 @@ import {
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import { applyTextDelta, clampToLimit, counterVisible } from './StickyText';
 import type { EndEditNext } from '../board/useSelection';
 
 export interface StickyTextEditorProps {
@@ -34,6 +34,19 @@ function sameNote(inside: HTMLElement, node: EventTarget | null): boolean {
  * The note's textarea. Every `input` event is applied to the Y.Text
  * immediately (minimal diff, clamped to 1,000 characters), so finishing
  * editing performs no extra write and nothing typed is ever lost.
+ *
+ * Story 3 adds the two halves of two people typing into one note:
+ *
+ * - What goes out is the difference between the textarea and **the text this
+ *   document last agreed with the room** (`baseRef`), not the difference
+ *   against the shared text as it currently looks. A stale textarea therefore
+ *   reports the characters somebody else typed as nothing at all rather than as
+ *   a deletion, which is how one of the two people stops losing their text.
+ * - What comes in is applied to the textarea inside the document event, before
+ *   a keystroke can be queued behind a render of the old value, with the caret
+ *   held the same distance from the end of the text. A change that arrives
+ *   mid-composition waits for the composition to end, because writing into a
+ *   textarea in the middle of an IME session breaks the session.
  */
 export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -41,6 +54,12 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
   const composingRef = useRef(false);
   const endedRef = useRef(false);
   const [length, setLength] = useState(() => props.ytext.toString().length);
+  // The text this document last agreed with the room: the base every local edit
+  // is measured against. Only an update from elsewhere moves it, plus the
+  // refresh after a local write, which by then matches the document.
+  const baseRef = useRef<string>(props.ytext.toString());
+  // A change that arrived while a composition was open, applied when it closes.
+  const waitingRef = useRef(false);
 
   useEffect(() => {
     propsRef.current = props;
@@ -61,8 +80,52 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
         /* element not focusable in this environment */
       }
     }
-    applyTextDiff(propsRef.current.ytext, clamped, LOCAL_ORIGIN);
+    applyTextDelta(propsRef.current.ytext, baseRef.current, clamped, LOCAL_ORIGIN);
+    // What the document holds now is what the next keystroke is a change to.
+    baseRef.current = propsRef.current.ytext.toString();
     setLength(clamped.length);
+  }, []);
+
+  /**
+   * Show a text that came from elsewhere, keeping the caret the same distance
+   * from the end of it — where it sits while a person types, and where their
+   * next keystroke belongs.
+   */
+  const showRemote = useCallback((next: string) => {
+    const el = textareaRef.current;
+    baseRef.current = next;
+    setLength(next.length);
+    if (el === null) return;
+    const fromEnd = el.value.length - el.selectionStart;
+    el.value = next;
+    const caret = Math.max(0, next.length - fromEnd);
+    try {
+      el.setSelectionRange(caret, caret);
+    } catch {
+      /* element not focusable in this environment */
+    }
+  }, []);
+
+  // Somebody else's change, arriving while this note is being edited.
+  useEffect(() => {
+    const ytext = propsRef.current.ytext;
+    const observer = (event: Y.YTextEvent, transaction: Y.Transaction) => {
+      // A write this browser made is already in the textarea; applying it again
+      // would move a caret that has since moved on.
+      if (transaction.origin === LOCAL_ORIGIN) return;
+      const next = clampToLimit(ytext.toString());
+      if (composingRef.current) {
+        // Not in the middle of an IME session: remembered, and applied the
+        // moment the composition closes.
+        waitingRef.current = true;
+        return;
+      }
+      showRemote(next);
+    };
+    ytext.observe(observer);
+    return () => {
+      ytext.unobserve(observer);
+    };
   }, []);
 
   // Edit start: value from the document, focus, caret at the end of the text.
@@ -70,6 +133,7 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     const el = textareaRef.current;
     if (el === null) return;
     const initial = clampToLimit(propsRef.current.ytext.toString());
+    baseRef.current = initial;
     el.value = initial;
     setLength(initial.length);
     el.focus();
@@ -110,6 +174,12 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
   const onCompositionEnd = (_e: CompositionEvent<HTMLTextAreaElement>) => {
     composingRef.current = false;
     flush(); // IME text lands here, never twice
+    if (waitingRef.current) {
+      // The change that arrived during the composition goes up against the
+      // document, which is the text the next keystroke is a change to.
+      waitingRef.current = false;
+      showRemote(clampToLimit(propsRef.current.ytext.toString()));
+    }
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {

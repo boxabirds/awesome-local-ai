@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  // The Worker and its integration tests run inside workerd, not in a browser:
+  // no DOM library, the Workers globals instead. `@cloudflare/workers-types`
+  // supplies DurableObject, WebSocketPair, Fetcher and friends; the pool's own
+  // declaration supplies the `cloudflare:test` module (SELF, env, runInDurableObject).
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types/experimental", "@cloudflare/vitest-pool-workers"]
+  },
+  "include": ["src/worker", "src/shared", "tests/integration"],
+  "exclude": ["dist"]
+}

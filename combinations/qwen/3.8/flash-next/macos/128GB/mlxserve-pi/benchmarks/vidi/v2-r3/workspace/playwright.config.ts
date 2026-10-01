@@ -6,6 +6,13 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 60_000,
+  // The nightly soak (TC-29, TC-30) waits for minutes and is run by its own
+  // script, `npm run test:e2e:nightly`, so it is kept out of every commit's run.
+  testIgnore: /nightly/,
+  // A story-3 test is two to five browsers on one board, and every one of them
+  // is measured against how long a change takes to cross them. Four at a time
+  // keeps those numbers worth reading on a machine also running the room.
+  workers: 4,
   expect: { timeout: 5_000 },
   use: {
     baseURL: 'http://127.0.0.1:4173',
@@ -33,6 +40,16 @@ export default defineConfig({
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 800 } },
+    },
+    {
+      // The two long checks: an idle connection watched for longer than it takes
+      // to notice a dead one, and a minute of editing at full capacity. One
+      // browser is enough for a wait, and it is the browser the product's own
+      // numbers were chosen against.
+      name: 'nightly',
+      testIgnore: [],
+      testMatch: /nightly/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
   ],
 });

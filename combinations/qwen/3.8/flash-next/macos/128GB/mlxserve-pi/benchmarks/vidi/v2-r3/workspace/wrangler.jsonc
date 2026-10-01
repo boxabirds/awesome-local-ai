@@ -1,10 +1,22 @@
 {
-  // Cloudflare Worker config. The client build (dist/client) is served as
-  // static assets. Worker code (main) and Durable Objects arrive in story 3.
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "vidi6",
+  "main": "src/worker/index.ts",
   "compatibility_date": "2026-09-01",
+  // Story 3: the built client is served *by this Worker* through the binding,
+  // so one deploy answers both the pages and the sync sockets. `/api/*` runs
+  // the Worker first — otherwise the SPA fallback below would answer the
+  // socket route with index.html and no board would ever connect.
   "assets": {
-    "directory": "./dist/client"
-  }
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // One BoardRoom instance per board address; nothing is listed up front, so
+  // a board cannot be enumerated, only addressed.
+  "durable_objects": {
+    "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
+  },
+  "migrations": [{ "tag": "v3", "new_sqlite_classes": ["BoardRoom"] }]
 }

@@ -56,6 +56,34 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 /** Colour of a freshly created sticky note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+// --- Story 3: live collaboration -------------------------------------------
+
+/**
+ * Simultaneous editors the product is designed and tested for. This is a soft
+ * capacity: it is never enforced (a 6th person joins normally), it is the
+ * single named setting behind the capacity claims and the capacity tests.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/** Change-delivery budget: sender screen -> every other screen (live.propagate). */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Exponential backoff ceiling handed to the WebSocket provider (y-websocket). */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays up after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** Outage length used by the catch-up test (PRD live.catch_up). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/**
+ * Functional wait in every e2e test. Wall-clock latency is measured and
+ * logged against LIVE_UPDATE_LATENCY_BUDGET_MS there, never asserted: the
+ * model, the browsers and the server all share one machine while testing.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
 /** Display names used for the swatch accessible labels (e.g. "Pink colour"). */
 export const STICKY_COLOR_LABELS: Record<StickyColor, string> = {
   yellow: 'Yellow',

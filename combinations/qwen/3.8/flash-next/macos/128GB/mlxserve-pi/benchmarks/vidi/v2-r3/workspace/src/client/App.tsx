@@ -10,6 +10,9 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { boardIdForPath, boardPath } from '../shared/routes';
+import { reportConnectionState, setOutageHandler } from './canvas/testHooks';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 
 /** Is the keyboard focus inside something that owns Delete/Backspace/Enter? */
 function isTextTarget(target: EventTarget | null): boolean {
@@ -28,6 +31,11 @@ export interface AppProps {
    * rendering them. Unused by the app itself.
    */
   onDocReady?(doc: Y.Doc): void;
+  /**
+   * The board to open, instead of the one the address names. Only a test needs
+   * it: two component tests on one page would otherwise share a board.
+   */
+  boardId?: string;
 }
 
 /**
@@ -40,8 +48,31 @@ export function App(props: AppProps = {}): JSX.Element {
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const cam = useCamera(viewport);
   const { camera } = cam;
-  const { doc, notes } = useBoardDoc();
+  // The board this browser is on is the board its address names. At the root, or
+  // at an address that names no board, this makes one and puts its address in the
+  // bar, so the address a person shares is the one they are looking at (story 5
+  // moves board creation to the server; until then a board exists from the
+  // moment somebody opens its address).
+  const [boardId] = useState(() => props.boardId ?? boardIdForPath(window.location.pathname));
+  useEffect(() => {
+    const path = boardPath(boardId);
+    if (window.location.pathname !== path) window.history.replaceState(null, '', path);
+  }, [boardId]);
+
+  const { doc, notes, connection, emulateOutage } = useBoardDoc(boardId);
   const selection = useSelection();
+
+  // A test build lets the test take this board's link down; the app never does.
+  useEffect(() => {
+    setOutageHandler((ms: number) => emulateOutage(ms));
+  }, [emulateOutage]);
+
+  // The connection state a test can read as well as see. The badge is only up
+  // for two seconds of a 45-second idle wait, so a test that has to know what
+  // the connection said in that time reads it here rather than the screen.
+  useEffect(() => {
+    reportConnectionState(connection);
+  }, [connection]);
 
   // A note can disappear at any moment (its bin button, the Delete key, later
   // another person). Selection and editing are filtered to ids that still
@@ -140,6 +171,7 @@ export function App(props: AppProps = {}): JSX.Element {
         onReset={cam.reset}
       />
       <NavigationHint visible={!cam.hasNavigated} />
+      <ConnectionStatus state={connection} />
     </div>
   );
 }
