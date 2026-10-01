@@ -1,3 +1,81 @@
+commit 398325b92d7c327ef27b2be7be574a56bedb37d5
+vidi-agent  Thu Oct 1 15:46:29 2026 +0100
+
+    harness: snapshot after story 10 (uncommitted agent work)
+
+
+ ...7aab9bb218583219c3250ff6cbce0d9fad8f1ba6f8c9.sqlite | Bin 0 -> 28672 bytes
+ ...b59a8f21bc5bc772b34a709e78101b323b3257d49b29.sqlite | Bin 0 -> 28672 bytes
+ ...819f370a7ec6c4c9671fe848385c724880f4e114487a.sqlite | Bin 0 -> 28672 bytes
+ ...6081841e2f692de7b5f2db5db48a1126fa0c8776988b.sqlite | Bin 0 -> 28672 bytes
+ ...b2d60199c607fef067721e2e7485059fd32965eb7bde.sqlite | Bin 0 -> 28672 bytes
+ ...c34e31bced97a436407173c61932479545d406f28594.sqlite | Bin 0 -> 28672 bytes
+ ...547f8071511ac156262c3cc44d4917244cc90794bf30.sqlite | Bin 0 -> 28672 bytes
+ ...d32f2949194da1504ed2254c2b3d68bfde5fe2bc297a.sqlite | Bin 0 -> 28672 bytes
+ ...a5d36d37220da111bf1f71c2606b88d493ab9432813a.sqlite | Bin 0 -> 28672 bytes
+ ...9af6ea10e4377eb70f673fe13788832cfaee2b2deb52.sqlite | Bin 0 -> 28672 bytes
+ ...cf54dcb6c70675e48aa977bf855a8459fd931b04c39e.sqlite | Bin 0 -> 28672 bytes
+ ...df918a4d817b5cf8ec505b351c98dd8a27d536ff54bc.sqlite | Bin 0 -> 28672 bytes
+ ...f27bdeaee8af860fc8bcaf3beb7e552280b906858e1e.sqlite | Bin 0 -> 28672 bytes
+ ...2a0208afe55202401319c7a6317a9dab85f697d8705d.sqlite | Bin 0 -> 28672 bytes
+ ...6a5882cff5feaa5dd9e05558a8a37a8bf0312f244650.sqlite | Bin 0 -> 28672 bytes
+ ...6a0b25c20e5aee2e29a0f83371caad817916b64bfe78.sqlite | Bin 0 -> 28672 bytes
+ ...fb47ae973244fddd82511a53765aa7f61b75b5bd3302.sqlite | Bin 0 -> 28672 bytes
+ ...d7a6b950e31369568127bdb3716aef53939a15983067.sqlite | Bin 0 -> 28672 bytes
+ ...c0c1ea70336008483390c02ddb6fdbc5e99f7b5a07f6.sqlite | Bin 0 -> 28672 bytes
+ ...67b41aff4593019519fa5dc1ec407918a9add02e5ec0.sqlite | Bin 0 -> 36864 bytes
+ ...9466ab433cbd3904d8c5b0db3c3b84f9d96c47101b45.sqlite | Bin 0 -> 36864 bytes
+ ...e43a0a842cfd0afacf55eaddc4c1654f186613d7f0ab.sqlite | Bin 0 -> 28672 bytes
+ ...f3bb889666f53d1bef0f5da5b846fd3d72078dbb5717.sqlite | Bin 0 -> 28672 bytes
+ ...7f59a1736fa2fb37cd183d58dbd9f9e61fe6d80c3365.sqlite | Bin 0 -> 4096 bytes
+ ...982734864390cb09386990954a7fb54bd55bfcb7dd7d.sqlite | Bin 0 -> 4096 bytes
+ ...34864390cb09386990954a7fb54bd55bfcb7dd7d.sqlite-shm | Bin 0 -> 32768 bytes
+ ...34864390cb09386990954a7fb54bd55bfcb7dd7d.sqlite-wal | Bin 0 -> 762232 bytes
+ ...fe18aa0d09d464c1c6372e3f1bedf78c0221fae64cdb.sqlite | Bin 0 -> 28672 bytes
+ ...a5a9feef23c08de88925be36bf2173b36be00fc05865.sqlite | Bin 0 -> 28672 bytes
+ ...5eafe38303d54d7c2d692c8f3fd9ace8eac0f1065c4d.sqlite | Bin 0 -> 28672 bytes
+ ...01da88a4c319de3f39ce57dcf9171bc9265f11dbf9c7.sqlite | Bin 0 -> 4096 bytes
+ ...cb0dada758f568c349035f4a4a9136dcbcfbcf4e0223.sqlite | Bin 0 -> 4096 bytes
+ ...ada758f568c349035f4a4a9136dcbcfbcf4e0223.sqlite-shm | Bin 0 -> 32768 bytes
+ ...ada758f568c349035f4a4a9136dcbcfbcf4e0223.sqlite-wal | Bin 0 -> 152472 bytes
+ ...73265ada3038eeb2814d60d82780825808a2e94549ea.sqlite | Bin 0 -> 28672 bytes
+ ...8791a50bf3dd85d2b1bf404d8597ff2ca20ded2aa3bd.sqlite | Bin 0 -> 28672 bytes
+ ...74fb2abca082272a0afa7e385b81c26121ba05cd8f8b.sqlite | Bin 0 -> 4096 bytes
+ ...2abca082272a0afa7e385b81c26121ba05cd8f8b.sqlite-shm | Bin 0 -> 32768 bytes
+ ...2abca082272a0afa7e385b81c26121ba05cd8f8b.sqlite-wal | Bin 0 -> 766352 bytes
+ ...5a055612e6c17bd7c64257bbfe7c768442b450e6864c.sqlite | Bin 0 -> 28672 bytes
+ ...d70d89030c371a1fcc1bb044868616d51c94c609e9c2.sqlite | Bin 0 -> 4096 bytes
+ 41 files changed, 0 insertions(+), 0 deletions(-)
+commit b5fa3544d027ee1a9af4a1bfa497a98eaac98313
+vidi-agent  Thu Oct 1 15:30:38 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  | 177 ++++-----------
+ src/client/board/Toolbar.tsx              |  88 +++++++-
+ src/client/board/useBoardDoc.ts           |  18 +-
+ src/client/board/useTool.ts               |  86 ++++++--
+ src/client/objects/ConnectorObject.tsx    | 170 +++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 128 +++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  69 ++++++
+ src/client/objects/registry.tsx           |  50 ++++-
+ src/client/pages/BoardUI.tsx              |  93 +++++++-
+ src/client/tools/ConnectorTool.tsx        | 297 +++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 172 +++++++++++++++
+ src/shared/board-model.ts                 |  82 ++++++-
+ src/shared/config.ts                      |  16 ++
+ src/shared/geometry/connector-geometry.ts | 127 +++++++++++
+ src/shared/geometry/polyline.ts           |  41 ++++
+ src/shared/objects/connector.ts           | 180 ++++++++++++++++
+ src/shared/objects/shape.ts               | 171 +++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 345 ++++++++++++++++++++++++++++++
+ tests/e2e/shapes.spec.ts                  | 213 ++++++++++++++++++
+ tests/unit/board-model.test.ts            |   4 +-
+ tests/unit/connector-model.test.ts        | 220 +++++++++++++++++++
+ tests/unit/registry.test.ts               |   2 +-
+ tests/unit/shape-model.test.ts            | 183 ++++++++++++++++
+ 23 files changed, 2760 insertions(+), 172 deletions(-)
 commit 86221cf15262cafe7ef4ecb2f056d34b7dd3f19b
 vidi-agent  Thu Oct 1 15:15:25 2026 +0100
 
