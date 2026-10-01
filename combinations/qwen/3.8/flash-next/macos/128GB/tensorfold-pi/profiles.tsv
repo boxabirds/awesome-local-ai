@@ -1,0 +1,16 @@
+# name|ctx|drafts|max_tokens|need_mib|basis|summary
+#
+# NOTHING IN THIS FILE WAS MEASURED. ctx "fit" passes no --context: TensorFold sizes the window at startup to the
+# most one request can use and still keep its prompt for the next turn, and prints that number. need_mib is an
+# ESTIMATE, for information only (TensorFold admits each request against its own memory budget):
+#
+#   weights   resident, TensorFold's own estimate for this checkpoint (105.4 GiB less
+#             29.8 GiB of n-gram tables kept in file mappings)       77,414 MiB
+#   KV        Flash-Next's 27,392 B/token (arithmetic in the mlxserve-pi
+#             profiles.tsv, same model) at 131072 tokens              3,424 MiB
+#   GDN       36 linear-attention layers, fixed f32 state               108 MiB
+#
+# NOT included: kept prompts (TensorFold's prompt cache takes what is idle, up to 16 GiB, and gives it back on
+# demand), the prefill working set, and the n-gram tables' page cache.
+agent|fit|1|32768|80946|ESTIMATED|default; window fitted to keep prompts; MTP drafts on (the checkpoint's own head)
+serial|fit|0|32768|80946|ESTIMATED|same, --no-drafts: the serial reference (identical output, slower)
