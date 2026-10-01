@@ -8,7 +8,7 @@ import {
   moveObject,
   getStickyText,
   initDoc,
-  snapshot,
+  stickySnapshot,
   type StickySnapshot,
 } from '../../src/shared/board-model';
 import type { StickyColor } from '../../src/shared/config';
@@ -89,7 +89,7 @@ export function generateRetroBoard(): { doc: Y.Doc; notes: readonly StickySnapsh
   moveObject(doc, ids[7], -250, -250);
   moveObject(doc, ids[13], 0, -250);
 
-  return { doc, notes: snapshot(doc) };
+  return { doc, notes: stickySnapshot(doc) };
 }
 
 /** Generate a PERSIST_TESTED_NOTES-note board with realistic text in clusters. */
@@ -110,7 +110,7 @@ export function generateLargeBoard(): { doc: Y.Doc; notes: readonly StickySnapsh
     }
   }
 
-  return { doc, notes: snapshot(doc) };
+  return { doc, notes: stickySnapshot(doc) };
 }
 
 /** Create a doc with 25 retro notes and return both the doc and its captured updates. */
@@ -137,7 +137,7 @@ export function createRetroBoardWithUpdates(): { doc: Y.Doc; updates: Uint8Array
   moveObject(doc, ids[7], -250, -250);
   moveObject(doc, ids[13], 0, -250);
 
-  return { doc, updates, notes: snapshot(doc) };
+  return { doc, updates, notes: stickySnapshot(doc) };
 }
 
 /** Create a doc with PERSIST_TESTED_NOTES notes and return captured updates. */
@@ -162,7 +162,7 @@ export function createLargeBoardWithUpdates(): { doc: Y.Doc; updates: Uint8Array
     }
   }
 
-  return { doc, updates, notes: snapshot(doc) };
+  return { doc, updates, notes: stickySnapshot(doc) };
 }
 
 /** A truncated update (last 10 bytes removed) for damage fixtures. */

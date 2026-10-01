@@ -7,6 +7,7 @@ import type * as Y from 'yjs';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { objectBounds, moveObjects, resizeObjects, bringObjectsToFront } from '../../shared/board-model';
 import type { ObjectSnapshot } from '../../shared/board-model';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
 import { resizeRect, clampScale, scaleWithin, unionRects, type Handle, type Rect } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
@@ -215,6 +216,12 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         return spec?.aspectLocked ?? false;
       });
 
+      // Determine if all selected are horizontal-only (text objects)
+      const allHorizontal = selectedObjects.length > 0 && selectedObjects.every((o) => {
+        const spec = getObjectType(o.type);
+        return spec?.handles === 'horizontal';
+      });
+
       const g = gRef.current;
       g.type = 'pressed';
       g.startScreenX = e.clientX;
@@ -287,7 +294,14 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
           newRects.set(id, scaleWithin(r, startBbox, finalBbox));
         }
 
-        resizeObjects(doc, newRects);
+        if (allHorizontal) {
+          // For horizontal-only text objects, only change width via setTextWidthFixed
+          for (const [id, r] of newRects) {
+            setTextWidthFixed(doc, id, r.width);
+          }
+        } else {
+          resizeObjects(doc, newRects);
+        }
       };
 
       const upHandler = () => {

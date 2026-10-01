@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import * as Y from 'yjs';
 import { App } from '../../src/client/App';
-import { createSticky, snapshot, getStickyText } from '../../src/shared/board-model';
+import { createSticky, stickySnapshot as snapshot, getStickyText } from '../../src/shared/board-model';
 import { LOCAL_ORIGIN } from '../../src/shared/board-model';
 import { STICKY_SIZE_WORLD } from '../../src/shared/config';
 

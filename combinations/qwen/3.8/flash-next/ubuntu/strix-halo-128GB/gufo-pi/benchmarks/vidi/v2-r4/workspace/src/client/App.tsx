@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BoardViewport,
   type ViewportBridge,
@@ -8,19 +8,23 @@ import { useSelection } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useMarquee, MarqueeRect } from './board/Marquee';
 import { useBoardKeys } from './board/useBoardKeys';
+import { useTool } from './board/useTool';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
+import { TextObject } from './objects/TextObject';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createUndo, type UndoController } from './board/undo';
 import { useUndo } from './board/useUndo';
 import * as Y from 'yjs';
 import { createSticky, deleteObjects } from '../shared/board-model';
+import { createText } from '../shared/objects/text';
 import { isTestMode, setTestConnectionState } from './testHooks';
 import { canEdit } from './sync/connectBoard';
 import type { Camera, Point } from './canvas/camera';
 import type { Handle } from '../shared/geometry';
+import { createCanvasMeasurer } from './objects/textLayout';
 
 // Register sticky note type (side effect: populates the registry)
 import './objects/registerTypes';
@@ -65,6 +69,12 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
   const onCameraChange = useCallback((cam: Camera) => setCamera(cam), []);
 
+  // Tool state
+  const { tool, setTool } = useTool(!isReadOnly);
+
+  // Measurer for text objects
+  const measurer = useMemo(() => createCanvasMeasurer(), []);
+
   // Transform gesture: move and resize (boundary on gesture start/end)
   const gesture = useTransformGesture({
     doc,
@@ -81,15 +91,6 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
     if (ids.length > 0) {
       selection.setMany(ids, true);
     }
-  });
-
-  // Keyboard commands
-  useBoardKeys({
-    doc,
-    selection,
-    snapshot: notes,
-    canEdit: !isReadOnly,
-    undo: undoCtrl ?? undefined,
   });
 
   /** Centre a new note on a world point, select it and start typing. */
@@ -111,12 +112,39 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
     [createAndEdit],
   );
 
-  /** The toolbar button: a note centred in the visible board area. */
+  /** The toolbar button or N key: a note centred in the visible board area. */
   const onCreateSticky = useCallback(() => {
     const centre = bridgeRef.current?.centreWorld();
     if (!centre) return;
     createAndEdit(centre);
   }, [createAndEdit]);
+
+  /** Text tool: click creates text at world point, then switch to select and start editing. */
+  const onTextToolClick = useCallback(
+    (world: Point) => {
+      if (isReadOnly) return;
+      undoCtrl?.boundary();
+      const id = createText(doc, world, 'local');
+      undoCtrl?.boundary();
+      if (id) {
+        setTool('select');
+        selection.startEdit(id);
+      }
+    },
+    [doc, selection, isReadOnly, undoCtrl, setTool],
+  );
+
+  // Keyboard commands
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: notes,
+    canEdit: !isReadOnly,
+    undo: undoCtrl ?? undefined,
+    tool,
+    setTool,
+    onCreateSticky,
+  });
 
   const clearSelection = useCallback(() => selection.clear(), [selection]);
 
@@ -187,6 +215,10 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
     </>
   );
 
+  // Separate sticky notes and text objects
+  const stickyNotes = notes.filter((n) => n.type === 'sticky');
+  const textObjects = notes.filter((n) => n.type === 'text');
+
   return (
     <div className="app">
       <ConnectionStatus state={connectionState} />
@@ -200,8 +232,10 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
         onMarqueeEnd={onMarqueeEnd}
         onMarqueeCancel={onMarqueeCancel}
         overlay={overlay}
+        tool={tool}
+        onTextToolClick={onTextToolClick}
       >
-        {notes.map((note) => (
+        {stickyNotes.map((note) => (
           <StickyNote
             key={note.id}
             note={note}
@@ -216,8 +250,31 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
             undo={undoCtrl ?? undefined}
           />
         ))}
+        {textObjects.map((obj) => (
+          <TextObject
+            key={obj.id}
+            obj={obj}
+            doc={doc}
+            zoom={camera.zoom}
+            selected={selection.ids.has(obj.id)}
+            editing={obj.id === selection.editingId}
+            canEdit={!isReadOnly}
+            onPointerDown={onObjectPointerDown}
+            onStartEdit={selection.startEdit}
+            onEndEdit={selection.endEdit}
+            onDeleted={onDeleted}
+            undo={undoCtrl ?? undefined}
+            measurer={measurer}
+          />
+        ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={onCreateSticky} undo={undoState} />
+      <Toolbar
+        tool={tool}
+        onToolChange={setTool}
+        canEdit={!isReadOnly}
+        onCreateSticky={onCreateSticky}
+        undo={undoState}
+      />
     </div>
   );
 }

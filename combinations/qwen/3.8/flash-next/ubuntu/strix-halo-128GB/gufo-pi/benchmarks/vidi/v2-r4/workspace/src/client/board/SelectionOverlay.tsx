@@ -1,6 +1,7 @@
 /**
- * SelectionOverlay: draws per-object outlines, bounding box, and 8 resize handles
- * in screen space.
+ * SelectionOverlay: draws per-object outlines, bounding box, and resize handles
+ * in screen space. Shows only e/w handles when every selected object's spec
+ * declares `handles: 'horizontal'`.
  */
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { HANDLE_SIZE_PX } from '../../shared/config';
@@ -28,7 +29,8 @@ const HANDLE_LABELS: Record<Handle, string> = {
   w: 'left',
 };
 
-const HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+const ALL_HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+const HORIZONTAL_HANDLES: Handle[] = ['e', 'w'];
 
 export function SelectionOverlay({
   ids,
@@ -46,6 +48,13 @@ export function SelectionOverlay({
     const spec = getObjectType(o.type);
     return spec?.resizable ?? false;
   });
+
+  // Determine which handles to show: horizontal only when ALL selected specs are horizontal
+  const allHorizontal = selectedObjects.every((o) => {
+    const spec = getObjectType(o.type);
+    return spec?.handles === 'horizontal';
+  });
+  const handles = allHorizontal ? HORIZONTAL_HANDLES : ALL_HANDLES;
 
   const rects = selectedObjects.map(objectBounds);
   const bbox = unionRects(rects);
@@ -98,7 +107,7 @@ export function SelectionOverlay({
       }}
     >
       {anyResizable
-        ? HANDLES.map((h) => (
+        ? handles.map((h) => (
             <div
               key={h}
               className="selection-handle"

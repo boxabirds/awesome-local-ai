@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import * as Y from 'yjs';
 import { connectClient, WsTestClient, integrationFetch, createBoard } from './ws-client';
-import { createSticky, getStickyText, snapshot, type StickySnapshot } from '../../src/shared/board-model';
+import { createSticky, getStickyText, stickySnapshot as snapshot, type StickySnapshot } from '../../src/shared/board-model';
 import { PERSIST_TESTED_NOTES, BOARD_LOAD_BUDGET_MS, LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
 
 function collectSnapshot(client: WsTestClient): readonly StickySnapshot[] {

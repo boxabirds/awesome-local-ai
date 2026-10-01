@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, type RenderResult } from '@testing-library/react';
 import * as Y from 'yjs';
 import { App } from '../../src/client/App';
-import { createSticky, snapshot } from '../../src/shared/board-model';
+import { createSticky, stickySnapshot as snapshot } from '../../src/shared/board-model';
 import { STICKY_SIZE_WORLD } from '../../src/shared/config';
 
 let renderResult: RenderResult;
@@ -117,7 +117,7 @@ describe('sticky.toolbar — create', () => {
     renderApp();
     expect(notes()).toHaveLength(0);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     flush();
 
     expect(notes()).toHaveLength(1);
@@ -134,9 +134,9 @@ describe('sticky.toolbar — create', () => {
 
   it('the toolbar button carries the double-click hint as its tooltip', () => {
     renderApp();
-    expect(screen.getByRole('button', { name: 'Sticky note' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Sticky note (N)' })).toHaveAttribute(
       'title',
-      'Sticky note – or double-click the board',
+      'Sticky note (N) – or double-click the board',
     );
   });
 });

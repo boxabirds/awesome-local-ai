@@ -274,3 +274,42 @@ Decisions and deviations recorded while implementing the stories.
   second `Y.Doc` and syncs bidirectionally via `Y.applyUpdate` with a
   non-local origin. `loadTransact()` applies mutations with `LOAD_ORIGIN` to
   simulate board initialisation.
+
+## Story 9 — Write free text anywhere on the board
+
+- **`ObjectSnapshot` is a discriminated union** (`StickySnapshot | TextObjectSnapshot`).
+  Existing tests that access `.color` are switched to `stickySnapshot(doc)` (a
+  convenience filter returning only sticky notes) via an import alias to avoid
+  modifying every assertion.
+- **`createCanvasMeasurer()` returns `(text, fontPx) => number`** — a simple
+  width measurement. The full `layoutText()` function wraps this with greedy
+  word-wrap and line-counting to produce `{ width, height, lines }`.
+- **`useTextBoxSync` writes width/height only after LOCAL changes.** Remote
+  clients see the stored dimensions from the Y.Doc and never re-measure or
+  write back, preventing measurement-oscillation between clients with
+  different fonts.
+- **TextToolbar is anchored inside `TextObject`** (counter-scaled by 1/zoom),
+  matching the existing `NoteToolbar` pattern in `StickyNote`. The design
+  mentions "SelectionBar → TextToolbar" in the file table; this is achieved via
+  the object's own anchoring, consistent with how story 7 made sticky
+  toolbars self-contained.
+- **`useTool` is gated by `canEdit`:** when `canEdit` becomes false while
+  Text is active, the tool reverts to Select. `setTool('text')` is a no-op
+  when `!canEdit`.
+- **Text tool click → create + auto-edit + switch to Select.** The
+  `onTextToolClick` callback in `App.tsx` calls `createText()`, immediately
+  enters editing via `selection.startEdit(id)`, and switches back to Select.
+  This matches the PRD's flow: click → type → Escape keeps (selects).
+- **Horizontal-only resize for text objects.** `SelectionOverlay` checks all
+  selected types via the registry's `handles` field. `useTransformGesture`
+  calls `setTextWidthFixed` instead of `resizeObjects` when all selected
+  objects are horizontal, preventing height from being written by the gesture.
+- **`deleteIfEmpty` removes text objects with zero content on edit end.** The
+  `TextObject` component checks on `onEndEdit` whether the Y.Text is empty;
+  if so, deletes the object (TC-25, TC-31).
+- **`clampToLimit` moved to `src/shared/text-edit.ts`.** The `StickyText.ts`
+  re-exports it with the sticky-specific default (`STICKY_TEXT_MAX_CHARS`).
+  `TextEditor` uses the shared version with `TEXT_MAX_CHARS`.
+- **E2E TC-29/TC-30 (concurrent editing) use two pages** opening the same
+  board. These require the sync server running (via the Playwright webServer
+  config) and exercise real Yjs CRDT merge.

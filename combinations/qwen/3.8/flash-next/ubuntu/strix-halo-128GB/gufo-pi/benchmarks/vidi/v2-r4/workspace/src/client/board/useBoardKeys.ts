@@ -1,6 +1,6 @@
 /**
  * useBoardKeys: handles keyboard commands for selection — select all, clear,
- * nudge, delete, Enter-to-edit, and undo/redo.
+ * nudge, delete, Enter-to-edit, and undo/redo. Also handles tool shortcuts (V, T, N).
  */
 import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
@@ -9,6 +9,7 @@ import { allObjectIds, deleteObjects, moveObjects } from '../../shared/board-mod
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
 import type { SelectionApi } from './useSelection';
 import type { UndoController } from './undo';
+import type { Tool } from './useTool';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -16,6 +17,9 @@ export interface BoardKeysOptions {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undo?: UndoController;
+  tool?: Tool;
+  setTool?: (t: Tool) => void;
+  onCreateSticky?(): void;
 }
 
 /** True when focus is in a text-editing element. */
@@ -27,7 +31,7 @@ function isTextEntry(target: EventTarget | null): boolean {
 }
 
 export function useBoardKeys(opts: BoardKeysOptions): void {
-  const { doc, selection, snapshot, canEdit, undo } = opts;
+  const { doc, selection, snapshot, canEdit, undo, tool, setTool, onCreateSticky } = opts;
 
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
@@ -37,6 +41,12 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
   canEditRef.current = canEdit;
   const undoRef = useRef(undo);
   undoRef.current = undo;
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  const setToolRef = useRef(setTool);
+  setToolRef.current = setTool;
+  const onCreateStickyRef = useRef(onCreateSticky);
+  onCreateStickyRef.current = onCreateSticky;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -87,6 +97,30 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       if (sel.editingId !== null) return;
       if (isTextEntry(event.target)) return;
 
+      // Tool shortcuts: V and T (only when not editing and not in text entry)
+      if (event.key === 'v' || event.key === 'V') {
+        if (setToolRef.current) {
+          setToolRef.current('select');
+        }
+        return;
+      }
+
+      if ((event.key === 't' || event.key === 'T') && !event.ctrlKey && !event.metaKey) {
+        if (canEditRef.current && setToolRef.current) {
+          setToolRef.current('text');
+        }
+        return;
+      }
+
+      // N: create sticky at view centre (new in story 9)
+      if (event.key === 'n' || event.key === 'N') {
+        if (canEditRef.current && onCreateStickyRef.current) {
+          event.preventDefault();
+          onCreateStickyRef.current();
+        }
+        return;
+      }
+
       // Ctrl/Cmd+A: select all
       if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
         event.preventDefault();
@@ -95,9 +129,12 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
 
-      // Escape: clear selection
+      // Escape: clear selection and reset tool to select
       if (event.key === 'Escape') {
         sel.clear();
+        if (setToolRef.current) {
+          setToolRef.current('select');
+        }
         return;
       }
 
@@ -135,11 +172,11 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
 
-      // Enter: start editing single selected sticky note
+      // Enter: start editing single selected text object
       if (event.key === 'Enter' && sel.ids.size === 1) {
         const id = [...sel.ids][0]!;
         const obj = snap.find((o) => o.id === id);
-        if (obj && obj.type === 'sticky') {
+        if (obj && (obj.type === 'sticky' || obj.type === 'text')) {
           event.preventDefault();
           sel.startEdit(id);
         }

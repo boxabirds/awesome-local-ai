@@ -8,7 +8,7 @@ import {
   initDoc,
   moveObject,
   setStickyColor,
-  snapshot,
+  stickySnapshot as snapshot,
 } from '../../src/shared/board-model';
 import {
   DEFAULT_STICKY_COLOR,

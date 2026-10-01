@@ -1,7 +1,7 @@
 /**
  * Object type registry: each board object type declares its component,
  * whether it is resizable, whether it keeps its proportions, its minimum size,
- * whether it has editable text, and a hit-test function.
+ * whether it has editable text, a hit-test function, and which handles to show.
  *
  * Stories 9–12 add new types by calling `registerObjectType`; they must not
  * add their own selection, move, resize, or delete code (sel.all_types).
@@ -22,6 +22,8 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  /** Which resize handles to show. 'horizontal' = only e/w (text objects). */
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 

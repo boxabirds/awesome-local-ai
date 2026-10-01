@@ -11,7 +11,7 @@ import {
   deleteObject,
   deleteObjects,
   setStickyColor,
-  snapshot,
+  stickySnapshot as snapshot,
   getStickyText,
 } from '../../src/shared/board-model';
 import { createPeer, loadTransact, type Peer } from './helpers/peer';

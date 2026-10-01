@@ -1,3 +1,45 @@
+commit 56cea68f8cd9294652b9348bc288d27a9ddc30de
+vidi-agent  Thu Oct 1 06:36:50 2026 +0000
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                    |  39 +++++
+ src/client/App.tsx                          |  83 ++++++++--
+ src/client/board/SelectionOverlay.tsx       |  17 +-
+ src/client/board/Toolbar.tsx                |  52 +++++-
+ src/client/board/useBoardDoc.ts             |   8 +-
+ src/client/board/useBoardKeys.ts            |  47 +++++-
+ src/client/board/useTool.ts                 |  35 +++++
+ src/client/board/useTransformGesture.ts     |  16 +-
+ src/client/canvas/BoardViewport.tsx         |  62 +++++++-
+ src/client/objects/StickyText.ts            |  53 +------
+ src/client/objects/TextEditor.tsx           | 174 ++++++++++++++++++++
+ src/client/objects/TextObject.tsx           | 211 +++++++++++++++++++++++++
+ src/client/objects/TextToolbar.tsx          |  92 +++++++++++
+ src/client/objects/registerTypes.ts         |  28 +++-
+ src/client/objects/registry.ts              |   4 +-
+ src/client/objects/textLayout.ts            | 134 ++++++++++++++++
+ src/client/objects/useTextBoxSync.ts        |  52 ++++++
+ src/client/objects/useTextBoxSyncHelpers.ts |  11 ++
+ src/shared/board-model.ts                   |  63 +++++++-
+ src/shared/config.ts                        |  22 +++
+ src/shared/objects/text.ts                  | 144 +++++++++++++++++
+ src/shared/text-edit.ts                     |  60 +++++++
+ tests/component/TextBoxSync.test.tsx        |  99 ++++++++++++
+ tests/component/TextObject.test.tsx         | 213 +++++++++++++++++++++++++
+ tests/component/Tool.test.tsx               | 145 +++++++++++++++++
+ tests/component/Toolbars.test.tsx           |   8 +-
+ tests/component/UndoBoundaries.test.tsx     |   2 +-
+ tests/e2e/text-objects.spec.ts              | 214 +++++++++++++++++++++++++
+ tests/fixtures/boards.ts                    |  10 +-
+ tests/integration/persistent-room.test.ts   |   2 +-
+ tests/integration/ws-client.ts              |   2 +-
+ tests/unit/board-model.test.ts              |   2 +-
+ tests/unit/text-layout.test.ts              | 107 +++++++++++++
+ tests/unit/text-model.test.ts               | 235 ++++++++++++++++++++++++++++
+ tests/unit/undo-history.test.ts             |   2 +-
+ 35 files changed, 2336 insertions(+), 112 deletions(-)
 commit 3fcd88debf1c90151a8b760da62c0d9c37c509c6
 vidi-agent  Thu Oct 1 06:00:38 2026 +0000
 

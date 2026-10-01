@@ -49,7 +49,22 @@ export interface StickySnapshot {
   createdAt: number;
 }
 
-export type ObjectSnapshot = StickySnapshot;
+export interface TextObjectSnapshot {
+  id: string;
+  type: 'text';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+  size: string;
+  widthMode: 'auto' | 'fixed';
+  z: number;
+  createdAt: number;
+  createdBy: string;
+}
+
+export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot;
 
 function objectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap<Y.Map<unknown>>('objects') as unknown as Y.Map<Y.Map<unknown>>;
@@ -345,17 +360,53 @@ function readSticky(id: string, note: Y.Map<unknown>): StickySnapshot | null {
 }
 
 /**
- * An immutable list of every sticky note, ordered by `(z, id)` so clients that
+ * An immutable list of every object (sticky + text), ordered by `(z, id)` so clients that
  * sync (story 3) still agree on stacking when concurrent edits produce equal
  * `z` values. Objects with unknown `type` values are skipped (forward
  * compatibility for later stories).
  */
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
-  const out: StickySnapshot[] = [];
+export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const out: ObjectSnapshot[] = [];
   for (const [id, note] of objectsMap(doc).entries()) {
-    const snap = readSticky(id, note);
-    if (snap) out.push(snap);
+    const sticky = readSticky(id, note);
+    if (sticky) { out.push(sticky); continue; }
+    const textObj = readTextObject(id, note);
+    if (textObj) out.push(textObj);
   }
   out.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;
 }
+
+/** Filter snapshot to only sticky notes (convenience for tests and code that only handles stickies). */
+export function stickySnapshot(doc: Y.Doc): readonly StickySnapshot[] {
+  return snapshot(doc).filter((o): o is StickySnapshot => o.type === 'sticky');
+}
+
+function readTextObject(id: string, obj: Y.Map<unknown>): TextObjectSnapshot | null {
+  if (obj.get('type') !== 'text') return null;
+  const text = obj.get('text');
+  const x = obj.get('x');
+  const y = obj.get('y');
+  const z = obj.get('z');
+  const createdAt = obj.get('createdAt');
+  const createdBy = obj.get('createdBy');
+  const width = obj.get('width');
+  const height = obj.get('height');
+  const size = obj.get('size');
+  const widthMode = obj.get('widthMode');
+  return {
+    id,
+    type: 'text',
+    x: typeof x === 'number' ? x : 0,
+    y: typeof y === 'number' ? y : 0,
+    width: typeof width === 'number' ? width : 60,
+    height: typeof height === 'number' ? height : 26,
+    text: text instanceof Y.Text ? text.toString() : '',
+    size: typeof size === 'string' ? size : 'M',
+    widthMode: widthMode === 'fixed' ? 'fixed' : 'auto',
+    z: typeof z === 'number' ? z : 0,
+    createdAt: typeof createdAt === 'number' ? createdAt : 0,
+    createdBy: typeof createdBy === 'string' ? createdBy : '',
+  };
+}
+

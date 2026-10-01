@@ -1,12 +1,12 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshot, type ObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 export interface BoardDoc {
   readonly doc: Y.Doc;
   /** Sticky notes sorted by (z, id); a new array only when the doc changed. */
-  readonly notes: readonly StickySnapshot[];
+  readonly notes: readonly ObjectSnapshot[];
   readonly connectionState: ConnectionState;
 }
 
@@ -23,7 +23,7 @@ function createDoc(): Y.Doc {
  */
 class DocStore {
   readonly doc: Y.Doc;
-  private cached: readonly StickySnapshot[] | null = null;
+  private cached: readonly ObjectSnapshot[] | null = null;
 
   constructor(doc: Y.Doc) {
     this.doc = doc;
@@ -38,7 +38,7 @@ class DocStore {
     return () => this.doc.getMap('objects').unobserveDeep(observer);
   };
 
-  getSnapshot = (): readonly StickySnapshot[] => {
+  getSnapshot = (): readonly ObjectSnapshot[] => {
     if (this.cached === null) this.cached = snapshot(this.doc);
     return this.cached;
   };

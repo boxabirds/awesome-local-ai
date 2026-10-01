@@ -7,7 +7,7 @@ import {
 import * as encoding from 'lib0/encoding';
 import { createDecoder, readVarUint } from 'lib0/decoding';
 import { MESSAGE_SYNC, MESSAGE_AWARENESS, MESSAGE_QUERY_AWARENESS } from '../../src/shared/protocol';
-import { initDoc, snapshot, type StickySnapshot } from '../../src/shared/board-model';
+import { initDoc, stickySnapshot as snapshot, type StickySnapshot } from '../../src/shared/board-model';
 
 export interface ReceivedMessage {
   type: number;

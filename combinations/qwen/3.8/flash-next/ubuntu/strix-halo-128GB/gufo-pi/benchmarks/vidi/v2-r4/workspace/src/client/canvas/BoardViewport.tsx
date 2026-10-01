@@ -12,6 +12,7 @@ import { NavigationHint } from './NavigationHint';
 import { ZoomControls } from './ZoomControls';
 import { useCamera, wheelDeltaToPixels, type CameraController } from './useCamera';
 import { screenToWorld, viewportCentre, type Camera, type Point, type Size } from './camera';
+import type { Tool } from '../board/useTool';
 
 /** Safari's pinch gesture events; not in the standard DOM typings. */
 interface SafariGestureEvent extends Event {
@@ -67,6 +68,10 @@ export interface BoardViewportProps {
   onMarqueeCancel?(): void;
   /** Overlay content rendered after the world layer (for marquee, selection overlay, etc.) */
   overlay?: ReactNode;
+  /** Active tool: 'text' changes cursor and click behavior. */
+  tool?: Tool;
+  /** Called when the board is clicked while Text tool is active. */
+  onTextToolClick?(worldPoint: Point): void;
 }
 
 /**
@@ -83,6 +88,7 @@ export interface BoardViewportProps {
  * - Ctrl/Cmd + `=`, `-` and `0` zoom one step or reset the view.
  * - A double-click on empty space asks for a sticky note there; a click on
  *   empty space without dragging clears the selection.
+ * - When tool === 'text', cursor is 'text' and click creates text at the point.
  */
 export function BoardViewport({
   children,
@@ -95,6 +101,8 @@ export function BoardViewport({
   onMarqueeEnd,
   onMarqueeCancel,
   overlay,
+  tool,
+  onTextToolClick,
 }: BoardViewportProps): React.JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
@@ -110,6 +118,10 @@ export function BoardViewport({
   const travelRef = useRef(0);
   const cameraRef = useRef(controller.camera);
   cameraRef.current = controller.camera;
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  const onTextToolClickRef = useRef(onTextToolClick);
+  onTextToolClickRef.current = onTextToolClick;
 
   // Viewport size. The camera is defined against the top-left of the board
   // area, so a resize never moves content.
@@ -248,6 +260,15 @@ export function BoardViewport({
       // Only empty board space starts a drag; objects stop propagation.
       if (event.target !== el) return;
       if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+      // When Text tool is active, do not pan or marquee; just record press
+      if (toolRef.current === 'text') {
+        travelRef.current = 0;
+        pressStartRef.current = pointOf(event.clientX, event.clientY);
+        el.setPointerCapture?.(event.pointerId);
+        return;
+      }
+
       el.setPointerCapture?.(event.pointerId);
       travelRef.current = 0;
       pressStartRef.current = pointOf(event.clientX, event.clientY);
@@ -270,6 +291,17 @@ export function BoardViewport({
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const point = pointOf(event.clientX, event.clientY);
+
+      if (toolRef.current === 'text') {
+        const start = pressStartRef.current;
+        if (start) {
+          travelRef.current = Math.max(
+            travelRef.current,
+            Math.hypot(point.x - start.x, point.y - start.y),
+          );
+        }
+        return;
+      }
 
       if (marqueeRef.current) {
         const start = pressStartRef.current;
@@ -299,30 +331,47 @@ export function BoardViewport({
   const onPointerUp = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const el = viewportRef.current;
-      const wasMarquee = marqueeRef.current;
-      const wasEmptyPress = !wasMarquee && panningRef.current && travelRef.current < DRAG_THRESHOLD_PX;
+      const wasEmptyPress = !marqueeRef.current && !panningRef.current && pressStartRef.current !== null && travelRef.current < DRAG_THRESHOLD_PX;
+      const wasPanningPress = !marqueeRef.current && panningRef.current && travelRef.current < DRAG_THRESHOLD_PX;
 
       if (el?.hasPointerCapture?.(event.pointerId)) {
         el.releasePointerCapture(event.pointerId);
       }
 
-      if (wasMarquee) {
+      if (marqueeRef.current) {
         stopMarquee();
         onMarqueeEnd?.();
         return;
       }
 
+      // Text tool: click creates text at the world point
+      if (toolRef.current === 'text') {
+        if (wasEmptyPress && event.target === el) {
+          const point = pointOf(event.clientX, event.clientY);
+          const world = screenToWorld(cameraRef.current, point);
+          onTextToolClickRef.current?.(world);
+        }
+        pressStartRef.current = null;
+        travelRef.current = 0;
+        return;
+      }
+
       stopPanning();
       // A press on empty board space that never became a drag deselects.
-      if (wasEmptyPress && event.target === el) onClearSelection?.();
+      if ((wasEmptyPress || wasPanningPress) && event.target === el) onClearSelection?.();
     },
-    [stopPanning, stopMarquee, onClearSelection, onMarqueeEnd],
+    [pointOf, stopPanning, stopMarquee, onClearSelection, onMarqueeEnd],
   );
 
   const onPointerCancel = useCallback(() => {
     if (marqueeRef.current) {
       stopMarquee();
       onMarqueeCancel?.();
+      return;
+    }
+    if (toolRef.current === 'text') {
+      pressStartRef.current = null;
+      travelRef.current = 0;
       return;
     }
     stopPanning();
@@ -333,6 +382,7 @@ export function BoardViewport({
     (event: React.MouseEvent<HTMLDivElement>) => {
       const el = viewportRef.current;
       if (!el || event.target !== el) return;
+      if (toolRef.current === 'text') return; // Text tool handles clicks, not double-clicks
       if (!onCreateStickyWorld) return;
       const point = pointOf(event.clientX, event.clientY);
       onCreateStickyWorld(screenToWorld(cameraRef.current, point));
@@ -369,6 +419,7 @@ export function BoardViewport({
       -camera.y * camera.zoom,
       gridSpacing,
     )}px`,
+    cursor: tool === 'text' ? 'text' as const : undefined,
   };
   const worldStyle = {
     transform: `scale(${camera.zoom}) translate(${-camera.x}px, ${-camera.y}px)`,
@@ -385,6 +436,7 @@ export function BoardViewport({
         data-camera-x={camera.x}
         data-camera-y={camera.y}
         data-zoom={camera.zoom}
+        data-tool={tool ?? 'select'}
         style={gridStyle}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
