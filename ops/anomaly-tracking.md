@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 09:20 UTC
+**Last updated:** 2026-10-01 09:35 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -26,6 +26,27 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 ---
 
 ## Open — needs someone
+
+### A-023 — A harness test committed its fixture run to the real repository and pushed it to public main
+- **First seen:** 2026-10-01 09:30 (commits made 09:23:55–09:24:48) · **Last seen:** 2026-10-01 09:35
+- **Where:** not a benchmark run: `combinations/kat/combo/benchmarks/kat/r1/` on origin/main, 21 files,
+  from four commits authored "t": `4b02a9d1` (run started: by the self-test), `7fa135ec`, `dc5d559c`
+  (stories 1 and 2 done), `93df3d75` (final score 4/5 under kat-v1). Host in the record: the M2 MacBook Air.
+- **Observed:** "kat" is the known-answer pack of the harness's own tests (`test_pipeline.py`). The text
+  "by the self-test" exists only in uncommitted changes to `test_pipeline.py` in the owner's working tree:
+  a new test of a run whose results live in another checkout (`split_roots_main`,
+  `test_the_story_loop_with_the_results_in_another_checkout`), which by its own docstring "commits and
+  pushes for real" into a throwaway checkout. On at least one run it recorded into the real checkout
+  instead and pushed to the real remote. The version on disk now has a guard that refuses when the results
+  root is the code's own checkout; the commits were made either before that guard existed or despite it.
+- **Bucket:** internal bug (a test not isolated from the real repository) — **confidence high** that the
+  test did it (record contents, author, host, timing); medium on whether the guard now on disk closes it.
+- **Status:** open. The public repo has a made-up combination under `combinations/`, in history under the
+  owner's remote; the dashboard did not list it at 09:31 but anything that walks `combinations/` will.
+  Whoever is developing that test may not know it happened.
+- **Suggested action:** stop running that test until it cannot reach the real remote (give it a remote of
+  its own and assert the push URL, not only the results root); remove `combinations/kat/` with a normal
+  commit (history rewrite is the owner's call); check the private repo for the same four records.
 
 ### A-011 — Runs end with no score of record: the suite checkout is one commit off its tag
 - **First seen:** 2026-10-01 07:26 · **Last seen:** 2026-10-01 09:12 (still true for the running jobs)
@@ -72,6 +93,9 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   several other interactive sessions, this monitor among them.
 - **Bucket:** environment — **confidence high** (the run's own condition samples and the machine's
   process list).
+- **Note 2026-10-01 09:31:** story 7 has not started: the job has been waiting on "thermal: heavy" since
+  about 09:05 (26 min and counting), on AC, with the video call still using about 2 cores and the load
+  average at 7–10. The run is blocked until the machine cools, which it won't while it is in use like this.
 - **Status:** open. Held-out scores are unaffected so far (36/36 at story 5), but v2-r4's times are not a
   clean reference, and A-010 and A-015 may be side effects.
 - **Suggested action:** keep the laptop on AC for the rest of v2-r4..r6; treat story 3 and 4 timings of
@@ -291,6 +315,14 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   story's commit is on origin/main (`3c49776f`), replayed later by the harness (`b8228148`).
 - **Bucket:** internal bug (a stale flag in the record; nothing lost) — high.
 
+### A-024 — CI red on main for one commit
+- **Seen:** 2026-10-01 08:58–09:13 · **Where:** the `checks` workflow on `2299dbbe`.
+- **What:** the "Run every check" step failed; the next code commit, `52155b88` (a test corrected for how
+  Linux names a killed session leader), ran green at 09:13. Two runs in between were cancelled by newer
+  pushes, which is normal.
+- **Bucket:** broken pipeline — medium (the failing check's output wasn't read; the fix's subject and the
+  green run after it are the evidence). **Resolved** by `52155b88`.
+
 ---
 
 ## Summary
@@ -299,13 +331,13 @@ By bucket (A-018 is a scheduling flag and has no bucket):
 
 | Bucket | Open: needs someone | Open: watched | Explained / resolved | Total |
 |---|---|---|---|---|
-| internal bug | 0 | 3 (A-015, A-016, A-020) | 7 (A-001, A-002, A-003, A-004, A-008, A-009, A-014) | 10 |
+| internal bug | 1 (A-023) | 3 (A-015, A-016, A-020) | 7 (A-001, A-002, A-003, A-004, A-008, A-009, A-014) | 11 |
 | genuine LLM behaviour | 0 | 3 (A-010, A-012, A-013) | 3 (A-006, A-007, A-017) | 6 |
 | stuck job | 0 | 0 | 0 | 0 |
-| broken pipeline | 1 (A-011) | 0 | 0 | 1 |
+| broken pipeline | 1 (A-011) | 0 | 1 (A-024) | 2 |
 | environment | 1 (A-022) | 0 | 1 (A-005) | 2 |
 | unexplained | 0 | 2 (A-019, A-021) | 0 | 2 |
-| **Total** | **2** (+A-018) | **8** | **11** | **21** (+A-018) |
+| **Total** | **3** (+A-018) | **8** | **12** | **23** (+A-018) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
@@ -318,3 +350,4 @@ By combination (an anomaly is listed under the one it mainly concerns):
 | qwen 3.8 Swift 1.5 27B, llamacpp-pi | the RTX 4090 machine | A-012 |
 | qwen 3.8 27B and Swift 27B (v1), llamacpp-pi | the RTX 4090 machine | A-009 |
 | several | — | A-008 |
+| none (harness tests, CI) | the M2 MacBook Air, CI | A-023, A-024 |
