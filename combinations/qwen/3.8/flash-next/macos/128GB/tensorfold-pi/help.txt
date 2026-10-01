@@ -1,0 +1,33 @@
+NOTES FOR THIS COMBINATION
+
+  NOT MEASURED BY THIS REPO, and not cleared to benchmark until
+  tools/tensorfold-check/run-checks.sh passes on this Mac (horizon/tensorfold.md).
+
+  One model server at a time. This checkpoint keeps ~75.6 GiB of weights
+  resident. The launcher REFUSES to start while mlx-serve, MTPLX,
+  llama-server or another TensorFold is running (ALLOW_COEXIST=1 overrides).
+  Do not raise iogpu.wired_limit_mb to make anything fit.
+
+  The context window is fitted at startup. With no CTX, TensorFold sizes it
+  to the most one request can use and still keep its prompt for the next
+  turn, and prints that number ("context window N tokens: ..."). pi's
+  CONTEXT_LIMIT must leave room inside it for pi's 32768-token reply
+  reservation; config.sh says how.
+
+  Reasoning effort is set server-side (--reasoning-effort, default low):
+  pi sends none. A request that names an effort gets what it names.
+
+  The port opens after the model has loaded: /v1/models answers when ready.
+
+VARIABLES
+
+  PROFILE             agent | serial
+  PORT                default 8012 (always 127.0.0.1: TensorFold has no API key)
+  CTX                 an explicit window (--context); unset = fitted
+  MODEL, TENSORFOLD_BIN   a different checkpoint directory / binary
+
+EXAMPLES
+
+  tensorfold-qwen38-flash-next-server                  # agent profile
+  PROFILE=serial tensorfold-qwen38-flash-next-server   # drafts off
+  curl -s http://127.0.0.1:8012/v1/models | python3 -m json.tool
