@@ -43,5 +43,24 @@
     "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
     "scored_under": "vidi-v2.0-pre2",
     "note": "built while the suite was at vidi-v2.0-pre1; its score of record is the final re-score under vidi-v2.0-pre2, by the owner's decision for this run"
+  },
+  "repair": {
+    "repaired": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ],
+    "left": {},
+    "accounting_version": 4,
+    "harness_commit": "249d2b9d",
+    "at": "2026-10-01T19:09:39Z"
   }
 }

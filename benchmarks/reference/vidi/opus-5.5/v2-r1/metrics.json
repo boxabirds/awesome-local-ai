@@ -156,11 +156,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.9,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -305,7 +308,7 @@
         "commit": "310b836b"
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 20,
         "tool_calls": 20,
         "thinking_visible": false,
@@ -509,11 +512,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.1,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -677,7 +683,7 @@
         "commit": "26d73bfe"
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 36,
         "tool_calls": 38,
         "thinking_visible": false,
@@ -884,17 +890,21 @@
           "unit": 239.5,
           "bash": 5.6,
           "build": 0.9,
-          "read": 0.3
+          "read": 0.3,
+          "edit": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.2,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -1063,7 +1073,7 @@
         "commit": "677ccf0f"
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 73,
         "tool_calls": 75,
         "thinking_visible": false,
@@ -1276,17 +1286,21 @@
           "bash": 4.4,
           "build": 3.0,
           "read": 0.4,
-          "write": 0.1
+          "write": 0.1,
+          "schedulewakeup": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.3,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -1452,7 +1466,7 @@
         "commit": "9ce504c0"
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 88,
         "tool_calls": 90,
         "thinking_visible": false,
@@ -1674,11 +1688,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.2,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -1817,7 +1834,7 @@
         "commit": "bf9d82ae"
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 48,
         "tool_calls": 51,
         "thinking_visible": false,
@@ -2042,11 +2059,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -2260,7 +2280,7 @@
         "commit": "f119f9b9"
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 50,
         "tool_calls": 53,
         "thinking_visible": false,
@@ -2490,11 +2510,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -2642,7 +2665,7 @@
         "commit": "2a6d7b24"
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 36,
         "tool_calls": 38,
         "thinking_visible": false,
@@ -2876,11 +2899,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 0.9,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -3062,7 +3088,7 @@
         "commit": "101de99c"
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 83,
         "tool_calls": 87,
         "thinking_visible": false,
@@ -3300,11 +3326,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 0.9,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -3471,7 +3500,7 @@
         "commit": "cfd2b72a"
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 57,
         "tool_calls": 60,
         "thinking_visible": false,
@@ -3712,11 +3741,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 0.8,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -3837,7 +3869,7 @@
         "commit": "7cc0cbd8"
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 38,
         "tool_calls": 40,
         "thinking_visible": false,
@@ -4083,11 +4115,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 0.9,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -4255,7 +4290,7 @@
         "commit": "eb396bcd"
       },
       "conversation": {
-        "version": 3,
+        "version": 4,
         "calls": 60,
         "tool_calls": 66,
         "thinking_visible": false,
