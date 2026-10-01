@@ -15,17 +15,18 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
-import time
-import urllib.request
+from pathlib import Path
 
-from drive import PACK, REPO_ROOT, WORK_ROOT, agent_env, outside_packages, sandboxed
+import drive
+import sandbox
+from drive import PACK, REPO_ROOT, WORK_ROOT, agent_env, launch_agent
 
-PORT = 18899
-STEP_TIMEOUT_S = 300
-SERVER_READY_S = 60
+STEP_TIMEOUT_S = 900
 PROBE = WORK_ROOT / "_preflight"
+SECRET_WORDS = ("KEY", "TOKEN", "SECRET", "PASSWORD")
 
 PACKAGE = {
     "name": "preflight", "private": True, "type": "module",
@@ -39,17 +40,89 @@ FILES = {
                                   "assets": {"directory": "./dist/client"}}),
     "browse.mjs": ("import { chromium } from '@playwright/test';"
                    "const b = await chromium.launch(); const p = await b.newPage();"
-                   f"await p.goto('http://127.0.0.1:{PORT}/');"
+                   "await p.goto(`http://127.0.0.1:${process.argv[2]}/`);"
                    "console.log(await p.textContent('#ok')); await b.close();"),
+    # The whole workload in ONE sandbox, as an agent session is: on Linux each sandbox has a loopback of its own, so
+    # the server and the browser must share one. Each step prints "STEP OK: <name>" or "STEP FAILED: <name>".
+    "drive.mjs": """
+import { spawn, spawnSync } from 'node:child_process';
+const [port, inspector] = process.argv.slice(2);
+let server;
+const stop = () => { try { server?.kill('SIGTERM'); } catch {} };
+const step = (name, cmd, args) => {
+  const r = spawnSync(cmd, args, { encoding: 'utf8' });
+  if (r.status !== 0) { console.log(`STEP FAILED: ${name}\n${r.stdout}\n${r.stderr}`); stop(); process.exit(1); }
+  console.log(`STEP OK: ${name}`);
+};
+step('npm install', 'npm', ['install', '--no-audit', '--no-fund']);
+step('vite build', 'npm', ['run', 'build']);
+server = spawn('npx', ['wrangler', 'dev', '--port', port, '--inspector-port', inspector, '--ip', '127.0.0.1'], { stdio: 'ignore' });
+let up = false;
+for (let i = 0; i < 90 && !up; i++) {
+  try { up = (await (await fetch(`http://127.0.0.1:${port}/`)).text()).includes('preflight ok'); } catch {}
+  if (!up) await new Promise((r) => setTimeout(r, 1000));
 }
+if (!up) { console.log('STEP FAILED: wrangler dev serves over HTTP'); stop(); process.exit(1); }
+console.log('STEP OK: wrangler dev serves over HTTP');
+step('playwright browsers', 'npx', ['playwright', 'install', 'chromium']);
+const r = spawnSync('node', ['browse.mjs', port], { encoding: 'utf8' });
+if (r.status !== 0 || !r.stdout.includes('preflight ok')) {
+  console.log(`STEP FAILED: chromium loads the page\n${r.stdout}\n${r.stderr}`); stop(); process.exit(1);
+}
+console.log('STEP OK: chromium loads the page');
+stop();
+process.exit(0);
+""",
+}
+# What the agent's world must NOT give, tried from inside it: each prints "<name> refused" or "<name> OPEN".
+ISOLATION_SCRIPT = """
+try_read() { if ls "$2" >/dev/null 2>&1 || cat "$2" >/dev/null 2>&1; then echo "$1 OPEN"; else echo "$1 refused"; fi; }
+try_read "the repository" "{repo}"
+try_read "the held-out suite" "{suite}"
+try_read "the owner's home" "{home}"
+if env | grep -E -i '{secret_words}' >/dev/null; then echo "environment OPEN"; else echo "environment refused"; fi
+if touch "{home}/preflight-was-here" 2>/dev/null; then rm -f "{home}/preflight-was-here"; echo "home write OPEN"; else echo "home write refused"; fi
+"""
 
 
-def step(name: str, cmd: list[str], env: dict, ws) -> None:
-    r = subprocess.run(sandboxed(cmd, own_dir=PROBE), cwd=ws, env=env, capture_output=True, text=True,
-                       timeout=STEP_TIMEOUT_S)
-    if r.returncode != 0:
-        raise SystemExit(f"PREFLIGHT FAILED at {name}: exit {r.returncode}\n{(r.stdout + r.stderr)[-1500:]}")
-    print(f"  ok  {name}")
+def run_in_world(cmd: list[str], env: dict, secrets: dict[str, str] | None = None, timeout: int = STEP_TIMEOUT_S):
+    """cmd as the agent runs it: in the sandbox, in the probe's workspace, with the environment it gets."""
+    launch = launch_agent(cmd, PROBE, env, secrets)
+    try:
+        # A group of its own, so a step that runs out of time takes everything it started with it.
+        proc = subprocess.Popen(launch.argv, cwd=PROBE / "workspace", env=launch.env, pass_fds=launch.fds,
+                                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                start_new_session=True)
+    finally:
+        launch.close()
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        out, err = proc.communicate()
+        raise SystemExit(f"PREFLIGHT FAILED: {cmd[0]} ran past {timeout}s\n{(out + err)[-1500:]}")
+    return subprocess.CompletedProcess(launch.argv, proc.returncode, out, err)
+
+
+def workload(env: dict) -> None:
+    first, _ = drive.WORLD.ports
+    r = run_in_world(["node", "drive.mjs", str(first), str(first + 1)], env)
+    out = r.stdout
+    for line in out.splitlines():
+        if line.startswith("STEP OK: "):
+            print(f"  ok  {line[len('STEP OK: '):]}")
+    if r.returncode != 0 or "STEP FAILED" in out:
+        raise SystemExit(f"PREFLIGHT FAILED: exit {r.returncode}\n{(out + r.stderr)[-2000:]}")
+
+
+def isolation(env: dict) -> None:
+    script = ISOLATION_SCRIPT.format(repo=REPO_ROOT, suite=PACK / "acceptance", home=Path.home(),
+                                     secret_words="|".join(SECRET_WORDS))
+    r = run_in_world(["sh", "-c", script], env)
+    open_ = [l for l in r.stdout.splitlines() if l.endswith(" OPEN")]
+    if open_ or r.stdout.count(" refused") != 5:
+        raise SystemExit("PREFLIGHT FAILED: the sandbox lets the agent through:\n" + (r.stdout + r.stderr)[-800:])
+    print("  ok  the repository, the held-out suite, the home directory and the owner's environment are closed")
 
 
 # The Claude Code probe runs a small model: it only has to try to list a directory and report back.
@@ -76,15 +149,13 @@ def claude_probe_verdict(events: list[dict], secret_name: str) -> tuple[bool, st
 
 def claude_probe(env: dict) -> None:
     from clients import ClaudeClient
-    client = ClaudeClient(PROBE)
+    view = sandbox.view_root(PROBE)
+    client = ClaudeClient(PROBE, view=view)
     client.write_config("", CLAUDE_PROBE_MODEL, 0, 0)
     target = PACK / "acceptance" / "tests"
     prompt = f"Use the Bash tool to run exactly: ls {target}  -- then reply with the command's output only."
-    full = {**env, **client.env()}
-    for k in client.env_remove:
-        full.pop(k, None)
-    r = subprocess.run(sandboxed(client.command(CLAUDE_PROBE_MODEL, prompt), own_dir=PROBE), cwd=PROBE / "workspace",
-                       env=full, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=CLAUDE_PROBE_TIMEOUT_S)
+    r = run_in_world(client.command(CLAUDE_PROBE_MODEL, prompt), {**env, **client.env()}, client.secrets(),
+                     timeout=CLAUDE_PROBE_TIMEOUT_S)
     events = []
     for line in r.stdout.splitlines():
         try:
@@ -97,66 +168,26 @@ def claude_probe(env: dict) -> None:
     print(f"  ok  claude code: {why}")
 
 
-def visible_outside_packages(own_dir: Path) -> list[Path]:
-    """The package directories and manifests above own_dir (drive.outside_packages) that exist on this machine and
-    that a sandboxed command can still read: there must be none, or an agent's build can use a package it never
-    declared (Sonnet 5.5 v2-r1, 1 Oct 2026). A masked one reads as empty (Linux) or is refused (macOS)."""
-    seen = []
-    for p in outside_packages(own_dir):
-        if p.exists():
-            r = subprocess.run(sandboxed(["ls" if p.is_dir() else "cat", str(p)], own_dir=own_dir),
-                               capture_output=True, text=True)
-            if r.returncode == 0 and r.stdout.strip():
-                seen.append(p)
-    return seen
-
-
 def main() -> None:
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--client", default="pi")
     a = ap.parse_args()
+    from clients import CLIENTS
     shutil.rmtree(PROBE, ignore_errors=True)
     ws = PROBE / "workspace"
     ws.mkdir(parents=True)
     (ws / "package.json").write_text(json.dumps(PACKAGE, indent=2))
     for name, body in FILES.items():
         (ws / name).write_text(body)
-    env = {**os.environ, **agent_env(PROBE)}
-    server = None
+    drive.WORLD = sandbox.world_for(PROBE.name, None, CLIENTS[a.client].presets, None)
+    env = agent_env(PROBE)
     try:
-        step("npm install", ["npm", "install", "--no-audit", "--no-fund"], env, ws)
-        step("vite build", ["npm", "run", "build"], env, ws)
-        log = (PROBE / "wrangler.log").open("w")
-        server = subprocess.Popen(sandboxed(["npx", "wrangler", "dev", "--port", str(PORT), "--ip", "127.0.0.1"],
-                                            own_dir=PROBE), cwd=ws, env=env, stdout=log, stderr=subprocess.STDOUT)
-        deadline = time.time() + SERVER_READY_S
-        while True:
-            try:
-                urllib.request.urlopen(f"http://127.0.0.1:{PORT}/", timeout=2)
-                break
-            except OSError:
-                if time.time() > deadline or server.poll() is not None:
-                    raise SystemExit("PREFLIGHT FAILED at wrangler dev:\n" + (PROBE / "wrangler.log").read_text()[-1500:])
-                time.sleep(1)
-        print("  ok  wrangler dev serves over HTTP")
-        step("playwright browsers", ["npx", "playwright", "install", "chromium"], env, ws)
-        step("chromium loads the page", ["node", "browse.mjs"], env, ws)
-        leak = subprocess.run(sandboxed(["ls", str(PACK / "acceptance")], own_dir=PROBE),
-                              capture_output=True, text=True)
-        if leak.returncode == 0:
-            raise SystemExit("PREFLIGHT FAILED: the sandbox can read the held-out acceptance suite")
-        print("  ok  held-out suite is hidden")
-        if seen := visible_outside_packages(PROBE):
-            raise SystemExit("PREFLIGHT FAILED: the sandbox can read packages above the agent's workspace: "
-                             + ", ".join(str(p) for p in seen))
-        print("  ok  no packages above the workspace are readable")
+        workload(env)
+        isolation(env)
         if a.client == "claude":
             claude_probe(env)
     finally:
-        subprocess.run(["pkill", "-f", str(ws)], capture_output=True)
-        if server:
-            server.terminate()
         shutil.rmtree(PROBE, ignore_errors=True)
     print("preflight passed")
 

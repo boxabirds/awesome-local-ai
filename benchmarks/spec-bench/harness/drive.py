@@ -49,6 +49,7 @@ import progress_file
 import provenance
 import publicise
 import roots
+import sandbox
 from hostenv import IS_MAC, THERMAL_OK, mem_free_pct
 from clients import CLIENTS, PI_THINKING_LEVELS, empty_state
 
@@ -70,62 +71,35 @@ PACK = PK.dir
 # All benchmark state lives under one hidden folder, never loose in the home directory: work/ (one
 # folder per run), keys/ (grading keys), reference/ (imported builds and transcripts), series logs.
 BENCH_HOME = hostenv.bench_home()
-# Where the agents work: WORK_ROOT/<id>/workspace, the id a hash of the run's long name (work_dir_for). Short and
-# neutral on purpose: the agent's cwd is under it, pi puts the cwd in the system prompt and every command shows it,
-# and the old name (~/.vidi-bench/work/<model>__<engine>__…__benchmarks__vidi__<run>) told every model it was in a
-# benchmark (46 Qwen stories said so; 594 tool calls mistyped it). A fixed path such as /w is not possible without
-# root on either platform (bwrap can't make a mount point on the host's /, sandbox-exec can't remap a path, and a
-# symlink is resolved by node's process.cwd()), so the directory is real and its name is short. The long name is
-# kept for people and tools as a symlink under the bench home (WORK_LINKS, link_work_dir).
-# What the model can still see: its cwd and $HOME, ~/.w/<id>/workspace and ~/.w/<id>/agent-home (and `pwd`, error
-# messages and git's paths under them); in a process listing on macOS the sandbox profile with the paths it denies
-# (the bench home, the results checkout), on Linux bwrap's arguments with the same; PATH, which may name
-# ~/.dbench/tools; its browsers' path ~/.cache/vidi-agent-ms-playwright (vidi is the app's name, in the spec too).
+# Where the agents work: WORK_ROOT/<id>/workspace, the id a hash of the run's long name (work_dir_for). The agent's own
+# directory is shown to it at /w on Linux (sandbox.py, bubblewrap binds it there); macOS cannot remap a path, so there
+# the directory really is short and neutral: ~/.w/<id>. The long name (~/.vidi-bench/work/<model>__<engine>__…) is kept
+# for people and tools as a symlink under the bench home (WORK_LINKS, link_work_dir) and never reaches the agent.
+# What the model can still see: on Linux nothing of where the run is (its cwd is /w/workspace, `$HOME` /w/agent-home;
+# only /proc/self/mountinfo names the source of the mount); on macOS its cwd and $HOME, /Users/<user>/.w/<id>/workspace
+# and …/agent-home, and `pwd`, error messages and git's paths under them; PATH, which names where node and the client
+# are; its browsers' path ~/.cache/vidi-agent-ms-playwright (vidi is the app's name, in the spec too).
 WORK_ROOT_NAME = ".w"
 WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", Path.home() / WORK_ROOT_NAME)).resolve()
 WORK_LINKS = BENCH_HOME / "work"
 WORK_ID_CHARS = 10
-# The harness's, run.sh's and dbench's own variables name the results checkout, the bench home and the run: the
-# agent inherits none of them (inherited_env). PATH is inherited as it is, whatever it names.
-HARNESS_ENV_PREFIXES = ("VIDI_", "SPEC_BENCH_", "DBENCH_", "BENCH_")
-# Nothing the agent runs may read these: the harness + held-out suite and every run's records (both roots: the
-# results checkout, and the code's own directory when it is a release), the user's own agent
-# config/skills/sessions, and other runs' work directories (WORK_ROOT minus the agent's own).
-SANDBOX_DENY = [*dict.fromkeys([REPO_ROOT, CODE_ROOT]), *(Path.home() / p for p in
-                (".claude", ".agents", ".codex", ".config/opencode", ".local/share/opencode", ".mtplx",
-                 ".dbench",
-                 # the RTX 4090 machine's file share held a clone of this repo, reference builds and all (25 Sep 2026).
-                 "sambashare")),
-                # The private pack checkout, whichever pack is running: it holds every pack's held-out suite.
-                *[r for r in [packdir.private_checkout()] if r.is_dir()],
-                # The held-out suite's browsers: an agent's `playwright install` would delete them.
-                hostenv.playwright_cache(Path.home()),
-                # All bench state (keys, reference builds, other runs); the agent's own run is reopened.
-                BENCH_HOME]
-# Denied trees that must still be readable, read-only: dbench installs the agents' tools (pi, uv) under
-# ~/.dbench/tools, while the rest of ~/.dbench (token, jobs, repo checkouts, other runs' builds) stays hidden.
-SANDBOX_REOPEN_RO = [Path.home() / ".dbench" / "tools"]
-# Each run's agent has a temporary directory of its own, inside its run's work dir (so the sandbox already opens it
-# to that agent alone): TMPDIR points there, and the machine's shared temp dirs are out of reach. Agents shared /tmp
-# until 30 Sep 2026, when a run found another run's leftover git worktree at /tmp/vidi-baseline; the held-out suite
-# also keeps its app's state in the harness's temp dir (os.tmpdir()/vidi-accept-*).
-AGENT_TMP = "tmp"
+# The agent runs in the deny-by-default agent-sandbox (sandbox.py): it sees its own run directory and what the
+# toolchain needs, and nothing else exists for it. Its temporary directory is its own (TMPDIR; /tmp on Linux), inside
+# its run's work dir. Agents shared /tmp until 30 Sep 2026, when a run found another run's leftover git worktree at
+# /tmp/vidi-baseline; the held-out suite keeps its app's state in the harness's temp dir (os.tmpdir()/vidi-accept-*).
+AGENT_TMP = sandbox.TMP_DIR
+# Beside the work dirs, outside every agent's reach: each run's proxy log, one JSON line per request the agent's
+# sandbox made through its allow-listing proxy (allowed or refused). Local to the machine, never published.
+EGRESS_DIR = "egress"
 # In a run's work dir: the agent's repository, and in it the pack's spec. The spec is the agent's to read and never
-# to write: its files' read-only mode is only a hint (the agent is the same user), so the sandbox refuses the
-# write (sandboxed). 13 recorded runs have stories in which the agent changed it, mostly the Status column of a
+# to write: its files' read-only mode is only a hint (the agent is the same user), so the sandbox mounts it read-only
+# (sandbox.launch). 13 recorded runs have stories in which the agent changed it, mostly the Status column of a
 # story's tasks.md (one rewrote the file): its own progress goes in PROGRESS.md instead (progress_file.py).
-WORKSPACE_DIR = "workspace"
-SPEC_DIR = "spec"
+WORKSPACE_DIR = sandbox.WORKSPACE_DIR
+SPEC_DIR = sandbox.SPEC_DIR
 # CLAUDE_CODE_TMPDIR: Claude Code ignores TMPDIR for its own temp files and uses /tmp/claude-<uid> unless this is
 # set; with /tmp denied it couldn't see that dir existed and failed to start (EEXIST, 1 Oct 2026).
 TMP_ENV = ("TMPDIR", "TMP", "TEMP", "CLAUDE_CODE_TMPDIR")
-# Linux: bound over by the run's own temp dir (bwrap), so a hard-coded /tmp path still works, privately.
-SHARED_TMP = [Path("/tmp"), Path("/var/tmp")]
-# macOS: denied (sandbox-exec can't remap a path), with the per-user temp dir (confstr, what os.tmpdir() gives the
-# harness and what BSD mktemp uses whatever TMPDIR says). In that dir only names mktemp makes (tmp.XXXXXXXX, unguessable
-# and, since the dir can't be listed, unfindable) and xcrun's cache (/usr/bin/git's shim writes it on every call) stay
-# open, so `mktemp -d` and git keep working.
-USER_TEMP_OPEN = r"(tmp\.|xcrun_db)"
 CONTEXT_BANDS = [(0, 16_000), (16_000, 32_000), (32_000, 64_000), (64_000, 100_000), (100_000, 10**9)]
 CONDITION_POLL_S = 30        # how often run conditions are sampled during a story / while waiting
 # The mirror is committed into the outer repo: no nested .git (it would become a
@@ -225,9 +199,13 @@ Do not start any other story. Do not offer further work. Do not ask what to do n
 # is the pack's and is not edited here: an agent that does as it is asked finishes on its first stop, with no message.
 DONE_LINE_PROMPT_TMPL = ("After that commit, run `git rev-parse HEAD` and end your final reply with exactly this line: "
                          "STORY {n} DONE <commit hash>. The story is not finished until you have sent it.")
-# In the same paragraph: the spec can't be written (sandboxed), and where the agent's account of its tasks goes.
+# In the same paragraph: the spec can't be written (sandbox.launch), and where the agent's account of its tasks goes.
 SPEC_READ_ONLY_PROMPT = ("`spec/` is read-only: you cannot change it, and the Status column in tasks.md is not yours to "
                          "update. Track your progress on the tasks in `PROGRESS.md` (todo, doing, done, blocked).")
+# And its ports: the run's own block, which the sandbox lets it serve on (on macOS the only ones; elsewhere the same, by name).
+PORTS_PROMPT = (f"Every server you start (a dev server, `wrangler dev` and its inspector port, a test's web server) must "
+                f"listen on a port from ${sandbox.PORT_FIRST_ENV} to ${sandbox.PORT_LAST_ENV} (environment variables: "
+                f"{sandbox.PORTS_PER_RUN} ports, yours alone); other ports may be refused.")
 # The DONE line, on a line of its own; code or bold marks around it (a model's habit) are not part of it.
 DONE_HASH_MIN_CHARS = 7
 DONE_HASH_MAX_CHARS = 40
@@ -248,8 +226,12 @@ TOOL_HANG_POLL_S = 30
 KILL_GRACE_S = 2          # between SIGTERM and SIGKILL for a hung tool's process group
 TOOL_EVENT_TYPES = {"tool_execution_start", "tool_execution_update", "tool_use"}
 EVENT_TAIL_BYTES = 64 * 1024
+# The harness's own commits (the spec, PROGRESS.md, a story's snapshot) are by this name.
 GIT_IDENTITY = {"GIT_AUTHOR_NAME": "vidi-agent", "GIT_AUTHOR_EMAIL": "agent@vidi.invalid",
                 "GIT_COMMITTER_NAME": "vidi-agent", "GIT_COMMITTER_EMAIL": "agent@vidi.invalid"}
+# The agent's own commits are by a name that says nothing: its environment names no benchmark (sandbox.ENV_ALLOWED).
+AGENT_GIT_IDENTITY = {"GIT_AUTHOR_NAME": "agent", "GIT_AUTHOR_EMAIL": "agent@localhost.invalid",
+                      "GIT_COMMITTER_NAME": "agent", "GIT_COMMITTER_EMAIL": "agent@localhost.invalid"}
 
 
 def sh(cmd: list[str], cwd: Path, env: dict | None = None, check: bool = True) -> str:
@@ -268,77 +250,17 @@ def tree_hash(root: Path) -> str:
     return h.hexdigest()
 
 
-def _sb_quote(p: Path) -> str:
-    return '"' + str(p.resolve()).replace('\\', '\\\\').replace('"', '\\"') + '"'
+# The agent's world for this run (sandbox.World), made in main(). Every agent session is wrapped in it
+# (launch_agent); with none a session does not start.
+WORLD: sandbox.World | None = None
 
 
-@functools.lru_cache(maxsize=None)
-def user_temp_dir() -> Path | None:
-    """macOS's per-user temp dir (/var/folders/…/T), resolved; None elsewhere. Python's os.confstr doesn't know
-    the name, so getconf is asked, once."""
-    if not IS_MAC:
-        return None
-    p = subprocess.run(["getconf", "DARWIN_USER_TEMP_DIR"], capture_output=True, text=True)
-    d = p.stdout.strip()
-    return Path(d).resolve() if p.returncode == 0 and d else None
-
-
-# Node and TypeScript resolve packages from node_modules in every directory above the workspace, and npm takes
-# the nearest package.json above as the project. A package on the machine (the Macs had ~/node_modules/@types/node)
-# then stands in for one the agent never declared: Sonnet 5.5 v2-r1's build passed where the agent worked and
-# failed from a clean clone (1 Oct 2026). Hidden from the agent, in every directory above its run.
-OUTSIDE_PACKAGE_DIRS = ("node_modules",)
-OUTSIDE_PACKAGE_FILES = ("package.json", "package-lock.json")
-
-
-def outside_packages(own_dir: Path) -> list[Path]:
-    """The package directories and manifests of every directory above own_dir, existing or not."""
-    return [a / name for a in own_dir.resolve().parents for name in (*OUTSIDE_PACKAGE_DIRS, *OUTSIDE_PACKAGE_FILES)]
-
-
-def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
-    """Wrap cmd in a sandbox that hides everything in SANDBOX_DENY except own_dir, with own_dir/AGENT_TMP as the
-    agent's only temp dir, and own_dir's workspace spec read-only.
-
-    macOS: sandbox-exec; SBPL applies the last matching rule, so the allow that re-opens own_dir wins even though
-    it sits under WORK_ROOT, and the deny after it closes the spec to writing again. Linux: bubblewrap (see
-    hostenv.bwrap_wrap), which mounts in order: the spec's read-only bind comes after own_dir's.
-    """
-    own_tmp = own_dir / AGENT_TMP
-    own_tmp.mkdir(parents=True, exist_ok=True)   # bwrap can't bind a missing source; agent_env makes it too
-    spec = own_dir / WORKSPACE_DIR / SPEC_DIR
-    if not IS_MAC:
-        args = hostenv.bwrap_wrap([], own_dir, [*SANDBOX_DENY, WORK_ROOT, *outside_packages(own_dir)],
-                                  reopen_ro=SANDBOX_REOPEN_RO)
-        own = str(own_dir.resolve())
-        assert args[-4:] == ["--bind", own, own, "--"], "hostenv.bwrap_wrap must end by binding own_dir back"
-        # After the masks (bwrap mounts in order; a later mount covers an earlier one) and before own_dir, which
-        # may itself sit under /tmp and must stay visible.
-        tmp = [a for p in SHARED_TMP for a in ("--bind", str(own_tmp.resolve()), str(p))]
-        spec_ro = ["--ro-bind", str(spec.resolve()), str(spec.resolve())] if spec.is_dir() else []
-        return [*args[:-4], *tmp, *args[-4:-1], *spec_ro, "--", *cmd]
-    user_tmp = user_temp_dir()
-    denied = [*SANDBOX_DENY, WORK_ROOT, *(p.resolve() for p in SHARED_TMP), *([user_tmp] if user_tmp else [])]
-    deny = " ".join([*(f"(subpath {_sb_quote(p)})" for p in denied),
-                     *(f"({'subpath' if p.name in OUTSIDE_PACKAGE_DIRS else 'literal'} {_sb_quote(p)})"
-                       for p in outside_packages(own_dir))])
-    user_tmp_rules = (f"(allow file-read-metadata (literal {_sb_quote(user_tmp)}))"
-                      f'(allow file-read* file-write* (regex #"^{re.escape(str(user_tmp))}/{USER_TEMP_OPEN}"))'
-                      if user_tmp else "")
-    # Tools resolve real paths by lstat()ing every ancestor of a path (node's realpath, the
-    # wrangler watcher). Allow metadata only -- stat, not reading or listing -- on the
-    # ancestors of own_dir, so path resolution works while siblings stay hidden.
-    reopen = [p for p in SANDBOX_REOPEN_RO if p.exists()]
-    ancestors = " ".join(f"(literal {_sb_quote(a)})" for d in [own_dir, *reopen] for a in d.resolve().parents)
-    reopen_rules = "".join(f"(allow file-read* (subpath {_sb_quote(p)}))" for p in reopen)
-    profile = (f"(version 1)(allow default)"
-               f"(deny file-read* file-write* {deny})"
-               f"(allow file-read-metadata {ancestors})"
-               f"{user_tmp_rules}"
-               f"{reopen_rules}"
-               f"(allow file-read* file-write* (subpath {_sb_quote(own_dir)}))"
-               f"(deny file-write* (subpath {_sb_quote(spec)}))")
-    return ["sandbox-exec", "-p", profile, *cmd]
+def launch_agent(cmd: list[str], own_dir: Path, env: dict, secrets: dict[str, str] | None = None,
+                 world: sandbox.World | None = None) -> sandbox.Launch:
+    """The one place an agent command is wrapped: in the agent-sandbox (or, with SPEC_BENCH_SANDBOX=permissive, in
+    nothing), with exactly the environment the allow-list (sandbox.ENV_ALLOWED) lets through."""
+    own_dir.joinpath(AGENT_TMP).mkdir(parents=True, exist_ok=True)   # the sandbox binds it as /tmp; agent_env makes it too
+    return sandbox.launch(cmd, own_dir, world or WORLD, env, secrets)
 
 
 def combination_label(run: Path) -> str:
@@ -392,16 +314,6 @@ def link_work_dir(run: Path, work: Path) -> None:
         print(f"work dir moved to {work} (its long name is now a link)", flush=True)
     if not link.is_symlink():
         link.symlink_to(work)
-
-
-def inherited_env(environ, denied: tuple[Path, ...] | None = None) -> dict:
-    """The environment the agent inherits: everything but the harness's own variables (HARNESS_ENV_PREFIXES) and,
-    PATH apart, any variable naming a root the sandbox denies (the results checkout, the code, the bench home):
-    a tool's own variable can name the harness's directory (pyenv's PYENV_DIR did), and naming a hidden path
-    only tells the agent what it is."""
-    roots_ = [str(p) for p in (denied if denied is not None else (REPO_ROOT, CODE_ROOT, BENCH_HOME))]
-    return {k: v for k, v in environ.items()
-            if not k.startswith(HARNESS_ENV_PREFIXES) and (k == "PATH" or not any(r in v for r in roots_))}
 
 
 def mirror(ws: Path, dest: Path) -> None:
@@ -532,6 +444,15 @@ def _rebase_in_progress(repo_root: Path, git: list[str]) -> bool:
     return False
 
 
+def _ran_without_sandbox(run: Path) -> bool:
+    """run.json says the run's agent was started with no sandbox. A run that records nothing about it (before the
+    sandbox was recorded) is not taken for one."""
+    try:
+        return json.loads((run / "run.json").read_text()).get("sandbox", {}).get("mode") == sandbox.PERMISSIVE
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
 def record_refusal(repo_root: Path, run: Path, git: list[str]) -> str | None:
     """Why this run must not be recorded in this checkout, or None when it may be. Checked before anything is
     written or staged. The reason goes into metrics.json, which is public, so it names no path; the paths are
@@ -548,6 +469,8 @@ def record_refusal(repo_root: Path, run: Path, git: list[str]) -> str | None:
         why = f"records may not be committed in this checkout in this process (${roots.NO_RECORD_ENV})"
     elif where == root or root not in where.parents:
         why = "the run's directory is not inside the results root"
+    elif _ran_without_sandbox(run):
+        why = "the run's agent was not in the sandbox (SPEC_BENCH_SANDBOX=permissive)"
     else:
         top = (subprocess.run([*git, "rev-parse", "--show-toplevel"], cwd=root, capture_output=True, text=True)
                if root.is_dir() else None)
@@ -823,7 +746,7 @@ SPEC_FILE_MODE = 0o444
 
 def spec_files_read_only(ws: Path) -> None:
     """The spec's files read-only, as a hint to the agent; directories stay writable so runs can be mirrored and
-    deleted. What stops a write is the sandbox (sandboxed), and behind it the check after every story (restore_spec)."""
+    deleted. What stops a write is the sandbox (sandbox.launch), and behind it the check after every story (restore_spec)."""
     for f in (ws / SPEC_DIR).rglob("*"):
         if f.is_file():
             f.chmod(SPEC_FILE_MODE)
@@ -955,41 +878,57 @@ def _spec_hash(root: Path) -> str:
             h.update(f.read_bytes())
     return h.hexdigest()
 
-def link_agent_browsers(home: Path, real_home: Path) -> None:
-    """Put the agents' browsers where Playwright looks by default in the agent's home, as well as in
-    PLAYWRIGHT_BROWSERS_PATH, so an agent that checks `~/Library/Caches/ms-playwright` (or
-    `~/.cache/ms-playwright`) finds them instead of searching the disk."""
+def link_agent_browsers(work: Path, home: Path, view: Path, real_home: Path) -> None:
+    """The agents' browsers, shared by every run and read-only, shown in a browsers directory of the run's own: one
+    link to each browser of the shared cache, so `playwright install` takes its lock and writes its bookkeeping in
+    the run's directory, finds every browser complete and downloads nothing (a read-only cache made it hang). Also
+    linked from where Playwright looks by default in the agent's home, so an agent that checks
+    `~/Library/Caches/ms-playwright` (or `~/.cache/ms-playwright`) finds them instead of searching the disk. The links
+    are written as the agent sees them (view), which on Linux is not where the run is."""
+    shared = hostenv.agent_playwright_cache(real_home)
+    browsers = work / sandbox.BROWSERS_DIR
+    browsers.mkdir(parents=True, exist_ok=True)
+    for entry in shared.iterdir() if shared.is_dir() else ():
+        link = browsers / entry.name
+        if not link.is_symlink() and not link.exists():
+            link.symlink_to(entry)
     default = hostenv.playwright_cache(home)
-    target = hostenv.agent_playwright_cache(real_home)
     if default.is_symlink() or default.exists():
         return
     default.parent.mkdir(parents=True, exist_ok=True)
-    default.symlink_to(target, target_is_directory=True)
+    default.symlink_to(view / sandbox.BROWSERS_DIR, target_is_directory=True)
 
 
-def agent_env(work: Path) -> dict:
-    """Isolated HOME + XDG so the user's own config, skills and plugins never reach the agent."""
-    home = work / "agent-home"
+def agent_env(work: Path, view: Path | None = None) -> dict:
+    """What the agent is to have in its environment, named as it sees its paths (view: where it sees `work`; /w on
+    Linux). Not the user's config, skills or plugins (a home of its own) and nothing else: sandbox.process_env passes
+    on only the names in sandbox.ENV_ALLOWED."""
+    view = view or sandbox.view_root(work)
+    home = work / sandbox.HOME_DIR
     home.mkdir(parents=True, exist_ok=True)
-    tmp = work / AGENT_TMP
-    tmp.mkdir(parents=True, exist_ok=True)
-    real_home = Path.home()
-    link_agent_browsers(home, real_home)
+    (work / AGENT_TMP).mkdir(parents=True, exist_ok=True)
+    link_agent_browsers(work, home, view, Path.home())
+    agent_home = view / sandbox.HOME_DIR
+    tmp = sandbox.tmp_view(view)
+    first, last = sandbox.ports_for(work.name)
     return {
-        "HOME": str(home),
+        "HOME": str(agent_home),
+        "TERM": sandbox.TERM_VALUE,
         **{k: str(tmp) for k in TMP_ENV},
-        # Node tools (OpenCode, pi) trust $PWD; an inherited one points into the denied repo.
-        "PWD": str(work / "workspace"),
-        "OLDPWD": str(work / "workspace"),
-        "XDG_CONFIG_HOME": str(home / ".config"),
-        "XDG_DATA_HOME": str(home / ".local" / "share"),
-        "XDG_CACHE_HOME": str(home / ".cache"),
-        "XDG_STATE_HOME": str(home / ".local" / "state"),
-        # Shared caches only: identical for every run and they hold no instructions.
-        "npm_config_cache": str(real_home / ".npm"),
-        "PLAYWRIGHT_BROWSERS_PATH": str(hostenv.agent_playwright_cache(real_home)),
+        # Node tools (OpenCode, pi) trust $PWD; an inherited one points outside the sandbox.
+        "PWD": str(view / WORKSPACE_DIR),
+        "OLDPWD": str(view / WORKSPACE_DIR),
+        "XDG_CONFIG_HOME": str(agent_home / ".config"),
+        "XDG_DATA_HOME": str(agent_home / ".local" / "share"),
+        "XDG_CACHE_HOME": str(agent_home / ".cache"),
+        "XDG_STATE_HOME": str(agent_home / ".local" / "state"),
+        # npm's cache is the run's own (under HOME): a cache shared and writable between runs is a channel between them.
+        "PLAYWRIGHT_BROWSERS_PATH": str(view / sandbox.BROWSERS_DIR),
         "WRANGLER_SEND_METRICS": "false",
-        **GIT_IDENTITY,
+        "npm_config_update_notifier": "false",
+        sandbox.PORT_FIRST_ENV: str(first),
+        sandbox.PORT_LAST_ENV: str(last),
+        **AGENT_GIT_IDENTITY,
     }
 
 
@@ -1018,7 +957,7 @@ def stories_so_far(processed: list[dict], this_id: int) -> str:
 def harness_paragraph(story_id: int) -> str:
     """The harness's own last paragraph of a story's prompt: how the agent says the story is finished (the stop
     rule), and where its progress goes now that the spec is read-only."""
-    return f"{DONE_LINE_PROMPT_TMPL.format(n=story_id)} {SPEC_READ_ONLY_PROMPT}"
+    return f"{DONE_LINE_PROMPT_TMPL.format(n=story_id)} {SPEC_READ_ONLY_PROMPT} {PORTS_PROMPT}"
 
 
 def render_prompt(story: dict, title: str, processed: list[dict], scope: dict) -> str:
@@ -1231,15 +1170,17 @@ CONTAINMENT = None
 def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path,
               resume_from: str | None = None, fork: bool = True) -> dict:
     """Run (or resume) one sandboxed agent session; returns counts, session id, error and loop flag."""
-    cmd = hostenv.oom_first(sandboxed(client.command(model_id, prompt, resume_from, fork=fork), own_dir=ws.parent))
+    launch = launch_agent(client.command(model_id, prompt, resume_from, fork=fork), ws.parent,
+                          {**env, **client.env()}, client.secrets())
+    cmd = hostenv.oom_first(launch.argv)
+    launcher_env = launch.env
     if CONTAINMENT:
         cmd = CONTAINMENT.wrap(cmd)
+        launcher_env = {**launch.env, **CONTAINMENT.launcher_env()}   # systemd-run's; agent-sandbox drops it
     t0 = time.monotonic()
-    full_env = {**inherited_env(os.environ), **env, **client.env()}
-    for k in getattr(client, "env_remove", ()):  # e.g. an API key that would override subscription auth
-        full_env.pop(k, None)
-    proc = subprocess.Popen(cmd, cwd=ws, env=full_env, stdin=subprocess.DEVNULL,
+    proc = subprocess.Popen(cmd, cwd=ws, env=launcher_env, stdin=subprocess.DEVNULL, pass_fds=launch.fds,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+    launch.close()
     if CONTAINMENT:
         CONTAINMENT.started(proc.pid)
     global AGENT_ROOT_PID
@@ -1387,7 +1328,7 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
 
 
 # Processes that ARE the agent (or its sandbox wrapper): never killed while a story runs.
-AGENT_PROC_MARKERS = ("pi-coding-agent", "sandbox-exec", "opencode", "claude ")
+AGENT_PROC_MARKERS = ("pi-coding-agent", "agent-sandbox", "opencode", "claude ")
 
 
 def is_agent_process(pid: int, run_dir: Path) -> bool:
@@ -2091,10 +2032,14 @@ def main() -> None:
     if missing:
         ap.error(f"{', '.join(missing)} required (or --dry-run)")
 
+    if sandbox.mode() == sandbox.PERMISSIVE and a.record:
+        raise SystemExit(f"{sandbox.MODE_ENV}={sandbox.PERMISSIVE} runs the agent with no sandbox: it is for the "
+                         f"harness's own tests and cannot record a benchmark (--record)")
     run = a.run_dir.resolve()
     run.mkdir(parents=True, exist_ok=True)
     work = work_dir_for(run)
     link_work_dir(run, work)
+    view = sandbox.view_root(work)
     ws = work / WORKSPACE_DIR
     known_good = known_good_base(a.from_run.resolve(), stories[0]["id"]) if a.from_run else None
     if known_good:
@@ -2104,10 +2049,13 @@ def main() -> None:
         setup_workspace(ws)
     (run / "work_dir.txt").write_text(str(work))
     spec_hash = tree_hash(ws / SPEC_DIR)
-    env = agent_env(work)
+    env = agent_env(work, view)
     if a.client_thinking and a.client != "pi":
         raise SystemExit("--client-thinking applies to pi only")
-    client = CLIENTS[a.client](work, thinking=a.client_thinking) if a.client_thinking else CLIENTS[a.client](work)
+    client = (CLIENTS[a.client](work, thinking=a.client_thinking, view=view) if a.client_thinking
+              else CLIENTS[a.client](work, view=view))
+    global WORLD
+    WORLD = sandbox.world_for(work.name, a.base_url, client.presets, BENCH_HOME / EGRESS_DIR / f"{work.name}.jsonl")
     client.write_config(a.base_url, a.model_id, a.context_limit, a.output_limit, compact_at=a.compact_at)
     metrics = load_metrics(run)
     metrics.update({"pack": PK.name, "scope": scope_label, "model_id": a.model_id, "client": a.client,

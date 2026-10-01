@@ -43,6 +43,7 @@ import rescore
 import roots
 import scoring_tools
 import tagsuite
+from sandbox_testing import no_sandbox
 
 pytestmark = pytest.mark.skipif(not (shutil.which("node") and shutil.which("npm") and shutil.which("npx")),
                                 reason="needs node, npm and npx")
@@ -331,7 +332,7 @@ def drive_run(root: Path, mp: pytest.MonkeyPatch, client=None, script_text: str 
     mp.setitem(drive.CLIENTS, client.name, client)
     mp.setattr(drive, "WORK_ROOT", root / "work")
     mp.setattr(drive, "WORK_LINKS", root / "links")
-    mp.setattr(drive, "sandboxed", lambda cmd, own_dir: cmd)       # sandbox-exec is macOS's; the test runs anywhere
+    no_sandbox(mp)                                                  # the sandbox is the real one's own tests'; this runs anywhere
     mp.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
     mp.setattr(drive, "ConditionSampler", QuietSampler)
     mp.setattr(progress, "baselines", baselines)                   # other runs of this repo: not this test's

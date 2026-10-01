@@ -1,9 +1,9 @@
 """drive.py's recording path: each run's agent has a temporary directory of its own (item 2), and the conversation
 log committed with each story is lossless (item 4).
 
-Temp dir dimensions: the agent's environment; the macOS and Linux command shapes; behaviour in the real sandbox
-(skipped where the platform's sandbox tool is missing): own temp usable, /tmp and another run's temp hidden, the
-held-out suite's scratch hidden, mktemp still works.
+Temp dir dimensions: the agent's environment; behaviour in the real sandbox (skipped where the platform's sandbox
+tool is missing): own temp usable, /tmp and another run's temp hidden, the held-out suite's scratch hidden, mktemp
+still works.
 Log dimensions: round trip (every non-delta event identical bar home redaction; deltas dropped but the first of each
 model call); timing kept (accounting and conversation give the same answer as from the full log); size; the readers
 (claims, annotate, history, progress) read it as before; publishing leaves it whole up to its own cap."""
@@ -23,6 +23,8 @@ import pytest
 import drive
 import publicise
 import hostenv
+import sandbox
+from sandbox_testing import agent_run
 
 HOME = str(Path.home())
 T0 = 1_790_000_000.0
@@ -33,57 +35,17 @@ MIN_COMPRESSION = 10     # the lossless log is at least this many times smaller 
 
 def test_the_agent_s_tmpdir_is_its_own_run_s(tmp_path):
     work = tmp_path / "work" / "run-a"
-    env = drive.agent_env(work)
+    env = drive.agent_env(work, view=work)
     own = work / drive.AGENT_TMP
     assert own.is_dir()
-    assert env["TMPDIR"] == env["TMP"] == env["TEMP"] == str(own)
+    assert env["TMPDIR"] == env["TMP"] == env["TEMP"] == str(sandbox.tmp_view(work, enforced=True) if not hostenv.IS_MAC
+                                                              else own)
 
 
 def test_two_runs_get_different_temp_dirs(tmp_path):
-    a, b = drive.agent_env(tmp_path / "a"), drive.agent_env(tmp_path / "b")
-    assert a["TMPDIR"] != b["TMPDIR"]
-
-
-def test_macos_profile_hides_shared_temp_and_reopens_only_the_run_s_own(tmp_path, monkeypatch):
-    monkeypatch.setattr(drive, "IS_MAC", True)
-    monkeypatch.setattr(drive, "user_temp_dir", lambda: Path("/private/var/folders/zz/abc/T"))
-    own = tmp_path / "run"
-    own.mkdir()
-    cmd = drive.sandboxed(["true"], own_dir=own)
-    assert cmd[:2] == ["sandbox-exec", "-p"] and cmd[3:] == ["true"]
-    profile = cmd[2]
-    deny = profile[profile.index("(deny file-read* file-write*"):]
-    deny = deny[:deny.index(")(allow")]
-    # The shared temp dirs as this machine resolves them (drive.SHARED_TMP): /private/tmp and /private/var/tmp on
-    # macOS, where /tmp is a symlink; /tmp and /var/tmp where the profile is only built, never used (Linux).
-    shared = [str(p.resolve()) for p in drive.SHARED_TMP]
-    if hostenv.IS_MAC:
-        assert shared == ["/private/tmp", "/private/var/tmp"]
-    for p in (*shared, "/private/var/folders/zz/abc/T"):
-        assert f'(subpath "{p}")' in deny
-    # mktemp's own names and xcrun's cache stay usable in the user temp dir, which can't be listed.
-    assert '(allow file-read-metadata (literal "/private/var/folders/zz/abc/T"))' in profile
-    assert '(regex #"^/private/var/folders/zz/abc/T/(tmp\\.|xcrun_db)")' in profile
-    # The run's own directory (its temp dir inside) is the last allow, so it wins over every deny before it; the one
-    # rule after it closes the workspace's spec to writing (test_drive.py runs that in the real sandbox).
-    assert profile.endswith(f"(allow file-read* file-write* (subpath {drive._sb_quote(own)}))"
-                            f"(deny file-write* (subpath {drive._sb_quote(own / drive.WORKSPACE_DIR / drive.SPEC_DIR)}))")
-
-
-def test_linux_command_binds_the_run_s_temp_dir_over_tmp_before_its_own_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(drive, "IS_MAC", False)
-    own = tmp_path / "run"
-    own.mkdir()
-    cmd = drive.sandboxed(["true"], own_dir=own)
-    own_s, tmp_s = str(own.resolve()), str((own / drive.AGENT_TMP).resolve())
-    assert cmd[0] == "bwrap" and cmd[-2:] == ["--", "true"]
-    binds = [(cmd[i + 1], cmd[i + 2]) for i, a in enumerate(cmd) if a == "--bind"]
-    assert (tmp_s, "/tmp") in binds and (tmp_s, "/var/tmp") in binds
-    # After the masks (a mask would cover it) and before the run's own dir (which may itself be under /tmp).
-    assert binds.index((tmp_s, "/tmp")) < binds.index((own_s, own_s)) == len(binds) - 1
-    last_mask = max(i for i, a in enumerate(cmd) if a == "--tmpfs") if "--tmpfs" in cmd else 0
-    assert cmd.index(tmp_s) > last_mask
-    assert (own / drive.AGENT_TMP).is_dir()
+    a, b = drive.agent_env(tmp_path / "a", view=tmp_path / "a"), drive.agent_env(tmp_path / "b", view=tmp_path / "b")
+    assert (tmp_path / "a" / drive.AGENT_TMP).is_dir() and (tmp_path / "b" / drive.AGENT_TMP).is_dir()
+    assert (tmp_path / "a" / drive.AGENT_TMP) != (tmp_path / "b" / drive.AGENT_TMP)
 
 
 needs_sandbox = pytest.mark.needs_sandbox      # conftest.py: skipped where the sandbox tool is missing
@@ -104,9 +66,7 @@ def two_runs():
 
 
 def _in_sandbox(own: Path, script: str) -> subprocess.CompletedProcess:
-    env = {**os.environ, **drive.agent_env(own)}
-    return subprocess.run(drive.sandboxed(["/bin/sh", "-c", script], own_dir=own), cwd=own / "workspace", env=env,
-                          capture_output=True, text=True)
+    return agent_run(["/bin/sh", "-c", script], own)
 
 
 @needs_sandbox
@@ -114,7 +74,7 @@ def test_the_agent_writes_and_reads_its_own_temp_dir(two_runs):
     mine, _ = two_runs
     r = _in_sandbox(mine, 'echo mine > "$TMPDIR/f" && cat "$TMPDIR/f"')
     assert r.returncode == 0 and r.stdout.strip() == "mine", r.stderr
-    assert (mine / drive.AGENT_TMP / "f").read_text().strip() == "mine"
+    assert (mine / drive.AGENT_TMP / "f").read_text().strip() == "mine"          # the run's own tmp, on the host
 
 
 
@@ -141,39 +101,6 @@ def run_under_a_home_with_packages():
         shutil.rmtree(home, ignore_errors=True)
 
 
-def test_outside_packages_are_every_ancestor_s_node_modules_and_manifests(tmp_path):
-    own = tmp_path / "a" / "b" / "run"
-    got = drive.outside_packages(own)
-    for anc in (tmp_path / "a" / "b", tmp_path / "a", tmp_path, Path(tmp_path.anchor)):
-        assert anc.resolve() / "node_modules" in got and anc.resolve() / "package.json" in got
-    assert not [p for p in got if p.is_relative_to(own.resolve())]                 # the run's own are its own
-
-
-def test_macos_profile_denies_packages_above_the_run(tmp_path, monkeypatch):
-    monkeypatch.setattr(drive, "IS_MAC", True)
-    own = tmp_path / "home" / "bench" / "run"
-    own.mkdir(parents=True)
-    profile = drive.sandboxed(["true"], own_dir=own)[2]
-    deny = profile[:profile.index("(allow file-read-metadata")]
-    home = (tmp_path / "home").resolve()
-    assert f"(subpath {drive._sb_quote(home / 'node_modules')})" in deny
-    assert f"(literal {drive._sb_quote(home / 'package.json')})" in deny
-
-
-def test_linux_command_masks_packages_above_the_run_that_exist(tmp_path, monkeypatch):
-    monkeypatch.setattr(drive, "IS_MAC", False)
-    home = tmp_path / "home"
-    own = home / "bench" / "run"
-    own.mkdir(parents=True)
-    (home / "node_modules").mkdir()
-    (home / "package.json").write_text("{}")
-    cmd = drive.sandboxed(["true"], own_dir=own)
-    masks = [cmd[i + 1] for i, a in enumerate(cmd) if a == "--tmpfs"]
-    nulled = [cmd[i + 2] for i, a in enumerate(cmd) if a == "--ro-bind" and cmd[i + 1] == "/dev/null"]
-    assert str((home / "node_modules").resolve()) in masks and str((home / "package.json").resolve()) in nulled
-    assert str((home / "bench" / "node_modules").resolve()) not in masks        # absent: masking would create it
-
-
 @needs_sandbox
 def test_the_agent_cannot_read_packages_above_its_run(run_under_a_home_with_packages):
     home, own = run_under_a_home_with_packages
@@ -191,7 +118,7 @@ def test_node_resolves_the_workspace_s_packages_and_none_from_above(run_under_a_
     assert "mine" in r.stdout and "leaked" not in r.stdout and "Cannot find module 'leak'" in r.stderr, r.stderr[-600:]
 
 def test_claude_code_is_told_to_keep_its_temp_files_in_the_run_s_own(tmp_path):
-    env = drive.agent_env(tmp_path / "run-a")
+    env = drive.agent_env(tmp_path / "run-a", view=tmp_path / "run-a")
     assert env["CLAUDE_CODE_TMPDIR"] == env["TMPDIR"]
 
 
@@ -439,14 +366,3 @@ def test_the_publish_gate_still_reads_the_log(tmp_path):
     import publicise
     assert publicise.is_own_work("combinations/x/benchmarks/vidi/r/stories/01/agent-events.compact.jsonl.gz")
     assert not publicise.is_private("combinations/x/benchmarks/vidi/r/stories/01/agent-events.compact.jsonl.gz")
-
-
-
-@needs_sandbox
-def test_the_preflight_names_packages_above_the_run_that_the_agent_can_read(run_under_a_home_with_packages, monkeypatch):
-    import preflight
-    home, own = run_under_a_home_with_packages
-    assert [p for p in preflight.visible_outside_packages(own) if p.is_relative_to(home)] == []
-    monkeypatch.setattr(preflight, "sandboxed", lambda cmd, own_dir: cmd)        # a sandbox that hides nothing
-    seen = preflight.visible_outside_packages(own)
-    assert home / "node_modules" in seen and home / "package.json" in seen

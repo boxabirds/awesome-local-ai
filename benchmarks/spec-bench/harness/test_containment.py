@@ -208,3 +208,16 @@ def test_a_fake_agent_leaking_a_detached_server_through_an_interrupted_call_lose
     agent.wait(timeout=10)
     assert summary["enabled"] and summary["reaped"] == reaped and summary["units"]
     assert not s.current_members()
+
+
+def test_the_launcher_gets_the_user_managers_address_and_nothing_else_of_the_harness_s_environment(monkeypatch):
+    """systemd-run reaches the user's manager through XDG_RUNTIME_DIR and DBUS_SESSION_BUS_ADDRESS, so the launcher has them
+    (agent-sandbox drops them before the agent starts: sandbox.launch's --keep-env); not the owner's keys."""
+    monkeypatch.setenv("XDG_RUNTIME_DIR", "/run/user/1000")
+    monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/user/1000/bus")
+    monkeypatch.setenv("FAKE_API_KEY", "sk-canary")
+    assert C.StoryContainment("r", 1, enabled=True).launcher_env() == {
+        "XDG_RUNTIME_DIR": "/run/user/1000", "DBUS_SESSION_BUS_ADDRESS": "unix:path=/run/user/1000/bus"}
+    monkeypatch.delenv("DBUS_SESSION_BUS_ADDRESS")
+    assert C.StoryContainment("r", 1, enabled=True).launcher_env() == {"XDG_RUNTIME_DIR": "/run/user/1000"}
+    assert C.StoryContainment("r", 1, enabled=False).launcher_env() == {}

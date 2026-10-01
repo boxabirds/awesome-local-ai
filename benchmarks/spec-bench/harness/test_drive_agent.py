@@ -25,6 +25,7 @@ import drive
 import hostenv
 import progress
 from clients import PiClient
+from sandbox_testing import no_sandbox
 
 NOMINAL = {"ac": True, "low_power": False, "thermal": "nominal"}
 ON_BATTERY = {"ac": False, "low_power": False, "thermal": "nominal"}
@@ -103,7 +104,6 @@ class Containment:
 
 class Scripted(PiClient):
     """pi's events and counting, with a Python script in place of `pi`."""
-    env_remove = ("COV_API_KEY",)
 
     def __init__(self, work: Path, body: str):
         super().__init__(work)
@@ -131,7 +131,7 @@ class Scripted(PiClient):
 @pytest.fixture
 def session(tmp_path, monkeypatch):
     """run_agent with the sandbox and the OOM wrapper off; returns run(body, **kwargs) -> (result, client, events)."""
-    monkeypatch.setattr(drive, "sandboxed", lambda cmd, own_dir: cmd)
+    no_sandbox(monkeypatch)
     monkeypatch.setattr(hostenv, "oom_first", lambda cmd: cmd)
     ws = tmp_path / "work" / "workspace"
     ws.mkdir(parents=True)
@@ -192,16 +192,17 @@ def test_the_harness_s_own_variables_do_not_reach_the_agent(session, monkeypatch
 
 
 def test_the_agent_runs_in_the_workspace_with_the_given_and_the_client_s_environment(session, monkeypatch):
-    monkeypatch.setenv("COV_API_KEY", "would override the subscription")
+    """With no sandbox (the stand-in these tests use) the agent also has the harness's own environment; the sandbox's
+    allow-list, which drops it, is test_agent_world.py and test_sandbox.py."""
     monkeypatch.setenv("COV_INHERITED", "from the harness")
     body = """
         emit({"type": "session", "id": "s", "cwd": os.getcwd(), "stdin": sys.stdin.read(), "own_group": os.getpgrp() == os.getpid(),
-              "env": {k: os.environ.get(k) for k in ("COV_API_KEY", "COV_INHERITED", "COV_GIVEN", "COV_CLIENT_VAR")}})
+              "env": {k: os.environ.get(k) for k in ("COV_INHERITED", "COV_GIVEN", "COV_CLIENT_VAR")}})
     """
     _, _, events = session(body, env={"COV_GIVEN": "from agent_env", "COV_CLIENT_VAR": "the client's wins"})
     e = logged(events)[0]
     assert e["cwd"] == str(session.ws.resolve()) and e["stdin"] == "" and e["own_group"] is True
-    assert e["env"] == {"COV_API_KEY": None, "COV_INHERITED": "from the harness", "COV_GIVEN": "from agent_env",
+    assert e["env"] == {"COV_INHERITED": "from the harness", "COV_GIVEN": "from agent_env",
                         "COV_CLIENT_VAR": "from the client"}
 
 

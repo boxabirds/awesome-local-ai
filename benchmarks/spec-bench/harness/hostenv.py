@@ -1,8 +1,8 @@
 """Host adapters: the few things the harness asks of the operating system, per platform.
 
-macOS keeps its original implementations (sandbox-exec, pmset, sysctl, footprint,
-memory_pressure). Linux uses bubblewrap for the agent sandbox, /sys and /proc for
-power and memory, and nvidia-smi for GPU thermal throttling. Parsers are separate
+macOS keeps its original implementations (pmset, sysctl, footprint, memory_pressure).
+Linux uses /sys and /proc for power and memory, and nvidia-smi for GPU thermal
+throttling. (The agent's sandbox is sandbox.py, on both.) Parsers are separate
 from the commands so they can be tested on captured output from each machine.
 """
 from __future__ import annotations
@@ -65,27 +65,6 @@ def _out(cmd: list[str]) -> str:
         return subprocess.run(cmd, capture_output=True, text=True).stdout
     except FileNotFoundError:
         return ""
-
-
-# ---------- sandbox ----------
-
-def bwrap_wrap(cmd: list[str], own_dir: Path, deny: list[Path], reopen_ro: list[Path] | None = None) -> list[str]:
-    """Linux: everything visible and writable as normal, except each denied path, which is
-    masked (a directory by an empty tmpfs, a file by /dev/null); own_dir is then bound back on
-    top. bwrap applies mounts in order, so own_dir must come after the mask that covers it.
-    Paths that don't exist are skipped: masking them would create them on the host."""
-    # --bind / / is mounted nodev; bind the real /dev back so /dev/null, /dev/shm and ptys work.
-    args = ["bwrap", "--die-with-parent", "--bind", "/", "/", "--dev-bind", "/dev", "/dev"]
-    for p in deny:
-        if p.is_dir():
-            args += ["--tmpfs", str(p.resolve())]
-        elif p.exists():
-            args += ["--ro-bind", "/dev/null", str(p.resolve())]
-    for p in reopen_ro or []:  # after the masks, so they show through them, read-only
-        if p.exists():
-            args += ["--ro-bind", str(p.resolve()), str(p.resolve())]
-    own = str(own_dir.resolve())
-    return [*args, "--bind", own, own, "--", *cmd]
 
 
 # ---------- power ----------

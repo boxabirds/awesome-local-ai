@@ -13,6 +13,7 @@ the guards and the stops; what the agent left behind (uncommitted work, a change
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import runpy
@@ -32,7 +33,9 @@ import hostenv
 import machine_fit
 import progress
 import progress_file
+import sandbox
 from clients import PiClient
+from sandbox_testing import no_sandbox
 
 PACK = "covpack"
 MODEL = "cov-model"
@@ -134,8 +137,8 @@ class Scripted(PiClient):
     script: Path
     made: list = []
 
-    def __init__(self, work, thinking=None):
-        super().__init__(work, thinking)
+    def __init__(self, work, thinking=None, view=None):
+        super().__init__(work, thinking, view)
         Scripted.made.append(self)
 
     def command(self, model_id, prompt, resume_from=None, fork=True):
@@ -195,7 +198,7 @@ class Loop:
         mp.setattr(drive, "WORK_LINKS", self.ws_links)
         self.work = drive.work_dir_for(self.run)                             # root/work/<id>: short and neutral
         self.ws = self.work / "workspace"
-        mp.setattr(drive, "sandboxed", lambda cmd, own_dir: cmd)
+        no_sandbox(mp)
         mp.setattr(hostenv, "oom_first", lambda cmd: cmd)
         mp.setattr(drive, "conditions", lambda: dict(NOMINAL))
         mp.setattr(drive, "ConditionSampler", Sampler)
@@ -688,7 +691,45 @@ def test_agent_output_that_is_json_but_not_an_event_is_skipped_counted_in_the_re
 
 # ======================= the agent's own account of its tasks: PROGRESS.md =======================
 
-REAL_SANDBOX = drive.sandboxed
+REAL_LAUNCH, REAL_VIEW_ROOT, REAL_TMP_VIEW, REAL_WORLD_FOR = (drive.launch_agent, sandbox.view_root, sandbox.tmp_view,
+                                                               sandbox.world_for)
+
+
+# In the harness's environment, and in no agent's: a key, a variable naming the benchmark, one naming a benchmark's path, and
+# what CI itself sets. What a shell or a runtime puts in its own environment when it starts is not the harness's.
+CANARY_ENV = {"FAKE_API_KEY": "sk-canary-0123456789abcdef", "BENCH_SOMETHING": "/x/benchmarks/vidi/v2-r3",
+              "RUST_TOOLCHAIN_FILE": "tools/dbench/rust-toolchain.toml"}
+RUNTIME_ADDED_ENV = {"SHLVL", "_", "LC_CTYPE", "__CF_USER_TEXT_ENCODING"}
+
+# An agent that can only see its own directory: what it does is told by its own output, not by files beside the test.
+SANDBOXED_AGENT = textwrap.dedent(r'''
+    import json, os, re, subprocess, sys
+    from pathlib import Path
+    story = re.search(r"story (\d+)", sys.argv[1]).group(1)
+    emit = lambda e: print(json.dumps(e), flush=True)
+    sh = lambda *cmd: subprocess.run(cmd, check=True, capture_output=True)
+    emit({"type": "session", "id": f"sbx-{story}"})
+    emit({"type": "seen", "cwd": os.getcwd(), "env": dict(os.environ)})
+    progress = Path("PROGRESS.md")
+    progress.write_text(progress.read_text().replace("| 1 | Unit tests for the thing | todo |",
+                                                     "| 1 | Unit tests for the thing | done |"))
+    try:                                                              # what agents did in recorded runs: edit the spec
+        target = Path("spec/README.md")
+        target.chmod(0o644)
+        target.write_text("# rewritten by the agent\n")
+        outcome = "written"
+    except OSError as e:
+        outcome = f"refused: {type(e).__name__}"
+    emit({"type": "spec_write", "outcome": outcome})
+    Path("src").mkdir(exist_ok=True)
+    Path(f"src/story{story}.ts").write_text("// work\n")
+    sh("git", "add", "-A", "src", "PROGRESS.md")
+    sh("git", "commit", "-qm", f"story {story}: work")
+    head = subprocess.run(["git", "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+    emit({"type": "message_end", "message": {"role": "assistant", "stopReason": "stop",
+                                             "content": [{"type": "text", "text": f"STORY {story} DONE {head}"}],
+                                             "usage": {"input": 10, "output": 5}}})
+''')
 
 
 @pytest.mark.needs_sandbox
@@ -697,26 +738,38 @@ def test_in_the_real_sandbox_an_agent_that_edits_the_spec_is_refused_and_keeps_i
     """The story loop with the agent in the real sandbox (sandbox-exec on macOS, bwrap on Linux): its write to the
     spec is refused, so nothing is flagged or restored, and its PROGRESS.md and its commit go through."""
     loop = Loop(outside_shared_temp, monkeypatch, default_scope="two")
-    monkeypatch.setattr(drive, "sandboxed", REAL_SANDBOX)
+    fake = outside_shared_temp / "fake-agent"
+    fake.mkdir()
+    (fake / "agent.py").write_text(SANDBOXED_AGENT)
+    monkeypatch.setattr(Scripted, "script", fake / "agent.py", raising=False)
+    # The real launch and the real view of the run; the fake agent's own directory is the one thing added to its world.
+    monkeypatch.setattr(drive, "launch_agent", REAL_LAUNCH)
+    monkeypatch.setattr(sandbox, "view_root", REAL_VIEW_ROOT)
+    monkeypatch.setattr(sandbox, "tmp_view", REAL_TMP_VIEW)
+    monkeypatch.setattr(sandbox, "world_for", lambda *a, **k: dataclasses.replace(
+        REAL_WORLD_FOR(*a, **k), extra_read_only=(fake,), kernel_picked_ports=False))
     with_tasks(loop, 1)
-    loop.plan(s1={"try_spec": True, "seen": True,
-                  "progress": {"| 1 | Unit tests for the thing | todo |": "| 1 | Unit tests for the thing | done |"}})
     monkeypatch.setenv("SPEC_BENCH_RESULTS_ROOT", str(loop.root / "awesome-local-ai"))       # as dbench sets it
+    for name, value in CANARY_ENV.items():
+        monkeypatch.setenv(name, value)
     loop.main("--only", "1")
-    assert (loop.root / "spec-write.txt").read_text().startswith("refused: ")
-    # What the agent saw of where it is: a short neutral path, and an environment with nothing of the run in it.
-    seen = json.loads((loop.root / "seen.json").read_text())
-    assert seen["cwd"] == str(loop.ws.resolve()) and seen["cwd"].endswith(f"/work/{drive.work_id('run')}/workspace")
+    seen = next(json.loads(l) for l in (loop.run / "stories" / "01" / "agent-events.jsonl").read_text().splitlines()
+                if l.startswith("{") and json.loads(l).get("type") == "seen")
+    events = (loop.run / "stories" / "01" / "agent-events.jsonl").read_text()
+    assert '"outcome": "refused: ' in events, events[-600:]
+    # What the agent saw of where it is and of its environment: nothing of the run, nothing of the machine's own.
+    if sys.platform == "darwin":
+        assert seen["cwd"] == str(loop.ws.resolve()) and seen["cwd"].endswith(f"/work/{drive.work_id('run')}/workspace")
+    else:
+        assert seen["cwd"] == "/w/workspace"
     env = seen["env"]
-    assert env["PWD"] == seen["cwd"] and env["HOME"] == str((loop.work / "agent-home").resolve())
-    assert "SPEC_BENCH_RESULTS_ROOT" not in env
+    assert env["PWD"] == seen["cwd"] and "SPEC_BENCH_RESULTS_ROOT" not in env
+    assert set(env) <= set(sandbox.ENV_ALLOWED) | set(sandbox.ENV_FROM_SANDBOX) | RUNTIME_ADDED_ENV, \
+        sorted(set(env) - set(sandbox.ENV_ALLOWED) - set(sandbox.ENV_FROM_SANDBOX) - RUNTIME_ADDED_ENV)
+    assert not set(CANARY_ENV) & set(env)
     for k, v in env.items():
-        if k == "PATH" or os.environ.get(k) == v:
-            continue        # the machine's own variable, passed through as it is (CI has RUST_TOOLCHAIN_FILE=tools/dbench/…)
-        v = v.replace(str(loop.root), "<the test's root>")                   # which conftest names after the sandbox tests
-        assert "bench" not in k.lower() and "bench" not in v.lower(), (k, v)
-        for word in (MODEL, Scripted.name, "covpack", str(loop.run), str(loop.root / "awesome-local-ai")):
-            assert word not in v, (k, v)
+        for word in ("bench", MODEL, Scripted.name, "covpack", str(loop.run), str(loop.root / "awesome-local-ai")):
+            assert word not in v.lower().replace(str(loop.root).lower(), ""), (k, word)
     rec = loop.story(1)
     assert rec["status"] == drive.DONE and "spec_tampered" not in rec and "spec_changed_files" not in rec
     assert rec["tasks_claimed"] == {"file": progress_file.READ, "tasks": {"1": "done", "2": "todo"}}
@@ -1197,6 +1250,18 @@ def test_each_story_is_recorded_with_its_summary_and_compacted_log(loop, monkeyp
     assert (loop.run / "summary.md").exists()
     out = capsys.readouterr().out
     assert "[story 1] recorded: commit abc1234 pushed=True\n" in out
+
+
+def test_a_recording_run_with_no_sandbox_is_refused_before_anything_starts(loop, monkeypatch):
+    """SPEC_BENCH_SANDBOX=permissive runs the agent with nothing around it, for the harness's own tests: it must not be
+    able to produce a record (run.sh refuses it too, earlier)."""
+    monkeypatch.setenv(sandbox.MODE_ENV, sandbox.PERMISSIVE)
+    with pytest.raises(SystemExit) as e:
+        loop.main("--record")
+    assert "cannot record a benchmark" in str(e.value) and "permissive" in str(e.value)
+    assert not loop.run.exists() and loop.agent_runs() == []
+    loop.main("--only", "1")                                          # without --record it runs, unsandboxed
+    assert loop.story(1)["status"] == drive.DONE
 
 
 def test_a_record_that_was_not_pushed_says_so_with_its_error(loop, capsys):

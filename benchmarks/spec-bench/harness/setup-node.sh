@@ -54,6 +54,8 @@ else
   bad "node >= $MIN_NODE_MAJOR -- brew install node"
 fi
 if [[ "$(uname)" == Darwin ]]; then need sandbox-exec "part of macOS"; else need bwrap "sudo apt install bubblewrap"; fi
+# The agent's sandbox (tools/agent-sandbox) is built once per change of its source, on the node, from the harness release.
+if command -v cargo >/dev/null || [[ -x "$HOME/.cargo/bin/cargo" ]]; then ok "cargo (builds the agent's sandbox)"; else bad "cargo -- install: curl https://sh.rustup.rs -sSf | sh   (Rust 1.77 or newer; the agent's sandbox is built from source once per change)"; fi
 # Tools the pack's builds need beyond node (bench.json "tools", e.g. bun for a bun workspace).
 for tool in $(python3 -c 'import json, sys; print(" ".join(json.load(open(sys.argv[1])).get("tools", [])))' \
                 "$REPO_ROOT/$PACK/bench.json" 2>/dev/null); do

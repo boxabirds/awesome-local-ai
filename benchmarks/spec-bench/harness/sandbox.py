@@ -5,7 +5,7 @@ environment and an open network. Every leak (benchmarks/insights/findings-securi
 host nobody had listed. Now nothing exists for the agent unless it is named here:
 
   files       the run's own directory only (workspace, tmp, home, the client's config), shown at /w on Linux and at a
-              short neutral directory on macOS; spec/ read-only; the toolchain read-only; a private /tmp.
+              short neutral directory (~/.w/<id>) on macOS; spec/ read-only; the toolchain read-only; a private /tmp.
   environment one table (ENV_ALLOWED): a variable that is not in it does not exist inside.
   network     the npm registry, the Playwright CDN, and for Claude Code its API host, through an allow-listing proxy;
               the model server's own port on the host's loopback; the run's own port range for its own servers.
@@ -43,11 +43,8 @@ BINARY_NAME = "agent-sandbox"
 BUILD_TIMEOUT_S = 900
 
 # Where the run's directory is for the agent. Linux: bubblewrap shows it at VIEW_ROOT, whatever it is on the host.
-# macOS: Seatbelt cannot remap a path, so the directory really is under MAC_ROOT (see place_work_dir).
+# macOS: Seatbelt cannot remap a path, so the directory really is short and neutral (drive.WORK_ROOT, ~/.w/<id>).
 VIEW_ROOT = Path("/w")
-MAC_ROOT = Path("/Users/Shared/w")
-MAC_DIR_MODE = 0o700
-MAC_NAME_CHARS = 8
 WORKSPACE_DIR = "workspace"
 SPEC_DIR = "spec"
 TMP_DIR = "tmp"
@@ -148,40 +145,6 @@ def ports_for(run_name: str) -> tuple[int, int]:
     slot = int(hashlib.sha256(run_name.encode()).hexdigest(), 16) % PORT_POOL_SLOTS
     first = PORT_POOL_FIRST + slot * PORTS_PER_RUN
     return first, first + PORTS_PER_RUN - 1
-
-
-def short_name(run_name: str) -> str:
-    return hashlib.sha256(run_name.encode()).hexdigest()[:MAC_NAME_CHARS]
-
-
-def place_work_dir(work: Path, root: Path | None = None, enforced: bool | None = None) -> Path:
-    """macOS: Seatbelt checks real paths, so the agent's cwd (and pwd, error messages, git paths) is wherever the run's
-    directory really is. Make that a short neutral directory (MAC_ROOT/<8 hex>) and leave `work`, the long name the
-    harness's records use, as a link to it. The harness keeps using `work`; the agent sees only the short one.
-    Elsewhere nothing changes. Returns the real directory."""
-    if not (mode() == ENFORCED if enforced is None else enforced) or not IS_MAC:
-        work.mkdir(parents=True, exist_ok=True)
-        return work
-    root = root or MAC_ROOT
-    root.mkdir(parents=True, exist_ok=True, mode=MAC_DIR_MODE)
-    if root.stat().st_uid != os.getuid():
-        raise SystemExit(f"{root} belongs to another user: the agent's directory cannot be made there")
-    root.chmod(MAC_DIR_MODE)
-    short = root / short_name(work.name)
-    if work.is_symlink():
-        if work.resolve() != short.resolve():
-            raise SystemExit(f"{work} is a link to {work.resolve()}, not to {short}")
-        short.mkdir(exist_ok=True)
-    elif work.is_dir():
-        if short.exists():
-            raise SystemExit(f"both {work} and {short} hold a run's directory: remove the one that is not wanted")
-        shutil.move(work, short)
-        work.symlink_to(short, target_is_directory=True)
-    else:
-        work.parent.mkdir(parents=True, exist_ok=True)
-        short.mkdir(exist_ok=True)
-        work.symlink_to(short, target_is_directory=True)
-    return short.resolve()
 
 
 # ---------- the binary ----------
