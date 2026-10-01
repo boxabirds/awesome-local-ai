@@ -1,0 +1,51 @@
+import type { Page } from '@playwright/test';
+
+export interface Camera {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+export async function openBoard(page: Page) {
+  await page.goto('/');
+  await page.getByTestId('board-viewport').waitFor();
+  await page.waitForFunction(() => window.__vidi6 !== undefined);
+}
+
+export async function originCentre(page: Page) {
+  const box = await page.getByTestId('origin-marker').boundingBox();
+  if (!box) throw new Error('origin marker not rendered');
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+export async function zoomLabel(page: Page): Promise<string> {
+  return (await page.getByTestId('zoom-label').textContent()) ?? '';
+}
+
+export async function setCamera(page: Page, cam: Camera) {
+  await page.evaluate((c) => window.__vidi6?.setCamera(c), cam);
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+}
+
+export async function getCamera(page: Page): Promise<Camera> {
+  return page.evaluate(() => {
+    const cam = window.__vidi6?.getCamera();
+    if (!cam) throw new Error('test hook missing');
+    return cam;
+  });
+}
+
+/** Screen position of one grid dot (the first whose tile lies at/after the origin of the background) and the tile size. */
+export async function gridDot(page: Page) {
+  return page.getByTestId('board-viewport').evaluate((el) => {
+    const s = getComputedStyle(el);
+    const size = parseFloat(s.backgroundSize);
+    const [px, py] = s.backgroundPosition.split(' ').map(parseFloat);
+    return { x: px + size / 2, y: py + size / 2, size };
+  });
+}
+
+/** Difference a-b wrapped into (-size/2, size/2], for comparing positions of periodic dots. */
+export function wrap(diff: number, size: number): number {
+  return ((((diff + size / 2) % size) + size) % size) - size / 2;
+}
