@@ -1,0 +1,16 @@
+{
+  "repair": {
+    "repaired": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6"
+    ],
+    "left": {},
+    "accounting_version": 4,
+    "harness_commit": "b655cceb",
+    "at": "2026-10-01T19:09:50Z"
+  }
+}

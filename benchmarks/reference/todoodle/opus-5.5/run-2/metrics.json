@@ -127,12 +127,39 @@
       "requests": {},
       "time_split": {
         "wall_s": 1102.2,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 84,
+          "prefill_s": 144.6,
+          "prefill_tokens": 172382,
+          "prefill_tok_s": null,
+          "decode_s": 734.2,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 8682803
+        },
+        "tools_s": 221.9,
+        "tools_by_kind": {
+          "unit": 104.1,
+          "e2e": 63.4,
+          "build": 30.9,
+          "bash": 23.3,
+          "read": 0.3
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 1102.2
+        "between_sessions_s": 0.0,
+        "other_s": 1.5,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 0,
@@ -308,6 +335,50 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "49c4849"
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 84,
+        "tool_calls": 84,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 6889,
+        "tool_arg_chars": 163492,
+        "thinking_tokens": 22016,
+        "thinking_estimated_tokens": 27396,
+        "largest_thinking_estimated": {
+          "tokens": 2900,
+          "call": 72,
+          "at_s": 917.1
+        },
+        "context_start": 16124,
+        "context_end": 182334,
+        "largest_context_jump": {
+          "tokens": 24523,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 83,
+          "Read": 1
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 28.5,
+          "name": "Bash",
+          "gist": "PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers node node_modules/@playwright/test/cli.js install chromium 2>&1 | tail -5; ech"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "49792d35",
+        "pack_version": "49792d35",
+        "run_started_at": "2026-09-27T11:28:56Z",
+        "source": "run-history"
       }
     },
     "2": {
@@ -446,12 +517,40 @@
       "requests": {},
       "time_split": {
         "wall_s": 1783.3,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 109,
+          "prefill_s": 287.4,
+          "prefill_tokens": 253453,
+          "prefill_tok_s": null,
+          "decode_s": 1027.9,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 17786569
+        },
+        "tools_s": 467.3,
+        "tools_by_kind": {
+          "e2e": 306.0,
+          "unit": 111.7,
+          "build": 33.7,
+          "bash": 15.5,
+          "read": 0.3,
+          "edit": 0.0
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 1783.3
+        "between_sessions_s": 0.0,
+        "other_s": 0.7,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 0,
@@ -809,6 +908,51 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "a95f826"
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 109,
+        "tool_calls": 109,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 6209,
+        "tool_arg_chars": 248097,
+        "thinking_tokens": 36219,
+        "thinking_estimated_tokens": 41899,
+        "largest_thinking_estimated": {
+          "tokens": 9150,
+          "call": 33,
+          "at_s": 332.6
+        },
+        "context_start": 16329,
+        "context_end": 265002,
+        "largest_context_jump": {
+          "tokens": 22127,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 106,
+          "Read": 2,
+          "Edit": 1
+        },
+        "tool_errors": 2,
+        "longest_tool": {
+          "seconds": 86.3,
+          "name": "Bash",
+          "gist": "python3 - <<'EOF'\np='e2e/workspace.spec.ts'\ns=open(p).read()\ns=s.replace(\"\"\"    const created = await createFromHome(pag"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "49792d35",
+        "pack_version": "49792d35",
+        "run_started_at": "2026-09-27T11:28:56Z",
+        "source": "run-history"
       }
     },
     "3": {
@@ -951,12 +1095,39 @@
       "requests": {},
       "time_split": {
         "wall_s": 1288.5,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 87,
+          "prefill_s": 211.6,
+          "prefill_tokens": 233101,
+          "prefill_tok_s": null,
+          "decode_s": 810.9,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 13412522
+        },
+        "tools_s": 265.4,
+        "tools_by_kind": {
+          "e2e": 129.3,
+          "unit": 109.7,
+          "build": 21.9,
+          "bash": 4.3,
+          "read": 0.3
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 1288.5
+        "between_sessions_s": 0.0,
+        "other_s": 0.7,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 0,
@@ -1236,6 +1407,50 @@
           "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-2/workspace/apps/web/dist/assets/index-Ba439q9w.js"
         ],
         "commit": "09cc926b"
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 87,
+        "tool_calls": 88,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 6472,
+        "tool_arg_chars": 183836,
+        "thinking_tokens": 31626,
+        "thinking_estimated_tokens": 36721,
+        "largest_thinking_estimated": {
+          "tokens": 6950,
+          "call": 31,
+          "at_s": 298.7
+        },
+        "context_start": 16337,
+        "context_end": 244694,
+        "largest_context_jump": {
+          "tokens": 14589,
+          "call": 12
+        },
+        "tools_by_name": {
+          "Bash": 87,
+          "Read": 1
+        },
+        "tool_errors": 3,
+        "longest_tool": {
+          "seconds": 43.1,
+          "name": "Bash",
+          "gist": "rm e2e/debug92.spec.ts && for i in 1 2; do PLAYWRIGHT_BROWSERS_PATH=~/.cache/vidi-agent-ms-playwright npx playwright tes"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "49792d35",
+        "pack_version": "49792d35",
+        "run_started_at": "2026-09-27T11:28:56Z",
+        "source": "run-history"
       }
     },
     "4": {
@@ -1382,12 +1597,39 @@
       "requests": {},
       "time_split": {
         "wall_s": 2196.1,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 115,
+          "prefill_s": 299.2,
+          "prefill_tokens": 268733,
+          "prefill_tok_s": null,
+          "decode_s": 1021.5,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 19627798
+        },
+        "tools_s": 874.8,
+        "tools_by_kind": {
+          "e2e": 516.1,
+          "unit": 170.1,
+          "bash": 166.8,
+          "build": 21.8,
+          "toolsearch": 0.0
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 2196.1
+        "between_sessions_s": 0.0,
+        "other_s": 0.7,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 0,
@@ -1564,6 +1806,50 @@
           "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-2/workspace/apps/web/dist/assets/index-NMMteu7r.js"
         ],
         "commit": "44178cbd"
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 115,
+        "tool_calls": 118,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 5660,
+        "tool_arg_chars": 223828,
+        "thinking_tokens": 43553,
+        "thinking_estimated_tokens": 48653,
+        "largest_thinking_estimated": {
+          "tokens": 7000,
+          "call": 36,
+          "at_s": 350.4
+        },
+        "context_start": 16354,
+        "context_end": 280270,
+        "largest_context_jump": {
+          "tokens": 13312,
+          "call": 6
+        },
+        "tools_by_name": {
+          "Bash": 117,
+          "ToolSearch": 1
+        },
+        "tool_errors": 2,
+        "longest_tool": {
+          "seconds": 226.4,
+          "name": "Bash",
+          "gist": "python3 - <<'EOF'\np='e2e/sharing.spec.ts'\ns=open(p).read()\ns=s.replace(\"\"\"  const saveDialog = page.getByRole('dialog', "
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "49792d35",
+        "pack_version": "49792d35",
+        "run_started_at": "2026-09-27T11:28:56Z",
+        "source": "run-history"
       }
     },
     "5": {
@@ -1693,12 +1979,40 @@
       "requests": {},
       "time_split": {
         "wall_s": 1969.4,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 119,
+          "prefill_s": 251.1,
+          "prefill_tokens": 348515,
+          "prefill_tok_s": null,
+          "decode_s": 1302.9,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 26868800
+        },
+        "tools_s": 414.8,
+        "tools_by_kind": {
+          "e2e": 247.7,
+          "unit": 131.0,
+          "build": 27.4,
+          "bash": 8.1,
+          "read": 0.5,
+          "write": 0.0
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 1969.4
+        "between_sessions_s": 0.0,
+        "other_s": 0.6,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 0,
@@ -2070,6 +2384,51 @@
           "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-2/workspace/apps/web/dist/assets/index-DF-tDsP7.js"
         ],
         "commit": "339c75c1"
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 119,
+        "tool_calls": 123,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 7134,
+        "tool_arg_chars": 278106,
+        "thinking_tokens": 51078,
+        "thinking_estimated_tokens": 56471,
+        "largest_thinking_estimated": {
+          "tokens": 11200,
+          "call": 40,
+          "at_s": 491.8
+        },
+        "context_start": 16336,
+        "context_end": 360044,
+        "largest_context_jump": {
+          "tokens": 23474,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 115,
+          "Read": 4,
+          "Write": 4
+        },
+        "tool_errors": 2,
+        "longest_tool": {
+          "seconds": 48.3,
+          "name": "Bash",
+          "gist": "curl -s -X POST -H 'X-Todoodle-Client: web' http://127.0.0.1:8787/test/reset; npx playwright test e2e/inbox.spec.ts --pr"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "49792d35",
+        "pack_version": "49792d35",
+        "run_started_at": "2026-09-27T11:28:56Z",
+        "source": "run-history"
       }
     },
     "6": {
@@ -2224,12 +2583,39 @@
       "requests": {},
       "time_split": {
         "wall_s": 2533.8,
-        "model": null,
-        "tools_s": 0,
-        "tools_by_kind": {},
-        "compaction_s": 0,
+        "model": {
+          "source": "claude-stream",
+          "requests": 123,
+          "prefill_s": 223.7,
+          "prefill_tokens": 371791,
+          "prefill_tok_s": null,
+          "decode_s": 1530.6,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 30823435
+        },
+        "tools_s": 778.5,
+        "tools_by_kind": {
+          "e2e": 597.0,
+          "unit": 128.3,
+          "bash": 27.0,
+          "build": 25.9,
+          "read": 0.3
+        },
+        "compaction_s": 0.0,
         "compactions": 0,
-        "other_s": 2533.8
+        "between_sessions_s": 0.0,
+        "other_s": 0.9,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 0,
@@ -2440,6 +2826,50 @@
           "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-2/workspace/apps/web/dist/assets/index-hyPBgFyr.js"
         ],
         "commit": "465b26bb"
+      },
+      "conversation": {
+        "version": 4,
+        "calls": 123,
+        "tool_calls": 131,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 5534,
+        "tool_arg_chars": 299870,
+        "thinking_tokens": 63076,
+        "thinking_estimated_tokens": 68173,
+        "largest_thinking_estimated": {
+          "tokens": 8600,
+          "call": 45,
+          "at_s": 744.9
+        },
+        "context_start": 16389,
+        "context_end": 383312,
+        "largest_context_jump": {
+          "tokens": 33489,
+          "call": 5
+        },
+        "tools_by_name": {
+          "Bash": 129,
+          "Read": 2
+        },
+        "tool_errors": 1,
+        "longest_tool": {
+          "seconds": 108.2,
+          "name": "Bash",
+          "gist": "python3 - <<'EOF'\np='e2e/tasks.spec.ts'\ns=open(p).read()\ns=s.replace(\"\"\"test('TC-E06 keyboard only: edit, Escape twice b"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "49792d35",
+        "pack_version": "49792d35",
+        "run_started_at": "2026-09-27T11:28:56Z",
+        "source": "run-history"
       }
     }
   },
