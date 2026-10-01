@@ -211,7 +211,7 @@ def test_provenance_is_filled_from_the_run_s_starts(tmp_path):
 def test_backfill_all_runs_each_step_in_order_and_reports_them(tmp_path):
     run = restarted_run(tmp_path)
     report = backfill_timing.backfill_all(run)
-    assert list(report) == ["events", "attempts", "timing", "conversation", "provenance"]
+    assert list(report) == ["events", "attempts", "recount", "timing", "conversation", "provenance"]
     assert report["events"] == ["01", "02"] and report["attempts"] == ["1"]
 
 
@@ -243,3 +243,22 @@ def test_recompute_redoes_a_story_whose_stored_accounting_check_failed(tmp_path)
     s1 = heldout.load_metrics(run)["stories"]["1"]
     assert s1["time_split"]["accounting"]["ok"], s1["time_split"]["accounting"]["problems"]
     assert s1["agent"]["attempts"][0]["seconds"] == round(first["time_split"]["wall_s"] - wait, 1)
+
+
+def test_a_restarted_story_s_wrong_counts_are_recounted_and_its_time_split_redone(tmp_path):
+    """Sonnet 5.5 v2-r1 story 9: 2 steps recorded for 62, and decode tokens 0 for unknown."""
+    run = restarted_run(tmp_path)
+    backfill_timing.backfill_attempts(run)
+    backfill_timing.backfill(run, recompute=True)
+    m = heldout.load_metrics(run)
+    right = json.loads(json.dumps(m["stories"]["1"]["agent"]))
+    m["stories"]["1"]["agent"]["attempts"][0]["steps"] = 0
+    m["stories"]["1"]["agent"]["steps"] = right["attempts"][1]["steps"]
+    heldout.save_metrics(run, m)
+    assert backfill_timing.backfill_recount(run) == ["1"]
+    m = heldout.load_metrics(run)
+    assert m["stories"]["1"]["agent"]["steps"] == right["steps"]
+    assert m["stories"]["1"]["time_split"]["model"]["requests"] == right["steps"]
+    assert next(p for p in m["processed"] if p["id"] == 1)["calls"] == right["steps"]
+    assert backfill_timing.backfill_recount(run) == []                       # idempotent
+    assert "recount" in backfill_timing.backfill_all(run)

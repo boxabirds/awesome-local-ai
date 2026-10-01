@@ -407,3 +407,45 @@ def test_earlier_attempts_count_claude_steps_after_the_harness_looked_for_the_se
         client.scan(e, empty_state())
     [earlier] = attempts.earlier_attempts(client, log, before=RESTARTED_CLAUDE_EVENTS[-1]["_rx"] + 1)
     assert earlier["steps"] == RESTARTED_CLAUDE_STEPS and earlier["tool_calls"] == 2
+
+
+# ---------- recounting a restarted record whose earlier attempts were counted wrong ----------
+
+def _restarted_record(tmp_path, damage):
+    """A story restarted once (pi log), recorded as the harness records it, then damaged as a past bug did."""
+    restart_at = T0 + 400
+    ev = _write(tmp_path / "e.jsonl", _session(T0, "s1", 3) + [attempts.restart_mark(restart_at, 2, {})]
+                + _session(restart_at + 1, "s1", 2))
+    earlier = attempts.earlier_attempts(PiClient(tmp_path), ev, before=restart_at + 1 - attempts.RESTART_SLACK_S)
+    started, finished = restart_at + 1, restart_at + 1 + 1 + 2 * (CALL_S + TOOL_S)
+    good = attempts.combine(earlier, _harness_agent(finished - started, 2, 2, "s1"), started, finished)
+    rec = {"started": started, "agent_finished": finished, "agent": json.loads(json.dumps(good))}
+    damage(rec["agent"])
+    return rec, ev, good
+
+
+def _zero_earlier_steps(agent):
+    agent["attempts"][0]["steps"] = 0
+    agent["steps"] = agent["attempts"][1]["steps"]
+
+
+def test_recount_restores_an_earlier_attempt_s_counts_from_the_log(tmp_path):
+    """Sonnet 5.5 v2-r1 story 9 and v2-r2 story 2 (1 Oct 2026): recorded with 0 steps for their earlier attempts
+    (2 steps for 62 in the log), by a client that counted a log's steps only on its first pass. recompute()
+    leaves a record that already has attempts alone; recount() redoes the attempts the log recorded and keeps
+    the one the harness ran."""
+    rec, ev, good = _restarted_record(tmp_path, _zero_earlier_steps)
+    assert attempts.recompute(rec, ev, "pi") is None                      # the old tool passes it over
+    new = attempts.recount(rec, ev, "pi")
+    assert new["steps"] == good["steps"] == 5
+    assert [a["steps"] for a in new["attempts"]] == [3, 2]
+    assert new["attempts"][1] == good["attempts"][1]                      # the harness's own attempt is kept
+    assert new["tokens"] == good["tokens"] and new["seconds"] == good["seconds"]
+
+
+def test_recount_leaves_a_right_record_and_a_story_run_once_alone(tmp_path):
+    rec, ev, _ = _restarted_record(tmp_path, lambda agent: None)
+    assert attempts.recount(rec, ev, "pi") is None
+    once = {"started": T0, "agent_finished": T0 + 50, "agent": _harness_agent(50, 3, 3, "s1")}
+    assert attempts.recount(once, ev, "pi") is None
+    assert attempts.recount(rec, tmp_path / "missing.jsonl", "pi") is None

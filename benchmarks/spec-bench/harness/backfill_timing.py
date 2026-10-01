@@ -6,6 +6,8 @@ Every step is idempotent and only fills or corrects; it prints what each changed
    from before 30 Sep 2026 cut long strings. Needs the full logs: run it on the machine that ran the run.
 2. attempts: a story the harness restarted mid-way gets its totals over every attempt (attempts.recompute), from
    the full log, else from the published one (counts only when that one is an old, cut log).
+   recount: a restarted story whose record already has its attempts, but with counts that differ from its log
+   (a past bug counted 0 steps for earlier attempts), is recounted from the log and its time split redone.
 3. timing: stories with no model time (servers other than llama.cpp, before the harness timed them from the agent's
    stream) get their prefill and decode time, exactly as a live run computes it (drive.story_time_split, over every
    attempt of a restarted story). Only stories whose model time is missing are changed, each marked "backfilled";
@@ -78,6 +80,29 @@ def backfill_attempts(run: Path) -> list[str]:
     return changed
 
 
+def backfill_recount(run: Path) -> list[str]:
+    """Recount each restarted story whose earlier attempts' counts differ from its log (attempts.recount), and redo
+    its time split over the recounted attempts. Returns the stories changed."""
+    metrics = heldout.load_metrics(run)
+    starts = attempts.run_starts(run)
+    client = metrics.get("client") or DEFAULT_CLIENT
+    changed = []
+    for sid, rec in _stories(metrics):
+        raw, compact = _raw(run, sid), _raw(run, sid).with_name(COMPACT)
+        log = raw if raw.is_file() else compact
+        new = attempts.recount(rec, log, client, starts=starts)
+        if new is None:
+            continue
+        rec["agent"] = new
+        if raw.is_file():
+            rec["time_split"] = {**drive.story_time_split(rec, raw, run / "server.log"), "backfilled": True}
+        _sync_processed(metrics, sid, rec["agent"])
+        changed.append(sid)
+    if changed:
+        heldout.save_metrics(run, metrics)
+    return changed
+
+
 def backfill(run: Path, recompute: bool = False) -> list[str]:
     """Fill stories with no model time (or no time split at all). With recompute, also redo stories filled before (marked "backfilled"), any
     whose parts added up to more than its wall time (other_s < 0), any made by an older accounting version, and any whose
@@ -126,7 +151,8 @@ def backfill_provenance(run: Path) -> list[str]:
 
 def backfill_all(run: Path, recompute: bool = False) -> dict[str, list[str]]:
     """Every step, in the order each needs the one before (a rebuilt log, then totals, then timing over them)."""
-    return {"events": backfill_events(run), "attempts": backfill_attempts(run), "timing": backfill(run, recompute),
+    return {"events": backfill_events(run), "attempts": backfill_attempts(run), "recount": backfill_recount(run),
+            "timing": backfill(run, recompute),
             "conversation": backfill_conversation(run), "provenance": backfill_provenance(run)}
 
 

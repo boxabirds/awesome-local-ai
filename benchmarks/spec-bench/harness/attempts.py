@@ -180,6 +180,33 @@ def combine(earlier: list[dict], current: dict, started: float, ended: float) ->
     return out
 
 
+ATTEMPT_ENTRY_ONLY = ("attempt", "source", "started", "ended", "time_split")   # what an entry adds to the agent's own record
+
+
+def recount(rec: dict, path: Path, client_name: str, starts: list[float] | tuple = ()) -> dict | None:
+    """For a restarted story whose record already has its attempts: rec["agent"] with the attempts the log recorded
+    counted again from the log, and the attempt the harness ran kept as it is; None when nothing changes (or the
+    story ran once, or its log is gone). A client that counted a log's steps only on its first pass recorded 0
+    steps for the earlier attempts of Sonnet 5.5 v2-r1 story 9 (1 Oct 2026); recompute() leaves such records alone."""
+    from clients import CLIENTS
+    agent = rec.get("agent") or {}
+    each = agent.get("attempts") or []
+    if len(each) < 2 or each[-1].get("source") != "harness" or not Path(path).exists():
+        return None
+    last = each[-1]
+    earlier = earlier_attempts(CLIENTS[client_name](Path(path).parent), path, before=last["started"] - RESTART_SLACK_S,
+                               starts=starts)
+    if not earlier:
+        return None
+    own = {**{k: v for k, v in agent.items() if k not in ("attempts", "restarted", "harness_attempts")},
+           **{k: v for k, v in last.items() if k not in ATTEMPT_ENTRY_ONLY}}
+    new = combine(earlier, own, last["started"], last["ended"])
+    for a, old in zip(new["attempts"], each):
+        if "time_split" in old:
+            a["time_split"] = old["time_split"]
+    return None if new == agent else new
+
+
 def sum_splits(splits: list[dict]) -> dict:
     """One time split from each attempt's own: parts summed, so it is still a partition of the time the attempts
     ran; rates are tokens over the summed raw seconds (tokens / rate, per attempt), never a mean of rates."""
