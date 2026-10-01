@@ -41,8 +41,9 @@ export function useBoardDoc(boardId: string): {
 
   const getSnapshot = useCallback(() => {
     const snap = snapshot(doc);
-    // Create a stable key from the snapshot content
-    const key = snap.map((o) => `${o.id}:${o.x}:${o.y}:${o.z}:${o.width ?? ''}:${o.height ?? ''}`).join('\0');
+    // Create a stable key from the snapshot content (text and colour
+    // included: text-only edits must invalidate the cache, story 8)
+    const key = snap.map((o) => `${o.id}:${o.x}:${o.y}:${o.z}:${o.width ?? ''}:${o.height ?? ''}:${o.color}:${o.text}`).join('\0');
     if (key !== snapshotCacheRef.current.key) {
       snapshotCacheRef.current = { key, value: snap };
     }

@@ -52,3 +52,7 @@ export const STICKY_MIN_SIZE_WORLD = 50;
 export const MAX_OBJECT_SIZE_WORLD = 20_000;
 export const NUDGE_STEP_WORLD = 1;
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// Story 8: Undo settings
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;   // typing pause that ends a burst
+export const UNDO_MAX_STEPS = 200;

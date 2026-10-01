@@ -49,3 +49,42 @@
 - `setCamera` must be called before interactions to control the viewport.
 - Note positions in world space: `createSticky(doc, {x, y})` creates a note centered at (x, y).
 - With camera at (-640, -400, zoom=1): screen (sx, sy) → world (sx-640, sy-400).
+
+## Story 8: Per-user Undo/Redo
+- `src/client/board/undo.ts` — `createUndo(doc)` wraps `Y.UndoManager`
+  with `trackedOrigins: [LOCAL_ORIGIN]` so only the local peer's
+  transactions are captured (remote updates never enter history).
+- Stale-step safety: before `manager.undo()/redo()`, `popHasEffect()`
+  inspects the top step's inverse; if it would be a no-op (targets
+  deleted by a colleague) the step is popped manually without applying,
+  preventing Yjs's cascade into earlier steps.
+- `boundary()` (called at gesture start, editor mount/end, colour
+  change, nudge, delete) prevents unrelated changes merging into one
+  step; `captureTimeout` (500ms, `UNDO_CAPTURE_TIMEOUT_MS`) groups
+  typing bursts; history capped at `UNDO_MAX_STEPS` (200).
+- UI: `useUndo` (React binding, subscribes to `stackItems` changes),
+  `UndoButtons` in the Toolbar, Ctrl/Cmd+Z / Ctrl+Shift+Z / Ctrl+Y in
+  `useBoardKeys` (and inside the text editor).
+- Controller is created in a `useEffect` keyed on `[doc, boardId]`
+  (StrictMode-safe: `useMemo` would survive StrictMode's double-invoke
+  while the effect cleanup destroys it).
+- `useBoardDoc` snapshot cache key includes text + colour so text-only
+  edits (e.g. an undone typing burst) refresh the display.
+- Tests: `tests/unit/undo-history.test.ts` + `undo-boundaries.test.ts`
+  (TC-01..TC-13, fake timers hoisted before yjs import),
+  `tests/component/UndoBoundaries.test.tsx` (TC-14..17),
+  `tests/component/UndoControls.test.tsx` (TC-18..21),
+  `tests/e2e/undo.spec.ts` (TC-22..24).
+
+## E2E Environment Notes (gotchas)
+- The wrangler worker serves the **prebuilt** `dist/client` — run
+  `npm run build` after client changes before e2e, or tests run
+  against a stale bundle.
+- A zombie `workerd` process can hold port 8787 without responding
+  (Playwright then hangs forever). Find it via `ss -tlnp | grep 8787`
+  and `kill -9 <pid>` before re-running.
+- Pre-existing e2e failures (verified identical on pre-story-8 code
+  14eb533): sticky-notes, navigation, persistence, live-collab,
+  nightly-collab, broken-board specs, and share TC-27. They fail on
+  `goto('/')`/unknown-board-URL setups that no longer match app
+  routing (home page requires clicking "New board").

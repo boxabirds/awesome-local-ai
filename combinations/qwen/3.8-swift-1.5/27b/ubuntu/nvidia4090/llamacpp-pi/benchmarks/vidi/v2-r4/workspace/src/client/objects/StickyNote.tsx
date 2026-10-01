@@ -5,7 +5,7 @@ import { StickyTextEditor } from './StickyTextEditor';
 import type { ObjectProps } from './registry';
 
 export function StickyNoteComponent(props: ObjectProps): JSX.Element {
-  const { obj, doc, selected, editing, editable, onPointerDown, onStartEdit, onEndEdit } = props;
+  const { obj, doc, selected, editing, editable, onPointerDown, onStartEdit, onEndEdit, undo } = props;
   const elRef = useRef<HTMLDivElement>(null);
 
   const note = obj as StickySnapshot;
@@ -61,6 +61,7 @@ export function StickyNoteComponent(props: ObjectProps): JSX.Element {
           ytext={ytext}
           fontPx={STICKY_FONT_MAX_PX}
           onEnd={onEndEdit}
+          undo={undo}
         />
       ) : (
         <div

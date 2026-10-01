@@ -14,8 +14,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 4 | 0/4 | 0 | 0 | 0/31 |
 | 5 | 2/5 | 0 | 1 | 3/36 |
 | 7 | 0/8 | 0 | 10 | 13/44 |
+| 8 | 7/7 | 0 | 24 | 44/51 |
 
-**New work** 7/40, **regressions** 5, **repairs** 11, **cumulative** 13/44.
+**New work** 14/47, **regressions** 5, **repairs** 35, **cumulative** 44/51.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -25,8 +26,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 4 | Return to a board and find everything as it was left | DONE | 70.1 | None | None | None | — | — | red | 0/31 |  | 0 / 0 | 4 | — | throttled 0%, server peak 25 GB |
 | 5 | Share a board with others using a link | DONE | 22.1 | None | None | None | — | — | red | 3/36 |  | 0 / 0 | 1 | — | throttled 0%, server peak 25 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE | 48.7 | None | None | None | — | — | red | 13/44 |  | 0 / 0 | 2 | — | throttled 0%, server peak 25 GB |
+| 8 | Undo and redo my own changes without undoing anyone else's | DONE | 132.3 | None | None | None | — | — | red | 44/51 |  | 0 / 0 | 3 | — | throttled 0%, server peak 25 GB |
 
-**Totals:** 6 stories, 225 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/6, final acceptance 13/44, stalled 0, partial 0, 11133 lines in src+tests.
+**Totals:** 7 stories, 357 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/7, final acceptance 44/51, stalled 0, partial 0, 12753 lines in src+tests.
 
 ## How it happened
 
@@ -40,6 +42,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 4 | 1 by the agent | 1848 / 350 | `board-store.ts` (271), `board-room.ts` (226), `room-state.ts` (93), `types.d.ts` (69), `vitest.workspace.ts` (37), `connectBoard.ts` (20), +8 more |
 | 5 | 1 by the agent | 1604 / 182 | `App.tsx` (187), `BoardUI.tsx` (161), `SharePanel.tsx` (157), `board-store.ts` (69), `BoardPage.tsx` (67), `index.ts` (65), +11 more |
 | 7 | 1 by the agent, + harness snapshot | 3219 / 361 | `board-model.ts` (245), `useTransformGesture.ts` (227), `BoardUI.tsx` (176), `geometry.ts` (174), `StickyNote.tsx` (158), `useSelection.ts` (133), +11 more |
+| 8 | 6 by the agent, + harness snapshot | 1703 / 44 | `undo.ts` (222), `UndoButtons.tsx` (54), `BoardUI.tsx` (47), `StickyTextEditor.tsx` (42), `NOTES.md` (39), `useBoardKeys.ts` (39), +16 more |
 
 ### Earlier stories broken or fixed
 
@@ -51,6 +54,13 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 1: 0/10 → 6/10; fixed 6
   - story 2: 0/10 → 2/10; fixed 2
   - story 5: 2/5 → 4/5; fixed 2
+- **Story 8 broke 0, fixed 24** earlier held-out tests (harness: snapshot after story 8 (uncommitted agent work); notes: story 8 implementation + e2e environment gotchas; story 8: E2E undo tests (TC-22..TC-24) + snapshot cache includes text/colour; story 8: undo/redo toolbar buttons, useUndo binding, keyboard shortcuts (TC-18..TC-21 green); story 8: wire undo boundaries into gestures, keys, and text editor; story 8: per-user undo controller with stale-step safety (TC-01..TC-13 green); story 8: test-first undo history and capture-timeout unit tests (TC-01..TC-13)). Source files it changed most: `undo.ts` (222), `UndoButtons.tsx` (54), `BoardUI.tsx` (47), `StickyTextEditor.tsx` (42), `NOTES.md` (39), `useBoardKeys.ts` (39), +16 more.
+  - story 1: 6/10 → 10/10; fixed 4
+  - story 2: 2/10 → 8/10; fixed 6
+  - story 3: 0/7 → 5/7; fixed 5
+  - story 4: 1/4 → 3/4; fixed 2
+  - story 5: 4/5 → 5/5; fixed 1
+  - story 7: 0/8 → 6/8; fixed 6
 
 ### Interruptions and dead time
 

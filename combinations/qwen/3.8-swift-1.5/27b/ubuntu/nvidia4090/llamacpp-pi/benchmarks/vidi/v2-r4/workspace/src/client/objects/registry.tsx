@@ -3,6 +3,7 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import type { Point } from '../../shared/geometry';
 import { objectBounds } from '../../shared/board-model';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 
 export interface ObjectProps {
   obj: ObjectSnapshot;
@@ -14,6 +15,8 @@ export interface ObjectProps {
   onPointerDown(e: React.PointerEvent, id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(): void;
+  /** Per-user undo controller (story 8); used by text editors for boundaries. */
+  undo?: UndoController;
 }
 
 export interface ObjectTypeSpec {

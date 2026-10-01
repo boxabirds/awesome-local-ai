@@ -1,5 +1,6 @@
 import * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS, STICKY_COUNTER_THRESHOLD_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX } from '../../shared/config';
+import { LOCAL_ORIGIN } from '../../shared/board-model';
 
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
   if (next.length <= max) return next;
@@ -39,9 +40,19 @@ export function applyTextDiff(ytext: Y.Text, next: string, _origin?: unknown): v
   const deleteEnd = current.length - suffixLen;
   const insertStr = next.slice(prefixLen, next.length - suffixLen);
 
-  ytext.delete(deleteStart, deleteEnd - deleteStart);
-  if (insertStr.length > 0) {
-    ytext.insert(deleteStart, insertStr);
+  // One tracked transaction per keystroke so per-user undo (story 8) sees
+  // these edits as local changes with LOCAL_ORIGIN.
+  const apply = () => {
+    ytext.delete(deleteStart, deleteEnd - deleteStart);
+    if (insertStr.length > 0) {
+      ytext.insert(deleteStart, insertStr);
+    }
+  };
+  const ydoc = ytext.doc;
+  if (ydoc == null) {
+    apply(); // detached type: no doc to transact on (not reachable in the app)
+  } else {
+    ydoc.transact(apply, LOCAL_ORIGIN);
   }
 }
 

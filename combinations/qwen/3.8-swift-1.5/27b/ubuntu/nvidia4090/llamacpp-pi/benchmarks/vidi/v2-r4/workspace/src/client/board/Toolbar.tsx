@@ -1,12 +1,16 @@
 import type { JSX } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UseUndoResult } from './useUndo';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
   disabled?: boolean;
+  /** Per-user undo controls (story 8). Omit to hide the buttons. */
+  undo?: UseUndoResult;
 }
 
 export function Toolbar(props: ToolbarProps): JSX.Element {
-  const { onCreateSticky, disabled } = props;
+  const { onCreateSticky, disabled, undo } = props;
   return (
     <div
       data-testid="toolbar"
@@ -43,6 +47,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
       >
         📝
       </button>
+      {undo && <UndoButtons undo={undo} disabled={disabled} />}
     </div>
   );
 }

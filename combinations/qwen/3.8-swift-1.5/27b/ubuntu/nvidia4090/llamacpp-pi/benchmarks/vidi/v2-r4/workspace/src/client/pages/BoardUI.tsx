@@ -10,6 +10,8 @@ import { useSelection } from '../board/useSelection';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { createUndo, type UndoController } from '../board/undo';
+import { useUndo } from '../board/useUndo';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
@@ -37,19 +39,40 @@ export function BoardUI({ boardId }: { boardId: string }) {
   const selection = useSelection(notes);
   const canEdit = connectionState !== 'load_failed';
 
+  // Per-user undo/redo controller (story 8): one per board, session-only.
+  // Created in an effect (StrictMode-safe) and re-created on board change;
+  // history never survives a board switch (undo.session_only).
+  const [undo, setUndo] = useState<UndoController | null>(null);
+  useEffect(() => {
+    if (!boardId) return;
+    const controller = createUndo(doc);
+    setUndo(controller);
+    return () => {
+      controller.destroy();
+      setUndo(null);
+    };
+  }, [doc, boardId]);
+
   // Marquee
   const marquee = useMarquee(camera, notes, (ids) => {
     selection.setMany(ids, false);
   });
 
-  // Transform gesture
+  // Transform gesture. Boundaries at gesture start and end (incl. cancel) so
+  // one drag is always exactly one undo step and never merges with neighbours
+  // (undo.boundary).
   const { onObjectPointerDown, onHandlePointerDown } = useTransformGesture({
     doc,
     camera,
     selection,
     snapshot: notes,
     canEdit,
+    onGestureStart: () => undo?.boundary(),
+    onGestureEnd: () => undo?.boundary(),
   });
+
+  // Undo/redo bindings for the toolbar and keyboard shortcuts (story 8)
+  const undoControls = useUndo(undo);
 
   // Keyboard commands
   useBoardKeys({
@@ -57,6 +80,7 @@ export function BoardUI({ boardId }: { boardId: string }) {
     selection,
     snapshot: notes,
     canEdit,
+    undo: undo ?? undefined,
   });
 
   // ResizeObserver
@@ -86,16 +110,18 @@ export function BoardUI({ boardId }: { boardId: string }) {
     (window as any).__vidi6.connectionState = connectionState;
   }, [connectionState]);
 
-  // Create a sticky note at a world point
+  // Create a sticky note at a world point (bounded: one undo step)
   const createStickyAt = useCallback(
     (worldPoint: { x: number; y: number }) => {
       if (!canEdit) return;
+      undo?.boundary();
       const id = createSticky(doc, worldPoint);
       if (id) {
         selection.startEdit(id);
       }
+      undo?.boundary();
     },
-    [doc, selection, canEdit],
+    [doc, selection, canEdit, undo],
   );
 
   // Handle double-click on empty board space
@@ -146,19 +172,23 @@ export function BoardUI({ boardId }: { boardId: string }) {
     marquee.cancel();
   }, [marquee]);
 
-  // Handle delete from selection bar
+  // Handle delete from selection bar (bounded: one undo step)
   const handleDeleteSelection = useCallback(() => {
     if (selection.ids.size === 0) return;
+    undo?.boundary();
     deleteObjects(doc, [...selection.ids]);
     selection.clear();
-  }, [doc, selection]);
+    undo?.boundary();
+  }, [doc, selection, undo]);
 
-  // Handle color change from selection bar
+  // Handle color change from selection bar (bounded: one undo step)
   const handleColorChange = useCallback(
     (id: string, color: string) => {
+      undo?.boundary();
       setStickyColor(doc, id, color);
+      undo?.boundary();
     },
-    [doc],
+    [doc, undo],
   );
 
   return (
@@ -194,6 +224,7 @@ export function BoardUI({ boardId }: { boardId: string }) {
             onPointerDown={onObjectPointerDown}
             onStartEdit={selection.startEdit}
             onEndEdit={selection.endEdit}
+            undo={undo ?? undefined}
           />
         ))}
 
@@ -229,7 +260,7 @@ export function BoardUI({ boardId }: { boardId: string }) {
           </div>
         )}
       </BoardViewport>
-      <Toolbar onCreateSticky={handleToolbarCreate} disabled={!canEdit} />
+      <Toolbar onCreateSticky={handleToolbarCreate} disabled={!canEdit} undo={undoControls} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
