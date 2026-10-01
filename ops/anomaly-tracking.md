@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 12:15 UTC
+**Last updated:** 2026-10-01 12:50 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -22,6 +22,31 @@ never touches jobs, nodes, run records or harness code).
 **Numbering:** A-001, A-002, … in the order first written down; an id never changes or is reused.
 Entries are updated in place (last seen bumped, a dated note added) and move between sections; nothing is
 deleted. Held-out tests are referred to by counts only. Times are UTC.
+
+**This file is the fault log.** From 1 Oct 2026 12:40 the dashboard shows results only; every internal fault
+the system records (failed or unchecked accounting, runs without a score of record, flagged re-scores, invalid
+runs, harness faults in story records, failed, cancelled or restarted jobs, unreachable or idle machines, CI)
+is swept every cycle (the dashboard's `/api/faults` feed once it answers; until then the same derived from
+the records and dbench) and lands here as an entry that stays open until fixed (with the commit) or explained.
+The harness now repairs stale accounting and re-scores pending runs by itself at each run's start and end;
+each such fault records whether that repair fixed it, and one that survives a repair attempt is a bug.
+
+---
+
+## Internal bugs to fix
+
+Open entries in the internal-bug and broken-pipeline buckets, most damaging first, each with the fix or the
+test that would reproduce it. Details under the entries.
+
+| # | What | Fix / reproducing test |
+|---|---|---|
+| A-016 | Accounting on a restarted story: the killed tool call is "never ended" in both attempts, the profile reports it as the longest tool across the downtime and raises a false `hung-command`; the run's `interventions.md` omits guard stops and restarts | accounting v4 (`4b7ebf25`) should clear the check; verify on mlx v2-r2 stories 4, 9, 11 after the next job on the M5 Max runs a release with it. Test: a two-attempt story whose attempt 1 ends in a killed call → check ok, no `hung-command`, the stop listed as an intervention |
+| A-031 | dbench spends all three restarts within minutes on a failure that cannot change (a pull that fails on unmerged files, a model server that exits at start, a deterministic traceback) | stop after the same exit and the same last log line twice; test in dbench with a harness that always exits 1 |
+| A-011 | The M5 Max's private suite checkout is detached 31 commits past the tag with 6 private record commits not on the private main; mlx v2-r2 will end without a score of record until it is repaired | owner's repair when mlx v2-r2 ends; then the automatic re-score should produce the score. Test: `pack-version.sh` on a detached checkout at the tag's tree reports the tag |
+| A-028, A-029, A-030 | Stale records: 5 older stories with a failed accounting check, 63 stories in 8 older runs with no check, 27 runs that ended before `finalize.json` existed (12 have a hand-made re-score, 15 v1 runs have live scores only) | expected to be repaired by the sweep at the next run start/end on each machine; whatever survives is a bug in `repair_records` / `needing_repair` |
+| A-015 | Sonnet v2-r4 story 4: wall 31 s longer than the agent's clock (the laptop slept) | accounting v4 treats a machine that slept as not a failed check; verify on the next repair |
+| A-019 | dbench's pull before a job on the Strix Halo box: "Cannot fast-forward to multiple branches"; the job ran on the existing checkout | needs dbench's exact pull command; a job must never start on a checkout that failed to update without saying which commit it runs |
+| A-020 | Live progress shows "0 tokens" for a Claude Code story in flight | print "not yet known" until the client's first `result` event |
 
 ---
 
@@ -117,6 +142,42 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   self-test pass; no restart; its run directory and records reach origin/main as usual; `run.json` and
   each story's provenance carry `harness_release: harness-v2026.10.01.1`.
 - **Bucket:** none yet. **Status:** waiting for v2-r4 to end.
+
+### A-028 — Failed accounting checks in older runs (5 stories), awaiting the automatic repair
+- **First seen:** 2026-10-01 12:40 (first fault sweep) · **Last seen:** 2026-10-01 12:40
+- **Where:** qwen 3.8 Swift 27B llamacpp-pi canvas-pi-03 story 5 and qwen 3.8 27B llamacpp-pi canvas-pi-04
+  story 3 (the RTX 4090 machine); gufo-pi canvas-gufo-r3 story 5 and llamacpp-pi canvas-vk-02 stories 3 and 4
+  (the Strix Halo box). Each with one accounting problem recorded under accounting v3. (The failed checks on
+  Sonnet v2-r4 story 4 and mlx v2-r2 stories 4, 9 and 11 are A-015 and A-016.)
+- **Bucket:** internal bug — medium (the checks of v3 are known to fail on cut-off calls and sleeps; v4
+  changes that). **Status:** open until the sweep repairs them; a survivor is escalated.
+
+### A-029 — Stories with no accounting check at all (63 stories in 8 older runs), awaiting the automatic repair
+- **First seen:** 2026-10-01 12:40 · **Last seen:** 2026-10-01 12:40
+- **Where:** reference/opus-5.5 run-2 (9 stories) and run-3 (11); qwen 3.8 27B llamacpp-pi canvas-pi-02 (8)
+  and canvas-pi-03 (11); flash-next llamacpp-pi ab-s7s8-01 (5) and canvas-vk-01 (5); mtplx-pi canvas-pi-02 (11);
+  mlxserve-pi v2-r2 stories 1–3 (records made before the checks existed, run still going).
+- **Bucket:** internal bug — medium (records older than the accounting; the repair is meant to recompute
+  them from the full logs each machine kept, where it still has them). **Status:** open until repaired.
+
+### A-030 — Runs that ended before `finalize.json` existed (27)
+- **First seen:** 2026-10-01 12:40 · **Last seen:** 2026-10-01 12:40
+- **Where:** 12 with a re-score made by hand under vidi-v2.0-pre2 (Opus v2-r1..r3, Swift 1.5 v2-r1..r2, mlx
+  v2-r1, gufo v2-r1..r2 and Opus run-3) and 15 v1 runs with live scores only (canvas-pi-02/03 for 27B and
+  Swift 27B, canvas-mlx-01..03, kg-07-01, mtplx canvas-pi-02/03, canvas-gufo-01/exp1/exp2/r1..r3,
+  canvas-vk-01/02, ab-s7s8-01).
+- **Bucket:** broken pipeline — low severity (the v2 ones have their score of record in `rescore/`; the v1
+  ones predate the policy). **Status:** open; the sweep's automatic re-score should write `finalize.json`
+  for whichever it covers; the rest need a decision on whether v1 runs get one.
+
+### A-031 — dbench burnt all three restarts in minutes on failures that could not change
+- **First seen:** 2026-09-25 · **Last seen:** 2026-10-01 05:15 (A-003's jobs)
+- **Where:** the RTX 4090 machine, 25 Sep: canvas-4090-02b, -03, -04, four attempts each within 90 s, all
+  "git pull --ff-only failed: unmerged files" in the checkout; the M5 Max, 29 Sep 19:37: vidi-v2-mlx-r1,
+  four attempts in 3 min, the model server exited at start; the M2 MacBook Air, 1 Oct: the three Sonnet
+  "b" jobs (A-003) and mlx v2b-r2 on the M5 Max (A-001), deterministic tracebacks.
+- **Bucket:** internal bug (dbench's restart policy) — high. **Status:** open; the newer dbench waits for an
+  unfit machine instead of restarting, but a start-up failure that repeats is still retried.
 
 ### A-012 — Every held-out test fails for several stories in a row (Swift 1.5, v2-r4 stories 2–4)
 - **First seen:** 2026-09-29 (v2-r1) · **Last seen:** 2026-10-01 08:41 (v2-r4 story 4)
@@ -442,13 +503,13 @@ By bucket (A-018 is a scheduling flag and has no bucket):
 
 | Bucket | Open: needs someone | Open: watched | Explained / resolved | Total |
 |---|---|---|---|---|
-| internal bug | 0 | 3 (A-015, A-016, A-020) | 9 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-023, A-025) | 12 |
+| internal bug | 0 | 6 (A-015, A-016, A-020, A-028, A-029, A-031) | 9 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-023, A-025) | 15 |
 | genuine LLM behaviour | 0 | 4 (A-010, A-012, A-013, A-026) | 3 (A-006, A-007, A-017) | 7 |
 | stuck job | 0 | 0 | 0 | 0 |
-| broken pipeline | 1 (A-011) | 0 | 1 (A-024) | 2 |
+| broken pipeline | 1 (A-011) | 1 (A-030) | 1 (A-024) | 3 |
 | environment | 1 (A-022) | 1 (A-005) | 0 | 2 |
 | unexplained | 0 | 2 (A-019, A-021) | 0 | 2 |
-| **Total** | **2** (+A-018) | **10** | **13** | **25** (+A-018) |
+| **Total** | **2** (+A-018) | **14** | **13** | **29** (+A-018, A-027) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
@@ -461,4 +522,5 @@ By combination (an anomaly is listed under the one it mainly concerns):
 | qwen 3.8 Swift 1.5 27B, llamacpp-pi | the RTX 4090 machine | A-012, A-026 |
 | qwen 3.8 27B and Swift 27B (v1), llamacpp-pi | the RTX 4090 machine | A-009 |
 | several | — | A-008 |
-| none (harness tests, CI) | the M2 MacBook Air, CI | A-023, A-024, A-025 |
+| none (harness tests, CI, dbench) | — | A-023, A-024, A-025, A-031 |
+| older runs, several stacks | all four | A-028, A-029, A-030 |
