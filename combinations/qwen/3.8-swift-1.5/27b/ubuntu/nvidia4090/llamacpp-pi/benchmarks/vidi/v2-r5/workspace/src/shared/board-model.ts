@@ -5,6 +5,7 @@
 import * as Y from 'yjs';
 import { STICKY_SIZE_WORLD, STICKY_COLORS, DEFAULT_STICKY_COLOR, type StickyColor } from './config';
 import type { Rect, Point } from './geometry';
+import { detachConnectorsTo } from './objects/connector';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('LOCAL_ORIGIN');
 
@@ -111,6 +112,14 @@ export function objectBounds(obj: ObjectSnapshot): Rect {
     const width = (obj as any).width ?? 100;
     const height = (obj as any).height ?? 30;
     return { x: obj.x, y: obj.y, width, height };
+  }
+  if (obj.type === 'shape') {
+    const width = (obj as any).width ?? 100;
+    const height = (obj as any).height ?? 100;
+    return { x: obj.x, y: obj.y, width, height };
+  }
+  if (obj.type === 'connector') {
+    return { x: obj.x, y: obj.y, width: 0, height: 0 };
   }
   const width = (obj as StickySnapshot).width ?? STICKY_SIZE_WORLD;
   const height = (obj as StickySnapshot).height ?? STICKY_SIZE_WORLD;
@@ -263,6 +272,7 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 /**
  * Deletes multiple objects. Returns the count of objects deleted.
  * Missing ids are skipped.
+ * Also detaches any connector endpoints that reference the deleted objects.
  */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
@@ -271,6 +281,8 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   let count = 0;
 
   doc.transact(() => {
+    // Detach connectors before removing objects
+    detachConnectorsTo(doc, [...ids]);
     for (const id of ids) {
       if (objects.has(id)) {
         objects.delete(id);
@@ -370,6 +382,39 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         widthMode: (obj.get('widthMode') as string) ?? 'auto',
         ...(width !== undefined ? { width } : {}),
         ...(height !== undefined ? { height } : {}),
+      } as any);
+    } else if (type === 'shape') {
+      const label = obj.get('label') as Y.Text | undefined;
+      result.push({
+        id,
+        type: 'shape',
+        x: (obj.get('x') as number) ?? 0,
+        y: (obj.get('y') as number) ?? 0,
+        width: (obj.get('width') as number) ?? 0,
+        height: (obj.get('height') as number) ?? 0,
+        kind: (obj.get('kind') as string) ?? 'rect',
+        fill: (obj.get('fill') as string) ?? 'white',
+        stroke: (obj.get('stroke') as string) ?? 'dark',
+        label: label ? label.toString() : '',
+        z: (obj.get('z') as number) ?? 0,
+        createdAt: (obj.get('createdAt') as number) ?? 0,
+        createdBy: (obj.get('createdBy') as string) ?? '',
+      } as any);
+    } else if (type === 'connector') {
+      const from = obj.get('from') as any;
+      const to = obj.get('to') as any;
+      result.push({
+        id,
+        type: 'connector',
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        from: from ?? { kind: 'free', x: 0, y: 0 },
+        to: to ?? { kind: 'free', x: 0, y: 0 },
+        z: (obj.get('z') as number) ?? 0,
+        createdAt: (obj.get('createdAt') as number) ?? 0,
+        createdBy: (obj.get('createdBy') as string) ?? '',
       } as any);
     }
     // skip unknown types

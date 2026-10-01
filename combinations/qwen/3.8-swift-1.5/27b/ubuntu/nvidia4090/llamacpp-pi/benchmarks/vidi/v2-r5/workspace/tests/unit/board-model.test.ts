@@ -249,11 +249,11 @@ describe('board.model', () => {
 
       // Add an unknown type directly
       const objects = doc.getMap('objects');
-      const shape = new Y.Map<unknown>();
-      shape.set('type', 'shape');
-      shape.set('x', 0);
-      shape.set('y', 0);
-      objects.set('shape-1', shape);
+      const unknown = new Y.Map<unknown>();
+      unknown.set('type', 'unknown-type');
+      unknown.set('x', 0);
+      unknown.set('y', 0);
+      objects.set('unknown-1', unknown);
 
       const snap = snapshot(doc);
       expect(snap).toHaveLength(1);

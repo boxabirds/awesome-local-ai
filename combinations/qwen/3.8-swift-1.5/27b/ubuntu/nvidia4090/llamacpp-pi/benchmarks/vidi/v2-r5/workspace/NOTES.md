@@ -49,3 +49,61 @@
 - `src/client/canvas/BoardViewport.tsx` (text tool cursor, click-to-create)
 - `src/client/pages/BoardContent.tsx` (tool state, text creation, remeasure)
 - `src/client/board/useBoardDoc.ts` (ObjectSnapshot type)
+
+## Story 10: Draw shapes and connect them with arrows that follow when moved
+
+### Decisions
+
+1. **Shape model**: Shapes are stored as Y.Map entries with `type: 'shape'`, `kind` (rect/diamond/ellipse), `x`, `y`, `width`, `height`, `fill`, `stroke`, and `label`. The `createShape` function accepts a rect (for drag-create) or null (for click-to-drop standard size). Shift-key constraint makes width == height.
+
+2. **Connector model**: Connectors are stored as Y.Map entries with `type: 'connector'` and `from`/`to` endpoint objects. Each endpoint is either `{kind: 'attached', objectId, fallback}` or `{kind: 'free', x, y}`. The `fallback` point is used when the attached object is deleted.
+
+3. **Connector geometry**: The `resolveEndpoints` function computes the actual screen positions of connector endpoints at render time. For attached endpoints, it finds the nearest side of the target object's bounds and returns the side midpoint. This means arrows automatically follow when objects are moved — no explicit update needed.
+
+4. **Connector rendering**: Connectors are rendered as SVG paths with arrowheads inside a full-viewport `<svg>` overlay. The path is a simple line from the resolved `from` point to the resolved `to` point, with the arrowhead drawn as a small triangle at the `to` end.
+
+5. **Hit testing**: Connector hit testing uses `distanceToPolyline` from the shared geometry module. The tolerance is `CONNECTOR_HIT_TOLERANCE_PX / zoom` in world units, so the hit area stays constant in screen pixels regardless of zoom level.
+
+6. **Tool system**: The `useActiveTool` hook replaces the old `useTool` hook. It adds `shape` and `connector` tool IDs, S/L keyboard shortcuts, and a `shapeKind` state. After creating an object with the shape or connector tool, the tool automatically returns to `select`.
+
+7. **Shape rendering**: Shapes render as SVG elements inside the same `<svg>` overlay as connectors. Rectangles use `<rect>`, diamonds use `<polygon>`, and ellipses use `<ellipse>`. The label is rendered as an SVG `<text>` element centered in the shape.
+
+8. **Shape label editing**: Double-clicking a shape opens an inline editor (HTML textarea positioned over the SVG). The label is clamped to `SHAPE_LABEL_MAX_CHARS` (500) on blur.
+
+9. **Shape toolbar**: When a shape is selected, a floating toolbar appears with 5 fill swatches and 5 stroke swatches. Clicking a swatch calls `setShapeStyle` to update the shape's fill/stroke.
+
+10. **Connector tool interaction**: Hovering over a shape shows 4 connection dots (one per side midpoint). Dragging from one shape to another creates an attached connector. Dragging to empty space creates a free endpoint. The nearest side dot is highlighted during the drag.
+
+11. **Delete cascade**: When an object is deleted, `detachConnectorsTo` is called to convert any attached endpoints referencing that object to free endpoints using the stored fallback position.
+
+12. **Pointer capture**: Both ShapeTool and ConnectorTool use `setPointerCapture` to ensure drag events are received even when the pointer leaves the overlay element. In jsdom tests, this is mocked via `Element.prototype`.
+
+### Files added
+- `src/shared/objects/shape.ts` (new: shape model)
+- `src/shared/objects/connector.ts` (new: connector model)
+- `src/shared/geometry/connector-geometry.ts` (new: side anchor, nearest side, resolve endpoints)
+- `src/shared/geometry/polyline.ts` (new: distance to polyline)
+- `src/client/tools/useActiveTool.ts` (new: extended tool hook)
+- `src/client/tools/ShapeTool.tsx` (new: shape drag tool)
+- `src/client/tools/ConnectorTool.tsx` (new: connector drag tool)
+- `src/client/objects/ShapeObject.tsx` (new: shape SVG renderer)
+- `src/client/objects/ShapeToolbar.tsx` (new: fill/stroke swatches)
+- `src/client/objects/ConnectorObject.tsx` (new: connector SVG renderer)
+- `src/client/objects/registerShape.ts` (new: registry entry)
+- `src/client/objects/registerConnector.ts` (new: registry entry)
+- `tests/unit/shape-model.test.ts` (new: TC-01 to TC-10)
+- `tests/unit/connector-model.test.ts` (new: TC-11 to TC-25)
+- `tests/component/ShapeTool.test.tsx` (new: TC-15, TC-16, TC-17, TC-28)
+- `tests/component/Connector.test.tsx` (new: TC-18, TC-19, TC-20, TC-21)
+- `tests/component/useActiveTool.test.tsx` (new: TC-22)
+- `tests/e2e/flow.spec.ts` (new: TC-23, TC-24, TC-25)
+
+### Files modified
+- `src/shared/config.ts` (SHAPE_*, CONNECTOR_* constants)
+- `src/shared/board-model.ts` (snapshot handles shape/connector, objectBounds, deleteObjects calls detachConnectorsTo)
+- `src/client/board/Toolbar.tsx` (Shape + Connector buttons, shapeKind menu)
+- `src/client/pages/BoardContent.tsx` (useActiveTool, shape/connector creation, SVG overlay)
+- `tests/unit/board-model.test.ts` (TC-12 uses unknown-type instead of shape)
+- `tests/unit/board-model-group.test.ts` (TC-08 uses unknown-type instead of shape)
+- `tests/component/LoadFailure.test.tsx` (Toolbar props)
+- `tests/component/UndoControls.test.tsx` (Toolbar props)

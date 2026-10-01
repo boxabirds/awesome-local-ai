@@ -1,3 +1,37 @@
+commit fcfabbb2b22dce049029d1ecd7a8791136b14e67
+vidi-agent  Fri Oct 2 00:20:56 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  |  58 +++++++
+ src/client/board/Toolbar.tsx              | 113 +++++++++++++-
+ src/client/objects/ConnectorObject.tsx    | 191 +++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 163 +++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  79 ++++++++++
+ src/client/objects/registerConnector.ts   |  35 +++++
+ src/client/objects/registerShape.ts       |  40 +++++
+ src/client/pages/BoardContent.tsx         | 250 +++++++++++++++++++++++++-----
+ src/client/tools/ConnectorTool.tsx        | 223 ++++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 127 +++++++++++++++
+ src/client/tools/useActiveTool.ts         |  81 ++++++++++
+ src/shared/board-model.ts                 |  45 ++++++
+ src/shared/config.ts                      |  19 +++
+ src/shared/geometry/connector-geometry.ts | 111 +++++++++++++
+ src/shared/geometry/polyline.ts           |  42 +++++
+ src/shared/objects/connector.ts           | 188 ++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 176 +++++++++++++++++++++
+ tests/component/Connector.test.tsx        | 174 +++++++++++++++++++++
+ tests/component/LoadFailure.test.tsx      |   4 +-
+ tests/component/ShapeTool.test.tsx        | 203 ++++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx     |   3 +
+ tests/component/useActiveTool.test.tsx    | 147 ++++++++++++++++++
+ tests/e2e/flow.spec.ts                    | 151 ++++++++++++++++++
+ tests/unit/board-model-group.test.ts      |  12 +-
+ tests/unit/board-model.test.ts            |  10 +-
+ tests/unit/connector-model.test.ts        | 249 +++++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 172 ++++++++++++++++++++
+ 27 files changed, 3010 insertions(+), 56 deletions(-)
 commit d22f1b718fc62b191c34f0a20b854baf82244147
 vidi-agent  Thu Oct 1 23:43:45 2026 +0100
 

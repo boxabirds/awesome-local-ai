@@ -1,5 +1,5 @@
 // src/client/pages/BoardContent.tsx
-// The board UI from stories 1-9.
+// The board UI from stories 1-10.
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import type { ReactElement } from 'react';
@@ -15,18 +15,27 @@ import { useSelection } from '../board/useSelection';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
-import { useTool } from '../board/useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { createUndo } from '../board/undo';
 import { useUndo } from '../board/useUndo';
 import { StickyNote } from '../objects/StickyNote';
 import '../objects/registerSticky';
 import { TextObject } from '../objects/TextObject';
 import '../objects/registerText';
+import { ShapeObject } from '../objects/ShapeObject';
+import '../objects/registerShape';
+import { ConnectorObject } from '../objects/ConnectorObject';
+import '../objects/registerConnector';
 import { createSticky, deleteObjects, objectBounds } from '../../shared/board-model';
 import { createText, deleteIfEmpty, setTextBox } from '../../shared/objects/text';
+import { createShape, setShapeStyle } from '../../shared/objects/shape';
+import { createConnector, setConnectorEndpoint } from '../../shared/objects/connector';
 import { TEXT_SIZES, TEXT_LINE_HEIGHT, TEXT_MAX_AUTO_WIDTH_WORLD } from '../../shared/config';
 import { unionRects } from '../../shared/geometry';
 import { worldToScreen } from '../canvas/camera';
@@ -57,14 +66,17 @@ export function BoardContent(props: { boardId: string }): ReactElement {
   const selection = useSelection(notes);
   const editable = canEdit(connectionState);
 
-  // Per-board undo controller (story 8): one per board doc, destroyed on
-  // board change/unmount. History is session-only (never persisted).
+  // Per-board undo controller (story 8)
   const undo = useMemo(() => createUndo(doc), [doc]);
   useEffect(() => () => undo.destroy(), [undo]);
   const undoState = useUndo(undo, editable);
 
-  // Tool state (story 9)
-  const { tool, setTool } = useTool(editable);
+  // Tool state (story 10: extended with shape and connector)
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
+    onCreated: (id) => {
+      selection.setMany([id], false);
+    },
+  });
 
   // Track viewport size
   useEffect(() => {
@@ -96,8 +108,7 @@ export function BoardContent(props: { boardId: string }): ReactElement {
     selection.setMany(ids, true);
   });
 
-  // Transform gesture (story 8: gesture start/end close the capture window
-  // so a whole drag/resize is exactly one undo step)
+  // Transform gesture
   const gesture = useTransformGesture({
     doc,
     camera: cam.camera,
@@ -108,7 +119,7 @@ export function BoardContent(props: { boardId: string }): ReactElement {
     onGestureEnd: undo.boundary,
   });
 
-  // Create sticky at a screen point (disabled when load_failed)
+  // Create sticky at a screen point
   const createStickyAtScreen = useCallback((screenPoint: Point) => {
     if (!canEdit(connectionState)) return;
     const worldPoint = screenToWorld(cam.camera, screenPoint);
@@ -120,13 +131,13 @@ export function BoardContent(props: { boardId: string }): ReactElement {
     }
   }, [cam.camera, doc, selection, connectionState, undo]);
 
-  // Create sticky at viewport centre (toolbar button / N key)
+  // Create sticky at viewport centre
   const createStickyAtCentre = useCallback(() => {
     const centre: Point = { x: viewport.width / 2, y: viewport.height / 2 };
     createStickyAtScreen(centre);
   }, [viewport, createStickyAtScreen]);
 
-  // Create text at a screen point (story 9: Text tool)
+  // Create text at a screen point
   const createTextAtScreen = useCallback((screenPoint: Point) => {
     if (!canEdit(connectionState)) return;
     const worldPoint = screenToWorld(cam.camera, screenPoint);
@@ -140,7 +151,51 @@ export function BoardContent(props: { boardId: string }): ReactElement {
     }
   }, [cam.camera, doc, selection, connectionState, undo, setTool]);
 
-  // Remeasure text box after local changes (story 9)
+  // Create shape (for ShapeTool)
+  const createShapeAt = useCallback((rect: { x: number; y: number; width: number; height: number } | null, at: Point, square: boolean) => {
+    if (!canEdit(connectionState)) return null;
+    undo.boundary();
+    const id = createShape(doc, { kind: shapeKind, rect, at, square }, 'local');
+    undo.boundary();
+    return id;
+  }, [doc, shapeKind, connectionState, undo]);
+
+  // Create connector (for ConnectorTool)
+  const createConnectorAt = useCallback((from: any, to: any) => {
+    if (!canEdit(connectionState)) return null;
+    undo.boundary();
+    const id = createConnector(doc, from, to, 'local');
+    undo.boundary();
+    return id;
+  }, [doc, connectionState, undo]);
+
+  // Re-attach connector endpoint
+  const setConnectorEnd = useCallback((id: string, end: 'from' | 'to', ep: any) => {
+    undo.boundary();
+    const result = setConnectorEndpoint(doc, id, end, ep);
+    undo.boundary();
+    return result;
+  }, [doc, undo]);
+
+  // Hit test for connector tool
+  const hitTestObject = useCallback((worldPoint: Point): string | null => {
+    for (let i = notes.length - 1; i >= 0; i--) {
+      const obj = notes[i];
+      if (obj.type === 'connector') continue;
+      const bounds = objectBounds(obj);
+      if (
+        worldPoint.x >= bounds.x &&
+        worldPoint.x <= bounds.x + bounds.width &&
+        worldPoint.y >= bounds.y &&
+        worldPoint.y <= bounds.y + bounds.height
+      ) {
+        return obj.id;
+      }
+    }
+    return null;
+  }, [notes]);
+
+  // Remeasure text box after local changes
   const remeasureText = useCallback((id: string) => {
     const objects = doc.getMap('objects');
     const obj = objects.get(id) as Y.Map<unknown> | undefined;
@@ -153,18 +208,15 @@ export function BoardContent(props: { boardId: string }): ReactElement {
     const storedWidth = obj.get('width') as number | undefined;
     const fontSize = TEXT_SIZES[size as keyof typeof TEXT_SIZES] ?? 20;
 
-    // Simple estimate: char count × fontSize × 0.6
     let estimatedWidth: number;
     let lineCount: number;
 
     if (widthMode === 'fixed' && storedWidth) {
       estimatedWidth = storedWidth;
-      // Estimate lines based on width
       const charsPerLine = Math.max(1, Math.floor(storedWidth / (fontSize * 0.6)));
       const paragraphs = text.split('\n');
       lineCount = paragraphs.reduce((acc, p) => acc + Math.max(1, Math.ceil(p.length / charsPerLine)), 0);
     } else {
-      // Auto width: longest line
       const paragraphs = text.split('\n');
       const longest = paragraphs.reduce((max, p) => Math.max(max, p.length), 0);
       estimatedWidth = Math.min(longest * fontSize * 0.6, TEXT_MAX_AUTO_WIDTH_WORLD);
@@ -176,7 +228,7 @@ export function BoardContent(props: { boardId: string }): ReactElement {
   }, [doc]);
 
   // Keyboard commands
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo, tool, onCreateStickyAtCentre: createStickyAtCentre });
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo, tool: tool as any, onCreateStickyAtCentre: createStickyAtCentre });
 
   // Handle double-click on empty board space
   const handleDblClickEmpty = useCallback((screenPoint: Point) => {
@@ -192,7 +244,7 @@ export function BoardContent(props: { boardId: string }): ReactElement {
     selection.clear();
   }, [selection]);
 
-  // Handle click on empty board space with point (for text tool)
+  // Handle click on empty board space with point
   const handleClickEmptyWithPoint = useCallback((screenPoint: Point) => {
     if (tool === 'text') {
       createTextAtScreen(screenPoint);
@@ -208,12 +260,10 @@ export function BoardContent(props: { boardId: string }): ReactElement {
     }
   }, [selection, editable]);
 
-  // Handle end edit from the text editor
+  // Handle end edit
   const handleEndEdit = useCallback((_next: 'selected' | 'unselected', id?: string) => {
     if (id) {
-      // For text objects: check if empty and delete
       deleteIfEmpty(doc, id);
-      // Prune selection if object was deleted
       const objects = doc.getMap('objects');
       if (!objects.get(id)) {
         selection.clear();
@@ -223,7 +273,7 @@ export function BoardContent(props: { boardId: string }): ReactElement {
     selection.endEdit();
   }, [doc, selection]);
 
-  // Compute selection bar position (above bounding box in screen space)
+  // Compute selection bar position
   const selectedObjects = notes.filter(n => selection.ids.has(n.id));
   const bbox = unionRects(selectedObjects.map(o => objectBounds(o)));
   let barStyle: React.CSSProperties | undefined;
@@ -238,7 +288,7 @@ export function BoardContent(props: { boardId: string }): ReactElement {
     };
   }
 
-  // Handle delete selection (story 8: one undo step of any size)
+  // Handle delete selection
   const handleDeleteSelection = useCallback(() => {
     if (!editable) return;
     undo.boundary();
@@ -247,8 +297,34 @@ export function BoardContent(props: { boardId: string }): ReactElement {
     selection.clear();
   }, [doc, selection, editable, undo]);
 
+  // Shape toolbar: show when exactly one shape is selected
+  const selectedShape = selectedObjects.find(o => o.type === 'shape');
+  let shapeToolbarStyle: React.CSSProperties | undefined;
+  if (selectedShape && selection.ids.size === 1) {
+    const bounds = objectBounds(selectedShape);
+    const topLeft = worldToScreen(cam.camera, { x: bounds.x, y: bounds.y });
+    shapeToolbarStyle = {
+      position: 'absolute',
+      left: topLeft.x,
+      top: topLeft.y + bounds.height * cam.camera.zoom + 8,
+      zIndex: 100,
+    };
+  }
+
+  // Build rects map for connector rendering
+  const rectsMap = useMemo(() => {
+    const map = new Map<string, { x: number; y: number; width: number; height: number }>();
+    for (const obj of notes) {
+      if (obj.type !== 'connector') {
+        const bounds = objectBounds(obj);
+        map.set(obj.id, bounds);
+      }
+    }
+    return map;
+  }, [notes]);
+
   // Cursor style based on active tool
-  const cursorStyle = tool === 'text' ? 'text' : 'grab';
+  const cursorStyle = tool === 'text' ? 'text' : tool === 'shape' || tool === 'connector' ? 'crosshair' : 'grab';
 
   return (
     <>
@@ -272,6 +348,56 @@ export function BoardContent(props: { boardId: string }): ReactElement {
         cursorStyle={cursorStyle}
         textToolActive={tool === 'text'}
       >
+        <svg
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            overflow: 'visible',
+          }}
+        >
+          {notes.map((note) => {
+            if (note.type === 'text') {
+              return null; // Text objects rendered as HTML below
+            }
+            if (note.type === 'shape') {
+              return (
+                <ShapeObject
+                  key={note.id}
+                  obj={note as any}
+                  doc={doc}
+                  zoom={cam.camera.zoom}
+                  selected={selection.ids.has(note.id)}
+                  editing={selection.editingId === note.id}
+                  onPointerDown={gesture.onObjectPointerDown}
+                  onDblClick={handleNoteDblClick}
+                  onEndEdit={(next) => handleEndEdit(next, note.id)}
+                  undo={undo}
+                />
+              );
+            }
+            if (note.type === 'connector') {
+              return (
+                <ConnectorObject
+                  key={note.id}
+                  connector={note as any}
+                  rects={rectsMap}
+                  doc={doc}
+                  selected={selection.ids.has(note.id)}
+                  zoom={cam.camera.zoom}
+                  onPointerDown={gesture.onObjectPointerDown}
+                  setEndpoint={setConnectorEnd}
+                  hitTestObject={hitTestObject}
+                />
+              );
+            }
+            return null;
+          })}
+        </svg>
+
+        {/* HTML objects (sticky notes, text) */}
         {notes.map((note) => {
           if (note.type === 'text') {
             return (
@@ -289,26 +415,30 @@ export function BoardContent(props: { boardId: string }): ReactElement {
               />
             );
           }
-          return (
-            <StickyNote
-              key={note.id}
-              note={note as any}
-              doc={doc}
-              zoom={cam.camera.zoom}
-              selected={selection.ids.has(note.id)}
-              editing={selection.editingId === note.id}
-              onPointerDown={gesture.onObjectPointerDown}
-              onDblClick={handleNoteDblClick}
-              onEndEdit={handleEndEdit}
-              undo={undo}
-            />
-          );
+          if (note.type === 'sticky') {
+            return (
+              <StickyNote
+                key={note.id}
+                note={note as any}
+                doc={doc}
+                zoom={cam.camera.zoom}
+                selected={selection.ids.has(note.id)}
+                editing={selection.editingId === note.id}
+                onPointerDown={gesture.onObjectPointerDown}
+                onDblClick={handleNoteDblClick}
+                onEndEdit={handleEndEdit}
+                undo={undo}
+              />
+            );
+          }
+          return null;
         })}
+
         {/* Marquee rectangle in world space */}
         <MarqueeRect rect={marquee.rect} camera={cam.camera} />
       </BoardViewport>
 
-      {/* Selection overlay (screen space) */}
+      {/* Selection overlay */}
       <SelectionOverlay
         ids={selection.ids}
         snapshot={notes}
@@ -316,7 +446,7 @@ export function BoardContent(props: { boardId: string }): ReactElement {
         onHandlePointerDown={gesture.onHandlePointerDown}
       />
 
-      {/* Selection bar (screen space, positioned above bounding box) */}
+      {/* Selection bar */}
       {barStyle && (
         <div style={barStyle}>
           <SelectionBar
@@ -330,12 +460,54 @@ export function BoardContent(props: { boardId: string }): ReactElement {
         </div>
       )}
 
+      {/* Shape toolbar (when a single shape is selected) */}
+      {shapeToolbarStyle && selectedShape && (
+        <div style={shapeToolbarStyle}>
+          <ShapeToolbar
+            fill={(selectedShape as any).fill}
+            stroke={(selectedShape as any).stroke}
+            onFill={(c) => {
+              undo.boundary();
+              setShapeStyle(doc, selectedShape.id, { fill: c });
+              undo.boundary();
+            }}
+            onStroke={(c) => {
+              undo.boundary();
+              setShapeStyle(doc, selectedShape.id, { stroke: c });
+              undo.boundary();
+            }}
+          />
+        </div>
+      )}
+
+      {/* Shape tool overlay */}
+      {tool === 'shape' && editable && (
+        <ShapeTool
+          kind={shapeKind}
+          camera={cam.camera}
+          onCreated={(id) => toolCreated(id)}
+          create={createShapeAt}
+        />
+      )}
+
+      {/* Connector tool overlay */}
+      {tool === 'connector' && editable && (
+        <ConnectorTool
+          camera={cam.camera}
+          snapshot={notes}
+          onCreated={(id) => toolCreated(id)}
+          create={createConnectorAt}
+        />
+      )}
+
       <Toolbar
         onCreateSticky={createStickyAtCentre}
         disabled={!editable}
         undo={undoState}
         tool={tool}
         setTool={setTool}
+        shapeKind={shapeKind}
+        setShapeKind={setShapeKind}
       />
       <ZoomControls
         zoomPercent={cam.zoomPercent}

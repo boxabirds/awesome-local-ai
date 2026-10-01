@@ -128,17 +128,17 @@ describe('sel.geometry_ops - board-model group ops (unit)', () => {
 
       // Add an unknown type directly
       const objects = doc.getMap('objects');
-      const shape = new Y.Map<unknown>();
-      shape.set('type', 'shape');
-      shape.set('x', 0);
-      shape.set('y', 0);
-      objects.set('shape-1', shape);
+      const unknown = new Y.Map<unknown>();
+      unknown.set('type', 'unknown-type');
+      unknown.set('x', 0);
+      unknown.set('y', 0);
+      objects.set('unknown-1', unknown);
 
       const snap = snapshot(doc);
       const ids = allObjectIds(snap);
       expect(ids).toContain(id1);
       expect(ids).toContain(id2);
-      expect(ids).not.toContain('shape-1');
+      expect(ids).not.toContain('unknown-1');
       expect(ids).toHaveLength(2);
     });
   });

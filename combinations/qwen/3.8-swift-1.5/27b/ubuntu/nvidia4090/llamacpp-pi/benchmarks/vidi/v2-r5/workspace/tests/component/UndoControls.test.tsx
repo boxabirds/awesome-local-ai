@@ -89,6 +89,7 @@ describe('undo.controls (component, fake controller)', () => {
         
         onCreateSticky={() => {}}
         disabled={false}
+        shapeKind="rect" setShapeKind={() => {}}
         undo={{ canUndo: false, canRedo: false, undo: () => {}, redo: () => {} }}
       />,
     );
@@ -102,6 +103,7 @@ describe('undo.controls (component, fake controller)', () => {
         
         onCreateSticky={() => {}}
         disabled={false}
+        shapeKind="rect" setShapeKind={() => {}}
         undo={{ canUndo: true, canRedo: true, undo: () => {}, redo: () => {} }}
       />,
     );
@@ -154,6 +156,7 @@ describe('undo.controls (component, fake controller)', () => {
         
         onCreateSticky={() => {}}
         disabled={true}
+        shapeKind="rect" setShapeKind={() => {}}
         undo={{ canUndo: false, canRedo: false, undo: () => {}, redo: () => {} }}
       />,
     );
