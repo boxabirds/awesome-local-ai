@@ -96,6 +96,89 @@ def test_agent_env_pwd_points_inside_sandbox(tmp_path: Path):
         shutil.rmtree(work, ignore_errors=True)
 
 
+# ---- sandbox: the workspace's spec is read-only for the agent, whatever the files' modes say ----
+SPEC_FILE = "spec/stories/001-first/tasks.md"
+SPEC_TEXT = "| # | Task | Status |\n|---|---|---|\n| 1 | Build it | proposed |\n"
+SPEC_FILE_MODE = 0o444
+GIT_T = "git -c user.name=t -c user.email=t@t"
+# What agents did to the spec in recorded runs (a status edited in tasks.md, the file rewritten), and the ways round
+# a read-only file that the same user has: each must leave the spec as it was.
+SPEC_WRITES = {
+    "write": f"echo changed >> {SPEC_FILE}",
+    "overwrite": f"echo changed > {SPEC_FILE}",
+    "delete": f"rm -f {SPEC_FILE}",
+    "chmod then write": f"chmod 644 {SPEC_FILE}; echo changed > {SPEC_FILE}",
+    "new file": "echo mine > spec/extra.md",
+    "replace by rename": f"echo changed > mine.md && mv -f mine.md {SPEC_FILE}",
+    "move the directory away": "mv spec spec-old && mkdir spec",
+    "git checkout of another version": f"{GIT_T} checkout -q other-spec -- spec",
+    "git rm": f"{GIT_T} rm -rq spec",
+}
+
+
+def spec_workspace(own: Path) -> Path:
+    """A run's workspace as the harness makes it: a repository with the spec (files read-only as a hint), and a
+    commit `other-spec` (a tag) in which the spec differs, for git to try to check out."""
+    import drive
+    ws = own / "workspace"
+    (ws / SPEC_FILE).parent.mkdir(parents=True)
+    (ws / SPEC_FILE).write_text(SPEC_TEXT)
+    (ws / "spec" / "prd.md").write_text("the requirements\n")
+    git = lambda *a: subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *a], cwd=ws, check=True,
+                                    capture_output=True, text=True)
+    git("init", "-q", "-b", "main")
+    git("add", "-A")
+    git("commit", "-qm", "harness: empty repository with spec")
+    (ws / SPEC_FILE).write_text(SPEC_TEXT.replace("proposed", "done"))
+    git("commit", "-qam", "another version of the spec")
+    git("tag", "other-spec")
+    git("reset", "-q", "--hard", "HEAD~1")
+    for f in (ws / "spec").rglob("*"):
+        if f.is_file():
+            f.chmod(SPEC_FILE_MODE)
+    return ws
+
+
+def spec_state(ws: Path) -> dict:
+    return {str(f.relative_to(ws)): (f.read_text(), f.stat().st_mode & 0o777)
+            for f in sorted((ws / "spec").rglob("*")) if f.is_file()}
+
+
+@pytest.mark.needs_sandbox
+@pytest.mark.parametrize("how", sorted(SPEC_WRITES))
+def test_the_sandbox_refuses_every_change_to_the_workspace_s_spec(tmp_path: Path, how):
+    own = tmp_path / "run"
+    ws = spec_workspace(own)
+    before = spec_state(ws)
+    r = subprocess.run(sandboxed(["sh", "-c", SPEC_WRITES[how]], own_dir=own), cwd=ws, capture_output=True, text=True)
+    assert r.returncode != 0, f"{how}: the command succeeded"
+    assert spec_state(ws) == before and (ws / SPEC_FILE).read_text() == SPEC_TEXT
+    assert not (ws / "spec-old").exists()
+
+
+@pytest.mark.needs_sandbox
+def test_the_sandbox_lets_the_agent_read_the_spec_and_write_the_rest_of_its_workspace(tmp_path: Path):
+    own = tmp_path / "run"
+    ws = spec_workspace(own)
+    script = (f"cat {SPEC_FILE} && echo '| 1 | Build it | doing |' > PROGRESS.md && mkdir src && echo code > src/a.ts "
+              f"&& {GIT_T} add -A && {GIT_T} commit -qm 'story 1: work' && {GIT_T} status --porcelain")
+    r = subprocess.run(sandboxed(["sh", "-c", script], own_dir=own), cwd=ws, capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert r.stdout == SPEC_TEXT                                   # the spec, read; and nothing left uncommitted
+    assert (ws / "PROGRESS.md").read_text() == "| 1 | Build it | doing |\n" and (ws / "src" / "a.ts").read_text() == "code\n"
+
+
+@pytest.mark.needs_sandbox
+def test_the_harness_outside_the_sandbox_can_still_write_the_spec(tmp_path: Path):
+    """The restore after a story (drive.restore_spec) and the known-good spec update are the harness's own writes."""
+    own = tmp_path / "run"
+    ws = spec_workspace(own)
+    subprocess.run(sandboxed(["true"], own_dir=own), cwd=ws, check=True)          # a sandbox was made, and has ended
+    (ws / SPEC_FILE).chmod(0o644)
+    (ws / SPEC_FILE).write_text("the harness's own\n")
+    assert (ws / SPEC_FILE).read_text() == "the harness's own\n"
+
+
 # ---- run conditions: benchmark only on AC power, no Low Power Mode, nominal thermals ----
 from drive import parse_power
 

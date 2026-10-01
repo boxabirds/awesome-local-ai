@@ -105,7 +105,7 @@ def test_vidi_renders_exactly_the_prompts_its_runs_recorded(sid):
     story = next(s for s in scope["stories"] if s["id"] == sid)
     processed = [{"id": i, "status": "DONE"} for i in range(1, sid)]
     rendered = drive.render_prompt(story, drive.story_title(story), processed, scope)
-    assert rendered == f"{recorded.read_text().rstrip()}\n\n{drive.DONE_LINE_PROMPT_TMPL.format(n=sid)}\n"
+    assert rendered == f"{recorded.read_text().rstrip()}\n\n{drive.harness_paragraph(sid)}\n"
 
 
 def test_vidi_defaults_to_its_canvas_scope():
