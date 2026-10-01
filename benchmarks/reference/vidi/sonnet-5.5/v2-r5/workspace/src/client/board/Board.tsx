@@ -4,8 +4,12 @@ import { createText, setTextSize } from '../../shared/objects/text';
 import { remeasureText } from '../objects/useTextBoxSync';
 import { sharedMeasurer } from '../objects/textLayout';
 import { localIdentityId } from './localIdentity';
-import { useTool } from './useTool';
-import type { TextSize } from '../../shared/config';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { attachableRects } from '../tools/hit';
+import { setShapeStyle } from '../../shared/objects/shape';
+import type { FillColor, StrokeColor, TextSize } from '../../shared/config';
 import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
@@ -54,7 +58,8 @@ export function Board({ boardId }: { boardId: string }) {
     doc, camera: liveCamera, selection: sel, snapshot: objects, canEdit: editable,
     onGestureStart: boundary, onGestureEnd: boundary,
   });
-  const { tool, setTool } = useTool(editable);
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({ canEdit: editable, select: sel.select });
+  const rects = useMemo(() => attachableRects(objects), [objects]);
 
   // Stacking is CSS z-index (z, with id as DOM-order tie-break). The DOM order stays stable so that
   // raising objects never moves an element, which would drop its pointer capture mid-drag.
@@ -88,6 +93,11 @@ export function Board({ boardId }: { boardId: string }) {
     if (setTextSize(doc, id, size)) remeasureText(doc, id, sharedMeasurer());
     boundary();
   };
+  const changeShapeStyle = (id: string, style: { fill?: FillColor; stroke?: StrokeColor }) => {
+    boundary();
+    setShapeStyle(doc, id, style);
+    boundary();
+  };
   const deleteSelection = () => {
     if (!editable) return;
     boundary();
@@ -117,6 +127,7 @@ export function Board({ boardId }: { boardId: string }) {
                 onDelete={deleteSelection}
                 onColor={(id, c) => { boundary(); setStickyColor(doc, id, c); boundary(); }}
                 onTextSize={changeTextSize}
+                onShapeStyle={changeShapeStyle}
               />
             </>
           )}
@@ -126,7 +137,21 @@ export function Board({ boardId }: { boardId: string }) {
             tool={tool}
             onTool={setTool}
             onCreateSticky={createStickyAtCentre}
+            shapeKind={shapeKind}
+            onShapeKind={setShapeKind}
           />
+          {tool === 'shape' && (
+            <ShapeTool
+              kind={shapeKind} camera={api.camera} doc={doc} by={localIdentityId()} undo={undoCtl}
+              onCreated={toolCreated}
+            />
+          )}
+          {tool === 'connector' && (
+            <ConnectorTool
+              camera={api.camera} snapshot={objects} doc={doc} by={localIdentityId()} undo={undoCtl}
+              onCreated={toolCreated}
+            />
+          )}
           <ConnectionStatus state={connection} />
           <NavigationHint visible={!api.hasNavigated} />
           <ZoomControls
@@ -157,6 +182,7 @@ export function Board({ boardId }: { boardId: string }) {
               dragging={gesture.activeIds.has(object.id)}
               readOnly={!editable}
               undo={undoCtl}
+              rects={rects}
               onPointerDown={gesture.onObjectPointerDown}
               onStartEdit={sel.startEdit}
               onEndEdit={sel.endEdit}

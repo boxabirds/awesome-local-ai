@@ -1,9 +1,12 @@
 import * as Y from 'yjs';
 import {
-  DEFAULT_STICKY_COLOR, DEFAULT_TEXT_SIZE, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES,
+  DEFAULT_SHAPE_FILL, DEFAULT_SHAPE_STROKE, DEFAULT_STICKY_COLOR, DEFAULT_TEXT_SIZE, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES,
   type StickyColor, type TextSize,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+import { connectorBBox, resolveEndpoints, type ConnectorSnap } from './geometry/connector-geometry';
+import { detachConnectorsTo, parseEndpoint } from './objects/connector';
+import { isFillColor, isShapeKind, isStrokeColor, type ShapeSnap } from './objects/shape';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
 export const SCHEMA_VERSION = 1;
@@ -19,7 +22,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 }
 
 /** Object types that selection, select-all and marquee may act on (the client registry adds to this). */
-const KNOWN_TYPES = new Set<string>(['sticky']);
+const KNOWN_TYPES = new Set<string>(['sticky', 'shape', 'connector']);
 
 export function registerKnownObjectType(type: string): void {
   KNOWN_TYPES.add(type);
@@ -101,16 +104,40 @@ export function allObjectIds(snap: readonly ObjectSnapshot[]): string[] {
   return snap.filter((o) => KNOWN_TYPES.has(o.type)).map((o) => o.id);
 }
 
+/**
+ * A connector has no stored position; it moves with the objects it is attached to. Only an arrow with both ends
+ * free is translatable (its box is then fully determined by itself); `p` is the wanted top-left of that box.
+ */
+function moveFreeConnector(obj: Y.Map<unknown>, p: Point, apply = false): boolean {
+  const from = parseEndpoint(obj.get('from'));
+  const to = parseEndpoint(obj.get('to'));
+  if (from?.kind !== 'free' || to?.kind !== 'free') return false;
+  const dx = p.x - Math.min(from.x, to.x);
+  const dy = p.y - Math.min(from.y, to.y);
+  if (dx === 0 && dy === 0) return false;
+  if (apply) {
+    obj.set('from', { kind: 'free', x: from.x + dx, y: from.y + dy });
+    obj.set('to', { kind: 'free', x: to.x + dx, y: to.y + dy });
+  }
+  return true;
+}
+
 /** Absolute positions. Returns how many objects changed; non-finite input applies nothing. */
 export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): number {
   for (const p of positions.values()) if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return 0;
   const todo: Array<[Y.Map<unknown>, Point]> = [];
   positions.forEach((p, id) => {
     const obj = getObject(doc, id);
-    if (obj && (obj.get('x') !== p.x || obj.get('y') !== p.y)) todo.push([obj, p]);
+    if (!obj) return;
+    if (obj.get('type') === 'connector') {
+      if (moveFreeConnector(obj, p)) todo.push([obj, p]);
+    } else if (obj.get('x') !== p.x || obj.get('y') !== p.y) todo.push([obj, p]);
   });
   if (todo.length === 0) return 0;
-  doc.transact(() => todo.forEach(([obj, p]) => { obj.set('x', p.x); obj.set('y', p.y); }), LOCAL_ORIGIN);
+  doc.transact(() => todo.forEach(([obj, p]) => {
+    if (obj.get('type') === 'connector') moveFreeConnector(obj, p, true);
+    else { obj.set('x', p.x); obj.set('y', p.y); }
+  }), LOCAL_ORIGIN);
   return todo.length;
 }
 
@@ -120,7 +147,7 @@ export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): num
   const todo: Array<[Y.Map<unknown>, Rect]> = [];
   rects.forEach((r, id) => {
     const obj = getObject(doc, id);
-    if (!obj) return;
+    if (!obj || obj.get('type') === 'connector') return;
     const w = obj.get('width') ?? STICKY_SIZE_WORLD;
     const h = obj.get('height') ?? STICKY_SIZE_WORLD;
     const same = obj.get('x') === r.x && obj.get('y') === r.y && w === r.width && h === r.height
@@ -154,7 +181,10 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = [...new Set(ids)].filter((id) => hasObject(doc, id));
   if (present.length === 0) return 0;
-  doc.transact(() => present.forEach((id) => objectsOf(doc).delete(id)), LOCAL_ORIGIN);
+  doc.transact(() => {
+    detachConnectorsTo(doc, present);
+    present.forEach((id) => objectsOf(doc).delete(id));
+  }, LOCAL_ORIGIN);
   return present.length;
 }
 
@@ -221,9 +251,34 @@ export function snapshotObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
           ? sizeKey as TextSize : DEFAULT_TEXT_SIZE,
         widthMode: obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto',
       } as ObjectSnapshot);
+    } else if (type === 'shape') {
+      const kind = obj.get('kind');
+      const fill = obj.get('fill');
+      const stroke = obj.get('stroke');
+      const label = obj.get('label');
+      out.push({
+        ...base, type: 'shape',
+        kind: isShapeKind(kind) ? kind : 'rect',
+        fill: isFillColor(fill) ? fill : DEFAULT_SHAPE_FILL,
+        stroke: isStrokeColor(stroke) ? stroke : DEFAULT_SHAPE_STROKE,
+        label: label instanceof Y.Text ? label.toString() : '',
+      } as ShapeSnap);
+    } else if (type === 'connector') {
+      const from = parseEndpoint(obj.get('from'));
+      const to = parseEndpoint(obj.get('to'));
+      if (from && to) out.push({ ...base, type: 'connector', from, to } as ConnectorSnap);
     } else {
       out.push(base);
     }
+  });
+  // Connector boxes are derived from the live rectangles of what they attach to (never stored).
+  const rects = new Map<string, Rect>();
+  out.forEach((o) => { if (o.type !== 'connector') rects.set(o.id, objectBounds(o)); });
+  out.forEach((o, i) => {
+    if (o.type !== 'connector') return;
+    const c = o as ConnectorSnap;
+    const ends = resolveEndpoints(c, rects);
+    out[i] = { ...c, ...connectorBBox(ends.from, ends.to) };
   });
   return out.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }

@@ -48,6 +48,8 @@ export interface Selection {
   ids: ReadonlySet<string>;
   editingId: string | null;
   click(id: string): void;
+  /** Makes `id` the only selection without checking the snapshot (it may have been created a moment ago). */
+  select(id: string): void;
   toggle(id: string): void;
   setMany(ids: string[], additive: boolean): void;
   clear(): void;
@@ -73,6 +75,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   const setMany = useCallback((ids: string[], additive: boolean) => {
     dispatch({ type: 'setMany', ids: ids.filter((id) => presentRef.current.has(id)), additive });
   }, []);
+  const select = useCallback((id: string) => dispatch({ type: 'click', id }), []);
   const clear = useCallback(() => dispatch({ type: 'clear' }), []);
   // Not checked against `present`: a note created a moment ago is not in the snapshot yet.
   const startEdit = useCallback((id: string) => dispatch({ type: 'edit', id }), []);
@@ -81,7 +84,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   }, []);
 
   return useMemo(
-    () => ({ ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit }),
-    [state, click, toggle, setMany, clear, startEdit, endEdit],
+    () => ({ ids: state.ids, editingId: state.editingId, click, select, toggle, setMany, clear, startEdit, endEdit }),
+    [state, click, select, toggle, setMany, clear, startEdit, endEdit],
   );
 }

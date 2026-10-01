@@ -5,7 +5,7 @@ import { applyTextDiff, clampToLimit } from '../../shared/text-edit';
 import type { UndoController } from '../board/undo';
 
 /** Edit hosts: a pointerdown outside the closest one ends editing. */
-const HOST_SELECTOR = '[data-sticky],[data-text-object]';
+const HOST_SELECTOR = '[data-sticky],[data-text-object],[data-shape]';
 
 export function TextEditor(props: {
   ytext: Y.Text; maxChars: number; fontPx: number; width: number | 'auto';

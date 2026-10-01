@@ -1,4 +1,6 @@
-import { type StickyColor, type TextSize } from '../../shared/config';
+import { type FillColor, type StickyColor, type StrokeColor, type TextSize } from '../../shared/config';
+import type { ShapeSnap } from '../../shared/objects/shape';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import type { TextSnapshot } from '../../shared/objects/text';
 import { TextToolbar } from '../objects/TextToolbar';
 import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
@@ -19,6 +21,7 @@ export function SelectionBar(props: {
   camera?: Camera;
   onColor?(id: string, color: StickyColor): void;
   onTextSize?(id: string, size: TextSize): void;
+  onShapeStyle?(id: string, style: { fill?: FillColor; stroke?: StrokeColor }): void;
   /** No Delete button or note tools while the board cannot be edited. */
   readOnly?: boolean;
 }) {
@@ -33,6 +36,25 @@ export function SelectionBar(props: {
 
   const text = count === 1 && selected[0].type === 'text' ? (selected[0] as TextSnapshot) : null;
 
+  const shape = count === 1 && selected[0].type === 'shape' ? (selected[0] as ShapeSnap) : null;
+
+  if (shape) {
+    return (
+      <>
+        <span className="visually-hidden" aria-live="polite">1 selected</span>
+        {!readOnly && (
+          <div className="selection-bar-anchor" style={style}>
+            <ShapeToolbar
+              fill={shape.fill} stroke={shape.stroke}
+              onFill={(fill) => props.onShapeStyle?.(shape.id, { fill })}
+              onStroke={(stroke) => props.onShapeStyle?.(shape.id, { stroke })}
+              onDelete={props.onDelete}
+            />
+          </div>
+        )}
+      </>
+    );
+  }
   if (text) {
     return (
       <>

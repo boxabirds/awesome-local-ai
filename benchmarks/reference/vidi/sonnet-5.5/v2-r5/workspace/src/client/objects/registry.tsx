@@ -1,9 +1,15 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, registerKnownObjectType, type ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
-import type { Point } from '../../shared/geometry';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
+import type { Point, Rect } from '../../shared/geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { resolveEndpoints, type ConnectorSnap } from '../../shared/geometry/connector-geometry';
 import type { UndoController } from '../board/undo';
+import { ConnectorObject } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 
@@ -23,7 +29,11 @@ export interface ObjectProps {
   onEndEdit(next: 'selected' | 'unselected'): void;
   /** This tab's undo history; editors use it for step boundaries and Ctrl/Cmd+Z. */
   undo?: UndoController;
+  /** Rectangles of every attachable object in stacking order; arrows resolve their ends from these. */
+  rects?: ReadonlyMap<string, Rect>;
 }
+
+export interface HitContext { zoom?: number; rects?: ReadonlyMap<string, Rect> }
 
 export interface ObjectTypeSpec {
   Component: ComponentType<ObjectProps>;
@@ -33,7 +43,7 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** Which resize handles the selection overlay offers; height-derived types use 'horizontal'. Default 'all'. */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, ctx?: HitContext): boolean;
 }
 
 const types = new Map<string, ObjectTypeSpec>();
@@ -70,4 +80,25 @@ registerObjectType('text', {
   editableText: true,
   handles: 'horizontal',
   hitTest: boundsHitTest,
+});
+
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: boundsHitTest,
+});
+
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest(obj, p, ctx) {
+    const ends = resolveEndpoints(obj as ConnectorSnap, ctx?.rects ?? new Map());
+    return distanceToPolyline([ends.from, ends.to], p) <= CONNECTOR_HIT_TOLERANCE_PX / (ctx?.zoom ?? 1);
+  },
 });

@@ -8,7 +8,7 @@ import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { Selection } from './useSelection';
 import type { UndoController } from './undo';
-import type { Tool } from './useTool';
+import type { ToolId } from '../tools/useActiveTool';
 
 const TEXT_ENTRY_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 const ARROWS: Record<string, Point> = {
@@ -20,7 +20,7 @@ export function useBoardKeys(opts: {
   doc: Y.Doc; selection: Selection; snapshot: readonly ObjectSnapshot[]; canEdit: boolean;
   undo?: UndoController;
   /** Tool shortcuts (V, T, N, Escape); absent in tests that only exercise selection keys. */
-  tools?: { tool: Tool; setTool(t: Tool): void; createSticky(): void };
+  tools?: { tool: ToolId; setTool(t: ToolId): void; createSticky(): void };
 }): void {
   const ref = useRef(opts);
   ref.current = opts;
@@ -46,14 +46,16 @@ export function useBoardKeys(opts: {
         return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (tools && !e.shiftKey && (key === 'v' || key === 't' || key === 'n')) {
+      if (tools && !e.shiftKey && (key === 'v' || key === 't' || key === 'n' || key === 's' || key === 'l')) {
         if (key === 'v') tools.setTool('select');
         else if (canEdit && key === 't') tools.setTool('text');
+        else if (canEdit && key === 's') tools.setTool('shape');
+        else if (canEdit && key === 'l') tools.setTool('connector');
         else if (canEdit && key === 'n') tools.createSticky();
         return;
       }
       if (e.key === 'Escape') {
-        if (tools?.tool === 'text') tools.setTool('select'); else selection.clear();
+        if (tools && tools.tool !== 'select') tools.setTool('select'); else selection.clear();
       } else if (ids.length === 0) {
         // nothing selected: arrows keep their default behaviour, nothing else applies
       } else if (e.key in ARROWS) {
