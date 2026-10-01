@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 12:55 UTC
+**Last updated:** 2026-10-01 13:05 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -172,6 +172,7 @@ test that would reproduce it. Details under the entries.
 - **Bucket:** broken pipeline — low severity (the v2 ones have their score of record in `rescore/`; the v1
   ones predate the policy). **Status:** open; the sweep's automatic re-score should write `finalize.json`
   for whichever it covers; the rest need a decision on whether v1 runs get one (passed to the owner 12:55).
+  **Note 13:05:** approved; the existing v2 re-scores are being converted into scores of record now.
 
 ### A-031 — dbench burnt all three restarts in minutes on failures that could not change
 - **First seen:** 2026-09-25 · **Last seen:** 2026-10-01 05:15 (A-003's jobs)
@@ -179,7 +180,8 @@ test that would reproduce it. Details under the entries.
   "git pull --ff-only failed: unmerged files" in the checkout; the M5 Max, 29 Sep 19:37: vidi-v2-mlx-r1,
   four attempts in 3 min, the model server exited at start; the M2 MacBook Air, 1 Oct: the three Sonnet
   "b" jobs (A-003) and mlx v2b-r2 on the M5 Max (A-001), deterministic tracebacks.
-- **Note 2026-10-01 12:55:** being fixed in dbench (test first); the commit will be noted here.
+- **Note 2026-10-01 12:57:** fix on main: `2f73890e` (the same failure twice with no progress fails the job
+  instead of using every restart). Resolved once a node runs that dbench.
 - **Bucket:** internal bug (dbench's restart policy) — high. **Status:** open; the newer dbench waits for an
   unfit machine instead of restarting, but a start-up failure that repeats is still retried.
 
@@ -264,6 +266,13 @@ test that would reproduce it. Details under the entries.
 - **Note 2026-10-01 10:52:** story 11 finished on attempt 3 (98 agent-min over both attempts, one nudge,
   with the new wording, then a commit): gate green, 64/70 overall, but 1/5 of its own held-out tests
   against 5/5 in v2-r1. Whether the interruption cost it those tests can't be told from one peer.
+- **Note 2026-10-01 13:05 (memory context):** the model server's real footprint (`footprint`, the measure
+  the harness records as `server_footprint_max_gb`) is 86–94 GB: 70.1 GB of weights, up to 16 GB of prefix
+  cache, KV for 131k context unquantised, and the MTP head. It plateaus at 92–94 GB after a server start
+  (v2-r2 stories 5, 7, 8, 10 on one server: 92, 92, 93, 92 GB), so not a leak. That leaves about 34 GB of
+  the 128 GB for macOS, the agent's builds, the browsers and the e2e tests, which is the likely setting for
+  both stops. The monitor now samples the server's footprint and swap every cycle and flags a rise of more
+  than 3 GB between consecutive stories on one server.
 - **Suggested action:** if it stops a third time the job fails with no restarts left: resubmit by hand.
   Consider capping the browsers' workers for this stack's memory, or counting a guard stop as a wait.
 
