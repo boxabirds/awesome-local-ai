@@ -1,3 +1,44 @@
+commit 1de7111e0ffae13c142217013efa42a3ac5979aa
+vidi-agent  Thu Oct 1 16:46:25 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                  |   15 +
+ package-lock.json                         | 1732 +++++++++++++++++++++++++----
+ package.json                              |   13 +-
+ playwright.config.ts                      |    3 +
+ src/client/App.tsx                        |   25 +-
+ src/client/board/useBoardDoc.ts           |   37 +-
+ src/client/canvas/testHooks.ts            |    9 +-
+ src/client/objects/StickyText.ts          |   19 +
+ src/client/objects/StickyTextEditor.tsx   |   17 +-
+ src/client/styles.css                     |    8 +
+ src/client/sync/ConnectionStatus.tsx      |   16 +
+ src/client/sync/connectBoard.ts           |   74 ++
+ src/shared/board-id.ts                    |   13 +
+ src/shared/config.ts                      |    7 +
+ src/shared/protocol.ts                    |   36 +
+ src/worker/board-room.ts                  |  107 ++
+ src/worker/index.ts                       |   22 +
+ tests/component/ConnectionStatus.test.tsx |  103 ++
+ tests/component/board.tsx                 |    4 +-
+ tests/e2e/helpers/board.ts                |    2 +-
+ tests/e2e/helpers/participants.ts         |   73 ++
+ tests/e2e/live-collaboration.spec.ts      |  177 +++
+ tests/e2e/nightly/live-nightly.spec.ts    |   61 +
+ tests/integration/board-room.test.ts      |  202 ++++
+ tests/integration/random-ops.ts           |   43 +
+ tests/integration/worker.test.ts          |   62 ++
+ tests/integration/ws-client.ts            |  109 ++
+ tests/unit/board-id.test.ts               |   31 +
+ tests/unit/protocol.test.ts               |   41 +
+ tests/unit/sticky-text.test.ts            |   12 +-
+ tsconfig.json                             |    3 +-
+ tsconfig.worker.json                      |   14 +
+ vitest.config.ts                          |   10 +
+ wrangler.jsonc                            |   11 +-
+ 34 files changed, 2889 insertions(+), 222 deletions(-)
 commit 9d172879c9986a85aeaa80e893a9bf8e7130a4ed
 vidi-agent  Thu Oct 1 16:25:11 2026 +0100
 
