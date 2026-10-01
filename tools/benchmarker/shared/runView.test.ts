@@ -500,9 +500,9 @@ describe("held-out: live progress and the score of record", () => {
         { id: "4", state: "unbuilt", tip: "story 4: not built yet" },
       ]);
     });
-    it("a story being built is not built yet", () => {
+    it("a story being built says so (the strip it replaces did)", () => {
       const r = row({ stories: [], storiesWorking: { working: 0, scope: 1, squares: squares(["running"]) } });
-      expect(storyResults(r)).toEqual([{ id: "1", state: "unbuilt", tip: "story 1: not built yet" }]);
+      expect(storyResults(r)).toEqual([{ id: "1", state: "building", tip: "story 1: being built now" }]);
     });
     it("no stories in scope: none", () => expect(storyResults(row({ stories: [], storiesWorking: { working: 0, scope: 0, squares: [] } }))).toEqual([]));
   });

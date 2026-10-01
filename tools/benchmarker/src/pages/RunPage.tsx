@@ -2,7 +2,6 @@ import type { Row, State } from "../../shared/types.ts";
 import { otherRuns } from "../../shared/runView.ts";
 import { Breadcrumb, CombinationLink } from "../components/EntityLinks.tsx";
 import { RunHeader } from "../components/run/RunHeader.tsx";
-import { StoryStrip } from "../components/run/StoryStrip.tsx";
 import { RunTime } from "../components/run/RunTime.tsx";
 import { RunCost } from "../components/run/RunCost.tsx";
 import { HeldOut, Ran } from "../components/run/HeldOutAndJobs.tsx";
@@ -30,10 +29,9 @@ export function RunPage({ run, state, params }: { run: Row; state: State; server
     <div className="page run-page" data-page="run">
       <Breadcrumb trail={[{ label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> }, { label: run.runId }]} />
       <RunHeader run={run} state={state} />
-      <StoryStrip run={run} />
+      <HeldOut run={run} />
       <RunTime run={run} />
       <RunCost run={run} />
-      <HeldOut run={run} />
       <Ran run={run} />
       <Interventions run={run} />
       {/* Keyed by run: moving to another run's page starts its comparison afresh. */}

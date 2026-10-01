@@ -206,32 +206,31 @@ test.describe("header: judge, record and summary", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-test.describe("story strip", () => {
-  test("one square per story in scope, coloured by its held-out result, with the result on hover", async ({ page }) => {
+test.describe("one strip of stories: the held-out squares", () => {
+  test("the old latest-build strip is gone; the squares come first after the header, the running story marked building", async ({ page }) => {
     await open(page, SWIFT, "v2-r1");
-    const strip = section(page, "stories");
-    await expect(strip.locator("[data-story]")).toHaveCount(11);
-    const states = await strip.locator("[data-story]").evaluateAll((els) => els.map((e) => `${(e as HTMLElement).dataset.story}:${(e as HTMLElement).dataset.state}`));
-    expect(states.slice(0, 4)).toEqual(["1:ok", "2:part", "3:running", "4:unbuilt"]);
-    await expect(strip.locator('[data-story="2"]')).toHaveAttribute("data-tip", "story 2: some of its held-out tests pass (9/10), against the latest build");
-    await expect(strip.locator('[data-story="2"] .rp-sq')).toHaveClass(/q-part/);
-    await expect(strip.locator(".rp-head")).toContainText("1 of the 2 stories built so far pass all their held-out tests · 11 in scope");
+    await expect(section(page, "stories")).toHaveCount(0);
+    const squares = section(page, "heldout").locator(".rs-item");
+    await expect(squares).toHaveCount(11);
+    const states = await squares.evaluateAll((els) => els.map((e) => `${(e as HTMLElement).dataset.story}:${(e as HTMLElement).dataset.state}`));
+    expect(states.slice(0, 4)).toEqual(["1:result", "2:result", "3:building", "4:unbuilt"]);
+    await expect(squares.nth(2).locator(".rs-sq")).toHaveAttribute("data-tip", "story 3: being built now");
   });
 
   test("every square links to its story run, built or not", async ({ page }) => {
     await open(page, SWIFT, "v2-r1");
-    const links = section(page, "stories").locator("a.story-run-link");
-    const hrefs = await links.evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+    const hrefs = await section(page, "heldout").locator("a.story-run-link").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
     expect(hrefs).toEqual(["1", "2", "3", "4", "5", "7", "8", "9", "10", "11", "12"].map((n) => storyRunHref(SWIFT, "v2-r1", n)));
-    await section(page, "stories").locator('[data-story="4"] a').click();
+    await section(page, "heldout").locator('[data-story="4"] a').click();
     await expect(page.locator('[data-page="storyRun"]')).toHaveAttribute("data-story-state", "notBuilt");
   });
 
   test("each square's link has a name for a screen reader", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    await expect(section(page, "stories").getByRole("link", { name: "story 1: all its held-out tests pass (6/6), against the latest build" })).toBeVisible();
+    await expect(section(page, "heldout").getByRole("link", { name: "story 1: 6/6 of its own tests" })).toBeVisible();
   });
 });
+
 
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("where the time went", () => {
@@ -547,7 +546,7 @@ test.describe("links and keyboard", () => {
   test("sections come in reading order: identity, outcome, time, cost, evidence, provenance", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
     const order = await page.locator('[data-page="run"] > [data-section]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.section));
-    expect(order).toEqual(["header", "stories", "time", "cost", "heldout", "ran", "compare", "related"]);
+    expect(order).toEqual(["header", "heldout", "time", "cost", "ran", "compare", "related"]);
   });
 
   test("every heading and label with a definition takes it from the glossary", async ({ page }) => {
@@ -557,7 +556,7 @@ test.describe("links and keyboard", () => {
     expect(tips.length).toBeGreaterThan(30);
     expect(tips.filter((t) => !definitions.has(t))).toEqual([]);
     const headings = await page.locator('[data-page="run"] h2').evaluateAll((els) => els.map((e) => e.textContent));
-    expect(headings).toEqual(["Stories", "Where the time went", "Cost", "Held-out", "When it ran", "Compare with another run", "Other runs of this combination"]);
+    expect(headings).toEqual(["Held-out", "Where the time went", "Cost", "When it ran", "Compare with another run", "Other runs of this combination"]);
   });
 
   test("every in-app link lands on the entity it names", async ({ page }) => {
@@ -598,7 +597,7 @@ test.describe("links and keyboard", () => {
 
   test("a story square opens from the keyboard, with a visible focus ring", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
-    const link = section(page, "stories").locator('[data-story="2"] a');
+    const link = section(page, "heldout").locator('[data-story="2"] a');
     await link.focus();
     await expect(link).toHaveCSS("outline-style", "solid");
     await page.keyboard.press("Enter");

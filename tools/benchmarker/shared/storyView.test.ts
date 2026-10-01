@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  acrossCombinations, acrossNoMedian, attemptOf, combinationSummary, compareGroups, compareParam, comparisonOf, heldOutTests, parseCompare, relativeTo, sameStory,
+  acrossVerdicts, qualityVerdict, speedText, speedVerdict, timesText, attemptOf, combinationSummary, compareGroups, compareParam, comparisonOf, heldOutTests, parseCompare, relativeTo, sameStory,
   STORY_MEASURES, storyList, storyNeighbours, storyPage, storyTitleOf, SUMMARY_KEYS, type Group,
 } from "./storyView.ts";
 import { DIVERGENCE, MIN_RUNS_FOR_MEDIAN, SPLIT_PARTS, storyMedians } from "./combinationView.ts";
@@ -387,140 +387,123 @@ describe("time-bar segments", () => {
 });
 
 // ---------- the story across combinations, for the story-run page ----------
-// MECE by what a row can be: several combinations; only this one; only unfinished runs; a measure
-// nobody recorded; then the order, this run's own figures and marking, the one scale, and what is left out.
+// Two questions, answered per combination: is this story run higher or lower quality, and faster or slower? MECE by
+// the verdict rules (quality: same within one of this story's tests; speed: the 10% band, then N× with one decimal
+// under 10), then what a row can be (this combination; another; none to compare with; a figure missing), and order.
 
-describe("acrossCombinations", () => {
-  const A = { stack: "a/stack", label: "A" }, B = { stack: "b/stack", label: "B" }, C = { stack: "c/stack", label: "C" };
-  const mine = run([story("2", { usage: mins(30, { outTokens: 90000, calls: 300 }), own: [9, 10] })], { ...A, runId: "v2-r1" });
-  const stacks = (v: ReturnType<typeof acrossCombinations>) => v.rows.map((r) => r.stack);
-
-  it("several combinations: one row each, with the story page's own medians and ranges", () => {
-    const rows = [
-      mine, run([story("2", { usage: mins(10), own: [10, 10] })], { ...A, runId: "v2-r2" }),
-      run([story("2", { usage: mins(40), own: [5, 10] })], { ...B, runId: "v2-r1" }),
-      run([story("2", { usage: mins(60), own: [7, 10] })], { ...B, runId: "v2-r2" }),
-    ];
-    const v = acrossCombinations(mine, rows, "2");
-    expect(stacks(v)).toEqual(["a/stack", "b/stack"]);
-    const page = storyPage(rows, "2");
-    for (const r of v.rows) expect(r.summary).toEqual(page.groups.find((g) => g.stack === r.stack)!.summary);
-    const b = v.rows[1];
-    expect(b.state).toBe("measured");
-    expect(b.n).toBe(2);
-    expect(b.summary.minutes.spread).toEqual({ median: 50, min: 40, max: 60, n: 2 });
-    expect(b.summary.heldOut.spread).toEqual({ median: 0.6, min: 0.5, max: 0.7, n: 2 });
-    expect(v.withoutRecord).toBe(0);
+describe("verdicts: quality, in tests of this story", () => {
+  it("same when the difference is at most one test of the story; better or worse beyond", () => {
+    // 7 tests: one test is 14.3 points.
+    expect(qualityVerdict(6 / 7, 5 / 7, 7)).toBe("same");
+    expect(qualityVerdict(5 / 7, 6 / 7, 7)).toBe("same");
+    expect(qualityVerdict(6 / 7, 4 / 7, 7)).toBe("better");
+    expect(qualityVerdict(4 / 7, 6 / 7, 7)).toBe("worse");
+    // A median between two runs: 1.5 tests apart is more than one.
+    expect(qualityVerdict(1, 8.5 / 10, 10)).toBe("better");
+    expect(qualityVerdict(1, 9 / 10, 10)).toBe("same");
   });
-
-  it("only this combination: its one row, marked", () => {
-    const v = acrossCombinations(mine, [mine], "2");
-    expect(v.rows.map((r) => [r.stack, r.isThis, r.state, r.n])).toEqual([["a/stack", true, "measured", 1]]);
-  });
-
-  it("this run's combination is the only one marked", () => {
-    const v = acrossCombinations(mine, [mine, run([story("2")], B), run([story("2")], C)], "2");
-    expect(v.rows.filter((r) => r.isThis).map((r) => r.stack)).toEqual(["a/stack"]);
-  });
-
-
-
-  it("a combination whose only run is still running, with the story recorded: kept, no median (medians are over finished runs), the run counted as running", () => {
-    const rows = [mine, run([story("2", { usage: mins(20) })], { ...B, status: "running" })];
-    const b = acrossCombinations(mine, rows, "2").rows.find((r) => r.stack === "b/stack")!;
-    expect([b.state, b.n]).toEqual(["unfinished", 0]);
-    expect(b.unfinished).toEqual([{ status: "running", count: 1 }]);
-    expect(b.summary.minutes.spread).toBeNull();
-    expect(acrossNoMedian(b, "2", "agent time")).toBe("No finished run yet: story 2 is recorded only by runs that haven't finished (1 running), and the median is over finished runs, as on the story page.");
-  });
-
-  it("unfinished runs that recorded the story are counted by status beside the finished ones, and stay out of the median", () => {
-    const rows = [mine, run([story("2", { usage: mins(20) })], B), run([story("2", { usage: mins(90) })], { ...B, status: "running" }), run([story("2", { usage: mins(90) })], { ...B, status: "failed" })];
-    const b = acrossCombinations(mine, rows, "2").rows.find((r) => r.stack === "b/stack")!;
-    expect([b.state, b.n]).toEqual(["measured", 1]);
-    expect(b.unfinished).toEqual([{ status: "running", count: 1 }, { status: "failed", count: 1 }]);
-    expect(b.summary.minutes.spread?.median).toBe(20);
-  });
-
-  it("a running run counts only where the story is recorded: a combination only building or queued for it is left out, and counted", () => {
-    const rows = [
-      mine,
-      run([story("1")], { ...B, status: "running", squares: [sq("1", "ok", 6, 6), sq("2", "running")], live: { runningStory: "2" } }),
-      run([], { ...C, status: "queued", squares: [sq("1", "unbuilt"), sq("2", "unbuilt")] }),
-    ];
-    const v = acrossCombinations(mine, rows, "2");
-    expect(stacks(v)).toEqual(["a/stack"]);
-    expect(v.withoutRecord).toBe(2);
-  });
-
-  it("a measure no finished run recorded is missing, never 0, while the others stand", () => {
-    const rows = [mine, run([story("2", { usage: null, own: [9, 10] })], B)];
-    const b = acrossCombinations(mine, rows, "2").rows.find((r) => r.stack === "b/stack")!;
-    expect(b.state).toBe("measured");
-    expect(b.summary.heldOut.spread).toEqual({ median: 0.9, min: 0.9, max: 0.9, n: 1 });
-    expect(b.summary.minutes.spread).toBeNull();
-    expect(b.summary.outTokens.spread).toBeNull();
-    expect(acrossNoMedian(b, "2", "agent time")).toBe("No finished run of this combination recorded its agent time for story 2.");
-  });
-
-  it("a zero is a value, not a missing one", () => {
-    const rows = [mine, run([story("2", { usage: mins(5, { calls: 0 }), own: [0, 10] })], B)];
-    const b = acrossCombinations(mine, rows, "2").rows.find((r) => r.stack === "b/stack")!;
-    expect(b.summary.calls.spread?.median).toBe(0);
-    expect(b.summary.heldOut.spread?.median).toBe(0);
-  });
-
-  it("the story page's order: best median held-out first, then the shortest time; unfinished after", () => {
-    const rows = [
-      mine,                                                                             // A: 90%, 30 min
-      run([story("2", { usage: mins(50), own: [10, 10] })], B),                         // B: 100%
-      run([story("2", { usage: mins(10), own: [9, 10] })], C),                          // C: 90%, 10 min
-      run([story("2")], { stack: "d/stack", label: "D", status: "running" }),            // D: unfinished
-    ];
-    const v = acrossCombinations(mine, rows, "2");
-    expect(stacks(v)).toEqual(["b/stack", "c/stack", "a/stack", "d/stack"]);
-    expect(stacks(v)).toEqual(storyPage(rows, "2").groups.map((g) => g.stack));
-  });
-
-  it("this story run's own figures, on the same measures", () => {
-    const v = acrossCombinations(mine, [mine, run([story("2")], B)], "2");
-    expect(v.mine).toEqual({ minutes: 30, outTokens: 90000, calls: 300, heldOut: 0.9 });
-    expect(v.story).toBe(mine.stories[0]);
-  });
-
-  it("this story run's missing figures are null, never 0", () => {
-    const bare = run([story("2", { usage: null, own: [null, null] })], { ...A, runId: "v2-r9" });
-    expect(acrossCombinations(bare, [bare], "2").mine).toEqual({ minutes: null, outTokens: null, calls: null, heldOut: null });
-  });
-
-
-  it("a story run not recorded yet: no figures of its own; its combination is listed all the same", () => {
-    const building = run([story("1")], { ...A, runId: "v2-r4", status: "running", squares: [sq("1", "ok", 6, 6), sq("2", "running")], live: { runningStory: "2" } });
-    const v = acrossCombinations(building, [building, run([story("2")], B)], "2");
-    expect(v.mine).toBeNull();
-    expect(v.story).toBeNull();
-    expect(v.rows.map((r) => [r.stack, r.isThis, r.state])).toEqual([["b/stack", false, "measured"], ["a/stack", true, "notRecorded"]]);
-    expect(v.withoutRecord).toBe(0);
-    expect(acrossNoMedian(v.rows[1], "2", "agent time")).toBe("No run of this combination has recorded story 2 yet.");
-  });
-
-  it("one scale for every bar: the longest of the ranges and this story run's own time", () => {
-    const others = [run([story("2", { usage: mins(20) })], B), run([story("2", { usage: mins(80) })], B)];
-    expect(acrossCombinations(mine, [mine, ...others], "2").scaleMinutes).toBe(80);
-    const slow = run([story("2", { usage: mins(120) })], { ...A, runId: "v2-r5" });
-    expect(acrossCombinations(slow, [slow, ...others], "2").scaleMinutes).toBe(120);
-    const untimed = run([story("2", { usage: null })], A);
-    expect(acrossCombinations(untimed, [untimed], "2").scaleMinutes).toBe(1);
-  });
-
-  it("only runs of the same pack and version family count", () => {
-    const rows = [mine, run([story("2")], { ...B, family: "p-v1" }), run([story("2")], { ...C, pack: "q" })];
-    const v = acrossCombinations(mine, rows, "2");
-    expect(stacks(v)).toEqual(["a/stack"]);
-    expect(v.withoutRecord).toBe(0);
-  });
-
-  it("story ids are compared as numbers", () => {
-    expect(acrossCombinations(mine, [mine], "02").rows[0].n).toBe(1);
+  it("no verdict without both figures or the story's test count", () => {
+    expect(qualityVerdict(null, 0.5, 7)).toBeNull();
+    expect(qualityVerdict(0.5, null, 7)).toBeNull();
+    expect(qualityVerdict(0.5, 0.5, null)).toBeNull();
   });
 });
+
+describe("verdicts: speed, against the 10% band", () => {
+  it("within 10% either way, exactly 10% included: same", () => {
+    expect(speedVerdict(10, 11)).toEqual({ kind: "same" });
+    expect(speedVerdict(11, 10)).toEqual({ kind: "same" });
+    expect(speedVerdict(10, 10)).toEqual({ kind: "same" });
+  });
+  it("beyond it: how many times faster or slower, the median over this run's or this run's over the median", () => {
+    expect(speedVerdict(16, 39)).toEqual({ kind: "faster", times: 39 / 16 });
+    expect(speedVerdict(80, 17)).toEqual({ kind: "slower", times: 80 / 17 });
+  });
+  it("one decimal under 10, a whole number from 10", () => {
+    expect(timesText(39 / 16)).toBe("2.4×");
+    expect(timesText(1.12)).toBe("1.1×");
+    expect(timesText(9.96)).toBe("10×");
+    expect(timesText(28.8)).toBe("29×");
+  });
+  it("in words: the verdict, bold in the page; the numbers after it", () => {
+    expect(speedText({ kind: "faster", times: 39 / 16 })).toBe("2.4× faster");
+    expect(speedText({ kind: "slower", times: 80 / 17 })).toBe("4.7× slower");
+    expect(speedText({ kind: "same" })).toBe("same");
+  });
+  it("no verdict without both times, or with a time of 0", () => {
+    expect(speedVerdict(null, 10)).toBeNull();
+    expect(speedVerdict(10, null)).toBeNull();
+    expect(speedVerdict(0, 10)).toBeNull();
+  });
+});
+
+describe("acrossVerdicts", () => {
+  const A = { stack: "a/stack", label: "A" }, B = { stack: "b/stack", label: "B" }, C = { stack: "c/stack", label: "C" };
+  // This run: 6 of 7 tests in 16 minutes.
+  const mine = run([story("2", { usage: mins(16, { outTokens: 90000, calls: 300 }), own: [6, 7] })], { ...A, runId: "v2-r1" });
+  const other = (o: RunOpts, m: number | null, own: [number, number]) => run([story("2", { usage: m === null ? null : mins(m), own })], o);
+  const stacks = (v: ReturnType<typeof acrossVerdicts>) => v.rows.map((r) => r.stack);
+
+  it("this combination first: this run against its combination's other finished runs, never itself", () => {
+    const rows = [mine, other({ ...A, runId: "v2-r2" }, 39, [5, 7]), other({ ...A, runId: "v2-r3" }, 39, [5, 7]), other(B, 10, [7, 7])];
+    const v = acrossVerdicts(mine, rows, "2");
+    expect(stacks(v)).toEqual(["a/stack", "b/stack"]);
+    const me = v.rows[0];
+    expect(me).toMatchObject({ isThis: true, n: 2 });
+    expect(me.quality).toMatchObject({ mine: 6 / 7, median: 5 / 7, verdict: "same" });
+    expect(me.speed).toMatchObject({ mine: 16, median: 39, verdict: { kind: "faster", times: 39 / 16 } });
+  });
+  it("another combination: its median over its finished runs, with this run's figures", () => {
+    const rows = [mine, other(B, 40, [3, 7]), other(B, 60, [4, 7]), other(B, 20, [5, 7])];
+    const b = acrossVerdicts(mine, rows, "2").rows.find((r) => r.stack === "b/stack")!;
+    expect(b).toMatchObject({ isThis: false, n: 3 });
+    expect(b.quality).toMatchObject({ median: 4 / 7, verdict: "better" });
+    expect(b.quality.spread).toMatchObject({ min: 3 / 7, max: 5 / 7 });
+    expect(b.speed).toMatchObject({ median: 40, verdict: { kind: "faster", times: 2.5 } });
+    expect(b.speed.spread).toMatchObject({ min: 20, max: 60 });
+  });
+  it("this combination with no other finished run of the story: no row of its own", () => {
+    const v = acrossVerdicts(mine, [mine, other({ ...A, runId: "v2-r2", status: "running" }, 39, [5, 7]), other(B, 10, [7, 7])], "2");
+    expect(stacks(v)).toEqual(["b/stack"]);
+  });
+  it("a combination with no finished run of the story is not listed; running runs count for nothing", () => {
+    const rows = [mine, other({ ...B, status: "running" }, 10, [7, 7]), run([story("1")], C)];
+    expect(acrossVerdicts(mine, rows, "2").rows).toEqual([]);
+    const v = acrossVerdicts(mine, [mine, other(B, 10, [7, 7]), other({ ...B, status: "running" }, 90, [0, 7])], "2");
+    expect(v.rows[0]).toMatchObject({ n: 1, quality: { median: 1 }, speed: { median: 10 } });
+  });
+  it("ordered by quality, best median first, this combination first whatever its quality; ties by speed, fastest first", () => {
+    const rows = [
+      mine, other({ ...A, runId: "v2-r2" }, 30, [1, 7]),
+      other(B, 50, [6, 7]), other(C, 10, [6, 7]), other({ stack: "d/stack", label: "D" }, 5, [7, 7]),
+    ];
+    expect(stacks(acrossVerdicts(mine, rows, "2"))).toEqual(["a/stack", "d/stack", "c/stack", "b/stack"]);
+  });
+  it("a figure missing on either side: no verdict, the figure null (the page shows '—'), never 0", () => {
+    const untimed = run([story("2", { usage: null, own: [6, 7] })], { ...A, runId: "v2-r9" });
+    const b = acrossVerdicts(untimed, [untimed, other(B, 10, [6, 7])], "2").rows[0];
+    expect(b.speed).toMatchObject({ mine: null, median: 10, verdict: null });
+    expect(b.quality.verdict).toBe("same");
+    const noTime = acrossVerdicts(mine, [mine, other(B, null, [6, 7])], "2").rows[0];
+    expect(noTime.speed).toMatchObject({ median: null, verdict: null });
+  });
+  it("this story run not recorded: its figures null, every verdict null; the combinations are still listed", () => {
+    const building = run([story("1")], { ...A, runId: "v2-r4", status: "running", squares: [sq("1", "ok", 6, 6), sq("2", "running")], live: { runningStory: "2" } });
+    const v = acrossVerdicts(building, [building, other(B, 10, [6, 7])], "2");
+    expect(v.story).toBeNull();
+    expect(v.rows[0]).toMatchObject({ quality: { mine: null, verdict: null }, speed: { mine: null, verdict: null } });
+  });
+  it("output tokens and tool calls per combination, for the detail: medians with ranges", () => {
+    const rows = [mine, run([story("2", { usage: mins(10, { outTokens: 1000, calls: 10 }) })], B), run([story("2", { usage: mins(10, { outTokens: 3000, calls: 30 }) })], B)];
+    const b = acrossVerdicts(mine, rows, "2").rows[0];
+    expect(b.outTokens).toMatchObject({ median: 2000, min: 1000, max: 3000, n: 2 });
+    expect(b.calls).toMatchObject({ median: 20, min: 10, max: 30, n: 2 });
+    expect(acrossVerdicts(mine, rows, "2").mine).toEqual({ minutes: 16, outTokens: 90000, calls: 300, heldOut: 6 / 7 });
+  });
+  it("only runs of the same pack and version family count; story ids compare as numbers", () => {
+    const rows = [mine, other({ ...B, family: "p-v1" }, 10, [7, 7]), other({ ...C, pack: "q" }, 10, [7, 7])];
+    expect(acrossVerdicts(mine, rows, "2").rows).toEqual([]);
+    expect(acrossVerdicts(mine, [mine, other(B, 10, [7, 7])], "02").rows).toHaveLength(1);
+  });
+});
+
