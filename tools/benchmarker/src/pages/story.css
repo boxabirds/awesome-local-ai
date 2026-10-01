@@ -44,9 +44,8 @@
   .sp-btn.quiet:hover, .sp-btn.quiet:focus-visible { color: var(--ink); border-style: solid; }
   .sp-key { margin: 0; padding: 8px 14px; border-top: 1px solid var(--line); line-height: 1.8; }
 
-  /* Of record and live: live is outlined, italic and lighter, and always says so. */
+  /* Live figures are italic and lighter. */
   .tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; line-height: 13px; border-radius: 3px; padding: 0 4px; vertical-align: 1px; }
-  .tag-live { border: 1px dashed var(--run); color: var(--run); }
   .tag-compare { background: var(--run); color: var(--panel); margin-right: 6px; line-height: 15px; }
   .live-n { font-style: italic; color: var(--muted); }
 

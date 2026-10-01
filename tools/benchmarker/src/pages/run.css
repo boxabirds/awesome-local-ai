@@ -62,10 +62,9 @@ a.record-link:hover .record-of { color: var(--run); }
 .bad-text { color: var(--bad); font-weight: 600; }
 .arrow { color: var(--faint); margin: 0 4px; }
 
-/* Of record and live: the record is solid and bold; live is outlined, italic and lighter, and always says so. */
+/* Of record: solid and bold. Live figures are italic and lighter. */
 .tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; line-height: 15px; border-radius: 3px; padding: 0 5px; }
 .tag-record { background: var(--ink); color: var(--panel); }
-.tag-live { border: 1px dashed var(--run); color: var(--run); line-height: 13px; }
 .live-n { font-style: italic; color: var(--muted); font-weight: 600; }
 .live-line { margin-top: 4px; color: var(--muted); }
 .record-inline { font-size: 16px; }

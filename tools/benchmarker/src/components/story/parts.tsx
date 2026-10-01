@@ -1,4 +1,4 @@
-// Small pieces of the story page: how each measure reads, a missing number with why, the live tag, and a link that
+// Small pieces of the story page: how each measure reads, a missing number with why, and a link that
 // keeps the page's own state in its address.
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { Story, Usage } from "../../../shared/types.ts";
@@ -45,11 +45,6 @@ export function Term({ id, children }: { id: TermId; children?: ReactNode }) {
 /** "—" for a number that isn't there, with why on hover and on keyboard focus. Never a 0. */
 export function Missing({ why }: { why: string }) {
   return <span className="missing" tabIndex={0} data-tip={why} aria-label={`not available: ${why}`}>—</span>;
-}
-
-/** Live: provisional, lighter, and never ranks anything. */
-export function LiveTag() {
-  return <span className="tag tag-live" data-tip={GLOSSARY.liveHeldOut.what}>live</span>;
 }
 
 /** An entity link (from EntityLinks, which builds the plain address) whose address also carries this page's state, so

@@ -129,7 +129,7 @@ test.describe("header: the score of record", () => {
     await expect(lead).toHaveAttribute("data-lead", "live");
     await expect(lead).toContainText("6/6 held-out tests pass");
     await expect(lead).toContainText("so far, after 2 recorded stories");
-    await expect(lead.locator(".tag-live")).toHaveText("live");
+    await expect(lead.locator(".tag-live")).toHaveCount(0);
   });
 
   test("finished with no score of record: pending, one word, and nothing about why", async ({ page }) => {
@@ -170,7 +170,7 @@ test.describe("header: agent time", () => {
     await expect(t.locator(".stat-value")).toHaveText("12 min");
     await expect(t).toContainText("1 without a time");
     await expect(t.locator(".live-line")).toContainText("28 min so far");
-    await expect(t.locator(".live-line .tag-live")).toHaveText("live");
+    await expect(t.locator(".live-line .tag-live")).toHaveCount(0);
   });
 
   test("queued: missing, with why", async ({ page }) => {
@@ -395,7 +395,7 @@ test.describe("held-out: one square per story, its own tests after it", () => {
     await expect(squares(page).nth(0).locator(".rs-sq")).toHaveClass(/q-high/);        // 6/6
     await expect(squares(page).nth(1).locator(".rs-sq")).toHaveClass(/q-high/);        // 14/14
     await expect(squares(page).nth(2).locator(".rs-sq")).toHaveClass(/rs-unbuilt/);
-    await expect(section(page, "heldout").locator(".rp-head .tag-live")).toHaveText("live");
+    await expect(section(page, "heldout").locator(".rp-head .tag-live")).toHaveCount(0);
     await expect(section(page, "heldout")).not.toContainText(/→|of record|agree|differ/);
   });
 

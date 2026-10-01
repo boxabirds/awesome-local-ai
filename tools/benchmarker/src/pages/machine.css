@@ -10,7 +10,6 @@
   .bad-text { color: var(--bad); font-weight: 600; }
   .tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; line-height: 15px; border-radius: 3px; padding: 0 5px; vertical-align: 1px; }
   .tag-record { background: var(--ink); color: var(--panel); }
-  .tag-live { border: 1px dashed var(--run); color: var(--run); line-height: 13px; }
   .live-n { font-style: italic; color: var(--muted); font-weight: 600; }
 
   /* ---------- header ---------- */

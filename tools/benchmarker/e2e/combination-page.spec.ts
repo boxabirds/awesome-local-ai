@@ -150,7 +150,7 @@ test.describe("combination page", () => {
     await expect(rowOf(page, "v2-r7").locator(".pending")).toHaveText("pending");
     await rowOf(page, "v2-r7").locator(".pending").hover();
     await expect(tip(page)).toHaveText(GLOSSARY.noScore.what);
-    await expect(rowOf(page, "v2-r1").locator(".live")).toHaveText("live 1/2");
+    await expect(rowOf(page, "v2-r1").locator(".live")).toHaveText("1/2");
     await expect(rowOf(page, "v2-r1").locator(".of-record")).toHaveCount(0);
     await rowOf(page, "v2-r2").locator("td.m-score .missing").hover();
     await expect(tip(page)).toContainText("the run is queued, and only a finished run is re-scored");

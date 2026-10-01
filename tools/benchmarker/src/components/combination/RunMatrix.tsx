@@ -62,8 +62,8 @@ function cellTip(c: MatrixCell, run: Row, metric: Metric, m: StoryMedian | null 
   return `${where}: ${v}; ${med}. ${HELD_OUT_WORD[c.heldOut]}${c.story?.ownTotal ? ` (${c.story.ownPassed ?? 0}/${c.story.ownTotal})` : ""}.${c.divergence ? ` Flagged: ${flagTip(c, metric, m)}` : ""}${marks}`;
 }
 
-/** The run's head: its link, status, and score of record, pending for a finished run without one; live progress is
- * labelled live. */
+/** The run's head: its link, status, and score of record, pending for a finished run without one; a running run's
+ * progress is the stories passing out of those built. */
 function RunHead({ run }: { run: Row }) {
   const score = scoreOfRecord(run);
   const built = run.storiesWorking.squares.filter((q) => q.state !== "unbuilt" && q.state !== "running").length;
@@ -78,7 +78,7 @@ function RunHead({ run }: { run: Row }) {
       <td className="m-score">
         {score ? <b className="of-record" data-tip={termTip("scoreOfRecord")}>{score.passed}<span className="small">/{score.total}</span></b>
           : run.status === "finished" ? <span className="pending" data-tip={termTip("noScore")}>{PENDING}</span>
-          : built ? <span className="live" tabIndex={0} data-tip={`${termTip("liveBadge")} ${why}`}><span className="live-badge">live</span> {run.storiesWorking.working}/{built}</span>
+          : built ? <span className="live" tabIndex={0} data-tip={`${run.storiesWorking.working} of ${built} built stories pass all their held-out tests. ${why}`}>{run.storiesWorking.working}/{built}</span>
           : <Missing why={why} />}
       </td>
     </>
