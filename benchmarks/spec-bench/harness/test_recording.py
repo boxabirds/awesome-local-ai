@@ -115,6 +115,78 @@ def test_the_agent_writes_and_reads_its_own_temp_dir(two_runs):
 
 
 
+
+# ======================= packages outside the workspace =======================
+# Node and TypeScript look for packages in node_modules of every directory above the workspace. The Macs had
+# ~/node_modules/@types/node: Sonnet 5.5 v2-r1 (1 Oct 2026) never declared @types/node, its build passed where the
+# agent worked and failed from a clean clone, and the run has no score of record.
+
+@pytest.fixture
+def run_under_a_home_with_packages():
+    """A run's work dir under a stand-in for the home directory that has node_modules and a package.json, placed
+    where the sandbox hides nothing else (not under WORK_ROOT or a temp dir, which are hidden anyway)."""
+    home = Path.home() / f".spec-bench-sandbox-test-{uuid.uuid4().hex[:8]}"
+    own = home / "bench" / "work" / "run"
+    (own / "workspace" / "node_modules" / "mine").mkdir(parents=True)
+    (own / "workspace" / "node_modules" / "mine" / "index.js").write_text("module.exports = 'mine';\n")
+    (home / "node_modules" / "leak").mkdir(parents=True)
+    (home / "node_modules" / "leak" / "index.js").write_text("module.exports = 'leaked';\n")
+    (home / "package.json").write_text('{"name": "home", "private": true}\n')
+    try:
+        yield home, own
+    finally:
+        shutil.rmtree(home, ignore_errors=True)
+
+
+def test_outside_packages_are_every_ancestor_s_node_modules_and_manifests(tmp_path):
+    own = tmp_path / "a" / "b" / "run"
+    got = drive.outside_packages(own)
+    for anc in (tmp_path / "a" / "b", tmp_path / "a", tmp_path, Path(tmp_path.anchor)):
+        assert anc.resolve() / "node_modules" in got and anc.resolve() / "package.json" in got
+    assert not [p for p in got if p.is_relative_to(own.resolve())]                 # the run's own are its own
+
+
+def test_macos_profile_denies_packages_above_the_run(tmp_path, monkeypatch):
+    monkeypatch.setattr(drive, "IS_MAC", True)
+    own = tmp_path / "home" / "bench" / "run"
+    own.mkdir(parents=True)
+    profile = drive.sandboxed(["true"], own_dir=own)[2]
+    deny = profile[:profile.index("(allow file-read-metadata")]
+    home = (tmp_path / "home").resolve()
+    assert f"(subpath {drive._sb_quote(home / 'node_modules')})" in deny
+    assert f"(literal {drive._sb_quote(home / 'package.json')})" in deny
+
+
+def test_linux_command_masks_packages_above_the_run_that_exist(tmp_path, monkeypatch):
+    monkeypatch.setattr(drive, "IS_MAC", False)
+    home = tmp_path / "home"
+    own = home / "bench" / "run"
+    own.mkdir(parents=True)
+    (home / "node_modules").mkdir()
+    (home / "package.json").write_text("{}")
+    cmd = drive.sandboxed(["true"], own_dir=own)
+    masks = [cmd[i + 1] for i, a in enumerate(cmd) if a == "--tmpfs"]
+    nulled = [cmd[i + 2] for i, a in enumerate(cmd) if a == "--ro-bind" and cmd[i + 1] == "/dev/null"]
+    assert str((home / "node_modules").resolve()) in masks and str((home / "package.json").resolve()) in nulled
+    assert str((home / "bench" / "node_modules").resolve()) not in masks        # absent: masking would create it
+
+
+@needs_sandbox
+def test_the_agent_cannot_read_packages_above_its_run(run_under_a_home_with_packages):
+    home, own = run_under_a_home_with_packages
+    r = _in_sandbox(own, f'cat "{home}/node_modules/leak/index.js"; ls "{home}/node_modules"; cat "{home}/package.json"')
+    assert "leaked" not in r.stdout and "leak" not in r.stdout and '"home"' not in r.stdout, r.stdout
+
+
+@needs_sandbox
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs node")
+def test_node_resolves_the_workspace_s_packages_and_none_from_above(run_under_a_home_with_packages):
+    home, own = run_under_a_home_with_packages
+    outside = subprocess.run(["node", "-e", "console.log(require('leak'))"], cwd=own / "workspace", capture_output=True, text=True)
+    assert outside.stdout.strip() == "leaked"                  # the leak is real without the sandbox
+    r = _in_sandbox(own, "node -e \"console.log(require('mine'))\"; node -e \"console.log(require('leak'))\"")
+    assert "mine" in r.stdout and "leaked" not in r.stdout and "Cannot find module 'leak'" in r.stderr, r.stderr[-600:]
+
 def test_claude_code_is_told_to_keep_its_temp_files_in_the_run_s_own(tmp_path):
     env = drive.agent_env(tmp_path / "run-a")
     assert env["CLAUDE_CODE_TMPDIR"] == env["TMPDIR"]
@@ -364,3 +436,14 @@ def test_the_publish_gate_still_reads_the_log(tmp_path):
     import publicise
     assert publicise.is_own_work("combinations/x/benchmarks/vidi/r/stories/01/agent-events.compact.jsonl.gz")
     assert not publicise.is_private("combinations/x/benchmarks/vidi/r/stories/01/agent-events.compact.jsonl.gz")
+
+
+
+@needs_sandbox
+def test_the_preflight_names_packages_above_the_run_that_the_agent_can_read(run_under_a_home_with_packages, monkeypatch):
+    import preflight
+    home, own = run_under_a_home_with_packages
+    assert [p for p in preflight.visible_outside_packages(own) if p.is_relative_to(home)] == []
+    monkeypatch.setattr(preflight, "sandboxed", lambda cmd, own_dir: cmd)        # a sandbox that hides nothing
+    seen = preflight.visible_outside_packages(own)
+    assert home / "node_modules" in seen and home / "package.json" in seen

@@ -199,6 +199,19 @@ def user_temp_dir() -> Path | None:
     return Path(d).resolve() if p.returncode == 0 and d else None
 
 
+# Node and TypeScript resolve packages from node_modules in every directory above the workspace, and npm takes
+# the nearest package.json above as the project. A package on the machine (the Macs had ~/node_modules/@types/node)
+# then stands in for one the agent never declared: Sonnet 5.5 v2-r1's build passed where the agent worked and
+# failed from a clean clone (1 Oct 2026). Hidden from the agent, in every directory above its run.
+OUTSIDE_PACKAGE_DIRS = ("node_modules",)
+OUTSIDE_PACKAGE_FILES = ("package.json", "package-lock.json")
+
+
+def outside_packages(own_dir: Path) -> list[Path]:
+    """The package directories and manifests of every directory above own_dir, existing or not."""
+    return [a / name for a in own_dir.resolve().parents for name in (*OUTSIDE_PACKAGE_DIRS, *OUTSIDE_PACKAGE_FILES)]
+
+
 def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
     """Wrap cmd in a sandbox that hides everything in SANDBOX_DENY except own_dir, with own_dir/AGENT_TMP as the
     agent's only temp dir.
@@ -209,7 +222,8 @@ def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
     own_tmp = own_dir / AGENT_TMP
     own_tmp.mkdir(parents=True, exist_ok=True)   # bwrap can't bind a missing source; agent_env makes it too
     if not IS_MAC:
-        args = hostenv.bwrap_wrap([], own_dir, [*SANDBOX_DENY, WORK_ROOT], reopen_ro=SANDBOX_REOPEN_RO)
+        args = hostenv.bwrap_wrap([], own_dir, [*SANDBOX_DENY, WORK_ROOT, *outside_packages(own_dir)],
+                                  reopen_ro=SANDBOX_REOPEN_RO)
         own = str(own_dir.resolve())
         assert args[-4:] == ["--bind", own, own, "--"], "hostenv.bwrap_wrap must end by binding own_dir back"
         # After the masks (bwrap mounts in order; a later mount covers an earlier one) and before own_dir, which
@@ -218,7 +232,9 @@ def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
         return [*args[:-4], *tmp, *args[-4:], *cmd]
     user_tmp = user_temp_dir()
     denied = [*SANDBOX_DENY, WORK_ROOT, *(p.resolve() for p in SHARED_TMP), *([user_tmp] if user_tmp else [])]
-    deny = " ".join(f"(subpath {_sb_quote(p)})" for p in denied)
+    deny = " ".join([*(f"(subpath {_sb_quote(p)})" for p in denied),
+                     *(f"({'subpath' if p.name in OUTSIDE_PACKAGE_DIRS else 'literal'} {_sb_quote(p)})"
+                       for p in outside_packages(own_dir))])
     user_tmp_rules = (f"(allow file-read-metadata (literal {_sb_quote(user_tmp)}))"
                       f'(allow file-read* file-write* (regex #"^{re.escape(str(user_tmp))}/{USER_TEMP_OPEN}"))'
                       if user_tmp else "")
