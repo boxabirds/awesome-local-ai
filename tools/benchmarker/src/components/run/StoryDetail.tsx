@@ -76,16 +76,8 @@ export function StoryCost({ usage, cloud = false }: { usage: Usage | null | unde
 
 const notCounted = (what: string) => <Missing why={`Not counted: ${what}.`} />;
 
-/** Per call: how much more after the largest block; for a cloud model, that the figures are estimates. */
-function perCallSub(afterRatio: number | null, estimated: boolean): string | undefined {
-  const parts = [estimated ? "estimated tokens" : null, afterRatio !== null ? `${afterRatio.toFixed(RATIO_DECIMALS)}× after the largest block` : null].filter(Boolean);
-  return parts.length ? parts.join(" · ") : undefined;
-}
-
 export function Conversation({ story }: { story: Story }) {
   const c = conversationView(story.conversation);
-  // An estimate is marked "~" so it can't be read as an exact count.
-  const est = (n: number) => (c?.perCallEstimated ? `~${full(n)}` : full(n));
   if (!c) {
     return (
       <Section term="conversation" id="conversation">
@@ -100,13 +92,16 @@ export function Conversation({ story }: { story: Story }) {
         <Stat term="thinking" sub={c.thinkingMedian !== null ? `median ${full(c.thinkingMedian)} per call` : undefined}>
           {c.thinkingTotal !== null ? <>{full(c.thinkingTotal)} <span className="unit">{c.thinkingUnit}</span></> : notCounted("thinking")}
         </Stat>
-        <Stat term="thinkingMedian" sub={perCallSub(c.afterRatio, c.perCallEstimated)}>
-          <span data-fact="before">{c.before !== null ? est(c.before) : notCounted("thinking before the largest block")}</span>
-          <span className="arrow" aria-hidden="true"> → </span>
-          <span data-fact="after">{c.after !== null ? est(c.after) : notCounted("thinking after the largest block")}</span>
+        <Stat term="thinkingMedian" sub={c.afterRatio !== null ? `${c.afterRatio.toFixed(RATIO_DECIMALS)}× after the largest block` : undefined}>
+          {c.perCallUnavailable ? <NotApplicable /> : <>
+            <span data-fact="before">{c.before !== null ? full(c.before) : notCounted("thinking before the largest block")}</span>
+            <span className="arrow" aria-hidden="true"> → </span>
+            <span data-fact="after">{c.after !== null ? full(c.after) : notCounted("thinking after the largest block")}</span>
+          </>}
         </Stat>
-        <Stat term="largestThinking" sub={c.largest ? `call ${c.largest.call}, ${Math.round(c.largest.minutesIn)} min in${c.perCallEstimated ? " · estimated" : ""}` : undefined}>
-          {c.largest ? <>{est(c.largest.size)} <span className="unit">{c.thinkingUnit}</span></> : notCounted("the largest thinking block")}
+        <Stat term="largestThinking" sub={c.largest ? `call ${c.largest.call}, ${Math.round(c.largest.minutesIn)} min in` : undefined}>
+          {c.perCallUnavailable ? <NotApplicable />
+            : c.largest ? <>{full(c.largest.size)} <span className="unit">{c.thinkingUnit}</span></> : notCounted("the largest thinking block")}
         </Stat>
         <Stat term="contextGrowth" sub={c.contextGrowth !== null ? `grew ${c.contextGrowth.toFixed(RATIO_DECIMALS)}×` : undefined}>
           {c.contextStart !== null ? short(c.contextStart) : notCounted("the context at the start")}

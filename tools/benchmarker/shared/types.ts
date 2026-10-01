@@ -75,9 +75,6 @@ export interface ConversationProfile {
   thinkingVisible: boolean;
   /** Withheld thinking: the exact total in tokens, as the API billed it; null where not recorded. */
   thinkingTokens: number | null;
-  /** Withheld thinking per call, as the client estimated it while the model thought: the median before and after
-   * the largest block, and that block. Null where the log has no estimates. */
-  thinkingEstimated: { medianBefore: number | null; medianAfter: number | null; largest: { tokens: number; call: number; atS: number } | null } | null;
   /** Context the model read on its first and last call, and the largest jump between two consecutive calls. */
   contextStart: number | null;
   contextEnd: number | null;

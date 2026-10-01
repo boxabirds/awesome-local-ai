@@ -405,7 +405,7 @@ describe("data present or absent", () => {
       contextStart: 9000, contextEnd: 120000, largestContextJump: { tokens: 16607, call: 15 },
       toolsByName: { read: 21, bash: 115, write: 28, edit: 40 }, toolErrors: 5,
       longestTool: { seconds: 61.7, name: "bash", gist: "npm run test:unit" }, signals: ["long-thinking-block"],
-      thinkingVisible: true, thinkingTokens: null, thinkingEstimated: null, ...over,
+      thinkingVisible: true, thinkingTokens: null, ...over,
     });
 
     it("absent: nothing to show", () => {
@@ -417,24 +417,23 @@ describe("data present or absent", () => {
       const v = conversationView(profile())!;
       expect(v.afterRatio).toBeCloseTo(464 / 80, 6);
       expect(v.largest).toEqual({ size: 64543, call: 14, minutesIn: 8 });
-      expect(v).toMatchObject({ thinkingUnit: "chars", thinkingTotal: 328750, thinkingMedian: 424, perCallEstimated: false });
+      expect(v).toMatchObject({ thinkingUnit: "chars", thinkingTotal: 328750, thinkingMedian: 424, perCallUnavailable: false });
       expect(v.contextGrowth).toBeCloseTo(120000 / 9000, 6);
       expect(v.tools.map((t) => t.name)).toEqual(["bash", "edit", "write", "read"]);
       expect(v.signals).toEqual([]);  // "long-thinking-block" is retired: it meant nothing on its own
     });
 
-    it("thinking a cloud model withholds: the exact total in tokens, per call and the largest block estimated", () => {
+    it("thinking a cloud model withholds: the exact total in tokens; per call and the largest block unavailable", () => {
       const v = conversationView(profile({
         thinkingVisible: false, thinkingChars: null, thinkingMedian: null, thinkingMedianBefore: null, thinkingMedianAfter: null,
-        largestThinking: null, thinkingTokens: 7986,
-        thinkingEstimated: { medianBefore: 0, medianAfter: 207, largest: { tokens: 1000, call: 42, atS: 457.8 } } }))!;
-      expect(v).toMatchObject({ thinkingUnit: "tokens", thinkingTotal: 7986, thinkingMedian: null, perCallEstimated: true,
-        before: 0, after: 207, afterRatio: null, largest: { size: 1000, call: 42 } });
+        largestThinking: null, thinkingTokens: 7986 }))!;
+      expect(v).toMatchObject({ thinkingUnit: "tokens", thinkingTotal: 7986, thinkingMedian: null, perCallUnavailable: true,
+        before: null, after: null, afterRatio: null, largest: null });
     });
 
     it("withheld and with no estimates: unknown, never 0", () => {
       const v = conversationView(profile({ thinkingVisible: false, thinkingChars: null, thinkingMedian: null, thinkingMedianBefore: null,
-        thinkingMedianAfter: null, largestThinking: null, thinkingTokens: null, thinkingEstimated: null }))!;
+        thinkingMedianAfter: null, largestThinking: null, thinkingTokens: null }))!;
       expect(v).toMatchObject({ thinkingUnit: "tokens", thinkingTotal: null, before: null, after: null, largest: null });
     });
 

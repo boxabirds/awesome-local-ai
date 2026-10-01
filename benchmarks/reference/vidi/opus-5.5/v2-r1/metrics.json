@@ -305,7 +305,7 @@
         "commit": "310b836b"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 20,
         "tool_calls": 20,
         "thinking_visible": false,
@@ -323,8 +323,6 @@
           "call": 7,
           "at_s": 155.0
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 225,
         "context_start": 16226,
         "context_end": 81951,
         "largest_context_jump": {
@@ -679,7 +677,7 @@
         "commit": "26d73bfe"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 36,
         "tool_calls": 38,
         "thinking_visible": false,
@@ -697,8 +695,6 @@
           "call": 5,
           "at_s": 225.8
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 226,
         "context_start": 16276,
         "context_end": 145475,
         "largest_context_jump": {
@@ -1067,7 +1063,7 @@
         "commit": "677ccf0f"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 73,
         "tool_calls": 75,
         "thinking_visible": false,
@@ -1085,8 +1081,6 @@
           "call": 39,
           "at_s": 564.9
         },
-        "thinking_estimated_median_before": 240,
-        "thinking_estimated_median_after": 271,
         "context_start": 16293,
         "context_end": 180230,
         "largest_context_jump": {
@@ -1458,7 +1452,7 @@
         "commit": "9ce504c0"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 88,
         "tool_calls": 90,
         "thinking_visible": false,
@@ -1476,8 +1470,6 @@
           "call": 9,
           "at_s": 81.9
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 231,
         "context_start": 16317,
         "context_end": 192085,
         "largest_context_jump": {
@@ -1825,7 +1817,7 @@
         "commit": "bf9d82ae"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 48,
         "tool_calls": 51,
         "thinking_visible": false,
@@ -1843,8 +1835,6 @@
           "call": 25,
           "at_s": 195.6
         },
-        "thinking_estimated_median_before": 249,
-        "thinking_estimated_median_after": 245,
         "context_start": 16314,
         "context_end": 140914,
         "largest_context_jump": {
@@ -2270,7 +2260,7 @@
         "commit": "f119f9b9"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 50,
         "tool_calls": 53,
         "thinking_visible": false,
@@ -2288,8 +2278,6 @@
           "call": 14,
           "at_s": 141.9
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 307,
         "context_start": 16345,
         "context_end": 198833,
         "largest_context_jump": {
@@ -2654,7 +2642,7 @@
         "commit": "2a6d7b24"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 36,
         "tool_calls": 38,
         "thinking_visible": false,
@@ -2672,8 +2660,6 @@
           "call": 6,
           "at_s": 38.6
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 267,
         "context_start": 16366,
         "context_end": 130934,
         "largest_context_jump": {
@@ -3076,7 +3062,7 @@
         "commit": "101de99c"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 83,
         "tool_calls": 87,
         "thinking_visible": false,
@@ -3094,8 +3080,6 @@
           "call": 8,
           "at_s": 178.3
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 255,
         "context_start": 16333,
         "context_end": 242517,
         "largest_context_jump": {
@@ -3487,7 +3471,7 @@
         "commit": "cfd2b72a"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 57,
         "tool_calls": 60,
         "thinking_visible": false,
@@ -3505,8 +3489,6 @@
           "call": 15,
           "at_s": 338.0
         },
-        "thinking_estimated_median_before": 227,
-        "thinking_estimated_median_after": 268,
         "context_start": 16376,
         "context_end": 244030,
         "largest_context_jump": {
@@ -3855,7 +3837,7 @@
         "commit": "7cc0cbd8"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 38,
         "tool_calls": 40,
         "thinking_visible": false,
@@ -3873,8 +3855,6 @@
           "call": 11,
           "at_s": 74.3
         },
-        "thinking_estimated_median_before": 114,
-        "thinking_estimated_median_after": 253,
         "context_start": 16337,
         "context_end": 162507,
         "largest_context_jump": {
@@ -4275,7 +4255,7 @@
         "commit": "eb396bcd"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 60,
         "tool_calls": 66,
         "thinking_visible": false,
@@ -4293,8 +4273,6 @@
           "call": 31,
           "at_s": 306.3
         },
-        "thinking_estimated_median_before": 106,
-        "thinking_estimated_median_after": 232,
         "context_start": 16327,
         "context_end": 210668,
         "largest_context_jump": {

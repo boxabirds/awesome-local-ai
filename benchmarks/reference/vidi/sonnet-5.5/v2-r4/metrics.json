@@ -251,7 +251,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 23,
         "tool_calls": 44,
         "thinking_visible": false,
@@ -269,8 +269,6 @@
           "call": 6,
           "at_s": 71.9
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 196,
         "context_start": 16293,
         "context_end": 77433,
         "largest_context_jump": {
@@ -704,7 +702,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 25,
         "tool_calls": 50,
         "thinking_visible": false,
@@ -722,8 +720,6 @@
           "call": 7,
           "at_s": 93.8
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 208,
         "context_start": 16340,
         "context_end": 102866,
         "largest_context_jump": {
@@ -1266,7 +1262,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 58,
         "tool_calls": 92,
         "thinking_visible": false,
@@ -1284,8 +1280,6 @@
           "call": 42,
           "at_s": 457.6
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 207,
         "context_start": 16359,
         "context_end": 140092,
         "largest_context_jump": {
@@ -2147,7 +2141,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 69,
         "tool_calls": 92,
         "thinking_visible": false,
@@ -2165,8 +2159,6 @@
           "call": 7,
           "at_s": 65.6
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 244,
         "context_start": 16382,
         "context_end": 175736,
         "largest_context_jump": {
@@ -2635,7 +2627,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 34,
         "tool_calls": 59,
         "thinking_visible": false,
@@ -2653,8 +2645,6 @@
           "call": 14,
           "at_s": 100.8
         },
-        "thinking_estimated_median_before": 177,
-        "thinking_estimated_median_after": 215,
         "context_start": 16378,
         "context_end": 120776,
         "largest_context_jump": {
@@ -3331,7 +3321,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 54,
         "tool_calls": 67,
         "thinking_visible": false,
@@ -3349,8 +3339,6 @@
           "call": 7,
           "at_s": 101.5
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 225,
         "context_start": 16411,
         "context_end": 184964,
         "largest_context_jump": {
@@ -3962,7 +3950,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 31,
         "tool_calls": 46,
         "thinking_visible": false,
@@ -3980,8 +3968,6 @@
           "call": 18,
           "at_s": 241.8
         },
-        "thinking_estimated_median_before": 214,
-        "thinking_estimated_median_after": 0,
         "context_start": 16437,
         "context_end": 107578,
         "largest_context_jump": {
@@ -4538,7 +4524,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 52,
         "tool_calls": 90,
         "thinking_visible": false,
@@ -4556,8 +4542,6 @@
           "call": 8,
           "at_s": 103.1
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 202,
         "context_start": 16399,
         "context_end": 173853,
         "largest_context_jump": {
@@ -5061,7 +5045,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 53,
         "tool_calls": 86,
         "thinking_visible": false,
@@ -5079,8 +5063,6 @@
           "call": 22,
           "at_s": 246.9
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 192,
         "context_start": 16442,
         "context_end": 195966,
         "largest_context_jump": {
@@ -5571,7 +5553,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 34,
         "tool_calls": 47,
         "thinking_visible": false,
@@ -5589,8 +5571,6 @@
           "call": 9,
           "at_s": 30.5
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 0,
         "context_start": 16406,
         "context_end": 110797,
         "largest_context_jump": {
@@ -6039,7 +6019,7 @@
         "backfilled": true
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 62,
         "tool_calls": 100,
         "thinking_visible": false,
@@ -6057,8 +6037,6 @@
           "call": 14,
           "at_s": 103.3
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 233,
         "context_start": 16396,
         "context_end": 191760,
         "largest_context_jump": {

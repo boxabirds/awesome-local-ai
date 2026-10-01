@@ -308,7 +308,7 @@
         "commit": "328f2a31"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 23,
         "tool_calls": 22,
         "thinking_visible": false,
@@ -326,8 +326,6 @@
           "call": 11,
           "at_s": 150.4
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 243,
         "context_start": 16225,
         "context_end": 84455,
         "largest_context_jump": {
@@ -687,7 +685,7 @@
         "commit": "eccc8210"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 32,
         "tool_calls": 37,
         "thinking_visible": false,
@@ -705,8 +703,6 @@
           "call": 5,
           "at_s": 196.8
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 233,
         "context_start": 16275,
         "context_end": 137494,
         "largest_context_jump": {
@@ -1081,7 +1077,7 @@
         "commit": "ee368615"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 105,
         "tool_calls": 106,
         "thinking_visible": false,
@@ -1099,8 +1095,6 @@
           "call": 52,
           "at_s": 584.6
         },
-        "thinking_estimated_median_before": 248,
-        "thinking_estimated_median_after": 256,
         "context_start": 16295,
         "context_end": 202479,
         "largest_context_jump": {
@@ -1473,7 +1467,7 @@
         "commit": "3cd0d1dc"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 63,
         "tool_calls": 69,
         "thinking_visible": false,
@@ -1491,8 +1485,6 @@
           "call": 13,
           "at_s": 263.2
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 0,
         "context_start": 16319,
         "context_end": 191261,
         "largest_context_jump": {
@@ -1841,7 +1833,7 @@
         "commit": "fea1eb57"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 44,
         "tool_calls": 44,
         "thinking_visible": false,
@@ -1859,8 +1851,6 @@
           "call": 5,
           "at_s": 28.1
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 272,
         "context_start": 16318,
         "context_end": 147224,
         "largest_context_jump": {
@@ -2290,7 +2280,7 @@
         "commit": "e8ba5e2a"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 52,
         "tool_calls": 57,
         "thinking_visible": false,
@@ -2308,8 +2298,6 @@
           "call": 10,
           "at_s": 143.9
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 247,
         "context_start": 16352,
         "context_end": 191487,
         "largest_context_jump": {
@@ -2675,7 +2663,7 @@
         "commit": "b0443163"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 44,
         "tool_calls": 46,
         "thinking_visible": false,
@@ -2693,8 +2681,6 @@
           "call": 9,
           "at_s": 68.1
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 269,
         "context_start": 16375,
         "context_end": 135587,
         "largest_context_jump": {
@@ -3100,7 +3086,7 @@
         "error": "com:boxabirds/awesome-local-ai.git\n ! [rejected]          HEAD -> main (fetch first)\nerror: failed to push some refs to 'github.com:boxabirds/awesome-local-ai.git'\nhint: Updates were rejected because the remote contains work that you do not\nhint: have locally. This is usually caused by another repository pushing to\nhint: the same ref. If you want to integrate the remote changes, use\nhint: 'git pull' before pushing again.\nhint: See the 'Note about fast-forwards' in 'git push --help' for details.\n"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 57,
         "tool_calls": 61,
         "thinking_visible": false,
@@ -3118,8 +3104,6 @@
           "call": 11,
           "at_s": 228.7
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 268,
         "context_start": 16338,
         "context_end": 218983,
         "largest_context_jump": {
@@ -3512,7 +3496,7 @@
         "commit": "dd8fcb35"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 58,
         "tool_calls": 59,
         "thinking_visible": false,
@@ -3530,8 +3514,6 @@
           "call": 8,
           "at_s": 125.4
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 259,
         "context_start": 16379,
         "context_end": 235040,
         "largest_context_jump": {
@@ -3881,7 +3863,7 @@
         "commit": "ea2db998"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 46,
         "tool_calls": 48,
         "thinking_visible": false,
@@ -3899,8 +3881,6 @@
           "call": 16,
           "at_s": 80.9
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 246,
         "context_start": 16341,
         "context_end": 169514,
         "largest_context_jump": {
@@ -4304,7 +4284,7 @@
         "commit": "a752e0b5"
       },
       "conversation": {
-        "version": 2,
+        "version": 3,
         "calls": 60,
         "tool_calls": 65,
         "thinking_visible": false,
@@ -4322,8 +4302,6 @@
           "call": 9,
           "at_s": 96.1
         },
-        "thinking_estimated_median_before": 0,
-        "thinking_estimated_median_after": 258,
         "context_start": 16330,
         "context_end": 223916,
         "largest_context_jump": {
