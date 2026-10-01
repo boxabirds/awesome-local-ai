@@ -8,6 +8,8 @@ import { clampScale, resizeRect, scaleFromHandle, scaleWithin, unionRects } from
 import type { Handle, Point, Rect } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
+import { applyTextResize } from '../objects/textResize';
+import { getDefaultMeasurer } from '../objects/textLayout';
 import type { Selection } from './useSelection';
 
 interface Press {
@@ -27,6 +29,8 @@ interface Press {
   box: Rect | null;
   minSizes: number[];
   aspectLocked: boolean;
+  /** Resized objects whose height follows their content (text); they only take a width from the gesture. */
+  autoHeightIds: Set<string>;
   lastEvent: { dx: number; dy: number; shift: boolean } | null;
 }
 
@@ -64,11 +68,14 @@ export function useTransformGesture(opts: {
     if (!p.box || !p.handle) return;
     const raw = resizeRect(p.box, p.handle, { x: dx, y: dy }, p.aspectLocked || p.lastEvent.shift);
     const want = { x: raw.width / p.box.width, y: raw.height / p.box.height };
-    const scale = clampScale(want, [...p.starts.values()], p.minSizes, MAX_OBJECT_SIZE_WORLD);
+    const clampRects = [...p.starts].map(([id, r]) => (p.autoHeightIds.has(id) ? { ...r, height: 0 } : r));
+    const scale = clampScale(want, clampRects, p.minSizes, MAX_OBJECT_SIZE_WORLD);
     const target = scale.x === want.x && scale.y === want.y ? raw : scaleFromHandle(p.box, p.handle, scale);
     const rects = new Map<string, Rect>();
-    for (const [id, r] of p.starts) rects.set(id, scaleWithin(r, p.box, target));
+    const textRects = new Map<string, Rect>();
+    for (const [id, r] of p.starts) (p.autoHeightIds.has(id) ? textRects : rects).set(id, scaleWithin(r, p.box, target));
     resizeObjects(doc, rects);
+    applyTextResize(doc, textRects, rects.size === 0, getDefaultMeasurer());
   }, []);
 
   const cancelFrame = () => {
@@ -154,6 +161,7 @@ export function useTransformGesture(opts: {
       if (!specs.some((s) => s?.resizable)) return false;
       p.minSizes = specs.map((s) => s?.minSize ?? 0);
       p.aspectLocked = specs.some((s) => s?.aspectLocked);
+      p.autoHeightIds = new Set(objects.filter((o) => o.type === 'text').map((o) => o.id));
     }
     for (const o of objects) p.starts.set(o.id, objectBounds(o));
     p.box = unionRects([...p.starts.values()]);
@@ -189,7 +197,7 @@ export function useTransformGesture(opts: {
         selection.click(id);
         wasSelected = true;
       }
-      begin(e, { kind: 'move', ids, id, handle: null, wasSelected, box: null, minSizes: [], aspectLocked: false });
+      begin(e, { kind: 'move', ids, id, handle: null, wasSelected, box: null, minSizes: [], aspectLocked: false, autoHeightIds: new Set() });
     },
     [begin],
   );
@@ -206,6 +214,7 @@ export function useTransformGesture(opts: {
         box: null,
         minSizes: [],
         aspectLocked: false,
+        autoHeightIds: new Set(),
       });
     },
     [begin],

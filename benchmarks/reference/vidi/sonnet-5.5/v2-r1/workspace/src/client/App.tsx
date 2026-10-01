@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { UndoContext, useUndo, useUndoHistory } from './board/useUndo';
 import { createSticky, deleteObjects, setStickyColor } from '../shared/board-model';
+import { createText, setTextSize } from '../shared/objects/text';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useSelection } from './board/useSelection';
+import { useTool } from './board/useTool';
+import { getLocalUserId } from './identity';
+import { getDefaultMeasurer } from './objects/textLayout';
+import { remeasureText } from './objects/useTextBoxSync';
 import { useTransformGesture } from './board/useTransformGesture';
 import type { Camera, Point } from './canvas/camera';
 import { BoardViewport } from './canvas/BoardViewport';
@@ -49,13 +54,33 @@ export function App({ boardId }: { boardId?: string } = {}) {
       setGesturing(false);
     },
   });
-  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable, undo: history });
+  const tool = useTool(editable);
+  const centerRef = useRef<() => Point>(() => ({ x: 0, y: 0 }));
 
   const create = (at: Point) => {
     if (!editable) return;
     history.boundary();
     const id = createSticky(doc, at);
     history.boundary();
+    if (id) sel.startEdit(id);
+  };
+
+  useBoardKeys({
+    doc,
+    selection: sel,
+    snapshot: objects,
+    canEdit: editable,
+    undo: history,
+    tool,
+    onCreateSticky: () => create(centerRef.current()),
+  });
+
+  const placeText = (at: Point) => {
+    if (!editable) return;
+    history.boundary();
+    // No boundary after: creating and typing the first characters undo as one step.
+    const id = createText(doc, at, getLocalUserId());
+    tool.setTool('select');
     if (id) sel.startEdit(id);
   };
 
@@ -70,14 +95,24 @@ export function App({ boardId }: { boardId?: string } = {}) {
     <UndoContext.Provider value={history}>
     <BoardViewport
       onCreateAt={create}
+      textToolActive={tool.tool === 'text'}
+      onPlaceText={placeText}
       onEmptyClick={sel.clear}
       snapshot={objects}
       onMarqueeSelect={(ids) => sel.setMany(ids, true)}
       onCameraChange={setCamera}
-      overlay={(ctx) => (
+      overlay={(ctx) => {
+        centerRef.current = ctx.centerWorld;
+        return (
         <>
           <ConnectionStatus state={connection} />
-          <Toolbar onCreateSticky={() => create(ctx.centerWorld())} disabled={!editable} undo={undo} />
+          <Toolbar
+            onCreateSticky={() => create(ctx.centerWorld())}
+            disabled={!editable}
+            undo={undo}
+            tool={tool.tool}
+            onTool={tool.setTool}
+          />
           {sel.editingId === null && (
             <SelectionOverlay
               ids={sel.ids}
@@ -97,10 +132,16 @@ export function App({ boardId }: { boardId?: string } = {}) {
                 setStickyColor(doc, id, color);
                 history.boundary();
               }}
+              onTextSize={(id, size) => {
+                history.boundary();
+                if (setTextSize(doc, id, size)) remeasureText(doc, id, getDefaultMeasurer());
+                history.boundary();
+              }}
             />
           )}
         </>
-      )}
+        );
+      }}
     >
       {(ctx) =>
         // DOM order is stable (by id) and stacking uses z-index: re-ordering nodes mid-drag would drop pointer capture.

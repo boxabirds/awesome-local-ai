@@ -46,6 +46,9 @@ export function BoardViewport(props: {
   /** Screen-space layers (toolbars) drawn above the board. */
   overlay?: (ctx: BoardContext) => ReactNode;
   onCreateAt?(world: Point): void;
+  /** While the Text tool is active, a press on the board (also on top of objects) places text at this world point. */
+  textToolActive?: boolean;
+  onPlaceText?(world: Point): void;
   onEmptyClick?(): void;
   /** Objects a Shift+drag rectangle can select, and what to do with the ones fully inside it. */
   snapshot?: readonly ObjectSnapshot[];
@@ -180,6 +183,33 @@ export function BoardViewport(props: {
     nav.endPan();
   };
 
+  const placedByPointer = useRef(false);
+
+  const placeText = (e: { clientX: number; clientY: number; currentTarget: HTMLDivElement }) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    props.onPlaceText?.(screenToWorld(nav.getCamera(), { x: e.clientX - rect.left, y: e.clientY - rect.top }));
+  };
+
+  // Capture phase: with the Text tool active no object, pan or marquee may see the press.
+  const onPointerDownCapture = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!props.textToolActive || e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault(); // keeps focus where the new editor puts it
+    placedByPointer.current = true;
+    placeText(e);
+  };
+
+  const onClickCapture = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (placedByPointer.current) {
+      placedByPointer.current = false;
+      e.stopPropagation();
+      return;
+    }
+    if (!props.textToolActive || e.button !== 0) return;
+    e.stopPropagation();
+    placeText(e);
+  };
+
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     // Only empty board space starts a drag; later object stories can intercept their own targets.
@@ -251,12 +281,15 @@ export function BoardViewport(props: {
         className="board-viewport"
         data-testid="board-viewport"
         data-mode={mode}
+        data-tool={props.textToolActive ? 'text' : 'select'}
         tabIndex={0}
         style={{
-          cursor: mode === 'panning' ? 'grabbing' : 'grab',
+          cursor: props.textToolActive ? 'text' : mode === 'panning' ? 'grabbing' : 'grab',
           backgroundImage: `radial-gradient(circle at center, ${GRID_DOT_COLOR} ${GRID_DOT_RADIUS_PX}px, transparent ${GRID_DOT_RADIUS_PX + 0.5}px)`,
           ...gridStyle(camera),
         }}
+        onPointerDownCapture={onPointerDownCapture}
+        onClickCapture={onClickCapture}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

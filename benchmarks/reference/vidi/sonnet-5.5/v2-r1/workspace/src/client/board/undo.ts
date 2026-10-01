@@ -6,6 +6,7 @@ export interface UndoController {
   undo(): boolean; // false when stack empty
   redo(): boolean; // false when stack empty
   boundary(): void; // close the current capture window
+  popLast?(): void; // drop the newest undo step without applying it (used when an empty text is removed again)
   canUndo(): boolean;
   canRedo(): boolean;
   addScope(type: Y.AbstractType<unknown>): void; // story 16 adds comments
@@ -59,6 +60,12 @@ export function createUndo(
       return true;
     },
     boundary: () => manager.stopCapturing(),
+    popLast() {
+      if (destroyed || manager.undoStack.length === 0) return;
+      manager.undoStack.pop();
+      manager.stopCapturing();
+      notify();
+    },
     canUndo: () => !destroyed && manager.undoStack.length > 0,
     canRedo: () => !destroyed && manager.redoStack.length > 0,
     addScope: (type) => manager.addToScope(type),

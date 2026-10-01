@@ -1,10 +1,11 @@
 import { objectBounds } from '../../shared/board-model';
 import type { ObjectSnapshot } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
 import { unionRects } from '../../shared/geometry';
 import { worldToScreen } from '../canvas/camera';
 import type { Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 
 const BAR_GAP_PX = 10;
 const HALF = 2;
@@ -19,6 +20,7 @@ export function SelectionBar(props: {
   onDelete(): void;
   camera?: Camera;
   onColor?(id: string, color: StickyColor): void;
+  onTextSize?(id: string, size: TextSize): void;
 }) {
   const selected = props.snapshot.filter((o) => props.ids.has(o.id));
   const box = unionRects(selected.map(objectBounds));
@@ -36,6 +38,13 @@ export function SelectionBar(props: {
           onColor={(c) => props.onColor?.(only.id, c)}
           onDelete={props.onDelete}
         />
+      </div>
+    );
+  }
+  if (only && only.type === 'text' && only.size) {
+    return (
+      <div className="note-toolbar-anchor" style={style}>
+        <TextToolbar size={only.size} onSize={(sz) => props.onTextSize?.(only.id, sz)} onDelete={props.onDelete} />
       </div>
     );
   }

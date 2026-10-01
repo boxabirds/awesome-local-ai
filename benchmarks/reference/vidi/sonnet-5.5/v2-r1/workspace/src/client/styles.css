@@ -437,3 +437,59 @@ body,
   font-size: 13px;
   color: #475569;
 }
+
+.text-object {
+  position: absolute;
+  box-sizing: border-box;
+  color: #1e293b;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  user-select: none;
+}
+
+.text-object-content {
+  pointer-events: none;
+}
+
+.text-editor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: #1e293b;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: hidden;
+}
+
+.text-object:focus-visible {
+  outline: 2px solid #2563eb;
+}
+
+.board-viewport[data-tool='text'],.board-viewport[data-tool='text'] * {
+  cursor: text !important;
+}
+
+.left-toolbar button.tool-active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.note-toolbar .size-button {
+  width: 32px;
+  font: inherit;
+  font-weight: 600;
+}
+
+.note-toolbar .size-button[aria-pressed='true'] {
+  background: #dbeafe;
+  color: #1d4ed8;
+}

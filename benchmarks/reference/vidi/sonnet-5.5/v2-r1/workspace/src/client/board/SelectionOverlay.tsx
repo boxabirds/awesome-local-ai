@@ -39,6 +39,8 @@ export function SelectionOverlay(props: {
   if (!box) return null;
   const b = screenRect(props.camera, box);
   const resizable = selected.some((o) => getObjectType(o.type)?.resizable);
+  const horizontalOnly = selected.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+  const handles = horizontalOnly ? HANDLES.filter((h) => h.handle === 'e' || h.handle === 'w') : HANDLES;
   return (
     <div className="selection-overlay" data-testid="selection-overlay">
       {selected.map((o) => {
@@ -58,7 +60,7 @@ export function SelectionOverlay(props: {
         style={{ left: b.x, top: b.y, width: b.width, height: b.height }}
       >
         {resizable &&
-          HANDLES.map((h) => (
+          handles.map((h) => (
             <button
               key={h.handle}
               type="button"

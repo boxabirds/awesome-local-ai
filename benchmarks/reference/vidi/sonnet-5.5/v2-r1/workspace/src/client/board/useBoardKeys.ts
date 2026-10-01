@@ -7,6 +7,7 @@ import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
 import type { Selection } from './useSelection';
+import type { Tool } from './useTool';
 
 const ARROWS: Record<string, Point> = {
   ArrowLeft: { x: -1, y: 0 },
@@ -27,6 +28,10 @@ export function useBoardKeys(opts: {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undo?: UndoController;
+  /** Active tool and its setter: V, T and Escape switch tools. */
+  tool?: { tool: Tool; setTool(t: Tool): void };
+  /** N: the same action as the Sticky note button. */
+  onCreateSticky?(): void;
 }): void {
   const live = useRef(opts);
   live.current = opts;
@@ -51,8 +56,16 @@ export function useBoardKeys(opts: {
         return;
       }
       if (mod || e.altKey) return;
+      const { tool, onCreateSticky } = live.current;
       if (e.key === 'Escape') {
-        selection.clear();
+        if (tool && tool.tool !== 'select') tool.setTool('select');
+        else selection.clear();
+        return;
+      }
+      if (!e.shiftKey && (key === 'v' || key === 't' || key === 'n')) {
+        if (key === 'v') tool?.setTool('select');
+        else if (canEdit && key === 't') tool?.setTool('text');
+        else if (canEdit && key === 'n') onCreateSticky?.();
         return;
       }
       if (selection.ids.size === 0) return;

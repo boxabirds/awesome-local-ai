@@ -47,7 +47,7 @@ describe('load_failed edit lock', () => {
     const before = JSON.stringify(snapshot(doc));
 
     expect(screen.getByText("This board couldn't be loaded. Retrying…").getAttribute('role')).toBe('status');
-    const button = screen.getByRole('button', { name: 'Sticky note' }) as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     fireEvent.click(button);
     fireEvent.doubleClick(viewport(), { clientX: 400, clientY: 400 });
@@ -69,7 +69,7 @@ describe('load_failed edit lock', () => {
   it('editing is available again once the board loads', () => {
     render(<App boardId="b-2" />);
     setState('load_failed');
-    const button = screen.getByRole('button', { name: 'Sticky note' }) as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     setState('connected');
     expect(button.disabled).toBe(false);

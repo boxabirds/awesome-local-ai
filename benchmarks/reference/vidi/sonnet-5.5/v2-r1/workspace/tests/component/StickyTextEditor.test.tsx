@@ -20,7 +20,7 @@ const text = (probe: ReturnType<typeof newProbe>) => snapshot(probe.doc)[0].text
 describe('StickyTextEditor', () => {
   it('TC-23 Enter on a selected note edits with the caret at the end', () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     fireEvent.input(textbox(), { target: { value: 'hello' } });
     fireEvent.keyDown(textbox(), { key: 'Escape' });
     expect(screen.queryByRole('textbox')).toBeNull();

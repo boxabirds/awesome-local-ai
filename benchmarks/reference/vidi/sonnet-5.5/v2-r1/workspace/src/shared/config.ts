@@ -48,3 +48,14 @@ export const UNDO_MAX_STEPS = 200; // undo steps kept per person
 export const CREATE_BUDGET_MS = 2000; // PRD share.create
 export const LINK_COPIED_MS = 2000; // PRD share.copy
 export const BOARD_CHECK_RETRY_BASE_MS = 1000; // backoff doubles up to RECONNECT_MAX_BACKOFF_MS
+
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+export const TEXT_MIN_WIDTH_WORLD = 40;
+export const TEXT_MAX_CHARS = 5000;
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+export const TEXT_LINE_HEIGHT = 1.3;
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+export const TEXT_CARET_ROOM_WORLD = 2; // extra width so the caret after the last glyph is not clipped
+export const TEXT_ESTIMATED_GLYPH_RATIO = 0.55; // average glyph width / font size when no canvas is available

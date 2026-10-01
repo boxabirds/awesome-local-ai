@@ -27,7 +27,7 @@ function pos(probe: { doc: import('yjs').Doc }) {
 describe('StickyNote interaction', () => {
   it('TC-18 click selects: outline attribute and note toolbar', () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
     const note = notes()[0];
     expect(note.dataset.selected).toBe('true');
@@ -66,7 +66,7 @@ describe('StickyNote interaction', () => {
 
   it('TC-20 note drag never reaches the board pan handler', () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     const transform = () => screen.getByTestId('board-world').style.transform;
     const before = transform();
     const note = notes()[0];
@@ -108,7 +108,7 @@ describe('StickyNote interaction', () => {
   it('TC-25 Delete and Backspace remove the selected note', () => {
     for (const key of ['Delete', 'Backspace']) {
       render(<App />);
-      fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
       fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
       expect(notes()).toHaveLength(1);
       fireEvent.keyDown(window, { key });

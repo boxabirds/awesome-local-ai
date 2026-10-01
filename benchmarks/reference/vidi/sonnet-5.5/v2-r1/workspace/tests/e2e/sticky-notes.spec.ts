@@ -131,7 +131,7 @@ test.describe('sticky notes', () => {
   test('TC-34 toolbar creates a visible, centred note after panning far away', async ({ page }) => {
     await openBoard(page);
     await setCamera(page, { x: 500_000, y: -300_000, zoom: 1 });
-    await page.getByRole('button', { name: 'Sticky note' }).click();
+    await page.getByRole('button', { name: 'Sticky note (N)' }).click();
     await expect(page.getByRole('textbox')).toBeFocused();
     const c = await centre(page);
     expect(Math.abs(c.x - VIEWPORT.width / 2)).toBeLessThanOrEqual(TOLERANCE_PX);

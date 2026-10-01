@@ -81,3 +81,13 @@
 - Yjs `UndoManager.undo()` skips a step whose target was deleted remotely and continues with the next step in the same call, so undoing a move of a note a colleague deleted may also undo the following earlier step. Nothing is recreated and no error occurs.
 - Selection TC-20 (story 7) indexed notes by DOM order, which follows random ids, and failed intermittently; it now identifies notes by position.
 - Only Chromium was run for e2e.
+
+# Notes — story 9
+
+- `createdBy` comes from `getLocalUserId()` (a per-browser id in localStorage); sign-in/identity (story 6) is not part of this build.
+- Text placement happens on pointerdown (capture phase, `preventDefault` keeps focus for the new editor) with a click fallback; the click that follows a pointer placement is swallowed. While Text is active, objects, pan and marquee never see the press.
+- The text size buttons are named just `S`/`M`/`L`/`XL` (with `aria-pressed`); the delete button is `Delete text`. The sticky button is now `Sticky note (N)`; existing tests were updated.
+- Creating a text and typing its first characters share one undo window (the editor skips the start boundary for empty text), so one undo removes it. Removing an empty text on edit end drops that step with the optional `UndoController.popLast()`; if a pause split the window, a no-op create step remains.
+- In a mixed selection resized by handles, automatic-width text is only repositioned; fixed-width text scales; text-only selections fix the width. Height always comes from re-layout (`applyTextResize`).
+- Layout: auto width = min(longest unwrapped line + 2 units caret room, 600); a wrapped text is therefore 600 wide. Layout is measured with a canvas measurer (`getDefaultMeasurer`, replaceable in tests with `setDefaultMeasurer`). jsdom skips the canvas.
+- Only Chromium was run for e2e.

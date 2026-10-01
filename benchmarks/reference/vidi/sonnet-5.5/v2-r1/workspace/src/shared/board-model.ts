@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
-import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD } from './config';
-import type { StickyColor } from './config';
+import { DEFAULT_STICKY_COLOR, DEFAULT_TEXT_SIZE, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES } from './config';
+import type { StickyColor, TextSize } from './config';
 import { rectContains } from './geometry';
 import type { Point, Rect } from './geometry';
 
@@ -21,6 +21,8 @@ export interface ObjectSnapshot {
   createdAt: number;
   color?: StickyColor;
   text?: string;
+  size?: TextSize;
+  widthMode?: 'auto' | 'fixed';
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -29,9 +31,9 @@ export interface StickySnapshot extends ObjectSnapshot {
   text: string;
 }
 
-const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky']);
+const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text']);
 
-function objectsOf(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
+export function objectsOf(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects') as Y.Map<Y.Map<unknown>>;
 }
 
@@ -48,7 +50,7 @@ function num(value: unknown): number {
   return typeof value === 'number' ? value : 0;
 }
 
-function maxZ(doc: Y.Doc): number {
+export function maxZ(doc: Y.Doc): number {
   let max = 0;
   objectsOf(doc).forEach((obj) => {
     max = Math.max(max, num(obj.get('z')));
@@ -215,6 +217,13 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       const color = obj.get('color');
       entry.color = typeof color === 'string' && isColor(color) ? color : DEFAULT_STICKY_COLOR;
       entry.text = text instanceof Y.Text ? text.toString() : '';
+    }
+    if (type === 'text') {
+      const text = obj.get('text');
+      const size = obj.get('size');
+      entry.text = text instanceof Y.Text ? text.toString() : '';
+      entry.size = typeof size === 'string' && size in TEXT_SIZES ? (size as TextSize) : DEFAULT_TEXT_SIZE;
+      entry.widthMode = obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
     }
     result.push(entry);
   });

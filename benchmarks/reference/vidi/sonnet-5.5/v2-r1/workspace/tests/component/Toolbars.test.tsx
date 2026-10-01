@@ -7,7 +7,7 @@ import { notes, press, release } from './helpers';
 afterEach(cleanup);
 
 function createViaButton() {
-  fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
 }
 function createAndSelect() {
   createViaButton();
@@ -29,8 +29,8 @@ describe('toolbars', () => {
 
   it('TC-28 toolbar button creates a centred note in edit mode', () => {
     render(<App />);
-    const button = screen.getByRole('button', { name: 'Sticky note' });
-    expect(button.getAttribute('title')).toBe('Sticky note – or double-click the board');
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
+    expect(button.getAttribute('title')).toBe('Sticky note (N) – or double-click the board');
     createViaButton();
     expect(notes()).toHaveLength(1);
     const note = notes()[0];

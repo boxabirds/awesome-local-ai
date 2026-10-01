@@ -33,7 +33,7 @@ test.describe('Broken board', () => {
     const badge = page.getByText(MESSAGE);
     await expect(badge).toBeVisible({ timeout: E2E_EVENTUAL_TIMEOUT_MS });
     await expect(badge).toHaveCSS('color', 'rgb(153, 27, 27)');
-    await expect(page.getByRole('button', { name: 'Sticky note' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Sticky note (N)' })).toBeDisabled();
     await page.mouse.dblclick(600, 400);
     await expect(page.getByRole('textbox')).toHaveCount(0);
     await expect(notes(page)).toHaveCount(0); // never an empty editable board
@@ -43,8 +43,8 @@ test.describe('Broken board', () => {
 
     await expect(notes(page)).toHaveCount(25, { timeout: E2E_EVENTUAL_TIMEOUT_MS * 2 });
     await expect(badge).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Sticky note' })).toBeEnabled();
-    await page.getByRole('button', { name: 'Sticky note' }).click();
+    await expect(page.getByRole('button', { name: 'Sticky note (N)' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Sticky note (N)' }).click();
     await expect(notes(page)).toHaveCount(26);
   });
 });
