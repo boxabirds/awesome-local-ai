@@ -810,6 +810,7 @@ def test_an_agent_s_record_is_rebuilt_from_its_log_alone(tmp_path):
         "seconds": 90.3, "steps": 1, "tool_calls": 1, "compactions": 1, "tool_interruptions": 0,
         "tokens": {"input": 3, "output": 4, "reasoning": 0, "cache_read": 0, "cache_write": 0}, "exit": None,
         "stalled": False, "resumes": 0, "nudges": 0, "errors": [], "ended_in_error": False, "sessions": ["s9"],
+        "interventions": {"total": 0, "stop_message": 0, "toolcall_text_resumes": 0, "error_resumes": 0},
         "ended_by_operator": True, "reconstructed_from_log": True}
 
 
@@ -1399,3 +1400,25 @@ def test_set_pack_points_every_pack_global_at_the_new_pack(tmp_path, monkeypatch
     drive.set_pack("covpack")
     assert drive.PK.name == "covpack" and drive.PACK == pack.resolve() and drive.SPEC == pack.resolve() / "spec"
     assert drive.PROMPT_TMPL == drive.PK.template and drive.PK.stories == {1: "001-first"}
+
+
+# ---------- how a story ended, in one word ----------
+
+@pytest.mark.parametrize("agent, skip, checked, reason", [
+    ({"finished": True, "nudges": 0}, None, True, "agent-finished"),
+    ({"finished": True, "nudges": 1}, None, True, "stop-message-then-finished"),
+    ({"finished": False, "nudges": 1}, {"by": drive.STOP_SENT_BY}, True, "stop-message-exhausted"),
+    ({"finished": False, "nudges": 0}, {"by": drive.CAP_BY}, True, "cap-time"),
+    ({"finished": False, "nudges": 1}, {"by": drive.OPERATOR}, True, "operator-skip"),
+    ({"finished": False, "nudges": 0, "stalled": False, "ended_in_error": True}, None, True, "engine-fault-gave-up"),
+    ({"finished": False, "nudges": 0, "stalled": False, "ended_in_error": False}, None, True, "engine-fault-gave-up"),   # no session
+    ({"finished": False, "nudges": 0, "stalled": True}, None, True, "stalled"),
+    ({"finished": False, "nudges": 0, "stalled": False}, None, False, "harness-fault"),
+])
+def test_a_story_s_end_reason_is_one_word_from_what_its_record_says(agent, skip, checked, reason):
+    assert drive.end_reason(agent, skip, checked) == reason
+
+
+def test_the_interventions_of_a_story_are_counted_by_kind_and_in_all():
+    assert drive.interventions_of(resumes=2, nudges=1, toolcall_text_resumes=3) == {
+        "total": 6, "stop_message": 1, "toolcall_text_resumes": 3, "error_resumes": 2}

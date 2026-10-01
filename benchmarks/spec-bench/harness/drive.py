@@ -166,11 +166,27 @@ KILL_GRACE_S = 10
 # If OpenCode dies on an error (server stall, 409, dropped stream) the same session is resumed,
 # as a person at the keyboard would. Same rule for every arm; every resume is recorded.
 MAX_AGENT_RESUMES = 3
-# Story cap (user decision, 25 Sep): across 51 finished stories none took over 3.84 h of agent time and
-# none that needed nudging needed more than 3 nudges. Past either limit a story ends as PARTIAL.
+# Story cap (user decision, 25 Sep): across 51 finished stories none took over 3.84 h of agent time. Past the
+# time limit a story ends as PARTIAL. One intervention per story (owner's decision, 1 Oct 2026, with Inspect and
+# tau-bench: at most one fixed nudge per story, logged and disclosed): the first clean stop that isn't a verified
+# finish gets the one stop message; a second such stop ends the story, by the harness, as PARTIAL. Before, up to
+# five. Engine faults are not interventions about the model and are handled apart (MAX_TOOLCALL_TEXT_RESUMES,
+# MAX_AGENT_RESUMES): they don't use up the message. All three are counted in the record's `interventions`.
 SECONDS_PER_HOUR = 3600
 MAX_STORY_AGENT_S = 4 * SECONDS_PER_HOUR
-MAX_NUDGES = 5
+MAX_NUDGES = 1
+CAP_BY = "harness (cap)"                                      # who ended a story at its time cap
+STOP_SENT_BY = "harness (stop message already sent)"          # ...and at its second stop without a verified finish
+STOP_SENT_REASON = "story cap: the stop message was sent and the story was still not finished (one message per story)"
+# How a story ended (the record's end_reason): what the existing fields say, in one word.
+AGENT_FINISHED = "agent-finished"                             # a verified DONE line at its first stop
+STOP_MESSAGE_THEN_FINISHED = "stop-message-then-finished"     # a verified DONE line after the one message
+STOP_MESSAGE_EXHAUSTED = "stop-message-exhausted"             # a second stop without one: ended by the harness
+CAP_TIME = "cap-time"                                         # MAX_STORY_AGENT_S of agent time
+OPERATOR_SKIP = "operator-skip"                               # dbench skip-story
+ENGINE_FAULT_GAVE_UP = "engine-fault-gave-up"                 # errors past MAX_AGENT_RESUMES, or no session at all
+STALLED = "stalled"                                           # the loop detector stopped it
+HARNESS_FAULT = "harness-fault"                               # the reply check itself failed: taken as it stands
 # The console line for each stop message sent, up to its number: "<this> 2 of 5 sent". dbench counts a job's stop
 # messages from it (tools/dbench/src/events.rs, which holds these words too and still reads the line of before
 # 1 Oct 2026, "agent stopped without committing — nudge N: …", in stored job logs).
@@ -1134,13 +1150,36 @@ def tool_call_as_text(text: str) -> bool:
 
 
 def cap_reason(agent_s: float, nudges: int) -> str | None:
-    """Why the story must end now, or None: over MAX_STORY_AGENT_S of agent time, or the stop message sent
-    MAX_NUDGES times."""
+    """Why the story must end now, or None: over MAX_STORY_AGENT_S of agent time, or the stop message already
+    sent (MAX_NUDGES) and the agent stopped again without a verified finish."""
     if agent_s >= MAX_STORY_AGENT_S:
         return f"story cap: {agent_s / SECONDS_PER_HOUR:.1f} h of agent time (cap {MAX_STORY_AGENT_S / SECONDS_PER_HOUR:.1f} h)"
     if nudges >= MAX_NUDGES:
-        return f"story cap: the stop message was sent {nudges} times without the story finishing (cap {MAX_NUDGES})"
+        return STOP_SENT_REASON
     return None
+
+
+def interventions_of(resumes: int, nudges: int, toolcall_text_resumes: int) -> dict:
+    """Every time the harness stepped in during a story, by kind and in all: the one stop message (a decision
+    about the model), and the engine-fault recoveries (a tool call written as text continued, an error resumed)."""
+    return {"total": nudges + toolcall_text_resumes + resumes, "stop_message": nudges,
+            "toolcall_text_resumes": toolcall_text_resumes, "error_resumes": resumes}
+
+
+REPLY_CHECK_STEP = "reply check"           # the derived step whose fault leaves a story's end unjudged (harness-fault)
+
+
+def end_reason(agent: dict, skip: dict | None, checked: bool = True) -> str:
+    """How the story ended, in one word (the record's end_reason), from what its agent record and skip say;
+    checked is false when the reply check itself faulted (STORY_FAULTS names REPLY_CHECK_STEP)."""
+    if skip:
+        by = skip.get("by")
+        return (STOP_MESSAGE_EXHAUSTED if by == STOP_SENT_BY else CAP_TIME if by == CAP_BY else OPERATOR_SKIP)
+    if agent.get("finished"):
+        return STOP_MESSAGE_THEN_FINISHED if agent.get("nudges") else AGENT_FINISHED
+    if agent.get("stalled"):
+        return STALLED
+    return ENGINE_FAULT_GAVE_UP if checked else HARNESS_FAULT
 
 
 def _stop_check(events_path: Path, story_id: int, ws: Path) -> tuple[bool, bool]:
@@ -1285,9 +1324,10 @@ def last_session(client, events_path: Path) -> str | None:
 
 def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path, story: dict,
                     continue_session: str | None = None, on_cap=None) -> dict:
-    """First attempt, plus fork-resumes after errors and the stop message after every clean stop that isn't a
-    verified finish (the stop rule: STOP_MESSAGE_TMPL). story: {"id", "title", "tasks_path"}, what the message
-    names. With continue_session (a harness restart mid-story), the agent's own session is continued."""
+    """First attempt, plus fork-resumes after errors and the one stop message after the first clean stop that isn't
+    a verified finish (the stop rule: STOP_MESSAGE_TMPL); a second such stop ends the story (on_cap(reason, by)).
+    story: {"id", "title", "tasks_path"}, what the message names. With continue_session (a harness restart
+    mid-story), the agent's own session is continued."""
     if not continue_session:
         events_path.unlink(missing_ok=True)
     run_dir = events_path.parent.parent.parent
@@ -1312,7 +1352,7 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
         elif not last["error"] and not last["stalled"] and last["session"]:
             # A clean stop. A fault in the check itself is the harness's, not the agent's: it is recorded, the
             # agent is not sent the message blind, and the story is taken as it stands.
-            checked = derived("reply check", lambda: _stop_check(events_path, story["id"], ws), None, run=run_dir)
+            checked = derived(REPLY_CHECK_STEP, lambda: _stop_check(events_path, story["id"], ws), None, run=run_dir)
             if checked is None:
                 break
             finished, toolcall_as_text = checked
@@ -1326,7 +1366,7 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
                 log_intervention(run_dir, why)
             elif nudges >= MAX_NUDGES:
                 if on_cap:
-                    on_cap(cap_reason(sum(a["seconds"] for a in attempts), nudges))
+                    on_cap(cap_reason(sum(a["seconds"] for a in attempts), nudges), STOP_SENT_BY)
                 break
             else:
                 nudges += 1
@@ -1343,7 +1383,7 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
             "resumes": resumes, "nudges": nudges, "toolcall_text_resumes": toolcall_text_resumes, "errors": [a["error"] for a in attempts if a["error"]],
             "ended_by_operator": STORY_SKIP.is_set(),
             "ended_in_error": bool(attempts[-1]["error"]), "sessions": [a["session"] for a in attempts],
-            "finished": finished}
+            "finished": finished, "interventions": interventions_of(resumes, nudges, toolcall_text_resumes)}
 
 
 # Processes that ARE the agent (or its sandbox wrapper): never killed while a story runs.
@@ -1777,9 +1817,9 @@ class SkipWatcher(threading.Thread):
         print(f"    {who} ended story {self.sid} ({req.get('by')}): {req.get('reason')}", flush=True)
         kill_pids(workspace_pids(self.ws))
 
-    def cap(self, reason: str) -> None:
-        """End the story at the story cap, exactly as an operator skip would."""
-        self._end({"story": self.sid, "reason": reason, "by": "harness (cap)", "at": self.now()}, "the story cap")
+    def cap(self, reason: str, by: str = CAP_BY) -> None:
+        """End the story at the story cap (its time, or the stop message already sent), as an operator skip would."""
+        self._end({"story": self.sid, "reason": reason, "by": by, "at": self.now()}, "the story cap")
 
     def run(self):
         while not self._halt.wait(self.poll_s):
@@ -1827,7 +1867,7 @@ def reconstruct_agent(client, events: Path) -> dict:
     return {"seconds": seconds, "steps": st["steps"], "tool_calls": st["tool_calls"], "compactions": st["compactions"],
             "tool_interruptions": 0, "tokens": st["tokens"], "exit": None, "stalled": False, "resumes": 0,
             "nudges": 0, "errors": [], "ended_in_error": False, "sessions": [st["session"]],
-            "ended_by_operator": True, "reconstructed_from_log": True}
+            "ended_by_operator": True, "reconstructed_from_log": True, "interventions": interventions_of(0, 0, 0)}
 
 
 class ProgressWatcher(threading.Thread):
@@ -2234,7 +2274,8 @@ def main() -> None:
         # whether later stories can build on it (never stops the run).
         table = derived("task table", lambda: progress.task_table(tasks, ev, rec["gate"]), [], run=run)
         own = acc["by_story"].get(f"{sid:02d}")
-        rec.update(status=status, ended_by="operator" if skip else "agent", partial_base=partial_base, tasks=table)
+        rec.update(status=status, ended_by="operator" if skip else "agent", partial_base=partial_base, tasks=table,
+                   end_reason=end_reason(rec["agent"], skip, not any(f["step"] == REPLY_CHECK_STEP for f in STORY_FAULTS)))
         # Beside the evidence, what the agent itself said of each task (its PROGRESS.md): a claim, never proof.
         rec["tasks_claimed"] = derived("claimed task statuses", lambda: progress_file.claimed(ws),
                                        {"file": progress_file.UNPARSEABLE, "tasks": {}}, run=run)

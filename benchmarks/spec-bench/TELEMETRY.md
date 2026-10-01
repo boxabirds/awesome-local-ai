@@ -115,6 +115,7 @@ baselines and the review tool leave these runs out.
 | Field | What |
 |---|---|
 | `title`, `status`, `ended_by`, `verdict` | the story, DONE or PARTIAL, whether the agent or an operator ended it, and the operator's verdict on a skip |
+| `end_reason` | how the story ended, in one word, from the fields above (harness of 1 Oct 2026 and later): `agent-finished` (a verified DONE line at its first stop), `stop-message-then-finished` (a verified DONE line after the one message), `stop-message-exhausted` (a second stop without one: the harness ended it), `cap-time` (4 h of agent time), `operator-skip` (dbench skip-story), `engine-fault-gave-up` (errors past their resumes, or no session at all), `stalled` (the loop detector), `harness-fault` (the reply check itself failed, so the story was taken as it stood). No token or other cap exists, so no such reason is written; a crash leaves no record at all (the story is run again) |
 | `started`, `agent_finished`, `finished` | epoch seconds: story start, agent done, scoring done |
 | `continued_session` | set when a harness restart resumed the agent's own session (the first reply then re-plans: expect one long call) |
 | `first_started` | a restarted story only: when its first attempt started (its first logged event). `started` stays the last attempt's start |
@@ -132,17 +133,26 @@ baselines and the review tool leave these runs out.
 `seconds` (the agent's time over every attempt of the story: summed per attempt, so the time the harness was down between attempts is left out; records before 30 Sep 2026 counted only the last attempt until backfilled), `steps` (model calls), `tool_calls`, `tool_interruptions`, `compactions`,
 `tokens` (`input`, `output`, `reasoning`, `cache_read`, `cache_write`, as the server reported them to
 the client), `exit`, `stalled` (the loop detector stopped it), `resumes` (after errors), `nudges`
-(times the stop message was sent: once for each clean stop that was not a verified finish, up to the cap of 5;
-see below), `toolcall_text_resumes` (stops whose last reply was a tool call the engine returned as text instead of
-running it, see gufo-org/gufo#304: each gets the stop message too and is counted here, not as a nudge, up to 3),
+(times the stop message was sent: once for the first clean stop that was not a verified finish, and never again
+in that story since the harness of 1 Oct 2026 (one intervention per story); up to 5 before; see below),
+`toolcall_text_resumes` (stops whose last reply was a tool call the engine returned as text instead of running it,
+see gufo-org/gufo#304: each gets the stop message too and is counted here, not as a nudge, up to 3),
 `finished` (true when the story ended on a verified finish, false when it ended any other way: the cap, an error,
-a stall, a guard or the operator), `errors`, `ended_by_operator`, `ended_in_error`, `sessions`.
+a stall, a guard or the operator), `errors`, `ended_by_operator`, `ended_in_error`, `sessions`, and
+`interventions`: every time the harness stepped in, `total` = `stop_message` (the one message: a decision about
+the model) + `toolcall_text_resumes` + `error_resumes` (the engine's faults, recovered from without using up the
+message). How they interact: a tool call written as text is continued (up to 3 times) and an error fork-resumed
+(up to 3 times) whenever they happen, before or after the message; the message goes out at the first clean stop
+that is not a verified finish and not a tool call as text, once; the next such stop ends the story. A tool call as
+text past its three continues is a stop like any other: it gets the message if that is still to come, else ends
+the story.
 
 The stop rule (`drive.py`: `story_finished`, `STOP_MESSAGE_TMPL`; tests: `test_stop_rule.py`), from the harness
 of 1 Oct 2026 that records `finished`: a story is finished only when the agent's last reply has the line
 `STORY <n> DONE <hash>` for that story, the hash is the workspace's HEAD and nothing is left uncommitted. Every
-other clean stop is answered with the same message, and after 5 the story is capped (PARTIAL, its work committed
-by the harness). The share of a run's stops that ended in a verified finish is `finished` stories over stories
+other clean stop is answered with the same message, once per story; a second such stop ends the story (PARTIAL,
+`ended_by` operator, `skip.by` "harness (stop message already sent)", its work committed by the harness). Until
+1 Oct 2026 (18:00 BST) the message went out up to 5 times before the story was capped. The share of a run's stops that ended in a verified finish is `finished` stories over stories
 plus `nudges`. In records without `finished` (earlier harnesses) a nudge was the sentence "Continue with the
 task…", sent only when the agent stopped with no commit since the story began, and any commit ended the story;
 over the 227 such nudges in this repo's logs 15% led to a commit.

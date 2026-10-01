@@ -388,7 +388,7 @@ def test_known_good_mode_is_refused_unless_it_is_told_plainly_which_stories_to_r
 
 RECORD_KEYS = {"title", "conditions_start", "started", "engine_settings", "agent", "agent_finished", "conditions",
                "containment", "agent_commits", "provenance", "gate", "accept", "commit", "requests", "time_split",
-               "conversation", "loc", "finished", "status", "ended_by", "partial_base", "tasks", "tasks_claimed"}
+               "conversation", "loc", "finished", "status", "ended_by", "partial_base", "tasks", "tasks_claimed", "end_reason"}
 ENTRY_KEYS = {"id", "title", "status", "ended_by", "started_at", "ended_at", "agent_minutes", "calls", "output_tokens",
               "compactions", "last_commit_at", "accept", "partial_base", "tasks", "baselines"}
 
@@ -410,6 +410,8 @@ def test_each_story_in_scope_is_run_scored_snapshotted_and_recorded_in_order(loo
         assert (agent["steps"], agent["tool_calls"], agent["exit"], agent["stalled"], agent["sessions"]) == (1, 1, 0, False, [f"cov-{sid}"])
         assert (agent["resumes"], agent["nudges"], agent["errors"], agent["ended_by_operator"]) == (0, 0, [], False)
         assert agent["finished"] is True                                    # on its DONE line, at its first stop
+        assert rec["end_reason"] == drive.AGENT_FINISHED == "agent-finished"
+        assert agent["interventions"] == {"total": 0, "stop_message": 0, "toolcall_text_resumes": 0, "error_resumes": 0}
         assert agent["tokens"]["output"] == OUTPUT_TOKENS
         assert rec["agent_commits"] == 1 and rec["commit"] == git(loop.ws, "rev-parse", f"HEAD~{2 * (2 - sid)}")
         assert rec["provenance"] == {**HARNESS_PROVENANCE, "pack_version": PACK_VERSION, "source": drive.provenance.LIVE}
@@ -558,7 +560,8 @@ def test_a_fault_in_the_bookkeeping_is_saved_with_the_story_even_without_record(
 
 def test_a_story_that_never_finishes_is_capped_recorded_partial_and_its_work_committed_by_the_harness(loop, capsys):
     """The stop rule's cap, through the real loop: the agent keeps saying it is done, with work left uncommitted;
-    it gets the stop message MAX_NUDGES times; then the harness ends the story as it does an operator's skip."""
+    it gets the stop message once (MAX_NUDGES); its next stop ends the story as an operator's skip would, by the
+    harness, with the message already sent as the reason."""
     loop.plan(s1={"leave": "notes.txt", "says": "All tasks are complete."})
     loop.main()
     runs = [r for r in loop.agent_runs() if r["story"] == 1]
@@ -566,22 +569,24 @@ def test_a_story_that_never_finishes_is_capped_recorded_partial_and_its_work_com
     assert [r["prompt"] for r in runs] == [prompt(1, no_story_so_far())] + [message] * drive.MAX_NUDGES
     assert {(r["resume_from"], r["fork"]) for r in runs[1:]} == {("cov-1", "False")}
     rec, entry = loop.story(1), loop.metrics()["processed"][0]
-    reason = f"story cap: the stop message was sent {drive.MAX_NUDGES} times without the story finishing (cap {drive.MAX_NUDGES})"
+    reason = drive.STOP_SENT_REASON
     assert (rec["status"], rec["ended_by"]) == (drive.PARTIAL, "operator")
-    assert (rec["skip"]["by"], rec["skip"]["reason"], rec["skip"]["story"]) == ("harness (cap)", reason, 1)
+    assert (rec["skip"]["by"], rec["skip"]["reason"], rec["skip"]["story"]) == (drive.STOP_SENT_BY, reason, 1)
     assert (rec["agent"]["nudges"], rec["agent"]["finished"], rec["agent"]["steps"]) == (drive.MAX_NUDGES, False, drive.MAX_NUDGES + 1)
-    assert (entry["status"], entry["by"], entry["reason"], entry["verdict"]) == (drive.PARTIAL, "harness (cap)", reason, "red")
+    assert (entry["status"], entry["by"], entry["reason"], entry["verdict"]) == (drive.PARTIAL, drive.STOP_SENT_BY, reason, "red")
+    assert rec["end_reason"] == drive.STOP_MESSAGE_EXHAUSTED == "stop-message-exhausted"
+    assert rec["agent"]["interventions"] == {"total": 1, "stop_message": 1, "toolcall_text_resumes": 0, "error_resumes": 0}
     # The work is kept: what the agent committed, and what it left, in a harness commit that is the story's commit.
     log = git(loop.ws, "log", "--format=%an %s", rec["commit"]).split("\n")
     assert log[0] == "vidi-agent harness: snapshot after story 1 (uncommitted agent work)"
     assert log[1:drive.MAX_NUDGES + 2] == ["vidi-agent story 1: work"] * (drive.MAX_NUDGES + 1)
     assert git(loop.ws, "show", "--name-only", "--format=", rec["commit"]) == "notes.txt"
     assert rec["agent_commits"] == drive.MAX_NUDGES + 1                     # the agent's own; the snapshot is not counted
-    assert f"story 1: ended by the operator (harness (cap)) after" in (loop.run / "interventions.md").read_text()
+    assert f"story 1: ended by the operator ({drive.STOP_SENT_BY}) after" in (loop.run / "interventions.md").read_text()
     out = capsys.readouterr().out
     for n in range(1, drive.MAX_NUDGES + 1):
         assert f"    agent stopped before the story was finished — message {n} of {drive.MAX_NUDGES} sent\n" in out   # dbench reads it
-    assert f"    the story cap ended story 1 (harness (cap)): {reason}\n" in out
+    assert f"    the story cap ended story 1 ({drive.STOP_SENT_BY}): {reason}\n" in out
     # And the run goes on: the next story is built on the partial one and finishes.
     second = loop.story(2)
     assert second["status"] == drive.DONE and second["partial_base"] == [1] and second["agent"]["finished"] is True
@@ -596,6 +601,7 @@ def test_a_commit_without_the_done_line_gets_the_stop_message_through_the_real_l
     rec = loop.story(1)
     assert rec["status"] == drive.DONE and rec["agent"]["nudges"] == 1 and rec["agent"]["finished"] is True
     assert rec["agent_commits"] == 2 and "skip" not in rec
+    assert rec["end_reason"] == drive.STOP_MESSAGE_THEN_FINISHED == "stop-message-then-finished"
 
 
 def test_a_spec_the_agent_edited_is_put_back_and_the_story_says_so(loop):
@@ -604,7 +610,7 @@ def test_a_spec_the_agent_edited_is_put_back_and_the_story_says_so(loop):
     loop.main()
     assert loop.story(1)["spec_tampered"] is True and "spec_tampered" not in loop.story(2)
     assert loop.story(1)["spec_changed_files"] == ["spec/README.md"]
-    assert loop.story(1)["status"] == drive.PARTIAL and loop.story(1)["skip"]["by"] == "harness (cap)"
+    assert loop.story(1)["status"] == drive.PARTIAL and loop.story(1)["skip"]["by"] == drive.STOP_SENT_BY
     assert (loop.ws / "spec" / "README.md").read_text() == "# covpack\n"
     assert git(loop.ws, "log", "--format=%s", "--", "spec") == "harness: empty repository with spec"
 
@@ -797,6 +803,16 @@ def test_a_story_continued_after_a_harness_restart_keeps_the_progress_file_as_it
     assert git(loop.ws, "log", "--format=%s").count("harness: PROGRESS.md for story 1") == 1
 
 
+def test_a_story_whose_reply_check_faulted_is_recorded_with_that_as_its_end_reason(loop, monkeypatch):
+    def broken(events_path, story_id, ws):
+        raise RuntimeError("no such log")
+    monkeypatch.setattr(drive, "_stop_check", broken)
+    loop.main("--only", "1")
+    rec = loop.story(1)
+    assert rec["end_reason"] == drive.HARNESS_FAULT == "harness-fault" and rec["status"] == drive.DONE
+    assert [f["step"] for f in rec["harness_faults"]] == [drive.REPLY_CHECK_STEP] and rec["agent"]["finished"] is False
+
+
 def test_an_agent_that_never_reached_the_model_stops_the_run_and_checkpoints_nothing(loop, capsys):
     loop.plan(s1={"silent": True, "exit": 1})
     with pytest.raises(SystemExit) as e:
@@ -846,6 +862,7 @@ def test_a_story_the_operator_ended_while_it_ran_is_partial_with_a_verdict_and_t
     health = {"verdict": "red", "gate_green": False, "unverified_tasks": [], "unverified_implementation_tasks": [],
               "heldout": None, "heldout_floor": 1.0, "heldout_ok": True}
     assert (rec["status"], rec["ended_by"], rec["skip"], rec["verdict"]) == (drive.PARTIAL, "operator", REQUEST, health)
+    assert rec["end_reason"] == drive.OPERATOR_SKIP == "operator-skip"
     assert set(rec) == RECORD_KEYS | {"skip", "verdict"}
     assert {k: entry[k] for k in ("status", "ended_by", "reason", "by", "requested_at", "verdict", "health")} == {
         "status": drive.PARTIAL, "ended_by": "operator", "reason": "stuck on the build", "by": drive.OPERATOR,
@@ -918,6 +935,7 @@ def test_a_story_skipped_before_the_harness_restarted_is_ended_from_its_log_with
     assert rec["status"] == drive.PARTIAL and rec["skip"] == {"story": 1, "reason": "not worth the wait", "by": drive.OPERATOR, "at": 7.0}
     agent = rec["agent"]
     assert agent["reconstructed_from_log"] is True and agent["ended_by_operator"] is True and agent["exit"] is None
+    assert rec["end_reason"] == drive.OPERATOR_SKIP and agent["interventions"]["total"] == 0
     assert (agent["steps"], agent["sessions"], agent["tokens"]["output"]) == (1, ["s-before"], OUTPUT_TOKENS)
     assert "restarted" not in agent and "first_started" not in rec          # one attempt in the log: nothing to add up
     assert rec["conditions"] == {"samples": 0, "degraded": False, "throttled_share": 0.0, "bad_samples": [],
