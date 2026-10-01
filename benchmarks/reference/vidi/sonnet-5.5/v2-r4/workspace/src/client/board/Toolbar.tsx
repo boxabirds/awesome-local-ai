@@ -138,6 +138,20 @@ export function Toolbar(props: {
           <path d="M4 19L19 5M19 5h-7M19 5v7" />
         </svg>
       </button>
+      <button
+        type="button"
+        aria-label="Pen (P)"
+        title="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        disabled={props.disabled}
+        onClick={() => props.onTool?.('pen')}
+        style={{ ...toolStyle(tool === 'pen'), cursor: props.disabled ? 'not-allowed' : 'pointer', opacity: props.disabled ? 0.4 : 1 }}
+      >
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 20l1-4L16 5l3 3L8 19z" />
+          <path d="M14 7l3 3" />
+        </svg>
+      </button>
       {props.children}
     </div>
   );

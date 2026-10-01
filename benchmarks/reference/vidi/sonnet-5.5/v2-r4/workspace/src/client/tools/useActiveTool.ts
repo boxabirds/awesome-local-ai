@@ -16,9 +16,9 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 };
 
 /** Tools of this build that are modes of the board (the others are one-shot actions or not built). */
-const MODE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+const MODE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 /** Tools that create something and so need an editable board. */
-const EDIT_TOOLS: readonly ToolId[] = ['text', 'shape', 'connector'];
+const EDIT_TOOLS: readonly ToolId[] = ['text', 'shape', 'connector', 'pen'];
 
 export function isModeTool(t: ToolId): boolean {
   return MODE_TOOLS.includes(t);

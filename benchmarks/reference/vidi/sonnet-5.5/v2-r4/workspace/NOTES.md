@@ -85,3 +85,10 @@
 - Shape labels use the story 2 `TextEditor` inside a flex-centred div (not a `foreignObject`); a rectangle uses the full box, an ellipse and a diamond inset it (14% / 20% per side). Overflowing text is clipped, staying centred.
 - `tests/unit/board-model.test.ts` TC-12 used `shape` as its unknown type; it now uses `hologram`, since `shape` is a known type.
 - e2e TC-27 delays Sam's outgoing WebSocket frames 5 s with `routeWebSocket` after a reload; the first assertion checks Dana still sees the shape.
+
+## Story 11
+- The Pen is a `ToolLayer` tool like Shape/Connector (the full-screen layer owns pointer drags; wheel is forwarded to the viewport). It is a mode tool in `useActiveTool`, stays active after each stroke, and Escape/V/other tools leave it. Pen options live in `usePenOptions` (plain `useState` in `App`, so a reload resets them).
+- A stroke's bbox is its point extent padded by thickness/2; `scaledPoints` scales the stored (padded) coordinates by width/baseWidth, so resizing is proportional. One point = dot; a lone leftover join point after a 5,000-point split is not committed as an extra dot.
+- `StrokeObject` is an `svg` with `pointer-events: none`; only a transparent wider path (max(thickness, 2 x 6 px / zoom)) takes pointer events, so clicks inside the bounds but off the line fall through. The registry `hitTest` implements the same tolerance (jsdom has no hit testing).
+- The preview is a local SVG overlay redrawn once per animation frame; the pen cursor is a round div (native cursor hidden). Swatches are named `<colour> pen`; thickness buttons Thin / Medium / Thick.
+- E2E: story 1 TC-27 and selection TC-33/34 remain flaky/failing under full parallel load as noted before; both are unrelated to the pen.

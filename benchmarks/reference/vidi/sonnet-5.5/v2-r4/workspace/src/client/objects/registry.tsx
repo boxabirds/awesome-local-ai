@@ -1,9 +1,11 @@
 import type * as Y from 'yjs';
 import { objectBounds, registerKnownType, type ObjectSnapshot } from '../../shared/board-model';
-import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
 import type { ConnectorSnap } from '../../shared/objects/connector';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
 import { ShapeObject } from './ShapeObject';
 import type { PointerLike } from '../board/useTransformGesture';
 import type { Point } from '../canvas/camera';
@@ -92,5 +94,17 @@ registerObjectType('connector', {
   hitTest: (obj, p, zoom = 1) => {
     const { from, to } = (obj as ConnectorSnap).ends;
     return distanceToPolyline([from, to], p) <= CONNECTOR_HIT_TOLERANCE_PX / zoom;
+  },
+});
+
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, p, zoom = 1) => {
+    const s = obj as StrokeSnap;
+    return distanceToPolyline(scaledPoints(s), p) <= Math.max(PEN_THICKNESS_WORLD[s.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom);
   },
 });

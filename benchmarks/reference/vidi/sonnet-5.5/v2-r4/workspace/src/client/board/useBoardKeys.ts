@@ -64,7 +64,7 @@ export function useBoardKeys(opts: {
         setTool?.('select');
         return;
       }
-      if ((lower === 't' || lower === 's' || lower === 'l') && !e.shiftKey) {
+      if ((lower === 't' || lower === 's' || lower === 'l' || lower === 'p') && !e.shiftKey) {
         if (canEdit) setTool?.(TOOL_SHORTCUTS[lower]);
         return;
       }

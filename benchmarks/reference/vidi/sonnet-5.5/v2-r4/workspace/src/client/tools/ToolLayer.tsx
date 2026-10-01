@@ -11,6 +11,7 @@ export function ToolLayer(props: {
   onPointerUp(e: ReactPointerEvent<HTMLDivElement>): void;
   onPointerCancel(e: ReactPointerEvent<HTMLDivElement>): void;
   onPointerLeave?(e: ReactPointerEvent<HTMLDivElement>): void;
+  cursor?: string;
   children?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -54,7 +55,7 @@ export function ToolLayer(props: {
       onPointerLeave={props.onPointerLeave}
       onLostPointerCapture={props.onPointerCancel}
       onDoubleClick={(e) => e.stopPropagation()}
-      style={{ position: 'fixed', inset: 0, zIndex: 15, cursor: 'crosshair', touchAction: 'none' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 15, cursor: props.cursor ?? 'crosshair', touchAction: 'none' }}
     >
       {props.children}
     </div>

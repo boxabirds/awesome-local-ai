@@ -4,6 +4,9 @@ import { createSticky, deleteObjects, objectBounds } from '../shared/board-model
 import { createText } from '../shared/objects/text';
 import { localIdentityId } from './identity';
 import { useActiveTool } from './tools/useActiveTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
 import { ObjectRectsContext } from './objects/rectsContext';
@@ -66,6 +69,7 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
   const undoState = useUndo(undoCtl, editable);
 
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({ canEdit: editable, select: sel.select });
+  const pen = usePenOptions();
   const rects = useMemo(() => {
     const m = new Map<string, Rect>();
     for (const o of objects) if (o.type !== 'connector') m.set(o.id, objectBounds(o));
@@ -125,6 +129,8 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
         return (
           <>
             {tool === 'shape' && <ShapeTool kind={shapeKind} camera={ctx.camera} doc={doc} undo={undoCtl} onCreated={toolCreated} />}
+            {tool === 'pen' && <PenTool camera={ctx.camera} color={pen.color} thickness={pen.thickness} doc={doc} identityId={localIdentityId()} undo={undoCtl} />}
+            {tool === 'pen' && <PenToolbar color={pen.color} thickness={pen.thickness} onColor={pen.setColor} onThickness={pen.setThickness} />}
             {tool === 'connector' && <ConnectorTool camera={ctx.camera} snapshot={objects} doc={doc} undo={undoCtl} onCreated={toolCreated} />}
             <Toolbar
               disabled={!editable}

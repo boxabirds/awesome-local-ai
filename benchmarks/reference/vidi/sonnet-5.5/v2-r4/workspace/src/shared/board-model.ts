@@ -2,6 +2,8 @@ import * as Y from 'yjs';
 import { DEFAULT_STICKY_COLOR, DEFAULT_TEXT_SIZE, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES, type StickyColor, type TextSize } from './config';
 import type { TextSnapshot } from './objects/text';
 import type { ShapeSnap } from './objects/shape';
+import { isPenColor, isPenThickness, type StrokeSnap } from './objects/stroke';
+import { DEFAULT_PEN_COLOR, DEFAULT_PEN_THICKNESS } from './config';
 import { detachConnectorsTo, parseEndpoint, type ConnectorSnap } from './objects/connector';
 import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 import { DEFAULT_SHAPE_FILL, DEFAULT_SHAPE_STROKE, SHAPE_FILL_COLORS, SHAPE_KINDS, SHAPE_STROKE_COLORS } from './config';
@@ -32,7 +34,7 @@ export function isSticky(o: ObjectSnapshot): o is StickySnapshot {
 }
 
 /** Object types the client can render, select and transform (the registry adds its own). */
-const knownTypes = new Set<string>(['sticky', 'text', 'shape', 'connector']);
+const knownTypes = new Set<string>(['sticky', 'text', 'shape', 'connector', 'stroke']);
 export function registerKnownType(type: string): void {
   knownTypes.add(type);
 }
@@ -291,6 +293,23 @@ function readObjects(doc: Y.Doc, withConnectors: boolean): readonly ObjectSnapsh
         label: label instanceof Y.Text ? label.toString() : '',
       };
       out.push(shape);
+    } else if (type === 'stroke') {
+      const raw = o.get('points');
+      const points = Array.isArray(raw) ? raw.filter((n): n is number => typeof n === 'number' && Number.isFinite(n)) : [];
+      const color = o.get('color');
+      const thickness = o.get('thickness');
+      const bw = Number(o.get('baseWidth'));
+      const bh = Number(o.get('baseHeight'));
+      const stroke: StrokeSnap = {
+        ...base,
+        type: 'stroke',
+        points: points.length % 2 === 0 ? points : points.slice(0, -1),
+        baseWidth: bw > 0 && Number.isFinite(bw) ? bw : base.width,
+        baseHeight: bh > 0 && Number.isFinite(bh) ? bh : base.height,
+        color: isPenColor(color) ? color : DEFAULT_PEN_COLOR,
+        thickness: isPenThickness(thickness) ? thickness : DEFAULT_PEN_THICKNESS,
+      };
+      out.push(stroke);
     } else if (type === 'connector') {
       if (withConnectors) connectors.push([id, o, base]);
     } else out.push(base);
