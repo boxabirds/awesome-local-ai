@@ -67,6 +67,15 @@ describe("the faults feed over the fixture", () => {
     expect(about(fs, "accounting_unchecked", "run-9", "1")).toMatchObject({ combination: OPUS, detail: { accounting_version: null } });
   });
 
+  it("a recorded story with no time split at all (55 published stories on 1 Oct 2026): listed as unchecked, never left out", () => {
+    const fs2 = feed({ change: (f) => {
+      const r = f.records.find((x) => x.runId === "v2-r1" && x.stack.includes("3.8-swift-1.5"))!;
+      (r.stories[0].usage as { split: unknown }).split = null;
+    } });
+    const id = fixture().records.find((x) => x.runId === "v2-r1" && x.stack.includes("3.8-swift-1.5"))!.stories[0].id;
+    expect(about(fs2, "accounting_unchecked", "v2-r1", String(id))).toMatchObject({ detail: { accounting_version: null, time_split: null } });
+  });
+
   it("a finished run with no score of record (the old 'Final score pending/needs a person' notes): finalize.json whole, or that there is none", () => {
     expect(about(fs, "not_scored", "v2-r1")!.detail).toMatchObject({
       suite: "vidi-v2.0-pre1", has_bundle: true,
