@@ -1,3 +1,36 @@
+commit 5dc1c6c292e6abfaef97834b97b5551cbab5bf32
+vidi-agent  Thu Oct 1 04:13:08 2026 +0000
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ .dev.vars.example                           |   3 +
+ .gitignore                                  |   1 +
+ package.json                                |   2 +-
+ src/client/App.tsx                          |   8 +-
+ src/client/styles.css                       |   6 +
+ src/client/sync/ConnectionStatus.tsx        |   9 +
+ src/client/sync/connectBoard.ts             |  22 +-
+ src/shared/config.ts                        |  23 ++
+ src/shared/protocol.ts                      |   2 +
+ src/worker/board-room.ts                    | 383 +++++++++++++++++------
+ src/worker/board-store.ts                   | 250 +++++++++++++++
+ src/worker/index.ts                         |  39 +++
+ src/worker/room-state.ts                    |  66 ++++
+ tests/component/LoadFailedStatus.test.tsx   | 109 +++++++
+ tests/e2e/persistence.spec.ts               | 227 ++++++++++++++
+ tests/fixtures/boards.ts                    | 180 +++++++++++
+ tests/integration/persistent-room.test.ts   | 464 ++++++++++++++++++++++++++++
+ tests/integration/store/board-store.test.ts | 441 ++++++++++++++++++++++++++
+ tests/integration/ws-client.ts              |   4 +-
+ tests/unit/board-store-chunks.test.ts       |  75 +++++
+ tests/unit/room-state.test.ts               | 128 ++++++++
+ tsconfig.store-tests.json                   |   8 +
+ tsconfig.test.json                          |   1 +
+ vitest.integration.config.ts                |   1 +
+ vitest.workers.config.ts                    |  14 +
+ wrangler.jsonc                              |   3 +
+ 26 files changed, 2361 insertions(+), 108 deletions(-)
 commit 87d9870461802076c74bffc3bbd338985b9286a9
 vidi-agent  Thu Oct 1 02:35:38 2026 +0000
 
