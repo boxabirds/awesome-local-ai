@@ -129,6 +129,15 @@ impl Api {
         .await
     }
 
+    pub async fn hold(&self, reason: &str) -> Result<(reqwest::StatusCode, serde_json::Value)> {
+        self.send(self.req(reqwest::Method::POST, "/v1/hold").json(&serde_json::json!({ "reason": reason })))
+            .await
+    }
+
+    pub async fn release(&self) -> Result<(reqwest::StatusCode, serde_json::Value)> {
+        self.send(self.req(reqwest::Method::POST, "/v1/release")).await
+    }
+
     pub async fn cancel(&self, id: &str, reason: &str) -> Result<(reqwest::StatusCode, serde_json::Value)> {
         self.send(
             self.req(reqwest::Method::POST, &format!("/v1/jobs/{id}/cancel"))
@@ -317,6 +326,9 @@ pub async fn cmd_nodes(ctx: &Ctx) -> Result<()> {
                     if gpu.is_empty() { "-".into() } else { gpu },
                     n.current_job.unwrap_or_else(|| "-".into())
                 );
+                if let Some(h) = &n.hold {
+                    println!("{:<12} HELD by {}: {} (no new job starts until `dbench release {name}`)", "", h.by, h.reason);
+                }
                 let combos: Vec<String> = n
                     .combinations
                     .iter()
@@ -798,6 +810,31 @@ pub async fn cmd_events(ctx: &Ctx, node: &str, id: &str) -> Result<()> {
             kind,
             rest.join(" ")
         );
+    }
+    Ok(())
+}
+
+pub async fn cmd_hold(ctx: &Ctx, node: &str, reason: &str) -> Result<()> {
+    let (status, v) = ctx.api(node)?.hold(reason).await?;
+    if ctx.json {
+        print_json(&v)?;
+    }
+    match (status.as_u16(), v["current_job"].as_str()) {
+        (200, Some(job)) => eprintln!("{node}: held; {job} carries on, and no new job starts until `dbench release {node}`"),
+        (200, None) => eprintln!("{node}: held; nothing is running, and no new job starts until `dbench release {node}`"),
+        _ => bail!("{node}: {status}: {}", error_text(&v)),
+    }
+    Ok(())
+}
+
+pub async fn cmd_release(ctx: &Ctx, node: &str) -> Result<()> {
+    let (status, v) = ctx.api(node)?.release().await?;
+    if ctx.json {
+        print_json(&v)?;
+    }
+    match status.as_u16() {
+        200 => eprintln!("{node}: released; queued jobs start again"),
+        _ => bail!("{node}: {status}: {}", error_text(&v)),
     }
     Ok(())
 }

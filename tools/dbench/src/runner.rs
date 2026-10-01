@@ -50,6 +50,9 @@ pub async fn run(st: Arc<Shared>, adopt: Vec<crate::server::Adopted>) {
 
 fn take_next(st: &Shared) -> Option<String> {
     let mut inner = st.lock();
+    if inner.hold.is_some() {
+        return None; // held: the release wakes the loop
+    }
     while let Some(id) = inner.queue.pop_front() {
         if inner
             .jobs

@@ -111,6 +111,16 @@ pub enum Cmd {
     },
     /// Typed events parsed from a job's log.
     Events { node: String, id: String },
+    /// Hold a node: its running job carries on, and no queued job starts until a release.
+    /// The hold outlives a restart of the node's server (use it to restart on a new binary between jobs).
+    Hold {
+        node: String,
+        /// Why, shown while the node is held.
+        #[arg(long)]
+        reason: String,
+    },
+    /// Release a held node: its queued jobs start again.
+    Release { node: String },
     /// Cancel a job (SIGTERM, then SIGKILL, to its process group).
     Cancel {
         node: String,

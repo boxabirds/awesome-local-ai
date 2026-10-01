@@ -272,6 +272,12 @@ impl Server {
         )
         .await
     }
+    async fn hold(&self, body: Option<Value>) -> (u16, Value) {
+        self.call(reqwest::Method::POST, "/v1/hold", body).await
+    }
+    async fn release(&self) -> (u16, Value) {
+        self.call(reqwest::Method::POST, "/v1/release", None).await
+    }
     async fn cancel(&self, id: &str) -> (u16, Value) {
         self.cancel_with(id, Some(json!({"reason": TEST_CANCEL_REASON}))).await
     }
@@ -699,6 +705,47 @@ async fn cancel_kills_the_process_group() {
 #[tokio::test(flavor = "multi_thread")]
 async fn cancel_escalates_to_sigkill_when_sigterm_is_ignored() {
     cancel_kills_group("stubbornpack", SIGKILL_EXIT).await;
+}
+
+/// How long a held node is watched to see that it starts nothing: several restart backoffs and queue wakes.
+const HELD_WATCH: Duration = Duration::from_secs(2);
+
+/// 1 Oct 2026: a node's server could only be restarted on a new binary mid-job (the new server adopts the harness
+/// and, not knowing how it ended, requeues it) or in the seconds between two jobs. A hold lets the running job
+/// finish and starts no other until released; it outlives a restart of the server, so the restart is clean.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_held_node_finishes_its_job_starts_no_other_and_stays_held_across_a_restart() {
+    let env = setup();
+    let mut a = start(&env, false);
+    assert_eq!(a.submit("now", &spec("slowpack", "run-n")).await.0, 201);
+    assert_eq!(a.submit("next", &spec("fakepack", "run-x")).await.0, 201);
+    a.wait_status("now", "running").await;
+    for body in [None, Some(json!({})), Some(json!({"reason": " "}))] {
+        assert_eq!(a.hold(body.clone()).await.0, 400, "{body:?}");
+    }
+    let (s, v) = a.hold(Some(json!({"reason": "restart on the new binary"}))).await;
+    assert_eq!(s, 200, "{v}");
+    let node = a.get("/v1/node").await;
+    assert_eq!(node["hold"]["reason"], "restart on the new binary");
+    assert_eq!(node["current_job"], "now", "the running job is not touched");
+    assert_eq!(a.cancel("now").await.0, 202);                      // the running job ends (here, by a cancel)
+    a.wait_status("now", "cancelled").await;
+    tokio::time::sleep(HELD_WATCH).await;
+    assert_eq!(a.get("/v1/jobs/next").await["state"]["status"], "queued", "held: nothing new starts");
+    assert_eq!(a.get("/v1/node").await["current_job"], Value::Null);
+
+    a.child.kill().unwrap();
+    a.child.wait().unwrap();
+    let b = start(&env, false);
+    tokio::time::sleep(HELD_WATCH).await;
+    assert_eq!(b.get("/v1/jobs/next").await["state"]["status"], "queued", "still held after the restart");
+    assert_eq!(b.get("/v1/node").await["hold"]["reason"], "restart on the new binary");
+
+    assert_eq!(b.release().await.0, 200);
+    b.wait_status("next", "done").await;
+    assert_eq!(b.get("/v1/node").await.get("hold"), None);
+    assert_eq!(b.release().await.0, 200, "release is idempotent");
+    drop(env.root);
 }
 
 #[tokio::test(flavor = "multi_thread")]

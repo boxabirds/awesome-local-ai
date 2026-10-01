@@ -44,6 +44,9 @@ pub struct NodeInfo {
     pub dbench_version: String,
     pub repo_head: Option<String>,
     pub current_job: Option<String>,
+    /// Set while the node is held: it starts no new job (absent from servers before holds existed).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hold: Option<crate::control::Hold>,
 }
 
 /// Run a probe with the harness PATH; first line of stdout on success.
@@ -172,6 +175,7 @@ pub async fn gather(
         dbench_version: crate::VERSION.into(),
         repo_head,
         current_job,
+        hold: None,
     }
 }
 
