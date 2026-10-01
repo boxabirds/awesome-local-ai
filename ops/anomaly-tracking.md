@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 17:05 UTC
+**Last updated:** 2026-10-01 18:12 BST
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -21,7 +21,8 @@ never touches jobs, nodes, run records or harness code).
 
 **Numbering:** A-001, A-002, … in the order first written down; an id never changes or is reused.
 Entries are updated in place (last seen bumped, a dated note added) and move between sections; nothing is
-deleted. Held-out tests are referred to by counts only. Times are UTC.
+deleted. Held-out tests are referred to by counts only. Times are UTC unless marked BST; from 1 Oct 2026
+18:05 BST new notes are written in UK local time and say so.
 
 **This file is the fault log.** From 1 Oct 2026 12:40 the dashboard shows results only; every internal fault
 the system records (failed or unchecked accounting, runs without a score of record, flagged re-scores, invalid
@@ -222,7 +223,35 @@ test that would reproduce it. Details under the entries.
   `no_workspace_bundle` ×12 and `run_ended_early` ×5: all v1 runs (canvas-*, kg-07-01, ab-s7s8-01, Opus
   run-1/run-2 and the todoodle pack), part of the A-030 decision. `job_restarted` ×26: dbench's history of
   attempt > 1, which A-001, A-003, A-005 and A-031 cover; the restart of Sonnet v2-r4 at 10:12 was deliberate.
+- **Note 2026-10-01 18:12 BST:** the detector started at 18:05 BST with 200 conditions already in the feed as
+  its baseline (no entry of its own). A sixth `run_ended_early` appeared at 18:05 BST: flash-next llamacpp-pi
+  canvas-vk-02 on the Strix Halo box, a v1 run stopped on 27 Sep (exit 143, under vidi-v1.1), already among
+  the v1 runs of A-030; nothing new happened to the run. Why the feed only began reporting it now is A-036.
 - **Bucket:** none of its own (bookkeeping). **Status:** kept for the mapping.
+
+### A-036 — The fault feed dropped 15 job faults of two old runs that nothing repaired
+- **First seen / last seen:** 2026-10-01 18:05 BST (still so in the feed at 18:07 BST)
+- **Where:** the dashboard's `/api/faults`, for flash-next llamacpp-pi canvas-vk-01 and canvas-vk-02 (v1 runs
+  of 25–27 Sep on the Strix Halo box). Not a benchmark fault: no run or job changed.
+- **Observed:** within 8 s of the detector's first reading, 9 `job_cancelled` and 6 `job_restarted` faults
+  left the feed (jobs canvas-vk-01, -01b … -01g, canvas-vk-02, -02b), and one `run_ended_early` for
+  canvas-vk-02 appeared with `last_job: null`, i.e. the feed no longer attaches any dbench job to that run.
+  dbench still lists all nine jobs unchanged (eight cancelled, -01g done), the run records are as they were
+  on 27 Sep, and no commit to the dashboard or dbench landed at that time (the latest is from 17:35 BST).
+  On the same machine the job faults of gufo-pi canvas-gufo-r3 are still in the feed, so the machine's job
+  list as a whole was not lost. The rest of both runs' faults (5 unchecked stories, 2 failed accounting
+  checks, canvas-vk-01 not scored) are unchanged.
+- **Bucket:** unexplained — **confidence low**. Nothing was repaired, so these are not real clears. The
+  likeliest reading is an internal bug in how the feed matches dbench jobs to runs (a job-to-run key that
+  changed between two reads), which would make every "cleared" from the feed for job faults unreliable; a
+  partial read of the machine's job list at that moment is the other. What would settle it: the dashboard
+  server's log around 18:05 BST, and the stack, pack and run id the feed derives for those nine jobs set
+  beside the run's key (a test in `faults.test.ts` with jobs of that shape).
+- **Status:** open, watching whether the 15 come back or other runs' job faults vanish the same way. No
+  entry was marked repaired on the strength of these clears.
+- **Suggested action:** once the cause is known, make the feed keep a job fault until the job itself is
+  gone from dbench or the run is repaired, and have the detector treat a clear with no commit and no dbench
+  change behind it as a feed fault, not a repair.
 
 ### A-034 — CI red on main: a flaky agent-sandbox test
 - **First seen:** 2026-10-01 14:07 (run on `d991cc98`, 13:44) · **Last seen:** 2026-10-01 14:10
@@ -603,8 +632,8 @@ By bucket (A-018 is a scheduling flag and has no bucket):
 | stuck job | 0 | 0 | 0 | 0 |
 | broken pipeline | 1 (A-011) | 1 (A-030) | 1 (A-024) | 3 |
 | environment | 1 (A-022) | 1 (A-005) | 0 | 2 |
-| unexplained | 0 | 2 (A-019, A-021) | 0 | 2 |
-| **Total** | **3** (+A-018) | **14** | **15** | **32** (+A-018, A-027, A-033) |
+| unexplained | 0 | 3 (A-019, A-021, A-036) | 0 | 3 |
+| **Total** | **3** (+A-018) | **15** | **15** | **33** (+A-018, A-027, A-033) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
@@ -617,5 +646,5 @@ By combination (an anomaly is listed under the one it mainly concerns):
 | qwen 3.8 Swift 1.5 27B, llamacpp-pi | the RTX 4090 machine | A-012, A-026 |
 | qwen 3.8 27B and Swift 27B (v1), llamacpp-pi | the RTX 4090 machine | A-009 |
 | several | — | A-008 |
-| none (harness tests, CI, dbench) | — | A-023, A-024, A-025, A-031, A-034 |
+| none (harness tests, CI, dbench, the fault feed) | — | A-023, A-024, A-025, A-031, A-032, A-034, A-036 |
 | older runs, several stacks | all four | A-028, A-029, A-030 |
