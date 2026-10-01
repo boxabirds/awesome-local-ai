@@ -1,8 +1,11 @@
 import type React from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UseUndoResult } from './useUndo';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
   disabled?: boolean;
+  undo?: UseUndoResult;
 }
 
 /** Tooltip and accessible name of the sticky note button, exactly as the PRD words it. */
@@ -15,7 +18,7 @@ export const STICKY_NOTE_TOOLTIP = 'Sticky note – or double-click the board';
  * Pointer events stop at the toolbar so a click never reaches the viewport (which would pan the
  * board or clear the selection).
  */
-export function Toolbar({ onCreateSticky, disabled }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled, undo }: ToolbarProps) {
   const stop = (event: React.SyntheticEvent): void => {
     event.stopPropagation();
   };
@@ -44,6 +47,7 @@ export function Toolbar({ onCreateSticky, disabled }: ToolbarProps) {
           />
         </svg>
       </button>
+      {undo && <UndoButtons {...undo} />}
     </div>
   );
 }

@@ -144,3 +144,11 @@ export const LINK_COPIED_MS = 2000;
 
 /** Base backoff for board existence check retries; doubles up to RECONNECT_MAX_BACKOFF_MS. */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+/* ------------------------------------------------------- undo ---- */
+
+/** Typing pause (ms) that ends an undo capture window (one undo step per burst). */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/** Maximum number of undo steps retained per user per session. */
+export const UNDO_MAX_STEPS = 200;

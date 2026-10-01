@@ -1,55 +1,44 @@
-# Story 7 — Select, move, resize and delete several objects at once
+# Story 8 — Undo and redo my own changes without undoing anyone else's
 
 ## Decisions
 
-### Geometry module (`src/shared/geometry.ts`)
-- Pure functions with no Y.Doc dependency; easily testable in isolation.
-- `resizeRect` takes a `Handle` (8 directions) and an optional `aspectLocked` flag. Edge handles change one axis; corner handles change both. When aspect-locked, the scale factor is derived from the dominant axis.
-- `clampScale` computes a single uniform scale that prevents any object from exceeding `MAX_OBJECT_SIZE_WORLD` or going below its `minSize`. Returns the clamped scale factor.
-- `scaleWithin` maps a child rect from a source container to a destination container, preserving relative offsets and dimensions proportionally.
+### Undo controller (`src/client/board/undo.ts`)
+- Wraps `Y.UndoManager` scoped to the `objects` map with `trackedOrigins: new Set([LOCAL_ORIGIN])`.
+- Only this tab's transactions are captured; remote updates (provider origin) and story 4 load updates are never in the undo stack.
+- `boundary()` calls `stopCapturing()` — closes the current capture window so the next transaction starts a new undo step.
+- `undo()`/`redo()` return `false` when the stack is empty. Inverses targeting remotely deleted items have no effect (Yjs handles this internally).
+- Trims the undo stack to `maxSteps` on `stack-item-added` by shifting from the front.
+- `destroy()` disposes the manager; a fresh controller starts with empty stacks (session-only).
+- `addScope()` wraps `addToScope` for story 16 (comments).
 
-### Object type registry (`src/client/objects/registry.ts`)
-- Module-level `Map<string, ObjectTypeSpec>`. Registration is one-time only; duplicate registration throws to catch programming errors early.
-- `ObjectTypeSpec` contains only the knobs needed for selection behavior: `resizable`, `aspectLocked`, `minSize`, `editableText`, `hitTest`. The selection/move/resize/delete logic remains generic.
-- `defaultHitTest` uses `rectContains` on `objectBounds` — sufficient for axis-aligned rectangles.
-- A test-only `testbox` type is registered in the test file (guarded by try/catch) to prove generic behavior without adding production code.
+### Capture timeout and boundaries (`undo.boundaries`)
+- `UNDO_CAPTURE_TIMEOUT_MS = 500`: the Yjs `captureTimeout` merges transactions within this window into one undo step. Typing bursts merge; gestures do not because `boundary()` is called at gesture start and end.
+- `useTransformGesture`: `onGestureStart` and `onGestureEnd` (including pointercancel) call `boundary()`. All rAF-frame `moveObjects` transactions within one drag merge into one step.
+- `StickyTextEditor`: calls `boundary()` on mount (edit start) and unmount (edit end). Ctrl/Cmd+Z inside the textarea is intercepted with `preventDefault()` and routed to the controller, preventing native textarea undo from diverging from Y.Text.
+- `useBoardKeys`: Delete and nudge are wrapped with `boundary()` before and after, so each action is one step.
+- Toolbar create sticky: `boundary()` before and after `createSticky`.
 
-### Selection state (`src/client/board/useSelection.ts`)
-- Reducer pattern with `SelectionState { ids: ReadonlySet<string>, editingId: string | null }`.
-- Actions: `click` (replaces set with single id), `toggle` (add/remove one), `setMany` (marquee/select-all, with `additive` flag), `clear`, `prune` (remove ids no longer in snapshot), `edit`/`endEdit`.
-- The `prune` action runs as a side effect whenever the snapshot changes (via `useEffect`). This handles remote deletions: if a selected id is no longer present, it's removed from the selection and editing ends.
-- Backward-compatible `selectedId` getter returns the single id when selection size is 1, for existing code paths.
+### React binding (`useUndo`, `UndoButtons`)
+- `useUndo(controller, canEdit)`: subscribes to `controller.onChange`, exposes reactive `canUndo`/`canRedo`/`undo`/`redo`. Returns `false` for both when `!canEdit`.
+- `UndoButtons`: `button[aria-label="Undo"]` and `button[aria-label="Redo"]` with tooltips "Undo (Ctrl/Cmd+Z)" / "Redo (Ctrl/Cmd+Shift+Z)". Disabled attribute + `aria-disabled` when the matching history is empty.
 
-### Marquee (`src/client/board/Marquee.tsx`)
-- Uses a `rectRef` alongside the React state for the marquee rectangle. This avoids a stale-closure bug in the `end` callback: React state updates from `move` may not be flushed before `end` fires within the same event batch. The ref always holds the latest value.
-- `objectsInRect` selects only objects whose bounds are fully inside the marquee.
-- The marquee rect is stored in world coordinates so zoom/pan during drag does not affect the selection area.
+### Keyboard shortcuts (`useBoardKeys`)
+- Ctrl/Cmd+Z → undo; Ctrl/Cmd+Shift+Z and Ctrl+Y → redo. `preventDefault()` prevents browser undo.
+- Shortcuts are handled BEFORE the `sel.ids.size === 0` guard (undo works without a selection).
+- Ignored when `sel.editingId !== null` (editor handles it), focus is in `isTypingTarget` (non-board input), or `!canEdit`.
+- Key comparison uses `event.key.toLowerCase()` for cross-platform case handling.
 
-### Transform gesture (`src/client/board/useTransformGesture.ts`)
-- Uses `window.addEventListener('pointermove'/'pointerup'/'pointercancel')` for event tracking after a pointerdown starts the gesture. This ensures events are captured even if the pointer leaves the object or viewport.
-- Group move: records initial positions of all selected objects, then on each pointer move writes absolute positions (`initial + delta/zoom`). One Y.Doc transaction per rAF frame.
-- Resize: uses the bounding-box of all selected objects. `resizeRect` computes the new bounding box, `clampScale` limits it, then `scaleWithin` maps each object's position/size into the new box.
-- `bringObjectsToFront` is called at gesture start (after crossing DRAG_THRESHOLD_PX) so the moving group renders above stationary objects.
-- `canEdit === false` → gesture is silently refused (no Y.Doc writes).
+### Personal scope (undo.own)
+- Each tab has its own `UndoController` instance created in `App.tsx`. The `Y.UndoManager` tracks only `LOCAL_ORIGIN`, so stacks contain exclusively that person's transactions.
+- Other people's changes arrive with the provider origin and never enter these stacks.
+- `App.tsx` creates one controller per board doc; destroys on unmount.
 
-### Keyboard (`src/client/board/useBoardKeys.ts`)
-- Listens on `window` via `useEffect`. Ignores events when `editingId` is set or focus is in an input/textarea (typing context).
-- Ctrl/Cmd+A: selects all visible objects. Delete/Backspace: deletes the selection. Arrow keys: nudge by `NUDGE_STEP_WORLD` (or `NUDGE_LARGE_STEP_WORLD` with Shift). Escape: clear selection.
-- `preventDefault()` is called on handled keys to prevent browser scroll (arrows) and native select-all (Ctrl+A).
+### Unit test: peer simulation (`tests/unit/peer.ts`)
+- `createPeer(local)` creates a second `Y.Doc` that syncs bidirectionally. Local→Peer uses a guard to avoid re-applying peer-originated updates back to the peer. Remote changes applied to the local doc use `PEER_ORIGIN` (not tracked by undo).
+- `loadTransact(doc, fn)` wraps mutations with `LOAD_ORIGIN` to simulate story 4 loads.
 
-### StickyNote changes
-- Removed inline drag logic from story 2; pointer events now delegate to `onObjectPointerDown` from the transform gesture hook.
-- Shift-click is handled before delegating: calls `onToggle(id)` and returns without starting a gesture.
-- Renders `data-selected` and `data-interaction` attributes for tests.
-
-### E2E tests (`tests/e2e/multi-select.spec.ts`)
-- TC-32: marquee selects only fully-inside objects.
-- TC-33: group drag moves all selected; resize handle scales proportionally.
-- TC-34: keyboard nudge (×3 + large) and delete, camera/scroll unchanged.
-- TC-35: two-context test proving remote delete prunes selection via the Y.Doc sync path.
-- TC-36: multiple concurrent editors move different groups; absolute writes converge.
+### Capture timeout tests
+- Yjs uses `lib0/time.getUnixTime = Date.now` which captures the function reference at module load time. Vitest's `vi.useFakeTimers()` replaces `Date.now` but cannot retroactively change the captured reference. Tests use real delays with small `captureTimeoutMs` values (80–200ms) instead.
 
 ## Known limitations
-- E2E tests require `wrangler dev` with a running D1 database and Durable Object; they cannot run in this CI environment.
-- The `testbox` registry entry is only available in test files (not in production code), which is by design.
-- Resize handles are only shown for selected groups containing at least one `resizable` object type.
+- 6 pre-existing e2e failures (TC-33/34/35 multi-select, TC-19/20 persistence, TC-35 sticky colour cycling) exist in the baseline before this story's changes and are not caused by story 8.

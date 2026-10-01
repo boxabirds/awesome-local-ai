@@ -1,5 +1,6 @@
 /**
- * useBoardKeys: window keyboard handler for select-all, clear, nudge, delete, and Enter-to-edit.
+ * useBoardKeys: window keyboard handler for select-all, clear, nudge, delete, Enter-to-edit,
+ * and undo/redo shortcuts.
  *
  * Replaces story 2's inline keyboard handler in App.tsx.
  */
@@ -8,6 +9,7 @@ import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
 import type { UseSelectionResult } from './useSelection';
 import type { ObjectSnapshot } from '../../shared/board-model';
+import type { UndoController } from './undo';
 import { allObjectIds, moveObjects, deleteObjects } from '../../shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
 
@@ -16,6 +18,8 @@ export interface UseBoardKeysOptions {
   selection: UseSelectionResult;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  undoController?: UndoController;
+  boundary?: () => void;
 }
 
 /** True when the keypress belongs to a text field, which owns Delete and Enter itself. */
@@ -29,7 +33,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 export function useBoardKeys(opts: UseBoardKeysOptions): void {
-  const { doc, selection, snapshot, canEdit } = opts;
+  const { doc, selection, snapshot, canEdit, undoController, boundary } = opts;
 
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
@@ -37,12 +41,46 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
   snapshotRef.current = snapshot;
   const canEditRef = useRef(canEdit);
   canEditRef.current = canEdit;
+  const undoRef = useRef(undoController);
+  undoRef.current = undoController;
+  const boundaryRef = useRef(boundary);
+  boundaryRef.current = boundary;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const sel = selectionRef.current;
       const snap = snapshotRef.current;
       const editable = canEditRef.current;
+      const ctrl = undoRef.current;
+      const bnd = boundaryRef.current;
+
+      // Undo: Ctrl/Cmd+Z (before editing check, since editor handles it separately)
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && key === 'z' && !event.shiftKey) {
+        // Skip if editing a sticky (the editor handles undo itself)
+        if (sel.editingId !== null) return;
+        // Skip if focus is in an input/textarea (non-board input)
+        if (isTypingTarget(event.target)) return;
+        if (!editable) return;
+        event.preventDefault();
+        if (ctrl) ctrl.undo();
+        return;
+      }
+
+      // Redo: Ctrl/Cmd+Shift+Z or Ctrl+Y (before editing check)
+      if (
+        ((event.ctrlKey || event.metaKey) && key === 'z' && event.shiftKey) ||
+        (event.ctrlKey && !event.metaKey && key === 'y')
+      ) {
+        // Skip if editing a sticky (the editor handles redo itself)
+        if (sel.editingId !== null) return;
+        // Skip if focus is in an input/textarea (non-board input)
+        if (isTypingTarget(event.target)) return;
+        if (!editable) return;
+        event.preventDefault();
+        if (ctrl) ctrl.redo();
+        return;
+      }
 
       // If editing text or focus is in an input/textarea, do nothing (keys belong to the field)
       if (sel.editingId !== null) return;
@@ -88,7 +126,10 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
             positions.set(obj.id, { x: obj.x + dx, y: obj.y + dy });
           }
         }
+        // Wrap in boundary so nudge is its own undo step
+        if (bnd) bnd();
         moveObjects(doc, positions);
+        if (bnd) bnd();
         return;
       }
 
@@ -97,7 +138,9 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
         if (!editable) return;
         event.preventDefault();
         const ids = [...sel.ids];
+        if (bnd) bnd();
         deleteObjects(doc, ids);
+        if (bnd) bnd();
         sel.clear();
         return;
       }

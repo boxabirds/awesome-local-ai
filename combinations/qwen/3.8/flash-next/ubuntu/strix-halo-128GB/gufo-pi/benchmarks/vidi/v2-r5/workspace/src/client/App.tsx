@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
 import { BoardViewport } from './canvas/BoardViewport';
@@ -13,6 +13,8 @@ import { SelectionBar } from './board/SelectionBar';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useMarquee, MarqueeRect } from './board/Marquee';
+import { useUndo } from './board/useUndo';
+import { createUndo, type UndoController } from './board/undo';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObjects, deleteObject, snapshot } from '../shared/board-model';
 import { installTestHooks } from './canvas/testHooks';
@@ -34,6 +36,7 @@ function readBoardIdFromPath(): string | undefined {
  * bottom-right corner and the first-use navigation hint near the bottom centre.
  *
  * Story 7: multi-select, group move, resize, nudge and delete.
+ * Story 8: undo/redo with per-user history.
  */
 export interface AppProps {
   doc?: Y.Doc;
@@ -48,16 +51,41 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
   const selection = useSelection(notes);
   const editable = connectionState === undefined || canEdit(connectionState);
 
-  // Keyboard commands (select-all, clear, nudge, delete, enter-to-edit)
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable });
+  // Undo controller: one per board doc, destroyed on board change/unmount (session-only)
+  const undoRef = useRef<UndoController | null>(null);
+  if (undoRef.current === null) {
+    undoRef.current = createUndo(doc);
+  }
+  const undoCtrl = undoRef.current;
+  const boundary = useCallback(() => undoCtrl.boundary(), [undoCtrl]);
 
-  // Transform gesture (group move and resize)
+  useEffect(() => {
+    return () => {
+      undoCtrl.destroy();
+    };
+  }, [undoCtrl]);
+
+  const undoState = useUndo(undoCtrl, editable);
+
+  // Keyboard commands (select-all, clear, nudge, delete, enter-to-edit, undo/redo)
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+    undoController: undoCtrl,
+    boundary,
+  });
+
+  // Transform gesture (group move and resize) with undo boundaries
   const gesture = useTransformGesture({
     doc,
     camera,
     selection,
     snapshot: notes,
     canEdit: editable,
+    onGestureStart: boundary,
+    onGestureEnd: boundary,
   });
 
   // Marquee (Shift+drag)
@@ -74,26 +102,31 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
   const createAt = useCallback(
     (world: { x: number; y: number }) => {
       if (!editable) return;
+      boundary();
       const id = createSticky(doc, world);
+      boundary();
       if (!id) return;
       selection.startEdit(id);
     },
-    [doc, selection, editable],
+    [doc, selection, editable, boundary],
   );
 
   /** Toolbar creation: the centre of the visible board area. */
   const createAtViewportCentre = useCallback(() => {
     if (!editable) return;
+    boundary();
     createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }));
-  }, [camera, createAt, viewport.height, viewport.width, editable]);
+  }, [camera, createAt, viewport.height, viewport.width, editable, boundary]);
 
   /** Delete the entire selection (SelectionBar button). */
   const deleteSelection = useCallback(() => {
     if (!editable) return;
     const ids = [...selection.ids];
+    boundary();
     deleteObjects(doc, ids);
+    boundary();
     selection.clear();
-  }, [doc, selection, editable]);
+  }, [doc, selection, editable, boundary]);
 
   /** Delete a single note (NoteToolbar button). */
   const removeOne = useCallback(
@@ -166,11 +199,13 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
             onEndEdit={selection.endEdit}
             onDelete={removeOne}
             onObjectPointerDown={gesture.onObjectPointerDown}
+            undoController={undoCtrl}
+            boundary={boundary}
           />
         ))}
         <MarqueeRect rect={marquee.rect} camera={camera} />
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} />
+      <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} undo={undoState} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type React from 'react';
 import type * as Y from 'yjs';
 import { getStickyText, setStickyColor, type StickySnapshot } from '../../shared/board-model';
+import type { UndoController } from '../board/undo';
 import {
   DRAG_THRESHOLD_PX,
   STICKY_COLORS,
@@ -29,6 +30,10 @@ export interface StickyNoteProps {
   onDelete?(id: string): void;
   /** Pointer down handler from useTransformGesture (group move/resize). */
   onObjectPointerDown?(e: React.PointerEvent, id: string): void;
+  /** Undo controller for boundary calls in text editor. */
+  undoController?: UndoController;
+  /** Boundary function for single-object operations. */
+  boundary?: () => void;
 }
 
 /**
@@ -47,6 +52,8 @@ export function StickyNote({
   onEndEdit,
   onDelete,
   onObjectPointerDown,
+  undoController,
+  boundary,
 }: StickyNoteProps) {
   const elementRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
@@ -164,7 +171,7 @@ export function StickyNote({
       onDoubleClick={handleDoubleClick}
     >
       {editing && ytext ? (
-        <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} />
+        <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} undoController={undoController} />
       ) : (
         <div
           className="sticky-note-text"
@@ -205,10 +212,14 @@ export function StickyNote({
           color={note.color}
           zoom={zoom}
           onColor={(color) => {
+            if (boundary) boundary();
             setStickyColor(doc, note.id, color);
+            if (boundary) boundary();
           }}
           onDelete={() => {
+            if (boundary) boundary();
             onDelete?.(note.id);
+            if (boundary) boundary();
           }}
         />
       )}

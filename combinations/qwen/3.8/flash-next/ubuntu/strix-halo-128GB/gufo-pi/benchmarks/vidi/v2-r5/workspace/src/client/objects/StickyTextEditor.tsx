@@ -4,6 +4,7 @@ import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { clampToLimit } from './StickyText';
 import { NOTE_LINE_HEIGHT_FACTOR, NOTE_PADDING } from './layout';
+import type { UndoController } from '../board/undo';
 
 export interface StickyTextEditorProps {
   /** The shared text of the note; every committed keystroke goes straight into it. */
@@ -12,6 +13,8 @@ export interface StickyTextEditorProps {
   fontPx: number;
   /** Escape stops editing and keeps the note selected; a press outside drops the selection. */
   onEnd(next: 'selected' | 'unselected'): void;
+  /** Undo controller for boundary calls and in-editor undo/redo. */
+  undoController?: UndoController;
 }
 
 /**
@@ -31,12 +34,19 @@ export interface StickyTextEditorProps {
  * CONCURRENT EDITING: we store the last textarea value and on each input compute only the
  * LOCAL diff (prevTextarea → currTextarea), applying it directly to the YText via insert/delete.
  * This prevents overwriting remote characters that appeared between keystrokes.
+ *
+ * UNDO: boundary() is called on mount (edit start) and on unmount/end (edit end), so typing
+ * within one editing session is grouped by capture timeout but never merges with actions
+ * before or after the edit. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z are intercepted inside the
+ * textarea and routed to the UndoController so the Y.Text undo is consistent.
  */
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
+export function StickyTextEditor({ ytext, fontPx, onEnd, undoController }: StickyTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
+  const undoRef = useRef(undoController);
+  undoRef.current = undoController;
   // Tracks the textarea value at the last commit so we can compute local-only diffs.
   const prevValueRef = useRef<string>('');
 
@@ -86,7 +96,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     if (textarea) commit(textarea.value);
   };
 
-  // Mount: seed the value from the document, focus, and put the caret at the end of the text.
+  // Mount: seed the value from the document, focus, put caret at end, call boundary (edit start).
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -96,8 +106,19 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     textarea.focus();
     const end = textarea.value.length;
     textarea.setSelectionRange(end, end);
+
+    // Boundary at edit start: prevents merging with prior actions
+    undoRef.current?.boundary();
+
     // Intentionally mount-only: from here on the user owns the caret.
   }, [ytext]);
+
+  // Unmount: boundary (edit end)
+  useEffect(() => {
+    return () => {
+      undoRef.current?.boundary();
+    };
+  }, []);
 
   const handleInput = (event: React.SyntheticEvent<HTMLTextAreaElement>): void => {
     if (composingRef.current) return;
@@ -126,6 +147,49 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       onInput={handleInput}
       onBlur={flush}
       onKeyDown={(event) => {
+        const key = event.key.toLowerCase();
+        // Ctrl/Cmd+Z: undo typing (intercept native textarea undo)
+        if ((event.ctrlKey || event.metaKey) && key === 'z' && !event.shiftKey) {
+          event.preventDefault();
+          event.stopPropagation();
+          // Sync textarea value from Y.Text after undo
+          const ctrl = undoRef.current;
+          if (ctrl) {
+            ctrl.undo();
+            // Update textarea to reflect undo
+            if (textareaRef.current) {
+              const newText = ytext.toString();
+              textareaRef.current.value = newText;
+              prevValueRef.current = newText;
+              const pos = Math.min(newText.length, textareaRef.current.selectionStart);
+              textareaRef.current.setSelectionRange(pos, pos);
+            }
+          }
+          return;
+        }
+
+        // Ctrl/Cmd+Shift+Z or Ctrl+Y: redo typing
+        if (
+          ((event.ctrlKey || event.metaKey) && key === 'z' && event.shiftKey) ||
+          (event.ctrlKey && !event.metaKey && key === 'y')
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          const ctrl = undoRef.current;
+          if (ctrl) {
+            ctrl.redo();
+            // Update textarea to reflect redo
+            if (textareaRef.current) {
+              const newText = ytext.toString();
+              textareaRef.current.value = newText;
+              prevValueRef.current = newText;
+              const pos = Math.min(newText.length, textareaRef.current.selectionStart);
+              textareaRef.current.setSelectionRange(pos, pos);
+            }
+          }
+          return;
+        }
+
         if (event.key === 'Escape') {
           event.preventDefault();
           event.stopPropagation();
