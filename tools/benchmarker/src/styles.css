@@ -14,13 +14,18 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink);
        font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-variant-numeric: tabular-nums; }
-header { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line);
+/* Pinned to the top of the window, stacked: the app's top bar, then the page's breadcrumb under it. Each one's height
+   is kept in a variable by the page (useHeightVar), so the breadcrumb knows where the bar ends, and the browser keeps
+   whatever it scrolls into view (an anchor, a focused element) clear of both. */
+:root { --header-h: 0px; --crumb-h: 0px; --pinned-gap: 8px; --pinned-h: calc(var(--header-h) + var(--crumb-h)); --main-end: 40px; --page-end: 16px; }
+html { scroll-padding-top: calc(var(--pinned-h) + var(--pinned-gap)); }
+header { position: sticky; top: 0; z-index: 3; background: var(--bg); border-bottom: 1px solid var(--line);
          padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
 h1 { font-size: 17px; margin: 0; }
 select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font: inherit; }
 .meta { color: var(--faint); font-size: 12px; }
 .err { color: var(--bad); font-size: 12px; }
-main { padding: 12px 16px 40px; }
+main { padding: 12px 16px var(--main-end); }
 section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin: 0 0 16px; overflow-x: auto; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
 h2 { font-size: 13px; font-weight: 600; margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--panel-2);
      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
@@ -158,10 +163,18 @@ figure.time-bars figcaption b { color: var(--ink); font-size: 13px; margin-right
 a.entity { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--faint); }
 a.entity:hover, a.entity:focus-visible { color: var(--run); border-bottom-color: var(--run); }
 a.story-run-link { font-size: 11px; color: var(--muted); margin-left: 4px; }
-.breadcrumb { font-size: 13px; color: var(--muted); margin: 4px 0 12px; }
+/* The breadcrumb stays under the top bar. Its background is the page's, opaque, and reaches both edges of the window
+   whatever the page's width (a shadow, cut to the strip's own height: it adds no width to scroll). Above the page's
+   content, pinned table headings included; under the top bar and the tooltip. */
+.breadcrumb { font-size: 13px; color: var(--muted); margin: -4px 0 6px; padding: 6px 0; overflow-wrap: anywhere;
+              position: sticky; top: var(--header-h); z-index: 2; background: var(--bg);
+              box-shadow: 0 0 0 100vmax var(--bg); clip-path: inset(0 -100vmax -1px); }
+/* Once the page is beneath it: a line across the window, drawn the same way. */
+.breadcrumb[data-stuck="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+              background: var(--line); box-shadow: 0 0 0 100vmax var(--line); clip-path: inset(0 -100vmax); }
 .breadcrumb a { color: var(--run); text-decoration: none; }
 .breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 600; }
-.page { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+.page { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 20px; margin-bottom: var(--page-end); }
 .page h1 { font-size: 20px; margin: 0 0 12px; }
 
 /* The ranking: a median with its range and n; unranked rows say why; small n gets a note. Live progress is lighter
