@@ -83,7 +83,9 @@ SANDBOX_REOPEN_RO = [Path.home() / ".dbench" / "tools"]
 # until 30 Sep 2026, when a run found another run's leftover git worktree at /tmp/vidi-baseline; the held-out suite
 # also keeps its app's state in the harness's temp dir (os.tmpdir()/vidi-accept-*).
 AGENT_TMP = "tmp"
-TMP_ENV = ("TMPDIR", "TMP", "TEMP")
+# CLAUDE_CODE_TMPDIR: Claude Code ignores TMPDIR for its own temp files and uses /tmp/claude-<uid> unless this is
+# set; with /tmp denied it couldn't see that dir existed and failed to start (EEXIST, 1 Oct 2026).
+TMP_ENV = ("TMPDIR", "TMP", "TEMP", "CLAUDE_CODE_TMPDIR")
 # Linux: bound over by the run's own temp dir (bwrap), so a hard-coded /tmp path still works, privately.
 SHARED_TMP = [Path("/tmp"), Path("/var/tmp")]
 # macOS: denied (sandbox-exec can't remap a path), with the per-user temp dir (confstr, what os.tmpdir() gives the

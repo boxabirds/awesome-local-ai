@@ -114,6 +114,28 @@ def test_the_agent_writes_and_reads_its_own_temp_dir(two_runs):
     assert (mine / drive.AGENT_TMP / "f").read_text().strip() == "mine"
 
 
+
+def test_claude_code_is_told_to_keep_its_temp_files_in_the_run_s_own(tmp_path):
+    env = drive.agent_env(tmp_path / "run-a")
+    assert env["CLAUDE_CODE_TMPDIR"] == env["TMPDIR"]
+
+
+@needs_sandbox
+def test_claude_code_s_temp_dir_works_in_the_sandbox_when_the_shared_one_exists(two_runs):
+    """1 Oct 2026, the Sonnet 5.5 reference run: Claude Code keeps its temp files in ${CLAUDE_CODE_TMPDIR:-/tmp}/claude-<uid>.
+    With /tmp denied, the sandboxed agent couldn't see that /tmp/claude-<uid> (made by any other Claude Code on the
+    machine) existed, and its mkdir failed with EEXIST: the preflight's Claude session never started."""
+    mine, _ = two_runs
+    shared = Path("/tmp") / f"claude-{os.getuid()}"
+    made = not shared.exists()
+    shared.mkdir(exist_ok=True)
+    try:
+        r = _in_sandbox(mine, 'd="${CLAUDE_CODE_TMPDIR:-/tmp}/claude-$(id -u)"; mkdir -p "$d" && echo ok > "$d/f" && cat "$d/f"')
+        assert r.returncode == 0 and r.stdout.strip() == "ok", r.stderr
+    finally:
+        if made:
+            shared.rmdir()
+
 @needs_sandbox
 def test_another_run_s_temp_dir_is_not_visible(two_runs):
     mine, other = two_runs
