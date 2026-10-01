@@ -251,6 +251,18 @@ def test_known_good_summary_says_it_is_diagnostic(tmp_path):
     assert "opus-5.5/run-3" in text and "abc1234" in text
     assert "not comparable with full runs" in text
     assert "spec was brought up to this pack's version" in text
+    assert "Story 7 only" in text and "It measures that story on its own" in text
+
+
+def test_known_good_continuation_summary_says_which_stories_it_ran(tmp_path):
+    (tmp_path / "run.json").write_text(json.dumps({"model_id": "m", "scope": "canvas"}))
+    (tmp_path / "metrics.json").write_text(json.dumps({"stories": {}, "known_good": {
+        "from_run": "combinations/some/stack/benchmarks/vidi/v2-r1", "commit": "abc1234def", "story": 10,
+        "spec_updated": False, "continues": True}}))
+    text = report.summary(tmp_path)
+    assert "**Known-good mode (diagnostic).** Story 10 and every later story of the scope, built on" in text
+    assert "It measures those stories, with no earlier mistakes carried in; not comparable with full runs." in text
+    assert "Story 10 only" not in text and "spec was brought up" not in text
 
 
 def test_per_story_counts_setup_fallbacks_and_shows_them_only_when_used(tmp_path):
