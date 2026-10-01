@@ -27,3 +27,9 @@ When problems lead to recommended actions, give each one as:
 - **Problem:** what is wrong, with the evidence.
 - **Recommended solution:** the change that would address it.
 - **Proposed actions:** the concrete steps, marked with whether each needs the owner's approval.
+
+## No branches
+
+Never create a branch: not local, not remote, not temporary, not in a scratch clone, and not "to keep main safe". Work on the checked-out branch (main) and commit there. That rules out `git checkout -b`, `git switch -c`, `git checkout -B`, `git branch <name>`, `git worktree add` without `--detach`, and pushing to any new remote branch. Agents and subagents follow the same rule. If some work seems to need isolation, ask the owner first.
+
+Why: the owner works on main only. During the 30 September 2026 history rewrite a temporary `local-main` branch was created in a scratch clone, against this rule.
