@@ -4,6 +4,8 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::ffi::OsString;
 use std::path::PathBuf;
 
+use crate::ports::PortRange;
+
 #[derive(Parser, Debug)]
 #[command(
     name = "agent-sandbox",
@@ -41,10 +43,19 @@ pub struct SandboxArgs {
     /// Where the proxy logs each request (JSON lines). The command cannot read it unless it is in own_dir.
     #[arg(long)]
     pub proxy_log: Option<PathBuf>,
-    /// A loopback port on the host the command must reach (the model server). Repeatable.
-    /// Linux: carried into the sandbox's private network. macOS: all loopback is reachable anyway.
+    /// A loopback port outside the sandbox the command must reach (the model server). Repeatable.
+    /// Linux: carried into the sandbox's private network. macOS: the command may connect to it.
     #[arg(long)]
     pub host_port: Vec<u16>,
+    /// Loopback ports for the command's own servers, as PORT or FIRST-LAST. Repeatable. macOS: the
+    /// only ports it may bind, listen on and connect to. Linux: not needed, its loopback is its own.
+    #[arg(long, value_name = "PORT|FIRST-LAST")]
+    pub agent_ports: Vec<PortRange>,
+    /// Let the command bind to port 0 ("any free port") and connect to what it got; `wrangler dev`
+    /// needs it. macOS: it may then bind any loopback port and connect to every port of the
+    /// kernel's ephemeral range, its own or not, and starting takes seconds longer. Linux: no effect.
+    #[arg(long)]
+    pub ephemeral_ports: bool,
     /// Linux only: `shared` leaves the command in the host's network, where nothing is enforced.
     #[arg(long, value_enum, default_value_t = LinuxNet::Isolated)]
     pub linux_net: LinuxNet,
