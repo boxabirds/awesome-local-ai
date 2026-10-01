@@ -516,6 +516,16 @@ describe("tokens and speed", () => {
     }
   });
 
+  it("the record keeps what the publishing step redacted from a story (record.credentials_redacted), and the page never gets it", () => {
+    const redacted = { count: 2, names: ["DEEPSEEK_API_KEY", "sk- key"] };
+    const rec = storyEntry("1", { agent: { seconds: 1, tokens: {} }, record: { committed: true, pushed: true, credentials_redacted: redacted } } as never);
+    expect(rec.credentialsRedacted).toEqual(redacted);
+    expect(publicStory(rec)).not.toHaveProperty("credentialsRedacted");
+    for (const record of [undefined, null, { committed: true }, { credentials_redacted: null }, { credentials_redacted: { count: 0, names: [] } }, { credentials_redacted: { count: "2" } }]) {
+      expect(storyEntry("1", { agent: { seconds: 1, tokens: {} }, record } as never)).not.toHaveProperty("credentialsRedacted");
+    }
+  });
+
   describe("what the page gets of a story (publicStory): no check, no faults, and no breakdown that failed its check", () => {
     const ts = (accounting?: object) => ({ agent: { seconds: 100, tokens: {} }, time_split: { wall_s: 100, tools_s: 40, compaction_s: 0, other_s: 60, model: null, accounting } });
     it("a split that passed, or was never checked, is sent as it is, without the check", () => {

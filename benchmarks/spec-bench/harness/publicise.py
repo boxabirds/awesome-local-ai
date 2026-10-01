@@ -16,7 +16,9 @@ anything converting old records:
 - the size limit of each kind of committed file (size_limit), used by the harness and tests/privacy-test.sh
   (`publicise.py over-limit <repo>`), so the two can't disagree.
 The agent's own work (anything under a run's workspace/, its conversation and its gate) is its own and always
-public. The harness applies these rules in heldout.py and drive.record_story.
+public, except a credential in it: every file staged for a public commit is put through the credential scanner
+(credentials.py, heldout.redact_staged), which replaces the value by a marker naming it.
+The harness applies these rules in heldout.py and drive.record_story.
 Tests: test_publicise.py.
 """
 from __future__ import annotations

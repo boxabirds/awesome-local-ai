@@ -70,9 +70,14 @@ export type RecordUsage = Omit<Usage, "split"> & { split?: RecordSplit | null };
 /** Lines of a story's agent output that were JSON but not events (drive.py's skipped_output): how many, and the
  * first few, each cut by the harness. */
 export interface SkippedOutput { count: number; samples: string[] }
+/** What the publishing step's credential scan redacted from a story's published files (drive.record_story's
+ * credentials_redacted): how many, and what each was called. Never a value: the harness records none. */
+export interface CredentialsRedacted { count: number; names: string[] }
 /** A story as the record has it: the page's, plus its check, the harness faults recorded with it (drive.py's
- * harness_faults, verbatim) and its skipped agent output. */
-export type RecordStory = Omit<Story, "usage"> & { usage?: RecordUsage | null; harnessFaults?: unknown[]; skippedOutput?: SkippedOutput };
+ * harness_faults, verbatim), its skipped agent output and what was redacted from its published files. */
+export type RecordStory = Omit<Story, "usage"> & {
+  usage?: RecordUsage | null; harnessFaults?: unknown[]; skippedOutput?: SkippedOutput; credentialsRedacted?: CredentialsRedacted;
+};
 
 /** A run marked invalid in its run.json (`"invalid": {"reason": …, "since": "2026-09-30"}`): its result can't stand (it
  * saw the reference build, say). The page never shows it; the faults feed names it. */
@@ -432,7 +437,7 @@ function usageOf(raw: RawUsage): RecordUsage | null {
  * is not sent: the breakdown is not available, like one never recorded. The story's own totals (agent time, tokens,
  * calls, held-out) stay. */
 export function publicStory(s: RecordStory): Story {
-  const { harnessFaults: _faults, skippedOutput: _skipped, usage, ...rest } = s;
+  const { harnessFaults: _faults, skippedOutput: _skipped, credentialsRedacted: _redacted, usage, ...rest } = s;
   if (!usage) return { ...rest, usage: usage ?? null };
   const { split, ...u } = usage;
   if (!split) return { ...rest, usage: { ...u, split: split ?? null } };
@@ -503,10 +508,19 @@ function skippedOutputOf(raw: unknown): SkippedOutput | null {
   return { count, samples: Array.isArray(samples) ? samples.map(String) : [] };
 }
 
+/** The record's credentials_redacted where it is what the harness writes (a count above none, and the names). */
+function credentialsRedactedOf(raw: unknown): CredentialsRedacted | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const { count, names } = raw as { count?: unknown; names?: unknown };
+  if (typeof count !== "number" || count <= 0) return null;
+  return { count, names: Array.isArray(names) ? names.map(String) : [] };
+}
+
 export function storyEntry(
-  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[]; skipped_output?: unknown; not_comparable?: unknown } & RawUsage,
+  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; not_comparable?: unknown } & RawUsage,
 ): RecordStory {
   const skipped = skippedOutputOf(raw.skipped_output);
+  const redacted = credentialsRedactedOf(raw.record?.credentials_redacted);
   const acc = raw.accept ?? {};
   const own = acc.by_story?.[/^\d+$/.test(id) ? id.padStart(2, "0") : id] ?? {};
   return {
@@ -523,6 +537,7 @@ export function storyEntry(
     notComparable: notComparableOf(raw.not_comparable),
     ...(Array.isArray(raw.harness_faults) && raw.harness_faults.length ? { harnessFaults: raw.harness_faults } : {}),
     ...(skipped ? { skippedOutput: skipped } : {}),
+    ...(redacted ? { credentialsRedacted: redacted } : {}),
   };
 }
 

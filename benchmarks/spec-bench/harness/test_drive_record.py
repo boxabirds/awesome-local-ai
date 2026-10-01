@@ -204,6 +204,88 @@ def test_a_record_carrying_held_out_detail_is_refused_whole_and_goes_through_onc
     assert not (run / publicise.PUBLISH_REFUSED).exists()
 
 
+# ---------- credentials in what is published (credentials.py) ----------
+
+import gzip                                                                 # noqa: E402
+import test_credentials as tc                                               # noqa: E402  (its made-up values and real lines)
+
+FAKE_GITHUB_TOKEN = "gh" + "p_" + tc.ALNUM + "0123"
+LOG = "stories/01/agent-events.compact.jsonl.gz"
+RAW_LOG = "stories/01/agent-events.jsonl"                                   # the full log: git-ignored, never published
+
+
+def run_with_credentials(repo: Path) -> Path:
+    """A run whose agent printed its environment: the values are in its log, an intervention, its gate's output
+    and a file of its mirrored workspace."""
+    run = pg.small_run(repo)
+    events = [json.dumps({"_rx": 1.0, "type": "session", "id": "s"}),
+              json.dumps({"_rx": 2.0, "type": "tool_execution_end", "result": tc.ENV_OUTPUT})]
+    pg.write(run / RAW_LOG, "\n".join(events) + "\n")
+    (run / LOG).write_bytes(gzip.compress(("\n".join(events) + "\n").encode()))
+    pg.write(run / "interventions.md", f"# Interventions\n\n- story 1: stray process: {tc.PGREP_LINE}")
+    pg.write(run / "stories/01/gate.json", {"steps": {"build": {"exit": 1, "tail": f"Authorization: Bearer {tc.ALNUM}"}}})
+    pg.write(run / "workspace/deploy.sh", f"git push https://x:{FAKE_GITHUB_TOKEN}@example.invalid/o/r.git\n")
+    return run
+
+
+def published(repo: Path, rel: str) -> str:
+    blob = subprocess.run(["git", "show", f"HEAD:{pg.RUN_REL}/{rel}"], cwd=repo, capture_output=True, check=True).stdout
+    return (gzip.decompress(blob) if rel.endswith(".gz") else blob).decode()
+
+
+def test_a_credential_in_anything_staged_is_redacted_before_the_commit_and_named_in_the_record(tmp_path, capsys):
+    repo, remote = pg.cloned(tmp_path, "public")
+    run = run_with_credentials(repo)
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
+    assert res["committed"] is True and res["pushed"] is True
+    names = ["Bearer token", "CLAUDE_CODE_MESSAGING_TOKEN", "DEEPSEEK_API_KEY", "GitHub token"]
+    assert res["credentials_redacted"] == {"count": 4, "names": names}
+    everything = "".join(published(repo, f) for f in git(repo, "ls-tree", "-r", "--name-only", "HEAD", "--", pg.RUN_REL)
+                         .replace(pg.RUN_REL + "/", "").split())
+    for value in (tc.FAKE_DEEPSEEK, tc.FAKE_SESSION_TOKEN, tc.ALNUM, FAKE_GITHUB_TOKEN):
+        assert value not in everything and value not in json.dumps(res)
+    log = published(repo, LOG).splitlines()
+    assert log[0] == json.dumps({"_rx": 1.0, "type": "session", "id": "s"})
+    assert json.loads(log[1])["result"] == tc.ENV_OUTPUT.replace(tc.FAKE_DEEPSEEK, "[redacted: 35 characters]")
+    assert "CLAUDE_CODE_MESSAGING_TOKEN=[redacted: 32 characters]" in published(repo, "interventions.md")
+    assert json.loads(published(repo, "stories/01/gate.json"))["steps"]["build"]["tail"] == "Authorization: Bearer [redacted Bearer token: 32 characters]"
+    assert "[redacted GitHub token: 40 characters]" in published(repo, "workspace/deploy.sh")
+    assert tc.FAKE_DEEPSEEK in (run / RAW_LOG).read_text()                  # the full log on the machine is as it was
+    assert git(repo, "status", "--porcelain").strip() == ""                 # what is on disk is what was committed
+    out = capsys.readouterr().out
+    assert out.count(f"record: 4 credential(s) redacted from what is published: {', '.join(names)}\n") == 1
+    for value in (tc.FAKE_DEEPSEEK, tc.FAKE_SESSION_TOKEN, tc.ALNUM, FAKE_GITHUB_TOKEN):
+        assert value not in out
+    # Recorded again with nothing new: nothing is found, and nothing is said.
+    pg.write(run / "notes.md", "a later story\n")
+    again = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
+    assert again["committed"] is True and "credentials_redacted" not in again
+    assert "credential" not in capsys.readouterr().out
+
+
+def test_a_record_with_no_credential_publishes_its_log_byte_for_byte_and_records_nothing_about_it(tmp_path):
+    repo, _ = pg.cloned(tmp_path, "public")
+    run = pg.small_run(repo)
+    packed = gzip.compress(b'{"_rx":1.0,"type":"session","id":"s"}\n{"_rx":2.0,"type":"message_end","max_tokens":4096}\n')
+    pg.write(run / LOG, packed)
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
+    assert res["committed"] is True and "credentials_redacted" not in res
+    assert subprocess.run(["git", "show", f"HEAD:{pg.RUN_REL}/{LOG}"], cwd=repo, capture_output=True).stdout == packed
+
+
+@pytest.mark.parametrize("refused, call", [("diff --cached --name-only", 1), ("add --", 2)])
+def test_a_scan_that_cannot_be_done_commits_nothing(tmp_path, fake, refused, call):
+    """Fails closed: where the staged files can't be listed, or a redacted file can't be staged again, the commit
+    is refused, like one the held-out check couldn't read."""
+    repo, remote = pg.cloned(tmp_path, "public")
+    run = run_with_credentials(repo)
+    before = head(repo)
+    res = drive.record_story(repo, run, MESSAGE, git=fake.refuse(refused, call).cmd, private=tmp_path / "none")
+    assert res["committed"] is False and res["pushed"] is False and head(repo) == before == remote_head(remote)
+    assert [r["why"].split(":")[0] for r in res["refused"]] == [heldout.CHECK_FAILED]
+    assert tc.FAKE_DEEPSEEK not in json.dumps(res)
+
+
 def test_a_record_names_the_public_files_over_their_size_limit_and_not_the_private_ones(tmp_path, monkeypatch):
     repo, _ = pg.cloned(tmp_path, "public")
     run = pg.small_run(repo)
