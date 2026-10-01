@@ -205,6 +205,43 @@ def test_a_reply_without_the_line_is_judged_without_asking_git(tmp_path, monkeyp
     assert drive.story_finished("All done.", STORY["id"], tmp_path) is False
 
 
+# ======================= the reply that is judged =======================
+
+def reply_event(role: str, content) -> str:
+    return json.dumps({"type": "message_end", "message": {"role": role, "content": content}})
+
+
+def test_the_reply_judged_is_the_text_of_the_last_assistant_message(tmp_path):
+    ev = tmp_path / "agent-events.jsonl"
+    ev.write_text("\n".join([
+        reply_event("assistant", [{"type": "text", "text": "an earlier reply"}]),
+        reply_event("assistant", [{"type": "thinking", "thinking": "hm"}, {"type": "text", "text": "the last "}, "a bare string",
+                                  {"type": "toolCall", "name": "bash"}, {"type": "text", "text": "reply"}, {"type": "text"}]),
+        reply_event("user", [{"type": "text", "text": "a tool result, not a reply"}]),
+        reply_event("assistant", "content that is not a list of parts"),
+        json.dumps({"type": "system", "message": "a refused tool call's message is a string"}),
+        json.dumps({"type": "agent_end"}),
+        "[1, 2]",
+        '{"type": "message_end", "message": {"role": "assistant", "content": [{"type": "text", "text": "cut o',
+    ]) + "\n")
+    assert drive.final_reply_text(ev) == "the last reply"
+
+
+def test_a_last_assistant_message_with_no_text_or_no_log_is_an_empty_reply(tmp_path):
+    ev = tmp_path / "agent-events.jsonl"
+    assert drive.final_reply_text(ev) == ""
+    ev.write_text(reply_event("assistant", [{"type": "text", "text": "earlier"}]) + "\n"
+                  + reply_event("assistant", [{"type": "toolCall", "name": "bash"}]) + "\n")
+    assert drive.final_reply_text(ev) == ""
+
+
+@pytest.mark.parametrize("text, is_call", [
+    ('<tool_call>{"name": "edit"}</tool_call>', True), ("Fixing it.\n<tool_call>\n<function=edit>", True),
+    ("All tasks are done and committed.", False), ("", False), ("<tool_result>ok</tool_result>", False)])
+def test_a_reply_carrying_a_tool_call_as_text_is_known_by_its_marker(text, is_call):
+    assert drive.tool_call_as_text(text) is is_call
+
+
 # ======================= the loop, with the agent scripted =======================
 
 def attempt(**changes) -> dict:
