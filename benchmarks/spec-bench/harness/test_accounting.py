@@ -4,6 +4,7 @@ The cases are MECE along the dimensions that decide the answer, one section each
   A. what is in the log      B. where it lies against the window    C. how parts overlap
   D. how starts and ends pair   E. where model time comes from       F. how a model call streamed
   G. the recorded checks     H. the shape of the result            I. any log at all (property)
+  J. the Claude client's log (stream-json)
 Run: uv run --with pytest --with hypothesis pytest test_accounting.py
 """
 import json
@@ -259,9 +260,9 @@ def test_E3_the_clients_stream_when_there_is_no_server_log(tmp_path):
     assert split(tmp_path, Log().call(T0 + 10, T0 + 12, T0 + 20))["model"]["source"] == "client-stream"
 
 
-def test_E4_no_model_time_at_all_for_a_client_that_logs_no_stream(tmp_path):
+def test_E4_no_model_time_at_all_for_a_log_in_no_format_the_harness_reads(tmp_path):
     p = tmp_path / "agent-events.jsonl"
-    p.write_text(json.dumps({"_rx": T0 + 5, "type": "assistant", "message": {"content": []}}) + "\n")   # Claude Code's format
+    p.write_text(json.dumps({"_rx": T0 + 5, "type": "turn", "text": "hello"}) + "\n")
     s = accounting.time_split(p, tmp_path / "none.log", T0, T1)
     assert s["model"] is None and s["other_s"] == WALL
 
@@ -350,3 +351,148 @@ def test_I1_parts_never_negative_never_overlap_and_always_sum_to_the_wall(tmp_pa
     assert all(v >= 0 for v in p.values())
     assert abs(sum(p.values()) - WALL) <= accounting.TOLERANCE_S
     assert s["accounting"]["ok"] or all("never ended" in x or "ended without" in x for x in s["accounting"]["problems"])
+
+
+
+# ---------- J. the Claude client's log (stream-json) ----------
+
+class ClaudeLog:
+    """Claude Code's stream: a session starts with system/init and ends with a result; each content block of a model
+    message is its own "assistant" event under the message's id, sent when the block is complete; while the model
+    thinks, system/thinking_tokens events stream estimates; a tool's result comes back in a "user" event."""
+
+    def __init__(self):
+        self.events: list[dict] = []
+        self.n = 0
+
+    def init(self, at):
+        self.events.append({"_rx": at, "type": "system", "subtype": "init", "session_id": "s"})
+        return self
+
+    def result(self, at):
+        self.events.append({"_rx": at, "type": "result", "subtype": "success"})
+        return self
+
+    def message(self, blocks, thinking=(), fresh=2, created=500, cached=1000, parent=None):
+        """blocks: (at, type, payload) in time order: ("text", str) or ("tool", (name, input)); thinking: the times
+        of the thinking estimates streamed before the first block. Returns the tool ids in order."""
+        self.n += 1
+        mid, ids = f"m{self.n}", []
+        for t in thinking:
+            self.events.append({"_rx": t, "type": "system", "subtype": "thinking_tokens", "estimated_tokens": 50})
+        usage = {"input_tokens": fresh, "cache_creation_input_tokens": created, "cache_read_input_tokens": cached, "output_tokens": 8}
+        for at, kind, payload in blocks:
+            if kind == "tool":
+                ids.append(f"toolu_{self.n}_{len(ids)}")
+                block = {"type": "tool_use", "id": ids[-1], "name": payload[0], "input": payload[1]}
+            else:
+                block = {"type": "text", "text": payload}
+            self.events.append({"_rx": at, "type": "assistant", "parent_tool_use_id": parent,
+                                "message": {"id": mid, "role": "assistant", "content": [block], "usage": usage}})
+        return ids
+
+    def tool_result(self, at, tid, parent=None):
+        self.events.append({"_rx": at, "type": "user", "parent_tool_use_id": parent,
+                            "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": tid, "content": "ok"}]}})
+        return self
+
+    write = Log.write
+
+
+def claude_split(tmp_path, log: ClaudeLog, t_from=T0, t_to=T1) -> dict:
+    return accounting.time_split(log.write(tmp_path), tmp_path / "none.log", t_from, t_to)
+
+
+def test_J1_a_message_is_one_call_from_the_step_before_it_to_its_first_output_to_its_last_block(tmp_path):
+    log = ClaudeLog().init(T0)
+    log.message([(T0 + 30, "text", "done")], thinking=(T0 + 10, T0 + 20))   # sent at init, first output at 10
+    s = claude_split(tmp_path, log)
+    m = s["model"]
+    assert m["source"] == "claude-stream" and m["requests"] == 1
+    assert (m["prefill_s"], m["decode_s"]) == (10.0, 20.0)
+    assert m["prefill_tokens"] == 502 and m["cached_tokens"] == 1000          # fresh + newly cached; read from cache
+    assert m["decode_tokens"] is None and m["decode_tok_s"] is None and m["prefill_tok_s"] is None   # not in the stream
+
+
+def test_J2_without_thinking_the_first_block_is_the_first_output(tmp_path):
+    log = ClaudeLog().init(T0)
+    log.message([(T0 + 4, "text", "a"), (T0 + 9, "text", "b")])
+    m = claude_split(tmp_path, log)["model"]
+    assert (m["prefill_s"], m["decode_s"]) == (4.0, 5.0)
+
+
+def test_J3_a_tool_runs_from_its_call_to_its_result_by_kind(tmp_path):
+    log = ClaudeLog().init(T0)
+    (e2e,) = log.message([(T0 + 5, "tool", ("Bash", {"command": "npx playwright test"}))])
+    log.tool_result(T0 + 25, e2e)
+    (rd,) = log.message([(T0 + 30, "tool", ("Read", {"file_path": "/a"}))])
+    log.tool_result(T0 + 31, rd)
+    s = claude_split(tmp_path, log)
+    assert s["tools_by_kind"] == {"e2e": 20.0, "read": 1.0} and s["tools_s"] == 21.0
+    assert s["model"]["requests"] == 2
+    assert (s["model"]["prefill_s"], s["model"]["decode_s"]) == (10.0, 0.0)   # sent at init / at the result: 5 + 5
+
+
+def test_J4_a_message_whose_tools_ran_while_it_was_still_writing_is_one_call_and_the_tools_own_their_time(tmp_path):
+    log = ClaudeLog().init(T0)
+    a, b = log.message([(T0 + 5, "tool", ("Bash", {"command": "ls"})), (T0 + 12, "tool", ("Bash", {"command": "pwd"}))])
+    log.tool_result(T0 + 8, a).tool_result(T0 + 13, b)
+    s = claude_split(tmp_path, log)
+    assert s["model"]["requests"] == 1
+    assert s["tools_s"] == 4.0 and s["model"]["prefill_s"] == 5.0 and s["model"]["decode_s"] == 4.0
+
+
+def test_J5_the_wait_between_a_session_s_result_and_the_next_session_is_between_sessions(tmp_path):
+    log = ClaudeLog().init(T0)
+    log.message([(T0 + 10, "text", "first")])
+    log.result(T0 + 11).init(T0 + 41)
+    log.message([(T0 + 50, "text", "second")])
+    s = claude_split(tmp_path, log)
+    assert s["between_sessions_s"] == 30.0 and s["model"]["requests"] == 2
+    assert s["model"]["prefill_s"] == 19.0                                    # 10 from the first init, 9 from the second
+
+
+def test_J6_a_tool_call_with_no_result_runs_to_the_agent_s_next_step_and_is_reported(tmp_path):
+    log = ClaudeLog().init(T0)
+    log.message([(T0 + 5, "tool", ("Bash", {"command": "npm run dev"}))])
+    log.message([(T0 + 50, "text", "moving on")], thinking=(T0 + 40,))
+    s = claude_split(tmp_path, log)
+    assert s["tools_by_kind"] == {"bash": 35.0}
+    assert any("never ended" in p for p in s["accounting"]["problems"])
+
+
+def test_J7_a_subagent_s_messages_are_not_the_agent_s_calls(tmp_path):
+    log = ClaudeLog().init(T0)
+    (task,) = log.message([(T0 + 5, "tool", ("Task", {"description": "look"}))])
+    log.message([(T0 + 20, "text", "sub")], parent=task)
+    log.tool_result(T0 + 30, task)
+    log.message([(T0 + 40, "text", "main")])
+    s = claude_split(tmp_path, log)
+    assert s["model"]["requests"] == 2 and s["tools_by_kind"] == {"task": 25.0}
+
+
+def test_J8_the_parts_sum_to_the_wall_and_the_checks_pass(tmp_path):
+    log = ClaudeLog().init(T0)
+    (t,) = log.message([(T0 + 5, "tool", ("Bash", {"command": "npm run build"}))], thinking=(T0 + 2,))
+    log.tool_result(T0 + 15, t)
+    log.message([(T0 + 30, "text", "done")], thinking=(T0 + 20, T0 + 25))
+    log.result(T0 + 31)
+    s = claude_split(tmp_path, log)
+    assert sum(parts(s).values()) == pytest.approx(WALL, abs=accounting.TOLERANCE_S)
+    assert s["accounting"]["ok"], s["accounting"]["problems"]
+    assert s["tools_by_kind"] == {"build": 10.0}
+
+
+def test_J9_a_session_that_ended_waiting_on_its_own_background_command_is_the_agent_s_tool_time(tmp_path):
+    """Opus v2-r3 story 12: the agent started its e2e suite in the background and ended its turn; when the command
+    finished, Claude Code itself started the next turn. The 46.7 s between were the agent's (its clock counted
+    them), so they are tool time of kind "background", not the harness waiting between sessions."""
+    log = ClaudeLog().init(T0)
+    log.message([(T0 + 10, "text", "waiting for the suite")])
+    log.result(T0 + 11)
+    log.events.append({"_rx": T0 + 57, "type": "system", "subtype": "task_notification", "status": "completed"})
+    log.init(T0 + 57.5)
+    log.message([(T0 + 60, "text", "done")])
+    s = claude_split(tmp_path, log)
+    assert s["between_sessions_s"] == 0.0 and s["tools_by_kind"] == {"background": 46.5}
+    assert accounting.check(s, agent_seconds=WALL) == []
