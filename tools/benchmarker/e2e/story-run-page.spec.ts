@@ -163,10 +163,16 @@ test.describe("cost", () => {
     await expect(stat(page, "cost", "draftAcceptance").locator(".missing")).toHaveAttribute("data-tip", /speculative decoding/);
   });
 
-  test("a cloud model: no engine speeds, and says it's a cloud model", async ({ page }) => {
+  test("a cloud model: engine speeds and drafting can't be measured, so 'n/a' with why, never '—'", async ({ page }) => {
     await open(page, OPUS, "run-9", "1");
-    await expect(section(page, "cost").locator('[data-stat="engineSpeed"] [data-fact="decode"] .missing')).toHaveAttribute("data-tip", /cloud model/);
-    await expect(section(page, "cost").locator('[data-stat="engineSpeed"] [data-fact="prefill"] .missing')).toHaveAttribute("data-tip", /cloud model/);
+    const na = [section(page, "cost").locator('[data-stat="engineSpeed"] [data-fact="decode"] .na'),
+      section(page, "cost").locator('[data-stat="engineSpeed"] [data-fact="prefill"] .na'),
+      stat(page, "cost", "draftAcceptance").locator(".na")];
+    for (const n of na) {
+      await expect(n).toHaveText("n/a");
+      await expect(n).toHaveAttribute("data-tip", "Unavailable for this cloud model");
+    }
+    await expect(section(page, "cost").locator(".missing")).toHaveCount(0);
     await expect(stat(page, "cost", "compactions").locator(".stat-value")).toHaveText("0");  // zero, not missing
   });
 
@@ -218,6 +224,25 @@ test.describe("conversation profile", () => {
   test("tools by name, most used first", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     await expect(section(page, "conversation").locator("[data-tool]")).toHaveText(["bash 115", "edit 40", "write 28", "read 21"]);
+  });
+
+  test("a cloud model's withheld thinking: the exact total in tokens, per call and the largest block estimated, never '0 chars'", async ({ page }) => {
+    // Sonnet 5.5 v2-r4 story 3 (1 Oct 2026) read "0 chars" and three dashes.
+    await patchState(page, (s) => { rowOf(s, OPUS, "run-9").stories[0].conversation = {
+      calls: 58, toolCalls: 92, thinkingChars: null, textChars: 900, toolArgChars: 5000, thinkingMedian: null,
+      thinkingMedianBefore: null, thinkingMedianAfter: null, largestThinking: null, contextStart: 16000, contextEnd: 140000,
+      largestContextJump: { tokens: 15541, call: 5 }, toolsByName: { Bash: 56 }, toolErrors: 3, signals: [],
+      longestTool: { seconds: 120, name: "Bash", gist: "npm test" },
+      thinkingVisible: false, thinkingTokens: 7986,
+      thinkingEstimated: { medianBefore: 0, medianAfter: 207, largest: { tokens: 1000, call: 42, atS: 457.6 } } }; });
+    await open(page, OPUS, "run-9", "1");
+    await expect(stat(page, "conversation", "thinking").locator(".stat-value")).toHaveText("7,986 tokens");
+    await expect(stat(page, "conversation", "thinkingMedian").locator(".stat-value")).toHaveText("~0 → ~207");
+    await expect(stat(page, "conversation", "thinkingMedian").locator(".stat-sub")).toHaveText("estimated tokens");
+    await expect(stat(page, "conversation", "largestThinking").locator(".stat-value")).toHaveText("~1,000 tokens");
+    await expect(stat(page, "conversation", "largestThinking").locator(".stat-sub")).toHaveText("call 42, 8 min in · estimated");
+    await expect(section(page, "conversation").locator(".missing")).toHaveCount(0);
+    await expect(section(page, "conversation")).not.toContainText("chars");
   });
 
   test("the retired long-thinking signal isn't shown on its own: judged against the combination instead", async ({ page }) => {

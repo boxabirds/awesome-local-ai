@@ -60,16 +60,24 @@ export interface ConversationProfile {
   /** Model calls, and the tool calls they made. */
   calls: number;
   toolCalls: number;
-  thinkingChars: number;
+  /** Thinking characters; null where the log withholds the text (a cloud model's): unknown, never 0. */
+  thinkingChars: number | null;
   textChars: number;
   /** Characters of tool arguments: file contents written, edits, commands. */
   toolArgChars: number;
   /** Median thinking characters per model call; and before and after the largest thinking block. */
-  thinkingMedian: number;
+  thinkingMedian: number | null;
   thinkingMedianBefore: number | null;
   thinkingMedianAfter: number | null;
   /** The single largest thinking block: its size, the call it was in (1-based), and seconds into the story. */
   largestThinking: { chars: number; call: number; atS: number } | null;
+  /** Whether the log shows the thinking text. A cloud model's doesn't: its thinking is counted in tokens instead. */
+  thinkingVisible: boolean;
+  /** Withheld thinking: the exact total in tokens, as the API billed it; null where not recorded. */
+  thinkingTokens: number | null;
+  /** Withheld thinking per call, as the client estimated it while the model thought: the median before and after
+   * the largest block, and that block. Null where the log has no estimates. */
+  thinkingEstimated: { medianBefore: number | null; medianAfter: number | null; largest: { tokens: number; call: number; atS: number } | null } | null;
   /** Context the model read on its first and last call, and the largest jump between two consecutive calls. */
   contextStart: number | null;
   contextEnd: number | null;

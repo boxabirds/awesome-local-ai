@@ -1,5 +1,5 @@
 import type { Row, State, Story } from "../../shared/types.ts";
-import { storyRunState, storyTitle } from "../../shared/runView.ts";
+import { isCloud, storyRunState, storyTitle } from "../../shared/runView.ts";
 import { Breadcrumb, CombinationLink, RunLink } from "../components/EntityLinks.tsx";
 import { NotRecorded, StoryNav, StoryRunHeader } from "../components/run/StoryRunParts.tsx";
 import { Conversation, StoryCost, StoryTime } from "../components/run/StoryDetail.tsx";
@@ -22,7 +22,7 @@ export function StoryRunPage({ run, storyId, state, params }: { run: Row; story:
       <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
       {st.kind === "recorded" ? <>
         <StoryTime story={st.story} />
-        <StoryCost usage={st.story.usage} />
+        <StoryCost usage={st.story.usage} cloud={isCloud(run)} />
         <Conversation story={st.story} />
       </> : <NotRecorded run={run} st={st} />}
       {st.kind === "outOfScope" ? null : <Against run={run} state={state} storyId={storyId} />}

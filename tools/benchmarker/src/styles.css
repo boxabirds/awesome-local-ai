@@ -180,7 +180,7 @@ table.combos td .spread .range { display: block; font-size: 11px; }
 table.combos td.score .spread .range { display: inline; }
 .not-counted-list > span { display: block; white-space: nowrap; }
 .unranked { font-size: 12px; color: var(--muted); font-style: italic; }
-.missing { color: var(--faint); cursor: help; }
+.missing, .na { color: var(--faint); cursor: help; }
 .small-n-note { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
 .live-badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--faint);
               border: 1px dashed var(--faint); border-radius: 3px; padding: 0 4px; line-height: 14px; vertical-align: 1px; }

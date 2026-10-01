@@ -8,6 +8,13 @@ export function Missing({ why }: { why: string }) {
   return <span className="missing" tabIndex={0} data-tip={why} aria-label={`not available: ${why}`}>—</span>;
 }
 
+/** A figure that can't exist for this kind of run (a cloud model has no engine speed or drafting to measure):
+ * "n/a", with why on hover. Not a "—": nothing is missing. */
+export const CLOUD_NA = "Unavailable for this cloud model";
+export function NotApplicable({ why = CLOUD_NA }: { why?: string }) {
+  return <span className="na" tabIndex={0} data-tip={why} aria-label={`not applicable: ${why}`}>n/a</span>;
+}
+
 /** A label from the glossary, with its definition on hover. */
 export function Term({ id, children }: { id: TermId; children?: ReactNode }) {
   return <span className="term" data-tip={GLOSSARY[id].what}>{children ?? GLOSSARY[id].name}</span>;

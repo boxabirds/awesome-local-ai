@@ -80,8 +80,8 @@ as tensors inside the safetensors. The checks and the combination use the checkp
 quantisation together.
 
 **The server.** `tensorfold serve <checkpoint> --name … --reasoning-effort low --max-tokens 32768 --parallel 1
---snapshot-dir none --temperature 1.0 --top-p 0.95 --top-k 20` with a 112 GiB memory budget (mlx-serve's 16 GiB OS
-reserve) and no `--context`. Without `--context`, TensorFold fits the window to "the most one request can use … and
+--snapshot-dir none --temperature 1.0 --top-p 0.95 --top-k 20` with TensorFold's default memory budget, 89.6 GiB (70% of RAM; this Mac
+kernel-panicked on 24 Sep, so the checks start conservative), and no `--context`. Without `--context`, TensorFold fits the window to "the most one request can use … and
 still keep its prompt for the next turn" and prints that number at startup. This is the keep-prompt limit.
 
 **Check 1, long-context cache retention.** It replays one recorded mlx-serve session (v2-r2 story 10, 652 turns) as

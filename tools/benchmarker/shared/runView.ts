@@ -194,6 +194,10 @@ export function runTotals(run: Pick<Row, "usage" | "stories">): RunTotals {
 export type Missing = "story" | "decode" | "prefill" | "draft" | "cached";
 
 /** Why a story's number is missing, for the "—" hover. Never a guess at zero. */
+/** A run of a cloud model (a reference run): nothing local to time, and no drafting to see. */
+export const isCloud = (run: Pick<Row, "stack">) => run.stack.startsWith(REFERENCE_PREFIX);
+const REFERENCE_PREFIX = "reference/";
+
 export function whyMissing(u: Usage | null | undefined, what: Missing): string {
   if (!u) return "Not recorded: this story's record has no usage.";
   const untimed = u.split ? u.split.modelUnsplit > 0 : false;
@@ -637,11 +641,16 @@ export const SIGNAL_TEXT: Record<string, string> = {
 export const RETIRED_SIGNALS = new Set(["long-thinking-block"]);
 
 export interface ConversationView {
-  calls: number; toolCalls: number; thinkingChars: number; thinkingMedian: number;
+  calls: number; toolCalls: number;
+  /** Thinking is counted in characters where the log shows it, in tokens where a cloud model withholds it. */
+  thinkingUnit: "chars" | "tokens";
+  thinkingTotal: number | null; thinkingMedian: number | null;
+  /** Per call (before, after, the largest block) from the client's running estimates, not exact counts. */
+  perCallEstimated: boolean;
   before: number | null; after: number | null;
   /** How many times more the model thought per call after the largest block than before it. */
   afterRatio: number | null;
-  largest: { chars: number; call: number; minutesIn: number } | null;
+  largest: { size: number; call: number; minutesIn: number } | null;
   contextStart: number | null; contextEnd: number | null;
   /** How many times the context grew from the first call to the last. */
   contextGrowth: number | null;
@@ -656,13 +665,27 @@ export interface ConversationView {
 const KILLED_BY = /killed by the harness/gi;
 export const toolGist = (gist: string) => gist.replace(KILLED_BY, "interrupted");
 
+type ThinkingView = Pick<ConversationView, "thinkingUnit" | "thinkingTotal" | "thinkingMedian" | "perCallEstimated" | "before" | "after" | "afterRatio" | "largest">;
+
+function thinkingOf(c: ConversationProfile): ThinkingView {
+  const ratio = (a: number | null, b: number | null) => (a != null && b ? a / b : null);
+  const at = (b: { call: number; atS: number }) => ({ call: b.call, minutesIn: b.atS / SECONDS_PER_MINUTE });
+  if (c.thinkingVisible !== false) {          // a profile from before the field showed its thinking
+    return { thinkingUnit: "chars", thinkingTotal: c.thinkingChars, thinkingMedian: c.thinkingMedian, perCallEstimated: false,
+      before: c.thinkingMedianBefore, after: c.thinkingMedianAfter, afterRatio: ratio(c.thinkingMedianAfter, c.thinkingMedianBefore),
+      largest: c.largestThinking ? { size: c.largestThinking.chars, ...at(c.largestThinking) } : null };
+  }
+  const e = c.thinkingEstimated ?? null;
+  return { thinkingUnit: "tokens", thinkingTotal: c.thinkingTokens, thinkingMedian: null, perCallEstimated: e !== null,
+    before: e?.medianBefore ?? null, after: e?.medianAfter ?? null, afterRatio: ratio(e?.medianAfter ?? null, e?.medianBefore ?? null),
+    largest: e?.largest ? { size: e.largest.tokens, ...at(e.largest) } : null };
+}
+
 export function conversationView(c: ConversationProfile | null | undefined): ConversationView | null {
   if (!c) return null;
   const ratio = (a: number | null, b: number | null) => (a != null && b ? a / b : null);
   return {
-    calls: c.calls, toolCalls: c.toolCalls, thinkingChars: c.thinkingChars, thinkingMedian: c.thinkingMedian,
-    before: c.thinkingMedianBefore, after: c.thinkingMedianAfter, afterRatio: ratio(c.thinkingMedianAfter, c.thinkingMedianBefore),
-    largest: c.largestThinking ? { chars: c.largestThinking.chars, call: c.largestThinking.call, minutesIn: c.largestThinking.atS / SECONDS_PER_MINUTE } : null,
+    calls: c.calls, toolCalls: c.toolCalls, ...thinkingOf(c),
     contextStart: c.contextStart, contextEnd: c.contextEnd, contextGrowth: ratio(c.contextEnd, c.contextStart),
     largestJump: c.largestContextJump,
     tools: Object.entries(c.toolsByName).map(([name, calls]) => ({ name, calls })).toSorted((a, b) => b.calls - a.calls || a.name.localeCompare(b.name)),
