@@ -8,6 +8,7 @@ import { worldToScreen } from './canvas/camera';
 import type { Point } from './canvas/camera';
 import { BoardViewport } from './canvas/BoardViewport';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { StickyNote } from './objects/StickyNote';
 
@@ -16,6 +17,11 @@ const NOTE_TOOLBAR_GAP_PX = 10;
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+}
+
+/** Editing is blocked only while the saved board cannot be loaded (never present it as an empty editable board). */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
 }
 
 function byId(a: { id: string }, b: { id: string }): number {
@@ -27,6 +33,9 @@ export function App({ boardId }: { boardId?: string } = {}) {
   const sel = useSelection();
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
+  const editable = canEdit(connection);
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
   const selRef = useRef(sel);
   selRef.current = sel;
 
@@ -40,7 +49,7 @@ export function App({ boardId }: { boardId?: string } = {}) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const { selectedId, editingId } = selRef.current;
-      if (!selectedId || editingId !== null || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!editableRef.current || !selectedId || editingId !== null || e.ctrlKey || e.metaKey || e.altKey) return;
       if (isTypingTarget(e.target)) return;
       if (e.key === 'Enter') {
         if ((e.target as HTMLElement | null)?.tagName === 'BUTTON') return;
@@ -57,6 +66,7 @@ export function App({ boardId }: { boardId?: string } = {}) {
   }, [doc]);
 
   const create = (at: Point) => {
+    if (!editable) return;
     const id = createSticky(doc, at);
     if (id) sel.startEdit(id);
   };
@@ -70,8 +80,8 @@ export function App({ boardId }: { boardId?: string } = {}) {
       overlay={(ctx) => (
         <>
           <ConnectionStatus state={connection} />
-          <Toolbar onCreateSticky={() => create(ctx.centerWorld())} />
-          {selected && sel.editingId === null && draggingId === null && (
+          <Toolbar onCreateSticky={() => create(ctx.centerWorld())} disabled={!editable} />
+          {editable && selected && sel.editingId === null && draggingId === null && (
             <div
               className="note-toolbar-anchor"
               style={(() => {
@@ -107,6 +117,7 @@ export function App({ boardId }: { boardId?: string } = {}) {
             onStartEdit={sel.startEdit}
             onEndEdit={sel.endEdit}
             onDragChange={(d) => setDraggingId(d ? note.id : null)}
+            readOnly={!editable}
           />
         ))
       }

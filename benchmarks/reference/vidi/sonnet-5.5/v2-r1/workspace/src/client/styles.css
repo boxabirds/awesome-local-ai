@@ -268,6 +268,17 @@ body,
   border: 1px solid #f59e0b;
 }
 
+.connection-status--load_failed {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #ef4444;
+}
+
+.left-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .connection-status--confirmed {
   background: #dcfce7;
   color: #166534;

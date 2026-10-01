@@ -1,11 +1,13 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 /** The slice of `WebsocketProvider` the status mapping depends on (lets tests drive it with a fake). */
 export interface ProviderLike {
+  on(event: 'connection-close', cb: (e: { code: number } | null) => void): void;
   on(event: 'status', cb: (e: { status: 'connecting' | 'connected' | 'disconnected' }) => void): void;
   on(event: 'sync', cb: (synced: boolean) => void): void;
   destroy(): void;
@@ -42,6 +44,17 @@ export function connectBoard(
 
   onState(state);
 
+  provider.on('connection-close', (e) => {
+    if (e?.code === CLOSE_BOARD_LOAD_FAILED) {
+      clearTimer();
+      set('load_failed');
+    } else if (state === 'load_failed' || (hasSynced && state !== 'reconnecting')) {
+      // Any other close (1011 storage failure, 1003, network): the board is readable, changes are re-sent.
+      clearTimer();
+      set(hasSynced ? 'reconnecting' : 'connecting');
+    }
+  });
+
   provider.on('sync', (synced) => {
     if (!synced) return;
     const wasReconnecting = state === 'reconnecting';
@@ -53,13 +66,13 @@ export function connectBoard(
         timer = undefined;
         set('connected');
       }, CONNECTED_CONFIRMATION_MS);
-    } else if (state === 'connecting') {
+    } else if (state === 'connecting' || state === 'load_failed') {
       set('connected');
     }
   });
 
   provider.on('status', ({ status }) => {
-    if (status === 'disconnected' && hasSynced) {
+    if (status === 'disconnected' && hasSynced && state !== 'load_failed') {
       clearTimer();
       set('reconnecting');
     }

@@ -33,3 +33,16 @@
 - `window.__vidi6.connectionState` (test builds only) exposes the mapped state for TC-29.
 - Nightly specs live in `tests/e2e/nightly` and run with `npm run test:e2e:nightly`; the default `test:e2e` excludes them. `test:integration` builds the client first because TC-06 needs the assets.
 - Only Chromium was run for e2e. Red-phase commit for task 1 was skipped.
+
+# Notes — story 4
+
+- `nextRoomState(state, event)` (`src/worker/room-state.ts`) takes event objects; `connect` carries `sinceFailureMs` and `retryAfterMs`. `BoardRoom` uses it for its lifecycle and for the load-retry decision. A failed save leaves the room without a doc (state `loading`); the next connection reloads from storage.
+- `BoardStore.compactIfNeeded(doc, force = false)` has an extra `force` flag, used by the test hooks and tests to compact below the thresholds.
+- `BoardRoom` exposes `store`, `state` and `reload()` (re-reads storage, dropping the in-memory doc). Tests use them to simulate reconstruction after hibernation and to inject failures. `testCorruptSnapshot` / `testRepairSnapshot` are RPC methods that throw unless `env.TEST_HOOKS === '1'`.
+- Test hooks: `POST /__test/boards/:id/corrupt-snapshot|repair`, registered in `src/worker/test-hooks.ts` only when `env.TEST_HOOKS === '1'`. `wrangler.jsonc` runs the worker first for `/__test/*` so the check happens in code; without the var the request falls through to the SPA assets. The e2e wrangler servers pass `--var TEST_HOOKS:1`; production config never sets it.
+- Corrupting a snapshot truncates chunk 0 by 10 bytes (the design's "truncated update" fixture); repair restores the saved chunk.
+- `npm run test:e2e` runs the shared-server specs, then `playwright.persistence.config.ts`, which has no webServer. `persistence.spec.ts` starts and SIGKILLs its own `wrangler dev --persist-to <tmp>` on port 8788 (`tests/e2e/helpers/wrangler-process.ts`).
+- Big-board and broken-board e2e specs seed boards from Node with `y-websocket` over the global `WebSocket`, then confirm a second connection sees everything (so it is stored) before restarting or corrupting. The 2,000-note board rendered in about 0.6 s locally (budget logged, not asserted).
+- Client: `connectBoard` maps close code 4500 to `load_failed`; any other close, including 1011 and 1003, maps to `reconnecting` once synced. `ProviderLike` gains the `connection-close` event, and the component FakeProvider was updated to match. `canEdit` is exported from `App.tsx`. While `load_failed`: the Sticky note button is disabled, create, delete, Enter-to-edit and the note toolbar are off, and notes ignore drag and double-click-to-edit (`StickyNote` `readOnly`).
+- The per-row SQLite limit of Durable Objects was not re-checked online (no network use in this build). 512 KiB chunks are far below the documented 2 MB limit.
+- Only Chromium was run for e2e. Red-phase commit for task 1 was skipped.

@@ -23,6 +23,14 @@ describe('worker entry', () => {
     expect(real.status).toBe(400);
   });
 
+  it('test-hook routes do not exist without env.TEST_HOOKS', async () => {
+    const id = newBoardId();
+    for (const route of ['corrupt-snapshot', 'repair']) {
+      const res = await SELF.fetch(`https://example.com/__test/boards/${id}/${route}`, { method: 'POST' });
+      expect(res.status).not.toBe(204);
+    }
+  });
+
   it('TC-05: valid id without Upgrade -> 426', async () => {
     const res = await SELF.fetch(`https://example.com/api/rooms/${newBoardId()}`);
     expect(res.status).toBe(426);

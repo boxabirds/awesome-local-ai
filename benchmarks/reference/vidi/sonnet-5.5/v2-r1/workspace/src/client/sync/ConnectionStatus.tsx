@@ -1,6 +1,7 @@
 import type { ConnectionState } from './connectBoard';
 
 const LABELS: Record<Exclude<ConnectionState, 'connected'>, string> = {
+  load_failed: "This board couldn't be loaded. Retrying…",
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
   confirmed: 'Connected',

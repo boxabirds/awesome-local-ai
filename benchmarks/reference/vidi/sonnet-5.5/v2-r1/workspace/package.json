@@ -11,7 +11,7 @@
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
     "test:integration": "vite build && vitest run --project integration",
-    "test:e2e": "vite build --mode test && playwright test",
+    "test:e2e": "vite build --mode test && playwright test && playwright test -c playwright.persistence.config.ts",
     "test:e2e:nightly": "vite build --mode test && E2E_NIGHTLY=1 playwright test"
   },
   "dependencies": {

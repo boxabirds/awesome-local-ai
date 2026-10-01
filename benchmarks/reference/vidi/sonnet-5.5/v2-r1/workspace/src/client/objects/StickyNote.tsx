@@ -26,6 +26,8 @@ export function StickyNote(props: {
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
   onDragChange?(dragging: boolean): void;
+  /** True while the board cannot be edited (load_failed): no drag, no text editing. */
+  readOnly?: boolean;
 }) {
   const { note, doc, selected, editing } = props;
   const textRef = useRef<HTMLDivElement>(null);
@@ -79,7 +81,7 @@ export function StickyNote(props: {
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    if (e.button !== 0 || editing) return;
+    if (e.button !== 0 || editing || props.readOnly) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     press.current = {
       pointerId: e.pointerId,
@@ -146,7 +148,7 @@ export function StickyNote(props: {
       onLostPointerCapture={onInterrupted}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        props.onStartEdit(note.id);
+        if (!props.readOnly) props.onStartEdit(note.id);
       }}
     >
       <div
