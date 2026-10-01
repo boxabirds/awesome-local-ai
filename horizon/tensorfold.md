@@ -57,21 +57,35 @@ same-weights. On CUDA, 0.5.0 says `reasoning_effort` and typed tool arguments no
 
 ## How to run the checks
 
-Prepared, not yet run (1 Oct 2026). On the M5 Max, from the repo checkout, once the current mlx-serve run has ended
-and before another is queued (hold the dbench node, or leave nothing queued):
+Prepared, not yet run (1 Oct 2026). The script works in two phases, and the first doesn't need the machine to be
+free.
+
+**As soon as the checks are planned, while the M5 Max is still benchmarking,** from the repo checkout:
+
+```
+tools/tensorfold-check/run-checks.sh --prepare-only
+```
+
+This installs TensorFold 0.6.0 at its exact commit into its own venv, fetches the pinned checkpoint (113 GB; it
+checks the disk first, and resumes if interrupted) and renders a recorded pi session into the requests pi sends. It
+uses disk and network only: it starts no model server, loads no weights and binds no bench port, so it is not held
+back by a running benchmark. It exits 0 once everything is in place and 2 if something failed. Run again, it finds
+everything there and downloads nothing. On 1 Oct 2026 the download was left until the machine was free, and the
+machine then sat idle for two hours waiting for it.
+
+**Once the current run has ended and before another is queued** (hold the dbench node, or leave nothing queued):
 
 ```
 tools/tensorfold-check/run-checks.sh
 ```
 
-It refuses to start while the Mac is busy (a `drive.py` agent run, a running dbench job, a queued job on a node that
-isn't held, or a model server already resident; `--even-if-busy` overrides). Then it installs TensorFold 0.6.0 at
-its exact commit into its own venv, fetches the pinned checkpoint (113 GB; it checks the disk first), renders a
-recorded pi session into the requests pi sends, starts the server as the combination will, runs checks 1 and 2,
-stops the server by its PID and prints PASS or FAIL for each with the evidence files. When both pass it also prints
-the one-story `dbench submit` for check 3. Everything lands in
-`~/.local/share/awesome-local-ai/tensorfold-check/runs/<UTC time>/`. Re-running is safe: the install and the weights
-are reused.
+It prepares again (nothing to do if `--prepare-only` finished), then starts the server as the combination will, runs
+checks 1 and 2, stops the server by its PID and prints PASS or FAIL for each with the evidence files. When both pass
+it also prints the one-story `dbench submit` for check 3. The checks themselves are refused while the Mac is busy (a
+`drive.py` agent run, a running dbench job, a queued job on a node that isn't held, or a model server already
+resident; `--even-if-busy` overrides): on a busy Mac the script still prepares, then exits 3 saying the checks are
+waiting for the machine. Everything lands in `~/.local/share/awesome-local-ai/tensorfold-check/runs/<UTC time>/`.
+Re-running is safe: the install and the weights are reused.
 
 **Which weights.** TensorFold can't load mlx-serve's pack (`ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit`): the
 pack keeps its n-gram tables in a separate `ngram_table.bin`, mlx-serve's own layout, and TensorFold reads them only

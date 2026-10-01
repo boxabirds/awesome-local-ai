@@ -2,22 +2,35 @@
 # run-checks.sh -- TensorFold's acceptance checks on this Mac, end to end (horizon/tensorfold.md, "How to run the
 # checks").
 #
-#   tools/tensorfold-check/run-checks.sh [--even-if-busy] [--port N] [--log <pi agent-events log>] [--help]
+#   tools/tensorfold-check/run-checks.sh [--prepare-only] [--even-if-busy] [--port N] [--log <pi agent-events log>]
+#                                        [--help]
 #
-#   1. refuses to start while the Mac is benchmarking (busy.sh) unless --even-if-busy
-#   2. installs the pinned TensorFold and fetches the pinned checkpoint (lib/tensorfold.sh; both idempotent)
-#   3. renders a recorded pi session into the requests pi sends (capture_pi_requests.mjs, with pi's own code)
-#   4. starts `tensorfold serve` exactly as the combination will (tensorfold_serve_argv), window fitted, and reads
+# Two phases. Start `--prepare-only` as soon as the checks are planned, while the Mac is still benchmarking: the
+# checkpoint is about 105 GiB, and waiting for it with the machine idle is time no benchmark gets.
+#
+#   Prepare -- disk and network only; never starts a model server, loads weights or binds a bench port, so it runs
+#   whatever busy.sh says:
+#   1. installs the pinned TensorFold and fetches the pinned checkpoint (lib/tensorfold.sh; both idempotent, the
+#      download resumes, and the disk is checked before it)
+#   2. renders a recorded pi session into the requests pi sends (capture_pi_requests.mjs, with pi's own code)
+#
+#   Check -- refused while the Mac is benchmarking (busy.sh) unless --even-if-busy:
+#   3. starts `tensorfold serve` exactly as the combination will (tensorfold_serve_argv), window fitted, and reads
 #      the keep-prompt limit from its startup line
-#   5. check 1: long-context cache retention; check 2: tool calls with pi's requests
-#   6. stops the server by its PID, prints PASS/FAIL with the evidence, and, when both pass, the one-story
+#   4. check 1: long-context cache retention; check 2: tool calls with pi's requests
+#   5. stops the server by its PID, prints PASS/FAIL with the evidence, and, when both pass, the one-story
 #      dbench submission for check 3
 #
-# Each run gets its own folder under ~/.local/share/awesome-local-ai/tensorfold-check/runs/<UTC time>/ (run.log,
-# install.log, server.log, bodies/, keep-limit.json, check1/, check2/, verdict.json). Re-running is safe: the install
-# and the weights are reused, and a new folder is made.
+#   --prepare-only   prepare, then stop: exit 0 once everything is in place, busy or not
+#   (no option)      prepare, then check; on a busy Mac it still prepares, then exits 3 with the checks waiting
+#   --even-if-busy   run the checks even though the Mac is busy
 #
-# Exit: 0 both checks pass, 1 a check failed, 2 the checks could not run, 3 the machine is busy.
+# Each run gets its own folder under ~/.local/share/awesome-local-ai/tensorfold-check/runs/<UTC time>/ (run.log,
+# install.log, bodies/, and from the checks server.log, keep-limit.json, check1/, check2/, verdict.json). Re-running
+# is safe: the install and the weights are reused, and a new folder is made.
+#
+# Exit: 0 both checks pass (or, with --prepare-only, everything is prepared), 1 a check failed, 2 the preparation
+# failed or the checks could not run, 3 prepared, and the checks are waiting for a busy machine.
 
 set -euo pipefail
 
@@ -40,11 +53,13 @@ STOP_TIMEOUT_S=60
 SMOKE_RUN_ID="tensorfold-smoke-01"
 EXIT_FAILED=1; EXIT_ERROR=2; EXIT_BUSY=3
 
-usage() { sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+# The header comment: every line from the second up to the first that is not a comment.
+usage() { awk 'NR == 1 {next} !/^#/ {exit} {sub(/^# ?/, ""); print}' "${BASH_SOURCE[0]}"; }
 
-EVEN_IF_BUSY=0; PORT="$DEFAULT_PORT"; LOG="$REPO_ROOT/$DEFAULT_LOG"
+EVEN_IF_BUSY=0; PREPARE_ONLY=0; PORT="$DEFAULT_PORT"; LOG="$REPO_ROOT/$DEFAULT_LOG"
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --prepare-only) PREPARE_ONLY=1; shift ;;
     --even-if-busy) EVEN_IF_BUSY=1; shift ;;
     --port) PORT="$2"; shift 2 ;;
     --log) LOG="$2"; shift 2 ;;
@@ -53,18 +68,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# ---- 1. busy? ----------------------------------------------------------------------------------------------------
 . "$HERE/busy.sh"
-busy="$(tfc_busy_reasons)"
-if [[ -n "$busy" ]]; then
-  if [[ "$EVEN_IF_BUSY" == 1 ]]; then
-    printf 'busy, continuing (--even-if-busy):\n%s\n' "$busy" | sed '2,$s/^/  /'
-  else
-    printf 'Refusing to start: this Mac is busy.\n%s\nRun again when it is free, or pass --even-if-busy.\n' \
-      "$(printf '%s\n' "$busy" | sed 's/^/  /')" >&2
-    exit "$EXIT_BUSY"
-  fi
-fi
 
 RUNS_ROOT="${TFC_RUNS_ROOT:-$HOME/.local/share/awesome-local-ai/tensorfold-check/runs}"
 RUN_DIR="$RUNS_ROOT/$(date -u +%Y%m%dT%H%M%SZ)"
@@ -86,12 +90,11 @@ stop_server() {
 
 pyrun() { (cd "$HERE" && uv run --quiet --no-project --python "${TFC_PYTHON:-$TENSORFOLD_PYTHON}" python -m "$@"); }
 
-run_all() {
-  trap 'stop_server' EXIT
-  trap 'stop_server; exit 130' INT TERM
-  echo "run folder: $RUN_DIR"
-
-  # ---- 2. install and weights (lib/tensorfold.sh: the same code the combination's installer runs) ----------------
+# ---- prepare: disk and network only, so it is never gated by busy.sh ------------------------------------------------
+# Nothing in here may start a model server, load weights or bind a bench port. Sets TF_BIN and TF_MODEL_DIR.
+TF_BIN=""; TF_MODEL_DIR=""
+prepare() {
+  # ---- 1. install and weights (lib/tensorfold.sh: the same code the combination's installer runs) ----------------
   LOG_FILE="$RUN_DIR/install.log"; export LOG_FILE
   . "$REPO_ROOT/lib/common.sh"
   . "$REPO_ROOT/lib/hf.sh"
@@ -99,17 +102,50 @@ run_all() {
   . "$REPO_ROOT/lib/tensorfold.sh"
   ( ensure_backend && backend_fetch_model && printf '%s\n%s\n' "$TENSORFOLD_BIN" "$MODEL_ARTIFACT" > "$RUN_DIR/.resolved" ) \
     || { echo "could not install TensorFold or fetch the weights; see $RUN_DIR/install.log" >&2; return "$EXIT_ERROR"; }
-  local bin model_dir; { read -r bin; read -r model_dir; } < "$RUN_DIR/.resolved"; rm -f "$RUN_DIR/.resolved"
+  { read -r TF_BIN; read -r TF_MODEL_DIR; } < "$RUN_DIR/.resolved"; rm -f "$RUN_DIR/.resolved"
 
-  # ---- 3. pi's requests ---------------------------------------------------------------------------------------------
+  # ---- 2. pi's requests (its recording server takes a free loopback port of its own) -------------------------------
   [[ -f "$LOG" ]] || { echo "no agent log at $LOG" >&2; return "$EXIT_ERROR"; }
   command -v pi >/dev/null && command -v node >/dev/null \
     || { echo "pi and node must be on PATH: the requests are rendered with pi's own code" >&2; return "$EXIT_ERROR"; }
   echo "pi $(pi --version 2>/dev/null | head -1) renders the session in ${LOG#"$REPO_ROOT"/}"
   node "$HERE/capture_pi_requests.mjs" --log "$LOG" --out "$RUN_DIR/bodies" --model "$MODEL_ALIAS_DEFAULT" \
        --context-window "$CONTEXT_LIMIT" --max-tokens "$OUTPUT_LIMIT" || return "$EXIT_ERROR"
+}
 
-  # ---- 4. the server ------------------------------------------------------------------------------------------------
+# ---- the gate between the phases -------------------------------------------------------------------------------------
+# Asked after preparing, which can take hours: what matters is whether the Mac is busy when the server would start.
+checks_may_start() {
+  local busy; busy="$(tfc_busy_reasons)"
+  [[ -n "$busy" ]] || return 0
+  if [[ "$EVEN_IF_BUSY" == 1 ]]; then
+    printf 'busy, continuing (--even-if-busy):\n%s\n' "$busy" | sed '2,$s/^/  /'
+    return 0
+  fi
+  printf 'Prepared. The checks themselves are waiting for the machine: this Mac is busy.\n%s\nRun again when it is free, or pass --even-if-busy.\n' \
+    "$(printf '%s\n' "$busy" | sed 's/^/  /')" >&2
+  return "$EXIT_BUSY"
+}
+
+run_all() {
+  trap 'stop_server' EXIT
+  trap 'stop_server; exit 130' INT TERM
+  echo "run folder: $RUN_DIR"
+  prepare || return
+  if [[ "$PREPARE_ONLY" == 1 ]]; then
+    echo "Prepared: TensorFold $TENSORFOLD_VERSION is installed, the checkpoint is verified and pi's requests render."
+    echo "The checks are still to run: run this again without --prepare-only once the Mac is free."
+    return 0
+  fi
+  checks_may_start || return
+  checks
+}
+
+# ---- check: the server and the two checks; only after checks_may_start -----------------------------------------------
+checks() {
+  local bin="$TF_BIN" model_dir="$TF_MODEL_DIR"
+
+  # ---- 3. the server ------------------------------------------------------------------------------------------------
   if curl -s --max-time 2 -o /dev/null "http://127.0.0.1:${PORT}/" 2>/dev/null; then
     echo "something already answers on port $PORT; pass --port" >&2; return "$EXIT_ERROR"
   fi
@@ -143,7 +179,7 @@ run_all() {
   load_s="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["load_seconds"] or "")' "$RUN_DIR/keep-limit.json")"
   echo "keep-prompt limit: $keep tokens ($(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["line"])' "$RUN_DIR/keep-limit.json"))"
 
-  # ---- 5. the checks ------------------------------------------------------------------------------------------------
+  # ---- 4. the checks ------------------------------------------------------------------------------------------------
   local base="http://127.0.0.1:${PORT}" rc1=0 rc2=0
   echo "check 1: one pi conversation grown turn by turn"
   pyrun tfcheck.long_context --base-url "$base" --model "$MODEL_ALIAS_DEFAULT" --bodies "$RUN_DIR/bodies" \
@@ -152,7 +188,7 @@ run_all() {
   pyrun tfcheck.tool_calls --base-url "$base" --model "$MODEL_ALIAS_DEFAULT" --bodies "$RUN_DIR/bodies" \
         --out "$RUN_DIR/check2" || rc2=$?
 
-  # ---- 6. stop, report ----------------------------------------------------------------------------------------------
+  # ---- 5. stop, report ----------------------------------------------------------------------------------------------
   stop_server
   local v1 v2 r1 r2
   v1="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["verdict"])' "$RUN_DIR/check1/results.json" 2>/dev/null || echo ERROR)"
