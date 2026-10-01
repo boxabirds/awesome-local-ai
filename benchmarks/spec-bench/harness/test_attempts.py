@@ -394,6 +394,114 @@ def test_an_earlier_attempts_waits_between_sessions_are_not_counted_twice(tmp_pa
     assert split["accounting"]["ok"], split["accounting"]["problems"]
 
 
+# ---------- a tool call the harness's own restart cut off ----------
+
+def _restarted_mid_tool(tmp_path):
+    """mlx-serve v2-r2 stories 9 and 11 (1 Oct 2026): the harness was restarted while a tool call of the agent's
+    ran. The call's start is the first attempt's last event; then the restart's mark and the agent's next session."""
+    import drive
+    first = _session(T0, "s1", 2)[:-1]                                    # killed: no agent_end
+    cut_at = first[-1]["_rx"] + CALL_S
+    first += _call(cut_at)[:5]                                            # a model call, its tool call started, nothing more
+    restart_at = cut_at + CALL_S + 170.0
+    second = _session(restart_at + 0.2, "s1", 2)
+    ev = _write(tmp_path / "e.jsonl", first + [attempts.restart_mark(restart_at, 2, {})] + second)
+    earlier = attempts.earlier_attempts(PiClient(tmp_path), ev, before=restart_at - attempts.RESTART_SLACK_S)
+    finished = second[-1]["_rx"] + 0.3
+    rec = {"started": restart_at, "agent_finished": finished,
+           "agent": attempts.combine(earlier, _harness_agent(finished - restart_at - 0.2, 2, 2, "s1"), restart_at, finished)}
+    return drive.story_time_split(rec, ev, tmp_path / "server.log"), rec
+
+
+def test_a_tool_call_cut_off_by_the_harness_s_restart_is_not_a_failed_check(tmp_path):
+    split, _ = _restarted_mid_tool(tmp_path)
+    assert split["accounting"]["ok"], split["accounting"]["problems"]
+    assert split["accounting"]["problems"] == []
+
+
+def test_a_tool_call_cut_off_by_a_restart_is_listed_once_with_its_attempt_and_owns_none_of_the_next(tmp_path):
+    """It was reported by both attempts, and owned the next attempt's first seconds (to its first model call)."""
+    split, rec = _restarted_mid_tool(tmp_path)
+    assert split["accounting"]["interrupted_tools"] == [
+        {"attempt": 1, "kind": "bash", "seconds": 0.0, "ended_by": accounting.ENDED_BY_RESTART}]
+    first, second = (a["time_split"] for a in rec["agent"]["attempts"])
+    assert len(first["accounting"]["interrupted_tools"]) == 1 and second["accounting"]["interrupted_tools"] == []
+    assert second["tools_s"] == 2 * TOOL_S                                # its own two tool calls, nothing of the dead one
+
+
+def test_summed_splits_keep_the_time_suspended_and_what_was_interrupted():
+    acc = lambda **kw: {"version": accounting.VERSION, "ok": True, "problems": [], "abandoned_calls": 0,
+                        "interrupted_tools": [], "interrupted_compactions": 0, **kw}
+    one = {"wall_s": 50.0, "model": None, "tools_s": 5.0, "tools_by_kind": {"e2e": 5.0}, "compaction_s": 10.0, "compactions": 1,
+           "between_sessions_s": 0.0, "other_s": 35.0, "suspended_s": 30.0,
+           "accounting": acc(interrupted_tools=[{"kind": "e2e", "seconds": 5.0, "ended_by": accounting.ENDED_BY_RESTART}],
+                             interrupted_compactions=1)}
+    two = {**one, "suspended_s": 0.0, "accounting": acc()}
+    total = attempts.sum_splits([one, two])
+    assert total["suspended_s"] == 30.0 and total["accounting"]["ok"] is True
+    assert total["accounting"]["interrupted_tools"] == [
+        {"attempt": 1, "kind": "e2e", "seconds": 5.0, "ended_by": accounting.ENDED_BY_RESTART}]
+    assert total["accounting"]["interrupted_compactions"] == 1
+    old = {k: v for k, v in two.items() if k != "suspended_s"}            # a split from before these fields
+    old["accounting"] = {"version": 3, "ok": True, "problems": [], "abandoned_calls": 0}
+    assert attempts.sum_splits([old, one])["suspended_s"] == 30.0
+
+
+# ---------- the machine asleep during a session ----------
+
+ASLEEP_S = 30.0
+
+
+def _claude_session(t: float, wall_s: float, clock_s: float) -> list[dict]:
+    """One Claude Code session: wall_s long by the log's stamps, clock_s by Claude Code's own clock."""
+    msg = lambda at, mid, text: {"_rx": at, "type": "assistant", "parent_tool_use_id": None, "message": {
+        "id": mid, "role": "assistant", "content": [{"type": "text", "text": text}],
+        "usage": {"input_tokens": 2, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0, "output_tokens": 8}}}
+    return [{"_rx": t, "type": "system", "subtype": "init", "session_id": "c1"},
+            msg(t + 5, f"m{t}a", "working"), msg(t + wall_s - 1, f"m{t}b", "done"),
+            {"_rx": t + wall_s, "type": "result", "subtype": "success", "session_id": "c1", "duration_ms": int(clock_s * 1000)}]
+
+
+def test_a_story_whose_machine_slept_agrees_with_the_agents_clock(tmp_path):
+    """Sonnet 5.5 v2-r4 story 4 (1 Oct 2026): one session, the lid closed for 31 s of it. The harness's clock for
+    the agent (time.monotonic) stopped; the wall went on. Wall 2352.1 s, agent 2321.2 s: the check failed by the
+    sleep. Claude Code's own clock (duration_ms) stopped too, and the log's two clocks give the time asleep."""
+    import drive
+    wall = 100.0
+    ev = _write(tmp_path / "e.jsonl", _claude_session(T0 + 0.5, wall - 1, wall - 1 - ASLEEP_S))
+    rec = {"started": T0, "agent_finished": T0 + wall, "agent": {"seconds": wall - ASLEEP_S}}
+    split = drive.story_time_split(rec, ev, tmp_path / "server.log")
+    assert split["suspended_s"] == ASLEEP_S
+    assert split["accounting"]["ok"], split["accounting"]["problems"]
+
+
+def test_agent_time_counted_twice_fails_even_when_the_machine_slept(tmp_path):
+    import drive
+    wall = 100.0
+    ev = _write(tmp_path / "e.jsonl", _claude_session(T0 + 0.5, wall - 1, wall - 1 - ASLEEP_S))
+    rec = {"started": T0, "agent_finished": T0 + wall, "agent": {"seconds": wall}}     # the sleep counted as agent time too
+    split = drive.story_time_split(rec, ev, tmp_path / "server.log")
+    assert not split["accounting"]["ok"] and "counted twice" in split["accounting"]["problems"][0]
+
+
+def test_an_earlier_attempt_s_seconds_leave_out_the_time_its_machine_slept(tmp_path):
+    """An attempt counted from the log gets the agent's clock for its seconds: its span less the waits between its
+    sessions and less the time suspended, as the harness's own clock would have given."""
+    import drive
+    from clients import ClaudeClient
+    restart_at = T0 + 500
+    ev = _write(tmp_path / "e.jsonl", _claude_session(T0, 100.0, 100.0 - ASLEEP_S) + [attempts.restart_mark(restart_at, 2, {})]
+                + _claude_session(restart_at + 0.5, 49.0, 49.0))
+    earlier = attempts.earlier_attempts(ClaudeClient(tmp_path), ev, before=restart_at - attempts.RESTART_SLACK_S)
+    started, finished = restart_at, restart_at + 50
+    current = {"seconds": 49.6, "steps": 2, "tool_calls": 0, "compactions": 0, "tokens": {}, "sessions": ["c1"]}
+    rec = {"started": started, "agent_finished": finished, "agent": attempts.combine(earlier, current, started, finished)}
+    split = drive.story_time_split(rec, ev, tmp_path / "server.log")
+    assert rec["agent"]["attempts"][0]["seconds"] == 100.0 - ASLEEP_S
+    assert split["suspended_s"] == ASLEEP_S and split["wall_s"] == 150.0
+    assert split["accounting"]["ok"], split["accounting"]["problems"]
+
+
 # ---------- a Claude story's earlier attempts, counted after another pass over its log ----------
 
 def test_earlier_attempts_count_claude_steps_after_the_harness_looked_for_the_session(tmp_path):

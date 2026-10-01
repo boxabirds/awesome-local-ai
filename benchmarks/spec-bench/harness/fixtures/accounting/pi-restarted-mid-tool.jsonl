@@ -1,0 +1,27 @@
+{"_rx":1790000000.2,"type":"session","id":"s1"}
+{"_rx":1790000000.21,"type":"agent_start"}
+{"_rx":1790000001.0,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000003.0,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000011.0,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000011.0,"type":"tool_execution_start","toolCallId":"a1","toolName":"bash","args":{"command":"npm run test:unit"}}
+{"_rx":1790000015.0,"type":"tool_execution_end","toolCallId":"a1","toolName":"bash"}
+{"_rx":1790000015.5,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000016.5,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000026.0,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000026.0,"type":"tool_execution_start","toolCallId":"a2","toolName":"bash","args":{"command":"npx playwright test"}}
+{"_rx":1790000200.0,"type":"harness_attempt","attempt":2,"harness_commit":"abc1234","pack_version":"p-v1"}
+{"_rx":1790000200.2,"type":"session","id":"s1"}
+{"_rx":1790000200.21,"type":"agent_start"}
+{"_rx":1790000200.3,"type":"message_start","message":{"role":"user"}}
+{"_rx":1790000200.3,"type":"message_end","message":{"role":"user"}}
+{"_rx":1790000204.0,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000207.0,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000217.0,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000217.0,"type":"tool_execution_start","toolCallId":"b1","toolName":"bash","args":{"command":"npx playwright test"}}
+{"_rx":1790000229.5,"type":"tool_execution_end","toolCallId":"b1","toolName":"bash"}
+{"_rx":1790000230.0,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000231.0,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000236.0,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000236.5,"type":"compaction_start","reason":"overflow"}
+{"_rx":1790000236.6,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000238.6,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
