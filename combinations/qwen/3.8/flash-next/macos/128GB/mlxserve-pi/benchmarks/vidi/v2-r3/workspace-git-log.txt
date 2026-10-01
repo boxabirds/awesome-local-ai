@@ -1,3 +1,42 @@
+commit 16ceba03cca6bd4a06ecc097fa91cab3af1aa680
+vidi-agent  Thu Oct 1 22:54:07 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ .gitignore                                       |   8 +
+ package.json                                     |   2 +-
+ playwright.config.ts                             |  20 +-
+ src/client/App.tsx                               |  49 +++-
+ src/client/board/Toolbar.tsx                     |   6 +
+ src/client/board/useBoardDoc.ts                  |   9 +-
+ src/client/canvas/testHooks.ts                   |  27 +-
+ src/client/objects/StickyNote.tsx                |  16 +-
+ src/client/styles.css                            |   7 +
+ src/client/sync/ConnectionStatus.tsx             |  19 ++
+ src/client/sync/connectBoard.ts                  |  37 ++-
+ src/shared/config.ts                             |  27 ++
+ src/shared/protocol.ts                           |  13 +
+ src/shared/snapshot-chunks.ts                    |  37 +++
+ src/worker/board-room.ts                         | 359 +++++++++++++++++------
+ src/worker/board-store.ts                        | 328 +++++++++++++++++++++
+ src/worker/index.ts                              |  18 ++
+ src/worker/room-state.ts                         |  87 ++++++
+ src/worker/test-hooks.ts                         |  85 ++++++
+ tests/component/App-load-failed.test.tsx         | 126 ++++++++
+ tests/component/ConnectionStatus.test.tsx        |  64 ++++
+ tests/e2e/broken-board.spec.ts                   |  92 ++++++
+ tests/e2e/helpers/wrangler-process.ts            | 149 ++++++++++
+ tests/e2e/persistence.spec.ts                    | 222 ++++++++++++++
+ tests/fixtures/boards.ts                         | 187 ++++++++++++
+ tests/integration/board-room-persistence.test.ts | 235 +++++++++++++++
+ tests/integration/board-room.test.ts             |  47 +--
+ tests/integration/board-store.test.ts            | 343 ++++++++++++++++++++++
+ tests/integration/helpers/ws-client.ts           | 187 +++++++++++-
+ tests/integration/worker.test.ts                 |  25 ++
+ tests/unit/board-store-chunks.test.ts            |  79 +++++
+ tests/unit/room-state.test.ts                    | 163 ++++++++++
+ 32 files changed, 2940 insertions(+), 133 deletions(-)
 commit 9e2014467ff0d78d5ddd9f98b3b4d938f4143f53
 vidi-agent  Thu Oct 1 21:19:01 2026 +0100
 
