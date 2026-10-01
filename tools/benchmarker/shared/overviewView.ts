@@ -2,7 +2,10 @@
 // needs you, what a machine is doing now, how a machine's history is grouped) is tested once here and the
 // components only lay it out (plan sections 4.1 and 4.6).
 import type { Finalize, Invalid, Machine, Row, RunStatus } from "./types.ts";
-import { isInvalid, scoreOfRecord, unscoredReason } from "./stats.ts";
+import { isInvalid, unscoredReason } from "./stats.ts";
+import { finalScoreOwed } from "./finalScore.ts";
+
+export { suiteFamily } from "./stats.ts";
 
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_HOUR = 3600;
@@ -47,18 +50,16 @@ export function silentMinutes(row: Pick<Row, "live">, now: number): number | nul
 
 // ---------- needs you ----------
 
-/** The kinds of exception, in the order they are listed: what wastes a machine first, then what blocks a result,
- * then what makes a number doubtful. */
-export const NEED_KINDS = ["silent", "unreachable", "ended", "idle", "rescoreFault", "unscored", "accounting"] as const;
+/** The kinds of exception, in the order they are listed: what wastes a machine first, then what blocks a result.
+ * Every kind is one a person must act on now, because the system can't do it by itself. What the system handles is
+ * not a kind: a final re-score the harness retries (shared/finalScore.ts says so on the run's own pages) and a failed
+ * accounting check, which the harness recomputes (shared/accountingView.ts, on the pages that show time figures). */
+export const NEED_KINDS = ["silent", "unreachable", "ended", "idle", "rescoreFault", "unscored"] as const;
 export type NeedKind = (typeof NEED_KINDS)[number];
 
 /** A run as a need or a now line names it; `invalid` so the link can be struck through. `dir` (the repo path of its
  * record) and `status` are what a need's advice depends on (shared/needView.ts): absent on a now line, which gives none. */
 export interface RunRef { pack: string; stack: string; runId: string; label: string; machine: string; invalid?: Invalid | null; dir?: string | null; status?: RunStatus }
-
-/** A story whose accounting check failed: its recorded problems, the accounting version that made the record and
- * whether that is the harness's current one (null: not known). */
-export interface FailedStory { id: string; problems: string[]; version: number | null; current: boolean | null }
 
 export type Need =
   /** A running story whose harness has been silent for SILENT_MINUTES or more. */
@@ -69,21 +70,17 @@ export type Need =
   | { kind: "ended"; key: string; run: RunRef; status: "failed" | "stopped"; endedAt: number; note: string }
   /** A reachable dbench node with nothing running and nothing queued. */
   | { kind: "idle"; key: string; machine: string }
-  /** A finished run re-scored under the current suite whose re-score gave no score of record.
-   * `hasBundle`: whether its record has the workspace bundle a re-score is made from. `machineBusy`: whether the
-   * run's machine is running a job now (a re-score there would share the machine with it). */
-  | { kind: "rescoreFault"; key: string; run: RunRef; suite: string; hasBundle: boolean; machineBusy: boolean }
-  /** A finished run of the current spec version never re-scored under the current suite. `finalize`: what its final
-   * re-score recorded (skipped, failed or flagged, with the reason); null when its record has none. */
-  | { kind: "unscored"; key: string; run: RunRef; why: string; finalize: Finalize | null; machineBusy: boolean }
-  /** A run with stories whose time split failed its own checks. */
-  | { kind: "accounting"; key: string; run: RunRef; stories: FailedStory[] };
+  /** A finished run re-scored under the current suite whose re-score gave no score of record, which the harness says
+   * needs a person. `finalize`: what its final re-score recorded. `hasBundle`: whether its record has the workspace
+   * bundle a re-score is made from. `machineBusy`: whether the run's machine is running a job now (a re-score there
+   * would share the machine with it). */
+  | { kind: "rescoreFault"; key: string; run: RunRef; suite: string; hasBundle: boolean; machineBusy: boolean; finalize: Finalize }
+  /** A finished run of the current spec version never re-scored under the current suite, which the harness says needs
+   * a person. `finalize`: what its final re-score recorded (skipped, failed or flagged, with the reason). */
+  | { kind: "unscored"; key: string; run: RunRef; why: string; finalize: Finalize; machineBusy: boolean };
 
 const ref = (r: Row): RunRef => ({ pack: r.pack, stack: r.stack, runId: r.runId, label: r.label, machine: r.machine, invalid: r.invalid ?? null, dir: r.dir, status: r.status });
 const runKey = (r: Row) => `${r.pack}\u0000${r.stack}\u0000${r.runId}`;
-
-/** The version family a suite belongs to: "vidi-v2" for "vidi-v2.0-pre1" (as the header picks the current one). */
-export const suiteFamily = (suite: string) => /^(.*?-v\d+)/.exec(suite)?.[1] ?? "";
 
 /** A job's end as dbench recorded it, else its last report. */
 const jobEnd = (j: Row["jobs"][number] | undefined): number | null => j?.endedAt ?? j?.updatedAt ?? null;
@@ -108,8 +105,9 @@ export interface NeedsInput {
   now: number;
 }
 
-/** Everything that asks for action, each with the entity it is about. Missing data never raises one: a story with
- * no start time is never called stuck, a run with no end time never called recent. An invalid run raises nothing:
+/** Everything a person must act on, each with the entity it is about. Missing data never raises one: a story with
+ * no start time is never called stuck, a run with no end time never called recent, and a finished run whose record
+ * doesn't say a person is needed for its final score is left to the harness. An invalid run raises nothing:
  * it is left out of "needs you" like every other figure (its machine is still judged as a machine). */
 export function needsYou({ rows: shown, all, machines, reach, now }: NeedsInput): Need[] {
   const out: Need[] = [];
@@ -140,22 +138,16 @@ export function needsYou({ rows: shown, all, machines, reach, now }: NeedsInput)
         out.push({ kind: "ended", key: `ended:${runKey(r)}`, run: ref(r), status: r.status, endedAt: at, note: r.statusNote || r.jobs.at(-1)?.reason || "" });
       }
     }
-    if (r.status === "finished" && scoreOfRecord(r) === null) {
+    // A finished run with no score of record is the harness's to put right (it retries the final re-score at the
+    // machine's next run) until its finalize.json says a person is needed.
+    if (r.finalize && finalScoreOwed(r) === "needsPerson") {
       const machineBusy = machines.some((m) => m.node === r.machine && m.running !== null);
       if (r.rescores.includes(r.suite)) {
-        out.push({ kind: "rescoreFault", key: `rescoreFault:${runKey(r)}`, run: ref(r), suite: r.suite, hasBundle: r.hasBundle, machineBusy });
-      } else if (r.family && r.family === suiteFamily(r.suite)) {
-        // A run of an older spec version can't be scored by this suite (another spec): not an omission to fix.
-        out.push({ kind: "unscored", key: `unscored:${runKey(r)}`, run: ref(r), why: unscoredReason(r), finalize: r.finalize ?? null, machineBusy });
+        out.push({ kind: "rescoreFault", key: `rescoreFault:${runKey(r)}`, run: ref(r), suite: r.suite, hasBundle: r.hasBundle, machineBusy, finalize: r.finalize });
+      } else {
+        out.push({ kind: "unscored", key: `unscored:${runKey(r)}`, run: ref(r), why: unscoredReason(r), finalize: r.finalize, machineBusy });
       }
     }
-    const bad = r.stories
-      .filter((s) => s.usage?.split?.check.status === "problems")
-      .map((s): FailedStory => {
-        const { problems, version, current } = s.usage!.split!.check;
-        return { id: s.id, problems, version: version ?? null, current: current ?? null };
-      });
-    if (bad.length) out.push({ kind: "accounting", key: `accounting:${runKey(r)}`, run: ref(r), stories: bad });
   }
 
   const order = (n: Need) => NEED_KINDS.indexOf(n.kind);

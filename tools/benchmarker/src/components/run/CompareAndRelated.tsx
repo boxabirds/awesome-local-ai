@@ -3,6 +3,7 @@
 import type { Row } from "../../../shared/types.ts";
 import { COMPARE_MEASURES, compareRuns, scoreOfRecord, signedPercent, statusView, type MeasureKey } from "../../../shared/runView.ts";
 import { GLOSSARY } from "../../../shared/glossary.ts";
+import { finalScoreNote } from "../../../shared/finalScore.ts";
 import { CombinationLink, MachineLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
@@ -93,7 +94,7 @@ export function RelatedRuns({ run, others }: { run: Row; others: Row[] }) {
                 <RunLink pack={r.pack} stack={r.stack} runId={r.runId} invalid={r.invalid} />{" "}
                 <span className={`status-word s-${v.status}`}>{v.status}</span>
                 <span className="small"> · <MachineLink machine={r.machine} host={r.host} /> · {r.stories.length} {r.stories.length === 1 ? "story" : "stories"} recorded · </span>
-                {rec.kind === "scored" ? <span className="small">score <b>{rec.passed}/{rec.total}</b></span> : <span className="small" data-tip={rec.why}>no score of record</span>}
+                {rec.kind === "scored" ? <span className="small">score <b>{rec.passed}/{rec.total}</b></span> : <span className="small" data-tip={[rec.why, finalScoreNote(r)].filter(Boolean).join(" ")}>no score of record</span>}
               </li>
             );
           })}

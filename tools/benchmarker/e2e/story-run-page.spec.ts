@@ -793,8 +793,8 @@ test.describe("against every combination", () => {
     await open(page, SWIFT, "v2-r5", "2");
     await expect(combo(page, MLX)).toHaveCount(0);
     const left = a(page).locator("tr[data-without-record]");
-    await expect(left).toHaveAttribute("data-without-record", "2");
-    await expect(left).toContainText("2 other combinations have no record of story 2 yet");
+    await expect(left).toHaveAttribute("data-without-record", "3");
+    await expect(left).toContainText("3 other combinations have no record of story 2 yet");
     await expect(left.locator("a.story-link")).toHaveAttribute("href", "#/vidi/s/2");
   });
 

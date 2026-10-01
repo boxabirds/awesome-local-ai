@@ -15,6 +15,7 @@ const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
 const OPUS = "reference/opus-5.5";
 const MLX = "qwen/3.8/flash-next/macos/128GB/mlxserve-pi";
 const Q27 = "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi";
+const VK = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi";   // two finished runs that recorded no story
 const enc = encodeURIComponent;
 const storyUrl = (n: string, compare?: string) => `/#/vidi/s/${n}${compare ? `?compare=${enc(compare)}` : ""}`;
 const cmpOf = (stack: string, run: string) => `${stack}|${run}`;
@@ -86,7 +87,7 @@ test.describe("header", () => {
 
   test("how many story runs, in how many combinations, and how many runs haven't built it", async ({ page }) => {
     await open(page, "2");
-    await expect(section(page, "header").locator('[data-fact="runs"]')).toContainText("8 in 2 combinations · 5 runs not built");
+    await expect(section(page, "header").locator('[data-fact="runs"]')).toContainText("8 in 2 combinations · 7 runs not built");
   });
 
   test("previous and next: the first story has no previous", async ({ page }) => {
@@ -168,7 +169,7 @@ test.describe("by combination", () => {
   test("combinations in order: a finished run's best held-out median first, then agent time; then only running; then not built", async ({ page }) => {
     await open(page, "1");
     const stacks = await section(page, "combinations").locator("tbody[data-stack]").evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.stack));
-    expect(stacks).toEqual([OPUS, SWIFT, MLX, Q27]);
+    expect(stacks).toEqual([OPUS, SWIFT, MLX, Q27, VK]);
   });
 
   test("each combination is a link to its page, with its machines", async ({ page }) => {

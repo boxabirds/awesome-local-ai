@@ -31,19 +31,23 @@ const rowOf = (s: State, stack: string, runId: string) => s.rows.find((r) => r.s
 const overview = (page: Page) => page.locator('[data-page="overview"]');
 const needs = (page: Page) => overview(page).locator('[data-section="needs"]');
 const need = (page: Page, kind: string) => needs(page).locator(`li[data-need="${kind}"]`);
-/** The panel's two groups: "do" (a person must act) and "nothing" (nothing to do now). */
-const group = (page: Page, name: "do" | "nothing") => needs(page).locator(`[data-group="${name}"]`);
-const kindsIn = (page: Page, name: "do" | "nothing") => group(page, name).locator("li").evaluateAll((ls) => ls.map((l) => (l as HTMLElement).dataset.need));
+/** The kinds listed, in order. */
+const kinds = (page: Page) => needs(page).locator("li").evaluateAll((ls) => ls.map((l) => (l as HTMLElement).dataset.need));
 const HARNESS = "benchmarks/spec-bench/harness";
-const dirOf = (run: string) => `combinations/${SWIFT}/benchmarks/vidi/${run}`;
-// Recorded accounting problems, one of each class (shared/accountingView.ts).
-const WAITS_TWICE = "wall 13113.4 s differs from the agent's own clock (13111.7 s + 205.8 s between sessions)";
-const CLOCK_OFF = "wall 2352.1 s differs from the agent's own clock (2321.2 s)";
-const ACCOUNTING_VERSION = 3;
-/** Fail one recorded story's accounting check with this problem, made by the current accounting or an older one. */
-function failCheck(s: State, run: string, story: string, problem: string, current: boolean | null = null) {
-  rowOf(s, SWIFT, run).stories.find((st) => st.id === story)!.usage!.split!.check = { status: "problems", problems: [problem], version: ACCOUNTING_VERSION, current };
-}
+const dirOf = (run: string, stack = SWIFT) => `combinations/${stack}/benchmarks/vidi/${run}`;
+// The fixture's three finished runs with no score of record, by what the harness's finalize.json says about a person:
+// VK v2-r1 needs one (needs_person: true), VK v2-r2 doesn't (false), SWIFT v2-r7 doesn't say (a record from before).
+const VK = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi";
+const VK_MACHINE = "AMD Ryzen AI Max+ 395 128GB";
+const VK_FAILED = "Its final re-score failed: the app's build failed in the re-score (exit 1) but passed where the agent worked, on the same commit. Tried 3 times, last at 2026-09-29T07:30:00Z.";
+const SKIPPED = "Its final re-score was skipped: the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1.";
+const ALL_WELL = "✓ Nothing needs you right now.";
+/** What a run's page says beside its score of record while its final score is owed. */
+const finalNote = (page: Page) => page.locator('[data-page="run"] [data-section="header"] [data-stat="scoreOfRecord"] [data-final-score]');
+/** Every machine has work, so none is idle. */
+const allBusy = (s: State) => { for (const m of s.machines) m.queued = Math.max(m.queued, 1); };
+/** The harness says this run's final score needs a person, or (false) that it doesn't. */
+const setNeedsPerson = (s: State, stack: string, run: string, needsPerson: boolean) => { rowOf(s, stack, run).finalize!.needsPerson = needsPerson; };
 const now = (page: Page) => overview(page).locator('[data-section="now"]');
 const nowRow = (page: Page, machine: string) => now(page).locator(`tr[data-machine="${machine}"]`);
 const tip = (page: Page) => page.getByRole("tooltip");
@@ -85,93 +89,157 @@ test.beforeEach(async ({ request }) => {
 
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("needs you: the fixture as it is", () => {
-  test("idle node-d, unscored v2-r7 and v2-r1's accounting, in that order, and a count", async ({ page }) => {
+  test("idle node-d and the one run whose final score needs a person, in that order, and a count; nothing else", async ({ page }) => {
     await patchState(page);
     await open(page);
-    expect(await needs(page).locator("li").evaluateAll((ls) => ls.map((l) => (l as HTMLElement).dataset.need))).toEqual(["idle", "unscored", "accounting"]);
-    // The count is of what a person must do: v2-r1's accounting (a call with no end) has nothing to do.
+    expect(await kinds(page)).toEqual(["idle", "unscored"]);
     await expect(needs(page).locator("h2 .count")).toHaveText("2");
     await expect(needs(page).locator("h2")).toContainText("machines: all · runs: vidi · vidi-v2");
+    await expect(need(page, "unscored")).toContainText("3.8/flash-next llamacpp v2-r1");
+    // One list and no second group: nothing the system handles by itself is on the Overview.
+    await expect(needs(page).locator("ul")).toHaveCount(1);
+    await expect(needs(page).locator("h3")).toHaveCount(0);
+    await expect(needs(page)).not.toContainText("Nothing to do");
+    await expect(needs(page).locator(".all-well")).toHaveCount(0);
   });
 
-  test("nothing needs you: says so, with a count of 0", async ({ page }) => {
-    await patchState(page, (s) => {
-      for (const m of s.machines) m.queued = Math.max(m.queued, 1);
-      rowOf(s, SWIFT, "v2-r7").scores[SUITE] = { passed: 60, total: 75, flaky: 0, at: "" };
-      for (const r of s.rows) for (const st of r.stories) if (st.usage?.split) st.usage.split.check = { status: "ok", problems: [] };
-    });
+  test("nothing needs you: the panel is one quiet line, with no heading, count or list", async ({ page }) => {
+    await patchState(page, (s) => { allBusy(s); setNeedsPerson(s, VK, "v2-r1", false); });
     await open(page);
-    await expect(needs(page).locator(".all-well")).toHaveText("✓ Nothing needs you right now.");
-    await expect(needs(page).locator("h2 .count")).toHaveText("0");
-    await expect(group(page, "nothing")).toHaveCount(0);
+    await expect(needs(page)).toHaveText(ALL_WELL);
+    await expect(needs(page).locator("h2, h3, ul, li, .count")).toHaveCount(0);
+    await expect(needs(page)).toHaveAccessibleName("Needs you");
   });
 });
 
-// Every item says what it affects and what to do, in one of two groups: what a person must do (with the command and
-// where to run it, or the page to do it on), and what has nothing to do now (it waits, or no command fixes it).
-test.describe("needs you: what each item affects and what to do about it", () => {
-  test("two groups: what to do (idle, unscored), then what has nothing to do now (a call with no end), each counted", async ({ page }) => {
-    await patchState(page);
-    await open(page);
-    expect(await kindsIn(page, "do")).toEqual(["idle", "unscored"]);
-    expect(await kindsIn(page, "nothing")).toEqual(["accounting"]);
-    await expect(group(page, "nothing").locator("h3 .term")).toHaveText(GLOSSARY.needsNothing.name);
-    await expect(group(page, "nothing").locator("h3 .term")).toHaveAttribute("data-tip", GLOSSARY.needsNothing.what);
-    await expect(group(page, "nothing").locator("h3 .count")).toHaveText("1");
-    for (const li of await needs(page).locator("li").all()) {
-      await expect(li.locator(".need-affects")).not.toBeEmpty();
-      await expect(li.locator(".need-todo")).not.toBeEmpty();
-    }
-  });
-
-  test("nothing needs you, but something has nothing to do now: says so, and still lists it", async ({ page }) => {
-    await patchState(page, (s) => {
-      for (const m of s.machines) m.queued = Math.max(m.queued, 1);
-      rowOf(s, SWIFT, "v2-r7").scores[SUITE] = { passed: 60, total: 75, flaky: 0, at: "" };
-    });
-    await open(page);
-    await expect(group(page, "do").locator(".all-well")).toHaveText("✓ Nothing needs you right now.");
-    await expect(needs(page).locator("h2 .count")).toHaveText("0");
-    expect(await kindsIn(page, "nothing")).toEqual(["accounting"]);
-  });
-
-  test("not scored, its final re-score skipped: the recorded reason, what it affects, the command and the machine to run it on", async ({ page }) => {
+// A finished run with no score of record is listed only when the harness says a person is needed (finalize.json's
+// needs_person). Otherwise the harness retries the final re-score at the machine's next run, and the run's own pages
+// say its final score is pending.
+test.describe("needs you: a finished run with no score of record", () => {
+  test("the harness says a person is needed: the recorded reason and attempts, what it affects, the command and the machine to run it on", async ({ page }) => {
     await patchState(page);
     await open(page);
     const n = need(page, "unscored");
-    await expect(n.locator(".need-detail")).toHaveText("Its final re-score was skipped: the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1.");
+    await expect(n).toHaveCount(1);
+    await expect(n.locator(".need-what")).toHaveText(`3.8/flash-next llamacpp v2-r1 finished, not scored: not re-scored under ${SUITE} yet`);
+    await expect(n.locator(".need-detail")).toHaveText(VK_FAILED);
     await expect(n.locator(".need-affects")).toHaveText("This run has no score of record (the final score it is ranked by), so it doesn't count in the ranking.");
-    await expect(n.locator(".need-todo")).toContainText(`Do this: Put right what that reason names, then run the final re-score again on node-a, the machine that ran it, in the repo's ${HARNESS}:`);
+    await expect(n.locator(".need-todo")).toHaveText(`Do this: Put right what that reason names, then run the final re-score again on ${VK_MACHINE}, the machine that ran it, in the repo's ${HARNESS}:`);
+    await expect(n.locator("code.need-command")).toHaveText(`uv run finalize.py ../../../${dirOf("v2-r1", VK)} --pack benchmarks/vidi --record`);
+    await expect(n.locator(".need-caution")).toHaveCount(0);   // its machine is running nothing
+    await n.locator("a.resolve").click();
+    await expect(page.locator('[data-page="run"] h1 .run-id')).toHaveText("v2-r1");
+    await expect(finalNote(page)).toHaveAttribute("data-final-score", "needsPerson");
+    await expect(finalNote(page)).toHaveText(`Final score needs a person: the harness can't finish it by itself. ${VK_FAILED} What to do is under “Needs you” on the Overview.`);
+  });
+
+  test("the harness says no person is needed: not listed; its run page says the final score is pending, with the reason and the attempts", async ({ page }) => {
+    await patchState(page);
+    await open(page);
+    await expect(needs(page).locator("li", { hasText: "v2-r2" })).toHaveCount(0);
+    await page.goto(runHref(VK, "v2-r2"));
+    await expect(page.locator('[data-page="run"] [data-section="header"] [data-stat="scoreOfRecord"] .na')).toHaveText("n/a");
+    await expect(finalNote(page)).toHaveAttribute("data-final-score", "pending");
+    await expect(finalNote(page)).toHaveText(`Final score pending: retried automatically at ${VK_MACHINE}'s next run. ${SKIPPED} Tried 2 times, last at 2026-09-29T12:00:00Z.`);
+    await expect(page.locator('[data-page="run"] [data-section="heldout"] [data-row="record"] [data-final-score="pending"]')).toContainText("Final score pending: retried automatically");
+  });
+
+  test("the record doesn't say (one from before the harness did): not listed; pending on its run page, with no attempts invented", async ({ page }) => {
+    await patchState(page);
+    await open(page);
+    await expect(needs(page).locator("li", { hasText: "v2-r7" })).toHaveCount(0);
+    await page.goto(runHref(SWIFT, "v2-r7"));
+    // Its score under an older suite is still shown, beside the note that the one of record is pending.
+    await expect(page.locator('[data-page="run"] [data-section="header"] [data-stat="scoreOfRecord"] .stat-value')).toHaveText("60/75");
+    await expect(finalNote(page)).toHaveText(`Final score pending: retried automatically at node-a's next run. ${SKIPPED}`);
+  });
+
+  test("no finalize record at all: not listed", async ({ page }) => {
+    await patchState(page, (s) => { rowOf(s, VK, "v2-r1").finalize = null; rowOf(s, SWIFT, "v2-r7").finalize = null; });
+    await open(page);
+    await expect(need(page, "unscored")).toHaveCount(0);
+    await page.goto(runHref(VK, "v2-r1"));
+    await expect(finalNote(page)).toHaveText(`Final score pending: retried automatically at ${VK_MACHINE}'s next run. Its record has no final re-score yet.`);
+  });
+
+  test("the same run once the harness says a person is needed is listed (the control), with a caution when its machine is running a job", async ({ page }) => {
+    await patchState(page, (s) => setNeedsPerson(s, SWIFT, "v2-r7", true));
+    await open(page);
+    const n = need(page, "unscored").filter({ hasText: "v2-r7" });
+    await expect(n).toContainText("3.8-swift-1.5/27b llamacpp v2-r7 finished, not scored: re-scored only under another suite version (60/75 under vidi-v2.0-pre0), not under vidi-v2.0-pre1");
+    await expect(n.locator(".need-detail")).toHaveText(SKIPPED);
     await expect(n.locator("code.need-command")).toHaveText(`uv run finalize.py ../../../${dirOf("v2-r7")} --pack benchmarks/vidi --record`);
     // node-a is running v2-r1.
     await expect(n.locator(".need-caution")).toHaveText("node-a is running a job now: a re-score there would share the machine with it.");
   });
 
-  test("not scored, its machine running nothing: no caution", async ({ page }) => {
-    await patchState(page, (s) => { s.machines.find((m) => m.node === "node-a")!.running = null; });
+  test("a scored run is never listed, whatever its finalize record says", async ({ page }) => {
+    await patchState(page, (s) => { rowOf(s, VK, "v2-r1").scores[SUITE] = { passed: 60, total: 75, flaky: 0, at: "" }; rowOf(s, VK, "v2-r1").rescores = [SUITE]; });
     await open(page);
-    await expect(need(page, "unscored").locator(".need-todo")).toBeVisible();
-    await expect(need(page, "unscored").locator(".need-caution")).toHaveCount(0);
+    await expect(need(page, "unscored")).toHaveCount(0);
+    await expect(need(page, "rescoreFault")).toHaveCount(0);
   });
 
-  test("not scored, with no record of a final re-score: says so, with the same command", async ({ page }) => {
-    await patchState(page, (s) => { rowOf(s, SWIFT, "v2-r7").finalize = null; });
+  test("a re-score fault the harness says needs a person: the reason, and the re-score command from the run's own bundle", async ({ page }) => {
+    await patchState(page, (s) => {
+      const r = rowOf(s, SWIFT, "v2-r6"); r.scores = {}; r.rescores = [SUITE]; r.hasBundle = true;
+      r.finalize = { rescore: "failed", reason: "no browser", version: SUITE, packRef: SUITE, at: "", needsPerson: true, attempts: 4, lastAttemptAt: "" };
+    });
     await open(page);
-    const n = need(page, "unscored");
-    await expect(n.locator(".need-detail")).toHaveText("Its record has no final re-score: none was run, or it was recorded before the harness kept one.");
-    await expect(n.locator(".need-todo")).toContainText(`Do this: Run the final re-score on node-a, the machine that ran it, in the repo's ${HARNESS}:`);
-    await expect(n.locator("code.need-command")).toHaveText(`uv run finalize.py ../../../${dirOf("v2-r7")} --pack benchmarks/vidi --record`);
-  });
-
-  test("a re-score fault: the re-score command from the run's own bundle", async ({ page }) => {
-    await patchState(page, (s) => { const r = rowOf(s, SWIFT, "v2-r6"); r.scores = {}; r.rescores = [SUITE]; r.hasBundle = true; });
-    await open(page);
-    const n = group(page, "do").locator('li[data-need="rescoreFault"]');
+    const n = need(page, "rescoreFault");
+    await expect(n.locator(".need-detail")).toHaveText("Its final re-score failed: no browser. Tried 4 times.");
     await expect(n.locator(".need-todo")).toContainText("Do this: Re-score its final build again on node-a");
     await expect(n.locator("code.need-command")).toHaveText(`uv run rescore.py ../../../${dirOf("v2-r6")} --bundle ../../../${dirOf("v2-r6")}/workspace.bundle --pack benchmarks/vidi --final`);
   });
 
-  test("the machine kinds and a failed run are to do, on the machine's page: each says what it affects and the action there", async ({ page }) => {
+  test("a re-score fault the harness doesn't say needs a person: not listed; pending on its run page", async ({ page }) => {
+    await patchState(page, (s) => { const r = rowOf(s, SWIFT, "v2-r6"); r.scores = {}; r.rescores = [SUITE]; });
+    await open(page);
+    await expect(need(page, "rescoreFault")).toHaveCount(0);
+    await page.goto(runHref(SWIFT, "v2-r6"));
+    await expect(finalNote(page)).toHaveText("Final score pending: retried automatically at node-a's next run. Its record has no final re-score yet.");
+  });
+
+  test("where its score shows elsewhere says pending too: its combination's run list and its machine's history", async ({ page }) => {
+    await patchState(page);
+    await page.goto(`#/vidi/c/${enc(SWIFT)}`);
+    await page.locator('[data-page="combination"] tr[data-run="v2-r7"] .unscored').hover();
+    await expect(tip(page)).toContainText(`Final score pending: retried automatically at node-a's next run. ${SKIPPED}`);
+    await page.goto("#/m/node-a");
+    await expect(page.locator(`[data-page="machine"] .history-combo[data-stack="${SWIFT}"] tr[data-run="v2-r7"] .h-score .missing`))
+      .toHaveAttribute("data-tip", new RegExp("Final score pending: retried automatically at node-a's next run\\."));
+  });
+});
+
+// A failed accounting check makes a story's time figures doubtful. Nobody has to do anything about it from the
+// Overview (the harness recomputes its records by itself), so it is never listed there; it is said where the time
+// figures are read. The fixture's v2-r1 has one on story 1 (a tool call with no end).
+test.describe("needs you: a failed accounting check is not the Overview's business", () => {
+  test("it is not listed, counted or hinted at on the Overview, and is still explained on its story run's page", async ({ page }) => {
+    await patchState(page);
+    await open(page);
+    const state = await page.request.get("/api/state").then((r) => r.json()) as State;
+    expect(rowOf(state, SWIFT, "v2-r1").stories.find((st) => st.id === "1")!.usage!.split!.check.status).toBe("problems");   // the failure is in the data
+    await expect(need(page, "accounting")).toHaveCount(0);
+    await expect(needs(page)).not.toContainText("accounting");
+    await expect(needs(page)).not.toContainText("failed its checks");
+    await expect(needs(page).locator("h2 .count")).toHaveText("2");   // idle node-d and VK v2-r1 only
+    await page.goto(storyRunHref(SWIFT, "v2-r1", "1"));
+    const story = page.locator('[data-page="storyRun"]');
+    await expect(story.locator(".problems li .problem-text")).toHaveText(["Tool call t9 has no end in the log, so its time was counted up to the agent's next step."]);
+    await expect(story.locator(".check-todo")).toContainText("What to do: nothing to fix");
+  });
+
+  test("with the accounting failure the only exception, the panel is the one quiet line", async ({ page }) => {
+    await patchState(page, (s) => { allBusy(s); setNeedsPerson(s, VK, "v2-r1", false); });
+    await open(page);
+    expect((await page.request.get("/api/state").then((r) => r.json()) as State).rows.some((r) => r.stories.some((st) => st.usage?.split?.check.status === "problems"))).toBe(true);
+    await expect(needs(page)).toHaveText(ALL_WELL);
+  });
+});
+
+test.describe("needs you: the kinds a person must act on say what they affect and what to do", () => {
+  test("the machine kinds and a failed run are to do on the machine's page: each says what it affects and the action there", async ({ page }) => {
     await patchState(page, (s) => {
       const l = rowOf(s, SWIFT, "v2-r1").live!; l.agentMinutes = 20; l.storyStartedAt = s.now - 40 * MIN;
       Object.assign(rowOf(s, SWIFT, "v2-r5"), { status: "failed", statusNote: "agent crashed" });
@@ -179,82 +247,19 @@ test.describe("needs you: what each item affects and what to do about it", () =>
     });
     await patchMachines(page, (ms) => { ms.push({ name: "node-e", ok: false, error: "connection refused" }); });
     await open(page);
-    expect(await kindsIn(page, "do")).toEqual(["silent", "unreachable", "ended", "idle", "unscored"]);
-    const todo = (kind: string) => group(page, "do").locator(`li[data-need="${kind}"] .need-todo`);
+    expect(await kinds(page)).toEqual(["silent", "unreachable", "ended", "idle", "unscored"]);
+    const todo = (kind: string) => need(page, kind).locator(".need-todo");
     await expect(todo("silent")).toHaveText("Do this: On node-a's page, read the job's log. If it has stopped, press Stop on the job, then Restart: the run resumes at story 3.");
     await expect(todo("unreachable")).toHaveText("Do this: Check that node-e is on, on the network, and that its dbench service is running. Its page shows the address that was tried.");
     await expect(todo("ended")).toHaveText("Do this: On node-a's page, under “Ended in the last day”, press Restart on its job: the run resumes at its first unfinished story.");
     await expect(todo("idle")).toHaveText("Do this: Queue a run with the “Queue a run” form on node-d's page.");
     await expect(need(page, "silent").locator(".need-affects")).toHaveText("The machine is held by a run that has stopped reporting, and anything queued behind it waits. No recorded result is affected.");
     await expect(need(page, "idle").locator(".need-affects")).toHaveText("No result is affected: the machine is doing no benchmarking.");
-    await expect(group(page, "do").locator("code.need-command")).toHaveCount(1);  // only the unscored run has a command
-  });
-
-  test.describe("accounting, by what fixes it and whether the run is still going", () => {
-    test("a recompute fixes it and the run has finished: to do, with the recompute command", async ({ page }) => {
-      await patchState(page, (s) => failCheck(s, "v2-r5", "2", WAITS_TWICE));
-      await open(page);
-      const n = group(page, "do").locator('li[data-need="accounting"]');
-      await expect(n).toContainText("3.8-swift-1.5/27b llamacpp v2-r5: the time accounting failed its checks on story 2");
-      await expect(n.locator(".need-problem")).toHaveText("The wall time (13113.4 s) already matches the agent's own clock (13111.7 s), but 205.8 s of waits between sessions were added on top of it: they were counted twice.");
-      await expect(n.locator(".need-detail")).toHaveText("Likely cause: an older harness counted the waits between sessions twice (a bug since fixed).");
-      await expect(n.locator(".need-affects")).toHaveText("Only this story's time figures are affected (where its time went, its agent time); scores are not.");
-      await expect(n.locator(".need-todo")).toContainText(`Do this: Recompute this record from the full logs on node-a, the machine that ran it, in the repo's ${HARNESS}:`);
-      await expect(n.locator("code.need-command")).toHaveText(`uv run backfill_timing.py --recompute ../../../${dirOf("v2-r5")}`);
-    });
-
-    test("a recompute fixes it but the run is still going: waiting, with no command yet", async ({ page }) => {
-      await patchState(page, (s) => failCheck(s, "v2-r1", "1", WAITS_TWICE));
-      await open(page);
-      await expect(group(page, "do").locator('li[data-need="accounting"]')).toHaveCount(0);
-      const n = group(page, "nothing").locator('li[data-need="accounting"]');
-      await expect(n).toHaveAttribute("data-lead", "Waiting");
-      await expect(n.locator(".need-detail")).toHaveText("Likely cause: an older harness counted the waits between sessions twice (a bug since fixed).");
-      await expect(n.locator(".need-todo")).toHaveText("Waiting: The run is still going. Recompute its record when it has finished: the command is given here then.");
-      await expect(n.locator("code.need-command")).toHaveCount(0);
-    });
-
-    test("only a call with no end: nothing to do, running or not", async ({ page }) => {
-      await patchState(page);
-      await open(page);
-      const n = group(page, "nothing").locator('li[data-need="accounting"]');
-      await expect(n).toHaveAttribute("data-lead", "Nothing to do");
-      await expect(n.locator(".need-problem")).toHaveText("Tool call t9 has no end in the log, so its time was counted up to the agent's next step.");
-      await expect(n.locator(".need-todo")).toHaveText("Nothing to do: Recomputing reads the same log and gives the same answer. Read the part the call fell in as an upper estimate.");
-    });
-
-    test("made by the harness's current accounting, in a finished run: nothing to run; a harness problem to investigate", async ({ page }) => {
-      await patchState(page, (s) => failCheck(s, "v2-r5", "2", CLOCK_OFF, true));
-      await open(page);
-      await expect(group(page, "do").locator('li[data-need="accounting"]')).toHaveCount(0);
-      const n = group(page, "nothing").locator('li[data-need="accounting"]', { hasText: "v2-r5" });
-      await expect(n.locator(".need-problem")).toHaveText("The wall time (2352.1 s) doesn't match the agent's own clock (2321.2 s).");
-      await expect(n.locator(".need-detail")).toHaveText("Likely cause: not known. The harness's current accounting (version 3) made this record, so it isn't a bug since fixed.");
-      await expect(n.locator(".need-todo")).toHaveText("Nothing to do: No command fixes it: recomputing gives the same answer. It is a harness problem to investigate.");
-      await expect(n.locator("code.need-command")).toHaveCount(0);
-    });
-
-    test("the same problem in a record an older accounting made: a recompute, to do", async ({ page }) => {
-      await patchState(page, (s) => failCheck(s, "v2-r5", "2", CLOCK_OFF, false));
-      await open(page);
-      await expect(group(page, "do").locator('li[data-need="accounting"] code.need-command')).toHaveText(`uv run backfill_timing.py --recompute ../../../${dirOf("v2-r5")}`);
-    });
-
-    test("one run's stories that different things fix are separate items, each in its own group", async ({ page }) => {
-      await patchState(page, (s) => { failCheck(s, "v2-r5", "1", WAITS_TWICE); failCheck(s, "v2-r5", "2", CLOCK_OFF, true); });
-      await open(page);
-      await expect(group(page, "do").locator('li[data-need="accounting"]')).toContainText("failed its checks on story 1");
-      await expect(group(page, "nothing").locator('li[data-need="accounting"]', { hasText: "v2-r5" })).toContainText("failed its checks on story 2");
-    });
-
-    test("the story run's page says the same about a record the current accounting made", async ({ page }) => {
-      await patchState(page, (s) => failCheck(s, "v2-r5", "2", CLOCK_OFF, true));
-      await open(page);
-      await group(page, "nothing").locator('li[data-need="accounting"]', { hasText: "v2-r5" }).locator("a.resolve").click();
-      const verdict = page.locator('[data-page="storyRun"] .check-todo');
-      await expect(verdict).toContainText("nothing to run: recomputing does the same calculation on the same log and gives the same answer. It is a harness problem to investigate.");
-      await expect(page.locator('[data-page="storyRun"] .check-command')).toHaveCount(0);
-    });
+    await expect(needs(page).locator("code.need-command")).toHaveCount(1);  // only the unscored run has a command
+    for (const li of await needs(page).locator("li").all()) {
+      await expect(li.locator(".need-affects")).not.toBeEmpty();
+      await expect(li.locator(".need-todo")).toContainText("Do this:");
+    }
   });
 });
 
@@ -326,32 +331,24 @@ test.describe("needs you: each kind", () => {
     await expect(need(page, "idle")).toHaveCount(0);
   });
 
-  test("a finished run not scored: why, and resolved on its run page", async ({ page }) => {
+  test("a finished run not scored that needs a person: why, its links, and resolved on its run page", async ({ page }) => {
     await patchState(page);
     await open(page);
     const n = need(page, "unscored");
-    await expect(n).toContainText("3.8-swift-1.5/27b llamacpp v2-r7 finished, not scored: re-scored only under another suite version (60/75 under vidi-v2.0-pre0), not under vidi-v2.0-pre1");
-    await n.locator("a.resolve").click();
-    await expect(page.locator('[data-page="run"] h1 .run-id')).toHaveText("v2-r7");
+    await expect(n.locator("a.run-link")).toHaveAttribute("href", runHref(VK, "v2-r1"));
+    await expect(n.locator("a.resolve")).toHaveAttribute("href", runHref(VK, "v2-r1"));
+    await expect(n.locator("a.resolve")).toHaveText("the run →");
   });
 
-  test("a re-score fault: re-scored under the current suite with no score of record; resolved on the run", async ({ page }) => {
-    await patchState(page, (s) => { const r = rowOf(s, SWIFT, "v2-r6"); r.scores = {}; r.rescores = [SUITE]; });
+  test("a re-score fault that needs a person: re-scored under the current suite with no score of record; resolved on the run", async ({ page }) => {
+    await patchState(page, (s) => {
+      const r = rowOf(s, SWIFT, "v2-r6"); r.scores = {}; r.rescores = [SUITE];
+      r.finalize = { rescore: "failed", reason: "no browser", version: SUITE, packRef: SUITE, at: "", needsPerson: true, attempts: null, lastAttemptAt: "" };
+    });
     await open(page);
     await expect(need(page, "rescoreFault")).toContainText(`3.8-swift-1.5/27b llamacpp v2-r6 was re-scored under ${SUITE}, but the re-score gave no score of record`);
     await expect(need(page, "unscored")).not.toContainText("v2-r6");
     await expect(need(page, "rescoreFault").locator("a.resolve")).toHaveAttribute("href", runHref(SWIFT, "v2-r6"));
-  });
-
-  test("accounting: each failing story a link to its story run, its problems on hover", async ({ page }) => {
-    await patchState(page);
-    await open(page);
-    const n = need(page, "accounting");
-    await expect(n).toContainText("3.8-swift-1.5/27b llamacpp v2-r1: the time accounting failed its checks on story 1");
-    await n.locator("a.story-run-link").hover();
-    await expect(tip(page)).toHaveText("Tool call t9 has no end in the log, so its time was counted up to the agent's next step.");
-    await n.locator("a.resolve").click();
-    await expect(page).toHaveURL(new RegExp(`${storyRunHref(SWIFT, "v2-r1", "1").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
   });
 });
 
@@ -361,12 +358,13 @@ test.describe("needs you: scope", () => {
     await open(page);
     await page.getByLabel("Version").selectOption("vidi-v1");
     await expect(need(page, "unscored")).toHaveCount(0);
-    await expect(need(page, "accounting")).toHaveCount(0);
     await expect(need(page, "idle")).toHaveCount(1);
   });
 
-  test("with every version shown, a v1 run is not called unscored: this suite can't score another spec", async ({ page }) => {
-    await patchState(page);
+  test("with every version shown, a v1 run is not called unscored, even one the harness says needs a person: this suite can't score another spec", async ({ page }) => {
+    await patchState(page, (s) => {
+      rowOf(s, SWIFT, "canvas-s-01").finalize = { rescore: "failed", reason: "no browser", version: "vidi-v1.1", packRef: "vidi-v1.1", at: "", needsPerson: true, attempts: null, lastAttemptAt: "" };
+    });
     await open(page);
     await page.getByLabel("Version").selectOption("all");
     await expect(need(page, "unscored")).toHaveCount(1);
@@ -378,7 +376,7 @@ test.describe("needs you: scope", () => {
     await open(page);
     const filter = page.getByRole("group", { name: "Status" });
     await filter.getByRole("button", { name: /^finished/ }).click();
-    await expect(need(page, "unscored")).toContainText("v2-r7");
+    await expect(need(page, "unscored")).toContainText("v2-r1");
     await expect(page.getByRole("table", { name: "Combinations" }).locator(`tr[data-stack="${OPUS}"]`)).toContainText("not ranked");
   });
 });
@@ -460,7 +458,7 @@ test.describe("the Combinations table", () => {
     await patchState(page);
     await open(page);
     const t = overview(page).getByRole("table", { name: "Combinations" });
-    expect(await t.locator("tbody tr").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.stack))).toEqual([OPUS, SWIFT, QWEN_27B, MLX]);
+    expect(await t.locator("tbody tr").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.stack))).toEqual([OPUS, SWIFT, QWEN_27B, VK, MLX]);
     await t.locator(`tr[data-stack="${SWIFT}"] a.combination-link`).click();
     await expect(page.locator('[data-page="combination"]')).toBeVisible();
   });
@@ -483,7 +481,6 @@ test.describe("the glossary: every heading and tag explains itself", () => {
     await expect(now(page).locator("h2 .term")).toHaveAttribute("data-tip", GLOSSARY.now.what);
     await expect(need(page, "idle").locator(".need-tag")).toHaveAttribute("data-tip", GLOSSARY.needIdle.what);
     await expect(need(page, "unscored").locator(".need-tag")).toHaveAttribute("data-tip", GLOSSARY.needUnscored.what);
-    await expect(need(page, "accounting").locator(".need-tag")).toHaveAttribute("data-tip", GLOSSARY.needAccounting.what);
     await expect(now(page).locator("thead th").last()).toHaveAttribute("data-tip", GLOSSARY.queue.what);
     await expect(nowRow(page, "node-a").locator(".now-min")).toHaveAttribute("data-tip", GLOSSARY.storyMinutes.what);
   });
@@ -515,7 +512,7 @@ test.describe("keyboard", () => {
     await expect(copy).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(n.getByRole("button", { name: "Copied" })).toBeVisible();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`uv run finalize.py ../../../${dirOf("v2-r7")} --pack benchmarks/vidi --record`);
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`uv run finalize.py ../../../${dirOf("v2-r1", VK)} --pack benchmarks/vidi --record`);
     await page.keyboard.press("Tab");
     await expect(n.locator("a.resolve")).toBeFocused();
   });
@@ -526,7 +523,7 @@ test.describe("at 1000 px", () => {
   test("no sideways scroll; every need, Now row and the ranking fit the page", async ({ page }) => {
     await patchState(page, (s) => {
       const l = rowOf(s, SWIFT, "v2-r1").live!; l.agentMinutes = 4; l.storyStartedAt = s.now - 2 * HOUR;
-      failCheck(s, "v2-r5", "1", WAITS_TWICE); failCheck(s, "v2-r5", "2", CLOCK_OFF, true);  // a long command, and both groups
+      setNeedsPerson(s, SWIFT, "v2-r7", true);  // two long commands
     });
     await open(page);
     await expect(needs(page).locator("code.need-command")).toHaveCount(2);

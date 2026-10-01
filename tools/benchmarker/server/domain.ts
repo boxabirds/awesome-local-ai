@@ -80,13 +80,22 @@ export interface RunRecord extends RunRef {
 
 const text = (x: unknown) => (typeof x === "string" ? x.trim() : "");
 
-/** finalize.json as finalize.py writes it: {"rescore": "skipped", "reason", "version", "pack_ref", "at"}. Null for no
- * record, or one that doesn't say how the re-score ended: nothing is made of a record that can't be read. */
+/** A final re-score has been tried at least once when the harness counts its attempts. */
+const FIRST_ATTEMPT = 1;
+const attemptCount = (x: unknown) => (typeof x === "number" && Number.isInteger(x) && x >= FIRST_ATTEMPT ? x : null);
+
+/** finalize.json as finalize.py writes it: {"rescore": "skipped", "reason", "version", "pack_ref", "at"}, and, since the
+ * harness retries a final re-score by itself, {"needs_person", "attempts", "last_attempt_at"}. Null for no record, or
+ * one that doesn't say how the re-score ended: nothing is made of a record that can't be read. A record that doesn't
+ * say whether a person is needed says nothing (null): only the harness's own `true` asks for one. */
 export function parseFinalize(raw: unknown): Finalize | null {
   if (typeof raw !== "object" || raw === null) return null;
-  const o = raw as { rescore?: unknown; reason?: unknown; version?: unknown; pack_ref?: unknown; at?: unknown };
+  const o = raw as { rescore?: unknown; reason?: unknown; version?: unknown; pack_ref?: unknown; at?: unknown; needs_person?: unknown; attempts?: unknown; last_attempt_at?: unknown };
   if (!FINAL_RESCORES.includes(o.rescore as FinalRescore)) return null;
-  return { rescore: o.rescore as FinalRescore, reason: text(o.reason), version: text(o.version), packRef: text(o.pack_ref), at: text(o.at) };
+  return {
+    rescore: o.rescore as FinalRescore, reason: text(o.reason), version: text(o.version), packRef: text(o.pack_ref), at: text(o.at),
+    needsPerson: typeof o.needs_person === "boolean" ? o.needs_person : null, attempts: attemptCount(o.attempts), lastAttemptAt: text(o.last_attempt_at),
+  };
 }
 
 /** accounting.py's own version line: "VERSION = 3   # bump when the calculation changes". */

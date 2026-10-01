@@ -803,7 +803,10 @@
         "reason": "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1",
         "version": "vidi-v2.0-pre1+28ace8b",
         "packRef": "vidi-v2.0-pre1",
-        "at": "2026-09-27T09:00:00Z"
+        "at": "2026-09-27T09:00:00Z",
+        "needsPerson": null,
+        "attempts": null,
+        "lastAttemptAt": ""
       },
       "packVersion": "vidi-v2.0-pre0",
       "state": "finished",
@@ -1333,6 +1336,56 @@
           "text": "story ended by the operator at its cap"
         }
       ]
+    },
+    {
+      "pack": "vidi",
+      "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi",
+      "runId": "v2-r1",
+      "client": "pi",
+      "dir": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/benchmarks/vidi/v2-r1",
+      "rescores": [],
+      "hasBundle": true,
+      "finalize": {
+        "rescore": "failed",
+        "reason": "the app's build failed in the re-score (exit 1) but passed where the agent worked, on the same commit",
+        "version": "vidi-v2.0-pre1",
+        "packRef": "vidi-v2.0-pre1",
+        "at": "2026-09-28T09:00:00Z",
+        "needsPerson": true,
+        "attempts": 3,
+        "lastAttemptAt": "2026-09-29T07:30:00Z"
+      },
+      "packVersion": "vidi-v2.0-pre1",
+      "state": "finished",
+      "stateAt": "2026-09-28T09:00:00Z",
+      "stories": [],
+      "scores": {},
+      "host": "AMD Ryzen AI Max+ 395 128GB"
+    },
+    {
+      "pack": "vidi",
+      "stack": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi",
+      "runId": "v2-r2",
+      "client": "pi",
+      "dir": "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/benchmarks/vidi/v2-r2",
+      "rescores": [],
+      "hasBundle": true,
+      "finalize": {
+        "rescore": "skipped",
+        "reason": "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1",
+        "version": "vidi-v2.0-pre1+28ace8b",
+        "packRef": "vidi-v2.0-pre1",
+        "at": "2026-09-29T09:00:00Z",
+        "needsPerson": false,
+        "attempts": 2,
+        "lastAttemptAt": "2026-09-29T12:00:00Z"
+      },
+      "packVersion": "vidi-v2.0-pre1",
+      "state": "finished",
+      "stateAt": "2026-09-29T09:00:00Z",
+      "stories": [],
+      "scores": {},
+      "host": "AMD Ryzen AI Max+ 395 128GB"
     }
   ],
   "jobs": {

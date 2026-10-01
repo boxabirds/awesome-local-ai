@@ -3,6 +3,7 @@
 import type { Row, RunStatus } from "../../../shared/types.ts";
 import { machineHistory, type VersionGroup } from "../../../shared/overviewView.ts";
 import { scoreOfRecord, unscoredReason } from "../../../shared/stats.ts";
+import { finalScoreNote } from "../../../shared/finalScore.ts";
 import { interventionsOf, scoreOfRecord as recordView, squareTip } from "../../../shared/runView.ts";
 import { InterventionMark, InvalidTag } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
@@ -13,7 +14,11 @@ import { StatusBadge } from "../run/RunHeader.tsx";
 
 /** Why a run has no score of record, in words. */
 function noScoreWhy(r: Row): string {
-  if (r.status === "finished") return r.rescores.includes(r.suite) ? `Re-scored under ${r.suite}, but the re-score gave no score of record.` : `Finished, but ${unscoredReason(r)}.`;
+  if (r.status === "finished") {
+    const why = r.rescores.includes(r.suite) ? `Re-scored under ${r.suite}, but the re-score gave no score of record.` : `Finished, but ${unscoredReason(r)}.`;
+    const note = finalScoreNote(r);
+    return note ? `${why} ${note}` : why;
+  }
   const v = recordView(r);
   return v.kind === "none" ? v.why : "No score of record.";
 }

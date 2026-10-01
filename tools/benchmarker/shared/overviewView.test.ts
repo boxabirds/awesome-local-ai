@@ -2,7 +2,7 @@
 // absence and missing data; the "now" line for every machine state; a machine's jobs; and its history grouped
 // across packs and versions. Each dimension's cases cover every value it can take.
 import { describe, expect, it } from "vitest";
-import type { JobRef, Live, Machine, Row, RunStatus, Score, Story, TimeSplit, Usage } from "./types.ts";
+import type { Finalize, JobRef, Live, Machine, Row, RunStatus, Score, Story, TimeSplit, Usage } from "./types.ts";
 import {
   NEED_KINDS, RECENT_END_S, SILENT_MINUTES, endedAt, jobEndedAt, jobPlace, machineHistory, machineJobs, needsYou, nowLines,
   runningStory, silentMinutes, subject, suiteFamily, type Need, type Reachability,
@@ -173,107 +173,96 @@ describe("needs you", () => {
     });
   });
 
-  describe("a finished run with no score of record: not scored, or a re-score fault", () => {
-    it("not scored: never re-scored under the current suite, with why", () => {
-      expect(needs({ rows: [row({ rescores: [], scores: {} })] })).toMatchObject([{ kind: "unscored", why: `not re-scored under ${SUITE} yet` }]);
+  // The harness's final re-score is retried by itself; its finalize.json says when a person is needed (needs_person).
+  // Only then is a finished run with no score of record listed: otherwise its own pages say the score is pending.
+  const fin = (over: Partial<Finalize> = {}): Finalize => ({
+    rescore: "skipped", reason: "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1", version: "vidi-v2.0-pre1+28ace8b", packRef: SUITE,
+    at: "2026-10-01T08:25:57Z", needsPerson: null, attempts: null, lastAttemptAt: "", ...over,
+  });
+  const PERSON = fin({ rescore: "failed", reason: "no browser", needsPerson: true, attempts: 3 });
+  const scoring = (ns: Need[]) => ns.filter((n) => n.kind === "unscored" || n.kind === "rescoreFault");
+
+  describe("a finished run with no score of record: listed only when the harness says a person is needed", () => {
+    const unscoredRun = { rescores: [], scores: {} };
+    const faultRun = { rescores: [SUITE], scores: {} };
+    it("a person is needed: not scored, with why", () => {
+      expect(needs({ rows: [row({ ...unscoredRun, finalize: PERSON })] })).toMatchObject([{ kind: "unscored", why: `not re-scored under ${SUITE} yet`, finalize: PERSON }]);
     });
-    it("not scored: re-scored only under another suite version, which the reason names", () => {
-      const n = needs({ rows: [row({ rescores: ["vidi-v2.0-pre0"], scores: { "vidi-v2.0-pre0": score(60, 75) } })] });
+    it("a person is needed, re-scored only under another suite version: the reason names it", () => {
+      const n = needs({ rows: [row({ rescores: ["vidi-v2.0-pre0"], scores: { "vidi-v2.0-pre0": score(60, 75) }, finalize: PERSON })] });
       expect(n).toMatchObject([{ kind: "unscored" }]);
       expect((n[0] as Extract<Need, { kind: "unscored" }>).why).toMatch(/only under another suite version \(60\/75 under vidi-v2\.0-pre0\)/);
     });
-    it("a re-score fault: re-scored under the current suite, but it gave no score of record", () => {
-      expect(needs({ rows: [row({ rescores: [SUITE], scores: {} })] })).toMatchObject([{ kind: "rescoreFault", suite: SUITE }]);
+    it("a person is needed, re-scored under the current suite with no score of it: a re-score fault, with the record", () => {
+      expect(needs({ rows: [row({ ...faultRun, finalize: PERSON })] })).toMatchObject([{ kind: "rescoreFault", suite: SUITE, finalize: PERSON }]);
+      expect(kinds(needs({ rows: [row({ rescores: [SUITE], scores: { [SUITE]: score(null, 75) }, finalize: PERSON })] }))).toEqual(["rescoreFault"]);
     });
-    it("a re-score fault: a result with no counts", () => {
-      expect(kinds(needs({ rows: [row({ rescores: [SUITE], scores: { [SUITE]: score(null, 75) } })] }))).toEqual(["rescoreFault"]);
+    it("the harness says no person is needed: nothing is listed (it retries it at the machine's next run)", () => {
+      const f = fin({ needsPerson: false, attempts: 2 });
+      expect(needs({ rows: [row({ ...unscoredRun, finalize: f }), row({ runId: "r2", ...faultRun, finalize: f })] })).toEqual([]);
     });
-    it("the two never fire together for one run", () => {
-      const both = needs({ rows: [row({ rescores: [SUITE], scores: {} })] });
-      expect(kinds(both)).toEqual(["rescoreFault"]);
+    it("the harness says nothing about a person (every record from before it did): nothing is listed", () => {
+      expect(needs({ rows: [row({ ...unscoredRun, finalize: fin() }), row({ runId: "r2", ...faultRun, finalize: fin({ rescore: "failed" }) })] })).toEqual([]);
+    });
+    it("no finalize record at all: nothing is listed", () => {
+      expect(needs({ rows: [row(unscoredRun), row({ runId: "r2", ...faultRun }), row({ runId: "r3", ...unscoredRun, finalize: null })] })).toEqual([]);
     });
     it("a run of an older spec version is not flagged: this suite can't score another spec", () => {
-      expect(needs({ rows: [row({ family: "vidi-v1", packVersion: "vidi-v1.1", rescores: [], scores: {} })] })).toEqual([]);
+      expect(needs({ rows: [row({ family: "vidi-v1", packVersion: "vidi-v1.1", ...unscoredRun, finalize: PERSON })] })).toEqual([]);
     });
     it("a run whose version family is unknown is not flagged either", () => {
-      expect(needs({ rows: [row({ family: "", rescores: [], scores: {} })] })).toEqual([]);
+      expect(needs({ rows: [row({ family: "", ...unscoredRun, finalize: PERSON })] })).toEqual([]);
     });
-    it("a scored run, and runs that haven't finished, are not flagged", () => {
+    it("a scored run, and runs that haven't finished, are not flagged, whatever their finalize record says", () => {
       for (const status of ["running", "queued", "failed", "stopped", "cancelled", "unknown"] as RunStatus[]) {
-        expect(needs({ rows: [row({ status, rescores: [], scores: {} })] }).filter((n) => n.kind === "unscored" || n.kind === "rescoreFault")).toEqual([]);
+        expect(scoring(needs({ rows: [row({ status, ...unscoredRun, finalize: PERSON })] }))).toEqual([]);
       }
-      expect(needs({ rows: [row()] })).toEqual([]);
-    });
-  });
-
-  describe("a story whose accounting check failed", () => {
-    const bad = (id: string) => story(id, { usage: usage({ split: split({ status: "problems", problems: ["parts sum to 590 s of 600 s"] }) }) });
-    const failing = (id: string, problem: string, current: boolean | null = null) => story(id, { usage: usage({ split: split({ status: "problems", problems: [problem], version: 3, current }) }) });
-    const DOUBLE = "wall 13113.4 s differs from the agent's own clock (13111.7 s + 205.8 s between sessions)";
-    const CLOCK = "wall 2352.1 s differs from the agent's own clock (2321.2 s)";
-    it("one line per run, naming each failing story and its problems", () => {
-      expect(needs({ rows: [row({ stories: [bad("1"), story("2"), bad("4")] })] })).toMatchObject([
-        { kind: "accounting", stories: [{ id: "1", problems: ["parts sum to 590 s of 600 s"] }, { id: "4" }] },
-      ]);
-    });
-    it("fires on a running run's recorded stories too", () => {
-      expect(kinds(needs({ rows: [row({ status: "running", scores: {}, rescores: [], stories: [bad("1")] })] }))).toEqual(["accounting"]);
-    });
-    it("not for a check that passed, one never made (unchecked), or a story with no split or usage", () => {
-      expect(needs({ rows: [row({ stories: [
-        story("1"), story("2", { usage: usage({ split: split({ status: "unchecked", problems: [] }) }) }),
-        story("3", { usage: usage({ split: null }) }), story("4", { usage: null }),
-      ] })] })).toEqual([]);
-    });
-    it("each failing story says which accounting made its record, for the advice", () => {
-      const n = needs({ rows: [row({ stories: [failing("4", DOUBLE, true), failing("5", CLOCK, false), bad("9")] })] });
-      expect(n).toMatchObject([{ kind: "accounting", stories: [
-        { id: "4", problems: [DOUBLE], version: 3, current: true }, { id: "5", problems: [CLOCK], version: 3, current: false }, { id: "9", version: null, current: null },
-      ] }]);
-    });
-    it("a need's run says where its record is and whether it is still going, for the advice", () => {
-      const [n] = needs({ rows: [row({ status: "running", dir: "some/dir", scores: {}, rescores: [], stories: [bad("1")] })] });
-      expect((n as Extract<Need, { kind: "accounting" }>).run).toMatchObject({ dir: "some/dir", status: "running" });
-    });
-  });
-
-  describe("a finished run with no score of record carries what its final re-score recorded", () => {
-    const SKIPPED = { rescore: "skipped" as const, reason: "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1", version: "vidi-v2.0-pre1+28ace8b", packRef: SUITE, at: "2026-10-01T08:25:57Z" };
-    it("not scored: its finalize record, or null when it has none", () => {
-      expect(needs({ rows: [row({ rescores: [], scores: {}, finalize: SKIPPED })] })).toMatchObject([{ kind: "unscored", finalize: SKIPPED }]);
-      expect(needs({ rows: [row({ rescores: [], scores: {} })] })).toMatchObject([{ kind: "unscored", finalize: null }]);
+      expect(needs({ rows: [row({ finalize: PERSON })] })).toEqual([]);
     });
     it("both say whether the run's machine is running a job now: a re-score there would share it", () => {
-      const rows = [row({ runId: "u", rescores: [], scores: {} }), row({ runId: "f", rescores: [SUITE], scores: {} })];
+      const rows = [row({ runId: "u", ...unscoredRun, finalize: PERSON }), row({ runId: "f", ...faultRun, finalize: PERSON })];
       expect(needs({ rows, machines: [busy("node-a")] })).toMatchObject([{ kind: "rescoreFault", machineBusy: true }, { kind: "unscored", machineBusy: true }]);
       expect(needs({ rows, machines: [machine("node-a", { queued: 1 }), busy("node-b")] })).toMatchObject([{ machineBusy: false }, { machineBusy: false }]);
       expect(needs({ rows })).toMatchObject([{ machineBusy: false }, { machineBusy: false }]);
     });
     it("a re-score fault: whether its record has a bundle to re-score from", () => {
-      expect(needs({ rows: [row({ rescores: [SUITE], scores: {}, hasBundle: true })] })).toMatchObject([{ kind: "rescoreFault", hasBundle: true }]);
-      expect(needs({ rows: [row({ rescores: [SUITE], scores: {} })] })).toMatchObject([{ kind: "rescoreFault", hasBundle: false }]);
+      expect(needs({ rows: [row({ ...faultRun, hasBundle: true, finalize: PERSON })] })).toMatchObject([{ kind: "rescoreFault", hasBundle: true }]);
+      expect(needs({ rows: [row({ ...faultRun, finalize: PERSON })] })).toMatchObject([{ kind: "rescoreFault", hasBundle: false }]);
+    });
+  });
+
+  // A failed accounting check makes a story's time figures doubtful, and nobody has to do anything about it on the
+  // Overview: the harness recomputes its records by itself. It is said on the story run's, run's and combination's
+  // pages (shared/accountingView.ts), where the time figures are read.
+  describe("a story whose accounting check failed is never listed", () => {
+    const bad = (id: string, current: boolean | null = null) => story(id, { usage: usage({ split: split({ status: "problems", problems: ["wall 2352.1 s differs from the agent's own clock (2321.2 s)"], version: 3, current }) }) });
+    it.each(["finished", "running", "failed", "stopped"] as RunStatus[])("in a %s run", (status) => {
+      expect(needs({ rows: [row({ status, stateAt: "", stories: [bad("1"), story("2"), bad("4", true), bad("5", false)] })] })).toEqual([]);
+    });
+    it("no kind of need is about accounting", () => {
+      expect(NEED_KINDS).not.toContain("accounting");
     });
   });
 
   describe("order", () => {
-    it("by kind: what wastes a machine first, then what blocks a result, then doubtful numbers", () => {
-      expect(NEED_KINDS).toEqual(["silent", "unreachable", "ended", "idle", "rescoreFault", "unscored", "accounting"]);
+    it("by kind: what wastes a machine first, then what blocks a result", () => {
+      expect(NEED_KINDS).toEqual(["silent", "unreachable", "ended", "idle", "rescoreFault", "unscored"]);
       const all = [running(120, 5)];
       const rows = [
-        row({ runId: "u", rescores: [], scores: {} }),
+        row({ runId: "u", rescores: [], scores: {}, finalize: PERSON }),
         row({ runId: "f", status: "failed", scores: {}, rescores: [], jobs: [job("j", "failed", NOW)] }),
         row({ runId: "a", stories: [story("1", { usage: usage({ split: split({ status: "problems", problems: ["x"] }) }) })] }),
-        row({ runId: "r", rescores: [SUITE], scores: {} }),
+        row({ runId: "r", rescores: [SUITE], scores: {}, finalize: PERSON }),
       ];
       const reach: Reachability = { down: { ok: false }, "node-d": { ok: true } };
-      expect(kinds(needs({ rows, all, machines: [machine("node-d")], reach }))).toEqual(["silent", "unreachable", "ended", "idle", "rescoreFault", "unscored", "accounting"]);
+      expect(kinds(needs({ rows, all, machines: [machine("node-d")], reach }))).toEqual(["silent", "unreachable", "ended", "idle", "rescoreFault", "unscored"]);
     });
     it("within a kind, by what it is about, numbers in order", () => {
       const n = needs({ machines: [machine("node-10"), machine("node-9"), machine("alpha")] });
       expect(n.map(subject)).toEqual(["alpha", "node-9", "node-10"]);
     });
     it("every need has its own key", () => {
-      const n = needs({ rows: [row({ runId: "a", rescores: [], scores: {} }), row({ runId: "b", rescores: [], scores: {} })], machines: [machine("x"), machine("y")] });
+      const n = needs({ rows: [row({ runId: "a", rescores: [], scores: {}, finalize: PERSON }), row({ runId: "b", rescores: [], scores: {}, finalize: PERSON })], machines: [machine("x"), machine("y")] });
       expect(new Set(n.map((x) => x.key)).size).toBe(n.length);
     });
   });
@@ -428,21 +417,19 @@ describe("when a machine's job ended", () => {
 describe("an invalid run needs nothing from you: it is left out", () => {
   const INVALID = { reason: "read the reference build in story 7", since: "2026-09-30" };
   const bad = (over: Partial<Row>) => row({ invalid: INVALID, ...over });
-  it("not unscored, not a re-score fault", () => {
-    expect(needs({ rows: [bad({ rescores: [], scores: {} })] })).toEqual([]);
-    expect(needs({ rows: [bad({ rescores: [SUITE], scores: {} })] })).toEqual([]);
+  const PERSON: Finalize = { rescore: "failed", reason: "no browser", version: SUITE, packRef: SUITE, at: "", needsPerson: true, attempts: null, lastAttemptAt: "" };
+  it("not unscored, not a re-score fault, even when the harness says a person is needed", () => {
+    expect(needs({ rows: [bad({ rescores: [], scores: {}, finalize: PERSON })] })).toEqual([]);
+    expect(needs({ rows: [bad({ rescores: [SUITE], scores: {}, finalize: PERSON })] })).toEqual([]);
   });
   it("not a failure or stop from the last day", () => {
     expect(needs({ rows: [bad({ status: "failed", scores: {}, rescores: [], jobs: [job("j", "failed", NOW - 60)] })] })).toEqual([]);
-  });
-  it("not an accounting problem", () => {
-    expect(needs({ rows: [bad({ stories: [story("1", { usage: usage({ split: split({ status: "problems", problems: ["x"] }) }) })] })] })).toEqual([]);
   });
   it("not a silent story", () => {
     expect(needs({ all: [{ ...running(120, 5), invalid: INVALID }] })).toEqual([]);
   });
   it("the same run without the mark does need you (the control)", () => {
-    expect(kinds(needs({ rows: [row({ rescores: [], scores: {} })] }))).toEqual(["unscored"]);
+    expect(kinds(needs({ rows: [row({ rescores: [], scores: {}, finalize: PERSON })] }))).toEqual(["unscored"]);
   });
   it("its machine is still judged as a machine: busy with it is not idle", () => {
     expect(needs({ machines: [busy("node-a")], all: [{ ...running(1, 1), invalid: INVALID }] })).toEqual([]);
