@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# run-checks.sh: it refuses to start while the Mac is benchmarking (unless --even-if-busy), and end to end against a
-# fake `tensorfold` (tests/fake_server.py behind TensorFold's startup lines) it installs nothing, starts the server,
-# runs checks 1 and 2, stops the server by its PID, and prints PASS/FAIL with the evidence and the check-3 command.
-# pgrep, ps, uname and dbench's job files are stand-ins; no network, nothing installed outside a temp dir.
+# run-checks.sh has two phases. Prepare (install the pinned TensorFold, fetch the pinned checkpoint, render pi's
+# requests) uses only disk and network, so it runs whatever busy.sh says: `--prepare-only` stops after it, and with
+# no option on a busy Mac it is done and then the script exits 3 with the checks waiting for the machine. The checks
+# (start the server, checks 1 and 2, stop it, verdict) are refused while the Mac is benchmarking unless
+# --even-if-busy. End to end against a fake `tensorfold` (tests/fake_server.py behind TensorFold's startup lines) it
+# starts the server, runs checks 1 and 2, stops the server by its PID, and prints PASS/FAIL with the evidence and the
+# check-3 command. pgrep, ps, uname, df, uv, hf, the sha256 tools and dbench's job files are stand-ins; no network,
+# nothing installed outside a temp dir.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TFC="$(cd "$HERE/.." && pwd)"
@@ -57,25 +61,157 @@ printf '#!/usr/bin/env bash\n[[ "${1:-}" == --version ]] && { echo "tensorfold 0
 chmod +x "$WORK/bin/tensorfold-dies"
 runs() { ls "$WORK/runs" 2>/dev/null | grep -c . || true; }
 
-echo "busy: refuses while the Mac is benchmarking"
-drive PGREP_OUT="4242 python3 drive.py --pack benchmarks/vidi" /bin/bash "$DRIVER"
-assert_eq "a running agent (drive.py) -> refused with exit 3" 3 "$?"
+# ---- stand-ins for the prepare phase: they record what they were asked to do --------------------------------------
+PIN_COMMIT="$(bash -c ". '$CFG'; echo \$TENSORFOLD_COMMIT")"
+PIN_PYTHON="$(bash -c ". '$CFG'; echo \$TENSORFOLD_PYTHON")"
+bash -c ". '$CFG'; printf '%s\n' \"\$MODEL_SHA256\"" | grep . > "$WORK/sha.table"
+CALLS="$WORK/calls"; mkdir -p "$CALLS" "$WORK/netstub" "$WORK/pistub"
+# Free space `df` reports unless a test says otherwise: more than any checkpoint.
+PLENTY_FREE_KB=999999999999
+# `uv venv --python V DIR` makes DIR/bin/python, which answers the pinned commit; `uv pip install` puts the fake
+# tensorfold (the one that would start a server) beside it.
+cat > "$WORK/netstub/uv" <<STUB
+#!/usr/bin/env bash
+echo "uv \$*" >> "$CALLS/uv.log"
+if [[ "\$1" == venv ]]; then
+  dir="\${@: -1}"; mkdir -p "\$dir/bin"
+  printf '#!/usr/bin/env bash\necho %s\n' "$PIN_COMMIT" > "\$dir/bin/python"; chmod +x "\$dir/bin/python"
+elif [[ "\$1 \$2" == "pip install" ]]; then
+  cp "$WORK/bin/tensorfold" "\$(dirname "\$4")/tensorfold"
+fi
+exit 0
+STUB
+# `hf download REPO --revision REV --local-dir DIR` writes a complete pack into DIR, or fails when the test has
+# made $CALLS/hf-fails.
+cat > "$WORK/netstub/hf" <<STUB
+#!/usr/bin/env bash
+echo "hf \$*" >> "$CALLS/hf.log"
+[[ "\$1" == download ]] || exit 0
+[[ -e "$CALLS/hf-fails" ]] && { echo "hf: connection reset"; exit 1; }
+dir="\${@: -1}"; mkdir -p "\$dir"
+python3 - "\$dir" "$WORK/sha.table" <<'PY2'
+import json, pathlib, sys
+d = pathlib.Path(sys.argv[1])
+names = [line.split()[1] for line in open(sys.argv[2])]
+for n in names:
+    (d / n).write_text(n)
+for n in ("config.json", "generation_config.json", "chat_template.jinja", "tokenizer_config.json"):
+    (d / n).write_text("{}")
+shards = [n for n in names if n.endswith(".safetensors")]
+(d / "model.safetensors.index.json").write_text(json.dumps({"weight_map": {str(i): n for i, n in enumerate(shards)}}))
+PY2
+STUB
+# The sha256 tools answer the published hash of whichever file they are given.
+cat > "$WORK/netstub/shasum" <<STUB
+#!/usr/bin/env bash
+f="\${@: -1}"
+printf '%s  %s\n' "\$(awk -v n="\$(basename "\$f")" '\$2 == n {print \$1}' "$WORK/sha.table")" "\$f"
+STUB
+cp "$WORK/netstub/shasum" "$WORK/netstub/sha256sum"
+cat > "$WORK/netstub/df" <<STUB
+#!/usr/bin/env bash
+echo "Filesystem 1024-blocks Used Available Capacity Mounted on"
+echo "/dev/fake 0 0 \$(cat "$CALLS/df-free-kb" 2>/dev/null || echo $PLENTY_FREE_KB) 1% /"
+STUB
+# pi and node, for cases that only need to see that the session would be rendered
+printf '#!/usr/bin/env bash\necho "9.9.9"\n' > "$WORK/pistub/pi"
+printf '#!/usr/bin/env bash\necho "node $*" >> "%s/node.log"\n' "$CALLS" > "$WORK/pistub/node"
+chmod +x "$WORK/netstub/"* "$WORK/pistub/"*
+STUB_PATH="$WORK/pistub:$WORK/netstub:$WORK/bin:/usr/bin:/bin:/usr/sbin"
+PREP_HOME="$WORK/prephome"; PREP_STORE="$WORK/prepstore"
+calls() { if [[ -f "$CALLS/$1.log" ]]; then grep -c -- "$2" "$CALLS/$1.log" || true; else echo 0; fi; }
+servers_started() { ls "$WORK"/runs/*/server.pid "$WORK/tensorfold.argv" 2>/dev/null | grep -c . || true; }
+# a Mac with nothing prepared: no TensorFold, no checkpoint
+unprepared() { rm -rf "$PREP_HOME" "$PREP_STORE" "$CALLS"/* "$WORK/runs" "$WORK/tensorfold.argv"; mkdir -p "$PREP_HOME"; }
+prep() { # env... -- [driver args]: the driver where install and download are the stand-ins
+  drive PATH="$STUB_PATH" HOME="$PREP_HOME" TENSORFOLD_BIN= TENSORFOLD_MODEL_STORE="$PREP_STORE" "$@"
+}
+BUSY_AGENT="4242 python3 drive.py --pack benchmarks/vidi"
+
+echo "busy, no option: it prepares, then the checks wait for the machine"
+unprepared
+prep PGREP_OUT="$BUSY_AGENT" /bin/bash "$DRIVER"
+assert_eq "a running agent (drive.py) -> exit 3" 3 "$?"
+assert_ok "...saying the checks are waiting for the machine" grep -q 'checks themselves are waiting for the machine' "$WORK/out"
+assert_ok "...naming what it is busy with" grep -q 'drive.py' "$WORK/out"
+assert_eq "TensorFold was installed at the pinned commit meanwhile" 1 "$(calls uv "^uv pip install .*@$PIN_COMMIT\$")"
+assert_eq "...in a venv of the pinned Python" 1 "$(calls uv "^uv venv --python $PIN_PYTHON ")"
+assert_eq "the checkpoint was downloaded at the pinned revision" 1 "$(calls hf "^hf download $REPO_ID --revision $REV ")"
+assert_ok "...and verified" test -f "$PREP_STORE/$REPO_ID/.awesome-local-ai-verified"
+assert_eq "pi's requests were rendered" 1 "$(calls node 'capture_pi_requests.mjs')"
+assert_eq "no server was started" 0 "$(servers_started)"
+
+echo
+echo "busy, --prepare-only: the same work, and that is all it was asked for"
+unprepared
+prep PGREP_OUT="$BUSY_AGENT" /bin/bash "$DRIVER" --prepare-only
+assert_eq "exit 0" 0 "$?"
+assert_eq "TensorFold was installed" 1 "$(calls uv '^uv pip install ')"
+assert_eq "the checkpoint was downloaded" 1 "$(calls hf '^hf download ')"
+assert_eq "pi's requests were rendered" 1 "$(calls node 'capture_pi_requests.mjs')"
+assert_eq "no server was started" 0 "$(servers_started)"
+assert_ok "it says the checks are still to run" grep -q 'Prepared' "$WORK/out"
+assert_fails "...without calling the machine busy" grep -q 'drive.py' "$WORK/out"
+prep PGREP_OUT="$BUSY_AGENT" /bin/bash "$DRIVER" --prepare-only
+assert_eq "again, everything already there: exit 0" 0 "$?"
+assert_eq "...nothing installed a second time" 1 "$(calls uv '^uv pip install ')"
+assert_eq "...nothing downloaded a second time" 1 "$(calls hf '^hf download ')"
+assert_eq "...still no server" 0 "$(servers_started)"
+
+echo
+echo "idle, --prepare-only: it stops before the server"
+unprepared
+prep /bin/bash "$DRIVER" --prepare-only
+assert_eq "exit 0" 0 "$?"
+assert_eq "TensorFold was installed" 1 "$(calls uv '^uv pip install ')"
+assert_eq "the checkpoint was downloaded" 1 "$(calls hf '^hf download ')"
+assert_eq "no server was started" 0 "$(servers_started)"
+
+echo
+echo "a download that fails"
+unprepared; touch "$CALLS/hf-fails"
+prep /bin/bash "$DRIVER"
+assert_eq "idle, no option -> exit 2 (could not run the checks)" 2 "$?"
+assert_eq "...the download was tried" 1 "$(calls hf '^hf download ')"
+assert_ok "...and it says the weights could not be fetched" grep -q 'could not install TensorFold or fetch the weights' "$WORK/out"
+assert_eq "...and no server was started" 0 "$(servers_started)"
+prep PGREP_OUT="$BUSY_AGENT" /bin/bash "$DRIVER"
+assert_eq "busy, no option -> exit 2, not 3: there is nothing to wait for yet" 2 "$?"
+prep PGREP_OUT="$BUSY_AGENT" /bin/bash "$DRIVER" --prepare-only
+assert_eq "--prepare-only -> exit 2" 2 "$?"
+assert_eq "...and no server was started" 0 "$(servers_started)"
+
+echo
+echo "not enough disk for the checkpoint"
+unprepared; echo 1 > "$CALLS/df-free-kb"
+prep PGREP_OUT="$BUSY_AGENT" /bin/bash "$DRIVER" --prepare-only
+assert_eq "-> exit 2" 2 "$?"
+assert_ok "...for the disk reason" grep -q 'Not enough disk' "$WORK/out"
+assert_eq "...before any download" 0 "$(calls hf '^hf download ')"
+unprepared
+
+echo
+echo "what counts as busy (everything already prepared)"
+ready() { drive PATH="$WORK/pistub:$WORK/bin:/usr/bin:/bin:/usr/sbin" "$@"; }
+ready /bin/bash "$DRIVER" --help
+assert_ok "--help describes --prepare-only" grep -q -- '--prepare-only' "$WORK/out"
+ready PGREP_OUT="$BUSY_AGENT" /bin/bash "$DRIVER"
+assert_eq "a running agent (drive.py) -> the checks wait, exit 3" 3 "$?"
 assert_ok "...naming it" grep -q 'drive.py' "$WORK/out"
-assert_eq "...before anything is installed or started" 0 "$(runs)"
-assert_fails "...no server was started" test -f "$WORK/tensorfold.argv"
+assert_eq "...no server was started" 0 "$(servers_started)"
 
 echo '{"id":"canvas-mlx-07","state":{"status":"running","pid":1,"pgid":1,"attempt":1,"started_at":0}}' > "$WORK/dbench/jobs/canvas-mlx-07.json"
-drive /bin/bash "$DRIVER"
-assert_eq "a running dbench job -> refused" 3 "$?"
+ready /bin/bash "$DRIVER"
+assert_eq "a running dbench job -> the checks wait" 3 "$?"
 assert_ok "...naming the job" grep -q 'canvas-mlx-07' "$WORK/out"
 rm "$WORK/dbench/jobs/canvas-mlx-07.json"
 
 echo '{"id":"canvas-mlx-08","state":{"status":"queued"}}' > "$WORK/dbench/jobs/canvas-mlx-08.json"
-drive /bin/bash "$DRIVER"
-assert_eq "a queued dbench job on a node that is not held -> refused (it would start mid-check)" 3 "$?"
+ready /bin/bash "$DRIVER"
+assert_eq "a queued dbench job on a node that is not held -> the checks wait (it would start mid-check)" 3 "$?"
 assert_ok "...saying to hold the node" grep -q 'hold' "$WORK/out"
 echo '{"reason":"tensorfold checks","by":"x","at":0}' > "$WORK/dbench/hold.json"
-drive TENSORFOLD_BIN="$WORK/bin/tensorfold-dies" /bin/bash "$DRIVER" --port "$(free_port)"
+ready TENSORFOLD_BIN="$WORK/bin/tensorfold-dies" /bin/bash "$DRIVER" --port "$(free_port)"
 rc=$?
 assert_ok "...but not once the node is held (it goes on, here to a server that dies)" test "$rc" -ne 3
 assert_fails "...and does not mention the queued job" grep -q 'canvas-mlx-08' "$WORK/out"
@@ -83,15 +219,28 @@ rm -rf "$WORK/runs"
 rm "$WORK/dbench/jobs/canvas-mlx-08.json" "$WORK/dbench/hold.json"
 echo '{"id":"old","state":{"status":"done","exit_code":0}}' > "$WORK/dbench/jobs/old.json"
 
-drive PS_OUT="  555 /x/mlx-serve --model m --serve --port 18010" /bin/bash "$DRIVER"
-assert_eq "a model server already running -> refused" 3 "$?"
+ready PS_OUT="  555 /x/mlx-serve --model m --serve --port 18010" /bin/bash "$DRIVER"
+assert_eq "a model server already running -> the checks wait" 3 "$?"
 assert_ok "...naming it" grep -q 'mlx-serve' "$WORK/out"
-assert_eq "still nothing started" 0 "$(runs)"
+assert_eq "still no server started" 0 "$(servers_started)"
+rm -rf "$WORK/runs"
 
 if ! command -v pi >/dev/null || ! command -v node >/dev/null; then
   echo "  skip end-to-end runs: pi and node are needed to capture pi's requests"
   finish; exit
 fi
+
+echo
+echo "busy, --prepare-only, with the real pi: the requests are rendered beside a benchmark"
+drive PGREP_OUT="$BUSY_AGENT" /bin/bash "$DRIVER" --prepare-only
+assert_eq "exit 0" 0 "$?"
+RUN="$WORK/runs/$(ls "$WORK/runs" | head -1)"
+assert_ok "pi's requests are in the run folder" test -s "$RUN/bodies/index.json"
+assert_eq "no server was started" 0 "$(servers_started)"
+SECONDS=0
+drive PGREP_OUT="$BUSY_AGENT" /bin/bash "$DRIVER" --prepare-only
+echo "  (prepare with everything already there: ${SECONDS}s)"
+rm -rf "$WORK/runs"
 
 echo
 echo "end to end, against a fake TensorFold that keeps its cache"
