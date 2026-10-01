@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { State } from "../../shared/types.ts";
 import { ago } from "../format.ts";
+import { useHeightVar } from "../useHeightVar.ts";
 
 interface Props {
   state: State;
@@ -19,8 +20,9 @@ interface Props {
 export function Header({ state, serverNow, packs, pack, families, family, currentFamily, onPack, onFamily, children }: Props) {
   const since = (t: number) => (t && serverNow !== null ? serverNow - t : null);
   const errors = [state.fetchError ? `git: ${state.fetchError}` : "", state.dbenchError ? `dbench: ${state.dbenchError}` : ""].filter(Boolean);
+  const bar = useHeightVar<HTMLElement>("--header-h");
   return (
-    <header>
+    <header ref={bar}>
       <h1>Benchmarker</h1>
       <label>
         Pack{" "}

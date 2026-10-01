@@ -7,7 +7,9 @@
   h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 6px; }
 
   /* Header */
-  .combo-page-head { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+  /* A header inside the page, not the app's top bar: it scrolls with the page (styles.css pins every `header`). */
+  .combo-page-head { position: static;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
                      display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 24px; align-items: start; }
   .combo-title h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
   .combo-id { display: block; font-size: 12px; color: var(--muted); margin: 2px 0 6px; overflow-wrap: anywhere; }

@@ -5,7 +5,7 @@
 // The rules are the combination page's, reused, not copied: a story run's value on a measure (metricValue), the median
 // over the combination's finished runs (as storyMedians), the divergence rule (divergence), run order (runOrder), and
 // the mechanism behind a flag (classifyMechanism against the story's other runs in the combination).
-import type { Row, Story, StorySquare, Usage } from "./types.ts";
+import type { Row, RunStatus, Story, StorySquare, Usage } from "./types.ts";
 import type { TermId } from "./glossary.ts";
 import { isInvalid, spread, type Spread } from "./stats.ts";
 import {
@@ -233,6 +233,80 @@ export function storyPage(runs: Row[], id: string): StoryPageView {
     storyRuns: groups.reduce((t, g) => t + g.entries.length, 0),
     notBuilt: groups.reduce((t, g) => t + g.notBuilt.length, 0),
   };
+}
+
+// ---------- the story across combinations (the story-run page) ----------
+
+/** What a combination can say about the story: a median over its finished runs; recorded, but only by runs that
+ * haven't finished; recorded only by invalid runs; or (this run's own combination alone) not recorded at all. */
+export type AcrossState = "measured" | "unfinished" | "noValid" | "notRecorded";
+
+export interface AcrossRow {
+  stack: string; label: string; pack: string;
+  /** The combination of the story run the page is about. */
+  isThis: boolean;
+  state: AcrossState;
+  /** The story page's summary, as it is: median, range and n per measure over the valid finished runs. */
+  summary: Record<SummaryKey, Summary>;
+  /** Valid finished runs that recorded the story: what the medians are over (a measure's own n can be smaller). */
+  n: number;
+  /** Valid runs that recorded the story but haven't finished (running, failed, stopped), by status: in no median. */
+  unfinished: { status: RunStatus; count: number }[];
+  /** Invalid runs that recorded the story: in no figure. */
+  invalid: number;
+}
+
+export interface AcrossView {
+  /** One row per combination that has recorded the story, and this run's own whatever it has, in the story page's order. */
+  rows: AcrossRow[];
+  /** This story run's own figure on each summarised measure (null where it has none); null when it isn't recorded. */
+  mine: Record<SummaryKey, number | null> | null;
+  story: Story | null;
+  /** One scale for every time bar: the longest agent time among the ranges and this story run's own (never 0). */
+  scaleMinutes: number;
+  /** Other combinations of the pack version with no record of the story yet: left out, and counted. */
+  withoutRecord: number;
+}
+
+const summaryMeasure = (k: SummaryKey) => STORY_MEASURES.find((m) => m.key === k)!;
+
+/** How every combination fares on the story a story run is of: the story page's groups (storyPage: the same medians,
+ * the same order), cut down to the combinations that have recorded it, with this story run's own figures to set
+ * against them. Only runs of the story run's pack and version family count. */
+export function acrossCombinations(run: Row, rows: Row[], id: string): AcrossView {
+  const view = storyPage(rows.filter((r) => r.pack === run.pack && r.family === run.family), id);
+  const all = view.groups.map((g): AcrossRow => {
+    const recorded = g.entries.filter((e) => e.attempt.kind === "recorded").map((e) => e.run);
+    const open = recorded.filter((r) => !isInvalid(r) && r.status !== "finished");
+    const invalid = recorded.filter(isInvalid).length;
+    return {
+      stack: g.stack, label: g.label, pack: g.pack, isThis: g.stack === run.stack, summary: g.summary, n: g.finishedRecorded,
+      state: g.finishedRecorded > 0 ? "measured" : open.length > 0 ? "unfinished" : invalid > 0 ? "noValid" : "notRecorded",
+      unfinished: [...new Set(open.map((r) => r.status))].map((status) => ({ status, count: open.filter((r) => r.status === status).length })),
+      invalid,
+    };
+  });
+  const shown = all.filter((r) => r.isThis || r.state !== "notRecorded");
+  const story = run.stories.find((s) => sameStory(s.id, id)) ?? null;
+  const mine = story && Object.fromEntries(SUMMARY_KEYS.map((k) => [k, summaryMeasure(k).value(story)])) as Record<SummaryKey, number | null>;
+  return {
+    rows: shown, mine, story,
+    scaleMinutes: Math.max(1, mine?.minutes ?? 0, ...shown.map((r) => r.summary.minutes.spread?.max ?? 0)),
+    withoutRecord: all.length - shown.length,
+  };
+}
+
+/** Why a row has no median on a measure (named as the glossary names it, in lower case), for the "—" hover. */
+export function acrossNoMedian(row: AcrossRow, id: string, measure: string): string {
+  const story = `story ${Number(id)}`;
+  switch (row.state) {
+    case "notRecorded": return `No run of this combination has recorded ${story} yet.`;
+    case "noValid":
+      return `No valid runs yet: the ${row.invalid === 1 ? "one run" : `${row.invalid} runs`} of this combination that recorded ${story} ${row.invalid === 1 ? "is" : "are"} invalid, and an invalid run is in no figure.`;
+    case "unfinished":
+      return `No finished run yet: ${story} is recorded only by runs that haven't finished (${row.unfinished.map((u) => `${u.count} ${u.status}`).join(", ")}), and the median is over finished runs, as on the story page.`;
+    case "measured": return `No finished run of this combination recorded its ${measure} for ${story}.`;
+  }
 }
 
 // ---------- the comparison ----------

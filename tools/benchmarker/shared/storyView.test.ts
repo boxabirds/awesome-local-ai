@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  attemptOf, combinationSummary, compareGroups, compareParam, comparisonOf, heldOutTests, parseCompare, relativeTo, sameStory,
+  acrossCombinations, acrossNoMedian, attemptOf, combinationSummary, compareGroups, compareParam, comparisonOf, heldOutTests, parseCompare, relativeTo, sameStory,
   STORY_MEASURES, storyList, storyNeighbours, storyPage, storyTitleOf, SUMMARY_KEYS, type Group,
 } from "./storyView.ts";
 import { DIVERGENCE, MIN_RUNS_FOR_MEDIAN, SPLIT_PARTS, storyMedians } from "./combinationView.ts";
@@ -38,13 +38,13 @@ const mins = (m: number, o: Partial<Usage> = {}) => usage({ agentSeconds: m * MI
 let seq = 0;
 interface RunOpts {
   status?: RunStatus; runId?: string; stack?: string; label?: string; machine?: string;
-  squares?: StorySquare[]; live?: Partial<Live> | null; scope?: number; invalid?: boolean;
+  squares?: StorySquare[]; live?: Partial<Live> | null; scope?: number; invalid?: boolean; pack?: string; family?: string;
 }
 function run(stories: Story[], o: RunOpts = {}): Row {
   const status = o.status ?? "finished";
   const squares = o.squares ?? stories.map((s) => ({ id: s.id, state: "ok" as const, passed: s.ownPassed, total: s.ownTotal }));
   return {
-    pack: "p", stack: o.stack ?? "a/stack", label: o.label ?? "A", runId: o.runId ?? `r${++seq}`, status, suite: "v2", scores: {}, stories,
+    pack: o.pack ?? "p", family: o.family ?? "p-v2", stack: o.stack ?? "a/stack", label: o.label ?? "A", runId: o.runId ?? `r${++seq}`, status, suite: "v2", scores: {}, stories,
     machine: o.machine ?? "m1", host: "Host 1", statusNote: "", stateAt: "",
     storiesWorking: { working: 0, scope: o.scope ?? squares.length, squares },
     live: o.live === undefined ? null : o.live === null ? null : ({ status, currentStory: null, runningStory: null, storyTitle: null, agentMinutes: null, calls: null, outputTokens: null, ...o.live } as Live),
@@ -427,5 +427,165 @@ describe("an invalid run on the story page", () => {
     const plain = set().map((r) => ({ ...r, invalid: null }));
     expect(combinationSummary(plain, "1").minutes.spread?.n).toBe(4);
     expect(storyPage(plain, "1").groups[0].entries.find((e) => e.run.runId === "bad")!.divergence.minutes?.direction).toBe("below");
+  });
+});
+
+// ---------- the story across combinations, for the story-run page ----------
+// MECE by what a row can be: several combinations; only this one; only invalid runs; only unfinished runs; a measure
+// nobody recorded; then the order, this run's own figures and marking, the one scale, and what is left out.
+
+describe("acrossCombinations", () => {
+  const A = { stack: "a/stack", label: "A" }, B = { stack: "b/stack", label: "B" }, C = { stack: "c/stack", label: "C" };
+  const mine = run([story("2", { usage: mins(30, { outTokens: 90000, calls: 300 }), own: [9, 10] })], { ...A, runId: "v2-r1" });
+  const stacks = (v: ReturnType<typeof acrossCombinations>) => v.rows.map((r) => r.stack);
+
+  it("several combinations: one row each, with the story page's own medians and ranges", () => {
+    const rows = [
+      mine, run([story("2", { usage: mins(10), own: [10, 10] })], { ...A, runId: "v2-r2" }),
+      run([story("2", { usage: mins(40), own: [5, 10] })], { ...B, runId: "v2-r1" }),
+      run([story("2", { usage: mins(60), own: [7, 10] })], { ...B, runId: "v2-r2" }),
+    ];
+    const v = acrossCombinations(mine, rows, "2");
+    expect(stacks(v)).toEqual(["a/stack", "b/stack"]);
+    const page = storyPage(rows, "2");
+    for (const r of v.rows) expect(r.summary).toEqual(page.groups.find((g) => g.stack === r.stack)!.summary);
+    const b = v.rows[1];
+    expect(b.state).toBe("measured");
+    expect(b.n).toBe(2);
+    expect(b.summary.minutes.spread).toEqual({ median: 50, min: 40, max: 60, n: 2 });
+    expect(b.summary.heldOut.spread).toEqual({ median: 0.6, min: 0.5, max: 0.7, n: 2 });
+    expect(v.withoutRecord).toBe(0);
+  });
+
+  it("only this combination: its one row, marked", () => {
+    const v = acrossCombinations(mine, [mine], "2");
+    expect(v.rows.map((r) => [r.stack, r.isThis, r.state, r.n])).toEqual([["a/stack", true, "measured", 1]]);
+  });
+
+  it("this run's combination is the only one marked", () => {
+    const v = acrossCombinations(mine, [mine, run([story("2")], B), run([story("2")], C)], "2");
+    expect(v.rows.filter((r) => r.isThis).map((r) => r.stack)).toEqual(["a/stack"]);
+  });
+
+  it("a combination with only invalid runs is kept, with no median and its invalid runs counted", () => {
+    const rows = [mine, run([story("2")], { ...B, invalid: true }), run([story("2")], { ...B, invalid: true })];
+    const b = acrossCombinations(mine, rows, "2").rows.find((r) => r.stack === "b/stack")!;
+    expect([b.state, b.n, b.invalid, b.unfinished]).toEqual(["noValid", 0, 2, []]);
+    for (const k of SUMMARY_KEYS) expect(b.summary[k].spread).toBeNull();
+    expect(acrossNoMedian(b, "2", "agent time")).toBe("No valid runs yet: the 2 runs of this combination that recorded story 2 are invalid, and an invalid run is in no figure.");
+  });
+
+  it("invalid runs are left out of a median beside valid ones, and counted", () => {
+    const rows = [mine, run([story("2", { usage: mins(20) })], B), run([story("2", { usage: mins(200) })], { ...B, invalid: true })];
+    const b = acrossCombinations(mine, rows, "2").rows.find((r) => r.stack === "b/stack")!;
+    expect([b.state, b.n, b.invalid]).toEqual(["measured", 1, 1]);
+    expect(b.summary.minutes.spread).toEqual({ median: 20, min: 20, max: 20, n: 1 });
+  });
+
+  it("a combination whose only run is still running, with the story recorded: kept, no median (medians are over finished runs), the run counted as running", () => {
+    const rows = [mine, run([story("2", { usage: mins(20) })], { ...B, status: "running" })];
+    const b = acrossCombinations(mine, rows, "2").rows.find((r) => r.stack === "b/stack")!;
+    expect([b.state, b.n, b.invalid]).toEqual(["unfinished", 0, 0]);
+    expect(b.unfinished).toEqual([{ status: "running", count: 1 }]);
+    expect(b.summary.minutes.spread).toBeNull();
+    expect(acrossNoMedian(b, "2", "agent time")).toBe("No finished run yet: story 2 is recorded only by runs that haven't finished (1 running), and the median is over finished runs, as on the story page.");
+  });
+
+  it("unfinished runs that recorded the story are counted by status beside the finished ones, and stay out of the median", () => {
+    const rows = [mine, run([story("2", { usage: mins(20) })], B), run([story("2", { usage: mins(90) })], { ...B, status: "running" }), run([story("2", { usage: mins(90) })], { ...B, status: "failed" })];
+    const b = acrossCombinations(mine, rows, "2").rows.find((r) => r.stack === "b/stack")!;
+    expect([b.state, b.n]).toEqual(["measured", 1]);
+    expect(b.unfinished).toEqual([{ status: "running", count: 1 }, { status: "failed", count: 1 }]);
+    expect(b.summary.minutes.spread?.median).toBe(20);
+  });
+
+  it("a running run counts only where the story is recorded: a combination only building or queued for it is left out, and counted", () => {
+    const rows = [
+      mine,
+      run([story("1")], { ...B, status: "running", squares: [sq("1", "ok", 6, 6), sq("2", "running")], live: { runningStory: "2" } }),
+      run([], { ...C, status: "queued", squares: [sq("1", "unbuilt"), sq("2", "unbuilt")] }),
+    ];
+    const v = acrossCombinations(mine, rows, "2");
+    expect(stacks(v)).toEqual(["a/stack"]);
+    expect(v.withoutRecord).toBe(2);
+  });
+
+  it("a measure no finished run recorded is missing, never 0, while the others stand", () => {
+    const rows = [mine, run([story("2", { usage: null, own: [9, 10] })], B)];
+    const b = acrossCombinations(mine, rows, "2").rows.find((r) => r.stack === "b/stack")!;
+    expect(b.state).toBe("measured");
+    expect(b.summary.heldOut.spread).toEqual({ median: 0.9, min: 0.9, max: 0.9, n: 1 });
+    expect(b.summary.minutes.spread).toBeNull();
+    expect(b.summary.outTokens.spread).toBeNull();
+    expect(acrossNoMedian(b, "2", "agent time")).toBe("No finished run of this combination recorded its agent time for story 2.");
+  });
+
+  it("a zero is a value, not a missing one", () => {
+    const rows = [mine, run([story("2", { usage: mins(5, { calls: 0 }), own: [0, 10] })], B)];
+    const b = acrossCombinations(mine, rows, "2").rows.find((r) => r.stack === "b/stack")!;
+    expect(b.summary.calls.spread?.median).toBe(0);
+    expect(b.summary.heldOut.spread?.median).toBe(0);
+  });
+
+  it("the story page's order: best median held-out first, then the shortest time; unfinished and invalid-only after", () => {
+    const rows = [
+      mine,                                                                             // A: 90%, 30 min
+      run([story("2", { usage: mins(50), own: [10, 10] })], B),                         // B: 100%
+      run([story("2", { usage: mins(10), own: [9, 10] })], C),                          // C: 90%, 10 min
+      run([story("2")], { stack: "d/stack", label: "D", status: "running" }),            // D: unfinished
+      run([story("2")], { stack: "e/stack", label: "E", invalid: true }),                // E: invalid only
+    ];
+    const v = acrossCombinations(mine, rows, "2");
+    expect(stacks(v)).toEqual(["b/stack", "c/stack", "a/stack", "d/stack", "e/stack"]);
+    expect(stacks(v)).toEqual(storyPage(rows, "2").groups.map((g) => g.stack));
+  });
+
+  it("this story run's own figures, on the same measures", () => {
+    const v = acrossCombinations(mine, [mine, run([story("2")], B)], "2");
+    expect(v.mine).toEqual({ minutes: 30, outTokens: 90000, calls: 300, heldOut: 0.9 });
+    expect(v.story).toBe(mine.stories[0]);
+  });
+
+  it("this story run's missing figures are null, never 0", () => {
+    const bare = run([story("2", { usage: null, own: [null, null] })], { ...A, runId: "v2-r9" });
+    expect(acrossCombinations(bare, [bare], "2").mine).toEqual({ minutes: null, outTokens: null, calls: null, heldOut: null });
+  });
+
+  it("an invalid story run still shows its own figures, and is in no median", () => {
+    const bad = run([story("2", { usage: mins(500) })], { ...A, runId: "v2-r3", invalid: true });
+    const v = acrossCombinations(bad, [bad, run([story("2", { usage: mins(10) })], { ...A, runId: "v2-r2" })], "2");
+    expect(v.mine?.minutes).toBe(500);
+    expect(v.rows[0].summary.minutes.spread).toEqual({ median: 10, min: 10, max: 10, n: 1 });
+    expect([v.rows[0].n, v.rows[0].invalid]).toEqual([1, 1]);
+  });
+
+  it("a story run not recorded yet: no figures of its own; its combination is listed all the same", () => {
+    const building = run([story("1")], { ...A, runId: "v2-r4", status: "running", squares: [sq("1", "ok", 6, 6), sq("2", "running")], live: { runningStory: "2" } });
+    const v = acrossCombinations(building, [building, run([story("2")], B)], "2");
+    expect(v.mine).toBeNull();
+    expect(v.story).toBeNull();
+    expect(v.rows.map((r) => [r.stack, r.isThis, r.state])).toEqual([["b/stack", false, "measured"], ["a/stack", true, "notRecorded"]]);
+    expect(v.withoutRecord).toBe(0);
+    expect(acrossNoMedian(v.rows[1], "2", "agent time")).toBe("No run of this combination has recorded story 2 yet.");
+  });
+
+  it("one scale for every bar: the longest of the ranges and this story run's own time", () => {
+    const others = [run([story("2", { usage: mins(20) })], B), run([story("2", { usage: mins(80) })], B)];
+    expect(acrossCombinations(mine, [mine, ...others], "2").scaleMinutes).toBe(80);
+    const slow = run([story("2", { usage: mins(120) })], { ...A, runId: "v2-r5", invalid: true });
+    expect(acrossCombinations(slow, [slow, ...others], "2").scaleMinutes).toBe(120);
+    const untimed = run([story("2", { usage: null })], A);
+    expect(acrossCombinations(untimed, [untimed], "2").scaleMinutes).toBe(1);
+  });
+
+  it("only runs of the same pack and version family count", () => {
+    const rows = [mine, run([story("2")], { ...B, family: "p-v1" }), run([story("2")], { ...C, pack: "q" })];
+    const v = acrossCombinations(mine, rows, "2");
+    expect(stacks(v)).toEqual(["a/stack"]);
+    expect(v.withoutRecord).toBe(0);
+  });
+
+  it("story ids are compared as numbers", () => {
+    expect(acrossCombinations(mine, [mine], "02").rows[0].n).toBe(1);
   });
 });

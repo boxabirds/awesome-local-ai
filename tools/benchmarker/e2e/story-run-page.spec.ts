@@ -670,6 +670,225 @@ test.describe("what differed", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
+// How every combination fares on this story. In the fixture, v2 story 2 is recorded by SWIFT (v2-r4 to r7 finished,
+// v2-r1 running, v2-r8 invalid) and by OPUS (run-9 finished, with only its held-out result; v2-r1 is building it);
+// 3.8/27b is only queued or cancelled and mlx-serve is on story 1, so neither has a record of it.
+test.describe("against every combination", () => {
+  const MLX = "qwen/3.8/flash-next/macos/128GB/mlxserve-pi";
+  const a = (page: Page) => section(page, "across");
+  const combo = (page: Page, stack: string) => a(page).locator(`tr[data-stack="${stack}"]`);
+  const mine = (page: Page) => a(page).locator('tr[data-row="this"]');
+  const cell = (page: Page, stack: string, measure: string) => combo(page, stack).locator(`td[data-measure="${measure}"]`);
+  const stacksShown = (page: Page) => a(page).locator("tr[data-stack]").evaluateAll((trs) => trs.map((t) => (t as HTMLElement).dataset.stack));
+  const barShare = (bar: ReturnType<Page["locator"]>, part: string) => bar.evaluate((el, sel) => {
+    const p = el.querySelector(sel) as HTMLElement;
+    return p.getBoundingClientRect().width / el.getBoundingClientRect().width;
+  }, part);
+  const NARROW = 1000, WIDE = 1440;
+
+  test("under its glossary term, with a link to every run of the story", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(a(page).locator("h2 .term")).toHaveText(GLOSSARY.acrossCombinations.name);
+    await expect(a(page).locator("h2 .term")).toHaveAttribute("data-tip", GLOSSARY.acrossCombinations.what);
+    const all = a(page).locator(".rp-aside a.story-link");
+    await expect(all).toHaveText("all runs of this story");
+    await all.click();
+    await expect(page).toHaveURL(/#\/vidi\/s\/2$/);
+    await expect(page.locator('[data-page="story"]')).toContainText("Story 2");
+  });
+
+  test("several combinations: one row for each that recorded the story, in the story page's order, this one's marked", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    expect(await stacksShown(page)).toEqual([OPUS, SWIFT]);   // 90% median held-out before 89%
+    await expect(combo(page, SWIFT)).toHaveAttribute("data-this", "true");
+    await expect(combo(page, SWIFT).locator(".this-combo")).toHaveText("this run's combination");
+    await expect(combo(page, OPUS)).not.toHaveAttribute("data-this", "true");
+    await expect(combo(page, OPUS).locator(".this-combo")).toHaveCount(0);
+    await page.goto(`/#/vidi/s/2`);
+    const onStoryPage = await page.locator('[data-section="combinations"] tbody[data-stack]').evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.stack));
+    expect(onStoryPage.slice(0, 2)).toEqual([OPUS, SWIFT]);
+  });
+
+  test("a combination's row: n, and each measure's median and range over its valid finished runs", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    const runs = combo(page, SWIFT).locator('td[data-col="runs"]');
+    await expect(runs.locator("b")).toHaveText("n=4");
+    await expect(runs.locator('[data-unfinished="running"]')).toHaveText("+1 running");
+    await expect(runs.locator("[data-invalid-runs]")).toHaveText("1 invalid, left out");
+    await expect(cell(page, SWIFT, "heldOut").locator(".median")).toHaveText("89%");
+    await expect(cell(page, SWIFT, "heldOut").locator(".range")).toHaveText("79%–100%");
+    await expect(cell(page, SWIFT, "minutes").locator(".median")).toHaveText("17 min");
+    await expect(cell(page, SWIFT, "minutes").locator(".range")).toHaveText("16 min–1h20m");
+    await expect(cell(page, SWIFT, "outTokens").locator(".median")).toHaveText("76k");
+    await expect(cell(page, SWIFT, "outTokens").locator(".range")).toHaveText("70k–175k");
+    await expect(cell(page, SWIFT, "calls").locator(".median")).toHaveText("161");
+    await expect(cell(page, SWIFT, "calls").locator(".range")).toHaveText("112–262");
+  });
+
+  test("the medians are the story page's own", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    const here = await cell(page, SWIFT, "minutes").locator(".median").innerText();
+    await page.goto(`/#/vidi/s/2`);
+    await expect(page.locator(`tr[data-median="${SWIFT}"] td[data-measure="minutes"] .median`)).toHaveText(here);
+  });
+
+  test("this story run's own figures on the first row, clearly marked", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(a(page).locator("tbody tr").first()).toHaveAttribute("data-row", "this");
+    await expect(mine(page)).toHaveAttribute("aria-current", "page");
+    await expect(mine(page).locator(".this-mark")).toHaveText("this story run");
+    await expect(mine(page).locator("th .run-id")).toHaveText("v2-r5");
+    await expect(mine(page).locator('td[data-measure="heldOut"]')).toHaveText("100%14/14");
+    await expect(mine(page).locator('td[data-measure="minutes"]')).toHaveText("1h20m");
+    await expect(mine(page).locator('td[data-measure="outTokens"]')).toHaveText("175k");
+    await expect(mine(page).locator('td[data-measure="calls"]')).toHaveText("204");
+  });
+
+  test("the time bars share one scale, and this story run's time is marked on every combination's bar", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    // v2-r5's 1h20m is the longest time here, so its bar is the whole scale; SWIFT's median is 17.3 of 80.2 minutes.
+    expect(await barShare(mine(page).locator(".across-bar"), ".med")).toBeCloseTo(1, 2);
+    const swift = combo(page, SWIFT).locator(".across-bar");
+    expect(await barShare(swift, ".med")).toBeCloseTo(1040 / 4811, 2);
+    expect(await barShare(swift, ".whisker")).toBeCloseTo((4811 - 960) / 4811, 2);
+    await expect(swift.locator(".mine-mark")).toHaveAttribute("style", /left: 100%/);
+    await expect(swift).toHaveAttribute("aria-label", "3.8-swift-1.5/27b llamacpp: median 17 min, from 16 min to 1h20m");
+    await expect(a(page).locator(".across-key")).toContainText("this story run (1h20m)");
+  });
+
+  test("a measure the combination's runs didn't record: '—' with why, never 0, and no bar", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(combo(page, OPUS)).toHaveAttribute("data-state", "measured");
+    await expect(combo(page, OPUS).locator('td[data-col="runs"] b')).toHaveText("n=1");
+    await expect(cell(page, OPUS, "heldOut").locator(".median")).toHaveText("90%");
+    await expect(cell(page, OPUS, "heldOut").locator(".range")).toHaveCount(0);   // one run: no range
+    for (const [measure, name] of [["minutes", "agent time"], ["outTokens", "output tokens"], ["calls", "tool calls"]]) {
+      await expect(cell(page, OPUS, measure)).toHaveText("—");
+      await expect(cell(page, OPUS, measure).locator(".missing")).toHaveAttribute("data-tip", `No finished run of this combination recorded its ${name} for story 2.`);
+    }
+    await expect(combo(page, OPUS).locator(".across-bar")).toHaveCount(0);
+  });
+
+  test("a combination with only invalid runs: kept, 'no valid runs yet', every figure '—' with why", async ({ page }) => {
+    await patchState(page, (s) => { rowOf(s, OPUS, "run-9").invalid = { reason: "built in a sandbox that exposed the machine's packages", since: "2026-10-01" }; });
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(combo(page, OPUS)).toHaveAttribute("data-state", "noValid");
+    await expect(combo(page, OPUS).locator('td[data-col="runs"] .no-median')).toHaveText("no valid runs yet");
+    await expect(combo(page, OPUS).locator("[data-invalid-runs]")).toHaveText("1 invalid, left out");
+    await expect(combo(page, OPUS).locator("td[data-measure] .missing")).toHaveCount(4);
+    await expect(cell(page, OPUS, "heldOut").locator(".missing")).toHaveAttribute("data-tip", "No valid runs yet: the one run of this combination that recorded story 2 is invalid, and an invalid run is in no figure.");
+    expect(await stacksShown(page)).toEqual([SWIFT, OPUS]);   // nothing to rank it by: after the measured one
+  });
+
+  test("a combination whose only run with the story is still running: 'no finished run yet', the run counted as running", async ({ page }) => {
+    await patchState(page, (s) => { rowOf(s, OPUS, "run-9").status = "running"; });
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(combo(page, OPUS)).toHaveAttribute("data-state", "unfinished");
+    await expect(combo(page, OPUS).locator('td[data-col="runs"] .no-median')).toHaveText("no finished run yet");
+    await expect(combo(page, OPUS).locator('[data-unfinished="running"]')).toHaveText("+1 running");
+    await expect(cell(page, OPUS, "heldOut").locator(".missing")).toHaveAttribute("data-tip", /^No finished run yet: story 2 is recorded only by runs that haven't finished \(1 running\)/);
+  });
+
+  test("combinations with no record of the story aren't rows; how many is said, with the way to them", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(combo(page, MLX)).toHaveCount(0);
+    const left = a(page).locator("tr[data-without-record]");
+    await expect(left).toHaveAttribute("data-without-record", "2");
+    await expect(left).toContainText("2 other combinations have no record of story 2 yet");
+    await expect(left.locator("a.story-link")).toHaveAttribute("href", "#/vidi/s/2");
+  });
+
+  test("only this combination has recorded it: its one row, and nothing about others when there are none", async ({ page }) => {
+    await patchState(page, (s) => { s.rows = s.rows.filter((r) => r.stack === SWIFT); });
+    await open(page, SWIFT, "v2-r5", "2");
+    expect(await stacksShown(page)).toEqual([SWIFT]);
+    await expect(a(page).locator("tr[data-without-record]")).toHaveCount(0);
+    await expect(mine(page)).toBeVisible();
+  });
+
+  test("runs of another spec version are not in it", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "1");
+    await expect(combo(page, GUFO)).toHaveCount(0);   // its only run of story 1 is a v1 run
+    await expect(combo(page, SWIFT).locator('td[data-col="runs"] b')).toHaveText("n=4");
+  });
+
+  test("a story run without a figure: '—' with why on its own row, never 0", async ({ page }) => {
+    await open(page, SWIFT, "v2-r1", "2");
+    await expect(mine(page).locator('td[data-measure="heldOut"]')).toHaveText("90%9/10");
+    await expect(mine(page).locator('td[data-measure="minutes"]')).toHaveText("—");
+    await expect(mine(page).locator('td[data-measure="minutes"] .missing')).toHaveAttribute("data-tip", /Not recorded/);
+    await expect(mine(page).locator(".across-bar")).toHaveCount(0);
+    await expect(combo(page, SWIFT).locator(".mine-mark")).toHaveCount(0);
+  });
+
+  test("a story run not recorded yet: says so on its row; the combinations that have it are still shown", async ({ page }) => {
+    await open(page, OPUS, "v2-r1", "2");
+    await expect(mine(page).locator('td[data-col="runs"]')).toHaveText("not recorded yet");
+    await expect(mine(page).locator("td[data-measure] .missing")).toHaveCount(4);
+    await expect(mine(page).locator('td[data-measure="minutes"] .missing')).toHaveAttribute("data-tip", "The run is building this story now: it has no record of it until the story ends.");
+    expect(await stacksShown(page)).toEqual([OPUS, SWIFT]);
+    await expect(combo(page, OPUS)).toHaveAttribute("data-this", "true");
+  });
+
+  test("no combination has recorded the story: this run's combination alone, saying so", async ({ page }) => {
+    await open(page, SWIFT, "v2-r1", "3");
+    expect(await stacksShown(page)).toEqual([SWIFT]);
+    await expect(combo(page, SWIFT)).toHaveAttribute("data-state", "notRecorded");
+    await expect(combo(page, SWIFT).locator('td[data-col="runs"]')).toHaveText("not recorded yet");
+    await expect(cell(page, SWIFT, "minutes").locator(".missing")).toHaveAttribute("data-tip", "No run of this combination has recorded story 3 yet.");
+  });
+
+  test("not shown for a story outside the run's scope", async ({ page }) => {
+    await open(page, SWIFT, "v2-r1", "99");
+    await expect(a(page)).toHaveCount(0);
+  });
+
+  test("each combination's name opens its page", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(combo(page, SWIFT).locator("a.combination-link")).toHaveAttribute("href", `#/vidi/c/${enc(SWIFT)}`);
+    await combo(page, OPUS).locator("a.combination-link").click();
+    await expect(page).toHaveURL(new RegExp(`#/vidi/c/${enc(OPUS)}$`));
+    await expect(page.locator('[data-page="combination"]')).toBeVisible();
+  });
+
+  test("from the keyboard: a combination's link takes focus, visibly, and Enter opens it; a '—' says why on focus", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    const dash = cell(page, OPUS, "minutes").locator(".missing");
+    await dash.focus();
+    await expect(tip(page)).toContainText("No finished run of this combination recorded its agent time for story 2.");
+    await expect(dash).toHaveAttribute("aria-label", /^not available: /);
+    const link = combo(page, OPUS).locator("a.combination-link");
+    await link.focus();
+    await expect(link).toHaveCSS("outline-style", "solid");
+    await page.keyboard.press("Enter");
+    await expect(page.locator('[data-page="combination"]')).toBeVisible();
+  });
+
+  for (const width of [NARROW, WIDE]) {
+    test.describe(`at ${width} px`, () => {
+      test.use({ viewport: { width, height: 900 } });
+      test("no sideways scroll, on the page or in the table", async ({ page }) => {
+        await open(page, SWIFT, "v2-r5", "2");
+        await expect(a(page)).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        const [scroll, client] = await a(page).locator(".table-scroll").evaluate((el) => [el.scrollWidth, el.clientWidth]);
+        expect(scroll).toBeLessThanOrEqual(client);
+      });
+    });
+  }
+
+  for (const scheme of ["light", "dark"] as const) {
+    test(`${scheme}: this story run's row and bar stand out from the others`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await open(page, SWIFT, "v2-r5", "2");
+      const bg = (l: ReturnType<Page["locator"]>) => l.evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(await bg(mine(page).locator(".across-bar .med"))).not.toBe(await bg(combo(page, SWIFT).locator(".across-bar .med")));
+      expect(await bg(mine(page).locator("th"))).not.toBe(await bg(combo(page, SWIFT).locator("th")));
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------------------------------------------
 test.describe("navigation", () => {
   test("previous and next story in this run", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
@@ -771,10 +990,10 @@ test.describe("a story run with no record shows what is known", () => {
 
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("links and keyboard", () => {
-  test("sections come in order: header, time, cost, conversation, against the combination, what differed, navigation", async ({ page }) => {
+  test("sections come in order: header, time, cost, conversation, against the combination, what differed, against every combination, navigation", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     const order = await page.locator('[data-page="storyRun"] > [data-section]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.section));
-    expect(order).toEqual(["header", "time", "cost", "conversation", "against", "differed", "nav"]);
+    expect(order).toEqual(["header", "time", "cost", "conversation", "against", "differed", "across", "nav"]);
   });
 
   test("every label with a definition takes it from the glossary", async ({ page }) => {

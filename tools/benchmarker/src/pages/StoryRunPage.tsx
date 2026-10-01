@@ -5,6 +5,7 @@ import { NotRecorded, StoryNav, StoryRunHeader } from "../components/run/StoryRu
 import { Conversation, StoryCost, StoryTime } from "../components/run/StoryDetail.tsx";
 import { Against } from "../components/run/Against.tsx";
 import { WhatDiffered } from "../components/run/WhatDiffered.tsx";
+import { AcrossCombinations } from "../components/run/AcrossCombinations.tsx";
 import { InvalidBanner } from "../components/RunMarks.tsx";
 import "./run.css";
 
@@ -28,6 +29,7 @@ export function StoryRunPage({ run, storyId, state, params }: { run: Row; story:
       </> : <NotRecorded run={run} st={st} />}
       {st.kind === "outOfScope" ? null : <Against run={run} state={state} storyId={storyId} />}
       {st.kind === "recorded" ? <WhatDiffered run={run} state={state} storyId={storyId} params={params} /> : null}
+      {st.kind === "outOfScope" ? null : <AcrossCombinations run={run} state={state} storyId={storyId} />}
       <StoryNav run={run} state={state} storyId={storyId} />
     </div>
   );

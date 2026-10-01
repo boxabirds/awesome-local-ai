@@ -1,9 +1,10 @@
 // The one way an entity is named on the page: a link to its own page, the same text everywhere. Combination names
 // are short labels with the full id on hover. A run is always shown with its combination unless the context has it.
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Invalid } from "../../shared/types.ts";
 import { combinationHref, machineHref, overviewHref, runHref, storyHref, storyRunHref } from "../../shared/routes.ts";
 import { invalidTip } from "../../shared/runView.ts";
+import { useHeightVar } from "../useHeightVar.ts";
 
 export function CombinationLink({ pack, stack, label }: { pack: string; stack: string; label: string }) {
   return <a className="entity combination-link" href={combinationHref(pack, stack)} data-tip={stack}>{label}</a>;
@@ -42,11 +43,26 @@ export function StoryRunLink({ pack, stack, runId, story, children, invalid }: {
 
 export interface Crumb { label: ReactNode; href?: string }
 
-/** Where this page sits: Overview › combination › run › story. The last crumb is the page itself. */
+/** Whether the window has scrolled at all: the page is then passing under what is pinned to its top. */
+function useScrolled(): boolean {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const read = () => setScrolled(scrollY > 0);
+    read();
+    addEventListener("scroll", read, { passive: true });
+    return () => removeEventListener("scroll", read);
+  }, []);
+  return scrolled;
+}
+
+/** Where this page sits: Overview › combination › run › story. The last crumb is the page itself. It stays pinned
+ * under the app's top bar while the page scrolls (styles.css), with a line under it once the page is beneath it. */
 export function Breadcrumb({ trail }: { trail: Crumb[] }) {
   const all: Crumb[] = [{ label: "Overview", href: overviewHref() }, ...trail];
+  const nav = useHeightVar<HTMLElement>("--crumb-h");
+  const stuck = useScrolled();
   return (
-    <nav className="breadcrumb" aria-label="Breadcrumb">
+    <nav ref={nav} className="breadcrumb" aria-label="Breadcrumb" data-stuck={stuck ? "true" : undefined}>
       {all.map((c, i) => (
         <span key={i}>
           {i > 0 ? <span className="sep" aria-hidden="true"> › </span> : null}

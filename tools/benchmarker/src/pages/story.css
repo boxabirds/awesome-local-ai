@@ -8,7 +8,9 @@
   .sp-main { min-width: 0; }
 
   /* ---------- the story list ---------- */
-  .story-nav { position: sticky; top: 72px; max-height: calc(100vh - 88px); overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 6px; }
+  /* Pinned under the top bar and the breadcrumb (styles.css keeps their heights), and no taller than what is left
+     above the page's end, so the end of the page never pushes it up under them. */
+  .story-nav { position: sticky; top: calc(var(--pinned-h) + var(--pinned-gap)); max-height: calc(100vh - var(--pinned-h) - var(--pinned-gap) - var(--main-end) - var(--page-end)); overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 6px; }
   .story-nav-head { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 2px 8px 6px; }
   .story-nav ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
   .story-nav a.story-link { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px; padding: 5px 8px; border: 0; border-radius: 6px; color: var(--ink); font-size: 13px; line-height: 1.3; }

@@ -88,7 +88,7 @@ export function realOps(): Ops {
     },
     add: (req) => addMachine(req, {
       async sshReadToken(host) {
-        // Tailscale SSH can exit 0 on failure, so the token's own shape is the check.
+        // Some SSH servers exit 0 on failure, so the token's own shape is the check.
         const { stdout } = await run("ssh", ["-o", "BatchMode=yes", "-o", `ConnectTimeout=${SSH_TIMEOUT_S}`, host, "cat ~/.dbench/token"], { timeout: TIMEOUT_MS });
         const token = stdout.trim();
         if (!TOKEN.test(token)) throw new Error("no token in ~/.dbench/token");

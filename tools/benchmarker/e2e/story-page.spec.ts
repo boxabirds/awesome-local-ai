@@ -714,7 +714,8 @@ test.describe("tooltip, for keyboard users", () => {
 
   test("the tip follows its element through a scroll, and goes when the element leaves the screen", async ({ page }) => {
     await page.goto(run());
-    const target = page.locator('[data-page="run"] .breadcrumb a.combination-link');
+    // Something that scrolls with the page: the breadcrumb's links no longer do (the breadcrumb is pinned).
+    const target = page.locator('[data-page="run"] .rp-header a.combination-link');
     await target.focus();
     await expect(tip(page)).toBeVisible();
     const before = (await tip(page).boundingBox())!.y;

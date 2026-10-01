@@ -18,7 +18,7 @@ export function AddMachine() {
   return (
     <form className="add-machine" onSubmit={submit} aria-label="Add a machine">
       <h3>Add a machine</h3>
-      <label>Machine name <input aria-label="Machine name" value={name} required placeholder="its Tailscale name, e.g. node-a" onChange={(e) => { setName(e.target.value); setAsked(null); setToken(""); }} /></label>
+      <label>Machine name <input aria-label="Machine name" value={name} required placeholder="its name on your network, e.g. node-a" onChange={(e) => { setName(e.target.value); setAsked(null); setToken(""); }} /></label>
       <label>dbench address <input value={url} placeholder={name ? `http://${name}:7717` : "http://<name>:7717"} onChange={(e) => setUrl(e.target.value)} /></label>
       {needToken ? <label>Token <input aria-label="Token" value={token} autoComplete="off" onChange={(e) => setToken(e.target.value)} /></label> : null}
       <button type="submit" disabled={!name}>Add</button>

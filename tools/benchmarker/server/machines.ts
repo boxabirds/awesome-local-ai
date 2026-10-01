@@ -31,7 +31,7 @@ export function renderNodes(nodes: Record<string, Node>): string {
 
 /** What adding a machine needs from the world. */
 export interface Commands {
-  /** The node's token, read over SSH (Tailscale); throws if SSH can't. */
+  /** The node's token, read over SSH; throws if SSH can't. */
   sshReadToken(host: string): Promise<string>;
   /** GET <url>/v1/node with the token; throws with the reason if the node doesn't answer. */
   probe(url: string, token: string): Promise<unknown>;
