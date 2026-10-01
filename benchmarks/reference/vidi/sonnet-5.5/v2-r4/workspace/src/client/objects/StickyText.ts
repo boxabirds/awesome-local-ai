@@ -56,6 +56,7 @@ export function fitFontSize(el: HTMLElement, box: number): { fontPx: number; ove
   };
   let lo = STICKY_FONT_MIN_PX;
   let hi = STICKY_FONT_MAX_PX;
+  if (fits(hi)) return { fontPx: hi, overflow: false }; // most notes are short: one measurement
   if (!fits(lo)) return { fontPx: lo, overflow: true };
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2);

@@ -1,13 +1,15 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE, CLOSE_UNSUPPORTED_DATA } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 /** The subset of WebsocketProvider this module relies on (lets tests drive it with a fake). */
 export interface ProviderLike {
   on(event: 'status', cb: (e: { status: 'connecting' | 'connected' | 'disconnected' }) => void): void;
   on(event: 'sync', cb: (synced: boolean) => void): void;
+  on(event: 'connection-close', cb: (e: { code: number } | null) => void): void;
   destroy(): void;
 }
 
@@ -65,7 +67,20 @@ export function connectBoard(
   };
 
   const provider = createProvider(doc, boardId);
+  provider.on('connection-close', (e) => {
+    if (e?.code === CLOSE_BOARD_LOAD_FAILED) {
+      lost = false;
+      clearTimer();
+      set('load_failed');
+    } else if (e && (e.code === CLOSE_STORAGE_FAILURE || e.code === CLOSE_UNSUPPORTED_DATA) && state !== 'load_failed') {
+      // The board is readable and unsaved changes are re-sent on reconnection.
+      lost = true;
+      clearTimer();
+      set('reconnecting');
+    }
+  });
   provider.on('status', ({ status }) => {
+    if (state === 'load_failed') return;
     if (status === 'disconnected' && (state !== 'connecting' || lost)) {
       lost = true;
       clearTimer();
@@ -75,7 +90,10 @@ export function connectBoard(
   provider.on('sync', (synced) => {
     if (!synced) return;
     clearTimer();
-    if (lost) {
+    if (state === 'load_failed') {
+      lost = false;
+      set('connected');
+    } else if (lost) {
       lost = false;
       set('confirmed');
       timer = setTimeout(() => {

@@ -8,6 +8,7 @@ import { BoardViewport } from './canvas/BoardViewport';
 import { StickyNote } from './objects/StickyNote';
 import { setTestConnectionState } from './canvas/testHooks';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { newBoardId } from '../shared/board-id';
 
 function isTextTarget(t: EventTarget | null): boolean {
@@ -24,13 +25,19 @@ export function boardIdFromLocation(): string {
   return id;
 }
 
+/** Editing is blocked only while a saved board cannot be loaded (it must not look like an empty board). */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
 export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: string }) {
   const { doc, notes, connection } = useBoardDoc(externalDoc, boardId);
   useEffect(() => setTestConnectionState(connection), [connection]);
   const sel = useSelection();
 
-  const stateRef = useRef({ sel, doc });
-  stateRef.current = { sel, doc };
+  const editable = canEdit(connection);
+  const stateRef = useRef({ sel, doc, editable });
+  stateRef.current = { sel, doc, editable };
 
   // Selection never outlives its note (e.g. deleted through the model).
   const { selectedId, editingId, select, endEdit } = sel;
@@ -44,7 +51,8 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const { sel: s, doc: d } = stateRef.current;
+      const { sel: s, doc: d, editable: ok } = stateRef.current;
+      if (!ok) return;
       if (s.selectedId === null || s.editingId !== null || isTextTarget(e.target)) return;
       if (e.key === 'Enter') {
         if (e.target instanceof HTMLElement && e.target.tagName === 'BUTTON') return;
@@ -61,6 +69,7 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
   }, []);
 
   const create = (at: { x: number; y: number }) => {
+    if (!editable) return;
     const id = createSticky(doc, at);
     if (id) sel.startEdit(id);
   };
@@ -71,7 +80,7 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
     <BoardViewport
       onDoubleClickEmpty={create}
       onClickEmpty={() => sel.select(null)}
-      overlay={(ctx) => <Toolbar onCreateSticky={() => create(ctx.viewCentre)} />}
+      overlay={(ctx) => <Toolbar disabled={!editable} onCreateSticky={() => create(ctx.viewCentre)} />}
     >
       {(ctx) =>
         [...notes]
@@ -81,9 +90,10 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
               key={note.id}
               note={note}
               doc={doc}
+              editable={editable}
               zoom={ctx.camera.zoom}
               selected={sel.selectedId === note.id}
-              editing={sel.editingId === note.id}
+              editing={editable && sel.editingId === note.id}
               onSelect={sel.select}
               onStartEdit={sel.startEdit}
               onEndEdit={sel.endEdit}

@@ -6,7 +6,7 @@ export default defineConfig({
   fullyParallel: true,
   use: { baseURL: 'http://localhost:8791', viewport: { width: 1280, height: 800 } },
   webServer: {
-    command: 'npm run build:test && npx wrangler dev --port 8791',
+    command: 'npm run build:test && npx wrangler dev --port 8791 --var TEST_HOOKS:1',
     url: 'http://localhost:8791',
     reuseExistingServer: false,
     timeout: 120_000,

@@ -1,4 +1,4 @@
-export function Toolbar(props: { onCreateSticky(): void }) {
+export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
   return (
     <div
       role="toolbar"
@@ -25,8 +25,9 @@ export function Toolbar(props: { onCreateSticky(): void }) {
         type="button"
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
+        disabled={props.disabled}
         onClick={props.onCreateSticky}
-        style={{ width: 40, height: 40, border: 'none', background: 'transparent', borderRadius: 8, cursor: 'pointer' }}
+        style={{ width: 40, height: 40, border: 'none', background: 'transparent', borderRadius: 8, cursor: props.disabled ? 'not-allowed' : 'pointer', opacity: props.disabled ? 0.4 : 1 }}
       >
         <svg viewBox="0 0 24 24" width="24" height="24" fill="#FFF59D" stroke="#444" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
           <path d="M4 4h16v10l-6 6H4z" />

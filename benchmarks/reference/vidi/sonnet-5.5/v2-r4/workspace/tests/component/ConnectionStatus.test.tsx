@@ -11,10 +11,16 @@ type Status = 'connecting' | 'connected' | 'disconnected';
 class FakeProvider implements ProviderLike {
   statusCbs: ((e: { status: Status }) => void)[] = [];
   syncCbs: ((s: boolean) => void)[] = [];
+  closeCbs: ((e: { code: number } | null) => void)[] = [];
   destroyed = false;
-  on(event: 'status' | 'sync', cb: never) {
+  on(event: 'status' | 'sync' | 'connection-close', cb: never) {
     if (event === 'status') this.statusCbs.push(cb);
-    else this.syncCbs.push(cb);
+    else if (event === 'sync') this.syncCbs.push(cb);
+    else this.closeCbs.push(cb);
+  }
+  close(code: number) {
+    this.closeCbs.forEach((cb) => cb({ code }));
+    this.status('disconnected'); // y-websocket reports the disconnect after the close event
   }
   status(status: Status) {
     this.statusCbs.forEach((cb) => cb({ status }));
@@ -86,6 +92,32 @@ describe('connection status badge', () => {
     drop();
     expect(screen.getByRole('status').textContent).toBe('Reconnecting…');
     advance(CONNECTED_CONFIRMATION_MS * 2);
+    expect(screen.getByRole('status').textContent).toBe('Reconnecting…');
+  });
+
+  it('TC-22: load_failed shows the red message with role=status', () => {
+    cleanup();
+    render(<ConnectionStatus state="load_failed" />);
+    const el = screen.getByRole('status');
+    expect(el.textContent).toBe("This board couldn't be loaded. Retrying…");
+    expect(el.style.background).toBe('rgb(211, 47, 47)');
+  });
+
+  it('TC-28: close 4500 → load_failed and stays through retries; sync recovers to connected', () => {
+    run(() => p.close(4500));
+    expect(screen.getByRole('status').textContent).toBe("This board couldn't be loaded. Retrying…");
+    run(() => p.close(4500));
+    expect(screen.getByRole('status').textContent).toBe("This board couldn't be loaded. Retrying…");
+    connect();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('TC-28: close 1011 and 1003 → Reconnecting…, never the load failure message', () => {
+    connect();
+    run(() => p.close(1011));
+    expect(screen.getByRole('status').textContent).toBe('Reconnecting…');
+    connect();
+    run(() => p.close(1003));
     expect(screen.getByRole('status').textContent).toBe('Reconnecting…');
   });
 

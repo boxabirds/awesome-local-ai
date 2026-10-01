@@ -25,6 +25,8 @@ interface Press {
 export function StickyNote(props: {
   note: StickySnapshot;
   doc: Y.Doc;
+  /** False while the board is not loaded: no drag, edit, colour or delete. */
+  editable?: boolean;
   zoom: number;
   selected: boolean;
   editing: boolean;
@@ -33,6 +35,7 @@ export function StickyNote(props: {
   onEndEdit(next: 'selected' | 'unselected'): void;
 }) {
   const { note, doc, zoom, selected, editing } = props;
+  const editable = props.editable !== false;
   const textRef = useRef<HTMLDivElement>(null);
   const press = useRef<Press | null>(null);
   const noteRef = useRef(note);
@@ -98,6 +101,7 @@ export function StickyNote(props: {
     const dx = e.clientX - p.startX;
     const dy = e.clientY - p.startY;
     if (!p.dragging) {
+      if (!editable) return;
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
       p.dragging = true;
       setDragging(true);
@@ -124,7 +128,7 @@ export function StickyNote(props: {
 
   const ytext = editing ? getStickyText(doc, note.id) : undefined;
   const showEditor = editing && ytext !== undefined;
-  const showToolbar = selected && !editing && !dragging;
+  const showToolbar = editable && selected && !editing && !dragging;
 
   return (
     <div
@@ -141,7 +145,7 @@ export function StickyNote(props: {
       onLostPointerCapture={endPress}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        props.onStartEdit(note.id);
+        if (editable) props.onStartEdit(note.id);
       }}
       style={{
         position: 'absolute',
@@ -151,6 +155,7 @@ export function StickyNote(props: {
         height: STICKY_SIZE_WORLD,
         zIndex: note.z,
         boxSizing: 'border-box',
+        contain: 'layout style', // a text re-fit never re-lays-out the other notes (large boards)
         background: STICKY_COLORS[note.color],
         boxShadow: '0 4px 10px rgba(0,0,0,0.25)',
         outline: selected ? SELECT_OUTLINE : 'none',

@@ -4,6 +4,7 @@ const LABELS: Record<Exclude<ConnectionState, 'connected'>, { text: string; bg: 
   connecting: { text: 'Connecting…', bg: '#ECEFF1', fg: '#37474F' },
   reconnecting: { text: 'Reconnecting…', bg: '#FFC107', fg: '#3E2723' },
   confirmed: { text: 'Connected', bg: '#43A047', fg: '#FFFFFF' },
+  load_failed: { text: "This board couldn't be loaded. Retrying…", bg: '#D32F2F', fg: '#FFFFFF' },
 };
 
 /** Top-centre connection badge; hidden while connected normally. Never blocks editing. */
