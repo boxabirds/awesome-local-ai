@@ -11,6 +11,7 @@ import { useTransformGesture } from '../../src/client/board/useTransformGesture'
 import { UndoContext, useUndoHistory } from '../../src/client/board/useUndo';
 import type { UndoController } from '../../src/client/board/undo';
 import { getObjectType } from '../../src/client/objects/registry';
+import { connectableRects } from '../../src/shared/objects/connector';
 
 export const FRAME_MS = 20;
 
@@ -78,6 +79,7 @@ export function Harness(props: { probe: Probe; zoom?: number; canEdit?: boolean 
             onObjectPointerDown={gesture.onObjectPointerDown}
             onStartEdit={sel.startEdit}
             onEndEdit={sel.endEdit}
+            rects={connectableRects(objects)}
           />
         );
       })}

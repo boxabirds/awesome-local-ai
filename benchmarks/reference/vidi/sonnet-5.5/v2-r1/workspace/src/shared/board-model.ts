@@ -1,6 +1,20 @@
 import * as Y from 'yjs';
-import { DEFAULT_STICKY_COLOR, DEFAULT_TEXT_SIZE, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES } from './config';
-import type { StickyColor, TextSize } from './config';
+import {
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
+  DEFAULT_STICKY_COLOR,
+  DEFAULT_TEXT_SIZE,
+  SHAPE_FILL_COLORS,
+  SHAPE_KINDS,
+  SHAPE_STROKE_COLORS,
+  STICKY_COLORS,
+  STICKY_SIZE_WORLD,
+  TEXT_SIZES,
+} from './config';
+import type { FillColor, ShapeKind, StickyColor, StrokeColor, TextSize } from './config';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import { connectableRects, detachConnectorsTo, shiftFreeEnds } from './objects/connector';
+import type { Endpoint } from './objects/connector';
 import { rectContains } from './geometry';
 import type { Point, Rect } from './geometry';
 
@@ -23,6 +37,13 @@ export interface ObjectSnapshot {
   text?: string;
   size?: TextSize;
   widthMode?: 'auto' | 'fixed';
+  kind?: ShapeKind;
+  fill?: FillColor;
+  stroke?: StrokeColor;
+  label?: string;
+  from?: Endpoint;
+  to?: Endpoint;
+  ends?: { from: Point; to: Point };
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -31,7 +52,7 @@ export interface StickySnapshot extends ObjectSnapshot {
   text: string;
 }
 
-const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text']);
+const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector']);
 
 export function objectsOf(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects') as Y.Map<Y.Map<unknown>>;
@@ -105,19 +126,29 @@ export function allObjectIds(
 /** Writes absolute positions; returns how many objects changed. One transaction, none when nothing changes. */
 export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): number {
   const changes: [Y.Map<unknown>, Point][] = [];
+  let derived: Map<string, ObjectSnapshot> | null = null;
+  const connectorMoves: [string, number, number][] = [];
   for (const [id, p] of positions) {
     if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return 0;
     const obj = objectsOf(doc).get(id);
-    if (obj && (obj.get('x') !== p.x || obj.get('y') !== p.y)) changes.push([obj, p]);
+    if (!obj) continue;
+    if (obj.get('type') === 'connector') {
+      // An arrow's position is derived from its ends; moving it shifts the free ends and leaves attached ends on their objects.
+      derived ??= new Map(snapshot(doc).map((o) => [o.id, o]));
+      const now = derived.get(id);
+      if (now && (now.x !== p.x || now.y !== p.y)) connectorMoves.push([id, p.x - now.x, p.y - now.y]);
+    } else if (obj.get('x') !== p.x || obj.get('y') !== p.y) changes.push([obj, p]);
   }
-  if (changes.length === 0) return 0;
+  if (changes.length === 0 && connectorMoves.length === 0) return 0;
+  let moved = changes.length;
   doc.transact(() => {
     for (const [obj, p] of changes) {
       obj.set('x', p.x);
       obj.set('y', p.y);
     }
+    for (const [id, dx, dy] of connectorMoves) if (shiftFreeEnds(doc, id, dx, dy)) moved++;
   }, LOCAL_ORIGIN);
-  return changes.length;
+  return moved;
 }
 
 /** Writes absolute rects, including width and height (which makes an implicit-size sticky explicit). */
@@ -126,7 +157,7 @@ export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): num
   for (const [id, r] of rects) {
     if (![r.x, r.y, r.width, r.height].every(Number.isFinite) || r.width <= 0 || r.height <= 0) return 0;
     const obj = objectsOf(doc).get(id);
-    if (!obj) continue;
+    if (!obj || obj.get('type') === 'connector') continue;
     const same =
       obj.get('x') === r.x && obj.get('y') === r.y && obj.get('width') === r.width && obj.get('height') === r.height;
     if (!same) changes.push([obj, r]);
@@ -166,6 +197,7 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = ids.filter((id) => objectsOf(doc).has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    detachConnectorsTo(doc, present);
     for (const id of present) objectsOf(doc).delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
@@ -225,7 +257,32 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       entry.size = typeof size === 'string' && size in TEXT_SIZES ? (size as TextSize) : DEFAULT_TEXT_SIZE;
       entry.widthMode = obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
     }
+    if (type === 'shape') {
+      const kind = obj.get('kind');
+      const fill = obj.get('fill');
+      const stroke = obj.get('stroke');
+      const label = obj.get('label');
+      entry.kind = typeof kind === 'string' && (SHAPE_KINDS as readonly string[]).includes(kind) ? (kind as ShapeKind) : 'rect';
+      entry.fill = typeof fill === 'string' && fill in SHAPE_FILL_COLORS ? (fill as FillColor) : DEFAULT_SHAPE_FILL;
+      entry.stroke = typeof stroke === 'string' && stroke in SHAPE_STROKE_COLORS ? (stroke as StrokeColor) : DEFAULT_SHAPE_STROKE;
+      entry.label = label instanceof Y.Text ? label.toString() : '';
+    }
+    if (type === 'connector') {
+      const from = obj.get('from') as Endpoint | undefined;
+      const to = obj.get('to') as Endpoint | undefined;
+      if (!from || !to) return;
+      entry.from = from;
+      entry.to = to;
+    }
     result.push(entry);
   });
-  return result.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  result.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  // Arrows have no stored geometry: ends come from the current rectangles, so moves by anyone redraw them.
+  const rects = connectableRects(result);
+  for (const entry of result) {
+    if (entry.type !== 'connector' || !entry.from || !entry.to) continue;
+    const ends = resolveEndpoints({ from: entry.from, to: entry.to }, rects);
+    Object.assign(entry, connectorBBox(ends.from, ends.to), { ends });
+  }
+  return result;
 }

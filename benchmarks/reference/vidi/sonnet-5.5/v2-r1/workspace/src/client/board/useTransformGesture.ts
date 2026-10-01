@@ -154,9 +154,14 @@ export function useTransformGesture(opts: {
     const { doc, snapshot, canEdit, selection } = live.current;
     if (!canEdit) return false;
     const byId = new Map(snapshot.map((o) => [o.id, o]));
-    const objects = p.ids.map((id) => byId.get(id)).filter((o): o is ObjectSnapshot => o !== undefined);
+    // Arrows have no size of their own: a resize leaves them out (their ends follow the objects they attach to).
+    const objects = p.ids
+      .map((id) => byId.get(id))
+      .filter((o): o is ObjectSnapshot => o !== undefined && (p.kind === 'move' || !!getObjectType(o.type)?.resizable));
     if (objects.length === 0) return false;
     if (p.kind === 'resize') {
+
+
       const specs = objects.map((o) => getObjectType(o.type));
       if (!specs.some((s) => s?.resizable)) return false;
       p.minSizes = specs.map((s) => s?.minSize ?? 0);

@@ -1,10 +1,11 @@
 import { objectBounds } from '../../shared/board-model';
 import type { ObjectSnapshot } from '../../shared/board-model';
-import type { StickyColor, TextSize } from '../../shared/config';
+import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
 import { unionRects } from '../../shared/geometry';
 import { worldToScreen } from '../canvas/camera';
 import type { Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
 
 const BAR_GAP_PX = 10;
@@ -21,6 +22,7 @@ export function SelectionBar(props: {
   camera?: Camera;
   onColor?(id: string, color: StickyColor): void;
   onTextSize?(id: string, size: TextSize): void;
+  onShapeStyle?(id: string, style: { fill?: FillColor; stroke?: StrokeColor }): void;
 }) {
   const selected = props.snapshot.filter((o) => props.ids.has(o.id));
   const box = unionRects(selected.map(objectBounds));
@@ -45,6 +47,19 @@ export function SelectionBar(props: {
     return (
       <div className="note-toolbar-anchor" style={style}>
         <TextToolbar size={only.size} onSize={(sz) => props.onTextSize?.(only.id, sz)} onDelete={props.onDelete} />
+      </div>
+    );
+  }
+  if (only && only.type === 'shape' && only.fill && only.stroke) {
+    return (
+      <div className="note-toolbar-anchor" style={style}>
+        <ShapeToolbar
+          fill={only.fill}
+          stroke={only.stroke}
+          onFill={(c) => props.onShapeStyle?.(only.id, { fill: c })}
+          onStroke={(c) => props.onShapeStyle?.(only.id, { stroke: c })}
+          onDelete={props.onDelete}
+        />
       </div>
     );
   }

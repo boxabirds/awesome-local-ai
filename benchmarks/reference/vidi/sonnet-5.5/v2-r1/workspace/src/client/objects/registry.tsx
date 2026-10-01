@@ -2,8 +2,11 @@ import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds } from '../../shared/board-model';
 import type { ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
-import type { Point } from '../../shared/geometry';
+import { SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import type { Point, Rect } from '../../shared/geometry';
+import type { ConnectorSnap } from '../../shared/objects/connector';
+import { ConnectorObject, hitsConnector } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 
@@ -16,6 +19,8 @@ export interface ObjectProps {
   editing: boolean;
   /** True while the board cannot be edited (load_failed). */
   readOnly?: boolean;
+  /** Rects of every object arrows can attach to, in stacking order (arrows resolve their ends from these). */
+  rects?: ReadonlyMap<string, Rect>;
   onObjectPointerDown(e: ReactPointerEvent, id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next?: 'selected' | 'unselected'): void;
@@ -30,7 +35,8 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** Which resize handles a selection of only this type shows; default 'all'. */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /** `zoom` matters for objects with a screen-space click tolerance (arrows). */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -66,4 +72,22 @@ registerObjectType('text', {
   editableText: true,
   handles: 'horizontal',
   hitTest: boundsHitTest,
+});
+
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: boundsHitTest,
+});
+
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest: (obj, p, zoom = 1) => hitsConnector(obj as ConnectorSnap, p, zoom),
 });

@@ -62,8 +62,10 @@ export function useBoardKeys(opts: {
         else selection.clear();
         return;
       }
-      if (!e.shiftKey && (key === 'v' || key === 't' || key === 'n')) {
+      if (!e.shiftKey && (key === 'v' || key === 't' || key === 'n' || key === 's' || key === 'l')) {
         if (key === 'v') tool?.setTool('select');
+        else if (canEdit && key === 's') tool?.setTool('shape');
+        else if (canEdit && key === 'l') tool?.setTool('connector');
         else if (canEdit && key === 't') tool?.setTool('text');
         else if (canEdit && key === 'n') onCreateSticky?.();
         return;

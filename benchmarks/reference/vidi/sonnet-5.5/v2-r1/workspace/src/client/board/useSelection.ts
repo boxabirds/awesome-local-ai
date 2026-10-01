@@ -62,6 +62,8 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]) {
     [],
   );
   const clear = useCallback(() => dispatch({ type: 'clear' }), []);
+  // Not filtered: a just-created shape is selected before the snapshot that contains it has rendered.
+  const select = useCallback((id: string) => dispatch({ type: 'setMany', ids: [id], additive: false }), []);
   // Not filtered: a just-created note starts editing before the snapshot that contains it has rendered.
   const startEdit = useCallback((id: string) => dispatch({ type: 'edit', id }), []);
   const endEdit = useCallback((next?: 'selected' | 'unselected') => {
@@ -70,8 +72,8 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]) {
   }, []);
 
   return useMemo(
-    () => ({ ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit }),
-    [state, click, toggle, setMany, clear, startEdit, endEdit],
+    () => ({ ids: state.ids, editingId: state.editingId, click, toggle, setMany, select, clear, startEdit, endEdit }),
+    [state, click, toggle, setMany, select, clear, startEdit, endEdit],
   );
 }
 

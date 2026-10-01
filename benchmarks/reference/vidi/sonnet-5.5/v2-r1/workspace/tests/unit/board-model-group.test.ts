@@ -81,7 +81,7 @@ describe('group operations', () => {
     const a = make(0, 0);
     const shape = new Y.Map<unknown>();
     (doc.getMap('objects') as Y.Map<Y.Map<unknown>>).set('shape-1', shape);
-    shape.set('type', 'shape');
+    shape.set('type', 'hologram'); // story 10 made 'shape' a known type
     shape.set('x', 1);
     shape.set('y', 1);
     shape.set('z', 99);

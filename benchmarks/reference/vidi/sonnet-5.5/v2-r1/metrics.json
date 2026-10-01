@@ -3867,6 +3867,494 @@
           "found": 6,
           "total": 6
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "private": {
+          "copied": 19,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "adbdd99f"
+      }
+    },
+    "10": {
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790833501.9957519,
+      "engine_settings": {
+        "server_started_at": "2026-10-01T05:40:43Z",
+        "engine": "anthropic",
+        "engine_version": null,
+        "thinking_mode": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "thinking_budget": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "context_size": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "kv_cache_type": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "speculative": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "temperature": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "top_p": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "top_k": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "min_p": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "quantisation": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "reasoning_effort": {
+          "requested": "client default",
+          "engine": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+          },
+          "client": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "Claude Code uses its own default effort, which the harness doesn't record"
+          },
+          "effective": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+          },
+          "matches_request": null
+        },
+        "gaps": []
+      },
+      "agent": {
+        "seconds": 754.4,
+        "steps": 58,
+        "tool_calls": 80,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 116,
+          "output": 90004,
+          "reasoning": 0,
+          "cache_read": 7972112,
+          "cache_write": 194676
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "887bcad7-645c-436e-ad56-be5ec9da05b0"
+        ]
+      },
+      "agent_finished": 1790834256.431081,
+      "conditions": {
+        "samples": 25,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.7,
+        "swap_max_gb": 0.7,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 41.0,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": null,
+        "server_footprint_peak_gb": null,
+        "gpu": null
+      },
+      "containment": {
+        "enabled": false
+      },
+      "agent_commits": 1,
+      "provenance": {
+        "harness_commit": "9f807dba",
+        "harness_dirty": false,
+        "pack_version": "vidi-v2.0-pre2",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 6.2,
+            "tail": "\nadded 162 packages, and audited 163 packages in 6s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n5 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 2.3,
+            "tail": "\n> vidi6@0.1.0 build\n> npm run typecheck && vite build\n\n\n> vidi6@0.1.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 116 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.43 kB \u2502 gzip:   0.27 kB\ndist/client/assets/index-CK9xUhg-.css    8.79 kB \u2502 gzip:   2.06 kB\ndist/client/assets/index-CMdMDANF.js   376.92 kB \u2502 gzip: 116.05 kB\n\n\u001b[32m\u2713 built in 409ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 0.5,
+            "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 3.2,
+            "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r1/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/geometry.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 32\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model-group.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 16\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/shape-model.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 15\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/connector-model.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 19\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-history.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 86\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-layout.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-model.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/selection-reducer.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-boundaries.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 18\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/caret-mapping.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/checkout-flow.test.ts \u001b[2m(\u001b[22m\u001b[2m1 test\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 93\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/create-board.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 239\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1455\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m 524288 bytes -> 1 chunks, round-trips \u001b[33m 711\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m 524289 bytes -> 2 chunks, round-trips \u001b[33m 740\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m20 passed\u001b[39m\u001b[22m\u001b[90m (20)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m160 passed\u001b[39m\u001b[22m\u001b[90m (160)\u001b[39m\n\u001b[2m   Start at \u001b[22m 06:57:46\n\u001b[2m   Duration \u001b[22m 2.00s\u001b[2m (transform 555ms, setup 0ms, import 1.23s, tests 2.05s, environment 2ms)\u001b[22m\n\n",
+            "passed": 160,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 8.6,
+            "tail": "[45m component \u001b[49m\u001b[39m tests/component/ShapeTool.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1099\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-15 dragging with the Shape tool previews, then creates one shape that is selected \u001b[33m 437\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Connector.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1162\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-18 hovering a shape with the Connector tool shows four dots at the side midpoints \u001b[33m 451\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Selection.test.tsx \u001b[2m(\u001b[22m\u001b[2m28 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1425\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-19 clicking empty space without dragging clears the selection \u001b[33m 369\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/pages.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 279\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/SharePanel.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1068\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m shows a read-only link field, Copy link and the access note; clicking the field selects the link \u001b[33m 428\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Tool.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1669\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-14 T activates Text, Escape and V return to Select \u001b[33m 720\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-16 T while editing a note types the letter and leaves the tool alone \u001b[33m 392\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/UndoControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 548\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-18 buttons are disabled when the stacks are empty \u001b[33m 454\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/TextBoxSync.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 138\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/UndoBoundaries.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 996\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-14 a 30-frame drag of a selection is one undo step \u001b[33m 428\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-16 Ctrl+Z inside the editor undoes typing, not the earlier move \u001b[33m 320\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1634\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-23 Enter on a selected note edits with the caret at the end \u001b[33m 1162\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/LoadFailedEditLock.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 738\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-23: no mutation from dblclick, toolbar button, Delete, drag or typing \u001b[33m 619\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 269\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 138\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/useActiveTool.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 505\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m S, L and V switch tools; the Shape menu appears only with the Shape tool \u001b[33m 372\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 717\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-27 pink swatch recolours and keeps the selection \u001b[33m 512\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m19 passed\u001b[39m\u001b[22m\u001b[90m (19)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m158 passed\u001b[39m\u001b[22m\u001b[90m (158)\u001b[39m\n\u001b[2m   Start at \u001b[22m 06:57:49\n\u001b[2m   Duration \u001b[22m 7.59s\u001b[2m (transform 2.12s, setup 0ms, import 8.78s, tests 14.63s, environment 20.80s)\u001b[22m\n\n",
+            "passed": 158,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 10.9,
+            "tail": "\n> vidi6@0.1.0 test:integration\n> vite build && vitest run --project integration\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 116 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.43 kB \u2502 gzip:   0.27 kB\ndist/client/assets/index-CK9xUhg-.css    8.79 kB \u2502 gzip:   2.06 kB\ndist/client/assets/index-CMdMDANF.js   376.92 kB \u2502 gzip: 116.05 kB\n\n\u001b[32m\u2713 built in 148ms\u001b[39m\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r1/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/board-api.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 149\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/worker.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 468\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-17: boards are isolated \u001b[33m 329\u001b[2mms\u001b[22m\u001b[39m\n\u001b[90mstdout\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardStore\u001b[2m > \u001b[22m\u001b[2mTC-08: a PERSIST_TESTED_NOTES board compacts into chunks and reloads equal\n\u001b[22m\u001b[39mTC-08 encoded size 527116 bytes in 2 chunk(s)\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/board-store.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 687\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-08: a PERSIST_TESTED_NOTES board compacts into chunks and reloads equal \u001b[33m 398\u001b[2mms\u001b[22m\u001b[39m\n\u001b[90mstdout\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardRoom: merging\u001b[2m > \u001b[22m\u001b[2mTC-12: MAX_CONCURRENT_EDITORS clients x 200 seeded ops end identical\n\u001b[22m\u001b[39mTC-12 seed=20260930\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/board-room.test.ts \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2372\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-12: MAX_CONCURRENT_EDITORS clients x 200 seeded ops end identical \u001b[33m 1366\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/board-room-persistence.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 6110\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-16: a damaged room retries loading only after LOAD_RETRY_MIN_INTERVAL_MS \u001b[33m 5370\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m52 passed\u001b[39m\u001b[22m\u001b[90m (52)\u001b[39m\n\u001b[2m   Start at \u001b[22m 06:57:59\n\u001b[2m   Duration \u001b[22m 8.95s\u001b[2m (transform 1.37s, setup 0ms, import 6.33s, tests 9.79s, environment 2ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-api.test.ts\u001b[2m > \u001b[22m\u001b[2mboard API\u001b[2m > \u001b[22m\u001b[2mTC-12: initialize throwing gives 500 create_failed\n\u001b[22m\u001b[39m{\"event\":\"create-board-failed\",\"error\":\"Error: boom\"}\n\n",
+            "passed": 52,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 52.9,
+            "tail": " \u203a tests/e2e/multi-select.spec.ts:166:3 \u203a multi-select \u203a TC-35 a colleague deletes one of my selected notes: my selection drops it \n    [webkit] \u203a tests/e2e/multi-select.spec.ts:192:3 \u203a multi-select \u203a TC-36 full capacity: everyone moves a different selection at once and all screens agree \n    [webkit] \u203a tests/e2e/navigation.spec.ts:18:3 \u203a first visit navigation \u203a TC-28 hint visible, then removed after a drag \n    [webkit] \u203a tests/e2e/navigation.spec.ts:25:3 \u203a first visit navigation \u203a TC-23 drag moves origin marker and grid dot exactly \n    [webkit] \u203a tests/e2e/navigation.spec.ts:39:3 \u203a first visit navigation \u203a TC-24 ctrl+wheel keeps the point under the pointer and does not zoom the page \n    [webkit] \u203a tests/e2e/navigation.spec.ts:60:3 \u203a first visit navigation \u203a plain wheel pans in the scroll direction \n    [webkit] \u203a tests/e2e/navigation.spec.ts:72:3 \u203a limits and recovery \u203a TC-25 + zooms to 400% and becomes disabled \n    [webkit] \u203a tests/e2e/navigation.spec.ts:88:3 \u203a limits and recovery \u203a TC-26 reset returns to 100% with origin centred \n    [webkit] \u203a tests/e2e/navigation.spec.ts:102:3 \u203a far travel \u203a TC-27 drag is exact and grid spacing stays even at 1,000,000 units \n    [webkit] \u203a tests/e2e/navigation.spec.ts:119:1 \u203a TC-31 zoom gestures and shortcuts do not change page zoom \n    [webkit] \u203a tests/e2e/shapes.spec.ts:25:3 \u203a shapes \u203a TC-23 dragging with the Shape tool creates a shape exactly covering the dragged area \n    [webkit] \u203a tests/e2e/shapes.spec.ts:47:3 \u203a shapes \u203a TC-24 a diamond dropped by clicking at 200% is 160x160, and its label wraps and stays centred when resized \n    [webkit] \u203a tests/e2e/share.spec.ts:13:3 \u203a Share a board \u203a TC-26 create, share, join \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    [webkit] \u203a tests/e2e/share.spec.ts:58:3 \u203a Share a board \u203a TC-27 bad link recovery \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    [webkit] \u203a tests/e2e/share.spec.ts:73:3 \u203a Share a board \u203a malformed link shows Board not found \u2500\n    [webkit] \u203a tests/e2e/share.spec.ts:78:3 \u203a Share a board \u203a TC-28 flaky service on open \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    [webkit] \u203a tests/e2e/share.spec.ts:88:3 \u203a Share a board \u203a TC-29 clipboard blocked shows the manual-copy fallback \n    [webkit] \u203a tests/e2e/share.spec.ts:108:3 \u203a Share a board \u203a TC-31 pre-existing board still opens \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:38:3 \u203a sticky notes \u203a brainstorm golden path: create, move at 50%, recolour, delete \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:79:3 \u203a sticky notes \u203a TC-32 drag at 200% moves 50,25 world units and draws above an overlapped note \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:109:3 \u203a sticky notes \u203a TC-33 text shrinks to fit, then clips with a fade at the minimum size \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:131:3 \u203a sticky notes \u203a TC-34 toolbar creates a visible, centred note after panning far away \n    [webkit] \u203a tests/e2e/text.spec.ts:36:3 \u203a text \u203a TC-26 a long annotation grows to the maximum width then wraps \n    [webkit] \u203a tests/e2e/text.spec.ts:54:3 \u203a text \u203a TC-27 dragging the right handle rewraps; there are no top or bottom handles \n    [webkit] \u203a tests/e2e/text.spec.ts:77:3 \u203a text \u203a TC-28 title a retro section: size, move, delete, undo \n    [webkit] \u203a tests/e2e/text.spec.ts:109:3 \u203a text \u203a TC-29 two people typing in one text keep every character \n    [webkit] \u203a tests/e2e/text.spec.ts:132:3 \u203a text \u203a TC-30 everyone adds a heading at once \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    [webkit] \u203a tests/e2e/text.spec.ts:152:3 \u203a text \u203a TC-31 abandoned text leaves nothing behind \u2500\u2500\u2500\u2500\n    [webkit] \u203a tests/e2e/undo.spec.ts:37:3 \u203a undo and redo \u203a TC-22 recover an accidental delete while a colleague works \n    [webkit] \u203a tests/e2e/undo.spec.ts:76:3 \u203a undo and redo \u203a TC-23 a colleague deleted my object: undo shows no error and brings nothing back \n    [webkit] \u203a tests/e2e/undo.spec.ts:101:3 \u203a undo and redo \u203a TC-24 everyone undoing at once only reverts their own changes \n  45 passed (52.2s)\n[WebServer] \u2718 [ERROR] {\"event\":\"board-load-failed\",\"reason\":\"snapshot-unreadable\",\"error\":\"Unexpected end of array\"}\n[WebServer] \n[WebServer] \n",
+            "passed": 45,
+            "failed": 0
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 64,
+        "total": 65,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          },
+          "03": {
+            "passed": 6,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5
+          },
+          "07": {
+            "passed": 8,
+            "total": 8
+          },
+          "08": {
+            "passed": 7,
+            "total": 7
+          },
+          "09": {
+            "passed": 6,
+            "total": 6
+          },
+          "10": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "683c12a8e91d5eacbc90296d2b5717fd2dd593f1",
+      "requests": {},
+      "time_split": {
+        "wall_s": 754.4,
+        "model": {
+          "source": "claude-stream",
+          "requests": 58,
+          "prefill_s": 114.8,
+          "prefill_tokens": 194792,
+          "prefill_tok_s": null,
+          "decode_s": 460.8,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 7972112
+        },
+        "tools_s": 177.3,
+        "tools_by_kind": {
+          "e2e": 123.2,
+          "unit": 49.1,
+          "bash": 1.7,
+          "write": 1.5,
+          "build": 1.4,
+          "read": 0.3,
+          "edit": 0.2
+        },
+        "compaction_s": 0.0,
+        "compactions": 0,
+        "between_sessions_s": 0.0,
+        "other_s": 1.5,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        }
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 58,
+        "tool_calls": 80,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 3002,
+        "tool_arg_chars": 143152,
+        "thinking_estimated_tokens": 22056,
+        "largest_thinking_estimated": {
+          "tokens": 9200,
+          "call": 8,
+          "at_s": 98.5
+        },
+        "context_start": 16443,
+        "context_end": 206676,
+        "largest_context_jump": {
+          "tokens": 24034,
+          "call": 3
+        },
+        "tools_by_name": {
+          "Bash": 44,
+          "Read": 1,
+          "Edit": 9,
+          "Write": 26
+        },
+        "tool_errors": 2,
+        "longest_tool": {
+          "seconds": 49.1,
+          "name": "Bash",
+          "gist": "timeout 1500 npm run test:e2e -- --project=chromium 2>&1 | tail -30"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 135,
+        "lines": 13462
+      },
+      "finished": 1790834448.847807,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 7,
+          "title": "Write shape model unit tests first (TC-01 to TC-06)",
+          "type": "test:unit",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06"
+          ],
+          "status": "verified",
+          "found": 6,
+          "total": 6
+        },
+        {
+          "n": 8,
+          "title": "Implement shape model: create by drag/click/Shift, style validation, label Y.Text",
+          "type": "implementation",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Write connector model and geometry unit tests first (TC-07 to TC-14, TC-29)",
+          "type": "test:unit",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-29"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 10,
+          "title": "Implement connector model, geometry and detach-on-delete in board-model",
+          "type": "implementation",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Implement active tool hook with shortcuts and return-to-Select",
+          "type": "implementation",
+          "implements": [
+            "tools.active_tool"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Implement Shape tool, ShapeObject with centred label, and ShapeToolbar",
+          "type": "implementation",
+          "implements": [
+            "shape.ui"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 13,
+          "title": "Implement Connector tool with hover dots, ConnectorObject with arrowhead and re-attach handles",
+          "type": "implementation",
+          "implements": [
+            "connector.ui"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 14,
+          "title": "Component tests for shape tool/object/toolbar, connector tool/object and active tool (TC-15 to TC-22, TC-28)",
+          "type": "test:ui-component",
+          "implements": [
+            "shape.ui",
+            "connector.ui",
+            "tools.active_tool"
+          ],
+          "tcs": [
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-28"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 15,
+          "title": "E2E: draw a flow, collaborative rearrange, delete race (TC-23 to TC-27)",
+          "type": "test:e2e",
+          "implements": [
+            "shape.ui",
+            "connector.ui"
+          ],
+          "tcs": [
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27"
+          ],
+          "status": "committed",
+          "found": 5,
+          "total": 5
+        }
       ]
     }
   },
@@ -7992,6 +8480,490 @@
           "accept": {
             "passed": 6,
             "total": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790833501.9957519,
+      "ended_at": 1790834256.431081,
+      "agent_minutes": 12.6,
+      "calls": 58,
+      "output_tokens": 90004,
+      "compactions": 0,
+      "last_commit_at": 1790834249.0,
+      "accept": {
+        "passed": 8,
+        "total": 8
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 7,
+          "title": "Write shape model unit tests first (TC-01 to TC-06)",
+          "type": "test:unit",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06"
+          ],
+          "status": "verified",
+          "found": 6,
+          "total": 6
+        },
+        {
+          "n": 8,
+          "title": "Implement shape model: create by drag/click/Shift, style validation, label Y.Text",
+          "type": "implementation",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Write connector model and geometry unit tests first (TC-07 to TC-14, TC-29)",
+          "type": "test:unit",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-29"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 10,
+          "title": "Implement connector model, geometry and detach-on-delete in board-model",
+          "type": "implementation",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Implement active tool hook with shortcuts and return-to-Select",
+          "type": "implementation",
+          "implements": [
+            "tools.active_tool"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Implement Shape tool, ShapeObject with centred label, and ShapeToolbar",
+          "type": "implementation",
+          "implements": [
+            "shape.ui"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 13,
+          "title": "Implement Connector tool with hover dots, ConnectorObject with arrowhead and re-attach handles",
+          "type": "implementation",
+          "implements": [
+            "connector.ui"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 14,
+          "title": "Component tests for shape tool/object/toolbar, connector tool/object and active tool (TC-15 to TC-22, TC-28)",
+          "type": "test:ui-component",
+          "implements": [
+            "shape.ui",
+            "connector.ui",
+            "tools.active_tool"
+          ],
+          "tcs": [
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-28"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 15,
+          "title": "E2E: draw a flow, collaborative rearrange, delete race (TC-23 to TC-27)",
+          "type": "test:e2e",
+          "implements": [
+            "shape.ui",
+            "connector.ui"
+          ],
+          "tcs": [
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27"
+          ],
+          "status": "committed",
+          "found": 5,
+          "total": 5
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 22.5,
+          "calls": 69,
+          "output_tokens": 130294,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 28.5,
+          "calls": 68,
+          "output_tokens": 119648,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 17.5,
+          "calls": 62,
+          "output_tokens": 104833,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 21.4,
+          "calls": 130,
+          "output_tokens": 84472,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 86.6,
+          "calls": 303,
+          "output_tokens": 272385,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-04",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 80.1,
+          "calls": 283,
+          "output_tokens": 263416,
+          "accept": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 107.5,
+          "calls": 274,
+          "output_tokens": 252095,
+          "accept": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 119.3,
+          "calls": 330,
+          "output_tokens": 301048,
+          "accept": {
+            "passed": 0,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 127.8,
+          "calls": 363,
+          "output_tokens": 319002,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 67.0,
+          "calls": 253,
+          "output_tokens": 132825,
+          "accept": {
+            "passed": 4,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 25.0,
+          "calls": 160,
+          "output_tokens": 74807,
+          "accept": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 105.7,
+          "calls": 296,
+          "output_tokens": 213837,
+          "accept": {
+            "passed": 5,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 42.1,
+          "calls": 228,
+          "output_tokens": 88130,
+          "accept": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 47.5,
+          "calls": 215,
+          "output_tokens": 102958,
+          "accept": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 72.1,
+          "calls": 240,
+          "output_tokens": 150851,
+          "accept": {
+            "passed": 7,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 203.7,
+          "calls": 672,
+          "output_tokens": 291135,
+          "accept": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 26.8,
+          "calls": 138,
+          "output_tokens": 67012,
+          "accept": {
+            "passed": 2,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 52.5,
+          "calls": 192,
+          "output_tokens": 79745,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 239.0,
+          "calls": 373,
+          "output_tokens": 227738,
+          "accept": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 99.5,
+          "calls": 384,
+          "output_tokens": 216195,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 54.8,
+          "calls": 211,
+          "output_tokens": 192449,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 105.5,
+          "calls": 251,
+          "output_tokens": 157860,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 23.7,
+          "calls": 131,
+          "output_tokens": 103814,
+          "accept": {
+            "passed": 3,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 14.3,
+          "calls": 91,
+          "output_tokens": 65551,
+          "accept": {
+            "passed": 4,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 22.0,
+          "calls": 134,
+          "output_tokens": 75118,
+          "accept": {
+            "passed": 3,
+            "total": 8
           }
         }
       ]

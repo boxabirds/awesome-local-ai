@@ -53,6 +53,10 @@ export function BoardViewport(props: {
   /** Objects a Shift+drag rectangle can select, and what to do with the ones fully inside it. */
   snapshot?: readonly ObjectSnapshot[];
   onMarqueeSelect?(ids: string[]): void;
+  /** Active tool id, exposed as `data-tool` (the Text tool keeps its own prop). */
+  tool?: string;
+  /** A full-board layer that owns the pointer while a drawing tool is active. */
+  toolLayer?: ReactNode;
   /** Called after the camera changes (the transform gesture converts pointer movement with it). */
   onCameraChange?(camera: Camera): void;
 }) {
@@ -281,7 +285,7 @@ export function BoardViewport(props: {
         className="board-viewport"
         data-testid="board-viewport"
         data-mode={mode}
-        data-tool={props.textToolActive ? 'text' : 'select'}
+        data-tool={props.textToolActive ? 'text' : (props.tool ?? 'select')}
         tabIndex={0}
         style={{
           cursor: props.textToolActive ? 'text' : mode === 'panning' ? 'grabbing' : 'grab',
@@ -309,6 +313,7 @@ export function BoardViewport(props: {
           {typeof props.children === 'function' ? props.children(ctx) : props.children}
           <MarqueeRect rect={marquee.rect} camera={camera} />
         </div>
+        {props.toolLayer}
       </div>
       {props.overlay?.(ctx)}
       <NavigationHint visible={!nav.hasNavigated} />

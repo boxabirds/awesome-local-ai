@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { UndoContext, useUndo, useUndoHistory } from './board/useUndo';
 import { createSticky, deleteObjects, setStickyColor } from '../shared/board-model';
+import { connectableRects } from '../shared/objects/connector';
+import { setShapeStyle } from '../shared/objects/shape';
 import { createText, setTextSize } from '../shared/objects/text';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
@@ -8,7 +10,9 @@ import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useSelection } from './board/useSelection';
-import { useTool } from './board/useTool';
+import { ConnectorTool } from './tools/ConnectorTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { useActiveTool } from './tools/useActiveTool';
 import { getLocalUserId } from './identity';
 import { getDefaultMeasurer } from './objects/textLayout';
 import { remeasureText } from './objects/useTextBoxSync';
@@ -54,7 +58,9 @@ export function App({ boardId }: { boardId?: string } = {}) {
       setGesturing(false);
     },
   });
-  const tool = useTool(editable);
+  const tool = useActiveTool({ canEdit: editable, onSelect: sel.select });
+  // Stacking order (the snapshot is sorted by z): arrows resolve their ends from these.
+  const rects = useMemo(() => connectableRects(objects), [objects]);
   const centerRef = useRef<() => Point>(() => ({ x: 0, y: 0 }));
 
   const create = (at: Point) => {
@@ -96,6 +102,14 @@ export function App({ boardId }: { boardId?: string } = {}) {
     <BoardViewport
       onCreateAt={create}
       textToolActive={tool.tool === 'text'}
+      tool={tool.tool}
+      toolLayer={
+        editable && tool.tool === 'shape' ? (
+          <ShapeTool kind={tool.shapeKind} camera={camera} doc={doc} onCreated={tool.toolCreated} />
+        ) : editable && tool.tool === 'connector' ? (
+          <ConnectorTool camera={camera} snapshot={objects} doc={doc} onCreated={tool.toolCreated} />
+        ) : null
+      }
       onPlaceText={placeText}
       onEmptyClick={sel.clear}
       snapshot={objects}
@@ -112,6 +126,8 @@ export function App({ boardId }: { boardId?: string } = {}) {
             undo={undo}
             tool={tool.tool}
             onTool={tool.setTool}
+            shapeKind={tool.shapeKind}
+            onShapeKind={tool.setShapeKind}
           />
           {sel.editingId === null && (
             <SelectionOverlay
@@ -130,6 +146,11 @@ export function App({ boardId }: { boardId?: string } = {}) {
               onColor={(id, color) => {
                 history.boundary();
                 setStickyColor(doc, id, color);
+                history.boundary();
+              }}
+              onShapeStyle={(id, style) => {
+                history.boundary();
+                setShapeStyle(doc, id, style);
                 history.boundary();
               }}
               onTextSize={(id, size) => {
@@ -160,6 +181,7 @@ export function App({ boardId }: { boardId?: string } = {}) {
               onStartEdit={sel.startEdit}
               onEndEdit={sel.endEdit}
               readOnly={!editable}
+              rects={rects}
             />
           );
         })

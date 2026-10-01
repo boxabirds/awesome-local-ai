@@ -59,3 +59,37 @@ export const TEXT_LINE_HEIGHT = 1.3;
 export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 export const TEXT_CARET_ROOM_WORLD = 2; // extra width so the caret after the last glyph is not clipped
 export const TEXT_ESTIMATED_GLYPH_RATIO = 0.55; // average glyph width / font size when no canvas is available
+
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+export const SHAPE_MIN_SIZE_WORLD = 20;
+export const SHAPE_LABEL_MAX_CHARS = 500;
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+export const SHAPE_LABEL_FONT_PX = 16;
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+export const CONNECTOR_DOT_RADIUS_PX = 4;
