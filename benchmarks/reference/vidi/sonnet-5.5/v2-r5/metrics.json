@@ -1559,6 +1559,474 @@
           "found": 2,
           "total": 2
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "private": {
+          "copied": 12,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "530febf2"
+      }
+    },
+    "4": {
+      "title": "Return to a board and find everything as it was left",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790857256.9261272,
+      "engine_settings": {
+        "server_started_at": "2026-10-01T11:49:41Z",
+        "engine": "anthropic",
+        "engine_version": null,
+        "thinking_mode": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "thinking_budget": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "context_size": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "kv_cache_type": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "speculative": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "temperature": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "top_p": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "top_k": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "min_p": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "quantisation": {
+          "value": "unknown",
+          "source": "unknown",
+          "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+        },
+        "reasoning_effort": {
+          "requested": "client default",
+          "engine": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+          },
+          "client": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "Claude Code uses its own default effort, which the harness doesn't record"
+          },
+          "effective": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "cloud backend anthropic: no local engine, and the provider's settings aren't observable"
+          },
+          "matches_request": null
+        },
+        "gaps": []
+      },
+      "agent": {
+        "seconds": 1099.0,
+        "steps": 59,
+        "tool_calls": 86,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 118,
+          "output": 74032,
+          "reasoning": 0,
+          "cache_read": 6774607,
+          "cache_write": 159187
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "35752282-883b-4de4-b656-a82b2ef579f0"
+        ]
+      },
+      "agent_finished": 1790858355.992768,
+      "conditions": {
+        "samples": 36,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 7.38,
+        "swap_max_gb": 7.38,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 39.0,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": null,
+        "server_footprint_peak_gb": null,
+        "gpu": null
+      },
+      "containment": {
+        "enabled": false
+      },
+      "agent_commits": 1,
+      "provenance": {
+        "harness_commit": "bf8ed287",
+        "harness_dirty": false,
+        "harness_release": null,
+        "pack_version": "vidi-v2.0-pre2",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 9.0,
+            "tail": "\nadded 236 packages, and audited 237 packages in 9s\n\n48 packages are looking for funding\n  run `npm fund` for details\n\n9 vulnerabilities (1 low, 2 moderate, 6 high)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 3.4,
+            "tail": "\n> vidi6@0.1.0 build\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json && vite build\n\n\u001b[36mvite v6.4.3 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 90 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.39 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.26 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-OUMu7Nzt.css  \u001b[39m\u001b[1m\u001b[2m  4.25 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.32 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-BkUlE0j_.js   \u001b[39m\u001b[1m\u001b[2m332.00 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 103.86 kB\u001b[22m\n\u001b[32m\u2713 built in 678ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.9,
+            "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 2.5,
+            "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r5/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 35\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 27\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 196\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1518\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m chunkBytes / joinChunks (TC-01)\u001b[2m > \u001b[22m524288 bytes \u2192 1 chunk(s), joined byte-identical \u001b[33m 818\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m chunkBytes / joinChunks (TC-01)\u001b[2m > \u001b[22m524289 bytes \u2192 2 chunk(s), joined byte-identical \u001b[33m 693\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m7 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m70 passed\u001b[39m\u001b[22m\u001b[90m (70)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:39:31\n\u001b[2m   Duration \u001b[22m 1.83s\u001b[2m (transform 242ms, setup 0ms, collect 488ms, tests 1.80s, environment 1ms, prepare 435ms)\u001b[22m\n\n",
+            "passed": 70,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 2.2,
+            "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r5/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 87\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 85\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 108\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/LoadFailedEditLock.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 183\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 298\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 350\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 447\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 40\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m52 passed\u001b[39m\u001b[22m\u001b[90m (52)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:39:33\n\u001b[2m   Duration \u001b[22m 1.71s\u001b[2m (transform 316ms, setup 171ms, collect 2.37s, tests 1.60s, environment 3.47s, prepare 492ms)\u001b[22m\n\n",
+            "passed": 52,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 8.5,
+            "tail": "ource = Uncaught; stack = Error: ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r5/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\n    at Users/julian/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r5/workspace/node_modules/@cloudflare/vitest-pool-workers/dist/worker/lib/cloudflare/test-internal.mjs:542:15\nworkerd/jsg/exception.c++:146: info: Annotating with brokenness; internalMessage = jsg.Error: ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r5/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.; brokennessReason = broken.inputGateBroken\nworkerd/io/io-context.c++:435: info: uncaught exception; exception = workerd/jsg/_virtual_includes/iterator/workerd/jsg/value.h:1480: failed: broken.inputGateBroken; jsg.Error: ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r5/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\nstack: 1051857c7 104ad54f3 104ace00b 104acb243 104ac47bf 104b9ddef 104ba0943 104ba0657 106877d0b 104ba0fa4 104acefcc 1040f1940 104c382a4\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardStore (persist.board_store)\u001b[2m > \u001b[22m\u001b[2mTC-09 one damaged log row (truncated) is quarantined, the rest loads\n\u001b[22m\u001b[39m{\"event\":\"update-quarantined\",\"seq\":7,\"error\":\"readAnyLookupTable[(127 - readUint8(...))] is not a function\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardStore (persist.board_store)\u001b[2m > \u001b[22m\u001b[2mTC-09 one damaged log row (random bytes) is quarantined, the rest loads\n\u001b[22m\u001b[39m{\"event\":\"update-quarantined\",\"seq\":7,\"error\":\"Failed to decode input.\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardStore (persist.board_store)\u001b[2m > \u001b[22m\u001b[2mTC-11 a failure inside compaction rolls back: snapshot and log are untouched\n\u001b[22m\u001b[39m{\"event\":\"compaction-failed\",\"error\":\"injected failure after chunk delete\"}\n\nworkerd/io/worker.c++:2441: info: uncaught exception; source = Uncaught; stack = Error: ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r5/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\n    at Users/julian/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r5/workspace/node_modules/@cloudflare/vitest-pool-workers/dist/worker/lib/cloudflare/test-internal.mjs:542:15\nworkerd/jsg/exception.c++:146: info: Annotating with brokenness; internalMessage = jsg.Error: ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r5/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.; brokennessReason = broken.inputGateBroken\nworkerd/io/io-context.c++:435: info: uncaught exception; exception = workerd/jsg/_virtual_includes/iterator/workerd/jsg/value.h:1480: failed: broken.inputGateBroken; jsg.Error: ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r5/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\nstack: 1051857c7 104ad54f3 104ace00b 104acb243 104ac47bf 104b9ddef 104ba0943 104ba0657 106877d0b 104ba0fa4 104acefcc 1040f1940 104c382a4\nworkerd/io/io-context.c++:435: info: uncaught exception; exception = workerd/jsg/_virtual_includes/iterator/workerd/jsg/value.h:1480: failed: broken.inputGateBroken; jsg.Error: ~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r5/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\nstack: 1051857c7 104ad54f3 104ace00b 104acb243 104ac47bf 104b9ddef 104ba0943 104ba0657 106877d0b 104ba0fa4 104acefcc 1040f1940 104c382a4\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 71.0,
+            "tail": "e reaches everyone \n    [firefox] \u203a tests/e2e/broken-board.spec.ts:11:1 \u203a TC-24 Broken board: honest failure, editing blocked, recovery without reload \n    [firefox] \u203a tests/e2e/live-collaboration.spec.ts:21:3 \u203a workflow: two-person workshop \u203a TC-22 every kind of change reaches Sam; TC-25 delete during edit \n    [firefox] \u203a tests/e2e/live-collaboration.spec.ts:65:3 \u203a workflow: two-person workshop \u203a TC-23 simultaneous typing keeps every character \n    [firefox] \u203a tests/e2e/live-collaboration.spec.ts:87:3 \u203a workflow: two-person workshop \u203a TC-24 simultaneous drags settle on one position \n    [firefox] \u203a tests/e2e/live-collaboration.spec.ts:103:3 \u203a workflow: two-person workshop \u203a TC-28 selecting and editing stays personal \n    [firefox] \u203a tests/e2e/live-collaboration.spec.ts:120:1 \u203a TC-26 full-capacity session: every change reaches everyone \n    [firefox] \u203a tests/e2e/live-collaboration.spec.ts:152:1 \u203a TC-27 flaky Wi-Fi: offline edits catch up in both directions \n    [firefox] \u203a tests/e2e/navigation.spec.ts:15:1 \u203a workflow 1: first visit navigation (TC-28, TC-23, TC-24) \n    [firefox] \u203a tests/e2e/navigation.spec.ts:48:1 \u203a workflow 2: limits and recovery (TC-25, TC-26) \u2500\n    [firefox] \u203a tests/e2e/navigation.spec.ts:69:1 \u203a workflow 3: far travel (TC-27) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    [firefox] \u203a tests/e2e/navigation.spec.ts:88:1 \u203a TC-31 zoom gestures do not change page zoom \u2500\u2500\u2500\u2500\n    [firefox] \u203a tests/e2e/navigation.spec.ts:101:1 \u203a plain wheel pans the board in the scroll direction \n    [firefox] \u203a tests/e2e/sticky-notes.spec.ts:36:1 \u203a workflow 1: brainstorm golden path (TC-30, TC-31) \n    [firefox] \u203a tests/e2e/sticky-notes.spec.ts:75:1 \u203a TC-32 drag at 200% zoom and stacking \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    [firefox] \u203a tests/e2e/sticky-notes.spec.ts:105:1 \u203a TC-33 text shrinks to the minimum, then clips with a fade \n    [firefox] \u203a tests/e2e/sticky-notes.spec.ts:125:1 \u203a TC-34 button creates a note at screen centre after panning far away \n    [webkit] \u203a tests/e2e/broken-board.spec.ts:11:1 \u203a TC-24 Broken board: honest failure, editing blocked, recovery without reload \n    [webkit] \u203a tests/e2e/live-collaboration.spec.ts:21:3 \u203a workflow: two-person workshop \u203a TC-22 every kind of change reaches Sam; TC-25 delete during edit \n    [webkit] \u203a tests/e2e/live-collaboration.spec.ts:65:3 \u203a workflow: two-person workshop \u203a TC-23 simultaneous typing keeps every character \n    [webkit] \u203a tests/e2e/live-collaboration.spec.ts:87:3 \u203a workflow: two-person workshop \u203a TC-24 simultaneous drags settle on one position \n    [webkit] \u203a tests/e2e/live-collaboration.spec.ts:103:3 \u203a workflow: two-person workshop \u203a TC-28 selecting and editing stays personal \n    [webkit] \u203a tests/e2e/live-collaboration.spec.ts:120:1 \u203a TC-26 full-capacity session: every change reaches everyone \n    [webkit] \u203a tests/e2e/live-collaboration.spec.ts:152:1 \u203a TC-27 flaky Wi-Fi: offline edits catch up in both directions \n    [webkit] \u203a tests/e2e/navigation.spec.ts:15:1 \u203a workflow 1: first visit navigation (TC-28, TC-23, TC-24) \n    [webkit] \u203a tests/e2e/navigation.spec.ts:48:1 \u203a workflow 2: limits and recovery (TC-25, TC-26) \u2500\u2500\n    [webkit] \u203a tests/e2e/navigation.spec.ts:69:1 \u203a workflow 3: far travel (TC-27) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    [webkit] \u203a tests/e2e/navigation.spec.ts:88:1 \u203a TC-31 zoom gestures do not change page zoom \u2500\u2500\u2500\u2500\u2500\n    [webkit] \u203a tests/e2e/navigation.spec.ts:101:1 \u203a plain wheel pans the board in the scroll direction \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:36:1 \u203a workflow 1: brainstorm golden path (TC-30, TC-31) \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:75:1 \u203a TC-32 drag at 200% zoom and stacking \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:105:1 \u203a TC-33 text shrinks to the minimum, then clips with a fade \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:125:1 \u203a TC-34 button creates a note at screen centre after panning far away \n  15 passed (1.2m)\n[WebServer] \u2718 [ERROR] {\"event\":\"board-load-failed\",\"reason\":\"snapshot-unreadable\",\"error\":\"Unexpected end of array\"}\n[WebServer] \n[WebServer] \n",
+            "passed": 15,
+            "failed": 0
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 30,
+        "total": 31,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          },
+          "03": {
+            "passed": 6,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "92247966149a69b32dccc1085a1f731766692ea8",
+      "requests": {},
+      "time_split": {
+        "wall_s": 1099.1,
+        "model": {
+          "source": "claude-stream",
+          "requests": 59,
+          "prefill_s": 85.3,
+          "prefill_tokens": 159305,
+          "prefill_tok_s": null,
+          "decode_s": 392.3,
+          "decode_tokens": null,
+          "decode_tok_s": null,
+          "cached_tokens": 6774607
+        },
+        "tools_s": 620.3,
+        "tools_by_kind": {
+          "e2e": 553.1,
+          "unit": 59.0,
+          "build": 6.0,
+          "bash": 1.5,
+          "edit": 0.4,
+          "write": 0.3,
+          "read": 0.0
+        },
+        "compaction_s": 0.0,
+        "compactions": 0,
+        "between_sessions_s": 0.0,
+        "other_s": 1.2,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        }
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 59,
+        "tool_calls": 86,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 3109,
+        "tool_arg_chars": 112580,
+        "thinking_estimated_tokens": 21184,
+        "largest_thinking_estimated": {
+          "tokens": 6900,
+          "call": 10,
+          "at_s": 76.0
+        },
+        "context_start": 16379,
+        "context_end": 171187,
+        "largest_context_jump": {
+          "tokens": 14040,
+          "call": 8
+        },
+        "tools_by_name": {
+          "Bash": 56,
+          "Edit": 14,
+          "Write": 15,
+          "Read": 1
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 87.6,
+          "name": "Bash",
+          "gist": "npx vite build --mode test 2>&1 | tail -1; npx playwright test --grep-invert @nightly --project=chromium 2>&1 | grep -vE"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 63,
+        "lines": 5278
+      },
+      "finished": 1790858543.153981,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write storage and room-state unit tests first (TC-01, TC-02, TC-27)",
+          "type": "test:unit",
+          "implements": [
+            "persist.board_store",
+            "persist.room"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-27"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 2,
+          "title": "Implement BoardStore: SQLite schema, append, load with quarantine, chunked compaction",
+          "type": "implementation",
+          "implements": [
+            "persist.board_store"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Integration tests for BoardStore against real Durable Object SQLite (TC-03 to TC-11, TC-25)",
+          "type": "test:integration",
+          "implements": [
+            "persist.board_store"
+          ],
+          "tcs": [
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-25"
+          ],
+          "status": "verified",
+          "found": 10,
+          "total": 10
+        },
+        {
+          "n": 4,
+          "title": "Make BoardRoom persistent: load on wake, store before broadcast, hibernation API, load/storage failure handling",
+          "type": "implementation",
+          "implements": [
+            "persist.room"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Integration tests for persistent room: durability, failures, hibernation (TC-12 to TC-18, TC-26)",
+          "type": "test:integration",
+          "implements": [
+            "persist.room"
+          ],
+          "tcs": [
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-26"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 6,
+          "title": "E2E persistence across real process restarts and large-board load time (TC-19 to TC-21)",
+          "type": "test:e2e",
+          "implements": [
+            "persist.room"
+          ],
+          "tcs": [
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "committed",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 7,
+          "title": "Implement client load-failure state: red message and editing disabled",
+          "type": "implementation",
+          "implements": [
+            "persist.client_status"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Component tests for load-failure badge, edit lock and close-code mapping (TC-22, TC-23, TC-28)",
+          "type": "test:ui-component",
+          "implements": [
+            "persist.client_status"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-28"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 9,
+          "title": "E2E broken board: honest failure, edit lock, recovery without reload (TC-24)",
+          "type": "test:e2e",
+          "implements": [
+            "persist.client_status"
+          ],
+          "tcs": [
+            "TC-24"
+          ],
+          "status": "committed",
+          "found": 1,
+          "total": 1
+        }
       ]
     }
   },
@@ -3276,6 +3744,571 @@
           "accept": {
             "passed": 0,
             "total": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Return to a board and find everything as it was left",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790857256.9261272,
+      "ended_at": 1790858355.992768,
+      "agent_minutes": 18.3,
+      "calls": 59,
+      "output_tokens": 74032,
+      "compactions": 0,
+      "last_commit_at": 1790858349.0,
+      "accept": {
+        "passed": 4,
+        "total": 4
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write storage and room-state unit tests first (TC-01, TC-02, TC-27)",
+          "type": "test:unit",
+          "implements": [
+            "persist.board_store",
+            "persist.room"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-27"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 2,
+          "title": "Implement BoardStore: SQLite schema, append, load with quarantine, chunked compaction",
+          "type": "implementation",
+          "implements": [
+            "persist.board_store"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Integration tests for BoardStore against real Durable Object SQLite (TC-03 to TC-11, TC-25)",
+          "type": "test:integration",
+          "implements": [
+            "persist.board_store"
+          ],
+          "tcs": [
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-25"
+          ],
+          "status": "verified",
+          "found": 10,
+          "total": 10
+        },
+        {
+          "n": 4,
+          "title": "Make BoardRoom persistent: load on wake, store before broadcast, hibernation API, load/storage failure handling",
+          "type": "implementation",
+          "implements": [
+            "persist.room"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Integration tests for persistent room: durability, failures, hibernation (TC-12 to TC-18, TC-26)",
+          "type": "test:integration",
+          "implements": [
+            "persist.room"
+          ],
+          "tcs": [
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-26"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 6,
+          "title": "E2E persistence across real process restarts and large-board load time (TC-19 to TC-21)",
+          "type": "test:e2e",
+          "implements": [
+            "persist.room"
+          ],
+          "tcs": [
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "committed",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 7,
+          "title": "Implement client load-failure state: red message and editing disabled",
+          "type": "implementation",
+          "implements": [
+            "persist.client_status"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Component tests for load-failure badge, edit lock and close-code mapping (TC-22, TC-23, TC-28)",
+          "type": "test:ui-component",
+          "implements": [
+            "persist.client_status"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-28"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 9,
+          "title": "E2E broken board: honest failure, edit lock, recovery without reload (TC-24)",
+          "type": "test:e2e",
+          "implements": [
+            "persist.client_status"
+          ],
+          "tcs": [
+            "TC-24"
+          ],
+          "status": "committed",
+          "found": 1,
+          "total": 1
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 35.8,
+          "calls": 72,
+          "output_tokens": 121862,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 32.3,
+          "calls": 93,
+          "output_tokens": 86802,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 22.1,
+          "calls": 79,
+          "output_tokens": 85940,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 230.2,
+          "calls": 605,
+          "output_tokens": 469592,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 252.4,
+          "calls": 585,
+          "output_tokens": 776497,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-04",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 170.6,
+          "calls": 633,
+          "output_tokens": 522082,
+          "accept": {
+            "passed": 4,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-pi ab-s7s8-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 55.8,
+          "calls": 163,
+          "output_tokens": 100735,
+          "accept": {
+            "passed": 4,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 118.1,
+          "calls": 300,
+          "output_tokens": 216487,
+          "accept": {
+            "passed": 1,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-02",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 240.1,
+          "calls": 357,
+          "output_tokens": 360416,
+          "accept": {
+            "passed": 4,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 138.8,
+          "calls": 345,
+          "output_tokens": 311420,
+          "accept": {
+            "passed": 1,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 1
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 117.7,
+          "calls": 287,
+          "output_tokens": 273658,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 218.5,
+          "calls": 427,
+          "output_tokens": 353794,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 125.5,
+          "calls": 408,
+          "output_tokens": 317444,
+          "accept": {
+            "passed": 3,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 138.7,
+          "calls": 363,
+          "output_tokens": 307079,
+          "accept": {
+            "passed": 1,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 55.8,
+          "calls": 163,
+          "output_tokens": 100735,
+          "accept": {
+            "passed": 4,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r1",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 75.4,
+          "calls": 364,
+          "output_tokens": 143132,
+          "accept": {
+            "passed": 2,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 2
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 123.2,
+          "calls": 280,
+          "output_tokens": 241234,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 48.7,
+          "calls": 201,
+          "output_tokens": 94822,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 47.0,
+          "calls": 190,
+          "output_tokens": 94637,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 121.7,
+          "calls": 242,
+          "output_tokens": 209894,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 67.2,
+          "calls": 211,
+          "output_tokens": 120713,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r4",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 92.2,
+          "calls": 301,
+          "output_tokens": 144325,
+          "accept": {
+            "passed": 4,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 31.2,
+          "calls": 152,
+          "output_tokens": 61720,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 158.4,
+          "calls": 191,
+          "output_tokens": 182994,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-02",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 240.0,
+          "calls": 306,
+          "output_tokens": 276557,
+          "accept": {
+            "passed": 4,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 71.5,
+          "calls": 252,
+          "output_tokens": 199226,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 211.0,
+          "calls": 713,
+          "output_tokens": 409456,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 134.8,
+          "calls": 439,
+          "output_tokens": 325484,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 30.4,
+          "calls": 201,
+          "output_tokens": 122377,
+          "accept": {
+            "passed": 0,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 197.6,
+          "calls": 610,
+          "output_tokens": 450787,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 32.7,
+          "calls": 211,
+          "output_tokens": 94268,
+          "accept": {
+            "passed": 0,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 70.1,
+          "calls": 298,
+          "output_tokens": 264169,
+          "accept": {
+            "passed": 0,
+            "total": 4
           }
         }
       ]
