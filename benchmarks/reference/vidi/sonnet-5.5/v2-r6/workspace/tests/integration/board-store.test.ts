@@ -28,11 +28,13 @@ const reloaded = (store: BoardStore) => {
 };
 
 describe('BoardStore', () => {
-  it('TC-03: empty board migrates and loads an empty doc', async () => {
+  it('TC-03: empty board loads an empty doc and initialize migrates it', async () => {
     await withStore((store, storage) => {
       const { doc, result } = reloaded(store);
       expect(result).toEqual({ ok: true, quarantined: 0 });
       expect(snapshot(doc)).toEqual([]);
+      expect(storage.sql.exec('SELECT name FROM sqlite_master').toArray()).toEqual([]); // loading writes nothing
+      expect(store.initialize()).toBe('created');
       const v = storage.sql.exec("SELECT value FROM storage_meta WHERE key = 'storage_schema_version'").one().value;
       expect(v).toBe(String(STORAGE_SCHEMA_VERSION));
     });

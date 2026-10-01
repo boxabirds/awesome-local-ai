@@ -90,3 +90,15 @@ body { font-family: system-ui, sans-serif; background: #fff; overflow: hidden; }
 .note-toolbar button:focus-visible { outline: 2px solid #1a73e8; outline-offset: 1px; }
 
 .zoom-controls output { min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
+
+.page { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 100%; padding: 24px; text-align: center; }
+.page h1 { margin: 0; font-size: 40px; }
+.page p { margin: 0; color: #5f6368; }
+.page .page-error { min-height: 1.4em; color: #d32f2f; }
+.primary-button { padding: 10px 20px; border: 0; border-radius: 8px; background: #1a73e8; color: #fff; font: inherit; font-weight: 500; cursor: pointer; }
+.primary-button:disabled { opacity: 0.6; cursor: default; }
+.share { position: fixed; top: 16px; right: 16px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.share-button { padding: 8px 16px; border: 1px solid #dadce0; border-radius: 8px; background: #fff; font: inherit; cursor: pointer; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); }
+.share-panel { display: flex; flex-direction: column; gap: 8px; width: 320px; padding: 12px; background: #fff; border: 1px solid #dadce0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); }
+.share-panel input { padding: 8px; border: 1px solid #dadce0; border-radius: 6px; font: inherit; font-size: 13px; }
+.share-panel p { margin: 0; font-size: 13px; color: #5f6368; }

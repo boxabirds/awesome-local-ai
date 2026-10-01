@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoardId } from './helpers/create';
 import { E2E_EVENTUAL_TIMEOUT_MS, LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
 import { retroBoard } from '../fixtures/boards';
 import { setCamera } from './helpers/board';
@@ -8,7 +8,7 @@ import { seedBoard } from './helpers/seed';
 
 // The shared web server runs with TEST_HOOKS=1 (see playwright.config.ts).
 test('TC-24: broken board - honest failure, no editing, recovery without reload', async ({ page, baseURL, request }) => {
-  const board = newBoardId();
+  const board = await createBoardId(baseURL!);
   await seedBoard(baseURL!, board, retroBoard().updates, 25);
   const corrupt = await request.post(`/__test/boards/${board}/corrupt-snapshot`);
   expect(corrupt.status()).toBe(200);

@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { createBoardId } from './helpers/create';
 import { LONG_TEXT } from '../fixtures/texts';
 import { nextFrames, setCamera } from './helpers/board';
 
@@ -20,7 +21,8 @@ async function dragBy(page: Page, from: { x: number; y: number }, dx: number, dy
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto(`/b/${await createBoardId()}`);
+  await expect(page.getByTestId("board-viewport")).toBeVisible();
   await setCamera(page, 0, 0, 1);
 });
 

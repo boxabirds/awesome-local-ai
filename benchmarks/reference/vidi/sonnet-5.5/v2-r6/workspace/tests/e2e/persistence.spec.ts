@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoardId } from './helpers/create';
 import { BOARD_LOAD_BUDGET_MS, E2E_EVENTUAL_TIMEOUT_MS, PERSIST_TESTED_NOTES } from '../../src/shared/config';
 import { bigBoard } from '../fixtures/boards';
 import { setCamera } from './helpers/board';
@@ -49,7 +49,7 @@ async function view(page: Page): Promise<View[]> {
 }
 
 test('TC-19: overnight return - 25 varied notes are identical after a real process restart', async ({ browser }) => {
-  const board = newBoardId();
+  const board = await createBoardId(server.url);
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
   await open(page, board);
@@ -85,7 +85,7 @@ test('TC-19: overnight return - 25 varied notes are identical after a real proce
 });
 
 test('TC-20: leave immediately - a change another person saw survives exit and a hard kill', async ({ browser }) => {
-  const board = newBoardId();
+  const board = await createBoardId(server.url);
   const alexCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const samCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const alex = await alexCtx.newPage();
@@ -114,7 +114,7 @@ test('TC-20: leave immediately - a change another person saw survives exit and a
 });
 
 test('TC-21: big board - all PERSIST_TESTED_NOTES notes open after a restart (time logged, not asserted)', async ({ browser }) => {
-  const board = newBoardId();
+  const board = await createBoardId(server.url);
   const { updates } = bigBoard();
   await seedBoard(server.url, board, updates, PERSIST_TESTED_NOTES);
   await server.restart();

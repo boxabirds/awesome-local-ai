@@ -1,6 +1,6 @@
 import type { BoardRoom } from './board-room';
 
-const HOOK_PATH = /^\/__test\/(corrupt-snapshot|repair)$/;
+const HOOK_PATH = /^\/__test\/(corrupt-snapshot|repair|seed-legacy)$/;
 const SAVED_KEY = 'test_saved_chunk0';
 
 const toBase64 = (b: Uint8Array): string => {
@@ -19,6 +19,15 @@ export async function handleTestHook(room: BoardRoom, req: Request): Promise<Res
   const match = HOOK_PATH.exec(new URL(req.url).pathname);
   if (!match) return null;
   const sql = room.sql;
+  if (match[1] === 'seed-legacy') {
+    // A pre-story-5 board: update rows, no created_at. Body: JSON array of base64 Yjs updates.
+    const updates = (await req.json()) as string[];
+    if (room.store.existsReadOnly()) return new Response('board exists', { status: 409 });
+    room.store.migrate();
+    for (const u of updates) room.store.append(fromBase64(u));
+    room.loadFromStorage();
+    return new Response('seeded');
+  }
   if (match[1] === 'corrupt-snapshot') {
     if (room.doc) room.store.compactIfNeeded(room.doc, true);
     const row = sql.exec('SELECT data FROM snapshot_chunks WHERE idx = 0').toArray()[0];

@@ -58,3 +58,14 @@ Decisions:
 - Task 1 red-phase commit skipped; tests written alongside the implementation.
 
 E2E status: Chromium passes (all specs and nightly). Firefox/WebKit not run for story 4.
+
+## Story 5 — Share a board with others using a link
+
+Decisions:
+- The board UI (`BoardApp`, `canEdit`, new `ConnectedBoard`) moved to `src/client/board/BoardApp.tsx` to avoid an import cycle with the new pages; `App.tsx` now renders the router and re-exports `BoardApp`/`canEdit` so existing tests keep their imports.
+- `nextBoardPageState` returns `ready` with the id the page already holds; `BoardPage` always uses its own `id` prop. A 503 from the worker (RPC failure on GET) is treated as unreachable, so the client retries.
+- `compatibility_date` (2025-09-01) already supports Durable Object RPC, so `wrangler.jsonc` is unchanged.
+- Existing integration/e2e tests that connected to never-created boards now create them first (`ensureBoard` in `ws-client.ts`, `createBoardId` in `tests/e2e/helpers/create.ts`). The story 3 400-for-malformed-room test is now 404.
+- Legacy seeding for TC-31 uses a `seed-legacy` test hook (TEST_HOOKS only) that appends update rows without `created_at`.
+- E2E TC-29 stubs `writeText` to reject; TC-26 runs in Chromium only (real clipboard permissions). Click-to-board time is logged against CREATE_BUDGET_MS, not asserted.
+- Firefox/WebKit not run here; Chromium passes all e2e and nightly.

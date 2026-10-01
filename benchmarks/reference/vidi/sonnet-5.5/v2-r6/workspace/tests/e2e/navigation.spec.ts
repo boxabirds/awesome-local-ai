@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { createBoardId } from './helpers/create';
 import { GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT, ZOOM_MAX } from '../../src/shared/config';
 import {
   foldedDelta, nextFrames, gridState, markerCentre, readZoomPercent, setCamera, viewportOf, zoomLabel,
@@ -17,7 +18,7 @@ async function drag(page: import('@playwright/test').Page, dx: number, dy: numbe
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto(`/b/${await createBoardId()}`);
   await expect(viewportOf(page)).toBeVisible();
 });
 

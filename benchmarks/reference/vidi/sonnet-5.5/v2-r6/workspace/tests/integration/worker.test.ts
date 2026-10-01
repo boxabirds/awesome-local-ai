@@ -9,17 +9,17 @@ import { connect, fetchWorker, openSocket, until, WsClient } from './ws-client';
 const BASE = 'https://example.com';
 
 describe('Worker routing', () => {
-  it('TC-04: invalid board id → 400 and no room object is touched', async () => {
+  it('TC-04: invalid board id → 404 and no room object is touched', async () => {
     const idFromName = vi.fn();
     const env = { BOARD_ROOM: { idFromName, get: vi.fn() }, ASSETS: { fetch: vi.fn() } } as unknown as Env;
     const res = await worker.fetch(
       new Request(`${BASE}/api/rooms/bad!id`, { headers: { Upgrade: 'websocket' } }), env,
     );
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(idFromName).not.toHaveBeenCalled();
     // and through the real entry point
     const real = await fetchWorker(`${BASE}/api/rooms/bad!id`, { headers: { Upgrade: 'websocket' } });
-    expect(real.status).toBe(400);
+    expect(real.status).toBe(404);
   });
 
   it('TC-05: valid id without Upgrade → 426', async () => {

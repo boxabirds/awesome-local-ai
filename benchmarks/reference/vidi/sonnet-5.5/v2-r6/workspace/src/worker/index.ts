@@ -1,10 +1,21 @@
 import { isValidBoardId } from '../shared/board-id';
 import type { BoardRoom } from './board-room';
+import { createBoard } from './create-board';
 
 export interface Env { BOARD_ROOM: DurableObjectNamespace<BoardRoom>; ASSETS: Fetcher; TEST_HOOKS?: string }
 
 const ROOM_PATH = /^\/api\/rooms\/([^/]+)$/;
-const TEST_PATH = /^\/__test\/boards\/([^/]+)\/(corrupt-snapshot|repair)$/;
+const BOARD_PATH = /^\/api\/boards\/([^/]+)$/;
+const TEST_PATH = /^\/__test\/boards\/([^/]+)\/(corrupt-snapshot|repair|seed-legacy)$/;
+
+const json = (body: unknown, status: number): Response => Response.json(body, { status });
+const notFound = (): Response => json({ error: 'not_found' }, 404);
+
+function boardIdOf(raw: string): string | null {
+  let id: string;
+  try { id = decodeURIComponent(raw); } catch { return null; }
+  return isValidBoardId(id) ? id : null;
+}
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -13,14 +24,33 @@ export default {
       const hook = TEST_PATH.exec(path);
       if (hook && isValidBoardId(hook[1])) {
         const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(hook[1]));
-        return stub.fetch(new Request(`https://room/__test/${hook[2]}`, { method: 'POST' }));
+        return stub.fetch(new Request(`https://room/__test/${hook[2]}`, { method: 'POST', body: req.body }));
       }
     }
+
+    if (path === '/api/boards') {
+      if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'POST' } });
+      const result = await createBoard(env);
+      return result.ok ? json({ id: result.id }, 201) : json({ error: result.reason }, 500);
+    }
+
+    const board = BOARD_PATH.exec(path);
+    if (board) {
+      if (req.method !== 'GET') return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET' } });
+      const id = boardIdOf(board[1]);
+      if (!id) return notFound();
+      try {
+        const exists = await env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(id)).exists();
+        return exists ? json({ id }, 200) : notFound();
+      } catch {
+        return json({ error: 'unavailable' }, 503);
+      }
+    }
+
     const match = ROOM_PATH.exec(path);
     if (!match) return env.ASSETS.fetch(req);
-    let boardId: string;
-    try { boardId = decodeURIComponent(match[1]); } catch { boardId = ''; }
-    if (!isValidBoardId(boardId)) return new Response('Bad Request', { status: 400 });
+    const boardId = boardIdOf(match[1]);
+    if (!boardId) return new Response('Not Found', { status: 404 });
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Upgrade Required', { status: 426 });
     }

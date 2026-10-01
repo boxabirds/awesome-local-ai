@@ -40,11 +40,38 @@ export class BoardStore {
   private count = 0;
   private bytes = 0;
 
+  private migrated = false;
+
   constructor(private readonly storage: StorageLike) {}
 
   private get sql(): SqlLike { return this.storage.sql; }
 
+  private hasTable(name: string): boolean {
+    return this.sql.exec("SELECT 1 AS x FROM sqlite_master WHERE type = 'table' AND name = ?", name).toArray().length > 0;
+  }
+
+  /** Read-only: false for an id that was never created (no tables exist, nothing is written). */
+  existsReadOnly(): boolean {
+    if (this.hasTable('storage_meta')
+      && this.sql.exec('SELECT 1 AS x FROM storage_meta WHERE key = ?', 'created_at').toArray().length > 0) return true;
+    // Legacy boards (before story 5) have content but no created_at.
+    for (const table of ['updates', 'snapshot_chunks']) {
+      if (this.hasTable(table) && this.sql.exec(`SELECT 1 AS x FROM ${table} LIMIT 1`).toArray().length > 0) return true;
+    }
+    return false;
+  }
+
+  /** Marks the board as created; 'exists' when it already was. */
+  initialize(): 'created' | 'exists' {
+    this.migrate();
+    const had = this.sql.exec('SELECT 1 AS x FROM storage_meta WHERE key = ?', 'created_at').toArray().length > 0;
+    if (had) return 'exists';
+    this.sql.exec('INSERT INTO storage_meta (key, value) VALUES (?, ?)', 'created_at', String(Date.now()));
+    return 'created';
+  }
+
   migrate(): void {
+    if (this.migrated) return;
     const sql = this.sql;
     sql.exec('CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
     sql.exec('CREATE TABLE IF NOT EXISTS updates (seq INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB NOT NULL, bytes INTEGER NOT NULL)');
@@ -54,10 +81,12 @@ export class BoardStore {
       'INSERT OR IGNORE INTO storage_meta (key, value) VALUES (?, ?)',
       'storage_schema_version', String(STORAGE_SCHEMA_VERSION),
     );
+    this.migrated = true;
   }
 
   /** Throws on SQL failure; the caller resets the room. */
   append(update: Uint8Array): void {
+    this.migrate();
     this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length);
     this.count += 1;
     this.bytes += update.length;
@@ -72,6 +101,8 @@ export class BoardStore {
     let chunks: Uint8Array[];
     let rows: { seq: number; data: Uint8Array }[];
     try {
+      // An unknown board has no tables: it loads as empty and nothing is created.
+      if (!this.hasTable('updates')) { this.count = 0; this.bytes = 0; return { ok: true, quarantined: 0 }; }
       this.migrate();
       chunks = this.sql.exec('SELECT data FROM snapshot_chunks ORDER BY idx').toArray().map((r) => toBytes(r.data));
       rows = this.sql.exec('SELECT seq, data FROM updates WHERE seq > ? ORDER BY seq', this.throughSeq()).toArray()

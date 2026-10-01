@@ -94,12 +94,23 @@ export class BoardRoom extends DurableObject<Env> {
     try { ws.close(code, reason); } catch { /* already closed */ }
   }
 
+  /** RPC: marks a new board as existing. */
+  async initialize(): Promise<'created' | 'exists'> {
+    return this.store.initialize();
+  }
+
+  /** RPC: read-only existence check. */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   async fetch(req: Request): Promise<Response> {
     const hook = await handleTestHook(this, req);
     if (hook) return hook;
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Upgrade Required', { status: 426 });
     }
+    if (!this.store.existsReadOnly()) return new Response('Not Found', { status: 404 });
     if (this.phase === 'storage-failed') {
       this.phase = nextRoomState(this.phase, { type: 'reset' });
       this.loadFromStorage();

@@ -1,4 +1,4 @@
-import { exports as workerExports } from 'cloudflare:workers';
+import { env, exports as workerExports } from 'cloudflare:workers';
 
 const entry = (workerExports as unknown as { default: Fetcher }).default;
 import * as decoding from 'lib0/decoding';
@@ -11,7 +11,14 @@ import { snapshot } from '../../src/shared/board-model';
 export const fetchWorker = (input: string, init?: RequestInit) => entry.fetch(input, init);
 export const ORIGIN_REMOTE = Symbol('remote');
 
-export async function openSocket(boardId: string, host = 'https://example.com'): Promise<WebSocket> {
+/** Marks a board as created (what POST /api/boards does) so its room accepts connections. */
+export async function ensureBoard(boardId: string): Promise<void> {
+  const ns = (env as unknown as { BOARD_ROOM: DurableObjectNamespace<import('../../src/worker/board-room').BoardRoom> }).BOARD_ROOM;
+  await ns.get(ns.idFromName(boardId)).initialize();
+}
+
+export async function openSocket(boardId: string, host = 'https://example.com', create = true): Promise<WebSocket> {
+  if (create) await ensureBoard(boardId);
   const res = await fetchWorker(`${host}/api/rooms/${boardId}`, { headers: { Upgrade: 'websocket' } });
   if (res.status !== 101 || !res.webSocket) throw new Error(`upgrade failed: ${res.status}`);
   res.webSocket.accept();
