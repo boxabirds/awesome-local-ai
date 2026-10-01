@@ -1,3 +1,53 @@
+commit a63d353ae97aac6ff81c95b703e31b1a43681885
+vidi-agent  Thu Oct 1 09:48:44 2026 +0000
+
+    harness: snapshot after story 2 (uncommitted agent work)
+
+
+ src/client/objects/NoteToolbar.tsx        |   4 +-
+ src/client/objects/StickyNote.tsx         |   1 +
+ tests/component/StickyNote.test.tsx       | 282 ++++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 196 ++++++++++++++++++++
+ tests/component/Toolbars.test.tsx         | 102 +++++++++++
+ tests/component/stickyHarness.tsx         | 121 ++++++++++++
+ tests/e2e/helpers/board.ts                |  78 ++++++++
+ tests/e2e/sticky-notes.spec.ts            | 295 ++++++++++++++++++++++++++++++
+ 8 files changed, 1077 insertions(+), 2 deletions(-)
+commit 2b67f31f289769bf34ae7d4fe75a7b201d597901
+vidi-agent  Thu Oct 1 09:32:51 2026 +0000
+
+    story 2: board model, sticky note components, toolbars and wiring
+
+
+ src/client/App.tsx                      | 124 ++++++++++++-
+ src/client/board/Toolbar.tsx            |  47 +++++
+ src/client/board/useBoardDoc.ts         |  52 ++++++
+ src/client/board/useSelection.ts        |  45 +++++
+ src/client/canvas/BoardViewport.tsx     |  48 ++++-
+ src/client/canvas/testHooks.ts          |  15 +-
+ src/client/objects/NoteToolbar.tsx      |  73 ++++++++
+ src/client/objects/StickyNote.tsx       | 302 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts        | 115 ++++++++++++
+ src/client/objects/StickyTextEditor.tsx | 104 +++++++++++
+ src/client/objects/layout.ts            |  28 +++
+ src/client/styles.css                   | 191 ++++++++++++++++++++
+ src/shared/board-model.ts               | 188 +++++++++++++++++---
+ tests/fixtures/texts.ts                 |  37 ++++
+ tests/unit/board-model.test.ts          |  11 +-
+ tests/unit/sticky-text.test.ts          | 232 ++++++++++++++++++++++++
+ 16 files changed, 1569 insertions(+), 43 deletions(-)
+commit edff5db00e2df2fa04a471adb347f3cb62c939c8
+vidi-agent  Thu Oct 1 09:08:46 2026 +0000
+
+    story 2: board model unit tests (TC-01..TC-12, TC-39) and sticky settings
+
+
+ package-lock.json              |  48 ++++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  62 ++++++++
+ src/shared/config.ts           |  35 +++++
+ tests/unit/board-model.test.ts | 314 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 460 insertions(+), 2 deletions(-)
 commit 713e8f56f21bc2d6593b315561366aa6d0693b72
 vidi-agent  Thu Oct 1 09:05:03 2026 +0000
 
