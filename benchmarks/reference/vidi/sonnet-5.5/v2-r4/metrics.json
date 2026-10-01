@@ -2724,7 +2724,18 @@
           "found": 5,
           "total": 5
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "private": {
+          "copied": 13,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "ab4d745b"
+      }
     }
   },
   "pack": "vidi",

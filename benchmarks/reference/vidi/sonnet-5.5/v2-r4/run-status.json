@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness c3c07fc5, client claude, model claude-sonnet-5-5",
-  "at": "2026-10-01T07:37:23Z",
+  "state": "stopped",
+  "reason": "exit 143:",
+  "at": "2026-10-01T10:12:00Z",
   "host": "Apple M2 16GB"
 }
