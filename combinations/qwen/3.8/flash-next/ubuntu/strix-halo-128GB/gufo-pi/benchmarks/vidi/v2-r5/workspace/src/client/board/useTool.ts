@@ -2,11 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Per-client tool mode. Stories 10–12 add their tools.
- * `select` is the default; `text` is the Text tool.
+ * `select` is the default.
  *
- * When `canEdit` becomes false while 'text' is active, reverts to 'select'.
+ * When `canEdit` becomes false while any non-select tool is active, reverts to 'select'.
  */
-export type Tool = 'select' | 'text';
+export type Tool = 'select' | 'text' | 'shape' | 'connector';
 
 export interface UseToolResult {
   tool: Tool;

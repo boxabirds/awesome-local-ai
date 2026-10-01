@@ -20,9 +20,9 @@ export interface UseBoardKeysOptions {
   canEdit: boolean;
   undoController?: UndoController;
   boundary?: () => void;
-  /** Tool state for V/T/Escape shortcuts */
+  /** Tool state for V/T/S/L/Escape shortcuts */
   tool?: string;
-  setTool?(t: 'select' | 'text'): void;
+  setTool?(t: 'select' | 'text' | 'shape' | 'connector'): void;
   /** Called when N is pressed: creates a sticky at view centre */
   onCreateSticky?(): void;
 }
@@ -108,6 +108,20 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
         if (setToolRef.current && canEditRef.current) {
           event.preventDefault();
           setToolRef.current('text');
+        }
+        return;
+      }
+      if (keyLower === 's' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (setToolRef.current && canEditRef.current) {
+          event.preventDefault();
+          setToolRef.current('shape');
+        }
+        return;
+      }
+      if (keyLower === 'l' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (setToolRef.current && canEditRef.current) {
+          event.preventDefault();
+          setToolRef.current('connector');
         }
         return;
       }

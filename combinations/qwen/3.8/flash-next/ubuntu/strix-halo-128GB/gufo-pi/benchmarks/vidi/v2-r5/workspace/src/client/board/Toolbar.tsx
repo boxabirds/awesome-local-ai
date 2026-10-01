@@ -2,6 +2,7 @@ import type React from 'react';
 import { UndoButtons } from './UndoButtons';
 import type { UseUndoResult } from './useUndo';
 import type { Tool } from './useTool';
+import { type ShapeKind } from '../../shared/config';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
@@ -9,6 +10,8 @@ export interface ToolbarProps {
   undo?: UseUndoResult;
   tool?: Tool;
   onToolChange?(t: Tool): void;
+  shapeKind?: ShapeKind;
+  onShapeKindChange?(k: ShapeKind): void;
 }
 
 /** Tooltip and accessible name of the sticky note button, exactly as the PRD words it. */
@@ -76,6 +79,35 @@ export function Toolbar({ onCreateSticky, disabled, undo, tool, onToolChange }: 
           >
             <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
               <path fill="currentColor" d="M3 4h14v3h-2V6h-4v9h2v2H7v-2h2V6H5v1H3V4z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="board-toolbar-button"
+            data-testid="tool-shape-button"
+            aria-label="Shape (S)"
+            title="Shape (S)"
+            aria-pressed={tool === 'shape'}
+            onClick={() => onToolChange('shape')}
+            disabled={disabled}
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <rect x="3" y="3" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="board-toolbar-button"
+            data-testid="tool-connector-button"
+            aria-label="Connector (L)"
+            title="Connector (L)"
+            aria-pressed={tool === 'connector'}
+            onClick={() => onToolChange('connector')}
+            disabled={disabled}
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <line x1="3" y1="17" x2="17" y2="3" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M13 3h4v4" fill="none" stroke="currentColor" strokeWidth="1.5" />
             </svg>
           </button>
         </>

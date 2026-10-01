@@ -3,6 +3,9 @@ import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColo
 import type { Rect } from './geometry';
 import { rectContains } from './geometry';
 import type { TextSnapshot } from './objects/text';
+import type { ShapeSnap } from './objects/shape';
+import type { ConnectorSnap } from './objects/connector';
+import { detachConnectorsTo } from './objects/connector';
 
 /**
  * Board document model: the Yjs schema and every mutation a user can perform on the board.
@@ -51,7 +54,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 }
 
 /** Union snapshot that includes all known object types. */
-export type CombinedSnapshot = StickySnapshot | TextSnapshot;
+export type CombinedSnapshot = StickySnapshot | TextSnapshot | ShapeSnap | ConnectorSnap;
 
 const metaMap = (doc: Y.Doc): Y.Map<unknown> => doc.getMap(META_MAP);
 
@@ -331,12 +334,13 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 
 /**
  * Delete multiple objects. Skips missing ids. Returns count actually deleted.
- * One transaction if count > 0.
+ * One transaction if count > 0. Detaches any connector ends attached to deleted objects.
  */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
   let count = 0;
   doc.transact(() => {
+    detachConnectorsTo(doc, ids as string[]);
     for (const id of ids) {
       if (objectsMap(doc).has(id)) {
         objectsMap(doc).delete(id);
@@ -384,12 +388,68 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
 
 const TEXT_SIZE_KEYS = new Set<string>(Object.keys(TEXT_SIZES));
 
+import { SHAPE_KINDS, SHAPE_DEFAULT_SIZE_WORLD, SHAPE_FILL_COLORS, SHAPE_STROKE_COLORS, DEFAULT_SHAPE_FILL, DEFAULT_SHAPE_STROKE, type ShapeKind, type FillColor, type StrokeColor } from './config';
+import { type Endpoint } from './objects/connector';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+
+const SHAPE_KIND_SET = new Set<string>(SHAPE_KINDS);
+const FILL_KEYS = new Set<string>(Object.keys(SHAPE_FILL_COLORS));
+const STROKE_KEYS = new Set<string>(Object.keys(SHAPE_STROKE_COLORS));
+
+function endpointFromMapVal(raw: unknown): Endpoint | null {
+  if (!raw || typeof raw !== 'object') return null;
+  let kind: unknown, objectId: unknown, fallback: unknown, x: unknown, y: unknown;
+  if (raw instanceof Y.Map) {
+    kind = raw.get('kind');
+    objectId = raw.get('objectId');
+    fallback = raw.get('fallback');
+    x = raw.get('x');
+    y = raw.get('y');
+  } else {
+    const obj = raw as Record<string, unknown>;
+    kind = obj.kind;
+    objectId = obj.objectId;
+    fallback = obj.fallback;
+    x = obj.x;
+    y = obj.y;
+  }
+  if (kind === 'free') {
+    if (typeof x !== 'number' || typeof y !== 'number') return null;
+    return { kind: 'free', x, y };
+  }
+  if (kind === 'attached') {
+    if (typeof objectId !== 'string') return null;
+    let fb = { x: 0, y: 0 };
+    if (fallback && typeof fallback === 'object') {
+      const fbM = fallback instanceof Y.Map ? fallback : null;
+      const fx = fbM ? fbM.get('x') : (fallback as Record<string, unknown>).x;
+      const fy = fbM ? fbM.get('y') : (fallback as Record<string, unknown>).y;
+      if (typeof fx === 'number' && typeof fy === 'number') fb = { x: fx, y: fy };
+    }
+    return { kind: 'attached', objectId, fallback: fb };
+  }
+  return null;
+}
+
 /**
- * Immutable render model: every known object (sticky + text) sorted by `(z, id)`.
+ * Immutable render model: every known object (sticky + text + shape + connector) sorted by `(z, id)`.
  * Unknown types are skipped so later stories' objects do not break an older client.
  */
 export function allObjectsSnapshot(doc: Y.Doc): readonly CombinedSnapshot[] {
   const items: CombinedSnapshot[] = [];
+  // First pass: collect rects of all objects (needed for connector endpoint resolution)
+  const rectsMap = new Map<string, Rect>();
+  for (const [id, map] of objectsMap(doc)) {
+    const type = map.get('type');
+    if (type === 'connector') continue; // Connectors don't have meaningful rects
+    const x = numberField(map, 'x');
+    const y = numberField(map, 'y');
+    const width = typeof map.get('width') === 'number' ? map.get('width') as number : STICKY_SIZE_WORLD;
+    const height = typeof map.get('height') === 'number' ? map.get('height') as number : STICKY_SIZE_WORLD;
+    rectsMap.set(id, { x, y, width, height });
+  }
+
+  // Second pass: build snapshots
   for (const [id, map] of objectsMap(doc)) {
     const type = map.get('type');
     if (type === 'sticky') {
@@ -423,6 +483,45 @@ export function allObjectsSnapshot(doc: Y.Doc): readonly CombinedSnapshot[] {
         size: typeof size === 'string' && TEXT_SIZE_KEYS.has(size) ? size as TextSize : DEFAULT_TEXT_SIZE,
         widthMode: widthMode === 'fixed' ? 'fixed' : 'auto',
       } as TextSnapshot);
+    } else if (type === 'shape') {
+      const label = map.get('label');
+      const kind = map.get('kind');
+      const fill = map.get('fill');
+      const stroke = map.get('stroke');
+      items.push({
+        id,
+        type: 'shape',
+        x: numberField(map, 'x'),
+        y: numberField(map, 'y'),
+        width: typeof map.get('width') === 'number' ? map.get('width') as number : SHAPE_DEFAULT_SIZE_WORLD,
+        height: typeof map.get('height') === 'number' ? map.get('height') as number : SHAPE_DEFAULT_SIZE_WORLD,
+        z: numberField(map, 'z'),
+        kind: typeof kind === 'string' && SHAPE_KIND_SET.has(kind) ? kind as ShapeKind : 'rect',
+        fill: typeof fill === 'string' && FILL_KEYS.has(fill) ? fill as FillColor : DEFAULT_SHAPE_FILL,
+        stroke: typeof stroke === 'string' && STROKE_KEYS.has(stroke) ? stroke as StrokeColor : DEFAULT_SHAPE_STROKE,
+        label: label instanceof Y.Text ? label.toString() : '',
+      } as ShapeSnap);
+    } else if (type === 'connector') {
+      const from = endpointFromMapVal(map.get('from'));
+      const to = endpointFromMapVal(map.get('to'));
+      if (!from || !to) continue;
+      // Derive x/y/width/height from resolved endpoints
+      const resolved = resolveEndpoints(
+        { from, to },
+        rectsMap as ReadonlyMap<string, Rect>,
+      );
+      const bbox = connectorBBox(resolved.from, resolved.to);
+      items.push({
+        id,
+        type: 'connector',
+        x: bbox.x,
+        y: bbox.y,
+        width: bbox.width,
+        height: bbox.height,
+        z: numberField(map, 'z'),
+        from,
+        to,
+      } as ConnectorSnap);
     }
   }
   items.sort((a, b) => (a.z === b.z ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.z - b.z));

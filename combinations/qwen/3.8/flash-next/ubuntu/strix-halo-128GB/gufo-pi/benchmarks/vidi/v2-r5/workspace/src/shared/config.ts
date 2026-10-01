@@ -177,3 +177,67 @@ export const TEXT_LINE_HEIGHT = 1.3;
 
 /** Font family for text objects. */
 export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/* ------------------------------------------------------- shapes ---- */
+
+/** The three shape kinds a user can draw. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** Standard-size shape (click to drop), in world units. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/** Minimum drag size to create a shape by dragging (either axis); below this → click. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** Maximum characters in a shape label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** Outline width of a shape, in world units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** Fill colour palette for shapes (includes 'none' for transparent). */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** Outline colour palette for shapes. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** Default fill colour key for new shapes. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+
+/** Default outline colour key for new shapes. */
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+/* ------------------------------------------------------- connectors ---- */
+
+/** Minimum drag length (world units) to create a connector; below this → no arrow. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/** Hit tolerance for selecting an arrow, in screen pixels. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** Line width of a connector, in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** Arrowhead size, in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** Radius of connection dots, in screen pixels. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
