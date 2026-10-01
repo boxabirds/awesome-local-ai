@@ -367,7 +367,7 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   output).
 - **Resolved 2026-10-01 10:05:** fixed in `55e01146` (`drive.py` as it was, plus the nudge change alone). A
   clean export of origin/main imports `drive` (checked by the monitor, which now repeats that check
-  whenever main's harness changes). No job started in the broken window (08:39–09:54): the latest job start on
+  whenever main's harness changes). No job started in the broken window (09:39–09:54): the latest job start on
   any machine is 08:26. CI on the fix is green.
 - **Status at first report:** open and urgent. dbench pulls main before each job, so the next job to start (Swift 1.5
   v2-r5 on the RTX 4090 machine when v2-r4 ends; Sonnet v2-r5 on the M2 MacBook Air; gufo v2-r4's
