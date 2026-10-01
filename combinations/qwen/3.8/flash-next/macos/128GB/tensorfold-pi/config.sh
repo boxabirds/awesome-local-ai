@@ -39,12 +39,12 @@ TENSORFOLD_VERSION="0.6.0"
 TENSORFOLD_COMMIT="c4646171139ee8a3c38103eaa1699dad226ec12b"
 # pyproject.toml: requires-python >= 3.11. A uv-managed CPython, so the Mac's own Python is not involved.
 TENSORFOLD_PYTHON="3.12"
-# The process memory budget (TENSORFOLD_MEMORY_LIMIT_GB). TensorFold's default is 70% of RAM, 89.6 GiB here, which
-# leaves ~14 GiB beside the ~75.6 GiB of resident weights (docs/recipes/qwen3.8-flash-next.md). mlx-serve runs this
-# model with a 16 GiB OS reserve (its MLXSERVE_OS_RESERVE_GIB), so the same reserve here is 128 - 16. TensorFold caps
-# the budget at the GPU's recommended working set (110,100 MiB measured on this Mac), and its startup line says
-# where it landed.
-TENSORFOLD_MEMORY_LIMIT_GB=112
+# The process memory budget (TENSORFOLD_MEMORY_LIMIT_GB, GiB, read as a float). TensorFold's own default: 70% of
+# RAM, which leaves ~14 GiB beside the ~75.6 GiB of resident weights (docs/recipes/qwen3.8-flash-next.md). Not
+# mlx-serve's 16 GiB OS reserve (112 here): this Mac kernel-panicked on 24 Sep 2026, so the checks start from the
+# conservative default, and only a measured out-of-memory failure in check 1 raises it. TensorFold refuses to load,
+# naming the budget it needs, when the model doesn't fit; its startup line says where the budget landed.
+TENSORFOLD_MEMORY_LIMIT_GB=89.6
 # One request at a time, as mlx-serve is run (--max-concurrent 1).
 TENSORFOLD_PARALLEL=1
 

@@ -108,7 +108,7 @@ assert_ok "...and the paths are printed" grep -qF "$RUN/check1/summary.md" "$WOR
 assert_ok "the keep-prompt limit is recorded" grep -q '"keep_limit": 200704' "$RUN/keep-limit.json"
 assert_ok "the server ran the combination's command line (fitted: no --context)" \
   bash -c "! grep -qx -- --context '$WORK/tensorfold.argv' && grep -qx -- '--reasoning-effort' '$WORK/tensorfold.argv'"
-assert_ok "...with the combination's memory budget" grep -qx 'TENSORFOLD_MEMORY_LIMIT_GB=112' "$WORK/tensorfold.env"
+assert_ok "...with the combination's memory budget" grep -qx 'TENSORFOLD_MEMORY_LIMIT_GB=89.6' "$WORK/tensorfold.env"
 assert_ok "the server was stopped by its PID" bash -c "! kill -0 \$(cat '$RUN/server.pid') 2>/dev/null"
 assert_ok "the check-3 command is printed, one story" grep -qE '^ *dbench submit .*--combination qwen/3.8/flash-next/macos/128GB/tensorfold-pi .*--stories 1' "$WORK/out"
 assert_ok "pi's context limit is confirmed against the keep-prompt limit" grep -q 'CONTEXT_LIMIT=131072 .*fits' "$WORK/out"
