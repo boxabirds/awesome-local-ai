@@ -1,3 +1,39 @@
+commit 30022af715d7a40ec98ecb119213f5b6f026e78e
+vidi-agent  Thu Oct 1 08:07:30 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                     |   15 +
+ package-lock.json                            | 1117 ++++++++++++++++++++++++--
+ package.json                                 |   13 +-
+ src/client/App.tsx                           |   33 +-
+ src/client/board/useBoardDoc.ts              |   23 +-
+ src/client/canvas/testHooks.ts               |    2 +-
+ src/client/sync/ConnectionStatus.tsx         |   33 +
+ src/client/sync/connectBoard.ts              |   78 ++
+ src/shared/board-id.ts                       |   13 +
+ src/shared/config.ts                         |    7 +
+ src/shared/protocol.ts                       |   34 +
+ src/worker/board-room.ts                     |  100 +++
+ src/worker/index.ts                          |   20 +
+ tests/component/ConnectionStatus.test.tsx    |  109 +++
+ tests/component/StickyNote.test.tsx          |    3 +-
+ tests/component/setup.ts                     |   13 +-
+ tests/e2e/helpers/participants.ts            |  105 +++
+ tests/e2e/live-collaboration.nightly.spec.ts |   74 ++
+ tests/e2e/live-collaboration.spec.ts         |  168 ++++
+ tests/integration/board-room.test.ts         |  201 +++++
+ tests/integration/helpers/random-ops.ts      |   40 +
+ tests/integration/helpers/ws-client.ts       |  113 +++
+ tests/integration/tsconfig.json              |    8 +
+ tests/integration/worker.test.ts             |   63 ++
+ tests/unit/board-id.test.ts                  |   32 +
+ tests/unit/protocol.test.ts                  |   39 +
+ tsconfig.json                                |    2 +-
+ vitest.config.ts                             |    9 +
+ wrangler.jsonc                               |   12 +-
+ 29 files changed, 2400 insertions(+), 79 deletions(-)
 commit f06ee9acb9fb532cbac01f80a4da6219122a9350
 vidi-agent  Thu Oct 1 04:15:12 2026 +0100
 
