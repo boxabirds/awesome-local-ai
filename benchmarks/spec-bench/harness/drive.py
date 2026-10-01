@@ -146,27 +146,54 @@ MAX_AGENT_RESUMES = 3
 SECONDS_PER_HOUR = 3600
 MAX_STORY_AGENT_S = 4 * SECONDS_PER_HOUR
 MAX_NUDGES = 5
+# The console line for each nudge, up to its number. dbench reads a job's nudges from it (tools/dbench/src/events.rs),
+# so its start is kept word for word from before the stop rule, when a stop without a commit was the only kind nudged.
+NUDGE_LINE = "agent stopped without committing — nudge"
 RESUME_BACKOFF_S = 60
 RESUME_PROMPT = "Continue with the task from where you left off."
+# The stop rule (owner's decision and wording, 1 Oct 2026). Every time the agent stops cleanly the harness asks one
+# thing: is the story finished, on evidence (story_finished)? If not, the agent gets STOP_MESSAGE_TMPL in the same
+# session, the same text every time, up to MAX_NUDGES times; then the story is capped (recorded PARTIAL, its work
+# committed by the harness). Before, the harness looked only at commits since the story began: none, and the agent
+# was told to "continue"; any, and the story was accepted. Over the 227 nudges in the repo's logs that led to a
+# commit 15% of the time: agents that had finished but not committed did busywork or built the next stories (gufo
+# v2-r1 story 10 built 11 and 12; v2-r4 story 4 spent 33 agent-minutes re-running its suites), and a stall after an
+# early task's commit was accepted as a finished story. Each part of the message answers a case in those logs:
+# combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/analysis/README.md. Tests: test_stop_rule.py.
+STOP_MESSAGE_TMPL = """\
+This is an automated message from a script. Nobody reads your replies and nobody can answer questions. You will get this same message every time you stop, until story {n} is finished in the way described here.
+
+You are working on story {n}, "{title}", and nothing else. Its tasks are in {tasks_path}.
+
+Do the first of these that applies:
+
+1. Your last message contained a tool call written as text: it was not run. Make the call again as a real tool call.
+2. A task in tasks.md is not finished: carry on with it now. Do not write a summary first.
+3. Something cannot be done on this machine (for example a browser that is not installed): write what and why in NOTES.md and treat that task as finished.
+4. Every task is finished: do not re-check or improve anything. Run
+   git add -A && git commit -m "story {n}: {title}"
+   then git rev-parse HEAD.
+
+When the commit is made, reply with exactly this one line and stop:
+
+STORY {n} DONE <commit hash>
+
+Do not start any other story. Do not offer further work. Do not ask what to do next."""
+# The same line is asked for at the end of the story's own prompt (render_prompt), after the pack's template, which
+# is the pack's and is not edited here: an agent that does as it is asked finishes on its first stop, with no message.
+DONE_LINE_PROMPT_TMPL = ("After that commit, run `git rev-parse HEAD` and end your final reply with exactly this line: "
+                         "STORY {n} DONE <commit hash>. The story is not finished until you have sent it.")
+# The DONE line, on a line of its own; code or bold marks around it (a model's habit) are not part of it.
+DONE_HASH_MIN_CHARS = 7
+DONE_HASH_MAX_CHARS = 40
+DONE_LINE = re.compile(rf"^[ \t`*]*STORY (\d+) DONE ([0-9a-fA-F]{{{DONE_HASH_MIN_CHARS},{DONE_HASH_MAX_CHARS}}})[ \t`*]*$", re.M)
 # An engine can fail to parse a tool call and hand it back as plain text: gufo b722a61 did with an
 # `edit` whose JSON argument held raw newlines (gufo-org/gufo#304, 28 Sep). The agent then sees a
-# text reply with no tool call and stops as if finished, mid-work. If a session ends on a reply
-# that contains a tool call written as text, the harness continues it with this prompt (same rule
-# for every engine; llama.cpp never triggered it in ~4,400 turns), up to a cap, and logs each one.
-TOOLCALL_AS_TEXT_PROMPT = ("Your last reply contained a tool call written out as text, so it was not run and "
-                           "nothing in it was applied. Issue it again as a real tool call and carry on with the task.")
+# text reply with no tool call and stops as if finished, mid-work. It is the stop message's first case; such a stop
+# is counted apart from the nudges (toolcall_text_resumes, up to a cap) and logged in the run's interventions
+# (same rule for every engine; llama.cpp never triggered it in ~4,400 turns).
 TOOLCALL_TEXT_MARKERS = ("<tool_call>",)
 MAX_TOOLCALL_TEXT_RESUMES = 3
-# A reasoning model can end a turn with thinking only and no tool call; the agent then exits 0 as
-# if finished (canvas-pi-01 story 2: 3 minutes, one task in). If a session ends with no commit, the
-# harness continues the same session with NUDGE_PROMPT, as a person would. Counted as nudges.
-# The nudge says what is missing (owner's wording, 1 Oct 2026): an agent that believed it had finished but never
-# committed was told only to "continue", answered five times that nothing was left, and lost the story's DONE
-# (gufo v2-r4 story 4: 33 agent-minutes of nudges, 4/4 held-out, recorded PARTIAL). The story prompt already asks
-# for the commit; this repeats it and asks for the hash as evidence.
-NUDGE_PROMPT = ("Continue with the task from where you left off. Make sure you are committing your work after each "
-                "task you complete, and give the commit hash as evidence.")
-# No cap (user decision, 24 Sep): the only stop is a nudge that makes no model call at all.
 # pi's bash tool has no default timeout. An agent that backgrounds a server inside a tool call
 # (`(wrangler dev &)`) leaves children holding the tool's output pipe and the call never returns.
 # After this long with the last event a tool call and nothing streamed, the harness does what a
@@ -851,9 +878,10 @@ def stories_so_far(processed: list[dict], this_id: int) -> str:
 
 
 def render_prompt(story: dict, title: str, processed: list[dict], scope: dict) -> str:
-    """processed: the queue of stories already processed, each {"id", "status": DONE|PARTIAL, ...}."""
+    """The pack's template filled in, then the harness's request for the DONE line.
+    processed: the queue of stories already processed, each {"id", "status": DONE|PARTIAL, ...}."""
     story_dir = f"spec/stories/{story['dir']}"
-    return (PROMPT_TMPL.read_text()
+    text = (PROMPT_TMPL.read_text()
             .replace("{{APP_LINE}}", PK.app_line)
             .replace("{{RULES}}", PK.rules)
             .replace("{{ID}}", str(story["id"]))
@@ -862,6 +890,8 @@ def render_prompt(story: dict, title: str, processed: list[dict], scope: dict) -
             .replace("{{STORY_DIR}}", story_dir)
             .replace("{{STORIES_SO_FAR}}", stories_so_far(processed, story["id"]))
             .replace("{{SCOPE_NOTE}}", scope.get("out_of_scope_note", "")))
+    # The harness's own last paragraph: how the agent says the story is finished (the stop rule).
+    return f"{text.rstrip()}\n\n{DONE_LINE_PROMPT_TMPL.format(n=story['id'])}\n"
 
 
 def story_title(story: dict) -> str:
@@ -932,9 +962,24 @@ class ToolHangGuard(threading.Thread):
         return self.interruptions
 
 
-def needs_nudge(attempt: dict, commits: int) -> bool:
-    """The agent quit cleanly without committing anything: continue it rather than accept an early stop."""
-    return commits == 0 and not attempt["stalled"] and not attempt["error"] and bool(attempt["session"])
+def stop_message(story_id: int, title: str, tasks_path: str) -> str:
+    """What the agent is told each time it stops before its story is finished: the same text every time."""
+    return STOP_MESSAGE_TMPL.format(n=story_id, title=title, tasks_path=tasks_path)
+
+
+def story_finished(reply_text: str, story_id: int, ws: Path) -> bool:
+    """A story is finished only on evidence: the agent's last reply has `STORY <id> DONE <hash>` for this story on
+    a line of its own, the hash (7 to 40 hex characters) is the start of the workspace's HEAD, and nothing in the
+    workspace is left uncommitted. Anything else is not finished, and so is a workspace git can't read."""
+    hashes = [h.lower() for n, h in DONE_LINE.findall(reply_text) if int(n) == story_id]
+    if not hashes:
+        return False
+    try:
+        head = sh(["git", "rev-parse", "HEAD"], ws).strip().lower()
+        clean = not sh(["git", "status", "--porcelain"], ws).strip()
+    except (RuntimeError, OSError):
+        return False
+    return clean and bool(head) and any(head.startswith(h) for h in hashes)
 
 
 def final_reply_text(events_path: Path) -> str:
@@ -957,29 +1002,24 @@ def final_reply_text(events_path: Path) -> str:
 
 
 def tool_call_as_text(text: str) -> bool:
-    """A reply that carries a tool call as plain text: the engine couldn't parse it (see TOOLCALL_AS_TEXT_PROMPT)."""
+    """A reply that carries a tool call as plain text: the engine couldn't parse it (see TOOLCALL_TEXT_MARKERS)."""
     return any(marker in text for marker in TOOLCALL_TEXT_MARKERS)
 
 
 def cap_reason(agent_s: float, nudges: int) -> str | None:
-    """Why the story must end now, or None: over MAX_STORY_AGENT_S of agent time, or MAX_NUDGES given."""
+    """Why the story must end now, or None: over MAX_STORY_AGENT_S of agent time, or the stop message sent
+    MAX_NUDGES times."""
     if agent_s >= MAX_STORY_AGENT_S:
         return f"story cap: {agent_s / SECONDS_PER_HOUR:.1f} h of agent time (cap {MAX_STORY_AGENT_S / SECONDS_PER_HOUR:.1f} h)"
     if nudges >= MAX_NUDGES:
-        return f"story cap: {nudges} nudges without committing (cap {MAX_NUDGES})"
+        return f"story cap: the stop message was sent {nudges} times without the story finishing (cap {MAX_NUDGES})"
     return None
 
 
-def keep_nudging(attempt: dict, commits: int, nudges: int) -> bool:
-    """Nudge again unless the agent committed, or the previous nudge made no progress: no model call,
-    or only talk with no tool call (e.g. "Nothing left to do." — 3,066 times in canvas-pi-01 story 11)."""
-    if nudges > 0 and (attempt.get("steps", 0) == 0 or attempt.get("tool_calls", 0) == 0):
-        return False
-    return needs_nudge(attempt, commits)
-
-
-def commits_since(ws: Path, head: str) -> int:
-    return int(sh(["git", "rev-list", "--count", f"{head}..HEAD"], ws).strip())
+def _stop_check(events_path: Path, story_id: int, ws: Path) -> tuple[bool, bool]:
+    """What the agent's last reply shows: (the story is finished, the reply is a tool call written as text)."""
+    reply = final_reply_text(events_path)
+    return story_finished(reply, story_id, ws), tool_call_as_text(reply)
 
 
 def stamp(line: str, t: float) -> str:
@@ -1086,15 +1126,18 @@ def last_session(client, events_path: Path) -> str | None:
     return sid
 
 
-def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path,
+def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path, story: dict,
                     continue_session: str | None = None, on_cap=None) -> dict:
-    """First attempt plus fork-resumes after errors and nudges after no-commit stops. With
-    continue_session (a harness restart mid-story), the agent's own session is continued."""
+    """First attempt, plus fork-resumes after errors and the stop message after every clean stop that isn't a
+    verified finish (the stop rule: STOP_MESSAGE_TMPL). story: {"id", "title", "tasks_path"}, what the message
+    names. With continue_session (a harness restart mid-story), the agent's own session is continued."""
     if not continue_session:
         events_path.unlink(missing_ok=True)
-    guard = ToolHangGuard(events_path, ws, events_path.parent.parent.parent / "interventions.md")
+    run_dir = events_path.parent.parent.parent
+    guard = ToolHangGuard(events_path, ws, run_dir / "interventions.md")
     guard.start()
-    head = sh(["git", "rev-parse", "HEAD"], ws).strip()
+    message = stop_message(story["id"], story["title"], story["tasks_path"])
+    finished = False
     if continue_session:
         attempts = [run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
                               resume_from=continue_session, fork=False)]
@@ -1109,25 +1152,30 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
             time.sleep(RESUME_BACKOFF_S)
             attempts.append(run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
                                       resume_from=last["session"], fork=True))
-        elif (not last["error"] and not last["stalled"] and last["session"]
-              and toolcall_text_resumes < MAX_TOOLCALL_TEXT_RESUMES
-              and derived("reply check", lambda: tool_call_as_text(final_reply_text(events_path)), False,
-                          run=events_path.parent.parent.parent)):
-            toolcall_text_resumes += 1
-            why = (f"story {events_path.parent.name}: the agent's last reply was a tool call written as text "
-                   f"(not run); continued the session ({toolcall_text_resumes}/{MAX_TOOLCALL_TEXT_RESUMES})")
-            print(f"    {why}", flush=True)
-            log_intervention(events_path.parent.parent.parent, why)
-            attempts.append(run_agent(client, ws, env, model_id, TOOLCALL_AS_TEXT_PROMPT, events_path,
-                                      resume_from=last["session"], fork=False))
-        elif keep_nudging(last, commits_since(ws, head), nudges):
-            if nudges >= MAX_NUDGES:
+        elif not last["error"] and not last["stalled"] and last["session"]:
+            # A clean stop. A fault in the check itself is the harness's, not the agent's: it is recorded, the
+            # agent is not sent the message blind, and the story is taken as it stands.
+            checked = derived("reply check", lambda: _stop_check(events_path, story["id"], ws), None, run=run_dir)
+            if checked is None:
+                break
+            finished, toolcall_as_text = checked
+            if finished:
+                break
+            if toolcall_as_text and toolcall_text_resumes < MAX_TOOLCALL_TEXT_RESUMES:
+                toolcall_text_resumes += 1
+                why = (f"story {events_path.parent.name}: the agent's last reply was a tool call written as text "
+                       f"(not run); continued the session ({toolcall_text_resumes}/{MAX_TOOLCALL_TEXT_RESUMES})")
+                print(f"    {why}", flush=True)
+                log_intervention(run_dir, why)
+            elif nudges >= MAX_NUDGES:
                 if on_cap:
                     on_cap(cap_reason(sum(a["seconds"] for a in attempts), nudges))
                 break
-            nudges += 1
-            print(f"    agent stopped without committing — nudge {nudges}: continuing the session", flush=True)
-            attempts.append(run_agent(client, ws, env, model_id, NUDGE_PROMPT, events_path,
+            else:
+                nudges += 1
+                print(f"    {NUDGE_LINE} {nudges}: the story is not finished (no verified DONE line); "
+                      f"the stop message was sent", flush=True)
+            attempts.append(run_agent(client, ws, env, model_id, message, events_path,
                                       resume_from=last["session"], fork=False))
         else:
             break
@@ -1138,7 +1186,8 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
     return {**total, "exit": attempts[-1]["exit"], "stalled": attempts[-1]["stalled"],
             "resumes": resumes, "nudges": nudges, "toolcall_text_resumes": toolcall_text_resumes, "errors": [a["error"] for a in attempts if a["error"]],
             "ended_by_operator": STORY_SKIP.is_set(),
-            "ended_in_error": bool(attempts[-1]["error"]), "sessions": [a["session"] for a in attempts]}
+            "ended_in_error": bool(attempts[-1]["error"]), "sessions": [a["session"] for a in attempts],
+            "finished": finished}
 
 
 # Processes that ARE the agent (or its sandbox wrapper): never killed while a story runs.
@@ -1927,8 +1976,10 @@ def main() -> None:
             skipper.start()
             global CONTAINMENT
             CONTAINMENT = containment.StoryContainment(run.name, sid)
-            rec["agent"] = run_story_agent(client, ws, env, a.model_id, prompt, events, continue_session=prior,
-                                           on_cap=skipper.cap)
+            rec["agent"] = run_story_agent(
+                client, ws, env, a.model_id, prompt, events,
+                {"id": sid, "title": title, "tasks_path": f"spec/stories/{story['dir']}/tasks.md"},
+                continue_session=prior, on_cap=skipper.cap)
             rec["agent_finished"] = time.time()
             derived("totals over attempts", lambda: record_attempts(rec, earlier), run=run)
             skip = skipper.stop()
