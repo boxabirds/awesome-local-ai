@@ -103,14 +103,14 @@ STREAM_DELTA_EVENTS = {"message_update", "tool_execution_update"}
 FIRST_CHUNK_EVENT = "message_update"
 DELTA_TYPE = re.compile(r'"type":\s*"(message_update|tool_execution_update)"')
 DELTA_PREFIX = 80            # a stamped line names its type within its first bytes: skip a delta without parsing it
-# tests/privacy-test.sh: committed benchmark files stay under 512 KB and carry no home paths.
-PUBLISH_MAX_BYTES = 512 * 1024
+# tests/privacy-test.sh: committed benchmark files carry no home paths, and stay within their kind's size limit
+# (publicise.size_limit, the one table both use).
 # The conversation log is the exception (owner's decision, 30 Sep 2026): it is published whole, nothing truncated,
 # because a record that cuts what the model read and wrote can't be audited. Measured: a 30.9 MB story compacts to
 # about 0.7 MB gzipped. Its own cap is GitHub's: pushes warn on files over 50 MB and are refused over 100 MB, and a
 # refused push would stop every later story's record. Past the cap (never seen) strings are cut, and the log says so.
 MB = 1024 * 1024
-EVENT_LOG_MAX_BYTES = 50 * MB
+EVENT_LOG_MAX_BYTES = publicise.EVENT_LOG_LIMIT
 LOG_CUT_MARK = "harness_log_cut"
 # Only past EVENT_LOG_MAX_BYTES: long strings are cut to this, then shorter (EVENT_STRING_STEPS).
 EVENT_STRING_MAX = 2000
@@ -333,8 +333,7 @@ def _cut_to_fit(f: Path) -> None:
 
 
 def _over_limit(f: Path) -> bool:
-    cap = EVENT_LOG_MAX_BYTES if f.name.endswith(".compact.jsonl.gz") else PUBLISH_MAX_BYTES
-    return f.stat().st_size > cap
+    return f.stat().st_size > publicise.size_limit(f.as_posix())
 
 
 def make_publishable(run: Path) -> list[str]:
@@ -502,26 +501,81 @@ def refuse(run: Path, problems: list[dict], names: set[str] = frozenset()) -> di
                       f"{' …' if len(found) > REFUSED_SHOWN else ''}; see {publicise.PUBLISH_REFUSED}")}
 
 
+PRIVATE_BRANCH = "main"          # where the private repo keeps the archive of every run's detail
+PRIVATE_PUSH_TRIES = 2          # once, and once more on the remote's new head if it moved in between
+
+
 def record_private(repo_root: Path, run: Path, message: str, private: Path, git: list[str]) -> dict:
-    """Copy the run's held-out detail to the private repo (heldout.copy_private), commit it there and push.
-    Never fatal: a missing checkout, or a failed commit or push, is reported."""
+    """Copy the run's held-out detail to the private repo (heldout.copy_private) and push it to its main branch.
+
+    The commit is built with git plumbing on the remote's main, never on the checkout's HEAD: the checkout sits
+    detached at the pack's tag (setup-node.sh), because runs read their held-out suite from it, so a commit on
+    HEAD lands on no branch and is never pushed (1 Oct 2026). HEAD, the branches and the checked-out files are
+    left exactly as they were. Every call records all of the run's detail that the remote lacks, so a push that
+    failed is made good by the next one; detail the remote already has is no commit and no error.
+    Never fatal: a missing checkout, or a failed fetch or push, is reported."""
     if not (private / ".git").exists():
         return {"skipped": f"no private checkout at {private}"}
     copied = heldout.copy_private(run, repo_root, private)
     out: dict = {"copied": len(copied), "committed": False, "pushed": False}
     dest = f"{heldout.PRIVATE_RUNS}/{run.resolve().relative_to(repo_root.resolve()).as_posix()}"
-    if copied:
-        add = subprocess.run([*git, "add", "--", dest], cwd=private, capture_output=True, text=True)
-        commit = subprocess.run([*git, "commit", "-q", "-m", message + COMMIT_TRAILER, "--", dest], cwd=private,
-                                capture_output=True, text=True) if add.returncode == 0 else add
-        if commit.returncode != 0:
-            return {**out, "error": (commit.stdout + commit.stderr)[-500:]}
+    files = heldout.private_files(run, repo_root)
+    if not files:
+        return out
+    tracking = f"refs/remotes/origin/{PRIVATE_BRANCH}"
+    for _ in range(PRIVATE_PUSH_TRIES):
+        fetch = subprocess.run([*git, "fetch", "-q", "origin", f"+refs/heads/{PRIVATE_BRANCH}:{tracking}"],
+                               cwd=private, capture_output=True, text=True)
+        built = _private_commit(private, tracking, run, files, dest, message, git)
+        if "error" in built:
+            return {**out, "error": built["error"]}
+        if built["commit"] is None:            # the remote has all of it already
+            out["pushed"] = fetch.returncode == 0
+            return out
         out["committed"] = True
-    ahead = subprocess.run([*git, "rev-list", "--count", "@{upstream}..HEAD"], cwd=private,
-                           capture_output=True, text=True)
-    if out["committed"] or (ahead.returncode == 0 and ahead.stdout.strip() not in ("", "0")):
-        out.update(push_with_rebase(private, git))     # this copy, and any an earlier failed push left behind
+        push = subprocess.run([*git, "push", "-q", "origin", f"{built['commit']}:refs/heads/{PRIVATE_BRANCH}"],
+                              cwd=private, capture_output=True, text=True)
+        if push.returncode == 0:
+            out["pushed"] = True
+            out.pop("error", None)
+            return out
+        out["error"] = ((fetch.stderr if fetch.returncode != 0 else "") + push.stderr)[-500:]
+        if fetch.returncode != 0:              # offline: trying again on the same stale head won't help
+            break
     return out
+
+
+def _private_commit(private: Path, base_ref: str, run: Path, files: list[str], dest: str, message: str,
+                    git: list[str]) -> dict:
+    """A commit on base_ref holding the run's private files at dest, made in an index of its own (no checkout
+    involved): {"commit": sha}, {"commit": None} when base_ref has them all already, or {"error"}."""
+    base = subprocess.run([*git, "rev-parse", "-q", "--verify", f"{base_ref}^{{commit}}"], cwd=private,
+                          capture_output=True, text=True).stdout.strip()
+    if not base:
+        return {"error": f"the private repo has no {base_ref} to record onto"}
+    with tempfile.TemporaryDirectory(prefix="private-index-") as tmp:
+        env = {**os.environ, "GIT_INDEX_FILE": str(Path(tmp) / "index")}
+        r = subprocess.run([*git, "read-tree", base], cwd=private, capture_output=True, text=True, env=env)
+        if r.returncode != 0:
+            return {"error": r.stderr[-500:]}
+        hashed = subprocess.run([*git, "hash-object", "-w", "--stdin-paths"], cwd=private, capture_output=True,
+                                text=True, input="".join(f"{(run / f).resolve()}\n" for f in files))
+        if hashed.returncode != 0:
+            return {"error": hashed.stderr[-500:]}
+        info = "".join(f"100644 {sha}\t{dest}/{f}\n" for sha, f in zip(hashed.stdout.split(), files))
+        for step, stdin in (([*git, "update-index", "--add", "--index-info"], info), ([*git, "write-tree"], None)):
+            r = subprocess.run(step, cwd=private, capture_output=True, text=True, env=env, input=stdin)
+            if r.returncode != 0:
+                return {"error": r.stderr[-500:]}
+        tree = r.stdout.strip()
+    if tree == subprocess.run([*git, "rev-parse", f"{base}^{{tree}}"], cwd=private, capture_output=True,
+                              text=True).stdout.strip():
+        return {"commit": None}
+    commit = subprocess.run([*git, "commit-tree", tree, "-p", base, "-F", "-"], cwd=private, capture_output=True,
+                            text=True, input=message + COMMIT_TRAILER)
+    if commit.returncode != 0:
+        return {"error": commit.stderr[-500:]}
+    return {"commit": commit.stdout.strip()}
 
 
 def load_metrics(run: Path) -> dict:

@@ -12,7 +12,9 @@ anything converting old records:
 - a check (fingerprints, leaks): no held-out test title may appear in a public file the harness wrote;
 - a run's .gitignore (gitignore_lines), so its private files are never staged;
 - metrics.json split in two (split_metrics, merge_metrics): the public part, and the held-out detail kept beside
-  it in a git-ignored sidecar (HELDOUT_DETAIL) that the machine's own tools read back.
+  it in a git-ignored sidecar (HELDOUT_DETAIL) that the machine's own tools read back;
+- the size limit of each kind of committed file (size_limit), used by the harness and tests/privacy-test.sh
+  (`publicise.py over-limit <repo>`), so the two can't disagree.
 The agent's own work (anything under a run's workspace/, its conversation and its gate) is its own and always
 public. The harness applies these rules in heldout.py and drive.record_story.
 Tests: test_publicise.py.
@@ -51,6 +53,15 @@ TEST_TITLE = re.compile(r"""\btest(?:\.\w+)?\(\s*(['"`])(.+?)\1\s*,""")
 # history.render's "broke N: “t1”; “t2” …": the titles, "; " only between them, so a "; fixed M" after them stays.
 QUOTED_TITLES = re.compile(r";? (?:broke|fixed) \d+: “[^”]*”(?:; “[^”]*”)*(?: …)?")
 COMMON_ERROR = re.compile(r"\.? Most common error: `[^`]*`")
+
+# Committed benchmark files stay small: a large results file is usually raw capture that should have been
+# summarised, and 512 KB is well above any legitimate summary. Some kinds are large on purpose and have their own:
+KB, MB = 1024, 1024 * 1024
+DEFAULT_SIZE_LIMIT = 512 * KB
+BUNDLE_LIMIT = 20 * MB          # workspace.bundle: the agent's git history, which re-scoring and judging rebuild from
+WORKSPACE_LIMIT = 20 * MB       # <run>/workspace/**: the agent's own work, mirrored (agents write large test images)
+EVENT_LOG_LIMIT = 50 * MB       # the lossless conversation log: GitHub warns on pushes over 50 MB, refuses over 100
+METRICS_LIMIT = 2 * MB          # per-story records with conversation profiles
 
 
 def _parts(rel: str) -> tuple[str, ...]:
@@ -213,3 +224,41 @@ def leaks_in_file(rel: str, text: str, fps: set[str]) -> list[str]:
             pass
     found = leaks(text, fps)
     return found if _in_run_records(parts) else [f for f in found if f != ANCHOR_MARK]
+
+
+def size_limit(rel: str) -> int:
+    """The most a committed benchmark file of this kind may weigh, in bytes (any path ending in the file works)."""
+    parts = _parts(rel)
+    name = parts[-1]
+    if name == "workspace.bundle":
+        return BUNDLE_LIMIT
+    if "workspace" in parts[:-1]:
+        return WORKSPACE_LIMIT
+    if name == "agent-events.compact.jsonl.gz":
+        return EVENT_LOG_LIMIT
+    if name == "metrics.json":
+        return METRICS_LIMIT
+    return DEFAULT_SIZE_LIMIT
+
+
+TRACKED_RECORDS = ("combinations/**/benchmarks/*", "benchmarks/*")
+
+
+def over_limit(repo: Path) -> list[tuple[str, int, int]]:
+    """Tracked benchmark files over their size limit: (path, size, limit)."""
+    listed = subprocess.run(["git", "ls-files", "-z", "--", *TRACKED_RECORDS], cwd=repo, capture_output=True,
+                            check=True).stdout.decode().split("\0")
+    out = []
+    for rel in filter(None, listed):
+        f = repo / rel
+        if f.is_file() and f.stat().st_size > size_limit(rel):
+            out.append((rel, f.stat().st_size, size_limit(rel)))
+    return out
+
+
+if __name__ == "__main__":
+    import sys
+    if sys.argv[1:2] != ["over-limit"] or len(sys.argv) != 3:
+        sys.exit("usage: publicise.py over-limit <repo>")
+    for rel, size, limit in over_limit(Path(sys.argv[2])):
+        print(f"{rel}\t{size}\t{limit}")

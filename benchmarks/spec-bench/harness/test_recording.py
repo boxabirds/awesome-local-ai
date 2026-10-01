@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 import drive
+import publicise
 import hostenv
 
 HOME = str(Path.home())
@@ -296,7 +297,7 @@ def test_publishing_leaves_a_lossless_log_whole_even_over_the_old_512_kb_cap(tmp
     with gzip.open(gz, "wt") as f:
         for i in range(1000):
             f.write(json.dumps({"type": "message_end", "i": i, "text": os.urandom(600).hex()}) + "\n")
-    assert gz.stat().st_size > drive.PUBLISH_MAX_BYTES
+    assert gz.stat().st_size > publicise.DEFAULT_SIZE_LIMIT
     before = gz.read_bytes()
     assert drive.make_publishable(run) == []
     assert gz.read_bytes() == before
@@ -321,7 +322,7 @@ def test_a_log_over_its_own_cap_is_cut_to_fit_and_says_so(tmp_path, monkeypatch)
 def test_other_files_keep_the_512_kb_cap(tmp_path):
     run = tmp_path / "run"
     run.mkdir()
-    (run / "big.json").write_text("x" * (drive.PUBLISH_MAX_BYTES + 1))
+    (run / "big.json").write_text("x" * (publicise.DEFAULT_SIZE_LIMIT + 1))
     assert drive.make_publishable(run) == [str(run / "big.json")]
 
 
