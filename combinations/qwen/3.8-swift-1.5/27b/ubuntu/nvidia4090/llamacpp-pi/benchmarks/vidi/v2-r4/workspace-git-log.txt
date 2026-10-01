@@ -1,3 +1,181 @@
+commit 04b1b9eb904fb6ea31b2069ba936b5ed747a2b16
+vidi-agent  Thu Oct 1 16:56:58 2026 +0100
+
+    harness: snapshot after story 11 (uncommitted agent work)
+
+
+ ...717eccc9585101b6076a4ebb6ed618517f646bf5ad6d.sqlite | Bin 0 -> 28672 bytes
+ ...dc531342b6f0ec8e2fbf33274003df6eba6b35d38c2a.sqlite | Bin 0 -> 28672 bytes
+ ...f5c3df14abc754fb32221ba5254f6915fded8f5476a9.sqlite | Bin 0 -> 28672 bytes
+ ...516fe02a2540b9130a9bed1d709c13f588d865cb8233.sqlite | Bin 0 -> 28672 bytes
+ ...27986d3036da49e85270c0ef325e750be32b8564535a.sqlite | Bin 0 -> 4096 bytes
+ ...6d3036da49e85270c0ef325e750be32b8564535a.sqlite-shm | Bin 0 -> 32768 bytes
+ ...6d3036da49e85270c0ef325e750be32b8564535a.sqlite-wal | Bin 0 -> 766352 bytes
+ ...9faf8c3ddc213f5b68602f51da85d70c8345789ecfa9.sqlite | Bin 0 -> 28672 bytes
+ ...0a5f11123dddc163bafc58ffafa10459813e34634d45.sqlite | Bin 0 -> 28672 bytes
+ ...8bd0768c4c890e00da40b84bc7923d89487fd49661ba.sqlite | Bin 0 -> 28672 bytes
+ ...71eeb8caa1b0a9f7f4652f2e21b7440874394b3f7444.sqlite | Bin 0 -> 28672 bytes
+ ...0f6e640bf65255db5d1109c7f144cb5dfb7001a78067.sqlite | Bin 0 -> 28672 bytes
+ ...5de59940025422aa6abc1cb943bf2f4d5b0329bb23a3.sqlite | Bin 0 -> 4096 bytes
+ ...9940025422aa6abc1cb943bf2f4d5b0329bb23a3.sqlite-shm | Bin 0 -> 32768 bytes
+ ...9940025422aa6abc1cb943bf2f4d5b0329bb23a3.sqlite-wal | Bin 0 -> 152472 bytes
+ ...3724ac73a342aad83436cde4b904c5e0e90d56b20594.sqlite | Bin 0 -> 28672 bytes
+ ...d791be2e313b0a0512b5e3b49ccac64e814ae3d8061c.sqlite | Bin 0 -> 28672 bytes
+ ...8b6d7d5ce52bf189a23d28b00ca922cc6a6f28f00a92.sqlite | Bin 0 -> 4096 bytes
+ ...7d5ce52bf189a23d28b00ca922cc6a6f28f00a92.sqlite-shm | Bin 0 -> 32768 bytes
+ ...7d5ce52bf189a23d28b00ca922cc6a6f28f00a92.sqlite-wal | Bin 0 -> 762232 bytes
+ ...16242f444a5a7992f8b41eef792eef4aa89eebe73f87.sqlite | Bin 0 -> 4096 bytes
+ ...228dea69e1a79a2209c44199c42e8e73cd37dddd5709.sqlite | Bin 0 -> 4096 bytes
+ ...13ebd4626ab82393b542dd83842a1fc5f75992792180.sqlite | Bin 0 -> 28672 bytes
+ ...388b2e1e216c2e54cedd3a10c8f644d4ab4a7b1d73c4.sqlite | Bin 0 -> 28672 bytes
+ ...8fc2e1628724c2ac2d25be4dd64ef2e05c72d14450be.sqlite | Bin 0 -> 28672 bytes
+ ...a3358eebad99db0aaecd3f577fbd5b367d21de87d7fa.sqlite | Bin 0 -> 28672 bytes
+ ...768161f02cb2e5249306f9560174c3a5be610ff375d7.sqlite | Bin 0 -> 28672 bytes
+ ...133c08dc082f0df09c970838ca8bb03b5d33b615628d.sqlite | Bin 0 -> 4096 bytes
+ ...08dc082f0df09c970838ca8bb03b5d33b615628d.sqlite-shm | Bin 0 -> 32768 bytes
+ ...08dc082f0df09c970838ca8bb03b5d33b615628d.sqlite-wal | Bin 0 -> 53592 bytes
+ ...0698893dc84fc34e91553aa41f86753ffde7bd8a840c.sqlite | Bin 0 -> 28672 bytes
+ ...bdb2fb0eb011b2c56cf1d2397d4456321bab303d7434.sqlite | Bin 0 -> 28672 bytes
+ ...02e4a3bc1c297e360664f97d12c5d7b8850df47eeb72.sqlite | Bin 0 -> 28672 bytes
+ ...c56413a4b43bff467ac6c073541a57ef3da3dcee754c.sqlite | Bin 0 -> 28672 bytes
+ ...d34219e381d220cdb9f569df10b79ff2bd3f4353216a.sqlite | Bin 0 -> 28672 bytes
+ ...5f5ae7afc18af958454334a8f9ea393bd4bcff324475.sqlite | Bin 0 -> 28672 bytes
+ ...34a52792737e0be0cb146e4a836dec61ea02902d2d20.sqlite | Bin 0 -> 28672 bytes
+ ...39eafb2c66c9c9d7180807e31206d0420c5f183ffed3.sqlite | Bin 0 -> 28672 bytes
+ ...0912030fa1fee240f72fdcf0fa3c6d49daa8780fc9b6.sqlite | Bin 0 -> 4096 bytes
+ ...c3a4e9e347169d674c6ca0e35d1923c67fc16b8a4acd.sqlite | Bin 0 -> 28672 bytes
+ ...191c5a2ee388141ee1104cd2fcff1e07b669ddd6adc3.sqlite | Bin 0 -> 28672 bytes
+ ...40391a5a9026d3d20d559c5c4ece2b8bbe2acbaf2eb3.sqlite | Bin 0 -> 28672 bytes
+ ...07b39b5c4a257c1b9a82caf8f335e8daeb282d1172ae.sqlite | Bin 0 -> 28672 bytes
+ ...8e87c77fbb8f4e82a8421af99b5c35f624ad326e33ee.sqlite | Bin 0 -> 28672 bytes
+ ...a6c980fe51bab1d189d28993714d3327c9bf28b674a2.sqlite | Bin 0 -> 28672 bytes
+ ...16302d2331a774a90eb94a1dac06510b8b608c11c6a3.sqlite | Bin 0 -> 28672 bytes
+ ...de665ea0c5741a6dd4784d93380fd994d00c9c2ff9a9.sqlite | Bin 0 -> 28672 bytes
+ ...5ac0b4a38d464f04190dacfd8a6f85bedbd8cac8f4fa.sqlite | Bin 0 -> 28672 bytes
+ ...8014d38f3d088d0d708085bd24b8868c41834f977cf3.sqlite | Bin 0 -> 28672 bytes
+ ...7fee82334b5711e74871e0f66cf8cc2ca5c1a4fdb693.sqlite | Bin 0 -> 28672 bytes
+ ...8deaa2af932204f2672a3fc41130019917c5290b5f2e.sqlite | Bin 0 -> 28672 bytes
+ ...e4565eb8ebe73aeadfbb37aa39ce9ee81bbf6687c9e7.sqlite | Bin 0 -> 28672 bytes
+ ...4c9523e0e20b1d2baf21f1191ea4eb5f7576fabd347c.sqlite | Bin 0 -> 28672 bytes
+ ...f551572a110df0e68daa1efedbfe2b7d7dd5ba92189d.sqlite | Bin 0 -> 28672 bytes
+ ...3e027eabf8606d62e5b672edb7cf1e7965b2023bb7a0.sqlite | Bin 0 -> 4096 bytes
+ ...0d643fcee9a757fa1085676970483bd567095b521fca.sqlite | Bin 0 -> 28672 bytes
+ ...6d9a49242b1bc7791d169955d2cb1f14cd5c351fde31.sqlite | Bin 0 -> 28672 bytes
+ ...39d4809adf25a4c41be59f665bf16032779dc4d8676b.sqlite | Bin 0 -> 28672 bytes
+ ...f9f1bb335d67229f9b2533dca5c600a967f2431b8259.sqlite | Bin 0 -> 28672 bytes
+ ...174ed5b30aec3e2c7e03571c455554c7408db7812f53.sqlite | Bin 0 -> 28672 bytes
+ ...44a6ff0e9eef187c4e2ca2a76a8c29797938d25c090f.sqlite | Bin 0 -> 28672 bytes
+ ...8d43759407364289c96ac191fe98ef80d875dd085ff4.sqlite | Bin 0 -> 4096 bytes
+ ...022556b64379d10074bc43c10da1ea17814495a0b91a.sqlite | Bin 0 -> 4096 bytes
+ ...56b64379d10074bc43c10da1ea17814495a0b91a.sqlite-shm | Bin 0 -> 32768 bytes
+ ...56b64379d10074bc43c10da1ea17814495a0b91a.sqlite-wal | Bin 0 -> 152472 bytes
+ ...1b436302ed5ca0ed70e8230ec3f68eb6a7c4f8acadc1.sqlite | Bin 0 -> 28672 bytes
+ ...f28ca351377e261c59498897e442755ac89c22360b21.sqlite | Bin 0 -> 28672 bytes
+ ...c597639c3b190609f9f0d4324cd61f2d4ade57783d3c.sqlite | Bin 0 -> 28672 bytes
+ ...22c7f4cdc4cf8cfe4bb52b06ef162aed8192e55b1699.sqlite | Bin 0 -> 28672 bytes
+ ...41dd385db810ad2c3e2383be9d0317bca8a8b82baa21.sqlite | Bin 0 -> 36864 bytes
+ ...a7316b8a5a8d74c014de94b98347047254baafc5c3c0.sqlite | Bin 0 -> 28672 bytes
+ ...28a2de85dbc100f432b9c9aaab8fb3adf0f2716910c2.sqlite | Bin 0 -> 28672 bytes
+ ...ddabf23c62e1f9f044fc03dd1b27085b202b80c2963f.sqlite | Bin 0 -> 28672 bytes
+ ...68ed5756918fa55e5cf92ef8eb76dd8f03ff488cbccf.sqlite | Bin 0 -> 28672 bytes
+ ...83637f0bb01bd6b2b95b8461b0f7283feb7372012266.sqlite | Bin 0 -> 28672 bytes
+ ...82541875b09a9c57cede73b3ecc3bb6c544bf2565fd4.sqlite | Bin 0 -> 28672 bytes
+ ...18a49d9fbfa9301c3a219ea4104f4c5774054bb2e8e3.sqlite | Bin 0 -> 28672 bytes
+ ...e55196f855811f023e4b18ecc9a521bb25e775b86774.sqlite | Bin 0 -> 28672 bytes
+ ...c8c02472f12dfe55a72dacbb1c99f01b413fc028bba8.sqlite | Bin 0 -> 28672 bytes
+ ...b8073e2cc35bf22e3319d1adf904fafbfffde0c211bd.sqlite | Bin 0 -> 28672 bytes
+ ...2c7b56aa4c911e791a03780c40d32566455468d50a10.sqlite | Bin 0 -> 28672 bytes
+ ...f7b8424db21753f564c1d4b049c452c11795e2044e65.sqlite | Bin 0 -> 28672 bytes
+ ...5ea01698952e033e7eab369afb4f2628ff49365158d2.sqlite | Bin 0 -> 28672 bytes
+ ...450c494356780e2b25484949d3b5cf1544f02dbdcaf1.sqlite | Bin 0 -> 28672 bytes
+ ...b875ce7180d8a585bf892585f55d9ee22726ce905dfe.sqlite | Bin 0 -> 4096 bytes
+ ...ce7180d8a585bf892585f55d9ee22726ce905dfe.sqlite-shm | Bin 0 -> 32768 bytes
+ ...ce7180d8a585bf892585f55d9ee22726ce905dfe.sqlite-wal | Bin 0 -> 762232 bytes
+ ...4afcce4b063430c2569e3e8a8d196e710b36494ca2d2.sqlite | Bin 0 -> 4096 bytes
+ ...c8f1c17ee5ac70cf030925376051400e06c4029d60a5.sqlite | Bin 0 -> 28672 bytes
+ ...87b0aa65d58e9d2066c7a9bbe678aac5ca8da3f0d4fa.sqlite | Bin 0 -> 4096 bytes
+ ...d795298c55f898e350ea6b80a98769c545e1b7ee4584.sqlite | Bin 0 -> 28672 bytes
+ ...7dca358a45049a91204fa1fa09ff1ee0509e80ecf318.sqlite | Bin 0 -> 36864 bytes
+ ...0072e7e827ba64dafb5dbb31aff6a1f8957d1f782d54.sqlite | Bin 0 -> 28672 bytes
+ ...ed547121a03ceba7a16ab80f1f4396d00441fe036e17.sqlite | Bin 0 -> 28672 bytes
+ ...b6d2d33134eb612e840c46fa80deee323b3ad2d952bf.sqlite | Bin 0 -> 28672 bytes
+ ...2f1c2f0870aa9bdac78d19a6a5707418deedc4b4f166.sqlite | Bin 0 -> 28672 bytes
+ ...b7ed2118ed783b7f73959245603f9378f9d40535cfa0.sqlite | Bin 0 -> 28672 bytes
+ ...9b5cd725d40569ed5f0b69ce6f38d3a99c49b29cf081.sqlite | Bin 0 -> 4096 bytes
+ ...883f8a71193b73442be684d38c64e0874b8828e1fc02.sqlite | Bin 0 -> 28672 bytes
+ ...8c210d10756a2b216c5af8712901f0e85e1a01f0af8c.sqlite | Bin 0 -> 28672 bytes
+ ...a9a5bbc72940873cd30a7e4786e8ed1b959fc34d00d5.sqlite | Bin 0 -> 28672 bytes
+ ...9aae6c573a3ddbbd7926a66123539d823b6eb69e3aec.sqlite | Bin 0 -> 28672 bytes
+ ...5332f1bf658f3c05756396dbcc9632c0c866474c48a1.sqlite | Bin 0 -> 28672 bytes
+ ...7e55da581f9e865111ebef8ccb6976a78bcf9de7f068.sqlite | Bin 0 -> 28672 bytes
+ ...7950b937570ec9a46d4a22b53feef00b99589b386ae5.sqlite | Bin 0 -> 28672 bytes
+ ...bb1f15996c3add262128e4cafa50db9059319f94abfc.sqlite | Bin 0 -> 4096 bytes
+ ...15996c3add262128e4cafa50db9059319f94abfc.sqlite-shm | Bin 0 -> 32768 bytes
+ ...15996c3add262128e4cafa50db9059319f94abfc.sqlite-wal | Bin 0 -> 53592 bytes
+ ...78471fb0bf8da5b94bb1c205a3add487e4233c44630c.sqlite | Bin 0 -> 4096 bytes
+ ...b7dcaaf2db646a06a03345705b5aacb0917892237f24.sqlite | Bin 0 -> 28672 bytes
+ ...434994dbdbfb9b27fdfdc5df959f5feb9ddb6e8ec400.sqlite | Bin 0 -> 36864 bytes
+ ...63abed092f2b6bf844197d975549efd836affcf44b03.sqlite | Bin 0 -> 4096 bytes
+ ...b42ad1b3ac8f067d13d4f4bf494234ed59999a761ee3.sqlite | Bin 0 -> 28672 bytes
+ ...f135097b39219748250cae4d5a09963f3d00d3f0164c.sqlite | Bin 0 -> 28672 bytes
+ ...d6fbcee79ef9ba458fbf315d9e3852715e18f03b64c1.sqlite | Bin 0 -> 28672 bytes
+ ...27983150e365a42b8908be8b976c66d47c064c1fa280.sqlite | Bin 0 -> 28672 bytes
+ ...d2ee298d61b5c158ce75d306e805b2313fde31439e89.sqlite | Bin 0 -> 4096 bytes
+ ...298d61b5c158ce75d306e805b2313fde31439e89.sqlite-shm | Bin 0 -> 32768 bytes
+ ...298d61b5c158ce75d306e805b2313fde31439e89.sqlite-wal | Bin 0 -> 766352 bytes
+ ...7495e96e94ad5e8dde39dd1a4dce11cbc2791a484846.sqlite | Bin 0 -> 28672 bytes
+ ...039308fc9fffa1e94fe41c1b2dc32afc5c75d9453e9f.sqlite | Bin 0 -> 28672 bytes
+ ...40bae1a8009a0a7d0760f0bf4e05cbc44d92eeb561c4.sqlite | Bin 0 -> 28672 bytes
+ ...d2997f5c230d57d4c65e54057e9d533014b0de99085a.sqlite | Bin 0 -> 28672 bytes
+ ...0dc9eb378ea59ae88d8289193172f26233f3c29452eb.sqlite | Bin 0 -> 28672 bytes
+ ...4443b75a294fbd9b66bd4c8ae47afe32b3d2ab0c1450.sqlite | Bin 0 -> 36864 bytes
+ ...467784fd905216f3299a6e5bd605e5444a65758bccd9.sqlite | Bin 0 -> 28672 bytes
+ ...413222a75f086cf43629334a6f5253049fd81a4b8d27.sqlite | Bin 0 -> 4096 bytes
+ ...6e96fec899e104878642b904e62791f33fec894f624a.sqlite | Bin 0 -> 4096 bytes
+ ...92d0578c0bfb54524a2311a3c3c73529053d727ebfea.sqlite | Bin 0 -> 28672 bytes
+ ...19d364f9d76faf9725b6a4f4f6b13368694d437bb57b.sqlite | Bin 0 -> 4096 bytes
+ ...c46ea383852276b492b04d123ec5621b357fb795b65b.sqlite | Bin 0 -> 28672 bytes
+ ...eafa9a28250cd286a14103fa038e5887b67ce0db87b0.sqlite | Bin 0 -> 28672 bytes
+ ...c7b49e279917b58dac61b8422cb60082cce3a8d9d349.sqlite | Bin 0 -> 28672 bytes
+ ...2c4b2dfcb3f5a1bcdfe541f2d138cbe76f5e37649709.sqlite | Bin 0 -> 28672 bytes
+ ...a45057d2fa581ffc3b369d93482deada9a10a39d7c77.sqlite | Bin 0 -> 4096 bytes
+ ...57d2fa581ffc3b369d93482deada9a10a39d7c77.sqlite-shm | Bin 0 -> 32768 bytes
+ ...57d2fa581ffc3b369d93482deada9a10a39d7c77.sqlite-wal | Bin 0 -> 45352 bytes
+ ...47eaa18a7c6d6e3537f93d48b0876d3fb9133d1cadf9.sqlite | Bin 0 -> 4096 bytes
+ ...f1f6f4dfec79f8838ec9d66e88199f1fb02a17c015ed.sqlite | Bin 0 -> 28672 bytes
+ ...6ad3e0efffaddc02023f463e33698229c28f3aeda28f.sqlite | Bin 0 -> 28672 bytes
+ ...0f0e60e48f2d1c922fa5ae735e4b0c2b1a779e30a42f.sqlite | Bin 0 -> 4096 bytes
+ ...60e48f2d1c922fa5ae735e4b0c2b1a779e30a42f.sqlite-shm | Bin 0 -> 32768 bytes
+ ...60e48f2d1c922fa5ae735e4b0c2b1a779e30a42f.sqlite-wal | Bin 0 -> 144232 bytes
+ ...1855963e4282ecf09986eb07d43b286eda9e21fc0735.sqlite | Bin 0 -> 28672 bytes
+ ...e190a50eba95a053379166703387098c20cd01b2cefd.sqlite | Bin 0 -> 28672 bytes
+ ...a8ec8c8c54f604111a3ad60b7aba6e52f80b2c51bf2b.sqlite | Bin 0 -> 28672 bytes
+ 146 files changed, 0 insertions(+), 0 deletions(-)
+commit 788751b7a416a13546267a39639ab77c9cdcc3bc
+vidi-agent  Thu Oct 1 16:40:36 2026 +0100
+
+    story 11: Sketch freehand with a pen
+
+
+ src/client/board/Toolbar.tsx          |  11 ++
+ src/client/board/useBoardDoc.ts       |   2 +
+ src/client/canvas/BoardViewport.tsx   |  10 +
+ src/client/objects/StrokeObject.tsx   |  79 ++++++++
+ src/client/objects/registry.tsx       |  19 ++
+ src/client/pages/BoardUI.tsx          |  29 ++-
+ src/client/tools/PenTool.tsx          | 227 ++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx       | 101 ++++++++++
+ src/client/tools/usePenOptions.ts     |  25 +++
+ src/shared/board-model.ts             |  31 +++-
+ src/shared/config.ts                  |  10 +
+ src/shared/geometry/simplify.ts       | 116 ++++++++++++
+ src/shared/objects/stroke.ts          | 123 ++++++++++++
+ tests/component/PenTool.test.tsx      | 341 ++++++++++++++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx | 200 ++++++++++++++++++++
+ tests/e2e/pen.spec.ts                 | 217 ++++++++++++++++++++++
+ tests/fixtures/pen-paths.ts           |  65 +++++++
+ tests/unit/stroke.test.ts             | 193 +++++++++++++++++++
+ 18 files changed, 1797 insertions(+), 2 deletions(-)
 commit 398325b92d7c327ef27b2be7be574a56bedb37d5
 vidi-agent  Thu Oct 1 15:46:29 2026 +0100
 
