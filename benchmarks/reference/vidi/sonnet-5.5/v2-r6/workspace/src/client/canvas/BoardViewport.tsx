@@ -1,5 +1,5 @@
 import {
-  useEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode,
+  useEffect, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode,
 } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
@@ -8,6 +8,7 @@ import {
   canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Camera, type Point, type Size,
 } from './camera';
 import type { Tool } from '../board/useTool';
+import { DropHighlight } from '../images/DropHighlight';
 import { NavigationHint } from './NavigationHint';
 import { installTestHooks } from './testHooks';
 import { useCamera } from './useCamera';
@@ -54,7 +55,16 @@ export interface BoardViewportProps {
   tool?: Tool;
   /** A click on the board (also on top of objects) while the Text tool is active. */
   onTextToolClick?(world: Point): void;
+  /** Native drag events for files dragged over the board (image drops); `active` shows the drop highlight. */
+  fileDrag?: {
+    active: boolean;
+    onDragEnter(e: globalThis.DragEvent): void; onDragOver(e: globalThis.DragEvent): void;
+    onDragLeave(e: globalThis.DragEvent): void; onDrop(e: globalThis.DragEvent): void;
+  };
 }
+
+// React hands its synthetic event to these; the handlers only use the fields both kinds share.
+type DragHandler = ((e: DragEvent<HTMLDivElement>) => void) | undefined;
 
 const NO_OBJECTS: readonly ObjectSnapshot[] = [];
 
@@ -256,6 +266,10 @@ export function BoardViewport(props: BoardViewportProps) {
         onClickCapture={onTextToolClick}
         data-board-surface=""
         style={surfaceStyle}
+        onDragEnter={props.fileDrag?.onDragEnter as DragHandler}
+        onDragOver={props.fileDrag?.onDragOver as DragHandler}
+        onDragLeave={props.fileDrag?.onDragLeave as DragHandler}
+        onDrop={props.fileDrag?.onDrop as DragHandler}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -277,6 +291,7 @@ export function BoardViewport(props: BoardViewportProps) {
           <MarqueeRect rect={marquee.rect} camera={camera} />
         </div>
       </div>
+      <DropHighlight active={props.fileDrag?.active ?? false} />
       {overlay?.(ctx)}
       <NavigationHint visible={!cam.hasNavigated} />
       <ZoomControls

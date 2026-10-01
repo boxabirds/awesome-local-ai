@@ -196,3 +196,18 @@ body { font-family: system-ui, sans-serif; background: #fff; overflow: hidden; }
 .shape-toolbar .swatch-outline { border-width: 3px; border-style: solid; }
 .shape-toolbar .swatch-none { background-image: linear-gradient(135deg, transparent 45%, #e53935 45%, #e53935 55%, transparent 55%) !important; border: 1px solid #dadce0; }
 .shape-toolbar .swatch-outline[aria-pressed='true'], .shape-toolbar button[aria-pressed='true'] { box-shadow: 0 0 0 2px #1a73e8; }
+
+.drop-highlight { position: fixed; inset: 8px; border: 3px dashed #1a73e8; border-radius: 12px; background: rgba(26, 115, 232, 0.06); pointer-events: none; z-index: 30; }
+.toast-region { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; z-index: 60; pointer-events: none; }
+.toast { background: #323232; color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 14px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+.image-object { position: absolute; box-sizing: border-box; touch-action: none; user-select: none; }
+.image-content { display: block; width: 100%; height: 100%; object-fit: fill; pointer-events: none; user-select: none; }
+.image-box {
+  width: 100%; height: 100%; box-sizing: border-box; background: #e0e0e0; color: #5f6368; border: 1px solid #bdbdbd;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 14px; overflow: hidden; text-align: center;
+}
+.image-box--failed { border: 2px solid #d32f2f; color: #b71c1c; background: #fdecea; }
+.image-progress { width: 70%; height: 6px; background: #bdbdbd; border-radius: 3px; overflow: hidden; }
+.image-progress-fill { height: 100%; background: #1a73e8; }
+.image-actions { display: flex; gap: 8px; }
+.image-actions button { cursor: pointer; padding: 4px 10px; border: 1px solid #9e9e9e; border-radius: 6px; background: #fff; font-size: 13px; }

@@ -1,11 +1,14 @@
 import { isValidBoardId } from '../shared/board-id';
 import type { BoardRoom } from './board-room';
+import { handleServe, handleUpload } from './assets';
 import { createBoard } from './create-board';
 
-export interface Env { BOARD_ROOM: DurableObjectNamespace<BoardRoom>; ASSETS: Fetcher; TEST_HOOKS?: string }
+export interface Env { BOARD_ROOM: DurableObjectNamespace<BoardRoom>; ASSETS: Fetcher; ASSETS_BUCKET: R2Bucket; TEST_HOOKS?: string }
 
 const ROOM_PATH = /^\/api\/rooms\/([^/]+)$/;
 const BOARD_PATH = /^\/api\/boards\/([^/]+)$/;
+const UPLOAD_PATH = /^\/api\/boards\/([^/]+)\/assets$/;
+const SERVE_PATH = /^\/api\/assets\/([^/]+)\/([^/]+)$/;
 const TEST_PATH = /^\/__test\/boards\/([^/]+)\/(corrupt-snapshot|repair|seed-legacy)$/;
 
 const json = (body: unknown, status: number): Response => Response.json(body, { status });
@@ -32,6 +35,22 @@ export default {
       if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'POST' } });
       const result = await createBoard(env);
       return result.ok ? json({ id: result.id }, 201) : json({ error: result.reason }, 500);
+    }
+
+    const upload = UPLOAD_PATH.exec(path);
+    if (upload) {
+      if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'POST' } });
+      const id = boardIdOf(upload[1]);
+      return id ? handleUpload(req, env, id) : notFound();
+    }
+    const served = SERVE_PATH.exec(path);
+    if (served) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
+      }
+      let key: string;
+      try { key = `${decodeURIComponent(served[1])}/${decodeURIComponent(served[2])}`; } catch { return notFound(); }
+      return handleServe(env, key);
     }
 
     const board = BOARD_PATH.exec(path);

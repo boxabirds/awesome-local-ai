@@ -9,6 +9,8 @@ export interface BoardDoc {
   notes: readonly ObjectSnapshot[];
   /** Absent when the doc is not connected to a room (component tests). */
   connection?: ConnectionState;
+  /** The board this document syncs with (uploads go to it); absent for local documents. */
+  boardId?: string;
 }
 
 interface Store {
@@ -58,5 +60,5 @@ export function useBoardDoc(boardId: string): BoardDoc {
     return () => conn.destroy();
   }, [store, boardId]);
 
-  return { doc, notes, connection };
+  return { doc, notes, connection, boardId };
 }

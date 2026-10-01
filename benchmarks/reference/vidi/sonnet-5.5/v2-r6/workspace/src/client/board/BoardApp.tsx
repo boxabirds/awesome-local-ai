@@ -27,6 +27,9 @@ import { BoardViewport } from '../canvas/BoardViewport';
 import type { Camera, Point } from '../canvas/camera';
 import type { TextSize } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
+import { useImageInsert } from '../images/useImageInsert';
+import { ImageEnvContext } from '../objects/ImageObject';
+import { Toast } from '../ui/Toast';
 
 /** False only while the saved board could not be loaded: it must not look like an empty editable board. */
 export function canEdit(state: ConnectionState | undefined): boolean {
@@ -54,6 +57,14 @@ export function BoardApp({ board }: { board: BoardDoc }) {
     onGestureStart: () => { undo?.boundary(); undo?.hold?.(true); },
     onGestureEnd: () => { undo?.hold?.(false); undo?.boundary(); },
   });
+  const identityId = localIdentityId();
+  const images = useImageInsert({
+    doc, boardId: board.boardId ?? '', camera: cameraRef.current, connection: board.connection, identityId,
+    canEdit: editable, undo, viewCentre: () => centreRef.current(), getCamera: () => cameraRef.current,
+  });
+  const imageEnv = useMemo(() => ({
+    identityId, progress: images.progress, canRetry: images.canRetry, retry: images.retry,
+  }), [identityId, images.progress, images.canRetry, images.retry]);
   const { tool, setTool, shapeKind, setShapeKind, toolCreated } = useActiveTool({ canEdit: editable, select: sel.select });
   const pen = usePenOptions();
   // Arrows redraw from these on every snapshot, so moves and resizes by anyone move them too.
@@ -88,7 +99,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
 
   useBoardKeys({
     doc, selection: sel, snapshot: notes, canEdit: editable, undo,
-    tool, setTool, onCreateSticky: () => create(centreRef.current()),
+    tool, setTool, onCreateSticky: () => create(centreRef.current()), onPickImage: images.openPicker,
   });
 
   const deleteSelection = () => {
@@ -105,6 +116,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
 
   return (
     <UndoContext.Provider value={undo}>
+    <ImageEnvContext.Provider value={imageEnv}>
     {board.connection && <ConnectionStatus state={board.connection} />}
     <BoardViewport
       cameraRef={cameraRef}
@@ -114,6 +126,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
       onEmptyClick={sel.clear}
       tool={tool}
       onTextToolClick={createTextAt}
+      fileDrag={{ active: images.dragActive, onDragEnter: images.onDragEnter, onDragOver: images.onDragOver, onDragLeave: images.onDragLeave, onDrop: images.onDrop }}
       overlay={(ctx) => {
         centreRef.current = ctx.centreWorld;
         return (
@@ -125,6 +138,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
             shapeKind={shapeKind}
             onShapeKind={setShapeKind}
             onCreateSticky={() => create(ctx.centreWorld())}
+            onImage={images.openPicker}
           >
             <UndoButtons {...undoState} />
           </Toolbar>
@@ -186,6 +200,8 @@ export function BoardApp({ board }: { board: BoardDoc }) {
         );
       })}
     </BoardViewport>
+    <Toast messages={images.messages} />
+    </ImageEnvContext.Provider>
     </UndoContext.Provider>
   );
 }

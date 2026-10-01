@@ -9,7 +9,7 @@ const SHAPE_KIND_LABELS: { kind: ShapeKind; label: string }[] = [
 ];
 
 export function Toolbar(props: {
-  onCreateSticky(): void; disabled?: boolean; children?: ReactNode;
+  onCreateSticky(): void; onImage?(): void; disabled?: boolean; children?: ReactNode;
   tool?: Tool; onTool?(t: Tool): void;
   shapeKind?: ShapeKind; onShapeKind?(k: ShapeKind): void;
 }) {
@@ -97,6 +97,17 @@ export function Toolbar(props: {
       >
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
           <path d="M4 20l1-4L16 5l3 3L8 19z M14 7l3 3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        aria-label="Image (I)"
+        title="Image (I)"
+        onClick={props.onImage}
+        disabled={props.disabled}
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path d="M4 5h16v14H4z M4 16l5-5 4 4 3-3 4 4 M15 9h.01" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
         </svg>
       </button>
       <button

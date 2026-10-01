@@ -20,7 +20,7 @@ const ARROWS: Record<string, [number, number]> = {
 export function useBoardKeys(opts: {
   doc: Y.Doc; selection: ReturnType<typeof useSelection>;
   snapshot: readonly ObjectSnapshot[]; canEdit: boolean; undo?: UndoController | null;
-  tool?: Tool; setTool?(t: Tool): void; onCreateSticky?(): void;
+  tool?: Tool; setTool?(t: Tool): void; onCreateSticky?(): void; onPickImage?(): void;
 }): void {
   const latest = useRef(opts);
   latest.current = opts;
@@ -66,6 +66,10 @@ export function useBoardKeys(opts: {
         const shortcut = TOOL_SHORTCUTS[letter];
         if (shortcut && shortcut !== 'select') {
           if (canEdit) latest.current.setTool?.(shortcut);
+          return;
+        }
+        if (letter === 'i') {
+          if (canEdit) latest.current.onPickImage?.();
           return;
         }
         if (letter === 'n') {

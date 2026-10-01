@@ -146,3 +146,15 @@ Decisions:
 - The pen cursor circle is updated through the DOM (no re-render per move); the native cursor is hidden over the board while Pen is active.
 - The left toolbar grew by the Pen button: story 4 persistence e2e TC-19 now clicks notes at x offset 80 so the toolbar does not cover them.
 - E2E: Chromium only. Mouse moves are slow on this machine (50-100 ms each), so TC-17/18 replay a thinned handwritten loop and the spec sets a 120 s timeout. Delivery times are logged (about 10-20 ms), not asserted.
+
+## Story 12 — Drop images onto the board
+
+Decisions:
+- The Image tool is not a `ToolId` mode: the Image button and the I key call `useImageInsert.openPicker` directly, so there is nothing to "return to Select" from. The picker is a hidden `<input type=file multiple>` (`data-testid="image-file-input"`) that the hook appends to `document.body`, so tests can drive it with `setInputFiles`.
+- `useImageInsert` takes extra optional inputs beyond the design (`canEdit`, `undo`, `viewCentre`, `getCamera`) and returns `dragActive`, `onDragEnter/onDragLeave` and `messages` (the toast lines, each its own line in `Toast`, auto-dismissed after 5 s). `BoardDoc` gained an optional `boardId` for the upload URL. A local document with no connection counts as connected.
+- The count limit applies to supported files (after type/size filtering). Client type checks use `File.type`; content is checked by `createImageBitmap` (decode failure gives the type toast) and by the server sniffing, so a renamed PDF is refused either way.
+- Undo boundaries wrap placeholder creation; Remove also wraps `deleteObjects` in boundaries. `markImage*` use `UPLOAD_ORIGIN`, so redo of an undone insertion restores the object as it was when deleted.
+- The "unfinished" clock is one shared 30 s interval that only runs while an uploading image is mounted.
+- Assets use the `ASSETS_BUCKET` R2 binding; the integration tests wrap `put` with `vi.spyOn` on the same binding for TC-15. The upload route answers 503 if the room RPC fails (not in the design table).
+- Fixtures in `tests/fixtures/images/` were generated with ImageMagick; the 10 MB boundary files are generated in code (`tests/fixtures/image-bytes.ts`). Component tests use `createImageBitmap` stubs.
+- E2E: Chromium only (TC-25, 26, 27, 28 plus a Remove case). Paste of a real clipboard image is covered by the component test only. Uploads in TC-25 are held 1.5 s with `page.route` so the colleague reliably sees "Uploading…". Under heavy load a few older timing-based unit/integration tests (chunk round-trip, 10k ids, 12-client convergence) can time out; they pass on rerun.

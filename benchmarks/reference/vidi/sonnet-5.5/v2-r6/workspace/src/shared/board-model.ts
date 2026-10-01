@@ -14,7 +14,7 @@ export const SCHEMA_VERSION = 1;
 const HALF = 2;
 
 /** Object types that can be selected, moved and resized. Stories 9–12 add theirs here and in the registry. */
-const SELECTABLE_TYPES = new Set<string>(['sticky', 'shape', 'connector', 'stroke']);
+const SELECTABLE_TYPES = new Set<string>(['sticky', 'shape', 'connector', 'stroke', 'image']);
 
 /** Called by the client's object registry so objects of the new type appear in snapshots and selections. */
 export function registerSelectableType(type: string): void {
@@ -106,8 +106,29 @@ export interface StrokeSnapshot {
   createdAt: number;
 }
 
+export interface ImageSnapshot {
+  color?: undefined;
+  text?: undefined;
+  id: string;
+  type: 'image';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Null while the upload has not finished. */
+  assetKey: string | null;
+  contentType: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  status: 'uploading' | 'ready' | 'failed';
+  uploadStartedAt: number;
+  uploaderId: string;
+  z: number;
+  createdAt: number;
+}
+
 /** Every board object; later stories widen this union. */
-export type ObjectSnapshot = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot | StrokeSnapshot;
+export type ObjectSnapshot = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot | StrokeSnapshot | ImageSnapshot;
 
 function objectsOf(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects') as Y.Map<Y.Map<unknown>>;
@@ -384,6 +405,30 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         baseHeight: size(m.get('baseHeight')),
         color: hasKey(PEN_COLORS, color) ? (color as PenColor) : 'black',
         thickness: hasKey(PEN_THICKNESS_WORLD, th) ? (th as PenThickness) : 'medium',
+        z: zOf(m),
+        createdAt: num(m.get('createdAt')),
+      });
+      return;
+    }
+    if (type === 'image') {
+      const key = m.get('assetKey');
+      const status = m.get('status');
+      const ct = m.get('contentType');
+      const uploader = m.get('uploaderId');
+      out.push({
+        id,
+        type: 'image',
+        x: num(m.get('x')),
+        y: num(m.get('y')),
+        width: size(m.get('width')),
+        height: size(m.get('height')),
+        assetKey: typeof key === 'string' ? key : null,
+        contentType: typeof ct === 'string' ? ct : '',
+        naturalWidth: num(m.get('naturalWidth')),
+        naturalHeight: num(m.get('naturalHeight')),
+        status: status === 'ready' || status === 'failed' ? status : 'uploading',
+        uploadStartedAt: num(m.get('uploadStartedAt')),
+        uploaderId: typeof uploader === 'string' ? uploader : '',
         z: zOf(m),
         createdAt: num(m.get('createdAt')),
       });

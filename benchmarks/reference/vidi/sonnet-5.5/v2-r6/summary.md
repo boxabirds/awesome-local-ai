@@ -18,8 +18,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | 6/6 | 0 | 0 | 56/57 |
 | 10 | 8/8 | 0 | 0 | 64/65 |
 | 11 | 5/5 | 0 | 0 | 69/70 |
+| 12 | 5/5 | 1 | 0 | 73/75 |
 
-**New work** 65/66, **regressions** 0, **repairs** 0, **cumulative** 69/70.
+**New work** 70/71, **regressions** 1, **repairs** 0, **cumulative** 73/75.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -33,10 +34,11 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 9 | Write free text anywhere on the board | DONE | 16.6 | None | None | None | — | — | green | 56/57 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 17.7 | None | None | None | — | — | red | 64/65 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 | 11 | Sketch freehand with a pen | DONE | 14.6 | None | None | None | — | — | green | 69/70 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
+| 12 | Drop images onto the board | DONE | 19.7 | None | None | None | — | — | green | 73/75 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 
-**Totals:** 10 stories, 147 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/10, final acceptance 69/70, stalled 0, partial 0, 13244 lines in src+tests.
+**Totals:** 11 stories, 166 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/11, final acceptance 73/75, stalled 0, partial 0, 36474 lines in src+tests.
 
-> Stories 1, 2, 3, 4, 5, 7, 8, 9, 10, 11 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
+> Stories 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
 
 ## How it happened
 
@@ -54,10 +56,12 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 9 | 1 by the agent | 1635 / 206 | `TextEditor.tsx` (138), `text.ts` (112), `StickyTextEditor.tsx` (103), `StickyText.ts` (86), `TextObject.tsx` (86), `textLayout.ts` (86), +19 more |
 | 10 | 1 by the agent | 2149 / 39 | `ConnectorObject.tsx` (147), `board-model.ts` (140), `ConnectorTool.tsx` (124), `connector.ts` (116), `ShapeObject.tsx` (108), `ShapeTool.tsx` (95), +18 more |
 | 11 | 1 by the agent | 1084 / 9 | `PenTool.tsx` (170), `stroke.ts` (76), `simplify.ts` (71), `board-model.ts` (49), `PenToolbar.tsx` (48), `StrokeObject.tsx` (45), +8 more |
+| 12 | 1 by the agent | 1564 / 9 | `useImageInsert.ts` (218), `ImageObject.tsx` (160), `image.ts` (109), `board-model.ts` (49), `assets.ts` (44), `uploadImage.ts` (31), +15 more |
 
 ### Earlier stories broken or fixed
 
-No story changed an earlier story's held-out results.
+- **Story 12 broke 1, fixed 0** earlier held-out tests (story 12: Drop images onto the board). Source files it changed most: `useImageInsert.ts` (218), `ImageObject.tsx` (160), `image.ts` (109), `board-model.ts` (49), `assets.ts` (44), `uploadImage.ts` (31), +15 more.
+  - story 3: 6/7 → 5/7; broke 1.
 
 ### Interruptions and dead time
 
