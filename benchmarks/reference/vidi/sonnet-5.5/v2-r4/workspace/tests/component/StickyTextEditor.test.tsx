@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createSticky, getStickyText, snapshot } from '../../src/shared/board-model';
@@ -28,6 +28,27 @@ describe('sticky text editor', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(snapshot(doc)[0].text).toBe('Faster onboarding');
     expect(noteEl().getAttribute('data-selected')).toBe('true');
+  });
+
+  it('remote typing appears in the open editor, keeps the caret, and is not erased by local typing', async () => {
+    const { doc, ids } = setupBoard([{ x: 0, y: 0 }]);
+    fireEvent.doubleClick(noteEl());
+    await userEvent.keyboard('ab');
+    act(() => getStickyText(doc, ids[0])!.insert(0, 'X', 'remote'));
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement;
+    expect(ta.value).toBe('Xab');
+    expect(ta.selectionStart).toBe(3);
+    await userEvent.keyboard('c');
+    expect(snapshot(doc)[0].text).toBe('Xabc');
+  });
+
+  it('deleting the note remotely ends editing without an error', () => {
+    const { doc, ids } = setupBoard([{ x: 0, y: 0 }]);
+    fireEvent.doubleClick(noteEl());
+    expect(screen.getByRole('textbox')).toBeTruthy();
+    act(() => doc.transact(() => doc.getMap('objects').delete(ids[0]), 'remote'));
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.queryAllByRole('group', { name: 'Sticky note' })).toHaveLength(0);
   });
 
   it('TC-26 Backspace while editing deletes a character, not the note', async () => {

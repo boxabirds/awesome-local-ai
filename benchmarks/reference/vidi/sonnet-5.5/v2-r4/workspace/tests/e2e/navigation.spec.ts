@@ -9,13 +9,6 @@ import {
   zoomValue,
 } from './helpers/board';
 import { GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT, ZOOM_MAX } from '../../src/shared/config';
-import type { Camera } from '../../src/client/canvas/camera';
-
-declare global {
-  interface Window {
-    __vidi6?: { setCamera(cam: Camera): void };
-  }
-}
 
 const TOL = 1;
 

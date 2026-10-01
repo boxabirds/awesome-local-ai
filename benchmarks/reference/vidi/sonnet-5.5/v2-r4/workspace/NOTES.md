@@ -16,3 +16,14 @@
 - Notes are rendered in stable id order and stacked with `z-index` (not DOM order) so a drag never re-parents the captured element.
 - While editing, the textarea is vertically centred by auto-sizing its height; text is hidden-measured in the display div for font fit.
 - Red-phase test commits were not made separately.
+
+## Story 3
+- vitest was downgraded to ^4.1 because `@cloudflare/vitest-pool-workers` (integration project) peers on vitest 4.
+- Worker code is typechecked by `tsconfig.worker.json` (workers-types, no DOM lib); `typecheck`/`build` run both configs.
+- `BoardRoom` applies sync step2/update bytes with `Y.applyUpdate` directly: `y-protocols` swallows decode errors, and the design requires a close with 1003 for invalid updates.
+- Awareness frames are relayed byte-for-byte (the original frame), not re-encoded.
+- `App` takes an optional `boardId`; without it (component tests) nothing connects and no badge renders. `main.tsx` resolves it via `boardIdFromLocation()` (`/b/:id`; `/` replaces the URL with a fresh id). An invalid id in the URL just keeps retrying (400) while the board works locally.
+- `connectBoard` accepts an optional provider factory so the component tests drive it with a fake. The default factory also reacts to the browser `offline`/`online` events: a dead socket otherwise stays "open" for ~30 s, so the badge would lag far behind the outage.
+- `StickyTextEditor` now mirrors remote Y.Text changes into the textarea (caret shifted through the delta). Without it, the next local keystroke diffed against stale text and deleted what others had typed (found by TC-23).
+- Playwright: `chromium-nightly` project runs `tests/e2e/nightly.spec.ts` (TC-29/30, `npm run test:e2e:nightly`); the other projects ignore it. Latency is logged, never asserted. `window.__vidi6.connectionState` exists in test builds only.
+- Pre-existing, unrelated: story 1 e2e `far travel › TC-27 pan exactly…` fails in Chromium here (grid offset 8 vs tolerance 1), also on the story-2 commit.

@@ -6,14 +6,27 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { BoardViewport } from './canvas/BoardViewport';
 import { StickyNote } from './objects/StickyNote';
+import { setTestConnectionState } from './canvas/testHooks';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { newBoardId } from '../shared/board-id';
 
 function isTextTarget(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
   return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable;
 }
 
-export function App({ doc: externalDoc }: { doc?: Y.Doc }) {
-  const { doc, notes } = useBoardDoc(externalDoc);
+/** Board address from /b/:boardId; `/` is redirected to a fresh board (replaced by server-side creation in story 5). */
+export function boardIdFromLocation(): string {
+  const m = /^\/b\/([^/]+)\/?$/.exec(location.pathname);
+  if (m) return decodeURIComponent(m[1]);
+  const id = newBoardId();
+  history.replaceState(null, '', `/b/${id}`);
+  return id;
+}
+
+export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: string }) {
+  const { doc, notes, connection } = useBoardDoc(externalDoc, boardId);
+  useEffect(() => setTestConnectionState(connection), [connection]);
   const sel = useSelection();
 
   const stateRef = useRef({ sel, doc });
@@ -53,6 +66,8 @@ export function App({ doc: externalDoc }: { doc?: Y.Doc }) {
   };
 
   return (
+    <>
+    {boardId && <ConnectionStatus state={connection} />}
     <BoardViewport
       onDoubleClickEmpty={create}
       onClickEmpty={() => sel.select(null)}
@@ -76,5 +91,6 @@ export function App({ doc: externalDoc }: { doc?: Y.Doc }) {
           ))
       }
     </BoardViewport>
+    </>
   );
 }

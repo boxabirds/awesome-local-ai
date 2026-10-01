@@ -32,6 +32,33 @@ export function StickyTextEditor(props: { ytext: Y.Text; fontPx: number; onEnd(n
 
   useLayoutEffect(resize, [fontPx]);
 
+  // Other people's edits flow into the textarea (keeping the caret in place); without this the next
+  // local flush would diff against stale text and delete what they typed.
+  useEffect(() => {
+    const shift = (sel: number, delta: { retain?: number; insert?: unknown; delete?: number }[]) => {
+      let pos = 0;
+      for (const op of delta) {
+        if (op.retain !== undefined) pos += op.retain;
+        else if (typeof op.insert === 'string') {
+          if (pos < sel) sel += op.insert.length;
+          pos += op.insert.length;
+        } else if (op.delete !== undefined && pos < sel) sel -= Math.min(op.delete, sel - pos);
+      }
+      return sel;
+    };
+    const observer = (event: Y.YTextEvent, tr: Y.Transaction) => {
+      const ta = ref.current;
+      if (!ta || tr.origin === LOCAL_ORIGIN) return;
+      const start = shift(ta.selectionStart ?? 0, event.delta);
+      const end = shift(ta.selectionEnd ?? 0, event.delta);
+      ta.value = ytext.toString();
+      ta.setSelectionRange(start, end);
+      resize();
+    };
+    ytext.observe(observer);
+    return () => ytext.unobserve(observer);
+  }, [ytext]);
+
   useEffect(() => {
     const onDown = (e: PointerEvent) => {
       const ta = ref.current;

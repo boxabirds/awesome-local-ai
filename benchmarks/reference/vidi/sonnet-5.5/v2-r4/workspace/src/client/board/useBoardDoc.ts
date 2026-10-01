@@ -1,14 +1,29 @@
-import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
-/** Owns the board Y.Doc (or adopts the one passed in) and exposes an immutable, memoised snapshot. */
-export function useBoardDoc(external?: Y.Doc): { doc: Y.Doc; notes: readonly StickySnapshot[] } {
+/**
+ * Owns the board Y.Doc (or adopts the one passed in) and exposes an immutable, memoised snapshot.
+ * With a boardId the doc is synced through the board room; without one it stays local.
+ */
+export function useBoardDoc(
+  external?: Y.Doc,
+  boardId?: string,
+): { doc: Y.Doc; notes: readonly StickySnapshot[]; connection: ConnectionState } {
   const doc = useMemo(() => {
     const d = external ?? new Y.Doc();
     initDoc(d);
     return d;
   }, [external]);
+
+  const [connection, setConnection] = useState<ConnectionState>('connecting');
+  useEffect(() => {
+    if (!boardId) return;
+    setConnection('connecting');
+    const conn = connectBoard(doc, boardId, setConnection);
+    return () => conn.destroy();
+  }, [doc, boardId]);
 
   const cache = useRef<{ doc: Y.Doc; value: readonly StickySnapshot[] | null }>({ doc, value: null });
   if (cache.current.doc !== doc) cache.current = { doc, value: null };
@@ -31,5 +46,5 @@ export function useBoardDoc(external?: Y.Doc): { doc: Y.Doc; notes: readonly Sti
   }, [doc]);
 
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return { doc, notes };
+  return { doc, notes, connection };
 }
