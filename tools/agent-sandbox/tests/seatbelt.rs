@@ -424,3 +424,25 @@ fn the_command_is_sandbox_exec_with_the_profile_inline() {
         [OsString::from("npm"), OsString::from("install")]
     );
 }
+
+#[test]
+fn a_path_inside_the_run_is_denied_for_writing_after_the_run_is_allowed() {
+    let t = TempDir::new();
+    let own = t.dir("home/work/run-a");
+    t.dir("home/work/run-a/workspace/spec");
+    let policy = Policy::new(&own, &[], None)
+        .unwrap()
+        .read_only_inside(&[PathBuf::from("workspace/spec")])
+        .unwrap();
+    let text = profile(&policy, &Loopback::default());
+    let allow = text
+        .find(&format!("(allow file-read* file-write* (subpath {}))", quote(policy.own_dir.to_str().unwrap())))
+        .expect("the run is writable");
+    let deny = text
+        .find(&format!("(deny file-write* (subpath {}))", quote(policy.own_dir.join("workspace/spec").to_str().unwrap())))
+        .expect("the spec is denied for writing");
+    assert!(deny > allow, "SBPL applies the last matching rule: the deny comes after the allow");
+    assert!(text.trim_end().ends_with(")"), "{text}");
+    let plain = profile(&Policy::new(&own, &[], None).unwrap(), &Loopback::default());
+    assert!(!plain.contains("(deny file-write*"), "no deny unless a path was named");
+}

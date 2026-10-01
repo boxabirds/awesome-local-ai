@@ -1390,3 +1390,281 @@ fn online_the_harness_workload_installs_builds_serves_and_loads_in_chromium() {
         );
     }
 }
+
+// ---------- the agent's world: where the run is shown, the spec, the environment, processes ----------
+
+const SPEC_TEXT: &str = "the requirements\n";
+const SPEC_FILE_MODE: u32 = 0o444;
+const CANARY_KEY: &str = "FAKE_API_KEY";
+const CANARY_VALUE: &str = "sk-canary-0123456789abcdef";
+const SHOWN_AT: &str = "/w";
+
+/// A run with a read-only spec in its workspace, as the harness makes it (files 0444).
+fn bench_with_spec() -> (Bench, PathBuf) {
+    let bench = Bench::new();
+    let spec = bench.workspace.join("spec");
+    std::fs::create_dir_all(&spec).unwrap();
+    let file = spec.join("tasks.md");
+    std::fs::write(&file, SPEC_TEXT).unwrap();
+    std::fs::set_permissions(
+        &file,
+        std::os::unix::fs::PermissionsExt::from_mode(SPEC_FILE_MODE),
+    )
+    .unwrap();
+    (bench, file)
+}
+
+#[test]
+fn a_path_inside_the_run_can_be_made_read_only_whatever_its_mode_and_chmod_does_not_open_it() {
+    if skip(
+        "a_path_inside_the_run_can_be_made_read_only_whatever_its_mode_and_chmod_does_not_open_it",
+        &[],
+    ) {
+        return;
+    }
+    let (bench, file) = bench_with_spec();
+    let attempts = [
+        "echo changed >> spec/tasks.md",
+        "chmod u+w spec/tasks.md && echo changed >> spec/tasks.md",
+        "echo mine > spec/new.md",
+        "rm -f spec/tasks.md",
+        "mv spec spec-old",
+        "chmod -R u+w spec; rm -rf spec",
+    ];
+    for attempt in attempts {
+        let out = bench.bash(
+            &["--own-ro", "workspace/spec", "--workdir", "workspace"],
+            attempt,
+        );
+        assert!(
+            !out.status.success(),
+            "{attempt}: succeeded: {}",
+            describe(&out)
+        );
+        assert_eq!(
+            std::fs::read_to_string(&file).unwrap(),
+            SPEC_TEXT,
+            "{attempt}"
+        );
+        assert!(!bench.workspace.join("spec/new.md").exists());
+        assert!(!bench.workspace.join("spec-old").exists());
+    }
+    let mode = std::fs::metadata(&file).unwrap().permissions();
+    assert_eq!(
+        std::os::unix::fs::PermissionsExt::mode(&mode) & 0o777,
+        SPEC_FILE_MODE
+    );
+    // The rest of the workspace is still the command's.
+    let out = bench.bash(
+        &["--own-ro", "workspace/spec", "--workdir", "workspace"],
+        "cat spec/tasks.md && echo mine > PROGRESS.md && cat PROGRESS.md",
+    );
+    assert_eq!(stdout(&out), format!("{SPEC_TEXT}mine\n"), "{}", describe(&out));
+    // Control: without the flag the same attempt works (the file's mode is only a hint).
+    let control = bench.bash(&[], "chmod u+w spec/tasks.md 2>/dev/null; echo changed >> spec/tasks.md");
+    let _ = control;
+}
+
+#[test]
+fn a_path_to_protect_must_exist_inside_the_run_and_stay_inside_it() {
+    if skip(
+        "a_path_to_protect_must_exist_inside_the_run_and_stay_inside_it",
+        &[],
+    ) {
+        return;
+    }
+    let bench = Bench::new();
+    std::os::unix::fs::symlink(bench.path("repo"), bench.workspace.join("escape")).unwrap();
+    for bad in ["workspace/absent", "../work/run-b", "/etc", "workspace/escape"] {
+        let out = bench.bash(&["--own-ro", bad], "echo ran > \"$PWD/ran\"");
+        assert!(!out.status.success(), "{bad}: {}", describe(&out));
+        assert!(!bench.workspace.join("ran").exists(), "{bad}");
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn macos_cannot_show_the_run_at_another_path_and_says_so() {
+    if skip("macos_cannot_show_the_run_at_another_path_and_says_so", &[]) {
+        return;
+    }
+    let bench = Bench::new();
+    let out = bench.bash(&["--own-at", SHOWN_AT], "echo ran > \"$PWD/ran\"");
+    assert!(!out.status.success());
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("cannot show a directory at another path"),
+        "{}",
+        describe(&out)
+    );
+    assert!(!bench.workspace.join("ran").exists());
+    // Showing it where it is, is no remapping.
+    let same = bench.bash(&["--own-at", bench.own.to_str().unwrap()], "echo fine");
+    assert_eq!(stdout(&same), "fine\n", "{}", describe(&same));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_shows_the_run_at_a_short_path_and_nothing_of_where_it_really_is() {
+    if skip(
+        "linux_shows_the_run_at_a_short_path_and_nothing_of_where_it_really_is",
+        &[],
+    ) {
+        return;
+    }
+    let (bench, file) = bench_with_spec();
+    let extra = [
+        "--own-at",
+        SHOWN_AT,
+        "--own-ro",
+        "workspace/spec",
+        "--workdir",
+        "workspace",
+    ];
+    let out = bench.bash(&extra, "pwd -P; ls /; cat spec/tasks.md; echo x >> spec/tasks.md");
+    let text = stdout(&out);
+    assert!(text.starts_with("/w/workspace\n"), "{}", describe(&out));
+    let root: Vec<&str> = text.lines().skip(1).take_while(|l| *l != "the requirements").collect();
+    for host in ["home", "Users", "mnt", "media", "srv", "root"] {
+        assert!(!root.contains(&host), "/ shows {host}: {root:?}");
+    }
+    assert!(root.contains(&"w"), "{root:?}");
+    assert!(String::from_utf8_lossy(&out.stderr).contains("Read-only file system"), "{}", describe(&out));
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), SPEC_TEXT);
+    // The real path is not anywhere inside: not in the mounts, not in a command line, not in the environment.
+    let real = bench.own.to_str().unwrap().to_string();
+    let seen = bench.bash(
+        &extra,
+        "cat /proc/mounts /proc/self/mountinfo; ps -eo args; env; cat /proc/self/cmdline",
+    );
+    assert!(!stdout(&seen).contains(&real), "the run's real path is visible inside");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_ps_lists_only_the_command_and_its_children_and_no_launcher() {
+    if skip(
+        "linux_ps_lists_only_the_command_and_its_children_and_no_launcher",
+        &[],
+    ) {
+        return;
+    }
+    let bench = Bench::new();
+    let out = bench.bash(
+        &["--own-at", SHOWN_AT, "--workdir", "workspace"],
+        "ps -eo pid,ppid,args",
+    );
+    assert!(out.status.success(), "{}", describe(&out));
+    let text = stdout(&out);
+    for hidden in ["bwrap", "agent-sandbox", "--bind", bench.own.to_str().unwrap(), "unshare", "/run/agent-sandbox"] {
+        assert!(!text.contains(hidden), "ps shows {hidden}: {text}");
+    }
+    let lines: Vec<&str> = text.lines().skip(1).collect();
+    assert!(lines.iter().any(|l| l.trim_start().starts_with("1 ") && l.ends_with("init")), "{text}");
+    assert!(lines.len() <= 4, "only init, the shell, ps: {text}");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_the_first_process_collects_orphans_and_passes_the_status_on() {
+    if skip(
+        "linux_the_first_process_collects_orphans_and_passes_the_status_on",
+        &[],
+    ) {
+        return;
+    }
+    let bench = Bench::new();
+    let out = bench.bash(
+        &[],
+        "(sleep 0.1 &) ; (exit 0) & sleep 0.6; ps -eo stat= | grep -c '^Z'; exit 7",
+    );
+    assert_eq!(out.status.code(), Some(7), "{}", describe(&out));
+    assert_eq!(stdout(&out).trim(), "0", "zombies were left: {}", describe(&out));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_no_new_privileges_and_no_capabilities() {
+    if skip("linux_no_new_privileges_and_no_capabilities", &[]) {
+        return;
+    }
+    let bench = Bench::new();
+    let out = bench.bash(
+        &[],
+        "grep -E 'NoNewPrivs|CapEff' /proc/self/status; sudo -n true 2>&1; echo \"sudo=$?\"",
+    );
+    let text = stdout(&out);
+    assert!(text.contains("NoNewPrivs:\t1"), "{}", describe(&out));
+    assert!(text.contains("CapEff:\t0000000000000000"), "{}", describe(&out));
+    assert!(!text.contains("sudo=0"), "{}", describe(&out));
+}
+
+#[test]
+fn keep_env_leaves_the_command_only_the_variables_named_and_the_proxys() {
+    if skip(
+        "keep_env_leaves_the_command_only_the_variables_named_and_the_proxys",
+        &[],
+    ) {
+        return;
+    }
+    let bench = Bench::new();
+    let script = format!("echo \"canary=${{{CANARY_KEY}:-absent}}\"; echo \"home=${{HOME:+kept}}\"; echo \"proxy=${{HTTPS_PROXY:+set}}\"");
+    // Control: without the flag the command inherits everything, the canary too.
+    let mut inherit = bench.sandboxed(&[], &[BASH, "-c", &script]);
+    inherit.env(CANARY_KEY, CANARY_VALUE);
+    assert!(stdout(&finish(inherit, DEADLINE)).contains(&format!("canary={CANARY_VALUE}")));
+    let mut keep = bench.sandboxed(&["--keep-env", "HOME,TMPDIR,PWD"], &[BASH, "-c", &script]);
+    keep.env(CANARY_KEY, CANARY_VALUE);
+    let out = finish(keep, DEADLINE);
+    let text = stdout(&out);
+    assert!(text.contains("canary=absent"), "{}", describe(&out));
+    assert!(text.contains("home=kept"), "{}", describe(&out));
+    let mut proxied = bench.sandboxed(&["--keep-env", "HOME", "--preset", "npm"], &[BASH, "-c", &script]);
+    proxied.env(CANARY_KEY, CANARY_VALUE);
+    let out = finish(proxied, DEADLINE);
+    assert!(stdout(&out).contains("proxy=set"), "{}", describe(&out));
+    assert!(stdout(&out).contains("canary=absent"), "{}", describe(&out));
+}
+
+#[test]
+fn a_process_outside_cannot_be_found_or_signalled() {
+    if skip("a_process_outside_cannot_be_found_or_signalled", &[]) {
+        return;
+    }
+    let bench = Bench::new();
+    let marker = format!("agent-sandbox-test-canary-{}", std::process::id());
+    let mut canary = Command::new("sh")
+        .arg("-c")
+        .arg(format!("sleep 600 # {marker}"))
+        .spawn()
+        .unwrap();
+    let pid = canary.id();
+    let out = bench.bash(
+        &[],
+        &format!("pkill -f {marker}; kill -9 {pid}; pgrep -f {marker}; kill -0 {pid}; echo done"),
+    );
+    std::thread::sleep(Duration::from_millis(300));
+    let alive = canary.try_wait().unwrap().is_none();
+    let _ = canary.kill();
+    let _ = canary.wait();
+    assert!(alive, "the sandbox's kill reached a process outside it: {}", describe(&out));
+    assert!(!stdout(&out).contains(&pid.to_string()), "{}", describe(&out));
+}
+
+#[test]
+fn identity_names_the_version_the_platform_and_a_hash_of_the_policy_that_does_not_change() {
+    let run = || {
+        let out = Command::new(BIN).arg("identity").output().unwrap();
+        assert!(out.status.success());
+        serde_json::from_slice::<serde_json::Value>(&out.stdout).unwrap()
+    };
+    let (a, b) = (run(), run());
+    assert_eq!(a, b);
+    assert_eq!(a["version"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(
+        a["platform"],
+        format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH)
+    );
+    let hash = a["policy_hash"].as_str().unwrap();
+    assert_eq!(hash.len(), 64);
+    assert!(hash.bytes().all(|c| c.is_ascii_hexdigit()));
+}

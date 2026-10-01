@@ -27,9 +27,22 @@ pub struct Link {
     pub target: PathBuf,
 }
 
+/// Where own_dir may not be shown inside the sandbox: these are the system's own places.
+const RESERVED_TOP_LEVEL: &[&str] = &[
+    "usr", "bin", "sbin", "lib", "lib32", "lib64", "libx32", "etc", "proc", "dev", "tmp", "var", "run", "sys",
+];
+
 #[derive(Debug, Clone)]
 pub struct Policy {
     pub own_dir: PathBuf,
+    /// Where own_dir appears inside the sandbox: its own path, unless the caller asked for another
+    /// (Linux can bind it anywhere; macOS cannot remap a path).
+    pub own_at: PathBuf,
+    /// Resolved host paths inside own_dir that stay read-only (the spec): a mount on Linux, a
+    /// later deny on macOS, so no file mode and no `chmod` can open them.
+    pub own_ro: Vec<PathBuf>,
+    /// Where the command starts, relative to own_dir.
+    pub workdir: Option<PathBuf>,
     /// Resolved, sorted, none inside another, none inside own_dir.
     pub read_only: Vec<ReadOnly>,
     pub links: Vec<Link>,
@@ -93,11 +106,69 @@ impl Policy {
         missing.sort();
         missing.dedup();
         Ok(Policy {
+            own_at: own.clone(),
+            own_ro: Vec::new(),
+            workdir: None,
             own_dir: own,
             read_only,
             links,
             missing,
         })
+    }
+
+    /// Show own_dir at `at` inside the sandbox (an absolute path of its own, not a system place).
+    pub fn shown_at(mut self, at: &Path) -> Result<Policy> {
+        if !at.is_absolute() || at.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+            bail!("--own-at {} must be an absolute path without ..", at.display());
+        }
+        let top = at.components().nth(1).and_then(|c| c.as_os_str().to_str());
+        if top.is_none() || top.is_some_and(|t| RESERVED_TOP_LEVEL.contains(&t)) {
+            bail!("--own-at {} is where the system lives inside the sandbox; pick a place of its own", at.display());
+        }
+        self.own_at = at.to_path_buf();
+        Ok(self)
+    }
+
+    /// Keep these paths inside own_dir (relative) read-only. Each must exist and, resolved, stay inside.
+    pub fn read_only_inside(mut self, rel: &[PathBuf]) -> Result<Policy> {
+        for r in rel {
+            let host = self.inside_own_dir(r, "--own-ro")?;
+            self.own_ro.push(host);
+        }
+        self.own_ro.sort();
+        self.own_ro.dedup();
+        Ok(self)
+    }
+
+    /// Start the command in this directory of own_dir (relative).
+    pub fn starting_in(mut self, rel: &Path) -> Result<Policy> {
+        let host = self.inside_own_dir(rel, "--workdir")?;
+        if !host.is_dir() {
+            bail!("--workdir {} is not a directory", rel.display());
+        }
+        self.workdir = Some(rel.to_path_buf());
+        Ok(self)
+    }
+
+    fn inside_own_dir(&self, rel: &Path, flag: &str) -> Result<PathBuf> {
+        if rel.is_absolute() || rel.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+            bail!("{flag} {} must be relative to --own-dir, without ..", rel.display());
+        }
+        let joined = self.own_dir.join(rel);
+        let host = normalise(&joined)?
+            .with_context(|| format!("{flag} {} does not exist in --own-dir", rel.display()))?;
+        if !within(&host, &self.own_dir) {
+            bail!("{flag} {} leads out of --own-dir", rel.display());
+        }
+        Ok(host)
+    }
+
+    /// A host path under own_dir as the command sees it.
+    pub fn seen_at(&self, host: &Path) -> PathBuf {
+        match host.strip_prefix(&self.own_dir) {
+            Ok(rel) => self.own_at.join(rel),
+            Err(_) => host.to_path_buf(),
+        }
     }
 
     pub fn own_tmp(&self) -> PathBuf {

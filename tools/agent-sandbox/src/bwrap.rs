@@ -18,6 +18,36 @@ pub const SANDBOX_HOSTNAME: &str = "agent-sandbox";
 pub const INNER_EXE: &str = "/run/agent-sandbox/bin/agent-sandbox";
 pub const INNER_SOCKETS: &str = "/run/agent-sandbox/sockets";
 pub const INNER_SUBCOMMAND: &str = "inner";
+/// The first process in an isolated-network sandbox is this program run as `init`: bwrap's own
+/// process, whose command line lists every mount (and so the run's real path), is not left in
+/// there to be listed by `ps`. The variable tells it to act as that process; it reads what to run
+/// from COMMAND_FILE in the sockets directory and which ports to open from the sockets themselves.
+pub const INNER_ENV: &str = "AGENT_SANDBOX_INNER";
+pub const INNER_ARGV0: &str = "init";
+pub const COMMAND_FILE: &str = "command";
+
+/// The command as the file the first process reads: each argument ended by a NUL.
+pub fn command_file_bytes(cmd: &[OsString]) -> Vec<u8> {
+    use std::os::unix::ffi::OsStrExt;
+    cmd.iter()
+        .flat_map(|a| a.as_bytes().iter().copied().chain(std::iter::once(0)))
+        .collect()
+}
+
+/// The inverse of command_file_bytes.
+pub fn command_from_file_bytes(bytes: &[u8]) -> Vec<OsString> {
+    use std::os::unix::ffi::OsStringExt;
+    bytes
+        .split(|b| *b == 0)
+        .filter(|a| !a.is_empty())
+        .map(|a| OsString::from_vec(a.to_vec()))
+        .collect()
+}
+
+/// The ports whose sockets are in the sockets directory: `<port>.sock`.
+pub fn port_of_socket(name: &str) -> Option<u16> {
+    name.strip_suffix(".sock")?.parse().ok()
+}
 
 /// The system: programs and libraries. On a merged-/usr distribution /bin, /sbin and /lib* are
 /// symlinks into /usr and are recreated as such; otherwise they are bound.
@@ -108,10 +138,13 @@ fn expose(argv: &mut Vec<OsString>, fs: &dyn HostFs, path: &Path) {
     }
 }
 
-/// The whole command line: bwrap, its mounts, then `cmd` (under the bridge when isolated).
+/// The whole command line: bwrap and its mounts, then `cmd`. Isolated: the program that opens the
+/// bridged ports and runs `cmd` read from COMMAND_FILE (written by the caller, run.rs).
 pub fn command(policy: &Policy, fs: &dyn HostFs, net: &Net, cmd: &[OsString]) -> Vec<OsString> {
     let mut argv: Vec<OsString> = Vec::new();
     push(&mut argv, &[&BWRAP, &"--die-with-parent", &"--new-session"]);
+    // Nothing the command starts can gain a capability: not through a setuid program, not otherwise.
+    push(&mut argv, &[&"--cap-drop", &"ALL"]);
     push(
         &mut argv,
         &[
@@ -149,20 +182,36 @@ pub fn command(policy: &Policy, fs: &dyn HostFs, net: &Net, cmd: &[OsString]) ->
     for tmp in SHARED_TMP {
         push(&mut argv, &[&"--bind", &own_tmp, tmp]);
     }
-    push(&mut argv, &[&"--bind", &policy.own_dir, &policy.own_dir]);
+    push(&mut argv, &[&"--bind", &policy.own_dir, &policy.own_at]);
+    // After own_dir: a read-only mount over part of it, so the spec cannot be written whatever its mode.
+    for ro in &policy.own_ro {
+        push(&mut argv, &[&"--ro-bind", ro, &policy.seen_at(ro)]);
+    }
+    if let Some(dir) = &policy.workdir {
+        push(&mut argv, &[&"--chdir", &policy.own_at.join(dir)]);
+    }
     // The root is a tmpfs that had to be writable while the mount points were made in it. Now it
     // is closed: only own_dir, its tmp (as /tmp and /var/tmp) and /dev/shm can be written.
-    push(&mut argv, &[&"--remount-ro", &"/", &"--"]);
-    if let Net::Isolated { ports, .. } = net {
+    push(&mut argv, &[&"--remount-ro", &"/"]);
+    if matches!(net, Net::Isolated { .. }) {
+        // The program below is the sandbox's first process (no bwrap left behind it), named `init`;
+        // the command is in the sockets directory, not on a command line.
         push(
             &mut argv,
-            &[&INNER_EXE, &INNER_SUBCOMMAND, &"--sockets", &INNER_SOCKETS],
+            &[
+                &"--as-pid-1",
+                &"--setenv",
+                &INNER_ENV,
+                &"1",
+                &"--argv0",
+                &INNER_ARGV0,
+                &"--",
+                &INNER_EXE,
+            ],
         );
-        for port in ports {
-            push(&mut argv, &[&"--forward", &port.to_string()]);
-        }
+    } else {
         push(&mut argv, &[&"--"]);
+        argv.extend(cmd.iter().cloned());
     }
-    argv.extend(cmd.iter().cloned());
     argv
 }

@@ -6,6 +6,11 @@ use std::collections::BTreeMap;
 
 const PRESETS_TOML: &str = include_str!("../presets.toml");
 
+/// presets.toml as built in, for hashing the policy (identity.rs).
+pub fn source() -> &'static str {
+    PRESETS_TOML
+}
+
 #[derive(Debug, Clone, Deserialize)]
 struct Entry {
     why: String,

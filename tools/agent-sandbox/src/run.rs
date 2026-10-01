@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Duration;
 
 use crate::bwrap;
-use crate::cli::{HostArgs, InnerArgs, ProxyArgs, SandboxArgs};
+use crate::cli::{HostArgs, ProxyArgs, SandboxArgs};
 use crate::paths::within;
 use crate::policy::Policy;
 use crate::ports::{Loopback, PortRange, IANA_DYNAMIC_PORTS};
@@ -180,7 +180,21 @@ fn plan(args: &SandboxArgs) -> Result<Plan> {
         .chain(found.read_only)
         .chain(found.entry_points)
         .collect();
-    let policy = Policy::new(&args.own_dir, &ro, home.as_deref())?;
+    let mut policy = Policy::new(&args.own_dir, &ro, home.as_deref())?
+        .read_only_inside(&args.own_ro)?;
+    if let Some(dir) = &args.workdir {
+        policy = policy.starting_in(dir)?;
+    }
+    if let Some(at) = &args.own_at {
+        if !cfg!(target_os = "linux") && at != &policy.own_dir {
+            anyhow::bail!(
+                "--own-at {}: this platform cannot show a directory at another path; \
+                 put the directory there instead",
+                at.display()
+            );
+        }
+        policy = policy.shown_at(at)?;
+    }
     std::fs::create_dir_all(policy.own_tmp())
         .with_context(|| format!("creating {}", policy.own_tmp().display()))?;
     for missing in &policy.missing {
@@ -283,6 +297,11 @@ fn enforcer(args: &SandboxArgs, policy: &Policy, ports: &[u16], live: bool) -> R
         for port in ports {
             bridge::host_side(&bridge_dir.join(bwrap::socket_name(*port)), *port)?;
         }
+        std::fs::write(
+            bridge_dir.join(bwrap::COMMAND_FILE),
+            bwrap::command_file_bytes(&args.command),
+        )
+        .context("writing the command for the sandbox's first process")?;
     }
     let self_exe = std::env::current_exe()?.canonicalize()?;
     let net = bwrap::Net::Isolated {
@@ -336,10 +355,19 @@ pub fn run(args: &SandboxArgs) -> Result<i32> {
     }
     let enforcer = enforcer(args, &plan.policy, &ports, true)?;
     let mut command = Command::new(&enforcer.argv[0]);
-    command
-        .args(&enforcer.argv[1..])
-        .envs(env)
-        .env(PATH_VAR, &plan.path);
+    command.args(&enforcer.argv[1..]);
+    if let Some(keep) = &args.keep_env {
+        command.env_clear();
+        for name in keep {
+            if let Some(value) = std::env::var_os(name) {
+                command.env(name, value);
+            }
+        }
+    }
+    command.envs(env).env(PATH_VAR, &plan.path);
+    if let Some(dir) = &plan.policy.workdir {
+        command.current_dir(plan.policy.own_dir.join(dir));
+    }
     let status = spawn_and_wait(command);
     if let Some(dir) = &enforcer.scratch {
         let _ = std::fs::remove_dir_all(dir);
@@ -359,18 +387,65 @@ pub fn serve_proxy(args: &ProxyArgs) -> Result<()> {
     }
 }
 
-/// `inner`: the first process inside an isolated-network sandbox. Opens each bridged port on the
-/// sandbox's own loopback, then runs the command and passes its status on.
-pub fn inner(args: &InnerArgs) -> Result<i32> {
-    for port in &args.forward {
-        bridge::sandbox_side(*port, &args.sockets.join(bwrap::socket_name(*port)))?;
+/// The sandbox's first process (isolated Linux sandbox): opens each bridged port on the sandbox's
+/// own loopback, runs the command, and, being process 1 of its pid namespace, reaps every orphan
+/// until the command ends. Its status is passed on; when it ends the kernel ends everything else.
+pub fn init(sockets: &Path) -> Result<i32> {
+    let command = bwrap::command_from_file_bytes(
+        &std::fs::read(sockets.join(bwrap::COMMAND_FILE))
+            .with_context(|| format!("reading the command in {}", sockets.display()))?,
+    );
+    let program = command.first().context("the command file is empty")?;
+    for entry in std::fs::read_dir(sockets)? {
+        let name = entry?.file_name();
+        if let Some(port) = name.to_str().and_then(bwrap::port_of_socket) {
+            bridge::sandbox_side(port, &sockets.join(bwrap::socket_name(port)))?;
+        }
     }
-    let mut command = Command::new(&args.command[0]);
-    command.args(&args.command[1..]);
-    let status = spawn_and_wait(command);
-    Ok(exit_code(status.with_context(|| {
-        format!("starting {}", args.command[0].to_string_lossy())
-    })?))
+    let mut child = Command::new(program);
+    child.args(&command[1..]).env_remove(bwrap::INNER_ENV);
+    for sig in FORWARDED_SIGNALS {
+        // SAFETY: the handler only stores to an atomic.
+        unsafe {
+            libc::signal(
+                sig,
+                note_signal as extern "C" fn(libc::c_int) as libc::sighandler_t,
+            )
+        };
+    }
+    let child = child
+        .spawn()
+        .with_context(|| format!("starting {}", program.to_string_lossy()))?;
+    Ok(wait_reaping(child.id() as libc::pid_t))
+}
+
+/// Wait for `pid`, passing on SIGTERM, SIGINT and SIGHUP, and collect any other child that ends
+/// (a process 1 gets the orphans of everything that exits).
+fn wait_reaping(pid: libc::pid_t) -> i32 {
+    loop {
+        let mut status: libc::c_int = 0;
+        // SAFETY: waitpid writes one c_int.
+        let ended = unsafe { libc::waitpid(-1, &mut status, libc::WNOHANG) };
+        if ended == pid {
+            return if libc::WIFEXITED(status) {
+                libc::WEXITSTATUS(status)
+            } else {
+                SIGNAL_EXIT_BASE + libc::WTERMSIG(status)
+            };
+        }
+        if ended > 0 {
+            continue;
+        }
+        if ended < 0 {
+            return EXIT_CANNOT_RUN;
+        }
+        let sig = PENDING_SIGNAL.swap(NO_SIGNAL, Ordering::SeqCst);
+        if sig != NO_SIGNAL {
+            // SAFETY: plain kill(2) on the child we started.
+            unsafe { libc::kill(pid, sig) };
+        }
+        std::thread::sleep(WAIT_POLL);
+    }
 }
 
 static PENDING_SIGNAL: AtomicI32 = AtomicI32::new(NO_SIGNAL);

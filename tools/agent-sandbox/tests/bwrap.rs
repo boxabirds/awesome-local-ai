@@ -4,7 +4,8 @@
 mod common;
 
 use agent_sandbox::bwrap::{
-    command, socket_name, HostFs, Kind, Net, BWRAP, INNER_EXE, INNER_SOCKETS, SANDBOX_HOSTNAME,
+    command, socket_name, HostFs, Kind, Net, BWRAP, INNER_ARGV0, INNER_ENV, INNER_EXE, INNER_SOCKETS,
+    SANDBOX_HOSTNAME,
 };
 use agent_sandbox::policy::Policy;
 use common::TempDir;
@@ -259,14 +260,14 @@ fn a_shared_network_namespace_is_only_used_when_asked_for() {
 }
 
 #[test]
-fn an_isolated_network_runs_the_command_under_the_bridge_with_only_the_chosen_ports() {
+fn an_isolated_network_starts_the_bridge_program_as_the_first_process_and_lists_no_command() {
     let f = fixture();
     let net = Net::Isolated {
         bridge_dir: PathBuf::from("/tmp/agent-sandbox-bridge-1"),
         self_exe: PathBuf::from("/opt/tools/agent-sandbox"),
         ports: vec![MODEL_PORT, PROXY_PORT],
     };
-    let argv = build(&f, &net, &["npm", "install"]);
+    let argv = build(&f, &net, &["npm", "install", "--a-secret-prompt"]);
     assert!(argv.iter().any(|a| a == "--unshare-net"));
     assert!(has(
         &argv,
@@ -283,20 +284,63 @@ fn an_isolated_network_runs_the_command_under_the_bridge_with_only_the_chosen_po
         [
             "--remount-ro",
             "/",
+            "--as-pid-1",
+            "--setenv",
+            INNER_ENV,
+            "1",
+            "--argv0",
+            INNER_ARGV0,
             "--",
-            INNER_EXE,
-            "inner",
-            "--sockets",
-            INNER_SOCKETS,
-            "--forward",
-            "18010",
-            "--forward",
-            "41234",
-            "--",
-            "npm",
-            "install"
+            INNER_EXE
         ]
     );
+    // Neither bwrap's mounts nor the command's arguments are left on any command line inside.
+    assert!(!argv.iter().any(|a| a == "npm" || a == "--a-secret-prompt"));
+}
+
+#[test]
+fn a_shared_network_runs_the_command_directly_after_the_mounts() {
+    let f = fixture();
+    let argv = build(&f, &Net::Shared, &["npm", "install"]);
+    let own = position(&argv, &["--bind", s(&f.own), s(&f.own)]).unwrap();
+    let tail: Vec<&str> = argv[own + 3..].iter().map(String::as_str).collect();
+    assert_eq!(tail, ["--remount-ro", "/", "--", "npm", "install"]);
+}
+
+#[test]
+fn no_capability_is_kept() {
+    let f = fixture();
+    let argv = build(&f, &Net::Shared, &["true"]);
+    assert!(has(&argv, &["--cap-drop", "ALL"]));
+}
+
+#[test]
+fn own_dir_can_be_shown_at_a_short_path_with_the_spec_mounted_read_only_over_it_and_a_start_directory() {
+    let t = TempDir::new();
+    let own = t.dir("work/run-a");
+    t.dir("work/run-a/tmp");
+    t.dir("work/run-a/workspace/spec");
+    let policy = Policy::new(&own, &[], None)
+        .unwrap()
+        .shown_at(Path::new("/w"))
+        .unwrap()
+        .read_only_inside(&[PathBuf::from("workspace/spec")])
+        .unwrap()
+        .starting_in(Path::new("workspace"))
+        .unwrap();
+    let argv = strings(&command(
+        &policy,
+        &FakeFs::merged_usr(),
+        &Net::Shared,
+        &[OsString::from("true")],
+    ));
+    let spec = policy.own_dir.join("workspace/spec");
+    let bind = position(&argv, &["--bind", s(&policy.own_dir), "/w"]).expect("own_dir at /w");
+    let ro = position(&argv, &["--ro-bind", s(&spec), "/w/workspace/spec"]).expect("spec read-only");
+    assert!(ro > bind, "a later mount covers an earlier one: the spec goes after own_dir");
+    assert!(has(&argv, &["--chdir", "/w/workspace"]));
+    // The run's real path appears nowhere as a destination: only as the source of its own mounts.
+    assert!(!has(&argv, &["--bind", s(&policy.own_dir), s(&policy.own_dir)]));
 }
 
 #[test]
