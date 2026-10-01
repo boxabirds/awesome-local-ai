@@ -1,6 +1,6 @@
 {
-  "state": "failed",
-  "reason": "exit 1: [story 9] stopped by the swap guard (swap 2.31 -> 6.36 GB). Not checkpointed; check memory before resuming.",
-  "at": "2026-10-01T05:04:06Z",
+  "state": "started",
+  "reason": "harness 77c65e18, client pi, model mlxserve-flash-next-mixed-4-8bit",
+  "at": "2026-10-01T05:05:28Z",
   "host": "Apple M5 Max 128GB"
 }
