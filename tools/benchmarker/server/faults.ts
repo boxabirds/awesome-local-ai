@@ -13,7 +13,7 @@ import { jobReason, type FullRow, type NodeJob } from "./domain.ts";
 export const FAULT_KINDS = [
   "accounting_failed", "accounting_unchecked", "harness_fault", "agent_output_skipped", "credentials_redacted",
   "not_scored", "rescore_flagged", "live_record_disagree", "no_workspace_bundle", "run_invalid", "run_ended_early",
-  "job_failed", "job_cancelled", "job_restarted",
+  "sandbox_not_enforced", "job_failed", "job_cancelled", "job_restarted",
   "machine_unreachable", "machine_no_activity", "machine_idle", "machine_idle_with_queue",
   "fetch_error", "dbench_error",
 ] as const;
@@ -108,6 +108,13 @@ function runFaults(r: FullRow): Fault[] {
       out.push(ofRun(r, "not_scored", { suite: r.suite, rescores: r.rescores, rescore_faults: rescoreFaults, has_bundle: hasBundle, finalize: finalize ?? "no finalize record" }));
     }
     if (!hasBundle) out.push(ofRun(r, "no_workspace_bundle", { suite: r.suite }));
+  }
+  // The agent ran in no sandbox (SPEC_BENCH_SANDBOX=permissive), or the record of the one it ran in is incomplete: the
+  // run cannot stand beside runs that did, and the harness refuses to publish it. A record from before the sandbox
+  // was recorded says nothing either way, and is not a fault.
+  const sandbox = r.record.sandbox;
+  if (sandbox && (sandbox.mode !== "enforced" || !sandbox.policyHash)) {
+    out.push(ofRun(r, "sandbox_not_enforced", { mode: sandbox.mode, version: sandbox.version, platform: sandbox.platform, policy_hash: sandbox.policyHash }));
   }
   if (finalize?.rescore === "flagged") out.push(ofRun(r, "rescore_flagged", { finalize }));
   const disagree = liveRecordDisagreement(r);

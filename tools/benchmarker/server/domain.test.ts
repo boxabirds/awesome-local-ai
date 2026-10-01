@@ -318,7 +318,7 @@ describe("merging runs and jobs", () => {
 describe("machines", () => {
   const row = (stack: string, runId: string, node: string, status: string, story: string | null = null) =>
     ({ stack, runId, node, pack: "vidi", live: { status, currentStory: story, agentMinutes: 25 } }) as unknown as Row;
-  const full = (r: Row, invalid = false): FullRow => ({ ...r, record: { invalid: invalid ? { reason: "x", since: "" } : null, finalize: null, stories: [], rescoreFaults: {}, hasBundle: false }, dbenchJobs: [] });
+  const full = (r: Row, invalid = false): FullRow => ({ ...r, record: { invalid: invalid ? { reason: "x", since: "" } : null, sandbox: null, finalize: null, stories: [], rescoreFaults: {}, hasBundle: false }, dbenchJobs: [] });
 
   it("names the story being finished between stories, not \"starting\"", () => {
     const r = { stack: SWIFT, runId: "v2-r1", node: "node-a", pack: "vidi", live: { status: "running", currentStory: "", runningStory: "3", agentMinutes: 33 } } as unknown as Row;

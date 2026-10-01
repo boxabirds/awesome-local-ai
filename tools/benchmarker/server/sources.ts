@@ -2,7 +2,7 @@
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import type { Intervention, Score } from "../shared/types.ts";
-import { countTests, finalScore, findRuns, normaliseByStory, parseFinalize, parseInterventions, parseInvalid, rescoreFault, type Invalid, type RawFinalize, type RawRescore, type RawUsage, storyEntry, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
+import { countTests, finalScore, findRuns, normaliseByStory, parseFinalize, parseInterventions, parseInvalid, parseSandbox, rescoreFault, type Invalid, type RawFinalize, type RunSandbox, type RawRescore, type RawUsage, storyEntry, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
 
 const run = promisify(execFile);
 export const REF = "origin/main";
@@ -76,14 +76,15 @@ function json<T>(text: string | undefined): T | null {
 /** The files a run's notes are read from: its run.json (the client, the "invalid" mark) and interventions.md. */
 export const runNotePaths = (dir: string) => [`${dir}/run.json`, `${dir}/interventions.md`];
 
-/** What the record says about the run itself: the client that ran it, whether it is invalid, and what was done to
- * it by hand. */
-export function runNotes(blobs: Map<string, string>, dir: string): { client: string; invalid: Invalid | null; interventions: Intervention[] } {
+/** What the record says about the run itself: the client that ran it, whether it is invalid, what its agent ran in, and
+ * what was done to it by hand. */
+export function runNotes(blobs: Map<string, string>, dir: string): { client: string; invalid: Invalid | null; sandbox: RunSandbox | null; interventions: Intervention[] } {
   const [meta, notes] = runNotePaths(dir);
-  const run = json<{ client?: unknown; invalid?: unknown }>(blobs.get(meta));
+  const run = json<{ client?: unknown; invalid?: unknown; sandbox?: unknown }>(blobs.get(meta));
   return {
     client: typeof run?.client === "string" ? run.client : "",
     invalid: parseInvalid(run?.invalid),
+    sandbox: parseSandbox(run?.sandbox),
     interventions: parseInterventions(blobs.get(notes)),
   };
 }

@@ -40,12 +40,22 @@ describe("a run's notes: its client and invalid mark (run.json), and interventio
     expect(n.interventions).toEqual([{ at: Date.parse("2026-09-26T08:57:29Z") / 1000, story: "3", text: "node-c froze" }]);
   });
   it("neither: a valid run with no interventions", () => {
-    expect(runNotes(new Map([[RUN, meta({})]]), DIR)).toEqual({ client: "", invalid: null, interventions: [] });
-    expect(runNotes(new Map(), DIR)).toEqual({ client: "", invalid: null, interventions: [] });
+    expect(runNotes(new Map([[RUN, meta({})]]), DIR)).toEqual({ client: "", invalid: null, sandbox: null, interventions: [] });
+    expect(runNotes(new Map(), DIR)).toEqual({ client: "", invalid: null, sandbox: null, interventions: [] });
   });
   it("the client that ran it, as run.json names it (Claude Code runs have no time accounting yet)", () => {
     expect(runNotes(new Map([[RUN, meta({ client: "claude" })]]), DIR).client).toBe("claude");
     expect(runNotes(new Map([[RUN, meta({ client: "pi" })]]), DIR).client).toBe("pi");
+  });
+  it("the sandbox its agent ran in, as run.json records it: mode, agent-sandbox's version, platform and policy hash", () => {
+    const enforced = { mode: "enforced", version: "0.2.0", platform: "linux-x86_64", policy_hash: "ab".repeat(32) };
+    expect(runNotes(new Map([[RUN, meta({ sandbox: enforced })]]), DIR).sandbox)
+      .toEqual({ mode: "enforced", version: "0.2.0", platform: "linux-x86_64", policyHash: "ab".repeat(32) });
+    expect(runNotes(new Map([[RUN, meta({ sandbox: { mode: "permissive" } })]]), DIR).sandbox)
+      .toEqual({ mode: "permissive", version: "", platform: "", policyHash: "" });
+    for (const raw of [undefined, null, "enforced", 3, {}, { mode: "" }, { mode: 7 }]) {
+      expect(runNotes(new Map([[RUN, meta({ sandbox: raw })]]), DIR).sandbox).toBeNull();
+    }
   });
   it("a run.json that doesn't parse says nothing about validity", () => {
     expect(runNotes(new Map([[RUN, "{not json"]]), DIR).invalid).toBeNull();
