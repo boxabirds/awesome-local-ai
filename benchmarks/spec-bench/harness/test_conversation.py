@@ -178,6 +178,67 @@ def test_E5_a_long_gist_is_cut(tmp_path):
     assert len(prof(tmp_path, log)["longest_tool"]["gist"]) == cv.GIST_CHARS
 
 
+# A harness restart mid-story: the log holds both attempts and the mark the harness writes between them, stamped when
+# the next attempt starts. mlx-serve v2-r2 stories 9 and 11 (1 Oct 2026): the swap guard killed a bash call, the
+# harness was down for about three minutes, and the call was measured to the story's end: 1,389 s and 1,460 s.
+KILLED_AT, DOWN_S, REST_S = T0 + 100, 180.0, 700.0
+
+
+def restarted(log, heard=None):
+    """A story of two attempts: a short call, then one open when attempt 1 was killed (last heard from at `heard`,
+    by its streamed output), the harness's mark and attempt 2's session after DOWN_S, and REST_S more of work."""
+    log.call(T0 + 1).tool(T0 + 2, T0 + 32, command="npm test").tool(KILLED_AT, None, command="npx playwright test")
+    if heard is not None:
+        log.events.append({"_rx": heard, "type": "tool_execution_update", "toolCallId": f"t{log.n}"})
+    back = (heard or KILLED_AT) + DOWN_S
+    log.events.append({"_rx": back, "type": cv.RESTART_MARK, "attempt": 2})
+    log.events.append({"_rx": back + 0.2, "type": "session"})
+    return log.call(back + REST_S), back + REST_S + 1
+
+
+def test_E6_a_call_open_when_its_attempt_was_killed_ends_with_that_attempt(tmp_path):
+    log, end = restarted(Log())
+    p = prof(tmp_path, log, t_to=end)
+    assert end - KILLED_AT >= cv.HUNG_TOOL_S              # what it was measured as: across the downtime, to the end
+    assert p["longest_tool"] == {"seconds": 30.0, "name": "bash", "gist": "npm test"}
+    assert "hung-command" not in p["signals"]
+    assert p["tool_errors"] == 0 and p["calls"] == 2
+
+
+def test_E7_such_a_call_ran_until_its_attempt_was_last_heard_from(tmp_path):
+    log, end = restarted(Log(), heard=KILLED_AT + 90)
+    p = prof(tmp_path, log, t_to=end)
+    assert p["longest_tool"] == {"seconds": 90.0, "name": "bash", "gist": "npx playwright test"}
+    assert p["signals"] == []
+
+
+def test_E8_a_streamed_model_update_is_also_a_sign_of_life(tmp_path):
+    log, end = restarted(Log())
+    log.events.append({"_rx": KILLED_AT + 60, "type": "message_update"})
+    assert prof(tmp_path, log, t_to=end)["longest_tool"]["seconds"] == 60.0
+
+
+@pytest.mark.parametrize("opener", [{"type": "session"}, {"type": "system", "subtype": "init"}])
+def test_E9_a_new_agent_process_without_a_mark_ends_what_the_one_before_left_open(tmp_path, opener):
+    log = Log().call(T0 + 1).tool(T0 + 2, T0 + 32, command="npm test").tool(KILLED_AT, None, command="npm run dev")
+    log.events.append({"_rx": KILLED_AT + DOWN_S, **opener})
+    log.call(KILLED_AT + DOWN_S + REST_S)
+    p = prof(tmp_path, log, t_to=KILLED_AT + DOWN_S + REST_S + 1)
+    assert p["longest_tool"]["gist"] == "npm test" and p["signals"] == []
+
+
+def test_E10_a_claude_call_open_at_a_restart_ends_with_its_attempt(tmp_path):
+    log = ClaudeLog()
+    (quick,) = log.call(T0 + 10, tools=[("Bash", {"command": "ls"})])
+    log.result(T0 + 15, quick)
+    log.call(KILLED_AT, tools=[("Bash", {"command": "npx playwright test"})])
+    log.events.append({"_rx": KILLED_AT + DOWN_S, "type": cv.RESTART_MARK, "attempt": 2})
+    log.events.append({"_rx": KILLED_AT + DOWN_S + 0.2, "type": "system", "subtype": "init"})
+    log.call(KILLED_AT + DOWN_S + REST_S, text="done")
+    p = prof(tmp_path, log, t_to=KILLED_AT + DOWN_S + REST_S + 1)
+    assert p["longest_tool"] == {"seconds": 5.0, "name": "Bash", "gist": "ls"} and p["signals"] == []
+
+
 # ---------- F. signals and their thresholds ----------
 
 def test_F1_a_long_thinking_block_is_not_a_signal_on_its_own(tmp_path):
@@ -192,6 +253,24 @@ def test_F1_a_long_thinking_block_is_not_a_signal_on_its_own(tmp_path):
 def test_F2_a_hung_command(tmp_path, secs, signal):
     p = prof(tmp_path, Log().call(T0 + 1).tool(T0 + 2, T0 + 2 + secs))
     assert ("hung-command" in p["signals"]) is signal
+
+
+def test_F2b_a_call_that_never_ended_inside_one_attempt_still_signals(tmp_path):
+    p = prof(tmp_path, Log().call(T0 + 1).tool(T1 - cv.HUNG_TOOL_S, None, command="npm run dev"))
+    assert p["signals"] == ["hung-command"] and p["longest_tool"]["seconds"] == cv.HUNG_TOOL_S
+
+
+def test_F2c_a_call_that_hung_in_the_last_attempt_of_a_restarted_story_still_signals(tmp_path):
+    log, end = restarted(Log())
+    log.tool(end - 1, None, command="npm run dev")
+    p = prof(tmp_path, log, t_to=end - 1 + cv.HUNG_TOOL_S)
+    assert p["signals"] == ["hung-command"] and p["longest_tool"]["gist"] == "npm run dev"
+
+
+def test_F2d_a_call_heard_from_for_ten_minutes_before_its_attempt_was_killed_still_signals(tmp_path):
+    log, end = restarted(Log(), heard=KILLED_AT + cv.HUNG_TOOL_S)
+    p = prof(tmp_path, log, t_to=end)
+    assert p["signals"] == ["hung-command"] and p["longest_tool"]["seconds"] == cv.HUNG_TOOL_S
 
 
 def test_F3_no_signals_on_an_ordinary_story(tmp_path):
