@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { SELF } from 'cloudflare:test';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config.ts';
 import { newBoardId } from '../../src/shared/board-id.ts';
 import { createSticky } from '../../src/shared/board-model.ts';
@@ -6,19 +7,19 @@ import { connectToBoard, WsClient } from './helpers/ws-client.ts';
 
 describe('Worker routing', () => {
   it('TC-04: GET /api/rooms/bad!id returns 400', async () => {
-    const response = await fetch(`http://127.0.0.1:8891/api/rooms/bad!id`);
+    const response = await SELF.fetch(`http://localhost/api/rooms/bad!id`);
     expect(response.status).toBe(400);
   });
 
   it('TC-05: valid id without Upgrade returns 426', async () => {
     const boardId = newBoardId();
-    const response = await fetch(`http://127.0.0.1:8891/api/rooms/${boardId}`);
+    const response = await SELF.fetch(`http://localhost/api/rooms/${boardId}`);
     expect(response.status).toBe(426);
   });
 
   it('TC-06: GET /b/<valid> returns 200 (SPA fallback)', async () => {
     const boardId = newBoardId();
-    const response = await fetch(`http://127.0.0.1:8891/b/${boardId}`);
+    const response = await SELF.fetch(`http://localhost/b/${boardId}`);
     expect(response.status).toBe(200);
   });
 

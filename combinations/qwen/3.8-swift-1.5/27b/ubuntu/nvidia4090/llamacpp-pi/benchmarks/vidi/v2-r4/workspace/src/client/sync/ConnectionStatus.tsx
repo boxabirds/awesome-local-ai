@@ -23,6 +23,10 @@ export function ConnectionStatus(props: { state: ConnectionState }) {
       text = 'Connected';
       color = '#10B981'; // green
       break;
+    case 'load_failed':
+      text = "This board couldn't be loaded. Retrying…";
+      color = '#DC2626'; // red
+      break;
     default:
       return null;
   }

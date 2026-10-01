@@ -37,6 +37,7 @@ export function App() {
     useCamera(viewportSize);
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const canEdit = connectionState !== 'load_failed';
 
   // ResizeObserver
   useEffect(() => {
@@ -68,12 +69,13 @@ export function App() {
   // Create a sticky note at a world point
   const createStickyAt = useCallback(
     (worldPoint: { x: number; y: number }) => {
+      if (!canEdit) return;
       const id = createSticky(doc, worldPoint);
       if (id) {
         startEdit(id);
       }
     },
-    [doc, startEdit],
+    [doc, startEdit, canEdit],
   );
 
   // Handle double-click on empty board space
@@ -115,6 +117,7 @@ export function App() {
         return;
       }
 
+      if (!canEdit) return;
       if (e.key === 'Enter' && selectedId && !editingId) {
         e.preventDefault();
         startEdit(selectedId);
@@ -127,7 +130,7 @@ export function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, editingId, doc, select, startEdit]);
+  }, [selectedId, editingId, doc, select, startEdit, canEdit]);
 
   return (
     <div ref={containerRef} style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
@@ -151,13 +154,14 @@ export function App() {
             zoom={camera.zoom}
             selected={note.id === selectedId}
             editing={note.id === editingId}
+            editable={canEdit}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={handleToolbarCreate} />
+      <Toolbar onCreateSticky={handleToolbarCreate} disabled={!canEdit} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

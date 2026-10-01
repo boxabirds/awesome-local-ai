@@ -1,4 +1,8 @@
 import { defineConfig } from '@playwright/test';
+import path from 'path';
+import fs from 'fs';
+
+const persistDir = path.join(__dirname, '.e2e-persist');
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -15,9 +19,15 @@ export default defineConfig({
     { name: 'chromium', use: { browserName: 'chromium' } },
   ],
   webServer: {
-    command: 'npx wrangler dev --port 8787 --ip 127.0.0.1',
+    command: `npx wrangler dev --port 8787 --ip 127.0.0.1 --persist-to ${persistDir}`,
     url: 'http://localhost:8787',
     reuseExistingServer: true,
     timeout: 30000,
+  },
+  globalSetup: async () => {
+    // Clean up persist directory before each run
+    if (fs.existsSync(persistDir)) {
+      fs.rmSync(persistDir, { recursive: true, force: true });
+    }
   },
 });

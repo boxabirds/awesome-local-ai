@@ -1,3 +1,4 @@
+import { SELF } from 'cloudflare:test';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
@@ -5,9 +6,11 @@ import * as sync from 'y-protocols/sync';
 import { initDoc, snapshot, type StickySnapshot } from '../../../src/shared/board-model.ts';
 import { MESSAGE_SYNC, MESSAGE_AWARENESS } from '../../../src/shared/protocol.ts';
 
-const SERVER_PORT = 8891;
-const WS_URL = `ws://127.0.0.1:${SERVER_PORT}`;
-
+/**
+ * A WebSocket client that talks to the BoardRoom Durable Object through the `SELF`
+ * fetcher of the workers pool. The upgrade is performed with a fetch that carries the
+ * `Upgrade: websocket` header; the response's `webSocket` is already open.
+ */
 export class WsClient {
   doc: Y.Doc;
   ws: WebSocket;
@@ -15,6 +18,8 @@ export class WsClient {
   private updateHandler: ((update: Uint8Array, origin: unknown) => void) | null = null;
   private synced: boolean = false;
   private syncWaiters: (() => void)[] = [];
+  closeCode: number | null = null;
+  closeReason: string | null = null;
 
   constructor(ws: WebSocket) {
     this.ws = ws;
@@ -23,12 +28,24 @@ export class WsClient {
 
     this.ws.binaryType = 'arraybuffer';
 
-    // Set up message handler immediately
     this.ws.onmessage = (event: MessageEvent) => {
       const data = event.data;
-      const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(new Uint8Array(data as ArrayBuffer));
+      const bytes =
+        data instanceof ArrayBuffer
+          ? new Uint8Array(data)
+          : new Uint8Array(data as ArrayBuffer);
       this.receivedMessages.push(bytes);
       this.processMessage(bytes);
+    };
+
+    this.ws.onclose = (event: CloseEvent) => {
+      this.closeCode = event.code;
+      this.closeReason = event.reason;
+      // Resolve any pending sync waiters if the socket closes before sync completes
+      if (!this.synced) {
+        this.syncWaiters.forEach((w) => w());
+        this.syncWaiters = [];
+      }
     };
 
     this.updateHandler = (update: Uint8Array, origin: unknown) => {
@@ -45,6 +62,11 @@ export class WsClient {
       const type = decoding.readVarInt(decoder);
 
       if (type === MESSAGE_SYNC) {
+        // Determine the inner sync message type (0=SyncStep1, 1=SyncStep2, 2=Update)
+        const innerDecoder = decoding.createDecoder(bytes);
+        innerDecoder.pos = decoder.pos;
+        const innerType = decoding.readVarInt(innerDecoder);
+
         const responseEncoder = encoding.createEncoder();
         sync.readSyncMessage(decoder, responseEncoder, this.doc, this);
         const response = encoding.toUint8Array(responseEncoder);
@@ -56,7 +78,9 @@ export class WsClient {
             this.ws.send(encoding.toUint8Array(framedEncoder));
           }
         }
-        if (!this.synced) {
+        // Consider the board synced only once the server's SyncStep2 (full doc state)
+        // has been received and applied.
+        if (innerType === 1 && !this.synced) {
           this.synced = true;
           this.syncWaiters.forEach((w) => w());
           this.syncWaiters = [];
@@ -100,14 +124,39 @@ export class WsClient {
     }
   }
 
+  /** Send a raw framed frame (used to deliver garbage in negative tests). */
+  sendRawFrame(bytes: Uint8Array): void {
+    if (this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(bytes);
+    }
+  }
+
   async waitForSync(timeoutMs = 10000): Promise<void> {
     if (this.synced) return;
+    if (this.closeCode !== null) return; // socket already closed
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('waitForSync timeout')), timeoutMs);
       this.syncWaiters.push(() => {
         clearTimeout(timer);
         resolve();
       });
+    });
+  }
+
+  /** Wait until the socket is closed (resolves with the close code). */
+  async waitForClose(timeoutMs = 10000): Promise<number> {
+    if (this.closeCode !== null) return this.closeCode;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('waitForClose timeout')), timeoutMs);
+      const check = () => {
+        if (this.closeCode !== null) {
+          clearTimeout(timer);
+          resolve(this.closeCode as number);
+        } else {
+          setTimeout(check, 10);
+        }
+      };
+      check();
     });
   }
 
@@ -134,24 +183,25 @@ export class WsClient {
 }
 
 export async function connectToBoard(boardId: string): Promise<WsClient> {
-  const ws = new WebSocket(`${WS_URL}/api/rooms/${boardId}`);
-
-  // Create the client BEFORE waiting for open, so onmessage is set up in time
-  const client = new WsClient(ws);
-
-  await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('WebSocket connection timeout')), 10000);
-    ws.onopen = () => {
-      clearTimeout(timer);
-      resolve();
-    };
-    ws.onerror = () => {
-      clearTimeout(timer);
-      reject(new Error('WebSocket connection error'));
-    };
+  const res = await SELF.fetch(`http://localhost/api/rooms/${boardId}`, {
+    headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
   });
 
-  // Send our state vector to the server so it can send us its state
+  const resWithWs = res as Response & { webSocket?: WebSocket };
+  if (res.status !== 101 || !resWithWs.webSocket) {
+    throw new Error(`WebSocket upgrade failed: status ${res.status}`);
+  }
+
+  // In the hibernation API the DO accepts the server socket via ctx.acceptWebSocket;
+  // the client socket returned in the Response must be accepted by the caller before use.
+  const ws = resWithWs.webSocket as WebSocket & { accept?: () => void };
+  if (typeof ws.accept === 'function') {
+    ws.accept();
+  }
+
+  const client = new WsClient(ws as WebSocket);
+
+  // The socket from the upgrade response is already open.
   client.sendSyncStep1();
 
   await client.waitForSync();

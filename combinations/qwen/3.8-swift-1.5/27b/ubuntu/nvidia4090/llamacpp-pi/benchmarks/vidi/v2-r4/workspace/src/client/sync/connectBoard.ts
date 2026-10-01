@@ -1,8 +1,9 @@
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { RECONNECT_MAX_BACKOFF_MS, CONNECTED_CONFIRMATION_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 export function connectBoard(
   doc: Y.Doc,
@@ -15,6 +16,14 @@ export function connectBoard(
 
   let hasConnected = false;
   let confirmTimer: ReturnType<typeof setTimeout> | null = null;
+  let loadFailed = false;
+
+  const handleWsClose = (event: CloseEvent) => {
+    if (event.code === CLOSE_BOARD_LOAD_FAILED) {
+      loadFailed = true;
+      onState('load_failed');
+    }
+  };
 
   const provider = new WebsocketProvider(url, boardId, doc, {
     maxBackoffTime: RECONNECT_MAX_BACKOFF_MS,
@@ -25,6 +34,11 @@ export function connectBoard(
     const s = event.status;
 
     if (s === 'connected') {
+      // Attach close-code listener for load-failed detection
+      if (provider.ws) {
+        provider.ws.addEventListener('close', handleWsClose);
+      }
+      if (loadFailed) return; // stay in load_failed state
       if (!hasConnected) {
         // First connection: wait for sync to complete
         if (provider.synced) {
@@ -49,6 +63,7 @@ export function connectBoard(
         }, CONNECTED_CONFIRMATION_MS);
       }
     } else if (s === 'disconnected') {
+      if (loadFailed) return; // stay in load_failed state
       if (hasConnected) {
         if (confirmTimer) clearTimeout(confirmTimer);
         onState('reconnecting');
@@ -66,6 +81,9 @@ export function connectBoard(
   return {
     destroy() {
       if (confirmTimer) clearTimeout(confirmTimer);
+      if (provider.ws) {
+        provider.ws.removeEventListener('close', handleWsClose);
+      }
       provider.off('status', handleStatus);
       provider.destroy();
     },

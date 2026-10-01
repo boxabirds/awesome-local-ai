@@ -5,6 +5,7 @@ import { newBoardId } from '../../src/shared/board-id.ts';
 import { createSticky, moveObject, setStickyColor, deleteObject, getStickyText, type StickySnapshot } from '../../src/shared/board-model.ts';
 import { connectToBoard, WsClient } from './helpers/ws-client.ts';
 import { generateRandomOps } from './helpers/random-ops.ts';
+import { CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol.ts';
 
 function snapshotsEqual(a: readonly StickySnapshot[], b: readonly StickySnapshot[]): boolean {
   if (a.length !== b.length) return false;
@@ -281,9 +282,10 @@ describe('BoardRoom merging and broadcast', () => {
 
     a.ws.send('this is a text frame');
 
-    await new Promise((r) => setTimeout(r, 500));
-
-    expect(a.ws.readyState).toBe(WebSocket.CLOSED);
+    // The room closes the offending socket with CLOSE_UNSUPPORTED_DATA; wait for the
+    // close event (readyState can linger in CLOSING during the close handshake).
+    const closeCode = await a.waitForClose();
+    expect(closeCode).toBe(CLOSE_UNSUPPORTED_DATA);
     expect(b.ws.readyState).toBe(WebSocket.OPEN);
 
     createSticky(b.doc, { x: 20, y: 20 });

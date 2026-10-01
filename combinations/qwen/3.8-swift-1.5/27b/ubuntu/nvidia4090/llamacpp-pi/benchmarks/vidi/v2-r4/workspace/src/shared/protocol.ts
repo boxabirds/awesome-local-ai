@@ -3,6 +3,8 @@ export const MESSAGE_SYNC = 0;
 export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+export const CLOSE_BOARD_LOAD_FAILED = 4500; // board could not be loaded; client keeps retrying
+export const CLOSE_STORAGE_FAILURE = 1011;   // room failed to persist; changes retried on reconnect
 
 import * as decoding from 'lib0/decoding';
 

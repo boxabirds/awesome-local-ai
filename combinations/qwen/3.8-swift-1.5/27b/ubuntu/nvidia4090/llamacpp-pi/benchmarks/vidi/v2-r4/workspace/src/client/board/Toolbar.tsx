@@ -2,9 +2,11 @@ import type { JSX } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  disabled?: boolean;
 }
 
 export function Toolbar(props: ToolbarProps): JSX.Element {
+  const { onCreateSticky, disabled } = props;
   return (
     <div
       data-testid="toolbar"
@@ -23,18 +25,20 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
       <button
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
-        onClick={props.onCreateSticky}
+        onClick={disabled ? undefined : onCreateSticky}
+        disabled={disabled}
         style={{
           width: 40,
           height: 40,
           border: '1px solid #ccc',
           borderRadius: 8,
-          backgroundColor: '#FFF59D',
-          cursor: 'pointer',
+          backgroundColor: disabled ? '#E5E7EB' : '#FFF59D',
+          cursor: disabled ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 18,
+          opacity: disabled ? 0.5 : 1,
         }}
       >
         📝

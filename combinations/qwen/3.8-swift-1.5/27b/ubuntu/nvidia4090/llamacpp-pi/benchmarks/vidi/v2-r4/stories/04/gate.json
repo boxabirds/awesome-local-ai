@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.3,
+      "tail": "\nadded 261 packages, and audited 262 packages in 2s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n14 vulnerabilities (2 low, 4 moderate, 6 high, 2 critical)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm warn deprecated rollup-plugin-inject@3.0.2: This package has been deprecated and is no longer maintained. Please use @rollup/plugin-inject.\nnpm warn deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v5.4.21 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 95 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                \u001b[39m\u001b[1m\u001b[2m  0.47 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.32 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-BVyE_rwM.js  \u001b[39m\u001b[1m\u001b[2m330.82 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 103.15 kB\u001b[22m\n\u001b[32m\u2713 built in 602ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.0,
+      "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 1.6,
+      "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 16\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m20 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 13\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 126\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1132\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m persist.board_store chunking (TC-01)\u001b[2m > \u001b[22mjoinChunks round-trips byte-identical for all boundary sizes \u001b[33m1127\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m7 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m84 passed\u001b[39m\u001b[22m\u001b[90m (84)\u001b[39m\n\u001b[2m   Start at \u001b[22m 09:38:21\n\u001b[2m   Duration \u001b[22m 1.36s\u001b[2m (transform 114ms, setup 0ms, collect 271ms, tests 1.30s, environment 1ms, prepare 319ms)\u001b[22m\n\n",
+      "passed": 84,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m1 test\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 30\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 43\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 47\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 47\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 36\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 75\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[34m|component|\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 88\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m7 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m36 passed\u001b[39m\u001b[22m\u001b[90m (36)\u001b[39m\n\u001b[2m   Start at \u001b[22m 09:38:23\n\u001b[2m   Duration \u001b[22m 558ms\u001b[2m (transform 90ms, setup 0ms, collect 626ms, tests 367ms, environment 1.27s, prepare 341ms)\u001b[22m\n\n",
+      "passed": 36,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 1,
+      "seconds": 0.4,
+      "tail": "\n> vidi6@0.1.0 test:e2e\n> playwright test --project=chromium\n\nReferenceError: __dirname is not defined in ES module scope\n    at file://~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace/playwright.config.ts:5:30\n    at ModuleJob.run (node:internal/modules/esm/module_job:437:25)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at node:internal/modules/esm/loader:639:26\n    at requireOrImport (~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace/node_modules/playwright/lib/common/index.js:1081:12)\n    at loadUserConfig (~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace/node_modules/playwright/lib/common/index.js:1268:46)\n    at loadConfig (~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace/node_modules/playwright/lib/common/index.js:1275:22)\n    at Object.loadConfigFromFile (~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace/node_modules/playwright/lib/common/index.js:1490:10)\n    at runTests (~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace/node_modules/playwright/lib/cli/testActions.js:46:18)\n    at _Command.<anonymous> (~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace/node_modules/playwright/lib/program.js:55:7)\n",
+      "passed": null,
+      "failed": null
+    }
+  },
+  "all_green": false
+}

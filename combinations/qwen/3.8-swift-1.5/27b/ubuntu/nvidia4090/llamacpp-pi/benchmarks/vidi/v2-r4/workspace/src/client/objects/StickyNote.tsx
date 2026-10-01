@@ -11,13 +11,14 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  editable?: boolean;
   onSelect(id: string | null): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
 }
 
 export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const { note, doc, zoom, selected, editing, editable = true, onSelect, onStartEdit, onEndEdit } = props;
   const elRef = useRef<HTMLDivElement>(null);
   const dragStateRef = useRef<{
     startX: number;
@@ -33,6 +34,10 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (editing) return;
+      if (!editable) {
+        e.stopPropagation();
+        return;
+      }
       e.stopPropagation();
       e.preventDefault();
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -101,9 +106,10 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      if (!editable) return;
       onStartEdit(note.id);
     },
-    [note.id, onStartEdit],
+    [note.id, onStartEdit, editable],
   );
 
   return (
