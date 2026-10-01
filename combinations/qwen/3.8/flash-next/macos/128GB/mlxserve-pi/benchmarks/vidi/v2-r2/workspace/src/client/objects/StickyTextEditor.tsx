@@ -22,6 +22,7 @@ import type * as Y from 'yjs';
 import { STICKY_SIZE_WORLD, STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import type { EndEditNext } from '../board/useSelection';
+import { useUndoControllerContext } from '../board/useUndo';
 import {
   applyTextDiff,
   clampToLimit,
@@ -56,6 +57,7 @@ export function StickyTextEditor({
   onEnd,
 }: StickyTextEditorProps): JSX.Element {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const undo = useUndoControllerContext();
   const [value, setValue] = useState(() => ytext.toString());
   const [size, setSize] = useState<{ fontPx: number; overflow: boolean }>({ fontPx, overflow: false });
   /** True while an input method (e.g. Japanese) is assembling a word. */
@@ -70,6 +72,15 @@ export function StickyTextEditor({
     },
     [onEnd],
   );
+
+  // Undo boundaries (story 8): opening the editor closes whatever step came before
+  // it, and closing the editor closes the run of typing, so the whole edit is its
+  // own undo step and never merges with a drag or a recolour next door. The cleanup
+  // covers every way editing ends - Escape, a click outside, the note vanishing.
+  useEffect(() => {
+    undo?.boundary();
+    return () => undo?.boundary();
+  }, [undo]);
 
   /** Re-measure the font after the text changed. */
   const measure = useCallback((): void => {
@@ -172,6 +183,25 @@ export function StickyTextEditor({
     if (event.key === 'Escape') {
       event.preventDefault();
       end('selected');
+      return;
+    }
+    // Ctrl/Cmd+Z undoes (⇧ to redo, or Ctrl/Cmd+Y) the typing here, in place: the
+    // keystroke is stopped from reaching the browser's own textarea undo, and the
+    // board's window shortcut never sees it because this field is a typing target.
+    if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+      if (event.key === 'z' || event.key === 'Z') {
+        event.preventDefault();
+        if (event.shiftKey) undo?.redo();
+        else undo?.undo();
+        // show the reversed text here, in place, without losing the caret's field
+        setValue(ytext.toString());
+        return;
+      }
+      if (event.key === 'y' || event.key === 'Y') {
+        event.preventDefault();
+        undo?.redo();
+        setValue(ytext.toString());
+      }
     }
   };
 

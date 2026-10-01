@@ -2,9 +2,17 @@
 // stories 9-12 add the rest of the shapes to this rail.
 
 import type { JSX } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UndoActions } from './useUndo';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /**
+   * This person's undo/redo, shown as toolbar buttons (story 8). Left out when a
+   * caller renders the bare tool rail on its own (a test); the real board always
+   * passes it. The board being uneditable is folded into these actions already.
+   */
+  undo?: UndoActions;
   /**
    * Tools that change the board are switched off - a board the room could not read
    * takes no edits. `disabledReason` is why, and is what the button says, so the
@@ -16,6 +24,7 @@ export interface ToolbarProps {
 
 export function Toolbar({
   onCreateSticky,
+  undo,
   disabled = false,
   disabledReason,
 }: ToolbarProps): JSX.Element {
@@ -62,6 +71,12 @@ export function Toolbar({
           />
         </svg>
       </button>
+      {undo === undefined ? null : (
+        <>
+          <span className="board-toolbar__divider" aria-hidden="true" />
+          <UndoButtons {...undo} />
+        </>
+      )}
     </div>
   );
 }

@@ -240,11 +240,13 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         // under a few pixels the pointer is a click, not a move
         if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
         press.moved = true;
+        // Close any earlier undo step first, so the stacking write below and every
+        // move frame that follows belong to this one drag (story 8).
+        optionsRef.current.onGestureStart?.();
         if (press.mode === 'move') {
           // the selection comes above everything it does not contain, once
           bringObjectsToFront(optionsRef.current.doc, press.subject);
         }
-        optionsRef.current.onGestureStart?.();
       }
       frame(event.clientX, event.clientY);
     },

@@ -35,6 +35,7 @@ import {
   type StickySnapshot,
 } from '../../shared/board-model';
 import type { EndEditNext } from '../board/useSelection';
+import { useUndoControllerContext } from '../board/useUndo';
 import { fitFontSize, NOTE_PADDING_WORLD } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 import { NoteToolbar } from './NoteToolbar';
@@ -129,6 +130,7 @@ export function StickyNote({
     overflow: false,
   });
   const textRef = useRef<HTMLDivElement>(null);
+  const undo = useUndoControllerContext();
   const press = useRef<Press | null>(null);
   const frame = useRef<number | null>(null);
   const draggingRef = useRef(false);
@@ -357,10 +359,16 @@ export function StickyNote({
           <NoteToolbar
             color={note.color}
             onColor={(color) => {
+              // a recolour is its own undo step (story 8)
+              undo?.boundary();
               setStickyColor(doc, note.id, color);
+              undo?.boundary();
             }}
             onDelete={() => {
+              // a bin delete is its own undo step (story 8)
+              undo?.boundary();
               deleteObject(doc, note.id);
+              undo?.boundary();
             }}
           />
         </div>

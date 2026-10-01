@@ -42,6 +42,7 @@ import { useSelection } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useMarquee } from '../board/useMarquee';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { UndoControllerContext, useUndo, useUndoController } from '../board/useUndo';
 import { SelectionOverlay, MarqueeRect } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -186,6 +187,14 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
   // sent when the link returns.
   const editable = canEdit(connection);
 
+  // This person's undo history, one controller for the life of this mounted board.
+  // It is created here (not in App) because the document only exists once
+  // `useBoardDoc` has it - for a board from an address as much as for one a test
+  // handed over. A reload remounts this component and builds an empty history.
+  const undoController = useUndoController(doc);
+  const undo = useUndo(undoController, editable);
+  const undoBoundary = useCallback(() => undoController.boundary(), [undoController]);
+
   // The three ways a selection acts, all fed by the same selection state:
   // the transform gesture (drag and resize of one or many), the marquee
   // (Shift+drag on empty space) and the keyboard (select-all, nudge, delete,
@@ -198,6 +207,10 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
     zoom: camera.zoom,
     editable,
     onSelect: (id, additive) => (additive ? toggle(id) : select(id)),
+    // A drag or resize is one undo step: the window is closed at its start (so the
+    // stacking write joins it, not the step before) and again at its end.
+    onGestureStart: undoBoundary,
+    onGestureEnd: undoBoundary,
   });
   const marquee = useMarquee({
     objects: notes,
@@ -214,6 +227,9 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
     setSelection,
     clear,
     startEdit,
+    undo: () => undoController.undo(),
+    redo: () => undoController.redo(),
+    boundary: undoBoundary,
   });
 
   // Expose the live document to end-to-end tests (no-op outside the test build).
@@ -225,11 +241,13 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
   const createAt = useCallback(
     (world: { x: number; y: number }): void => {
       if (!editable) return;
+      // a created note is its own undo step (the editor that opens closes it after)
+      undoBoundary();
       const id = createSticky(doc, world);
       if (id === '') return;
       startEdit(id);
     },
-    [doc, startEdit, editable],
+    [doc, startEdit, editable, undoBoundary],
   );
 
   /** Double-click on empty board space: the note appears centred on the point. */
@@ -254,15 +272,19 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
   }, [notes, selectedIds]);
 
   const bringSelectionToFront = useCallback((): void => {
+    undoBoundary();
     bringObjectsToFront(doc, [...selectedIds]);
-  }, [doc, selectedIds]);
+    undoBoundary();
+  }, [doc, selectedIds, undoBoundary]);
 
   const deleteSelection = useCallback((): void => {
+    undoBoundary();
     deleteObjects(doc, [...selectedIds]);
-  }, [doc, selectedIds]);
+    undoBoundary();
+  }, [doc, selectedIds, undoBoundary]);
 
   return (
-    <>
+    <UndoControllerContext.Provider value={undoController}>
       <BoardViewport
         onDoubleClickBoard={createAtPoint}
         onEmptyClick={clear}
@@ -326,6 +348,7 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
         onCreateSticky={createAtCentre}
         disabled={!editable}
         disabledReason={BOARD_LOAD_FAILED_MESSAGE}
+        undo={undo}
       />
       {boardId === undefined ? null : <SharePanel boardId={boardId} />}
       <NavigationHint visible={!hasNavigated} />
@@ -356,6 +379,6 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
           </p>
         </div>
       ) : null}
-    </>
+    </UndoControllerContext.Provider>
   );
 }

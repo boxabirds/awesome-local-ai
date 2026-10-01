@@ -7289,6 +7289,991 @@
           "found": 4,
           "total": 4
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2/server.log"
+        ],
+        "private": {
+          "copied": 51,
+          "committed": true,
+          "pushed": false,
+          "unpushed": true,
+          "error": "f that matches 'HEAD' on the remote side.\n- Checking if the <src> being pushed ('HEAD')\n  is a ref in \"refs/{heads,tags}/\". If so we add a corresponding\n  refs/{heads,tags}/ prefix on the remote side.\n\nNeither worked, so we gave up. You must fully qualify the ref.\nhint: The <src> part of the refspec is a commit object.\nhint: Did you mean to create a new branch by pushing to\nhint: 'HEAD:refs/heads/HEAD'?\nerror: failed to push some refs to 'github.com:boxabirds/awesome-local-ai-bench-private.git'\n"
+        },
+        "commit": "bb5ff20c"
+      }
+    },
+    "8": {
+      "title": "Undo and redo my own changes without undoing anyone else's",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790821843.35997,
+      "agent": {
+        "seconds": 3157.7,
+        "steps": 150,
+        "tool_calls": 168,
+        "compactions": 2,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 307803,
+          "output": 115652,
+          "reasoning": 0,
+          "cache_read": 8818774,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a0f54c-c21d-76f2-a914-29f966fbc0fa"
+        ]
+      },
+      "agent_finished": 1790825001.20178,
+      "conditions": {
+        "samples": 103,
+        "degraded": false,
+        "throttled_share": 0.97,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790821903.873964
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790821934.263888
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790821964.7289321
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790821995.0839622
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822025.52301
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822055.981725
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822086.4509609
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822116.89183
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822147.226102
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822177.54746
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822207.949983
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822238.283262
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822268.688395
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822299.100922
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822329.60303
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822360.157139
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822390.583934
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822421.0278342
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822451.454633
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822481.894469
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822512.3158588
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822542.8047519
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822573.2122722
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822603.5416791
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822634.0616362
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822664.4991271
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822694.949124
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822725.3794901
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822755.8408582
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822786.20463
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822816.6534138
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822846.970626
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822877.4308832
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822907.9403148
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822938.416502
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822968.94211
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790822999.389066
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823029.839545
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823060.1444302
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823090.6491818
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823120.975082
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823151.519829
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823182.0657978
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823212.611862
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823243.14055
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823273.689281
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823304.120825
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823334.480315
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823364.960883
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823395.2555242
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823425.784966
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823456.1094248
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823486.480479
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823517.02613
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823547.439997
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823577.710609
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823608.149952
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823638.495369
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823668.870137
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823699.277205
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823729.815657
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823760.153329
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823790.568331
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823820.9937449
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823851.29506
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823881.8002439
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823912.3017972
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823942.7322502
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790823973.039841
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824003.394001
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824033.935471
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824064.249099
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824094.689714
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824125.006451
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824155.387298
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824185.790595
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824216.198327
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824246.560054
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824276.967652
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824307.454366
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824337.882643
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824368.321107
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824398.778705
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824429.100109
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824459.446545
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824489.963401
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824520.2584121
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824550.701014
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824581.242244
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824611.688403
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824642.178709
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824672.7068632
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824703.218637
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824733.764606
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824764.17078
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824794.593513
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824825.0339122
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790824855.558536
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790824886.7460601
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790824917.189777
+          }
+        ],
+        "swap_start_gb": 2.35,
+        "swap_max_gb": 2.35,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 21.0,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": 93.0,
+        "server_footprint_peak_gb": 94.0,
+        "gpu": null
+      },
+      "containment": {
+        "enabled": false
+      },
+      "agent_commits": 1,
+      "provenance": {
+        "harness_commit": "46eaa8ba",
+        "harness_dirty": false,
+        "pack_version": "vidi-v2.0-pre2+3a08c42e",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 3.9,
+            "tail": "\nadded 160 packages, and audited 161 packages in 4s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n5 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   workerd@1.20260815.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260930.2 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.9,
+            "tail": "\n> vidi6@0.0.1 build\n> vite build\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 96 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.73 kB \u2502 gzip:   0.42 kB\ndist/client/assets/index-B2mshVhZ.css    9.11 kB \u2502 gzip:   2.32 kB\ndist/client/assets/index-B-vE7ISj.js   360.22 kB \u2502 gzip: 111.61 kB\n\n\u001b[32m\u2713 built in 253ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.6,
+            "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 1.2,
+            "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/geometry.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/selection-reducer.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 22\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-boundaries.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model-group.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m42 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 15\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-history.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 29\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 212\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/create-board.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 195\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m14 passed\u001b[39m\u001b[22m\u001b[90m (14)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m190 passed\u001b[39m\u001b[22m\u001b[90m (190)\u001b[39m\n\u001b[2m   Start at \u001b[22m 04:23:28\n\u001b[2m   Duration \u001b[22m 375ms\u001b[2m (transform 1.70s, setup 0ms, import 2.18s, tests 527ms, environment 1ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/unit/protocol.test.ts\n\u001b[22m\u001b[39mYjs was already imported. This breaks constructor checks and will lead to issues! - https://github.com/yjs/yjs/issues/438\n\n",
+            "passed": 190,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 2.7,
+            "tail": "\n> vidi6@0.0.1 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/SharePanel.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 106\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 29\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardLoadFailure.test.tsx \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 441\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 494\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/pages.test.tsx \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 580\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 603\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 648\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/UndoRedo.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 657\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-14 the Undo button reverses my last move, Redo puts it back \u001b[33m 302\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 656\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 689\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 697\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Selection.test.tsx \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 820\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m deselects objects that another editor deleted, singly and in a group \u001b[33m 304\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m12 passed\u001b[39m\u001b[22m\u001b[90m (12)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m142 passed\u001b[39m\u001b[22m\u001b[90m (142)\u001b[39m\n\u001b[2m   Start at \u001b[22m 04:23:29\n\u001b[2m   Duration \u001b[22m 1.87s\u001b[2m (transform 2.47s, setup 280ms, import 5.28s, tests 6.42s, environment 5.69s)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/pages.test.tsx\u001b[2m > \u001b[22m\u001b[2mhome page: New board (TC-16, TC-17)\u001b[2m > \u001b[22m\u001b[2mTC-17 keeps the person at home when there is no service to answer\n\u001b[22m\u001b[39m{\"event\":\"board_create_threw\",\"error\":\"TypeError: Failed to fetch\"}\n\n",
+            "passed": 142,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 5.1,
+            "tail": "[24m/decoding.js:40:41\n    at VitestModuleEvaluator._runInlinedModule (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4myjs\u001b[24m/dist/yjs.mjs:109:31\n    at VitestModuleEvaluator._runInlinedModule (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/tests/integration/board-room-persistence.test.ts:15:1\n\n\u001b[90mstderr\u001b[2m | tests/integration/boardroom.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardRoom sync, merge and errors (TC-07 to TC-12, TC-14 to TC-18, TC-31)\u001b[2m > \u001b[22m\u001b[2mTC-15 malformed frames close only the sender\u001b[2m > \u001b[22m\u001b[2minvalid Yjs update\n\u001b[22m\u001b[39mCaught error while handling a Yjs update Error: Unexpected end of array\n    at Module.create (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mlib0\u001b[24m/error.js:12:28)\n    at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mlib0\u001b[24m/decoding.js:40:41\n    at VitestModuleEvaluator._runInlinedModule (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4my-protocols\u001b[24m/sync.js:6:1\n    at VitestModuleEvaluator._runInlinedModule (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace/tests/integration/boardroom.test.ts:4:1\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 11.6,
+            "tail": " [wrangler:info] GET /b/gqrMrTRi9PT_9Kb6fqzftw 200 OK (3ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-BJpgVarU.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-B2mshVhZ.css 200 OK (13ms)\n[WebServer] [wrangler:info] GET /api/boards/gqrMrTRi9PT_9Kb6fqzftw 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/gqrMrTRi9PT_9Kb6fqzftw 101 Switching Protocols (4ms)\n[WebServer] [wrangler:info] GET /b/gqrMrTRi9PT_9Kb6fqzftw 200 OK (2ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-BJpgVarU.js 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index-B2mshVhZ.css 200 OK (7ms)\n[WebServer] [wrangler:info] GET /api/boards/gqrMrTRi9PT_9Kb6fqzftw 200 OK (3ms)\n[WebServer] [wrangler:info] GET /api/rooms/gqrMrTRi9PT_9Kb6fqzftw 101 Switching Protocols (3ms)\n[WebServer] [wrangler:info] GET /b/A4CNF-9Lw_83khY2ThGmlA 200 OK (2ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-BJpgVarU.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-B2mshVhZ.css 200 OK (13ms)\n[WebServer] [wrangler:info] GET /api/boards/A4CNF-9Lw_83khY2ThGmlA 200 OK (5ms)\n[WebServer] [wrangler:info] GET /api/rooms/A4CNF-9Lw_83khY2ThGmlA 101 Switching Protocols (3ms)\n[WebServer] [wrangler:info] GET /b/A4CNF-9Lw_83khY2ThGmlA 200 OK (3ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-BJpgVarU.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-B2mshVhZ.css 200 OK (12ms)\n[WebServer] [wrangler:info] GET /api/boards/A4CNF-9Lw_83khY2ThGmlA 200 OK (3ms)\n[WebServer] [wrangler:info] GET /api/rooms/A4CNF-9Lw_83khY2ThGmlA 101 Switching Protocols (2ms)\n[WebServer] [wrangler:info] GET /b/LREjMZAol6u46aappP1VsQ 200 OK (3ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-BJpgVarU.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-B2mshVhZ.css 200 OK (12ms)\n[WebServer] [wrangler:info] GET /api/boards/LREjMZAol6u46aappP1VsQ 200 OK (8ms)\n[WebServer] [wrangler:info] GET /api/rooms/LREjMZAol6u46aappP1VsQ 101 Switching Protocols (3ms)\n[WebServer] [wrangler:info] GET /b/LREjMZAol6u46aappP1VsQ 200 OK (2ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-BJpgVarU.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-B2mshVhZ.css 200 OK (13ms)\n[WebServer] [wrangler:info] GET /api/boards/LREjMZAol6u46aappP1VsQ 200 OK (5ms)\n[WebServer] [wrangler:info] GET /api/rooms/LREjMZAol6u46aappP1VsQ 101 Switching Protocols (3ms)\n  \u2713  24 [chromium] \u203a tests/e2e/share.spec.ts:290:1 \u203a TC-28 a hundred links are a hundred boards (5.5s)\n\n  37 passed (11.1s)\nSkipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.\nSkipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.\nSkipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.\nSkipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.\nSkipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.\nSkipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.\nSkipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.\nSkipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.\nSkipping host requirements validation logic because `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` env variable is set.\n",
+            "passed": 37,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 49,
+        "total": 51,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          },
+          "03": {
+            "passed": 5,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5
+          },
+          "07": {
+            "passed": 8,
+            "total": 8
+          },
+          "08": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "a14efff3a006a1d6d6a98e2bdad965f6c5a1013e",
+      "requests": {},
+      "time_split": {
+        "wall_s": 3157.8,
+        "model": {
+          "source": "client-stream",
+          "requests": 150,
+          "prefill_s": 347.2,
+          "prefill_tokens": 307803,
+          "prefill_tok_s": 886.6,
+          "decode_s": 2432.0,
+          "decode_tokens": 115652,
+          "decode_tok_s": 47.6,
+          "cached_tokens": 8818774
+        },
+        "tools_s": 172.1,
+        "tools_by_kind": {
+          "e2e": 143.5,
+          "unit": 21.9,
+          "build": 5.6,
+          "bash": 0.9,
+          "read": 0.1
+        },
+        "compaction_s": 201.0,
+        "compactions": 2,
+        "between_sessions_s": 0.0,
+        "other_s": 5.5,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        }
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 150,
+        "tool_calls": 168,
+        "thinking_chars": 280035,
+        "text_chars": 6412,
+        "tool_arg_chars": 132730,
+        "thinking_median": 432,
+        "thinking_median_before": 211,
+        "thinking_median_after": 522,
+        "largest_thinking": {
+          "chars": 26524,
+          "call": 24,
+          "at_s": 433.1
+        },
+        "context_start": 2137,
+        "context_end": 76012,
+        "largest_context_jump": {
+          "tokens": 11005,
+          "call": 4
+        },
+        "tools_by_name": {
+          "read": 67,
+          "bash": 61,
+          "edit": 28,
+          "write": 12
+        },
+        "tool_errors": 9,
+        "longest_tool": {
+          "seconds": 73.4,
+          "name": "bash",
+          "gist": "cd \"$(pwd)\" && npm run test:e2e 2>&1 | tail -35"
+        },
+        "signals": []
+      },
+      "loc": {
+        "files": 103,
+        "lines": 20893
+      },
+      "finished": 1790825125.7029061,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 2,
+          "title": "Implement per-user undo history controller",
+          "type": "implementation",
+          "implements": [
+            "undo.history"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "E2E: recover my mistakes while colleagues work (TC-22 to TC-24)",
+          "type": "test:e2e",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-24"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 6,
+          "title": "Write undo history unit tests first with a simulated remote peer (TC-01 to TC-11)",
+          "type": "test:unit",
+          "implements": [
+            "undo.history"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11"
+          ],
+          "status": "verified",
+          "found": 11,
+          "total": 11
+        },
+        {
+          "n": 7,
+          "title": "Write capture-timeout unit tests first (TC-12, TC-13)",
+          "type": "test:unit",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [
+            "TC-12",
+            "TC-13"
+          ],
+          "status": "verified",
+          "found": 2,
+          "total": 2
+        },
+        {
+          "n": 8,
+          "title": "Wire undo step boundaries into transform gestures, toolbars and the text editor",
+          "type": "implementation",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Component tests: gesture and typing boundaries (TC-14 to TC-17)",
+          "type": "test:ui-component",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17"
+          ],
+          "status": "verified",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 10,
+          "title": "Implement undo/redo shortcuts and toolbar buttons",
+          "type": "implementation",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Component tests: undo shortcuts, buttons and edit lock (TC-18 to TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "verified",
+          "found": 4,
+          "total": 4
+        }
       ]
     }
   },
@@ -10312,6 +11297,469 @@
           "accept": {
             "passed": 8,
             "total": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Undo and redo my own changes without undoing anyone else's",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790821843.35997,
+      "ended_at": 1790825001.20178,
+      "agent_minutes": 52.6,
+      "calls": 150,
+      "output_tokens": 115652,
+      "compactions": 2,
+      "last_commit_at": 1790824990.0,
+      "accept": {
+        "passed": 7,
+        "total": 7
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 2,
+          "title": "Implement per-user undo history controller",
+          "type": "implementation",
+          "implements": [
+            "undo.history"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "E2E: recover my mistakes while colleagues work (TC-22 to TC-24)",
+          "type": "test:e2e",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-24"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 6,
+          "title": "Write undo history unit tests first with a simulated remote peer (TC-01 to TC-11)",
+          "type": "test:unit",
+          "implements": [
+            "undo.history"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11"
+          ],
+          "status": "verified",
+          "found": 11,
+          "total": 11
+        },
+        {
+          "n": 7,
+          "title": "Write capture-timeout unit tests first (TC-12, TC-13)",
+          "type": "test:unit",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [
+            "TC-12",
+            "TC-13"
+          ],
+          "status": "verified",
+          "found": 2,
+          "total": 2
+        },
+        {
+          "n": 8,
+          "title": "Wire undo step boundaries into transform gestures, toolbars and the text editor",
+          "type": "implementation",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Component tests: gesture and typing boundaries (TC-14 to TC-17)",
+          "type": "test:ui-component",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17"
+          ],
+          "status": "verified",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 10,
+          "title": "Implement undo/redo shortcuts and toolbar buttons",
+          "type": "implementation",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Component tests: undo shortcuts, buttons and edit lock (TC-18 to TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "verified",
+          "found": 4,
+          "total": 4
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 26.0,
+          "calls": 63,
+          "output_tokens": 79399,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 9.5,
+          "calls": 50,
+          "output_tokens": 52393,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 9.5,
+          "calls": 48,
+          "output_tokens": 50663,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 100.9,
+          "calls": 345,
+          "output_tokens": 318623,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 48.9,
+          "calls": 190,
+          "output_tokens": 171907,
+          "accept": {
+            "passed": 3,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-04",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 71.6,
+          "calls": 222,
+          "output_tokens": 165317,
+          "accept": {
+            "passed": 7,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-pi ab-s7s8-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 134.6,
+          "calls": 214,
+          "output_tokens": 168354,
+          "accept": {
+            "passed": 7,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 121.7,
+          "calls": 272,
+          "output_tokens": 248965,
+          "accept": {
+            "passed": 5,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 87.1,
+          "calls": 212,
+          "output_tokens": 196902,
+          "accept": {
+            "passed": 0,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 63.5,
+          "calls": 201,
+          "output_tokens": 157304,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 47.9,
+          "calls": 181,
+          "output_tokens": 124334,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-02",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 112.0,
+          "calls": 287,
+          "output_tokens": 242587,
+          "accept": {
+            "passed": 7,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 62.0,
+          "calls": 148,
+          "output_tokens": 158489,
+          "accept": {
+            "passed": 1,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 1
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 23.8,
+          "calls": 117,
+          "output_tokens": 56452,
+          "accept": {
+            "passed": 5,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 29.6,
+          "calls": 159,
+          "output_tokens": 61717,
+          "accept": {
+            "passed": 7,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 45.6,
+          "calls": 130,
+          "output_tokens": 94990,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 35.0,
+          "calls": 145,
+          "output_tokens": 77252,
+          "accept": {
+            "passed": 0,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 27.6,
+          "calls": 113,
+          "output_tokens": 65778,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 22.4,
+          "calls": 113,
+          "output_tokens": 45147,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 74.6,
+          "calls": 199,
+          "output_tokens": 105734,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 53.7,
+          "calls": 220,
+          "output_tokens": 142219,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 50.9,
+          "calls": 226,
+          "output_tokens": 150255,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 77.5,
+          "calls": 242,
+          "output_tokens": 169864,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 17.1,
+          "calls": 111,
+          "output_tokens": 71658,
+          "accept": {
+            "passed": 0,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 23.8,
+          "calls": 118,
+          "output_tokens": 87829,
+          "accept": {
+            "passed": 7,
+            "total": 7
           }
         }
       ]

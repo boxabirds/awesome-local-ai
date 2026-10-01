@@ -35,6 +35,10 @@ export interface BoardKeyOptions {
   setSelection(ids: readonly string[], additive: boolean): void;
   clear(): void;
   startEdit(id: string): void;
+  /** This person's undo/redo (story 8): reverse, re-apply, close a capture window. */
+  undo(): void;
+  redo(): void;
+  boundary(): void;
 }
 
 const ARROWS: Record<string, Point> = {
@@ -50,7 +54,7 @@ export function useBoardKeys(options: BoardKeyOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      const { doc, editable, objects, selection, setSelection, clear, startEdit } =
+      const { doc, editable, objects, selection, setSelection, clear, startEdit, undo, redo, boundary } =
         optionsRef.current;
       if (!editable) return;
       if (isTypingTarget(event.target)) return;
@@ -62,6 +66,22 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         event.preventDefault();
         setSelection(allObjectIds(objects), false);
         return;
+      }
+      // Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y redoes (story 8). They
+      // answer before the "other modified keys" rule too; a sticky being typed in
+      // never reaches here - its editor owns the keystroke at the typing-target guard.
+      if (modified && !event.altKey) {
+        if (event.key === 'z' || event.key === 'Z') {
+          event.preventDefault();
+          if (event.shiftKey) redo();
+          else undo();
+          return;
+        }
+        if (event.key === 'y' || event.key === 'Y') {
+          event.preventDefault();
+          redo();
+          return;
+        }
       }
       // Every other modified key belongs to the browser or to the camera
       // shortcuts in the viewport; Alt is nobody's here.
@@ -87,7 +107,10 @@ export function useBoardKeys(options: BoardKeyOptions): void {
             positions.set(id, { x: object.x + arrow.x * step, y: object.y + arrow.y * step });
           }
         }
+        // one nudge is its own undo step: boundaries on both sides (story 8)
+        boundary();
         moveObjects(doc, positions);
+        boundary();
         return;
       }
 
@@ -96,7 +119,10 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         // swallowed this key at the typing-target guard above
         if (selection.editingId !== null || selection.ids.size === 0) return;
         event.preventDefault();
+        // one delete (of however many are selected) is its own undo step (story 8)
+        boundary();
         deleteObjects(doc, [...selection.ids]);
+        boundary();
         // the prunes the deleted ids trigger clear the selection themselves
         return;
       }

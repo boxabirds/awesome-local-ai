@@ -165,3 +165,15 @@ export const LINK_COPIED_MS = 2000;
  * "Couldn't reach vidi6. Retrying…" promise a backoff rather than a hammer.
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Undo and redo (story 8) ---
+
+/**
+ * The typing pause that ends an undo "burst", in milliseconds. Local changes that
+ * arrive less than this long after the previous one are merged into one undo step
+ * (this is what makes a run of typing a single step); `boundary()` closes the
+ * window so a deliberate action is never merged with its neighbours.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/** How many undo steps one person's history keeps; the oldest is dropped past it. */
+export const UNDO_MAX_STEPS = 200;

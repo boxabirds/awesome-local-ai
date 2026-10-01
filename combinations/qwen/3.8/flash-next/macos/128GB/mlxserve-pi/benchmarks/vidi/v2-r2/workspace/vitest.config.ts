@@ -15,6 +15,11 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['tests/unit/**/*.test.ts'],
+          // Inlining yjs (and its lib0 dependency) lets `vi.mock('lib0/time')`
+          // reach the undo controller's capture-timeout clock (undo.boundaries).
+          // Without it these deps load as external node modules and a module mock
+          // cannot intercept their internal imports.
+          server: { deps: { inline: ['yjs', 'lib0'] } },
         },
       },
       {

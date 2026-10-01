@@ -180,9 +180,16 @@ button:focus-visible,
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
+/* Separates the board tools (create) from this person's undo/redo pair. */
+.board-toolbar__divider {
+  align-self: stretch;
+  height: 1px;
+  margin: 3px 4px;
+  background: var(--ui-border);
+}
+
 .board-tool {
-  display: grid;
-  place-items: center;
+  display: grid;  place-items: center;
   width: 34px;
   height: 34px;
   padding: 0;
