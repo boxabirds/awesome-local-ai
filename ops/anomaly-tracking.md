@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 09:45 UTC
+**Last updated:** 2026-10-01 09:58 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -26,6 +26,27 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 ---
 
 ## Open — needs someone
+
+### A-025 — The harness on main imports a module that was never committed: the next job to start will crash
+- **First seen:** 2026-10-01 09:52 (CI red on the commit of 09:39) · **Last seen:** 2026-10-01 09:57
+- **Where:** `benchmarks/spec-bench/harness/drive.py` on origin/main since `ea7748bf` (the no-commit nudge
+  change). Not yet hit by a run: the four running jobs loaded their harness before it.
+- **Observed:** CI on `ea7748bf`: 2 of 11 checks failed (harness unit suite, harness real-log replay),
+  every test module ending in `ModuleNotFoundError: No module named 'roots'`. That commit's diff of
+  `drive.py` adds `import roots` and uses `roots.RESULTS_ROOT`, `roots.CODE_ROOT` and `roots.release_tag`;
+  `roots.py` is not in origin/main (it exists only as an untracked file in the owner's working tree, part
+  of the unfinished results-in-another-checkout work). The nudge commit took `drive.py` whole, with that
+  other work's edits in it.
+- **Bucket:** internal bug — **confidence high** (the file list of origin/main, the commit's diff, CI's
+  output).
+- **Status:** open and urgent. dbench pulls main before each job, so the next job to start (Swift 1.5
+  v2-r5 on the RTX 4090 machine when v2-r4 ends; Sonnet v2-r5 on the M2 MacBook Air; gufo v2-r4's
+  re-score job on the Strix Halo box; any restart of a running job) will fail at import and spend its
+  restarts on the same error. Running stories are safe until their process ends.
+- **Suggested action:** either commit `roots.py` (with whatever else `drive.py` on main now needs, and its
+  tests) or restore `drive.py` on main to the nudge change alone; confirm with a green CI run before any
+  running job reaches its end. Longer term: commit by path with a review of the diff when two pieces of
+  work share one working tree, and have dbench refuse to start a job on a commit whose checks are red.
 
 ### A-011 — Runs end with no score of record: the suite checkout is one commit off its tag
 - **First seen:** 2026-10-01 07:26 · **Last seen:** 2026-10-01 09:12 (still true for the running jobs)
@@ -82,6 +103,7 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Note 2026-10-01 09:31:** story 7 has not started: the job has been waiting on "thermal: heavy" since
   about 09:05 (26 min and counting), on AC, with the video call still using about 2 cores and the load
   average at 7–10. The run is blocked until the machine cools, which it won't while it is in use like this.
+- **Note 2026-10-01 09:52:** still waiting before story 7: 47 min so far.
 - **Note 2026-10-01 09:40:** known to the owner (on AC now; a video call and development work load the
   machine). Not escalated again unless the run makes no progress for 2 hours. Waits are logged here:
   before story 7, from about 09:05, still waiting at 09:36 (31 min so far).
@@ -347,13 +369,13 @@ By bucket (A-018 is a scheduling flag and has no bucket):
 
 | Bucket | Open: needs someone | Open: watched | Explained / resolved | Total |
 |---|---|---|---|---|
-| internal bug | 0 | 3 (A-015, A-016, A-020) | 8 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-023) | 11 |
+| internal bug | 1 (A-025) | 3 (A-015, A-016, A-020) | 8 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-023) | 12 |
 | genuine LLM behaviour | 0 | 3 (A-010, A-012, A-013) | 3 (A-006, A-007, A-017) | 6 |
 | stuck job | 0 | 0 | 0 | 0 |
 | broken pipeline | 1 (A-011) | 0 | 1 (A-024) | 2 |
 | environment | 1 (A-022) | 0 | 1 (A-005) | 2 |
 | unexplained | 0 | 2 (A-019, A-021) | 0 | 2 |
-| **Total** | **2** (+A-018) | **8** | **13** | **23** (+A-018) |
+| **Total** | **3** (+A-018) | **8** | **13** | **24** (+A-018) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
@@ -366,4 +388,4 @@ By combination (an anomaly is listed under the one it mainly concerns):
 | qwen 3.8 Swift 1.5 27B, llamacpp-pi | the RTX 4090 machine | A-012 |
 | qwen 3.8 27B and Swift 27B (v1), llamacpp-pi | the RTX 4090 machine | A-009 |
 | several | — | A-008 |
-| none (harness tests, CI) | the M2 MacBook Air, CI | A-023, A-024 |
+| none (harness tests, CI) | the M2 MacBook Air, CI | A-023, A-024, A-025 |
