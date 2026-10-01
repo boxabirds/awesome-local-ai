@@ -268,6 +268,9 @@ pub struct Job {
     pub updated_at: u64,
     #[serde(default)]
     pub cancel_requested: bool,
+    /// Why it was cancelled, as the canceller gave it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cancel_reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_pull: Option<PullRecord>,
     /// Server-side interventions: restarts, recoveries, cancels, pull failures.
@@ -286,6 +289,7 @@ impl Job {
             seq: 0,
             updated_at: now,
             cancel_requested: false,
+            cancel_reason: None,
             last_pull: None,
             history: Vec::new(),
         }

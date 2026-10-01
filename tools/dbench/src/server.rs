@@ -405,32 +405,57 @@ async fn cancel(
     State(st): State<Arc<Shared>>,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
     UrlPath(id): UrlPath<String>,
+    body: Bytes,
 ) -> Response {
     let by = peer.ip();
     let Some(job) = st.job(&id) else {
         return err(StatusCode::NOT_FOUND, format!("no job {id}"));
     };
+    // Parsed by hand so a missing or malformed body gets the same plain 400 as a blank reason.
+    let reason = serde_json::from_slice::<crate::control::CancelRequest>(&body)
+        .map(|r| r.reason.trim().to_string())
+        .unwrap_or_default();
+    if reason.is_empty() {
+        return err(
+            StatusCode::BAD_REQUEST,
+            "give a reason ({\"reason\": \"...\"}): it is kept with the job",
+        );
+    }
     match job.state {
         JobState::Queued => {
+            let line = format!("cancelled while queued by {by}: {reason}");
             let j = st.update(&id, |j, inner| {
                 j.state = JobState::Cancelled;
-                j.note(now_secs(), format!("cancelled while queued by {by}"));
+                j.cancel_reason = Some(reason.clone());
+                j.note(now_secs(), line.clone());
                 inner.queue.retain(|q| q != &id);
             });
-            st.log_line(&id, &format!("cancelled while queued by {by}"));
+            st.log_line(&id, &line);
             (StatusCode::OK, Json(st.view(j.expect("job")))).into_response()
         }
         JobState::Running { pgid, .. } => {
+            let line = format!("cancel requested by {by}: {reason}");
             let j = st.update(&id, |j, _| {
                 if !j.cancel_requested {
-                    j.note(now_secs(), format!("cancel requested by {by}"));
+                    j.note(now_secs(), line.clone());
+                    j.cancel_reason = Some(reason.clone());
                 }
                 j.cancel_requested = true;
             });
-            st.log_line(&id, &format!("cancel requested by {by}"));
+            st.log_line(&id, &line);
             st.log_line(&id, &format!("cancel: SIGTERM to process group {pgid}"));
             tokio::spawn(crate::runner::terminate_group(pgid, st.cfg.cancel_grace));
             (StatusCode::ACCEPTED, Json(st.view(j.expect("job")))).into_response()
+        }
+        JobState::Cancelled if job.cancel_reason.is_none() => {
+            // Cancelled before reasons were kept: it takes this one, noted as given afterwards.
+            let line = format!("reason given after the cancel, by {by}: {reason}");
+            let j = st.update(&id, |j, _| {
+                j.cancel_reason = Some(reason.clone());
+                j.note(now_secs(), line.clone());
+            });
+            st.log_line(&id, &line);
+            (StatusCode::OK, Json(st.view(j.expect("job")))).into_response()
         }
         JobState::Cancelled => (StatusCode::OK, Json(st.view(job))).into_response(),
         JobState::Done { .. } | JobState::Failed { .. } => err(

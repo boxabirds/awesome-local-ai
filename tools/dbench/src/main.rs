@@ -79,8 +79,8 @@ async fn main() -> Result<()> {
         Cmd::Events { node, id } => {
             client::cmd_events(&Ctx::load(cli.config, cli.json)?, &node, &id).await
         }
-        Cmd::Cancel { node, id } => {
-            client::cmd_cancel(&Ctx::load(cli.config, cli.json)?, &node, &id).await
+        Cmd::Cancel { node, id, reason } => {
+            client::cmd_cancel(&Ctx::load(cli.config, cli.json)?, &node, &id, &reason).await
         }
         Cmd::SkipStory {
             node,

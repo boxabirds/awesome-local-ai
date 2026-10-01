@@ -112,7 +112,13 @@ pub enum Cmd {
     /// Typed events parsed from a job's log.
     Events { node: String, id: String },
     /// Cancel a job (SIGTERM, then SIGKILL, to its process group).
-    Cancel { node: String, id: String },
+    Cancel {
+        node: String,
+        id: String,
+        /// Why, kept with the job and shown wherever it is.
+        #[arg(long)]
+        reason: String,
+    },
     /// End the running story as PARTIAL; the run continues with the next story.
     ///
     /// Ends the running story's work: the harness stops the agent, records the story
