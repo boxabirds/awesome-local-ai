@@ -40,10 +40,21 @@ export interface StickyTextEditorProps {
   ytext: Y.Text;
   /** Font size the note measured before handing over, as a starting point. */
   fontPx: number;
+  /**
+   * Height the text may use, world units - the note's height minus its
+   * padding. Defaults to the standard note's; a resized note (story 7)
+   * passes its own, so the auto-fit answers for the box the user made.
+   */
+  boxWorld?: number;
   onEnd(next: EndEditNext): void;
 }
 
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
+export function StickyTextEditor({
+  ytext,
+  fontPx,
+  boxWorld = TEXT_BOX_WORLD,
+  onEnd,
+}: StickyTextEditorProps): JSX.Element {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState(() => ytext.toString());
   const [size, setSize] = useState<{ fontPx: number; overflow: boolean }>({ fontPx, overflow: false });
@@ -64,13 +75,13 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   const measure = useCallback((): void => {
     const el = ref.current;
     if (el === null) return;
-    const fit = fitFontSize(el, TEXT_BOX_WORLD);
+    const fit = fitFontSize(el, Math.max(0, boxWorld));
     setSize((previous) =>
       previous.fontPx === fit.fontPx && previous.overflow === fit.overflow
         ? previous
         : { fontPx: fit.fontPx, overflow: fit.overflow },
     );
-  }, []);
+  }, [boxWorld]);
 
   // Editing starts with the caret at the end of whatever the note already says,
   // so continuing a thought does not need a click.

@@ -628,3 +628,101 @@ button:focus-visible,
   opacity: 0.7;
   text-align: left;
 }
+
+/* --- Story 7: selection, marquee, resize handles, the selection bar ---------
+   All of these draw in SCREEN space (fixed, like the toolbars): the world
+   layer is scaled by zoom, and a selection outline or a resize handle that
+   scaled with it would be a different tool. They take the worldToScreen the
+   grid and the notes already agree on, so they stay glued to the objects. */
+
+.selection-box {
+  position: fixed;
+  border: 1.5px solid var(--select);
+  /* the box itself must never eat a pointer: drags that start inside it but
+     on no object are board drags (pan or marquee), not box drags */
+  pointer-events: none;
+  z-index: 40;
+}
+
+.resize-handle {
+  position: absolute;
+  background: #ffffff;
+  border: 1.5px solid var(--select);
+  border-radius: 2px;
+  /* ...except the handles, which are the whole point of the box */
+  pointer-events: auto;
+}
+
+.resize-handle--nw,
+.resize-handle--se {
+  cursor: nwse-resize;
+}
+
+.resize-handle--ne,
+.resize-handle--sw {
+  cursor: nesw-resize;
+}
+
+.resize-handle--n,
+.resize-handle--s {
+  cursor: ns-resize;
+}
+
+.resize-handle--e,
+.resize-handle--w {
+  cursor: ew-resize;
+}
+
+.marquee-rect {
+  position: fixed;
+  border: 1px solid var(--select);
+  background: rgba(37, 99, 235, 0.12);
+  pointer-events: none;
+  z-index: 39;
+}
+
+.selection-bar {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(20, 20, 30, 0.16);
+  z-index: 41;
+}
+
+.selection-count {
+  padding: 0 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.selection-bar-button {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ui-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.selection-bar-button:hover {
+  background: rgba(20, 20, 30, 0.06);
+}
+
+.selection-bar-button--danger {
+  color: #b3261e;
+}
+
+.selection-bar-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}

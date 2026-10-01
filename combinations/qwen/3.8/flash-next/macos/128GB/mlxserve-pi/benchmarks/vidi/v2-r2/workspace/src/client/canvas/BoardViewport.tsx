@@ -52,6 +52,19 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 /** A point on the board, in world units. */
 export type WorldClickHandler = (world: Point) => void;
 
+/**
+ * The marquee (story 7): Shift+drag on empty board space draws a selection
+ * rectangle instead of panning. The viewport only tracks the press and hands
+ * over viewport-space points; deciding what the rectangle selects is the
+ * board's business (useMarquee).
+ */
+export interface BoardMarqueeHandlers {
+  start(point: Point): void;
+  move(point: Point): void;
+  end(point: Point): void;
+  cancel(): void;
+}
+
 export interface BoardViewportProps {
   /** Board content, rendered in world coordinates. */
   children?: ReactNode;
@@ -59,9 +72,11 @@ export interface BoardViewportProps {
   onDoubleClickBoard?: WorldClickHandler;
   /** A press on empty board space that ended without moving. */
   onEmptyClick?: () => void;
+  /** Shift+drag on empty board space: the marquee, instead of a pan. */
+  onMarquee?: BoardMarqueeHandlers;
 }
 
-export function BoardViewport({ children, onDoubleClickBoard, onEmptyClick }: BoardViewportProps): JSX.Element {
+export function BoardViewport({ children, onDoubleClickBoard, onEmptyClick, onMarquee }: BoardViewportProps): JSX.Element {
   const api = useBoardCamera();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<InteractionMode>('idle');
@@ -69,6 +84,11 @@ export function BoardViewport({ children, onDoubleClickBoard, onEmptyClick }: Bo
   const modeRef = useRef<InteractionMode>('idle');
   /** The press that may still turn out to be a click on empty board space. */
   const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  /** A Shift+press on empty space: a marquee in flight, or a shift-click. */
+  const marqueeRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  /** Same props, readable synchronously from the pointer handlers. */
+  const marqueeCbRef = useRef(onMarquee);
+  marqueeCbRef.current = onMarquee;
 
   // Keep the newest camera API in a ref so the non-passive wheel, gesture and
   // key listeners are attached once and never call a stale camera.
@@ -160,14 +180,21 @@ export function BoardViewport({ children, onDoubleClickBoard, onEmptyClick }: Bo
 
   // --- Pointer drag to pan. Only starts on empty board space: objects in later
   // stories stop propagation, and anything that is not the surface itself is
-  // ignored here so it can own its own drag. ---
+  // ignored here so it can own its own drag. A Shift+press on empty space is
+  // not a pan at all: it is the marquee, and the mode stays `idle`.
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     const el = viewportRef.current;
     if (el === null) return;
     if (event.target !== el) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
-    el.setPointerCapture?.(event.pointerId);
     const point = pointOf(event.clientX, event.clientY);
+    if (event.shiftKey && marqueeCbRef.current !== undefined) {
+      el.setPointerCapture?.(event.pointerId);
+      marqueeRef.current = { x: point.x, y: point.y, moved: false };
+      marqueeCbRef.current.start(point);
+      return;
+    }
+    el.setPointerCapture?.(event.pointerId);
     pressRef.current = { x: point.x, y: point.y, moved: false };
     apiRef.current.beginPan(point);
     modeRef.current = 'panning';
@@ -175,8 +202,18 @@ export function BoardViewport({ children, onDoubleClickBoard, onEmptyClick }: Bo
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (modeRef.current !== 'panning') return;
     const point = pointOf(event.clientX, event.clientY);
+    const marquee = marqueeRef.current;
+    if (marquee !== null) {
+      if (!marquee.moved) {
+        if (Math.hypot(point.x - marquee.x, point.y - marquee.y) >= DRAG_THRESHOLD_PX) {
+          marquee.moved = true;
+        }
+      }
+      marqueeCbRef.current?.move(point);
+      return;
+    }
+    if (modeRef.current !== 'panning') return;
     const press = pressRef.current;
     if (press !== null && !press.moved) {
       if (Math.hypot(point.x - press.x, point.y - press.y) >= DRAG_THRESHOLD_PX) press.moved = true;
@@ -189,6 +226,14 @@ export function BoardViewport({ children, onDoubleClickBoard, onEmptyClick }: Bo
   // first and stopped the event, so it is not a click on the board.
   const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     const el = viewportRef.current;
+    if (marqueeRef.current !== null) {
+      // the marquee owns its release: a press that never travelled is the
+      // board's empty click (it clears the selection), and the marquee hook
+      // is the one that says so - the viewport does not double-report it
+      marqueeRef.current = null;
+      marqueeCbRef.current?.end(pointOf(event.clientX, event.clientY));
+      return;
+    }
     const press = pressRef.current;
     if (el !== null && event.target === el && press !== null && !press.moved) {
       onEmptyClick?.();
@@ -211,6 +256,18 @@ export function BoardViewport({ children, onDoubleClickBoard, onEmptyClick }: Bo
     modeRef.current = 'idle';
     setMode('idle');
   }, []);
+
+  // A cancelled marquee draws no rectangle and selects nothing; the hook is
+  // told, the press is forgotten, and the pan (which never started) rests.
+  const onPointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeRef.current !== null) {
+      marqueeRef.current = null;
+      marqueeCbRef.current?.cancel();
+      void event;
+      return;
+    }
+    endDrag();
+  };
 
   const spacing = GRID_SPACING_WORLD * zoom;
   const gridOffsetX = modulo(-camera.x * zoom, spacing);
@@ -241,7 +298,7 @@ export function BoardViewport({ children, onDoubleClickBoard, onEmptyClick }: Bo
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={endDrag}
+      onPointerCancel={onPointerCancel}
       onLostPointerCapture={endDrag}
       onDoubleClick={onDoubleClick}
     >

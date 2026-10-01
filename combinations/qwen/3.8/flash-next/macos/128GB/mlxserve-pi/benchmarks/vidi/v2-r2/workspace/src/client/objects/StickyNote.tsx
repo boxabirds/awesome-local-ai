@@ -24,19 +24,19 @@ import {
   DRAG_THRESHOLD_PX,
   STICKY_COLORS,
   STICKY_FONT_MAX_PX,
-  STICKY_SIZE_WORLD,
 } from '../../shared/config';
 import {
   bringToFront,
   deleteObject,
   getStickyText,
   moveObject,
+  objectBounds,
   setStickyColor,
   type StickySnapshot,
 } from '../../shared/board-model';
 import type { EndEditNext } from '../board/useSelection';
 import { fitFontSize, NOTE_PADDING_WORLD } from './StickyText';
-import { StickyTextEditor, TEXT_BOX_WORLD } from './StickyTextEditor';
+import { StickyTextEditor } from './StickyTextEditor';
 import { NoteToolbar } from './NoteToolbar';
 
 export interface StickyNoteProps {
@@ -52,7 +52,34 @@ export interface StickyNoteProps {
    * that a person cannot make changes that have nowhere to be kept.
    */
   editable: boolean;
+  /**
+   * False when the note is one of several selected objects: the per-note
+   * toolbar (colours, bin) belongs to a single selected note only - a group
+   * gets the selection bar instead. Default true.
+   */
+  single?: boolean;
+  /**
+   * True while the board's transform gesture is moving this note (story 7
+   * group drag). The note's own internal drag sets its own dragging state;
+   * this one is for gestures the note does not run itself.
+   */
+  dragging?: boolean;
+  /**
+   * Given, the note hands its press to the board's transform gesture (group
+   * move, group resize) and runs none of its own. Absent - a note rendered on
+   * its own, outside the board's wiring - it drags itself, as it did before
+   * story 7.
+   */
+  onGesturePointerDown?: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onSelect(id: string): void;
+  /**
+   * What the board does when the note takes keyboard focus: Tab reaches a
+   * note and selects it. Absent, the note selects itself on any focus, as
+   * before story 7 - but a real browser also gives a note focus when the
+   * mouse presses it, and a board wired for group selection decides that
+   * case itself (see the transform gesture's isPressed).
+   */
+  onFocusNote?(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: EndEditNext): void;
 }
@@ -87,11 +114,16 @@ export function StickyNote({
   selected,
   editing,
   editable,
+  single = true,
+  dragging: draggingByBoard = false,
+  onGesturePointerDown,
   onSelect,
+  onFocusNote,
   onStartEdit,
   onEndEdit,
 }: StickyNoteProps): JSX.Element {
   const [dragging, setDragging] = useState(false);
+  const dragged = dragging || draggingByBoard;
   const [font, setFont] = useState<{ fontPx: number; overflow: boolean }>({
     fontPx: STICKY_FONT_MAX_PX,
     overflow: false,
@@ -117,18 +149,21 @@ export function StickyNote({
   useEffect(() => stopFrame, [stopFrame]);
 
   // Text auto-fit: the largest size that shows all of it, measured whenever the
-  // text changes. Zoom scales the whole note uniformly, so it needs no remeasure.
+  // text changes or the note is resized (story 7 - a taller note fits bigger
+  // text). Zoom scales the whole note uniformly, so it needs no remeasure.
+  const boxWorld = Math.max(0, objectBounds(note).height - NOTE_PADDING_WORLD * 2);
+  const box = objectBounds(note);
   useLayoutEffect(() => {
     if (editing) return;
     const el = textRef.current;
     if (el === null) return;
-    const fit = fitFontSize(el, TEXT_BOX_WORLD);
+    const fit = fitFontSize(el, boxWorld);
     setFont((previous) =>
       previous.fontPx === fit.fontPx && previous.overflow === fit.overflow
         ? previous
         : { fontPx: fit.fontPx, overflow: fit.overflow },
     );
-  }, [note.text, editing]);
+  }, [note.text, editing, boxWorld]);
 
   const writePosition = useCallback((): void => {
     const current = press.current;
@@ -163,6 +198,12 @@ export function StickyNote({
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (isOwnUi(event.target)) return;
     if (editing) return; // the caret and the text own this note while typing
+    if (onGesturePointerDown !== undefined) {
+      // the board's transform gesture takes the press: it moves the whole
+      // selection and keeps its own state about what was grabbed
+      onGesturePointerDown(event);
+      return;
+    }
     event.currentTarget.setPointerCapture?.(event.pointerId);
     press.current = {
       pointerId: event.pointerId,
@@ -231,8 +272,11 @@ export function StickyNote({
   // Tab reaches a note; a focus that came from the Tab key selects it, so the
   // swatches, the bin button and the Delete key all mean this note. A focus that
   // bubbled up from the note's own textarea is still typing and changes nothing.
+  // A browser also focuses a note when the mouse presses it; a board wired for
+  // group selection passes onFocusNote and decides there what a focus means.
   const onFocus = (event: ReactFocusEvent<HTMLDivElement>): void => {
-    if (event.target === event.currentTarget) onSelect(note.id);
+    if (event.target !== event.currentTarget) return;
+    (onFocusNote ?? onSelect)(note.id);
   };
 
   // The text of a note deleted between renders is gone too: editing stops with it.
@@ -241,7 +285,7 @@ export function StickyNote({
 
   return (
     <div
-      className={`sticky-note${dragging ? ' is-dragging' : ''}${font.overflow ? ' has-overflow' : ''}${
+      className={`sticky-note${dragged ? ' is-dragging' : ''}${font.overflow ? ' has-overflow' : ''}${
         editable ? '' : ' is-locked'
       }`}
       data-testid="sticky-note"
@@ -251,7 +295,7 @@ export function StickyNote({
       data-note-y={note.y}
       data-note-z={note.z}
       data-selected={selected}
-      data-dragging={dragging}
+      data-dragging={dragged}
       data-editing={editing}
       data-color={note.color}
       role="group"
@@ -261,8 +305,10 @@ export function StickyNote({
         {
           left: `${note.x}px`,
           top: `${note.y}px`,
-          width: `${STICKY_SIZE_WORLD}px`,
-          height: `${STICKY_SIZE_WORLD}px`,
+          // the stored size once a resize wrote one; the standard note size
+          // until then (objectBounds is the only place that default lives)
+          width: `${box.width}px`,
+          height: `${box.height}px`,
           background: STICKY_COLORS[note.color],
           // The note this one overlaps is drawn under it. Stacking is done here
           // rather than by reordering the DOM, so the element a drag has captured
@@ -283,7 +329,7 @@ export function StickyNote({
       onFocus={onFocus}
     >
       {ytext !== undefined ? (
-        <StickyTextEditor ytext={ytext} fontPx={font.fontPx} onEnd={onEndEdit} />
+        <StickyTextEditor ytext={ytext} fontPx={font.fontPx} boxWorld={boxWorld} onEnd={onEndEdit} />
       ) : (
         <>
           <div
@@ -301,7 +347,7 @@ export function StickyNote({
           ) : null}
         </>
       )}
-      {selected && !dragging && !editing ? (
+      {selected && single && !dragged && !editing ? (
         // The toolbar keeps its screen size at any zoom: it is scaled by the
         // inverse of the board, which is why the note needs the zoom at all.
         <div

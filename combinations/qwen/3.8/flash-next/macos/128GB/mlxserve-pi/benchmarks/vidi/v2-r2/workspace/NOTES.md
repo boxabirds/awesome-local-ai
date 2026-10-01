@@ -584,3 +584,157 @@ the panel's problem to survive, not the browser's.
   budget on this machine before story 5, and the file's siblings (`navigation.spec.ts`,
   `persistence.spec.ts`) already raise wall-clock for the same reason. No assertion was
   changed, relaxed or removed - the 1000 ms figure is logged, not asserted.
+
+---
+
+# Story 7 — Select, move, resize and delete several objects at once
+
+## What is here (story 7)
+
+- `src/shared/geometry.ts` (new) — pure rect maths: `Rect`/`Point`, `HANDLES`,
+  `rectContains` (entirely-inside), `unionRects`, `normalizeRect`,
+  `resizeRect` → `clampScale` → `anchorBox` (the resize pipeline),
+  `scaleWithin`, and the generic `objectBounds`.
+- `src/shared/board-model.ts` — the group operations: `moveObjects`,
+  `resizeObjects`, `bringObjectsToFront`, `deleteObjects`, `objectsInRect`,
+  `allObjectIds`, `readableObject`, `KNOWN_OBJECT_TYPES`; sticky notes now
+  persist `width`/`height`. The single-object wrappers are rewritten on top of
+  the group ones, so story 2's behaviour is the same code path.
+- `src/client/objects/registry.tsx` (new) — object types by name:
+  `registerObjectType` (duplicates throw), `getObjectType`, `componentFor`,
+  `registeredTypes`, `hitTestObject`; sticky is the one registration.
+- `src/client/board/useSelection.ts` — rewritten as a `Set` reducer
+  (`click`/`toggle`/`setMany`/`clear`/`prune`/`edit`) over
+  `{ ids: ReadonlySet, editingId }`; story 2's single-select and edit
+  behaviours are cases of it.
+- `src/client/board/useTransformGesture.ts` (new) — group move and group
+  resize from window-level pointer listeners; selection decides the subject at
+  pointerdown; `isPressed()` answers "this press already picked".
+- `src/client/board/useMarquee.ts`, `SelectionOverlay.tsx`, `SelectionBar.tsx`,
+  `useBoardKeys.ts` (new) — shift-drag box selection, the eight handles, the
+  bar (count, front, delete), and Ctrl/Cmd+A / Escape / arrows / Delete / Enter.
+- `src/client/pages/BoardPage.tsx` — wires them, renders objects through the
+  registry. `BoardViewport.tsx` — the marquee path (shift held, so no pan).
+- `StickyNote.tsx` — `onGesturePointerDown` (delegate to the board's gesture),
+  `single` (toolbar only for a lone selection), `dragging` from the board, and
+  the new `onFocusNote` (below). `StickyTextEditor.tsx` — measures a stored
+  `boxWorld`, not only the default square.
+- Tests: `tests/unit/geometry.test.ts` (TC-01…07,15…),
+  `tests/unit/board-model-group.test.ts`, `tests/unit/registry.test.ts`,
+  `tests/unit/selection-reducer.test.ts`, `tests/helpers/yjs.ts`,
+  `tests/component/Selection.test.tsx` (TC-16…31),
+  `tests/e2e/selection.spec.ts` (TC-32…36).
+
+## Implementation decisions
+
+- **The resize pipeline is three pure steps.** `resizeRect` turns a handle and
+  a pointer delta into a target box, `clampScale` clamps the resulting per-axis
+  scales against every member's minimum and the global maximum, and
+  `anchorBox` rebuilds the final box from the clamped scales — a second
+  `resizeRect` with the clamped numbers would sign-multiply the w/n handles.
+  The aspect lock applies to corner handles only (dominant axis wins); an edge
+  handle scales its one axis whatever the type's aspect flag says, which is
+  what TC-24's "edge handle changes width only" states.
+- **`rectContains` means entirely inside**: touching from outside is out,
+  touching while inside is in (TC-07's table). The marquee unions with the
+  current selection — shift is both the trigger and the "add".
+- **Group operations read any readable Y.Map** (finite x/y/z, string type),
+  not only sticky-readable ones, and skip ids that are missing or unreadable
+  (TC-05, TC-08); a non-finite position rejects the whole `moveObjects` call
+  without a transaction (TC-09). `bringObjectsToFront` sorts the selected by
+  (z, id) and stacks them above `maxUnselectedZ` in that order, so a group
+  front is deterministic across clients.
+- **The gesture's subject is decided once, at pointerdown**: down on an
+  unselected object selects it alone; down on a member of a group defers —
+  moving drags the group, releasing without moving collapses to that one.
+  Bring-to-front happens once, on the frame the drag crosses its threshold.
+- **`selection` in the design's gesture contract is the reducer state**, and
+  `snapshot` is the sticky snapshot list; `ObjectSnapshot` (board-model) is
+  what `objectBounds` consumes, so the gesture is type-agnostic already.
+
+## A real bug the browsers found: focus is not a selection command
+
+A real browser **focuses the note a mouse-down lands on** as that pointerdown's
+default action; `StickyNote`'s story-2 `onFocus` then called `onSelect(id)`,
+which replaced the selection the gesture had made microseconds earlier — a
+three-note group collapsed to one the instant its member was grabbed. jsdom
+never focuses on mousedown, so every component test missed it. The fix is
+`onFocusNote`: the board decides what a focus means, and selects only when
+`useTransformGesture.isPressed()` is false. `isPressed` covers both halves of
+the pointerdown's own bookkeeping: the press itself (group drags), and a
+`selectionHandledRef` marker for presses that only toggle (shift-click), which
+a `setTimeout(0)` clears — a macrotask, because Blink runs microtasks *before*
+an event's default action, and a `queueMicrotask` clear lost the race in
+exactly the way the first fix did. Tab (the focus with no pointer) still
+selects, which is what story 2's keyboard tests assert.
+
+## Two more real bugs the e2e found
+
+- **The resize handles were misplaced in the product, not the test.**
+  `SelectionOverlay` positioned its handles with *viewport* coordinates inside
+  the already-positioned selection box, so every handle sat one box-size away
+  from its corner. jsdom reports no layout, so only the e2e caught it — and it
+  caught it as a group drag (the mouse landed on the note under the misplaced
+  handle), which is how the fix's regression test reads.
+- **TC-33 resizes inward.** Pulling the northwest handle by the box's own size
+  *grows* the box (the southeast corner is the anchor), and the doubled box
+  ends outside the window; firefox and webkit clamp pointer coordinates that
+  leave the viewport, so the drag scaled 1.6× there and 2× in chromium. The
+  case now halves the box by pulling inward — same geometry proved, and every
+  pointer coordinate stays inside the window.
+
+## Deviations and decisions
+
+1. **TC-34 is the nudge case, not a sixth-client case.** The design's table
+   has TC-34 as "arrows move selection without page scroll or board pan;
+   Delete removes all", and this suite follows the table. (There is no
+   capacity refusal to test either: the room has never counted participants —
+   story 3's `live.over_capacity` accepts a sixth like anyone else.)
+2. **TC-36 runs in chromium only.** Headless firefox/webkit on macOS route
+   *concurrent* native mouse input to whichever window holds OS focus, so five
+   parallel `page.mouse` streams land in whichever windows happen to be
+   frontmost (measured: all five pages converged on a document where one
+   window's mixed drags had moved one note — the browsers were never the
+   five mice the test asks for). The property under test — different editors
+   transforming different objects, one final document — is a document
+   property, and `test.skip` names it as a harness limit rather than muting
+   the case silently.
+3. **`tests/e2e/helpers/live.ts` grows optional `width`/`height` on
+   `Content`** so resize cases can read sizes; the byte-comparison helpers
+   sort and stringify them like any other field, so convergence checks got
+   stricter, not looser.
+4. **`TYPE_STICKY` and the new sizing settings live in
+   `src/shared/config.ts`** (story 1's note: config is the place for new
+   settings): `HANDLE_SIZE_PX`, `STICKY_MIN_SIZE_WORLD`,
+   `MAX_OBJECT_SIZE_WORLD`, `NUDGE_STEP_WORLD`, `NUDGE_LARGE_STEP_WORLD`.
+5. **Sticky notes keep their internal drag when rendered without the board's
+   wiring** (`onGesturePointerDown` absent): `BoardLoadFailure.test.tsx`
+   renders a bare note and drags the document through it, and story 4's
+   "an unreadable board takes no edits" needs the note-level gate too.
+6. **The selection bar appears for two-or-more**, names its count exactly
+   ("2 selected"), and the only strings are "Bring to front" /
+   "Delete selection"; while one object is selected the note's own toolbar
+   stays, and while editing anything the overlay hides (a caret, not handles).
+
+## Test decisions
+
+- **Red phase observed**: the four new unit files were written against
+  stub modules first (functions `throw new Error('not implemented')`), and
+  54 of the 74 unit cases failed before the implementations landed.
+- **Component tests convert world↔screen through the real camera maths**
+  (`initialCamera()` reads `resetCamera(boardSize())`) instead of hard-coding
+  512/384; notes are addressed by `data-note-id`, because `bringToFront`
+  reorders z and DOM paint order under a fixed index.
+- **TC-26 drives its drag with `act` per event**: React batches a fully
+  synchronous drag's begin and end into one render, and a MutationObserver
+  counting `data-dragging` transitions would see the drag never happen.
+- **TC-32 keeps the shift-click that exposed the focus bug** (two clicks in,
+  one click out, counts 2 → 1) so the exact sequence that broke in real
+  browsers is now a permanent case, on all three browsers.
+
+## Verification (story 7)
+
+`npm run typecheck`, `test:unit` (175), `test:integration` (70),
+`test:component` (134) and `test:e2e` (112 passed, 2 skipped — the TC-36
+chromium-only note above) all pass; the selection spec is green in chromium,
+firefox and webkit (TC-32, the case the tasks require in all three, included).

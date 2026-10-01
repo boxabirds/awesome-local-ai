@@ -54,6 +54,22 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 /** Colour of a newly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+// --- Selection and transform (story 7) ---
+
+/** The one sticky note object type this build ships, as stored in the Y.Map. */
+export const TYPE_STICKY = 'sticky';
+
+/** Resize handle edge, in CSS pixels at any zoom (handles are screen-space). */
+export const HANDLE_SIZE_PX = 8;
+/** The smallest edge a sticky note may become, in world units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** No object may grow past this edge, in world units. */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** One arrow-key nudge, in world units. */
+export const NUDGE_STEP_WORLD = 1;
+/** A Shift+nudge, in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 // --- Live collaboration (story 3) ---
 
 /**

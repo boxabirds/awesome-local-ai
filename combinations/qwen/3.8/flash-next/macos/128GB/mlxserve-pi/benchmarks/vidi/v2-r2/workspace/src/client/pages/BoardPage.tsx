@@ -18,12 +18,11 @@
 // and keeps the timer - which is cleared on unmount, because a retry scheduled for a
 // page nobody is looking at is a request nobody asked for.
 
-import { useCallback, useEffect, useState, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import type * as Y from 'yjs';
 import { checkBoard, type CheckResponse } from '../api';
 import {
   BoardViewport,
-  isTypingTarget,
   type WorldClickHandler,
 } from '../canvas/BoardViewport';
 import { CameraProvider, useBoardCamera } from '../canvas/CameraProvider';
@@ -40,11 +39,22 @@ import {
 import { Toolbar } from '../board/Toolbar';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
+import { useTransformGesture } from '../board/useTransformGesture';
+import { useMarquee } from '../board/useMarquee';
+import { useBoardKeys } from '../board/useBoardKeys';
+import { SelectionOverlay, MarqueeRect } from '../board/SelectionOverlay';
+import { SelectionBar } from '../board/SelectionBar';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit } from '../sync/connectBoard';
-import { StickyNote } from '../objects/StickyNote';
+import { getObjectType } from '../objects/registry';
 import { SharePanel } from '../share/SharePanel';
-import { createSticky, deleteObject } from '../../shared/board-model';
+import {
+  bringObjectsToFront,
+  createSticky,
+  deleteObjects,
+  objectBounds,
+} from '../../shared/board-model';
+import { unionRects } from '../../shared/geometry';
 import { BOARD_LOAD_FAILED_MESSAGE } from '../../shared/protocol';
 import { isValidBoardId } from '../../shared/board-id';
 import { NotFoundPage } from './NotFoundPage';
@@ -165,7 +175,9 @@ export function BoardScreen({ doc: injected, boardId }: BoardScreenProps): JSX.E
 function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element {
   const { camera, viewport, hasNavigated, zoomStep, reset } = useBoardCamera();
   const { doc, notes, connection } = useBoardDoc(injected, boardId);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const { selection: selectionState, select, toggle, setSelection, clear, startEdit, endEdit } =
+    useSelection(notes);
+  const selectedIds = selectionState.ids;
 
   // A board the room could not read is shown, not edited: there is nowhere for a
   // change to go, and a note that looks fine but was never stored is worse than a
@@ -173,6 +185,36 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
   // still arriving - keeps taking edits, because those changes are kept locally and
   // sent when the link returns.
   const editable = canEdit(connection);
+
+  // The three ways a selection acts, all fed by the same selection state:
+  // the transform gesture (drag and resize of one or many), the marquee
+  // (Shift+drag on empty space) and the keyboard (select-all, nudge, delete,
+  // Enter, Escape). None of them knows what an object type is; that is the
+  // registry's only job.
+  const gesture = useTransformGesture({
+    doc,
+    selection: selectionState,
+    objects: notes,
+    zoom: camera.zoom,
+    editable,
+    onSelect: (id, additive) => (additive ? toggle(id) : select(id)),
+  });
+  const marquee = useMarquee({
+    objects: notes,
+    camera,
+    editable,
+    onSelectMany: setSelection,
+    onEmptyClick: clear,
+  });
+  useBoardKeys({
+    doc,
+    editable,
+    objects: notes,
+    selection: selectionState,
+    setSelection,
+    clear,
+    startEdit,
+  });
 
   // Expose the live document to end-to-end tests (no-op outside the test build).
   useEffect(() => {
@@ -201,56 +243,85 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
     createAt(screenToWorld(camera, viewportCentre(viewport)));
   }, [createAt, camera, viewport]);
 
-  // The keyboard for a selected note. Every key here is ignored while the user
-  // is typing: Delete and Backspace then edit characters, not notes.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (!editable) return; // the board takes no changes, so neither do its keys
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (isTypingTarget(event.target)) return;
-      if (event.key === 'Enter') {
-        if (editingId === null && selectedId !== null) {
-          event.preventDefault();
-          startEdit(selectedId);
-        }
-        return;
-      }
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        if (editingId !== null || selectedId === null) return;
-        event.preventDefault();
-        deleteObject(doc, selectedId);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selectedId, editingId, startEdit, editable]);
+  // The selection's bounding box, in world units: what the overlay frames and
+  // the bar floats under. It follows the objects through a drag because the
+  // snapshot re-renders on every write the gesture makes.
+  const selectionRect = useMemo(() => {
+    if (selectedIds.size === 0) return null;
+    return unionRects(
+      notes.filter((note) => selectedIds.has(note.id)).map((note) => objectBounds(note)),
+    );
+  }, [notes, selectedIds]);
 
-  // A note that is no longer on the board cannot stay selected, so the outline
-  // and the note toolbar go away with it.
-  const selectedGone = selectedId !== null && !notes.some((note) => note.id === selectedId);
-  useEffect(() => {
-    if (selectedGone) select(null);
-  }, [selectedGone, select]);
+  const bringSelectionToFront = useCallback((): void => {
+    bringObjectsToFront(doc, [...selectedIds]);
+  }, [doc, selectedIds]);
+
+  const deleteSelection = useCallback((): void => {
+    deleteObjects(doc, [...selectedIds]);
+  }, [doc, selectedIds]);
 
   return (
     <>
-      <BoardViewport onDoubleClickBoard={createAtPoint} onEmptyClick={() => select(null)}>
-        {/* One element per note, in creation order; StickyNote stacks it by its z. */}
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={camera.zoom}
-            selected={note.id === selectedId}
-            editing={note.id === editingId}
-            editable={editable}
-            onSelect={select}
-            onStartEdit={startEdit}
-            onEndEdit={endEdit}
-          />
-        ))}
+      <BoardViewport
+        onDoubleClickBoard={createAtPoint}
+        onEmptyClick={clear}
+        onMarquee={marquee.handlers}
+      >
+        {/* One element per note, in creation order; the registry says which
+            component draws which type, and a type it does not know draws
+            nothing, exactly as the snapshot skips it. */}
+        {notes.map((note) => {
+          const spec = getObjectType(note.type);
+          if (spec === undefined) return null;
+          const Component = spec.Component;
+          return (
+            <Component
+              key={note.id}
+              note={note}
+              doc={doc}
+              zoom={camera.zoom}
+              selected={selectedIds.has(note.id)}
+              single={selectedIds.size <= 1}
+              dragging={gesture.draggingIds.has(note.id)}
+              editing={note.id === selectionState.editingId}
+              editable={editable}
+              onGesturePointerDown={(event) => gesture.onObjectPointerDown(event, note.id)}
+              onSelect={select}
+              onFocusNote={(id) => {
+                // A mouse press focuses the note it grabs; the gesture has
+                // already made that selection, and a focus landing a moment
+                // later must not replace it. Only focus that arrives with no
+                // press - the Tab key - selects here.
+                if (!gesture.isPressed()) select(id);
+              }}
+              onStartEdit={startEdit}
+              onEndEdit={endEdit}
+            />
+          );
+        })}
       </BoardViewport>
+      {selectionRect === null || selectionState.editingId !== null ? null : (
+        <SelectionOverlay
+          rect={selectionRect}
+          transforming={gesture.draggingIds.size > 0}
+          onHandlePointerDown={(handle, event) => gesture.onHandlePointerDown(event, handle)}
+        />
+      )}
+      {selectionRect !== null &&
+      selectedIds.size > 1 &&
+      selectionState.editingId === null &&
+      editable ? (
+        // The group's own toolbar: what only makes sense for many objects at
+        // once. A single selected object keeps its per-type toolbar instead.
+        <SelectionBar
+          count={selectedIds.size}
+          rect={selectionRect}
+          onBringToFront={bringSelectionToFront}
+          onDelete={deleteSelection}
+        />
+      ) : null}
+      {marquee.rect === null ? null : <MarqueeRect rect={marquee.rect} />}
       <Toolbar
         onCreateSticky={createAtCentre}
         disabled={!editable}

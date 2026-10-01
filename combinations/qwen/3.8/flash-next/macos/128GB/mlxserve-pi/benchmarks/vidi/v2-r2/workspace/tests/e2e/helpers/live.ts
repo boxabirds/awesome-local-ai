@@ -18,6 +18,9 @@ export interface Content {
   color: string;
   text: string;
   z: number;
+  // story 7: a note's stored size, absent while it is the default square
+  width?: number;
+  height?: number;
 }
 
 export interface BadgeTransition {
@@ -50,7 +53,16 @@ export async function content(page: Page): Promise<Content[]> {
         (window as unknown as { __vidi6: { snapshot(): StickySnapshot[] } }).__vidi6
           .snapshot() as readonly StickySnapshot[]
       )
-        .map((n) => ({ id: n.id, x: n.x, y: n.y, color: n.color, text: n.text, z: n.z }))
+        .map((n) => ({
+          id: n.id,
+          x: n.x,
+          y: n.y,
+          color: n.color,
+          text: n.text,
+          z: n.z,
+          ...(n.width === undefined ? {} : { width: n.width }),
+          ...(n.height === undefined ? {} : { height: n.height }),
+        }))
         .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
   );
 }
