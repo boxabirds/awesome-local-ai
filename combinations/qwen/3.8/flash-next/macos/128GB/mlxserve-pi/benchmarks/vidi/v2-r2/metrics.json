@@ -721,7 +721,18 @@
         },
         "compaction_s": 208.6,
         "compactions": 2,
-        "other_s": 5.3
+        "between_sessions_s": 0.0,
+        "other_s": 5.3,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 21,
@@ -862,6 +873,64 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "86f31c02"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 145
+        },
+        "truncated": false,
+        "reaches": []
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 135,
+        "tool_calls": 145,
+        "thinking_visible": true,
+        "thinking_chars": 281279,
+        "thinking_median": 476,
+        "thinking_median_before": 173,
+        "thinking_median_after": 476,
+        "largest_thinking": {
+          "chars": 55703,
+          "call": 11,
+          "at_s": 868.6
+        },
+        "text_chars": 2118,
+        "tool_arg_chars": 218325,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 2093,
+        "context_end": 114308,
+        "largest_context_jump": {
+          "tokens": 14627,
+          "call": 12
+        },
+        "tools_by_name": {
+          "bash": 83,
+          "read": 7,
+          "write": 41,
+          "edit": 14
+        },
+        "tool_errors": 9,
+        "longest_tool": {
+          "seconds": 608.0,
+          "name": "bash",
+          "gist": "ls ~/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/ 2>/dev/null | head; find / -maxdepth 6 -name \"browsers"
+        },
+        "signals": [
+          "hung-command"
+        ],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "a0f4626e",
+        "pack_version": "vidi-v2.0-pre2",
+        "run_started_at": "2026-09-30T14:30:37Z",
+        "source": "run-history"
       }
     },
     "2": {
@@ -1878,12 +1947,23 @@
           "build": 10.7,
           "bash": 0.8,
           "edit": 0.1,
-          "read": 0.0,
-          "write": 0.0
+          "write": 0.0,
+          "read": 0.0
         },
         "compaction_s": 228.6,
         "compactions": 2,
-        "other_s": 7.3
+        "between_sessions_s": 0.0,
+        "other_s": 7.3,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 36,
@@ -2045,6 +2125,62 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2/server.log"
         ],
         "commit": "14dde448"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 190
+        },
+        "truncated": false,
+        "reaches": []
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 180,
+        "tool_calls": 190,
+        "thinking_visible": true,
+        "thinking_chars": 341248,
+        "thinking_median": 480,
+        "thinking_median_before": 189,
+        "thinking_median_after": 502,
+        "largest_thinking": {
+          "chars": 77592,
+          "call": 20,
+          "at_s": 832.7
+        },
+        "text_chars": 3653,
+        "tool_arg_chars": 273695,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 2107,
+        "context_end": 100433,
+        "largest_context_jump": {
+          "tokens": 22759,
+          "call": 21
+        },
+        "tools_by_name": {
+          "bash": 100,
+          "read": 31,
+          "edit": 37,
+          "write": 22
+        },
+        "tool_errors": 3,
+        "longest_tool": {
+          "seconds": 20.3,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace && npm run tes"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "a0f4626e",
+        "pack_version": "vidi-v2.0-pre2",
+        "run_started_at": "2026-09-30T14:30:37Z",
+        "source": "run-history"
       }
     },
     "3": {
@@ -3255,19 +3391,30 @@
           "decode_tok_s": 50.3,
           "cached_tokens": 18979411
         },
-        "tools_s": 957.6,
+        "tools_s": 957.5,
         "tools_by_kind": {
           "e2e": 862.4,
           "unit": 80.3,
           "build": 13.0,
           "bash": 1.7,
-          "read": 0.1,
           "edit": 0.1,
+          "read": 0.1,
           "write": 0.0
         },
         "compaction_s": 317.4,
         "compactions": 3,
-        "other_s": 12.6
+        "between_sessions_s": 0.0,
+        "other_s": 12.7,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "loc": {
         "files": 55,
@@ -3432,6 +3579,62 @@
           "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2/server.log"
         ],
         "commit": "2d68f6f9"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 299
+        },
+        "truncated": false,
+        "reaches": []
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 285,
+        "tool_calls": 299,
+        "thinking_visible": true,
+        "thinking_chars": 571790,
+        "thinking_median": 492,
+        "thinking_median_before": 413,
+        "thinking_median_after": 507,
+        "largest_thinking": {
+          "chars": 35696,
+          "call": 53,
+          "at_s": 966.2
+        },
+        "text_chars": 21944,
+        "tool_arg_chars": 230854,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 2120,
+        "context_end": 99240,
+        "largest_context_jump": {
+          "tokens": 11507,
+          "call": 3
+        },
+        "tools_by_name": {
+          "bash": 136,
+          "read": 72,
+          "edit": 63,
+          "write": 28
+        },
+        "tool_errors": 5,
+        "longest_tool": {
+          "seconds": 243.1,
+          "name": "bash",
+          "gist": "cd \"$(pwd)\" && npm run typecheck 2>&1 | tail -5 && echo \"=== nightly ===\" && npm run test:e2e:nightly 2>&1 | grep -vE \"\\"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "a0f4626e",
+        "pack_version": "vidi-v2.0-pre2",
+        "run_started_at": "2026-09-30T14:30:37Z",
+        "source": "run-history"
       }
     },
     "4": {
@@ -3444,7 +3647,7 @@
       "started": 1790807583.685567,
       "continued_session": "01a0f39a-c037-7117-a7b4-cd3245ec5d67",
       "agent": {
-        "seconds": 13111.7,
+        "seconds": 12816.6,
         "steps": 427,
         "tool_calls": 431,
         "compactions": 5,
@@ -3469,64 +3672,183 @@
           "01a0f39a-c037-7117-a7b4-cd3245ec5d67",
           "01a0f39a-c037-7117-a7b4-cd3245ec5d67",
           "01a0f39a-c037-7117-a7b4-cd3245ec5d67",
+          "01a0f39a-c037-7117-a7b4-cd3245ec5d67",
+          "01a0f39a-c037-7117-a7b4-cd3245ec5d67",
           "01a0f39a-c037-7117-a7b4-cd3245ec5d67"
         ],
         "restarted": true,
-        "harness_attempts": 2,
+        "harness_attempts": 4,
         "attempts": [
           {
             "attempt": 1,
             "source": "log",
             "started": 1790793400.394,
-            "ended": 1790806257.028,
-            "seconds": 12856.6,
-            "steps": 410,
-            "tool_calls": 418,
+            "ended": 1790803325.711,
+            "seconds": 9925.3,
+            "steps": 298,
+            "tool_calls": 310,
             "compactions": 5,
             "tokens": {
-              "input": 814535,
-              "output": 343849,
+              "input": 624786,
+              "output": 294176,
               "reasoning": 0,
-              "cache_read": 26597184,
+              "cache_read": 19667593,
               "cache_write": 0
             },
             "sessions": [
               "01a0f39a-c037-7117-a7b4-cd3245ec5d67"
             ],
             "time_split": {
-              "wall_s": 12856.6,
+              "wall_s": 9925.3,
               "model": {
                 "source": "client-stream",
-                "requests": 410,
-                "prefill_s": 979.5,
-                "prefill_tokens": 814535,
-                "prefill_tok_s": 831.6,
-                "decode_s": 6484.7,
-                "decode_tokens": 343849,
-                "decode_tok_s": 53.0,
-                "cached_tokens": 26597184
+                "requests": 298,
+                "prefill_s": 797.2,
+                "prefill_tokens": 624786,
+                "prefill_tok_s": 783.7,
+                "decode_s": 5739.7,
+                "decode_tokens": 294176,
+                "decode_tok_s": 51.3,
+                "cached_tokens": 19667593
               },
-              "tools_s": 4277.3,
+              "tools_s": 2573.8,
               "tools_by_kind": {
-                "e2e": 4063.8,
-                "unit": 171.4,
-                "build": 38.0,
-                "bash": 4.0
+                "e2e": 2412.1,
+                "unit": 123.2,
+                "build": 36.3,
+                "bash": 2.1,
+                "edit": 0.0,
+                "read": 0.0,
+                "write": 0.0
               },
               "compaction_s": 803.2,
               "compactions": 5,
-              "between_sessions_s": 203.9,
-              "other_s": 107.9,
+              "between_sessions_s": 0.0,
+              "other_s": 11.4,
+              "suspended_s": 0.0,
               "accounting": {
-                "version": 3,
+                "version": 4,
                 "ok": true,
                 "problems": [],
-                "abandoned_calls": 0
+                "abandoned_calls": 0,
+                "interrupted_tools": [],
+                "interrupted_compactions": 0
               }
             }
           },
           {
             "attempt": 2,
+            "source": "log",
+            "started": 1790803416.854,
+            "ended": 1790805387.481,
+            "seconds": 1970.6,
+            "steps": 78,
+            "tool_calls": 77,
+            "compactions": 0,
+            "tokens": {
+              "input": 91385,
+              "output": 35615,
+              "reasoning": 0,
+              "cache_read": 4274530,
+              "cache_write": 0
+            },
+            "sessions": [
+              "01a0f39a-c037-7117-a7b4-cd3245ec5d67"
+            ],
+            "time_split": {
+              "wall_s": 1970.6,
+              "model": {
+                "source": "client-stream",
+                "requests": 78,
+                "prefill_s": 100.5,
+                "prefill_tokens": 91385,
+                "prefill_tok_s": 909.1,
+                "decode_s": 542.0,
+                "decode_tokens": 35615,
+                "decode_tok_s": 65.7,
+                "cached_tokens": 4274530
+              },
+              "tools_s": 1324.9,
+              "tools_by_kind": {
+                "e2e": 1310.8,
+                "unit": 10.7,
+                "build": 1.8,
+                "bash": 1.6,
+                "edit": 0.0,
+                "read": 0.0
+              },
+              "compaction_s": 0.0,
+              "compactions": 0,
+              "between_sessions_s": 0.0,
+              "other_s": 3.3,
+              "suspended_s": 0.0,
+              "accounting": {
+                "version": 4,
+                "ok": true,
+                "problems": [],
+                "abandoned_calls": 0,
+                "interrupted_tools": [],
+                "interrupted_compactions": 0
+              }
+            }
+          },
+          {
+            "attempt": 3,
+            "source": "log",
+            "started": 1790805590.408,
+            "ended": 1790806257.028,
+            "seconds": 665.6,
+            "steps": 34,
+            "tool_calls": 31,
+            "compactions": 0,
+            "tokens": {
+              "input": 98364,
+              "output": 14058,
+              "reasoning": 0,
+              "cache_read": 2655061,
+              "cache_write": 0
+            },
+            "sessions": [
+              "01a0f39a-c037-7117-a7b4-cd3245ec5d67"
+            ],
+            "time_split": {
+              "wall_s": 666.6,
+              "model": {
+                "source": "client-stream",
+                "requests": 34,
+                "prefill_s": 81.8,
+                "prefill_tokens": 98364,
+                "prefill_tok_s": 1202.4,
+                "decode_s": 203.0,
+                "decode_tokens": 14058,
+                "decode_tok_s": 69.2,
+                "cached_tokens": 2655061
+              },
+              "tools_s": 378.7,
+              "tools_by_kind": {
+                "e2e": 341.0,
+                "unit": 37.5,
+                "bash": 0.3,
+                "edit": 0.0,
+                "read": 0.0
+              },
+              "compaction_s": 0.0,
+              "compactions": 0,
+              "between_sessions_s": 1.0,
+              "other_s": 2.1,
+              "suspended_s": 0.0,
+              "accounting": {
+                "version": 4,
+                "ok": true,
+                "problems": [],
+                "abandoned_calls": 0,
+                "interrupted_tools": [],
+                "interrupted_compactions": 0
+              }
+            }
+          },
+          {
+            "attempt": 4,
             "source": "harness",
             "started": 1790807583.685567,
             "ended": 1790807840.464027,
@@ -3569,17 +3891,21 @@
               "tools_by_kind": {
                 "unit": 10.9,
                 "e2e": 5.5,
-                "bash": 0.2
+                "bash": 0.2,
+                "read": 0.0
               },
               "compaction_s": 0.0,
               "compactions": 0,
               "between_sessions_s": 1.9,
               "other_s": 1.7,
+              "suspended_s": 0.0,
               "accounting": {
-                "version": 3,
+                "version": 4,
                 "ok": true,
                 "problems": [],
-                "abandoned_calls": 0
+                "abandoned_calls": 0,
+                "interrupted_tools": [],
+                "interrupted_compactions": 0
               }
             }
           }
@@ -3739,17 +4065,21 @@
       "commit": "a70b6ca5cda07bc982ede58d123e2b5c145c50b9",
       "requests": {},
       "time_split": {
-        "wall_s": 13113.4,
-        "tools_s": 4293.9,
+        "wall_s": 12819.3,
+        "tools_s": 4294.0,
         "compaction_s": 803.2,
         "compactions": 5,
-        "between_sessions_s": 205.8,
-        "other_s": 109.6,
+        "between_sessions_s": 2.9,
+        "other_s": 18.5,
+        "suspended_s": 0,
         "tools_by_kind": {
-          "e2e": 4069.3,
+          "e2e": 4069.4,
           "unit": 182.3,
-          "build": 38.0,
-          "bash": 4.2
+          "build": 38.1,
+          "bash": 4.2,
+          "edit": 0.0,
+          "read": 0.0,
+          "write": 0.0
         },
         "model": {
           "source": "client-stream",
@@ -3763,14 +4093,15 @@
           "decode_tok_s": 53.2
         },
         "accounting": {
-          "version": 3,
-          "ok": false,
-          "problems": [
-            "wall 13113.4 s differs from the agent's own clock (13111.7 s + 205.8 s between sessions)"
-          ],
-          "abandoned_calls": 0
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
-        "attempts": 2
+        "attempts": 4,
+        "backfilled": true
       },
       "conversation": {
         "version": 1,
@@ -3974,6 +4305,17 @@
           "error": "f that matches 'HEAD' on the remote side.\n- Checking if the <src> being pushed ('HEAD')\n  is a ref in \"refs/{heads,tags}/\". If so we add a corresponding\n  refs/{heads,tags}/ prefix on the remote side.\n\nNeither worked, so we gave up. You must fully qualify the ref.\nhint: The <src> part of the refspec is a commit object.\nhint: Did you mean to create a new branch by pushing to\nhint: 'HEAD:refs/heads/HEAD'?\nerror: failed to push some refs to 'github.com:boxabirds/awesome-local-ai-bench-private.git'\n"
         },
         "commit": "383b5803"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 431
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "5": {
@@ -5091,18 +5433,23 @@
           "build": 11.1,
           "bash": 0.8,
           "edit": 0.1,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0
         },
         "compaction_s": 427.3,
         "compactions": 4,
         "between_sessions_s": 0.0,
         "other_s": 10.9,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 1,
@@ -5279,6 +5626,17 @@
           "error": "f that matches 'HEAD' on the remote side.\n- Checking if the <src> being pushed ('HEAD')\n  is a ref in \"refs/{heads,tags}/\". If so we add a corresponding\n  refs/{heads,tags}/ prefix on the remote side.\n\nNeither worked, so we gave up. You must fully qualify the ref.\nhint: The <src> part of the refspec is a commit object.\nhint: Did you mean to create a new branch by pushing to\nhint: 'HEAD:refs/heads/HEAD'?\nerror: failed to push some refs to 'github.com:boxabirds/awesome-local-ai-bench-private.git'\n"
         },
         "commit": "b20cdfe9"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 301
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "7": {
@@ -7041,18 +7399,24 @@
           "unit": 52.7,
           "build": 13.3,
           "bash": 1.1,
-          "edit": 0.1
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 684.5,
         "compactions": 5,
         "between_sessions_s": 0.0,
         "other_s": 14.3,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 1,
@@ -7304,6 +7668,17 @@
           "error": "f that matches 'HEAD' on the remote side.\n- Checking if the <src> being pushed ('HEAD')\n  is a ref in \"refs/{heads,tags}/\". If so we add a corresponding\n  refs/{heads,tags}/ prefix on the remote side.\n\nNeither worked, so we gave up. You must fully qualify the ref.\nhint: The <src> part of the refspec is a commit object.\nhint: Did you mean to create a new branch by pushing to\nhint: 'HEAD:refs/heads/HEAD'?\nerror: failed to push some refs to 'github.com:boxabirds/awesome-local-ai-bench-private.git'\n"
         },
         "commit": "bb5ff20c"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 362
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "8": {
@@ -8092,18 +8467,24 @@
           "unit": 21.9,
           "build": 5.6,
           "bash": 0.9,
-          "read": 0.1
+          "read": 0.1,
+          "edit": 0.0,
+          "write": 0.0
         },
         "compaction_s": 201.0,
         "compactions": 2,
         "between_sessions_s": 0.0,
         "other_s": 5.5,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 1,
@@ -8289,6 +8670,17 @@
           "error": "f that matches 'HEAD' on the remote side.\n- Checking if the <src> being pushed ('HEAD')\n  is a ref in \"refs/{heads,tags}/\". If so we add a corresponding\n  refs/{heads,tags}/ prefix on the remote side.\n\nNeither worked, so we gave up. You must fully qualify the ref.\nhint: The <src> part of the refspec is a commit object.\nhint: Did you mean to create a new branch by pushing to\nhint: 'HEAD:refs/heads/HEAD'?\nerror: failed to push some refs to 'github.com:boxabirds/awesome-local-ai-bench-private.git'\n"
         },
         "commit": "f52c6eec"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 168
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "9": {
@@ -8444,19 +8836,29 @@
                 "e2e": 110.0,
                 "unit": 65.5,
                 "build": 41.8,
-                "bash": 1.0
+                "bash": 1.0,
+                "read": 0.0,
+                "edit": 0.0,
+                "write": 0.0
               },
               "compaction_s": 589.7,
               "compactions": 5,
               "between_sessions_s": 0.0,
               "other_s": 10.8,
+              "suspended_s": 0.0,
               "accounting": {
-                "version": 3,
-                "ok": false,
-                "problems": [
-                  "tool call call_1790830959105_0 never ended; counted to the agent's next step"
+                "version": 4,
+                "ok": true,
+                "problems": [],
+                "abandoned_calls": 0,
+                "interrupted_tools": [
+                  {
+                    "kind": "e2e",
+                    "seconds": 0.0,
+                    "ended_by": "a harness restart"
+                  }
                 ],
-                "abandoned_calls": 0
+                "interrupted_compactions": 0
               }
             }
           },
@@ -8497,24 +8899,27 @@
                 "decode_tok_s": 57.0,
                 "cached_tokens": 4880987
               },
-              "tools_s": 451.3,
+              "tools_s": 450.9,
               "tools_by_kind": {
                 "bash": 291.5,
-                "e2e": 128.7,
+                "e2e": 128.3,
                 "unit": 29.2,
-                "build": 1.9
+                "build": 1.9,
+                "edit": 0.0,
+                "read": 0.0
               },
               "compaction_s": 0.0,
               "compactions": 0,
               "between_sessions_s": 0.0,
-              "other_s": 4.5,
+              "other_s": 4.9,
+              "suspended_s": 0.0,
               "accounting": {
-                "version": 3,
-                "ok": false,
-                "problems": [
-                  "tool call call_1790830959105_0 never ended; counted to the agent's next step"
-                ],
-                "abandoned_calls": 0
+                "version": 4,
+                "ok": true,
+                "problems": [],
+                "abandoned_calls": 0,
+                "interrupted_tools": [],
+                "interrupted_compactions": 0
               }
             }
           }
@@ -8835,16 +9240,20 @@
       "requests": {},
       "time_split": {
         "wall_s": 7039.7,
-        "tools_s": 669.6,
+        "tools_s": 669.2,
         "compaction_s": 589.7,
         "compactions": 5,
         "between_sessions_s": 0,
-        "other_s": 15.3,
+        "other_s": 15.7,
+        "suspended_s": 0,
         "tools_by_kind": {
           "bash": 292.5,
-          "e2e": 238.7,
+          "e2e": 238.3,
           "unit": 94.7,
-          "build": 43.7
+          "build": 43.7,
+          "read": 0.0,
+          "edit": 0.0,
+          "write": 0.0
         },
         "model": {
           "source": "client-stream",
@@ -8858,15 +9267,22 @@
           "decode_tok_s": 52.9
         },
         "accounting": {
-          "version": 3,
-          "ok": false,
-          "problems": [
-            "attempt 1: tool call call_1790830959105_0 never ended; counted to the agent's next step",
-            "attempt 2: tool call call_1790830959105_0 never ended; counted to the agent's next step"
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [
+            {
+              "attempt": 1,
+              "kind": "e2e",
+              "seconds": 0.0,
+              "ended_by": "a harness restart"
+            }
           ],
-          "abandoned_calls": 0
+          "interrupted_compactions": 0
         },
-        "attempts": 2
+        "attempts": 2,
+        "backfilled": true
       },
       "conversation": {
         "version": 1,
@@ -9090,6 +9506,17 @@
           "pushed": true
         },
         "commit": "c152034b"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 409
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "10": {
@@ -11502,18 +11929,23 @@
           "build": 25.3,
           "bash": 3.0,
           "edit": 0.2,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0
         },
         "compaction_s": 1218.0,
         "compactions": 10,
         "between_sessions_s": 0.0,
         "other_s": 26.2,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 1,
@@ -11721,6 +12153,17 @@
           "pushed": true
         },
         "commit": "0dd4095b"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 651
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "11": {
@@ -11886,13 +12329,20 @@
               "compactions": 4,
               "between_sessions_s": 0.0,
               "other_s": 8.4,
+              "suspended_s": 0.0,
               "accounting": {
-                "version": 3,
-                "ok": false,
-                "problems": [
-                  "tool call call_1790850100520_0 never ended; counted to the agent's next step"
+                "version": 4,
+                "ok": true,
+                "problems": [],
+                "abandoned_calls": 0,
+                "interrupted_tools": [
+                  {
+                    "kind": "e2e",
+                    "seconds": 0.0,
+                    "ended_by": "a harness restart"
+                  }
                 ],
-                "abandoned_calls": 0
+                "interrupted_compactions": 0
               }
             }
           },
@@ -11934,9 +12384,9 @@
                 "decode_tok_s": 70.2,
                 "cached_tokens": 3317199
               },
-              "tools_s": 929.3,
+              "tools_s": 929.0,
               "tools_by_kind": {
-                "e2e": 604.6,
+                "e2e": 604.3,
                 "bash": 300.6,
                 "unit": 24.1,
                 "edit": 0.0,
@@ -11945,14 +12395,15 @@
               "compaction_s": 0.0,
               "compactions": 0,
               "between_sessions_s": 0.4,
-              "other_s": 2.3,
+              "other_s": 2.6,
+              "suspended_s": 0.0,
               "accounting": {
-                "version": 3,
-                "ok": false,
-                "problems": [
-                  "tool call call_1790850100520_0 never ended; counted to the agent's next step"
-                ],
-                "abandoned_calls": 0
+                "version": 4,
+                "ok": true,
+                "problems": [],
+                "abandoned_calls": 0,
+                "interrupted_tools": [],
+                "interrupted_compactions": 0
               }
             }
           }
@@ -12138,13 +12589,14 @@
       "requests": {},
       "time_split": {
         "wall_s": 5854.2,
-        "tools_s": 1158.9,
+        "tools_s": 1158.6,
         "compaction_s": 456.5,
         "compactions": 4,
         "between_sessions_s": 0.4,
-        "other_s": 10.7,
+        "other_s": 11.0,
+        "suspended_s": 0,
         "tools_by_kind": {
-          "e2e": 782.9,
+          "e2e": 782.6,
           "bash": 306.4,
           "unit": 60.9,
           "build": 8.4,
@@ -12164,15 +12616,22 @@
           "decode_tok_s": 54.4
         },
         "accounting": {
-          "version": 3,
-          "ok": false,
-          "problems": [
-            "attempt 1: tool call call_1790850100520_0 never ended; counted to the agent's next step",
-            "attempt 2: tool call call_1790850100520_0 never ended; counted to the agent's next step"
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [
+            {
+              "attempt": 1,
+              "kind": "e2e",
+              "seconds": 0.0,
+              "ended_by": "a harness restart"
+            }
           ],
-          "abandoned_calls": 0
+          "interrupted_compactions": 0
         },
-        "attempts": 2
+        "attempts": 2,
+        "backfilled": true
       },
       "conversation": {
         "version": 1,
@@ -12335,6 +12794,17 @@
           "pushed": true
         },
         "commit": "d79fb1c8"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 299
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "12": {
@@ -14685,12 +15155,16 @@
         "compactions": 9,
         "between_sessions_s": 0.0,
         "other_s": 21.2,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
         "version": 1,
@@ -14884,7 +15358,31 @@
           "found": 4,
           "total": 4
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2/server.log"
+        ],
+        "private": {
+          "copied": 33,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "0d012d58"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 543
+        },
+        "truncated": false,
+        "reaches": []
+      }
     }
   },
   "pack": "vidi",
@@ -16396,7 +16894,7 @@
       "ended_by": "agent",
       "started_at": 1790807583.685567,
       "ended_at": 1790807840.464027,
-      "agent_minutes": 218.5,
+      "agent_minutes": 213.6,
       "calls": 427,
       "output_tokens": 353794,
       "compactions": 5,
