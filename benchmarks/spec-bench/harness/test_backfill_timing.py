@@ -213,3 +213,33 @@ def test_backfill_all_runs_each_step_in_order_and_reports_them(tmp_path):
     report = backfill_timing.backfill_all(run)
     assert list(report) == ["events", "attempts", "timing", "conversation", "provenance"]
     assert report["events"] == ["01", "02"] and report["attempts"] == ["1"]
+
+
+def test_recompute_redoes_a_story_whose_stored_accounting_check_failed(tmp_path):
+    """1 Oct 2026, mlx-serve v2-r2 story 4: recorded by a harness from before the fix for an earlier attempt's
+    waits (its seconds were its log span, waits included), so its check failed by exactly the waits. The record
+    was the current accounting version, so --recompute passed it over and the failure could not be repaired."""
+    import accounting
+    run = restarted_run(tmp_path)
+    log = run / "stories" / "01" / "agent-events.jsonl"
+    log.write_text("".join(json.dumps(e) + "\n" for e in
+                           _pi_session(T0, 2) + [{"_rx": T0 + 40, "type": "agent_end"}]     # the agent stopped,
+                           + _pi_session(T0 + 200, 1) + _pi_session(T0 + 5000, 2)))      # was resumed: a wait
+    backfill_timing.backfill_attempts(run)
+    backfill_timing.backfill(run, recompute=True)
+    m = heldout.load_metrics(run)
+    s1 = m["stories"]["1"]
+    first = s1["agent"]["attempts"][0]
+    assert first["source"] == "log" and first["time_split"]["between_sessions_s"] > 0
+    # As the old harness left it: the first attempt's span as its seconds, the check failed, not marked backfilled.
+    wait = first["time_split"]["between_sessions_s"]
+    first["seconds"] = first["time_split"]["wall_s"]
+    s1["agent"]["seconds"] = round(sum(a["seconds"] for a in s1["agent"]["attempts"]), 1)
+    s1["time_split"].pop("backfilled")
+    s1["time_split"]["accounting"] = {"version": accounting.VERSION, "ok": False, "abandoned_calls": 0,
+                                      "problems": [f"wall differs from the agent's own clock (+ {wait} s between sessions)"]}
+    heldout.save_metrics(run, m)
+    assert "1" in backfill_timing.backfill(run, recompute=True)
+    s1 = heldout.load_metrics(run)["stories"]["1"]
+    assert s1["time_split"]["accounting"]["ok"], s1["time_split"]["accounting"]["problems"]
+    assert s1["agent"]["attempts"][0]["seconds"] == round(first["time_split"]["wall_s"] - wait, 1)
