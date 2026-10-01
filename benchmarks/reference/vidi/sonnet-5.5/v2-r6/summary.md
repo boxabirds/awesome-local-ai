@@ -11,18 +11,20 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 1 | 6/6 | 0 | 0 | 6/6 |
 | 2 | 10/10 | 0 | 0 | 20/20 |
 | 3 | 6/7 | 0 | 0 | 26/27 |
+| 4 | 4/4 | 0 | 0 | 30/31 |
 
-**New work** 22/23, **regressions** 0, **repairs** 0, **cumulative** 26/27.
+**New work** 26/27, **regressions** 0, **repairs** 0, **cumulative** 30/31.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 14.0 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 5.9 | None | None | None | — | — | green | 20/20 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 | 3 | See other people's edits appear live on the same board | DONE | 20.0 | None | None | None | — | — | green | 26/27 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
+| 4 | Return to a board and find everything as it was left | DONE | 16.5 | None | None | None | — | — | green | 30/31 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 
-**Totals:** 3 stories, 40 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/3, final acceptance 26/27, stalled 0, partial 0, 3777 lines in src+tests.
+**Totals:** 4 stories, 56 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/4, final acceptance 30/31, stalled 0, partial 0, 5150 lines in src+tests.
 
-> Stories 1, 2, 3 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
+> Stories 1, 2, 3, 4 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
 
 ## How it happened
 
@@ -33,6 +35,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 1 | 1 by the agent | 6010 / 0 | `BoardViewport.tsx` (172), `useCamera.ts` (98), `camera.ts` (66), `styles.css` (35), `package.json` (33), `playwright.config.ts` (28), +13 more |
 | 2 | 1 by the agent | 1588 / 11 | `StickyNote.tsx` (160), `board-model.ts` (141), `StickyText.ts` (90), `StickyTextEditor.tsx` (76), `App.tsx` (73), `BoardViewport.tsx` (61), +8 more |
 | 3 | 1 by the agent | 2889 / 222 | `board-room.ts` (107), `connectBoard.ts` (74), `useBoardDoc.ts` (37), `protocol.ts` (36), `App.tsx` (25), `index.ts` (22), +14 more |
+| 4 | 1 by the agent | 1479 / 90 | `board-room.ts` (187), `board-store.ts` (145), `StickyText.ts` (82), `room-state.ts` (41), `test-hooks.ts` (36), `NOTES.md` (16), +10 more |
 
 ### Earlier stories broken or fixed
 
