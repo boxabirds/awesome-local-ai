@@ -1,3 +1,44 @@
+commit fb6e88b03b6fded94a453ea0f73dea603d165a3e
+vidi-agent  Thu Oct 1 01:09:45 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                 | 159 ++++++++++
+ index.html                               |   7 +
+ src/client/App.tsx                       | 230 +++------------
+ src/client/api.ts                        |  59 ++++
+ src/client/pages/BoardPage.tsx           | 290 ++++++++++++++++++
+ src/client/pages/HomePage.tsx            |  91 ++++++
+ src/client/pages/NotFoundPage.tsx        |  54 ++++
+ src/client/pages/state.ts                |  75 +++++
+ src/client/router.ts                     |  69 +++++
+ src/client/share/SharePanel.tsx          | 170 +++++++++++
+ src/client/styles.css                    | 192 ++++++++++++
+ src/shared/config.ts                     |  18 ++
+ src/worker/board-room.ts                 |  67 ++++-
+ src/worker/board-store.ts                | 113 ++++++-
+ src/worker/create-board.ts               |  52 ++++
+ src/worker/index.ts                      |  81 ++++-
+ src/worker/test-hooks.ts                 |  56 +++-
+ tests/component/SharePanel.test.tsx      | 233 +++++++++++++++
+ tests/component/pages.test.tsx           | 290 ++++++++++++++++++
+ tests/e2e/helpers/board.ts               |  33 ++-
+ tests/e2e/helpers/live.ts                |   1 +
+ tests/e2e/helpers/wrangler-process.ts    |  33 +++
+ tests/e2e/live-collaboration.spec.ts     |  35 ++-
+ tests/e2e/navigation.spec.ts             |  33 ++-
+ tests/e2e/nightly-collaboration.spec.ts  |  10 +-
+ tests/e2e/persistence.spec.ts            |   8 +-
+ tests/e2e/share.spec.ts                  | 415 ++++++++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts           |   5 +-
+ tests/integration/board-api.test.ts      | 488 +++++++++++++++++++++++++++++++
+ tests/integration/boardroom.test.ts      |  14 +-
+ tests/integration/boot.test.ts           |  12 +-
+ tests/integration/helpers/room.ts        |  28 +-
+ tests/integration/worker-routing.test.ts |  13 +-
+ tests/unit/create-board.test.ts          |  93 ++++++
+ 34 files changed, 3263 insertions(+), 264 deletions(-)
 commit a70b6ca5cda07bc982ede58d123e2b5c145c50b9
 vidi-agent  Wed Sep 30 23:10:44 2026 +0100
 
