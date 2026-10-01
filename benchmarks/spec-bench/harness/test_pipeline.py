@@ -330,6 +330,7 @@ def drive_run(root: Path, mp: pytest.MonkeyPatch, client=None, script_text: str 
     mp.setattr(client, "script", script, raising=False)
     mp.setitem(drive.CLIENTS, client.name, client)
     mp.setattr(drive, "WORK_ROOT", root / "work")
+    mp.setattr(drive, "WORK_LINKS", root / "links")
     mp.setattr(drive, "sandboxed", lambda cmd, own_dir: cmd)       # sandbox-exec is macOS's; the test runs anywhere
     mp.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
     mp.setattr(drive, "ConditionSampler", QuietSampler)

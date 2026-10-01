@@ -116,7 +116,7 @@ def test_the_variable_moves_results_and_leaves_code_where_it_is(tmp_path):
               "  'perf': str(drive.BENCHMARKS), 'template': str(pack.GENERIC_TEMPLATE), 'policy': str(history.POLICY),\n"
               "  'deny': [str(p) for p in drive.SANDBOX_DENY], 'sensitive': peek_audit.default_sensitive(),\n"
               "  'label': drive.combination_label(run), 'ref_label': drive.combination_label(ref),\n"
-              "  'work': drive.work_dir_for(run).name, 'known': sorted(logscan.known_runs(work_root=run))}))\n"
+              "  'work': drive.work_dir_name(run), 'known': sorted(logscan.known_runs(work_root=run))}))\n"
               , results, tmp_path, str(run), str(ref))
     assert r.returncode == 0, r.stderr
     got = json.loads(r.stdout)

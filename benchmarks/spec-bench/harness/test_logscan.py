@@ -843,7 +843,30 @@ class TestScanRun:
         run = make_run(tmp_path, {"01": [bash(f"ls ~/.vidi-bench/work/{OTHER}/workspace")]})
         assert routes(scan_run(run, Context())["01"]) == {"other_run_workspace"}
 
-    def test_known_runs_from_the_repo_layout_and_the_work_root(self, tmp_path, monkeypatch):
+    def test_a_short_work_dir_of_another_run_is_reached_and_the_agent_s_own_is_not(self, tmp_path):
+        """Since 1 Oct 2026 a run's work dir is ~/.w/<id> (drive.work_dir_for): another run's id under it is that
+        run's workspace, the agent's own is its own, and a name that is no run's is nothing."""
+        own_id, other_id = "3f9a1c2e01", "b7e4d2c9aa"
+        cwd = f"~/.w/{own_id}/workspace"
+        known = frozenset({OWN, OTHER, own_id, other_id})
+        run = make_run(tmp_path, {"01": [bash(f"ls ~/.w/{other_id}/workspace/src"), bash(f"cd ~/.w/{own_id}/workspace && ls"),
+                                         bash(f"ls ~/.w/{own_id}/tmp"), bash("ls ~/.w/0000000000/workspace")]},
+                       work_dir=f"{HOME}/.w/{own_id}")
+        verdict = scan_run(run, Context(known_runs=known))["01"]
+        assert reaches(verdict) == {("other_run_workspace", f"~/.w/{other_id}")}
+        anything = scan_run(run, Context(known_runs=None))["01"]                      # no list: any id but its own
+        assert reaches(anything) == {("other_run_workspace", f"~/.w/{other_id}"), ("other_run_workspace", "~/.w/0000000000")}
+
+    def test_known_runs_include_the_short_ids_of_the_work_root_and_a_run_s_own_dir_is_found_by_its_id(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(logscan, "REPO_ROOT", tmp_path / "repo")
+        monkeypatch.setattr(logscan, "WORK_ROOT", tmp_path / "w")
+        run = make_run(tmp_path / "repo", {"01": [bash("ls")]}, work_dir=None)
+        (tmp_path / "w" / "3f9a1c2e01").mkdir(parents=True)
+        assert {OWN, "3f9a1c2e01"} <= logscan.known_runs()
+        import drive
+        assert logscan.work_id(OWN) == drive.work_id(OWN) and logscan.WORK_ROOT_NAME == drive.WORK_ROOT_NAME   # one rule
+
+
         monkeypatch.setattr(logscan, "REPO_ROOT", tmp_path / "repo")
         monkeypatch.setattr(logscan, "WORK_ROOT", tmp_path / "work")
         run = make_run(tmp_path / "repo", {"01": [bash("ls")]})

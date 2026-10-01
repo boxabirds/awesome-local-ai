@@ -9,7 +9,8 @@ Routes flagged (one route per target, in this order of precedence):
   heldout_suite        the private repo (<repo>-bench-private), acceptance/tests, story-NN.spec.ts outside the
                        workspace, the suite's temp dirs (/tmp/<pack>-accept-*, /tmp/rescore-*), grading keys
   reference_build      benchmarks/reference/..., <bench home>/reference, a reference run's work directory
-  other_run_workspace  another run's work directory (<...>__benchmarks__<pack>__<run>), under any old name
+  other_run_workspace  another run's work directory (<...>__benchmarks__<pack>__<run>, under any old name; or
+                       ~/.w/<id>, the short form since 1 Oct 2026)
   repo_clone           any other checkout of this repo (a path component named like the repo)
   repo_github          this repo on GitHub (web, raw, ssh clone, gh cli)
   tmp_leftover         a /tmp entry a tool's output showed the agent before it named it, then used without
@@ -129,9 +130,13 @@ HARMLESS_REDIRECT = re.compile(r"\d?>\s*/dev/null|\d?>&\d|&>\s*/dev/null")
 LISTS_TMP = re.compile(r"(?:^|\s)(?:/private)?/tmp/?(?=\s|$|[;|&)])")
 TMP_IN_TEXT = re.compile(r"(?:/private)?/tmp/([^\s/\"';|&)<>:,]+)")
 WORD = re.compile(r"[\w.@+-]{2,}")
-# Where this machine keeps run work directories (drive.WORK_ROOT): a name there is a real run.
-WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT") or
-                 Path(os.environ.get("VIDI_BENCH_HOME", Path.home() / ".vidi-bench")).expanduser() / "work")
+# Where this machine keeps run work directories (drive.WORK_ROOT): a name there is a real run. Since 1 Oct 2026 a
+# run's work dir is ~/.w/<id>, the id a hash of its long name (drive.work_dir_for; the same rule here); before, it
+# was ~/.vidi-bench/work/<long name>, which the long names still reach as symlinks.
+WORK_ROOT_NAME = ".w"
+WORK_ID_CHARS = 10
+WORK_ID = re.compile(rf"[0-9a-f]{{{WORK_ID_CHARS}}}")
+WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT") or Path.home() / WORK_ROOT_NAME)
 MACHINE_BEFORE_MARK = 2                               # <...>__<machine>__<stack>__benchmarks__: renamed (24GB -> nvidia4090)
 PRUNE_DIRS = {"workspace", "node_modules", ".git", "stories", "rescore", "rescore-spoiled"}
 
@@ -352,6 +357,10 @@ class _Known:
         self.canon = {_canon(k) for k in known or ()}
         self.loose = {_loose(k) for k in known or ()}
 
+    def is_id(self, work_id: str) -> bool:
+        """A short work-dir id (WORK_ID) of a run that exists; any, without a list."""
+        return self.any_shape or work_id in self.canon
+
     def is_run(self, name: str, cut: bool) -> bool:
         if self.any_shape:
             return _run_shaped(name)
@@ -411,6 +420,9 @@ def _route(token: str, cut: bool, own: _Own, known: _Known, ctx: Context, create
         if m and known.is_run(p, cut and i == len(parts) - 1):
             route = "reference_build" if p.startswith(f"{RUN_MARK}__reference__") else "other_run_workspace"
             return route, _prefix_through(parts, i)
+    for i in range(len(parts) - 1):                      # ~/.w/<id>: the short form (the agent's own was seen to above)
+        if parts[i] == WORK_ROOT_NAME and WORK_ID.fullmatch(parts[i + 1]) and known.is_id(parts[i + 1]):
+            return "other_run_workspace", _prefix_through(parts, i + 1)
 
     # this repo on GitHub
     low = token.lower()
@@ -585,6 +597,12 @@ def scan(log: Path, own_workspace: str | Path, context: Context | None = None) -
     ok = None if fmt == "unknown" else not reaches
     return {"version": SCAN_VERSION, "ok": ok, "log": {"file": log.name, "format": fmt, "calls": len(calls)},
             "truncated": truncated, "reaches": reaches}
+
+
+def work_id(name: str) -> str:
+    """drive.work_id: the short work-dir name of a run's long name."""
+    import hashlib
+    return hashlib.sha256(name.encode()).hexdigest()[:WORK_ID_CHARS]
 
 
 def _run_name(run: Path, root: Path) -> str:
