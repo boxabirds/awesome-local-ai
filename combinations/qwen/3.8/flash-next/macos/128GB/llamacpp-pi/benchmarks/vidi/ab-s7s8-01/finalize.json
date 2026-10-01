@@ -1,0 +1,18 @@
+{
+  "repair": {
+    "repaired": [
+      "7",
+      "8"
+    ],
+    "left": {
+      "1": "accounting version 0, now 4; no full log on this machine",
+      "2": "accounting version 0, now 4; no full log on this machine",
+      "3": "accounting version 0, now 4; no full log on this machine",
+      "4": "accounting version 0, now 4; no full log on this machine",
+      "5": "accounting version 0, now 4; no full log on this machine"
+    },
+    "accounting_version": 4,
+    "harness_commit": "488d6dee",
+    "at": "2026-10-01T15:19:41Z"
+  }
+}

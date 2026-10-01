@@ -7162,17 +7162,22 @@
           "unit": 199.3,
           "build": 14.2,
           "bash": 1.3,
-          "edit": 0.1
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 1034.6,
         "compactions": 4,
         "between_sessions_s": 0.0,
         "other_s": 18.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -7390,12 +7395,11 @@
         "commit": "c6596bf"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 254,
         "tool_calls": 266,
+        "thinking_visible": true,
         "thinking_chars": 464164,
-        "text_chars": 2451,
-        "tool_arg_chars": 392844,
         "thinking_median": 659,
         "thinking_median_before": 177,
         "thinking_median_after": 712,
@@ -7404,6 +7408,11 @@
           "call": 16,
           "at_s": 965.9
         },
+        "text_chars": 2451,
+        "tool_arg_chars": 392844,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2319,
         "context_end": 75429,
         "largest_context_jump": {
@@ -7422,7 +7431,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__llamacpp-pi__benchmarks__vidi__ab-s7s8-01/workspace; timeout "
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "f0708a9",
+        "pack_version": "vidi-v1.1",
+        "run_started_at": "2026-09-27T03:04:23Z",
+        "source": "run-history"
       }
     },
     "8": {
@@ -9095,17 +9111,23 @@
           "e2e": 251.4,
           "unit": 201.9,
           "build": 2.4,
-          "bash": 1.9
+          "bash": 1.9,
+          "edit": 0.0,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 646.1,
         "compactions": 3,
         "between_sessions_s": 0.0,
         "other_s": 16.5,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -9257,12 +9279,11 @@
         "commit": "79e3015"
       },
       "conversation": {
-        "version": 1,
+        "version": 3,
         "calls": 214,
         "tool_calls": 213,
+        "thinking_visible": true,
         "thinking_chars": 390155,
-        "text_chars": 3545,
-        "tool_arg_chars": 194368,
         "thinking_median": 442,
         "thinking_median_before": 251,
         "thinking_median_after": 485,
@@ -9271,6 +9292,11 @@
           "call": 33,
           "at_s": 1623.0
         },
+        "text_chars": 3545,
+        "tool_arg_chars": 194368,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2341,
         "context_end": 50004,
         "largest_context_jump": {
@@ -9289,7 +9315,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__llamacpp-pi__benchmarks__vidi__ab-s7s8-01/workspace && npx pl"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "f0708a9",
+        "pack_version": "vidi-v1.1",
+        "run_started_at": "2026-09-27T03:04:23Z",
+        "source": "run-history"
       }
     }
   },
