@@ -273,10 +273,13 @@ impl Server {
         .await
     }
     async fn cancel(&self, id: &str) -> (u16, Value) {
+        self.cancel_with(id, Some(json!({"reason": TEST_CANCEL_REASON}))).await
+    }
+    async fn cancel_with(&self, id: &str, body: Option<Value>) -> (u16, Value) {
         self.call(
             reqwest::Method::POST,
             &format!("/v1/jobs/{id}/cancel"),
-            None,
+            body,
         )
         .await
     }
@@ -633,6 +636,58 @@ async fn cancel_kills_group(pack: &str, exit: i32) {
     assert_eq!((s, v["state"]["status"].as_str()), (200, Some("cancelled")));
     assert_eq!(srv.cancel("blocker").await.0, 202);
     srv.wait_status("blocker", "cancelled").await;
+    drop(env.root);
+}
+
+const TEST_CANCEL_REASON: &str = "preflight failed: the sandbox hid Claude Code's temp dir";
+
+/// 1 Oct 2026: a job cancelled after its preflight failed showed "none given" as its reason, because a cancel
+/// carried none. A cancel now needs one, and the job keeps it: in its state, its history and its log.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_cancel_needs_a_reason_and_the_job_keeps_it() {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(srv.submit("blocker", &spec("slowpack", "run-b")).await.0, 201);
+    assert_eq!(srv.submit("waiting", &spec("fakepack", "run-w")).await.0, 201);
+    srv.wait_status("blocker", "running").await;
+    for body in [None, Some(json!({})), Some(json!({"reason": "  "}))] {
+        let (s, v) = srv.cancel_with("waiting", body.clone()).await;
+        assert!(s == 400 || s == 415 || s == 422, "{body:?}: {s} {v}");
+    }
+    assert_eq!(srv.get("/v1/jobs/waiting").await["state"]["status"], "queued", "a refused cancel cancels nothing");
+    let (s, v) = srv.cancel("waiting").await;
+    assert_eq!((s, v["state"]["status"].as_str()), (200, Some("cancelled")));
+    let v = srv.get("/v1/jobs/waiting").await;
+    assert_eq!(v["cancel_reason"], TEST_CANCEL_REASON);
+    let note = v["history"].as_array().unwrap().last().unwrap()["text"].as_str().unwrap().to_string();
+    assert!(note.contains(TEST_CANCEL_REASON) && note.contains("127.0.0.1"), "{note}");
+    assert!(srv.log("waiting").await.contains(TEST_CANCEL_REASON));
+    // A running job keeps the reason too, through to its final state.
+    assert_eq!(srv.cancel_with("blocker", Some(json!({"reason": "made room for a rerun"}))).await.0, 202);
+    srv.wait_status("blocker", "cancelled").await;
+    assert_eq!(srv.get("/v1/jobs/blocker").await["cancel_reason"], "made room for a rerun");
+    // Cancelling again keeps the first reason; a job cancelled before reasons were kept takes the one given now.
+    assert_eq!(srv.cancel_with("blocker", Some(json!({"reason": "later"}))).await.0, 200);
+    assert_eq!(srv.get("/v1/jobs/blocker").await["cancel_reason"], "made room for a rerun");
+    drop(env.root);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_job_cancelled_without_a_reason_takes_one_later() {
+    let env = setup();
+    // As a server from before reasons were kept left it: cancelled, no reason.
+    let mut job = dbench::job::Job::new("old".into(), serde_json::from_value(spec("fakepack", "run-o")).unwrap(), 1);
+    job.state = dbench::job::JobState::Cancelled;
+    let jobs = env.home.join("jobs");
+    std::fs::create_dir_all(&jobs).unwrap();
+    dbench::store::save_job(&jobs, &job).unwrap();
+    let srv = start(&env, false);
+    assert_eq!(srv.get("/v1/jobs/old").await.get("cancel_reason"), None);
+    assert_eq!(srv.cancel_with("old", Some(json!({"reason": TEST_CANCEL_REASON}))).await.0, 200);
+    let v = srv.get("/v1/jobs/old").await;
+    assert_eq!(v["cancel_reason"], TEST_CANCEL_REASON);
+    let note = v["history"].as_array().unwrap().last().unwrap()["text"].as_str().unwrap().to_string();
+    assert!(note.contains("reason given after the cancel") && note.contains(TEST_CANCEL_REASON), "{note}");
     drop(env.root);
 }
 

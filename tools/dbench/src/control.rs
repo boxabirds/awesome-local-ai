@@ -11,6 +11,15 @@ pub const CONTROL_DIR: &str = "control";
 /// `skip-story-<N>.applied.json` once applied.
 pub const SKIP_STORY_FILE: &str = "skip-story.json";
 
+/// `POST /v1/jobs/{id}/cancel` body: why, kept with the job (a cancel without one showed "none given").
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct CancelRequest {
+    /// Required and non-empty; missing reads as empty so it gets the same 400.
+    #[serde(default)]
+    pub reason: String,
+}
+
 /// `POST /v1/jobs/{id}/skip-story` body.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]

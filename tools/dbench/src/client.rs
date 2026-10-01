@@ -129,9 +129,12 @@ impl Api {
         .await
     }
 
-    pub async fn cancel(&self, id: &str) -> Result<(reqwest::StatusCode, serde_json::Value)> {
-        self.send(self.req(reqwest::Method::POST, &format!("/v1/jobs/{id}/cancel")))
-            .await
+    pub async fn cancel(&self, id: &str, reason: &str) -> Result<(reqwest::StatusCode, serde_json::Value)> {
+        self.send(
+            self.req(reqwest::Method::POST, &format!("/v1/jobs/{id}/cancel"))
+                .json(&serde_json::json!({ "reason": reason })),
+        )
+        .await
     }
 
     pub async fn skip_story(
@@ -799,8 +802,8 @@ pub async fn cmd_events(ctx: &Ctx, node: &str, id: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn cmd_cancel(ctx: &Ctx, node: &str, id: &str) -> Result<()> {
-    let (status, v) = ctx.api(node)?.cancel(id).await?;
+pub async fn cmd_cancel(ctx: &Ctx, node: &str, id: &str, reason: &str) -> Result<()> {
+    let (status, v) = ctx.api(node)?.cancel(id, reason).await?;
     if ctx.json {
         print_json(&v)?;
     }
