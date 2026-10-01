@@ -1,3 +1,40 @@
+commit aafc749087551ee25244e425265dae3ba287f18a
+vidi-agent  Thu Oct 1 04:45:04 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                           |  44 +++++
+ index.html                                         |   1 +
+ .../tasks.md                                       | 202 +++++++-------------
+ src/client/App.tsx                                 |  25 +--
+ src/client/api.ts                                  |  38 ++++
+ src/client/main.tsx                                |  14 +-
+ src/client/pages/BoardPage.tsx                     |  82 ++++++++
+ src/client/pages/HomePage.tsx                      |  40 ++++
+ src/client/pages/NotFoundPage.tsx                  |  35 ++++
+ src/client/pages/state.ts                          |  38 ++++
+ src/client/router.ts                               |  41 ++++
+ src/client/share/SharePanel.tsx                    | 145 +++++++++++++++
+ src/client/styles.css                              | 188 +++++++++++++++++++
+ src/shared/config.ts                               |  11 ++
+ src/worker/board-room.ts                           | 129 ++++++++++++-
+ src/worker/board-store.ts                          |  73 +++++++-
+ src/worker/create-board.ts                         |  30 +++
+ src/worker/index.ts                                |  74 +++++++-
+ tests/component/SharePanel.test.tsx                | 140 ++++++++++++++
+ tests/component/pages.test.tsx                     | 183 ++++++++++++++++++
+ tests/e2e/helpers/board.ts                         |  20 +-
+ tests/e2e/live-collaboration.spec.ts               |  43 +++--
+ tests/e2e/nightly.spec.ts                          |  19 +-
+ tests/e2e/persistence.spec.ts                      |  27 ++-
+ tests/e2e/share.spec.ts                            | 207 +++++++++++++++++++++
+ tests/integration/board-api.test.ts                | 152 +++++++++++++++
+ tests/integration/board-room.test.ts               |  25 ++-
+ tests/integration/persistent-room.test.ts          |  33 ++--
+ tests/integration/worker.test.ts                   |  18 +-
+ tests/integration/ws-client.ts                     |  19 ++
+ 30 files changed, 1857 insertions(+), 239 deletions(-)
 commit 5dc1c6c292e6abfaef97834b97b5551cbab5bf32
 vidi-agent  Thu Oct 1 04:13:08 2026 +0000
 

@@ -396,3 +396,191 @@ body {
   color: #991b1b;
   font-weight: 500;
 }
+
+/* Home page (story 5) --------------------------------------------------- */
+
+.home-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  text-align: center;
+}
+
+.home-page h1 {
+  font-size: 2.5rem;
+  margin: 0 0 8px;
+}
+
+.home-page p {
+  font-size: 1.1rem;
+  color: var(--chrome-muted);
+  margin: 0 0 24px;
+}
+
+.home-page button {
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 12px 32px;
+  border: none;
+  border-radius: 8px;
+  background: var(--focus-ring);
+  color: #fff;
+  cursor: pointer;
+}
+
+.home-page button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.home-page button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.home-page [role="alert"] {
+  margin-top: 16px;
+  color: #b42318;
+  font-size: 0.95rem;
+}
+
+/* Board not found page (story 5) ---------------------------------------- */
+
+.not-found-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  text-align: center;
+}
+
+.not-found-page h1 {
+  font-size: 2rem;
+  margin: 0 0 12px;
+}
+
+.not-found-page p {
+  font-size: 1rem;
+  color: var(--chrome-muted);
+  margin: 0 0 24px;
+}
+
+.not-found-page button {
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 10px 28px;
+  border: none;
+  border-radius: 8px;
+  background: var(--focus-ring);
+  color: #fff;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+.not-found-page button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.not-found-page button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.not-found-page a {
+  color: var(--focus-ring);
+  text-decoration: underline;
+}
+
+/* Board page loading (story 5) ------------------------------------------ */
+
+.board-page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 1.1rem;
+  color: var(--chrome-muted);
+}
+
+/* Share panel (story 5) ------------------------------------------------- */
+
+.share-button {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 6px 14px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+  cursor: pointer;
+  z-index: 101;
+}
+
+.share-button:hover {
+  background: #f0f2f5;
+}
+
+.share-panel {
+  position: fixed;
+  top: 48px;
+  right: 16px;
+  width: 340px;
+  padding: 16px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+  z-index: 102;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.share-panel input[type="text"] {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 8px 10px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+  background: #f6f8fa;
+  color: var(--chrome-text);
+  width: 100%;
+}
+
+.share-panel button {
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--focus-ring);
+  color: #fff;
+  cursor: pointer;
+}
+
+.share-panel button:hover {
+  background: #1d4ed8;
+}
+
+.share-note {
+  font-size: 0.82rem;
+  color: var(--chrome-muted);
+  margin: 0;
+}
+
+.share-manual {
+  font-size: 0.82rem;
+  color: #b42318;
+  margin: 0;
+}

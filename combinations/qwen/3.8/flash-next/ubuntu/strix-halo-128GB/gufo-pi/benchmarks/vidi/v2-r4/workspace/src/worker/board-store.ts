@@ -115,8 +115,71 @@ export class BoardStore {
     }
   }
 
+  /**
+   * Read-only existence check: returns true if the board has been initialized
+   * (created_at set) or has legacy data (updates or snapshot_chunks rows).
+   * Never creates tables.
+   */
+  existsReadOnly(): boolean {
+    try {
+      // Check if tables exist at all
+      const tables = this.sql.exec<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_meta', 'updates', 'snapshot_chunks')`,
+      ).toArray();
+      if (tables.length === 0) return false;
+
+      // Check for created_at in storage_meta
+      const hasMeta = tables.some(t => t.name === 'storage_meta');
+      if (hasMeta) {
+        const rows = this.sql.exec<{ value: string }>(
+          `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+        ).toArray();
+        if (rows.length > 0) return true;
+      }
+
+      // Legacy: has at least one row in updates or snapshot_chunks
+      const hasUpdates = tables.some(t => t.name === 'updates');
+      if (hasUpdates) {
+        const rows = this.sql.exec<{ cnt: number }>(
+          `SELECT COUNT(*) as cnt FROM updates LIMIT 1`,
+        ).toArray();
+        if (rows[0] && rows[0].cnt > 0) return true;
+      }
+
+      const hasSnapshot = tables.some(t => t.name === 'snapshot_chunks');
+      if (hasSnapshot) {
+        const rows = this.sql.exec<{ cnt: number }>(
+          `SELECT COUNT(*) as cnt FROM snapshot_chunks LIMIT 1`,
+        ).toArray();
+        if (rows[0] && rows[0].cnt > 0) return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Check if created_at is set. Tables must already exist. */
+  hasCreatedAt(): boolean {
+    const rows = this.sql.exec<{ value: string }>(
+      `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+    ).toArray();
+    return rows.length > 0;
+  }
+
+  /** Set created_at to current epoch ms. */
+  setCreatedAt(): void {
+    this.sql.exec(
+      `INSERT OR IGNORE INTO storage_meta (key, value) VALUES ('created_at', ?)`,
+      String(Date.now()),
+    );
+  }
+
   /** Append an update to the log. Throws on SQL failure. */
   append(update: Uint8Array): void {
+    // Lazy migrate: ensure tables exist before writing
+    this.migrate();
     this.sql.exec(
       `INSERT INTO updates (data, bytes) VALUES (?, ?)`,
       update,
@@ -126,9 +189,17 @@ export class BoardStore {
     this.rowBytes += update.length;
   }
 
-  /** Load snapshot + log into doc. Returns LoadResult. */
+  /** Load snapshot + log into doc. Returns LoadResult. Treats missing tables as empty board. */
   load(doc: Y.Doc): LoadResult {
     try {
+      // Check if tables exist; if not, treat as empty board
+      const tables = this.sql.exec<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name = 'storage_meta'`,
+      ).toArray();
+      if (tables.length === 0) {
+        // No tables: empty board
+        return { ok: true, quarantined: 0 };
+      }
       // Load the snapshot_through_seq
       const seqRows = this.sql.exec<{ value: string }>(
         `SELECT value FROM storage_meta WHERE key = 'snapshot_through_seq'`,

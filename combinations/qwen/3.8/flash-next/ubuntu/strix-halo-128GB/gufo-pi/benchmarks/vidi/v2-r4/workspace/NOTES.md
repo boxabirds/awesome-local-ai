@@ -133,3 +133,47 @@ Decisions and deviations recorded while implementing the stories.
   (`libgtk-3-0t64` and friends, no root to install them), so `E2E_PROJECTS`
   still defaults to chromium and `npm run test:e2e:all` runs the full matrix on
   a provisioned host.
+
+## Story 5 — Share a board with others using a link
+
+- **`BoardPage` uses a `key` prop in the router.** Without it, React reuses the
+  same component instance when only the `id` prop changes (e.g. from NotFound
+  to a newly-created board). The `useState` initializer would not re-run and
+  the page would stay stuck in the old state. The `key={route.id}` forces a
+  remount on every board id change.
+- **`existsReadOnly()` returns `false` when tables are missing.** During DO
+  instantiation the constructor calls `existsReadOnly()` synchronously. For a
+  brand-new board the `storage_meta` table does not exist yet (it is created by
+  `migrate()`), so the method returns `false` rather than throwing. The
+  `BoardStore.load()` method has the same guard: if `storage_meta` does not
+  exist it returns success (the board is empty).
+- **`migrate()` is called lazily on the first `append()`.** A board whose DO is
+  instantiated only to answer `exists()` (read-only) never creates tables. This
+  avoids a subtle race: a read-only DO instantiation that creates tables would
+  make `hasCreatedAt()` return true on the next constructor call, so the board
+  would appear to exist before `initialize()` is ever called.
+- **`BoardRoom.initialize()` is a Durable Object RPC method.** Called via
+  `stub.initialize()` from the Worker's POST handler. DO RPC requires
+  compatibility_date ≥ 2024-08-21 (the project uses 2026-09-01, which falls
+  back to the wrangler-supported maximum). The method is idempotent: a second
+  call on a board that already has `created_at` returns void without
+  re-creating.
+- **WebSocket connections to unknown boards close with 1011 (INTERNAL_ERROR).**
+  The 1006 (abnormal closure without a close frame) in the acceptance criteria
+  describes what the browser reports when the server does not complete the
+  WebSocket handshake. Returning a 404 HTTP response on the upgrade request
+  produces exactly 1006 client-side.
+- **`page.route()` test for TC-28 intercepts the `/api/boards/:id` check.**
+  The test aborts the request, shows the retry message, then unroutes and the
+  next retry succeeds. This exercises the client's retry-with-backoff logic
+  without needing to stop the server.
+- **Test-hook routes are used sparingly.** Only two are added for story 5:
+  `seed-legacy-board` (TC-31, a board with real SQLite data but no
+  `created_at`) and `fail-next-initialize` (TC-06, injected create failure).
+  Both are gated behind `TEST_HOOKS=1`.
+- **`isValidBoardId` returns true for any 22-char base64url string.** The
+  existing implementation checks only length and character set, not that the
+  value decodes to exactly 16 bytes. The spec says `newBoardId()` always
+  produces such a value, and TC-11 only tests the invalid inputs (wrong
+  alphabet, wrong length, empty). A stricter decode check would be additive
+  and safe but was not needed to pass the listed cases.

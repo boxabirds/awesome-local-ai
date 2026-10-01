@@ -1,9 +1,8 @@
-import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page, type APIRequestContext } from '@playwright/test';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   MAX_CONCURRENT_EDITORS,
 } from '../../src/shared/config';
-import { newBoardId } from '../../src/shared/board-id';
 import {
   notes,
   noteAt,
@@ -19,12 +18,20 @@ import {
 } from './helpers/sticky';
 import { board } from './helpers/board';
 
+/** Create a board via API and return its id. */
+async function createBoardApi(request: APIRequestContext): Promise<string> {
+  const res = await request.post('/api/boards');
+  expect(res.ok()).toBeTruthy();
+  const data = await res.json() as { id: string };
+  return data.id;
+}
+
 /**
  * Helper: open two pages on the same board.
  * Both are connected to the same BoardRoom DO via WebSocket.
  */
-async function openTwoPages(browser: import('@playwright/test').Browser) {
-  const boardId = newBoardId();
+async function openTwoPages(browser: import('@playwright/test').Browser, request: APIRequestContext) {
+  const boardId = await createBoardApi(request);
   const url = `/b/${boardId}`;
 
   const ctx1 = await browser.newContext();
@@ -50,8 +57,8 @@ async function openTwoPages(browser: import('@playwright/test').Browser) {
 }
 
 test.describe('live collaboration (story 3)', () => {
-  test('TC-22: create, move, recolour, text, delete by one user appear for the other', async ({ browser }) => {
-    const { ctx1, page1, ctx2, page2 } = await openTwoPages(browser);
+  test('TC-22: create, move, recolour, text, delete by one user appear for the other', async ({ browser, request }) => {
+    const { ctx1, page1, ctx2, page2 } = await openTwoPages(browser, request);
 
     // Alex creates a note
     await doubleClickToCreate(page1, 400, 300);
@@ -94,8 +101,8 @@ test.describe('live collaboration (story 3)', () => {
     await ctx2.close();
   });
 
-  test('TC-23: simultaneous typing on same note → both pages show all typed characters', async ({ browser }) => {
-    const { ctx1, page1, ctx2, page2 } = await openTwoPages(browser);
+  test('TC-23: simultaneous typing on same note → both pages show all typed characters', async ({ browser, request }) => {
+    const { ctx1, page1, ctx2, page2 } = await openTwoPages(browser, request);
 
     // Alex creates a note with initial text
     await doubleClickToCreate(page1, 400, 300);
@@ -140,8 +147,8 @@ test.describe('live collaboration (story 3)', () => {
     await ctx2.close();
   });
 
-  test('TC-24: simultaneous move of same note → both settle to same position', async ({ browser }) => {
-    const { ctx1, page1, ctx2, page2 } = await openTwoPages(browser);
+  test('TC-24: simultaneous move of same note → both settle to same position', async ({ browser, request }) => {
+    const { ctx1, page1, ctx2, page2 } = await openTwoPages(browser, request);
 
     // Create a note
     await doubleClickToCreate(page1, 400, 300);
@@ -173,8 +180,8 @@ test.describe('live collaboration (story 3)', () => {
     await ctx2.close();
   });
 
-  test('TC-25: Alex deletes a note Sam is editing → Sam sees it disappear, no errors', async ({ browser }) => {
-    const { ctx1, page1, ctx2, page2 } = await openTwoPages(browser);
+  test('TC-25: Alex deletes a note Sam is editing → Sam sees it disappear, no errors', async ({ browser, request }) => {
+    const { ctx1, page1, ctx2, page2 } = await openTwoPages(browser, request);
 
     // Alex creates a note
     await doubleClickToCreate(page1, 400, 300);
@@ -203,8 +210,8 @@ test.describe('live collaboration (story 3)', () => {
     await ctx2.close();
   });
 
-  test('TC-26: MAX_CONCURRENT_EDITORS contexts each create 5 notes and move 5 → all see everything', async ({ browser }) => {
-    const boardId = newBoardId();
+  test('TC-26: MAX_CONCURRENT_EDITORS contexts each create 5 notes and move 5 → all see everything', async ({ browser, request }) => {
+    const boardId = await createBoardApi(request);
     const url = `/b/${boardId}`;
     const contexts: BrowserContext[] = [];
     const pages: Page[] = [];
@@ -272,8 +279,8 @@ test.describe('live collaboration (story 3)', () => {
     for (const ctx of contexts) await ctx.close();
   });
 
-  test('TC-27: outage for one user → reconnects, both pages show all notes', async ({ browser }) => {
-    const { ctx1, page1, ctx2, page2 } = await openTwoPages(browser);
+  test('TC-27: outage for one user → reconnects, both pages show all notes', async ({ browser, request }) => {
+    const { ctx1, page1, ctx2, page2 } = await openTwoPages(browser, request);
 
     // Go offline for page1 (Alex)
     await ctx1.setOffline(true);
@@ -312,8 +319,8 @@ test.describe('live collaboration (story 3)', () => {
     await ctx2.close();
   });
 
-  test('TC-28: selection on one page is not shown on the other', async ({ browser }) => {
-    const { ctx1, page1, ctx2, page2 } = await openTwoPages(browser);
+  test('TC-28: selection on one page is not shown on the other', async ({ browser, request }) => {
+    const { ctx1, page1, ctx2, page2 } = await openTwoPages(browser, request);
 
     // Alex creates a note
     await doubleClickToCreate(page1, 400, 300);

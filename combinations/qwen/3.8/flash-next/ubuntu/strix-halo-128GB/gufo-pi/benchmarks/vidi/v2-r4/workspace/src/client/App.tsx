@@ -10,7 +10,6 @@ import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import * as Y from 'yjs';
 import { createSticky, deleteObject } from '../shared/board-model';
-import { newBoardId } from '../shared/board-id';
 import { isTestMode, setTestConnectionState } from './testHooks';
 import { canEdit } from './sync/connectBoard';
 import type { Camera, Point } from './canvas/camera';
@@ -23,19 +22,6 @@ function isTextEntry(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
 
-/**
- * Extract boardId from a /b/:boardId pathname.
- */
-function extractBoardId(pathname: string): string | null {
-  const match = pathname.match(/^\/b\/([^/]+)$/);
-  return match ? match[1] : null;
-}
-
-/**
- * The board: a navigable infinite canvas (story 1) populated with sticky notes
- * (story 2), with live collaboration (story 3). Selection and editing are local;
- * the notes live in the board document.
- */
 export interface AppProps {
   /**
    * Optional board document. Production passes nothing and the app owns one;
@@ -49,16 +35,7 @@ export interface AppProps {
 }
 
 export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): React.JSX.Element {
-  // If no boardId prop is given, try to extract from URL; generate one if absent
-  const [boardId] = useState<string | undefined>(() => {
-    if (propBoardId) return propBoardId;
-    const fromUrl = extractBoardId(window.location.pathname);
-    if (fromUrl) return fromUrl;
-    // No boardId in URL: generate one and update the address bar
-    const id = newBoardId();
-    window.history.replaceState(null, '', `/b/${id}`);
-    return id;
-  });
+  const boardId = propBoardId;
 
   const { doc, notes, connectionState } = useBoardDoc(externalDoc, boardId);
   const isReadOnly = !canEdit(connectionState);

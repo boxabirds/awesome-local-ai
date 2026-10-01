@@ -2,21 +2,21 @@ import { describe, it, expect } from 'vitest';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { createSticky } from '../../src/shared/board-model';
-import { connectClient, integrationFetch, type WsTestClient } from './ws-client';
+import { connectClient, integrationFetch, createBoard, type WsTestClient } from './ws-client';
 
 describe('sync.worker_entry', () => {
-  // TC-04: invalid board id → 400; no object instance created
-  it('TC-04: returns 400 for invalid board id', async () => {
+  // TC-04: invalid board id → 404; no object instance created
+  it('TC-04: returns 404 for invalid board id', async () => {
     // Note: Node's fetch doesn't allow custom Upgrade headers, but the Worker
     // checks ID validity BEFORE checking Upgrade, so a plain GET to an invalid
-    // board ID still returns 400.
+    // board ID still returns 404.
     const res = await integrationFetch('/api/rooms/bad!id');
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
   });
 
   // TC-05: valid id without Upgrade → 426
   it('TC-05: returns 426 for valid board id without Upgrade header', async () => {
-    const id = newBoardId();
+    const id = await createBoard();
     const res = await integrationFetch(`/api/rooms/${id}`);
     expect(res.status).toBe(426);
   });
@@ -33,7 +33,7 @@ describe('sync.worker_entry', () => {
 
   // TC-13: MAX_CONCURRENT_EDITORS + 1 sockets all accepted; note from last reaches all others
   it('TC-13: more than MAX_CONCURRENT_EDITORS can connect and sync', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const clients: WsTestClient[] = [];
 
     for (let i = 0; i < MAX_CONCURRENT_EDITORS + 1; i++) {
@@ -62,8 +62,8 @@ describe('sync.worker_entry', () => {
 
   // TC-17: boards stay separate
   it('TC-17: updates do not cross between boards', async () => {
-    const board1 = newBoardId();
-    const board2 = newBoardId();
+    const board1 = await createBoard();
+    const board2 = await createBoard();
 
     const client1 = await connectClient(board1);
     const client2 = await connectClient(board2);

@@ -1,10 +1,9 @@
-import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page, type APIRequestContext } from '@playwright/test';
 import {
   E2E_EVENTUAL_TIMEOUT_MS,
   LIVE_UPDATE_LATENCY_BUDGET_MS,
   MAX_CONCURRENT_EDITORS,
 } from '../../src/shared/config';
-import { newBoardId } from '../../src/shared/board-id';
 import {
   notes,
   noteAt,
@@ -17,13 +16,21 @@ import {
 } from './helpers/sticky';
 import { board } from './helpers/board';
 
+/** Create a board via API and return its id. */
+async function createBoardApi(request: APIRequestContext): Promise<string> {
+  const res = await request.post('/api/boards');
+  expect(res.ok()).toBeTruthy();
+  const data = await res.json() as { id: string };
+  return data.id;
+}
+
 /**
  * Nightly tests: idle connection stability and capacity soak.
  * These are tagged @nightly and skipped by default to keep CI fast.
  */
 test.describe('nightly: idle stability and capacity (story 3)', () => {
-  test('@nightly TC-29: idle connection stays alive for 45s without showing Reconnecting', async ({ browser }) => {
-    const boardId = newBoardId();
+  test('@nightly TC-29: idle connection stays alive for 45s without showing Reconnecting', async ({ browser, request }) => {
+    const boardId = await createBoardApi(request);
     const url = `/b/${boardId}`;
 
     const ctx1 = await browser.newContext();
@@ -69,8 +76,8 @@ test.describe('nightly: idle stability and capacity (story 3)', () => {
     await ctx2.close();
   });
 
-  test('@nightly TC-30: capacity soak - MAX_CONCURRENT_EDITORS doing random edits for 60s', async ({ browser }) => {
-    const boardId = newBoardId();
+  test('@nightly TC-30: capacity soak - MAX_CONCURRENT_EDITORS doing random edits for 60s', async ({ browser, request }) => {
+    const boardId = await createBoardApi(request);
     const url = `/b/${boardId}`;
     const contexts: BrowserContext[] = [];
     const pages: Page[] = [];

@@ -24,12 +24,58 @@ export class BoardRoom extends DurableObject<Env> {
   private store: BoardStore | null = null;
   private state: RoomState = 'loading';
   private loadFailedAt = 0;
+  /** Whether this board exists (has been initialized or has legacy data). */
+  private boardExists = false;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
-      await this.doLoad();
+      // Only load if the board exists (has been initialized or has legacy data)
+      this.store = new BoardStore(this.ctx.storage);
+      this.boardExists = this.store.existsReadOnly();
+      if (this.boardExists) {
+        await this.doLoad();
+      } else {
+        // Board doesn't exist yet; don't create tables or load
+        this.state = 'ready';
+      }
     });
+  }
+
+  /**
+   * RPC: Initialize a new board. Creates tables and sets created_at.
+   * Returns 'created' on first call, 'exists' on subsequent calls.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    if (!this.store) {
+      this.store = new BoardStore(this.ctx.storage);
+    }
+    this.store.migrate();
+    // Check if already initialized
+    if (this.store.hasCreatedAt()) {
+      this.boardExists = true;
+      return 'exists';
+    }
+    // Set created_at
+    this.store.setCreatedAt();
+    this.boardExists = true;
+    // Initialize doc if not already loaded
+    if (!this.doc) {
+      this.doc = new Y.Doc();
+      this.store.load(this.doc);
+      this.setupDocListener();
+    }
+    return 'created';
+  }
+
+  /**
+   * RPC: Check if this board exists (read-only, never creates storage).
+   */
+  async exists(): Promise<boolean> {
+    if (!this.store) {
+      this.store = new BoardStore(this.ctx.storage);
+    }
+    return this.store.existsReadOnly();
   }
 
   private transition(event: RoomEvent): void {
@@ -38,8 +84,10 @@ export class BoardRoom extends DurableObject<Env> {
 
   private async doLoad(): Promise<void> {
     try {
-      this.store = new BoardStore(this.ctx.storage);
-      this.store.migrate();
+      if (!this.store) {
+        this.store = new BoardStore(this.ctx.storage);
+      }
+      // migrate() is NOT called here; it runs in initialize() and lazily before first append()
 
       this.doc = new Y.Doc();
       const result: LoadResult = this.store.load(this.doc);
@@ -126,8 +174,30 @@ export class BoardRoom extends DurableObject<Env> {
     if (req.url.includes('/internal/test-fail-load')) {
       return this.handleTestFailLoad();
     }
+    if (req.url.includes('/internal/test-seed-legacy')) {
+      return this.handleTestSeedLegacy();
+    }
 
+    // Reject WebSocket upgrade for unknown boards
     const upgradeHeader = req.headers.get('Upgrade');
+    if (upgradeHeader === 'websocket') {
+      if (!this.boardExists) {
+        // Check one more time (legacy data might have been seeded externally)
+        if (!this.store) this.store = new BoardStore(this.ctx.storage);
+        if (!this.store.existsReadOnly()) {
+          return new Response(JSON.stringify({ error: 'not_found' }), {
+            status: 404,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+        this.boardExists = true;
+        // Load the doc now that we know the board exists
+        if (!this.doc) {
+          await this.doLoad();
+        }
+      }
+    }
+
     if (upgradeHeader !== 'websocket') {
       return new Response('Expected WebSocket', { status: 426 });
     }
@@ -317,6 +387,59 @@ export class BoardRoom extends DurableObject<Env> {
       // Immediately reload to force load-failed state
       this.state = 'loading';
       this.doLoad();
+      return new Response('ok');
+    } catch (e) {
+      return new Response(String(e), { status: 500 });
+    }
+  }
+
+  /** Test-only: seed a legacy board (updates rows, no created_at). */
+  private handleTestSeedLegacy(): Response {
+    try {
+      const sql = this.ctx.storage.sql;
+      // Create tables without setting created_at (legacy style)
+      sql.exec(
+        `CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+      );
+      sql.exec(
+        `CREATE TABLE IF NOT EXISTS updates (seq INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB NOT NULL, bytes INTEGER NOT NULL)`,
+      );
+      sql.exec(
+        `CREATE TABLE IF NOT EXISTS snapshot_chunks (idx INTEGER PRIMARY KEY, data BLOB NOT NULL)`,
+      );
+      sql.exec(
+        `CREATE TABLE IF NOT EXISTS quarantined_updates (seq INTEGER PRIMARY KEY, data BLOB NOT NULL, error TEXT NOT NULL, quarantined_at INTEGER NOT NULL)`,
+      );
+      // Insert a schema version and seq pointer (needed for load)
+      sql.exec(
+        `INSERT OR IGNORE INTO storage_meta (key, value) VALUES ('storage_schema_version', '1')`,
+      );
+      sql.exec(
+        `INSERT OR IGNORE INTO storage_meta (key, value) VALUES ('snapshot_through_seq', '0')`,
+      );
+      // Generate real Yjs update bytes and insert them
+      const doc = new Y.Doc();
+      doc.getMap('objects').set('legacy-note-1', new Y.Map([
+        ['type', 'sticky'], ['x', 0], ['y', 0], ['z', 0], ['color', 'yellow'],
+      ]));
+      const objMap = doc.getMap('objects');
+      const noteMap = objMap.get('legacy-note-1') as Y.Map<any>;
+      const ytext = new Y.Text('Legacy note text');
+      noteMap.set('text', ytext);
+      const update = Y.encodeStateAsUpdate(doc);
+      sql.exec(
+        `INSERT INTO updates (data, bytes) VALUES (?, ?)`,
+        update, update.length,
+      );
+      // Do NOT set created_at: this is legacy
+      // Load the doc so WebSocket connections work
+      this.boardExists = true;
+      if (!this.doc) {
+        this.doc = new Y.Doc();
+        this.store = new BoardStore(this.ctx.storage);
+        this.store.load(this.doc);
+        this.setupDocListener();
+      }
       return new Response('ok');
     } catch (e) {
       return new Response(String(e), { status: 500 });

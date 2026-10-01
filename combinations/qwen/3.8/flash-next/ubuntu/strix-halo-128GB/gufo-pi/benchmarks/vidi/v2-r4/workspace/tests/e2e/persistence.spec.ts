@@ -5,8 +5,7 @@
  * TC-21: Large board load
  * TC-24: Broken board
  */
-import { expect, test } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
+import { expect, test, type APIRequestContext } from '@playwright/test';
 import { PERSIST_TESTED_NOTES } from '../../src/shared/config';
 import {
   notes,
@@ -18,6 +17,14 @@ import {
 } from './helpers/sticky';
 import { board } from './helpers/board';
 
+/** Create a board via API and return its id. */
+async function createBoardApi(request: APIRequestContext): Promise<string> {
+  const res = await request.post('/api/boards');
+  expect(res.ok()).toBeTruthy();
+  const data = await res.json() as { id: string };
+  return data.id;
+}
+
 /** Wait for the connection to be in 'connected' state. */
 async function waitForConnected(page: import('@playwright/test').Page) {
   await page.waitForFunction(() => {
@@ -27,8 +34,8 @@ async function waitForConnected(page: import('@playwright/test').Page) {
 }
 
 test.describe('TC-19: Overnight return', () => {
-  test('board content survives page close and reload', async ({ browser }) => {
-    const boardId = newBoardId();
+  test('board content survives page close and reload', async ({ browser, request }) => {
+    const boardId = await createBoardApi(request);
     const url = `/b/${boardId}`;
 
     // Session 1: create notes
@@ -72,8 +79,8 @@ test.describe('TC-19: Overnight return', () => {
 });
 
 test.describe('TC-20: Leave immediately', () => {
-  test('note seen by another client survives both disconnecting', async ({ browser }) => {
-    const boardId = newBoardId();
+  test('note seen by another client survives both disconnecting', async ({ browser, request }) => {
+    const boardId = await createBoardApi(request);
     const url = `/b/${boardId}`;
 
     // Two browsers connect
@@ -116,10 +123,10 @@ test.describe('TC-20: Leave immediately', () => {
 });
 
 test.describe('TC-21: Large board open', () => {
-  test('board with many notes renders all of them', async ({ browser }) => {
+  test('board with many notes renders all of them', async ({ browser, request }) => {
     test.slow(); // Large board takes time to create and render
 
-    const boardId = newBoardId();
+    const boardId = await createBoardApi(request);
     const url = `/b/${boardId}`;
     const NOTE_COUNT = Math.min(PERSIST_TESTED_NOTES, 100); // Use 100 for e2e speed
 
@@ -159,8 +166,8 @@ test.describe('TC-21: Large board open', () => {
 });
 
 test.describe('TC-24: Broken board', () => {
-  test('corrupted board shows load-failed message and locks editing', async ({ browser }) => {
-    const boardId = newBoardId();
+  test('corrupted board shows load-failed message and locks editing', async ({ browser, request }) => {
+    const boardId = await createBoardApi(request);
     const url = `/b/${boardId}`;
 
     // First, seed the board with a note so it has content

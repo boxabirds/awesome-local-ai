@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page, type APIRequestContext } from '@playwright/test';
 import { GRID_SPACING_WORLD } from '../../../src/shared/config';
 
 /** The test-only camera API compiled into the `test` build. */
@@ -52,10 +52,26 @@ export function resetViewButton(page: Page): Locator {
   return page.getByRole('button', { name: 'Reset view' });
 }
 
-export async function openBoard(page: Page): Promise<void> {
+/** Create a board via API and navigate to it. */
+export async function openBoard(page: Page, _request?: APIRequestContext): Promise<void> {
+  // Navigate to home, then use New board button
   await page.goto('/');
+  const newBoardBtn = page.getByRole('button', { name: 'New board' });
+  await expect(newBoardBtn).toBeVisible();
+  await newBoardBtn.click();
   await expect(board(page)).toBeVisible();
   await expect.poll(() => getCamera(page)).toMatchObject({ zoom: 1 });
+}
+
+/** Create a board via API and navigate to it using a provided request context. */
+export async function openBoardViaApi(page: Page, request: APIRequestContext): Promise<string> {
+  const res = await request.post('/api/boards');
+  expect(res.ok()).toBeTruthy();
+  const data = await res.json() as { id: string };
+  await page.goto(`/b/${data.id}`);
+  await expect(board(page)).toBeVisible();
+  await expect.poll(() => getCamera(page)).toMatchObject({ zoom: 1 });
+  return data.id;
 }
 
 /** Jump the camera directly (test build only) instead of dragging a million px. */

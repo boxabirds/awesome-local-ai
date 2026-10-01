@@ -4,9 +4,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import * as Y from 'yjs';
-import { connectClient, WsTestClient, integrationFetch } from './ws-client';
+import { connectClient, WsTestClient, integrationFetch, createBoard } from './ws-client';
 import { createSticky, getStickyText, snapshot, type StickySnapshot } from '../../src/shared/board-model';
-import { newBoardId } from '../../src/shared/board-id';
 import { PERSIST_TESTED_NOTES, BOARD_LOAD_BUDGET_MS, LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
 
 function collectSnapshot(client: WsTestClient): readonly StickySnapshot[] {
@@ -15,7 +14,7 @@ function collectSnapshot(client: WsTestClient): readonly StickySnapshot[] {
 
 describe('TC-22: Reload across DO evictions', () => {
   it('board content persists through reconnection', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     // Session 1: create notes and push to server
     const c1 = await connectClient(boardId);
@@ -44,7 +43,7 @@ describe('TC-22: Reload across DO evictions', () => {
 
 describe('TC-20: Write-before-broadcast', () => {
   it('second client receives updates that are already persisted', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     // Client A connects and writes, pushing to server
     const cA = await connectClient(boardId);
@@ -72,7 +71,7 @@ describe('TC-20: Write-before-broadcast', () => {
 
 describe('TC-23: Large board reload within budget', () => {
   it('PERSIST_TESTED_NOTES notes can be loaded in a new connection', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     // Populate the board with many notes
     const cA = await connectClient(boardId);
@@ -112,7 +111,7 @@ describe('TC-23: Large board reload within budget', () => {
 
 describe('TC-30: Concurrent edits across a reconnect', () => {
   it('both edits present after reconnect', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     // Connect 2 clients
     const cA = await connectClient(boardId);
@@ -150,7 +149,7 @@ describe('TC-30: Concurrent edits across a reconnect', () => {
 
 describe('TC-28: Concurrent first connections get same snapshot', () => {
   it('two simultaneous connections to a fresh board both get content', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     // Seed the board
     const seed = await connectClient(boardId);
@@ -179,7 +178,7 @@ describe('TC-28: Concurrent first connections get same snapshot', () => {
 
 describe('TC-12: Append-before-broadcast guarantees persistence', () => {
   it('by the time B receives the update, a fresh connection C sees the same data', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     const cA = await connectClient(boardId);
     const cB = await connectClient(boardId);
@@ -206,7 +205,7 @@ describe('TC-12: Append-before-broadcast guarantees persistence', () => {
 
 describe('TC-13: Reopen after all clients leave', () => {
   it('new connection to same board sees data from previous sessions', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     // Session 1: two clients make edits
     const cA = await connectClient(boardId);
@@ -242,7 +241,7 @@ describe('TC-13: Reopen after all clients leave', () => {
 
 describe('TC-14: Storage append failure closes with 1011', () => {
   it('injected append failure closes all clients, reconnect recovers', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     // Seed the board
     const seed = await connectClient(boardId);
@@ -287,7 +286,7 @@ describe('TC-14: Storage append failure closes with 1011', () => {
 
 describe('TC-15: Corrupt snapshot closes client with 4500', () => {
   it('client receives 4500 when snapshot is corrupted', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     // Seed the board
     const seed = await connectClient(boardId);
@@ -320,7 +319,7 @@ describe('TC-15: Corrupt snapshot closes client with 4500', () => {
 
 describe('TC-16: Retry interval boundary', () => {
   it('connect before retry interval → 4500; after repair + interval → success', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     // Seed and corrupt
     const seed = await connectClient(boardId);
@@ -363,7 +362,7 @@ describe('TC-16: Retry interval boundary', () => {
 
 describe('TC-17: Garbage update closes with 1003', () => {
   it('invalid binary message (unknown type) closes socket with 1003', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     const c = await connectClient(boardId);
 
@@ -375,7 +374,7 @@ describe('TC-17: Garbage update closes with 1003', () => {
   });
 
   it('invalid text message closes socket with 1003', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     const c = await connectClient(boardId);
 
@@ -387,7 +386,7 @@ describe('TC-17: Garbage update closes with 1003', () => {
   });
 
   it('empty message closes socket with 1003', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     const c = await connectClient(boardId);
 
@@ -401,7 +400,7 @@ describe('TC-17: Garbage update closes with 1003', () => {
 
 describe('TC-18: Hibernation path - getWebSockets delivers messages', () => {
   it('existing connections receive messages from new connections', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     // Client A connects first and stays
     const cA = await connectClient(boardId);
@@ -432,7 +431,7 @@ describe('TC-18: Hibernation path - getWebSockets delivers messages', () => {
 
 describe('TC-26: SQL read error on load closes with 4500', () => {
   it('corrupt snapshot triggers load failure → 4500', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
 
     // Seed a note
     const seed = await connectClient(boardId);

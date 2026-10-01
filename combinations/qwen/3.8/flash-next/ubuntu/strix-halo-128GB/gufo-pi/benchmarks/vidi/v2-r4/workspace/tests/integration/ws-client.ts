@@ -252,3 +252,22 @@ export async function performSync(client: WsTestClient): Promise<void> {
 export async function integrationFetch(path: string, init?: RequestInit): Promise<Response> {
   return fetch(`${baseUrl()}${path}`, init);
 }
+
+/**
+ * Create a board via POST /api/boards and return its id.
+ */
+export async function createBoard(): Promise<string> {
+  const res = await fetch(`${baseUrl()}/api/boards`, { method: 'POST' });
+  if (!res.ok) throw new Error(`POST /api/boards failed: ${res.status}`);
+  const data = await res.json() as { id: string };
+  return data.id;
+}
+
+/**
+ * Create a board and connect a client to it.
+ */
+export async function createAndConnect(): Promise<{ boardId: string; client: WsTestClient }> {
+  const boardId = await createBoard();
+  const client = await connectClient(boardId);
+  return { boardId, client };
+}

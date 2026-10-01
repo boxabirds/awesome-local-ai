@@ -1,18 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import * as encoding from 'lib0/encoding';
-import { newBoardId } from '../../src/shared/board-id';
 import { LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../src/shared/config';
 import {
   createSticky,
   deleteObject,
   moveObject,
 } from '../../src/shared/board-model';
-import { connectClient } from './ws-client';
+import { connectClient, createBoard } from './ws-client';
 
 describe('sync.board_room', () => {
   // TC-07: server-side Y.Doc merges updates from one socket
   it('TC-07: server merges a single client update', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const clientA = await connectClient(boardId);
 
     // Create a sticky and push to server
@@ -30,7 +29,7 @@ describe('sync.board_room', () => {
 
   // TC-08: broadcast to other clients with latency < 1000ms
   it('TC-08: update from one client appears at another within budget', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const clientA = await connectClient(boardId);
     const clientB = await connectClient(boardId);
 
@@ -54,7 +53,7 @@ describe('sync.board_room', () => {
 
   // TC-09: two concurrent clients create → identical snapshots
   it('TC-09: concurrent creates produce identical snapshots', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const clientA = await connectClient(boardId);
     const clientB = await connectClient(boardId);
 
@@ -86,7 +85,7 @@ describe('sync.board_room', () => {
 
   // TC-10: two clients delete the same sticky → exactly one entry (zero)
   it('TC-10: concurrent deletes of same sticky converge to zero', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const clientA = await connectClient(boardId);
 
     // Create a sticky
@@ -119,7 +118,7 @@ describe('sync.board_room', () => {
 
   // TC-11: 12 rapid edits by A → B sees them, converges
   it('TC-11: 12 rapid edits by A appear at B', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const clientA = await connectClient(boardId);
     const clientB = await connectClient(boardId);
 
@@ -152,7 +151,7 @@ describe('sync.board_room', () => {
 
   // TC-12: awareness message is relayed to every open socket including sender
   it('TC-12: awareness is relayed to all sockets including sender', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const clientA = await connectClient(boardId);
     const clientB = await connectClient(boardId);
 
@@ -176,7 +175,7 @@ describe('sync.board_room', () => {
 
   // TC-14: text frame → close with code 1003
   it('TC-14: text frame closes socket with code 1003', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const client = await connectClient(boardId);
 
     // Send a text frame (non-binary)
@@ -188,7 +187,7 @@ describe('sync.board_room', () => {
 
   // TC-15: unknown message type → close with 1003
   it('TC-15: unknown message type closes socket with code 1003', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const client = await connectClient(boardId);
 
     // Send frame with unknown type (type 99)
@@ -201,7 +200,7 @@ describe('sync.board_room', () => {
 
   // TC-16: empty frame → close with 1003
   it('TC-16: empty frame closes socket with code 1003', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const client = await connectClient(boardId);
 
     // Send an empty buffer
@@ -213,7 +212,7 @@ describe('sync.board_room', () => {
 
   // TC-18: malformed sync bytes → close with 1003
   it('TC-18: malformed sync bytes closes socket with code 1003', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const client = await connectClient(boardId);
 
     // Send sync type (MESSAGE_SYNC=0) with SyncStep1 inner type (0)
@@ -227,7 +226,7 @@ describe('sync.board_room', () => {
 
   // TC-31: two clients create distinct stickies → both present
   it('TC-31: two clients create distinct stickies, both converge', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoard();
     const clientA = await connectClient(boardId);
     const clientB = await connectClient(boardId);
 

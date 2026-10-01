@@ -118,3 +118,14 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 
 /** Storage schema version for the DO SQLite tables. */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+/* Share links (story 5) -------------------------------------------------- */
+
+/** PRD share.create: budget from click to board visible. */
+export const CREATE_BUDGET_MS = 2000;
+
+/** Duration of the "Link copied" confirmation. */
+export const LINK_COPIED_MS = 2000;
+
+/** Backoff base for board existence check retries. */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
