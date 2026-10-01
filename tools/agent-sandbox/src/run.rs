@@ -391,6 +391,7 @@ pub fn serve_proxy(args: &ProxyArgs) -> Result<()> {
 /// own loopback, runs the command, and, being process 1 of its pid namespace, reaps every orphan
 /// until the command ends. Its status is passed on; when it ends the kernel ends everything else.
 pub fn init(sockets: &Path) -> Result<i32> {
+    name_this_process();
     let command = bwrap::command_from_file_bytes(
         &std::fs::read(sockets.join(bwrap::COMMAND_FILE))
             .with_context(|| format!("reading the command in {}", sockets.display()))?,
@@ -418,6 +419,16 @@ pub fn init(sockets: &Path) -> Result<i32> {
         .with_context(|| format!("starting {}", program.to_string_lossy()))?;
     Ok(wait_reaping(child.id() as libc::pid_t))
 }
+
+/// The name `ps -eo comm` and `top` show: `init`, as the command line says, not this program's file name.
+#[cfg(target_os = "linux")]
+fn name_this_process() {
+    // SAFETY: PR_SET_NAME reads a NUL-terminated string of at most 16 bytes.
+    unsafe { libc::prctl(libc::PR_SET_NAME, c"init".as_ptr()) };
+}
+
+#[cfg(not(target_os = "linux"))]
+fn name_this_process() {}
 
 /// Wait for `pid`, passing on SIGTERM, SIGINT and SIGHUP, and collect any other child that ends
 /// (a process 1 gets the orphans of everything that exits).

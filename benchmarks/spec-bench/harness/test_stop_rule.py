@@ -561,7 +561,8 @@ def test_the_story_s_prompt_ends_by_asking_for_the_done_line(tmp_path, monkeypat
                       "After that commit, run `git rev-parse HEAD` and end your final reply with exactly this line: "
                       "STORY 4 DONE <commit hash>. The story is not finished until you have sent it. "
                       "`spec/` is read-only: you cannot change it, and the Status column in tasks.md is not yours to "
-                      "update. Track your progress on the tasks in `PROGRESS.md` (todo, doing, done, blocked).\n")
+                      "update. Track your progress on the tasks in `PROGRESS.md` (todo, doing, done, blocked). "
+                      + drive.PORTS_PROMPT + "\n")
     # The statuses it names are the ones the file allows.
     import progress_file
     assert f"({', '.join(progress_file.STATUSES)})" in drive.SPEC_READ_ONLY_PROMPT and progress_file.FILE in drive.SPEC_READ_ONLY_PROMPT

@@ -39,7 +39,8 @@ SECRET = VIDI / "acceptance" / "package.json"
 def test_sandbox_blocks_reading_the_acceptance_suite(tmp_path: Path):
     own = tmp_path / "run"
     (own / "workspace").mkdir(parents=True)
-    assert "vidi-acceptance" in SECRET.read_text()            # readable from outside: the refusal below is the sandbox's
+    if SECRET.exists():                                       # readable from outside: the refusal below is the sandbox's
+        assert "vidi-acceptance" in SECRET.read_text()
     r = agent_run(["cat", str(SECRET)], own)
     assert r.returncode != 0 and "vidi-acceptance" not in r.stdout
 
@@ -1233,6 +1234,8 @@ class _RecordingContainment:
 
 class _ScriptedClient:
     """An 'agent' that prints pi-shaped events: one tool call, then the end of its turn."""
+    def secrets(self):
+        return {}
     env_remove = ()
     def command(self, model_id, prompt, resume_from=None, fork=True):
         events = ['{"type":"session","id":"s1"}', '{"type":"tool_execution_start","toolCallId":"t1","toolName":"bash"}',

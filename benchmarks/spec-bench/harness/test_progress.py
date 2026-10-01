@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 import drive
+import sandbox
 import progress
 from clients import empty_state
 from drive import DONE, PARTIAL, SPEC
@@ -188,6 +189,9 @@ class SleepyClient:
     def env(self):
         return {}
 
+    def secrets(self):
+        return {}
+
     def command(self, model_id, prompt, resume_from=None, fork=True):
         return ["sh", "-c", 'echo \'{"type":"session","id":"s1"}\'; echo \'{"type":"step"}\'; exec sleep 60']
 
@@ -202,8 +206,10 @@ class SleepyClient:
 @pytest.mark.needs_sandbox      # run_story_agent runs the stand-in agent in the real sandbox
 def test_operator_skip_stops_the_agent_with_no_resume_or_nudge(tmp_path, monkeypatch):
     monkeypatch.setattr(drive, "SKIP_POLL_S", 0.2)
+    monkeypatch.setattr(drive, "WORLD", sandbox.World(run="skip-test", kernel_picked_ports=False))
     run = tmp_path / "run"
     ws, _ = repo(tmp_path)
+    (tmp_path / "workspace").symlink_to(ws.name)          # the sandbox starts the agent in <run dir>/workspace
     (run / "stories" / "03").mkdir(parents=True)
     drive.STORY_SKIP.clear()
     skipper = drive.SkipWatcher(run, 3, ws)

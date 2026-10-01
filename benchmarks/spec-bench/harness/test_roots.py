@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from sandbox_testing import fake_sandbox_env
 
 import provenance
 import roots
@@ -79,13 +80,11 @@ def test_without_the_variable_the_checkout_the_harness_is_in_is_both_roots():
 def test_without_the_variable_every_module_points_at_the_one_checkout(tmp_path):
     r = probe("import drive, packdir, logscan, json\n"
               "print(json.dumps({'results': str(drive.REPO_ROOT), 'code': str(drive.CODE_ROOT),\n"
-              "  'packdir': str(packdir.REPO_ROOT), 'logscan': str(logscan.REPO_ROOT),\n"
-              "  'deny': [str(p) for p in drive.SANDBOX_DENY]}))", None, tmp_path)
+              "  'packdir': str(packdir.REPO_ROOT), 'logscan': str(logscan.REPO_ROOT)}))", None, tmp_path)
     assert r.returncode == 0, r.stderr
     got = json.loads(r.stdout)
     here = str(HARNESS.parents[2])
     assert got["results"] == got["code"] == got["packdir"] == got["logscan"] == here
-    assert got["deny"].count(here) == 1          # listed once, as before
 
 
 def test_in_a_checkout_the_harness_commit_is_head_and_there_is_no_release(tmp_path):
@@ -114,7 +113,7 @@ def test_the_variable_moves_results_and_leaves_code_where_it_is(tmp_path):
               "  'public_pack': str(packdir.public_dir('benchmarks/kat')),\n"
               "  'private': str(packdir.private_checkout()),\n"
               "  'perf': str(drive.BENCHMARKS), 'template': str(pack.GENERIC_TEMPLATE), 'policy': str(history.POLICY),\n"
-              "  'deny': [str(p) for p in drive.SANDBOX_DENY], 'sensitive': peek_audit.default_sensitive(),\n"
+              "  'sensitive': peek_audit.default_sensitive(),\n"
               "  'label': drive.combination_label(run), 'ref_label': drive.combination_label(ref),\n"
               "  'work': drive.work_dir_name(run), 'known': sorted(logscan.known_runs(work_root=run))}))\n"
               , results, tmp_path, str(run), str(ref))
@@ -133,8 +132,7 @@ def test_the_variable_moves_results_and_leaves_code_where_it_is(tmp_path):
     assert got["perf"] == str(code / "benchmarks")
     assert got["template"] == str(code / "benchmarks/spec-bench/prompts/story.md.tmpl")
     assert got["policy"] == str(code / "benchmarks/spec-bench/EVALUATION-POLICY.md")
-    # The agent may read neither.
-    assert str(results) in got["deny"] and str(code) in got["deny"]
+    # The agent may read neither (the sandbox gives it neither: test_the_sandbox_hides_both_roots_from_the_agent).
     assert str(results) in got["sensitive"] and str(code) in got["sensitive"]
 
 
@@ -157,14 +155,15 @@ def test_the_sandbox_hides_both_roots_from_the_agent(tmp_path, outside_shared_te
     own = outside_shared_temp / "work" / "run"
     (own / "workspace").mkdir(parents=True)
     (own / "workspace" / "mine.txt").write_text("mine")
-    script = ("import drive, subprocess, sys, json\n"
-            "from pathlib import Path\n"
-            "own = Path(sys.argv[1])\n"
-            "out = {}\n"
-            "for name, f in (('results', sys.argv[2]), ('code', str(drive.HARNESS / 'drive.py')), ('own', str(own / 'workspace/mine.txt'))):\n"
-            "    r = subprocess.run(drive.sandboxed(['cat', f], own_dir=own), capture_output=True, text=True)\n"
-            "    out[name] = [r.returncode, r.stdout[:40]]\n"
-            "print(json.dumps(out))")
+    script = ("import drive, json, sys\n"
+              "from pathlib import Path\n"
+              "from sandbox_testing import agent_run\n"
+              "own = Path(sys.argv[1])\n"
+              "out = {}\n"
+              "for name, f in (('results', sys.argv[2]), ('code', str(drive.HARNESS / 'drive.py')), ('own', 'mine.txt')):\n"
+              "    r = agent_run(['cat', f], own)\n"
+              "    out[name] = [r.returncode, r.stdout[:40]]\n"
+              "print(json.dumps(out))")
     r = probe(script, results, tmp_path, str(own), str(results / "combinations" / "other-run.json"),
               env={"VIDI_WORK_ROOT": str(outside_shared_temp / "work")})
     assert r.returncode == 0, r.stderr
@@ -293,7 +292,7 @@ def test_run_sh_from_a_release_writes_and_records_in_the_results_checkout(tmp_pa
     pack = fake_pack(tmp_path)
     (pack / "acceptance" / "node_modules").mkdir(parents=True)
     (pack / "acceptance" / "package-lock.json").write_text("{}")
-    env = {**os.environ, **IDENTITY, "HOME": str(home), "VIDI_PACK_DIR": str(pack), roots.ENV: str(repo),
+    env = {**os.environ, **IDENTITY, **fake_sandbox_env(), "HOME": str(home), "VIDI_PACK_DIR": str(pack), roots.ENV: str(repo),
            "PATH": f"{run_sh_stubs(tmp_path)}:{os.environ['PATH']}", "SKIP_SELF_TEST": "1",
            "UV_CACHE_DIR": os.environ.get("UV_CACHE_DIR", str(Path.home() / ".cache/uv"))}
     r = subprocess.run([str(release / "benchmarks/spec-bench/harness/run.sh"), "fake-install", "--run-id", "r1",
@@ -338,7 +337,7 @@ def test_run_sh_in_a_checkout_records_no_release(tmp_path):
     pack = fake_pack(tmp_path)
     (pack / "acceptance" / "node_modules").mkdir(parents=True)
     (pack / "acceptance" / "package-lock.json").write_text("{}")
-    env = {**{k: v for k, v in os.environ.items() if k != roots.ENV}, **IDENTITY, "HOME": str(home),
+    env = {**{k: v for k, v in os.environ.items() if k != roots.ENV}, **IDENTITY, **fake_sandbox_env(), "HOME": str(home),
            "VIDI_PACK_DIR": str(pack), "PATH": f"{run_sh_stubs(tmp_path)}:{os.environ['PATH']}", "SKIP_SELF_TEST": "1",
            "UV_CACHE_DIR": os.environ.get("UV_CACHE_DIR", str(Path.home() / ".cache/uv"))}
     r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-install", "--run-id", "r1",

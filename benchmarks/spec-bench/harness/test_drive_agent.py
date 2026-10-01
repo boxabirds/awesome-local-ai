@@ -24,6 +24,7 @@ import pytest
 import drive
 import hostenv
 import progress
+import sandbox
 from clients import PiClient
 from sandbox_testing import no_sandbox
 
@@ -87,6 +88,9 @@ class Containment:
         self.calls.append("wrap")
         return cmd
 
+    def launcher_env(self):
+        return {}
+
     def started(self, pid):
         self.calls.append(("started", pid))
 
@@ -133,6 +137,8 @@ def session(tmp_path, monkeypatch):
     """run_agent with the sandbox and the OOM wrapper off; returns run(body, **kwargs) -> (result, client, events)."""
     no_sandbox(monkeypatch)
     monkeypatch.setattr(hostenv, "oom_first", lambda cmd: cmd)
+    for name in ("COV_GIVEN", "COV_CLIENT_VAR"):                    # the two variables these tests give, on their own allow-list
+        monkeypatch.setitem(sandbox.ENV_ALLOWED, name, "this test's")
     ws = tmp_path / "work" / "workspace"
     ws.mkdir(parents=True)
     events = tmp_path / "agent-events.jsonl"
@@ -188,10 +194,12 @@ def test_the_harness_s_own_variables_do_not_reach_the_agent(session, monkeypatch
               ("SPEC_BENCH_RESULTS_ROOT", "VIDI_WORK_ROOT", "DBENCH_JOB", "BENCH_CONTEXT", "CTX", "PATH"))})
     """
     _, _, events = session(body)
-    assert logged(events)[0]["env"] == ["CTX", "PATH"]
+    assert logged(events)[0]["env"] == ["PATH"]                  # PATH alone: an allow-list, not a list of what is taken away
 
 
 def test_the_agent_runs_in_the_workspace_with_the_given_and_the_client_s_environment(session, monkeypatch):
+    """The stand-in for the sandbox these tests use gives the agent the same allow-listed environment as the real one
+    (test_agent_world.py runs the real one): what it is given and the client's, and nothing of the harness's own."""
     """With no sandbox (the stand-in these tests use) the agent also has the harness's own environment; the sandbox's
     allow-list, which drops it, is test_agent_world.py and test_sandbox.py."""
     monkeypatch.setenv("COV_INHERITED", "from the harness")
@@ -202,7 +210,7 @@ def test_the_agent_runs_in_the_workspace_with_the_given_and_the_client_s_environ
     _, _, events = session(body, env={"COV_GIVEN": "from agent_env", "COV_CLIENT_VAR": "the client's wins"})
     e = logged(events)[0]
     assert e["cwd"] == str(session.ws.resolve()) and e["stdin"] == "" and e["own_group"] is True
-    assert e["env"] == {"COV_INHERITED": "from the harness", "COV_GIVEN": "from agent_env",
+    assert e["env"] == {"COV_INHERITED": None, "COV_GIVEN": "from agent_env",
                         "COV_CLIENT_VAR": "from the client"}
 
 
@@ -663,7 +671,7 @@ def ps(monkeypatch, answers: dict[str, str]) -> list[list[str]]:
 
 @pytest.mark.parametrize("command, is_agent", [
     ("pi", True), ("pi -p --mode json", True), ("node /opt/tools/pi-coding-agent/dist/cli.js", True),
-    ("sandbox-exec -p (version 1) pi", True), ("/opt/tools/opencode run --format json", True),
+    ("/x/agent-sandbox run --own-dir /w -- pi", True), ("/opt/tools/opencode run --format json", True),
     ("claude -p --output-format stream-json", True),
     ("node node_modules/vite/bin/vite.js preview", False), ("pip install wheel", False), ("ping localhost", False),
     ("", False),                                                      # the process is gone

@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from sandbox_testing import fake_sandbox_env
 
 HARNESS = Path(__file__).parent
 IDENTITY = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
@@ -58,7 +59,7 @@ def test_a_run_that_refuses_to_start_says_so_in_a_pushed_commit(tmp_path):
     (install / "install.env").write_text('COMBINATION="x"\nBACKEND="anthropic"\nMODEL_ID="m"\n'
                                          'RUN_BASE="runs/fake"\nCONFIG_FILE="stack.env"\n')
     pack = fake_pack(tmp_path)  # its acceptance/ has no package.json: npm ci fails
-    env = {**os.environ, **IDENTITY, "HOME": str(home), "VIDI_PACK_DIR": str(pack),
+    env = {**os.environ, **IDENTITY, **fake_sandbox_env(), "HOME": str(home), "VIDI_PACK_DIR": str(pack),
            "UV_CACHE_DIR": os.environ.get("UV_CACHE_DIR", str(Path.home() / ".cache/uv"))}
     r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r9",
                         "--client", "claude", "--record"], env=env, capture_output=True, text=True)
@@ -92,7 +93,7 @@ def test_a_cloud_run_that_completes_exits_0(tmp_path):
                                    f'exec "{real_python}" "$@"\n')
     for f in stubs.iterdir():
         f.chmod(0o755)
-    env = {**os.environ, **IDENTITY, "HOME": str(home), "VIDI_PACK_DIR": str(pack),
+    env = {**os.environ, **IDENTITY, **fake_sandbox_env(), "HOME": str(home), "VIDI_PACK_DIR": str(pack),
            "PATH": f"{stubs}:{os.environ['PATH']}"}
     r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r1",
                         "--client", "claude"], env=env, capture_output=True, text=True)
@@ -130,7 +131,7 @@ def test_a_run_stopped_for_missing_resources_exits_3_and_records_why(tmp_path):
                               f'  *record_event.py*) exec "{real_uv}" "$@";;\nesac\nexit 0\n')
     for f in stubs.iterdir():
         f.chmod(0o755)
-    env = {**os.environ, **IDENTITY, "HOME": str(home), "VIDI_PACK_DIR": str(pack),
+    env = {**os.environ, **IDENTITY, **fake_sandbox_env(), "HOME": str(home), "VIDI_PACK_DIR": str(pack),
            "PATH": f"{stubs}:{os.environ['PATH']}",
            "UV_CACHE_DIR": os.environ.get("UV_CACHE_DIR", str(Path.home() / ".cache/uv"))}
     r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r4",
@@ -162,7 +163,7 @@ def test_a_reference_stack_puts_each_packs_runs_under_that_pack(tmp_path):
                                    f'exec "{real_python}" "$@"\n')
     for f in stubs.iterdir():
         f.chmod(0o755)
-    env = {**os.environ, **IDENTITY, "HOME": str(home), "PATH": f"{stubs}:{os.environ['PATH']}"}
+    env = {**os.environ, **IDENTITY, **fake_sandbox_env(), "HOME": str(home), "PATH": f"{stubs}:{os.environ['PATH']}"}
     env.pop("SPEC_BENCH_PACK_DIR", None)
     env.pop("VIDI_PACK_DIR", None)
     r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--pack", "benchmarks/todoodle",

@@ -21,8 +21,7 @@ pytestmark = pytest.mark.needs_sandbox
 
 @pytest.fixture(scope="module")
 def results():
-    from conftest import OUTSIDE_TEMP_PREFIX
-    scratch = Path.home() / f"{OUTSIDE_TEMP_PREFIX}{uuid.uuid4().hex[:ps.TEMP_TAG_CHARS]}"
+    scratch = Path.home() / f"{ps.TEMP_PREFIX}{uuid.uuid4().hex[:ps.TEMP_TAG_CHARS]}"
     scratch.mkdir()
     observed = None
     try:
