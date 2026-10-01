@@ -4,7 +4,7 @@
 import type { ConversationProfile, Intervention, Row, RunStatus, Score, Story, StorySquare, TimeSplit, Usage } from "./types.ts";
 import { GLOSSARY, type TermId } from "./glossary.ts";
 import { scoreOf } from "./stats.ts";
-import { classifyMechanism, type MechanismResult } from "./combinationView.ts";
+import { classifyMechanism, isCompared, type MechanismResult } from "./combinationView.ts";
 
 /** A difference counts when it is more than this share of the number it is compared with (the plan's 10% rule). */
 export const DIFF_THRESHOLD = 0.1;
@@ -337,15 +337,17 @@ export const COMPARE_MEASURES: Measure[] = [
 export interface CompareCell { key: MeasureKey; a: number | null; b: number | null; rel: number | null; flagged: boolean }
 export interface CompareRow { id: string; title: string; inA: boolean; inB: boolean; cells: CompareCell[] }
 
-/** Two runs story by story: every story either recorded, each measure with a's difference from b. */
+/** Two runs story by story: every story either recorded, each measure with a's difference from b. A story either run
+ * has as a story run that isn't compared (isCompared) keeps both figures and has no difference worked out. */
 export function compareRuns(a: Pick<Row, "stories">, b: Pick<Row, "stories">): CompareRow[] {
   const ids = [...new Set([...a.stories, ...b.stories].map((s) => s.id))].toSorted((x, y) => Number(x) - Number(y));
   return ids.map((id) => {
     const sa = a.stories.find((s) => s.id === id);
     const sb = b.stories.find((s) => s.id === id);
+    const compared = (!sa || isCompared(sa)) && (!sb || isCompared(sb));
     const cells = COMPARE_MEASURES.map(({ key, value }) => {
       const va = sa ? value(sa) : null, vb = sb ? value(sb) : null;
-      const rel = relDiff(va, vb);
+      const rel = compared ? relDiff(va, vb) : null;
       return { key, a: va, b: vb, rel, flagged: isOver(rel) };
     });
     return { id, title: sa?.title || sb?.title || "", inA: !!sa, inB: !!sb, cells };
@@ -456,21 +458,24 @@ export interface AgainstEntry { run: Row; story: Story | null; isThis: boolean }
  * divergence from the median of the others on each measure; when any is flagged, the mechanism (the combination
  * page's rules, against the same other runs); and the most typical other run. `others`: how many other runs
  * recorded the story, what the medians are over (a measure fewer of them recorded has its own n in `flags`); 0
- * means no median row at all. */
+ * means no median row at all. Another run's story run that isn't compared (isCompared) is not among the entries; when
+ * this story run is the one that isn't, it has no flags, no mechanism and no typical run. */
 export function againstCombination(run: Row, rows: Row[], id: string): {
   entries: AgainstEntry[]; scaleSeconds: number; flags: Record<AgainstKey, Divergence | null>; others: number;
   mechanism: MechanismResult | null; typical: TypicalRun | null;
 } {
   const all = rows.filter((r) => r.pack === run.pack && r.stack === run.stack).toSorted(byRunId);
-  const entries = all.map((r) => ({ run: r, story: r.stories.find((s) => s.id === id) ?? null, isThis: r.runId === run.runId }));
+  const entries = all.map((r) => ({ run: r, story: r.stories.find((s) => s.id === id) ?? null, isThis: r.runId === run.runId }))
+    .filter((e) => e.isThis || !e.story || isCompared(e.story));
   const mine = entries.find((e) => e.isThis)?.story ?? null;
   const others = entries.filter((e) => !e.isThis && e.story);
+  const judged = !mine || isCompared(mine);
   const flags = Object.fromEntries(AGAINST_MEASURES.map(({ key, value }) =>
-    [key, divergence(mine ? value(mine) : null, others.map((e) => value(e.story!)))])) as Record<AgainstKey, Divergence | null>;
+    [key, judged ? divergence(mine ? value(mine) : null, others.map((e) => value(e.story!))) : null])) as Record<AgainstKey, Divergence | null>;
   const scaleSeconds = Math.max(1, ...entries.map((e) => e.story?.usage?.split?.wall ?? 0));
   const flagged = AGAINST_MEASURES.some(({ key }) => flags[key]?.flagged);
   const mechanism = mine && flagged ? classifyMechanism(mine, others.map((e) => e.story!)) : null;
-  return { entries, scaleSeconds, flags, others: others.length, mechanism, typical: typicalRun(entries) };
+  return { entries, scaleSeconds, flags, others: others.length, mechanism, typical: judged ? typicalRun(entries) : null };
 }
 
 /** The mechanism rules look for what makes a figure higher, so they don't say why one is lower… */

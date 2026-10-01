@@ -151,6 +151,15 @@ describe("stories", () => {
     expect([st.passed, st.total, st.ownPassed, st.ownTotal]).toEqual([19, 20, 9, 10]);
   });
 
+  it("a story marked not comparable carries the reason to the page; a story without the mark carries none", () => {
+    const REASON = "This story run also built stories 11 and 12.";
+    expect(storyEntry("10", { not_comparable: REASON }).notComparable).toBe(REASON);
+    expect(publicStory(storyEntry("10", { not_comparable: REASON })).notComparable).toBe(REASON);
+    for (const none of [undefined, null, "", "  ", false]) expect(storyEntry("1", { not_comparable: none }).notComparable).toBeNull();
+    // A mark that gives no reason is still a mark: never silently dropped.
+    expect(storyEntry("1", { not_comparable: true }).notComparable).toBe("no reason recorded");
+  });
+
   it("finished stories come from dbench (own tests) before git catches up", () => {
     const recorded = [{ id: "1", title: "Pan", status: "DONE", passed: 6, total: 6, ownPassed: 6, ownTotal: 6 }];
     const merged = mergeStories(recorded, [

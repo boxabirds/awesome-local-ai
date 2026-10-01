@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildMatrix, buildingStory, cellOf, classifyMechanism, DIVERGENCE, divergence, HUNG_COMMAND_SECONDS, HUNG_TOOL_SHARE, heldOutState,
+  buildMatrix, isCompared, buildingStory, cellOf, classifyMechanism, DIVERGENCE, divergence, HUNG_COMMAND_SECONDS, HUNG_TOOL_SHARE, heldOutState,
   MANY_CALLS_RATIO, MECHANISM_PRECEDENCE, metricValue, MIN_RUNS_FOR_MEDIAN, NEAR_RATIO, runOrder, runSplit, runTotal, SHARE_RATIO,
   SLOWER_DECODE_RATIO, siblings, storyIds, storyMedians, tally, THINKING_RATIO, TIME_SHARE, MECHANISM_TERM, modelOf,
 } from "./combinationView.ts";
@@ -395,5 +395,35 @@ describe("names", () => {
     expect(GLOSSARY.smallN.what).toContain(`${SMALL_N} runs or fewer`);
     expect(GLOSSARY.smallN.what).toContain(`${INDISTINGUISHABLE_TESTS} held-out tests`);
     expect(GLOSSARY.divergence.what).toContain(`${DIVERGENCE * 100}%`);
+  });
+});
+
+// ---------- a story run marked not comparable ----------
+describe("a story run marked not comparable: left out of the story's median, its siblings and the flags", () => {
+  const REASON = "This story run also built stories 2 and 3.";
+  const mins = (secs: number) => story("1", { usage: usage({ agentSeconds: secs, split: split({ wall: secs }) }) });
+  const odd = (secs: number): Story => ({ ...mins(secs), notComparable: REASON });
+
+  it("isCompared: only a story run with a reason is not", () => {
+    expect(isCompared(mins(600))).toBe(true);
+    expect(isCompared({ ...mins(600), notComparable: null })).toBe(true);
+    expect(isCompared(odd(600))).toBe(false);
+  });
+  it("storyMedians: the median is over the other finished runs", () => {
+    expect(storyMedians([run([mins(600)]), run([mins(1200)]), run([odd(60000)])], ["1"], "minutes").get("1")).toEqual({ median: 15, n: 2 });
+    expect(storyMedians([run([odd(600)])], ["1"], "minutes").get("1")).toBeNull();
+  });
+  it("siblings: not among the story's other runs, so no mechanism is judged against it", () => {
+    const a = run([mins(600)]), b = run([odd(60000)]), c = run([mins(700)]);
+    expect(siblings([a, b, c], a, "1")).toEqual([c.stories[0]]);
+  });
+  it("buildMatrix: its cell keeps its value and is never flagged; the others are flagged against a median without it", () => {
+    const runs = [run([mins(600)], { runId: "a" }), run([mins(620)], { runId: "b" }), run([odd(60000)], { runId: "c" })];
+    const m = buildMatrix(runs, "minutes");
+    const at = (runId: string) => m.rows.find((r) => r.run.runId === runId)!.cells[0];
+    expect(m.medians.get("1")).toEqual({ median: (600 / 60 + 620 / 60) / 2, n: 2 });
+    expect(at("c")).toMatchObject({ state: "recorded", value: 1000, divergence: null, mechanism: null });
+    expect(at("a").divergence).toBeNull();                          // 600 against 610: within 10%
+    expect(tally(m)).toMatchObject({ flagged: 0, storyRuns: 3 });
   });
 });

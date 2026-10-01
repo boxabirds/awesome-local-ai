@@ -90,6 +90,7 @@ export const GLOSSARY = {
   segOther: { name: "Other", what: "the agent's own overhead between steps" },
   intervened: { name: "intervened", what: "Something was done to this run by hand or by a watchdog: a frozen machine restarted, a silent tool call killed, a story ended at its cap. The run stays in every figure; this marks it so its numbers are read with that in mind. The hover lists each one." },
   interventions: { name: "Interventions", what: "What was done to the run by hand or by a watchdog, oldest first, and in which story. Repeated lines are shown once, with how many times." },
+  notCompared: { name: "Not compared with other runs", what: "This story run is left out of every story-by-story comparison: medians, spreads, marks and verdicts, here and on the pages that set story runs side by side. Its own figures are as recorded, and its run's total and score stand." },
   storyNav: { name: "Around this story", what: "The story before and after this one in the run, the same story in the combination's other runs, and the run and combination it belongs to." },
 
   // The ranking (overview) and the combination page.
@@ -122,6 +123,14 @@ export const GLOSSARY = {
   mechUnexplained: { name: "unexplained", what: "None of the rules fired. They look only for what makes a story run cost more: a hung command, a restart, at least 2× the thinking or 1.5× the steps, heavy compaction, slower generation. It differs for a reason they don't look for (a story run that did less, say), or by less than they need." },
   mechNotRecorded: { name: "not recorded", what: "No conversation profile for this story run, and nothing in its usage explains it." },
   mechPrecedence: { name: "Which label wins", what: "When several rules fire: hung command, then restarted (time sinks nothing else explains), then verbose thinking, many small steps, compaction-heavy, slower generation (causes before their consequences: more thinking and more steps grow the context, which brings compactions and slower generation). Every rule that fired is in the hover." },
+  predictability: { name: "Predictability", what: "How much the same story differs from one finished run of this combination to the next, in the model's thinking and in the story's time, beside how much it thinks and how long it takes. Over the stories that every one of its finished runs built." },
+  thinkingSpread: { name: "Thinking spread", what: "How much the model's thinking for the same story differs from run to run: for each story, the variation across runs; then the median over stories. Lower means more predictable turnaround. Read it beside how much the model thinks." },
+  thinkingPerStory: { name: "Thinking per story", what: "How much the model thinks in one story run: the median over the same finished runs' story runs. In characters where the log shows the thinking; in tokens for a cloud model, whose thinking text is withheld." },
+  timeSpread: { name: "Time spread", what: "How much the agent time for the same story differs from run to run: for each story, the variation across runs; then the median over stories. Lower means more predictable turnaround. Read it beside the minutes per story." },
+  minutesPerStory: { name: "Minutes per story", what: "Agent minutes of one story run: the median over the same finished runs' story runs." },
+  spreadRuns: { name: "Finished runs", what: "How many finished runs the predictability figures are over. A spread is shown from three." },
+  spreadTooFewRuns: { name: "—", what: "Needs three finished runs" },
+  spreadNotRecorded: { name: "—", what: "No finished run recorded this." },
   relatedCombinations: { name: "Other combinations of this model", what: "The same model with another quant, engine, client or hardware class, in this pack." },
   related: { name: "Related", what: "The machines this combination's runs ran on, and the other combinations of the same model." },
 

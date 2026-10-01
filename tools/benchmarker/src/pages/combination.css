@@ -24,6 +24,13 @@
   .kpi .range { display: block; }
   .kpi.primary .range { display: inline; }
   .kpi.primary > dd > .small { display: block; margin-top: 2px; }
+  /* Predictability: one compact line of figures under the headline. */
+  .predictability { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .predictability h3 { margin: 0; }
+  .predictability dl { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0; }
+  .predictability dl > div { display: flex; align-items: baseline; gap: 6px; }
+  .predictability dt { font-size: 13px; color: var(--muted); }
+  .predictability dd { margin: 0; white-space: nowrap; }
   .run-counts { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; }
   @media (max-width: 1100px) { .combo-page-head { grid-template-columns: 1fr; } .headline { flex-wrap: wrap; row-gap: 10px; } }
 

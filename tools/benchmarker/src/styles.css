@@ -178,6 +178,7 @@ a.story-run-link { font-size: 11px; color: var(--muted); margin-left: 4px; }
 .spread .n { font-size: 12px; color: var(--faint); }
 table.combos td .spread .range { display: block; font-size: 11px; }
 table.combos td.score .spread .range { display: inline; }
+table.combos td .amount { display: block; font-size: 11px; white-space: nowrap; }
 .not-counted-list > span { display: block; white-space: nowrap; }
 .unranked { font-size: 12px; color: var(--muted); font-style: italic; }
 .missing, .na { color: var(--faint); cursor: help; }

@@ -482,8 +482,18 @@ function conversationOf(c: RawConversation | undefined | null): ConversationProf
   };
 }
 
+const NO_COMPARABLE_REASON = "no reason recorded";
+
+/** metrics.json's per-story "not_comparable": the reason, in plain words, the story run is left out of story-by-story
+ * comparisons. Absent, null, false or blank: compared. Any other mark still takes effect, saying it gave no reason:
+ * a mark is never silently dropped. */
+function notComparableOf(mark: unknown): string | null {
+  if (typeof mark === "string") return mark.trim() || null;
+  return mark ? NO_COMPARABLE_REASON : null;
+}
+
 export function storyEntry(
-  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[] } & RawUsage,
+  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[]; not_comparable?: unknown } & RawUsage,
 ): RecordStory {
   const acc = raw.accept ?? {};
   const own = acc.by_story?.[/^\d+$/.test(id) ? id.padStart(2, "0") : id] ?? {};
@@ -498,6 +508,7 @@ export function storyEntry(
     byStory: acc.by_story ? normaliseByStory(acc.by_story) : null,
     usage: usageOf(raw),
     conversation: conversationOf(raw.conversation),
+    notComparable: notComparableOf(raw.not_comparable),
     ...(Array.isArray(raw.harness_faults) && raw.harness_faults.length ? { harnessFaults: raw.harness_faults } : {}),
   };
 }

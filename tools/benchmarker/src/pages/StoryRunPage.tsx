@@ -1,5 +1,6 @@
 import type { Row, State, Story } from "../../shared/types.ts";
 import { isCloud, storyRunState, storyTitle } from "../../shared/runView.ts";
+import { isCompared } from "../../shared/combinationView.ts";
 import { Breadcrumb, CombinationLink, RunLink } from "../components/EntityLinks.tsx";
 import { NotRecorded, StoryNav, StoryRunHeader } from "../components/run/StoryRunParts.tsx";
 import { Conversation, StoryCost, StoryTime } from "../components/run/StoryDetail.tsx";
@@ -12,6 +13,8 @@ import "./run.css";
 export function StoryRunPage({ run, storyId, state, params }: { run: Row; story: Story | null; storyId: string; state: State; serverNow: number | null; params?: Record<string, string> }) {
   const st = storyRunState(run, storyId);
   const title = storyTitle(run, state.rows, storyId);
+  // A story run that isn't compared says so in its header, and has none of the three comparisons.
+  const compared = st.kind !== "recorded" || isCompared(st.story);
   return (
     <div className="page story-run-page run-page" data-page="storyRun" data-story-state={st.kind}>
       <Breadcrumb trail={[
@@ -25,9 +28,9 @@ export function StoryRunPage({ run, storyId, state, params }: { run: Row; story:
         <StoryCost usage={st.story.usage} cloud={isCloud(run)} />
         <Conversation story={st.story} />
       </> : <NotRecorded run={run} st={st} />}
-      {st.kind === "outOfScope" ? null : <Against run={run} state={state} storyId={storyId} />}
-      {st.kind === "recorded" ? <WhatDiffered run={run} state={state} storyId={storyId} params={params} /> : null}
-      {st.kind === "outOfScope" ? null : <AcrossCombinations run={run} state={state} storyId={storyId} />}
+      {st.kind === "outOfScope" || !compared ? null : <Against run={run} state={state} storyId={storyId} />}
+      {st.kind === "recorded" && compared ? <WhatDiffered run={run} state={state} storyId={storyId} params={params} /> : null}
+      {st.kind === "outOfScope" || !compared ? null : <AcrossCombinations run={run} state={state} storyId={storyId} />}
       <StoryNav run={run} state={state} storyId={storyId} />
     </div>
   );
