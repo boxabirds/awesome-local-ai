@@ -3,10 +3,9 @@ import type { Browser, BrowserContext, Page } from '@playwright/test';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { BOARD_LOAD_BUDGET_MS, E2E_EVENTUAL_TIMEOUT_MS, PERSIST_TESTED_NOTES } from '../../src/shared/config';
-import { newBoardId } from '../../src/shared/board-id';
 import { initDoc, snapshot } from '../../src/shared/board-model';
 import { largeBoard } from '../fixtures/boards';
-import { setCamera } from './helpers/board';
+import { createBoardId, setCamera } from './helpers/board';
 import { dragNote, newNoteAt, noteViews, notes } from './helpers/participants';
 import { WranglerProcess } from './helpers/wrangler-process';
 
@@ -63,7 +62,7 @@ test.describe('persistence across real process restarts', () => {
   });
 
   test('TC-19 overnight return: 25 varied notes are identical after a restart', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId(server.url);
     const author = await openPerson(browser, server, boardId);
     const observer = await openPerson(browser, server, boardId);
     await setCamera(author.page, { x: 0, y: 0, zoom: 0.5 });
@@ -97,7 +96,7 @@ test.describe('persistence across real process restarts', () => {
   });
 
   test('TC-20 leave immediately: a change another person saw survives exit and restart', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId(server.url);
     const alex = await openPerson(browser, server, boardId);
     const sam = await openPerson(browser, server, boardId);
     const id = await newNoteAt(alex.page, 400, 300);
@@ -123,7 +122,7 @@ test.describe('persistence across real process restarts', () => {
   });
 
   test('TC-21 big board: all PERSIST_TESTED_NOTES notes render; open time is logged', async ({ browser }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId(server.url);
     const wsUrl = `${server.url.replace('http', 'ws')}/api/rooms`;
     const doc = new Y.Doc();
     initDoc(doc);

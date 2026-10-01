@@ -6,8 +6,17 @@ export interface Camera {
   zoom: number;
 }
 
+/** Creates a board through the real API (boards must exist before anyone can open or connect to them). */
+export async function createBoardId(baseURL = 'http://localhost:8787'): Promise<string> {
+  const res = await fetch(`${baseURL}/api/boards`, { method: 'POST' });
+  if (res.status !== 201) throw new Error(`board creation failed: ${res.status}`);
+  return ((await res.json()) as { id: string }).id;
+}
+
+/** Opens a fresh board the way a person does: home page, New board. */
 export async function openBoard(page: Page) {
   await page.goto('/');
+  await page.getByRole('button', { name: 'New board' }).click();
   await page.getByTestId('board-viewport').waitFor();
   await page.waitForFunction(() => window.__vidi6 !== undefined);
 }

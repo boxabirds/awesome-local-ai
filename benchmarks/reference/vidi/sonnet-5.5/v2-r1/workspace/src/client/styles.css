@@ -284,3 +284,89 @@ body,
   color: #166534;
   border: 1px solid #22c55e;
 }
+
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  text-align: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.page h1 {
+  margin: 0;
+}
+
+.page p {
+  margin: 0;
+}
+
+.page-error {
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.primary-button {
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.share {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 1000;
+}
+
+.share-button {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.share-panel {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.share-link {
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.share-note {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+}

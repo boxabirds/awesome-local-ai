@@ -8,7 +8,7 @@ import { createSticky } from '../../src/shared/board-model';
 import { WsClient, waitFor } from './ws-client';
 
 describe('worker entry', () => {
-  it('TC-04: invalid id with Upgrade -> 400 and no room object is touched', async () => {
+  it('TC-04: invalid id with Upgrade -> 404 and no room object is touched', async () => {
     const idFromName = vi.fn();
     const get = vi.fn();
     const env = { BOARD_ROOM: { idFromName, get }, ASSETS: { fetch: vi.fn() } } as unknown as Env;
@@ -16,11 +16,11 @@ describe('worker entry', () => {
       new Request('https://example.com/api/rooms/bad!id', { headers: { Upgrade: 'websocket' } }),
       env,
     );
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(idFromName).not.toHaveBeenCalled();
     expect(get).not.toHaveBeenCalled();
     const real = await SELF.fetch('https://example.com/api/rooms/bad!id', { headers: { Upgrade: 'websocket' } });
-    expect(real.status).toBe(400);
+    expect(real.status).toBe(404);
   });
 
   it('test-hook routes do not exist without env.TEST_HOOKS', async () => {

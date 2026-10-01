@@ -38,6 +38,7 @@ const toBytes = (v: unknown) => new Uint8Array(v as ArrayBuffer);
 export class BoardStore {
   private count = 0;
   private bytes = 0;
+  private migrated = false;
 
   constructor(private readonly storage: DurableObjectStorage) {}
 
@@ -45,7 +46,35 @@ export class BoardStore {
     return this.storage.sql;
   }
 
+  private tableExists(name: string): boolean {
+    return this.sql.exec("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", name).toArray().length > 0;
+  }
+
+  /**
+   * Read-only existence rule: `created_at` is set, or (legacy boards from before board creation was explicit)
+   * there is at least one update or snapshot chunk. Never creates tables.
+   */
+  existsReadOnly(): boolean {
+    if (this.tableExists('storage_meta')) {
+      if (this.sql.exec("SELECT 1 FROM storage_meta WHERE key = 'created_at'").toArray().length > 0) return true;
+    }
+    for (const table of ['updates', 'snapshot_chunks']) {
+      if (this.tableExists(table) && this.sql.exec(`SELECT 1 FROM ${table} LIMIT 1`).toArray().length > 0) return true;
+    }
+    return false;
+  }
+
+  /** Creates the tables and records `created_at` once. Returns false when the board was already initialised. */
+  initialize(now: number = Date.now()): boolean {
+    this.migrate();
+    const rows = this.sql.exec("SELECT 1 FROM storage_meta WHERE key = 'created_at'").toArray();
+    if (rows.length > 0) return false;
+    this.sql.exec("INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)", String(now));
+    return true;
+  }
+
   migrate(): void {
+    this.migrated = true;
     const sql = this.sql;
     sql.exec('CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
     sql.exec(
@@ -63,6 +92,7 @@ export class BoardStore {
   }
 
   append(update: Uint8Array): void {
+    if (!this.migrated) this.migrate();
     this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update.slice(), update.length);
     this.count += 1;
     this.bytes += update.length;
@@ -75,6 +105,7 @@ export class BoardStore {
 
   load(doc: Y.Doc): LoadResult {
     try {
+      if (!this.tableExists('snapshot_chunks') || !this.tableExists('updates')) return { ok: true, quarantined: 0 };
       const chunks = this.sql
         .exec('SELECT data FROM snapshot_chunks ORDER BY idx')
         .toArray()

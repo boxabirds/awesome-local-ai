@@ -36,3 +36,7 @@ export const LOAD_RETRY_MIN_INTERVAL_MS = 5000; // LoadFailed room retries load 
 export const PERSIST_TESTED_NOTES = 2000; // PRD persist.large_board
 export const BOARD_LOAD_BUDGET_MS = 3000; // PRD persist.large_board
 export const STORAGE_SCHEMA_VERSION = 1;
+
+export const CREATE_BUDGET_MS = 2000; // PRD share.create
+export const LINK_COPIED_MS = 2000; // PRD share.copy
+export const BOARD_CHECK_RETRY_BASE_MS = 1000; // backoff doubles up to RECONNECT_MAX_BACKOFF_MS

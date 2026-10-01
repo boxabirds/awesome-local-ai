@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Browser, BrowserContext, Page, WebSocketRoute } from '@playwright/test';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
-import { newBoardId } from '../../../src/shared/board-id';
+import { createBoardId } from './board';
 
 export interface Participant {
   name: string;
@@ -28,8 +28,9 @@ export const badge = (page: Page) => page.getByRole('status').filter({ hasText: 
 export async function openParticipants(
   browser: Browser,
   count: number,
-  boardId: string = newBoardId(),
+  boardId?: string,
 ): Promise<Participant[]> {
+  boardId ??= await createBoardId();
   const names = ['Alex', 'Sam', 'Robin', 'Kim', 'Jo', 'Pat', 'Lee'];
   const people: Participant[] = [];
   for (let i = 0; i < count; i++) {

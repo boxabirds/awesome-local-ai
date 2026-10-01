@@ -1,4 +1,4 @@
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
@@ -44,7 +44,9 @@ export class WsClient {
     });
   }
 
-  static async connect(boardId: string, doc?: (d: Y.Doc) => void): Promise<WsClient> {
+  /** Boards must exist to accept sockets; `create: false` connects without initialising (404 expected). */
+  static async connect(boardId: string, doc?: (d: Y.Doc) => void, create = true): Promise<WsClient> {
+    if (create) await env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).initialize();
     const res = await SELF.fetch(`https://example.com/api/rooms/${boardId}`, { headers: { Upgrade: 'websocket' } });
     if (res.status !== 101 || !res.webSocket) throw new Error(`upgrade failed: ${res.status}`);
     const ws = res.webSocket;

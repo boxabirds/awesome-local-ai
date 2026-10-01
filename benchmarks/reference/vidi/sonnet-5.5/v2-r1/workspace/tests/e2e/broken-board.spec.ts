@@ -2,16 +2,16 @@ import { expect, test } from '@playwright/test';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { E2E_EVENTUAL_TIMEOUT_MS, LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
-import { newBoardId } from '../../src/shared/board-id';
 import { initDoc, snapshot } from '../../src/shared/board-model';
 import { retroBoard } from '../fixtures/boards';
+import { createBoardId } from './helpers/board';
 import { notes } from './helpers/participants';
 
 const MESSAGE = "This board couldn't be loaded. Retrying…";
 
 test.describe('Broken board', () => {
   test('TC-24 honest failure, edit lock, recovery without reload', async ({ page, request, baseURL }) => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId(baseURL);
     const wsUrl = `${(baseURL ?? '').replace('http', 'ws')}/api/rooms`;
     const doc = new Y.Doc();
     initDoc(doc);

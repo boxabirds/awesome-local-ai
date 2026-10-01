@@ -55,7 +55,6 @@ export class BoardRoom extends DurableObject<Env> {
     const doc = new Y.Doc();
     let ok = false;
     try {
-      this.store.migrate();
       const result = this.store.load(doc);
       ok = result.ok;
       if (!result.ok) console.error(JSON.stringify({ event: 'board-load-failed', reason: result.reason, error: result.error }));
@@ -114,10 +113,21 @@ export class BoardRoom extends DurableObject<Env> {
     }
   }
 
+  /** RPC: makes this board exist (tables + `created_at`). */
+  initialize(): 'created' | 'exists' {
+    return this.store.initialize() ? 'created' : 'exists';
+  }
+
+  /** RPC: read-only existence check. */
+  exists(): boolean {
+    return this.store.existsReadOnly();
+  }
+
   async fetch(req: Request): Promise<Response> {
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Upgrade Required', { status: 426 });
     }
+    if (!this.store.existsReadOnly()) return new Response('Not Found', { status: 404 });
     if (this.lifecycle === 'load-failed') {
       const next = nextRoomState('load-failed', {
         type: 'connect',
@@ -210,6 +220,14 @@ export class BoardRoom extends DurableObject<Env> {
     for (const ws of this.ctx.getWebSockets()) this.closeSocket(ws, CLOSE_STORAGE_FAILURE, 'test reset');
     this.doc = null;
     this.lifecycle = 'hibernated';
+  }
+
+  /** Test-only: stores one update the way boards were saved before creation was explicit (no `created_at`). */
+  testSeedLegacy(update: Uint8Array): void {
+    if (this.env.TEST_HOOKS !== '1') throw new Error('test hooks disabled');
+    this.store.migrate();
+    this.store.append(update);
+    this.loadDoc();
   }
 
   testRepairSnapshot(): void {

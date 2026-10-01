@@ -46,3 +46,14 @@
 - Client: `connectBoard` maps close code 4500 to `load_failed`; any other close, including 1011 and 1003, maps to `reconnecting` once synced. `ProviderLike` gains the `connection-close` event, and the component FakeProvider was updated to match. `canEdit` is exported from `App.tsx`. While `load_failed`: the Sticky note button is disabled, create, delete, Enter-to-edit and the note toolbar are off, and notes ignore drag and double-click-to-edit (`StickyNote` `readOnly`).
 - The per-row SQLite limit of Durable Objects was not re-checked online (no network use in this build). 512 KiB chunks are far below the documented 2 MB limit.
 - Only Chromium was run for e2e. Red-phase commit for task 1 was skipped.
+
+# Notes — story 5
+
+- `App.tsx` still exports the board UI (`App`, used by component tests and `BoardPage`); the router lives in the new `src/client/Root.tsx`, which `main.tsx` renders. The story 3 redirect from `/` is gone.
+- `nextBoardPageState` takes an optional fourth `boardId` argument so the `ready` state can carry the id (the design signature has no id). `retryDelayMs(attempt)` in `pages/state.ts` is the capped exponential backoff.
+- The New board button with its Creating…/failure handling is `pages/NewBoardButton.tsx`, shared by `HomePage` and `NotFoundPage` (the design says the not-found page reuses the create action).
+- `compatibility_date` (2025-09-01) already supports Durable Object RPC, so `wrangler.jsonc` is unchanged.
+- Integration `WsClient.connect` initialises the board first (boards must exist now); pass `create = false` to connect without it. E2E helpers create boards through `POST /api/boards` (`createBoardId`), and `openBoard` clicks New board on the home page.
+- Legacy-board e2e (TC-31) uses a test-hook route `POST /__test/boards/:id/seed-legacy` (body = one Yjs update) that stores the update with no `created_at`; it exists only with `TEST_HOOKS=1`.
+- `BoardStore.load()` returns an empty board when the tables are missing; `append()` migrates lazily; `migrate()` no longer runs on room construction. `initialize()` on the store backs the room RPC.
+- Only Chromium was run for e2e. Red-phase commits were skipped.
