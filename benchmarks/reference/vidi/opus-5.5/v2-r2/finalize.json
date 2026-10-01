@@ -1,4 +1,49 @@
 {
+  "version": "vidi-v2.0-pre2",
+  "pack_ref": "vidi-v2.0-pre2",
+  "at": "2026-10-01T16:57:38Z",
+  "bundle": "workspace.bundle",
+  "outside_workspace": {
+    "ok": null,
+    "reached": [],
+    "unjudged": [],
+    "error": "not judged: this record was made from an existing re-score by migration, away from the machine that ran the run, so the agent logs were not read"
+  },
+  "guard": {
+    "story": 12,
+    "record": "75/75",
+    "live": "75/75",
+    "live_version": "vidi-v2.0-pre1+94b980f-dirty",
+    "comparable": false,
+    "threshold": 3,
+    "difference": null,
+    "failures": 0,
+    "one_signature": false,
+    "live_same_signature": null,
+    "flagged": null
+  },
+  "rescore": "done",
+  "reason": "",
+  "score": "75/75",
+  "reason_kind": "scored",
+  "needs_person": false,
+  "retries_exhausted": false,
+  "attempts": 0,
+  "max_attempts": 5,
+  "last_attempt_at": null,
+  "history": [],
+  "migrated": {
+    "at": "2026-10-01T16:57:38Z",
+    "from": "rescore/vidi-v2.0-pre2/rescore.json",
+    "rescored_at": "2026-09-30T07:46:16Z",
+    "note": "made from an existing re-score on 1 Oct 2026 by migrate_rescore_to_record.py (monitor entry A-030), not a fresh re-score: the run ended before finalize.json existed"
+  },
+  "built_under": {
+    "version": "vidi-v2.0-pre1",
+    "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+    "scored_under": "vidi-v2.0-pre2",
+    "note": "built while the suite was at vidi-v2.0-pre1; its score of record is the final re-score under vidi-v2.0-pre2, by the owner's decision for this run"
+  },
   "repair": {
     "repaired": [
       "1",
