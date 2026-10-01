@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 10:17 UTC
+**Last updated:** 2026-10-01 10:27 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -158,6 +158,25 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   accepted the connection and never answered, and the agent set no timeout.
 - **Status:** explained; kept here in case it recurs. The guard did its job.
 
+### A-005 — mlx-serve v2-r2 stopped by the swap guard twice (stories 9 and 11), restarted 30 s later each time
+- **First seen:** 2026-10-01 05:04 · **Last seen:** 2026-10-01 10:23 · **Where:** mlxserve-pi v2-r2 story 9, the M5 Max (job
+  vidi-v2b-mlx-r2-again1, now on attempt 2).
+- **What:** swap grew 2.31 → 6.36 GB (guard limit: 4 GB growth); the harness exited 1 and dbench started
+  attempt 2 seconds later, before the machine had recovered. The story then completed (6/6 own, 55/57).
+- **Bucket:** environment — high for the stop (what filled memory wasn't identified from the record);
+  the instant restart was a dbench shortcoming. **Fixed:** `0a712ce6` (a run the guard stopped resumes
+  only once the machine has recovered). Side effect on accounting: A-016.
+- **Note 2026-10-01 10:25 (recurred; back under watch):** story 11 was stopped the same way at 10:22
+  after 77 agent-min and 232 calls (swap 2.64 → 6.94 GB); dbench logged "restarting in 30s" and attempt 3
+  was in preflight within a minute, so on this node the stop still used a restart rather than a wait
+  (the node was held for a restart onto the newer dbench; whether that happened wasn't checked). One
+  restart is left. Both stops came while the agent ran its whole e2e suite across three browsers at once,
+  with the model server holding most of the memory: that is the likely trigger. At 10:25 the machine had
+  3.9 GB of swap in use and 94% of memory free (model not yet reloaded), so the new attempt starts from a
+  higher swap baseline.
+- **Suggested action:** if it stops a third time the job fails with no restarts left: resubmit by hand.
+  Consider capping the browsers' workers for this stack's memory, or counting a guard stop as a wait.
+
 ### A-010 — Sonnet 5.5 v2-r4: its own e2e suite fails in the gate on stories 2 and 3 while held-out passes
 - **First seen:** 2026-10-01 07:5x (story 2) · **Last seen:** 2026-10-01 08:2x (story 3)
 - **Where:** reference/sonnet-5.5 v2-r4, the M2 MacBook Air.
@@ -269,15 +288,6 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   `node_modules`).
 - **Bucket:** internal bug (sandbox exposed directories above the workspace) — high. **Fixed:** `7fd3136f`;
   v2-r1..r3 marked invalid in `ee444cb9`; rerun as v2-r4..r6 (v2-r4 in progress).
-
-### A-005 — mlx-serve v2-r2 story 9 stopped by the swap guard, then restarted at once
-- **Seen:** 2026-10-01 05:04 · **Where:** mlxserve-pi v2-r2 story 9, the M5 Max (job
-  vidi-v2b-mlx-r2-again1, now on attempt 2).
-- **What:** swap grew 2.31 → 6.36 GB (guard limit: 4 GB growth); the harness exited 1 and dbench started
-  attempt 2 seconds later, before the machine had recovered. The story then completed (6/6 own, 55/57).
-- **Bucket:** environment — high for the stop (what filled memory wasn't identified from the record);
-  the instant restart was a dbench shortcoming. **Fixed:** `0a712ce6` (a run the guard stopped resumes
-  only once the machine has recovered). Side effect on accounting: A-016.
 
 ### A-006 — gufo v2-r2 story 2 took 18 min against 52–96 min in the other runs
 - **Seen:** 2026-09-30 · **Where:** gufo-pi v2-r2 story 2, the Strix Halo box.
@@ -397,9 +407,9 @@ By bucket (A-018 is a scheduling flag and has no bucket):
 | genuine LLM behaviour | 0 | 4 (A-010, A-012, A-013, A-026) | 3 (A-006, A-007, A-017) | 7 |
 | stuck job | 0 | 0 | 0 | 0 |
 | broken pipeline | 1 (A-011) | 0 | 1 (A-024) | 2 |
-| environment | 1 (A-022) | 0 | 1 (A-005) | 2 |
+| environment | 1 (A-022) | 1 (A-005) | 0 | 2 |
 | unexplained | 0 | 2 (A-019, A-021) | 0 | 2 |
-| **Total** | **2** (+A-018) | **9** | **14** | **25** (+A-018) |
+| **Total** | **2** (+A-018) | **10** | **13** | **25** (+A-018) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
