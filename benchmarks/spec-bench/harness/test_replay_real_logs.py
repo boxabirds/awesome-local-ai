@@ -55,6 +55,7 @@ import time
 import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -392,6 +393,31 @@ class Problems(list):
         return back
 
 
+NO_ONE_S_HOME = Path("/nonexistent/spec-bench-replay/home")       # a home no recorded log mentions
+
+
+def compacted_again(plain: Path) -> list[str]:
+    """The lines of an already published log after drive.compact_events has been through a copy of it. Its home
+    paths were redacted on the machine that recorded it; this machine's home is no part of that, so the
+    compaction runs with a home that is in no log."""
+    copy_of = plain.with_name("again.jsonl")
+    shutil.copyfile(plain, copy_of)
+    with mock.patch.object(Path, "home", return_value=NO_ONE_S_HOME):
+        compact = drive.compact_events(copy_of)
+    with gzip.open(compact, "rt", errors="replace") as f:
+        return f.read().splitlines()
+
+
+def test_compacting_a_published_log_again_does_not_depend_on_this_machine_s_home(tmp_path):
+    """A published log can hold, as text, the home directory of the machine the replay runs on: Swift 1.5 v2-r4
+    story 12's has miniflare's source, built on GitHub Actions under /home/runner, which is CI's home too. The
+    second compaction then redacted it, and the replay reported the log as changed, on CI only."""
+    line = json.dumps({"_rx": 1.0, "type": "tool_execution_end", "result": f"// embed-worker:{Path.home()}/work/sdk/x.ts"})
+    plain = tmp_path / "plain.jsonl"
+    plain.write_text(line + "\n")
+    assert compacted_again(plain) == [line]
+
+
 # ---------------------------------------------------------------- accounting.py
 
 def replay_accounting(s: Story, p: Problems) -> None:
@@ -542,10 +568,7 @@ def replay_drive(s: Story, p: Problems) -> None:
         p.same(agent[k], s.whole[k], f"reconstruct_agent {k}")
     p.same(agent["tokens"], s.whole["tokens"], "reconstruct_agent tokens")
     # The published log is already compact: compacting it again changes nothing (no event lost, none rewritten).
-    copy_of = s.plain.with_name("again.jsonl")
-    shutil.copyfile(s.plain, copy_of)
-    with gzip.open(drive.compact_events(copy_of), "rt", errors="replace") as f:
-        again = f.read().splitlines()
+    again = compacted_again(s.plain)
     kept = [l for l in s.lines if isinstance(_loads(l), dict)]
     p.expect(again == kept, f"compact_events changed an already compact log ({len(kept)} events in, {len(again)} out)")
 
