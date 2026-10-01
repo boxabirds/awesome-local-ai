@@ -1,3 +1,38 @@
+commit 2679d784c5571330f2f3d4881b3aab4f9bdd4715
+vidi-agent  Thu Oct 1 09:38:10 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ playwright.config.ts                             |  12 +-
+ src/client/App.tsx                               |  10 +-
+ src/client/board/Toolbar.tsx                     |  10 +-
+ src/client/objects/StickyNote.tsx                |  10 +-
+ src/client/sync/ConnectionStatus.tsx             |   4 +
+ src/client/sync/connectBoard.ts                  |  20 +-
+ src/shared/config.ts                             |   9 +
+ src/shared/protocol.ts                           |   2 +
+ src/worker/board-room.ts                         | 226 ++++++++++++++----
+ src/worker/board-store.ts                        | 271 +++++++++++++++++++++
+ src/worker/index.ts                              |  19 ++
+ src/worker/room-state.ts                         |  93 ++++++++
+ src/worker/types.d.ts                            |  69 +++++-
+ tests/component/ConnectionStatus.test.tsx        | 120 ++++++++++
+ tests/e2e/broken-board.spec.ts                   |  54 +++++
+ tests/e2e/persistence.spec.ts                    |  87 +++++++
+ tests/fixtures/boards.ts                         |  99 ++++++++
+ tests/integration/board-room-persistence.test.ts | 218 +++++++++++++++++
+ tests/integration/board-room.test.ts             |   8 +-
+ tests/integration/board-store.test.ts            | 290 +++++++++++++++++++++++
+ tests/integration/global-setup.ts                |   8 -
+ tests/integration/helpers/server.ts              |  44 ----
+ tests/integration/helpers/test-server.ts         | 203 ----------------
+ tests/integration/helpers/ws-client.ts           |  92 +++++--
+ tests/integration/worker.test.ts                 |   7 +-
+ tests/unit/board-store-chunks.test.ts            |  59 +++++
+ tests/unit/room-state.test.ts                    | 117 +++++++++
+ vitest.workspace.ts                              |  37 ++-
+ 28 files changed, 1848 insertions(+), 350 deletions(-)
 commit 2193ea5ae42b3788842211d4d77d13bd6b77d266
 vidi-agent  Thu Oct 1 08:16:48 2026 +0100
 
