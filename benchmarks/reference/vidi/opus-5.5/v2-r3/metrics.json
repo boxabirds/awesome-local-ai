@@ -157,11 +157,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 2.2,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -514,11 +517,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 0.7,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -898,11 +904,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 0.7,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -1285,17 +1294,21 @@
           "bash": 2.8,
           "build": 0.4,
           "read": 0.3,
-          "write": 0.2
+          "write": 0.2,
+          "schedulewakeup": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 0.9,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -1684,11 +1697,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -2053,11 +2069,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.8,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -2495,17 +2514,21 @@
           "unit": 25.9,
           "bash": 3.0,
           "build": 2.1,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 0.9,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -2881,17 +2904,21 @@
           "unit": 35.7,
           "bash": 4.4,
           "build": 2.2,
-          "write": 0.2
+          "write": 0.2,
+          "read": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -3305,17 +3332,21 @@
           "bash": 49.2,
           "unit": 18.9,
           "build": 1.1,
-          "read": 0.6
+          "read": 0.6,
+          "toolsearch": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -3725,11 +3756,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.2,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -4102,17 +4136,22 @@
           "unit": 40.2,
           "bash": 6.2,
           "build": 2.2,
-          "read": 0.6
+          "read": 0.6,
+          "monitor": 0.0,
+          "toolsearch": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
