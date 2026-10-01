@@ -547,7 +547,9 @@ def test_hang_guard_kills_a_tool_that_replaced_its_shell_and_left_the_workspace(
     events.write_text(_json.dumps({"type": "tool_execution_start"}) + "\n")
     old = time.time() - 700
     os.utime(events, (old, old))
-    alive = lambda pid: subprocess.run(["ps", "-p", str(pid), "-o", "stat="], capture_output=True, text=True).stdout.strip() not in ("", "Z")
+    # Gone, or a zombie its parent hasn't reaped ("Z" on macOS; "Zs" on Linux for a session leader).
+    state = lambda pid: subprocess.run(["ps", "-p", str(pid), "-o", "stat="], capture_output=True, text=True).stdout.strip()
+    alive = lambda pid: state(pid) != "" and not state(pid).startswith("Z")
     monkeypatch.setattr(drive, "AGENT_ROOT_PID", agent.pid, raising=False)
     try:
         time.sleep(1)
