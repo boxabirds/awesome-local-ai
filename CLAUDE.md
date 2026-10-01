@@ -9,3 +9,21 @@ This repository is public, and every push is visible to the world under the owne
 - No issues, comments, pull requests, forks or reactions on other projects unless the owner asks for that specific action.
 
 Why: on 28 September 2026 three commit messages saying `gufo-org/gufo#304` put this repository's internal notes (run names, harness constants, session links) on the timeline of an issue the owner had filed with the gufo maintainers, where they meant nothing to anyone.
+
+## Every bug fix starts with a test that reproduces it
+
+For any change to code in this repository, a bug fix begins with a test that fails because of the bug. Run it and see it fail for the reason you expect. Then fix the code until that test passes, and run the module's other tests. If the fix already exists when you find the bug (someone else's change fixed it, say), still write the test, and prove it would catch the bug: run it against the broken version, from git history or with the bug put back in a scratch copy. A test that has never been seen to fail proves nothing.
+
+Where the failure happens late in a long run (the end of a story, after hours), the test must reach the same code in seconds. Prefer a focused test of the exact path to an end-to-end one; keep the end-to-end test as well where one exists.
+
+Why: on 30 September 2026 a change to time accounting rebound the variable that held the story's held-out result. Every story then crashed after scoring and before its record was saved, and the mlx-serve v2-r2 run used up all three restarts on story 4. No test exercised that path before the run started.
+
+## Presenting to the owner
+
+When reporting, keep information separate from requests for action. Put what happened and what was found under one heading. Put what needs the owner (decisions, approvals, things only they can do) under another, so neither has to be dug out of the other.
+
+When problems lead to recommended actions, give each one as:
+
+- **Problem:** what is wrong, with the evidence.
+- **Recommended solution:** the change that would address it.
+- **Proposed actions:** the concrete steps, marked with whether each needs the owner's approval.
