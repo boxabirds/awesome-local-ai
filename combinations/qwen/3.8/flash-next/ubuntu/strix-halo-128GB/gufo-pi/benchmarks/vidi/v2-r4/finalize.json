@@ -1,0 +1,13 @@
+{
+  "version": "vidi-v2.0-pre2+28ace8b",
+  "pack_ref": "vidi-v2.0-pre2",
+  "at": "2026-10-01T08:25:57Z",
+  "bundle": "workspace.bundle",
+  "outside_workspace": {
+    "ok": true,
+    "reached": [],
+    "unjudged": []
+  },
+  "rescore": "skipped",
+  "reason": "the suite checkout is at vidi-v2.0-pre2+28ace8b, not the pack's vidi-v2.0-pre2"
+}

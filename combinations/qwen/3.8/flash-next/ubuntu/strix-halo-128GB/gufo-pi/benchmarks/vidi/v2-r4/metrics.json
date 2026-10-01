@@ -444,6 +444,17 @@
           "pushed": true
         },
         "commit": "cae4e9c9"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 107
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -913,6 +924,17 @@
           "pushed": true
         },
         "commit": "0afdf465"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 157
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "3": {
@@ -1627,6 +1649,17 @@
           "pushed": true
         },
         "commit": "3297e796"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 246
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "4": {
@@ -2229,6 +2262,17 @@
         "commit": "c77e0599",
         "unpushed": true,
         "error": "com:boxabirds/awesome-local-ai.git\n ! [rejected]          HEAD -> main (fetch first)\nerror: failed to push some refs to 'github.com:boxabirds/awesome-local-ai.git'\nhint: Updates were rejected because the remote contains work that you do not\nhint: have locally. This is usually caused by another repository pushing to\nhint: the same ref. If you want to integrate the remote changes, use\nhint: 'git pull' before pushing again.\nhint: See the 'Note about fast-forwards' in 'git push --help' for details.\n"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 312
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "5": {
@@ -2796,6 +2840,17 @@
           "pushed": true
         },
         "commit": "849d3bcc"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 154
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "7": {
@@ -3390,6 +3445,17 @@
           "pushed": true
         },
         "commit": "a6597cd2"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 134
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "8": {
@@ -3923,6 +3989,17 @@
           "pushed": true
         },
         "commit": "3c949c09"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 158
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "9": {
@@ -4461,6 +4538,17 @@
           "pushed": true
         },
         "commit": "d94f1a07"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 221
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "10": {
@@ -4988,6 +5076,17 @@
           "pushed": true
         },
         "commit": "5b07f754"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 162
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "11": {
@@ -5476,6 +5575,17 @@
           "pushed": true
         },
         "commit": "95971ed9"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 151
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "12": {
@@ -6052,6 +6162,30 @@
           "fixed": 0,
           "regressed": 0
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r4/server.log"
+        ],
+        "private": {
+          "copied": 39,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "2b8d1393"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 184
+        },
+        "truncated": false,
+        "reaches": []
       }
     }
   },
