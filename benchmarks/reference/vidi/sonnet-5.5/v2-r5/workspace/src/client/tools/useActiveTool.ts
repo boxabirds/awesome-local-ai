@@ -8,7 +8,7 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 };
 
 /** Tools this build lets the user switch to; sticky is an instant action and the rest belong to later stories. */
-export const ACTIVE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+export const ACTIVE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
 /**
  * Per-client active tool (never persisted). Tools other than Select are only available while the board can be

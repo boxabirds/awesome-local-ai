@@ -99,3 +99,11 @@
 - Shape label is a textarea overlaid on a centred, wrapping mirror div (not a foreignObject); the shape is a div with an SVG outline. Accessible names: `Rectangle`, `Ellipse`, `Diamond` (+ `: label`), `Arrow`. Swatches: `<colour> fill`, `no fill`, `<colour> outline`; the shape toolbar also has `Delete shape`. Shape menu items are `menuitemradio`s and the menu shows while the Shape tool is active.
 - A selected arrow is lifted above all shapes (z + 100000) so its handles stay reachable. Dragging a connector selection with an attached end does nothing by design.
 - e2e TC-27 holds Dana's server-to-client WebSocket frames with `page.routeWebSocket` (instead of delaying Sam's traffic) so Sam's delete reaches the server while Dana still sees the shape. Chromium only (Firefox/WebKit not installed).
+
+## Story 11 decisions
+- No `BoardViewport` change: like the Shape tool, `PenTool` is a full-board layer (`tool-layer`) that owns pointer drags and forwards wheel events (`useForwardWheel`), so Pen drags never pan or move objects and scroll/pinch still navigate.
+- `PenTool` also takes an optional `undo` prop and closes the undo window (`boundary()`) around each commit, which is how `stopCapturing()` is done in this codebase.
+- `StrokeObject` root svg has `pointer-events: none`; only a transparent line-hugging path (width max(thickness, 2*6px/zoom)) takes pointer events, so the browser does the line hit test and clicks elsewhere in the box fall through. The registry `hitTest` (used by tests) takes a world point and offsets it by the stroke origin before measuring against `scaledPoints`.
+- Escape mid-drag unmounts the layer and discards the unfinished stroke (the explicit non-interrupt path); pointercancel / lostpointercapture commit it.
+- Dot: a gesture whose pointer never moved DRAG_THRESHOLD_PX commits a single point. A continuation part holding only its join point is not committed.
+- E2E: `TC-26 full-capacity session` in live-collaboration.spec.ts (story 3) fails in this environment with and without story 11 changes (verified on a clean stash); other chromium e2e pass. Firefox/WebKit are not installed.

@@ -6,6 +6,9 @@ import { sharedMeasurer } from '../objects/textLayout';
 import { localIdentityId } from './localIdentity';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { ConnectorTool } from '../tools/ConnectorTool';
 import { attachableRects } from '../tools/hit';
 import { setShapeStyle } from '../../shared/objects/shape';
@@ -59,6 +62,7 @@ export function Board({ boardId }: { boardId: string }) {
     onGestureStart: boundary, onGestureEnd: boundary,
   });
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({ canEdit: editable, select: sel.select });
+  const pen = usePenOptions();
   const rects = useMemo(() => attachableRects(objects), [objects]);
 
   // Stacking is CSS z-index (z, with id as DOM-order tie-break). The DOM order stays stable so that
@@ -145,6 +149,15 @@ export function Board({ boardId }: { boardId: string }) {
               kind={shapeKind} camera={api.camera} doc={doc} by={localIdentityId()} undo={undoCtl}
               onCreated={toolCreated}
             />
+          )}
+          {tool === 'pen' && (
+            <>
+              <PenToolbar color={pen.color} thickness={pen.thickness} onColor={pen.setColor} onThickness={pen.setThickness} />
+              <PenTool
+                camera={api.camera} color={pen.color} thickness={pen.thickness} doc={doc}
+                identityId={localIdentityId()} undo={undoCtl}
+              />
+            </>
           )}
           {tool === 'connector' && (
             <ConnectorTool

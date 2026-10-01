@@ -91,6 +91,18 @@ export function Toolbar(props: {
           <path d="M4 20L19 5M11 5h8v8" />
         </svg>
       </button>
+      <button
+        type="button"
+        aria-label="Pen (P)"
+        title="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        disabled={props.disabled}
+        onClick={() => onTool?.('pen')}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M4 20l1-4L16 5l3 3L8 19z M14 7l3 3" />
+        </svg>
+      </button>
       {props.undoButtons}
     </div>
   );

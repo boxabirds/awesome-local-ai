@@ -6,6 +6,7 @@ import {
 import { rectContains, type Point, type Rect } from './geometry';
 import { connectorBBox, resolveEndpoints, type ConnectorSnap } from './geometry/connector-geometry';
 import { detachConnectorsTo, parseEndpoint } from './objects/connector';
+import { isPenColor, isPenThickness, type StrokeSnap } from './objects/stroke';
 import { isFillColor, isShapeKind, isStrokeColor, type ShapeSnap } from './objects/shape';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
@@ -267,6 +268,19 @@ export function snapshotObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
       const from = parseEndpoint(obj.get('from'));
       const to = parseEndpoint(obj.get('to'));
       if (from && to) out.push({ ...base, type: 'connector', from, to } as ConnectorSnap);
+    } else if (type === 'stroke') {
+      const points = obj.get('points');
+      const baseWidth = size(obj.get('baseWidth'));
+      const baseHeight = size(obj.get('baseHeight'));
+      const color = obj.get('color');
+      const thickness = obj.get('thickness');
+      if (Array.isArray(points) && points.every((v) => typeof v === 'number' && Number.isFinite(v))
+        && baseWidth && baseHeight) {
+        out.push({
+          ...base, type: 'stroke', points, baseWidth, baseHeight,
+          color: isPenColor(color) ? color : 'black', thickness: isPenThickness(thickness) ? thickness : 'medium',
+        } as StrokeSnap);
+      }
     } else {
       out.push(base);
     }

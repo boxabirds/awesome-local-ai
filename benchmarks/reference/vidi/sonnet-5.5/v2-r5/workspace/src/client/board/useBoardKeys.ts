@@ -46,11 +46,12 @@ export function useBoardKeys(opts: {
         return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (tools && !e.shiftKey && (key === 'v' || key === 't' || key === 'n' || key === 's' || key === 'l')) {
+      if (tools && !e.shiftKey && (key === 'v' || key === 't' || key === 'n' || key === 's' || key === 'l' || key === 'p')) {
         if (key === 'v') tools.setTool('select');
         else if (canEdit && key === 't') tools.setTool('text');
         else if (canEdit && key === 's') tools.setTool('shape');
         else if (canEdit && key === 'l') tools.setTool('connector');
+        else if (canEdit && key === 'p') tools.setTool('pen');
         else if (canEdit && key === 'n') tools.createSticky();
         return;
       }
