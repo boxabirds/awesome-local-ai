@@ -1,3 +1,38 @@
+commit 9329aabe4bc8baca8b651609b88569d97232c5e5
+vidi-agent  Thu Oct 1 09:51:45 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                         |  12 ++
+ playwright.config.ts                             |   2 +-
+ src/client/App.tsx                               |  20 +-
+ src/client/board/Toolbar.tsx                     |   5 +-
+ src/client/objects/StickyNote.tsx                |   9 +-
+ src/client/objects/StickyText.ts                 |   1 +
+ src/client/sync/ConnectionStatus.tsx             |   1 +
+ src/client/sync/connectBoard.ts                  |  22 +-
+ src/shared/config.ts                             |   8 +
+ src/shared/protocol.ts                           |   2 +
+ src/worker/board-room.ts                         | 192 +++++++++++++----
+ src/worker/board-store.ts                        | 156 ++++++++++++++
+ src/worker/index.ts                              |   4 +
+ src/worker/room-state.ts                         |  41 ++++
+ src/worker/test-hooks.ts                         |  17 ++
+ tests/component/ConnectionStatus.test.tsx        |  36 +++-
+ tests/component/LoadFailedEditing.test.tsx       |  67 ++++++
+ tests/e2e/broken-board.spec.ts                   |  37 ++++
+ tests/e2e/helpers/seed.ts                        |  46 ++++
+ tests/e2e/helpers/wrangler-process.ts            |  73 +++++++
+ tests/e2e/persistence.spec.ts                    | 148 +++++++++++++
+ tests/fixtures/boards.ts                         | 103 +++++++++
+ tests/integration/board-room-persistence.test.ts | 236 +++++++++++++++++++++
+ tests/integration/board-store.test.ts            | 254 +++++++++++++++++++++++
+ tests/integration/env.d.ts                       |   2 +
+ tests/unit/board-store-chunks.test.ts            |  35 ++++
+ tests/unit/room-state.test.ts                    |  57 +++++
+ wrangler.jsonc                                   |   2 +-
+ 28 files changed, 1528 insertions(+), 60 deletions(-)
 commit 3870c4320d4ac1ec8c885a5ec7cc0827f54ec431
 vidi-agent  Thu Oct 1 09:10:11 2026 +0100
 
