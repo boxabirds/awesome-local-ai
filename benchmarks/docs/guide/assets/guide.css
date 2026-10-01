@@ -198,6 +198,8 @@ button[aria-pressed="true"], button[aria-selected="true"] { background: var(--ac
 main { min-width: 0; padding-bottom: 80px; }
 @media (min-width: 1100px) {
   .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 32px; }
+  /* The contents list stays in view and scrolls on its own. The script keeps the current heading visible by moving this
+     list's scrollTop, never scrollIntoView, which also moves the page and fought the reader's scrolling. */
   .toc-wrap { position: sticky; top: 70px; align-self: start; max-height: calc(100vh - 86px); overflow: auto; margin: 16px 0; }
   .toc-wrap > details { border: 0; background: none; }
   .toc-wrap summary { display: none; }

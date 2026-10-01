@@ -423,6 +423,19 @@ section("Insight panels, findings, glossary, search");
   await ctx.close();
 }
 
+section("Scrolling");
+{
+  const { ctx, page } = await openPage({ width: 1440, height: 900 }, "light");
+  await page.mouse.move(800, 540);
+  for (let i = 0; i < 40; i++) { await page.mouse.wheel(0, 600); await page.waitForTimeout(40); }
+  await page.waitForTimeout(600);
+  const s = await page.evaluate(() => ({ y: Math.round(scrollY), top: Math.round(document.querySelector(".toc-wrap").getBoundingClientRect().top), nav: document.querySelector(".toc-wrap").scrollTop }));
+  ok(s.y >= 20000, "the page keeps scrolling to the end of the wheel travel, not stuck near the top", JSON.stringify(s));
+  ok(s.top === 70, "the contents list stays pinned while the page scrolls", JSON.stringify(s));
+  ok(s.nav > 0, "the contents list scrolls itself to keep the current heading in view", JSON.stringify(s));
+  await ctx.close();
+}
+
 section("Accessibility");
 for (const scheme of ["light", "dark"]) {
   const { ctx, page } = await openPage(WIDE, scheme);
