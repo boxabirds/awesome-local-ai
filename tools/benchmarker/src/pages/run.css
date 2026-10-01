@@ -43,6 +43,7 @@
 .rs-sq { display: block; width: 28px; height: 28px; border-radius: 6px; background: currentColor; }
 .rs-sq.rs-unbuilt { background: none; border: 2px dashed var(--line); color: var(--faint); }
 .rs-sq.rs-noResult { background: none; border: 2px solid var(--line); color: var(--faint); }
+.rs-sq.rs-building { background: none; border: 2px solid var(--run); }
 .rs-n { font-size: 11px; font-weight: 600; color: var(--muted); }
 .rs-item a:hover .rs-sq, .rs-item a:focus-visible .rs-sq { box-shadow: 0 0 0 2px var(--ink) inset; }
 .unit { font-size: 12px; font-weight: 500; color: var(--faint); }
@@ -89,11 +90,6 @@ a.record-link:hover .record-of { color: var(--run); }
 .rows dd { margin: 0; }
 
 /* ---------- story strip ---------- */
-.rp-strip { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
-.rp-strip a.story-run-link { border: 0; margin: 0; font-size: inherit; display: block; border-radius: 6px; }
-.rp-sq { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #fff; }
-.rp-sq.q-unbuilt { color: var(--muted); }
-.rp-strip a:hover .rp-sq { filter: brightness(1.12); box-shadow: 0 0 0 2px var(--ink) inset; }
 .legend-row .legend i.q-running { animation: none; }
 
 /* ---------- time bars ---------- */
@@ -173,37 +169,21 @@ td[data-flagged="true"] { background: color-mix(in srgb, var(--part) 12%, transp
 .differ .no-profile { color: var(--muted); font-style: italic; vertical-align: top; background: var(--panel-2); max-width: 220px; white-space: normal; }
 
 /* against every combination */
-.across th[scope="row"] { font-size: 13px; font-weight: 500; text-align: left; white-space: normal; text-transform: none; letter-spacing: normal; color: var(--ink); background: none; }
-.across th, .across td { vertical-align: middle; }
-.across thead th { white-space: normal; vertical-align: bottom; }
-.across thead th.n { text-align: right; }
-.across .th-sub { display: block; font-weight: 400; color: var(--faint); text-transform: none; letter-spacing: 0; }
-.across .bar-col { width: 26%; min-width: 130px; padding-right: 4px; }
-.across .spread { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
-.across .range, .across .n-runs { display: block; font-size: 11px; font-weight: 400; color: var(--faint); }
-.across .runs { white-space: nowrap; }
-.across .aside-n { display: block; }
-.across .no-median { color: var(--muted); font-style: italic; }
-.across tr.is-this > * { background: color-mix(in srgb, var(--run) 8%, transparent); }
-.across tr.is-this > :first-child { box-shadow: inset 3px 0 0 var(--run); }
-.across .this-mark { margin-left: 0; }
-.this-combo { display: block; font-size: 11px; font-weight: 600; color: var(--run); }
-.across .without-record td { font-size: 12px; color: var(--muted); }
-.across tbody tr:last-child > * { border-bottom: 0; }
-/* The bar is ink and grey, not a held-out or time-split colour: those are reserved for what they mean. */
-.across-bar { position: relative; display: block; height: 12px; }
-.across-bar .med { position: absolute; left: 0; top: 0; bottom: 0; min-width: 2px; border-radius: 2px; background: var(--faint); }
-.across-bar .med.own { background: var(--run); }
-.across-bar .whisker { position: absolute; top: 5px; height: 2px; background: var(--ink); box-shadow: -1px 0 0 var(--ink), 1px 0 0 var(--ink); }
-.across-bar .whisker::before, .across-bar .whisker::after { content: ""; position: absolute; top: -3px; width: 2px; height: 8px; background: var(--ink); }
-.across-bar .whisker::before { left: 0; } .across-bar .whisker::after { right: 0; }
-.across-bar .mine-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--run); }
-.across-key { margin: 10px 0 0; line-height: 1.8; }
-.across-bar.key { display: inline-block; width: 22px; height: 10px; vertical-align: -1px; margin-right: 4px; }
-.across-bar.key .med, .across-bar.key .whisker { left: 0; width: 100%; }
-.across-bar.key .whisker { top: 4px; }
-.across-bar.key.mark { width: 6px; }
-.across-bar.key .mine-mark { left: 50%; top: -2px; bottom: -2px; }
+/* Against every combination: a verdict, then the plain numbers; the range on hover. */
+.verdicts th[scope="row"] { font-size: 13px; font-weight: 500; text-align: left; white-space: normal; text-transform: none; letter-spacing: 0; }
+.verdicts th, .verdicts td { vertical-align: middle; }
+.verdicts .runs-n { display: block; font-size: 11px; font-weight: 400; color: var(--faint); }
+.verdicts .verdict { font-weight: 700; margin-right: 6px; }
+.verdicts .verdict[data-verdict="better"], .verdicts .verdict[data-verdict="faster"] { color: var(--ok); }
+.verdicts .verdict[data-verdict="worse"], .verdicts .verdict[data-verdict="slower"] { color: var(--bad); }
+.verdicts .figures { color: var(--muted); white-space: nowrap; }
+.verdicts tr.is-this > * { background: color-mix(in srgb, var(--run) 8%, transparent); }
+.verdicts tr.is-this > :first-child { box-shadow: inset 3px 0 0 var(--run); }
+.verdicts tbody tr:last-child > * { border-bottom: 0; }
+.across-detail { margin-top: 10px; }
+.across-detail > summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.across-detail .spread { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.across-detail .range { display: block; font-size: 11px; color: var(--faint); }
 
 /* conversation */
 .conv-lists { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 28px; margin-top: 18px; }

@@ -248,11 +248,13 @@ export function leadScore(run: Pick<Row, "status" | "scores" | "suite" | "storie
  * "noResult": recorded without one. "unbuilt": not built yet (or being built). */
 export type StoryResult =
   | { id: string; state: "result"; passed: number; total: number; tip: string }
-  | { id: string; state: "noResult" | "unbuilt"; tip: string };
+  | { id: string; state: "noResult" | "unbuilt" | "building"; tip: string };
 
 export function storyResults(run: Pick<Row, "stories" | "storiesWorking">): StoryResult[] {
   return scopeIds(run).map((id): StoryResult => {
     const s = run.stories.find((x) => x.id === id);
+    const building = run.storiesWorking.squares.some((q) => q.id === id && q.state === "running");
+    if (!s && building) return { id, state: "building", tip: `story ${id}: being built now` };
     if (!s) return { id, state: "unbuilt", tip: `story ${id}: not built yet` };
     if (s.ownTotal === null || s.ownPassed === null) return { id, state: "noResult", tip: `story ${id}: no result recorded` };
     return { id, state: "result", passed: s.ownPassed, total: s.ownTotal, tip: `story ${id}: ${s.ownPassed}/${s.ownTotal} of its own tests` };

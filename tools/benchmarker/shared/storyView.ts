@@ -5,14 +5,14 @@
 // The rules are the combination page's, reused, not copied: a story run's value on a measure (metricValue), the median
 // over the combination's finished runs (as storyMedians), the divergence rule (divergence), run order (runOrder), and
 // the mechanism behind a flag (classifyMechanism against the story's other runs in the combination).
-import type { Row, RunStatus, Story, StorySquare, Usage } from "./types.ts";
+import type { Row, Story, StorySquare, Usage } from "./types.ts";
 import type { TermId } from "./glossary.ts";
 import { spread, type Spread } from "./stats.ts";
 import {
   buildingStory, cellOf, classifyMechanism, divergence, metricValue, runOrder, siblings, storyIds,
   type Divergence, type MechanismResult, type Metric, type StoryMedian,
 } from "./combinationView.ts";
-import { storyRunState } from "./runView.ts";
+import { isOver, relDiff, storyRunState } from "./runView.ts";
 
 const PERCENT = 100;
 
@@ -235,71 +235,83 @@ export function storyPage(runs: Row[], id: string): StoryPageView {
 }
 
 // ---------- the story across combinations (the story-run page) ----------
+// Two questions per combination: is this story run higher or lower quality on this story, and faster or slower? Each
+// answered with a verdict, then the plain numbers. The medians are the story page's own (combinationSummary).
 
-/** What a combination can say about the story: a median over its finished runs; recorded, but only by runs that
- * haven't finished; or (this run's own combination alone) not recorded at all. */
-export type AcrossState = "measured" | "unfinished" | "notRecorded";
+/** Floating point: 6/7 − 5/7 times 7 is not exactly 1. */
+const TEST_TOLERANCE = 1e-9;
+/** From this many times on, a speed ratio is shown whole. */
+const WHOLE_TIMES = 10;
+const TIMES_DECIMALS = 1;
 
-export interface AcrossRow {
-  stack: string; label: string; pack: string;
-  /** The combination of the story run the page is about. */
-  isThis: boolean;
-  state: AcrossState;
-  /** The story page's summary, as it is: median, range and n per measure over the finished runs. */
-  summary: Record<SummaryKey, Summary>;
-  /** Finished runs that recorded the story: what the medians are over (a measure's own n can be smaller). */
-  n: number;
-  /** Runs that recorded the story but haven't finished (running, failed, stopped), by status: in no median. */
-  unfinished: { status: RunStatus; count: number }[];
+export type QualityVerdict = "same" | "better" | "worse";
+export type SpeedVerdict = { kind: "same" } | { kind: "faster" | "slower"; times: number };
+
+/** Same when this run's pass rate is within one of the story's tests of the median; else better or worse. */
+export function qualityVerdict(mine: number | null, median: number | null, tests: number | null): QualityVerdict | null {
+  if (mine === null || median === null || !tests) return null;
+  const apart = (mine - median) * tests;
+  if (Math.abs(apart) <= 1 + TEST_TOLERANCE) return "same";
+  return apart > 0 ? "better" : "worse";
 }
 
-export interface AcrossView {
-  /** One row per combination that has recorded the story, and this run's own whatever it has, in the story page's order. */
-  rows: AcrossRow[];
-  /** This story run's own figure on each summarised measure (null where it has none); null when it isn't recorded. */
+/** Same within the 10% band (exactly 10% included); else how many times faster (the median over this run's time)
+ * or slower (this run's over the median). */
+export function speedVerdict(mine: number | null, median: number | null): SpeedVerdict | null {
+  if (mine === null || median === null || mine <= 0 || median <= 0) return null;
+  if (!isOver(relDiff(mine, median))) return { kind: "same" };
+  return mine < median ? { kind: "faster", times: median / mine } : { kind: "slower", times: mine / median };
+}
+
+/** "2.4×", "10×". */
+export const timesText = (x: number) => (x >= WHOLE_TIMES - 0.05 ? `${Math.round(x)}×` : `${x.toFixed(TIMES_DECIMALS)}×`);
+export const speedText = (v: SpeedVerdict) => (v.kind === "same" ? "same" : `${timesText(v.times)} ${v.kind}`);
+
+export interface VerdictRow {
+  stack: string; label: string; pack: string;
+  /** The story run's own combination: this run against the combination's other finished runs. */
+  isThis: boolean;
+  /** Finished runs that recorded the story: what the medians are over. */
+  n: number;
+  quality: { mine: number | null; median: number | null; spread: Spread | null; verdict: QualityVerdict | null };
+  /** Agent minutes. */
+  speed: { mine: number | null; median: number | null; spread: Spread | null; verdict: SpeedVerdict | null };
+  outTokens: Spread | null;
+  calls: Spread | null;
+}
+
+export interface VerdictView {
+  rows: VerdictRow[];
+  /** This story run's own figures on each summarised measure; null when it isn't recorded. */
   mine: Record<SummaryKey, number | null> | null;
   story: Story | null;
-  /** One scale for every time bar: the longest agent time among the ranges and this story run's own (never 0). */
-  scaleMinutes: number;
-  /** Other combinations of the pack version with no record of the story yet: left out, and counted. */
-  withoutRecord: number;
 }
 
 const summaryMeasure = (k: SummaryKey) => STORY_MEASURES.find((m) => m.key === k)!;
 
-/** How every combination fares on the story a story run is of: the story page's groups (storyPage: the same medians,
- * the same order), cut down to the combinations that have recorded it, with this story run's own figures to set
- * against them. Only runs of the story run's pack and version family count. */
-export function acrossCombinations(run: Row, rows: Row[], id: string): AcrossView {
-  const view = storyPage(rows.filter((r) => r.pack === run.pack && r.family === run.family), id);
-  const all = view.groups.map((g): AcrossRow => {
-    const recorded = g.entries.filter((e) => e.attempt.kind === "recorded").map((e) => e.run);
-    const open = recorded.filter((r) => r.status !== "finished");
-    return {
-      stack: g.stack, label: g.label, pack: g.pack, isThis: g.stack === run.stack, summary: g.summary, n: g.finishedRecorded,
-      state: g.finishedRecorded > 0 ? "measured" : open.length > 0 ? "unfinished" : "notRecorded",
-      unfinished: [...new Set(open.map((r) => r.status))].map((status) => ({ status, count: open.filter((r) => r.status === status).length })),
-    };
-  });
-  const shown = all.filter((r) => r.isThis || r.state !== "notRecorded");
+/** Every combination of the story run's pack and version family with a finished run of the story, each with this story
+ * run's verdicts against it: its own combination first (without this run), then the others by median quality, best
+ * first, ties by median time, fastest first. A combination with no finished run of the story is not listed. */
+export function acrossVerdicts(run: Row, rows: Row[], id: string): VerdictView {
+  const pool = rows.filter((r) => r.pack === run.pack && r.family === run.family);
   const story = run.stories.find((s) => sameStory(s.id, id)) ?? null;
   const mine = story && Object.fromEntries(SUMMARY_KEYS.map((k) => [k, summaryMeasure(k).value(story)])) as Record<SummaryKey, number | null>;
-  return {
-    rows: shown, mine, story,
-    scaleMinutes: Math.max(1, mine?.minutes ?? 0, ...shown.map((r) => r.summary.minutes.spread?.max ?? 0)),
-    withoutRecord: all.length - shown.length,
-  };
-}
-
-/** Why a row has no median on a measure (named as the glossary names it, in lower case), for the "—" hover. */
-export function acrossNoMedian(row: AcrossRow, id: string, measure: string): string {
-  const story = `story ${Number(id)}`;
-  switch (row.state) {
-    case "notRecorded": return `No run of this combination has recorded ${story} yet.`;
-    case "unfinished":
-      return `No finished run yet: ${story} is recorded only by runs that haven't finished (${row.unfinished.map((u) => `${u.count} ${u.status}`).join(", ")}), and the median is over finished runs, as on the story page.`;
-    case "measured": return `No finished run of this combination recorded its ${measure} for ${story}.`;
-  }
+  const byStack = new Map<string, Row[]>();
+  for (const r of pool) if (!(r.stack === run.stack && r.runId === run.runId)) byStack.set(r.stack, [...(byStack.get(r.stack) ?? []), r]);
+  const all = [...byStack].map(([stack, rs]): VerdictRow => {
+    const sum = combinationSummary(rs, id);
+    const n = rs.filter((r) => r.status === "finished" && r.stories.some((s) => sameStory(s.id, id))).length;
+    const q = sum.heldOut.spread, t = sum.minutes.spread;
+    return {
+      stack, label: rs[0].label, pack: rs[0].pack, isThis: stack === run.stack, n,
+      quality: { mine: mine?.heldOut ?? null, median: q?.median ?? null, spread: q, verdict: qualityVerdict(mine?.heldOut ?? null, q?.median ?? null, story?.ownTotal ?? null) },
+      speed: { mine: mine?.minutes ?? null, median: t?.median ?? null, spread: t, verdict: speedVerdict(mine?.minutes ?? null, t?.median ?? null) },
+      outTokens: sum.outTokens.spread, calls: sum.calls.spread,
+    };
+  }).filter((r) => r.n > 0);
+  const order = (a: VerdictRow, b: VerdictRow) => Number(b.isThis) - Number(a.isThis)
+    || nullsLast(a.quality.median, b.quality.median, -1) || nullsLast(a.speed.median, b.speed.median, 1) || a.label.localeCompare(b.label);
+  return { rows: all.toSorted(order), mine, story };
 }
 
 // ---------- the comparison ----------
