@@ -68,13 +68,14 @@ const HARNESS: &str = r#"#!/usr/bin/env bash
 set -euo pipefail
 VERSION="@VERSION@"
 INSTALL_ID="$1"; shift
-RUN_ID=""; PACK=""; RECORD=0; FROM_RUN=""
+RUN_ID=""; PACK=""; RECORD=0; FROM_RUN=""; FROM_STORY=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --pack) PACK="$2"; shift 2 ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
     --scope|--client|--only) shift 2 ;;
     --from-run) FROM_RUN="$2"; shift 2 ;;
+    --from-story) FROM_STORY="$2"; shift 2 ;;
     --record) RECORD=1; shift ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
@@ -86,6 +87,7 @@ echo "harness: $VERSION"
 echo "code-root: $CODE_ROOT"
 echo "results-root: ${SPEC_BENCH_RESULTS_ROOT:-unset}"
 if [[ -n "$FROM_RUN" ]]; then echo "from-run: $FROM_RUN"; fi
+if [[ -n "$FROM_STORY" ]]; then echo "from-story: $FROM_STORY"; fi
 if [[ -f "$CODE_ROOT/RELEASE.json" ]]; then echo "manifest: $(tr -d ' \n' < "$CODE_ROOT/RELEASE.json")"; fi
 COMBINATION="$(sed -n 's/^COMBINATION="\(.*\)"/\1/p' "$HOME/.local/share/$INSTALL_ID/install.env")"
 RUN_DIR="$ROOT/combinations/$COMBINATION/benchmarks/$(basename "$PACK")/$RUN_ID"
@@ -841,4 +843,30 @@ async fn a_known_good_job_on_a_release_reads_its_reference_run_from_the_checkout
     assert!(log.contains(&format!("code-root: {}", release_dir(&env, TAG_1).display())), "{log}");
     assert!(log.contains(&format!("from-run: {}", env.repo.join(&reference).display())), "{log}");
     assert!(!release_dir(&env, TAG_1).join(&reference).exists());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_job_from_a_story_on_a_release_passes_it_with_the_reference_run_in_the_checkout() {
+    let env = setup();
+    release(&env, TAG_1, "v1", "");
+    let reference = format!("combinations/{COMBINATION}/benchmarks/{PACK_NAME}/v2-r3");
+    for f in REFERENCE_FILES {
+        write(&env.repo, &format!("{reference}/{f}"), "{}");
+    }
+    let srv = start(&env, &[]);
+    let spec = json!({"install_id": INSTALL_ID, "pack": PACK, "run_id": "fs", "client": "pi", "record": false,
+                      "from_run": reference, "from_story": KNOWN_GOOD_STORY});
+    let resp = srv
+        .http
+        .put(format!("{}/v1/jobs/fs", srv.base))
+        .bearer_auth(&srv.token)
+        .json(&spec)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status().as_u16(), 201, "{}", resp.text().await.unwrap());
+    srv.wait_status("fs", "done").await;
+    let log = srv.log("fs").await;
+    assert!(log.contains(&format!("from-run: {}", env.repo.join(&reference).display())), "{log}");
+    assert!(log.contains(&format!("from-story: {KNOWN_GOOD_STORY}")), "{log}");
 }

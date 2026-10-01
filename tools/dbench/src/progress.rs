@@ -845,6 +845,7 @@ mod tests {
             record: false,
             server_env: Default::default(),
             from_run: None,
+            from_story: None,
         };
         let repo = root.join("repo");
         let dir = run_dir(&repo, "a/b", &spec);

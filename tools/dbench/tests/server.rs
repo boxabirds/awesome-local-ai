@@ -39,7 +39,7 @@ impl Drop for TempRoot {
 const HEADER: &str = r#"#!/usr/bin/env bash
 set -euo pipefail
 INSTALL_ID="$1"; shift
-RUN_ID=""; SCOPE=""; CLIENT=""; RECORD=0; ONLY=""; FROM_RUN=""
+RUN_ID=""; SCOPE=""; CLIENT=""; RECORD=0; ONLY=""; FROM_RUN=""; FROM_STORY=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --run-id) RUN_ID="$2"; shift 2 ;;
@@ -47,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     --client) CLIENT="$2"; shift 2 ;;
     --only) ONLY="$2"; shift 2 ;;
     --from-run) FROM_RUN="$2"; shift 2 ;;
+    --from-story) FROM_STORY="$2"; shift 2 ;;
     --record) RECORD=1; shift ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
@@ -57,6 +58,7 @@ mkdir -p "$RUN_DIR"
 echo "path-head: ${PATH%%:*}"
 echo "args: $INSTALL_ID $RUN_ID $SCOPE $CLIENT $RECORD"
 if [[ -n "$FROM_RUN" ]]; then echo "known-good: only=$ONLY from-run=$FROM_RUN"; fi
+if [[ -n "$FROM_STORY" ]]; then echo "continuing: from-story=$FROM_STORY only=[$ONLY] from-run=$FROM_RUN"; fi
 "#;
 
 const FAKE_BODY: &str = r#"echo "[story 1] Fake story one — agent starting"
@@ -1415,5 +1417,142 @@ async fn submit_takes_a_reference_run_and_repeats_it_as_separate_runs() {
         assert!(!out.status.success(), "{from_run} {extra:?}");
         assert!(said.contains(why), "{from_run} {extra:?}: {said}");
     }
+    drop(env.root);
+}
+
+fn from_story_spec(run_id: &str, from_run: &str) -> Value {
+    let mut s = spec("fakepack", run_id);
+    s["from_run"] = json!(from_run);
+    s["from_story"] = json!(KNOWN_GOOD_STORY);
+    s
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_job_from_a_story_names_it_to_the_harness_and_keeps_it_across_a_restart() {
+    let env = setup();
+    reference_run(&env, REFERENCE_RUN, &[BUNDLE_FILE, METRICS_FILE]);
+    let mut a = start(&env, false);
+
+    let s = from_story_spec("fs-1", REFERENCE_RUN);
+    let (code, v) = a.submit("fs-1", &s).await;
+    assert_eq!(code, 201, "{v}");
+    assert_eq!(v["spec"]["from_story"], KNOWN_GOOD_STORY, "{v}");
+
+    // The same id with another first story, or with --stories instead, is a different job.
+    assert_eq!(a.submit("fs-1", &s).await.0, 200);
+    let mut later = s.clone();
+    later["from_story"] = json!(KNOWN_GOOD_STORY + 1);
+    assert_eq!(a.submit("fs-1", &later).await.0, 409);
+    assert_eq!(a.submit("fs-1", &known_good_spec("fs-1", REFERENCE_RUN)).await.0, 409);
+
+    // The harness gets --from-story and the reference run, and no --only.
+    a.wait_status("fs-1", "done").await;
+    let log = a.log("fs-1").await;
+    let want = format!(
+        "continuing: from-story={KNOWN_GOOD_STORY} only=[] from-run={}",
+        env.repo.join(REFERENCE_RUN).display()
+    );
+    assert!(log.contains(&want), "want {want:?} in {log}");
+
+    // Refused at submit, without the node's files, and says why.
+    let mut no_run = s.clone();
+    no_run.as_object_mut().unwrap().remove("from_run");
+    let (code, v) = a.submit("fs-bad", &no_run).await;
+    assert_eq!(code, 400, "{v}");
+    assert!(v["error"].as_str().unwrap_or_default().contains("from_run"), "{v}");
+    let mut with_stories = s.clone();
+    with_stories["stories"] = json!([KNOWN_GOOD_STORY]);
+    let (code, v) = a.submit("fs-bad", &with_stories).await;
+    assert_eq!(code, 400, "{v}");
+    assert!(v["error"].as_str().unwrap_or_default().contains("stories"), "{v}");
+    let mut zero = s.clone();
+    zero["from_story"] = json!(0);
+    let (code, v) = a.submit("fs-bad", &zero).await;
+    assert_eq!(code, 400, "{v}");
+    assert!(v["error"].as_str().unwrap_or_default().contains("from_story"), "{v}");
+
+    // It is part of the stored spec.
+    a.child.kill().unwrap();
+    a.child.wait().unwrap();
+    let b = start(&env, false);
+    assert_eq!(b.get("/v1/jobs/fs-1").await["spec"]["from_story"], KNOWN_GOOD_STORY);
+    assert_eq!(b.submit("fs-1", &s).await.0, 200);
+    assert_eq!(b.submit("fs-1", &later).await.0, 409);
+    drop(env.root);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_job_from_a_story_whose_reference_run_is_incomplete_fails_before_it_starts() {
+    let env = setup();
+    let no_bundle = format!("{REFERENCE_RUN}-nobundle");
+    reference_run(&env, &no_bundle, &[METRICS_FILE]);
+    let srv = start(&env, false);
+    let (code, v) = srv.submit("fs-nobundle", &from_story_spec("fs-nobundle", &no_bundle)).await;
+    assert_eq!(code, 201, "{v}");
+    let v = srv.wait_status("fs-nobundle", "failed").await;
+    let reason = v["state"]["reason"].as_str().unwrap();
+    assert!(reason.contains(BUNDLE_FILE) && reason.contains(&no_bundle), "{reason}");
+    assert_eq!(v["attempt"], 0, "the harness never started: {v}");
+    drop(env.root);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn submit_takes_a_first_story_and_repeats_it_as_separate_runs() {
+    const REPEATS: usize = 3;
+    let env = setup();
+    reference_run(&env, REFERENCE_RUN, &[BUNDLE_FILE, METRICS_FILE]);
+    let srv = start(&env, false);
+    let story = KNOWN_GOOD_STORY.to_string();
+    let repeats = REPEATS.to_string();
+    let base = ["submit", NODE_NAME, "--id", "fs", "--install-id", INSTALL_ID, "--pack", "fakepack"];
+    let run = |extra: &[&str]| {
+        let mut args: Vec<&str> = base.to_vec();
+        args.extend(["--scope", "canvas", "--run-id", "fs-s2"]);
+        args.extend(extra);
+        dbench_cli(&env, &srv, &args)
+    };
+    let out = run(&["--from-run", REFERENCE_RUN, "--from-story", &story, "--repeat", &repeats]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    for n in 1..=REPEATS {
+        let v = srv.wait_status(&format!("fs-r{n}"), "done").await;
+        assert_eq!(v["spec"]["from_story"], KNOWN_GOOD_STORY, "{v}");
+        assert_eq!(v["spec"]["from_run"], REFERENCE_RUN, "{v}");
+        assert_eq!(v["spec"]["run_id"], format!("fs-s2-r{n}"), "{v}");
+        assert!(v["spec"].get("stories").is_none(), "{v}");
+    }
+    let again = run(&["--from-run", REFERENCE_RUN, "--from-story", &story, "--repeat", &repeats]);
+    assert!(String::from_utf8_lossy(&again.stderr).contains("no change"));
+
+    let status = dbench_cli(&env, &srv, &["status", NODE_NAME, "fs-r1"]);
+    let shown = String::from_utf8_lossy(&status.stdout).into_owned();
+    assert!(shown.contains(&format!("from story  {KNOWN_GOOD_STORY}")), "{shown}");
+    assert!(shown.contains(&format!("from run  {REFERENCE_RUN}")), "{shown}");
+
+    // Refused before anything is sent.
+    for (extra, why) in [
+        (vec!["--from-story", "2"], "--from-run"),
+        (vec!["--from-run", REFERENCE_RUN, "--from-story", "2", "--stories", "2"], "--stories"),
+        (vec!["--from-run", REFERENCE_RUN, "--from-story", "0"], "from-story"),
+        (vec!["--from-run", REFERENCE_RUN, "--from-story", "two"], "from-story"),
+        (vec!["--from-run", REFERENCE_RUN, "--from-story=-1"], "from-story"),
+    ] {
+        let out = run(&extra);
+        let said = String::from_utf8_lossy(&out.stderr).into_owned();
+        assert!(!out.status.success(), "{extra:?}");
+        assert!(said.contains(why), "{extra:?}: {said}");
+    }
+    drop(env.root);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_spec_with_a_field_the_node_does_not_know_is_refused_not_run_as_a_plain_job() {
+    // What an older node does with a newer client's field: the job is never queued.
+    let env = setup();
+    let srv = start(&env, false);
+    let mut s = spec("fakepack", "unknown-field");
+    s["field_from_a_newer_dbench"] = json!(1);
+    let (code, v) = srv.submit("unknown-field", &s).await;
+    assert!(code == 400 || code == 422, "{code}: {v}");
+    assert_eq!(srv.get("/v1/jobs").await.as_array().map_or(0, Vec::len), 0);
     drop(env.root);
 }
