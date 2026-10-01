@@ -37,8 +37,11 @@ import finalize
 import gates
 import heldout
 import progress
+import finalize_pending
 import rescore
 import roots
+import scoring_tools
+import tagsuite
 
 pytestmark = pytest.mark.skipif(not (shutil.which("node") and shutil.which("npm") and shutil.which("npx")),
                                 reason="needs node, npm and npx")
@@ -69,6 +72,7 @@ SUITE_TESTS = {
 # environment (WORKSPACE, ACCEPT_JSON), and Playwright's JSON report shape, which gates._walk reads.
 FAKE_RUNNER = r"""#!/usr/bin/env node
 const fs = require('fs'), path = require('path');
+if (process.argv[2] === 'install') process.exit(0);          // `playwright install chromium`: nothing to fetch
 const args = process.argv.slice(2).filter(a => a !== 'test');
 let app = null;
 try { app = JSON.parse(fs.readFileSync(path.join(process.env.WORKSPACE, 'dist', 'app.json'), 'utf8')); } catch {}
@@ -121,16 +125,22 @@ def make_private_repo(root: Path) -> Path:
     (acc / "tests").mkdir(parents=True)
     for f, lines in SUITE_TESTS.items():
         (acc / "tests" / f).write_text("\n".join(lines) + "\n")
-    (acc / "package.json").write_text(json.dumps({"name": "kat-acceptance", "private": True}))
+    # The suite's Playwright, as file: dependencies with a lockfile: the checkout installs them here, and a suite
+    # built at its tag (tagsuite.py) installs them again from the lockfile, as it does a real suite's.
+    for name, files in {"playwright-test": {"package.json": json.dumps({"name": "@playwright/test", "version": FAKE_PLAYWRIGHT_VERSION,
+                                                                       "bin": {"playwright": "cli.js"}}),
+                                            "cli.js": FAKE_RUNNER},
+                        "playwright-core": {"package.json": json.dumps({"name": "playwright-core", "version": FAKE_PLAYWRIGHT_VERSION}),
+                                            "browsers.json": json.dumps(FAKE_CHROMIUM)}}.items():
+        (acc / "vendor" / name).mkdir(parents=True)
+        for f, text in files.items():
+            (acc / "vendor" / name / f).write_text(text)
+    (acc / "vendor" / "playwright-test" / "cli.js").chmod(0o755)
+    (acc / "package.json").write_text(json.dumps({"name": "kat-acceptance", "private": True, "dependencies": {
+        "@playwright/test": "file:vendor/playwright-test", "playwright-core": "file:vendor/playwright-core"}}))
     (acc / ".gitignore").write_text("node_modules/\n")
-    runner = acc / "node_modules" / ".bin" / "playwright"
-    runner.parent.mkdir(parents=True)
-    runner.write_text(FAKE_RUNNER)
-    runner.chmod(0o755)
-    (acc / "node_modules" / "@playwright" / "test").mkdir(parents=True)
-    (acc / "node_modules" / "@playwright" / "test" / "package.json").write_text(json.dumps({"version": FAKE_PLAYWRIGHT_VERSION}))
-    (acc / "node_modules" / "playwright-core").mkdir(parents=True)
-    (acc / "node_modules" / "playwright-core" / "browsers.json").write_text(json.dumps(FAKE_CHROMIUM))
+    subprocess.run(["npm", "install", "--no-audit", "--no-fund"], cwd=acc, check=True, capture_output=True,
+                   env={**os.environ, "npm_config_offline": "true", "npm_config_update_notifier": "false"})
     git(root, "init", "-q", "-b", "main")
     git(root, "add", "-A")
     git(root, "commit", "-qm", "kat pack")
@@ -333,8 +343,9 @@ def pack_version(pack: Path) -> str:
 
 
 def finalize_run(run: Path, mp: pytest.MonkeyPatch) -> dict:
-    pack = Path(os.environ["SPEC_BENCH_PACK_DIR"])
-    return finalize.finalize(run, PACK_REF, pack_version(pack), rescore=rescore_here(mp), record=None)
+    """finalize under the version the harness records for the pack: its tag, wherever the checkout is."""
+    version = tagsuite.version_for(finalize.load_pack(PACK))
+    return finalize.finalize(run, PACK_REF, version, rescore=rescore_here(mp), record=None)
 
 
 def copy_run(src_root: Path, dest_root: Path) -> Path:
@@ -474,6 +485,96 @@ def test_scoring_only_the_latest_story_is_caught(tmp_path, monkeypatch):
     assert live["2"] == {"passed": 1, "total": 2}
 
 
+# ---------- the suite is the tag's, wherever the checkout is ----------
+
+def test_a_suite_checkout_past_its_tag_with_changed_tests_is_scored_by_the_tags_suite(run_copy, monkeypatch):
+    """1 Oct 2026: the private checkout was left on its main branch, past the pack's tag, and a finished run got no
+    score of record. Here the checkout's own tests have changed since the tag (the "sum" check now accepts the
+    app's 2+2), so the two suites give different scores: the record must be the tag's, 4/5, under the tag's name.
+    Moving the tag to the changed suite then gives 5/5, which shows the test tells the two apart."""
+    pack = Path(os.environ["SPEC_BENCH_PACK_DIR"])
+    spec = pack / "acceptance" / "tests" / "story-01.spec.ts"
+    spec.write_text(spec.read_text().replace("sum == 5", "sum == 4"))
+    git(pack, "commit", "-qam", "after the tag: the sum check changed")
+    assert pack_version(pack).startswith(PACK_REF + "+")            # what used to mean "not re-scored"
+    tag_commit = git(pack, "rev-parse", f"{PACK_REF}^{{commit}}").strip()
+
+    finalize_run(run_copy, monkeypatch)
+    got = recorded(run_copy)
+    assert_known_answer(got)                                        # 4/5: the tag's "sum == 5" still fails
+    fin = json.loads((run_copy / finalize.STATUS).read_text())
+    assert fin["version"] == PACK_REF and fin["needs_person"] is False and fin["attempts"] == 1
+    doc = json.loads((run_copy / "rescore" / PACK_REF / "rescore.json").read_text())
+    assert doc["pack_version"] == PACK_REF and doc["suite_commit"] == tag_commit[:tagsuite.COMMIT_CHARS]
+    assert doc["results"][-1]["commit"] == heldout.load_metrics(run_copy)["stories"]["2"]["commit"]
+    assert got["environment"]["playwright"] == FAKE_PLAYWRIGHT_VERSION     # the tag's suite had its own install
+
+    git(pack, "tag", "-f", PACK_REF)                                # the pack is re-released with the changed suite
+    shutil.rmtree(run_copy / "rescore")
+    (run_copy / finalize.STATUS).unlink()
+    finalize_run(run_copy, monkeypatch)
+    assert recorded(run_copy)["score"] == "5/5"
+
+
+# ---------- a run left unscored is scored when the next run starts ----------
+
+MISSING_TOOL = "kat-tool-not-on-this-machine"
+SWEPT_RUN = f"combinations/{PACK}/combo/benchmarks/{PACK}/r1"
+
+
+def ended_unscored(run_copy: Path, results: Path, mp: pytest.MonkeyPatch) -> Path:
+    """Run 1, as run.sh leaves it when its own finalize can't find a tool: in the results root, finished, with
+    finalize.json saying why it has no score."""
+    run = results / SWEPT_RUN
+    run.parent.mkdir(parents=True)
+    shutil.move(run_copy, run)
+    (run / "run.json").write_text(json.dumps({"pack": PACK, "pack_version": PACK_REF}))
+    keep_pack(mp)
+    with mp.context() as m:
+        m.setattr(scoring_tools, "TOOLS", (*scoring_tools.TOOLS, MISSING_TOOL))
+        assert finalize.main([str(run), "--pack", PACK]) == 0       # as run.sh calls it at the end of the run
+    (run / "run-status.json").write_text(json.dumps({"state": "finished", "reason": "", "at": "2026-10-01T08:00:00Z"}))
+    return run
+
+
+def test_a_run_left_unscored_for_a_passing_reason_is_scored_when_the_next_run_starts(run_copy, tmp_path, monkeypatch):
+    """The whole repair, end to end: run 1 ends with no score because a tool was not on PATH (retryable, nobody
+    needed); run 2's start sweeps (finalize_pending.py, as run.sh calls it), finds run 1, repairs its stale
+    record from the full log and scores it. A third start finds nothing to do."""
+    results = tmp_path / "results"
+    run = ended_unscored(run_copy, results, monkeypatch)
+    fin = json.loads((run / finalize.STATUS).read_text())
+    assert (fin["rescore"], fin["reason_kind"], fin["needs_person"], fin["attempts"]) == ("failed", "tool_missing", False, 1)
+    assert MISSING_TOOL in fin["reason"] and "score" not in fin and (run / finalize.BUNDLE).is_file()
+
+    m = heldout.load_metrics(run)               # and its records are behind: one story has no conversation profile,
+    profile = m["stories"]["1"].pop("conversation")                 # which the full log can give back;
+    m["stories"]["2"]["time_split"]["accounting"]["version"] = 0    # one has an older accounting no log here can redo
+    heldout.save_metrics(run, m)                                    # (the scripted agent's log has no model timings)
+    monkeypatch.setitem(drive.CLIENTS, ScriptedClient.name, ScriptedClient)     # the client that wrote the logs
+
+    rescored = []
+
+    def here(pack, timeout_s=None):
+        rescored.append(pack)
+        return rescore_here(monkeypatch)
+    monkeypatch.setattr(finalize, "rescore_with_harness", here)
+    monkeypatch.setattr(finalize_pending, "busy", lambda: [])       # this machine may really be running a benchmark
+    run_2 = results / SWEPT_RUN.replace("r1", "r2")
+    assert finalize_pending.main(["--root", str(results), "--exclude", str(run_2)]) == 0
+
+    assert_known_answer(recorded(run))
+    fin = json.loads((run / finalize.STATUS).read_text())
+    assert (fin["rescore"], fin["score"], fin["needs_person"], fin["attempts"]) == ("done", "4/5", False, 2)
+    assert [h["reason_kind"] for h in fin["history"]] == ["tool_missing", "scored"]
+    assert fin["repair"]["repaired"] == ["1"] and "error" not in fin["repair"]
+    assert list(fin["repair"]["left"]) == ["2"] and "still so" in fin["repair"]["left"]["2"]   # left, with a note
+    assert heldout.load_metrics(run)["stories"]["1"]["conversation"] == profile
+
+    assert finalize_pending.main(["--root", str(results)]) == 0     # idempotent: nothing left to do
+    assert rescored == [f"benchmarks/{PACK}"]
+
+
 # ---------- the same known answer from a Claude Code run ----------
 
 def test_a_claude_code_run_records_the_same_known_answer(tmp_path, monkeypatch):
@@ -553,13 +654,21 @@ def split_roots_main(root: str, results: str, run_id: str) -> None:
 
     with pytest.MonkeyPatch.context() as mp:
         mp.setenv("SPEC_BENCH_PACK_NAME", PACK)                      # run.sh exports it for record_event
-        mp.setattr(sys, "argv", ["record_event.py", str(run), "started", "by the self-test"])
         run.mkdir(parents=True)
+        (run / "run.json").write_text(json.dumps({"pack": PACK, "pack_version": PACK_REF}))    # as run.sh writes it
+        mp.setattr(sys, "argv", ["record_event.py", str(run), "started", "by the self-test"])
         record_event.main()
         drive_run(root, mp, extra_args=("--record",), run=run, baselines=baselines)
-        mp.setattr(finalize, "rescore_with_harness", lambda pack: rescore_here(mp))
-        mp.setattr(sys, "argv", ["finalize.py", str(run), "--pack", PACK, "--record"])
-        finalize.main()
+        # The run's own finalize can't find a tool: the run ends unscored, and its record says it will be retried.
+        with mp.context() as m:
+            m.setattr(scoring_tools, "TOOLS", (*scoring_tools.TOOLS, MISSING_TOOL))
+            finalize.main([str(run), "--pack", PACK, "--record"])
+        mp.setattr(sys, "argv", ["record_event.py", str(run), "finished"])
+        record_event.main()
+        # The sweep, as run.sh calls it: no --root, so it sweeps the results root the harness resolved.
+        mp.setattr(finalize, "rescore_with_harness", lambda pack, timeout_s=None: rescore_here(mp))
+        mp.setattr(finalize_pending, "busy", lambda: [])
+        finalize_pending.main(["--record"])
     (root / SPLIT_OUT).write_text(json.dumps({
         "results_root": str(drive.REPO_ROOT), "code_root": str(drive.CODE_ROOT), "baselines": seen,
         "label": drive.combination_label(run), "deny": [str(p) for p in drive.SANDBOX_DENY]}))
@@ -606,6 +715,12 @@ def test_the_story_loop_with_the_results_in_another_checkout(tmp_path):
     prefix = f"{PACK} {SPLIT_COMBINATION} {run_id}: "
     for event in ("run started: by the self-test", "story 1 done", "story 2 done", "final score 4/5 under kat-v1"):
         assert prefix + event in pushed, pushed
+    # ...the score by the sweep, after the run's own finalize had recorded why it had none.
+    failed = next(m for m in pushed if m.startswith(prefix + "final re-score failed"))
+    assert MISSING_TOOL in failed and failed.endswith(f"(attempt 1 of {finalize.MAX_ATTEMPTS}; will be retried)")
+    assert pushed.index(prefix + "final score 4/5 under kat-v1") < pushed.index(failed)      # newest first
+    fin = json.loads((run / finalize.STATUS).read_text())
+    assert (fin["needs_person"], fin["attempts"], fin["version"]) == (False, 2, PACK_REF)
     m = heldout.load_metrics(run)
     for sid in ("1", "2"):
         assert m["stories"][sid]["record"]["pushed"] is True, m["stories"][sid]["record"]
