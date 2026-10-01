@@ -1,0 +1,4 @@
+# The monitor's running files: written every tick on the machine that runs it, never committed.
+monitor-log.jsonl
+monitor-status.json
+monitor-state/

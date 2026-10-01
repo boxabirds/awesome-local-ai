@@ -1,0 +1,311 @@
+{
+ "generatedAt": "2026-10-01T17:00:03.588Z",
+ "faults": [
+  {
+   "id": "run_ended_early:todoodle:reference/opus-5.5:run-1::",
+   "kind": "run_ended_early",
+   "pack": "todoodle",
+   "combination": "reference/opus-5.5",
+   "run": "run-1",
+   "machine": "node-b",
+   "detail": {
+    "status": "failed",
+    "record_state": "failed",
+    "ended_at": 1790468134,
+    "last_job": null
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "accounting_unchecked:todoodle:reference/opus-5.5:run-1:1:",
+   "kind": "accounting_unchecked",
+   "pack": "todoodle",
+   "combination": "reference/opus-5.5",
+   "run": "run-1",
+   "story": "1",
+   "machine": "node-b",
+   "detail": {
+    "accounting_version": null
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "accounting_unchecked:todoodle:reference/opus-5.5:run-1:2:",
+   "kind": "accounting_unchecked",
+   "pack": "todoodle",
+   "combination": "reference/opus-5.5",
+   "run": "run-1",
+   "story": "2",
+   "machine": "node-b",
+   "detail": {
+    "accounting_version": null
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "run_ended_early:todoodle:reference/opus-5.5:run-2::",
+   "kind": "run_ended_early",
+   "pack": "todoodle",
+   "combination": "reference/opus-5.5",
+   "run": "run-2",
+   "machine": "node-b",
+   "detail": {
+    "status": "stopped",
+    "record_state": "stopped",
+    "ended_at": 1790523086,
+    "last_job": null
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "not_scored:vidi:reference/opus-5.5:run-3::",
+   "kind": "not_scored",
+   "pack": "vidi",
+   "combination": "reference/opus-5.5",
+   "run": "run-3",
+   "machine": "node-b",
+   "detail": {
+    "suite": "vidi-v2.0-pre2",
+    "rescores": [],
+    "rescore_faults": {},
+    "has_bundle": true,
+    "finalize": "no finalize record"
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "live_record_disagree:vidi:reference/opus-5.5:v2-r1::",
+   "kind": "live_record_disagree",
+   "pack": "vidi",
+   "combination": "reference/opus-5.5",
+   "run": "v2-r1",
+   "machine": "node-b",
+   "detail": {
+    "live": {
+     "story": "12",
+     "passed": 0,
+     "total": 75
+    },
+    "record": {
+     "suite": "vidi-v2.0-pre2",
+     "passed": 75,
+     "total": 75
+    },
+    "guard": null
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "run_invalid:vidi:reference/sonnet-5.5:v2-r1::",
+   "kind": "run_invalid",
+   "pack": "vidi",
+   "combination": "reference/sonnet-5.5",
+   "run": "v2-r1",
+   "machine": "node-b",
+   "detail": {
+    "reason": "its build used @types/node from the machine's home node_modules, which the sandbox exposed; it never declared the package, so the build fails from a clean clone and the run has no score of record. Rerun on the fixed sandbox as v2-r4 to v2-r6",
+    "since": "2026-10-01"
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "job_cancelled:vidi:reference/sonnet-5.5:v2-r1::vidi-v2-sonnet-r1",
+   "kind": "job_cancelled",
+   "pack": "vidi",
+   "combination": "reference/sonnet-5.5",
+   "run": "v2-r1",
+   "machine": "node-b",
+   "detail": {
+    "trimmed": true
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "job_failed:vidi:reference/sonnet-5.5:v2-r1::vidi-v2-sonnet-b-r1",
+   "kind": "job_failed",
+   "pack": "vidi",
+   "combination": "reference/sonnet-5.5",
+   "run": "v2-r1",
+   "machine": "node-b",
+   "detail": {
+    "trimmed": true
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "job_restarted:vidi:reference/sonnet-5.5:v2-r1::vidi-v2-sonnet-b-r1",
+   "kind": "job_restarted",
+   "pack": "vidi",
+   "combination": "reference/sonnet-5.5",
+   "run": "v2-r1",
+   "machine": "node-b",
+   "detail": {
+    "trimmed": true
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "job_restarted:vidi:reference/sonnet-5.5:v2-r1::vidi-v2-sonnet-c-r1",
+   "kind": "job_restarted",
+   "pack": "vidi",
+   "combination": "reference/sonnet-5.5",
+   "run": "v2-r1",
+   "machine": "node-b",
+   "detail": {
+    "trimmed": true
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "run_invalid:vidi:reference/sonnet-5.5:v2-r2::",
+   "kind": "run_invalid",
+   "pack": "vidi",
+   "combination": "reference/sonnet-5.5",
+   "run": "v2-r2",
+   "machine": "node-b",
+   "detail": {
+    "reason": "stopped after story 4: it ran in the sandbox that exposed the machine's home node_modules (see v2-r1). Rerun on the fixed sandbox as v2-r4 to v2-r6",
+    "since": "2026-10-01"
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "job_cancelled:vidi:reference/sonnet-5.5:v2-r2::vidi-v2-sonnet-r2",
+   "kind": "job_cancelled",
+   "pack": "vidi",
+   "combination": "reference/sonnet-5.5",
+   "run": "v2-r2",
+   "machine": "node-b",
+   "detail": {
+    "trimmed": true
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "job_failed:vidi:reference/sonnet-5.5:v2-r2::vidi-v2-sonnet-b-r2",
+   "kind": "job_failed",
+   "pack": "vidi",
+   "combination": "reference/sonnet-5.5",
+   "run": "v2-r2",
+   "machine": "node-b",
+   "detail": {
+    "trimmed": true
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "not_scored:vidi:reference/sonnet-5.5:v2-r5::",
+   "kind": "not_scored",
+   "pack": "vidi",
+   "combination": "reference/sonnet-5.5",
+   "run": "v2-r5",
+   "machine": "node-b",
+   "detail": {
+    "trimmed": true
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "rescore_flagged:vidi:reference/sonnet-5.5:v2-r5::",
+   "kind": "rescore_flagged",
+   "pack": "vidi",
+   "combination": "reference/sonnet-5.5",
+   "run": "v2-r5",
+   "machine": "node-b",
+   "detail": {
+    "trimmed": true
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "no_workspace_bundle:vidi:qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi:canvas-pi-02::",
+   "kind": "no_workspace_bundle",
+   "pack": "vidi",
+   "combination": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi",
+   "run": "canvas-pi-02",
+   "machine": "node-a",
+   "detail": {
+    "suite": "vidi-v2.0-pre2"
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "no_workspace_bundle:vidi:qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi:canvas-pi-03::",
+   "kind": "no_workspace_bundle",
+   "pack": "vidi",
+   "combination": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi",
+   "run": "canvas-pi-03",
+   "machine": "node-a",
+   "detail": {
+    "suite": "vidi-v2.0-pre2"
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "accounting_failed:vidi:qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi:canvas-pi-03:5:",
+   "kind": "accounting_failed",
+   "pack": "vidi",
+   "combination": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi",
+   "run": "canvas-pi-03",
+   "story": "5",
+   "machine": "node-a",
+   "detail": {
+    "problems": [
+     "tool call RekjExttIYH5ScfIeMoOXBM3h8NzuD8t never ended; counted to the agent's next step"
+    ],
+    "accounting_version": 3
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "accounting_failed:vidi:qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi:canvas-pi-04:3:",
+   "kind": "accounting_failed",
+   "pack": "vidi",
+   "combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi",
+   "run": "canvas-pi-04",
+   "story": "3",
+   "machine": "node-a",
+   "detail": {
+    "problems": [
+     "tool call Xd8BwGUwPiWMs5gQEnZPNYOO17s40DIu never ended; counted to the agent's next step"
+    ],
+    "accounting_version": 3
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  },
+  {
+   "id": "live_record_disagree:vidi:qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi:v2-r1::",
+   "kind": "live_record_disagree",
+   "pack": "vidi",
+   "combination": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi",
+   "run": "v2-r1",
+   "machine": "node-d",
+   "detail": {
+    "live": {
+     "story": "12",
+     "passed": 67,
+     "total": 75
+    },
+    "record": {
+     "suite": "vidi-v2.0-pre2",
+     "passed": 68,
+     "total": 75
+    },
+    "guard": {
+     "story": 12,
+     "record": "68/75",
+     "live": "67/75",
+     "live_version": "vidi-v2.0-pre2",
+     "comparable": true,
+     "threshold": 3,
+     "difference": 1,
+     "failures": 7,
+     "one_signature": false,
+     "live_same_signature": null,
+     "flagged": null
+    }
+   },
+   "firstSeenAt": "2026-10-01T16:52:48.091Z"
+  }
+ ]
+}

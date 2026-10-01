@@ -1,5 +1,7 @@
 # Anomaly tracking (benchmark soak test)
 
+> Monitor status (is detection running, has triage run, is it waiting on a Claude usage limit): `ops/monitor-status.json` on the machine that runs the monitor; see `ops/monitor/README.md`.
+
 A running list of things that looked wrong while the vidi benchmark ran on the four machines: what was
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).

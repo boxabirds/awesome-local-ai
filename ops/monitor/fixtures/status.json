@@ -1,0 +1,1681 @@
+{
+ "node-a": [
+  {
+   "attempt": 0,
+   "cancel_requested": false,
+   "history": [],
+   "id": "vidi-v2b-swift15-r5",
+   "progress": {
+    "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "current_story": null,
+    "log_tail": [
+     "[dbench 2026-10-01T05:40:29Z] submitted by 10.0.0.1"
+    ],
+    "run_dir": "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5",
+    "stories": []
+   },
+   "seq": 7,
+   "spec": {
+    "client": "pi",
+    "install_id": "swift15-qwen38-27b",
+    "pack": "benchmarks/vidi",
+    "record": true,
+    "run_id": "v2-r5",
+    "scope": "canvas"
+   },
+   "state": {
+    "status": "queued"
+   },
+   "submitted_at": 1790833229,
+   "updated_at": 1790833229
+  },
+  {
+   "attempt": 1,
+   "cancel_requested": false,
+   "history": [],
+   "id": "vidi-v2b-swift15-r4",
+   "last_pull": {
+    "at": 1790833230,
+    "detail": "Already up-to-date.",
+    "ok": true
+   },
+   "progress": {
+    "combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+    "current_story": "12",
+    "log_tail": [
+     "[story 11] agent done in 3241.3s; running gates",
+     "[story 11] recorded: commit af67be6e pushed=True",
+     "[story 11] DONE gate green=False accept 56/70 stalled=False",
+     "[story 12] Drop images onto the board \u2014 agent starting",
+     "    containment: reaped 4 process(es), 0.1 GB (interrupted)",
+     "    tool call silent 10 min \u2014 interrupted (Ctrl-C equivalent)"
+    ],
+    "run_dir": "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4",
+    "stories": [
+     {
+      "accept": {
+       "passed": 5,
+       "total": 6
+      },
+      "agent_minutes": 8.1,
+      "calls": 68,
+      "compactions": 0,
+      "ended_at": 1790833774.7749813,
+      "ended_by": "agent",
+      "id": "1",
+      "last_commit_at": 1790833766.0,
+      "output_tokens": 42278,
+      "passed": 5,
+      "started_at": 1790833290.4432824,
+      "status": "DONE",
+      "title": "Pan and zoom around an infinite board",
+      "total": 6
+     },
+     {
+      "accept": {
+       "passed": 0,
+       "total": 10
+      },
+      "agent_minutes": 20.0,
+      "calls": 102,
+      "compactions": 1,
+      "ended_at": 1790835011.2521005,
+      "ended_by": "agent",
+      "id": "2",
+      "last_commit_at": 1790835001.0,
+      "output_tokens": 102552,
+      "passed": 0,
+      "started_at": 1790833813.01464,
+      "status": "DONE",
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "total": 10
+     },
+     {
+      "accept": {
+       "passed": 0,
+       "total": 7
+      },
+      "agent_minutes": 56.2,
+      "calls": 232,
+      "compactions": 2,
+      "ended_at": 1790839016.1871278,
+      "ended_by": "agent",
+      "id": "3",
+      "last_commit_at": 1790839008.0,
+      "output_tokens": 140509,
+      "passed": 0,
+      "started_at": 1790835641.196431,
+      "status": "DONE",
+      "title": "See other people's edits appear live on the same board",
+      "total": 7
+     },
+     {
+      "accept": {
+       "passed": 0,
+       "total": 4
+      },
+      "agent_minutes": 70.1,
+      "calls": 298,
+      "compactions": 4,
+      "ended_at": 1790843897.294245,
+      "ended_by": "agent",
+      "id": "4",
+      "last_commit_at": 1790843890.0,
+      "output_tokens": 264169,
+      "passed": 0,
+      "started_at": 1790839689.6169462,
+      "status": "DONE",
+      "title": "Return to a board and find everything as it was left",
+      "total": 4
+     },
+     {
+      "accept": {
+       "passed": 2,
+       "total": 5
+      },
+      "agent_minutes": 22.1,
+      "calls": 171,
+      "compactions": 1,
+      "ended_at": 1790845427.9818227,
+      "ended_by": "agent",
+      "id": "5",
+      "last_commit_at": 1790845419.0,
+      "output_tokens": 91619,
+      "passed": 2,
+      "started_at": 1790844103.756306,
+      "status": "DONE",
+      "title": "Share a board with others using a link",
+      "total": 5
+     },
+     {
+      "accept": {
+       "passed": 0,
+       "total": 8
+      },
+      "agent_minutes": 48.7,
+      "calls": 208,
+      "compactions": 2,
+      "ended_at": 1790848570.0769348,
+      "ended_by": "agent",
+      "id": "7",
+      "last_commit_at": 1790848560.0,
+      "output_tokens": 122411,
+      "passed": 0,
+      "started_at": 1790845648.5232422,
+      "status": "DONE",
+      "title": "Select, move, resize and delete several objects at once",
+      "total": 8
+     },
+     {
+      "accept": {
+       "passed": 7,
+       "total": 7
+      },
+      "agent_minutes": 132.3,
+      "calls": 262,
+      "compactions": 3,
+      "ended_at": 1790857351.6939845,
+      "ended_by": "agent",
+      "id": "8",
+      "last_commit_at": 1790857339.0,
+      "output_tokens": 185943,
+      "passed": 7,
+      "started_at": 1790849415.4565983,
+      "status": "DONE",
+      "title": "Undo and redo my own changes without undoing anyone else's",
+      "total": 7
+     },
+     {
+      "accept": {
+       "passed": 5,
+       "total": 6
+      },
+      "agent_minutes": 87.5,
+      "calls": 262,
+      "compactions": 3,
+      "ended_at": 1790863360.2914526,
+      "ended_by": "agent",
+      "id": "9",
+      "last_commit_at": 1790863346.0,
+      "output_tokens": 182216,
+      "passed": 5,
+      "started_at": 1790858111.4952905,
+      "status": "DONE",
+      "title": "Write free text anywhere on the board",
+      "total": 6
+     },
+     {
+      "accept": {
+       "passed": 2,
+       "total": 8
+      },
+      "agent_minutes": 15.1,
+      "calls": 91,
+      "compactions": 1,
+      "ended_at": 1790865043.524949,
+      "ended_by": "agent",
+      "id": "10",
+      "last_commit_at": 1790865038.0,
+      "output_tokens": 66339,
+      "passed": 2,
+      "started_at": 1790864139.3905137,
+      "status": "DONE",
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "total": 8
+     },
+     {
+      "accept": {
+       "passed": 5,
+       "total": 5
+      },
+      "agent_minutes": 54.0,
+      "calls": 134,
+      "compactions": 1,
+      "ended_at": 1790869258.9499006,
+      "ended_by": "agent",
+      "id": "11",
+      "last_commit_at": 1790869236.0,
+      "output_tokens": 79274,
+      "passed": 5,
+      "started_at": 1790866017.4141965,
+      "status": "DONE",
+      "title": "Sketch freehand with a pen",
+      "total": 5
+     },
+     {
+      "agent_minutes": 62.0,
+      "calls": 248,
+      "compactions": 3,
+      "id": "12",
+      "last_task_change_at": 1790873776.5646198,
+      "output_tokens": 183915,
+      "passed": null,
+      "recent_activity": [
+       "read: tests/e2e/global-setup.ts",
+       "edit: playwright.config.ts",
+       "write: tests/e2e/images.spec.ts",
+       "bash: cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace npm run\u2026",
+       "bash: cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace ls -la \u2026",
+       "bash: cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace npx pla\u2026",
+       "bash: cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace timeout\u2026",
+       "bash: cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace # Start\u2026",
+       "bash: cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace cat src\u2026",
+       "bash: cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace cat > /\u2026",
+       "bash: cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace cat > p\u2026",
+       "bash: cd ~/.vidi-bench/work/qwen__3.8-swift-1.5__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__v2-r4/workspace cat > p\u2026"
+      ],
+      "started_at": 1790870234.662782,
+      "status": "running",
+      "title": "Drop images onto the board",
+      "total": null
+     }
+    ],
+    "stories_updated_at": 1790873956.6868913
+   },
+   "seq": 6,
+   "spec": {
+    "client": "pi",
+    "install_id": "swift15-qwen38-27b",
+    "pack": "benchmarks/vidi",
+    "record": true,
+    "run_id": "v2-r4",
+    "scope": "canvas"
+   },
+   "state": {
+    "attempt": 1,
+    "boot_time": 1789224560,
+    "pgid": 2647210,
+    "pid": 2647210,
+    "started_at": 1790833230,
+    "status": "running"
+   },
+   "submitted_at": 1790833229,
+   "updated_at": 1790833230
+  }
+ ],
+ "node-b": [
+  {
+   "attempt": 1,
+   "cancel_requested": false,
+   "history": [],
+   "id": "vidi-v2-sonnet-d-r6",
+   "last_pull": {
+    "at": 1790866142,
+    "detail": "Already up to date.",
+    "ok": true
+   },
+   "progress": {
+    "combination": "reference/sonnet-5.5",
+    "current_story": "8",
+    "log_tail": [
+     "[story 5] DONE gate green=False accept 35/36 stalled=False DEGRADED (power/thermal) \u2014 timing not comparable",
+     "[story 7] Select, move, resize and delete several objects at once \u2014 agent starting",
+     "[story 7] agent done in 888.5s; running gates",
+     "[story 7] recorded: commit 9aea782e pushed=True",
+     "[story 7] DONE gate green=True accept 43/44 stalled=False DEGRADED (power/thermal) \u2014 timing not comparable",
+     "[story 8] Undo and redo my own changes without undoing anyone else's \u2014 agent starting"
+    ],
+    "run_dir": "~/.spec-bench/awesome-local-ai/benchmarks/reference/vidi/sonnet-5.5/v2-r6",
+    "stories": [
+     {
+      "accept": {
+       "passed": 6,
+       "total": 6
+      },
+      "agent_minutes": 14.0,
+      "calls": 24,
+      "compactions": 0,
+      "ended_at": 1790867894.454567,
+      "ended_by": "agent",
+      "id": "1",
+      "last_commit_at": 1790867889.0,
+      "output_tokens": 34457,
+      "passed": 6,
+      "started_at": 1790867051.533226,
+      "status": "DONE",
+      "title": "Pan and zoom around an infinite board",
+      "total": 6
+     },
+     {
+      "accept": {
+       "passed": 10,
+       "total": 10
+      },
+      "agent_minutes": 5.9,
+      "calls": 23,
+      "compactions": 0,
+      "ended_at": 1790868316.841888,
+      "ended_by": "agent",
+      "id": "2",
+      "last_commit_at": 1790868311.0,
+      "output_tokens": 51818,
+      "passed": 10,
+      "started_at": 1790867962.2541308,
+      "status": "DONE",
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "total": 10
+     },
+     {
+      "accept": {
+       "passed": 6,
+       "total": 7
+      },
+      "agent_minutes": 20.0,
+      "calls": 49,
+      "compactions": 0,
+      "ended_at": 1790869590.629834,
+      "ended_by": "agent",
+      "id": "3",
+      "last_commit_at": 1790869585.0,
+      "output_tokens": 53462,
+      "passed": 6,
+      "started_at": 1790868391.772851,
+      "status": "DONE",
+      "title": "See other people's edits appear live on the same board",
+      "total": 7
+     },
+     {
+      "accept": {
+       "passed": 4,
+       "total": 4
+      },
+      "agent_minutes": 16.5,
+      "calls": 60,
+      "compactions": 0,
+      "ended_at": 1790870760.198104,
+      "ended_by": "agent",
+      "id": "4",
+      "last_commit_at": 1790870752.0,
+      "output_tokens": 69160,
+      "passed": 4,
+      "started_at": 1790869768.025204,
+      "status": "DONE",
+      "title": "Return to a board and find everything as it was left",
+      "total": 4
+     },
+     {
+      "accept": {
+       "passed": 5,
+       "total": 5
+      },
+      "agent_minutes": 8.6,
+      "calls": 32,
+      "compactions": 0,
+      "ended_at": 1790871497.758107,
+      "ended_by": "agent",
+      "id": "5",
+      "last_commit_at": 1790871480.0,
+      "output_tokens": 34092,
+      "passed": 5,
+      "started_at": 1790870982.5153432,
+      "status": "DONE",
+      "title": "Share a board with others using a link",
+      "total": 5
+     },
+     {
+      "accept": {
+       "passed": 8,
+       "total": 8
+      },
+      "agent_minutes": 14.8,
+      "calls": 46,
+      "compactions": 0,
+      "ended_at": 1790872785.6830158,
+      "ended_by": "agent",
+      "id": "7",
+      "last_commit_at": 1790872778.0,
+      "output_tokens": 86834,
+      "passed": 8,
+      "started_at": 1790871897.062561,
+      "status": "DONE",
+      "title": "Select, move, resize and delete several objects at once",
+      "total": 8
+     },
+     {
+      "agent_minutes": 15.7,
+      "calls": 37,
+      "compactions": 0,
+      "id": "8",
+      "last_task_change_at": 1790873498.60042,
+      "output_tokens": 0,
+      "passed": null,
+      "started_at": 1790873044.481555,
+      "status": "running",
+      "title": "Undo and redo my own changes without undoing anyone else's",
+      "total": null
+     },
+     {
+      "id": "9",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     },
+     {
+      "id": "10",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     },
+     {
+      "id": "11",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     },
+     {
+      "id": "12",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     }
+    ],
+    "stories_updated_at": 1790873986.9851038
+   },
+   "seq": 15,
+   "spec": {
+    "client": "claude",
+    "install_id": "claude-code-sonnet-5-5",
+    "pack": "benchmarks/vidi",
+    "record": true,
+    "run_id": "v2-r6",
+    "scope": "canvas"
+   },
+   "state": {
+    "attempt": 1,
+    "boot_time": 1790286188,
+    "pgid": 81249,
+    "pid": 81249,
+    "started_at": 1790866142,
+    "status": "running"
+   },
+   "submitted_at": 1790839962,
+   "updated_at": 1790866142
+  },
+  {
+   "attempt": 1,
+   "cancel_requested": false,
+   "history": [],
+   "id": "vidi-v2-sonnet-d-r5",
+   "last_pull": {
+    "at": 1790855261,
+    "detail": "Already up to date.",
+    "ok": true
+   },
+   "progress": {
+    "combination": "reference/sonnet-5.5",
+    "current_story": "",
+    "log_tail": [
+     "",
+     "**New work** 5/5, **regressions** 0, **repairs** 0, **cumulative** 74/75.",
+     "",
+     "finalize: flagged the re-score (74/75) differs from the live score of the same code (0/0 under vidi-v2.0-pre2) by 74 tests, more than 3; the re-score ran 75 tests where the live scoring ran 0 (needs a person: no, it will be retried)",
+     "[dbench 2026-10-01T14:49:00Z] harness exited 0; stopping processes left in its group",
+     "[dbench 2026-10-01T14:49:00Z] harness exited 0; job done"
+    ],
+    "run_dir": "~/.spec-bench/awesome-local-ai/benchmarks/reference/vidi/sonnet-5.5/v2-r5",
+    "stories": [
+     {
+      "accept": {
+       "passed": 6,
+       "total": 6
+      },
+      "agent_minutes": 5.4,
+      "calls": 20,
+      "compactions": 0,
+      "ended_at": 1790855719.3067038,
+      "ended_by": "agent",
+      "id": "1",
+      "last_commit_at": 1790855715.0,
+      "output_tokens": 31605,
+      "passed": 6,
+      "started_at": 1790855393.262652,
+      "status": "DONE",
+      "title": "Pan and zoom around an infinite board",
+      "total": 6
+     },
+     {
+      "accept": {
+       "passed": 10,
+       "total": 10
+      },
+      "agent_minutes": 6.8,
+      "calls": 30,
+      "compactions": 0,
+      "ended_at": 1790856276.404384,
+      "ended_by": "agent",
+      "id": "2",
+      "last_commit_at": 1790856272.0,
+      "output_tokens": 55662,
+      "passed": 10,
+      "started_at": 1790855867.0503109,
+      "status": "DONE",
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "total": 10
+     },
+     {
+      "accept": {
+       "passed": 6,
+       "total": 7
+      },
+      "agent_minutes": 12.3,
+      "calls": 49,
+      "compactions": 0,
+      "ended_at": 1790857068.96705,
+      "ended_by": "agent",
+      "id": "3",
+      "last_commit_at": 1790857063.0,
+      "output_tokens": 55135,
+      "passed": 6,
+      "started_at": 1790856333.654197,
+      "status": "DONE",
+      "title": "See other people's edits appear live on the same board",
+      "total": 7
+     },
+     {
+      "accept": {
+       "passed": 4,
+       "total": 4
+      },
+      "agent_minutes": 18.3,
+      "calls": 59,
+      "compactions": 0,
+      "ended_at": 1790858355.992768,
+      "ended_by": "agent",
+      "id": "4",
+      "last_commit_at": 1790858349.0,
+      "output_tokens": 74032,
+      "passed": 4,
+      "started_at": 1790857256.9261272,
+      "status": "DONE",
+      "title": "Return to a board and find everything as it was left",
+      "total": 4
+     },
+     {
+      "accept": {
+       "passed": 5,
+       "total": 5
+      },
+      "agent_minutes": 10.4,
+      "calls": 44,
+      "compactions": 0,
+      "ended_at": 1790859181.12059,
+      "ended_by": "agent",
+      "id": "5",
+      "last_commit_at": 1790859174.0,
+      "output_tokens": 44198,
+      "passed": 5,
+      "started_at": 1790858558.906017,
+      "status": "DONE",
+      "title": "Share a board with others using a link",
+      "total": 5
+     },
+     {
+      "accept": {
+       "passed": 8,
+       "total": 8
+      },
+      "agent_minutes": 12.6,
+      "calls": 51,
+      "compactions": 0,
+      "ended_at": 1790860164.209002,
+      "ended_by": "agent",
+      "id": "7",
+      "last_commit_at": 1790860157.0,
+      "output_tokens": 86762,
+      "passed": 8,
+      "started_at": 1790859409.056617,
+      "status": "DONE",
+      "title": "Select, move, resize and delete several objects at once",
+      "total": 8
+     },
+     {
+      "accept": {
+       "passed": 7,
+       "total": 7
+      },
+      "agent_minutes": 10.6,
+      "calls": 39,
+      "compactions": 0,
+      "ended_at": 1790861021.283017,
+      "ended_by": "agent",
+      "id": "8",
+      "last_commit_at": 1790861014.0,
+      "output_tokens": 46442,
+      "passed": 7,
+      "started_at": 1790860387.629285,
+      "status": "DONE",
+      "title": "Undo and redo my own changes without undoing anyone else's",
+      "total": 7
+     },
+     {
+      "accept": {
+       "passed": 6,
+       "total": 6
+      },
+      "agent_minutes": 9.2,
+      "calls": 45,
+      "compactions": 0,
+      "ended_at": 1790861811.376367,
+      "ended_by": "agent",
+      "id": "9",
+      "last_commit_at": 1790861805.0,
+      "output_tokens": 61878,
+      "passed": 6,
+      "started_at": 1790861259.164276,
+      "status": "DONE",
+      "title": "Write free text anywhere on the board",
+      "total": 6
+     },
+     {
+      "accept": {
+       "passed": 8,
+       "total": 8
+      },
+      "agent_minutes": 12.0,
+      "calls": 48,
+      "compactions": 0,
+      "ended_at": 1790862762.9416032,
+      "ended_by": "agent",
+      "id": "10",
+      "last_commit_at": 1790862756.0,
+      "output_tokens": 92283,
+      "passed": 8,
+      "started_at": 1790862041.848518,
+      "status": "DONE",
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "total": 8
+     },
+     {
+      "accept": {
+       "passed": 5,
+       "total": 5
+      },
+      "agent_minutes": 11.3,
+      "calls": 36,
+      "compactions": 0,
+      "ended_at": 1790863674.789818,
+      "ended_by": "agent",
+      "id": "11",
+      "last_commit_at": 1790863668.0,
+      "output_tokens": 41859,
+      "passed": 5,
+      "started_at": 1790862997.409483,
+      "status": "DONE",
+      "title": "Sketch freehand with a pen",
+      "total": 5
+     },
+     {
+      "agent_minutes": 19.2,
+      "calls": 47,
+      "compactions": 0,
+      "ended_at": 1790865093.598237,
+      "ended_by": "agent",
+      "id": "12",
+      "last_commit_at": 1790865081.0,
+      "output_tokens": 56949,
+      "passed": 0,
+      "started_at": 1790863938.813217,
+      "status": "DONE",
+      "title": "Drop images onto the board",
+      "total": 0
+     }
+    ],
+    "stories_updated_at": 1790865459.93706
+   },
+   "seq": 14,
+   "spec": {
+    "client": "claude",
+    "install_id": "claude-code-sonnet-5-5",
+    "pack": "benchmarks/vidi",
+    "record": true,
+    "run_id": "v2-r5",
+    "scope": "canvas"
+   },
+   "state": {
+    "exit_code": 0,
+    "status": "done"
+   },
+   "submitted_at": 1790839962,
+   "updated_at": 1790866140
+  }
+ ],
+ "node-c": [
+  {
+   "attempt": 1,
+   "cancel_requested": false,
+   "history": [],
+   "id": "vidi-v2b-mlx-r3b",
+   "last_pull": {
+    "at": 1790867490,
+    "detail": "sh-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r5/workspace/tests/unit/selection-reducer.test.ts\n create mode 100644 combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r5/workspace/tests/unit/undo-boundaries.test.ts\n create mode 100644 combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r5/workspace/tests/unit/undo-history.test.ts\nFrom github.com:boxabirds/awesome-local-ai\n   e7ea0d32..89cc9ebd  main       -> origin/main",
+    "ok": true
+   },
+   "progress": {
+    "combination": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi",
+    "current_story": "2",
+    "log_tail": [
+     "[story 1] Pan and zoom around an infinite board \u2014 agent starting",
+     "[story 1] agent done in 3820.1s; running gates",
+     "[story 1] recorded: commit dea4e579 pushed=True",
+     "[story 1] DONE gate green=True accept 6/6 stalled=False",
+     "[story 2] Capture ideas on sticky notes and rearrange them \u2014 agent starting",
+     "  waiting for AC power, no Low Power Mode, nominal thermals: now {'ac': True, 'low_power': False, 'thermal': 'heavy'}"
+    ],
+    "run_dir": "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r3",
+    "stories": [
+     {
+      "accept": {
+       "passed": 6,
+       "total": 6
+      },
+      "agent_minutes": 63.7,
+      "calls": 103,
+      "compactions": 1,
+      "ended_at": 1790871844.167305,
+      "ended_by": "agent",
+      "id": "1",
+      "last_commit_at": 1790871817.0,
+      "output_tokens": 118657,
+      "passed": 6,
+      "started_at": 1790868023.8453178,
+      "status": "DONE",
+      "title": "Pan and zoom around an infinite board",
+      "total": 6
+     },
+     {
+      "agent_minutes": 33.1,
+      "calls": 96,
+      "compactions": 1,
+      "id": "2",
+      "last_commit_at": 1790872572.0,
+      "last_task_change_at": 1790873948.600937,
+      "output_tokens": 94301,
+      "passed": null,
+      "recent_activity": [
+       "bash: python3 - <<'PY' p='tests/component/StickyNote.test.tsx' s=open(p).read()  # TC-21: account for createSticky centring s=s.replace(\"\"\"\u2026",
+       "bash: grep -n \"ZOOM_STEP_FACTOR\\|ZOOM_MIN\\|ZOOM_MAX\" src/shared/config.ts && sed -n '190,215p' tests/component/StickyNote.test.tsx",
+       "bash: python3 - <<'PY' p='tests/component/StickyNote.test.tsx' s=open(p).read() s=s.replace(\"\"\"    // The in-flight frame writes to a note \u2026",
+       "read: src/client/objects/StickyTextEditor.tsx",
+       "edit: src/client/objects/StickyTextEditor.tsx",
+       "bash: sed -n '1,200p' spec/stories/002-capture-ideas-on-sticky-notes-and-rearrange-them/tasks.md",
+       "bash: python3 - <<'PY' p='tests/component/StickyNote.test.tsx' s=open(p).read() start=s.index(\"  it('TC-23 selects a note and starts editin\u2026",
+       "write: tests/component/StickyTextEditor.test.tsx",
+       "bash: python3 - <<'PY' p='tests/component/StickyTextEditor.test.tsx' s=open(p).read() s=s.replace(\"\"\"  it('leaves the note alone on Escape \u2026",
+       "write: tests/component/Toolbars.test.tsx",
+       "bash: python3 - <<'PY' p='tests/component/Toolbars.test.tsx' s=open(p).read() s=s.replace(\"  it(' recolours with every one\", \"  it('recolou\u2026",
+       "bash: python3 - <<'PY' p='tests/component/Toolbars.test.tsx' s=open(p).read()  s=s.replace(\"\"\"let doc: Doc; let id: string;  beforeEach(() \u2026"
+      ],
+      "started_at": 1790871962.3658822,
+      "status": "running",
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "total": null
+     },
+     {
+      "id": "3",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     },
+     {
+      "id": "4",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     },
+     {
+      "id": "5",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     },
+     {
+      "id": "7",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     },
+     {
+      "id": "8",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     },
+     {
+      "id": "9",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     },
+     {
+      "id": "10",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     },
+     {
+      "id": "11",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     },
+     {
+      "id": "12",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     }
+    ],
+    "stories_updated_at": 1790873948.6032882
+   },
+   "seq": 2,
+   "spec": {
+    "client": "pi",
+    "install_id": "mlxserve-qwen38-flash-next",
+    "pack": "benchmarks/vidi",
+    "record": true,
+    "run_id": "v2-r3",
+    "scope": "canvas"
+   },
+   "state": {
+    "attempt": 1,
+    "boot_time": 1790434245,
+    "pgid": 29791,
+    "pid": 29791,
+    "started_at": 1790867490,
+    "status": "running"
+   },
+   "submitted_at": 1790867455,
+   "updated_at": 1790867490
+  },
+  {
+   "attempt": 3,
+   "cancel_requested": false,
+   "history": [
+    {
+     "at": 1790831068,
+     "text": "harness exited 1 on attempt 1; restarting"
+    },
+    {
+     "at": 1790850198,
+     "text": "harness exited 1 on attempt 2; restarting"
+    }
+   ],
+   "id": "vidi-v2b-mlx-r2-again1",
+   "last_pull": {
+    "at": 1790850205,
+    "detail": "Already up to date.",
+    "ok": true
+   },
+   "progress": {
+    "combination": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi",
+    "current_story": "",
+    "log_tail": [
+     "**New work** 5/5, **regressions** 0, **repairs** 0, **cumulative** 69/75.",
+     "",
+     "finalize: 69/75",
+     "[dbench 2026-10-01T13:55:08Z] harness exited 0; stopping processes left in its group",
+     "[dbench 2026-10-01T13:55:09Z] stopping processes the harness left running: mlx-serve (73815)",
+     "[dbench 2026-10-01T13:55:12Z] harness exited 0; job done"
+    ],
+    "run_dir": "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2",
+    "stories": [
+     {
+      "accept": {
+       "passed": 6,
+       "total": 6
+      },
+      "agent_minutes": 63.6,
+      "calls": 135,
+      "compactions": 2,
+      "ended_at": 1790782458.62428,
+      "ended_by": "agent",
+      "id": "1",
+      "last_commit_at": 1790782314.0,
+      "output_tokens": 144361,
+      "passed": 6,
+      "started_at": 1790778639.976219,
+      "status": "DONE",
+      "title": "Pan and zoom around an infinite board",
+      "total": 6
+     },
+     {
+      "accept": {
+       "passed": 10,
+       "total": 10
+      },
+      "agent_minutes": 73.7,
+      "calls": 180,
+      "compactions": 2,
+      "ended_at": 1790786978.860341,
+      "ended_by": "agent",
+      "id": "2",
+      "last_commit_at": 1790786961.0,
+      "output_tokens": 180222,
+      "passed": 10,
+      "started_at": 1790782555.439528,
+      "status": "DONE",
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "total": 10
+     },
+     {
+      "accept": {
+       "passed": 5,
+       "total": 7
+      },
+      "agent_minutes": 104.2,
+      "calls": 285,
+      "compactions": 3,
+      "ended_at": 1790793300.510475,
+      "ended_by": "agent",
+      "id": "3",
+      "last_commit_at": 1790793236.0,
+      "output_tokens": 221555,
+      "passed": 5,
+      "started_at": 1790787050.168262,
+      "status": "DONE",
+      "title": "See other people's edits appear live on the same board",
+      "total": 7
+     },
+     {
+      "accept": {
+       "passed": 4,
+       "total": 4
+      },
+      "agent_minutes": 218.5,
+      "calls": 427,
+      "compactions": 5,
+      "ended_at": 1790807840.464027,
+      "ended_by": "agent",
+      "id": "4",
+      "last_commit_at": 1790806244.0,
+      "output_tokens": 353794,
+      "passed": 4,
+      "started_at": 1790807583.685567,
+      "status": "DONE",
+      "title": "Return to a board and find everything as it was left",
+      "total": 4
+     },
+     {
+      "accept": {
+       "passed": 5,
+       "total": 5
+      },
+      "agent_minutes": 90.6,
+      "calls": 287,
+      "compactions": 4,
+      "ended_at": 1790813400.041635,
+      "ended_by": "agent",
+      "id": "5",
+      "last_commit_at": 1790813385.0,
+      "output_tokens": 182095,
+      "passed": 5,
+      "started_at": 1790807962.878508,
+      "status": "DONE",
+      "title": "Share a board with others using a link",
+      "total": 5
+     },
+     {
+      "accept": {
+       "passed": 8,
+       "total": 8
+      },
+      "agent_minutes": 136.1,
+      "calls": 348,
+      "compactions": 5,
+      "ended_at": 1790821702.621355,
+      "ended_by": "agent",
+      "id": "7",
+      "last_commit_at": 1790821681.0,
+      "output_tokens": 303877,
+      "passed": 8,
+      "started_at": 1790813533.64786,
+      "status": "DONE",
+      "title": "Select, move, resize and delete several objects at once",
+      "total": 8
+     },
+     {
+      "accept": {
+       "passed": 7,
+       "total": 7
+      },
+      "agent_minutes": 52.6,
+      "calls": 150,
+      "compactions": 2,
+      "ended_at": 1790825001.20178,
+      "ended_by": "agent",
+      "id": "8",
+      "last_commit_at": 1790824990.0,
+      "output_tokens": 115652,
+      "passed": 7,
+      "started_at": 1790821843.35997,
+      "status": "DONE",
+      "title": "Undo and redo my own changes without undoing anyone else's",
+      "total": 7
+     },
+     {
+      "accept": {
+       "passed": 6,
+       "total": 6
+      },
+      "agent_minutes": 117.3,
+      "calls": 391,
+      "compactions": 5,
+      "ended_at": 1790832356.0226738,
+      "ended_by": "agent",
+      "id": "9",
+      "last_commit_at": 1790832334.0,
+      "output_tokens": 263082,
+      "passed": 6,
+      "started_at": 1790831138.143407,
+      "status": "DONE",
+      "title": "Write free text anywhere on the board",
+      "total": 6
+     },
+     {
+      "accept": {
+       "passed": 8,
+       "total": 8
+      },
+      "agent_minutes": 214.5,
+      "calls": 652,
+      "compactions": 10,
+      "ended_at": 1790845373.3415308,
+      "ended_by": "agent",
+      "id": "10",
+      "last_commit_at": 1790845250.0,
+      "output_tokens": 442794,
+      "passed": 8,
+      "started_at": 1790832500.747879,
+      "status": "DONE",
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "total": 8
+     },
+     {
+      "accept": {
+       "passed": 1,
+       "total": 5
+      },
+      "agent_minutes": 97.6,
+      "calls": 274,
+      "compactions": 4,
+      "ended_at": 1790851566.8714812,
+      "ended_by": "agent",
+      "id": "11",
+      "last_commit_at": 1790851474.0,
+      "output_tokens": 192022,
+      "passed": 1,
+      "started_at": 1790850293.923466,
+      "status": "DONE",
+      "title": "Sketch freehand with a pen",
+      "total": 5
+     },
+     {
+      "accept": {
+       "passed": 5,
+       "total": 5
+      },
+      "agent_minutes": 178.6,
+      "calls": 534,
+      "compactions": 9,
+      "ended_at": 1790862479.2135448,
+      "ended_by": "agent",
+      "id": "12",
+      "last_commit_at": 1790862443.0,
+      "output_tokens": 390403,
+      "passed": 5,
+      "started_at": 1790851760.435893,
+      "status": "DONE",
+      "title": "Drop images onto the board",
+      "total": 5
+     }
+    ],
+    "stories_updated_at": 1790862665.435789
+   },
+   "seq": 1,
+   "spec": {
+    "client": "pi",
+    "install_id": "mlxserve-qwen38-flash-next",
+    "pack": "benchmarks/vidi",
+    "record": true,
+    "run_id": "v2-r2",
+    "scope": "canvas"
+   },
+   "state": {
+    "exit_code": 0,
+    "status": "done"
+   },
+   "submitted_at": 1790807517,
+   "updated_at": 1790862912
+  }
+ ],
+ "node-d": [
+  {
+   "attempt": 1,
+   "cancel_requested": false,
+   "history": [
+    {
+     "at": 1790843171,
+     "text": "git pull --ff-only failed; ran on the existing checkout: fatal: Cannot fast-forward to multiple branches."
+    }
+   ],
+   "id": "vidi-v2-gufo-r5",
+   "last_pull": {
+    "at": 1790843171,
+    "detail": "fatal: Cannot fast-forward to multiple branches.",
+    "ok": false
+   },
+   "progress": {
+    "combination": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi",
+    "current_story": "11",
+    "log_tail": [
+     "[story 10] Draw shapes and connect them with arrows that follow when moved \u2014 agent starting",
+     "[story 10] agent done in 2333.6s; running gates",
+     "[story 10] recorded: commit cb96bd75 pushed=True",
+     "[story 10] DONE gate green=False accept 59/65 stalled=False",
+     "[story 11] Sketch freehand with a pen \u2014 agent starting",
+     "[dbench 2026-10-01T16:50:44Z] node held by 10.0.0.1: restart on the dbench that can queue reruns (owner approved 1 Oct); no new job starts until a release"
+    ],
+    "run_dir": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r5",
+    "stories": [
+     {
+      "accept": {
+       "passed": 6,
+       "total": 6
+      },
+      "agent_minutes": 37.1,
+      "calls": 93,
+      "compactions": 0,
+      "ended_at": 1790845525.3855026,
+      "ended_by": "agent",
+      "id": "1",
+      "last_commit_at": 1790845503.0,
+      "output_tokens": 83216,
+      "passed": 6,
+      "started_at": 1790843300.9697602,
+      "status": "DONE",
+      "title": "Pan and zoom around an infinite board",
+      "total": 6
+     },
+     {
+      "accept": {
+       "passed": 8,
+       "total": 10
+      },
+      "agent_minutes": 41.7,
+      "calls": 119,
+      "compactions": 1,
+      "ended_at": 1790848073.6443744,
+      "ended_by": "agent",
+      "id": "2",
+      "last_commit_at": 1790847171.0,
+      "output_tokens": 97312,
+      "passed": 8,
+      "started_at": 1790845570.3581786,
+      "status": "DONE",
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "total": 10
+     },
+     {
+      "accept": {
+       "passed": 4,
+       "total": 7
+      },
+      "agent_minutes": 113.9,
+      "calls": 377,
+      "compactions": 3,
+      "ended_at": 1790854969.6086657,
+      "ended_by": "agent",
+      "id": "3",
+      "last_commit_at": 1790854955.0,
+      "output_tokens": 214364,
+      "passed": 4,
+      "started_at": 1790848135.3784215,
+      "status": "DONE",
+      "title": "See other people's edits appear live on the same board",
+      "total": 7
+     },
+     {
+      "accept": {
+       "passed": 4,
+       "total": 4
+      },
+      "agent_minutes": 31.2,
+      "calls": 152,
+      "compactions": 1,
+      "ended_at": 1790857039.4704397,
+      "ended_by": "agent",
+      "id": "4",
+      "last_commit_at": 1790857022.0,
+      "output_tokens": 61720,
+      "passed": 4,
+      "started_at": 1790855164.6925037,
+      "status": "DONE",
+      "title": "Return to a board and find everything as it was left",
+      "total": 4
+     },
+     {
+      "accept": {
+       "passed": 5,
+       "total": 5
+      },
+      "agent_minutes": 54.2,
+      "calls": 253,
+      "compactions": 1,
+      "ended_at": 1790860467.0809982,
+      "ended_by": "agent",
+      "id": "5",
+      "last_commit_at": 1790860448.0,
+      "output_tokens": 91564,
+      "passed": 5,
+      "started_at": 1790857217.4489665,
+      "status": "DONE",
+      "title": "Share a board with others using a link",
+      "total": 5
+     },
+     {
+      "accept": {
+       "passed": 6,
+       "total": 8
+      },
+      "agent_minutes": 37.4,
+      "calls": 147,
+      "compactions": 1,
+      "ended_at": 1790862991.404143,
+      "ended_by": "agent",
+      "id": "7",
+      "last_commit_at": 1790862920.0,
+      "output_tokens": 89246,
+      "passed": 6,
+      "started_at": 1790860749.9603777,
+      "status": "DONE",
+      "title": "Select, move, resize and delete several objects at once",
+      "total": 8
+     },
+     {
+      "accept": {
+       "passed": 7,
+       "total": 7
+      },
+      "agent_minutes": 38.2,
+      "calls": 107,
+      "compactions": 1,
+      "ended_at": 1790865607.7920167,
+      "ended_by": "agent",
+      "id": "8",
+      "last_commit_at": 1790865500.0,
+      "output_tokens": 58322,
+      "passed": 7,
+      "started_at": 1790863315.1266563,
+      "status": "DONE",
+      "title": "Undo and redo my own changes without undoing anyone else's",
+      "total": 7
+     },
+     {
+      "accept": {
+       "passed": 6,
+       "total": 6
+      },
+      "agent_minutes": 54.8,
+      "calls": 284,
+      "compactions": 2,
+      "ended_at": 1790869258.4342566,
+      "ended_by": "agent",
+      "id": "9",
+      "last_commit_at": 1790869249.0,
+      "output_tokens": 106599,
+      "passed": 6,
+      "started_at": 1790865972.80417,
+      "status": "DONE",
+      "title": "Write free text anywhere on the board",
+      "total": 6
+     },
+     {
+      "accept": {
+       "passed": 8,
+       "total": 8
+      },
+      "agent_minutes": 38.9,
+      "calls": 136,
+      "compactions": 1,
+      "ended_at": 1790871944.8157628,
+      "ended_by": "agent",
+      "id": "10",
+      "last_commit_at": 1790871911.0,
+      "output_tokens": 74636,
+      "passed": 8,
+      "started_at": 1790869611.171322,
+      "status": "DONE",
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "total": 8
+     },
+     {
+      "agent_minutes": 28.0,
+      "calls": 130,
+      "compactions": 1,
+      "id": "11",
+      "last_task_change_at": 1790873315.0986216,
+      "output_tokens": 63721,
+      "passed": null,
+      "recent_activity": [
+       "bash: grep -B5 -A5 \"addEventListener.*keydown\\|useEffect.*key\" src/client/board/useBoardKeys.ts | head -25",
+       "bash: grep -B5 -A10 \"render\\|return\" src/client/canvas/BoardViewport.tsx | grep -A15 \"viewport.*className\\|board-viewport\" | head -25",
+       "bash: grep -n \"viewportStyle\\|overlay.*{\" src/client/canvas/BoardViewport.tsx | head -15",
+       "read: src/client/canvas/BoardViewport.tsx",
+       "bash: grep -B3 -A10 \"'p'\" src/client/board/useBoardKeys.ts",
+       "bash: grep -B20 \"keyLower === 'v'\" src/client/board/useBoardKeys.ts | head -25",
+       "bash: grep -B2 -A5 \"isTypingTarget\" src/client/board/useBoardKeys.ts | head -15",
+       "bash: grep -B2 -A10 \"board-viewport\" src/client/canvas/BoardViewport.tsx | grep -i \"position\\|relative\" | head -5",
+       "bash: grep -A 15 \"viewportStyle\" src/client/canvas/BoardViewport.tsx | head -18",
+       "bash: find src -name \"*.css\" -exec grep -l \"board-viewport\" {} \\;",
+       "bash: grep -A 10 \"board-viewport\" src/client/styles.css",
+       "bash: cat > /tmp/test-debug.ts << 'EOF' import { expect, test } from '@playwright/test'; import { waitForSettled, setCamera, readCamera } f\u2026"
+      ],
+      "started_at": 1790872294.804335,
+      "status": "running",
+      "title": "Sketch freehand with a pen",
+      "total": null
+     },
+     {
+      "id": "12",
+      "passed": null,
+      "status": "pending",
+      "total": null
+     }
+    ],
+    "stories_updated_at": 1790873975.3071125
+   },
+   "seq": 2,
+   "spec": {
+    "client": "pi",
+    "install_id": "qwen38-flash-next-strix-gufo",
+    "pack": "benchmarks/vidi",
+    "record": true,
+    "run_id": "v2-r5",
+    "scope": "canvas"
+   },
+   "state": {
+    "attempt": 1,
+    "boot_time": 1790352392,
+    "pgid": 4064291,
+    "pid": 4064291,
+    "started_at": 1790843171,
+    "status": "running"
+   },
+   "submitted_at": 1790814435,
+   "updated_at": 1790843171
+  },
+  {
+   "attempt": 1,
+   "cancel_requested": false,
+   "history": [],
+   "id": "vidi-v2-gufo-r4",
+   "last_pull": {
+    "at": 1790814436,
+    "detail": "Already up to date.",
+    "ok": true
+   },
+   "progress": {
+    "combination": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi",
+    "current_story": "",
+    "log_tail": [
+     "No interruptions inside a story.",
+     "",
+     "finalize: skipped the suite checkout is at vidi-v2.0-pre2+28ace8b, not the pack's vidi-v2.0-pre2",
+     "[dbench 2026-10-01T08:26:08Z] harness exited 0; stopping processes left in its group",
+     "[dbench 2026-10-01T08:26:09Z] stopping processes the harness left running: podman (2868349), bash (2868322)",
+     "[dbench 2026-10-01T08:26:10Z] harness exited 0; job done"
+    ],
+    "run_dir": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r4",
+    "stories": [
+     {
+      "accept": {
+       "passed": 6,
+       "total": 6
+      },
+      "agent_minutes": 34.5,
+      "calls": 98,
+      "compactions": 0,
+      "ended_at": 1790816612.5448673,
+      "ended_by": "agent",
+      "id": "1",
+      "last_commit_at": 1790816591.0,
+      "output_tokens": 79258,
+      "passed": 6,
+      "started_at": 1790814542.1773567,
+      "status": "DONE",
+      "title": "Pan and zoom around an infinite board",
+      "total": 6
+     },
+     {
+      "accept": {
+       "passed": 9,
+       "total": 10
+      },
+      "agent_minutes": 51.7,
+      "calls": 150,
+      "compactions": 1,
+      "ended_at": 1790819758.0941138,
+      "ended_by": "agent",
+      "id": "2",
+      "last_commit_at": 1790819738.0,
+      "output_tokens": 114912,
+      "passed": 9,
+      "started_at": 1790816656.6418974,
+      "status": "DONE",
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "total": 10
+     },
+     {
+      "accept": {
+       "passed": 4,
+       "total": 7
+      },
+      "agent_minutes": 39.2,
+      "calls": 247,
+      "compactions": 1,
+      "ended_at": 1790822161.9690113,
+      "ended_by": "agent",
+      "id": "3",
+      "last_commit_at": 1790822138.0,
+      "output_tokens": 83080,
+      "passed": 4,
+      "started_at": 1790819812.5399184,
+      "status": "DONE",
+      "title": "See other people's edits appear live on the same board",
+      "total": 7
+     },
+     {
+      "accept": {
+       "passed": 4,
+       "total": 4
+      },
+      "agent_minutes": 92.2,
+      "calls": 301,
+      "compactions": 2,
+      "ended_at": 1790827829.1527374,
+      "ended_by": "operator",
+      "id": "4",
+      "output_tokens": 144325,
+      "passed": 4,
+      "reason": "story cap: 5 nudges without committing (cap 5)",
+      "started_at": 1790822297.2114463,
+      "status": "PARTIAL",
+      "title": "Return to a board and find everything as it was left",
+      "total": 4,
+      "verdict": "amber"
+     },
+     {
+      "accept": {
+       "passed": 5,
+       "total": 5
+      },
+      "agent_minutes": 32.2,
+      "calls": 136,
+      "compactions": 1,
+      "ended_at": 1790829929.7991552,
+      "ended_by": "agent",
+      "id": "5",
+      "last_commit_at": 1790829904.0,
+      "output_tokens": 60713,
+      "partial_base": [
+       4
+      ],
+      "passed": 5,
+      "started_at": 1790827999.46487,
+      "status": "DONE",
+      "title": "Share a board with others using a link",
+      "total": 5
+     },
+     {
+      "accept": {
+       "passed": 6,
+       "total": 8
+      },
+      "agent_minutes": 29.7,
+      "calls": 116,
+      "compactions": 1,
+      "ended_at": 1790831891.2747936,
+      "ended_by": "agent",
+      "id": "7",
+      "last_commit_at": 1790831830.0,
+      "output_tokens": 64929,
+      "partial_base": [
+       4
+      ],
+      "passed": 6,
+      "started_at": 1790830108.786312,
+      "status": "DONE",
+      "title": "Select, move, resize and delete several objects at once",
+      "total": 8
+     },
+     {
+      "accept": {
+       "passed": 7,
+       "total": 7
+      },
+      "agent_minutes": 39.7,
+      "calls": 150,
+      "compactions": 1,
+      "ended_at": 1790834469.5197184,
+      "ended_by": "agent",
+      "id": "8",
+      "last_commit_at": 1790834438.0,
+      "output_tokens": 91665,
+      "partial_base": [
+       4
+      ],
+      "passed": 7,
+      "started_at": 1790832084.9185803,
+      "status": "DONE",
+      "title": "Undo and redo my own changes without undoing anyone else's",
+      "total": 7
+     },
+     {
+      "accept": {
+       "passed": 4,
+       "total": 6
+      },
+      "agent_minutes": 32.5,
+      "calls": 204,
+      "compactions": 1,
+      "ended_at": 1790836628.019673,
+      "ended_by": "agent",
+      "id": "9",
+      "last_commit_at": 1790836610.0,
+      "output_tokens": 73612,
+      "partial_base": [
+       4
+      ],
+      "passed": 4,
+      "started_at": 1790834678.985743,
+      "status": "DONE",
+      "title": "Write free text anywhere on the board",
+      "total": 6
+     },
+     {
+      "accept": {
+       "passed": 8,
+       "total": 8
+      },
+      "agent_minutes": 33.8,
+      "calls": 151,
+      "compactions": 1,
+      "ended_at": 1790838878.7613482,
+      "ended_by": "agent",
+      "id": "10",
+      "last_commit_at": 1790838837.0,
+      "output_tokens": 83824,
+      "partial_base": [
+       4
+      ],
+      "passed": 8,
+      "started_at": 1790836851.70998,
+      "status": "DONE",
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "total": 8
+     },
+     {
+      "accept": {
+       "passed": 5,
+       "total": 5
+      },
+      "agent_minutes": 25.2,
+      "calls": 152,
+      "compactions": 1,
+      "ended_at": 1790840633.6964047,
+      "ended_by": "agent",
+      "id": "11",
+      "last_commit_at": 1790840619.0,
+      "output_tokens": 51534,
+      "partial_base": [
+       4
+      ],
+      "passed": 5,
+      "started_at": 1790839118.6891875,
+      "status": "DONE",
+      "title": "Sketch freehand with a pen",
+      "total": 5
+     },
+     {
+      "accept": {
+       "passed": 4,
+       "total": 5
+      },
+      "agent_minutes": 33.3,
+      "calls": 167,
+      "compactions": 1,
+      "ended_at": 1790842878.3272495,
+      "ended_by": "agent",
+      "id": "12",
+      "last_commit_at": 1790842864.0,
+      "output_tokens": 64627,
+      "partial_base": [
+       4
+      ],
+      "passed": 4,
+      "started_at": 1790840878.024475,
+      "status": "DONE",
+      "title": "Drop images onto the board",
+      "total": 5
+     }
+    ],
+    "stories_updated_at": 1790843146.037788
+   },
+   "seq": 1,
+   "spec": {
+    "client": "pi",
+    "install_id": "qwen38-flash-next-strix-gufo",
+    "pack": "benchmarks/vidi",
+    "record": true,
+    "run_id": "v2-r4",
+    "scope": "canvas"
+   },
+   "state": {
+    "exit_code": 0,
+    "status": "done"
+   },
+   "submitted_at": 1790814435,
+   "updated_at": 1790843170
+  }
+ ]
+}
