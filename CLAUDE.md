@@ -47,3 +47,9 @@ Refactoring breaks things easily, so all refactoring in this repository follows 
 3. **Rebuild step by step.** Insert new code in the new design, piece by piece, until every test passes again.
 
 Why: moving working code around keeps its untested assumptions and hides what was lost. Deleting it makes the tests the only definition of the behaviour, so whatever they don't pin down is found in step 1, before the refactor, and not on a live run after it.
+
+## Least privilege
+
+Apply the principle of least privilege for all resource access. Deny by default and allow only what the task needs: files, network, processes, credentials, tokens and tool permissions alike. A list of things to hide is the wrong shape, because it only covers what someone has already thought of.
+
+Why: the agent sandbox allowed everything and denied a list of paths. Each leak in the week of 28 September 2026 was a path nobody had listed: a file share holding a clone of this repo, other runs' leftovers in `/tmp`, and `~/node_modules`, which gave a build a package it never declared and cost a run its score.
