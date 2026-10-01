@@ -279,6 +279,49 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "328f2a31"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 23,
+        "tool_calls": 22,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 3072,
+        "tool_arg_chars": 73282,
+        "thinking_estimated_tokens": 7830,
+        "largest_thinking_estimated": {
+          "tokens": 3350,
+          "call": 11,
+          "at_s": 150.4
+        },
+        "context_start": 16225,
+        "context_end": 84455,
+        "largest_context_jump": {
+          "tokens": 10707,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 21,
+          "Read": 1
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 33.4,
+          "name": "Bash",
+          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__v2-r2/workspace; cat > playwright.config.ts <<'EOF'\nimport "
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "2": {
@@ -583,6 +626,51 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "eccc8210"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 32,
+        "tool_calls": 37,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 3243,
+        "tool_arg_chars": 102486,
+        "thinking_estimated_tokens": 24883,
+        "largest_thinking_estimated": {
+          "tokens": 17350,
+          "call": 5,
+          "at_s": 196.8
+        },
+        "context_start": 16275,
+        "context_end": 137494,
+        "largest_context_jump": {
+          "tokens": 22242,
+          "call": 3
+        },
+        "tools_by_name": {
+          "Bash": 22,
+          "Read": 5,
+          "Write": 9,
+          "Edit": 1
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 12.4,
+          "name": "Bash",
+          "gist": "npm run build 2>&1 | tail -4 && npm run typecheck 2>&1 | tail -2 && npm run test:unit 2>&1 | grep -E 'Tests|Fail' && npm"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "3": {
@@ -900,6 +988,50 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "ee368615"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 105,
+        "tool_calls": 106,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 6709,
+        "tool_arg_chars": 130541,
+        "thinking_estimated_tokens": 40952,
+        "largest_thinking_estimated": {
+          "tokens": 4450,
+          "call": 52,
+          "at_s": 584.6
+        },
+        "context_start": 16295,
+        "context_end": 202479,
+        "largest_context_jump": {
+          "tokens": 13441,
+          "call": 5
+        },
+        "tools_by_name": {
+          "Bash": 102,
+          "Read": 1,
+          "ScheduleWakeup": 3
+        },
+        "tool_errors": 4,
+        "longest_tool": {
+          "seconds": 319.5,
+          "name": "Bash",
+          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__v2-r2/workspace; python3 - <<'EOF'\np='tests/e2e/live-collab"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "4": {
@@ -1217,6 +1349,50 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "3cd0d1dc"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 63,
+        "tool_calls": 69,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 4390,
+        "tool_arg_chars": 124789,
+        "thinking_estimated_tokens": 32737,
+        "largest_thinking_estimated": {
+          "tokens": 16550,
+          "call": 13,
+          "at_s": 263.2
+        },
+        "context_start": 16319,
+        "context_end": 191261,
+        "largest_context_jump": {
+          "tokens": 22371,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 56,
+          "Read": 3,
+          "Write": 10
+        },
+        "tool_errors": 3,
+        "longest_tool": {
+          "seconds": 63.3,
+          "name": "Bash",
+          "gist": "timeout 1800 npm run test:e2e:nightly 2>&1 | grep -E \"passed|failed|flaky|\u2718\" | tail -10"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "5": {
@@ -1511,6 +1687,49 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "fea1eb57"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 44,
+        "tool_calls": 44,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 3886,
+        "tool_arg_chars": 82504,
+        "thinking_estimated_tokens": 11942,
+        "largest_thinking_estimated": {
+          "tokens": 1400,
+          "call": 5,
+          "at_s": 28.1
+        },
+        "context_start": 16318,
+        "context_end": 147224,
+        "largest_context_jump": {
+          "tokens": 26217,
+          "call": 3
+        },
+        "tools_by_name": {
+          "Bash": 43,
+          "Read": 1
+        },
+        "tool_errors": 1,
+        "longest_tool": {
+          "seconds": 63.4,
+          "name": "Bash",
+          "gist": "npm run test:e2e:nightly 2>&1 | grep -vE \"^\\[latency\\]   \" | tail -15"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "7": {
@@ -1885,6 +2104,50 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "e8ba5e2a"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 52,
+        "tool_calls": 57,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 5089,
+        "tool_arg_chars": 138627,
+        "thinking_estimated_tokens": 24313,
+        "largest_thinking_estimated": {
+          "tokens": 6650,
+          "call": 10,
+          "at_s": 143.9
+        },
+        "context_start": 16352,
+        "context_end": 191487,
+        "largest_context_jump": {
+          "tokens": 24181,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 50,
+          "Read": 5,
+          "ScheduleWakeup": 2
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 66.0,
+          "name": "Bash",
+          "gist": "kill 90273; sleep 2; lsof -ti :8787; npm run test:e2e:nightly > /tmp/nightly.log 2>&1; tail -15 /tmp/nightly.log"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "8": {
@@ -2196,6 +2459,49 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "b0443163"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 44,
+        "tool_calls": 46,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 3285,
+        "tool_arg_chars": 72155,
+        "thinking_estimated_tokens": 16792,
+        "largest_thinking_estimated": {
+          "tokens": 4550,
+          "call": 9,
+          "at_s": 68.1
+        },
+        "context_start": 16375,
+        "context_end": 135587,
+        "largest_context_jump": {
+          "tokens": 15642,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 43,
+          "Read": 3
+        },
+        "tool_errors": 1,
+        "longest_tool": {
+          "seconds": 63.8,
+          "name": "Bash",
+          "gist": "npm run test:e2e:nightly 2>&1 | tail -6"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "9": {
@@ -2547,6 +2853,50 @@
         "commit": "f83975f9",
         "unpushed": true,
         "error": "com:boxabirds/awesome-local-ai.git\n ! [rejected]          HEAD -> main (fetch first)\nerror: failed to push some refs to 'github.com:boxabirds/awesome-local-ai.git'\nhint: Updates were rejected because the remote contains work that you do not\nhint: have locally. This is usually caused by another repository pushing to\nhint: the same ref. If you want to integrate the remote changes, use\nhint: 'git pull' before pushing again.\nhint: See the 'Note about fast-forwards' in 'git push --help' for details.\n"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 57,
+        "tool_calls": 61,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 5885,
+        "tool_arg_chars": 128710,
+        "thinking_estimated_tokens": 37937,
+        "largest_thinking_estimated": {
+          "tokens": 7500,
+          "call": 11,
+          "at_s": 228.7
+        },
+        "context_start": 16338,
+        "context_end": 218983,
+        "largest_context_jump": {
+          "tokens": 19295,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 57,
+          "Read": 3,
+          "Write": 1
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 36.0,
+          "name": "Bash",
+          "gist": "cd ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__v2-r2/workspace; timeout 900 npm run test:e2e 2>&1 | grep -"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "10": {
@@ -2885,6 +3235,49 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "dd8fcb35"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 58,
+        "tool_calls": 59,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 4277,
+        "tool_arg_chars": 174190,
+        "thinking_estimated_tokens": 32352,
+        "largest_thinking_estimated": {
+          "tokens": 10550,
+          "call": 8,
+          "at_s": 125.4
+        },
+        "context_start": 16379,
+        "context_end": 235040,
+        "largest_context_jump": {
+          "tokens": 24266,
+          "call": 3
+        },
+        "tools_by_name": {
+          "Bash": 56,
+          "Read": 3
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 63.7,
+          "name": "Bash",
+          "gist": "npm run test:e2e:nightly 2>&1 | grep -vE \"^\\[latency\\]\" | tail -8"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "11": {
@@ -3181,6 +3574,49 @@
         "pushed": true,
         "over_size_limit": [],
         "commit": "ea2db998"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 46,
+        "tool_calls": 48,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 4051,
+        "tool_arg_chars": 92908,
+        "thinking_estimated_tokens": 13564,
+        "largest_thinking_estimated": {
+          "tokens": 3350,
+          "call": 16,
+          "at_s": 80.9
+        },
+        "context_start": 16341,
+        "context_end": 169514,
+        "largest_context_jump": {
+          "tokens": 17627,
+          "call": 4
+        },
+        "tools_by_name": {
+          "Bash": 44,
+          "Read": 4
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 63.6,
+          "name": "Bash",
+          "gist": "npm run test:e2e:nightly 2>&1 | tail -8"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     },
     "12": {
@@ -3529,6 +3965,51 @@
           "~/.spec-bench/awesome-local-ai/benchmarks/reference/vidi/opus-5.5/v2-r2/workspace/tests/fixtures/images/photo.jpg"
         ],
         "commit": "a752e0b5"
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 60,
+        "tool_calls": 65,
+        "thinking_visible": false,
+        "thinking_chars": null,
+        "thinking_median": null,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 4399,
+        "tool_arg_chars": 136507,
+        "thinking_estimated_tokens": 21742,
+        "largest_thinking_estimated": {
+          "tokens": 6850,
+          "call": 9,
+          "at_s": 96.1
+        },
+        "context_start": 16330,
+        "context_end": 223916,
+        "largest_context_jump": {
+          "tokens": 36865,
+          "call": 8
+        },
+        "tools_by_name": {
+          "Bash": 57,
+          "Read": 3,
+          "Write": 3,
+          "ScheduleWakeup": 2
+        },
+        "tool_errors": 0,
+        "longest_tool": {
+          "seconds": 63.6,
+          "name": "Bash",
+          "gist": "tail -5 /tmp/nightly.log /tmp/nightly2.log | cut -c1-200; npm run test:e2e:nightly 2>&1 | grep -vE \"^\\[latency\\]   \" | g"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37dbe619",
+        "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
+        "run_started_at": "2026-09-30T00:46:16Z",
+        "source": "run-history"
       }
     }
   },
