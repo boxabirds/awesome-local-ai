@@ -146,3 +146,140 @@ Uses `vitest.workspace.ts` to define `unit` and `component` projects separately.
   - libjxl 0.8 soname satisfied by the noble `libjxl.so.0.7.0` binary, patched so its version requirements point at a shim (`libfmod.s`) that exports `fmod` under version nodes `GLIBC_2.2.5/2.27/2.29/2.35/2.38` (the noble build tags `fmod` as `GLIBC_2.38`, which glibc 2.35 lacks). The shim is loaded via `LD_PRELOAD=.../lib/libfmodshim.so` when running the webkit project.
 - With that, webkit runs the full e2e suite (TC-27 and TC-29 included).
 - **Known limitation**: the `@nightly` "50 clients converge" test (story 3) crashes webkit pages at ~37 concurrent pages because this session's cgroup is capped at 33.5 GiB and 50 MiniBrowser pages need ~40 GiB. It is out of story 5 scope (story 5 requires TC-27/TC-29 in firefox + webkit, which pass) and passes in chromium and firefox.
+
+## Story 7: Select, Move, Resize and Delete Several Objects at Once — Implementation Notes
+
+### Architecture
+- **Object type registry** (`src/client/objects/registry.tsx`): `registerObjectType`/`getObjectType` with a `knownTypes` set shared with `board-model` (`registerKnownObjectType`) so model-level functions can validate types without importing components. `StickyNote` imports only the `ObjectProps` *type* from the registry (type-only import, erased at compile time — no circular dependency).
+- **Selection** (`src/client/board/useSelection.ts`): pure `selectionReducer` (unit-tested) + `useSelection(snapshot)` hook. Selection is pruned against the snapshot whenever it changes (remote deletes drop out; TC-35). `startEdit` intentionally has no snapshot validation (create→edit happens in one tick, before the snapshot ref re-renders).
+- **Transform gestures** (`src/client/board/useTransformGesture.ts`): one hook for group move (object pointerdown) and group resize (overlay handle pointerdown). rAF-throttled; one `doc.transact` per frame; absolute positions (last write wins → convergent under concurrent editors). Threshold-gated (3px) so clicks don't move anything.
+- **Common capture root, taken lazily**: ALL pointer gestures (pan, marquee, object drag, handle resize) capture on the SAME element — the viewport (`captureRoot` in the gesture opts, `onViewportEl` callback in `BoardViewport`). Transferring pointer capture between *different* elements for one pointer is a known Chromium footgun; one shared root removes the class of problem. The object/handle gestures take the capture only AFTER the 3-px drag threshold (move/up listeners are on `window` until then), NOT on pointerdown: capturing on the viewport at pointerdown retargets the matching `pointerup` to the viewport, which poisons the `click`/`dblclick` targeting (the click targets the common ancestor — the viewport — so a dblclick on a note would create a NEW note instead of editing it; this broke story 2's TC-33 ~50% of the time). Pan/marquee keep capturing on pointerdown because their pointerdown target IS the viewport, so retargeting changes nothing.
+- **Native listeners on interactive elements**: `StickyNote` and the resize handles attach `pointerdown` via `addEventListener` in `useEffect` and call `e.stopPropagation()`. React synthetic `stopPropagation` cannot stop *native* listeners on ancestor elements (the viewport's pan/marquee handler is native), so the note/handle must stop the event at the native level. (jsdom does not implement the `onpointerdown` IDL property either — `addEventListener` is the only portable path.)
+- **Stable DOM order**: objects render sorted by id; `bringObjectsToFront` changes only `z` (→ `z-index`), never DOM order. Reordering DOM nodes mid-gesture would reset the active pointer capture.
+- **SelectionBar clamping**: the bar is anchored above the group's bounding box but clamped into the viewport (`top ≥ 46`, `left` within `[120, width-120]`) so a selection at the top screen edge doesn't render the bar off-screen.
+- **Optional props (deviations from the strict design)**: `SelectionBar` accepts an optional `onColor` (story 2's single-note toolbar has one; the multi-select bar only shows it for a single sticky — keeps one component for both). `useBoardKeys` accepts an optional `marqueeActive` guard so Escape cancels the marquee instead of clearing the selection while one is in progress.
+- **Aspect-locked mixed types**: `clampScale` computes per-axis scale clamps; a group containing any aspect-locked object (sticky) locks the whole group's aspect ratio (and Shift locks any group).
+
+### E2E: Chromium 153 CDP input pipeline workaround (TC-36)
+- **Environment bug (not app behaviour)**: in Chromium 153 (Playwright 1.63, headless AND headful/Xvfb), the CDP mouse input pipeline desyncs after repeated drag pointer-sequences (down→moves→up) in one page: subsequent sequences receive spurious `pointercancel` events and their `pointerup` is swallowed entirely. Reproduced with a pure-DOM page (no React, no Yjs): a marquee drag followed by a note drag, repeated, fails non-deterministically; a single drag sequence always works. Real hardware input is unaffected — this is an artifact of `page.mouse` (CDP `Input.dispatchMouseEvent`).
+- **Workaround**: TC-36 (the 5-context concurrency test) drives its marquee and drags with **synthetic `PointerEvent`s dispatched in-page** (`synthPointerSeq` in `tests/e2e/multi-select.spec.ts`). Synthetic events exercise the exact same app code path — native listeners, gesture hooks, Yjs writes, sync — without the CDP pipeline. The concurrency under test (parallel contexts, doc convergence, no 4xx) is unchanged. TC-32/33/34/35 and the marquee test keep `page.mouse` (single sequences, unaffected by the desync).
+- `setPointerCapture` is wrapped in try/catch everywhere (the synthetic pointer id is not a real browser pointer; jsdom has no capture API).
+- TC-36 assertions are rigid-delta + convergence based (not exact values): several pages drag the SAME cluster concurrently, so the final offset is interleaving-dependent; what is asserted is (a) every note of a cluster shares one offset (rigid), (b) the offset points in the drag direction, (c) all 5 contexts converge to identical state, (d) no 4xx responses.
+- **TC-36 marquee re-aims and retries**: because the five pages drag the SAME clusters concurrently, a cluster's position when a given page marquees is not its seeded position (other pages may have already dragged it 1..N deltas). `selectAndDragCluster` therefore (1) waits for all 20 notes to be RENDERED in that context (hydration can lag under parallel load), (2) reads the cluster's CURRENT union box from the live doc and re-aims the camera at it, (3) marquees, and (4) verifies the WHOLE cluster (all 10 notes) is selected before dragging — retrying with a fresh re-aim until it is. A drag must cover the full cluster for the final state to stay a rigid transform; a partial selection would break the rigidity assertion.
+
+## Story 8: Undo and Redo My Own Changes Without Undoing Anyone's — Implementation Notes
+
+### Architecture
+- **`UndoController`** (`src/client/board/undo.ts`): a thin per-client wrapper around a `Y.UndoManager` scoped to the `objects` map, with `trackedOrigins: new Set([LOCAL_ORIGIN])`. Only transactions performed by THIS client are tracked; everything arriving from the network (peers, snapshot loads, compaction) is invisible to the history. `boundary()` = `stopCapturing()`, so one meaningful action (create, a whole gesture, an edit session, delete, colour) is one undo step while sub-steps inside it merge within the 500 ms capture window. `maxSteps` (200) is enforced on `stack-item-added` by shifting the oldest items.
+- **Ownership**: the controller is created in `Board` (BoardPage) next to the doc (`useRef`, created once, `destroy()` on unmount). `App.tsx` remounts `BoardPage` with `key={route.id}` on board change, so history is strictly per-board and per-session — never persisted, never shared (PRD undo.history, undo.isolation). **Deviation from the design doc**: the design sketch showed the controller living in `App`; the doc itself lives in `Board` via `useBoardDoc`, so the controller is created there — same lifetime semantics, one less prop.
+- **Wiring of boundaries** (`BoardPage.tsx`): gesture start/end (`useTransformGesture` callbacks), create (before/after `createSticky`), delete (before/after `deleteObjects`), colour (before/after `setStickyColor`). `useBoardKeys` brackets Delete and nudge. `StickyTextEditor` brackets the whole edit session (boundary on mount, boundary on commit/blur/escape) and resyncs the textarea from the Y.Text after an in-editor undo/redo via `ytext.observe`.
+- **Shortcuts** (`useBoardKeys.ts`): Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z and Ctrl/Cmd+Y redo. The combos are ALWAYS claimed (`preventDefault`) outside typing targets — even on a read-only board — so the browser's own undo can never fire from the board; the controller is simply not called when `!canEdit` (PRD undo.read_only). Typing targets (input/textarea/contenteditable) are never intercepted, so in-field undo stays native.
+- **UI** (`useUndo.ts`, `UndoButtons.tsx`, `Toolbar.tsx`): `useUndo` is a `useSyncExternalStore` over `controller.onChange` exposing `{canUndo, canRedo, undo, redo}` gated by `canEdit`; the toolbar renders two buttons (↶/↷) that are `disabled` + `aria-disabled` when their history is empty or the board is read-only.
+
+### Test infrastructure decisions
+- **`Date.now` in yjs under fake timers**: `lib0/time` does `export const getUnixTime = Date.now` — the reference is captured at module load, so `vi.useFakeTimers()` can NEVER intercept it. The unit tests therefore `vi.mock('lib0/time', ...)` with a controllable clock, and the unit project in `vitest.workspace.ts` sets `server: { deps: { inline: ['yjs', 'lib0'] } }` so yjs's ESM dist goes through Vitest's transform pipeline (otherwise the mock registry can't intercept the external import). The component project is unaffected (it doesn't need the fake clock — boundaries, not timing, separate steps there).
+- **lib0 ObservableV2 quirk**: `on(event, handler)` returns the HANDLER, not an unsubscribe. All controller event subscriptions are removed with `off(event, handler)`.
+- **Peer helper** (`tests/unit/peer.ts`): `createPeer(localDoc)` builds a second `Y.Doc` synced bidirectionally with the local one and applies the local state to the peer up front (a real peer joining mid-session already has the state), tagging peer transactions with a distinct origin. `applyLoad(localDoc, sourceDoc)` simulates a full snapshot load (origin ≠ LOCAL_ORIGIN) for the load-isolation test.
+- **Component seeding origin**: `UndoBoundaries.test.tsx` seeds notes through a temp doc + `Y.applyUpdate` with a non-local `SEED_ORIGIN`, so the test's undo history contains only the actions the test performs (UI-created notes would be tracked and pollute the step counts).
+- **Controls tests use a fake controller** (`UndoControls.test.tsx`): pins the control contract (buttons reflect canUndo/canRedo, shortcuts call the controller, typing targets and read-only boards never reach it) without a Y.Doc. `@testing-library/jest-dom/vitest` is used (the plain entry needs a global `expect`, which this repo's vitest config does not provide).
+- **E2E**: notes are created through the real UI (double-click the board) so the history contains genuine `LOCAL_ORIGIN` steps. `createNoteAt` matches the created note BY WORLD POSITION (not "first new id") because under parallel contexts other clients' notes can sync in between the click and the readback. `page.waitForFunction` returns a JSHandle — `.jsonValue()` is required.
+
+### E2E gotchas found while testing (environment, not app)
+- **`wrangler dev` serves the STATIC build** (`dist/client` per `wrangler.jsonc` `assets.directory`), not a live dev bundle: `npm run build` is required before e2e runs pick up client changes. (Story 1's "Known Limitations" already noted the serving model; the rebuild step is easy to miss.)
+- **The note id is the Y.Map key**, not a stored field: doc readback helpers must use the map key (`objects.forEach((obj, key) => ...)`).
+- Under full-suite parallel load the `@nightly` 50-client test and webkit concurrency tests time out on this machine (same cgroup/memory cap documented in the story 5 notes); all of them pass in isolation and in chromium/firefox.
+
+---
+
+# Story 9: Write Free Text Anywhere on the Board — Implementation Notes
+
+## Architecture Decisions
+
+### `layoutText` cap semantics (PRD `text.auto_width`)
+A line that EXCEEDS `TEXT_MAX_AUTO_WIDTH_WORLD` wraps, and the box takes the
+cap itself (width = 600), not the longest *wrapped* line. This makes the PRD
+verification exact: "pasting a 300-character sentence produces a 600-unit-wide
+box with wrapped lines." Lines that fit under the cap keep their measured
+width (`min(longest line, 600)`), so short text stays tight ("Went well" →
+90-unit box).
+
+### Shared text-edit helpers (`src/shared/text-edit.ts`)
+`clampToLimit` and `applyTextDiff` (minimal prefix/suffix diff → at most one
+delete + one insert, surrogate-pair safe) live in `src/shared/text-edit.ts`.
+Story 2's `StickyText.ts` re-exports them with the story-2 limit; story 9's
+`TextEditor` uses them with `TEXT_MAX_CHARS`. The diff-based commit preserves
+concurrent remote inserts (no whole-string replace).
+
+### `objects()` vs `snapshot()`
+`snapshot()` stays sticky-only (story 2 contract, used by e2e snapshot
+helpers). `objects(doc)` returns every known object type as
+`BoardObjectSnapshot[]` (sticky + text) and is what story 9's client uses
+(selection, marquee, bar, rendering). `snapshot()` filters `objects()`.
+
+### TextEditor is a general component
+`TextEditor.tsx` is parameterised (`maxChars`, `fontPx`, `textAlign`,
+`paddingPx`, labels, counter) and owns: mount boundary (one undo step per
+edit session), diff commits, remote-resync (`ytext.observe` → textarea
+value + caret to end), IME composition guard, in-editor Ctrl/Cmd+Z,
+Escape → `onEnd('selected')`, outside pointerdown → `onEnd('unselected')`.
+`onEnd` carries NO boundary — the parent closes the step so it can merge
+the empty-object deletion into it (TC-06/TC-20: one undo restores an
+empty-deleted text with its would-be content).
+`StickyTextEditor.tsx` is a thin story-2 wrapper (400-char limit, centred,
+yellow padding, end-of-session boundary).
+
+### Empty text deletion timing
+`TextObject.handleEndEdit`: `isEmptyText` → `deleteIfEmpty` BEFORE
+`undo.boundary()`. The create step and the delete step collapse so a single
+Ctrl/Cmd+Z restores the object (and TC-31: T → click → Escape leaves no
+object behind at all).
+
+### Horizontal-only resize handles
+`registry.tsx` ObjectTypeSpec carries `handles?: 'all' | 'horizontal'`;
+`SelectionOverlay` renders only e/w handles when ALL selected specs are
+horizontal. `useTransformGesture` gets a `textWidth` phase: a single text on
+e/w resizes width only (top-left pinned, `widthMode` → fixed, then one
+remeasure). A mixed group resizes all objects proportionally (story 7
+`resizeObjects`), then every text in the group is remeasured — so the font
+preset is untouched and the height follows the content.
+
+### Box sync (sender measures)
+Only the editing client remeasures: `remeasureTextObject(doc, id, measurer)`
+in `textLayout.ts` (pure, no hooks) writes the box via `setTextBox` at most
+once per local change and skips the write when the computed box equals the
+stored box (`BOX_EPSILON`). Remote clients just render the synced box — no
+client-side measurement of remote text (design `text.box_sync`).
+
+### Measurer
+`createCanvasMeasurer` uses a cached canvas 2D context; in jsdom
+(`getContext` throws) it falls back to `len × 0.6 × fontPx`
+(`TEXT_AVG_GLYPH_RATIO`), which keeps component tests deterministic.
+
+### Tool flow
+`useTool` (V/T/Escape, auto-revert to Select after a create). BoardPage's
+`createTextAtScreen` converts screen → world, creates the text (size M,
+auto), starts editing, and hands the tool back to Select (PRD `text.tool_ui`).
+BoardViewport owns the text-tool click gesture (4px drag threshold) and
+reports viewport-relative points.
+
+## Test Notes
+
+### E2E: convergence polls
+Multi-context e2e tests (TC-29/TC-30) poll until the docs CONVERGE
+(`expect.poll` on doc state), because y-websocket sync is eventually
+consistent and the last keystrokes are still in flight right after Escape.
+TC-29 asserts the CRDT guarantee exactly: both docs identical AND the
+character multiset equals `sorted('Hello world')` (interleaving at a shared
+caret is legitimate; character loss is not).
+
+### E2E: stale dev server
+`wrangler dev` serves the prebuilt `dist/client`. After source changes the
+bundle must be rebuilt (`npm run build`) before e2e, and a stale `wrangler`
+process must be killed (Playwright's `reuseExistingServer` keeps serving old
+code otherwise).
+
+### Pre-existing flaky load tests (not story 9)
+`@nightly TC-29` (50 clients × 100 ops) and `TC-24` (5 contexts parallel
+undo) flake under full-suite parallel load in this environment; both pass
+reliably in isolation and the 50-client one fails identically on the
+pre-story-9 baseline (verified by `git stash`).

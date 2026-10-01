@@ -10,6 +10,8 @@ import { NotFoundPage } from './pages/NotFoundPage';
 export function App() {
   const route = useRoute();
   if (route.name === 'home') return <HomePage />;
-  if (route.name === 'board') return <BoardPage id={route.id} />;
+  // Keyed by board id: switching boards remounts the page, which destroys
+  // the per-board undo controller (story 8: history is per board, per session).
+  if (route.name === 'board') return <BoardPage key={route.id} id={route.id} />;
   return <NotFoundPage />;
 }

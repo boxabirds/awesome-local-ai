@@ -39,3 +39,86 @@ export const STORAGE_SCHEMA_VERSION = 1;
 export const CREATE_BUDGET_MS = 2000;                // PRD share.create: click New board → board visible
 export const LINK_COPIED_MS = 2000;                  // PRD share.copy: "Link copied" duration
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;       // backoff doubles up to RECONNECT_MAX_BACKOFF_MS
+
+// Story 7: Multi-selection settings
+export const HANDLE_SIZE_PX = 8;                     // resize handle size, screen pixels (any zoom)
+export const STICKY_MIN_SIZE_WORLD = 50;             // PRD sel.size_limits: sticky minimum edge, board units
+export const MAX_OBJECT_SIZE_WORLD = 20_000;         // PRD sel.size_limits: maximum edge for every type, board units
+export const NUDGE_STEP_WORLD = 1;                   // PRD sel.nudge: arrow-key step, board units
+export const NUDGE_LARGE_STEP_WORLD = 10;            // PRD sel.nudge: Shift+arrow step, board units
+
+// Story 8: Undo/redo settings
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;          // PRD undo.history: transactions <500 ms apart merge into one step; boundary() forces a step
+export const UNDO_MAX_STEPS = 200;                   // PRD undo.history: steps kept per client; oldest discarded first (guard, not a promise)
+
+// Story 9: Free text settings
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;        // PRD text.auto_width: auto width cap, board units
+export const TEXT_MIN_WIDTH_WORLD = 40;              // PRD text.fixed_width: minimum fixed width, board units
+export const TEXT_MAX_CHARS = 5000;                  // PRD text.limit: maximum characters per text object
+export const TEXT_COUNTER_THRESHOLD_CHARS = 10;      // PRD text.limit: counter shows when remaining <= this
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const; // PRD text.size: font size presets, board units
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';      // PRD: new text is size M
+export const TEXT_LINE_HEIGHT = 1.3;                 // line-height multiplier (layout + rendering)
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif'; // PRD: board's standard sans-serif
+
+/** Type guard for the size presets (stored schema: size is a preset key). */
+export function isTextSize(s: unknown): s is TextSize {
+  return typeof s === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, s);
+}
+
+// Story 10: Shape and connector settings
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = typeof SHAPE_KINDS[number];
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+export const SHAPE_MIN_SIZE_WORLD = 20;
+export const SHAPE_LABEL_MAX_CHARS = 500;
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+export const SHAPE_FILL_COLORS = { none: 'transparent', white: '#FFFFFF', blue: '#BBDEFB', green: '#C8E6C9', yellow: '#FFF9C4', pink: '#F8BBD0', grey: '#E0E0E0' } as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export const SHAPE_STROKE_COLORS = { dark: '#263238', blue: '#1E88E5', green: '#43A047', orange: '#FB8C00', red: '#E53935', grey: '#9E9E9E' } as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+// Story 11: Pen tool settings
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+export type PenColor = keyof typeof PEN_COLORS;
+
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/** RDP simplification tolerance, screen pixels at the current zoom. */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/** Max points per committed stroke; longer strokes commit in parts. */
+export const STROKE_MAX_POINTS = 5000;
+/** Selecting a stroke: minimum line-distance tolerance, screen pixels. */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** Strokes resist accidental micro-resizes (world units). */
+export const STROKE_MIN_SIZE_WORLD = 4;
+
+// Story 12: Image settings
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+export const IMAGE_MIN_SIZE_WORLD = 16;
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+export const IMAGE_SNIFF_BYTES = 12;

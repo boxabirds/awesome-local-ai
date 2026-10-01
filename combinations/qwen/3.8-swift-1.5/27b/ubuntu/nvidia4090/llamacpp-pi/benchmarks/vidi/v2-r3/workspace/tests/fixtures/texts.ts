@@ -21,3 +21,14 @@ export const LONG_TEXT =
 if (LONG_TEXT.length !== 1000) {
   throw new Error(`LONG_TEXT must be exactly 1000 chars, got ${LONG_TEXT.length}`);
 }
+
+/**
+ * Exactly 300 characters of English prose — the story-9 "long annotation"
+ * fixture (text.auto_width: it must wrap and produce a 600-unit-wide box).
+ */
+export const ANNOTATION_300 =
+  'The sprint review went well: the new onboarding flow cut sign-up time in half, and support tickets about the pricing page dropped to almost nothing. A few rough edges remain, mostly around the empty states and the mobile layout, but the direction is clearly right and the team wants to keep on going.';
+
+if (ANNOTATION_300.length !== 300) {
+  throw new Error(`ANNOTATION_300 must be exactly 300 chars, got ${ANNOTATION_300.length}`);
+}

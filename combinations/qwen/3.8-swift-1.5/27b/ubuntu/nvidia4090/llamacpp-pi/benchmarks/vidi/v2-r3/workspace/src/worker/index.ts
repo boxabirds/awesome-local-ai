@@ -2,10 +2,12 @@ import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { handleCreateBoardRequest } from './create-board';
 import { handleTestHooks } from './test-hooks';
+import { handleUpload, handleServe } from './assets';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   TEST_HOOKS?: string;
 }
 
@@ -37,10 +39,17 @@ export default {
     }
 
     if (url.pathname.startsWith('/api/boards/')) {
+      const boardId = url.pathname.slice('/api/boards/'.length);
+
+      // Story 12: POST /api/boards/:id/assets (image upload)
+      if (boardId.endsWith('/assets') && req.method === 'POST') {
+        const id = boardId.slice(0, -'/assets'.length);
+        return handleUpload(req, env, id);
+      }
+
       if (req.method !== 'GET') {
         return methodNotAllowed();
       }
-      const boardId = url.pathname.slice('/api/boards/'.length);
       // Malformed ids get the same 404 as unknown ids: nothing is leaked and
       // the Durable Object namespace is never touched (TC-07).
       if (!isValidBoardId(boardId)) {
@@ -56,6 +65,12 @@ export default {
         });
       }
       return notFound();
+    }
+
+    // Story 12: GET /api/assets/:boardId/:assetId (serve stored image)
+    if (url.pathname.startsWith('/api/assets/') && req.method === 'GET') {
+      const key = url.pathname.slice('/api/assets/'.length);
+      return handleServe(env, key);
     }
 
     if (url.pathname.startsWith('/api/rooms/')) {

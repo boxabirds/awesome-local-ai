@@ -7,6 +7,7 @@ export default defineWorkspace([
       name: 'unit',
       environment: 'node',
       include: ['tests/unit/**/*.test.ts'],
+      server: { deps: { inline: ['yjs', 'lib0'] } },
     },
   },
   {
@@ -35,6 +36,9 @@ export default defineWorkspace([
             compatibilityDate: '2025-01-01',
             durableObjects: {
               BOARD_ROOM: { className: 'BoardRoom', useSQLite: true },
+            },
+            r2Buckets: {
+              ASSETS_BUCKET: 'vidi6-assets',
             },
             assets: {
               directory: './dist/client',

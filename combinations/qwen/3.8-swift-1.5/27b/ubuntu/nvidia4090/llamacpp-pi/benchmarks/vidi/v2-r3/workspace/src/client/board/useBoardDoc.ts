@@ -1,16 +1,19 @@
 import { useRef, useCallback, useSyncExternalStore, useEffect, useState } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, objects as readObjects, type BoardObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 /**
  * Owns the in-memory `Y.Doc` for the board and exposes an immutable snapshot
  * of the objects via `useSyncExternalStore`. When a `boardId` is provided,
  * attaches a y-websocket provider for live collaboration.
+ *
+ * Story 9: the snapshot covers every known object type (stickies + text) —
+ * selection, marquee and the selection bar are generic over types.
  */
 export function useBoardDoc(boardId?: string): {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  objects: readonly BoardObjectSnapshot[];
   connectionState: ConnectionState;
 } {
   const docRef = useRef<Y.Doc | null>(null);
@@ -23,29 +26,29 @@ export function useBoardDoc(boardId?: string): {
 
   // The snapshot is recomputed only on document changes and cached, so
   // getSnapshot returns a stable reference until something mutates the doc.
-  const cacheRef = useRef<readonly StickySnapshot[] | null>(null);
+  const cacheRef = useRef<readonly BoardObjectSnapshot[] | null>(null);
   if (cacheRef.current === null) {
-    cacheRef.current = snapshot(doc);
+    cacheRef.current = readObjects(doc);
   }
 
   const subscribe = useCallback(
     (onChange: () => void) => {
-      const objects = doc.getMap('objects');
+      const objectsMap = doc.getMap('objects');
       const handler = () => {
-        cacheRef.current = snapshot(doc);
+        cacheRef.current = readObjects(doc);
         onChange();
       };
-      objects.observeDeep(handler);
+      objectsMap.observeDeep(handler);
       return () => {
-        objects.unobserveDeep(handler);
+        objectsMap.unobserveDeep(handler);
       };
     },
     [doc],
   );
 
-  const getSnapshot = useCallback(() => cacheRef.current as readonly StickySnapshot[], [doc]);
+  const getSnapshot = useCallback(() => cacheRef.current as readonly BoardObjectSnapshot[], [doc]);
 
-  const notes = useSyncExternalStore(subscribe, getSnapshot);
+  const objects = useSyncExternalStore(subscribe, getSnapshot);
 
   // Connection state
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
@@ -63,5 +66,5 @@ export function useBoardDoc(boardId?: string): {
     };
   }, [doc, boardId]);
 
-  return { doc, notes, connectionState };
+  return { doc, objects, connectionState };
 }

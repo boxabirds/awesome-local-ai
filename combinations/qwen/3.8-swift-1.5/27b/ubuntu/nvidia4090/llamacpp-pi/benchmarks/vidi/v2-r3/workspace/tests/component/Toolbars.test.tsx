@@ -76,7 +76,7 @@ describe('sticky.toolbars (Toolbar + NoteToolbar)', () => {
   it('TC-28: the Sticky note button creates one note centred on the viewport and starts editing', () => {
     const { getDoc } = renderBoard();
     const doc = getDoc();
-    const btn = screen.getByRole('button', { name: 'Sticky note' });
+    const btn = screen.getByRole('button', { name: 'Sticky note (N)' });
     act(() => {
       btn.click();
     });
