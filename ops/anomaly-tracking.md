@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 13:10 UTC
+**Last updated:** 2026-10-01 13:30 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -40,11 +40,11 @@ test that would reproduce it. Details under the entries.
 
 | # | What | Fix / reproducing test |
 |---|---|---|
+| A-032 | The dashboard's fault feed omits 55 vidi stories that have no time split at all (it lists only splits without a check), so they would never reach this log from the feed | count a story with `time_split: null` as `accounting_unchecked`; test: a record with one such story appears in `/api/faults` |
 | A-016 | Accounting on a restarted story: the killed tool call is "never ended" in both attempts, the profile reports it as the longest tool across the downtime and raises a false `hung-command`; the run's `interventions.md` omits guard stops and restarts | accounting v4 (`4b7ebf25`) should clear the check; verify on mlx v2-r2 stories 4, 9, 11 after the next job on the M5 Max runs a release with it. Test: a two-attempt story whose attempt 1 ends in a killed call → check ok, no `hung-command`, the stop listed as an intervention |
 | A-031 | dbench spends all three restarts within minutes on a failure that cannot change (a pull that fails on unmerged files, a model server that exits at start, a deterministic traceback) | stop after the same exit and the same last log line twice; test in dbench with a harness that always exits 1 |
 | A-011 | The M5 Max's private suite checkout is detached 31 commits past the tag with 6 private record commits not on the private main; mlx v2-r2 will end without a score of record until it is repaired | owner's repair when mlx v2-r2 ends; then the automatic re-score should produce the score. Test: `pack-version.sh` on a detached checkout at the tag's tree reports the tag |
 | A-028, A-029, A-030 | Stale records: 5 older stories with a failed accounting check, 63 stories in 8 older runs with no check, 27 runs that ended before `finalize.json` existed (12 have a hand-made re-score, 15 v1 runs have live scores only) | expected to be repaired by the sweep at the next run start/end on each machine; whatever survives is a bug in `repair_records` / `needing_repair` |
-| A-015 | Sonnet v2-r4 story 4: wall 31 s longer than the agent's clock (the laptop slept) | accounting v4 treats a machine that slept as not a failed check; verify on the next repair |
 | A-019 | dbench's pull before a job on the Strix Halo box: "Cannot fast-forward to multiple branches"; the job ran on the existing checkout | needs dbench's exact pull command; a job must never start on a checkout that failed to update without saying which commit it runs |
 | A-020 | Live progress shows "0 tokens" for a Claude Code story in flight | print "not yet known" until the client's first `result` event |
 
@@ -191,6 +191,27 @@ test that would reproduce it. Details under the entries.
   instead of using every restart). Resolved once a node runs that dbench.
 - **Bucket:** internal bug (dbench's restart policy) — high. **Status:** open; the newer dbench waits for an
   unfit machine instead of restarting, but a start-up failure that repeats is still retried.
+
+### A-032 — The fault feed misses stories that have no time split at all
+- **First seen:** 2026-10-01 13:22 (the feed's first answer) · **Last seen:** 2026-10-01 13:30
+- **Where:** the dashboard server's `/api/faults`.
+- **Observed:** the feed lists 22 `accounting_unchecked` stories, all with a `time_split` but no
+  `accounting` block (todoodle Opus run-1 and run-2, ab-s7s8-01, mlx v2-r2 stories 1–3). It leaves out 55 vidi
+  stories whose `time_split` is null: Opus run-2 (9) and run-3 (11), 27B canvas-pi-02 (8) and canvas-pi-03
+  (11), mtplx canvas-pi-02 (11), canvas-vk-01 (5), read from origin/main's records. Those have no accounting
+  at all, which is worse than an unchecked one.
+- **Bucket:** internal bug (the dashboard's fault derivation) — **confidence high**.
+- **Status:** open. The monitor keeps tracking those 55 itself (A-029) until the feed covers them.
+
+### A-033 — What the fault feed reports that wasn't in this log before (mapped, no new faults)
+- **First seen:** 2026-10-01 13:22
+- **Observed and mapped:** `live_record_disagree` ×4: Opus v2-r1 live 0/75 against record 75/75 (A-021);
+  gufo v2-r1, v2-r3, v2-r4 live one below the record (67, 65, 65 against 68, 66, 66): the re-score's three
+  scorings with majority rule recover one flaky test; within the guard's threshold of 3, genuine.
+  `no_workspace_bundle` ×12 and `run_ended_early` ×5: all v1 runs (canvas-*, kg-07-01, ab-s7s8-01, Opus
+  run-1/run-2 and the todoodle pack), part of the A-030 decision. `job_restarted` ×26: dbench's history of
+  attempt > 1, which A-001, A-003, A-005 and A-031 cover; the restart of Sonnet v2-r4 at 10:12 was deliberate.
+- **Bucket:** none of its own (bookkeeping). **Status:** kept for the mapping.
 
 ### A-012 — Every held-out test fails for several stories in a row (Swift 1.5, v2-r4 stories 2–4)
 - **First seen:** 2026-09-29 (v2-r1) · **Last seen:** 2026-10-01 08:41 (v2-r4 story 4)
@@ -528,13 +549,13 @@ By bucket (A-018 is a scheduling flag and has no bucket):
 
 | Bucket | Open: needs someone | Open: watched | Explained / resolved | Total |
 |---|---|---|---|---|
-| internal bug | 0 | 6 (A-015, A-016, A-020, A-028, A-029, A-031) | 9 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-023, A-025) | 15 |
+| internal bug | 0 | 6 (A-016, A-020, A-028, A-029, A-031, A-032) | 10 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-015, A-023, A-025) | 16 |
 | genuine LLM behaviour | 0 | 4 (A-010, A-012, A-013, A-026) | 3 (A-006, A-007, A-017) | 7 |
 | stuck job | 0 | 0 | 0 | 0 |
 | broken pipeline | 1 (A-011) | 1 (A-030) | 1 (A-024) | 3 |
 | environment | 1 (A-022) | 1 (A-005) | 0 | 2 |
 | unexplained | 0 | 2 (A-019, A-021) | 0 | 2 |
-| **Total** | **2** (+A-018) | **14** | **13** | **29** (+A-018, A-027) |
+| **Total** | **2** (+A-018) | **14** | **14** | **30** (+A-018, A-027, A-033) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
