@@ -1,4 +1,5 @@
 // Pure logic: from repo paths, run records and dbench jobs to the rows the page shows. No I/O here.
+import { FINAL_RESCORES, type FinalRescore, type Finalize } from "../shared/types.ts";
 import type { ConversationProfile, Intervention, Invalid, JobRef, Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, Usage, Score, Stages, Story } from "../shared/types.ts";
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
@@ -71,9 +72,31 @@ export interface RunRecord extends RunRef {
   invalid?: Invalid | null;
   /** interventions.md, parsed; absent: none. */
   interventions?: Intervention[];
+  /** finalize.json, parsed; absent or null: none. */
+  finalize?: Finalize | null;
 }
 
 // ---------- what the record says about the run itself ----------
+
+const text = (x: unknown) => (typeof x === "string" ? x.trim() : "");
+
+/** finalize.json as finalize.py writes it: {"rescore": "skipped", "reason", "version", "pack_ref", "at"}. Null for no
+ * record, or one that doesn't say how the re-score ended: nothing is made of a record that can't be read. */
+export function parseFinalize(raw: unknown): Finalize | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw as { rescore?: unknown; reason?: unknown; version?: unknown; pack_ref?: unknown; at?: unknown };
+  if (!FINAL_RESCORES.includes(o.rescore as FinalRescore)) return null;
+  return { rescore: o.rescore as FinalRescore, reason: text(o.reason), version: text(o.version), packRef: text(o.pack_ref), at: text(o.at) };
+}
+
+/** accounting.py's own version line: "VERSION = 3   # bump when the calculation changes". */
+const ACCOUNTING_VERSION_LINE = /^VERSION = (\d+)\b/m;
+
+/** The harness's current accounting version, from accounting.py's text; null when it can't be read. */
+export function parseAccountingVersion(source: string | undefined): number | null {
+  const m = ACCOUNTING_VERSION_LINE.exec(source ?? "");
+  return m ? Number(m[1]) : null;
+}
 
 const NO_REASON = "marked invalid with no reason given";
 
@@ -344,9 +367,11 @@ export interface RawUsage {
   } };
 }
 
-function splitOf(ts: RawUsage["time_split"]): Usage["split"] {
+/** `currentVersion`: the harness's current accounting version, to say whether it made this record. */
+function splitOf(ts: RawUsage["time_split"], currentVersion: number | null): Usage["split"] {
   if (!ts || ts.wall_s == null) return null;
   const m = ts.model, other = ts.other_s ?? 0;
+  const version = ts.accounting?.version ?? null;
   return {
     wall: ts.wall_s, prefill: m?.prefill_s ?? 0, decode: m?.decode_s ?? 0, tools: ts.tools_s ?? 0, compaction: ts.compaction_s ?? 0,
     // Untimed model: "other" holds the model's time and the agent's own, which can't be told apart.
@@ -354,11 +379,12 @@ function splitOf(ts: RawUsage["time_split"]): Usage["split"] {
     toolsByKind: ts.tools_by_kind ?? {},
     betweenSessions: ts.between_sessions_s ?? 0,
     check: !ts.accounting ? { status: "unchecked", problems: [] }
-      : { status: ts.accounting.ok ? "ok" : "problems", problems: ts.accounting.problems ?? [] },
+      : { status: ts.accounting.ok ? "ok" : "problems", problems: ts.accounting.problems ?? [], version,
+          current: version === null || currentVersion === null ? null : version === currentVersion },
   };
 }
 
-function usageOf(raw: RawUsage): Usage | null {
+function usageOf(raw: RawUsage, currentVersion: number | null): Usage | null {
   const a = raw.agent, m = raw.time_split?.model;
   if (!a && !m) return null;
   return {
@@ -370,7 +396,7 @@ function usageOf(raw: RawUsage): Usage | null {
     prefillTokens: m?.prefill_tokens ?? null, prefillSeconds: m?.prefill_s ?? null, prefillTokS: m?.prefill_tok_s ?? null,
     draftAcceptance: m?.draft_acceptance ?? null,
     compactions: a?.compactions ?? null, nudges: a?.nudges ?? null,
-    split: splitOf(raw.time_split),
+    split: splitOf(raw.time_split, currentVersion),
   };
 }
 
@@ -416,7 +442,10 @@ function conversationOf(c: RawConversation | undefined | null): ConversationProf
   };
 }
 
-export function storyEntry(id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null } & RawUsage): Story {
+export function storyEntry(
+  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null } & RawUsage,
+  accountingVersion: number | null = null,
+): Story {
   const acc = raw.accept ?? {};
   const own = acc.by_story?.[/^\d+$/.test(id) ? id.padStart(2, "0") : id] ?? {};
   return {
@@ -428,7 +457,7 @@ export function storyEntry(id: string, raw: { title?: string; status?: string; a
     ownPassed: own.passed ?? null,
     ownTotal: own.total ?? null,
     byStory: acc.by_story ? normaliseByStory(acc.by_story) : null,
-    usage: usageOf(raw),
+    usage: usageOf(raw, accountingVersion),
     conversation: conversationOf(raw.conversation),
   };
 }
@@ -559,6 +588,7 @@ export function buildRows(
       jobs: allJobs.get(jobKey(r.stack, r.pack, r.runId)) ?? [],
       invalid: r.invalid ?? null,
       interventions: r.interventions ?? [],
+      finalize: r.finalize ?? null,
     };
   }));
 }
