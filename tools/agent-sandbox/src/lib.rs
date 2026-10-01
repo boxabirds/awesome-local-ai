@@ -2,6 +2,7 @@
 pub mod bridge;
 pub mod bwrap;
 pub mod cli;
+pub mod identity;
 pub mod paths;
 pub mod policy;
 pub mod ports;

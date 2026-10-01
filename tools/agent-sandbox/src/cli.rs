@@ -23,9 +23,13 @@ pub enum Cmd {
     Run(SandboxArgs),
     /// Print what `run` would execute: the Seatbelt profile (macOS) or the bwrap command line (Linux).
     Print(SandboxArgs),
+    /// Print this build's identity as JSON: version, platform and a hash of the policy it enforces.
+    Identity,
     /// Run only the allow-listing proxy; prints its port on the first line of stdout.
     Proxy(ProxyArgs),
-    /// Inside an isolated-network sandbox: open the bridged ports, then run the command.
+    /// The sandbox's first process on Linux (it runs itself as this through AGENT_SANDBOX_INNER):
+    /// open the bridged ports found in the sockets directory, run the command written beside them,
+    /// reap everything that is left, pass the command's status on.
     #[command(hide = true)]
     Inner(InnerArgs),
 }
@@ -35,6 +39,21 @@ pub struct SandboxArgs {
     /// The run's directory: the only place the command can write. Holds workspace/, tmp/ and agent-home/.
     #[arg(long)]
     pub own_dir: PathBuf,
+    /// Linux: show --own-dir at this path inside (the harness uses /w), so the command never sees
+    /// where the run really lives. macOS cannot remap a path and refuses this.
+    #[arg(long)]
+    pub own_at: Option<PathBuf>,
+    /// A path inside --own-dir, relative to it, that the command may read and never write (the
+    /// spec). A mount on Linux, a deny on macOS: `chmod` cannot open it. Repeatable.
+    #[arg(long)]
+    pub own_ro: Vec<PathBuf>,
+    /// The directory the command starts in, relative to --own-dir.
+    #[arg(long)]
+    pub workdir: Option<PathBuf>,
+    /// The only environment variables the command gets: these names, if this process has them, and
+    /// the proxy's and PATH, which are set here. Without it the command inherits everything.
+    #[arg(long, value_delimiter = ',', value_name = "NAME,NAME…")]
+    pub keep_env: Option<Vec<String>>,
     /// A file or directory the command may read and execute, never write. Repeatable.
     #[arg(long)]
     pub ro: Vec<PathBuf>,
@@ -95,12 +114,7 @@ pub struct ProxyArgs {
 
 #[derive(Args, Debug)]
 pub struct InnerArgs {
-    /// The directory of bridge sockets, as seen inside the sandbox.
+    /// The directory of bridge sockets and the command file, as seen inside the sandbox.
     #[arg(long)]
     pub sockets: PathBuf,
-    /// A port to listen on here and carry to the host. Repeatable.
-    #[arg(long)]
-    pub forward: Vec<u16>,
-    #[arg(last = true, required = true)]
-    pub command: Vec<OsString>,
 }

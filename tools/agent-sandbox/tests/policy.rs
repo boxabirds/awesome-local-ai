@@ -229,3 +229,68 @@ fn metadata_only_paths_are_the_ancestors_of_what_is_allowed_and_nothing_beside_t
     sorted.dedup();
     assert_eq!(meta, sorted, "sorted, no duplicates");
 }
+
+// ---------- where the run is shown, what inside it stays read-only, where the command starts ----------
+
+#[test]
+fn own_dir_is_shown_where_it_is_unless_asked_otherwise() {
+    let t = TempDir::new();
+    let own = t.dir("run");
+    let p = Policy::new(&own, &[], None).unwrap();
+    assert_eq!(p.own_at, p.own_dir);
+    assert!(p.own_ro.is_empty() && p.workdir.is_none());
+    assert_eq!(p.seen_at(&p.own_dir.join("workspace/a.ts")), p.own_dir.join("workspace/a.ts"));
+    let p = p.shown_at(Path::new("/w")).unwrap();
+    assert_eq!(p.own_at, PathBuf::from("/w"));
+    assert_eq!(p.seen_at(&p.own_dir.join("workspace/a.ts")), PathBuf::from("/w/workspace/a.ts"));
+    assert_eq!(p.seen_at(Path::new("/elsewhere")), PathBuf::from("/elsewhere"));
+}
+
+#[test]
+fn own_dir_is_never_shown_at_a_place_the_system_lives_or_at_a_relative_path() {
+    let t = TempDir::new();
+    let own = t.dir("run");
+    for bad in ["/", "w", "../w", "/usr/w", "/etc", "/tmp/x", "/proc", "/dev/w", "/var/w", "/run/w", "/bin"] {
+        let p = Policy::new(&own, &[], None).unwrap();
+        assert!(p.shown_at(Path::new(bad)).is_err(), "{bad}");
+    }
+    assert!(Policy::new(&own, &[], None).unwrap().shown_at(Path::new("/work/run")).is_ok());
+}
+
+#[test]
+fn a_path_inside_the_run_is_kept_read_only_by_its_resolved_place() {
+    let t = TempDir::new();
+    let own = t.dir("run");
+    t.dir("run/workspace/spec");
+    let p = Policy::new(&own, &[], None)
+        .unwrap()
+        .read_only_inside(&[PathBuf::from("workspace/spec"), PathBuf::from("workspace/spec/")])
+        .unwrap();
+    assert_eq!(p.own_ro, vec![p.own_dir.join("workspace/spec")]);
+}
+
+#[test]
+fn a_path_to_keep_read_only_must_be_relative_exist_and_not_lead_out_of_the_run() {
+    let t = TempDir::new();
+    let own = t.dir("run");
+    t.dir("run/workspace");
+    t.dir("elsewhere");
+    symlink(t.path().join("elsewhere"), own.join("workspace/link")).unwrap();
+    for bad in ["/etc", "../elsewhere", "workspace/../../elsewhere", "workspace/absent", "workspace/link"] {
+        let p = Policy::new(&own, &[], None).unwrap();
+        assert!(p.read_only_inside(&[PathBuf::from(bad)]).is_err(), "{bad}");
+    }
+}
+
+#[test]
+fn the_start_directory_must_be_a_directory_inside_the_run() {
+    let t = TempDir::new();
+    let own = t.dir("run");
+    t.dir("run/workspace");
+    t.file("run/file", "x");
+    let start = |rel: &str| Policy::new(&own, &[], None).unwrap().starting_in(Path::new(rel));
+    assert_eq!(start("workspace").unwrap().workdir, Some(PathBuf::from("workspace")));
+    for bad in ["file", "absent", "..", "/tmp"] {
+        assert!(start(bad).is_err(), "{bad}");
+    }
+}

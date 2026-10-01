@@ -5,9 +5,12 @@
 mod common;
 
 use agent_sandbox::bridge::{host_side, sandbox_side};
-use agent_sandbox::bwrap::socket_name;
+use agent_sandbox::bwrap::{
+    command_file_bytes, command_from_file_bytes, port_of_socket, socket_name, COMMAND_FILE,
+};
 use common::TempDir;
 use std::io::{Read, Write};
+use std::ffi::OsString;
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::process::Command;
 use std::time::{Duration, Instant};
@@ -85,8 +88,8 @@ fn the_host_side_refuses_a_socket_path_that_already_exists() {
     assert!(host_side(&socket, free_port()).is_err());
 }
 
-/// The sandbox's side as bubblewrap runs it (`agent-sandbox inner`), here without a sandbox: it
-/// opens the port, runs the command, and exits with the command's status.
+/// The sandbox's first process as bubblewrap starts it, here without a sandbox: it opens the
+/// ports whose sockets it finds, runs the command written beside them, and exits with its status.
 #[test]
 fn the_inner_command_opens_its_ports_runs_the_command_and_passes_its_status_on() {
     let t = TempDir::new();
@@ -109,17 +112,11 @@ fn the_inner_command_opens_its_ports_runs_the_command_and_passes_its_status_on()
         "for i in 1 2 3 4 5 6 7 8 9 10; do exec 3<>/dev/tcp/127.0.0.1/{inner_port} && break; sleep 0.2; done; \
          printf hello >&3 && read -r answer <&3 && echo \"$answer\"; exit {COMMAND_EXIT}"
     );
+    let job: Vec<OsString> = ["/bin/bash", "-c", &script].iter().map(OsString::from).collect();
+    std::fs::write(t.path().join(COMMAND_FILE), command_file_bytes(&job)).unwrap();
     let out = Command::new(BIN)
         .args(["inner", "--sockets"])
         .arg(t.path())
-        .args([
-            "--forward",
-            &inner_port.to_string(),
-            "--",
-            "/bin/bash",
-            "-c",
-            &script,
-        ])
         .output()
         .unwrap();
     assert_eq!(
@@ -129,4 +126,21 @@ fn the_inner_command_opens_its_ports_runs_the_command_and_passes_its_status_on()
         String::from_utf8_lossy(&out.stderr)
     );
     assert_eq!(out.status.code(), Some(COMMAND_EXIT));
+}
+
+#[test]
+fn the_command_file_round_trips_arguments_with_spaces_and_newlines() {
+    let job: Vec<OsString> = ["sh", "-c", "echo 'a b'\nexit 1", "--", "x y"]
+        .iter()
+        .map(OsString::from)
+        .collect();
+    assert_eq!(command_from_file_bytes(&command_file_bytes(&job)), job);
+}
+
+#[test]
+fn only_files_named_for_a_port_are_ports() {
+    assert_eq!(port_of_socket("18010.sock"), Some(18010));
+    assert_eq!(port_of_socket("command"), None);
+    assert_eq!(port_of_socket("x.sock"), None);
+    assert_eq!(port_of_socket("70000.sock"), None);
 }

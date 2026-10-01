@@ -239,6 +239,12 @@ pub fn profile(policy: &Policy, net: &Loopback) -> String {
     rule("; The run's own directory: the only place that can be written. Last, so it wins.");
     rule(&format!("(allow process-exec (subpath {own}))"));
     rule(&format!("(allow file-read* file-write* (subpath {own}))"));
+    if !policy.own_ro.is_empty() {
+        rule("; Inside it, read-only (the spec): a deny after the allow, so it wins. It covers chmod too.");
+        for ro in &policy.own_ro {
+            rule(&format!("(deny file-write* (subpath {}))", q(ro)));
+        }
+    }
     p
 }
 
