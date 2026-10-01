@@ -12,7 +12,13 @@ import { installTestHooks } from './canvas/testHooks';
 import { useCamera } from './canvas/useCamera';
 import { ZoomControls } from './canvas/ZoomControls';
 import { StickyNote } from './objects/StickyNote';
+import type { ConnectionState } from './sync/connectBoard';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+
+/** Editing is locked only while a saved board cannot be loaded (persist.load_failure). */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 function isTextTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -42,6 +48,7 @@ function Board({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: string })
   const controller = useCamera(size);
   const { camera, setCamera } = controller;
   const { doc, notes, connectionState } = useBoardDoc(externalDoc, boardId);
+  const editable = canEdit(connectionState);
   const selection = useSelection();
   const { selectedId, editingId, select, startEdit, endEdit } = selection;
 
@@ -63,9 +70,10 @@ function Board({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: string })
   }, [notes, selectedId, editingId, select]);
 
   const createAt = useCallback((world: Point) => {
+    if (!editable) return;
     const id = createSticky(doc, world);
     if (id) startEdit(id);
-  }, [doc, startEdit]);
+  }, [doc, startEdit, editable]);
 
   const createAtCentre = () => {
     createAt(screenToWorld(camera, { x: size.width / 2, y: size.height / 2 }));
@@ -74,7 +82,7 @@ function Board({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: string })
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (selectedId === null || editingId !== null || isTextTarget(e.target)) return;
+      if (!editable || selectedId === null || editingId !== null || isTextTarget(e.target)) return;
       if (e.key === 'Enter') {
         if (e.target instanceof HTMLButtonElement) return;
         e.preventDefault();
@@ -87,7 +95,7 @@ function Board({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: string })
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selectedId, editingId, select, startEdit]);
+  }, [doc, editable, selectedId, editingId, select, startEdit]);
 
   return (
     <>
@@ -102,6 +110,7 @@ function Board({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: string })
           <StickyNote
             key={note.id}
             stackIndex={stackIndex.get(note.id)}
+            editable={editable}
             note={note}
             doc={doc}
             zoom={camera.zoom}
@@ -115,7 +124,7 @@ function Board({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: string })
       </BoardViewport>
       <ConnectionStatus state={connectionState} />
       <NavigationHint visible={!controller.hasNavigated} />
-      <Toolbar onCreateSticky={createAtCentre} />
+      <Toolbar onCreateSticky={createAtCentre} disabled={!editable} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

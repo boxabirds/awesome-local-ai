@@ -3,6 +3,7 @@ import type { ConnectionState } from './connectBoard';
 const BADGES: Partial<Record<ConnectionState, { text: string; background: string; color: string }>> = {
   connecting: { text: 'Connecting…', background: '#eceff1', color: '#37474f' },
   reconnecting: { text: 'Reconnecting…', background: '#ffb300', color: '#3e2723' },
+  load_failed: { text: "This board couldn't be loaded. Retrying…", background: '#c62828', color: '#fff' },
   confirmed: { text: 'Connected', background: '#2e7d32', color: '#fff' },
 };
 

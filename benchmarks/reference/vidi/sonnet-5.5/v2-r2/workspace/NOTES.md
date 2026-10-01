@@ -40,3 +40,16 @@
 - Story 2's component test "TC-20 a 3px move" picked `notes()[0]`, which is not stable (DOM order is createdAt then random id); it now looks the note up by id.
 - Nightly e2e (`npm run test:e2e:nightly`, tests tagged `@nightly`, chromium only) is excluded from `test:e2e`. The TC-30 soak uses simple UI actions (create, type, small drags) for 60 s; latency is logged, never asserted. Delete and recolour are covered by the seeded integration test TC-12 rather than the UI soak. The teardown check only asserts no new WebSocket opens after the contexts close.
 - Only Chromium was run (Firefox/WebKit not installed).
+
+## Story 4 decisions
+
+- `chunkBytes`, `joinChunks` and `shouldCompact` live in `src/worker/chunking.ts` and are re-exported from `board-store.ts`. The root (DOM) TypeScript program cannot see Workers types, so unit tests import the pure helpers from `chunking.ts`.
+- `BoardRoom` tracks its own `state` (`ready | load-failed | storage-failed`) rather than calling `nextRoomState`. `room-state.ts` holds the pure lifecycle function from the design and is unit-tested (TC-27), but it is not wired into the class.
+- `BoardRoom` exposes `store`, `doc`, `state`, `load()` and `ready` so integration tests can inject failures and reconstruct instances. TC-18 simulates a wake by constructing a second `BoardRoom` over the same `DurableObjectState`.
+- Test hooks (`src/worker/test-hooks.ts`) are only reachable when `env.TEST_HOOKS === '1'`. The Playwright web server and the persistence helper pass `--var TEST_HOOKS:1`; `wrangler.jsonc` does not set it. `run_worker_first` also lists `/__test/*` so the hooks are not swallowed by assets; without the var those paths fall through to the SPA (covered in `worker.test.ts`).
+- Corrupt hook: forces a compaction, saves chunk 0 in the object's KV store, overwrites it, then reloads the room (it becomes `load-failed`). Repair restores chunk 0; the next connection after `LOAD_RETRY_MIN_INTERVAL_MS` reloads.
+- `persistence.spec.ts` is its own Playwright project (`persistence`, port 8790, own `--persist-to` temp dir). The shared `webServer` still starts but is unused by it; the other projects ignore this spec. Large boards are seeded over a real WebSocket (`helpers/seed.ts`), not through the UI.
+- Client: `connectBoard` also handles `connection-close`. Code 4500 sets `load_failed`; any other code after a successful connection (1011, 1003, network) sets `reconnecting`. The first sync after `load_failed` goes straight to `connected`. `StickyNote` gets an `editable` prop and `Toolbar` a `disabled` prop; `App` exports `canEdit`.
+- Large-board load: 2,000 notes took about 11 s on the client because each note's text-fit measurement forced a whole-board layout. Giving each fixed-size note `contain: size layout style` brought it to about 1.5 s, so no virtualisation was needed.
+- TC-19 creates 25 notes through the UI (with a drag and recolouring) and compares ids, positions, colours, text and z-index order before and after a real process kill and restart.
+- Only Chromium was run (Firefox/WebKit not installed).

@@ -1,8 +1,9 @@
 interface Props {
   onCreateSticky(): void;
+  disabled?: boolean;
 }
 
-export function Toolbar({ onCreateSticky }: Props) {
+export function Toolbar({ onCreateSticky, disabled = false }: Props) {
   return (
     <div
       role="toolbar"
@@ -30,7 +31,8 @@ export function Toolbar({ onCreateSticky }: Props) {
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
         onClick={onCreateSticky}
-        style={{ width: 40, height: 40, padding: 0, cursor: 'pointer', background: 'none', border: 'none' }}
+        disabled={disabled}
+        style={{ width: 40, height: 40, padding: 0, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.4 : 1, background: 'none', border: 'none' }}
       >
         <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M3 3h18v12l-6 6H3z" fill="#FFF59D" stroke="#444" strokeWidth="1.5" strokeLinejoin="round" />

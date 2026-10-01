@@ -49,6 +49,16 @@ describe('worker routing', () => {
     clients.forEach((c) => c.close());
   });
 
+  it('test hook routes are absent unless TEST_HOOKS is set', async () => {
+    const id = newBoardId();
+    const asset = new Response('spa');
+    const fakeEnv = { BOARD_ROOM: (env as unknown as Env).BOARD_ROOM, ASSETS: { fetch: async () => asset } } as unknown as Env;
+    const res = await worker.fetch(new Request(`${ORIGIN}/__test/boards/${id}/corrupt-snapshot`, { method: 'POST' }), fakeEnv);
+    expect(res).toBe(asset);
+    const hooked = { ...fakeEnv, TEST_HOOKS: '1' } as Env;
+    expect((await worker.fetch(new Request(`${ORIGIN}/__test/boards/${id}/repair`, { method: 'POST' }), hooked)).status).toBe(500);
+  });
+
   it('TC-17: boards stay separate', async () => {
     const a = await WsClient.connect(newBoardId());
     const b = await WsClient.connect(newBoardId());

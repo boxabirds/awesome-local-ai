@@ -16,6 +16,8 @@ interface Props {
   editing: boolean;
   /** 1-based position in the stacking order (higher is on top). */
   stackIndex?: number;
+  /** False while the board is locked (load failure): no drag, edit, colour or delete. */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -34,7 +36,7 @@ interface Press {
 
 const LINE_HEIGHT = 1.25;
 
-export function StickyNote({ note, doc, zoom, selected, editing, stackIndex, onSelect, onStartEdit, onEndEdit }: Props) {
+export function StickyNote({ note, doc, zoom, selected, editing, stackIndex, editable = true, onSelect, onStartEdit, onEndEdit }: Props) {
   const { id } = note;
   const frameRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -90,7 +92,7 @@ export function StickyNote({ note, doc, zoom, selected, editing, stackIndex, onS
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    if (editing) return;
+    if (editing || !editable) return;
     const n = noteRef.current;
     press.current = {
       pointerId: e.pointerId, startX: e.clientX, startY: e.clientY,
@@ -117,7 +119,7 @@ export function StickyNote({ note, doc, zoom, selected, editing, stackIndex, onS
   const onPointerEnd = () => finish(true);
 
   const color: StickyColor = note.color;
-  const showToolbar = selected && !editing && !dragging;
+  const showToolbar = editable && selected && !editing && !dragging;
 
   return (
     <div
@@ -132,7 +134,7 @@ export function StickyNote({ note, doc, zoom, selected, editing, stackIndex, onS
       onPointerUp={onPointerEnd}
       onPointerCancel={onPointerEnd}
       onLostPointerCapture={onPointerEnd}
-      onDoubleClick={(e) => { e.stopPropagation(); onStartEdit(id); }}
+      onDoubleClick={(e) => { e.stopPropagation(); if (editable) onStartEdit(id); }}
       onFocus={(e) => { if (e.target === e.currentTarget && !selected) onSelect(id); }}
       style={{
         position: 'absolute',
@@ -144,6 +146,7 @@ export function StickyNote({ note, doc, zoom, selected, editing, stackIndex, onS
         boxSizing: 'border-box',
         background: STICKY_COLORS[color],
         boxShadow: '0 3px 10px rgba(0,0,0,0.25)',
+        contain: 'size layout style', // fixed-size notes: text-fit measurements must not re-lay-out the whole board
         outline: selected ? '3px solid #1a73e8' : 'none',
         cursor: editing ? 'text' : dragging ? 'grabbing' : 'grab',
         color: '#222',

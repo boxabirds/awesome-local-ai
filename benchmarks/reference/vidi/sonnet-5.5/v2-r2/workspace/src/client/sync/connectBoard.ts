@@ -1,11 +1,13 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 /** The slice of `WebsocketProvider` the status mapping depends on. */
 export interface ProviderLike {
+  on(event: 'connection-close', cb: (e: { code: number } | null) => void): void;
   on(event: 'status', cb: (e: { status: 'connecting' | 'connected' | 'disconnected' }) => void): void;
   on(event: 'sync', cb: (synced: boolean) => void): void;
   destroy(): void;
@@ -50,8 +52,19 @@ export function connectBoard(
   onState(state);
   const provider = createProvider(doc, boardId);
 
+  provider.on('connection-close', (event) => {
+    if (event?.code === CLOSE_BOARD_LOAD_FAILED) {
+      clearTimer();
+      set('load_failed');
+    } else if (hasConnected || state === 'load_failed') {
+      // Storage failure (1011), bad data (1003) or network loss: the board is readable and
+      // unsaved changes are re-sent on reconnection.
+      clearTimer();
+      set('reconnecting');
+    }
+  });
   provider.on('status', ({ status }) => {
-    if (status === 'disconnected' && hasConnected) {
+    if (status === 'disconnected' && hasConnected && state !== 'load_failed') {
       clearTimer();
       set('reconnecting');
     }
@@ -59,8 +72,11 @@ export function connectBoard(
   provider.on('sync', (synced) => {
     if (!synced) return;
     const wasReconnecting = state === 'reconnecting';
+    const wasLoadFailed = state === 'load_failed';
     hasConnected = true;
-    if (wasReconnecting) {
+    if (wasLoadFailed) {
+      set('connected');
+    } else if (wasReconnecting) {
       set('confirmed');
       clearTimer();
       timer = setTimeout(() => { timer = null; set('connected'); }, CONNECTED_CONFIRMATION_MS);

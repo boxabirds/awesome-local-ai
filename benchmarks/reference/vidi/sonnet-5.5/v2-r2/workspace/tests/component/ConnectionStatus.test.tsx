@@ -12,17 +12,18 @@ type Status = 'connecting' | 'connected' | 'disconnected';
 
 /** Fake provider: tests emit status and sync events by hand. */
 function fakeProvider() {
-  const handlers: { status: ((e: { status: Status }) => void)[]; sync: ((s: boolean) => void)[] } = { status: [], sync: [] };
+  const handlers: Record<string, ((arg: never) => void)[]> = { status: [], sync: [], 'connection-close': [] };
   const provider = {
-    on(event: 'status' | 'sync', cb: never) {
-      (handlers[event] as unknown[]).push(cb);
+    on(event: 'status' | 'sync' | 'connection-close', cb: never) {
+      handlers[event].push(cb);
     },
     destroy: vi.fn(),
   } as unknown as ProviderLike;
   return {
     provider,
-    status: (status: Status) => handlers.status.forEach((h) => h({ status })),
-    sync: (s: boolean) => handlers.sync.forEach((h) => h(s)),
+    status: (status: Status) => handlers.status.forEach((h) => (h as (e: { status: Status }) => void)({ status })),
+    close: (code: number) => handlers['connection-close'].forEach((h) => (h as (e: { code: number }) => void)({ code })),
+    sync: (s: boolean) => handlers.sync.forEach((h) => (h as (s: boolean) => void)(s)),
   };
 }
 

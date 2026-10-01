@@ -1,3 +1,38 @@
+commit 6c54b009d88d63fdda6cfaef7c57aebf3c5c37aa
+vidi-agent  Thu Oct 1 08:21:35 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                         |  13 ++
+ playwright.config.ts                             |  11 +-
+ src/client/App.tsx                               |  17 +-
+ src/client/board/Toolbar.tsx                     |   6 +-
+ src/client/objects/StickyNote.tsx                |  11 +-
+ src/client/sync/ConnectionStatus.tsx             |   1 +
+ src/client/sync/connectBoard.ts                  |  22 +-
+ src/shared/config.ts                             |   9 +-
+ src/shared/protocol.ts                           |   2 +
+ src/worker/board-room.ts                         | 172 ++++++++++++---
+ src/worker/board-store.ts                        | 123 +++++++++++
+ src/worker/chunking.ts                           |  23 ++
+ src/worker/index.ts                              |  10 +-
+ src/worker/room-state.ts                         |  44 ++++
+ src/worker/test-hooks.ts                         |  19 ++
+ tests/component/ConnectionStatus.test.tsx        |  11 +-
+ tests/component/LoadFailure.test.tsx             | 164 ++++++++++++++
+ tests/e2e/helpers/seed.ts                        |  52 +++++
+ tests/e2e/helpers/wrangler-process.ts            |  50 +++++
+ tests/e2e/persistence.spec.ts                    | 127 +++++++++++
+ tests/fixtures/boards.ts                         |  73 ++++++
+ tests/integration/board-room-persistence.test.ts | 270 +++++++++++++++++++++++
+ tests/integration/board-store.test.ts            | 207 +++++++++++++++++
+ tests/integration/helpers/room.ts                |  25 +++
+ tests/integration/worker.test.ts                 |  10 +
+ tests/unit/board-store-chunks.test.ts            |  34 +++
+ tests/unit/room-state.test.ts                    |  44 ++++
+ wrangler.jsonc                                   |   2 +-
+ 28 files changed, 1494 insertions(+), 58 deletions(-)
 commit 30022af715d7a40ec98ecb119213f5b6f026e78e
 vidi-agent  Thu Oct 1 08:07:30 2026 +0100
 
