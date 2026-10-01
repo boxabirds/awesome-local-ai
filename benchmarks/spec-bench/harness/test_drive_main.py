@@ -76,6 +76,8 @@ AGENT = textwrap.dedent(r'''
     if plan.get("silent"):
         sys.exit(plan.get("exit", 0))
     emit({"type": "session", "id": f"cov-{story}"})
+    for line in plan.get("junk", []):                               # output that is JSON but not an event
+        print(line, flush=True)
     progress = Path("PROGRESS.md")
     with (home / "progress-seen.jsonl").open("a") as f:
         f.write(json.dumps({"story": int(story), "text": progress.read_text() if progress.exists() else None}) + "\n")
@@ -651,6 +653,25 @@ def test_a_known_good_run_restores_the_spec_its_base_was_given_not_the_reference
         "harness: spec updated to this pack's version (known-good base)")
     assert m["stories"]["3"]["spec_changed_files"] == ["spec/README.md"]
     assert (whole.ws / "spec" / "README.md").read_text() == "# covpack, revised\n"
+
+
+# ======================= output that is JSON but not an event =======================
+
+def test_agent_output_that_is_json_but_not_an_event_is_skipped_counted_in_the_record_and_said_once(loop, capsys):
+    """`42`, `null` or a list on a line of its own crashed the session; now each is skipped and logged, never
+    dropped silently: the line stays in the story's log, the record counts them and keeps the first few (cut to
+    their limit), and the console says how many, once per story. A story with none records nothing."""
+    long_list = json.dumps(["x" * 300])
+    loop.plan(s1={"junk": ["42", "null", long_list, "[1, 2]"]})
+    loop.main()
+    first, second = loop.story(1), loop.story(2)
+    assert first["skipped_output"] == {"count": 4, "samples": ["42", "null", long_list[:drive.SKIPPED_OUTPUT_SAMPLE_CHARS]]}
+    assert first["status"] == drive.DONE and first["agent"]["steps"] == 1 and "harness_faults" not in first
+    assert "skipped_output" not in second and set(second) == RECORD_KEYS
+    assert loop.events(1).read_text().splitlines()[1:5] == ["42", "null", long_list, "[1, 2]"]   # as they arrived, whole
+    out = capsys.readouterr().out
+    assert out.count("[story 1] agent output: 4 lines were JSON but not events; skipped, kept in the log\n") == 1
+    assert "[story 2] agent output:" not in out
 
 
 # ======================= the agent's own account of its tasks: PROGRESS.md =======================

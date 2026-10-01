@@ -504,6 +504,18 @@ describe("tokens and speed", () => {
     expect(storyEntry("1", { agent: { seconds: 1, tokens: {} } } as never)).not.toHaveProperty("harnessFaults");
   });
 
+  it("the record keeps a story's skipped agent output (drive.py's skipped_output), and the page never gets it", () => {
+    const skipped = { count: 2, samples: ["42", "null"] };
+    const rec = storyEntry("1", { agent: { seconds: 1, tokens: {} }, skipped_output: skipped } as never);
+    expect(rec.skippedOutput).toEqual(skipped);
+    expect(publicStory(rec)).not.toHaveProperty("skippedOutput");
+    expect(storyEntry("1", { agent: { seconds: 1, tokens: {} } } as never)).not.toHaveProperty("skippedOutput");
+    // A record whose field is not the shape the harness writes is left out, not passed on.
+    for (const odd of [null, "3", { count: 0, samples: [] }, { count: "2" }]) {
+      expect(storyEntry("1", { agent: { seconds: 1, tokens: {} }, skipped_output: odd } as never)).not.toHaveProperty("skippedOutput");
+    }
+  });
+
   describe("what the page gets of a story (publicStory): no check, no faults, and no breakdown that failed its check", () => {
     const ts = (accounting?: object) => ({ agent: { seconds: 100, tokens: {} }, time_split: { wall_s: 100, tools_s: 40, compaction_s: 0, other_s: 60, model: null, accounting } });
     it("a split that passed, or was never checked, is sent as it is, without the check", () => {

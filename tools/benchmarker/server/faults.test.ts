@@ -109,6 +109,13 @@ describe("the faults feed over the fixture", () => {
     expect(ofKind(fs, "harness_fault")).toEqual([]);
   });
 
+  it("a story whose agent output had lines that were JSON but not events: how many, and the first few", () => {
+    const skipped = { count: 4, samples: ["42", "null", "[1, 2]"] };
+    const withSkipped = feed({ change: (f) => { f.records.find((r) => r.runId === "v2-r5")!.stories[0].skippedOutput = skipped; } });
+    expect(about(withSkipped, "agent_output_skipped", "v2-r5", "1")!.detail).toEqual(skipped);
+    expect(ofKind(fs, "agent_output_skipped")).toEqual([]);
+  });
+
   it("a cancelled or failed dbench job (the old Reason column): its id, reason as dbench kept it, and log tail", () => {
     const cancelled = about(fs, "job_cancelled", "v2-r5")!;
     expect(cancelled.detail).toMatchObject({ job_id: "vidi-v2b-swift15-r5", node: "node-a", status: "cancelled", reason: "stopped by the operator" });
