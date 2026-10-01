@@ -25,6 +25,14 @@ import {
   setRegisteredTypes,
 } from '../../shared/board-model';
 import { createText, setTextSize } from '../../shared/objects/text';
+import { setShapeStyle } from '../../shared/objects/shape';
+import { setConnectorEndpoint, type Endpoint } from '../../shared/objects/connector';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
+import type { ShapeSnap } from '../../shared/objects/shape';
+import { objectBounds } from '../../shared/board-model';
+import type { Rect } from '../../shared/geometry';
 import { getRegisteredTypes, getObjectType } from '../objects/registry';
 
 // Initialize the registry types for board-model
@@ -138,11 +146,14 @@ export function BoardUI({ boardId }: { boardId: string }) {
     createStickyAt(worldPoint);
   }, [camera, viewportSize, createStickyAt]);
 
-  // Tool mode (story 9): select | text, with V/T/N/Escape shortcuts
-  const { tool, setTool } = useTool({
+  // Tool mode (story 9 + 10): select | text | shape | connector, with shortcuts
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useTool({
     canEdit,
     editingId: selection.editingId,
     onCreateStickyAtCentre: createStickyAtCentre,
+    onToolCreated: (id) => {
+      selection.click(id);
+    },
   });
 
   // Create a text object at a world point, start editing it, and switch the
@@ -248,6 +259,36 @@ export function BoardUI({ boardId }: { boardId: string }) {
     [doc, undo],
   );
 
+  // Handle shape style change (story 10, bounded: one undo step)
+  const handleShapeStyle = useCallback(
+    (id: string, s: { fill?: string; stroke?: string }) => {
+      if (!setShapeStyle(doc, id, s)) return;
+      undo?.boundary();
+    },
+    [doc, undo],
+  );
+
+  // Handle connector endpoint reattach (story 10, bounded: one undo step)
+  const handleConnectorReattach = useCallback(
+    (connectorId: string, end: 'from' | 'to', ep: Endpoint) => {
+      if (!setConnectorEndpoint(doc, connectorId, end, ep)) return;
+      undo?.boundary();
+    },
+    [doc, undo],
+  );
+
+  // Build rects map for connector rendering
+  const rectsMap = new Map<string, Rect>();
+  for (const obj of notes) {
+    const bounds = objectBounds(obj);
+    rectsMap.set(obj.id, bounds);
+  }
+
+  // Find the selected shape for the toolbar
+  const selectedShape = selection.ids.size === 1
+    ? notes.find((o) => o.id === [...selection.ids][0] && o.type === 'shape') as ShapeSnap | undefined
+    : undefined;
+
   return (
     <div
       ref={containerRef}
@@ -291,9 +332,55 @@ export function BoardUI({ boardId }: { boardId: string }) {
               onEndEdit={selection.endEdit}
               onClearSelection={(id) => selection.toggle(id)}
               undo={undo ?? undefined}
+              {...(obj.type === 'connector' ? { rects: rectsMap, onReattach: handleConnectorReattach } : {})}
             />
           );
         })}
+
+        {/* Shape toolbar (story 10): shown when exactly one shape is selected */}
+        {selectedShape && (
+          <div
+            style={{
+              position: 'absolute',
+              left: selectedShape.x,
+              top: selectedShape.y,
+              pointerEvents: 'none',
+            }}
+          >
+            <div style={{ pointerEvents: 'all' }}>
+              <ShapeToolbar
+                fill={selectedShape.fill}
+                stroke={selectedShape.stroke}
+                onFill={(c) => handleShapeStyle(selectedShape.id, { fill: c })}
+                onStroke={(c) => handleShapeStyle(selectedShape.id, { stroke: c })}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Shape tool overlay (story 10) */}
+        {tool === 'shape' && canEdit && (
+          <ShapeTool
+            kind={shapeKind}
+            camera={camera}
+            doc={doc}
+            createdBy={SESSION_ID}
+            onCreated={(id) => toolCreated(id)}
+            onGestureEnd={() => undo?.boundary()}
+          />
+        )}
+
+        {/* Connector tool overlay (story 10) */}
+        {tool === 'connector' && canEdit && (
+          <ConnectorTool
+            camera={camera}
+            doc={doc}
+            snapshot={notes}
+            createdBy={SESSION_ID}
+            onCreated={(id) => toolCreated(id)}
+            onGestureEnd={() => undo?.boundary()}
+          />
+        )}
 
         {/* Marquee rectangle */}
         <MarqueeRect rect={marquee.rect} camera={camera} />
@@ -334,6 +421,8 @@ export function BoardUI({ boardId }: { boardId: string }) {
         undo={undoControls}
         tool={tool}
         setTool={setTool}
+        shapeKind={shapeKind}
+        setShapeKind={setShapeKind}
       />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

@@ -36,7 +36,7 @@ export interface ObjectTypeSpec {
    * derived from the content).
    */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -95,5 +95,53 @@ registerObjectType('text', {
       worldPoint.y >= bounds.y &&
       worldPoint.y <= bounds.y + bounds.height
     );
+  },
+});
+
+// Register the shape type (story 10)
+import { ShapeObjectComponent } from './ShapeObject';
+import { SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+
+registerObjectType('shape', {
+  Component: ShapeObjectComponent,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  handles: 'all',
+  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
+    const bounds = objectBounds(obj);
+    return (
+      worldPoint.x >= bounds.x &&
+      worldPoint.x <= bounds.x + bounds.width &&
+      worldPoint.y >= bounds.y &&
+      worldPoint.y <= bounds.y + bounds.height
+    );
+  },
+});
+
+// Register the connector type (story 10)
+import { ConnectorObjectComponent } from './ConnectorObject';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
+import { CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
+import type { ConnectorEndpointSnap } from '../../shared/geometry/connector-geometry';
+
+registerObjectType('connector', {
+  Component: ConnectorObjectComponent as React.ComponentType<ObjectProps>,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 1,
+  editableText: false,
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean {
+    const z = zoom ?? 1;
+    const conn = obj as unknown as { from: ConnectorEndpointSnap; to: ConnectorEndpointSnap };
+    if (!conn.from || !conn.to) return false;
+
+    const rects = new Map<string, { x: number; y: number; width: number; height: number }>();
+    const { from, to } = resolveEndpoints({ from: conn.from, to: conn.to }, rects);
+    const pts = [from, to];
+    const dist = distanceToPolyline(pts, worldPoint);
+    return dist <= CONNECTOR_HIT_TOLERANCE_PX / z;
   },
 });

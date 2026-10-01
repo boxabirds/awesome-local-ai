@@ -1,9 +1,21 @@
 import { useEffect, useState, useCallback } from 'react';
+import type { ShapeKind } from '../../shared/objects/shape';
 
 /**
- * Active tool state (story 9, text.tool_ui). Stories 10–12 extend the union.
+ * Active tool state (story 9, text.tool_ui; extended in story 10).
  */
-export type Tool = 'select' | 'text';
+export type Tool = 'select' | 'sticky' | 'text' | 'shape' | 'connector' | 'pen' | 'image' | 'comment';
+
+export const TOOL_SHORTCUTS: Record<string, Tool> = {
+  v: 'select',
+  n: 'sticky',
+  t: 'text',
+  s: 'shape',
+  l: 'connector',
+  p: 'pen',
+  i: 'image',
+  c: 'comment',
+};
 
 export interface UseToolOptions {
   canEdit: boolean;
@@ -11,35 +23,55 @@ export interface UseToolOptions {
   editingId?: string | null;
   /** N shortcut: create a sticky note at the view centre (story 2 behaviour). */
   onCreateStickyAtCentre?: () => void;
+  /** Called when a tool creates an object: selects it and switches to Select. */
+  onToolCreated?: (id: string) => void;
+}
+
+export interface UseToolResult {
+  tool: Tool;
+  shapeKind: ShapeKind;
+  setTool(t: Tool): void;
+  setShapeKind(k: ShapeKind): void;
+  /** Selects the new id and switches to Select (tools.return_to_select). */
+  toolCreated(id: string): void;
 }
 
 /**
- * Tool mode with V/T/N/Escape shortcuts (text.tool_ui).
+ * Tool mode with V/T/N/S/L/Escape shortcuts (story 9 + story 10).
  *
- * - V → select; T → text (only when canEdit); N → sticky at view centre;
- *   Escape → select.
- * - Shortcuts are ignored while editing text or when focus is in an input
- *   (TC-16: T while editing a note types 't').
- * - canEdit false → T ignored, an active Text tool reverts to Select.
+ * - V → select; T → text; N → sticky at view centre;
+ *   S → shape; L → connector; Escape → select.
+ * - Shortcuts are ignored while editing text or when focus is in an input.
+ * - canEdit false → active tools revert to Select.
  */
-export function useTool(opts: UseToolOptions): { tool: Tool; setTool(t: Tool): void } {
-  const { canEdit, editingId, onCreateStickyAtCentre } = opts;
+export function useTool(opts: UseToolOptions): UseToolResult {
+  const { canEdit, editingId, onCreateStickyAtCentre, onToolCreated } = opts;
   const [tool, setToolState] = useState<Tool>('select');
+  const [shapeKind, setShapeKindState] = useState<ShapeKind>('rect');
 
   const setTool = useCallback((t: Tool) => {
     setToolState(t);
   }, []);
 
-  // canEdit false → an active Text tool reverts to Select (text.tool_ui)
+  const setShapeKind = useCallback((k: ShapeKind) => {
+    setShapeKindState(k);
+  }, []);
+
+  const toolCreated = useCallback((id: string) => {
+    onToolCreated?.(id);
+    setToolState('select');
+  }, [onToolCreated]);
+
+  // canEdit false → active tools revert to Select
   useEffect(() => {
-    if (!canEdit && tool === 'text') {
+    if (!canEdit && tool !== 'select') {
       setToolState('select');
     }
   }, [canEdit, tool]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore while editing text (TC-16)
+      // Ignore while editing text
       if (editingId) return;
 
       const target = e.target as HTMLElement;
@@ -54,25 +86,33 @@ export function useTool(opts: UseToolOptions): { tool: Tool; setTool(t: Tool): v
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       const key = e.key.toLowerCase();
-      if (key === 'v') {
-        e.preventDefault();
+
+      if (key === 'escape') {
         setToolState('select');
-      } else if (key === 't') {
-        if (!canEdit) return;
-        e.preventDefault();
-        setToolState('text');
-      } else if (key === 'n') {
+        return;
+      }
+
+      const shortcut = TOOL_SHORTCUTS[key];
+      if (!shortcut) return;
+
+      // 'sticky' is handled via onCreateStickyAtCentre (creates immediately)
+      if (shortcut === 'sticky') {
         if (!canEdit) return;
         e.preventDefault();
         onCreateStickyAtCentre?.();
-      } else if (e.key === 'Escape') {
-        setToolState('select');
+        return;
       }
+
+      // Other tools require canEdit
+      if (!canEdit) return;
+
+      e.preventDefault();
+      setToolState(shortcut);
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [canEdit, editingId, onCreateStickyAtCentre]);
 
-  return { tool, setTool };
+  return { tool, shapeKind, setTool, setShapeKind, toolCreated };
 }

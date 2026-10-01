@@ -36,7 +36,7 @@ describe('registry unit tests', () => {
   // TC-12: getObjectType('unknown') → undefined
   it('TC-12: getObjectType("unknown") returns undefined', () => {
     expect(getObjectType('unknown')).toBeUndefined();
-    expect(getObjectType('shape')).toBeUndefined();
+    expect(getObjectType('nonexistent')).toBeUndefined();
   });
 
   // Duplicate registration throws

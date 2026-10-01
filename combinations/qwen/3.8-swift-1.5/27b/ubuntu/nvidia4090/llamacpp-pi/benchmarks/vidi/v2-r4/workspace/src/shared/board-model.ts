@@ -2,6 +2,10 @@ import * as Y from 'yjs';
 import { STICKY_SIZE_WORLD, STICKY_COLORS, DEFAULT_STICKY_COLOR, TEXT_SIZES, type StickyColor, type TextSize } from './config';
 import type { Rect, Point } from './geometry';
 import type { TextSnapshot } from './objects/text';
+import type { ShapeSnap } from './objects/shape';
+import type { ConnectorEndpointSnap, ConnectorSnap } from './geometry/connector-geometry';
+import { resolveEndpoints, connectorBBox } from './geometry/connector-geometry';
+import { detachConnectorsTo } from './objects/connector';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('LOCAL_ORIGIN');
 
@@ -22,8 +26,8 @@ export interface StickySnapshot extends ObjectSnapshot {
   createdAt: number;
 }
 
-/** Every object type the client knows how to render (story 9 adds text). */
-export type AnySnapshot = StickySnapshot | TextSnapshot;
+/** Every object type the client knows how to render. */
+export type AnySnapshot = StickySnapshot | TextSnapshot | ShapeSnap | ConnectorSnap;
 
 function getMeta(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap('meta');
@@ -176,6 +180,78 @@ export function snapshot(doc: Y.Doc): readonly AnySnapshot[] {
         text: textStr,
         size,
         widthMode,
+        z: obj.get('z') as number,
+      });
+      return;
+    }
+
+    if (type === 'shape') {
+      const label = obj.get('label');
+      const labelStr = label instanceof Y.Text ? label.toString() : '';
+      result.push({
+        id,
+        type: 'shape',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: (obj.get('width') as number) ?? 160,
+        height: (obj.get('height') as number) ?? 160,
+        kind: obj.get('kind') as 'rect' | 'ellipse' | 'diamond',
+        fill: obj.get('fill') as 'none' | 'white' | 'blue' | 'green' | 'yellow' | 'pink' | 'grey',
+        stroke: obj.get('stroke') as 'dark' | 'blue' | 'green' | 'orange' | 'red' | 'grey',
+        label: labelStr,
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        createdBy: obj.get('createdBy') as string,
+      });
+      return;
+    }
+
+    if (type === 'connector') {
+      // Read endpoints from the Y.Map
+      const fromM = obj.get('from') as Y.Map<unknown> | undefined;
+      const toM = obj.get('to') as Y.Map<unknown> | undefined;
+
+      const readEp = (m: Y.Map<unknown> | undefined): ConnectorEndpointSnap => {
+        if (!m) return { kind: 'free', x: 0, y: 0 };
+        const k = m.get('kind');
+        if (k === 'attached') {
+          const fb = m.get('fallback') as Y.Map<unknown> | undefined;
+          return {
+            kind: 'attached',
+            objectId: m.get('objectId') as string,
+            fallback: fb ? { x: fb.get('x') as number, y: fb.get('y') as number } : { x: 0, y: 0 },
+          };
+        }
+        return { kind: 'free', x: m.get('x') as number, y: m.get('y') as number };
+      };
+
+      const from = readEp(fromM);
+      const to = readEp(toM);
+
+      // Build rects map for resolveEndpoints
+      const rects = new Map<string, Rect>();
+      objects.forEach((o, oid) => {
+        const ox = o.get('x') as number;
+        const oy = o.get('y') as number;
+        const ow = (o.get('width') as number | undefined) ?? STICKY_SIZE_WORLD;
+        const oh = (o.get('height') as number | undefined) ?? STICKY_SIZE_WORLD;
+        if (Number.isFinite(ox) && Number.isFinite(oy) && Number.isFinite(ow) && Number.isFinite(oh)) {
+          rects.set(oid, { x: ox, y: oy, width: ow, height: oh });
+        }
+      });
+
+      const { from: fromPt, to: toPt } = resolveEndpoints({ from, to }, rects);
+      const bbox = connectorBBox(fromPt, toPt);
+
+      result.push({
+        id,
+        type: 'connector',
+        from,
+        to,
+        x: bbox.x,
+        y: bbox.y,
+        width: bbox.width,
+        height: bbox.height,
         z: obj.get('z') as number,
       });
       return;
@@ -363,6 +439,8 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   let changed = 0;
 
   doc.transact(() => {
+    // Detach connectors to deleted objects before removing them
+    detachConnectorsTo(doc, ids);
     for (const id of ids) {
       if (objects.has(id)) {
         objects.delete(id);

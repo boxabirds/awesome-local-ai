@@ -1,7 +1,9 @@
-import type { JSX } from 'react';
+import { useState, type JSX } from 'react';
 import { UndoButtons } from './UndoButtons';
 import type { UseUndoResult } from './useUndo';
 import type { Tool } from './useTool';
+import type { ShapeKind } from '../../shared/objects/shape';
+import { SHAPE_KINDS } from '../../shared/config';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
@@ -11,6 +13,9 @@ export interface ToolbarProps {
   /** Active tool (story 9) and its setter for the tool buttons. */
   tool?: Tool;
   setTool?(t: Tool): void;
+  /** Shape kind (story 10) */
+  shapeKind?: ShapeKind;
+  setShapeKind?(k: ShapeKind): void;
 }
 
 const toolButtonStyle = (active: boolean, disabled: boolean): React.CSSProperties => ({
@@ -27,8 +32,19 @@ const toolButtonStyle = (active: boolean, disabled: boolean): React.CSSPropertie
   opacity: disabled ? 0.5 : 1,
 });
 
+const shapeKindLabels: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+
 export function Toolbar(props: ToolbarProps): JSX.Element {
-  const { onCreateSticky, disabled = false, undo, tool = 'select', setTool } = props;
+  const {
+    onCreateSticky, disabled = false, undo,
+    tool = 'select', setTool,
+    shapeKind = 'rect', setShapeKind,
+  } = props;
+  const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
 
   return (
     <div
@@ -66,6 +82,74 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
             style={toolButtonStyle(tool === 'text', disabled)}
           >
             T
+          </button>
+
+          {/* Shape button with kind menu (story 10) */}
+          <div style={{ position: 'relative' }}>
+            <button
+              aria-label="Shape (S)"
+              title="Shape – S"
+              aria-pressed={tool === 'shape'}
+              onClick={disabled ? undefined : () => {
+                setTool('shape');
+                setShapeMenuOpen(!shapeMenuOpen);
+              }}
+              disabled={disabled}
+              style={toolButtonStyle(tool === 'shape', disabled)}
+            >
+              □
+            </button>
+            {shapeMenuOpen && tool === 'shape' && (
+              <div
+                data-testid="shape-kind-menu"
+                style={{
+                  position: 'absolute',
+                  left: 44,
+                  top: 0,
+                  backgroundColor: '#fff',
+                  border: '1px solid #ccc',
+                  borderRadius: 8,
+                  padding: 4,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                }}
+              >
+                {SHAPE_KINDS.map((k) => (
+                  <button
+                    key={k}
+                    aria-label={shapeKindLabels[k]}
+                    onClick={() => {
+                      setShapeKind?.(k);
+                      setShapeMenuOpen(false);
+                    }}
+                    style={{
+                      padding: '4px 12px',
+                      border: 'none',
+                      borderRadius: 4,
+                      backgroundColor: shapeKind === k ? '#BBDEFB' : 'transparent',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontSize: 14,
+                    }}
+                  >
+                    {shapeKindLabels[k]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            aria-label="Connector (L)"
+            title="Connector – L"
+            aria-pressed={tool === 'connector'}
+            onClick={disabled ? undefined : () => setTool('connector')}
+            disabled={disabled}
+            style={toolButtonStyle(tool === 'connector', disabled)}
+          >
+            →
           </button>
         </>
       )}

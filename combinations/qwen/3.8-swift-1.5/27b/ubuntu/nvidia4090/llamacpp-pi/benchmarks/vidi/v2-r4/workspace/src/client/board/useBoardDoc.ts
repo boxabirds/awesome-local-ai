@@ -46,9 +46,21 @@ export function useBoardDoc(boardId: string): {
     // story 8; size changes must too, story 9)
     const key = snap
       .map((o) => {
-        const extras =
-          o.type === 'sticky' ? o.color : `${o.size}:${o.widthMode}`;
-        return `${o.id}:${o.x}:${o.y}:${o.z}:${o.width ?? ''}:${o.height ?? ''}:${extras}:${o.text}`;
+        let extras = '';
+        let text = '';
+        if (o.type === 'sticky') {
+          extras = o.color;
+          text = o.text;
+        } else if (o.type === 'text') {
+          extras = `${o.size}:${o.widthMode}`;
+          text = o.text;
+        } else if (o.type === 'shape') {
+          extras = `${o.kind}:${o.fill}:${o.stroke}`;
+          text = o.label;
+        } else if (o.type === 'connector') {
+          extras = `${o.from.kind}:${o.to.kind}`;
+        }
+        return `${o.id}:${o.x}:${o.y}:${o.z}:${o.width ?? ''}:${o.height ?? ''}:${extras}:${text}`;
       })
       .join('\0');
     if (key !== snapshotCacheRef.current.key) {

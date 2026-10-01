@@ -233,12 +233,12 @@ describe('board-model unit tests', () => {
     const objects = doc.getMap('objects');
     doc.transact(() => {
       const obj = new Y.Map<unknown>();
-      obj.set('type', 'shape');
+      obj.set('type', 'unknown-type');
       obj.set('x', 50);
       obj.set('y', 50);
       obj.set('z', 1);
       obj.set('createdAt', 0);
-      objects.set('shape-id', obj);
+      objects.set('unknown-id', obj);
     }, LOCAL_ORIGIN);
 
     const snap = snapSticky(doc);
