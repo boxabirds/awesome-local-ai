@@ -155,6 +155,24 @@ export function Toolbar({
           <path d="M17 3l-4 1 1-4z" fill="currentColor" />
         </svg>
       </button>
+      {/* Pen button */}
+      <button
+        type="button"
+        className="board-toolbar-button"
+        data-testid="tool-pen"
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        title="Pen tool"
+        disabled={!canEdit}
+        onClick={(event: ReactMouseEvent) => {
+          event.stopPropagation();
+          onToolChange('pen');
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path d="M3 17l1.5-4L14 3.5 16.5 6 7 15.5 3 17z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+      </button>
       <button
         type="button"
         className="board-toolbar-button"

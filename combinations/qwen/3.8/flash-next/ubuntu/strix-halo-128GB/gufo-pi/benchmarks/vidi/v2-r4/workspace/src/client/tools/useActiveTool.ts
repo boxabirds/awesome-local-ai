@@ -80,10 +80,10 @@ export function useActiveTool(opts: UseActiveToolOptions): UseActiveToolResult {
       if (isTextEntry(event.target)) return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
 
-      // Escape: switch to select if in shape or connector
+      // Escape: switch to select if in shape, connector, or pen
       if (event.key === 'Escape') {
         const cur = toolRef.current;
-        if (cur === 'shape' || cur === 'connector') {
+        if (cur === 'shape' || cur === 'connector' || cur === 'pen') {
           setToolState('select');
         }
         return;

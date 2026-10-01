@@ -32,6 +32,7 @@ import type { Rect } from './geometry';
 import { rectContains } from './geometry';
 import { readShape, type ShapeSnap } from './objects/shape';
 import { readConnector, detachConnectorsTo, type ConnectorSnap } from './objects/connector';
+import { readStroke, type StrokeSnap } from './objects/stroke';
 
 /** Origin tag for every local mutation (story 8 undo, story 3 echo filter). */
 export { LOCAL_ORIGIN } from './local-origin';
@@ -67,7 +68,7 @@ export interface TextObjectSnapshot {
   createdBy: string;
 }
 
-export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeSnap | ConnectorSnap;
+export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeSnap | ConnectorSnap | StrokeSnap;
 
 function objectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap<Y.Map<unknown>>('objects') as unknown as Y.Map<Y.Map<unknown>>;
@@ -382,6 +383,8 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (shape) { out.push(shape); continue; }
     const conn = readConnector(id, note);
     if (conn) { out.push(conn); continue; }
+    const stroke = readStroke(id, note);
+    if (stroke) { out.push(stroke); continue; }
   }
   out.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;

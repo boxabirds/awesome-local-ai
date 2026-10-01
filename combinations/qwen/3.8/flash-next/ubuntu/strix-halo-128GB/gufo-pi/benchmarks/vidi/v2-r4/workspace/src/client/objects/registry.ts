@@ -24,7 +24,7 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** Which resize handles to show. 'horizontal' = only e/w (text objects). */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();

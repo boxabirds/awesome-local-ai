@@ -21,3 +21,27 @@
 9. **E2E tests**: Written for TC-23 through TC-27 as Playwright specs. TC-27 (delete race) uses a simplified single-page approach since the test infrastructure doesn't support WebSocket route delays natively; the key assertion (no console errors) is maintained.
 
 10. **Existing test TC-08 updated**: The "skips unknown type objects" test used `type: 'shape'` which is now a known type. Changed to `type: 'widget'` to maintain the test's intent.
+
+## Story 11 Notes
+
+### Decisions
+
+1. **Registry `hitTest` signature extended with optional `zoom?: number`**: Stroke hit-testing needs zoom to convert screen-space tolerance to world-space tolerance. Existing specs (sticky, shape, text, connector) ignore the parameter. `BoardViewport` passes `camera.zoom` through `objectsFor()` and `hitTestObjects()`.
+
+2. **StrokeObject SVG pointer events**: The `<g>` element sets `style={{ pointerEvents: 'auto' }}` to override the parent SVG's `pointerEvents: 'none'`. Contains two paths: (a) an invisible wider hit-area path with `pointerEvents: 'stroke'` for reliable click targets; (b) a visible path with `pointerEvents: 'none'`.
+
+3. **PenTool rendered inside BoardViewport overlay**: Placed in the viewport's `overlay` prop so wheel events naturally bubble to the viewport's wheel handler (enabling pan while pen is active). Pointer events on the overlay do not trigger panning because the viewport's `onPointerDown` checks `event.target !== el` and returns early for child elements.
+
+4. **Stroke points stored relative to bbox origin**: Points in the snapshot are in object-local space (x, y >= 0). `scaledPoints()` scales by `(width/baseWidth, height/baseHeight)` at render time, enabling proportional resize via `commitGeometry`.
+
+5. **Pen tool does NOT call `toolCreated`**: The pen stays active after committing a stroke. Only Escape switches to select. This matches the design: "the pen stays active. Escape returns to Select."
+
+6. **STROKE_MAX_POINTS enforced in PenTool component**: When the point buffer reaches STROKE_MAX_POINTS, `splitPoints()` is called to commit the first segment and start a new stroke with the last point.
+
+7. **Undo boundaries**: `undoBoundary()` is called before and after each `createStroke` transaction. Each stroke is one undo step.
+
+8. **Simplification on commit**: Points are simplified with RDP at `STROKE_SIMPLIFY_TOLERANCE_PX / zoom` world units to keep payload small.
+
+9. **PenToolbar is session-only state**: Managed by `usePenOptions()` React hook; not persisted across sessions.
+
+10. **Hit-area path width**: `thickness * 3 + 12 / zoom` — chosen empirically to be comfortable without being too generous.

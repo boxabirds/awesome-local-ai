@@ -16,6 +16,7 @@ import { StickyNote } from './objects/StickyNote';
 import { TextObject } from './objects/TextObject';
 import { ShapeObject } from './objects/ShapeObject';
 import { ConnectorObject } from './objects/ConnectorObject';
+import { StrokeObject } from './objects/StrokeObject';
 import { ShapeToolbar } from './objects/ShapeToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createUndo, type UndoController } from './board/undo';
@@ -23,12 +24,16 @@ import { useUndo } from './board/useUndo';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import * as Y from 'yjs';
 import { createSticky, deleteObjects } from '../shared/board-model';
 import type { StickySnapshot } from '../shared/board-model';
 import { createText } from '../shared/objects/text';
 import { createShape, setShapeStyle, type ShapeSnap } from '../shared/objects/shape';
 import { createConnector, type ConnectorSnap } from '../shared/objects/connector';
+import { type StrokeSnap } from '../shared/objects/stroke';
 import type { Endpoint } from '../shared/geometry/connector-geometry';
 import { isTestMode, setTestConnectionState } from './testHooks';
 import { canEdit } from './sync/connectBoard';
@@ -94,6 +99,9 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
     if (activeTool.tool === 'text') legacySetTool('text');
     else legacySetTool('select');
   }, [activeTool.tool, legacySetTool]);
+
+  // Pen options
+  const penOptions = usePenOptions();
 
   // Measurer for text objects
   const measurer = useMemo(() => createCanvasMeasurer(), []);
@@ -255,7 +263,8 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
     [marquee],
   );
 
-  // Build the overlay (screen-space elements: marquee rect, selection overlay, selection bar)
+  // Build the overlay (screen-space elements: marquee rect, selection overlay, selection bar, pen tool)
+  const activeToolId = activeTool.tool;
   const overlay = (
     <>
       <MarqueeRect rect={marquee.rect} camera={camera} />
@@ -271,6 +280,17 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
         camera={camera}
         onDelete={onDeleteSelection}
       />
+      {/* Pen tool overlay inside viewport so wheel events bubble to viewport's wheel handler */}
+      {activeToolId === 'pen' && !isReadOnly && (
+        <PenTool
+          camera={camera}
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          doc={doc}
+          identityId="local"
+          undoBoundary={undoBoundary}
+        />
+      )}
     </>
   );
 
@@ -279,6 +299,7 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
   const textObjects = notes.filter((n) => n.type === 'text');
   const shapes = notes.filter((n): n is ShapeSnap => n.type === 'shape');
   const connectors = notes.filter((n): n is ConnectorSnap => n.type === 'connector');
+  const strokes = notes.filter((n): n is StrokeSnap => n.type === 'stroke');
 
   // Build rects map for connector resolution
   const rectsMap = useMemo(() => {
@@ -324,8 +345,6 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
     const sy = (selectedShape.y - camera.y) * camera.zoom - 32;
     return { left: sx, top: sy };
   }, [selectedShape, camera]);
-
-  const activeToolId = activeTool.tool;
 
   return (
     <div className="app">
@@ -382,6 +401,15 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
               onEndEdit={selection.endEdit}
             />
           ))}
+          {strokes.map((stroke) => (
+            <StrokeObject
+              key={stroke.id}
+              stroke={stroke}
+              selected={selection.ids.has(stroke.id)}
+              zoom={camera.zoom}
+              onPointerDown={onShapePointerDown}
+            />
+          ))}
         </svg>
         {stickyNotes.map((note) => (
           <StickyNote
@@ -417,7 +445,7 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
         ))}
       </BoardViewport>
 
-      {/* Shape tool overlay (captures pointer events when shape tool is active) */}
+      {/* Pen tool overlay (captures pointer events when pen tool is active) */}
       {activeToolId === 'shape' && !isReadOnly && (
         <ShapeTool
           kind={activeTool.shapeKind}
@@ -437,6 +465,16 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
           onCreated={(id) => activeTool.toolCreated(id)}
           onCreateConnector={onCreateConnector}
           undoBoundary={undoBoundary}
+        />
+      )}
+
+      {/* Pen toolbar: visible while pen is active */}
+      {activeToolId === 'pen' && !isReadOnly && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
         />
       )}
 
