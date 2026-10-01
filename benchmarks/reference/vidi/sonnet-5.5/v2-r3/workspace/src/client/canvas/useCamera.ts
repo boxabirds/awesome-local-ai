@@ -108,9 +108,12 @@ export function useCamera(viewport: Size) {
   const reset = useCallback(() => apply(resetCamera(viewportRef.current)), [apply]);
 
   const setCamera = useCallback((cam: Camera) => apply(cam), [apply]);
+  /** Latest camera, including updates not yet flushed to React state. */
+  const getCamera = useCallback(() => cameraRef.current, []);
 
   return {
     camera,
+    getCamera,
     hasNavigated,
     beginPan,
     panMove,
