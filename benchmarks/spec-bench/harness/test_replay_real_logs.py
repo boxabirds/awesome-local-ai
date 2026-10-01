@@ -117,23 +117,16 @@ REACH_KEYS = {"route", "target", "calls", "example"}
 TIMELINE_KEYS = {"kind", "text", "min", "count", "last"}
 TIMELINE_KINDS = {"tool", "error", "compaction", "nudge"}
 
-SONNET_V2_R1 = "benchmarks/reference/vidi/sonnet-5.5/v2-r1"
+SONNET_V2_R2 = "benchmarks/reference/vidi/sonnet-5.5/v2-r2"
 # (run, story) -> why its record is wrong, and the fields that are: {field: what the record holds}. The replay
 # checks each field still holds that and still isn't what the log gives; every other field must agree as usual.
 STALE_RECORDS = {
-    **{(SONNET_V2_R1, sid): {
-        "why": "its time split was made before accounting.py read Claude Code's stream (same VERSION): no model "
-               "time, no tool time, all of it 'other'. backfill_timing.py refills it from the full log",
-        "fields": {"time_split.model.source": None, "time_split.tools_s": 0.0, "time_split.tools_by_kind": {}}}
-       for sid in ("1", "2", "3", "4", "5", "7", "8")},
-    (SONNET_V2_R1, "9"): {
-        "why": "its four earlier attempts were counted by a client that had already read the log (drive.last_session), "
-               "so their model calls counted as none (clients.py, fixed 1 Oct 2026); and attempts.sum_splits summed "
-               "output tokens no attempt knew to 0 (fixed the same day)",
+    (SONNET_V2_R2, "2"): {
+        "why": "its earlier attempt was counted by a client that had already read the log (drive.last_session), so "
+               "its model calls counted as none (clients.py, fixed 1 Oct 2026); and attempts.sum_splits summed output "
+               "tokens no attempt knew to 0 (fixed the same day). The run was still going then: backfill_timing.py "
+               "recounts it (its recount step) once the run has finished",
         "fields": {"steps": 2, "time_split.model.decode_tokens": 0}},
-    ("benchmarks/reference/vidi/opus-5.5/v2-r3", "12"): {
-        "why": "recorded when ClaudeClient.scan kept only a session's last result; recount_tokens.py --write fixes it",
-        "fields": {"tokens.input": 6, "tokens.output": 1230, "tokens.cache_read": 476307, "tokens.cache_write": 1044}},
 }
 
 
