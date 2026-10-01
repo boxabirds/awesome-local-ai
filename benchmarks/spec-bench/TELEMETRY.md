@@ -32,7 +32,7 @@ stack).
 | `finalize.json` | yes | the end of the run (`finalize.py`): its bundle and its score of record, or why there is none (below) |
 | `workspace.bundle` | yes | the workspace's whole git history, from which every story's code is re-scored and reviewed |
 | `rescore/<version>/rescore.json`, `per-story.md`, `stories/NN/accept-summary.json` | yes | a re-score under suite `<version>` (`rescore.py`; below); its `stories/NN/accept.json` and `scoring-N/` are held-out detail, private like the live ones |
-| `rescore-spoiled/<version>-<UTC time>/` | yes (its detail private, as above) | a re-score that was not recorded: the machine spoiled it or the live-vs-record guard flagged it; `set-aside.json` says why (`reason`, `at`). The next finalize re-scores |
+| `rescore-spoiled/<version>-<UTC time>/` | yes (its detail private, as above) | a re-score that was not recorded: the machine spoiled it, the live-vs-record guard flagged it, or the run went on after it (it scored an earlier checkpoint); `set-aside.json` says why (`reason`, `at`). The next finalize, or the sweep, re-scores |
 | `base/accept-summary.json` | yes, known-good runs only | the held-out suite's counts on the base before the agent starts, so the story's regressions and repairs are measured |
 | `server.log` | no (`*.log` is ignored) | the model server's own log, appended across restarts, each start after a `=== server start <epoch> ===` marker |
 | `requests.jsonl` | yes, if present | per-request figures from the Python metering proxy; only with `run.sh --meter` (off by default; it adds a hop) |
@@ -166,7 +166,31 @@ the time the harness was down between attempts belongs to no attempt and isn't c
 | `compaction_s`, `compactions` | time spent compacting the context, including the compaction's own model call |
 | `between_sessions_s` | from the end of one agent session to the start of the next: the harness resuming the agent after its session ended in an error (it waits 60 s first) or nudging it after it stopped without committing. The agent's own clock (`agent.seconds`) runs only while a session does |
 | `other_s` | the rest: the client's own overhead, and gaps |
-| `accounting` | the checks recorded with the split: `version` of the calculation, `ok`, `problems` (a tool call or compaction that never ended or ended without starting, parts not summing to the wall, tools by kind not summing to tools, the wall disagreeing with the agent's own clock plus the time between sessions by more than 1%), `abandoned_calls` (model calls cut off before they ended: a session killed mid-reply) |
+| `suspended_s` | of the wall, how long the machine was suspended (asleep) while a session ran. Not a part beside the others: these seconds are inside them, owned by whatever was running when the machine stopped (the log can't say where in the session they lie), so the parts sum to `wall_s` with or without it. The wall clock goes on through a suspension; the agent's own clock (`agent.seconds`) and Claude Code's (its result's `duration_ms`) stop. It is each session's length on the wall less its length by Claude Code's clock, where that is 1 s or more (over 94 recorded sessions the two differ by 0.16 s at most; Sonnet 5.5 v2-r4 story 4, its lid closed mid-session, by 30.8 s). pi's log has no clock of its own, so a pi story is always 0.0 here. Absent from records made before accounting version 4: read as 0 |
+| `accounting` | the checks recorded with the split: `version` of the calculation, `ok`, `problems` (what makes `ok` false: a tool call that ended without starting, parts not summing to the wall, tools by kind not summing to tools, `suspended_s` negative or more than the wall, and the clock check below), `abandoned_calls` (model calls cut off before they ended: a session killed mid-reply), and what was cut off, which is information and leaves `ok` true: `interrupted_tools` (each tool call with no end event: its `kind`, its `seconds` inside the window, `ended_by`, and in a restarted story's summed split its `attempt`) and `interrupted_compactions` (how many compactions had no end event) |
+
+A tool call has no end event when something cut it off: the hang guard or the swap guard killing it, its session
+ending, the harness restarting, the story's cap. `ended_by` names what showed it was over: `the agent's next step`
+or `its session's end` (counted to there); `a harness restart` (the log's `harness_attempt` line) or `the next
+session's start` (a new agent process: the call is counted to the last line the process before it wrote, when it
+was last heard from); else `the window's end`. It is listed in the window it started in, so once for a restarted
+story, and owns nothing after the restart. A compaction with no end event ends the same way at a restart or a new
+session, else at the window's end. A session with no end (its process died) ended when it was last heard from, and
+the wait until the harness started the next one is `between_sessions_s`, except across a `harness_attempt` line,
+where the harness itself was down. Until version 4 a call or compaction with no end was a problem and failed the
+check, a call cut off by a restart was reported by both attempts and owned the next attempt's first seconds, and
+the wait after a session that died was `other_s`.
+
+The clock check: `wall_s` against `agent.seconds` + `between_sessions_s` + `suspended_s`, which must agree within
+1% of the wall (or 1 s). It fails one of two ways, and says which: the agent's clock is more than the wall (agent
+time was counted twice: mlx-serve v2-r2 story 4 counted an earlier attempt's waits twice), or the wall is longer
+than the agent's clock (the machine was suspended with nothing in the log to show it, which is how a pi story on a
+machine that slept reads, or agent time is missing from the record).
+
+`version` is `accounting.VERSION`, and changes with the calculation: `test_accounting.py` keeps a digest of the
+calculation's output for the fixture logs (`harness/fixtures/accounting`) per version (`accounting.DIGESTS`) and
+fails when the output changes under the same version. Version 3 covered several calculations (the waits between
+sessions, Claude Code's stream and the kinds that round to zero all changed under it); 4 is the calculation above.
 
 `model` is null when neither source has a model call: a cloud model (Claude Code logs no stream), or a record
 made before the accounting timed every engine and not yet backfilled. `harness/backfill_timing.py` recomputes a
@@ -244,16 +268,30 @@ suite starts or while it waits for one (`waitPortFree`).
 
 ## Re-scores and the score of record
 
-`finalize.py` ends every run: it bundles the workspace, re-scores its final commit (`rescore.py --final`) on a clean
-install, and records the result as the score of record unless the re-score is spoiled or flagged.
+`finalize.py` ends every run: it bundles the workspace, brings the run's own records up to date, re-scores its final
+commit (`rescore.py --final`) on a clean install, and records the result as the score of record unless the re-score
+is spoiled or flagged. The suite it scores with is the one at the pack's tag (`pack_ref`), taken from the private
+repo's git objects and kept on the machine (`tagsuite.py`): where the private checkout is (on a branch, past the tag,
+detached, dirty) changes nothing, and the version recorded is the tag that was scored. The live score of each story
+during a run still comes from the checkout's working tree, under the version `pack-version.sh` gives it.
 
-**`rescore/<version>/rescore.json`**: `pack_version`, `harness_commit`, `host` (the scorer's hardware, as `run.json` names a
+A run that ends without its score is retried with nobody asking: `finalize_pending.py` (the sweep) runs at the start
+of every run on the machine, after the self-test and before the model server, and again at the end. It takes the
+runs under the results root that ran on this machine, ended (`run-status.json`: `finished`, `failed` or `stopped`,
+with at least one story's code recorded), are not marked `invalid` in `run.json`, and either have no score of record
+and don't need a person, or have stale records with their full logs still here; the most recent first, at most
+`SWEEP_MAX_RUNS` (3) a sweep, within `SWEEP_BUDGET_S` (900 s), and never while another harness run or re-score is
+active on the machine. `finalize_pending.py --list` shows what is pending and what is waiting for a person.
+
+**`rescore/<version>/rescore.json`**: `pack_version`, `suite_commit` (the commit of the pack's tag the suite was taken
+from; null for a pack with no `pack_ref`, scored from its working tree), `harness_commit`, `host` (the scorer's hardware, as `run.json` names a
 machine; never its hostname: records written before 1 Oct 2026 carried the hostname and were rewritten), `held_out_workers`, `host_limits`,
 `finished_at`, `environment` (as above, for the scorer), `passing_sample` (`fraction`, `min`: the rule below), and
 `results`, one per checkpoint: `story`, `passed`, `total`, `fallbacks`, `scores` (each scoring's passed count),
 `flaky` (tests whose result changed between scorings), `flaky_failing` (of those, failed the first time),
 `flaky_passing` (passed the first time), `passing_sampled` (passing tests rerun), `harness_fault`, `build_exit`,
-`environment` (with `install_command`), `seconds`. Counts only: no test is named in it.
+`environment` (with `install_command`), `seconds`, `commit` (the workspace commit that was scored: finalize tells a
+score of the run's final build from one of an earlier checkpoint by it). Counts only: no test is named in it.
 
 Each checkpoint's `stories/NN/accept.json` (private) holds the result as under `accept`, and, after repeats,
 `scorings`, `scores`, `flaky`, `flaky_failing`, `flaky_passing` (as lists of tests), `passing_sampled`, `sample_seed`
@@ -270,13 +308,33 @@ workspace's package manager (no `package.json`, no lockfile, or the install refu
 `--legacy-peer-deps`; bun none), when its build fails in the re-score where the live build of the same commit
 passed (or there is no live build to compare), or when a repeat scoring was spoiled.
 
-**`finalize.json`**: `version`, `pack_ref`, `at`, `bundle`, `rescore` (`done`, `skipped`, `failed`: the machine
-spoiled it, or `flagged`: the guard stopped it), `reason`, `score` (only when `done`), and `guard`, the live-vs-record
+**`finalize.json`**: `version` (the suite version scored under: the pack's tag), `pack_ref`, `at`, `bundle`,
+`rescore` (`done`; `failed`: no score this time; `flagged`: the guard stopped it. Records from before 1 Oct 2026 may
+say `skipped`, when the suite checkout was not exactly at its tag: that state no longer exists, and the sweep
+re-scores those runs), `reason`, `score` (only when `done`), and `guard`, the live-vs-record
 check: `story`, `record` and `live` (passed/total), `live_version` (the suite the live score ran under: the story's
 own `pack_version`, else run.json's), `comparable` (same suite version, or unknown), `difference` (record minus
 live), `threshold` (`DIVERGENCE_TESTS`, 3), `failures`, `one_signature` (every failure has one cause, across at
 least two stories and five failures), `live_same_signature`, `flagged` (why, or null). A flagged re-score is set
 aside in `rescore-spoiled/` and the run stays unscored, its live score shown in the record message.
+
+Every outcome says whether a person is needed:
+
+| field | meaning |
+|---|---|
+| `needs_person` | `false`: the run is scored, or what stopped it can change by trying again and the sweep will retry it. `true`: nothing will change without someone looking; the sweep leaves the run alone (`finalize.py <run>` by hand still tries) |
+| `reason` | why there is no score, in words; empty when `done`. Public: one line, no path of the machine's home |
+| `reason_kind` | the same as one word. Retried: `tool_missing` (uv, node, npm or npx not found), `suite_fetch_failed`, `suite_unavailable`, `suite_install_failed` (the suite at the tag could not be fetched, read or installed this time), `install_failed` (the app's dependencies), `scoring_spoiled` (the runner crashed, a port was held, a repeat was spoiled), `flagged`, `rescore_failed` (`rescore.py` itself failed), `harness_failed` (finalize could not run: the harness did not load), `out_of_time` (stopped at the sweep's time budget; not counted as an attempt). Needs a person at once: `build_fails_from_clean_clone` (the build passes where the agent worked and fails from a clean clone: a result, not a fault of the machine), `no_bundle` (no `workspace.bundle` and no work dir left), `nothing_to_score` (no story recorded any code), `suite_tag_missing`, `suite_not_in_tag`, `suite_not_in_git`. `scored` when `done` |
+| `attempts`, `max_attempts` | re-scores tried under this `version`, and the cap (`MAX_ATTEMPTS`, 5). A retryable failure at the cap becomes `needs_person` |
+| `retries_exhausted` | `true` when `needs_person` is true only because the cap was reached |
+| `last_attempt_at` | when the last counted attempt was made (UTC); null before the first |
+| `history` | the attempts, oldest first (the last 10): `at`, `rescore`, `reason_kind`, `reason` |
+| `repair` | the run's own records brought up to date before it was recorded: `repaired` (story ids whose time accounting or conversation profile was recomputed from the machine's full log, `backfill_timing.py`), `left` (story id: why it is still stale, e.g. no full log on this machine), `accounting_version` and `harness_commit` (what did the repair; the sweep repeats one that changed nothing only under another), `at` when anything was recomputed, `error` when the repair itself failed (never fatal) |
+
+A run with no `finalize.json` has not been finalized yet (it is still running, or its run ended before finalize): the
+sweep will. `outside_workspace` is the run's summary of the per-story verdicts: `ok`, `reached` (the stories whose
+agent reached outside its workspace) and `unjudged` (those with no readable log); it carries `error`, with `ok`
+null, when the scan itself failed (the run is still scored).
 
 ## Coverage by machine
 

@@ -32,6 +32,9 @@ What the recorded logs are, which decides what can be asked of each (Story):
   lossless log.
 - redacted: every published log has home paths replaced by "~" (drive._redact), after the record's character
   counts were taken from the full log. So a lossless log's character counts are at most the record's, not equal.
+- cut off: a tool call or compaction with no end event (the hang guard, a session's end, a harness restart, the
+  story's cap) is an ordinary event. No log may make the current calculation report one as a problem, each is listed
+  once, and a restarted story lists it with the attempt it started in.
 - no server log: llama-server's log isn't published, so a split recorded from it ("llama-log") can't be remade
   here. Compactions and tools outrank model time (accounting.PRIORITY), so their seconds are the same either way.
 
@@ -91,10 +94,15 @@ CUT_MARKS = (logscan.TRUNC_MARK, json.dumps(logscan.TRUNC_MARK)[1:-1])
 STATE_KEYS = set(empty_state())
 COUNTS = ("steps", "tool_calls", "compactions")
 SPLIT_KEYS = {"wall_s", "model", "tools_s", "tools_by_kind", "compaction_s", "compactions", "between_sessions_s",
-              "other_s", "accounting"}
+              "other_s", "suspended_s", "accounting"}
 MODEL_KEYS = {"source", "requests", "prefill_s", "prefill_tokens", "prefill_tok_s", "decode_s", "decode_tokens",
               "decode_tok_s", "cached_tokens"}
-ACCOUNTING_KEYS = {"version", "ok", "problems", "abandoned_calls"}
+ACCOUNTING_KEYS = {"version", "ok", "problems", "abandoned_calls", "interrupted_tools", "interrupted_compactions"}
+INTERRUPTED_KEYS = {"kind", "seconds", "ended_by"}          # one of accounting.interrupted_tools; with "attempt" when summed
+ENDED_BY = {accounting.ENDED_BY_STEP, accounting.ENDED_BY_SESSION_END, accounting.ENDED_BY_RESTART,
+            accounting.ENDED_BY_NEW_SESSION, accounting.ENDED_BY_WINDOW}
+SAME_UNLESS_CUT_OFF = 3                          # the accounting version whose records still compare (replay_accounting)
+NO_END_PROBLEM = "never ended"                   # what a cut-off tool call or compaction was reported as, before version 4
 # Owned by compactions and tools, which outrank model time: the same whichever log the model's time came from.
 SPLIT_ANY_SOURCE = ("wall_s", "compaction_s", "compactions", "tools_s")
 # A model call's token counts, read from its message_end: the same with or without the stream's deltas.
@@ -120,7 +128,16 @@ TIMELINE_KINDS = {"tool", "error", "compaction", "nudge"}
 SONNET_V2_R2 = "benchmarks/reference/vidi/sonnet-5.5/v2-r2"
 # (run, story) -> why its record is wrong, and the fields that are: {field: what the record holds}. The replay
 # checks each field still holds that and still isn't what the log gives; every other field must agree as usual.
+MLX_V2_R2 = "combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2"
 STALE_RECORDS = {
+    (MLX_V2_R2, "4"): {
+        "why": "run.sh restarted the harness twice during its first attempt, before restarts were marked in the log; the "
+               "first time the agent's session was killed mid-turn and the next began 91.2 s later. Accounting version 3 "
+               "counted a wait as between sessions only after a session that ended, so those 91.2 s were other (and "
+               "agent time); version 4 counts the wait after a session that died too. The record also fails its clock "
+               "check (an earlier attempt's waits counted twice, fixed 1 Oct 2026). backfill_timing.py --recompute on "
+               "the machine that holds the full log corrects both",
+        "fields": {"time_split.between_sessions_s": 205.8, "time_split.other_s": 109.6}},
     (SONNET_V2_R2, "2"): {
         "why": "its earlier attempt was counted by a client that had already read the log (drive.last_session), so "
                "its model calls counted as none (clients.py, fixed 1 Oct 2026); and attempts.sum_splits summed output "
@@ -300,6 +317,32 @@ class Story:
                    and e["message"].get("role") == "assistant")
 
     @functools.cached_property
+    def tools_without_end(self) -> int:
+        """Tool calls the log starts and never ends, counted here: every start (a repeated id starts another call)
+        less every end that has a start. A subagent's calls (Claude Code) aren't the agent's."""
+        open_: dict = {}
+        ended = 0
+        starts = 0
+        for e in self.events:
+            if not _number(e.get("_rx")):
+                continue
+            if self.client == "claude":
+                if e.get("parent_tool_use_id") or e.get("type") not in (CLAUDE_STEP, "user"):
+                    continue
+                for b in _blocks(e):
+                    if e["type"] == CLAUDE_STEP and b.get("type") == "tool_use":
+                        starts += 1
+                        open_[b.get("id")] = True
+                    elif e["type"] == "user" and b.get("type") == "tool_result" and open_.pop(b.get("tool_use_id"), None):
+                        ended += 1
+            elif e.get("type") == PI_TOOL_START:
+                starts += 1
+                open_[e.get("toolCallId")] = True
+            elif e.get("type") == "tool_execution_end" and open_.pop(e.get("toolCallId"), None):
+                ended += 1
+        return starts - ended
+
+    @functools.cached_property
     def tool_starts(self) -> int:
         """Tool calls in the log, counted here: pi's tool_execution_start, Claude's tool_use blocks."""
         if self.client == "claude":
@@ -371,12 +414,21 @@ def replay_accounting(s: Story, p: Problems) -> None:
              f"model calls from {parsed.source!r} in a {s.client} log")
     p.expect(all((c.out is None) == claude for c in parsed.calls), "output tokens are None exactly for Claude Code's calls")
     p.expect(parsed.abandoned >= 0 and all(isinstance(x, str) for x in parsed.problems), "abandoned or problems of the wrong type")
+    p.expect(not any(NO_END_PROBLEM in x for x in parsed.problems), "a tool call or compaction with no end is reported as a problem")
+    p.expect(all(t[:3] in parsed.tools and t[3] in ENDED_BY for t in parsed.cut_tools), "a cut-off tool call isn't among the tools, or has no known end")
+    p.same(len(parsed.cut_tools), s.tools_without_end, "tool calls with no end event")
+    p.expect(all(c in parsed.compactions for c in parsed.cut_compactions), "a cut-off compaction isn't among the compactions")
+    p.expect(all(accounting.SUSPENSION_MIN_S <= d <= b - a for a, b, d in parsed.suspended), "a suspension shorter than the least, or longer than its session")
+    p.expect(not parsed.suspended or s.client == "claude", "a suspension in a log whose client has no clock of its own")
     if not s.stamps:
         p.expect(not (parsed.tools or parsed.calls or parsed.compactions or parsed.between), "something timed in a log with no stamps")
     split = accounting.time_split(s.plain, s.plain.with_name(attempts.NO_SERVER_LOG), s.started, s.t_to)
     _check_split(split, p, "time_split")
     p.same(split["wall_s"], round(s.t_to - s.started, accounting.DECIMALS), "wall_s")
-    # Nothing but what the log itself holds (a tool call or compaction that never ended) is ever a problem.
+    p.same(split["accounting"]["interrupted_tools"],
+           [{"kind": k, "seconds": round(min(b, s.t_to) - a, accounting.DECIMALS), "ended_by": by}
+            for a, b, k, by in sorted(parsed.cut_tools) if s.started <= a <= s.t_to], "the tool calls cut off in the window")
+    # Nothing but what the log itself holds (a tool call that ended without starting) is ever a problem.
     p.same(split["accounting"]["problems"], parsed.problems, "the split's problems are not the parse's")
     p.same(split["accounting"]["abandoned_calls"], parsed.abandoned, "abandoned calls")
     recorded = s.rec.get("time_split")
@@ -384,9 +436,21 @@ def replay_accounting(s: Story, p: Problems) -> None:
         own = recorded["accounting"]["problems"]
         p.expect(all(x in own for x in accounting.check(recorded)), f"the recorded split breaks an invariant it doesn't report: {accounting.check(recorded)}")
         p.same(recorded["accounting"]["ok"], not own, "the recorded split's ok")
-    if recorded and s.stamped and (recorded.get("accounting") or {}).get("version") == accounting.VERSION:
-        # A restarted story's split is its attempts' summed (drive.story_time_split): replayed the same way.
-        again = drive.story_time_split(copy.deepcopy(s.rec), s.plain, s.plain.with_name(attempts.NO_SERVER_LOG)) if s.restarted else split
+    if recorded and s.stamped and s.restarted:
+        # A restarted story's split is its attempts' summed (drive.story_time_split): replayed the same way. What a
+        # restart cut off is listed once, by the attempt it started in, however many attempts the log holds.
+        again = drive.story_time_split(copy.deepcopy(s.rec), s.plain, s.plain.with_name(attempts.NO_SERVER_LOG))
+        _check_split(again, p, "the story's split over its attempts")
+        cut = again["accounting"]["interrupted_tools"]
+        p.expect(all(set(t) == INTERRUPTED_KEYS | {"attempt"} for t in cut), "a summed split's interrupted tool lacks its attempt")
+        p.expect(len(cut) <= len(parsed.cut_tools), f"{len(cut)} tool calls listed as cut off, the log has {len(parsed.cut_tools)}")
+    else:
+        again = split
+    version = (recorded or {}).get("accounting", {}).get("version")
+    # Version 4 gives what version 3 gave unless something in the log was cut off (a tool call, a compaction): those
+    # records wait for backfill_timing.py --recompute, and until then only say so by their version.
+    same_calculation = version == accounting.VERSION or (version == SAME_UNLESS_CUT_OFF and not parsed.cut_tools and not parsed.cut_compactions)
+    if recorded and s.stamped and same_calculation:
         _same_split(s, recorded, again, p)
 
 
@@ -394,6 +458,13 @@ def _check_split(split: dict, p: Problems, what: str) -> None:
     p.same(set(split) - {"attempts"}, SPLIT_KEYS, f"{what}'s keys")
     p.same(set(split["accounting"]), ACCOUNTING_KEYS, f"{what}'s accounting keys")
     p.same(accounting.check(split), [], f"{what} breaks its own invariants")
+    p.expect(0 <= split["suspended_s"] <= split["wall_s"], f"{what}'s suspended_s is outside its wall")
+    cut = split["accounting"]["interrupted_tools"]
+    p.expect(all(set(t) - {"attempt"} == INTERRUPTED_KEYS and t["ended_by"] in ENDED_BY and 0 <= t["seconds"] <= split["wall_s"]
+                 for t in cut), f"{what}'s interrupted tools")
+    p.expect(sum(t["seconds"] for t in cut) <= split["tools_s"] + accounting.TOLERANCE_S * (len(cut) + 1), f"{what}'s interrupted tools ran longer than its tools")
+    n = split["accounting"]["interrupted_compactions"]
+    p.expect(isinstance(n, int) and not isinstance(n, bool) and n >= 0, f"{what}'s interrupted compactions")
     p.expect(split["model"] is None or set(split["model"]) >= MODEL_KEYS, f"{what}'s model lacks keys")
     p.serialisable(split, what)
 

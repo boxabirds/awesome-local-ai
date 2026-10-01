@@ -14,7 +14,8 @@ the harness writes into the log at each restart (restart_mark), else by run.sh's
 - earlier_attempts: each earlier attempt's counts, from the log (the client's own event reader, clients.scan).
 - combine: the story's agent record, totals over all attempts, each attempt kept, marked "restarted".
 - sum_splits: one time split (accounting.py) from each attempt's own window; the gap while the harness was down
-  belongs to no attempt, so it is not agent time and is not counted.
+  belongs to no attempt, so it is not agent time and is not counted. A tool call or compaction a restart cut off
+  is listed with the attempt it started in (interrupted_tools, each with its "attempt").
 - recompute: the same for a record written before this, from its log; backfill_timing.py calls it.
 Tests: test_attempts.py.
 """
@@ -32,7 +33,7 @@ import accounting
 
 # Events stamped this long before the current attempt's start belong to an earlier one (clock and write jitter).
 RESTART_SLACK_S = 1.0
-RESTART_MARK = "harness_attempt"          # an event type no client emits; every reader of the log skips it
+RESTART_MARK = accounting.RESTART_MARK    # an event type no client emits; every reader of the log skips it
 DECIMALS = 1
 STREAM_DELTAS = ("message_update", "tool_execution_update")
 DELTA_PREFIX = 80                         # a delta's type is in its first bytes: skip it without parsing
@@ -42,7 +43,7 @@ SUMMED = ("seconds", "steps", "tool_calls", "compactions", "tool_interruptions",
 # Per-attempt detail kept from the harness's own record of the current attempt.
 ATTEMPT_FIELDS = ("seconds", "steps", "tool_calls", "compactions", "tool_interruptions", "tokens", "sessions",
                   "resumes", "nudges", "toolcall_text_resumes", "errors")
-SPLIT_SUMMED = ("wall_s", "tools_s", "compaction_s", "compactions", "between_sessions_s", "other_s")
+SPLIT_SUMMED = ("wall_s", "tools_s", "compaction_s", "compactions", "between_sessions_s", "other_s", "suspended_s")
 MODEL_SUMMED = ("requests", "prefill_s", "prefill_tokens", "decode_s", "decode_tokens", "cached_tokens")
 RATES = (("prefill_tok_s", "prefill_tokens"), ("decode_tok_s", "decode_tokens"))
 TIME_SPLIT_LAST_ONLY = "last attempt"
@@ -233,9 +234,12 @@ def sum_splits(splits: list[dict]) -> dict:
     out["model"] = model
     problems = [f"attempt {i + 1}: {p}" for i, s in enumerate(splits) for p in (s.get("accounting") or {}).get("problems", [])]
     problems += accounting.check(out)
-    out["accounting"] = {"version": min((s.get("accounting") or {}).get("version", 0) for s in splits), "ok": not problems,
+    accs = [s.get("accounting") or {} for s in splits]
+    out["accounting"] = {"version": min(a.get("version", 0) for a in accs), "ok": not problems,
                          "problems": problems,
-                         "abandoned_calls": sum((s.get("accounting") or {}).get("abandoned_calls", 0) for s in splits)}
+                         "abandoned_calls": sum(a.get("abandoned_calls", 0) for a in accs),
+                         "interrupted_tools": [{"attempt": i + 1, **t} for i, a in enumerate(accs) for t in a.get("interrupted_tools", [])],
+                         "interrupted_compactions": sum(a.get("interrupted_compactions", 0) for a in accs)}
     out["attempts"] = len(splits)
     return out
 

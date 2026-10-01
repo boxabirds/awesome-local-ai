@@ -1,0 +1,45 @@
+{"_rx":1790000000.3,"type":"session","id":"s1"}
+{"_rx":1790000000.31,"type":"agent_start"}
+{"_rx":1790000001.0,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000003.25,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000010.75,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000010.75,"type":"tool_execution_start","toolCallId":"t1","toolName":"read","args":{"path":"src/a.ts"}}
+{"_rx":1790000010.79,"type":"tool_execution_end","toolCallId":"t1","toolName":"read"}
+{"_rx":1790000011.0,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000012.5,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000024.75,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000024.75,"type":"tool_execution_start","toolCallId":"t2","toolName":"bash","args":{"command":"npx playwright test"}}
+{"_rx":1790000055.95,"type":"tool_execution_end","toolCallId":"t2","toolName":"bash"}
+{"_rx":1790000056.0,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000056.8,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000061.2,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000061.2,"type":"tool_execution_start","toolCallId":"t3","toolName":"bash","args":{"command":"npm run test:unit"}}
+{"_rx":1790000067.5,"type":"tool_execution_end","toolCallId":"t3","toolName":"bash"}
+{"_rx":1790000068.0,"type":"compaction_start","reason":"threshold"}
+{"_rx":1790000068.1,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000071.1,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000091.1,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000092.0,"type":"compaction_end"}
+{"_rx":1790000092.5,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000098.0,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000101.0,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000101.0,"type":"tool_execution_start","toolCallId":"t4","toolName":"bash","args":{"command":"npm run build"}}
+{"_rx":1790000103.0,"type":"tool_execution_end","toolCallId":"t4","toolName":"bash"}
+{"_rx":1790000103.2,"type":"tool_execution_start","toolCallId":"t5","toolName":"edit","args":{"path":"src/a.ts"}}
+{"_rx":1790000103.22,"type":"tool_execution_end","toolCallId":"t5","toolName":"edit"}
+{"_rx":1790000104.0,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000105.0,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000107.0,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000107.1,"type":"agent_end"}
+{"_rx":1790000107.2,"type":"agent_settled"}
+{"_rx":1790000109.4,"type":"session","id":"s1"}
+{"_rx":1790000109.41,"type":"agent_start"}
+{"_rx":1790000110.0,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000111.2,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000117.5,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000117.5,"type":"tool_execution_start","toolCallId":"t6","toolName":"bash","args":{"command":"git commit -qm x"}}
+{"_rx":1790000119.0,"type":"tool_execution_end","toolCallId":"t6","toolName":"bash"}
+{"_rx":1790000119.5,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000120.0,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000121.5,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000121.6,"type":"agent_end"}

@@ -1,0 +1,56 @@
+[
+ {
+  "log": "pi-nudged.jsonl",
+  "windows": [
+   [
+    1790000000.0,
+    1790000122.0
+   ]
+  ],
+  "agent_seconds": 119.6
+ },
+ {
+  "log": "pi-restarted-mid-tool.jsonl",
+  "windows": [
+   [
+    1790000000.2,
+    1790000026.0
+   ],
+   [
+    1790000200.0,
+    1790000245.0
+   ]
+  ],
+  "agent_seconds": 70.8
+ },
+ {
+  "log": "claude-slept.jsonl",
+  "windows": [
+   [
+    1790000000.0,
+    1790000140.7
+   ]
+  ],
+  "agent_seconds": 109.9
+ },
+ {
+  "log": "claude-background-and-nudge.jsonl",
+  "windows": [
+   [
+    1790000000.0,
+    1790000082.5
+   ]
+  ],
+  "agent_seconds": 77.0
+ },
+ {
+  "log": "pi-died-and-resumed.jsonl",
+  "windows": [
+   [
+    1790000000.0,
+    1790000102.5
+   ]
+  ],
+  "agent_seconds": 41.6
+ }
+]

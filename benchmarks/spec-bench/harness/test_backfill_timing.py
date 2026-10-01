@@ -243,6 +243,32 @@ def test_recompute_redoes_a_story_whose_stored_accounting_check_failed(tmp_path)
     s1 = heldout.load_metrics(run)["stories"]["1"]
     assert s1["time_split"]["accounting"]["ok"], s1["time_split"]["accounting"]["problems"]
     assert s1["agent"]["attempts"][0]["seconds"] == round(first["time_split"]["wall_s"] - wait, 1)
+    # The queue of processed stories repeats the story's agent time: corrected with it.
+    [queued] = [p for p in heldout.load_metrics(run)["processed"] if p["id"] == 1]
+    assert queued["agent_minutes"] == round(s1["agent"]["seconds"] / 60, 1)
+
+
+def test_recompute_turns_a_cut_off_tool_call_recorded_as_a_failure_into_a_passing_record(tmp_path):
+    """mlx-serve v2-r2 stories 9 and 11 (1 Oct 2026): the harness was restarted while a tool call ran. Accounting
+    version 3 recorded the call as a problem of both attempts. --recompute redoes a record of an older version:
+    the call is listed once, as information, and the check passes."""
+    import accounting
+    run = restarted_run(tmp_path)
+    cut = {"_rx": T0 + 60, "type": "tool_execution_start", "toolCallId": "cut", "toolName": "bash", "args": {"command": "npx playwright test"}}
+    log = run / "stories" / "01" / "agent-events.jsonl"
+    log.write_text("".join(json.dumps(e) + "\n" for e in _pi_session(T0, 3) + [cut] + _pi_session(T0 + 5000, 2)))
+    backfill_timing.backfill_attempts(run)
+    m = heldout.load_metrics(run)
+    old = m["stories"]["1"]["time_split"]
+    problem = "attempt 1: tool call cut never ended; counted to the agent's next step"
+    old.pop("backfilled")
+    old["accounting"] = {"version": accounting.VERSION - 1, "ok": False, "problems": [problem], "abandoned_calls": 0}
+    heldout.save_metrics(run, m)
+    assert "1" not in backfill_timing.backfill(run)                        # only --recompute redoes it
+    assert "1" in backfill_timing.backfill(run, recompute=True)
+    acc = heldout.load_metrics(run)["stories"]["1"]["time_split"]["accounting"]
+    assert acc["ok"] is True and acc["problems"] == [] and acc["version"] == accounting.VERSION
+    assert acc["interrupted_tools"] == [{"attempt": 1, "kind": "e2e", "seconds": 0.0, "ended_by": accounting.ENDED_BY_NEW_SESSION}]
 
 
 def test_a_restarted_story_s_wrong_counts_are_recounted_and_its_time_split_redone(tmp_path):

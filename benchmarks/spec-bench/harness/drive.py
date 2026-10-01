@@ -1729,7 +1729,8 @@ def record_attempts(rec: dict, earlier: list[dict]) -> None:
 
 def story_time_split(rec: dict, events: Path, server_log: Path) -> dict:
     """Where the story's time went (accounting.py), over each attempt's own window, summed, and checked against
-    the agent's own clock. The time the harness was down between attempts is no attempt's, so it isn't counted."""
+    the agent's own clock (which stops between sessions and while the machine is suspended: accounting.check).
+    The time the harness was down between attempts is no attempt's, so it isn't counted."""
     import accounting
     split = time_split(events, server_log, rec["started"], rec["agent_finished"])
     each = (rec.get("agent") or {}).get("attempts") or []
@@ -1740,9 +1741,10 @@ def story_time_split(rec: dict, events: Path, server_log: Path) -> dict:
         for a, s in zip(each, splits):
             a["time_split"] = s
             if a["source"] == "log":
-                # A log gives an attempt's span, its waits between sessions included; the agent's clock (what the
-                # harness records for the attempt it ran) runs only while a session does. Same meaning for both.
-                a["seconds"] = round(s["wall_s"] - s.get("between_sessions_s", 0.0), 1)
+                # A log gives an attempt's span, its waits between sessions and any time the machine was suspended
+                # included; the agent's clock (what the harness records for the attempt it ran) runs only while a
+                # session does and the machine is awake. Same meaning for both.
+                a["seconds"] = round(s["wall_s"] - s.get("between_sessions_s", 0.0) - s.get("suspended_s", 0.0), 1)
         rec["agent"]["seconds"] = round(sum(a.get("seconds") or 0 for a in each), 1)
         split = attempts.sum_splits(splits)
     acc = split["accounting"]

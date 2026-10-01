@@ -1,0 +1,18 @@
+{"_rx":1790000000.3,"type":"session","id":"s1"}
+{"_rx":1790000000.31,"type":"agent_start"}
+{"_rx":1790000001.0,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000002.5,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000009.0,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000009.0,"type":"tool_execution_start","toolCallId":"x1","toolName":"bash","args":{"command":"npm run test:e2e"}}
+{"_rx":1790000021.5,"type":"tool_execution_update","toolCallId":"x1","partialResult":"1 passed"}
+{"_rx":1790000082.0,"type":"session","id":"s1"}
+{"_rx":1790000082.01,"type":"agent_start"}
+{"_rx":1790000082.5,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000084.5,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000093.5,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000093.5,"type":"tool_execution_start","toolCallId":"x2","toolName":"bash","args":{"command":"npm run test:e2e"}}
+{"_rx":1790000099.5,"type":"tool_execution_end","toolCallId":"x2","toolName":"bash"}
+{"_rx":1790000099.6,"type":"message_start","message":{"role":"assistant"}}
+{"_rx":1790000100.0,"type":"message_update","assistantMessageEvent":{"type":"text_start"}}
+{"_rx":1790000102.0,"type":"message_end","message":{"role":"assistant","usage":{"input":1200,"cacheRead":5000,"output":80}}}
+{"_rx":1790000102.1,"type":"agent_end"}
