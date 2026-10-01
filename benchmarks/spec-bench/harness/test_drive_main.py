@@ -14,6 +14,7 @@ the guards and the stops; what the agent left behind (uncommitted work, a change
 from __future__ import annotations
 
 import json
+import os
 import runpy
 import subprocess
 import sys
@@ -708,9 +709,10 @@ def test_in_the_real_sandbox_an_agent_that_edits_the_spec_is_refused_and_keeps_i
     assert seen["cwd"] == str(loop.ws.resolve()) and seen["cwd"].endswith(f"/work/{drive.work_id('run')}/workspace")
     env = seen["env"]
     assert env["PWD"] == seen["cwd"] and env["HOME"] == str((loop.work / "agent-home").resolve())
+    assert "SPEC_BENCH_RESULTS_ROOT" not in env
     for k, v in env.items():
-        if k == "PATH":
-            continue
+        if k == "PATH" or os.environ.get(k) == v:
+            continue        # the machine's own variable, passed through as it is (CI has RUST_TOOLCHAIN_FILE=tools/dbench/…)
         v = v.replace(str(loop.root), "<the test's root>")                   # which conftest names after the sandbox tests
         assert "bench" not in k.lower() and "bench" not in v.lower(), (k, v)
         for word in (MODEL, Scripted.name, "covpack", str(loop.run), str(loop.root / "awesome-local-ai")):
