@@ -650,6 +650,9 @@ fn print_job_detail(node: &str, v: &JobView) {
             .collect();
         println!("env       {}", env.join(" "));
     }
+    if let Some(from_run) = &j.spec.from_run {
+        println!("from run  {from_run}");
+    }
     println!("attempts  {}", j.attempt);
     if let Some(h) = &j.harness {
         println!("harness   {}", h.describe());

@@ -21,6 +21,15 @@ pub fn valid_pack(s: &str) -> bool {
     !s.is_empty() && s.len() <= MAX_PACK_LEN && !s.starts_with('/') && s.split('/').all(valid_id)
 }
 
+/// Longest run directory accepted (repo-relative, e.g. `combinations/…/benchmarks/vidi/v2-r1`).
+pub const MAX_RUN_DIR_LEN: usize = 512;
+
+/// A repo-relative run directory: the same shape as a pack path (valid ids joined by `/`; no
+/// leading or trailing `/`, no empty, `.` or `..` segments), so it cannot leave the repo.
+pub fn valid_run_dir(s: &str) -> bool {
+    !s.is_empty() && s.len() <= MAX_RUN_DIR_LEN && !s.starts_with('/') && s.split('/').all(valid_id)
+}
+
 /// Suffix that numbers repeat runs: `canvas-pi` × 3 becomes `canvas-pi-r1`, `-r2`, `-r3`.
 pub const REPEAT_SUFFIX: &str = "-r";
 

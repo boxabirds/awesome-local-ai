@@ -33,6 +33,7 @@ async fn main() -> Result<()> {
             pack,
             scope,
             stories,
+            from_run,
             run_id,
             client: c,
             no_record,
@@ -54,6 +55,7 @@ async fn main() -> Result<()> {
                     client: c.into(),
                     record: !no_record,
                     server_env: server_env.iter().cloned().collect(),
+                    from_run: from_run.as_deref().map(|r| r.trim_end_matches('/').to_string()),
                 };
                 spec.validate()
                     .map_err(anyhow::Error::msg)

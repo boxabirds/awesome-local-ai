@@ -19,6 +19,14 @@ const OTHER_COMBINATION: &str = "test/combo/other";
 const SIGTERM_EXIT: i32 = 128 + libc::SIGTERM;
 const SIGKILL_EXIT: i32 = 128 + libc::SIGKILL;
 
+/// A finished run to start a known-good job from, as a job names it: relative to the repo.
+const REFERENCE_RUN: &str = "combinations/test/combo/fake/benchmarks/fakepack/v2-r3";
+/// What the harness's known-good mode reads from that run (drive.py known_good_base).
+const BUNDLE_FILE: &str = "workspace.bundle";
+const METRICS_FILE: &str = "metrics.json";
+const KNOWN_GOOD_STORY: u32 = 2;
+const NODE_NAME: &str = "node-t";
+
 static COUNTER: AtomicU32 = AtomicU32::new(0);
 
 struct TempRoot(PathBuf);
@@ -31,13 +39,14 @@ impl Drop for TempRoot {
 const HEADER: &str = r#"#!/usr/bin/env bash
 set -euo pipefail
 INSTALL_ID="$1"; shift
-RUN_ID=""; SCOPE=""; CLIENT=""; RECORD=0
+RUN_ID=""; SCOPE=""; CLIENT=""; RECORD=0; ONLY=""; FROM_RUN=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --run-id) RUN_ID="$2"; shift 2 ;;
     --scope) SCOPE="$2"; shift 2 ;;
     --client) CLIENT="$2"; shift 2 ;;
-    --only) shift 2 ;;
+    --only) ONLY="$2"; shift 2 ;;
+    --from-run) FROM_RUN="$2"; shift 2 ;;
     --record) RECORD=1; shift ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
@@ -47,6 +56,7 @@ RUN_DIR="$PWD/combinations/$COMBINATION/benchmarks/$(basename "$(dirname "$(dirn
 mkdir -p "$RUN_DIR"
 echo "path-head: ${PATH%%:*}"
 echo "args: $INSTALL_ID $RUN_ID $SCOPE $CLIENT $RECORD"
+if [[ -n "$FROM_RUN" ]]; then echo "known-good: only=$ONLY from-run=$FROM_RUN"; fi
 "#;
 
 const FAKE_BODY: &str = r#"echo "[story 1] Fake story one — agent starting"
@@ -1224,5 +1234,186 @@ async fn jobs_submitted_in_the_same_second_keep_their_order_across_a_restart() {
     assert_eq!(b.cancel("zz-first").await.0, 202);
     assert_eq!(b.cancel("aa-second").await.0, 200, "a queued job is cancelled at once");
     b.wait_status("zz-first", "cancelled").await;
+    drop(env.root);
+}
+
+/// A reference run directory in the node's repo holding only the named files.
+fn reference_run(env: &Env, rel: &str, files: &[&str]) {
+    let dir = env.repo.join(rel);
+    std::fs::create_dir_all(&dir).unwrap();
+    for f in files {
+        std::fs::write(dir.join(f), "{}").unwrap();
+    }
+}
+
+fn known_good_spec(run_id: &str, from_run: &str) -> Value {
+    let mut s = spec("fakepack", run_id);
+    s["stories"] = json!([KNOWN_GOOD_STORY]);
+    s["from_run"] = json!(from_run);
+    s
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_known_good_job_names_its_reference_run_to_the_harness_and_keeps_it_across_a_restart() {
+    let env = setup();
+    reference_run(&env, REFERENCE_RUN, &[BUNDLE_FILE, METRICS_FILE]);
+    let other_run = format!("{REFERENCE_RUN}-other");
+    let mut a = start(&env, false);
+
+    let s = known_good_spec("kg-1", REFERENCE_RUN);
+    let (code, v) = a.submit("kg-1", &s).await;
+    assert_eq!(code, 201, "{v}");
+    assert_eq!(v["spec"]["from_run"], REFERENCE_RUN, "{v}");
+
+    // The same id and spec is the same job; another reference run, or none, is a different one.
+    assert_eq!(a.submit("kg-1", &s).await.0, 200);
+    assert_eq!(a.submit("kg-1", &known_good_spec("kg-1", &other_run)).await.0, 409);
+    let mut plain = s.clone();
+    plain.as_object_mut().unwrap().remove("from_run");
+    assert_eq!(a.submit("kg-1", &plain).await.0, 409);
+
+    // The harness gets the story and the reference run as a path in the node's checkout.
+    a.wait_status("kg-1", "done").await;
+    let log = a.log("kg-1").await;
+    let want = format!(
+        "known-good: only={KNOWN_GOOD_STORY} from-run={}",
+        env.repo.join(REFERENCE_RUN).display()
+    );
+    assert!(log.contains(&want), "want {want:?} in {log}");
+
+    // What can be checked without the node's files is checked at submit, and says why.
+    for (bad, why) in [
+        ("../outside", "from_run"),
+        ("combinations/../../outside", "from_run"),
+        ("/etc", "from_run"),
+        ("combinations//x", "from_run"),
+        ("", "from_run"),
+    ] {
+        let (code, v) = a.submit("kg-bad", &known_good_spec("kg-bad", bad)).await;
+        assert_eq!(code, 400, "{bad:?}: {v}");
+        let e = v["error"].as_str().unwrap_or_default();
+        assert!(e.contains(why), "{bad:?}: {e}");
+    }
+    let mut no_stories = known_good_spec("kg-bad", REFERENCE_RUN);
+    no_stories.as_object_mut().unwrap().remove("stories");
+    let (code, v) = a.submit("kg-bad", &no_stories).await;
+    assert_eq!(code, 400, "{v}");
+    assert!(v["error"].as_str().unwrap_or_default().contains("stories"), "{v}");
+
+    // How many stories a known-good run may have is the harness's to say, not dbench's.
+    let mut several = known_good_spec("kg-2", REFERENCE_RUN);
+    several["stories"] = json!([KNOWN_GOOD_STORY, KNOWN_GOOD_STORY + 1]);
+    assert_eq!(a.submit("kg-2", &several).await.0, 201);
+    a.wait_status("kg-2", "done").await;
+    let log = a.log("kg-2").await;
+    assert!(
+        log.contains(&format!("known-good: only={KNOWN_GOOD_STORY},{}", KNOWN_GOOD_STORY + 1)),
+        "{log}"
+    );
+
+    // The reference run is part of the stored spec: a restarted server still has it.
+    a.child.kill().unwrap();
+    a.child.wait().unwrap();
+    let b = start(&env, false);
+    assert_eq!(b.get("/v1/jobs/kg-1").await["spec"]["from_run"], REFERENCE_RUN);
+    assert_eq!(b.submit("kg-1", &s).await.0, 200);
+    assert_eq!(b.submit("kg-1", &known_good_spec("kg-1", &other_run)).await.0, 409);
+    drop(env.root);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_known_good_job_whose_reference_run_is_incomplete_fails_before_it_starts() {
+    let env = setup();
+    let no_bundle = format!("{REFERENCE_RUN}-nobundle");
+    let no_metrics = format!("{REFERENCE_RUN}-nometrics");
+    let absent = format!("{REFERENCE_RUN}-absent");
+    reference_run(&env, &no_bundle, &[METRICS_FILE]);
+    reference_run(&env, &no_metrics, &[BUNDLE_FILE]);
+    let srv = start(&env, false);
+    for (id, from_run, missing) in [
+        ("kg-nobundle", &no_bundle, BUNDLE_FILE),
+        ("kg-nometrics", &no_metrics, METRICS_FILE),
+        ("kg-absent", &absent, "no such directory"),
+    ] {
+        let (code, v) = srv.submit(id, &known_good_spec(id, from_run)).await;
+        assert_eq!(code, 201, "{v}");
+        let v = srv.wait_status(id, "failed").await;
+        let reason = v["state"]["reason"].as_str().unwrap();
+        assert!(reason.contains(missing), "{id}: {reason}");
+        assert!(reason.contains(from_run.as_str()), "{id}: {reason}");
+        assert_eq!(v["attempt"], 0, "the harness never started: {v}");
+        assert!(!srv.log(id).await.contains("args:"), "the harness never started");
+    }
+    drop(env.root);
+}
+
+/// The `dbench` client, as a person runs it, against the test server.
+fn dbench_cli(env: &Env, srv: &Server, args: &[&str]) -> std::process::Output {
+    let config = env.root.0.join("nodes.toml");
+    std::fs::write(
+        &config,
+        format!("[nodes.{NODE_NAME}]\nurl = \"{}\"\ntoken = \"{}\"\n", srv.base, srv.token),
+    )
+    .unwrap();
+    Command::new(env!("CARGO_BIN_EXE_dbench"))
+        .arg("--config")
+        .arg(&config)
+        .args(args)
+        .env("HOME", &env.user_home)
+        .output()
+        .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn submit_takes_a_reference_run_and_repeats_it_as_separate_runs() {
+    const REPEATS: usize = 2;
+    let env = setup();
+    reference_run(&env, REFERENCE_RUN, &[BUNDLE_FILE, METRICS_FILE]);
+    let srv = start(&env, false);
+    let story = KNOWN_GOOD_STORY.to_string();
+    let repeats = REPEATS.to_string();
+    let tab_completed = format!("{REFERENCE_RUN}/");
+    let submit = |from_run: &'static str, extra: &[&'static str]| {
+        let mut args = vec!["submit", NODE_NAME, "--id", "kg", "--install-id", INSTALL_ID];
+        args.extend(["--pack", "fakepack", "--scope", "canvas", "--run-id", "kg-s2"]);
+        args.extend(["--from-run", from_run]);
+        args.extend(extra);
+        args
+    };
+
+    let from_run: &'static str = Box::leak(tab_completed.into_boxed_str());
+    let stories: &'static str = Box::leak(story.into_boxed_str());
+    let count: &'static str = Box::leak(repeats.into_boxed_str());
+    let out = dbench_cli(&env, &srv, &submit(from_run, &["--stories", stories, "--repeat", count]));
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    for n in 1..=REPEATS {
+        let id = format!("kg-r{n}");
+        let v = srv.wait_status(&id, "done").await;
+        assert_eq!(v["spec"]["from_run"], REFERENCE_RUN, "{v}");
+        assert_eq!(v["spec"]["run_id"], format!("kg-s2-r{n}"), "{v}");
+        assert_eq!(v["spec"]["stories"], json!([KNOWN_GOOD_STORY]), "{v}");
+    }
+    // The same command again changes nothing.
+    let again = dbench_cli(&env, &srv, &submit(from_run, &["--stories", stories, "--repeat", count]));
+    assert!(again.status.success(), "{}", String::from_utf8_lossy(&again.stderr));
+    assert!(String::from_utf8_lossy(&again.stderr).contains("no change"));
+
+    // `dbench status <node> <job>` says which run the job starts from.
+    let status = dbench_cli(&env, &srv, &["status", NODE_NAME, "kg-r1"]);
+    let shown = String::from_utf8_lossy(&status.stdout).into_owned();
+    assert!(status.status.success(), "{}", String::from_utf8_lossy(&status.stderr));
+    assert!(shown.contains(&format!("from run  {REFERENCE_RUN}")), "{shown}");
+
+    // Refused before anything is sent: no stories, or a path that isn't inside the repo.
+    for (from_run, extra, why) in [
+        (REFERENCE_RUN, &[][..], "--stories"),
+        ("../outside", &["--stories", "2"][..], "from_run"),
+        ("/etc", &["--stories", "2"][..], "from_run"),
+    ] {
+        let out = dbench_cli(&env, &srv, &submit(from_run, extra));
+        let said = String::from_utf8_lossy(&out.stderr).into_owned();
+        assert!(!out.status.success(), "{from_run} {extra:?}");
+        assert!(said.contains(why), "{from_run} {extra:?}: {said}");
+    }
     drop(env.root);
 }

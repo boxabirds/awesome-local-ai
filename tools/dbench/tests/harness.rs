@@ -68,12 +68,13 @@ const HARNESS: &str = r#"#!/usr/bin/env bash
 set -euo pipefail
 VERSION="@VERSION@"
 INSTALL_ID="$1"; shift
-RUN_ID=""; PACK=""; RECORD=0
+RUN_ID=""; PACK=""; RECORD=0; FROM_RUN=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --pack) PACK="$2"; shift 2 ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
     --scope|--client|--only) shift 2 ;;
+    --from-run) FROM_RUN="$2"; shift 2 ;;
     --record) RECORD=1; shift ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
@@ -84,6 +85,7 @@ ROOT="${SPEC_BENCH_RESULTS_ROOT:-$CODE_ROOT}"
 echo "harness: $VERSION"
 echo "code-root: $CODE_ROOT"
 echo "results-root: ${SPEC_BENCH_RESULTS_ROOT:-unset}"
+if [[ -n "$FROM_RUN" ]]; then echo "from-run: $FROM_RUN"; fi
 if [[ -f "$CODE_ROOT/RELEASE.json" ]]; then echo "manifest: $(tr -d ' \n' < "$CODE_ROOT/RELEASE.json")"; fi
 COMBINATION="$(sed -n 's/^COMBINATION="\(.*\)"/\1/p' "$HOME/.local/share/$INSTALL_ID/install.env")"
 RUN_DIR="$ROOT/combinations/$COMBINATION/benchmarks/$(basename "$PACK")/$RUN_ID"
@@ -806,4 +808,37 @@ async fn old_release_directories_are_pruned_but_never_the_one_a_job_runs_from() 
     let present = releases_present(&env);
     assert!(!present.contains(&TAG_1.to_string()), "{present:?}");
     assert!(present.contains(&TAG_2.to_string()), "{present:?}");
+}
+
+/// What the harness's known-good mode reads from a reference run (drive.py known_good_base).
+const REFERENCE_FILES: [&str; 2] = ["workspace.bundle", "metrics.json"];
+const KNOWN_GOOD_STORY: u32 = 2;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_known_good_job_on_a_release_reads_its_reference_run_from_the_checkout() {
+    // The release's own directory holds code only. A finished run is a result, so the path the
+    // harness is given is in the node's checkout, where results are, whichever harness runs.
+    let env = setup();
+    release(&env, TAG_1, "v1", "");
+    let reference = format!("combinations/{COMBINATION}/benchmarks/{PACK_NAME}/v2-r3");
+    for f in REFERENCE_FILES {
+        write(&env.repo, &format!("{reference}/{f}"), "{}");
+    }
+    let srv = start(&env, &[]);
+    let spec = json!({"install_id": INSTALL_ID, "pack": PACK, "run_id": "kg", "client": "pi", "record": false,
+                      "stories": [KNOWN_GOOD_STORY], "from_run": reference});
+    let resp = srv
+        .http
+        .put(format!("{}/v1/jobs/kg", srv.base))
+        .bearer_auth(&srv.token)
+        .json(&spec)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status().as_u16(), 201, "{}", resp.text().await.unwrap());
+    srv.wait_status("kg", "done").await;
+    let log = srv.log("kg").await;
+    assert!(log.contains(&format!("code-root: {}", release_dir(&env, TAG_1).display())), "{log}");
+    assert!(log.contains(&format!("from-run: {}", env.repo.join(&reference).display())), "{log}");
+    assert!(!release_dir(&env, TAG_1).join(&reference).exists());
 }
