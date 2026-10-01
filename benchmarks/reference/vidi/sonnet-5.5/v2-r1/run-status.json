@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness bd0010f1, client claude, model claude-sonnet-5-5",
-  "at": "2026-10-01T00:52:46Z",
+  "state": "failed",
+  "reason": "exit 1: if _last_event_type(events) not in TOOL_EVENT_TYPES: ^^^^^^^^^^^ AttributeError: 'str' object has no attribute 'get'",
+  "at": "2026-10-01T02:53:51Z",
   "host": "Apple M2 16GB"
 }
