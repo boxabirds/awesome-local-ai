@@ -1,0 +1,177 @@
+# Tasks
+
+| # | Title | Status | Type | Implements |
+|---|-------|--------|------|------------|
+| 1 | Write title, search and cursor unit tests first (TC-01 to TC-05) | proposed | test:unit | dash.boards_api, dash.rename, dash.pages |
+| 2 | Implement board list API: title migration, keyset pagination, normalised search, meta lookup, title on GET board | proposed | implementation | dash.boards_api |
+| 3 | Integration tests for board list, search, pagination and meta lookup against real D1 (TC-06 to TC-13) | proposed | test:integration | dash.boards_api |
+| 4 | Implement unauthenticated rename: PATCH /api/boards/:id with versioned D1 update, room setTitle live propagation and self-heal on room load | proposed | implementation | dash.rename |
+| 5 | Integration tests for rename: guest access, validation, refusals, live propagation, concurrency and self-heal (TC-14 to TC-19) | proposed | test:integration | dash.rename |
+| 6 | Implement My boards dashboard: list with Show more, search with debounce, empty/no-match/error states, New board, signed-out view | proposed | implementation | dash.pages |
+| 7 | Implement board title display and editing: inline BoardTitle with live updates and tab title, RenameDialog on dashboard | proposed | implementation | dash.pages |
+| 8 | Component tests for dashboard states, search debounce, title editor, rename dialog, live tab title and signed-out view (TC-20 to TC-29) | proposed | test:ui-component | dash.pages |
+| 9 | E2E dashboard workflows: find and rename, live rename by a guest, long list, new board, offline title, signed-out view (TC-30 to TC-35) | proposed | test:e2e | dash.rename, dash.pages |
+
+## Details
+
+### 1. Write title, search and cursor unit tests first (TC-01 to TC-05)
+
+## Goal
+Test-first unit suites for the pure functions in three capability contracts; stubs throw `not implemented`.
+
+## Setup
+Story 15 settings in `config.ts`: DASHBOARD_PAGE_SIZE, BOARD_TITLE_MIN_CHARS, BOARD_TITLE_MAX_CHARS, SEARCH_DEBOUNCE_MS, SEARCH_RESULT_BUDGET_MS, SEARCH_QUERY_MAX_CHARS, DASHBOARD_LOAD_BUDGET_MS, TITLE_LIVE_BUDGET_MS, GUEST_BOARDS_META_MAX, ROOM_TITLE_NOTIFY_ATTEMPTS, TAB_TITLE_SUFFIX.
+
+## dash.boards_api — `normaliseForSearch`, `encodeCursor`/`decodeCursor`
+- TC-01 `'  Q3 RETRO '` → `'q3 retro'`; `'Équipe'` → `'équipe'`; full-width `'ＲＥＴＲＯ'` → `'retro'` (international search).
+- TC-03 cursor round-trip equal; tampered base64 → null; valid base64 of wrong JSON shape → null (error path).
+
+## dash.rename — `validateTitle`, `applyTitleIfNewer`
+- TC-02 `''` invalid; `'   '` invalid; `'a'` ok; exactly BOARD_TITLE_MAX_CHARS ok; max + 1 invalid (boundary); max chars wrapped in spaces → ok trimmed; `'a b'` invalid `control_chars`.
+- TC-05 meta at version 4 receiving 3 / 4 / 5 → ignore / ignore / apply (older rename never overwrites newer).
+
+## dash.pages — `displayTitle`
+- TC-04 (meta v3, fetched v5) → fetched; (v5, v5) → meta; (no meta, v2) → fetched; (v7, v2) → meta.
+
+## Done when
+Suites compile and fail only with "not implemented"; committed.
+
+### 2. Implement board list API: title migration, keyset pagination, normalised search, meta lookup, title on GET board
+
+## Goal
+Implement dash.boards_api per contract.
+
+## Approach
+- `0002_board_titles.sql`: add `title_search` and `title_version` to `boards`, backfill `title_search = lower(title)`, index `board_visits_page (user_id, last_opened_at DESC, board_id)`.
+- `normaliseForSearch` = NFKC + `toLocaleLowerCase('und')` + trim (shared).
+- `encodeCursor`/`decodeCursor`: base64url JSON `{t, b}`; decode validates shape.
+- `listBoards(db, userId, {q, cursor, limit})`: keyset SQL ordering `last_opened_at DESC, board_id ASC`, `instr(title_search, ?) > 0` when q non-empty, fetch `limit + 1` to compute `nextCursor`; `createdByMe = created_by = userId`.
+- `GET /api/me/boards?q&cursor`: 401 signed out; normalise q, 400 `bad_query` above SEARCH_QUERY_MAX_CHARS; 400 `bad_cursor`; D1 error → 500; else `{boards, nextCursor}` with page DASHBOARD_PAGE_SIZE (empty list for no boards/no matches).
+- `GET /api/boards/meta?ids`: max GUEST_BOARDS_META_MAX else 400; drop malformed ids; titles from `boards`, legacy existing boards (`exists()` RPC) → DEFAULT_BOARD_TITLE; unknown omitted. Used by the signed-out dashboard.
+- `GET /api/boards/:id` (story 5) now returns `{id, title, titleVersion}` for the board page title.
+- Story 14's `recentBoards` delegates to `listBoards` with RECENT_BOARDS_LIMIT.
+
+## Done when
+TC-01 and TC-03 pass; integration task 15.3 passes.
+
+### 3. Integration tests for board list, search, pagination and meta lookup against real D1 (TC-06 to TC-13)
+
+## Goal
+Verify dash.boards_api routes (`GET /api/me/boards`, `GET /api/boards/meta`, `GET /api/boards/:id`) with real D1 (migrations 0001 and 0002) and real BoardRoom existence checks.
+
+## Fixtures
+`board-titles.ts`: realistic titles ("Q3 retro", "Retro – onboarding squad", "Roadmap 2027", "Équipe design", "Sprint 42 planning"); 120-visit seed with 10 identical `last_opened_at` values.
+
+## Cases
+- TC-06 no visits → `[]`, `nextCursor` null (empty).
+- TC-07 120 visits → pages of 50, 50, 20; union equals the 120 exactly once; ties ordered by board_id ascending (no duplicates or gaps).
+- TC-08 exactly DASHBOARD_PAGE_SIZE → `nextCursor` null; DASHBOARD_PAGE_SIZE + 1 → present (boundary).
+- TC-09 60 boards: `q=RETRO` and `q=équipe` return only matching titles in list order; following `nextCursor` stays within filtered results.
+- TC-10 q of SEARCH_QUERY_MAX_CHARS + 1 → 400; garbage cursor → 400; no cookie → 401 (error paths).
+- TC-11 users A and B → A sees only A's visits; `createdByMe` true only where A created (negative: no cross-user leak).
+- TC-12 meta with existing, legacy-without-row, unknown and malformed ids → existing + legacy (default title) only; GUEST_BOARDS_META_MAX + 1 ids → 400.
+- TC-13 after a rename, `GET /api/boards/:id` returns new `title` and `titleVersion`.
+
+## Done when
+All pass in `npm run test:integration`.
+
+### 4. Implement unauthenticated rename: PATCH /api/boards/:id with versioned D1 update, room setTitle live propagation and self-heal on room load
+
+## Goal
+Implement dash.rename per contract: anyone with the link can rename; everyone on the board sees the title live; concurrent renames converge.
+
+## Approach
+- `validateTitle`: trim, reject control characters, length BOARD_TITLE_MIN_CHARS..BOARD_TITLE_MAX_CHARS.
+- `PATCH /api/boards/:id { title }` in `rename.ts`, never reading the session: same-Origin check → 403; `validateTitle` → 400 `invalid_title`; board existence (row, or `exists()` RPC inserting a legacy row) → 404; `UPDATE boards SET title, title_search = normaliseForSearch(title), title_version = title_version + 1, updated_at RETURNING title_version`; D1 error → 500; then `BoardRoom.setTitle(title, version)` up to ROOM_TITLE_NOTIFY_ATTEMPTS, failure only logged; respond 200 `{id, title, titleVersion}`.
+- `BoardRoom.setTitle` RPC → `applyTitleIfNewer(meta, title, version)` inside a `SERVER_ORIGIN` transaction; story 4's update handler stores and broadcasts it; older versions ignored.
+- Room load (story 4 modification): after storage load read `title, title_version` from `env.DB`; `applyTitleIfNewer`; D1 unavailable → keep doc, warn.
+- `SERVER_ORIGIN` is not tracked by story 8's UndoManager, so renames are not undoable.
+
+## Done when
+TC-02 and TC-05 pass; integration task 15.5 passes.
+
+### 5. Integration tests for rename: guest access, validation, refusals, live propagation, concurrency and self-heal (TC-14 to TC-19)
+
+## Goal
+Verify dash.rename's contract (`PATCH /api/boards/:id`, `BoardRoom.setTitle`, room-load self-heal) with real D1, real BoardRoom and real WebSocket clients (story 3 `ws-client` helper). Waits on real sockets use E2E_EVENTUAL_TIMEOUT_MS (story 3); delivery time is logged, not asserted.
+
+## Cases
+- TC-14 no cookie (guest) PATCH "Q3 retro" while a WebSocket client is connected → 200; D1 title, `title_search` normalised, version 0 → 1; client's doc `meta.title` becomes "Q3 retro" (delivery time **logged** against TITLE_LIVE_BUDGET_MS; no sign-in needed, live propagation).
+- TC-15 signed-in non-creator PATCH `''`, BOARD_TITLE_MAX_CHARS + 1 chars, control characters → 400 each; D1 row unchanged (negative).
+- TC-16 unknown board → 404; foreign Origin → 403 and no change.
+- TC-17 two guests PATCH "Alpha" and "Beta" concurrently → D1 final title has the highest version; room meta equals D1; both WebSocket clients show the same title (convergence).
+- TC-18 inject `setTitle` failure for all ROOM_TITLE_NOTIFY_ATTEMPTS → PATCH still 200 and D1 updated; reconstruct room → doc meta equals D1 (self-heal error path).
+- TC-19 call `setTitle(v2)` after `setTitle(v3)` → meta stays v3; no update broadcast (older must not overwrite newer).
+
+## Done when
+All functional assertions pass in `npm run test:integration`. No test fails because a delivery time exceeded its budget.
+
+### 6. Implement My boards dashboard: list with Show more, search with debounce, empty/no-match/error states, New board, signed-out view
+
+## Goal
+Implement the dashboard half of dash.pages per contract (list, paginate, empty, create, search, no matches, load failure, signed-out view).
+
+## Approach
+- `api.ts`: `listMyBoards({q, cursor})`, `boardsMeta(ids)`.
+- `useBoardList`: states loading / listed / empty / no_matches / load_failed / signed_out; `setQuery` debounced by SEARCH_DEBOUNCE_MS with `AbortController` and a request sequence number so stale responses are ignored; `loadMore` appends next page, failure keeps rows and offers retry; 401 → signed_out.
+- `DashboardPage` (`/boards`): heading, New board (story 5 create action, then navigate), `SearchBox`, `BoardList` of `BoardRow` (title link, relative last opened, "Created by you", ⋯ menu with Rename), Show more when `hasMore`; "No boards yet"; "No boards match “q”" with Clear search; "Couldn't load your boards." with Retry.
+- Signed-out view: story 14 `readGuestBoards()` sorted newest first, titles via `boardsMeta` (first GUEST_BOARDS_META_MAX), "On this browser" heading, "Sign in to see your boards on every device" with `GoogleSignIn`; empty → "Boards you open will appear here."; meta error → rows without titles + Retry.
+- Router `/boards`; top bar My boards link; story 14 RecentBoards gets "See all boards".
+
+## Done when
+Component (15.8) and e2e (15.9) tasks pass for dashboard cases.
+
+### 7. Implement board title display and editing: inline BoardTitle with live updates and tab title, RenameDialog on dashboard
+
+## Goal
+Implement the title half of dash.pages per contract (rename on board, rename from dashboard, title rules, rename failure, title shown, title live).
+
+## Approach
+- `displayTitle(meta, fetched)`: higher `titleVersion` wins; ties prefer meta.
+- `api.renameBoard(id, title)` → `{title, titleVersion}` or typed error.
+- `BoardTitle({boardId, doc, connection})`: fetched `{title, titleVersion}` from `GET /api/boards/:id`; observes `doc.getMap('meta')`; shows `displayTitle` top-left and sets `document.title = title + TAB_TITLE_SUFFIX` on every change (live renames by others). State machine Viewing / ReadOnly / Editing / Invalid / Saving / Failed: click → Editing with text selected; Escape → previous title, no request; Enter or blur → `validateTitle`: invalid → "Titles must be 1–100 characters." and stay open; unchanged → no request; valid → Saving → 200 shows new title, any error → previous title restored + "Couldn't rename the board. Please try again."; ReadOnly with tooltip "Renaming needs a connection." whenever story 3 connection state is not `connected`.
+- `RenameDialog({board, onClose})` from BoardRow's Rename: input with current title selected, Save (same validation and api) updates the row immediately on success, Cancel makes no request, failure shows the message and keeps the previous row title.
+- `BoardPage` mounts BoardTitle.
+
+## Done when
+TC-04 passes; component (15.8) and e2e (15.9) title cases pass.
+
+### 8. Component tests for dashboard states, search debounce, title editor, rename dialog, live tab title and signed-out view (TC-20 to TC-29)
+
+## Goal
+jsdom tests of dash.pages' contract (`useBoardList` states, `BoardTitle` state machine, `RenameDialog`) with mocked `api.ts`, a real `Y.Doc` for meta, and fake timers.
+
+## Cases
+- TC-20 3 boards → rows with title links, relative last-opened, "Created by you" only when flagged, order preserved.
+- TC-21 page + 1 boards → Show more appends second page; button hidden when `nextCursor` null; loadMore failure keeps rows and shows retry.
+- TC-22 zero boards → "No boards yet" and New board.
+- TC-23 type 'ret' then 'retro' within SEARCH_DEBOUNCE_MS → exactly one request for 'retro'; out-of-order responses: stale one ignored; no-match response → "No boards match “retro”"; Clear search restores list (negative: stale results never shown).
+- TC-24 load error → "Couldn't load your boards.", Retry reloads, New board enabled.
+- TC-25 BoardTitle: Enter valid → saving then new title; Escape → previous, no request; blur valid → saved; blur unchanged → no request; invalid → "Titles must be 1–100 characters.", stays open; api 500 → previous restored with failure message; connection offline → not editable, "Renaming needs a connection.".
+- TC-26 RenameDialog: title preselected; Save → row shows new title; Cancel → no request; api 500 → failure message, row keeps previous title.
+- TC-27 remote change to doc `meta.title` (higher version) → BoardTitle text and `document.title` = "<title> – vidi6".
+- TC-28 signed out: guest list of 2 → "On this browser" rows with meta titles + sign-in invitation; empty guest list → "Boards you open will appear here."; meta error → rows without titles + Retry.
+- TC-29 New board → story 5 create action called and navigation to the new board.
+
+## Done when
+All pass in `npm run test:component`.
+
+### 9. E2E dashboard workflows: find and rename, live rename by a guest, long list, new board, offline title, signed-out view (TC-30 to TC-35)
+
+## Goal
+Real-browser proof that dash.pages (dashboard, BoardTitle) and dash.rename (PATCH + live room propagation) work together, run against `wrangler dev --env local` with dev-email sign-in. Functional waits use E2E_EVENTUAL_TIMEOUT_MS (story 3); durations are logged against their budgets, not asserted.
+
+## Test hook
+`POST /__test/users/:email/seed-visits?count=` (only when TEST_HOOKS=1) creates boards and visits with realistic titles.
+
+## Workflows
+- TC-30 "Find and rename": sign in; create 3 boards and rename them "Q3 retro", "Retro – onboarding", "Roadmap"; search "retro" → 2 results (search time **logged** against SEARCH_RESULT_BUDGET_MS); open "Q3 retro"; rename on the board to "Q3 retro – actions"; return to My boards → that board first with new title.
+- TC-31 "Live rename by a guest": Alex (signed in, creator) and Sam (guest context, not creator) on one board; Sam renames → Alex's title and tab title update (delivery time **logged** against TITLE_LIVE_BUDGET_MS; anyone with link can rename).
+- TC-32 "Long list": seed DASHBOARD_PAGE_SIZE + 5 visits → 50 rows (load time **logged** against DASHBOARD_LOAD_BUDGET_MS); Show more → 55, no duplicates.
+- TC-33 "New board from dashboard": board opens; back on My boards the first row is "Untitled board".
+- TC-34 "Offline title": `context.setOffline(true)` on a board → title not editable, hover "Renaming needs a connection."; nothing saved.
+- TC-35 "Signed-out dashboard": guest opens a board renamed "Design crit" from its link, visits My boards → "On this browser" lists "Design crit" with the sign-in invitation.
+
+## Done when
+All functional assertions pass in chromium; TC-30 and TC-31 also in firefox and webkit. No test fails because a duration exceeded its budget.
+
