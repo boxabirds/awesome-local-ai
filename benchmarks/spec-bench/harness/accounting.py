@@ -8,7 +8,11 @@ time, whatever the log holds: an earlier attempt of the story, a tool call that 
 call, concurrent requests.
 
 Model time comes from llama-server's log when it has requests in the window, else from the agent client's own streamed
-events (pi: request sent, first chunk, last chunk), which match the server's log to within 0.5% where both exist. Rates
+events (pi: request sent, first chunk, last chunk), which match the server's log to within 0.5% where both exist.
+Claude Code's stream (a cloud model, no server log) gives each message's blocks when they are complete and, while the
+model thinks, estimates of its thinking: a call runs from the agent's step before it (a tool's result, the session's
+start) to its first output (thinking or a block) to its last block. Its output tokens aren't in the stream (each
+block carries a running count of a few), so its decode tokens and both rates are None. Rates
 (tok/s) come from the counted calls' own durations; the owned seconds are what the partition gave each part. A call is
 counted (requests, tokens, rates) when it lies wholly inside the window and isn't a compaction's own call.
 
@@ -37,6 +41,14 @@ TOOL_KINDS = [("e2e", re.compile(r"playwright|test:e2e")),
 RX = re.compile(r'^\{"_rx":\s*([0-9.]+)')
 
 
+def claude_tool_kind(name: str, tool_input: dict) -> str:
+    """tool_kind for Claude Code's tools: Bash commands by what they run, every other tool by its name."""
+    if name != "Bash":
+        return (name or "other").lower()
+    cmd = str((tool_input or {}).get("command", ""))
+    return next((k for k, rx in TOOL_KINDS if rx.search(cmd)), "bash")
+
+
 def tool_kind(e: dict) -> str:
     """e2e, unit, build for the agent's own test and build commands; the tool's name for reads and edits; bash else."""
     if e.get("toolName") != "bash":
@@ -53,7 +65,10 @@ class Call:
     end: float
     fresh: int
     cached: int
-    out: int
+    out: int | None
+
+
+CLIENT_STREAM, CLAUDE_STREAM = "client-stream", "claude-stream"
 
 
 @dataclass
@@ -64,16 +79,19 @@ class Parsed:
     calls: list = field(default_factory=list)        # Call, from the client's stream
     problems: list = field(default_factory=list)
     abandoned: int = 0
+    source: str = CLIENT_STREAM                     # whose stream the calls came from
 
 
 def parse(events: Path, t_to: float) -> Parsed:
-    """Tool calls, compactions and streamed model calls from a pi event log, pairing starts with ends."""
+    """Tool calls, compactions and streamed model calls from a pi or Claude Code event log, pairing starts with ends."""
     out = Parsed()
     starts: dict = {}              # tool call id -> (start, kind)
     comp_open = None
     call = None                    # [sent, first] of the model call in flight
     steps: list[float] = []        # when the agent started each model call or its session ended: a tool that never ended stopped by then
     settled = None                 # when the last session ended, until the next one starts
+    claude: dict = {}              # Claude Code: message id -> its Call
+    cs = {"step": None, "thinking_from": None, "ended": None, "background": False}   # Claude Code: see _claude_event
     try:
         f = Path(events).open(errors="replace")
     except OSError:
@@ -115,6 +133,8 @@ def parse(events: Path, t_to: float) -> Parsed:
                     out.abandoned += 1         # the previous call never ended: the session was cut off
                 call = [rx, None]
                 steps.append(rx)
+            elif t in ("assistant", "user", "result") or (t == "system" and e.get("subtype") in CLAUDE_SYSTEM):
+                _claude_event(e, rx, out, claude, starts, steps, cs)
             elif t == "message_end" and role == "assistant" and call is not None:
                 u = e["message"].get("usage")
                 u = u if isinstance(u, dict) else {}
@@ -131,6 +151,71 @@ def parse(events: Path, t_to: float) -> Parsed:
         out.compactions.append((comp_open, max(comp_open, t_to)))
         out.problems.append("a compaction never ended; counted to the window's end")
     return out
+
+
+CLAUDE_SYSTEM = ("init", "thinking_tokens", "task_notification")
+BACKGROUND = "background"       # the tool kind of an agent waiting, its turn ended, for a command it left running
+
+
+def _claude_event(e: dict, rx: float, out: Parsed, claude: dict, starts: dict, steps: list, cs: dict) -> None:
+    """One event of Claude Code's stream into out. cs carries the agent's last step (a block, a tool's result, a
+    session start: a call is sent from there), when the model started thinking before a message's first block, when
+    the last session ended, and whether a command it left running in the background finished since. A subagent's
+    events (parent_tool_use_id set) are left out: they run inside the agent's own Task tool call.
+
+    Between a session's end (result) and the next start (init): if a background command finished in between,
+    Claude Code itself started the turn to report it, and the wait was the agent's (tool time, kind background;
+    Opus v2-r3 story 12); otherwise the harness started a new session, and the wait is between sessions."""
+    t, sub = e.get("type"), e.get("subtype")
+    if e.get("parent_tool_use_id"):
+        if t == "assistant":
+            cs["thinking_from"] = None
+        return
+    if t == "system" and sub == "thinking_tokens":
+        if cs["thinking_from"] is None:
+            cs["thinking_from"] = rx
+        return
+    if t == "system" and sub == "task_notification":
+        cs["background"] = cs["ended"] is not None
+        return
+    if t == "system":                                      # init: a session starts
+        if cs["ended"] is not None:
+            gap = (cs["ended"], max(cs["ended"], rx))
+            (out.tools.append((*gap, BACKGROUND)) if cs["background"] else out.between.append(gap))
+        cs.update(step=rx, thinking_from=None, ended=None, background=False)
+        return
+    if t == "result":                                      # the session ended
+        steps.append(rx)
+        cs.update(step=rx, thinking_from=None, ended=rx, background=False)
+        return
+    m = e.get("message") if isinstance(e.get("message"), dict) else {}
+    blocks = [b for b in (m.get("content") if isinstance(m.get("content"), list) else []) if isinstance(b, dict)]
+    if t == "user":
+        for b in blocks:
+            if b.get("type") == "tool_result":
+                if (s := starts.pop(b.get("tool_use_id"), None)) is None:
+                    out.problems.append(f"a tool call ended without starting ({b.get('tool_use_id')})")
+                else:
+                    out.tools.append((s[0], rx, s[1]))
+        cs["step"] = rx
+        return
+    out.source = CLAUDE_STREAM
+    mid = m.get("id")
+    c = claude.get(mid)
+    if c is None:
+        u = m.get("usage") if isinstance(m.get("usage"), dict) else {}
+        first = min(cs["thinking_from"], rx) if cs["thinking_from"] is not None else rx
+        c = claude[mid] = Call(cs["step"] if cs["step"] is not None else first, first, rx,
+                               int(u.get("input_tokens") or 0) + int(u.get("cache_creation_input_tokens") or 0),
+                               int(u.get("cache_read_input_tokens") or 0), None)
+        out.calls.append(c)
+        steps.append(first)
+    c.end = rx
+    for b in blocks:
+        if b.get("type") == "tool_use":
+            tool_input = b.get("input") if isinstance(b.get("input"), dict) else {}
+            starts[b.get("id")] = (rx, claude_tool_kind(b.get("name") or "", tool_input))
+    cs.update(step=rx, thinking_from=None)
 
 
 def _partition(t_from: float, t_to: float, intervals: list) -> tuple[dict, dict]:
@@ -188,11 +273,14 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
         extra = {k: v for k, v in llama_log.summarise(counted, t_from, t_to).items() if k in ("draft_acceptance", "mean_accepted_len")} if counted else {}
         cached = 0
     elif p.calls:
-        source = "client-stream"
+        source = p.source
         spans = [(c.sent, c.first, c.end) for c in p.calls]
         counted = [c for c in p.calls if c.sent >= t_from and c.end <= t_to and not _in_compaction(c.end, comps)]
-        pre_n, dec_n, cached = sum(c.fresh for c in counted), sum(c.out for c in counted), sum(c.cached for c in counted)
-        pre_raw, dec_raw = sum(c.first - c.sent for c in counted), sum(c.end - c.first for c in counted)
+        pre_n, cached = sum(c.fresh for c in counted), sum(c.cached for c in counted)
+        dec_n = None if source == CLAUDE_STREAM else sum(c.out for c in counted)
+        # A cloud API's time to first output is queueing and network as much as reading: no rate is made of it.
+        pre_raw = sum(c.first - c.sent for c in counted) if source != CLAUDE_STREAM else 0
+        dec_raw = sum(c.end - c.first for c in counted) if dec_n is not None else 0
         extra = {}
     else:
         source, spans, counted = None, [], []
