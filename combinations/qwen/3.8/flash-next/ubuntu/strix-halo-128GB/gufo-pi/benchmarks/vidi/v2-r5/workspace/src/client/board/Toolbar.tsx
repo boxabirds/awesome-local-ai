@@ -2,6 +2,7 @@ import type React from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  disabled?: boolean;
 }
 
 /** Tooltip and accessible name of the sticky note button, exactly as the PRD words it. */
@@ -14,7 +15,7 @@ export const STICKY_NOTE_TOOLTIP = 'Sticky note – or double-click the board';
  * Pointer events stop at the toolbar so a click never reaches the viewport (which would pan the
  * board or clear the selection).
  */
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled }: ToolbarProps) {
   const stop = (event: React.SyntheticEvent): void => {
     event.stopPropagation();
   };
@@ -34,6 +35,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
         aria-label="Sticky note"
         title={STICKY_NOTE_TOOLTIP}
         onClick={onCreateSticky}
+        disabled={disabled}
       >
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
           <path

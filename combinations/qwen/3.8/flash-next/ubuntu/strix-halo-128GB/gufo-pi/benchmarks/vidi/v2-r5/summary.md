@@ -11,16 +11,18 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 1 | 6/6 | 0 | 0 | 6/6 |
 | 2 | 8/10 | 0 | 0 | 18/20 |
 | 3 | 4/7 | 0 | 0 | 22/27 |
+| 4 | 4/4 | 0 | 0 | 26/31 |
 
-**New work** 18/23, **regressions** 0, **repairs** 0, **cumulative** 22/27.
+**New work** 22/27, **regressions** 0, **repairs** 0, **cumulative** 26/31.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 37.1 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 0 | — | throttled 0%, server peak 0 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 41.7 | None | None | None | — | — | red | 18/20 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 | 3 | See other people's edits appear live on the same board | DONE | 113.9 | None | None | None | — | — | red | 22/27 |  | 0 / 1 | 3 | — | throttled 0%, server peak 0 GB |
+| 4 | Return to a board and find everything as it was left | DONE | 31.2 | None | None | None | — | — | red | 26/31 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 3 stories, 193 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/3, final acceptance 22/27, stalled 0, partial 0, 7337 lines in src+tests.
+**Totals:** 4 stories, 224 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/4, final acceptance 26/31, stalled 0, partial 0, 9521 lines in src+tests.
 
 ## How it happened
 
@@ -31,6 +33,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 1 | 4 by the agent | 7101 / 28 | `useCamera.ts` (236), `BoardViewport.tsx` (228), `styles.css` (177), `camera.ts` (174), `NOTES.md` (96), `ZoomControls.tsx` (70), +14 more |
 | 2 | 2 by the agent, + harness snapshot | 3106 / 47 | `StickyNote.tsx` (303), `board-model.ts` (250), `styles.css` (191), `App.tsx` (124), `StickyText.ts` (115), `StickyTextEditor.tsx` (104), +9 more |
 | 3 | 1 by the agent | 3354 / 30 | `board-room.ts` (172), `connectBoard.ts` (100), `protocol.ts` (86), `StickyTextEditor.tsx` (53), `index.ts` (39), `board-id.ts` (32), +14 more |
+| 4 | 1 by the agent | 2309 / 125 | `board-room.ts` (342), `board-store.ts` (169), `room-state.ts` (67), `persistence.ts` (44), `connectBoard.ts` (40), `test-hooks.ts` (38), +9 more |
 
 ### Earlier stories broken or fixed
 

@@ -93,3 +93,26 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
 
 /** Functional wait in e2e (all stories); latency is logged, not asserted. */
 export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
+/* ------------------------------------------------------- persistence ---- */
+
+/** Compact when this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** Or when log bytes reach this. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/** Keeps every row well under the platform per-row size limit. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** LoadFailed room retries load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** PRD persist.large_board. */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/** PRD persist.large_board — budget for opening a board. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/** Storage schema version. */
+export const STORAGE_SCHEMA_VERSION = 1;

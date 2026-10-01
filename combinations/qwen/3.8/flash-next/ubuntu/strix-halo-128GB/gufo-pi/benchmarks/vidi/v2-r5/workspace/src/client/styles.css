@@ -395,3 +395,8 @@ body,
   background: #e8f5e9;
   color: #2e7d32;
 }
+
+.connection-status--load_failed {
+  background: #fdecea;
+  color: #c62828;
+}

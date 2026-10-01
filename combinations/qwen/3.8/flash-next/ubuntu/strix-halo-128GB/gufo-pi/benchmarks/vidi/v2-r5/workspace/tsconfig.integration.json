@@ -19,5 +19,5 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"]
   },
-  "include": ["tests/integration", "src/shared"]
+  "include": ["tests/integration", "tests/fixtures", "src/shared", "src/worker"]
 }

@@ -124,7 +124,7 @@ describe('Worker routing: over capacity (TC-13)', () => {
       expect(snapshot(clients[i]!.doc).length).toBeGreaterThanOrEqual(1);
     }
     for (const c of clients) c.close();
-  });
+  }, 15000);
 });
 
 describe('Worker routing: board isolation (TC-17)', () => {

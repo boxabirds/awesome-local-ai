@@ -1,14 +1,21 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { handleTestHook } from './test-hooks';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  TEST_HOOKS?: string;
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    // Test hook routes (only active when env.TEST_HOOKS === '1')
+    const hookRes = await handleTestHook(request, env, url);
+    if (hookRes) return hookRes;
+
     const match = url.pathname.match(/^\/api\/rooms\/([^/]+)$/);
 
     if (match) {

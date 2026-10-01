@@ -1,3 +1,37 @@
+commit 6dc1a2200d89bf64b243750483fa14ee69847236
+vidi-agent  Thu Oct 1 12:17:02 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ playwright.config.ts                             |   2 +-
+ src/client/App.tsx                               |  13 +-
+ src/client/board/Toolbar.tsx                     |   4 +-
+ src/client/styles.css                            |   5 +
+ src/client/sync/ConnectionStatus.tsx             |   2 +
+ src/client/sync/connectBoard.ts                  |  40 ++-
+ src/shared/config.ts                             |  23 ++
+ src/shared/persistence.ts                        |  44 +++
+ src/shared/protocol.ts                           |   2 +
+ src/shared/room-state.ts                         |  67 ++++
+ src/worker/board-room.ts                         | 342 ++++++++++++++------
+ src/worker/board-store.ts                        | 169 ++++++++++
+ src/worker/index.ts                              |   7 +
+ src/worker/test-hooks.ts                         |  38 +++
+ tests/component/ConnectionStatus.test.tsx        |  55 +++-
+ tests/component/connectBoard.test.ts             | 157 +++++++++
+ tests/e2e/broken-board.spec.ts                   | 140 ++++++++
+ tests/e2e/helpers/wrangler-process.ts            |  75 +++++
+ tests/e2e/persistence.spec.ts                    | 190 +++++++++++
+ tests/fixtures/boards.ts                         | 124 ++++++++
+ tests/integration/board-room-persistence.test.ts | 367 +++++++++++++++++++++
+ tests/integration/board-room.test.ts             |   2 +-
+ tests/integration/board-store.test.ts            | 388 +++++++++++++++++++++++
+ tests/integration/env.d.ts                       |   5 +
+ tests/unit/board-store-chunks.test.ts            |  82 +++++
+ tests/unit/room-state.test.ts                    |  89 ++++++
+ tsconfig.integration.json                        |   2 +-
+ 27 files changed, 2309 insertions(+), 125 deletions(-)
 commit d483e5238697c684e2d7b424e0b81dc60e770636
 vidi-agent  Thu Oct 1 11:42:35 2026 +0000
 

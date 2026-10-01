@@ -3,170 +3,318 @@ import * as syncProtocol from 'y-protocols/sync';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { DurableObject } from 'cloudflare:workers';
-import { decodeMessage, wrapSyncMessage, encodeAwarenessMessage, MESSAGE_SYNC, CLOSE_UNSUPPORTED_DATA } from '../shared/protocol';
+import {
+  decodeMessage,
+  wrapSyncMessage,
+  encodeAwarenessMessage,
+  MESSAGE_SYNC,
+  CLOSE_UNSUPPORTED_DATA,
+  CLOSE_BOARD_LOAD_FAILED,
+  CLOSE_STORAGE_FAILURE,
+} from '../shared/protocol';
+import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config';
+import { BoardStore, LOAD_ORIGIN, type LoadResult } from './board-store';
+import { nextRoomState, type RoomState, type RoomEvent } from '../shared/room-state';
 import type { Env } from './index';
 
 /**
  * BoardRoom: one Durable Object instance per board.
  *
- * Holds the board's Y.Doc in memory, relays Yjs sync and awareness messages over
- * WebSockets. Uses the non-hibernating WebSocket accept API so the object stays alive
- * while sockets are open (the doc is memory-only until story 4).
- *
- * On connection the server sends SyncStep1 to the client (asking the client to share
- * everything it already has). This is essential: without it, a client's pre-connect
- * state (e.g. schemaVersion set before the provider attached) would never reach the
- * server's doc, and subsequent deltas that reference those items would be unapplicable
- * on other clients.
- *
- * Broadcast: when an update arrives from a client (SyncStep2 or Update), the server
- * applies it to its own doc and forwards the raw update bytes to all other connected
- * clients. This works because the initial sync exchange ensures every client has the
- * same base state as the server.
+ * Persists every Yjs update to SQLite storage before broadcasting, reloads on wake,
+ * uses WebSocket hibernation so idle boards consume no compute. Damaged updates are
+ * quarantined; an unreadable snapshot puts the room into load-failed state.
  */
 export class BoardRoom extends DurableObject<Env> {
   private doc: Y.Doc | null = null;
-  private sockets: Set<WebSocket> = new Set();
+  private state: RoomState = 'loading';
+  private lastLoadFailedAt = 0;
+  private loadPromise: Promise<void>;
+  private savedChunk0: Uint8Array | null = null;
 
-  private getDoc(): Y.Doc {
-    if (!this.doc) {
-      this.doc = new Y.Doc();
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    this.loadPromise = this.ctx.blockConcurrencyWhile(async () => {
+      this.performLoad();
+    });
+  }
+
+  private transition(event: RoomEvent): void {
+    this.state = nextRoomState(this.state, event);
+  }
+
+  /** Returns current state without TypeScript narrowing. */
+  private getState(): RoomState {
+    return this.state as RoomState;
+  }
+
+  private performLoad(): void {
+    // Set state directly to 'loading' — this is the entry point for all load paths
+    this.state = 'loading';
+
+    try {
+      const store = new BoardStore(this.ctx.storage);
+      store.migrate();
+      const doc = new Y.Doc();
+      const result: LoadResult = store.load(doc);
+
+      if (result.ok) {
+        this.doc = doc;
+        this.state = 'ready';
+
+        // Set up update listener for persistence and broadcasting
+        doc.on('update', (update: Uint8Array, origin: unknown) => {
+          if (origin === LOAD_ORIGIN) return;
+
+          // Try to store before broadcasting
+          try {
+            store.append(update);
+          } catch (e) {
+            // Storage failure: close all sockets, discard doc
+            console.error(JSON.stringify({ event: 'storage_failure', error: String(e) }));
+            this.transition('storage-error');
+            this.discardDoc();
+            this.closeAllSockets(CLOSE_STORAGE_FAILURE, 'storage failure');
+            return;
+          }
+
+          // Broadcast to all sockets except the origin
+          if (origin instanceof WebSocket) {
+            this.broadcastUpdate(update, origin);
+          } else {
+            this.broadcastUpdate(update, null);
+          }
+
+          // Compact if needed
+          store.compactIfNeeded(doc);
+        });
+      } else {
+        // Load failed
+        this.state = 'load-failed';
+        this.lastLoadFailedAt = Date.now();
+        console.error(JSON.stringify({ event: 'load_failure', reason: result.reason, error: result.error }));
+      }
+    } catch (e) {
+      this.state = 'load-failed';
+      this.lastLoadFailedAt = Date.now();
+      console.error(JSON.stringify({ event: 'load_exception', error: String(e) }));
     }
-    return this.doc;
+  }
+
+  private discardDoc(): void {
+    this.doc = null;
+  }
+
+  private closeAllSockets(code: number, reason: string): void {
+    const sockets = this.ctx.getWebSockets();
+    for (const ws of sockets) {
+      try {
+        ws.close(code, reason);
+      } catch {
+        // already closed
+      }
+    }
   }
 
   async fetch(request: Request): Promise<Response> {
+    await this.loadPromise;
+
+    // Handle internal test hook requests (corrupt-snapshot, repair)
+    const url = new URL(request.url);
+    if (url.pathname === '/corrupt-snapshot' && request.method === 'POST') {
+      return this.handleCorruptSnapshot();
+    }
+    if (url.pathname === '/repair' && request.method === 'POST') {
+      return this.handleRepair();
+    }
+
     const upgradeHeader = request.headers.get('Upgrade');
     if (upgradeHeader !== 'websocket') {
       return new Response('Expected WebSocket', { status: 426 });
     }
 
+    // Handle state-specific connection logic
+    if (this.state === 'load-failed') {
+      const now = Date.now();
+      if (now - this.lastLoadFailedAt < LOAD_RETRY_MIN_INTERVAL_MS) {
+        // Too soon to retry; reject
+        const pair = new WebSocketPair();
+        const [client, server] = [pair[0] as WebSocket, pair[1] as WebSocket];
+        server.accept();
+        server.close(CLOSE_BOARD_LOAD_FAILED, 'board load failed');
+        return new Response(null, { status: 101, webSocket: client });
+      }
+      // Retry load
+      this.performLoad();
+      const stateAfter = this.getState();
+      if (stateAfter !== 'ready') {
+        // Still failing
+        const pair = new WebSocketPair();
+        const [client, server] = [pair[0] as WebSocket, pair[1] as WebSocket];
+        server.accept();
+        server.close(CLOSE_BOARD_LOAD_FAILED, 'board load failed');
+        return new Response(null, { status: 101, webSocket: client });
+      }
+    }
+
+    if (this.state === 'storage-failed') {
+      // Retry load
+      this.performLoad();
+      const stateAfter2 = this.getState();
+      if (stateAfter2 !== 'ready') {
+        const pair = new WebSocketPair();
+        const [client, server] = [pair[0] as WebSocket, pair[1] as WebSocket];
+        server.accept();
+        server.close(CLOSE_STORAGE_FAILURE, 'storage failure');
+        return new Response(null, { status: 101, webSocket: client });
+      }
+    }
+
     const pair = new WebSocketPair();
     const [client, server] = [pair[0] as WebSocket, pair[1] as WebSocket];
-    void client;
-    this.handleSocket(server);
+
+    // Use hibernation API
+    this.ctx.acceptWebSocket(server);
+
+    // Send SyncStep1 to the newly connected client
+    const encoder = encoding.createEncoder();
+    encoding.writeVarUint(encoder, MESSAGE_SYNC);
+    syncProtocol.writeSyncStep1(encoder, this.doc!);
+    server.send(encoding.toUint8Array(encoder));
+
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  private handleSocket(ws: WebSocket): void {
-    this.sockets.add(ws);
+  webSocketMessage(ws: WebSocket, message: ArrayBuffer | string): void {
+    // State checks
+    if (this.state === 'load-failed') {
+      try { ws.close(CLOSE_BOARD_LOAD_FAILED, 'board load failed'); } catch { /* */ }
+      return;
+    }
+    if (this.state === 'storage-failed') {
+      try { ws.close(CLOSE_STORAGE_FAILURE, 'storage failure'); } catch { /* */ }
+      return;
+    }
 
-    ws.addEventListener('message', (event: MessageEvent) => {
-      this.handleMessage(ws, event.data);
-    });
-
-    ws.addEventListener('close', () => {
-      this.sockets.delete(ws);
-    });
-
-    ws.addEventListener('error', () => {
-      this.sockets.delete(ws);
-    });
-
-    ws.accept();
-
-    // Server-initiated SyncStep1: ask the client to share its current state.
-    // Deferred to the next microtask so the fetch() response is fully delivered
-    // before the first message is dispatched.
-    void Promise.resolve().then(() => {
-      if (ws.readyState === WebSocket.OPEN) {
-        const encoder = encoding.createEncoder();
-        encoding.writeVarUint(encoder, MESSAGE_SYNC);
-        syncProtocol.writeSyncStep1(encoder, this.getDoc());
-        ws.send(encoding.toUint8Array(encoder));
-      }
-    });
-  }
-
-  private handleMessage(ws: WebSocket, data: ArrayBuffer | string): void {
-    const decoded = decodeMessage(data);
+    const decoded = decodeMessage(message);
 
     switch (decoded.kind) {
       case 'sync': {
         try {
-          const doc = this.getDoc();
+          const doc = this.doc;
+          if (!doc) {
+            ws.close(CLOSE_STORAGE_FAILURE, 'no document');
+            return;
+          }
           const decoder = decoding.createDecoder(decoded.payload);
-          const encoder = encoding.createEncoder();
+          const enc = encoding.createEncoder();
 
-          // Read the sync message type.
-          // 0=SyncStep1, 1=SyncStep2, 2=Update
           const messageType = decoding.readVarUint(decoder);
 
           if (messageType === 0) {
-            // SyncStep1: client asks what the server has.
-            // Server responds with SyncStep2 (everything server has that client doesn't).
-            // No document changes; only a reply is generated.
-            syncProtocol.readSyncStep1(decoder, encoder, doc);
+            // SyncStep1 from client: respond with SyncStep2
+            syncProtocol.readSyncStep1(decoder, enc, doc);
           } else {
-            // SyncStep2 (type 1) or Update (type 2): apply the update to our doc and
-            // broadcast the raw update bytes to all other clients.
+            // SyncStep2 (type 1) or Update (type 2): apply the update to our doc
             const updateBytes = decoding.readVarUint8Array(decoder);
-            Y.applyUpdate(doc, updateBytes);
-            this.broadcastUpdate(updateBytes, ws);
+            // Apply update with ws as origin so the 'update' handler can broadcast
+            Y.applyUpdate(doc, updateBytes, ws);
           }
 
-          // Send reply if non-empty (SyncStep2 reply to a SyncStep1).
-          if (encoding.length(encoder) > 0) {
-            const syncReply = encoding.toUint8Array(encoder);
+          // Send reply if non-empty (SyncStep2 reply to a SyncStep1)
+          if (encoding.length(enc) > 0) {
+            const syncReply = encoding.toUint8Array(enc);
             const framed = wrapSyncMessage(syncReply);
             ws.send(framed);
           }
-        } catch (e) {
+        } catch {
           try {
             ws.close(CLOSE_UNSUPPORTED_DATA, 'invalid sync message');
-          } catch {
-            // already closed
-          }
-          this.sockets.delete(ws);
+          } catch { /* already closed */ }
         }
         break;
       }
       case 'awareness': {
-        // Relay awareness bytes verbatim to all open sockets including sender.
+        // Relay awareness bytes to all connected sockets including sender
         const framed = encodeAwarenessMessage(decoded.payload);
-        for (const socket of this.sockets) {
-          if (socket.readyState === WebSocket.OPEN) {
-            try {
-              socket.send(framed);
-            } catch {
-              this.sockets.delete(socket);
-            }
+        const sockets = this.ctx.getWebSockets();
+        for (const socket of sockets) {
+          try {
+            socket.send(framed);
+          } catch {
+            // socket may be closing
           }
         }
         break;
       }
       case 'query-awareness': {
-        // Ignored in this story; no stored awareness state.
+        // No stored awareness state
         break;
       }
       case 'invalid': {
         try {
           ws.close(CLOSE_UNSUPPORTED_DATA, decoded.reason);
-        } catch {
-          // already closed
-        }
-        this.sockets.delete(ws);
+        } catch { /* already closed */ }
         break;
       }
     }
   }
 
-  private broadcastUpdate(update: Uint8Array, origin: WebSocket): void {
-    // Frame as: varuint(MESSAGE_SYNC) + syncProtocol.writeUpdate(update)
-    const encoder = encoding.createEncoder();
-    encoding.writeVarUint(encoder, MESSAGE_SYNC);
-    syncProtocol.writeUpdate(encoder, update);
-    const framed = encoding.toUint8Array(encoder);
+  webSocketClose(_ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): void {
+    // Nothing needed; hibernation API tracks sockets via ctx.getWebSockets()
+  }
 
-    for (const socket of this.sockets) {
+  webSocketError(_ws: WebSocket, _error: unknown): void {
+    // Nothing needed
+  }
+
+  private broadcastUpdate(update: Uint8Array, origin: WebSocket | null): void {
+    // Frame as: varuint(MESSAGE_SYNC) + syncProtocol.writeUpdate(update)
+    const enc = encoding.createEncoder();
+    encoding.writeVarUint(enc, MESSAGE_SYNC);
+    syncProtocol.writeUpdate(enc, update);
+    const framed = encoding.toUint8Array(enc);
+
+    const sockets = this.ctx.getWebSockets();
+    for (const socket of sockets) {
       if (socket === origin) continue; // sender gets no echo
-      if (socket.readyState === WebSocket.OPEN) {
-        try {
-          socket.send(framed);
-        } catch {
-          this.sockets.delete(socket);
-        }
+      try {
+        socket.send(framed);
+      } catch {
+        // socket may be closing
       }
     }
+  }
+
+  /** Test hook: save chunk 0 and corrupt it. */
+  private handleCorruptSnapshot(): Response {
+    const sql = this.ctx.storage.sql;
+    const rows = sql.exec<{ idx: number; data: ArrayBuffer }>(
+      `SELECT idx, data FROM snapshot_chunks WHERE idx = 0`,
+    ).toArray();
+    if (rows.length === 0) {
+      return new Response(JSON.stringify({ ok: false, error: 'no snapshot chunks' }), { status: 404 });
+    }
+    // Save original chunk 0
+    this.savedChunk0 = new Uint8Array(rows[0]!.data);
+    // Overwrite with garbage
+    sql.exec(`UPDATE snapshot_chunks SET data = ?1 WHERE idx = 0`, new Uint8Array([0xff, 0xfe, 0xfd, 0xfc, 0xfb]));
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }
+
+  /** Test hook: restore chunk 0 from saved data. */
+  private handleRepair(): Response {
+    if (!this.savedChunk0) {
+      return new Response(JSON.stringify({ ok: false, error: 'no saved chunk' }), { status: 404 });
+    }
+    const sql = this.ctx.storage.sql;
+    const rows = sql.exec<{ idx: number }>(
+      `SELECT idx FROM snapshot_chunks WHERE idx = 0`,
+    ).toArray();
+    if (rows.length > 0) {
+      sql.exec(`UPDATE snapshot_chunks SET data = ?1 WHERE idx = 0`, this.savedChunk0);
+    } else {
+      sql.exec(`INSERT INTO snapshot_chunks (idx, data) VALUES (0, ?1)`, this.savedChunk0);
+    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
   }
 }

@@ -12,6 +12,7 @@ import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
 import { installTestHooks } from './canvas/testHooks';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 
 /** True when the keypress belongs to a text field, which owns Delete and Enter itself. */
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -55,29 +56,33 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
   const { doc, notes, connectionState } = useBoardDoc(providedDoc, boardId);
   const selection = useSelection();
   const { selectedId, editingId, select, startEdit, endEdit } = selection;
+  const editable = connectionState === undefined || canEdit(connectionState);
 
   /** Create a note whose centre is the given world point, and start typing straight away. */
   const createAt = useCallback(
     (world: { x: number; y: number }) => {
+      if (!editable) return;
       const id = createSticky(doc, world);
       if (!id) return;
       startEdit(id);
     },
-    [doc, startEdit],
+    [doc, startEdit, editable],
   );
 
   /** Toolbar creation: the centre of the visible board area, wherever the board is panned. */
   const createAtViewportCentre = useCallback(() => {
+    if (!editable) return;
     createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }));
-  }, [camera, createAt, viewport.height, viewport.width]);
+  }, [camera, createAt, viewport.height, viewport.width, editable]);
 
   /** Bin button and Delete key: remove the note and drop the selection with it. */
   const remove = useCallback(
     (id: string) => {
+      if (!editable) return;
       deleteObject(doc, id);
       select(null);
     },
-    [doc, select],
+    [doc, select, editable],
   );
 
   // Enter starts editing the selected note; Delete/Backspace removes it. Both are ignored while
@@ -150,7 +155,7 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtViewportCentre} />
+      <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

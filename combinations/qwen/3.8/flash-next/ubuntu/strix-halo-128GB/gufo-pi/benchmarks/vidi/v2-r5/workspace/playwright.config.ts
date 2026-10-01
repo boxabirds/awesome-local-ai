@@ -24,7 +24,7 @@ export default defineConfig({
     trace: 'off',
   },
   webServer: {
-    command: `npm run build:test && npx --no-install wrangler dev --config wrangler.jsonc --ip 127.0.0.1 --port ${PORT}`,
+    command: `npm run build:test && npx --no-install wrangler dev --config wrangler.jsonc --ip 127.0.0.1 --port ${PORT} --var TEST_HOOKS:1`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,
