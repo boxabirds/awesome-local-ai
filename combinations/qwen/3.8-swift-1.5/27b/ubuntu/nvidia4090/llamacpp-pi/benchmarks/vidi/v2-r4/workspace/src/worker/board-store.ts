@@ -90,13 +90,55 @@ export class BoardStore {
     this.storage = storage;
   }
 
+  /**
+   * Read-only existence check. Returns true if the board has been initialized
+   * (storage_meta.created_at exists) or has legacy data (any updates or
+   * snapshot_chunks rows). Queries sqlite_master first; never creates tables.
+   */
+  existsReadOnly(): boolean {
+    try {
+      // Check if storage_meta table exists and has created_at
+      const tables = this.storage.sql.exec(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='storage_meta'"
+      ).toArray();
+      if (tables.length > 0) {
+        const rows = this.storage.sql.exec(
+          "SELECT value FROM storage_meta WHERE key='created_at'"
+        ).toArray();
+        if (rows.length > 0) return true;
+      }
+
+      // Legacy: check if updates table exists and has rows
+      const updatesTables = this.storage.sql.exec(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='updates'"
+      ).toArray();
+      if (updatesTables.length > 0) {
+        const countRow = this.storage.sql.exec('SELECT COUNT(*) as c FROM updates').one() as { c: number };
+        if (countRow.c > 0) return true;
+      }
+
+      // Legacy: check if snapshot_chunks table exists and has rows
+      const snapshotTables = this.storage.sql.exec(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='snapshot_chunks'"
+      ).toArray();
+      if (snapshotTables.length > 0) {
+        const countRow = this.storage.sql.exec('SELECT COUNT(*) as c FROM snapshot_chunks').one() as { c: number };
+        if (countRow.c > 0) return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
   /** All rows of a query as an array (empty if none). */
   private queryAll<T = unknown>(sql: string, ...params: SqlValue[]): T[] {
     return this.storage.sql.exec(sql, ...params).toArray() as T[];
   }
 
   /** The first row of a query, or null if none. */
-  private queryOne<T = unknown>(sql: string, ...params: SqlValue[]): T | null {
+  queryOne<T = unknown>(sql: string, ...params: SqlValue[]): T | null {
     const rows = this.queryAll<T>(sql, ...params);
     return rows.length > 0 ? rows[0] : null;
   }
@@ -125,18 +167,41 @@ export class BoardStore {
 
   /** Append one update to the log. Rethrows SQL failures (caller resets the room). */
   append(update: Uint8Array): void {
+    // Lazily migrate if tables don't exist (legacy boards already have tables)
+    if (!this.hasTables()) {
+      this.migrate();
+    }
     this.storage.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length);
     this.updateCount += 1;
     this.updateBytes += update.length;
   }
 
+  /** Check if the required tables exist without creating them. */
+  private hasTables(): boolean {
+    try {
+      const tables = this.storage.sql.exec(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='updates'"
+      ).toArray();
+      return tables.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * Load the board into `doc`. Applies the snapshot (if any) then the log rows after
    * `snapshot_through_seq`. Damaged log rows are quarantined and counted. Never deletes
-   * data on failure.
+   * data on failure. Treats missing tables as an empty board without creating them.
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // If no tables exist, this is an empty board (no data to load)
+      if (!this.hasTables()) {
+        this.updateCount = 0;
+        this.updateBytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
+
       // 1. Snapshot
       const chunkRows = this.queryAll<{ data: unknown }>('SELECT data FROM snapshot_chunks ORDER BY idx');
       const chunks: Uint8Array[] = chunkRows.map((r) => toUint8Array(r.data));

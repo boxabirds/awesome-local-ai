@@ -44,6 +44,9 @@ export default defineWorkspace([
             serviceBindings: {
               ASSETS: assetsFallback,
             },
+            bindings: {
+              TEST_HOOKS: '1',
+            },
           },
         },
       },

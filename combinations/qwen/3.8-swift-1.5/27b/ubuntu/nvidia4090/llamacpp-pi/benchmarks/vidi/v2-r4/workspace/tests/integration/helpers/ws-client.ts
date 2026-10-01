@@ -1,4 +1,5 @@
-import { SELF } from 'cloudflare:test';
+import { SELF, env, runInDurableObject } from 'cloudflare:test';
+import type { BoardRoom } from '../../../src/worker/board-room';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
@@ -183,6 +184,11 @@ export class WsClient {
 }
 
 export async function connectToBoard(boardId: string): Promise<WsClient> {
+  // Ensure the board exists (initialize it if not already created)
+  const doId = env.BOARD_ROOM.idFromName(boardId);
+  const stub = env.BOARD_ROOM.get(doId);
+  await runInDurableObject(stub, (room: BoardRoom) => room.initialize());
+
   const res = await SELF.fetch(`http://localhost/api/rooms/${boardId}`, {
     headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
   });

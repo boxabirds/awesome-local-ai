@@ -47,7 +47,50 @@ export class BoardRoom extends DurableObject<RoomEnv> {
     });
   }
 
+  /**
+   * RPC: Initialize a new board. Migrates storage and sets created_at.
+   * Returns 'created' on first call, 'exists' if already initialized.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    return this.doInitialize();
+  }
+
+  /**
+   * RPC: Check if the board exists (read-only). True if created_at is set
+   * or there is legacy data (updates/snapshot_chunks rows).
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  private doInitialize(): 'created' | 'exists' {
+    this.store.migrate();
+    const existing = this.store.queryOne<{ value: string }>(
+      "SELECT value FROM storage_meta WHERE key='created_at'"
+    );
+    if (existing) {
+      return 'exists';
+    }
+    this.store.storage.sql.exec(
+      "INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)",
+      String(Date.now()),
+    );
+    return 'created';
+  }
+
   async fetch(req: Request): Promise<Response> {
+    // Internal: initialize a new board
+    if (req.method === 'POST' && req.url.includes('/initialize')) {
+      const result = this.doInitialize();
+      return new Response(result, { status: 200 });
+    }
+
+    // Internal: check if board exists
+    if (req.method === 'POST' && req.url.includes('/exists')) {
+      const exists = this.store.existsReadOnly();
+      return new Response(String(exists), { status: exists ? 200 : 404 });
+    }
+
     // Test hooks
     const testHook = req.headers.get('x-test-hook');
     if (testHook === 'corrupt-snapshot') {
@@ -57,6 +100,11 @@ export class BoardRoom extends DurableObject<RoomEnv> {
     if (testHook === 'repair') {
       this.store.repairForTesting();
       return new Response('ok', { status: 200 });
+    }
+
+    // Reject non-existent boards before accepting (share.not_found)
+    if (!this.store.existsReadOnly()) {
+      return new Response('Board not found', { status: 404 });
     }
 
     const pair = new WebSocketPair();
@@ -114,11 +162,19 @@ export class BoardRoom extends DurableObject<RoomEnv> {
   // --- internals ---
 
   private load(): void {
+    // If the board doesn't exist, don't load (and don't create tables).
+    // This keeps probing unknown links from writing storage.
+    if (!this.store.existsReadOnly()) {
+      this.doc = new Y.Doc();
+      this.attachUpdateHandler();
+      this.state = 'ready';
+      return;
+    }
+
     const doc = new Y.Doc();
     this.state = 'loading';
     let result: LoadResult;
     try {
-      this.store.migrate();
       result = this.store.load(doc);
     } catch (e) {
       result = { ok: false, reason: 'snapshot-unreadable' };

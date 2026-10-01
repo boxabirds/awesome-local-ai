@@ -1,3 +1,37 @@
+commit 92eac2f07b0a50559829c0e685062b0ddf54feee
+vidi-agent  Thu Oct 1 10:03:39 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ index.html                                  |   1 +
+ package-lock.json                           | 100 ++++++++++++++-
+ package.json                                |   1 +
+ src/client/App.tsx                          | 187 +++-------------------------
+ src/client/api.ts                           |  31 +++++
+ src/client/pages/BoardPage.tsx              |  67 ++++++++++
+ src/client/pages/BoardUI.tsx                | 161 ++++++++++++++++++++++++
+ src/client/pages/HomePage.tsx               |  40 ++++++
+ src/client/pages/NotFoundPage.tsx           |  42 +++++++
+ src/client/pages/state.ts                   |  32 +++++
+ src/client/router.ts                        |  37 ++++++
+ src/client/share/SharePanel.tsx             | 157 +++++++++++++++++++++++
+ src/shared/config.ts                        |   5 +
+ src/worker/board-room.ts                    |  58 ++++++++-
+ src/worker/board-store.ts                   |  69 +++++++++-
+ src/worker/create-board.ts                  |  19 +++
+ src/worker/index.ts                         |  65 +++++++++-
+ tests/component/SharePanel.test.tsx         | 162 ++++++++++++++++++++++++
+ tests/component/pages.test.tsx              | 172 +++++++++++++++++++++++++
+ tests/e2e/share.spec.ts                     | 162 ++++++++++++++++++++++++
+ tests/integration/board-api-storage.test.ts | 102 +++++++++++++++
+ tests/integration/board-api.test.ts         |  72 +++++++++++
+ tests/integration/helpers/ws-client.ts      |   8 +-
+ tests/integration/worker.test.ts            |   4 +-
+ tests/unit/create-board.test.ts             |  19 +++
+ tests/unit/no-referrer.test.ts              |  10 ++
+ vitest.workspace.ts                         |   3 +
+ 27 files changed, 1604 insertions(+), 182 deletions(-)
 commit 2679d784c5571330f2f3d4881b3aab4f9bdd4715
 vidi-agent  Thu Oct 1 09:38:10 2026 +0100
 
