@@ -127,6 +127,9 @@ export interface Story {
   usage?: Usage | null;
   /** The conversation's profile; null when the record has none. */
   conversation?: ConversationProfile | null;
+  /** Why this story run is left out of every story-by-story comparison, in the record's own plain words ("This story
+   * run also built stories 11 and 12."); null or absent for a story run that is compared. Its run's total and score stand. */
+  notComparable?: string | null;
 }
 
 export interface QueuePlace {

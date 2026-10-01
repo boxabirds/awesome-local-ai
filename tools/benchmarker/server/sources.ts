@@ -94,7 +94,7 @@ export const finalizePath = (dir: string) => `${dir}/finalize.json`;
 /** What the run's final re-score recorded, whole; null when the record has none or it doesn't parse. */
 export const runFinalize = (blobs: Map<string, string>, dir: string): RawFinalize | null => parseFinalize(json<unknown>(blobs.get(finalizePath(dir))));
 
-type RawStory = { title?: string; status?: string; accept?: { passed?: number; total?: number } | null; harness_faults?: unknown[] } & RawUsage;
+type RawStory = { title?: string; status?: string; accept?: { passed?: number; total?: number } | null; harness_faults?: unknown[]; not_comparable?: unknown } & RawUsage;
 
 /** Every pushed run record, and each pack's current version (bench.json pack_ref). */
 export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; suites: Record<string, string> }> {

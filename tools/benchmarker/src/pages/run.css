@@ -20,6 +20,7 @@
 .facts dd { margin: 2px 0 0; font-size: 14px; }
 .status-badge .status-word { font-size: 14px; }
 .status-note { color: var(--muted); font-size: 13px; }
+.not-compared { font-size: 13px; margin: -6px 0 14px; color: var(--ink); }
 .outcome { display: flex; flex-wrap: wrap; gap: 16px 44px; align-items: flex-start; border-top: 1px solid var(--line); padding-top: 14px; }
 
 /* ---------- figures ---------- */

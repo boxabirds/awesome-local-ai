@@ -1079,3 +1079,50 @@ describe("a story run against the combination: quality, mechanism, the most typi
     });
   });
 });
+
+// ---------------------------------------------------------------------------------------------------------------
+describe("a story run marked not comparable", () => {
+  const REASON = "This story run also built stories 2 and 3.";
+  const at = (runId: string, secs: number, over: Partial<Story> = {}) =>
+    row({ runId, stories: [story("1", { usage: usage({ agentSeconds: secs, outTokens: secs, calls: secs, split: split({ wall: secs }) }), ...over })] });
+  const me = at("me", 1000);
+  const odd = at("odd", 90000, { notComparable: REASON });
+
+  describe("against the combination", () => {
+    it("another run's is not among the entries, the median, the count of others or the typical run", () => {
+      const v = againstCombination(me, [me, at("a", 1000), odd], "1");
+      expect(v.entries.map((e) => e.run.runId)).toEqual(["a", "me"]);
+      expect(v.others).toBe(1);
+      expect(v.flags.minutes).toMatchObject({ median: 1000, n: 1, flagged: false });
+      expect(v.typical?.run.runId).toBe("a");
+      expect(v.scaleSeconds).toBe(1000);
+    });
+    it("the only other run of the story being not comparable: nothing to compare with", () => {
+      const v = againstCombination(me, [me, odd], "1");
+      expect(v.others).toBe(0);
+      expect(Object.values(v.flags).every((d) => d === null)).toBe(true);
+      expect(v.typical).toBeNull();
+    });
+    it("this story run not comparable itself: no flag, no mechanism and no typical run to set it beside", () => {
+      const v = againstCombination(odd, [odd, at("a", 1000), at("b", 1100)], "1");
+      expect(Object.values(v.flags).every((d) => d === null)).toBe(true);
+      expect(v.mechanism).toBeNull();
+      expect(v.typical).toBeNull();
+    });
+  });
+
+  describe("two runs story by story", () => {
+    const a = row({ runId: "a", stories: [story("1", { usage: usage({ agentSeconds: 9000 }), notComparable: REASON }), story("2", { usage: usage({ agentSeconds: 9000 }) })] });
+    const b = row({ runId: "b", stories: [story("1"), story("2")] });
+    it("the story's figures are both there, with no difference worked out and nothing flagged, whichever side has it", () => {
+      for (const rows of [compareRuns(a, b), compareRuns(b, a)]) {
+        const cells = rows[0].cells;
+        expect(cells.every((c) => c.rel === null && !c.flagged)).toBe(true);
+        expect(cells.find((c) => c.key === "minutes")).toMatchObject({ a: expect.any(Number), b: expect.any(Number) });
+      }
+    });
+    it("the run's other stories are compared as ever", () => {
+      expect(compareRuns(a, b)[1].cells.find((c) => c.key === "minutes")).toMatchObject({ rel: 14, flagged: true });
+    });
+  });
+});

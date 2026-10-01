@@ -87,6 +87,11 @@ export function cellOf(run: Row, storyId: string, metric: Metric): Cell {
 
 // ---------- medians and divergence ----------
 
+/** Whether a story run takes part in story-by-story comparisons. One the record marks not comparable (it also built
+ * other stories, say) keeps its own figures and its place in its run's totals, and is left out of every median,
+ * spread, flag and verdict: here, on the story page and on the story-run page. */
+export const isCompared = (s: Story) => !s.notComparable;
+
 /** Flag a story run more than this far from its story's median (the owner's rule). Exactly 10% is not flagged. */
 export const DIVERGENCE = 0.1;
 /** A median of one run is that run: there is nothing to differ from until at least two finished runs have the story. */
@@ -96,11 +101,17 @@ const FLOAT_TOLERANCE = 1e-9;
 
 export interface StoryMedian { median: number; n: number }
 
-/** Per story, the median over the finished runs that have a value for it. */
+/** A story run's value for a median: its cell's, or none for a story run that isn't compared. */
+export function comparedValue(run: Row, storyId: string, metric: Metric): number | null {
+  const c = cellOf(run, storyId, metric);
+  return c.story && !isCompared(c.story) ? null : c.value;
+}
+
+/** Per story, the median over the finished runs that have a value for it (and are compared: see isCompared). */
 export function storyMedians(runs: Row[], ids: string[], metric: Metric): Map<string, StoryMedian | null> {
   const finished = runs.filter((r) => r.status === "finished");
   return new Map(ids.map((id) => {
-    const xs = finished.map((r) => cellOf(r, id, metric).value).filter((x): x is number => x !== null);
+    const xs = finished.map((r) => comparedValue(r, id, metric)).filter((x): x is number => x !== null);
     const m = median(xs);
     return [id, m === null ? null : { median: m, n: xs.length }];
   }));
@@ -222,7 +233,7 @@ export function classifyMechanism(target: Story, others: Story[]): MechanismResu
 
 /** The same story in the combination's other runs: what a story run is compared with. */
 export function siblings(runs: Row[], run: Row, storyId: string): Story[] {
-  return runs.filter((r) => r !== run).map((r) => cellOf(r, storyId, DEFAULT_METRIC).story).filter((s): s is Story => !!s);
+  return runs.filter((r) => r !== run).map((r) => cellOf(r, storyId, DEFAULT_METRIC).story).filter((s): s is Story => !!s && isCompared(s));
 }
 
 // ---------- the matrix ----------
@@ -239,7 +250,7 @@ export function buildMatrix(runs: Row[], metric: Metric): Matrix {
     run,
     cells: stories.map((id): MatrixCell => {
       const cell = cellOf(run, id, metric);
-      const d = cell.state === "recorded" ? divergence(cell.value, medians.get(id) ?? null) : null;
+      const d = cell.state === "recorded" && cell.story && isCompared(cell.story) ? divergence(cell.value, medians.get(id) ?? null) : null;
       return { ...cell, divergence: d, mechanism: d && cell.story ? classifyMechanism(cell.story, siblings(runs, run, id)) : null };
     }),
   }));

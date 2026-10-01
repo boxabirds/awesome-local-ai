@@ -507,3 +507,46 @@ describe("acrossVerdicts", () => {
   });
 });
 
+// ---------- a story run marked not comparable ----------
+describe("a story run marked not comparable: the story page and the verdicts are worked out without it", () => {
+  const REASON = "This story run also built stories 3 and 4.";
+  const odd = (m: number, own: [number, number] = [10, 10]): Story => ({ ...story("2", { usage: mins(m), own }), notComparable: REASON });
+  const plain = (m: number, own: [number, number] = [10, 10]) => story("2", { usage: mins(m), own });
+  const A = { stack: "a/stack", label: "A" }, B = { stack: "b/stack", label: "B" };
+
+  it("combinationSummary: the median, range and n are over the other finished runs", () => {
+    const s = combinationSummary([run([plain(10)]), run([plain(20)]), run([odd(500)])], "2");
+    expect(s.minutes.spread).toEqual({ median: 15, min: 10, max: 20, n: 2 });
+    expect(s.heldOut.spread).toMatchObject({ n: 2 });
+  });
+  it("storyPage: it is not an entry, not counted among the finished runs that recorded the story, and not listed as not built", () => {
+    const rs = [run([plain(10)], { ...A, runId: "r1" }), run([odd(500)], { ...A, runId: "r2" }), run([plain(20)], { ...A, runId: "r3" })];
+    const v = storyPage(rs, "2");
+    const g = v.groups[0];
+    expect(g.entries.map((e) => e.run.runId)).toEqual(["r1", "r3"]);
+    expect(g.notBuilt).toEqual([]);
+    expect(g.finishedRecorded).toBe(2);
+    expect([v.storyRuns, v.notBuilt]).toEqual([2, 0]);
+    expect(v.scaleSeconds).toBe(20 * MINUTE);                       // the one scale is over the story runs shown
+  });
+  it("storyPage: a combination whose only run of the story is not comparable has no entry and no median", () => {
+    const g = storyPage([run([odd(500)], A)], "2").groups[0];
+    expect([g.entries.length, g.finishedRecorded, g.summary.minutes.spread]).toEqual([0, 0, null]);
+  });
+  it("acrossVerdicts: a combination's median and n leave it out, in this run's combination and in another", () => {
+    const mine = run([plain(16)], { ...A, runId: "v2-r1" });
+    const rows = [mine, run([plain(40)], { ...A, runId: "v2-r2" }), run([odd(900)], { ...A, runId: "v2-r3" }), run([plain(10)], B), run([odd(900)], B)];
+    const v = acrossVerdicts(mine, rows, "2");
+    expect(v.rows.map((r) => [r.stack, r.n, r.speed.median])).toEqual([["a/stack", 1, 40], ["b/stack", 1, 10]]);
+  });
+  it("acrossVerdicts: a combination left with no comparable finished run of the story is not listed", () => {
+    const mine = run([plain(16)], { ...A, runId: "v2-r1" });
+    expect(acrossVerdicts(mine, [mine, run([odd(900)], B)], "2").rows).toEqual([]);
+  });
+  it("acrossVerdicts: this story run not comparable itself gets no verdict against anyone", () => {
+    const mine = run([odd(900, [1, 10])], { ...A, runId: "v2-r1" });
+    const v = acrossVerdicts(mine, [mine, run([plain(40)], { ...A, runId: "v2-r2" }), run([plain(10)], B)], "2");
+    expect(v.rows.length).toBe(2);
+    for (const r of v.rows) expect([r.quality.verdict, r.speed.verdict]).toEqual([null, null]);
+  });
+});

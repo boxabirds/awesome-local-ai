@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { GLOSSARY } from "../shared/glossary.ts";
+import type { State } from "../shared/types.ts";
 
 // The ranking on the overview and the combination page, from the fixture. Swift 1.5 has four finished runs:
 // v2-r4 68, v2-r5 63, v2-r6 58 (scores of record under vidi-v2.0-pre1) and v2-r7 (re-scored only under pre0, so
@@ -21,6 +22,8 @@ const cell = (page: Page, run: string, story: string) => matrix(page).locator(`t
 const rowOf = (page: Page, run: string) => matrix(page).locator(`tr[data-run="${run}"]`);
 const tip = (page: Page) => page.getByRole("tooltip");
 const heading = (page: Page) => page.locator('[data-page="combination"] h1');
+/** One figure of the Predictability group, by its glossary term. */
+const pred = (page: Page, id: string) => page.locator(`[data-group="predictability"] [data-pred="${id}"] dd`);
 const show = (page: Page, metric: string) => page.getByRole("group", { name: "Show" }).getByRole("button", { name: metric, exact: true }).click();
 
 test.beforeEach(async ({ request }) => {
@@ -64,6 +67,35 @@ test.describe("overview: combinations ranked on finished runs of record", () => 
     await expect(note.locator("a.combination-link")).toHaveCount(2);
   });
 
+  test("predictability: thinking spread and time spread per combination, each beside its amount", async ({ page }) => {
+    // Swift's four finished runs. Thinking: story 2 only (v2-r7's story 1 has no profile): 12,000, 328,750, 23,500 and
+    // 11,400 chars vary by 144%. Time: story 1 varies by 40%, story 2 by 84%: the median is 62%.
+    const swift = combos(page).locator(`tr[data-stack="${SWIFT}"]`);
+    await expect(swift.locator("td.think-spread .num")).toHaveText("144%");
+    await expect(swift.locator("td.think-spread .amount")).toHaveText("18k chars");
+    await expect(swift.locator("td.time-spread .num")).toHaveText("62%");
+    await expect(swift.locator("td.time-spread .amount")).toHaveText("16 min");
+    await expect(combos(page).getByRole("columnheader", { name: "Thinking spread" })).toHaveAttribute("data-tip", GLOSSARY.thinkingSpread.what);
+    await expect(combos(page).getByRole("columnheader", { name: "Time spread" })).toHaveAttribute("data-tip", GLOSSARY.timeSpread.what);
+  });
+
+  test("predictability with fewer than three finished runs: a dash that says three are needed, and the amount still shows", async ({ page }) => {
+    const opus = combos(page).locator(`tr[data-stack="${OPUS}"]`);   // one finished run; story 1 took 8 minutes
+    await expect(opus.locator("td.time-spread .missing")).toHaveText("—");
+    await expect(opus.locator("td.time-spread .amount")).toHaveText("8 min");
+    await expect(opus.locator("td.think-spread .missing")).toHaveText("—");
+    await opus.locator("td.time-spread .missing").hover();
+    await expect(tip(page)).toHaveText("Needs three finished runs");
+    // Two finished runs (the Vulkan stack) are not enough either; a stack with none finished has nothing to show.
+    for (const stack of [VK, MLX]) await expect(combos(page).locator(`tr[data-stack="${stack}"] td.time-spread`)).toHaveText("—");
+  });
+
+  test("sorting by a spread: combinations with a figure first, the rest in ranking order", async ({ page }) => {
+    await combos(page).getByRole("columnheader", { name: "Time spread" }).click();
+    const order = await combos(page).locator("tbody tr").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.stack));
+    expect(order).toEqual([SWIFT, OPUS, QWEN_27B, VK, MLX]);
+  });
+
   test("sorting by score reverses; unranked combinations stay last either way", async ({ page }) => {
     await combos(page).getByRole("columnheader", { name: /^Score/ }).click();
     const order = await combos(page).locator("tbody tr").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.stack));
@@ -89,6 +121,23 @@ test.describe("combination page", () => {
     await expect(page.locator('[data-kpi="outPerStory"] dd')).toHaveText("71k (63k–118k)");
     await expect(page.locator('[data-kpi="callsPerStory"] dd')).toHaveText("150 (100–177)");
     await expect(page.locator(".run-counts")).toHaveText("Runs: 4 finished (3 of record, 1 pending) · 1 running · 2 queued");
+  });
+
+  test("predictability: thinking spread and time spread beside the amounts, and the runs they are over", async ({ page }) => {
+    const group = page.locator('[data-group="predictability"]');
+    await expect(group.locator("h3 .term")).toHaveText("Predictability");
+    await expect(group.locator("h3 .term")).toHaveAttribute("data-tip", GLOSSARY.predictability.what);
+    await expect(group.locator("dt")).toHaveText(["Thinking spread", "Thinking per story", "Time spread", "Minutes per story", "Finished runs"]);
+    await expect(pred(page, "thinkingSpread")).toHaveText("144%");
+    await expect(pred(page, "thinkingPerStory")).toHaveText("18k chars");
+    await expect(pred(page, "timeSpread")).toHaveText("62%");
+    await expect(pred(page, "minutesPerStory")).toHaveText("16");
+    await expect(pred(page, "spreadRuns")).toHaveText("4");                               // v2-r4 to v2-r7; the invalid v2-r8 is not there
+    for (const id of ["thinkingSpread", "thinkingPerStory", "timeSpread", "minutesPerStory", "spreadRuns"] as const) {
+      await expect(page.locator(`[data-pred="${id}"] dt .term`)).toHaveAttribute("data-tip", GLOSSARY[id].what);
+    }
+    await page.locator('[data-pred="thinkingSpread"] dt .term').hover();
+    await expect(tip(page)).toContainText("Lower means more predictable turnaround.");
   });
 
   test("matrix rows: finished first, then running and queued; each with its link, status and score of record", async ({ page }) => {
@@ -261,6 +310,40 @@ test.describe("combination page", () => {
     await page.setViewportSize({ width: 1000, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(await page.locator(".matrix-wrap").evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  });
+});
+
+test.describe("combination page: predictability with fewer than three finished runs", () => {
+  test("two finished runs: each spread is a dash saying three are needed; the amounts and the run count still show", async ({ page }) => {
+    await page.route("**/api/state", async (route) => {
+      const res = await route.fetch();
+      const s = (await res.json()) as State;
+      for (const r of s.rows) if (r.stack === SWIFT && ["v2-r6", "v2-r7"].includes(r.runId)) r.status = "failed";
+      await route.fulfill({ response: res, json: s });
+    });
+    await open(page, SWIFT);
+    for (const id of ["thinkingSpread", "timeSpread"]) {
+      await expect(pred(page, id).locator(".missing")).toHaveText("—");
+      await pred(page, id).locator(".missing").hover();
+      await expect(tip(page)).toHaveText("Needs three finished runs");
+    }
+    await expect(pred(page, "thinkingPerStory")).toHaveText("10k chars");                  // 7,600 8,000 12,000 328,750
+    await expect(pred(page, "minutesPerStory")).toHaveText("14");                          // 660 690 960 4,811 s
+    await expect(pred(page, "spreadRuns")).toHaveText("2");
+  });
+
+  test("one finished run (Opus): no spread, its minutes per story, and no thinking figure where none was recorded", async ({ page }) => {
+    await open(page, OPUS);
+    await expect(pred(page, "timeSpread").locator(".missing")).toHaveAttribute("data-tip", GLOSSARY.spreadTooFewRuns.what);
+    await expect(pred(page, "minutesPerStory")).toHaveText("8");
+    await expect(pred(page, "thinkingPerStory").locator(".missing")).toHaveAttribute("data-tip", GLOSSARY.spreadNotRecorded.what);
+    await expect(pred(page, "spreadRuns")).toHaveText("1");
+  });
+
+  test("no finished run (mlx-serve): dashes and 0 runs, and nothing about why beyond the three runs needed", async ({ page }) => {
+    await open(page, MLX);
+    await expect(pred(page, "spreadRuns")).toHaveText("0");
+    for (const id of ["thinkingSpread", "thinkingPerStory", "timeSpread", "minutesPerStory"]) await expect(pred(page, id)).toHaveText("—");
   });
 });
 

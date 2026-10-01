@@ -9,7 +9,7 @@ import type { Row, Story, StorySquare, Usage } from "./types.ts";
 import type { TermId } from "./glossary.ts";
 import { spread, type Spread } from "./stats.ts";
 import {
-  buildingStory, cellOf, classifyMechanism, divergence, metricValue, runOrder, siblings, storyIds,
+  buildingStory, classifyMechanism, comparedValue, divergence, isCompared, metricValue, runOrder, siblings, storyIds,
   type Divergence, type MechanismResult, type Metric, type StoryMedian,
 } from "./combinationView.ts";
 import { isOver, relDiff, storyRunState } from "./runView.ts";
@@ -141,11 +141,12 @@ export interface Entry {
 export interface Summary { spread: Spread | null; /** For the divergence rule: the same median and n. */ median: StoryMedian | null }
 
 /** Per summarised measure, the median, range and n over the combination's finished runs that have a value for the
- * story: the combination page's storyMedians, with the range. Missing values are left out; zeros count. */
+ * story: the combination page's storyMedians, with the range. Missing values are left out; zeros count. A story run
+ * that isn't compared (isCompared) is left out like a missing value. */
 export function combinationSummary(runs: Row[], id: string): Record<SummaryKey, Summary> {
   const finished = runs.filter((r) => r.status === "finished");
   const one = (metric: Metric): Summary => {
-    const xs = finished.map((r) => cellOf(r, String(Number(id)), metric).value).filter((x): x is number => x !== null);
+    const xs = finished.map((r) => comparedValue(r, String(Number(id)), metric)).filter((x): x is number => x !== null);
     const s = spread(xs);
     return { spread: s, median: s && { median: s.median, n: s.n } };
   };
@@ -166,6 +167,10 @@ export interface Group {
   notBuilt: { run: Row; why: string }[];
 }
 
+/** How many finished runs recorded the story and are compared on it: what a combination's medians are over. */
+const finishedWith = (runs: Row[], id: string) =>
+  runs.filter((r) => r.status === "finished" && r.stories.some((s) => sameStory(s.id, id) && isCompared(s))).length;
+
 const NO_FLAGS: Record<SummaryKey, Divergence | null> = { minutes: null, outTokens: null, calls: null, heldOut: null };
 
 function groupOf(stack: string, runs: Row[], id: string): Group {
@@ -175,6 +180,9 @@ function groupOf(stack: string, runs: Row[], id: string): Group {
   const notBuilt: Group["notBuilt"] = [];
   for (const run of ordered) {
     const attempt = attemptOf(run, id);
+    // A story run that isn't compared has no place on the page that compares the story's runs: not an entry, and
+    // not "not built" either. Its own page and its run's pages have it.
+    if (attempt.kind === "recorded" && !isCompared(attempt.story)) continue;
     if (attempt.kind === "notBuilt") { notBuilt.push({ run, why: attempt.why }); continue; }
     const story = attempt.kind === "recorded" ? attempt.story : null;
     const flags = story
@@ -192,7 +200,7 @@ function groupOf(stack: string, runs: Row[], id: string): Group {
     stack, label: ordered[0].label, pack: ordered[0].pack,
     machines: [...machines].map(([machine, host]) => ({ machine, host })),
     summary,
-    finishedRecorded: ordered.filter((r) => r.status === "finished" && r.stories.some((s) => sameStory(s.id, id))).length,
+    finishedRecorded: finishedWith(ordered, id),
     entries, notBuilt,
   };
 }
@@ -300,12 +308,14 @@ export function acrossVerdicts(run: Row, rows: Row[], id: string): VerdictView {
   for (const r of pool) if (!(r.stack === run.stack && r.runId === run.runId)) byStack.set(r.stack, [...(byStack.get(r.stack) ?? []), r]);
   const all = [...byStack].map(([stack, rs]): VerdictRow => {
     const sum = combinationSummary(rs, id);
-    const n = rs.filter((r) => r.status === "finished" && r.stories.some((s) => sameStory(s.id, id))).length;
+    const n = finishedWith(rs, id);
     const q = sum.heldOut.spread, t = sum.minutes.spread;
+    // A story run that isn't compared gets no verdict; its own figures stay.
+    const judged = story && isCompared(story) ? mine : null;
     return {
       stack, label: rs[0].label, pack: rs[0].pack, isThis: stack === run.stack, n,
-      quality: { mine: mine?.heldOut ?? null, median: q?.median ?? null, spread: q, verdict: qualityVerdict(mine?.heldOut ?? null, q?.median ?? null, story?.ownTotal ?? null) },
-      speed: { mine: mine?.minutes ?? null, median: t?.median ?? null, spread: t, verdict: speedVerdict(mine?.minutes ?? null, t?.median ?? null) },
+      quality: { mine: mine?.heldOut ?? null, median: q?.median ?? null, spread: q, verdict: qualityVerdict(judged?.heldOut ?? null, q?.median ?? null, story?.ownTotal ?? null) },
+      speed: { mine: mine?.minutes ?? null, median: t?.median ?? null, spread: t, verdict: speedVerdict(judged?.minutes ?? null, t?.median ?? null) },
       outTokens: sum.outTokens.spread, calls: sum.calls.spread,
     };
   }).filter((r) => r.n > 0);

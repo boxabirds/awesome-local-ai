@@ -13,6 +13,7 @@ import { MechanismTally } from "../components/combination/MechanismTally.tsx";
 import { machinesOf, Related } from "../components/combination/Related.tsx";
 import type { Spread } from "../../shared/stats.ts";
 import type { TermId } from "../../shared/glossary.ts";
+import { Predictability } from "../components/combination/Predictability.tsx";
 import { useAddressParam } from "../components/story/useAddressParam.ts";
 import "./combination.css";
 
@@ -63,6 +64,7 @@ export function CombinationPage({ stack, runs, state, params }: { stack: string;
           <Kpi term="outPerStory" s={c.outPerStory} fmt={fmtTokens} />
           <Kpi term="callsPerStory" s={c.callsPerStory} fmt={fmtCount} />
         </dl>
+        <Predictability runs={runs} />
         <p className="run-counts" data-counts><Term id="runsByStatus" />: {counts.join(" · ")}</p>
       </header>
 

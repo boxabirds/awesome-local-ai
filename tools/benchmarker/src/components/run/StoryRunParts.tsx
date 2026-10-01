@@ -6,7 +6,7 @@ import { GLOSSARY } from "../../../shared/glossary.ts";
 import { CombinationLink, MachineLink, RunLink, StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
-import { LiveTag, Missing, Section, Stat, full } from "./bits.tsx";
+import { LiveTag, Missing, Section, Stat, Term, full } from "./bits.tsx";
 import { StatusBadge } from "./RunHeader.tsx";
 
 const MINUTE = 60;
@@ -37,6 +37,7 @@ export function StoryRunHeader({ run, st, storyId, title }: { run: Row; st: Stor
         <RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} /> <span className="small">on <MachineLink machine={run.machine} host={run.host} /> · run</span> <StatusBadge run={run} />
         {" "}<InterventionMark list={interventionsOf(run, storyId)} />
       </div>
+      {story?.notComparable ? <p className="not-compared" data-fact="notCompared"><Term id="notCompared" />: {story.notComparable}</p> : null}
       <div className="outcome">
         <Stat term="storyStatus"><span data-fact="storyStatus"><StoryStatus st={st} /></span></Stat>
         {story ? <>
