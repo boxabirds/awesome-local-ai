@@ -4,17 +4,27 @@ Runs a benchmark's coding agent with the least access it needs. One policy, two 
 
 It replaces a policy of "allow everything, deny a list of paths". Every leak under that policy was a path nobody had listed: a file share with a clone of the repository, `/tmp` leftovers of other runs, a `node_modules` in the home directory that gave a build a package it never declared. A list of what is allowed has no such gaps: a path nobody thought of is closed.
 
-**Status: not wired into the harness.** Proven on macOS (below). The Linux side is built and unit-tested but first ran on a Linux kernel in CI on 1 October 2026 (ubuntu, bubblewrap); see "Linux: what is not proven".
+**Status: the harness runs every agent in it** (1 October 2026): both clients (pi, Claude Code), every machine, no way round it ("How the harness uses it"). The permissive sandbox that preceded it (the whole machine visible and writable, a list of paths hidden) is gone from the agent's execution. Proven on macOS (below) and on Linux, in CI (Ubuntu, bubblewrap) and on an aarch64 Ubuntu 24.04 VM ("Linux: where it was proven").
 
 ## Use
 
 ```sh
-agent-sandbox run --own-dir <dir> [--ro <path>]… [--preset <name>]… [--allow-host <host[:port]>]… \
+agent-sandbox run --own-dir <dir> [--own-at <path>] [--own-ro <rel>]… [--workdir <rel>] [--keep-env <NAME,NAME…>] \
+                  [--ro <path>]… [--preset <name>]… [--allow-host <host[:port]>]… \
                   [--host-port <port>]… [--agent-ports <port|first-last>]… [--ephemeral-ports] \
                   [--proxy-log <file>] -- <command…>
 agent-sandbox print  <the same options> -- <command…>   # the Seatbelt profile, or the bwrap argv one per line
 agent-sandbox proxy  [--preset <name>]… [--allow <host[:port]>]… [--log <file>] [--port <n>]
+agent-sandbox identity                                   # {"version", "platform", "policy_hash"} as JSON
 ```
+
+| Option | What it does |
+|---|---|
+| `--own-at <path>` | Linux: show `--own-dir` at this path inside (the harness uses `/w`), so the command never sees where the run really lives. macOS cannot remap a path and refuses a different one: the directory has to be where it is shown. |
+| `--own-ro <rel>` | A path inside `--own-dir` that stays read-only (the spec). A mount on Linux, a deny after the allow on macOS: `chmod +w` opens nothing. Must exist and stay inside `--own-dir` once resolved. |
+| `--workdir <rel>` | Where the command starts, relative to `--own-dir` (`workspace`). |
+| `--keep-env <NAME,…>` | The command's environment is exactly these names (if this process has them) plus `PATH` and the proxy's variables. Without it the command inherits everything. |
+| `identity` | What this build is, so runs can say which sandbox they ran in: its version, platform and a SHA-256 of the policy it enforces (the Seatbelt profile or the bubblewrap command line of an empty run, and the preset hosts). |
 
 `run` exits with the command's status (128 + N if signal N killed it; 126 if the sandbox could not be set up). It passes SIGTERM, SIGINT and SIGHUP on to the command.
 
@@ -22,7 +32,7 @@ agent-sandbox proxy  [--preset <name>]… [--allow <host[:port]>]… [--log <fil
 
 | | Allowed | Why |
 |---|---|---|
-| **Write** | `--own-dir` and nothing else | the run's workspace, `tmp/` and `agent-home/` live in it |
+| **Write** | `--own-dir` and nothing else (minus each `--own-ro`) | the run's workspace, `tmp/` and `agent-home/` live in it |
 | **Read and execute** | the system's programs and libraries; each `--ro` path; the install of the command itself and of `node`, as found on `PATH` | the toolchain |
 | **Stat only** | the directories above those | tools resolve real paths by stat-ing every ancestor; nothing beside the allowed path can be listed or read |
 | **Network** | the loopback ports that were named: `--host-port` (connect), `--agent-ports` (serve and connect), the proxy; outbound only through the allow-listing proxy, to hosts named with `--preset` or `--allow-host` | the model server; the agent's own dev servers; npm needs its registry |
@@ -65,12 +75,14 @@ Deliberately closed, with what that buys:
 |---|---|---|
 | Empty root | `--tmpfs /`, made read-only at the end (`--remount-ro /`) | what is not bound does not exist |
 | Namespaces | `--unshare-pid --unshare-ipc --unshare-uts --hostname agent-sandbox --new-session --die-with-parent`, and `--unshare-net` | only its own processes are visible; the machine's name is not; the sandbox dies with its parent |
+| Privileges | `--cap-drop ALL`; bubblewrap sets no-new-privs | `sudo` and setuid programs gain nothing (`sudo: The "no new privileges" flag is set`) |
+| First process | `--as-pid-1` with the bridge program started as `init`, the command read from the sockets directory | no `bwrap`, no mount list, no launcher in `ps`: pid 1 is `init`, pid 2 is the command (`ps -eo args` was, before, the sandbox's own configuration with every hidden path). It reaps orphans and passes the command's status on. |
 | System | `--ro-bind` of `/usr`; `/bin`, `/sbin`, `/lib*` recreated as symlinks or bound | programs and libraries |
 | `/etc` | only: `ld.so.cache`, `ld.so.conf(.d)`, `passwd`, `group`, `nsswitch.conf`, `hosts`, `ssl`, `ca-certificates`, `pki`, `localtime`, `alternatives`, `fonts` | linker, account lookup, `localhost`, CA certificates, time zone, Debian's tool links, Chromium's fonts. No `resolv.conf`: there is no DNS |
 | Kernel | `--proc /proc --dev /dev` | a private `/proc` and a minimal `/dev` |
 | Toolchain | `--ro-bind` per `--ro` and discovered path; `--symlink` for links on the way | |
 | Temp | `--bind <own>/tmp /tmp` and `/var/tmp` | a hard-coded `/tmp` path works, privately |
-| Own directory | `--bind <own> <own>`, the last mount | a later mount covers an earlier one, and own_dir may be under `/tmp` |
+| Own directory | `--bind <own> <own-at>` (`<own>` when no `--own-at`), then `--ro-bind` over each `--own-ro` path, the last mounts | a later mount covers an earlier one, and own_dir may be under `/tmp`; the spec is read-only whatever its mode; `--chdir` starts the command in `--workdir` |
 
 ### Network
 
@@ -169,21 +181,22 @@ cargo clippy --all-targets -- -D warnings        # kept at zero warnings
 
 | File | Tests | What |
 |---|---|---|
-| tests/policy.rs | 15 | path resolution, own_dir and `--ro` validation, missing paths, ancestors |
-| tests/seatbelt.rs | 17 | the profile text: deny default, own_dir last, no network rule unless a port is named, one TCP loopback port per rule, closed services, quoting |
+| tests/policy.rs | 20 | path resolution, own_dir and `--ro` validation, missing paths, ancestors; `--own-at`, `--own-ro` and `--workdir` validation |
+| tests/seatbelt.rs | 18 | the profile text: deny default, own_dir last, a path inside it denied for writing after it, no network rule unless a port is named, one TCP loopback port per rule, closed services, quoting |
 | tests/ports.rs | 7 | `--agent-ports` values, merging ranges, the limit, the command line |
-| tests/bwrap.rs | 10 | the bwrap argv against a faked host layout: empty root, order of mounts, the bridge |
+| tests/bwrap.rs | 13 | the bwrap argv against a faked host layout: empty root, order of mounts, the bridge, the first process (`init`, nothing listed), capabilities, the run shown at `/w` with the spec mounted over it |
 | tests/proxy.rs | 18 | host matching, CONNECT parsing, 200/403/502 over real sockets, logging, the `proxy` command |
-| tests/bridge.rs | 4 | both halves of the bridge over real sockets, and `agent-sandbox inner` as bubblewrap would run it |
+| tests/bridge.rs | 6 | both halves of the bridge over real sockets, `agent-sandbox inner` as bubblewrap would run it (the command read from the sockets directory), the command file's encoding |
 | tests/presets.rs | 4 | presets.toml: contents, validity, github stays blocked |
 | tests/toolchain.rs | 9 | finding tools on `PATH`, install roots, the proxy environment, exit codes |
-| tests/sandbox.rs | 28 on macOS, 26 on Linux | the built binary under the real enforcer |
+| tests/sandbox.rs | 36 on macOS, 37 on Linux | the built binary under the real enforcer |
 
 tests/sandbox.rs builds a stand-in bench layout in a directory named `agent-sandbox-test-<pid>-<n>` under the home directory (removed afterwards) and checks, inside the sandbox:
 
 - unreadable: another run's file, a file in a stand-in repository, `package.json` and `node_modules` above the run (and node cannot `require` a package from there), a file written to `/tmp` and to the per-user temp directory from outside, the home directory's listing, `~/.ssh`, `~/.dbench` and other private directories. Each canary is first read without the sandbox, so the test cannot pass because the canary was missing.
 - unwritable: everything outside own_dir.
 - working: the workspace, `$TMPDIR`, `mktemp`, exit status, signals, everyday shell tools, git, node, a command reached through a symlink on `PATH`, output to a log file outside the run.
+- the agent's world: a spec made read-only by `--own-ro` survives write, create, delete, rename of its directory and `chmod u+w` (the mode is unchanged); `--own-ro` refuses a path that is missing, absolute, above the run or a link out of it; macOS refuses `--own-at` elsewhere; Linux shows the run at `/w` with no trace of its real path in the mounts, `ps`, the environment or `cmdline`; Linux `ps` lists `init`, the shell and `ps` and no launcher; the first process reaps orphans and passes the status on; no new privileges, no capabilities, `sudo` refused; `--keep-env` leaves a canary key out (and without it the key gets through: the control); a process outside is neither found nor signalled by `pkill`, `pgrep` or `kill`; `identity` is stable and names the version, platform and a 64-hex-digit policy hash.
 - network: a host loopback port named with `--host-port` is reachable and the proxy is; a listener outside the sandbox on a port that was not named is not, on loopback or on the machine's other address, on a fixed port or one the kernel picked; the command serves on and reaches a port given with `--agent-ports`, and with `--ephemeral-ports` one the kernel picks; on macOS a port it was not given cannot be bound, and `--ephemeral-ports` opens the ephemeral range and no fixed port; a connection to another machine is refused by the sandbox itself; a host that is not allowed gets 403 from the proxy and is logged.
 - `online_*` (skipped with a reason when registry.npmjs.org cannot be reached): `npm install` through the proxy with only the `npm` preset; a direct connection to the registry is still refused; and the harness's preflight workload in one sandbox: `npm install`, `vite build`, `wrangler dev`, `playwright install`, Chromium loading the page. The Chromium step is skipped with a reason if the machine has no browser cache or not the revision the installed Playwright wants.
 
@@ -208,32 +221,56 @@ To run it in CI, three changes outside this crate are needed (not made here):
 2. `tools/dbench/checks.toml`: two checks in `tools/agent-sandbox`, `cargo test` and `cargo clippy --all-targets -- -D warnings`.
 3. `Swatinem/rust-cache`: add `tools/agent-sandbox` to `workspaces`.
 
-## Wiring it into the harness (later)
+## How the harness uses it
 
-`drive.sandboxed(cmd, own_dir)` becomes one command line on both platforms:
+Every agent session (`drive.run_agent`, the preflight, the story loop's restarts, both clients) starts through one function,
+`drive.launch_agent` -> `sandbox.launch` (benchmarks/spec-bench/harness/sandbox.py). There is no other path: a session
+with no world does not start, and `SPEC_BENCH_SANDBOX=permissive` (no sandbox at all, for the harness's own tests) refuses to
+run a recording benchmark, and a run that used it cannot be published (`drive.record_refusal`). The command line:
 
 ```sh
-agent-sandbox run --own-dir <own_dir> \
-    --ro <the agents' browser cache> --ro <dbench's tools directory> \
-    --preset npm [--preset claude] \
-    --host-port <model server or meter proxy port> \
-    --agent-ports <the run's own ports> --ephemeral-ports \
-    --proxy-log <run directory>/egress.jsonl \
-    -- <cmd…>
+agent-sandbox run --own-dir <the run's directory> --workdir workspace --keep-env <the allow-list's names> \
+    --own-ro workspace/spec [--own-at /w]                                  # /w on Linux only \
+    --ro <the agents' browsers> --ro ~/.dbench/tools                       # read-only, shared \
+    --preset npm --preset playwright [--preset claude] \
+    --host-port <the model server's port> --agent-ports <the run's block of 16> [--ephemeral-ports]   # macOS: wrangler \
+    --proxy-log <bench home>/egress/<id>.jsonl -- <the client's command>
 ```
 
-`SANDBOX_DENY`, `outside_packages()`, `USER_TEMP_OPEN` and `hostenv.bwrap_wrap()` are then not needed: nothing they name is reachable.
+| What the agent has | How |
+|---|---|
+| the filesystem | its run directory (workspace, `tmp/`, `agent-home/`, the client's configuration, its own `browsers/` directory) and nothing else writable; `spec/` read-only; node, npm, git, python3, the client and `~/.dbench/tools` read-only; no home directory, file share, other run, `~/.dbench`, harness code, reference build or private repository. Shown at `/w` on Linux; on macOS (where Seatbelt checks real paths) it really is in `~/.w/<id>`, the id a hash of the run's name, and the long name is a link the harness keeps for itself |
+| the environment | exactly the names in `sandbox.ENV_ALLOWED` (one table, with the reason for each); `PATH` is the directories of node, the client and the system, not the harness's; `HOME` is `<run>/agent-home`; `TMPDIR` is the run's own (`/tmp` on Linux); Claude Code's token is a pipe named by `CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR`, never a variable. `agent-sandbox` drops everything else a second time (`--keep-env`), so what the launcher itself needed (the user manager's address for `systemd-run`) never reaches the agent |
+| the network | the npm registry, Playwright's two CDN hosts and (Claude Code only) `api.anthropic.com`, through the allow-listing proxy; the model server's loopback port on the host (a model server that is not on the loopback is refused at start); nothing else, not other ports, other hosts, raw addresses or DNS |
+| its own servers | a block of 16 ports chosen by the run's name (`AGENT_PORT_FIRST`, `AGENT_PORT_LAST`, which the story prompt names); on Linux its loopback is its own anyway |
+| npm | its cache is in its own home: a cache shared and writable between runs is a channel between them. Each run downloads its packages again |
+| Playwright | the shared browsers are read-only; the run's `browsers/` directory holds a link to each, so `playwright install` finds them complete and downloads nothing, and the agent cannot write libraries into the shared cache (a revision it lacks comes from the CDN into its own directory) |
+| processes | Linux: a private pid namespace and `/proc`; macOS: no listing, no signal to anything outside |
+| privileges | none: no `sudo`, no setuid, no capabilities |
 
-What must change with it, each seen while testing:
+What the harness does outside it, unchanged: the gates, the held-out scoring, snapshots, the containment scope (`systemd-run` wraps the
+launcher, and kills what is left at the end of a story), the checks after a story (the spec's hash, `outside_workspace`), the
+benchmarker's reads. The agent's directory is reached by its real path (`~/.w/<id>`); the harness never uses `/w`, and no published
+record names it as a path. `logscan` still runs after each story as a backstop: in a sandboxed run it finds nothing by construction.
 
-- **Ports.** Give each run ports of its own for its dev servers and name them with `--agent-ports`: at least the app port and one for wrangler's inspector, plus the acceptance suite's (`ACCEPT_PORT` and the one after it). Tell the agent which they are; a server it starts on any other port fails with `EPERM` on macOS. `--ephemeral-ports` is needed wherever `wrangler dev` runs, and costs about 10 s at the start of each sandbox on macOS, so leave it off for commands that do not serve. `preflight.py` runs `wrangler dev --port 18899` with no `--inspector-port`: add one and name both ports. Two runs on one Mac that are given the same port can reach each other's server on it.
+The one thing the old permissive path still serves is the judge (`harness/judge_sandbox.py`, macOS, a Codex session that grades two
+finished runs): it is not a coding agent's run and has its own profile; moving it here is a separate job.
 
-- **npm's cache.** `agent_env` points `npm_config_cache` at the user's `~/.npm`, which the sandbox closes. Leave it unset (it then lives in the run's `agent-home/.npm`). A cache shared and writable between runs is a channel between them. Cost: each run downloads its packages again.
-- **Playwright's browsers.** Give each run a browsers directory of its own, inside own_dir, holding symlinks to the browser directories of the shared cache; point `PLAYWRIGHT_BROWSERS_PATH` at it and pass the shared cache with `--ro`. `playwright install` then takes its lock and writes its bookkeeping in the run's directory, finds every browser complete, and downloads nothing. Proven by the workload test.
-- **Standard streams.** Pipes, as `drive.py` uses now, are fine.
-- **Linux, one sandbox per session.** With a private network each `run` has its own loopback. `preflight.py` starts `wrangler dev` in one sandbox, polls it from the host and loads it from a second sandbox; all three must happen inside one sandbox (as tests/sandbox.rs does it). An agent session is already one sandbox.
-- **`pkill`/`pgrep` on macOS** stop working (see above); `lsof -ti tcp:<port>` and `kill` work.
-- **Homebrew tools** (a Homebrew node or OpenCode) need `--ro /opt/homebrew`: their scripts name Homebrew's node by absolute path.
+### What is not enforced, and why
+
+- **macOS: loopback ports** ("Known limit, accepted", below): with `--ephemeral-ports` (needed by `wrangler dev`) the command can connect to every listener in the kernel's ephemeral range, its own or not. Owner's decision, 1 October 2026. Inbound: any process on the machine can connect to the command's own servers.
+- **macOS: the run is not at `/w`.** Seatbelt cannot remap a path. The model sees `/Users/<user>/.w/<id>/workspace`: the owner's account name and a hash, no run name, engine, model, machine or the word "bench".
+- **What a client adds to its own environment.** pi sets `PI_MODEL` (the served model's id, as the server reports it), `PI_PROVIDER`, `PI_SESSION_FILE`, `PI_SESSION_ID`, `PI_REASONING_LEVEL`, `PI_SKIP_VERSION_CHECK` and `AI_AGENT` for its tools; Claude Code sets `CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_PID`, `AI_AGENT` and a few more. None is a credential or names a run. `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` is not used: it forces Claude Code out of `--dangerously-skip-permissions` (measured: every shell call then asks for approval).
+- **Linux: `/proc/self/mountinfo`** names, as the "root" of each bind mount, where its source is within its filesystem: the run's real path (`~/.w/<id>`). `/proc/mounts`, `ps`, the environment and every command line do not. An agent that reads that one file learns the machine's account name and a hash.
+- **Linux: the account name** is in the sandbox's `/etc/passwd` and the machine's name is `agent-sandbox`. `PATH` names the directory node and the client are in (`~/.nvm/…`, `~/.dbench/tools/bin`) because they are readable there.
+- **No seccomp filter, no resource limits** (the containment scope has the memory limit), no defence against a kernel vulnerability: the sandbox is a namespace and a profile, and so is as strong as the kernel's.
+- **The proxy's log** is written by the harness's side and is not tamper-proof against the machine's own user; it is not published.
+- **Claude Code, authenticated.** Proven here up to the API: it starts, runs a shell call, reaches `api.anthropic.com` through the proxy and is refused there as a made-up token is. A session with the owner's real token was not run (nobody entered a credential).
+- **WebKit's system libraries** are not on the Linux machines and the agent can no longer fetch them: an agent that needs them fails instead of downloading `.deb` packages from 18 hosts (findings 7).
+
+### The binary and releases
+
+A release is `git archive` of the paths in `harness` (tools/dbench/checks.toml); `tools/agent-sandbox` is one of them since this change, source and `Cargo.lock`, no binary. `sandbox.binary()` builds it with `cargo build --release --locked` into `<bench home>/agent-sandbox/<hash of the source>/` the first time a machine runs a harness with that source, and keeps it; `run.sh` does it before anything starts (`sandbox.py identity`), so a node that cannot (no cargo, no crates.io) stops there with the reason, not mid-story. `AGENT_SANDBOX_BIN=<file>` names a binary instead. A node needs Rust (1.77 or newer; `setup-node.sh` checks for cargo) and, once per change of the sandbox's source, the network. Nothing is built by hand on a node and nothing travels but the release.
 
 ## Known limit, accepted (owner's decision, 1 October 2026)
 

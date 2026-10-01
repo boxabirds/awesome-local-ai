@@ -52,7 +52,7 @@ Why: moving working code around keeps its untested assumptions and hides what wa
 
 Apply the principle of least privilege for all resource access. Deny by default and allow only what the task needs: files, network, processes, credentials, tokens and tool permissions alike. A list of things to hide is the wrong shape, because it only covers what someone has already thought of.
 
-Why: the agent sandbox allowed everything and denied a list of paths. Each leak in the week of 28 September 2026 was a path nobody had listed: a file share holding a clone of this repo, other runs' leftovers in `/tmp`, and `~/node_modules`, which gave a build a package it never declared and cost a run its score.
+Why: the agent sandbox allowed everything and denied a list of paths. Each leak in the week of 28 September 2026 was a path nobody had listed: a file share holding a clone of this repo, other runs' leftovers in `/tmp`, and `~/node_modules`, which gave a build a package it never declared and cost a run its score. Since 1 October 2026 the agent runs in `tools/agent-sandbox`, which allows only what the run is given (its own directory, a read-only toolchain, an allow-listed environment and network); the allow-everything sandbox is gone, and a run that did not use the new one cannot be published.
 
 ## The app shows results, never its own faults
 

@@ -755,27 +755,32 @@ From the census of all 418 distinct command heads (table 0.4): `ssh`, `scp`, `nc
 
 # Part B. What needs the owner
 
-Nothing in Part B has been done. Each item needs the owner's decision.
+**Status, 1 October 2026.** Items marked **DONE** were done when the agent was moved into `tools/agent-sandbox`, a sandbox that
+denies everything it is not given (Seatbelt on macOS, bubblewrap from an empty root on Linux), wired into the harness so
+that every agent run, on every machine and for both clients (pi and Claude Code), runs in it; how it was done and how it is
+proven is in `tools/agent-sandbox/README.md` ("How the harness uses it") and `benchmarks/spec-bench/TELEMETRY.md` (`run.json`
+`sandbox`). The findings above describe what the runs before it did, and are not rewritten. Items not marked still need the
+owner's decision or hands. This is the only status line: each item's own text is as it was.
 
 **1. Credentials in logs.**
 - **Problem:** 11 provider API keys are in one story's complete log (and in `conv_full.db`); one of them is in a git-tracked published log with 28 of 35 characters; a Claude Code session token is in two published Sonnet logs. Evidence: tables 4.6 and 4.2; the file check in finding 1.
 - **Recommended solution:** treat all 11 keys as exposed; stop passing the owner's environment to agents; scan logs before publishing.
-- **Proposed actions:** (a) rotate the 11 keys named in table 4.6: owner only. (b) Decide whether to remove the three published log files from the repo and its history: needs approval, it rewrites public history. (c) Start agents with an allow-listed environment (PATH, HOME, the Playwright variables, the model endpoint): needs approval. (d) Add the credential regex from `detect_security.py` (CREDVAL) as a check that fails publishing: needs approval. (e) Delete or restrict `conv_full.db` after this analysis: owner's call.
+- **Proposed actions:** (a) rotate the 11 keys named in table 4.6: owner only. (b) Decide whether to remove the three published log files from the repo and its history: needs approval, it rewrites public history. (c) **DONE (1 Oct 2026)**: agents start with an allow-listed environment, one table (`sandbox.ENV_ALLOWED`) and nothing inherited: a canary key in the harness's environment is absent inside, in `env`, `printenv` and `/proc/self/environ`; Claude Code's token is handed over in a descriptor, never in an environment. (d) **DONE (earlier on 1 Oct 2026)**: every file staged for a public commit goes through the credential scanner. (e) Delete or restrict `conv_full.db` after this analysis: owner's call.
 
 **2. Reach outside the workspace.**
 - **Problem:** runs could read a file share with the reference build (used once, finding 2), write the home directory (finding 9) and the shared browser cache (finding 7), and see and write a shared `/tmp` (finding 11). A mistyped path creates a second tree (finding 3).
 - **Recommended solution:** deny by default: the workspace read-write, the spec and browser cache read-only, a private `/tmp`, nothing else of the home directory or other mounts visible; and a short fixed workspace path.
-- **Proposed actions:** (a) bind the workspace at a short path such as `/w` inside the sandbox: needs approval. (b) Private tmpfs for `/tmp` and `TMPDIR` (also fixes the 185 Sonnet here-document refusals): needs approval. (c) Mount `spec/` read-only instead of relying on file mode: needs approval. (d) Check on the M5 Max whether `~/CLAUDE.md` from canvas-pi-03 story 12 still exists, and on the RTX 4090 machine what was left in `~/wlib` and in the WebKit folder of the shared browser cache: owner only (no remote access was used here).
+- **Proposed actions:** (a) **DONE (1 Oct 2026)**: the workspace is shown at `/w` on Linux; on macOS, where a path cannot be remapped, it really is in a short neutral directory (`~/.w/<id>`); the agent's cwd, `pwd`, error messages and git paths name no run, engine, model, machine or benchmark. (b) **DONE**: a private `/tmp` and `TMPDIR` per run (here-documents work). (c) **DONE**: `spec/` is a read-only mount on Linux and a deny after the allow on macOS: `chmod +w` changes nothing. Nothing else of the home directory, no file share, no other run, no `~/.dbench` beyond its tools (read-only), no harness code and no private repository exists for the agent; the browser cache is shared and read-only. (d) Check on the M5 Max whether `~/CLAUDE.md` from canvas-pi-03 story 12 still exists, and on the RTX 4090 machine what was left in `~/wlib` and in the WebKit folder of the shared browser cache: owner only (no remote access was used here).
 
 **3. Processes and ports.**
 - **Problem:** 876 kills by bare name pattern and 472 by port could reach processes that are not the run's own; process listings reveal the sandbox configuration, the driver and the reference build's path (findings 4, 10).
 - **Recommended solution:** a private process namespace per run and a port range handed to the agent.
-- **Proposed actions:** (a) `--unshare-pid` (Linux) and the equivalent restriction on the Mac: needs approval. (b) Give each run a port in the prompt and environment: needs approval.
+- **Proposed actions:** (a) **DONE (1 Oct 2026)**: a private pid namespace on Linux (`ps` shows `init` and the agent's own processes, nothing of the sandbox, the job runner or the harness); on macOS other processes cannot be listed or signalled (`pkill -f wrangler` finds and kills nothing outside). (b) **DONE**: each run has a block of 16 ports of its own (`AGENT_PORT_FIRST`, `AGENT_PORT_LAST`, named in the story prompt); on macOS they are the only ports it can serve on (see the README's accepted gap for the kernel-picked range).
 
 **4. Network.**
 - **Problem:** agents downloaded and ran unverified system packages from 18 hosts and would have executed a package name that does not exist (findings 7, 12).
 - **Recommended solution:** allow only the npm registry and the Playwright CDN; ship WebKit's system libraries in the machine image.
-- **Proposed actions:** (a) network allow-list in the sandbox: needs approval. (b) Install the WebKit dependencies on the Linux bench machines once: needs approval.
+- **Proposed actions:** (a) **DONE (1 Oct 2026)**: the network is closed but for the npm registry, Playwright's two CDN hosts and, for Claude Code, its API host, through an allow-listing proxy that logs every request; an unlisted host and a raw address are refused; the loopback ports of other runs and servers are refused. (b) Install the WebKit dependencies on the Linux bench machines once: needs approval (not done: with the network closed, an agent that needs WebKit's system libraries can no longer fetch them).
 
 **5. Test integrity checks.**
 - **Problem:** 32 assertions deleted without replacement directly after a failure, 10 unconditional skips of named test cases, timeouts raised (finding 6); spec files edited after `chmod` (finding 5).
