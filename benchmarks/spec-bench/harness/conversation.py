@@ -6,6 +6,10 @@ much the model thought and when, how its context grew, what its tools did. It is
 metrics.json as "conversation"; the benchmarker compares it with the same story in the combination's other runs.
 
 Only events inside the story's window [t_from, t_to] count: a restarted story's log also holds earlier attempts.
+Where the window holds several attempts (the harness restarted the story), a tool call still open when its agent
+process died is over at that attempt's end: when the process was last heard from, as accounting.py has it ("ended by
+a harness restart"). The harness's downtime and the attempts after it are not that call's time. Only a call still
+open at the end of the log runs to the window's end.
 A log without receive stamps (_rx: from before the harness stamped them) can't be placed in time: no profile.
 
 Two clients' logs are read. pi's: one message_end per model call, thinking text included. Claude Code's (stream-json):
@@ -26,7 +30,12 @@ import json
 import statistics
 from pathlib import Path
 
-VERSION = 3                    # 2: Claude's exact thinking total; 3: no per-call medians from estimates
+from accounting import RESTART_MARK, RX
+
+# 2: Claude's exact thinking total; 3: no per-call medians from estimates; 4: a tool call open when its agent
+# process died (a harness restart, a new session) ends with that process, not at the story's end
+VERSION = 4
+CLAUDE_INIT = "init"           # Claude Code's system event at a session's start
 HUNG_TOOL_S = 600              # a single tool call of ten minutes: a dev server or watcher left running
 GIST_CHARS = 120
 UPDATE_PREFIX = 80             # message_update lines are most of a log; skip them without parsing
@@ -52,18 +61,32 @@ def profile(events: Path, t_from: float, t_to: float) -> dict | None:
     subagent: set[str] = set()
     estimate = None                      # Claude: the latest running estimate of the thinking in progress
     exact = None                         # Claude: the invocations' exact thinking tokens, from their results
+    prev = None                          # the stamp of the line before this one: a dead process's last sign of life
     with f:
         for line in f:
             if '"message_update"' in line[:UPDATE_PREFIX]:
+                if (m := RX.match(line)):
+                    prev = float(m.group(1))
                 continue
             try:
                 e = json.loads(line)
             except ValueError:
                 continue                 # cut off when the agent was killed mid-write
             rx = e.get("_rx") if isinstance(e, dict) else None
-            if rx is None or not (t_from <= rx <= t_to):
+            if rx is None:
+                continue
+            last, prev = (rx if prev is None else prev), rx
+            if not (t_from <= rx <= t_to):
                 continue
             t = e.get("type")
+            if t in ("session", RESTART_MARK) or (t == "system" and e.get("subtype") == CLAUDE_INIT):
+                # A new agent process: what the one before it left open died with it, when it was last heard from
+                # (the harness's mark is stamped when the next attempt starts, after the harness's downtime).
+                for s in starts.values():
+                    longest = _longer(longest, max(0.0, last - s[0]), s)
+                starts.clear()
+                if t == RESTART_MARK:
+                    continue
             if t == "message_end" and (e.get("message") or {}).get("role") == "assistant":
                 m = e["message"]
                 content = m.get("content") if isinstance(m.get("content"), list) else []
@@ -122,7 +145,7 @@ def profile(events: Path, t_from: float, t_to: float) -> dict | None:
                         errors += bool(b.get("is_error"))
                         if (s := starts.pop(b.get("tool_use_id"), None)) is not None:
                             longest = _longer(longest, rx - s[0], s)
-    for s in starts.values():            # never ended: it ran to the end of the story at least
+    for s in starts.values():            # never ended, in the last agent process: it ran to the story's end at least
         longest = _longer(longest, t_to - s[0], s)
     if not calls:
         return None
