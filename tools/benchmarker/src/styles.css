@@ -183,8 +183,6 @@ table.combos td .amount { display: block; font-size: 11px; white-space: nowrap; 
 .unranked { font-size: 12px; color: var(--muted); font-style: italic; }
 .missing, .na { color: var(--faint); cursor: help; }
 .small-n-note { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
-.live-badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--faint);
-              border: 1px dashed var(--faint); border-radius: 3px; padding: 0 4px; line-height: 14px; vertical-align: 1px; }
 .live-progress { color: var(--muted); } .live-progress > span { margin-right: 12px; } .live-progress .num-l { color: var(--muted); font-weight: 600; }
 
 /* A term with a definition on hover (shared/glossary.ts). */

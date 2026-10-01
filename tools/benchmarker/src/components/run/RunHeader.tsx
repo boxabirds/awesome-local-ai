@@ -8,7 +8,7 @@ import { CombinationLink, MachineLink } from "../EntityLinks.tsx";
 import { JudgeCell } from "../JudgeCell.tsx";
 import { LinksCell } from "../LinksCell.tsx";
 import { duration, ordinal, qualityClass } from "../../format.ts";
-import { LiveTag, Missing, RecordTag, Stat, Term, utc } from "./bits.tsx";
+import { Missing, RecordTag, Stat, Term, utc } from "./bits.tsx";
 
 export function StatusBadge({ run }: { run: Row }) {
   const v = statusView(run);
@@ -44,7 +44,7 @@ function LeadScore({ run, state }: { run: Row; state: State }) {
   if (lead.kind === "live") {
     return (
       <div className="lead-score" data-section="lead" data-lead="live">
-        <Stat term="liveHeldOut" tag={<LiveTag />} sub={<>so far, after {lead.stories} recorded {lead.stories === 1 ? "story" : "stories"}</>}>
+        <Stat term="liveHeldOut" sub={<>so far, after {lead.stories} recorded {lead.stories === 1 ? "story" : "stories"}</>}>
           <span className="lead-n live-n">{n}</span> <span className="lead-text">held-out tests pass</span>
         </Stat>
       </div>
@@ -72,7 +72,7 @@ function AgentTimeStat({ run }: { run: Row }) {
     <Stat term="agentTime" sub={<>
       {t.recordedSeconds !== null ? <>over {t.recordedStories - t.untimedStories} recorded {t.recordedStories - t.untimedStories === 1 ? "story" : "stories"}</> : null}
       {t.untimedStories ? <> · {t.untimedStories} without a time</> : null}
-      {t.liveSeconds !== null ? <div className="live-line"><span className="live-n">{duration(t.liveSeconds)}</span> so far, the running story included <LiveTag /></div> : null}
+      {t.liveSeconds !== null ? <div className="live-line"><span className="live-n">{duration(t.liveSeconds)}</span> so far, the running story included</div> : null}
     </>}>
       {t.recordedSeconds !== null ? <span className="big-n">{duration(t.recordedSeconds)}</span>
         : <Missing why={run.status === "queued" ? "Nothing recorded yet: the run is queued." : "No recorded story of this run has a time yet."} />}

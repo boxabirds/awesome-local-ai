@@ -253,14 +253,14 @@ test.describe("by combination", () => {
     await expect(c.locator(".ho .sq")).toHaveClass(/q-part/);
     await expect(c.locator("[data-latest]")).toHaveText("latest 11/14");
     await expect(c.locator("[data-latest] .live-n")).toHaveAttribute("data-tip", new RegExp(`^${GLOSSARY.storyLatestBuild.what.slice(0, 20)}`));
-    await expect(section(page, "combinations").locator('thead th[data-measure="heldOut"] .tag-live')).toHaveText("live");
+    await expect(section(page, "combinations").locator('thead th[data-measure="heldOut"] .tag-live')).toHaveCount(0);
   });
 
   test("a story being built: its live figures, italic and labelled live, and no record yet", async ({ page }) => {
     await open(page, "2");
     const r = row(page, OPUS, "v2-r1");
     await expect(r).toHaveAttribute("data-attempt", "building");
-    await expect(r.locator(".sp-run-meta .tag-live")).toHaveText("live");
+    await expect(r.locator(".sp-run-meta .tag-live")).toHaveCount(0);
     await expect(cell(page, OPUS, "v2-r1", "minutes").locator(".live-n")).toHaveText("5 min");
     await expect(cell(page, OPUS, "v2-r1", "minutes").locator(".live-n")).toHaveAttribute("data-tip", /^Live: agent time so far/);
     await expect(cell(page, OPUS, "v2-r1", "readTokens").locator(".missing")).toHaveAttribute("data-tip", /Being built now/);

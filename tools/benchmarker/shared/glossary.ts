@@ -18,7 +18,7 @@ export interface Term {
 export const GLOSSARY = {
   scoreOfRecord: { name: "Score", what: "The score of record: held-out tests passing when the finished run's final build is re-scored once more, under the current suite version. Only finished runs have one; it is the number to rank by." },
   scoreSummary: { name: "Score", what: "The score of record of this combination's finished runs: the median, the lowest and highest, and n, how many runs. With few runs, only large differences between combinations mean anything." },
-  liveHeldOut: { name: "Live held-out", what: "Live: each story's held-out tests against the run's latest build, as the run goes. Provisional: it may come from an earlier suite version, and it never ranks anything." },
+  liveHeldOut: { name: "Live held-out", what: "How many of the held-out tests pass so far, over the stories the run has recorded." },
   storyHeldOut: { name: "Held-out", what: "This story's own held-out tests, passing against the build after it (the re-score of record where there is one, else live)." },
   agentTime: { name: "Agent time", what: "Wall time from the agent starting a story to it finishing, summed over stories: the model, its tools, and waits between sessions." },
   hoursPerStory: { name: "Hours per story", what: "Agent hours per story, over the finished runs: how long the combination takes to deliver a story. The median over runs, with the range." },
@@ -104,7 +104,6 @@ export const GLOSSARY = {
   inputPerStory: { name: "Input tokens per story", what: "Everything the model read per story, over the finished runs of record: each call re-reads the whole conversation, so this grows with the number of calls. The median over runs." },
   tokSOfRecord: { name: "generated tok/s", what: "Output tokens per second of the whole story, tools and tests included: each finished run of record's own rate, then the median over runs." },
   smallN: { name: "Too close to call", what: "With 5 runs or fewer per combination, a difference of 12 held-out tests or less can't separate two combinations: one combination's own runs spread that wide (methods review, 30 Sep)." },
-  liveBadge: { name: "live", what: "Live progress over every run shown, running ones included, each on its latest build and possibly an older suite version. It never ranks anything: the ranking is on finished runs' scores of record." },
   liveHoursPerStory: { name: "h per story", what: "Live: agent hours per recorded story, over every run shown here, running ones included. Progress, not a ranking figure." },
   runsByStatus: { name: "Runs", what: "Every run of this combination in the pack, by status. Only finished runs with a score of record are in its numbers; the rest are counted apart." },
   matrix: { name: "Runs × stories", what: "One row per run, one column per story: each cell is one story run and links to it. Its colour is that story's held-out result; its text is the metric chosen above." },

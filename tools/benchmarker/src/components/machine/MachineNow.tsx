@@ -5,7 +5,7 @@ import { jobEndedAt, jobPlace, machineJobs, runningStory, silentMinutes, SILENT_
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { duration, ordinal, shortAction } from "../../format.ts";
 import { RunLink, StoryRunLink } from "../EntityLinks.tsx";
-import { LiveTag, Missing, Term, utc } from "../run/bits.tsx";
+import { Missing, Term, utc } from "../run/bits.tsx";
 import { JobOps } from "./JobOps.tsx";
 import { QueueForm } from "./QueueForm.tsx";
 import type { MachineInfo } from "./machineApi.ts";
@@ -36,7 +36,7 @@ function Activity({ row }: { row: Row }) {
   const action = l.lastActivity ? shortAction(l.lastActivity) : null;
   return (
     <div className="mp-activity" data-part="activity">
-      <span className="label"><Term id="activity" /> <LiveTag /></span>
+      <span className="label"><Term id="activity" /></span>
       <span>{bits.length ? bits.join(" · ") : <Missing why="No activity reported on this story yet." />}</span>
       {action ? <div className="log" data-tip={action}>{action}</div> : null}
     </div>

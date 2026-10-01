@@ -3,7 +3,7 @@ import type { Row } from "../../../shared/types.ts";
 import { ranView, storyResults, type StoryResult } from "../../../shared/runView.ts";
 import { qualityClass } from "../../format.ts";
 import { StoryRunLink } from "../EntityLinks.tsx";
-import { LiveTag, Missing, Section, Term, utc } from "./bits.tsx";
+import { Missing, Section, Term, utc } from "./bits.tsx";
 
 /** The square's colour class: the app's pass-rate scale for a story with a result, outlined for one without. */
 export const squareClass = (r: StoryResult) => (r.state === "result" ? `rs-sq ${qualityClass(r.passed / r.total)}` : `rs-sq rs-${r.state}`);
@@ -12,7 +12,7 @@ export const squareClass = (r: StoryResult) => (r.state === "result" ? `rs-sq ${
 export function HeldOut({ run }: { run: Row }) {
   const squares = storyResults(run);
   return (
-    <Section term="heldOut" id="heldout" aside={<LiveTag />}>
+    <Section term="heldOut" id="heldout">
       {squares.length === 0 ? <p className="rp-empty">No stories in scope are known for this run.</p> : (
         <ol className="rs-strip" aria-label="Held-out result after each story">
           {squares.map((r) => (

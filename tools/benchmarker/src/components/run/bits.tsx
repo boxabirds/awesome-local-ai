@@ -33,11 +33,6 @@ export function Section({ term, id, aside, children }: { term: TermId; id: strin
   );
 }
 
-/** Live: provisional, lighter, and never ranks anything. */
-export function LiveTag() {
-  return <span className="tag tag-live" data-tip={GLOSSARY.liveHeldOut.what}>live</span>;
-}
-
 /** Of record: the re-score of a finished run, the number to rank by. */
 export function RecordTag() {
   return <span className="tag tag-record" data-tip={GLOSSARY.scoreOfRecord.what}>of record</span>;

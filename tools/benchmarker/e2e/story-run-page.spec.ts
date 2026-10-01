@@ -50,13 +50,13 @@ test.describe("header", () => {
     await expect(section(page, "header").locator(".of-run")).toContainText("on node-a");
   });
 
-  test("DONE, this story's held-out result and the whole suite so far, both marked live; agent time", async ({ page }) => {
+  test("DONE, this story's held-out result and the whole suite so far; agent time", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     await expect(section(page, "header").locator('[data-fact="storyStatus"]')).toHaveText("DONE");
     await expect(section(page, "header").locator('[data-fact="own"]')).toHaveText("14/14");
     await expect(section(page, "header").locator('[data-fact="cumulative"]')).toHaveText("20/20");
-    await expect(stat(page, "header", "storyHeldOut").locator(".tag-live")).toHaveText("live");
-    await expect(stat(page, "header", "cumulativeHeldOut").locator(".tag-live")).toHaveText("live");
+    await expect(stat(page, "header", "storyHeldOut").locator(".tag-live")).toHaveCount(0);
+    await expect(stat(page, "header", "cumulativeHeldOut").locator(".tag-live")).toHaveCount(0);
     await expect(section(page, "header").locator(".tag-record")).toHaveCount(0);
     await expect(section(page, "header").locator('[data-fact="agentTime"]')).toHaveText("1h20m");
   });
@@ -788,13 +788,13 @@ test.describe("navigation", () => {
 
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("a story run with no record shows what is known", () => {
-  test("in progress: the live figures, marked live; its title from the job", async ({ page }) => {
+  test("in progress: the live figures; its title from the job", async ({ page }) => {
     await open(page, SWIFT, "v2-r1", "3");
     await expect(page.locator('[data-page="storyRun"]')).toHaveAttribute("data-story-state", "inProgress");
     await expect(section(page, "header").locator("h1")).toHaveText("Story 3 · See other people's edits live");
     await expect(section(page, "header").locator('[data-fact="storyStatus"]')).toHaveText("▶ in progress");
     const p = section(page, "progress");
-    await expect(p.locator(".rp-head .tag-live")).toHaveText("live");
+    await expect(p.locator(".rp-head .tag-live")).toHaveCount(0);
     await expect(stat(page, "progress", "agentTime").locator(".live-n")).toHaveText("4 min");
     await expect(stat(page, "progress", "calls").locator(".live-n")).toHaveText("41");
     await expect(stat(page, "progress", "outTokens").locator(".live-n")).toHaveText("12k");

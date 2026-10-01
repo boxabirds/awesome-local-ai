@@ -13,7 +13,7 @@ import { InterventionMark } from "../RunMarks.tsx";
 import { CombinationLink, MachineLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { StorySplitBar } from "../TimeBars.tsx";
 import { duration } from "../../format.ts";
-import { LiveTag, Missing, SHOW, Term, termName, termTip, whyNoValue } from "./parts.tsx";
+import { Missing, SHOW, Term, termName, termTip, whyNoValue } from "./parts.tsx";
 
 const PERCENT = 100;
 /** Columns before the measures: the story run (with its comparison control), its bar. */
@@ -93,7 +93,7 @@ function RunCell({ e, storyId, cmp, onCompare }: { e: Entry; storyId: string; cm
         <span className={`s-${r.status}`} data-tip={`${termName("runStatus")}: ${r.status}${r.statusNote ? ` (${r.statusNote})` : ""}`}>{STATUS_ICON[r.status]} {r.status}</span>
         {" · "}<MachineLink machine={r.machine} host={r.host} />
         {interventionsOf(r, storyId).length ? <> <InterventionMark list={interventionsOf(r, storyId)} compact /></> : null}
-        {e.attempt.kind === "building" ? <> · building <LiveTag /></> : null}
+        {e.attempt.kind === "building" ? <> · building</> : null}
         {e.attempt.kind === "unrecorded" ? <> · <span className="small">no record yet</span></> : null}
       </span>
       <span className="sp-compare"><CompareButton e={e} cmp={cmp} onCompare={onCompare} /></span>
@@ -205,7 +205,7 @@ export function ByCombination({ view, storyId, cmp, onCompare }: { view: StoryPa
                 {STORY_MEASURES.map((m) => (
                   <th key={m.key} scope="col" className="n" data-measure={m.key}>
                     <Term id={m.term} />
-                    {m.key === "heldOut" ? <span className="th-sub"><Term id="storyLatestBuild">and latest</Term> <LiveTag /></span> : null}
+                    {m.key === "heldOut" ? <span className="th-sub"><Term id="storyLatestBuild">and latest</Term></span> : null}
                   </th>
                 ))}
               </tr>
@@ -216,7 +216,7 @@ export function ByCombination({ view, storyId, cmp, onCompare }: { view: StoryPa
       )}
       <p className="sp-key small">
         <span className="flag above" aria-hidden="true">⚑</span> <Term id="divergence">more than 10% from the combination's median</Term> (filled above it, outlined below), with its mechanism on hover.
-        {" "}<i className="sq q-ok" aria-hidden="true" /> held-out colours: all pass, some, none. <LiveTag /> figures are provisional.
+        {" "}<i className="sq q-ok" aria-hidden="true" /> held-out colours: all pass, some, none.
         {view.groups.some((g) => g.entries.some((e) => e.run.interventions?.length)) ? <> <span className="intervened compact" aria-hidden="true">✱</span> <Term id="intervened">intervened</Term>: done by hand, still counted.</> : null}
       </p>
     </section>

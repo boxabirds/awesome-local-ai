@@ -136,7 +136,7 @@ test.describe("now", () => {
     await expect(j.locator('[data-part="story"]')).toHaveText("story 3 of 11 See other people's edits live");
     await expect(j.locator('[data-part="times"]')).toContainText("4 min on story");
     await expect(j.locator('[data-part="activity"]')).toContainText("41 calls · 12k output tokens · tasks 1/2");
-    await expect(j.locator('[data-part="activity"] .tag-live')).toHaveText("live");
+    await expect(j.locator('[data-part="activity"] .tag-live')).toHaveCount(0);
     await expect(j.locator('[data-part="activity"] .log')).toHaveText("write: src/shared/protocol.ts");
     await expect(j.locator(".now-stuck")).toHaveCount(0);
     await j.locator("a.story-run-link").click();
@@ -327,7 +327,7 @@ test.describe("history", () => {
     await expect(r5.locator(".status-badge")).toHaveText("✓ finished · 2026-09-30 15:28 UTC");
     await expect(r5.locator(".h-score")).toHaveText("63/75");
     await expect(r5.locator(".mini-strip .live-n")).toHaveText("2/11");
-    await expect(swift.locator("thead .tag-live")).toHaveText("live");
+    await expect(swift.locator("thead .tag-live")).toHaveCount(0);
     await expect(swift.locator("thead .tag-record")).toHaveText("of record");
     await r5.locator("a.run-link").click();
     await expect(page.locator('[data-page="run"] h1 .run-id')).toHaveText("v2-r5");

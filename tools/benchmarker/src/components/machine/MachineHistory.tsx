@@ -1,5 +1,5 @@
 // Every run on the machine, by combination, then by pack and spec version (v1 and v2 apart, each labelled):
-// each run a link, with its status, its stories against its latest build (live) and its score of record.
+// each run a link, with its status, its stories against its latest build and its score of record.
 import type { Row, RunStatus } from "../../../shared/types.ts";
 import { machineHistory, type VersionGroup } from "../../../shared/overviewView.ts";
 import { scoreOfRecord } from "../../../shared/stats.ts";
@@ -8,7 +8,7 @@ import { InterventionMark } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { qualityClass } from "../../format.ts";
 import { CombinationLink, RunLink } from "../EntityLinks.tsx";
-import { LiveTag, Missing, RecordTag, Term } from "../run/bits.tsx";
+import { Missing, RecordTag, Term } from "../run/bits.tsx";
 import { StatusBadge } from "../run/RunHeader.tsx";
 
 function Score({ run }: { run: Row }) {
@@ -78,7 +78,7 @@ export function MachineHistory({ runs, hidden, onHidden }: { runs: Row[]; hidden
               <tr>
                 <th scope="col"><Term id="historyRun" /></th>
                 <th scope="col"><Term id="runStatus" /></th>
-                <th scope="col"><Term id="storyStrip" /> <LiveTag /></th>
+                <th scope="col"><Term id="storyStrip" /></th>
                 <th scope="col"><Term id="scoreOfRecord" /> <RecordTag /></th>
               </tr>
             </thead>
