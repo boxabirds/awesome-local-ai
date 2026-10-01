@@ -45,6 +45,8 @@ pub struct Inner {
     pub jobs: HashMap<String, Job>,
     pub queue: VecDeque<String>,
     pub current: Option<String>,
+    /// While set, no new job starts (control::Hold).
+    pub hold: Option<crate::control::Hold>,
 }
 
 pub struct Shared {
@@ -220,6 +222,7 @@ pub fn recover(cfg: ServerConfig, token: String) -> Result<(Arc<Shared>, Vec<Ado
         table.insert(job.id.clone(), job);
     }
     let queue: VecDeque<String> = front.into_iter().chain(back).collect();
+    let cfg_home = cfg.home.clone();
     let shared = Arc::new(Shared {
         cfg,
         token,
@@ -228,6 +231,7 @@ pub fn recover(cfg: ServerConfig, token: String) -> Result<(Arc<Shared>, Vec<Ado
             jobs: table,
             queue,
             current: None,
+            hold: crate::control::load_hold(&cfg_home),
         }),
         wake: Notify::new(),
     });
@@ -240,6 +244,8 @@ pub fn recover(cfg: ServerConfig, token: String) -> Result<(Arc<Shared>, Vec<Ado
 pub fn router(shared: Arc<Shared>) -> Router {
     let protected = Router::new()
         .route("/v1/node", get(node))
+        .route("/v1/hold", post(hold))
+        .route("/v1/release", post(release))
         .route("/v1/jobs", get(list_jobs))
         .route("/v1/jobs/{id}", get(get_job).put(submit))
         .route("/v1/jobs/{id}/cancel", post(cancel))
@@ -280,15 +286,55 @@ async fn health() -> Json<serde_json::Value> {
 
 async fn node(State(st): State<Arc<Shared>>) -> Json<crate::node::NodeInfo> {
     let current = st.lock().current.clone();
-    Json(
-        crate::node::gather(
-            &st.cfg.repo,
-            &st.cfg.share_dir,
-            &st.cfg.child_path(),
-            current,
-        )
-        .await,
-    )
+    let mut info = crate::node::gather(&st.cfg.repo, &st.cfg.share_dir, &st.cfg.child_path(), current).await;
+    info.hold = st.lock().hold.clone();
+    Json(info)
+}
+
+/// Hold the node: the running job carries on; no queued job starts until a release. Needs a reason.
+async fn hold(
+    State(st): State<Arc<Shared>>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    body: Bytes,
+) -> Response {
+    let reason = serde_json::from_slice::<crate::control::HoldRequest>(&body)
+        .map(|r| r.reason.trim().to_string())
+        .unwrap_or_default();
+    if reason.is_empty() {
+        return err(
+            StatusCode::BAD_REQUEST,
+            "give a reason ({\"reason\": \"...\"}): it is shown while the node is held",
+        );
+    }
+    let h = crate::control::Hold { reason, by: peer.ip().to_string(), at: now_secs() };
+    let bytes = match serde_json::to_vec_pretty(&h) {
+        Ok(b) => b,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    };
+    if let Err(e) = store::write_atomic(&st.cfg.home.join(crate::control::HOLD_FILE), &bytes) {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, format!("{e:#}"));
+    }
+    let current = {
+        let mut inner = st.lock();
+        inner.hold = Some(h.clone());
+        inner.current.clone()
+    };
+    if let Some(id) = &current {
+        st.log_line(id, &format!("node held by {}: {}; no new job starts until a release", h.by, h.reason));
+    }
+    (StatusCode::OK, Json(json!({ "hold": h, "current_job": current }))).into_response()
+}
+
+/// Release a hold: queued jobs start again. Releasing a node that isn't held is fine.
+async fn release(State(st): State<Arc<Shared>>) -> Response {
+    match std::fs::remove_file(st.cfg.home.join(crate::control::HOLD_FILE)) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    }
+    st.lock().hold = None;
+    st.wake.notify_one();
+    (StatusCode::OK, Json(json!({ "hold": null }))).into_response()
 }
 
 async fn list_jobs(State(st): State<Arc<Shared>>) -> Json<Vec<JobView>> {

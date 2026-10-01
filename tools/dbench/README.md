@@ -124,6 +124,8 @@ git pull                                           # results, as each story is r
 | `PUT /v1/jobs/{id}` | body: `{install_id \| combination, pack, scope?, stories?, run_id, client: "pi"\|"opencode", record, server_env?}`. `server_env` is a map set in the harness's environment, and through it the model server's, from the allowed keys above; it is part of the job's identity, so the same id with a different `server_env` is a 409. `combination` is a directory under the node's `<repo>/combinations/` (a leading `combinations/` and trailing `/` are fine); the node reads `INSTALL_ID` from its `config.sh` and stores the job by install id, so both forms name the same job. Returns 201 if created, 200 if the same id and spec already exist, 409 if the id exists with a different spec, and 400 if a name is invalid, the combination isn't a whole directory in the repo or its install is of a different combination, the install is missing, or there's no harness for the pack. |
 | `GET /v1/jobs` | all jobs, newest first, each with `progress` |
 | `GET /v1/jobs/{id}` | `spec`, `state` (`queued` / `running{pid,pgid,attempt,started_at}` / `done{exit_code}` / `failed{reason,exit_code}` / `cancelled`), `attempt`, `history` (restarts, recoveries, pull failures, skip-story requests), `last_pull`, and `progress`. `progress` holds `run_dir`, `current_story`, `stories`, `stories_updated_at` and `log_tail` (last 20 lines). `stories` is every story in scope with its status, tasks, baselines and recent activity when the harness writes `progress.json`, and otherwise the finished stories from `metrics.json`; each always has `id`, `passed` and `total` (see below). |
+| `POST /v1/hold` | Body `{"reason": "…"}`, required (400 without one). The running job carries on; no queued job starts until a release. Kept in `~/.dbench/hold.json`, so it outlives a restart of the server; `GET /v1/node` shows it as `hold`. |
+| `POST /v1/release` | Ends a hold; queued jobs start again. Fine on a node that isn't held. |
 | `POST /v1/jobs/{id}/cancel` | Body `{"reason": "…"}`, required (400 without one): kept as the job's `cancel_reason`, in its history and its log. A queued job is cancelled at once (200). A running job gets SIGTERM to its process group and SIGKILL after 20 s (202), then becomes `cancelled`. A finished job returns 409. |
 | `POST /v1/jobs/{id}/skip-story` | body: `{story, reason}`. Writes `control/skip-story.json` in the run dir for the harness and returns the job (202); the job keeps running. 404 for an unknown job, 400 for an empty reason, 409 if the job isn't running or `story` isn't the run's `current_story`. |
 | `GET /v1/jobs/{id}/log?from=N&follow=1` | the log as plain text from byte N. With `follow=1` it keeps streaming until the job finishes. |
@@ -149,6 +151,8 @@ dbench status node-a canvas-pi-02              # one job: state, stories, histor
 dbench logs node-a canvas-pi-02 -f             # follow; reconnects from the last byte if the connection drops
 dbench events node-a canvas-pi-02
 dbench cancel node-a canvas-pi-02 --reason "preflight failed; resubmitting after the fix"
+dbench hold node-a --reason "restart on the new binary"   # the running job finishes; nothing new starts
+dbench release node-a                                       # queued jobs start again
 dbench skip-story node-a canvas-pi-02 --story 3 --reason "3h, no commit for 107 min"
                                                # end the running story as PARTIAL; the run goes on
 dbench --json status node-a canvas-pi-02       # --json: nodes, submit, status, events, cancel, skip-story
@@ -181,3 +185,10 @@ This ends the running story's work. The harness stops the agent (no resume, no n
 ## Not built yet (from the design)
 
 Conditions gate and `blocked` state, memory guard, offline push retry and `unpushed_commits`, previews, rescore, `PUT /v1/binary` self-update, `deploy`, `doctor`, and follow for events.
+
+## Restarting a node's server (a new binary, say)
+
+A server restarted mid-job adopts the running harness but can't learn how it ended, so it requeues the job to
+resume; and between two jobs there are only seconds. So: `dbench hold <node> --reason …`, wait until `dbench
+nodes` shows no job on it, restart the service (it stays held: the hold is kept on disk), then `dbench release
+<node>`.

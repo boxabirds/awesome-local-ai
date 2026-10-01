@@ -11,6 +11,37 @@ pub const CONTROL_DIR: &str = "control";
 /// `skip-story-<N>.applied.json` once applied.
 pub const SKIP_STORY_FILE: &str = "skip-story.json";
 
+/// A node held by `POST /v1/hold`: it finishes its running job and starts no other until `POST /v1/release`.
+/// Kept in `<home>/hold.json`, so a server restarted while held (on a new binary, say) stays held.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Hold {
+    pub reason: String,
+    /// Who asked: the caller's address.
+    pub by: String,
+    pub at: u64,
+}
+
+/// `POST /v1/hold` body.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct HoldRequest {
+    /// Required and non-empty; missing reads as empty so it gets the same 400.
+    #[serde(default)]
+    pub reason: String,
+}
+
+pub const HOLD_FILE: &str = "hold.json";
+
+/// The hold kept in `home`, if any; an unreadable file counts as held, so a damaged one never lets jobs start.
+pub fn load_hold(home: &Path) -> Option<Hold> {
+    let bytes = std::fs::read(home.join(HOLD_FILE)).ok()?;
+    Some(serde_json::from_slice(&bytes).unwrap_or(Hold {
+        reason: format!("{HOLD_FILE} could not be read; release to clear it"),
+        by: "dbench".into(),
+        at: 0,
+    }))
+}
+
 /// `POST /v1/jobs/{id}/cancel` body: why, kept with the job (a cancel without one showed "none given").
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]

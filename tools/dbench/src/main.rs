@@ -79,6 +79,10 @@ async fn main() -> Result<()> {
         Cmd::Events { node, id } => {
             client::cmd_events(&Ctx::load(cli.config, cli.json)?, &node, &id).await
         }
+        Cmd::Hold { node, reason } => {
+            client::cmd_hold(&Ctx::load(cli.config, cli.json)?, &node, &reason).await
+        }
+        Cmd::Release { node } => client::cmd_release(&Ctx::load(cli.config, cli.json)?, &node).await,
         Cmd::Cancel { node, id, reason } => {
             client::cmd_cancel(&Ctx::load(cli.config, cli.json)?, &node, &id, &reason).await
         }
