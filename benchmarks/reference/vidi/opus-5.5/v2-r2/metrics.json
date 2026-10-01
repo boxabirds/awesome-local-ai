@@ -304,7 +304,7 @@
         "commit": "328f2a31"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 23,
         "tool_calls": 22,
         "thinking_visible": false,
@@ -315,12 +315,15 @@
         "largest_thinking": null,
         "text_chars": 3072,
         "tool_arg_chars": 73282,
+        "thinking_tokens": 6449,
         "thinking_estimated_tokens": 7830,
         "largest_thinking_estimated": {
           "tokens": 3350,
           "call": 11,
           "at_s": 150.4
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 243,
         "context_start": 16225,
         "context_end": 84455,
         "largest_context_jump": {
@@ -676,7 +679,7 @@
         "commit": "eccc8210"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 32,
         "tool_calls": 37,
         "thinking_visible": false,
@@ -687,12 +690,15 @@
         "largest_thinking": null,
         "text_chars": 3243,
         "tool_arg_chars": 102486,
+        "thinking_tokens": 23603,
         "thinking_estimated_tokens": 24883,
         "largest_thinking_estimated": {
           "tokens": 17350,
           "call": 5,
           "at_s": 196.8
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 233,
         "context_start": 16275,
         "context_end": 137494,
         "largest_context_jump": {
@@ -1063,7 +1069,7 @@
         "commit": "ee368615"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 105,
         "tool_calls": 106,
         "thinking_visible": false,
@@ -1074,12 +1080,15 @@
         "largest_thinking": null,
         "text_chars": 6709,
         "tool_arg_chars": 130541,
+        "thinking_tokens": 35230,
         "thinking_estimated_tokens": 40952,
         "largest_thinking_estimated": {
           "tokens": 4450,
           "call": 52,
           "at_s": 584.6
         },
+        "thinking_estimated_median_before": 248,
+        "thinking_estimated_median_after": 256,
         "context_start": 16295,
         "context_end": 202479,
         "largest_context_jump": {
@@ -1449,7 +1458,7 @@
         "commit": "3cd0d1dc"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 63,
         "tool_calls": 69,
         "thinking_visible": false,
@@ -1460,12 +1469,15 @@
         "largest_thinking": null,
         "text_chars": 4390,
         "tool_arg_chars": 124789,
+        "thinking_tokens": 31254,
         "thinking_estimated_tokens": 32737,
         "largest_thinking_estimated": {
           "tokens": 16550,
           "call": 13,
           "at_s": 263.2
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 0,
         "context_start": 16319,
         "context_end": 191261,
         "largest_context_jump": {
@@ -1811,7 +1823,7 @@
         "commit": "fea1eb57"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 44,
         "tool_calls": 44,
         "thinking_visible": false,
@@ -1822,12 +1834,15 @@
         "largest_thinking": null,
         "text_chars": 3886,
         "tool_arg_chars": 82504,
+        "thinking_tokens": 9325,
         "thinking_estimated_tokens": 11942,
         "largest_thinking_estimated": {
           "tokens": 1400,
           "call": 5,
           "at_s": 28.1
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 272,
         "context_start": 16318,
         "context_end": 147224,
         "largest_context_jump": {
@@ -2253,7 +2268,7 @@
         "commit": "e8ba5e2a"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 52,
         "tool_calls": 57,
         "thinking_visible": false,
@@ -2264,12 +2279,15 @@
         "largest_thinking": null,
         "text_chars": 5089,
         "tool_arg_chars": 138627,
+        "thinking_tokens": 22183,
         "thinking_estimated_tokens": 24313,
         "largest_thinking_estimated": {
           "tokens": 6650,
           "call": 10,
           "at_s": 143.9
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 247,
         "context_start": 16352,
         "context_end": 191487,
         "largest_context_jump": {
@@ -2632,7 +2650,7 @@
         "commit": "b0443163"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 44,
         "tool_calls": 46,
         "thinking_visible": false,
@@ -2643,12 +2661,15 @@
         "largest_thinking": null,
         "text_chars": 3285,
         "tool_arg_chars": 72155,
+        "thinking_tokens": 15331,
         "thinking_estimated_tokens": 16792,
         "largest_thinking_estimated": {
           "tokens": 4550,
           "call": 9,
           "at_s": 68.1
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 269,
         "context_start": 16375,
         "context_end": 135587,
         "largest_context_jump": {
@@ -3050,7 +3071,7 @@
         "error": "com:boxabirds/awesome-local-ai.git\n ! [rejected]          HEAD -> main (fetch first)\nerror: failed to push some refs to 'github.com:boxabirds/awesome-local-ai.git'\nhint: Updates were rejected because the remote contains work that you do not\nhint: have locally. This is usually caused by another repository pushing to\nhint: the same ref. If you want to integrate the remote changes, use\nhint: 'git pull' before pushing again.\nhint: See the 'Note about fast-forwards' in 'git push --help' for details.\n"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 57,
         "tool_calls": 61,
         "thinking_visible": false,
@@ -3061,12 +3082,15 @@
         "largest_thinking": null,
         "text_chars": 5885,
         "tool_arg_chars": 128710,
+        "thinking_tokens": 35753,
         "thinking_estimated_tokens": 37937,
         "largest_thinking_estimated": {
           "tokens": 7500,
           "call": 11,
           "at_s": 228.7
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 268,
         "context_start": 16338,
         "context_end": 218983,
         "largest_context_jump": {
@@ -3456,7 +3480,7 @@
         "commit": "dd8fcb35"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 58,
         "tool_calls": 59,
         "thinking_visible": false,
@@ -3467,12 +3491,15 @@
         "largest_thinking": null,
         "text_chars": 4277,
         "tool_arg_chars": 174190,
+        "thinking_tokens": 29483,
         "thinking_estimated_tokens": 32352,
         "largest_thinking_estimated": {
           "tokens": 10550,
           "call": 8,
           "at_s": 125.4
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 259,
         "context_start": 16379,
         "context_end": 235040,
         "largest_context_jump": {
@@ -3819,7 +3846,7 @@
         "commit": "ea2db998"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 46,
         "tool_calls": 48,
         "thinking_visible": false,
@@ -3830,12 +3857,15 @@
         "largest_thinking": null,
         "text_chars": 4051,
         "tool_arg_chars": 92908,
+        "thinking_tokens": 11560,
         "thinking_estimated_tokens": 13564,
         "largest_thinking_estimated": {
           "tokens": 3350,
           "call": 16,
           "at_s": 80.9
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 246,
         "context_start": 16341,
         "context_end": 169514,
         "largest_context_jump": {
@@ -4235,7 +4265,7 @@
         "commit": "a752e0b5"
       },
       "conversation": {
-        "version": 1,
+        "version": 2,
         "calls": 60,
         "tool_calls": 65,
         "thinking_visible": false,
@@ -4246,12 +4276,15 @@
         "largest_thinking": null,
         "text_chars": 4399,
         "tool_arg_chars": 136507,
+        "thinking_tokens": 18492,
         "thinking_estimated_tokens": 21742,
         "largest_thinking_estimated": {
           "tokens": 6850,
           "call": 9,
           "at_s": 96.1
         },
+        "thinking_estimated_median_before": 0,
+        "thinking_estimated_median_after": 258,
         "context_start": 16330,
         "context_end": 223916,
         "largest_context_jump": {

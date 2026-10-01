@@ -15,7 +15,8 @@ Every step is idempotent and only fills or corrects; it prints what each changed
    (accounting.VERSION changes with the calculation: test_accounting.py holds it to that), and any whose stored
    accounting check failed. A record of version 3 that failed for a tool call cut off by a restart or the story's
    end, or for a machine that slept under Claude Code, passes once redone.
-4. conversation: each story with no conversation profile gets one (conversation.py).
+4. conversation: each story with no conversation profile, or one from an older conversation.VERSION, gets one
+   (conversation.py), from the full log.
 5. provenance: each story with none gets the harness commit and pack version it ran under (provenance.py), from
    run.sh's record of each start (run-history.jsonl, run.json).
 """
@@ -134,13 +135,14 @@ def backfill(run: Path, recompute: bool = False) -> list[str]:
 
 
 def backfill_conversation(run: Path) -> list[str]:
-    """Give each story that has none its conversation profile, from the full event log the machine kept."""
+    """Give each story that has none, or an older version's, its conversation profile, from the full event log."""
     import conversation
     metrics = heldout.load_metrics(run)
     filled = []
     for sid, rec in _stories(metrics):
         raw = _raw(run, sid)
-        if rec.get("conversation") or not raw.is_file() or "started" not in rec or "agent_finished" not in rec:
+        current = (rec.get("conversation") or {}).get("version") == conversation.VERSION
+        if current or not raw.is_file() or "started" not in rec or "agent_finished" not in rec:
             continue
         if (p := conversation.profile(raw, rec.get("first_started", rec["started"]), rec["agent_finished"])) is not None:
             rec["conversation"] = p

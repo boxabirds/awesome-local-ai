@@ -12,7 +12,9 @@ Two clients' logs are read. pi's: one message_end per model call, thinking text 
 each content block of a model message is its own "assistant" event under the message's id, thinking text is
 withheld (the blocks arrive empty), and while the model thinks the client streams running estimates of its
 thinking tokens, restarting with each message. So a Claude profile has thinking_visible False and every
-character count of thinking None (never 0: it isn't known), and estimated thinking tokens instead. A subagent's
+character count of thinking None (never 0: it isn't known), and estimated thinking tokens instead. The exact count
+exists only per invocation: each closing "result" event carries that invocation's own total (not cumulative over a
+resumed session), so thinking_tokens is their sum over the window; there is no exact count per call. A subagent's
 messages (parent_tool_use_id set) are counted apart, as subagent_calls: they aren't the agent's own calls.
 Tests: test_conversation.py.
 """
@@ -22,7 +24,7 @@ import json
 import statistics
 from pathlib import Path
 
-VERSION = 1
+VERSION = 2                    # 2: Claude's exact thinking total; estimated thinking per call around the largest
 HUNG_TOOL_S = 600              # a single tool call of ten minutes: a dev server or watcher left running
 GIST_CHARS = 120
 UPDATE_PREFIX = 80             # message_update lines are most of a log; skip them without parsing
@@ -47,6 +49,7 @@ def profile(events: Path, t_from: float, t_to: float) -> dict | None:
     by_id: dict[str, dict] = {}          # Claude: the call each message id is, as its blocks arrive
     subagent: set[str] = set()
     estimate = None                      # Claude: the latest running estimate of the thinking in progress
+    exact = None                         # Claude: the invocations' exact thinking tokens, from their results
     with f:
         for line in f:
             if '"message_update"' in line[:UPDATE_PREFIX]:
@@ -80,6 +83,10 @@ def profile(events: Path, t_from: float, t_to: float) -> dict | None:
                     longest = _longer(longest, rx - s[0], s)
             elif t == "system" and e.get("subtype") == "thinking_tokens":
                 estimate = e.get("estimated_tokens")
+            elif t == "result":
+                n = ((e.get("usage") or {}).get("output_tokens_details") or {}).get("thinking_tokens")
+                if isinstance(n, int):
+                    exact = (exact or 0) + n
             elif t == "assistant" and isinstance(e.get("message"), dict):
                 claude = True
                 m = e["message"]
@@ -129,9 +136,13 @@ def profile(events: Path, t_from: float, t_to: float) -> dict | None:
     return {
         "version": VERSION, "calls": len(calls), "tool_calls": tool_calls, **_thinking(calls, visible=not claude),
         "text_chars": text, "tool_arg_chars": args,
+        "thinking_tokens": exact,
         "thinking_estimated_tokens": sum(x for x in ests if x is not None) if est_big is not None else None,
         "largest_thinking_estimated": {"tokens": ests[est_big], "call": est_big + 1, "at_s": round(calls[est_big]["at"], 1)}
                                       if est_big is not None else None,
+        # per call, around the largest block; a call with no estimate before it didn't think (0)
+        "thinking_estimated_median_before": _median([x or 0 for x in ests[:est_big]]) if est_big is not None else None,
+        "thinking_estimated_median_after": _median([x or 0 for x in ests[est_big + 1:]]) if est_big is not None else None,
         "context_start": calls[0]["context"], "context_end": calls[-1]["context"],
         "largest_context_jump": {"tokens": jump[0], "call": jump[1] + 1} if jump[0] > 0 else None,
         "tools_by_name": by_name, "tool_errors": errors, "longest_tool": longest, "signals": signals,
