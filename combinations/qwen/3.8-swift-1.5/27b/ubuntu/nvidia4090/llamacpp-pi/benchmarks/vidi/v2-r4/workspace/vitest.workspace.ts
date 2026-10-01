@@ -44,6 +44,11 @@ export default defineWorkspace([
             serviceBindings: {
               ASSETS: assetsFallback,
             },
+            // NOTE: no r2Buckets binding in tests. The miniflare R2 bucket is
+            // sqlite-backed and its persistent sidecar files are incompatible
+            // with this test pool's storage handling, so the worker falls back
+            // to its in-memory asset store (see src/worker/asset-store.ts).
+            // Production binds the real R2 bucket via wrangler.jsonc.
             bindings: {
               TEST_HOOKS: '1',
             },

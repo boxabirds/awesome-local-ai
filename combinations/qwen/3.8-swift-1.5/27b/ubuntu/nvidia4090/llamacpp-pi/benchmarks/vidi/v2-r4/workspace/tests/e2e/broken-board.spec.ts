@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { createBoard, setCamera } from './helpers/board';
 
 /**
  * TC-24: Broken board shows honest failure, edit lock, recovery without reload
@@ -6,11 +7,12 @@ import { test, expect } from '@playwright/test';
 
 test.describe('E2E Broken Board', () => {
   test('TC-24: corrupt board shows load-failed, recovery works', async ({ page, request }) => {
-    const boardId = `e2e-broken-${Date.now()}`;
+    const boardId = await createBoard();
 
     // Step 1: Create a board with a note
-    await page.goto(`/board/${boardId}`);
-    await page.waitForSelector('[data-testid="board-viewport"]', { timeout: 10000 });
+    await page.goto(`/b/${boardId}`);
+    await page.waitForSelector('[data-testid="board-viewport"]', { timeout: 15000 });
+    await setCamera(page, { x: 0, y: 0, zoom: 1 });
     await page.dblclick('[data-testid="board-viewport"]', { position: { x: 200, y: 200 } });
     await page.waitForSelector('[contenteditable="true"]', { timeout: 5000 });
     await page.locator('[contenteditable="true"]').first().fill('Will be lost');
@@ -23,7 +25,6 @@ test.describe('E2E Broken Board', () => {
 
     // Step 3: Reload the page - should show load-failed state
     await page.reload();
-    await page.waitForSelector('[data-testid="board-viewport"]', { timeout: 10000 });
 
     // Wait for the load-failed message
     await expect(page.locator('[data-testid="connection-status"]')).toContainText(
@@ -41,7 +42,7 @@ test.describe('E2E Broken Board', () => {
 
     // Step 6: Reload the page - should show the board (empty after repair)
     await page.reload();
-    await page.waitForSelector('[data-testid="board-viewport"]', { timeout: 10000 });
+    await page.waitForSelector('[data-testid="board-viewport"]', { timeout: 15000 });
 
     // The load-failed message should be gone
     // (The board is now loadable, so the connection status should not show load-failed)

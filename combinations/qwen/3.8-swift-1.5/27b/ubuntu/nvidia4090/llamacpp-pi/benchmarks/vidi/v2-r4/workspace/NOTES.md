@@ -1,3 +1,44 @@
+# Story 12: Drop images onto the board
+
+## Decisions
+
+1. **Pluggable asset store (`src/worker/asset-store.ts`)** — the worker resolves its storage via `getAssetStore(env)`: the real R2 bucket when `env.ASSETS_BUCKET` is bound (production, `wrangler.jsonc`), otherwise a process-wide in-memory store (tests). The miniflare R2 bucket in this environment is sqlite-backed and its persistent `-shm`/`-wal` sidecar files are incompatible with the pinned test pool (`@cloudflare/vitest-pool-workers` 0.7.0, miniflare 3.20250214.0): with `isolatedStorage: true` the pool's `popStackedStorage` asserts every persist file ends in `.sqlite` and fails on the sidecars; with `isolatedStorage: false` the per-file DO storage directory name (which embeds the absolute test file path) exceeds the 255-char filename limit in this workspace. No pool version is both R2-clean and compatible with the project's vitest 2.x (0.13.0+ requires vitest 4.x). The in-memory fallback keeps the full handler logic — board existence, size/sniff checks, unguessable keys, immutable serving headers — under test via real `SELF.fetch` round-trips.
+
+2. **`sniffImageType` uses magic bytes only** (PNG, JPEG, GIF, WebP) and never the file name or client `Content-Type`, so a renamed PDF or an SVG is refused at the API boundary.
+
+3. **Asset keys are unguessable** — `<boardId>/<assetId>` where `assetId` is a fresh 128-bit board id (`assetKeyFor`), matching story 5's id scheme. The serve route validates the key against `ASSET_KEY_PATTERN` before any storage access.
+
+4. **Serving is locked down** — `Content-Type` from stored metadata, `Cache-Control: public, max-age=…, immutable`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'` so a stored asset can never be interpreted as script.
+
+5. **R2 failure simulation** — the upload handler throws (→ `500 storage_failure`) when `env.TEST_HOOKS === '1'` and the request carries `x-test-fail-r2: 1`.
+
+6. **`UPLOAD_ORIGIN` is a distinct `unique symbol`** in `src/shared/objects/image.ts`, separate from `LOCAL_ORIGIN`; the `Y.UndoManager` only tracks `LOCAL_ORIGIN`, so upload-status transitions (uploading → ready/failed) never create undo steps.
+
+## Test coverage
+
+- **Unit tests**: `tests/unit/image-format.test.ts` (TC-01, TC-02, TC-08, TC-09), `tests/unit/image-model.test.ts` (TC-03–TC-07), `tests/unit/validate-files.test.ts`
+- **Integration tests**: `tests/integration/assets.test.ts` (TC-10–TC-13, TC-15, TC-16)
+- **Component + e2e tests**: (see tasks.md)
+
+## Files changed
+
+### New files
+- `src/shared/image-format.ts` — `sniffImageType`, `assetKeyFor`, `ASSET_KEY_PATTERN`
+- `src/shared/objects/image.ts` — image object model + status lifecycle
+- `src/client/images/validateFiles.ts` — client-side file validation
+- `src/worker/asset-store.ts` — `AssetStore` interface + in-memory fallback + `getAssetStore`
+- `tests/integration/assets.test.ts`
+
+### Modified files
+- `src/shared/config.ts` — image constants (max bytes, sniff bytes, cache max-age)
+- `src/worker/assets.ts` — `handleUpload` / `handleServe`
+- `src/worker/index.ts` — asset routes + `ASSETS_BUCKET` in `Env`
+- `src/worker/types.d.ts` — `R2Bucket` / `R2Object` / `R2HTTPMetadata` / `R2PutOptions`
+- `wrangler.jsonc` — `r2_buckets` binding
+- `vitest.workspace.ts` — test bindings (no `r2Buckets`; in-memory store used)
+
+---
+
 # Story 10: Draw shapes and connect them with arrows that follow when moved
 
 ## Decisions

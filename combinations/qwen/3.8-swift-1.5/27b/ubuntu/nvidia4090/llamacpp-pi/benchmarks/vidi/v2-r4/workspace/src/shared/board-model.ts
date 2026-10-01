@@ -4,6 +4,7 @@ import type { Rect, Point } from './geometry';
 import type { TextSnapshot } from './objects/text';
 import type { ShapeSnap } from './objects/shape';
 import type { StrokeSnap } from './objects/stroke';
+import type { ImageSnap } from './objects/image';
 import type { ConnectorEndpointSnap, ConnectorSnap } from './geometry/connector-geometry';
 import { resolveEndpoints, connectorBBox } from './geometry/connector-geometry';
 import { detachConnectorsTo } from './objects/connector';
@@ -28,7 +29,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 }
 
 /** Every object type the client knows how to render. */
-export type AnySnapshot = StickySnapshot | TextSnapshot | ShapeSnap | StrokeSnap | ConnectorSnap;
+export type AnySnapshot = StickySnapshot | TextSnapshot | ShapeSnap | StrokeSnap | ImageSnap | ConnectorSnap;
 
 function getMeta(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap('meta');
@@ -230,6 +231,30 @@ export function snapshot(doc: Y.Doc): readonly AnySnapshot[] {
         baseHeight,
         color: obj.get('color') as StrokeSnap['color'],
         thickness: obj.get('thickness') as StrokeSnap['thickness'],
+        z: obj.get('z') as number,
+      });
+      return;
+    }
+
+    if (type === 'image') {
+      const status = obj.get('status');
+      if (status !== 'uploading' && status !== 'ready' && status !== 'failed') {
+        return; // malformed image; skip
+      }
+      result.push({
+        id,
+        type: 'image',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: (obj.get('width') as number) ?? 0,
+        height: (obj.get('height') as number) ?? 0,
+        assetKey: (obj.get('assetKey') as string | null) ?? null,
+        contentType: (obj.get('contentType') as string) ?? 'image/png',
+        naturalWidth: (obj.get('naturalWidth') as number) ?? 0,
+        naturalHeight: (obj.get('naturalHeight') as number) ?? 0,
+        status: status as ImageSnap['status'],
+        uploadStartedAt: (obj.get('uploadStartedAt') as number) ?? 0,
+        uploaderId: (obj.get('uploaderId') as string) ?? '',
         z: obj.get('z') as number,
       });
       return;

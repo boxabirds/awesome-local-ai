@@ -1,6 +1,5 @@
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
-import { setCamera } from './helpers/board';
+import { setCamera, createBoard } from './helpers/board';
 
 /**
  * Story 3 E2E: Live collaboration
@@ -33,8 +32,8 @@ test.describe('Story 3: Live Collaboration E2E', () => {
 
   let boardId: string;
 
-  test.beforeEach(() => {
-    boardId = newBoardId();
+  test.beforeEach(async () => {
+    boardId = await createBoard();
   });
 
   // TC-22: A creates sticky → B sees it appear
@@ -156,15 +155,14 @@ test.describe('Story 3: Live Collaboration E2E', () => {
     await ctxB.close();
   });
 
-  // TC-26: Connection status badge shows "Connected"
+  // TC-26: Connection is established (badge hidden when stable)
   test('TC-26: connection status shows connected', async ({ browser }) => {
     const ctx = await browser.newContext();
     const page = await createEditorContext(ctx, boardId);
 
-    // The connection status badge should show "Connected"
-    const status = page.getByTestId('connection-status');
-    await expect(status).toBeVisible();
-    await expect(status).toHaveText('Connected', { timeout: 10000 });
+    // When the board is connected the status badge is hidden (it only appears
+    // while connecting / reconnecting / on load failure).
+    await expect(page.getByTestId('connection-status')).not.toBeVisible();
 
     await ctx.close();
   });

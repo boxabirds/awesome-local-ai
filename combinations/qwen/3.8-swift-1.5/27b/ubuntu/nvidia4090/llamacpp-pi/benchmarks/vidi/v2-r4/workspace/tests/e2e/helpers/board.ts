@@ -1,5 +1,19 @@
 import type { Page, Locator } from '@playwright/test';
 
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:8787';
+
+/**
+ * Creates a board via the API and returns its id. The board must exist before
+ * a client connects (the worker rejects unknown board ids), so every e2e test
+ * creates its board first rather than navigating to a bare newBoardId().
+ */
+export async function createBoard(): Promise<string> {
+  const res = await fetch(`${BASE_URL}/api/boards`, { method: 'POST' });
+  if (!res.ok) throw new Error(`createBoard failed: ${res.status}`);
+  const body = (await res.json()) as { id: string };
+  return body.id;
+}
+
 export function getOriginMarker(page: Page): Locator {
   return page.getByTestId('origin-marker');
 }

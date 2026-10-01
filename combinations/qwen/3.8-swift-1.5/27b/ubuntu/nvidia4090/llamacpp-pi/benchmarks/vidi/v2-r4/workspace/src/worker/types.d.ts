@@ -101,6 +101,35 @@ declare class WebSocketPair {
   readonly 1: WebSocket;
 }
 
+// R2 (story 12: board image assets)
+declare interface R2HTTPMetadata {
+  contentType?: string;
+  cacheControl?: string;
+  [key: string]: unknown;
+}
+
+declare class R2Object {
+  readonly key: string;
+  readonly size: number;
+  readonly httpMetadata?: R2HTTPMetadata;
+  readonly body: ReadableStream;
+  text(): Promise<string>;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
+declare interface R2PutOptions {
+  httpMetadata?: R2HTTPMetadata;
+  customMetadata?: Record<string, string>;
+  cacheControl?: string;
+}
+
+declare class R2Bucket {
+  put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string, options?: R2PutOptions): Promise<R2Object>;
+  get(key: string): Promise<R2Object | null>;
+  delete(key: string | string[]): Promise<void>;
+  list(options?: { prefix?: string; limit?: number }): Promise<{ objects: R2Object[]; truncated: boolean }>;
+}
+
 declare class Fetcher {
   fetch(input: Request | string, init?: RequestInit): Promise<Response>;
 }

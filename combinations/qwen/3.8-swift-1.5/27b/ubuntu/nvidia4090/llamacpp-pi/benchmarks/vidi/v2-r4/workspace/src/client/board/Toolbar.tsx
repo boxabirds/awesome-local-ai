@@ -162,6 +162,17 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           >
             ✎
           </button>
+
+          <button
+            aria-label="Image (I)"
+            title="Image – I, or drop / paste"
+            aria-pressed={tool === 'image'}
+            onClick={disabled ? undefined : () => setTool('image')}
+            disabled={disabled}
+            style={toolButtonStyle(tool === 'image', disabled)}
+          >
+            🖼
+          </button>
         </>
       )}
       <button

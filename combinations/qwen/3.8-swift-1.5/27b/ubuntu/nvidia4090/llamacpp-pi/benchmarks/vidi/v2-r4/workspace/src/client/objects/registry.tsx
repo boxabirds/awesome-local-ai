@@ -146,6 +146,28 @@ import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
 import { CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
 import type { ConnectorEndpointSnap } from '../../shared/geometry/connector-geometry';
 
+// Register the image type (story 12: aspect-locked proportional resize)
+import { ImageObject } from './ImageObject';
+import { IMAGE_MIN_SIZE_WORLD } from '../../shared/config';
+
+registerObjectType('image', {
+  Component: ImageObject as React.ComponentType<ObjectProps>,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  handles: 'all',
+  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
+    const bounds = objectBounds(obj);
+    return (
+      worldPoint.x >= bounds.x &&
+      worldPoint.x <= bounds.x + bounds.width &&
+      worldPoint.y >= bounds.y &&
+      worldPoint.y <= bounds.y + bounds.height
+    );
+  },
+});
+
 registerObjectType('connector', {
   Component: ConnectorObjectComponent as React.ComponentType<ObjectProps>,
   resizable: false,

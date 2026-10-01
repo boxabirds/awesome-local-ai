@@ -27,6 +27,11 @@ export interface BoardViewportProps {
   onMarqueeMove?(p: Point): void;
   onMarqueeEnd?(): void;
   onMarqueeCancel?(): void;
+  /** File drag-and-drop (story 12, image.drop). */
+  onDragOver?(e: React.DragEvent): void;
+  onDragEnter?(e: React.DragEvent): void;
+  onDragLeave?(e: React.DragEvent): void;
+  onDrop?(e: React.DragEvent): void;
 }
 
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
@@ -290,6 +295,10 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       onDoubleClick={handleDoubleClick}
+      onDragOver={props.onDragOver}
+      onDragEnter={props.onDragEnter}
+      onDragLeave={props.onDragLeave}
+      onDrop={props.onDrop}
     >
       <div
         data-testid="world-layer"

@@ -37,6 +37,9 @@ import type { ShapeSnap } from '../../shared/objects/shape';
 import { objectBounds } from '../../shared/board-model';
 import type { Rect } from '../../shared/geometry';
 import { getRegisteredTypes, getObjectType } from '../objects/registry';
+import { useImageInsert, ACCEPT_ATTR } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { Toast } from '../ui/Toast';
 
 // Initialize the registry types for board-model
 setRegisteredTypes(getRegisteredTypes());
@@ -162,6 +165,37 @@ export function BoardUI({ boardId }: { boardId: string }) {
   // Pen options (story 11): session-only colour and thickness
   const penOptions = usePenOptions();
 
+  // Image insert (story 12): drop, paste, picker, progress and retry.
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    connection: connectionState,
+    identityId: SESSION_ID,
+    viewportSize,
+  });
+
+  // Clock tick (story 12): re-render ~every 30 s while any image is uploading
+  // so the `unfinished` display status can appear (image.unfinished).
+  const [now, setNow] = useState(() => Date.now());
+  const anyUploading = notes.some(
+    (o) => o.type === 'image' && (o as { status?: string }).status === 'uploading',
+  );
+  useEffect(() => {
+    if (!anyUploading) return;
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, [anyUploading]);
+
+  // Image tool is transient (image.pick): the Image button or the I key sets
+  // the tool to 'image'; this effect opens the picker and returns to Select.
+  useEffect(() => {
+    if (tool === 'image') {
+      imageInsert.openPicker();
+      setTool('select');
+    }
+  }, [tool, imageInsert.openPicker, setTool]);
+
   // Create a text object at a world point, start editing it, and switch the
   // tool back to Select (text.create sequence).
   const createTextAt = useCallback(
@@ -283,6 +317,18 @@ export function BoardUI({ boardId }: { boardId: string }) {
     [doc, undo],
   );
 
+  // Handle image Remove (story 12, image.upload_failure / image.unfinished):
+  // delete the placeholder object (bounded: one undo step).
+  const handleImageRemove = useCallback(
+    (id: string) => {
+      undo?.boundary();
+      deleteObjects(doc, [id]);
+      selection.clear();
+      undo?.boundary();
+    },
+    [doc, selection, undo],
+  );
+
   // Build rects map for connector rendering
   const rectsMap = new Map<string, Rect>();
   for (const obj of notes) {
@@ -315,6 +361,10 @@ export function BoardUI({ boardId }: { boardId: string }) {
         onMarqueeMove={handleMarqueeMove}
         onMarqueeEnd={handleMarqueeEnd}
         onMarqueeCancel={handleMarqueeCancel}
+        onDragOver={imageInsert.onDragOver}
+        onDragEnter={imageInsert.onDragEnter}
+        onDragLeave={imageInsert.onDragLeave}
+        onDrop={imageInsert.onDrop}
         tool={tool}
         onTextToolClick={handleTextToolClick}
         overlayChildren={
@@ -351,6 +401,16 @@ export function BoardUI({ boardId }: { boardId: string }) {
               onClearSelection={(id) => selection.toggle(id)}
               undo={undo ?? undefined}
               {...(obj.type === 'connector' ? { rects: rectsMap, onReattach: handleConnectorReattach } : {})}
+              {...(obj.type === 'image'
+                ? {
+                    isUploader: (obj as { uploaderId?: string }).uploaderId === SESSION_ID,
+                    progress: imageInsert.progress.get(obj.id),
+                    canRetry: imageInsert.canRetry(obj.id),
+                    now,
+                    onRetry: () => imageInsert.retry(obj.id),
+                    onRemove: () => handleImageRemove(obj.id),
+                  }
+                : {})}
             />
           );
         })}
@@ -461,6 +521,24 @@ export function BoardUI({ boardId }: { boardId: string }) {
       />
       <NavigationHint visible={!hasNavigated && notes.length === 0} />
       <SharePanel boardId={boardId} />
+
+      {/* Image picker input (story 12, image.pick): hidden, opened by the
+          Image button / I key via imageInsert.openPicker(). */}
+      <input
+        ref={imageInsert.fileInputRef}
+        type="file"
+        accept={ACCEPT_ATTR}
+        multiple
+        data-testid="image-file-input"
+        style={{ display: 'none' }}
+        onChange={imageInsert.onPickerChange}
+      />
+
+      {/* Drop highlight (story 12, image.drop) */}
+      {imageInsert.dragActive && <DropHighlight />}
+
+      {/* Toast (story 12) */}
+      {imageInsert.toast && <Toast message={imageInsert.toast} />}
     </div>
   );
 }

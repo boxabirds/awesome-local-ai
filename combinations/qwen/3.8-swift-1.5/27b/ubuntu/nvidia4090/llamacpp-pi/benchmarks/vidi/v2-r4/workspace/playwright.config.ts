@@ -8,6 +8,7 @@ const persistDir = path.join(__dirname, '.e2e-persist');
 
 export default defineConfig({
   testDir: './tests/e2e',
+  globalSetup: './tests/e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: true,
   retries: 0,
