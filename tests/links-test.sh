@@ -4,6 +4,7 @@
 # The combination tree is seven directories deep, so a hand-counted `../`
 # chain is wrong more often than it is right, and a link that escapes the
 # repo root looks fine on GitHub until someone clicks it.
+# A run's workspace/ is the agent's own work, mirrored without its spec/: its links aren't ours to hold.
 set -uo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$DIR/.." && pwd)"
@@ -28,6 +29,6 @@ while IFS= read -r md; do
       _fail "$md -> $target" "an existing file" "missing: ${resolved:-unresolvable}"
     fi
   done < <(grep -oE '\]\([^)]+\)' "$md" | sed -e 's/^](//' -e 's/)$//')
-done < <(find . -name '*.md' -not -path './.git/*' -not -path './demos/*' -not -path './node_modules/*' | sort)
+done < <(find . -name '*.md' -not -path './.git/*' -not -path './demos/*' -not -path '*/node_modules/*' -not -path '*/benchmarks/*/workspace/*' | sort)
 
 finish

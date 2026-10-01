@@ -19,11 +19,12 @@ echo "no home paths in tracked files"
 # when showing a path the reader must substitute; everything else is a real
 # account name. A match must start a path (not `next/prev/home/end` in prose),
 # and a hidden folder such as /home/.cache is not an account.
+# Nor is a regular expression for the word, with its flags: `/home/i` (in an agent's own tests).
 leaks() {
   git ls-files -z \
     | xargs -0 grep -hoE '(^|[^A-Za-z0-9_.-])/(Users|home)/[A-Za-z0-9._${}<>-]+' 2>/dev/null \
     | sed -E 's|^[^/]||' \
-    | grep -vE '/(Users|home)/((you|user|username|name|me|tester|someoneelse|u|x)$|\.|\$|<|\{)' \
+    | grep -vE '/(Users|home)/((you|user|username|name|me|tester|someoneelse|u|x|i|g|gi|ig)$|\.|\$|<|\{)' \
     | sort -u
 }
 if out="$(leaks)" && [[ -n "$out" ]]; then

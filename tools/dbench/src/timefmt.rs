@@ -26,6 +26,11 @@ pub fn fmt_utc(secs: u64) -> String {
     )
 }
 
+/// The UTC calendar date (year, month, day) of a unix time.
+pub fn utc_date(secs: u64) -> (i64, u32, u32) {
+    civil_from_days((secs / SECS_PER_DAY) as i64)
+}
+
 /// `3h12m`, `4m05s`, `12s`: a short duration for humans.
 pub fn fmt_duration(secs: u64) -> String {
     if secs >= SECS_PER_DAY {
@@ -73,6 +78,13 @@ mod tests {
         assert_eq!(fmt_utc(0), "1970-01-01T00:00:00Z");
         assert_eq!(fmt_utc(1_790_199_771), "2026-09-23T21:42:51Z");
         assert_eq!(fmt_utc(951_782_400), "2000-02-29T00:00:00Z");
+    }
+
+    #[test]
+    fn dates() {
+        assert_eq!(utc_date(0), (1970, 1, 1));
+        assert_eq!(utc_date(1_790_199_771), (2026, 9, 23));
+        assert_eq!(utc_date(951_782_400), (2000, 2, 29));
     }
 
     #[test]

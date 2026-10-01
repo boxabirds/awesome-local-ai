@@ -19,7 +19,7 @@
 >
 > MTPLX is fast (about twice llama.cpp's decode on this Mac) and, without refusals, as good. Use
 > [llama.cpp + pi](../llamacpp-pi/README.md) on this Mac until a release fixes these. Details:
-> [the MTPLX memory report](../../../../../../docs/20260924-mtplx-memory-report.md) and this
+> [the MTPLX memory report](../../../../../../../docs/20260924-mtplx-memory-report.md) and this
 > combination's [run records](benchmarks/vidi/).
 
 A 512-expert MoE served locally at ~50 tok/s decode, with native MTP
