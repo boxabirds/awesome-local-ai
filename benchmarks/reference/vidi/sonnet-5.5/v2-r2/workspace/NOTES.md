@@ -13,3 +13,15 @@
 - Hint, ZoomControls and wheel-over-controls tests (TC-22, TC-30, TC-32 and others) run in jsdom.
 - TC-07 is trivial because the camera module has no viewport-size input. The design's contract has no resize function, so the test just asserts an existing camera object is not touched.
 - The red-phase commit for task 1 was skipped; tests and implementation were committed together in one commit.
+
+## Story 2 decisions
+
+- `createSticky` takes the note **centre** and subtracts half the size itself (as the board-model contract says); callers pass the click or viewport-centre world point. Non-finite points return `""`.
+- `App` accepts an optional `doc` prop (tests seed a real `Y.Doc`); `useBoardDoc` adopts it.
+- Notes render in a stable DOM order (createdAt, id) and stack with `z-index` from the `(z, id)` order. Re-ordering DOM nodes during `bringToFront` dropped pointer capture mid-drag. `StickyNote` has an extra optional `stackIndex` prop for this.
+- `StickyNote` renders its own `NoteToolbar` (scaled by 1/zoom so it keeps screen size). A removed note clears the selection via an effect in `App`.
+- A note also becomes selected when it receives keyboard focus (Tab). Editing a note keeps a hidden measuring copy of the text, so font fit and vertical centring work in edit mode.
+- `StickyTextEditor` takes an extra optional `padTop` prop to keep typed text vertically centred like displayed text.
+- Empty-board click is detected on pointerup (< `DRAG_THRESHOLD_PX` movement) in `BoardViewport`, via new `onBoardClick` / `onBoardDoubleClick` props.
+- The story 1 navigation hint is unchanged: it hides only after the user navigates, not when notes exist.
+- Only Chromium e2e was run; Firefox/WebKit are not installed here.

@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { GRID_SPACING_WORLD } from '../../shared/config';
-import type { Size } from './camera';
+import {
+  useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode,
+} from 'react';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import { screenToWorld, type Point, type Size } from './camera';
 import type { CameraApi } from './useCamera';
 
 const DOM_DELTA_LINE = 1;
@@ -14,6 +16,10 @@ interface Props {
   controller: CameraApi;
   /** Reports the measured size of the board area. */
   onResize?(size: Size): void;
+  /** Double-click on empty board space, at this world point. */
+  onBoardDoubleClick?(world: Point): void;
+  /** Click (without dragging) on empty board space. */
+  onBoardClick?(): void;
   children?: ReactNode;
 }
 
@@ -23,8 +29,9 @@ function mod(value: number, divisor: number): number {
   return ((value % divisor) + divisor) % divisor;
 }
 
-export function BoardViewport({ controller, onResize, children }: Props) {
+export function BoardViewport({ controller, onResize, onBoardDoubleClick, onBoardClick, children }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const downPoint = useRef<Point | null>(null);
   const [panning, setPanning] = useState(false);
   const panningRef = useRef(false);
 
@@ -129,8 +136,24 @@ export function BoardViewport({ controller, onResize, children }: Props) {
     if (target !== e.currentTarget && target.dataset.panSurface === undefined) return;
     panningRef.current = true;
     setPanning(true);
+    downPoint.current = { x: e.clientX, y: e.clientY };
     e.currentTarget.setPointerCapture?.(e.pointerId);
     api.current.beginPan(pointOf(e.clientX, e.clientY));
+  };
+
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const down = downPoint.current;
+    downPoint.current = null;
+    if (panningRef.current && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < DRAG_THRESHOLD_PX) {
+      onBoardClick?.();
+    }
+    endPan();
+  };
+
+  const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target !== e.currentTarget && target.dataset.panSurface === undefined) return;
+    onBoardDoubleClick?.(screenToWorld(api.current.camera, pointOf(e.clientX, e.clientY)));
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -150,7 +173,8 @@ export function BoardViewport({ controller, onResize, children }: Props) {
       tabIndex={-1}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={endPan}
+      onPointerUp={onPointerUp}
+      onDoubleClick={onDoubleClick}
       onPointerCancel={endPan}
       onLostPointerCapture={endPan}
       style={{
