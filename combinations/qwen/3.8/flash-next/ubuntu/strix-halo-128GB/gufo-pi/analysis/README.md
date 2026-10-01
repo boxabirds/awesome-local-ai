@@ -272,7 +272,7 @@ ended. So:
 | Will it give the same result? | No. It is a new sample: temperature 1.0, no fixed seed. It shows how the story goes from the same start, not the same story again. |
 | Can a run be repaired by replacing one story? | No. The stories after it were built on the code the original story left. A replayed story leaves different code. |
 | Can a run be continued from story N to the end? | Not yet. Known-good mode runs exactly one story. `v2-r1` would need stories 10, 11 and 12 in a chain. |
-| Can it be queued like a normal run? | Not yet. `run.sh` takes `--from-run`; the job queue's submit command does not. |
+| Can it be queued like a normal run? | Yes, once the bench machines have the dbench built on 1 October (`dbench submit … --stories N --from-run <run>`, with `--repeat` for several replays). |
 
 The three v2 story runs the nudge kept going for more than five minutes after "done":
 
@@ -302,6 +302,9 @@ side by side.
 | Opus 5.5 | 3 | 10% | 23k tokens | 10% | 15 min |
 | Sonnet 5.5 | 2 | 11% | 9k tokens | 15% | 11 min |
 
+The pages show these figures per stack once it has three finished runs. They leave out story runs marked not
+comparable (`v2-r1` stories 10 to 12), so gufo reads 46% and 22% there; the table above is over all 44 story runs.
+
 How to read it, and its limits:
 
 - Low spread is not good on its own. The same model on mlx-serve thinks at length every time: steady, and nearly
@@ -313,7 +316,7 @@ How to read it, and its limits:
 
 ## Proposed actions
 
-A is approved and being built. The others need the owner's approval.
+A, B, E and F are approved (1 October 2026): B and E are live, A and F are being built. C was declined for now. D awaits a decision.
 
 **A. A finished story must not keep running** (approved 1 October 2026; see "The replacement" above)
 
