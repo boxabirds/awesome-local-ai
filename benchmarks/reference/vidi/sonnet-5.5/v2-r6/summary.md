@@ -15,8 +15,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | 5/5 | 0 | 0 | 35/36 |
 | 7 | 8/8 | 0 | 0 | 43/44 |
 | 8 | 7/7 | 0 | 0 | 50/51 |
+| 9 | 6/6 | 0 | 0 | 56/57 |
 
-**New work** 46/47, **regressions** 0, **repairs** 0, **cumulative** 50/51.
+**New work** 52/53, **regressions** 0, **repairs** 0, **cumulative** 56/57.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -27,10 +28,11 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 5 | Share a board with others using a link | DONE | 8.6 | None | None | None | — | — | red | 35/36 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 | 7 | Select, move, resize and delete several objects at once | DONE | 14.8 | None | None | None | — | — | green | 43/44 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 18.0 | None | None | None | — | — | red | 50/51 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
+| 9 | Write free text anywhere on the board | DONE | 16.6 | None | None | None | — | — | green | 56/57 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 
-**Totals:** 7 stories, 98 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/7, final acceptance 50/51, stalled 0, partial 0, 8679 lines in src+tests.
+**Totals:** 8 stories, 114 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 6/8, final acceptance 56/57, stalled 0, partial 0, 10091 lines in src+tests.
 
-> Stories 1, 2, 3, 4, 5, 7, 8 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
+> Stories 1, 2, 3, 4, 5, 7, 8, 9 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
 
 ## How it happened
 
@@ -45,6 +47,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | 1 by the agent | 1033 / 126 | `App.tsx` (116), `SharePanel.tsx` (91), `BoardApp.tsx` (90), `HomePage.tsx` (53), `BoardPage.tsx` (45), `index.ts` (40), +12 more |
 | 7 | 1 by the agent | 2072 / 199 | `useTransformGesture.ts` (218), `board-model.ts` (134), `StickyNote.tsx` (121), `BoardApp.tsx` (116), `geometry.ts` (109), `useSelection.ts` (104), +10 more |
 | 8 | 1 by the agent | 798 / 8 | `undo.ts` (78), `useUndo.ts` (38), `UndoButtons.tsx` (32), `BoardApp.tsx` (23), `useBoardKeys.ts` (21), `StickyTextEditor.tsx` (18), +3 more |
+| 9 | 1 by the agent | 1635 / 206 | `TextEditor.tsx` (138), `text.ts` (112), `StickyTextEditor.tsx` (103), `StickyText.ts` (86), `TextObject.tsx` (86), `textLayout.ts` (86), +19 more |
 
 ### Earlier stories broken or fixed
 
