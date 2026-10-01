@@ -11,22 +11,28 @@ export interface BoardViewportProps {
   wheel(e: { deltaX: number; deltaY: number; ctrlOrMeta: boolean; point: Point }): void;
   zoomStep(dir: 'in' | 'out'): void;
   reset(): void;
+  onDoubleClickEmpty?(p: Point): void;
+  onPointerDownEmpty?(): void;
 }
 
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
   const gestureScaleRef = useRef(1);
+  const pointerDownWasEmptyRef = useRef(false);
 
   // Pointer events for drag panning
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       const target = e.target as HTMLElement;
-      if (target !== containerRef.current && !target.dataset.grid) return;
+      const isOnNote = target.closest('[data-note-id]');
+      const isOnToolbar = target.closest('[data-testid="toolbar"]') || target.closest('[data-testid="note-toolbar"]');
+      if (isOnNote || isOnToolbar) return;
 
       e.preventDefault();
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       isPanningRef.current = true;
+      pointerDownWasEmptyRef.current = true;
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       props.beginPan({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     },
@@ -52,8 +58,13 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         // ignore
       }
       props.endPan();
+      // If pointer down was on empty space and we didn't pan much, clear selection
+      if (pointerDownWasEmptyRef.current) {
+        pointerDownWasEmptyRef.current = false;
+        props.onPointerDownEmpty?.();
+      }
     },
-    [props.endPan],
+    [props.endPan, props.onPointerDownEmpty],
   );
 
   const handlePointerCancel = useCallback(
@@ -68,6 +79,21 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       props.endPan();
     },
     [props.endPan],
+  );
+
+  // Double-click handler for creating notes on empty space
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const isOnNote = target.closest('[data-note-id]');
+      const isOnToolbar = target.closest('[data-testid="toolbar"]') || target.closest('[data-testid="note-toolbar"]');
+      if (isOnNote || isOnToolbar) return;
+
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const point: Point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      props.onDoubleClickEmpty?.(point);
+    },
+    [props.onDoubleClickEmpty],
   );
 
   // Wheel event (non-passive)
@@ -183,6 +209,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
+      onDoubleClick={handleDoubleClick}
     >
       <div
         data-testid="world-layer"
