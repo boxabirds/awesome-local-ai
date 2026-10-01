@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 11:40 UTC
+**Last updated:** 2026-10-01 12:15 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -137,6 +137,9 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Note 2026-10-01 09:12:** story 5 done in 22 min (the other runs: 87–128 min): 2/5 of its own held-out
   tests and 3/36 overall, gate still red. The app now renders for a few tests; not repaired.
 - **Note 2026-10-01 10:15:** story 7: 0/8 of its own, 13/44 overall, gate red (the other runs: 8/8).
+- **Note 2026-10-01 12:12:** story 8 has run 122 agent-min (the other runs: 17, 24 and 47 min), 90 min
+  since its last commit: repeated full e2e runs that hit its own 590 s time limit, and attempts to find
+  and stop whatever holds its dev server's port. Not hung (calls keep coming); over 3× the median.
 - **Suggested action:** none for the harness. Worth knowing when reading this stack's story-level scores:
   stories 2–4 will show 0 own held-out tests although unit-level work exists.
 
@@ -211,6 +214,9 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Note 2026-10-01 09:12:** story 5's gate is red again (36/36 held-out). The machine was heavily loaded
   during these stories (A-022), so a timing-sensitive test of the agent's own failing only under load is
   now the likelier reading; bucket unchanged until a log is read.
+- **Note 2026-10-01 11:54:** v2-r4 finished: final score 75/75 (live 75/75), gate red on stories 2, 3, 5, 9,
+  10, 11 and 12. So the red gate never reflected a held-out failure. v2-r5 (started 11:47, on a quieter
+  machine) has green gates on stories 1 and 2 so far, which favours the load reading.
 - **Note 2026-10-01 11:28:** gate red again on stories 9, 10 and 11 (held-out 57/57, 65/65, 70/70); green
   on 4, 7 and 8. Story 9 was also marked DEGRADED.
 - **Status:** watching v2-r4's later stories and v2-r5/r6.
@@ -227,6 +233,8 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Note 2026-10-01 09:12:** the story ran almost entirely on battery in Low Power Mode and is marked
   DEGRADED (A-022), which explains its length. The 31 s gap may come from the same cause (the machine
   pausing), which would make this environment rather than a bug: confidence lowered to low.
+- **Note 2026-10-01 12:03:** `4b7ebf25` (accounting v4: a cut-off tool call and a machine that slept are
+  not failed checks) addresses this and A-016. Stories 5–12 of v2-r4 passed the check.
 - **Status:** watching for the same on later stories; stories 1–3 and 5 passed the check.
 
 ### A-016 — mlx-serve v2-r2: accounting unchecked on stories 1–3, failed on stories 4 and 9
@@ -245,6 +253,8 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   under one call id. The profile then reports that call as the longest tool (1460 s, spanning the time the
   harness was down) and raises `hung-command`, which is false here. The run's `interventions.md` lists
   neither swap-guard stop nor the restarts, although it is meant to list every intervention.
+- **Note 2026-10-01 12:03:** `4b7ebf25` (accounting v4) stops counting a cut-off tool call as a failed
+  check; whether the false `hung-command` and the missing interventions are covered wasn't checked.
 - **Status:** watching; a backfill after the run ends may clear stories 1–4.
 - **Suggested action:** after the run, run the backfill with `--recompute` and see whether 4 and 9 still
   fail; if 9 does, the call belongs to attempt 1 only.
