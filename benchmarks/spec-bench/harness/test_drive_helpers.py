@@ -147,6 +147,28 @@ def test_macos_profile_without_a_user_temp_dir_reopens_only_tools_that_exist(tmp
     assert profile.endswith(f"(allow file-read* file-write* (subpath {drive._sb_quote(own)}))")
 
 
+def test_the_linux_sandbox_masks_what_is_denied_and_binds_the_run_s_temp_dir_over_the_shared_ones(tmp_path, monkeypatch):
+    monkeypatch.setattr(drive, "IS_MAC", False)
+    denied, tools = tmp_path / "denied", tmp_path / "tools"
+    denied.mkdir()
+    tools.mkdir()
+    monkeypatch.setattr(drive, "SANDBOX_DENY", [denied])
+    monkeypatch.setattr(drive, "SANDBOX_REOPEN_RO", [tools])
+    monkeypatch.setattr(drive, "WORK_ROOT", tmp_path / "work")
+    own = tmp_path / "work" / "run"
+    cmd = drive.sandboxed(["true", "x"], own_dir=own)
+    own_s, tmp_s = str(own.resolve()), str((own / drive.AGENT_TMP).resolve())
+    assert (own / drive.AGENT_TMP).is_dir()
+    assert cmd[0] == "bwrap" and cmd[-3:] == ["--", "true", "x"]
+    # In order: the masks, the tools re-opened read-only, the run's temp dir over each shared one, then the run's own dir.
+    tail = ["--ro-bind", str(tools.resolve()), str(tools.resolve()),
+            *(a for p in drive.SHARED_TMP for a in ("--bind", tmp_s, str(p))), "--bind", own_s, own_s, "--", "true", "x"]
+    assert cmd[-len(tail):] == tail
+    masks = cmd[:-len(tail)]
+    for hidden in (denied, tmp_path / "work"):
+        assert masks[masks.index(str(hidden.resolve())) - 1] == "--tmpfs"
+
+
 def test_a_path_is_quoted_for_the_sandbox_profile_with_its_quotes_and_backslashes_escaped(tmp_path):
     odd = tmp_path / 'a"b\\c'
     assert drive._sb_quote(odd) == '"' + str(tmp_path.resolve()) + '/a\\"b\\\\c"'
@@ -833,6 +855,12 @@ def test_waiting_for_conditions_announces_once_and_polls_until_fit(monkeypatch, 
     assert slept == [drive.CONDITION_POLL_S, drive.CONDITION_POLL_S]
     out = capsys.readouterr().out
     assert out == f"  waiting for AC power, no Low Power Mode, nominal thermals: now {ON_BATTERY}\n"
+
+
+def test_a_run_told_not_to_wait_takes_the_conditions_as_they_are(monkeypatch, capsys):
+    monkeypatch.setattr(drive, "conditions", lambda: ON_BATTERY)
+    monkeypatch.setattr(drive.time, "sleep", never)
+    assert drive.wait_for_conditions(wait=False) == ON_BATTERY and capsys.readouterr().out == ""
 
 
 def test_a_fit_machine_is_not_waited_for(monkeypatch, capsys):

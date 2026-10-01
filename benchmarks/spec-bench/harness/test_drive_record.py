@@ -146,6 +146,64 @@ def test_a_record_is_one_commit_of_the_run_with_the_trailer_and_the_checkout_s_i
     assert git(repo, "status", "--porcelain").strip() == "A  staged-by-someone.md"     # still staged, still not committed
 
 
+def test_the_first_record_in_a_repository_with_no_commit_yet_is_its_first_commit(tmp_path):
+    remote, repo = tmp_path / "empty.git", tmp_path / "empty"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    subprocess.run(["git", "clone", "-q", str(remote), str(repo)], check=True, capture_output=True)
+    run = pg.small_run(repo)
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
+    assert res["committed"] is True and res["pushed"] is True
+    assert git(repo, "rev-list", "--count", "HEAD").strip() == "1" and remote_head(remote) == head(repo)
+
+
+def test_a_rebase_left_by_a_killed_harness_is_aborted_before_the_record_and_reported(tmp_path, fake):
+    repo, remote = pg.cloned(tmp_path, "public")
+    run = pg.small_run(repo)
+    (repo / ".git" / "rebase-merge").mkdir()
+    res = drive.record_story(repo, run, MESSAGE, git=fake.cmd, private=tmp_path / "none")
+    assert res["recovered"] == "aborted a rebase left in progress by an earlier run"
+    assert fake.calls("rebase") == ["rebase --abort"]
+    assert res["committed"] is True and res["pushed"] is True and remote_head(remote) == head(repo)
+
+
+def test_a_record_with_no_rebase_in_progress_aborts_none_and_reports_no_recovery(tmp_path, fake):
+    repo, _ = pg.cloned(tmp_path, "public")
+    res = drive.record_story(repo, pg.small_run(repo), MESSAGE, git=fake.cmd, private=tmp_path / "none")
+    assert "recovered" not in res and fake.calls("rebase") == [] and res["committed"] is True
+    assert "untracked_private" not in res and "refused" not in res
+
+
+def test_a_record_drops_the_private_files_an_older_harness_committed_and_counts_them(tmp_path):
+    repo, remote = pg.cloned(tmp_path, "public")
+    run = pg.small_run(repo)
+    pg.write(run / ACCEPT, json.dumps(pg.STORY_1))
+    git(repo, "add", "-f", "--", pg.RUN_REL)
+    git(repo, "commit", "-qm", "an older harness's record, private files and all")
+    private = [f"{pg.RUN_REL}/{f}" for f in heldout.private_files(run, repo)]
+    assert set(private) <= set(git(repo, "ls-tree", "-r", "--name-only", "HEAD").split())
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
+    assert res["untracked_private"] == len(private) and res["committed"] is True and res["pushed"] is True
+    assert not set(private) & set(git(repo, "ls-tree", "-r", "--name-only", "HEAD").split())
+    assert all((repo / f).exists() for f in private)                                   # still on the machine
+
+
+def test_a_record_carrying_held_out_detail_is_refused_whole_and_goes_through_once_it_is_clean(tmp_path):
+    repo, remote = pg.cloned(tmp_path, "public")
+    run = pg.small_run(repo)
+    before = head(repo)
+    pg.write(run / "notes.md", f"the test is called: something {pg.ANCHOR}\n")
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
+    assert res["committed"] is False and res["pushed"] is False and "commit" not in res
+    assert [r["file"] for r in res["refused"]] == [f"{pg.RUN_REL}/notes.md"]
+    assert res["error"].startswith("not committed: 1 staged file(s) must not be public: ")
+    assert pg.ANCHOR not in json.dumps(res)
+    assert (run / publicise.PUBLISH_REFUSED).exists() and head(repo) == before == remote_head(remote)
+    (run / "notes.md").write_text("nothing held out\n")
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=tmp_path / "none")
+    assert res["committed"] is True and res["pushed"] is True and "refused" not in res
+    assert not (run / publicise.PUBLISH_REFUSED).exists()
+
+
 def test_a_record_names_the_public_files_over_their_size_limit_and_not_the_private_ones(tmp_path, monkeypatch):
     repo, _ = pg.cloned(tmp_path, "public")
     run = pg.small_run(repo)
