@@ -190,6 +190,8 @@ class EventTally:
                     e = json.loads(raw)
                 except json.JSONDecodeError:
                     continue
+                if not isinstance(e, dict):       # JSON, but not an event (`42`, `null`, a list): drive.skipped_output
+                    continue
                 self.client.scan(e, self.st)
                 c = short_call(e)
                 if c:

@@ -11,7 +11,7 @@ import { endedAt, runningStory, silentMinutes, SILENT_MINUTES } from "../shared/
 import { jobReason, type FullRow, type NodeJob } from "./domain.ts";
 
 export const FAULT_KINDS = [
-  "accounting_failed", "accounting_unchecked", "harness_fault",
+  "accounting_failed", "accounting_unchecked", "harness_fault", "agent_output_skipped",
   "not_scored", "rescore_flagged", "live_record_disagree", "no_workspace_bundle", "run_invalid", "run_ended_early",
   "job_failed", "job_cancelled", "job_restarted",
   "machine_unreachable", "machine_no_activity", "machine_idle", "machine_idle_with_queue",
@@ -119,6 +119,8 @@ function runFaults(r: FullRow): Fault[] {
     // A recorded story with no time split at all has no accounting either: worse than unchecked, never left out.
     if (s.usage && !s.usage.split) out.push(ofRun(r, "accounting_unchecked", { accounting_version: null, time_split: null }, { story: s.id }));
     if (s.harnessFaults?.length) out.push(ofRun(r, "harness_fault", { faults: s.harnessFaults }, { story: s.id }));
+    // Lines of the agent's output that were JSON but not events: skipped by the harness, never silently.
+    if (s.skippedOutput) out.push(ofRun(r, "agent_output_skipped", { count: s.skippedOutput.count, samples: s.skippedOutput.samples }, { story: s.id }));
   }
   r.dbenchJobs.forEach((j, i) => {
     const st = j.state.status;

@@ -67,9 +67,12 @@ export interface Rescored { after: string; byStory: NonNullable<Story["byStory"]
 export interface AccountingCheck { status: "ok" | "problems" | "unchecked"; problems: string[]; version: number | null }
 export type RecordSplit = TimeSplit & { check: AccountingCheck };
 export type RecordUsage = Omit<Usage, "split"> & { split?: RecordSplit | null };
-/** A story as the record has it: the page's, plus its check and the harness faults recorded with it (drive.py's
- * harness_faults, verbatim). */
-export type RecordStory = Omit<Story, "usage"> & { usage?: RecordUsage | null; harnessFaults?: unknown[] };
+/** Lines of a story's agent output that were JSON but not events (drive.py's skipped_output): how many, and the
+ * first few, each cut by the harness. */
+export interface SkippedOutput { count: number; samples: string[] }
+/** A story as the record has it: the page's, plus its check, the harness faults recorded with it (drive.py's
+ * harness_faults, verbatim) and its skipped agent output. */
+export type RecordStory = Omit<Story, "usage"> & { usage?: RecordUsage | null; harnessFaults?: unknown[]; skippedOutput?: SkippedOutput };
 
 /** A run marked invalid in its run.json (`"invalid": {"reason": …, "since": "2026-09-30"}`): its result can't stand (it
  * saw the reference build, say). The page never shows it; the faults feed names it. */
@@ -425,11 +428,11 @@ function usageOf(raw: RawUsage): RecordUsage | null {
   };
 }
 
-/** A story as the page gets it: the record's, without its check and harness faults. A split that failed its check
+/** A story as the page gets it: the record's, without its check, harness faults and skipped output. A split that failed its check
  * is not sent: the breakdown is not available, like one never recorded. The story's own totals (agent time, tokens,
  * calls, held-out) stay. */
 export function publicStory(s: RecordStory): Story {
-  const { harnessFaults: _faults, usage, ...rest } = s;
+  const { harnessFaults: _faults, skippedOutput: _skipped, usage, ...rest } = s;
   if (!usage) return { ...rest, usage: usage ?? null };
   const { split, ...u } = usage;
   if (!split) return { ...rest, usage: { ...u, split: split ?? null } };
@@ -492,9 +495,18 @@ function notComparableOf(mark: unknown): string | null {
   return mark ? NO_COMPARABLE_REASON : null;
 }
 
+/** The record's skipped_output where it is what the harness writes (a count above none, and its samples). */
+function skippedOutputOf(raw: unknown): SkippedOutput | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const { count, samples } = raw as { count?: unknown; samples?: unknown };
+  if (typeof count !== "number" || count <= 0) return null;
+  return { count, samples: Array.isArray(samples) ? samples.map(String) : [] };
+}
+
 export function storyEntry(
-  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[]; not_comparable?: unknown } & RawUsage,
+  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[]; skipped_output?: unknown; not_comparable?: unknown } & RawUsage,
 ): RecordStory {
+  const skipped = skippedOutputOf(raw.skipped_output);
   const acc = raw.accept ?? {};
   const own = acc.by_story?.[/^\d+$/.test(id) ? id.padStart(2, "0") : id] ?? {};
   return {
@@ -510,6 +522,7 @@ export function storyEntry(
     conversation: conversationOf(raw.conversation),
     notComparable: notComparableOf(raw.not_comparable),
     ...(Array.isArray(raw.harness_faults) && raw.harness_faults.length ? { harnessFaults: raw.harness_faults } : {}),
+    ...(skipped ? { skippedOutput: skipped } : {}),
   };
 }
 

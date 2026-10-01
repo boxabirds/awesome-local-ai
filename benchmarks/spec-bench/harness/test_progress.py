@@ -323,3 +323,15 @@ def test_evidence_survives_bytes_that_are_not_utf8(tmp_path):
     subprocess.run([*g, "add", "-A"], cwd=ws, check=True)
     ev = progress.evidence(ws, base)  # must not raise
     assert isinstance(ev, dict) and "last_commit_at" in ev
+
+
+def test_the_live_tally_skips_a_line_that_is_json_but_not_an_event(tmp_path):
+    """`42` on a line of its own reached client.scan, which calls .get on it: every refresh of the live progress
+    then failed for the rest of the story ("progress refresh failed"), and so did a record made from the log."""
+    from clients import PiClient
+    ev = tmp_path / "e.jsonl"
+    ev.write_text('{"type": "session", "id": "s"}\n42\nnull\n[1, 2]\n'
+                  '{"type": "message_end", "message": {"role": "assistant", "usage": {"input": 1, "output": 2}}}\n')
+    t = progress.EventTally(PiClient(tmp_path), ev, empty_state)
+    t.update()
+    assert t.st["session"] == "s" and t.st["steps"] == 1 and t.st["tokens"]["output"] == 2

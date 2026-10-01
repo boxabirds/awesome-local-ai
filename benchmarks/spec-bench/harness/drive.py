@@ -1154,7 +1154,9 @@ def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_pa
                 e = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if CONTAINMENT and isinstance(e, dict) and e.get("type") == "tool_execution_start":
+            if not isinstance(e, dict):      # JSON, but not an event: in the log as it arrived, counted by skipped_output
+                continue
+            if CONTAINMENT and e.get("type") == "tool_execution_start":
                 CONTAINMENT.note_tool_start()
             key = client.scan(e, st)
             if key is not None and loops.key(key):
@@ -1174,6 +1176,33 @@ def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_pa
     return {"exit": proc.returncode, "seconds": round(time.monotonic() - t0, 1), "stalled": stalled, **st}
 
 
+# A line of the agent's output that is valid JSON but not an object (`42`, `null`, `[1]`) is not an event: it is
+# skipped, as a line that is not JSON is, and never silently. It stays in the story's log as it arrived, the
+# story's record counts such lines and keeps the first few, and the console says how many (main).
+SKIPPED_OUTPUT_SAMPLES = 3
+SKIPPED_OUTPUT_SAMPLE_CHARS = 200
+
+
+def skipped_output(events: Path) -> dict | None:
+    """The lines of a story's log that are JSON but not objects, over every attempt: how many, and the first few,
+    each cut to its limit. None where there are none (or no log)."""
+    if not events.exists():
+        return None
+    count, samples = 0, []
+    with events.open(errors="replace") as f:
+        for line in f:
+            if line.startswith("{"):         # an event, or one cut off mid-write: either way not one of these
+                continue
+            try:
+                json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            count += 1
+            if len(samples) < SKIPPED_OUTPUT_SAMPLES:
+                samples.append(line.rstrip("\n")[:SKIPPED_OUTPUT_SAMPLE_CHARS])
+    return {"count": count, "samples": samples} if count else None
+
+
 def last_session(client, events_path: Path) -> str | None:
     """The most recent agent session id in a story's event log (None if there is none)."""
     if not events_path.exists():
@@ -1183,6 +1212,8 @@ def last_session(client, events_path: Path) -> str | None:
         try:
             e = json.loads(line)
         except json.JSONDecodeError:
+            continue
+        if not isinstance(e, dict):
             continue
         st = empty_state()
         client.scan(e, st)
@@ -2091,6 +2122,11 @@ def main() -> None:
                              f"see {sdir / 'agent-events.jsonl'}. Not checkpointed.")
 
         rec["agent_commits"] = int(sh(["git", "rev-list", "--count", f"{head_before}..HEAD"], ws).strip())
+        skipped = derived("skipped output lines", lambda: skipped_output(events), run=run)
+        if skipped:
+            rec["skipped_output"] = skipped
+            print(f"[story {sid}] agent output: {skipped['count']} lines were JSON but not events; skipped, kept in "
+                  f"the log", flush=True)
         # The backstop behind the sandbox's read-only spec: it should never fire. Where it does, this story is
         # flagged with the files that changed, and the spec is put back for the stories after it.
         if tree_hash(ws / SPEC_DIR) != spec_hash:

@@ -268,21 +268,40 @@ def test_the_session_is_wrapped_in_its_containment_and_each_tool_call_is_noted(s
 NOT_AN_OBJECT = "a line of the agent's output that is JSON but not an object (a bare number, null, a list)"
 
 
-@pytest.mark.xfail(strict=True, raises=AttributeError,
-                   reason=f"suspected bug: {NOT_AN_OBJECT} reaches client.scan, which calls .get on it, and the "
-                          f"session crashes outside derived(); stderr is merged into the same stream")
 def test_a_json_line_that_is_not_an_event_does_not_crash_the_session(session):
-    result, _, events = session('emit("42", "null", "[1, 2]", {"type": "session", "id": "s"})')
-    assert result["session"] == "s" and result["exit"] == 0
+    """It reached client.scan, which calls .get on it, and the session crashed. It is skipped, as a line that is
+    not JSON is, and stays in the log as it arrived; the story's record counts such lines (drive.skipped_output)."""
+    result, _, events = session('emit("42", "null", "[1, 2]", {"type": "session", "id": "s"}, "7")')
+    assert result["session"] == "s" and result["exit"] == 0 and result["steps"] == 0
+    assert events.read_text().splitlines()[:3] == ["42", "null", "[1, 2]"]          # unstamped, word for word
+    assert drive.skipped_output(events) == {"count": 4, "samples": ["42", "null", "[1, 2]"]}
 
 
-@pytest.mark.xfail(strict=True, raises=AttributeError,
-                   reason=f"suspected bug: {NOT_AN_OBJECT} in a story's log crashes last_session when the harness "
-                          f"restarts mid-story (client.scan calls .get on it)")
 def test_a_json_line_that_is_not_an_event_does_not_stop_the_last_session_being_found(tmp_path):
+    """The same line in a story's log crashed last_session when the harness restarted mid-story."""
     ev = tmp_path / "e.jsonl"
     ev.write_text('{"type": "session", "id": "s"}\n42\n')
     assert drive.last_session(PiClient(tmp_path), ev) == "s"
+
+
+# ======================= output lines that are JSON but not events =======================
+
+def test_skipped_output_counts_every_such_line_and_keeps_the_first_few_each_cut_to_its_limit(tmp_path):
+    ev = tmp_path / "e.jsonl"
+    long_list = json.dumps(list(range(500)))
+    ev.write_text("\n".join(['{"_rx":1.0,"type":"session","id":"s"}', "npm warn: not JSON at all", "", long_list, "null",
+                             '"a bare string"', "3.5", "true", '{"_rx":2.0,"type":"message_end"', "{cut off"]) + "\n")
+    got = drive.skipped_output(ev)
+    assert got == {"count": 5, "samples": [long_list[:drive.SKIPPED_OUTPUT_SAMPLE_CHARS], "null", '"a bare string"']}
+    assert (drive.SKIPPED_OUTPUT_SAMPLES, drive.SKIPPED_OUTPUT_SAMPLE_CHARS) == (3, 200)
+    assert len(long_list) > drive.SKIPPED_OUTPUT_SAMPLE_CHARS
+
+
+def test_a_log_with_no_such_line_and_a_story_with_no_log_have_nothing_to_record(tmp_path):
+    ev = tmp_path / "e.jsonl"
+    assert drive.skipped_output(ev) is None                                 # no log: the agent was never started
+    ev.write_text('{"_rx":1.0,"type":"session","id":"s"}\nnpm warn: not JSON\n\n')
+    assert drive.skipped_output(ev) is None
 
 
 # ======================= the loop detector =======================
