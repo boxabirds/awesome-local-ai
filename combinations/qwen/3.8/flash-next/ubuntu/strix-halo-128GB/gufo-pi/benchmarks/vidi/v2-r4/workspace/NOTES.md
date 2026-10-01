@@ -72,3 +72,64 @@ Decisions and deviations recorded while implementing the stories.
   constants `WHEEL_LINE_HEIGHT_PX` / `WHEEL_PAGE_HEIGHT_PX` (Chrome defaults).
   Real trackpad hardware scaling is out of the automated scope per the design's
   "Not covered".
+
+## Story 2 — Capture ideas on sticky notes and rearrange them
+
+- **`createSticky` returns `''` on rejection.** The contract returns `string`
+  while the "returns `false` when rejected" rule is written for the boolean
+  mutations, so a non-finite coordinate returns an empty id (falsy, and asserted
+  as such by TC-39) instead of breaking the return type.
+- **`fitFontSize(el, box?)` compares like with like.** The design's
+  `scrollHeight <= box` compares the element's *padded* scroll box against an
+  *unpadded* text box, which reports overflow that is only padding: with a
+  12 px padding every note — even an empty one — came out at the minimum font
+  size. The comparison is now the scroll box against the element's own client
+  box (`box` is optional and only overrides the height limit), and the search
+  itself is extracted into a pure `autoFitFontSize(text, measure, w, h, min, max)`
+  so it is unit-testable — jsdom performs no layout, so `scrollWidth`/
+  `scrollHeight` are always 0 there.
+- **Drag listeners are on the window, not on the note.** `bringToFront` at drag
+  start re-sorts the world layer's children, and a DOM node that is removed and
+  re-inserted loses its pointer capture, so a note that was *not* already
+  topmost stopped moving after the first applied frame. (It worked at 50% zoom
+  in a single-note test precisely because `bringToFront` was a no-op there.) The
+  note still calls `setPointerCapture` as the design asks — useful when a pointer
+  leaves the note — but the window listeners are what carry the drag.
+- **`bringToFront` returning `false` is not a stale id.** It also means "already
+  topmost", so the drag treats it as success and checks the note's existence
+  separately (`snapshot(doc).some(...)`) before ending a drag silently (TC-37).
+- **The note is not `overflow: hidden`.** Clipping the note would clip its own
+  toolbar, which is anchored above its top edge; the text element clips its
+  content instead, which is where "nothing drawn outside the note" applies.
+- **Notes carry the `board-object` class.** `.board-world` is
+  `pointer-events: none` (story 1) and the class is what opts children back in;
+  without it a note received no pointer events in a real browser even though
+  jsdom was happily passing the component tests.
+- **The text layer stays mounted while editing**, at `opacity: 0` and
+  `aria-hidden`, with the textarea laid over it. That keeps auto-fit measuring
+  the real text as it is typed instead of freezing at the size from before
+  editing started.
+- **`NoteToolbar` is anchored inside the note and counter-scaled by `1/zoom`**,
+  which keeps it its design size on screen at any zoom while keeping it glued to
+  the note while it moves, and it is hidden while dragging or editing as the
+  contract requires. It stops pointer propagation so clicking it neither pans
+  nor clears the selection.
+- **Editing ends on a capture-phase document `pointerdown`** outside the note:
+  notes and toolbars call `stopPropagation`, so a bubble-phase listener would
+  never fire for a click on another note or on the left toolbar.
+- **`useBoardDoc(doc?)` and `<App doc?>` take an optional document.** The
+  component tests need to read and mutate the same `Y.Doc` the app renders, so
+  the hook accepts one; production passes nothing and the hook owns it. This is
+  the only addition to the exported contracts besides the documented ones above.
+- **Notes render `data-world-x`, `data-world-y`, `data-z`, `data-color`,
+  `data-note-id`.** They are the values the model was drawn from, which makes
+  the pixel-and-world assertions in the e2e suite (and the "dragged point stays
+  under the pointer" check) read the truth instead of re-deriving it; the e2e
+  helpers locate notes by id or text rather than by index, because a drag
+  re-sorts the DOM.
+- **`StickyNote` needs only `zoom`,** not the whole camera: its drag delta is
+  `screenDelta / zoom`, exactly the design's formula.
+- **Firefox/WebKit e2e** hit the same missing system libraries as story 1
+  (`libgtk-3-0t64` and friends, no root to install them), so `E2E_PROJECTS`
+  still defaults to chromium and `npm run test:e2e:all` runs the full matrix on
+  a provisioned host.

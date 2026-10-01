@@ -1,9 +1,17 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { GRID_SPACING_WORLD } from '../../shared/config';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import { NavigationHint } from './NavigationHint';
 import { ZoomControls } from './ZoomControls';
 import { useCamera, wheelDeltaToPixels, type CameraController } from './useCamera';
-import type { Point, Size } from './camera';
+import { screenToWorld, viewportCentre, type Camera, type Point, type Size } from './camera';
 
 /** Safari's pinch gesture events; not in the standard DOM typings. */
 interface SafariGestureEvent extends Event {
@@ -28,6 +36,30 @@ function isTextEntry(target: EventTarget | null): boolean {
 }
 
 /**
+ * Geometry the viewport owns but the toolbar needs: the world point at the
+ * centre of the visible board area.
+ */
+export interface ViewportBridge {
+  centreWorld(): Point | null;
+}
+
+export interface BoardViewportProps {
+  children?: ReactNode;
+  /**
+   * Called for a double-click on empty board space, with the world point under
+   * the cursor. Board objects stop propagation, so a double-click on a note
+   * never reaches this.
+   */
+  onCreateStickyWorld?(at: Point): void;
+  /** Called when a press on empty board space ends without dragging. */
+  onClearSelection?(): void;
+  /** Filled in so parents can ask the viewport for geometry. */
+  bridgeRef?: MutableRefObject<ViewportBridge | null>;
+  /** Called whenever the camera changes, so object layers can scale with it. */
+  onCameraChange?(camera: Camera): void;
+}
+
+/**
  * The board's input surface: an unbounded dot grid plus a world layer that both
  * follow the camera.
  *
@@ -39,8 +71,16 @@ function isTextEntry(target: EventTarget | null): boolean {
  * - Safari `gesturestart`/`gesturechange` are prevented and zoom around the
  *   pointer.
  * - Ctrl/Cmd + `=`, `-` and `0` zoom one step or reset the view.
+ * - A double-click on empty space asks for a sticky note there; a click on
+ *   empty space without dragging clears the selection.
  */
-export function BoardViewport({ children }: { children?: ReactNode }): React.JSX.Element {
+export function BoardViewport({
+  children,
+  onCreateStickyWorld,
+  onClearSelection,
+  bridgeRef,
+  onCameraChange,
+}: BoardViewportProps): React.JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const [panning, setPanning] = useState(false);
@@ -48,6 +88,12 @@ export function BoardViewport({ children }: { children?: ReactNode }): React.JSX
   const controllerRef = useRef<CameraController>(controller);
   controllerRef.current = controller;
   const panningRef = useRef(false);
+  /** Pointer position at the last press on empty board space. */
+  const pressStartRef = useRef<Point | null>(null);
+  /** Farthest pointer travel since pointerdown, to tell a click from a drag. */
+  const travelRef = useRef(0);
+  const cameraRef = useRef(controller.camera);
+  cameraRef.current = controller.camera;
 
   // Viewport size. The camera is defined against the top-left of the board
   // area, so a resize never moves content.
@@ -183,6 +229,8 @@ export function BoardViewport({ children }: { children?: ReactNode }): React.JSX
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       el.setPointerCapture?.(event.pointerId);
       panningRef.current = true;
+      travelRef.current = 0;
+      pressStartRef.current = pointOf(event.clientX, event.clientY);
       setPanning(true);
       controllerRef.current.beginPan(pointOf(event.clientX, event.clientY));
     },
@@ -192,7 +240,15 @@ export function BoardViewport({ children }: { children?: ReactNode }): React.JSX
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       if (!panningRef.current) return;
-      controllerRef.current.panMove(pointOf(event.clientX, event.clientY));
+      const point = pointOf(event.clientX, event.clientY);
+      const start = pressStartRef.current;
+      if (start) {
+        travelRef.current = Math.max(
+          travelRef.current,
+          Math.hypot(point.x - start.x, point.y - start.y),
+        );
+      }
+      controllerRef.current.panMove(point);
     },
     [pointOf],
   );
@@ -200,13 +256,48 @@ export function BoardViewport({ children }: { children?: ReactNode }): React.JSX
   const onPointerUp = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const el = viewportRef.current;
+      const wasEmptyPress = panningRef.current && travelRef.current < DRAG_THRESHOLD_PX;
       if (el?.hasPointerCapture?.(event.pointerId)) {
         el.releasePointerCapture(event.pointerId);
       }
       stopPanning();
+      // A press on empty board space that never became a drag deselects.
+      if (wasEmptyPress && event.target === el) onClearSelection?.();
     },
-    [stopPanning],
+    [stopPanning, onClearSelection],
   );
+
+  /** A double-click on empty board space asks for a note at that world point. */
+  const onDoubleClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const el = viewportRef.current;
+      if (!el || event.target !== el) return;
+      if (!onCreateStickyWorld) return;
+      const point = pointOf(event.clientX, event.clientY);
+      onCreateStickyWorld(screenToWorld(cameraRef.current, point));
+    },
+    [onCreateStickyWorld, pointOf],
+  );
+
+  // Publish viewport geometry so the toolbar can create a note at the centre.
+  useEffect(() => {
+    if (!bridgeRef) return;
+    bridgeRef.current = {
+      centreWorld: (): Point | null => {
+        if (viewport.width <= 0 || viewport.height <= 0) return null;
+        return screenToWorld(cameraRef.current, viewportCentre(viewport));
+      },
+    };
+    return () => {
+      bridgeRef.current = null;
+    };
+  }, [bridgeRef, viewport.width, viewport.height]);
+
+  // Report camera changes upward: notes need the zoom to keep a drag under
+  // the pointer and to counter-scale their toolbar.
+  useEffect(() => {
+    onCameraChange?.(controller.camera);
+  }, [controller.camera, onCameraChange]);
 
   const { camera } = controller;
   const gridSpacing = GRID_SPACING_WORLD * camera.zoom;
@@ -239,6 +330,7 @@ export function BoardViewport({ children }: { children?: ReactNode }): React.JSX
         onPointerUp={onPointerUp}
         onPointerCancel={stopPanning}
         onLostPointerCapture={stopPanning}
+        onDoubleClick={onDoubleClick}
       >
         <div
           className="board-world"

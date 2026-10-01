@@ -6,6 +6,8 @@
   --chrome-text: #1f2328;
   --chrome-muted: #57606a;
   --focus-ring: #2563eb;
+  /* Outline of the selected sticky note (sticky.select). */
+  --selection-blue: #2563eb;
 }
 
 * {
@@ -174,4 +176,186 @@ body {
   font-size: 13px;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* Left tool palette ---------------------------------------------------- */
+
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  z-index: 3;
+}
+
+.board-toolbar-button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--chrome-text);
+  cursor: pointer;
+}
+
+.board-toolbar-button:hover {
+  background: #f0f2f5;
+}
+
+.board-toolbar-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Sticky notes --------------------------------------------------------- */
+
+/* `board-object` opts the note back in: the world layer ignores pointers.
+   The note itself must not clip, or the toolbar anchored above it disappears;
+   the text element clips its own content. */
+.sticky-note {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 18%);
+  cursor: default;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.sticky-note:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.sticky-note[data-selected='true'] {
+  outline: 2px solid var(--selection-blue);
+}
+
+.sticky-note[data-dragging='true'] {
+  box-shadow: 0 8px 20px rgb(0 0 0 / 24%);
+}
+
+.sticky-note-text {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+  color: #23272e;
+  line-height: 1.25;
+  user-select: none;
+}
+
+/* Overflow: the bottom of the note fades out instead of spilling. */
+.sticky-note-text.fade-bottom,
+.sticky-note-text[data-overflow='true'] {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%);
+}
+
+.sticky-editor {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.sticky-textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  line-height: 1.25;
+  text-align: center;
+  color: #23272e;
+  overflow: hidden;
+  display: block;
+}
+
+.sticky-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: rgb(35 39 46 / 65%);
+  pointer-events: none;
+}
+
+/* Note toolbar (counter-scaled, so it keeps its screen size at any zoom) */
+
+.note-toolbar-anchor {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  width: max-content;
+  pointer-events: auto;
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding: 4px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+}
+
+.note-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 18%);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.note-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--selection-blue);
+  outline-offset: 1px;
+}
+
+.note-delete {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--chrome-text);
+  cursor: pointer;
+}
+
+.note-delete:hover {
+  background: #fdeceb;
+  color: #b42318;
+}
+
+.note-swatch:focus-visible,
+.note-delete:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
