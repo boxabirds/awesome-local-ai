@@ -2,31 +2,23 @@
 // each run a link, with its status, its stories against its latest build (live) and its score of record.
 import type { Row, RunStatus } from "../../../shared/types.ts";
 import { machineHistory, type VersionGroup } from "../../../shared/overviewView.ts";
-import { scoreOfRecord, unscoredReason } from "../../../shared/stats.ts";
-import { finalScoreNote } from "../../../shared/finalScore.ts";
-import { interventionsOf, scoreOfRecord as recordView, squareTip } from "../../../shared/runView.ts";
-import { InterventionMark, InvalidTag } from "../RunMarks.tsx";
+import { scoreOfRecord } from "../../../shared/stats.ts";
+import { interventionsOf, PENDING, scoreOfRecord as recordView, squareTip } from "../../../shared/runView.ts";
+import { InterventionMark } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { qualityClass } from "../../format.ts";
 import { CombinationLink, RunLink } from "../EntityLinks.tsx";
 import { LiveTag, Missing, RecordTag, Term } from "../run/bits.tsx";
 import { StatusBadge } from "../run/RunHeader.tsx";
 
-/** Why a run has no score of record, in words. */
-function noScoreWhy(r: Row): string {
-  if (r.status === "finished") {
-    const why = r.rescores.includes(r.suite) ? `Re-scored under ${r.suite}, but the re-score gave no score of record.` : `Finished, but ${unscoredReason(r)}.`;
-    const note = finalScoreNote(r);
-    return note ? `${why} ${note}` : why;
-  }
-  const v = recordView(r);
-  return v.kind === "none" ? v.why : "No score of record.";
-}
-
 function Score({ run }: { run: Row }) {
-  if (run.invalid) return <InvalidTag invalid={run.invalid} />;
   const s = scoreOfRecord(run);
-  if (!s) return <Missing why={noScoreWhy(run)} />;
+  if (!s) {
+    // A finished run without one: pending, whatever it was scored under before. The rest: only that it isn't finished.
+    if (run.status === "finished") return <span className="pending" data-tip={GLOSSARY.noScore.what}>{PENDING}</span>;
+    const v = recordView(run);
+    return <Missing why={v.kind === "none" ? v.why : "No score of record."} />;
+  }
   return <span className="of-record" data-tip={GLOSSARY.scoreOfRecord.what}><strong className={qualityClass(s.passed! / s.total!)}>{s.passed}</strong><span className="of">/{s.total}</span></span>;
 }
 
@@ -54,8 +46,8 @@ function Group({ g }: { g: VersionGroup }) {
         </th>
       </tr>
       {g.runs.map((r) => (
-        <tr key={r.runId} data-run={r.runId} data-status={r.status} data-invalid={r.invalid ? "true" : undefined}>
-          <th scope="row" className="h-run"><RunLink pack={r.pack} stack={r.stack} runId={r.runId} invalid={r.invalid} /> <InterventionMark list={interventionsOf(r)} /></th>
+        <tr key={r.runId} data-run={r.runId} data-status={r.status}>
+          <th scope="row" className="h-run"><RunLink pack={r.pack} stack={r.stack} runId={r.runId} /> <InterventionMark list={interventionsOf(r)} /></th>
           <td><StatusBadge run={r} /></td>
           <td><Stories run={r} /></td>
           <td className="h-score"><Score run={r} /></td>

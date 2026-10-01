@@ -1,4 +1,8 @@
 // The state the server sends the page (GET /api/state). Shared by both sides.
+//
+// The page presents benchmark results. What the server knows about its own and the harness's faults (a run marked
+// invalid, a time split that failed its check, a final re-score that gave no score, a job's failure reason) stays on
+// the server: GET /api/faults carries it for the monitor, and nothing here does.
 
 /** What one story cost and how fast the model ran: from metrics.json (agent tokens; the meter's time split).
  * Speeds are null for a cloud model (nothing local to time). */
@@ -21,24 +25,19 @@ export interface Usage {
   prefillTokS: number | null;
   draftAcceptance: number | null;
   compactions: number | null;
-  /** Times the harness had to nudge the agent to carry on. */
+  /** Times the agent was told to carry on after it stopped without finishing. */
   nudges: number | null;
+  /** Where the story's time went; null when the record has none, or when the record's own check of it failed (the
+   * server then sends none: a breakdown that doesn't add up is not available). */
   split?: TimeSplit | null;
 }
 
-/** Where a story's wall time went, in seconds. Without a timed model (a cloud model, or a run from before the
- * harness timed every engine) the model's time can't be told from the agent's own: both are modelUnsplit. */
+/** Where a story's wall time went, in seconds. Without a timed model (a cloud model, or a run from before every
+ * engine was timed) the model's time can't be told from the agent's own: both are modelUnsplit. */
 export interface TimeSplit {
   wall: number; prefill: number; decode: number; tools: number; compaction: number; other: number; modelUnsplit: number;
-  /** The harness waiting to start the agent's next session after one ended (a resume after an error, or a nudge). */
+  /** Waiting to start the agent's next session after one ended (a resume after an error, or a nudge). */
   betweenSessions: number;
-  /** The split's own checks, recorded with it: parts sum to the wall, none negative, every tool call ended, the wall
-   * agrees with the agent's clock. "unchecked": no accounting recorded (a Claude Code run, or one recorded before the
-   * harness checked). shared/accountingView.ts says what each means.
-   * - `version`: the accounting version that made the record (accounting.py's VERSION, bumped when the calculation
-   *   changes); null or absent when the record doesn't say.
-   * - `current`: whether that is the harness's current version on main; null or absent when either isn't known. */
-  check: { status: "ok" | "problems" | "unchecked"; problems: string[]; version?: number | null; current?: boolean | null };
   /** Tools time by kind: the agent's tests (unit, e2e, …), builds, file reads and edits, and "bash" for every other command. */
   toolsByKind?: Record<string, number>;
 }
@@ -55,8 +54,8 @@ export interface RunUsage {
   prefillTokS: number | null;
 }
 
-/** What the agent's conversation on one story looked like, counted from its event log by the harness (no LLM):
- * metrics.json's per-story "conversation". Sizes are characters; context is tokens. */
+/** What the agent's conversation on one story looked like, counted from its event log (no LLM): metrics.json's
+ * per-story "conversation". Sizes are characters; context is tokens. */
 export interface ConversationProfile {
   /** Model calls, and the tool calls they made. */
   calls: number;
@@ -80,11 +79,11 @@ export interface ConversationProfile {
   toolErrors: number;
   /** The longest single tool call, in seconds, and what it ran. */
   longestTool: { seconds: number; name: string; gist: string } | null;
-  /** Signs the harness saw on their own (not relative to other runs): "long-thinking-block", "hung-command". */
+  /** Signs seen in the conversation on their own (not relative to other runs): "long-thinking-block", "hung-command". */
   signals: string[];
 }
 
-/** One dbench job of a run: a run restarted twice has three. */
+/** One execution of a run on a machine: a run restarted twice has three. */
 export interface JobRef {
   id: string;
   node: string;
@@ -92,48 +91,13 @@ export interface JobRef {
   /** Unix seconds. */
   submittedAt: number | null;
   updatedAt: number | null;
-  /** When it ended (Unix seconds): dbench's own log line recording the end, else its last update; null while it is
-   * queued or running, or when neither says. */
+  /** When it ended (Unix seconds): the recorded end, else its last update; null while it is queued or running, or
+   * when neither says. */
   endedAt: number | null;
-  reason: string;
 }
 
-/** A run marked invalid in its run.json (`"invalid": {"reason": …, "since": "2026-09-30"}`): its result can't stand (it
- * saw the reference build, say). It is shown, struck through with the reason on hover, and left out of every figure. */
-export interface Invalid {
-  reason: string;
-  /** The date it was marked, as written; "" when the mark gives none. */
-  since: string;
-}
-
-/** How a run's final re-score ended, as finalize.py recorded it (finalize.json): done, skipped (the suite checkout
- * wasn't at the pack's version, say), failed, or flagged (set aside by the live-against-record guard). */
-export type FinalRescore = "done" | "skipped" | "failed" | "flagged";
-export const FINAL_RESCORES: FinalRescore[] = ["done", "skipped", "failed", "flagged"];
-
-/** A run's finalize.json: what its final re-score recorded. */
-export interface Finalize {
-  rescore: FinalRescore;
-  /** Why it was skipped, failed or flagged, as written; "" when none was recorded (and for one that is done). */
-  reason: string;
-  /** The suite version the checkout was at, and the pack's own (bench.json pack_ref); "" when not recorded. */
-  version: string;
-  packRef: string;
-  /** When, as written (ISO); "" when not recorded. */
-  at: string;
-  /** Whether the harness says a person is needed (needs_person). It retries a final re-score by itself at the
-   * machine's next run, and says true only when that can't put it right. Null when the record doesn't say (every
-   * record from before the harness wrote it): never taken as a person needed. */
-  needsPerson: boolean | null;
-  /** How many times the harness has tried the final re-score; null when not recorded. */
-  attempts: number | null;
-  /** When it last tried, as written (ISO); "" when not recorded. */
-  lastAttemptAt: string;
-}
-
-/** One line of a run's interventions.md: something done to the run by hand, by the operator or the harness's
- * watchdog (a frozen machine restarted, a silent tool call killed, a story ended at its cap). The run stays in every
- * figure; its pages mark it. */
+/** One line of a run's interventions.md: something done to the run by hand or by a watchdog (a frozen machine
+ * restarted, a silent tool call killed, a story ended at its cap). The run stays in every figure; its pages mark it. */
 export interface Intervention {
   /** Unix seconds. */
   at: number;
@@ -156,7 +120,7 @@ export interface Story {
   /** Every story's own tests against the build after this story, keyed "1", "2", …; null if not recorded. */
   byStory?: Record<string, { passed: number | null; total: number | null }> | null;
   usage?: Usage | null;
-  /** The conversation's profile; null for a story recorded before the harness kept one, or a client whose log it can't read. */
+  /** The conversation's profile; null when the record has none. */
   conversation?: ConversationProfile | null;
 }
 
@@ -171,11 +135,10 @@ export interface QueuePlace {
 export type RunStatus = "running" | "queued" | "finished" | "failed" | "stopped" | "cancelled" | "unknown";
 export const RUN_STATUSES: RunStatus[] = ["running", "queued", "finished", "failed", "stopped", "cancelled", "unknown"];
 
-/** A dbench job's live view. */
+/** A job's live view. */
 export interface Live {
   jobId: string;
   status: string;
-  attempt: number | null;
   currentStory: string | null;
   /** The story progress.json marks running; set while current_story is blank between the agent and the gates. */
   runningStory: string | null;
@@ -184,6 +147,7 @@ export interface Live {
   outputTokens: number | null;
   tasksWritten: number | null;
   tasksTotal: number | null;
+  /** The agent's latest action, as reported. */
   lastActivity: string | null;
   storyStartedAt: number | null;
   /** The running story's title. */
@@ -194,7 +158,6 @@ export interface Live {
   runStartedAt: number | null;
   /** Agent minutes over the job's stories so far. */
   totalAgentMinutes: number | null;
-  logTail: string[];
   queue: QueuePlace | null;
 }
 
@@ -203,12 +166,6 @@ export interface Score {
   total: number | null;
   flaky: number;
   at: string;
-}
-
-export interface Stages {
-  build: string;
-  score: string;
-  judge: string;
 }
 
 export interface Row {
@@ -220,7 +177,7 @@ export interface Row {
   node: string | null;
   /** run.json's hardware description, e.g. "Apple M5 Max 128GB"; "" if the record has none. */
   host: string;
-  /** The machine the run is filed under: its dbench node, else the node seen with its host, else the host. */
+  /** The machine the run is filed under: its node, else the node seen with its host, else the host. */
   machine: string;
   /** Model and engine, e.g. "3.8-swift-1.5/27b llamacpp". */
   label: string;
@@ -234,29 +191,28 @@ export interface Row {
   status: RunStatus;
   storiesWorking: StoriesWorking;
   usage: RunUsage;
-  /** Why or how: a failure's reason, "finishing story 3", "attempt 2"; "" if nothing to add. */
+  /** Where in its work a run is: "finishing story 3", "between stories", "starting"; "" if nothing to add. */
   statusNote: string;
   stories: Story[];
   rescores: string[];
   scores: Record<string, Score>;
-  hasBundle: boolean;
-  stages: Stages;
+  /** Whether the run can be judged: finished, scored under the current suite, with its workspace history. */
+  judgeReady: boolean;
   live: Live | null;
-  /** Every dbench job of this run, oldest first. */
+  /** Every execution of this run, oldest first. */
   jobs: JobRef[];
-  /** Set when the record marks the run invalid: left out of every figure. */
-  invalid: Invalid | null;
   /** interventions.md, oldest first; [] when it has none. */
   interventions: Intervention[];
-  /** finalize.json; null or absent when the record has none (a run not finished, or from before the harness kept one). */
-  finalize?: Finalize | null;
 }
 
-/** One dbench node: the job it runs now (null: idle) and how many wait behind it. */
+/** One machine: the job it runs now (null: none shown), whether it is busy with a job the page doesn't show, and
+ * how many wait behind it. */
 export interface Machine {
   node: string;
   /** `finishing`: the agent is done with `story` and it is being scored and recorded. */
   running: { stack: string; short: string; runId: string; story: string | null; finishing: boolean; agentMinutes: number | null } | null;
+  /** True while the machine runs a job that is not among the runs shown. */
+  busy: boolean;
   queued: number;
 }
 
@@ -279,15 +235,16 @@ export interface StoriesWorking {
 export interface State {
   buildId: string;
   now: number;
-  fetchedAt: number;
-  fetchError: string;
-  dbenchAt: number;
-  dbenchError: string;
+  /** When the data was last read in full (Unix seconds): the older of the two sources' last successful reads; 0
+   * before either has read. */
+  updatedAt: number;
+  /** False when the last attempt to read either source failed: the data is as old as `updatedAt` says. */
+  updating: boolean;
   suites: Record<string, string>;
   web: string | null;
   judgeUrl: string;
   branch: string;
   rows: Row[];
-  /** Every node dbench answered for, idle ones included. */
+  /** Every node answered for, idle ones included. */
   machines: Machine[];
 }

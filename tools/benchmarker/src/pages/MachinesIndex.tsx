@@ -20,7 +20,7 @@ export function MachinesIndex({ state, serverNow }: MachinesIndexProps) {
     <div className="machines-index" data-page="machines">
       <section className="mi-list" aria-labelledby="h-machines">
         <h2 id="h-machines"><span className="term" data-tip={GLOSSARY.machinesList.what}>{GLOSSARY.machinesList.name}</span><span className="small">{lines.length} · each links to its page: hardware, installs, jobs and history</span></h2>
-        {lines.length === 0 ? <p className="empty-note">{machines ? "No machines yet. Add one below; Setup says how to prepare it." : "Loading the machines…"}</p> : (
+        {lines.length === 0 ? <p className="empty-note">{machines ? "No machines yet." : "Loading the machines…"}</p> : (
           <table className="machines" aria-label="Machines">
             <thead>
               <tr>
@@ -37,7 +37,7 @@ export function MachinesIndex({ state, serverNow }: MachinesIndexProps) {
                   <tr key={l.machine} data-machine={l.machine} data-state={l.state}>
                     <th scope="row"><MachineLink machine={l.machine} /></th>
                     <td className="hw">{node ? <span data-tip={hardware(node)}>{hardwareShort(node) || hardware(node)}</span>
-                      : <Missing why={machines ? "dbench didn't describe it: it isn't reachable." : "Waiting for the machine list."} />}</td>
+                      : <Missing why={machines ? "Not reported: the machine is unreachable." : "Waiting for the machine list."} />}</td>
                     <td><NowSummary line={l} /></td>
                     <td className="q"><QueueCount line={l} /></td>
                   </tr>

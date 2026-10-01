@@ -7,7 +7,8 @@ import { RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
 import { Missing, Section, Term, full } from "./bits.tsx";
-import { CheckMark, SplitBar } from "./SplitBar.tsx";
+import { SplitBar } from "./SplitBar.tsx";
+import { NO_SPLIT } from "./RunTime.tsx";
 import { pct } from "./RunCost.tsx";
 
 const SHOW: Record<AgainstKey, (n: number) => string> = { heldOut: pct, minutes: duration, outTokens: short, calls: full, thinking: short, largestThinking: short };
@@ -27,17 +28,18 @@ function Absent({ run, storyId }: { run: Row; storyId: string }) {
 }
 
 export function Against({ run, state, storyId }: { run: Row; state: State; storyId: string }) {
-  const { entries, scaleSeconds, flags, mechanism } = againstCombination(run, state.rows, storyId);
+  const { entries, scaleSeconds, flags, mechanism, others: n } = againstCombination(run, state.rows, storyId);
   const others = entries.filter((e) => !e.isThis);
-  const withStory = others.filter((e) => e.story).length;
-  const aside = <span className="small">{withStory} of the combination's {others.length} other {others.length === 1 ? "run has" : "runs have"} recorded this story</span>;
+  const aside = others.length ? <span className="small">{n} of the combination's {others.length} other {others.length === 1 ? "run has" : "runs have"} recorded this story</span> : null;
   if (!entries.some((e) => e.story)) {
     return (
       <Section term="againstCombination" id="against" aside={aside}>
-        <p className="rp-empty">No run of this combination has recorded story {storyId} yet, so there is nothing to set this story run against.</p>
+        <p className="rp-empty">No run of this combination has recorded story {storyId} yet.</p>
       </Section>
     );
   }
+  // The median row exists only when some other run has the story: with none, this run's row is the whole table.
+  const medians = n > 0;
   return (
     <Section term="againstCombination" id="against" aside={aside}>
       <div className="table-scroll">
@@ -53,14 +55,14 @@ export function Against({ run, state, storyId }: { run: Row; state: State; story
             {entries.map(({ run: r, story, isThis }) => {
               const split = story?.usage?.split ?? null;
               return (
-                <tr key={r.runId} data-run={r.runId} className={isThis ? "is-this" : undefined} aria-current={isThis ? "page" : undefined} data-invalid={r.invalid && !isThis ? "true" : undefined}>
+                <tr key={r.runId} data-run={r.runId} className={isThis ? "is-this" : undefined} aria-current={isThis ? "page" : undefined}>
                   <td className="nowrap">
-                    <RunLink pack={r.pack} stack={r.stack} runId={r.runId} invalid={r.invalid} />
-                    {isThis ? <span className="this-mark">this story run</span> : <> · <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId} invalid={r.invalid} /></>}
+                    <RunLink pack={r.pack} stack={r.stack} runId={r.runId} />
+                    {isThis ? <span className="this-mark">this story run</span> : <> · <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId} /></>}
                   </td>
                   <td className="bar-col">
-                    {split ? <span className="bar-track"><SplitBar split={split} usage={story!.usage ?? null} scaleSeconds={scaleSeconds} label={`${r.runId}: ${duration(split.wall)}`} /><CheckMark check={split.check} run={r} /></span>
-                      : story ? <span className="small">no time split recorded</span> : <Absent run={r} storyId={storyId} />}
+                    {split ? <span className="bar-track"><SplitBar split={split} usage={story!.usage ?? null} scaleSeconds={scaleSeconds} label={`${r.runId}: ${duration(split.wall)}`} /></span>
+                      : story ? <Missing why={NO_SPLIT} /> : <Absent run={r} storyId={storyId} />}
                   </td>
                   {AGAINST_MEASURES.map((m) => {
                     const v = story ? m.value(story) : null;
@@ -77,13 +79,15 @@ export function Against({ run, state, storyId }: { run: Row; state: State; story
                 </tr>
               );
             })}
-            <tr className="median-row">
-              <td colSpan={2}><Term id="divergence">Median of the other runs</Term></td>
-              {AGAINST_MEASURES.map((m) => {
-                const d = flags[m.key];
-                return <td key={m.key} className="n" data-measure={m.key}>{d ? <>{SHOW[m.key](d.median)} <span className="small">n={d.n}</span></> : <Missing why="No other run of the combination has this figure for this story, so there is no median to compare with." />}</td>;
-              })}
-            </tr>
+            {medians ? (
+              <tr className="median-row" data-others={n}>
+                <td colSpan={2}><Term id="divergence">Median of the other {n === 1 ? "run" : `${n} runs`}</Term></td>
+                {AGAINST_MEASURES.map((m) => {
+                  const d = flags[m.key];
+                  return <td key={m.key} className="n" data-measure={m.key}>{d ? <>{SHOW[m.key](d.median)}{d.n !== n ? <span className="small"> n={d.n}</span> : null}</> : <Missing why={`None of the other ${n === 1 ? "run has" : "runs have"} this figure for this story.`} />}</td>;
+                })}
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>

@@ -5,9 +5,9 @@ import { RunHeader } from "../components/run/RunHeader.tsx";
 import { StoryStrip } from "../components/run/StoryStrip.tsx";
 import { RunTime } from "../components/run/RunTime.tsx";
 import { RunCost } from "../components/run/RunCost.tsx";
-import { HeldOut, Jobs } from "../components/run/HeldOutAndJobs.tsx";
+import { HeldOut, Ran } from "../components/run/HeldOutAndJobs.tsx";
 import { CompareRuns, RelatedRuns } from "../components/run/CompareAndRelated.tsx";
-import { InvalidBanner, InterventionList } from "../components/RunMarks.tsx";
+import { InterventionList } from "../components/RunMarks.tsx";
 import { Section } from "../components/run/bits.tsx";
 import "./run.css";
 
@@ -29,13 +29,12 @@ export function RunPage({ run, state, params }: { run: Row; state: State; server
   return (
     <div className="page run-page" data-page="run">
       <Breadcrumb trail={[{ label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> }, { label: run.runId }]} />
-      <InvalidBanner invalid={run.invalid} what="run" />
       <RunHeader run={run} state={state} />
       <StoryStrip run={run} />
       <RunTime run={run} />
       <RunCost run={run} />
       <HeldOut run={run} />
-      <Jobs run={run} />
+      <Ran run={run} />
       <Interventions run={run} />
       {/* Keyed by run: moving to another run's page starts its comparison afresh. */}
       <CompareRuns key={`${run.stack}|${run.runId}`} run={run} others={others} params={params} />

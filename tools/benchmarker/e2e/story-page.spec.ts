@@ -74,8 +74,8 @@ test.describe("header", () => {
     await open(page, "2");
     const f = section(page, "header").locator('[data-fact="tests"]');
     await expect(f.locator(".big-n")).toHaveText("14");
-    await expect(f.locator(".tests-differ")).toHaveText("in 5 runs; 10 in 2");   // the invalid run counts tests too: a count of tests, not a result
-    await expect(f.locator(".tests-differ")).toHaveAttribute("data-tip", /14 in 5 runs, 10 in 2 runs\. Runs scored under another suite version/);
+    await expect(f.locator(".tests-differ")).toHaveText("in 4 runs; 10 in 2");
+    await expect(f.locator(".tests-differ")).toHaveAttribute("data-tip", /14 in 4 runs, 10 in 2 runs\. Runs scored under another suite version/);
   });
 
   test("held-out tests not recorded by any run: — with why", async ({ page }) => {
@@ -87,7 +87,7 @@ test.describe("header", () => {
 
   test("how many story runs, in how many combinations, and how many runs haven't built it", async ({ page }) => {
     await open(page, "2");
-    await expect(section(page, "header").locator('[data-fact="runs"]')).toContainText("8 in 2 combinations · 7 runs not built");
+    await expect(section(page, "header").locator('[data-fact="runs"]')).toContainText("7 in 2 combinations · 7 runs not built");
   });
 
   test("previous and next: the first story has no previous", async ({ page }) => {
@@ -116,7 +116,7 @@ test.describe("header", () => {
     await open(page, "4");
     await expect(section(page, "header").locator("h1")).toContainText("title not known yet");
     await expect(section(page, "combinations").locator("tr.sp-entry")).toHaveCount(0);
-    await expect(section(page, "time")).toContainText("No story run of this story has a recorded time split yet.");
+    await expect(section(page, "time")).toContainText("No story run of this story has a time breakdown yet.");
   });
 
   test("a story the pack version doesn't have: says so, and the list is there to choose from", async ({ page }) => {
@@ -212,7 +212,7 @@ test.describe("by combination", () => {
   test("the measures of a story run: every column, from the glossary", async ({ page }) => {
     await open(page, "1");
     const heads = await section(page, "combinations").locator("thead th[data-measure] > .term").allTextContents();
-    expect(heads).toEqual(["Agent time", "Output tokens", "Tool calls", "Held-out", "Input tokens", "tok/s", "Decode tok/s", "Compactions", "Nudges"]);
+    expect(heads).toEqual(["Agent time", "Output tokens", "Tool calls", "Held-out", "Input tokens", "generated tok/s", "generation tok/s", "Compactions", "Nudges"]);
     const values = await row(page, SWIFT, "v2-r4").locator("td[data-measure]").evaluateAll((tds) => tds.map((td) => (td.firstChild?.textContent ?? "").trim()));
     expect(values).toEqual(["12 min", "55k", "88", "6/6", "4.4M", "79.7", "102.0", "1", "0"]);
     await expect(cell(page, SWIFT, "v2-r4", "heldOut").locator(".ho")).toHaveText("6/6");
@@ -230,7 +230,7 @@ test.describe("by combination", () => {
   test("runs in run order: finished first, then running", async ({ page }) => {
     await open(page, "1");
     const runs = await group(page, SWIFT).locator("tr.sp-entry").evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run));
-    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r8", "v2-r1"]);
+    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r1"]);
   });
 
   test("a missing number is — with why, never 0", async ({ page }) => {
@@ -443,7 +443,7 @@ test.describe("where the time went", () => {
     const groups = await bars(page).locator(".sp-time-group").evaluateAll((gs) => gs.map((g) => (g as HTMLElement).dataset.stack));
     expect(groups).toEqual([OPUS, SWIFT, MLX]);
     const runs = await bars(page).locator(`.sp-time-group[data-stack="${SWIFT}"] .bar-row`).evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run));
-    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r8", "v2-r1"]);
+    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7"]);   // v2-r1's story 1 has no breakdown
     const segs = await bars(page).locator('[data-run="v2-r4"] [data-seg]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.seg));
     expect(segs).toEqual(["prefill", "decode", "compaction", "tools", "other"]);
   });
@@ -462,23 +462,23 @@ test.describe("where the time went", () => {
     await open(page, "1");
     await expect(bars(page).locator("figcaption .legend")).toHaveText(["Prefill", "Generation", "Model, not split", "Compaction", "Tools", "Between sessions", "Other"]);
     await expect(bars(page).locator("figcaption .legend").first()).toHaveAttribute("data-tip", `Prefill: ${GLOSSARY.segPrefill.what}`);
-    await expect(bars(page).locator('[data-run="v2-r1"] [data-seg="tools"]')).toHaveAttribute("data-tip", /^Tools .* min over 95 calls: .*the agent's tests 1\.0 \(end-to-end 1\.0\), other commands 0\.5 min$/);
     await expect(bars(page).locator('[data-run="v2-r4"] [data-seg="decode"]')).toHaveAttribute("data-tip", /^Generation \d+\.\d min: .* tokens at \d+ tok\/s$/);
   });
 
-  test("the accounting check: a split that failed is flagged, an unchecked one says so, each explaining itself", async ({ page }) => {
+  test("no accounting mark on any bar: a breakdown that failed its check is simply not there, one never checked is drawn as it is", async ({ page }) => {
     await open(page, "1");
-    await expect(bars(page).locator('[data-run="v2-r1"] .check-flag')).toHaveAttribute("data-tip", /^Accounting check failed\. This story run's time figures .*Tool call t9 has no end in the log/);
-    await expect(bars(page).locator('[data-run="run-9"] .check-unchecked')).toBeVisible();
-    await expect(bars(page).locator('[data-run="run-9"] .check-unchecked')).toHaveAttribute("data-tip", /^Unchecked: no accounting check was made\. This Claude Code run was recorded before the harness read Claude Code's logs.*What to do: nothing is needed for the held-out result/);
-    await expect(bars(page).locator('[data-run="v2-r4"] .check-flag, [data-run="v2-r4"] .check-unchecked')).toHaveCount(0);
+    await expect(bars(page).locator('[data-run="run-9"] .bar')).toBeVisible();
+    await expect(bars(page).locator(`.sp-time-group[data-stack="${SWIFT}"] .bar-row[data-run="v2-r1"]`)).toHaveCount(0);
+    await expect(bars(page).locator(".check-flag, .check-unchecked")).toHaveCount(0);
+    await expect(bars(page)).not.toContainText(/unchecked|accounting|⚠/i);
   });
 
-  test("story runs without a split are listed, with why", async ({ page }) => {
+  test("story runs without a breakdown are listed, with why", async ({ page }) => {
     await open(page, "1");
-    await expect(bars(page).locator(`.sp-time-group[data-stack="${OPUS}"] .sp-time-without`)).toHaveText("No split: v2-r1 (recorded without one)");
-    await expect(bars(page).locator(`.sp-time-group[data-stack="${MLX}"] .sp-time-without`)).toHaveText("No split: v2-r1 (being built)");
-    await expect(row(page, OPUS, "v2-r1").locator("td.sp-bar .missing")).toHaveAttribute("data-tip", "No time split: The story's record has no usage.");
+    await expect(bars(page).locator(`.sp-time-group[data-stack="${SWIFT}"] .sp-time-without`)).toHaveText("No breakdown: v2-r1 (not available)");
+    await expect(bars(page).locator(`.sp-time-group[data-stack="${OPUS}"] .sp-time-without`)).toHaveText("No breakdown: v2-r1 (not available)");
+    await expect(bars(page).locator(`.sp-time-group[data-stack="${MLX}"] .sp-time-without`)).toHaveText("No breakdown: v2-r1 (being built)");
+    await expect(row(page, OPUS, "v2-r1").locator("td.sp-bar .missing")).toHaveAttribute("data-tip", "No time breakdown for this story run.");
   });
 });
 
@@ -694,7 +694,7 @@ test.describe("tooltip, for keyboard users", () => {
 
   test("Tab to something off screen: the browser scrolls it in, and its hover text shows beside it", async ({ page }) => {
     await page.goto(run());
-    const target = page.locator('[data-page="run"] [data-section="cost"] [data-stat="prefillTokS"] .missing');
+    const target = page.locator('[data-page="run"] [data-section="cost"] [data-stat="engineSpeed"] [data-fact="prefill"] .missing');
     await expect(target).toBeAttached();
     // Focus the tab stop just before it without scrolling, from the top of the page; then Tab, as a person would.
     await target.evaluate((el) => {

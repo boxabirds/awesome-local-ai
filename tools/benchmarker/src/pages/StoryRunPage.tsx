@@ -6,7 +6,6 @@ import { Conversation, StoryCost, StoryTime } from "../components/run/StoryDetai
 import { Against } from "../components/run/Against.tsx";
 import { WhatDiffered } from "../components/run/WhatDiffered.tsx";
 import { AcrossCombinations } from "../components/run/AcrossCombinations.tsx";
-import { InvalidBanner } from "../components/RunMarks.tsx";
 import "./run.css";
 
 /** One run's work on one story (plan section 4.4). A story in scope but not recorded yet shows what is known. */
@@ -17,13 +16,12 @@ export function StoryRunPage({ run, storyId, state, params }: { run: Row; story:
     <div className="page story-run-page run-page" data-page="storyRun" data-story-state={st.kind}>
       <Breadcrumb trail={[
         { label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> },
-        { label: <RunLink pack={run.pack} stack={run.stack} runId={run.runId} invalid={run.invalid} /> },
+        { label: <RunLink pack={run.pack} stack={run.stack} runId={run.runId} /> },
         { label: `story ${storyId}` },
       ]} />
-      <InvalidBanner invalid={run.invalid} what="story run" />
       <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
       {st.kind === "recorded" ? <>
-        <StoryTime story={st.story} run={run} />
+        <StoryTime story={st.story} />
         <StoryCost usage={st.story.usage} />
         <Conversation story={st.story} />
       </> : <NotRecorded run={run} st={st} />}

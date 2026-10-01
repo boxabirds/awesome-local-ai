@@ -1,12 +1,12 @@
-// The two marks a run's record can put on it, the same everywhere: invalid (struck through, left out of every figure,
-// and said at the top of its pages) and intervened (someone did something to it by hand; it stays in the figures).
-import type { Intervention, Invalid } from "../../shared/types.ts";
+// The mark a run's record can put on it, the same everywhere: intervened (something was done to it by hand or by a
+// watchdog; it stays in the figures, and its numbers are read with that in mind).
+import type { Intervention } from "../../shared/types.ts";
 import { GLOSSARY } from "../../shared/glossary.ts";
-import { groupInterventions, interventionTip, interventionWhen, invalidTip } from "../../shared/runView.ts";
+import { groupInterventions, interventionTip, interventionWhen } from "../../shared/runView.ts";
 
 /** A heavy asterisk, as for a result with a footnote: the one glyph for an intervention. No status icon or held-out
  * colour uses it, and it has no emoji form (a hand rendered as a yellow emoji). */
-const MARK = "\u2731";
+const MARK = "✱";
 
 /** "✱ intervened", with every intervention on hover; `compact` (a matrix cell) shows the asterisk alone. Nothing for none.
  * Inside a link (a matrix cell) it isn't focusable itself: the link is. */
@@ -21,24 +21,8 @@ export function InterventionMark({ list, compact = false, focusable = true }: { 
   );
 }
 
-/** "invalid", where a figure would be: the reason on hover. */
-export function InvalidTag({ invalid }: { invalid: Invalid }) {
-  return <span className="invalid-tag" tabIndex={0} data-tip={invalidTip(invalid)} data-invalid="true">{GLOSSARY.invalidRun.name.toLowerCase()}</span>;
-}
-
-/** At the top of an invalid run's pages: that it is invalid, why, since when, and what that does to its numbers. */
-export function InvalidBanner({ invalid, what }: { invalid: Invalid | null; what: "run" | "story run" }) {
-  if (!invalid) return null;
-  return (
-    <div className="invalid-banner" role="note" data-section="invalid">
-      <b>{what === "run" ? "This run is invalid" : "This story run belongs to an invalid run"}:</b> {invalid.reason}
-      {invalid.since ? <span className="small"> (marked {invalid.since})</span> : null}.{" "}
-      <span className="small">Its numbers are shown for the record, but they are left out of every figure: rankings, medians, ranges, pooled scores, divergence medians and needs you.</span>
-    </div>
-  );
-}
-
-/** The run page's list of every intervention, oldest first, repeats shown once with how many times. */
+/** The run page's list of every intervention, oldest first, repeats shown once with how many times, each in the
+ * page's own words (shared/runView.ts's interventionText). */
 export function InterventionList({ list }: { list: Intervention[] }) {
   return (
     <ol className="intervention-list">

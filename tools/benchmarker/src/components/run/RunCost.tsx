@@ -16,6 +16,16 @@ const PERCENT = 100;
 export const speed = (n: number) => n.toFixed(SPEED_DECIMALS);
 export const pct = (frac: number) => `${Math.round(frac * PERCENT)}%`;
 
+/** The model's own speeds, on one small line under the cost: "engine speed: generation 31.2 tok/s · reading 980 tok/s". */
+export function EngineSpeed({ decode, prefill, whyDecode, whyPrefill }: { decode: number | null; prefill: number | null; whyDecode: string; whyPrefill: string }) {
+  return (
+    <p className="small engine-speed" data-stat="engineSpeed">
+      <Term id="engineSpeed" />: <Term id="decodeTokS">generation</Term> <span data-fact="decode">{decode === null ? <Missing why={whyDecode} /> : `${speed(decode)} tok/s`}</span>
+      {" · "}<Term id="prefillTokS">reading</Term> <span data-fact="prefill">{prefill === null ? <Missing why={whyPrefill} /> : `${speed(prefill)} tok/s`}</span>
+    </p>
+  );
+}
+
 export function RunCost({ run }: { run: Row }) {
   const t = runTotals(run);
   const or = (v: number | null, show: (n: number) => string, why: Parameters<typeof whyRunMissing>[1]) =>
@@ -27,11 +37,10 @@ export function RunCost({ run }: { run: Row }) {
         <Stat term="inputRead">{or(t.readTokens, short, "tokens")}</Stat>
         <Stat term="calls">{or(t.calls, full, "tokens")}</Stat>
         <Stat term="tokS">{or(t.tokS, speed, "speed")}</Stat>
-        <Stat term="decodeTokS">{or(t.decodeTokS, speed, "model-speed")}</Stat>
-        <Stat term="prefillTokS">{or(t.prefillTokS, speed, "model-speed")}</Stat>
         <Stat term="compactions">{or(t.compactions, String, "counter")}</Stat>
         <Stat term="nudges">{or(t.nudges, String, "counter")}</Stat>
       </div>
+      <EngineSpeed decode={t.decodeTokS} prefill={t.prefillTokS} whyDecode={whyRunMissing(run, "model-speed")} whyPrefill={whyRunMissing(run, "model-speed")} />
       <StoryCostTable run={run} />
     </Section>
   );
@@ -50,8 +59,8 @@ const COLS: Col[] = [
   { term: "inputRead", cell: (u) => num(u.readTokens, short, u, "story") },
   { term: "cached", cell: (u) => (u.readTokens && u.cacheRead != null ? pct(u.cacheRead / u.readTokens) : <Missing why={whyMissing(u, "cached")} />) },
   { term: "tokS", cell: (u) => num(u.tokS, speed, u, "story") },
-  { term: "decodeTokS", label: "Decode", cell: (u) => num(u.decodeTokS, speed, u, "decode") },
-  { term: "prefillTokS", label: "Prefill", cell: (u) => num(u.prefillTokS, speed, u, "prefill") },
+  { term: "decodeTokS", label: "generation", cell: (u) => num(u.decodeTokS, speed, u, "decode") },
+  { term: "prefillTokS", label: "reading", cell: (u) => num(u.prefillTokS, speed, u, "prefill") },
   { term: "draftAcceptance", label: "Draft", cell: (u) => num(u.draftAcceptance, pct, u, "draft") },
 ];  // compactions and nudges per story are on each story run's page, and summed in the totals above
 

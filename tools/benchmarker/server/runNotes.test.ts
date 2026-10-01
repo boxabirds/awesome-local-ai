@@ -2,7 +2,7 @@
 // what the operator or the harness's watchdog did to it by hand (interventions.md); and when each dbench job ended.
 // Each parser by the shapes its input takes in the records: present, absent, every real line format, and malformed.
 import { describe, expect, it } from "vitest";
-import { buildRows, jobEndedAt, jobsByRun, parseInterventions, parseInvalid, type DbenchJob, type RunRecord } from "./domain.ts";
+import { buildFullRows, buildRows, jobEndedAt, jobsByRun, parseInterventions, parseInvalid, type DbenchJob, type RunRecord } from "./domain.ts";
 
 const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
 const at = (iso: string) => Date.parse(iso) / 1000;
@@ -118,24 +118,33 @@ describe("when a dbench job ended", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-describe("each row carries its record's invalid mark and interventions", () => {
+describe("the record's invalid mark and interventions: the server keeps both, the page gets only the interventions", () => {
   const rec = (over: Partial<RunRecord>): RunRecord => ({ pack: "vidi", stack: SWIFT, runId: "v2-r1", dir: "d", rescores: [], rescoreLast: {}, hasBundle: false,
     host: "", packVersion: "", state: "finished", stateAt: "", stories: [], scores: {}, ...over });
   const iv = { at: 100, story: "3", text: "froze" };
 
-  it("as the record has them", () => {
-    const [r] = buildRows([rec({ invalid: { reason: "leak", since: "2026-09-30" }, interventions: [iv] })], {}, {}, 0);
-    expect(r.invalid).toEqual({ reason: "leak", since: "2026-09-30" });
-    expect(r.interventions).toEqual([iv]);
+  it("the full row has the mark; the page's rows leave the run out altogether", () => {
+    const records = [rec({ invalid: { reason: "leak", since: "2026-09-30" }, interventions: [iv] }), rec({ runId: "v2-r2" })];
+    const full = buildFullRows(records, {}, {}, 0);
+    expect(full.map((r) => [r.runId, r.record.invalid])).toEqual([["v2-r1", { reason: "leak", since: "2026-09-30" }], ["v2-r2", null]]);
+    expect(full[0].interventions).toEqual([iv]);
+    const rows = buildRows(records, {}, {}, 0);
+    expect(rows.map((r) => r.runId)).toEqual(["v2-r2"]);
+    expect(rows[0]).not.toHaveProperty("record");
+    expect(rows[0]).not.toHaveProperty("dbenchJobs");
+  });
+  it("an invalid run's job goes with it: neither the run nor a row for its job is shown", () => {
+    const jobs = { "node-a": [{ id: "j", spec: { pack: "benchmarks/vidi", run_id: "v2-r1" }, progress: { combination: SWIFT }, state: { status: "running" } }] };
+    expect(buildRows([rec({ invalid: { reason: "leak", since: "" } })], jobs, {}, 0)).toEqual([]);
   });
   it("a record without them (older records, fixtures): valid, and none", () => {
-    const [r] = buildRows([rec({})], {}, {}, 0);
-    expect(r.invalid).toBeNull();
+    const [r] = buildFullRows([rec({})], {}, {}, 0);
+    expect(r.record.invalid).toBeNull();
     expect(r.interventions).toEqual([]);
   });
   it("a job with no record yet: valid, and none", () => {
-    const [r] = buildRows([], { "node-a": [{ id: "j", spec: { pack: "benchmarks/vidi", run_id: "v2-r2" }, progress: { combination: SWIFT }, state: { status: "queued" } }] }, {}, 0);
-    expect(r.invalid).toBeNull();
+    const [r] = buildFullRows([], { "node-a": [{ id: "j", spec: { pack: "benchmarks/vidi", run_id: "v2-r2" }, progress: { combination: SWIFT }, state: { status: "queued" } }] }, {}, 0);
+    expect(r.record.invalid).toBeNull();
     expect(r.interventions).toEqual([]);
   });
 });

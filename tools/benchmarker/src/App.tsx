@@ -92,8 +92,8 @@ export function App() {
   if (!data) {
     return (
       <>
-        <StaleBanner stale={Boolean(error)} age={age} error={error} />
-        <p className="empty">{error ? "Can't reach the benchmarker server." : "Loading…"}</p>
+        <StaleBanner stale={Boolean(error)} age={age} />
+        <p className="empty">{error ? "No data yet." : "Loading…"}</p>
       </>
     );
   }
@@ -137,12 +137,12 @@ export function App() {
         </div>
         {tab !== "runs" || route.page !== "overview" ? null : <StatusFilter counts={counts} hidden={hidden} onChange={chooseHidden} />}
       </Header>
-      <StaleBanner stale={stale} age={age} error={error} />
+      <StaleBanner stale={stale} age={age} />
       <main>
         {route.page !== "overview" ? <EntityPage route={route} state={data} serverNow={serverNow} family={family} /> : <>
         {tab === "machines" ? <MachinesIndex state={data} serverNow={serverNow} />
           : tab === "setup" ? <SetupTab />
-          : <OverviewPage state={data} serverNow={serverNow} rows={inFamily} hidden={hidden} context={`${pack} · ${family === ALL ? "all versions" : family}`} />}
+          : <OverviewPage state={data} serverNow={serverNow} rows={inFamily} hidden={hidden} />}
         </>}
       </main>
     </div>

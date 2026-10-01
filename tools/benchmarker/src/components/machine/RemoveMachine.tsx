@@ -18,7 +18,7 @@ export function RemoveMachine({ name, listed = true, onRemoved }: { name: string
   return (
     <span className="remove-machine">
       {!listed ? null : asking ? (
-        <span className="confirm">Remove {name} from the list? (Its dbench service keeps running.)
+        <span className="confirm">Remove {name} from the list? (Its job service keeps running.)
           <button type="button" onClick={remove}>Remove</button><button type="button" autoFocus onClick={() => setAsking(false)}>Keep</button></span>
       ) : <button type="button" className="quiet" onClick={() => setAsking(true)}>Remove machine…</button>}
       {note ? <span className="small note" role="status"> {note}</span> : null}

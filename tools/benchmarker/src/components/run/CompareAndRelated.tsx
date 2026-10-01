@@ -1,9 +1,8 @@
 // This run beside another of the same combination, story by story; and the combination's other runs.
 // Modest on purpose: the combination page has the full runs x stories matrix.
 import type { Row } from "../../../shared/types.ts";
-import { COMPARE_MEASURES, compareRuns, scoreOfRecord, signedPercent, statusView, type MeasureKey } from "../../../shared/runView.ts";
+import { COMPARE_MEASURES, compareRuns, PENDING, scoreOfRecord, signedPercent, statusView, type MeasureKey } from "../../../shared/runView.ts";
 import { GLOSSARY } from "../../../shared/glossary.ts";
-import { finalScoreNote } from "../../../shared/finalScore.ts";
 import { CombinationLink, MachineLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
@@ -42,7 +41,7 @@ export function CompareRuns({ run, others, params }: { run: Row; others: Row[]; 
         : !other ? <p className="rp-empty">Choose a run to compare with.</p>
         : rows.length === 0 ? <p className="rp-empty">Neither run has recorded a story yet.</p> : <>
           <p className="small compare-key">
-            Each cell: <b>{run.runId}</b> over <RunLink pack={other.pack} stack={other.stack} runId={other.runId} invalid={other.invalid} />; <span className="diff flagged">marked</span> where {run.runId} differs from {other.runId} by more than 10%.
+            Each cell: <b>{run.runId}</b> over <RunLink pack={other.pack} stack={other.stack} runId={other.runId} />; <span className="diff flagged">marked</span> where {run.runId} differs from {other.runId} by more than 10%.
           </p>
           <div className="table-scroll">
             <table className="rp-table compare" aria-label={`${run.runId} against ${other.runId}`}>
@@ -91,10 +90,11 @@ export function RelatedRuns({ run, others }: { run: Row; others: Row[] }) {
             return (
               <li key={r.runId} data-run={r.runId}>
                 <span className={`s-${v.status}`} aria-hidden="true">{v.icon}</span>{" "}
-                <RunLink pack={r.pack} stack={r.stack} runId={r.runId} invalid={r.invalid} />{" "}
+                <RunLink pack={r.pack} stack={r.stack} runId={r.runId} />{" "}
                 <span className={`status-word s-${v.status}`}>{v.status}</span>
                 <span className="small"> · <MachineLink machine={r.machine} host={r.host} /> · {r.stories.length} {r.stories.length === 1 ? "story" : "stories"} recorded · </span>
-                {rec.kind === "scored" ? <span className="small">score <b>{rec.passed}/{rec.total}</b></span> : <span className="small" data-tip={[rec.why, finalScoreNote(r)].filter(Boolean).join(" ")}>no score of record</span>}
+                {rec.kind === "scored" ? <span className="small">score <b>{rec.passed}/{rec.total}</b></span>
+                  : <span className="small" data-score={rec.reason} data-tip={GLOSSARY.noScore.what}>{rec.reason === "pending" ? `score ${PENDING}` : "no score of record"}</span>}
               </li>
             );
           })}

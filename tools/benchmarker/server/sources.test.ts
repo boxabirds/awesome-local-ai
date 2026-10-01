@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCOUNTING_PATH, finalizePath, rescoreStoryPaths, rescoredStory, runFinalize, runNotes, runNotePaths } from "./sources.ts";
+import { finalizePath, rescoreStoryPaths, rescoredStory, runFinalize, runNotes, runNotePaths } from "./sources.ts";
 
 // A re-scored story's counts: since 30 Sep 2026 a record has only the public summary (accept-summary.json);
 // the full result (accept.json) is private. Older records have only the full result.
@@ -52,21 +52,14 @@ describe("a run's notes: its client and invalid mark (run.json), and interventio
   });
 });
 
-// ---------- what the run's final re-score recorded, and the harness's accounting ----------
+// ---------- what the run's final re-score recorded ----------
 
-describe("a run's final re-score (finalize.json) and the harness's accounting version", () => {
+describe("a run's final re-score (finalize.json): kept whole for the faults feed", () => {
   const FIN = `${DIR}/finalize.json`;
-  it("finalize.json is read from the run's folder; accounting.py from the harness", () => {
-    expect(finalizePath(DIR)).toBe(FIN);
-    expect(ACCOUNTING_PATH).toBe("benchmarks/spec-bench/harness/accounting.py");
-  });
-  it("present: how the re-score ended and why", () => {
-    const blob = JSON.stringify({ version: `${V}+28ace8b`, pack_ref: V, at: "2026-10-01T08:25:57Z", rescore: "skipped", reason: `the suite checkout is at ${V}+28ace8b, not the pack's ${V}` });
-    expect(runFinalize(new Map([[FIN, blob]]), DIR)).toEqual({ rescore: "skipped", reason: `the suite checkout is at ${V}+28ace8b, not the pack's ${V}`, version: `${V}+28ace8b`, packRef: V, at: "2026-10-01T08:25:57Z", needsPerson: null, attempts: null, lastAttemptAt: "" });
-  });
-  it("present, with what the harness says about retrying it: whether a person is needed, the attempts and the last one", () => {
-    const blob = JSON.stringify({ version: V, pack_ref: V, at: "2026-10-01T08:25:57Z", rescore: "failed", reason: "no browser", needs_person: true, attempts: 3, last_attempt_at: "2026-10-01T12:00:00Z" });
-    expect(runFinalize(new Map([[FIN, blob]]), DIR)).toMatchObject({ rescore: "failed", needsPerson: true, attempts: 3, lastAttemptAt: "2026-10-01T12:00:00Z" });
+  it("finalize.json is read from the run's folder", () => expect(finalizePath(DIR)).toBe(FIN));
+  it("present: verbatim, every field as written", () => {
+    const raw = { version: `${V}+28ace8b`, pack_ref: V, at: "2026-10-01T08:25:57Z", rescore: "skipped", reason: `the suite checkout is at ${V}+28ace8b, not the pack's ${V}`, needs_person: true, attempts: 3, history: [{ at: "x" }] };
+    expect(runFinalize(new Map([[FIN, JSON.stringify(raw)]]), DIR)).toEqual(raw);
   });
   it("absent, or not parseable: null", () => {
     expect(runFinalize(new Map(), DIR)).toBeNull();

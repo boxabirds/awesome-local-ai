@@ -34,7 +34,7 @@ export function StoryRunHeader({ run, st, storyId, title }: { run: Row; st: Stor
       <div className="eyebrow">Story run</div>
       <h1>Story {storyId}{title ? <span className="story-title-h"> · {title}</span> : <span className="small"> · title not known yet</span>}</h1>
       <div className="of-run">
-        <RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} invalid={run.invalid} /> <span className="small">on <MachineLink machine={run.machine} host={run.host} /> · run</span> <StatusBadge run={run} />
+        <RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} /> <span className="small">on <MachineLink machine={run.machine} host={run.host} /> · run</span> <StatusBadge run={run} />
         {" "}<InterventionMark list={interventionsOf(run, storyId)} />
       </div>
       <div className="outcome">
@@ -44,7 +44,7 @@ export function StoryRunHeader({ run, st, storyId, title }: { run: Row; st: Stor
             <span data-fact="own">{fraction(story.ownPassed, story.ownTotal, "This story's own held-out result isn't in its record.")}</span>
           </Stat>
           <Stat term="cumulativeHeldOut" tag={<LiveTag />} sub="every story's tests so far">
-            <span data-fact="cumulative">{fraction(story.passed, story.total, "The whole-suite figure arrives with the story's record; dbench reported this story first.")}</span>
+            <span data-fact="cumulative">{fraction(story.passed, story.total, "The whole-suite figure arrives with the story's record.")}</span>
           </Stat>
           <Stat term="agentTime"><span data-fact="agentTime">{secs !== null ? <span className="big-n">{duration(secs)}</span> : <Missing why="This story's record has no time." />}</span></Stat>
         </> : null}
@@ -61,9 +61,9 @@ export function NotRecorded({ run, st }: { run: Row; st: Exclude<StoryRunState, 
         <p className="state-note">Being built now. These are live figures; the record, with where the time went and the conversation profile, arrives when the story ends.</p>
         {/* The section is tagged live; the figures are styled as live too, so none can pass for a record. */}
         <div className="stats live-stats">
-          <Stat term="agentTime">{st.agentMinutes !== null ? <span className="live-n">{duration(st.agentMinutes * MINUTE)}</span> : <Missing why="dbench hasn't reported the agent's time on this story yet." />}</Stat>
-          <Stat term="calls">{st.calls !== null ? <span className="live-n">{full(st.calls)}</span> : <Missing why="dbench hasn't reported calls on this story yet." />}</Stat>
-          <Stat term="outTokens">{st.outputTokens !== null ? <span className="live-n">{short(st.outputTokens)}</span> : <Missing why="dbench hasn't reported output tokens on this story yet." />}</Stat>
+          <Stat term="agentTime">{st.agentMinutes !== null ? <span className="live-n">{duration(st.agentMinutes * MINUTE)}</span> : <Missing why="No agent time reported on this story yet." />}</Stat>
+          <Stat term="calls">{st.calls !== null ? <span className="live-n">{full(st.calls)}</span> : <Missing why="No calls reported on this story yet." />}</Stat>
+          <Stat term="outTokens">{st.outputTokens !== null ? <span className="live-n">{short(st.outputTokens)}</span> : <Missing why="No output tokens reported on this story yet." />}</Stat>
         </div>
       </Section>
     );
@@ -95,7 +95,7 @@ export function StoryNav({ run, state, storyId }: { run: Row; state: State; stor
                   const s = storyRunState(r, storyId);
                   return (
                     <li key={r.runId} data-run={r.runId}>
-                      <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId} invalid={r.invalid}>{r.runId} · story {storyId}</StoryRunLink>{" "}
+                      <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId}>{r.runId} · story {storyId}</StoryRunLink>{" "}
                       <span className="small">{s.kind === "recorded" ? s.story.status || "recorded" : s.kind === "inProgress" ? "in progress" : s.kind === "notBuilt" ? "not built" : "not in scope"}</span>
                     </li>
                   );
@@ -105,7 +105,7 @@ export function StoryNav({ run, state, storyId }: { run: Row; state: State; stor
           </dd>
         </div>
         <div data-row="story"><dt>Story {storyId} in every combination</dt><dd><StoryLink pack={run.pack} story={storyId}>story {storyId}: every combination's runs</StoryLink></dd></div>
-        <div data-row="run"><dt>The run</dt><dd><RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} invalid={run.invalid} /></dd></div>
+        <div data-row="run"><dt>The run</dt><dd><RunLink pack={run.pack} stack={run.stack} runId={run.runId} label={run.label} /></dd></div>
         <div data-row="combination"><dt>The combination</dt><dd><CombinationLink pack={run.pack} stack={run.stack} label={run.label} /></dd></div>
       </dl>
     </Section>

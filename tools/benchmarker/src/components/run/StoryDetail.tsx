@@ -1,60 +1,28 @@
 // One story run in detail: where its time went, part by part; what it cost; and what the conversation looked like.
-import type { Story, TimeSplit, Usage } from "../../../shared/types.ts";
+import type { Story, Usage } from "../../../shared/types.ts";
 import { conversationView, splitParts, toolKinds, whyMissing } from "../../../shared/runView.ts";
 import { GLOSSARY } from "../../../shared/glossary.ts";
-import { checkView, lower, type CheckRun, type CheckView } from "../../../shared/accountingView.ts";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
 import { Missing, Section, Stat, Term, full } from "./bits.tsx";
-import { CheckMark, SegmentLegend, SplitBar } from "./SplitBar.tsx";
-import { pct, speed } from "./RunCost.tsx";
+import { SegmentLegend, SplitBar } from "./SplitBar.tsx";
+import { NO_SPLIT } from "./RunTime.tsx";
+import { EngineSpeed, pct, speed } from "./RunCost.tsx";
 
 const RATIO_DECIMALS = 1;
 
 const secs = (s: number) => `${full(s)} s`;
 
-/** The check's verdict, beside the parts: the word for it, and what it means. */
-function CheckVerdict({ check, run, v }: { check: TimeSplit["check"]; run: CheckRun; v: CheckView }) {
-  return (
-    <div className="check" data-check={check.status}>
-      <div className="stat-label"><Term id="accountingCheck" /></div>
-      {check.status === "ok" ? <span className="ok-text">✓ passed: the parts add up</span>
-        : check.status === "unchecked" ? <span><CheckMark check={check} run={run} /> not checked</span>
-        : <span className="bad-text"><CheckMark check={check} run={run} /> failed</span>}
-      {check.status === "ok" ? <p className="check-meaning">{v.meaning}</p> : null}
-    </div>
-  );
-}
-
-/** A check that failed or was never made, said in full under the parts: what it means, each problem in words with
- * the harness's own sentence beside it, the likely cause, and what to do. */
-function CheckExplain({ v }: { v: CheckView }) {
-  return (
-    <div className="check-explain" data-explain={v.status}>
-      <p className="check-meaning">{v.meaning}</p>
-      {v.problems.length ? (
-        <ul className="problems">
-          {v.problems.map((p) => <li key={p.raw} data-kind={p.kind}><span className="problem-text">{p.text}</span> <span className="problem-raw mono" title="as the harness recorded it">{p.raw}</span></li>)}
-        </ul>
-      ) : null}
-      {v.cause ? <p className="check-cause"><b>Likely cause:</b> {lower(v.cause)}</p> : null}
-      <p className="check-todo"><b>What to do:</b> {lower(v.todo)}</p>
-      {v.command ? <code className="check-command">{v.command}</code> : null}
-    </div>
-  );
-}
-
-export function StoryTime({ story, run }: { story: Story; run: CheckRun }) {
+export function StoryTime({ story }: { story: Story }) {
   const split = story.usage?.split ?? null;
   if (!split) {
     return (
       <Section term="timeSplit" id="time">
-        <p className="rp-empty">No time split recorded for this story{story.usage ? " (recorded before the harness split time)" : ": its record has no usage"}.</p>
+        <p className="rp-empty" data-empty="split"><Missing why={NO_SPLIT} /> {NO_SPLIT}</p>
       </Section>
     );
   }
   const { parts, unaccounted } = splitParts(split);
-  const check = checkView(split.check, run);
   const kinds = toolKinds(split);
   return (
     <Section term="timeSplit" id="time" aside={<span className="num">{duration(split.wall)} wall</span>}>
@@ -75,7 +43,6 @@ export function StoryTime({ story, run }: { story: Story; run: CheckRun }) {
           </tbody>
         </table>
         <div className="split-side">
-          <CheckVerdict check={split.check} run={run} v={check} />
           <div className="kinds">
             <div className="stat-label"><Term id="segTools">Tools by kind</Term></div>
             {kinds.length ? <ul>{kinds.map((k) => <li key={k.kind} data-kind={k.kind}><span>{k.kind}</span> <span className="num">{duration(k.seconds)}</span></li>)}</ul>
@@ -83,7 +50,6 @@ export function StoryTime({ story, run }: { story: Story; run: CheckRun }) {
           </div>
         </div>
       </div>
-      {split.check.status === "ok" ? null : <CheckExplain v={check} />}
     </Section>
   );
 }
@@ -99,24 +65,23 @@ export function StoryCost({ usage }: { usage: Usage | null | undefined }) {
         <Stat term="inputRead" sub={u.readTokens && u.cacheRead != null ? `${pct(u.cacheRead / u.readTokens)} cached` : undefined}>{or(u.readTokens, short, "story")}</Stat>
         <Stat term="calls">{or(u.calls, full, "story")}</Stat>
         <Stat term="tokS">{or(u.tokS, speed, "story")}</Stat>
-        <Stat term="decodeTokS">{or(u.decodeTokS, speed, "decode")}</Stat>
-        <Stat term="prefillTokS">{or(u.prefillTokS, speed, "prefill")}</Stat>
         <Stat term="draftAcceptance">{or(u.draftAcceptance, pct, "draft")}</Stat>
         <Stat term="compactions">{or(u.compactions, String, "story")}</Stat>
         <Stat term="nudges">{or(u.nudges, String, "story")}</Stat>
       </div>
+      <EngineSpeed decode={u.decodeTokS} prefill={u.prefillTokS} whyDecode={whyMissing(u, "decode")} whyPrefill={whyMissing(u, "prefill")} />
     </Section>
   );
 }
 
-const notCounted = (what: string) => <Missing why={`The harness couldn't count ${what} from this story's event log.`} />;
+const notCounted = (what: string) => <Missing why={`Not counted: ${what}.`} />;
 
 export function Conversation({ story }: { story: Story }) {
   const c = conversationView(story.conversation);
   if (!c) {
     return (
       <Section term="conversation" id="conversation">
-        <p className="rp-empty" data-empty="conversation">Not recorded for this story: it was recorded before the harness kept a profile, or its client's log can't be read.</p>
+        <p className="rp-empty" data-empty="conversation">No conversation profile for this story.</p>
       </Section>
     );
   }

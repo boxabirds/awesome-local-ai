@@ -28,10 +28,23 @@
 .stat-value { font-size: 18px; font-weight: 650; color: var(--ink); overflow-wrap: anywhere; }
 .stat-sub { font-size: 12px; color: var(--faint); max-width: 380px; margin-top: 2px; }
 .stat-sub .why { color: var(--muted); }
-/* A finished run's final score that is still owed: pending (the harness retries it) or needing a person. */
-.final-score-note { color: var(--muted); }
-.stat-sub .final-score-note { display: block; margin-top: 2px; }
-.final-score-note[data-final-score="needsPerson"] { color: var(--part); font-weight: 600; }
+/* The page leads with the score: the number large, the words beside it. */
+.lead-score { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.lead-score .stat-value { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.lead-score .lead-text { font-size: 16px; font-weight: 600; color: var(--muted); }
+.lead-score .na.pending { font-size: 28px; font-style: normal; }
+.lead-score .lead-n.live-n { color: var(--muted); }
+/* Engine speed: one small line under the cost stats. */
+.engine-speed { margin: 4px 0 12px; color: var(--muted); }
+.engine-speed [data-fact] { color: var(--ink); font-weight: 600; }
+/* Held-out: one square per story, coloured by that story's own tests after it; outlined when not built. */
+.rs-strip { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.rs-item a.story-run-link { border: 0; margin: 0; font-size: inherit; display: flex; flex-direction: column; align-items: center; gap: 3px; border-radius: 6px; padding: 2px; }
+.rs-sq { display: block; width: 28px; height: 28px; border-radius: 6px; background: currentColor; }
+.rs-sq.rs-unbuilt { background: none; border: 2px dashed var(--line); color: var(--faint); }
+.rs-sq.rs-noResult { background: none; border: 2px solid var(--line); color: var(--faint); }
+.rs-n { font-size: 11px; font-weight: 600; color: var(--muted); }
+.rs-item a:hover .rs-sq, .rs-item a:focus-visible .rs-sq { box-shadow: 0 0 0 2px var(--ink) inset; }
 .unit { font-size: 12px; font-weight: 500; color: var(--faint); }
 .big-n { font-size: 28px; font-weight: 750; letter-spacing: -.01em; line-height: 1.1; }
 .record-n { font-size: 36px; font-weight: 800; letter-spacing: -.02em; line-height: 1; }
@@ -60,8 +73,6 @@ a.record-link:hover .record-of { color: var(--run); }
 .run-links .links { display: flex; gap: 8px; }
 .run-links a { display: inline-block; border: 1px solid var(--line); border-radius: 6px; padding: 4px 12px; font-size: 13px; background: var(--panel-2); white-space: nowrap; }
 .run-links a.ready { border-color: var(--ok); }
-.run-links .wait { font-size: 13px; }
-.judge-wait { border: 1px dashed var(--line); border-radius: 6px; padding: 4px 12px; }
 
 /* ---------- sections ---------- */
 .rp-section { overflow: visible; }
@@ -124,21 +135,7 @@ table.rp-table { min-width: 0; width: 100%; table-layout: auto; font-size: 13px;
 .split-side ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
 .kinds ul { list-style: none; padding: 0; }
 .kinds li { display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 3px 0; }
-.check-meaning { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
-/* a check that failed or was never made, in full under the parts */
-.check-explain { margin-top: 16px; padding: 10px 14px; border-left: 3px solid var(--line); background: var(--panel-2); border-radius: 0 4px 4px 0; font-size: 13px; max-width: 900px; }
-.check-explain[data-explain="problems"] { border-left-color: var(--bad); }
-.check-explain .check-meaning { margin: 0; color: var(--ink); }
-.check-explain .problems { margin: 8px 0 0; padding-left: 18px; }
-.problems li { color: var(--bad); }
-.problem-raw { display: block; color: var(--faint); font-size: 11px; overflow-wrap: anywhere; }
-.check-cause, .check-todo { margin: 8px 0 0; color: var(--muted); }
-.check-cause b, .check-todo b { color: var(--ink); font-weight: 600; }
-.check-command { display: block; margin-top: 6px; padding: 6px 8px; background: var(--chip); border-radius: 4px; font-size: 12px; overflow-wrap: anywhere; user-select: all; }
-/* a run's checks said once, above its bars */
 .absent { cursor: help; }
-.check-summary { margin: 6px 0 10px; font-size: 13px; color: var(--muted); }
-.check-summary .check-flag, .check-summary .check-unchecked { margin: 0 4px 0 0; }
 
 /* comparisons */
 .compare-pick { font-size: 13px; color: var(--muted); }

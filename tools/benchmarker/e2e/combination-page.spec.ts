@@ -1,9 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { State } from "../shared/types.ts";
+import { GLOSSARY } from "../shared/glossary.ts";
 
 // The ranking on the overview and the combination page, from the fixture. Swift 1.5 has four finished runs:
 // v2-r4 68, v2-r5 63, v2-r6 58 (scores of record under vidi-v2.0-pre1) and v2-r7 (re-scored only under pre0, so
-// unscored); v2-r1 running on story 3, v2-r2 and v2-r3 queued. Story 2 of v2-r5 thought verbosely; story 1 of
+// pending); v2-r1 running on story 3, v2-r2 and v2-r3 queued. Story 2 of v2-r5 thought verbosely; story 1 of
 // v2-r6 hung on a dev server; story 2 of v2-r6 took many small steps; story 1 of v2-r7 has no conversation profile.
 // MECE by section: the overview's ranking, then the page's header, matrix cells, links, metric switch, flags,
 // keyboard, time bars, tally, related, and the empty and absent states.
@@ -52,9 +52,9 @@ test.describe("overview: combinations ranked on finished runs of record", () => 
   });
 
   test("runs not counted are in their own column, by why", async ({ page }) => {
-    await expect(combos(page).locator(`tr[data-stack="${SWIFT}"] td.not-counted`)).toHaveText("1 running2 queued1 unscored1 invalid (v2-r8)");
+    await expect(combos(page).locator(`tr[data-stack="${SWIFT}"] td.not-counted`)).toHaveText("1 running2 queued1 pending");
     await expect(combos(page).locator(`tr[data-stack="${OPUS}"] td.not-counted`)).toHaveText("1 running");
-    await expect(combos(page).getByRole("columnheader", { name: "Not counted" })).toHaveAttribute("data-tip", /unscored \(finished, but not re-scored/);
+    await expect(combos(page).getByRole("columnheader", { name: "Not counted" })).toHaveAttribute("data-tip", /pending \(finished, its score of record not in yet\)/);
   });
 
   test("small n: a note says neighbours within 12 tests can't be told apart, and names them", async ({ page }) => {
@@ -88,18 +88,19 @@ test.describe("combination page", () => {
     await expect(page.locator('[data-kpi="hoursPerStory"] dd')).toHaveText("0.4 (0.2–0.8)");
     await expect(page.locator('[data-kpi="outPerStory"] dd')).toHaveText("71k (63k–118k)");
     await expect(page.locator('[data-kpi="callsPerStory"] dd')).toHaveText("150 (100–177)");
-    await expect(page.locator(".run-counts")).toHaveText("Runs: 5 finished (3 of record, 1 unscored) · 1 running · 2 queued · 1 invalid, in no figure: v2-r8 (invalid)");
+    await expect(page.locator(".run-counts")).toHaveText("Runs: 4 finished (3 of record, 1 pending) · 1 running · 2 queued");
   });
 
   test("matrix rows: finished first, then running and queued; each with its link, status and score of record", async ({ page }) => {
     const runs = await matrix(page).locator("tbody tr").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.run));
-    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r8", "v2-r1", "v2-r2", "v2-r3"]);
+    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r1", "v2-r2", "v2-r3"]);
     await expect(rowOf(page, "v2-r5").locator("a.run-link")).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r5`);
     await expect(rowOf(page, "v2-r5").locator(".m-status")).toHaveText("✓ finished");
     await expect(rowOf(page, "v2-r5").locator(".of-record")).toHaveText("63/75");
     // Of record and live look different and say which they are.
-    await rowOf(page, "v2-r7").locator(".unscored").hover();
-    await expect(tip(page)).toContainText("re-scored only under another suite version (60/75 under vidi-v2.0-pre0), not under vidi-v2.0-pre1");
+    await expect(rowOf(page, "v2-r7").locator(".pending")).toHaveText("pending");
+    await rowOf(page, "v2-r7").locator(".pending").hover();
+    await expect(tip(page)).toHaveText(GLOSSARY.noScore.what);
     await expect(rowOf(page, "v2-r1").locator(".live")).toHaveText("live 1/2");
     await expect(rowOf(page, "v2-r1").locator(".of-record")).toHaveCount(0);
     await rowOf(page, "v2-r2").locator("td.m-score .missing").hover();
@@ -135,7 +136,7 @@ test.describe("combination page", () => {
 
   test("every cell that has a story run links to it", async ({ page }) => {
     const links = matrix(page).locator("td.m-cell a.story-run-link");
-    await expect(links).toHaveCount(13);   // 5 finished × 2 stories (the invalid run's too), and the running run's 1, 2 and 3
+    await expect(links).toHaveCount(11);   // 4 finished × 2 stories, and the running run's 1, 2 and 3
     for (const a of await links.all()) {
       const td = a.locator("xpath=ancestor::td[1]");
       const run = await a.locator("xpath=ancestor::tr[1]").getAttribute("data-run");
@@ -167,7 +168,7 @@ test.describe("combination page", () => {
     await expect(cell(page, "v2-r4", "2").locator(".sq")).toHaveClass(/q-part/);
     await expect(rowOf(page, "v2-r4").locator("td.m-total")).toHaveText("1 of 2 pass");
 
-    await show(page, "tok/s");
+    await show(page, "generated tok/s");
     await expect(cell(page, "v2-r5", "2").locator(".v")).toHaveText("36");
     await expect(cell(page, "v2-r5", "2").locator(".sq")).toHaveClass(/q-ok/);
   });
@@ -199,7 +200,7 @@ test.describe("combination page", () => {
     await expect(link("v2-r4", "2")).toBeFocused();
     await page.keyboard.press("ArrowDown");
     await expect(link("v2-r5", "2")).toBeFocused();
-    for (const run of ["v2-r6", "v2-r7", "v2-r8", "v2-r1"]) { await page.keyboard.press("ArrowDown"); await expect(link(run, "2")).toBeFocused(); }
+    for (const run of ["v2-r6", "v2-r7", "v2-r1"]) { await page.keyboard.press("ArrowDown"); await expect(link(run, "2")).toBeFocused(); }
     await page.keyboard.press("ArrowDown");                                                   // the queued runs have nothing: stays
     await expect(link("v2-r1", "2")).toBeFocused();
     await page.keyboard.press("ArrowRight");
@@ -216,43 +217,27 @@ test.describe("combination page", () => {
     await expect(page).toHaveURL(new RegExp(`#/vidi/r/${enc(SWIFT)}/v2-r1/s/1$`));
   });
 
-  test("where the time went: one bar per run with a split, on one scale, the same segments; accounting problems flagged", async ({ page }) => {
+  test("where the time went: one bar per run with a breakdown, on one scale, the same segments; no accounting mark", async ({ page }) => {
     const bars = page.getByRole("figure", { name: "Where the time went, per run" });
     const runs = await bars.locator(".bar-row").evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run));
-    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r8", "v2-r1"]);            // queued runs have none
+    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7"]);            // queued runs have none; v2-r1's one breakdown isn't available
     const width = (run: string) => bars.locator(`[data-run="${run}"] .bar`).evaluate((el) => el.getBoundingClientRect().width);
     expect(await width("v2-r5")).toBeGreaterThan(await width("v2-r6"));                       // 91 min against 43
     expect(await width("v2-r6")).toBeGreaterThan(await width("v2-r4"));
     await expect(bars.locator('[data-run="v2-r5"] .bar-total')).toHaveText("1h31m");
     await bars.locator('[data-run="v2-r6"] [data-seg="tools"]').hover();
     await expect(tip(page)).toContainText("Tools 18 min (43%) over 2 recorded stories");
-    await expect(bars.locator('[data-run="v2-r1"]')).toContainText("1 recorded story, 1 without a split");
-    await bars.locator('[data-run="v2-r1"] .check-flag').hover();
-    await expect(tip(page)).toContainText("Accounting check failed on story 1: its time figures can't be trusted.");
-    await expect(tip(page)).toContainText("Story 1: tool call t9 has no end in the log");
+    await expect(bars.locator(".check-flag, .check-unchecked")).toHaveCount(0);
+    await expect(bars).not.toContainText(/accounting|unchecked|⚠/i);
     await expect(bars.locator("figcaption")).toContainText("Between sessions");
   });
 
-  test("a Claude Code combination: 'unchecked' says why, that it isn't a fault, and how to fill it in, on keyboard focus", async ({ page }) => {
+  test("a Claude Code combination: its bar is drawn as it is, with no mark and no word on hover", async ({ page }) => {
     await open(page, OPUS);
-    const mark = page.getByRole("figure", { name: "Where the time went, per run" }).locator('[data-run="run-9"] .check-unchecked');
-    await expect(mark).toHaveAttribute("tabindex", "0");
-    await mark.focus();
-    await expect(tip(page)).toContainText("The one story with a time split is unchecked: recorded before the harness read Claude Code's logs for their time, so there is nothing to check. It isn't a fault, and the held-out results are unaffected.");
-    await expect(tip(page)).toContainText("To fill them in, recompute this record on ");
-  });
-
-  test("an older run's 'unchecked' says it was recorded before the harness checked, and how to check it", async ({ page }) => {
-    await page.route("**/api/state", async (route) => {
-      const res = await route.fetch();
-      const s = (await res.json()) as State;
-      for (const st of s.rows.find((r) => r.stack === SWIFT && r.runId === "v2-r5")!.stories) st.usage!.split!.check = { status: "unchecked", problems: [] };
-      await route.fulfill({ response: res, json: s });
-    });
-    await open(page, SWIFT);
-    await page.getByRole("figure", { name: "Where the time went, per run" }).locator('[data-run="v2-r5"] .check-unchecked').focus();
-    await expect(tip(page)).toContainText("All 2 stories with a time split are unchecked: recorded before the harness checked its time accounting.");
-    await expect(tip(page)).toContainText("without them they can't be checked");
+    const bars = page.getByRole("figure", { name: "Where the time went, per run" });
+    await expect(bars.locator('[data-run="run-9"] .bar')).toBeVisible();
+    await expect(bars.locator('[data-run="run-9"]')).not.toContainText(/unchecked|accounting/i);
+    for (const tipText of await bars.locator("[data-tip]").evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.tip ?? ""))) expect(tipText).not.toMatch(/accounting|unchecked|harness|recompute|What to do/i);
   });
 
   test("the mechanism tally follows the metric shown", async ({ page }) => {
@@ -282,9 +267,9 @@ test.describe("combination page", () => {
 test.describe("combination page: empty and absent states", () => {
   test("finished but unscored (gufo, a v1 run): not ranked and why; no median to differ from; a related combination links", async ({ page }) => {
     await open(page, GUFO);
-    await expect(page.locator('[data-kpi="score"] dd')).toHaveText("not ranked: 1 finished, none re-scored under vidi-v2.0-pre1");
+    await expect(page.locator('[data-kpi="score"] dd')).toHaveText("not ranked: 1 finished, score pending");
     await expect(page.locator('[data-kpi="hoursPerStory"] .missing')).toHaveText("—");
-    await expect(page.locator(".run-counts")).toHaveText("Runs: 1 finished (0 of record, 1 unscored)");
+    await expect(page.locator(".run-counts")).toHaveText("Runs: 1 finished (0 of record, 1 pending)");
     await expect(matrix(page).locator("td.m-cell .flag")).toHaveCount(0);
     await expect(page.locator('[data-section="tally"] [data-tally="none"]')).toHaveText("No story has 2 finished runs yet, so there is no median to differ from.");
     // gufo's only run is v1, so its page is v1's; mlx-serve has no v1 run, so it isn't offered to compare with.

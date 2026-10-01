@@ -23,8 +23,7 @@ export function AddMachine() {
       {needToken ? <label>Token <input aria-label="Token" value={token} autoComplete="off" onChange={(e) => setToken(e.target.value)} /></label> : null}
       <button type="submit" disabled={!name}>Add</button>
       {asked ? <div className={asked.ok ? "small note" : "err"}>{asked.message}</div> : null}
-      <div className="small">The benchmarker first tries to read the machine's token over SSH; if it can't, it asks you to paste it.
-        The token is saved in <code>~/.config/dbench/nodes.toml</code> on this Mac (only you can read it) and never shown again.</div>
+      <div className="small">The token is read over SSH when it can be, else asked for. It is saved in <code>~/.config/dbench/nodes.toml</code> on this Mac (only you can read it) and never shown again.</div>
     </form>
   );
 }

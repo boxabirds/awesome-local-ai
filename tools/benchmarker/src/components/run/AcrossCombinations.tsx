@@ -1,5 +1,5 @@
 // How every combination fares on this story: one row per combination that has recorded it, in the story page's order,
-// each with the story page's own median and range over its valid finished runs; this story run's own figures on the
+// each with the story page's own median and range over its finished runs; this story run's own figures on the
 // first row, and its agent time marked on every bar, so it can be placed against each combination's typical run.
 // The rows, the scale and every missing figure's why come from acrossCombinations; this only lays them out.
 import type { Row, State } from "../../../shared/types.ts";
@@ -47,14 +47,12 @@ function TimeBar({ fill, range, mark, own, scale, label }: { fill: number | null
 /** How many runs the row's medians are over, and the runs that recorded the story but are in no median. */
 function Runs({ row }: { row: AcrossRow }) {
   const head = row.state === "measured" ? <b>n={row.n}</b>
-    : row.state === "noValid" ? <span className="no-median">no valid runs yet</span>
     : row.state === "unfinished" ? <span className="no-median">no finished run yet</span>
     : <span className="no-median">not recorded yet</span>;
   return (
     <td className="runs" data-col="runs">
       {head}
       {row.unfinished.map((u) => <span key={u.status} className="small aside-n" data-unfinished={u.status}>+{u.count} {u.status}</span>)}
-      {row.invalid ? <span className="small aside-n" data-invalid-runs>{row.invalid} invalid, left out</span> : null}
     </td>
   );
 }
@@ -134,7 +132,7 @@ export function AcrossCombinations({ run, state, storyId }: { run: Row; state: S
         <span className="across-bar key" aria-hidden="true"><span className="med" /></span> median agent time, all bars on one scale
         {" · "}<span className="across-bar key" aria-hidden="true"><span className="whisker" /></span> lowest to highest
         {mine?.minutes != null ? <>{" · "}<span className="across-bar key mark" aria-hidden="true"><span className="mine-mark" /></span> this story run ({SHOW.minutes(mine.minutes)})</> : null}
-        . Medians are over each combination's valid finished runs; this story run is in its own combination's when it is one of them.
+        . Medians are over each combination's finished runs; this story run is in its own combination's when it is one of them.
       </p>
     </Section>
   );

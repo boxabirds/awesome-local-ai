@@ -1,40 +1,13 @@
-/* The overview: "Needs you", "Now", then the Combinations table. Sparse (plan 5.7): each section a panel of its
-   own, one line per item. Scoped to the page; colours are styles.css's tokens only, so dark mode follows. */
+/* The overview: "Now", then the Combinations table. Sparse (plan 5.7): each section a panel of its own, one line per
+   item. Scoped to the page; colours are styles.css's tokens only, so dark mode follows. */
 .overview-page {
   &.page { background: none; border: 0; padding: 0; margin: 0; }
   a:focus-visible, [tabindex="0"]:focus-visible, button:focus-visible { outline: 2px solid var(--run); outline-offset: 2px; border-radius: 3px; }
 
   .ov-section { overflow: visible; }
   .ov-section > h2 { font-family: inherit; font-size: 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-  .ov-section > h2 .count { display: inline-block; min-width: 22px; padding: 0 7px; border-radius: 999px; background: var(--chip); color: var(--ink);
-                            font-size: 12px; font-weight: 700; text-align: center; line-height: 20px; }
-  .ov-section > h2 .count:not([data-count="0"]) { background: var(--ink); color: var(--panel); }
   .ov-section > h2 .small { margin-left: auto; }
-  .empty-note, .all-well { margin: 0; padding: 10px 12px; font-size: 13px; color: var(--muted); }
-  .all-well { color: var(--ok); font-weight: 600; }
-
-  /* Needs you: tag; what, what it affects and what to do; where it is seen. */
-  .needs { list-style: none; margin: 0; padding: 0; }
-  .needs li { display: grid; grid-template-columns: 128px minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline;
-              padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
-  .needs li:last-child { border-bottom: 0; }
-  .need-tag { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; color: var(--muted); }
-  .need-tag.k-silent, .need-tag.k-unreachable, .need-tag.k-ended, .need-tag.k-rescoreFault { color: var(--bad); }
-  .need-tag.k-idle { color: var(--part); }
-  .need-body { min-width: 0; overflow-wrap: anywhere; }
-  .need-body p { margin: 0; }
-  .need-what .stack-label { font-size: 13px; }
-  .need-what a.story-run-link { font-size: inherit; margin: 0; color: inherit; }
-  .need-detail, .need-affects { margin-top: 2px; font-size: 12px; color: var(--muted); }
-  .need-body .need-todo { margin-top: 4px; }
-  .need-lead { font-weight: 700; }
-  .need-body .need-caution { margin-top: 4px; font-size: 12px; color: var(--part); }
-  .need-run { display: flex; align-items: flex-start; gap: 8px; margin-top: 4px; }
-  .need-command { min-width: 0; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); color: var(--ink);
-                  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; overflow-wrap: anywhere; user-select: all; }
-  .need-copy { flex: none; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
-  .need-copy:hover { background: var(--chip); }
-  .resolve { white-space: nowrap; font-size: 12px; font-weight: 600; }
+  .empty-note { margin: 0; padding: 10px 12px; font-size: 13px; color: var(--muted); }
 
   /* Now: one row per machine. */
   table.now-table { min-width: 0; table-layout: auto; font-size: 13px; }
@@ -45,8 +18,4 @@
   /* The Combinations table keeps its own look (styles.css). */
   .combinations { margin-bottom: 16px; }
 
-  @media (max-width: 1100px) {
-    .needs li { grid-template-columns: 110px minmax(0, 1fr); }
-    .needs li .resolve { grid-column: 2; }
-  }
 }

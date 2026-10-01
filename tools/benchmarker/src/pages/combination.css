@@ -44,7 +44,7 @@
   .m-status { display: block; font-size: 12px; }
   table.matrix td.m-score { padding: 6px 10px; white-space: nowrap; border-right: 1px solid var(--line); }
   .of-record { font-size: 15px; }
-  .unscored { font-size: 12px; color: var(--part); font-style: italic; cursor: help; }
+  .pending { font-size: 12px; color: var(--muted); font-style: italic; cursor: help; }
   .live { font-size: 12px; color: var(--faint); cursor: help; }
   table.matrix td.m-cell { min-width: 64px; text-align: center; border-left: 1px solid var(--line); }
   table.matrix td.m-cell:first-of-type { border-left: 0; }
