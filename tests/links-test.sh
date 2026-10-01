@@ -34,6 +34,10 @@ while IFS= read -r md; do
     [[ -n "$target" ]] || continue
     case "$target" in
       http://*|https://*|mailto:*|\#*) continue ;;
+      # A run started on harness release 1 (2026-10-01.1) wrote its summary.md's policy link into the release
+      # export it ran from (…/releases/harness-v…/), outside the repo. The writer is fixed from the next release; a
+      # job keeps the release it started on, so those runs keep writing it until they end. Not a link anyone wrote.
+      */releases/harness-v*) case "$md" in */benchmarks/*/summary.md) continue ;; esac ;;
     esac
     clean="${target%%#*}"
     [[ -n "$clean" ]] || continue
