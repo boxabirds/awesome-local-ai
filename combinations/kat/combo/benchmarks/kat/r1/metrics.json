@@ -143,6 +143,164 @@
       "status": "DONE",
       "ended_by": "agent",
       "partial_base": [],
+      "tasks": [],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "private": {
+          "skipped": "no private checkout at /private/var/folders/b_/66g1274s7_xfw7x984g072s40000gn/T/pytest-of-julian/pytest-464/test_the_story_loop_with_the_r0/no-private-copy"
+        },
+        "commit": "7fa135ec"
+      }
+    },
+    "2": {
+      "title": "Use the peer library",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790846657.770784,
+      "engine_settings": null,
+      "agent": {
+        "seconds": 1.1,
+        "steps": 1,
+        "tool_calls": 0,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 10,
+          "output": 100,
+          "reasoning": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "kat-2"
+        ]
+      },
+      "agent_finished": 1790846659.003378,
+      "conditions": {
+        "samples": 0,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "aborted_swap": false,
+        "aborted_memory": false
+      },
+      "containment": {
+        "enabled": false
+      },
+      "agent_commits": 1,
+      "provenance": {
+        "harness_commit": "4b02a9d1",
+        "harness_dirty": true,
+        "pack_version": "kat-v1",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 1,
+            "seconds": 0.9,
+            "tail": "npm warn ERESOLVE overriding peer dependency\nnpm warn While resolving: needy@1.0.0\nnpm warn Found: peerlib@undefined\nnpm warn node_modules/peerlib\nnpm warn   peerlib@\"file:vendor/peerlib\" from the root project\nnpm warn\nnpm warn Could not resolve dependency:\nnpm warn peer peerlib@\"^2.0.0\" from needy@1.0.0\nnpm warn vendor/needy\nnpm warn   needy@1.0.0\nnpm warn   node_modules/needy\nnpm error code ENOTCACHED\nnpm error request to https://registry.npmjs.org/peerlib failed: cache mode is 'only-if-cached' but no cached response is available.\nnpm error A complete log of this run can be found in: ~/.npm/_logs/2026-10-01T09_24_20_316Z-debug-0.log\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.4,
+            "tail": "\n> kat-app@1.0.0 build\n> node build.js\n\n",
+            "passed": null,
+            "failed": null
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 3,
+        "total": 5,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 2,
+            "total": 3
+          },
+          "02": {
+            "passed": 1,
+            "total": 2
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "1af6fc3fce908ef8c36adb5d8354abeeac8b5131",
+      "requests": {},
+      "time_split": {
+        "wall_s": 1.2,
+        "model": null,
+        "tools_s": 0.0,
+        "tools_by_kind": {},
+        "compaction_s": 0.0,
+        "compactions": 0,
+        "between_sessions_s": 0.0,
+        "other_s": 1.2,
+        "accounting": {
+          "version": 3,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0
+        }
+      },
+      "conversation": {
+        "version": 1,
+        "calls": 1,
+        "tool_calls": 0,
+        "thinking_visible": true,
+        "thinking_chars": 0,
+        "thinking_median": 0,
+        "thinking_median_before": null,
+        "thinking_median_after": null,
+        "largest_thinking": null,
+        "text_chars": 0,
+        "tool_arg_chars": 0,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 10,
+        "context_end": 10,
+        "largest_context_jump": null,
+        "tools_by_name": {},
+        "tool_errors": 0,
+        "longest_tool": null,
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 0,
+        "lines": 0
+      },
+      "finished": 1790846663.8047528,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
       "tasks": []
     }
   },
@@ -599,6 +757,422 @@
           "accept": {
             "passed": 5,
             "total": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Use the peer library",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790846657.770784,
+      "ended_at": 1790846659.003378,
+      "agent_minutes": 0.0,
+      "calls": 1,
+      "output_tokens": 100,
+      "compactions": 0,
+      "last_commit_at": 1790846658.0,
+      "accept": {
+        "passed": 1,
+        "total": 2
+      },
+      "partial_base": [],
+      "tasks": [],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 13.9,
+          "calls": 42,
+          "output_tokens": 84946,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": null,
+          "agent_minutes": 16.9,
+          "calls": null,
+          "output_tokens": null,
+          "accept": null
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 18.5,
+          "calls": 49,
+          "output_tokens": 92087,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 43.0,
+          "calls": 139,
+          "output_tokens": 153391,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 57.5,
+          "calls": 207,
+          "output_tokens": 214709,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-04",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 13.1,
+          "calls": 37,
+          "output_tokens": 52611,
+          "accept": {
+            "passed": 0,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-pi ab-s7s8-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 46.7,
+          "calls": 180,
+          "output_tokens": 129456,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 59.0,
+          "calls": 152,
+          "output_tokens": 115463,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 48.7,
+          "calls": 150,
+          "output_tokens": 111599,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-03",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 53.0,
+          "calls": 100,
+          "output_tokens": 108469,
+          "accept": {
+            "passed": 10,
+            "total": 10,
+            "on_partial_total": 10,
+            "on_partial_passed": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 49.4,
+          "calls": 114,
+          "output_tokens": 120732,
+          "accept": {
+            "passed": 7,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 73.7,
+          "calls": 180,
+          "output_tokens": 180222,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 40.8,
+          "calls": 115,
+          "output_tokens": 124781,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 77.6,
+          "calls": 202,
+          "output_tokens": 203498,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 46.7,
+          "calls": 180,
+          "output_tokens": 129456,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-exp1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 58.9,
+          "calls": 172,
+          "output_tokens": 125675,
+          "accept": {
+            "passed": 0,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-exp2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 93.9,
+          "calls": 184,
+          "output_tokens": 195295,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 34.2,
+          "calls": 113,
+          "output_tokens": 82448,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 47.9,
+          "calls": 165,
+          "output_tokens": 111512,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 45.5,
+          "calls": 163,
+          "output_tokens": 99817,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 80.2,
+          "calls": 207,
+          "output_tokens": 174827,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 17.8,
+          "calls": 101,
+          "output_tokens": 51019,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 95.8,
+          "calls": 179,
+          "output_tokens": 174348,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r4",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 51.7,
+          "calls": 150,
+          "output_tokens": 114912,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 97.8,
+          "calls": 250,
+          "output_tokens": 137457,
+          "accept": {
+            "passed": 7,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 111.7,
+          "calls": 157,
+          "output_tokens": 136791,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 40.1,
+          "calls": 167,
+          "output_tokens": 157654,
+          "accept": {
+            "passed": 8,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 32.2,
+          "calls": 135,
+          "output_tokens": 111190,
+          "accept": {
+            "passed": 6,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 33.5,
+          "calls": 172,
+          "output_tokens": 117547,
+          "accept": {
+            "passed": 0,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 12.7,
+          "calls": 104,
+          "output_tokens": 55968,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 35.7,
+          "calls": 143,
+          "output_tokens": 135388,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 47.6,
+          "calls": 151,
+          "output_tokens": 147278,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 20.0,
+          "calls": 102,
+          "output_tokens": 102552,
+          "accept": {
+            "passed": 0,
+            "total": 10
           }
         }
       ]
