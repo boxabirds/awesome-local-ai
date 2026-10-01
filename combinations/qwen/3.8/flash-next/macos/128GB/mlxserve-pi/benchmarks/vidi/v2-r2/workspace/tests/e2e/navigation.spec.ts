@@ -21,6 +21,7 @@ import {
   markerCentre,
   nearestDot,
   originMarker,
+  openFreshBoard,
   pageZoom,
   readCamera,
   resetViewButton,
@@ -78,10 +79,11 @@ function dotRow(geom: GridGeometry): number {
 test.describe('first visit navigation', () => {
   // TC-28
   test('the navigation hint explains the gestures and the first one removes it', async ({
+    request,
     page,
     browserName,
   }) => {
-    await page.goto('/');
+    await openFreshBoard(page, request);
     const hint = hintLocator(page);
     await expect(hint).toBeVisible();
     await expect(hint).toHaveText('Drag to move around · Ctrl/Cmd + scroll or pinch to zoom');
@@ -105,8 +107,8 @@ test.describe('first visit navigation', () => {
   });
 
   // TC-23
-  test('a mouse drag moves the board by exactly the pointer delta', async ({ page }) => {
-    await page.goto('/');
+  test('a mouse drag moves the board by exactly the pointer delta', async ({ page, request }) => {
+    await openFreshBoard(page, request);
     await expect(originMarker(page)).toBeVisible();
     expect(await areaCentre(page)).toEqual({ x: VIEWPORT.width / 2, y: VIEWPORT.height / 2 });
 
@@ -152,10 +154,11 @@ test.describe('first visit navigation', () => {
 
   // TC-24
   test('Ctrl/Cmd + wheel zooms the board and keeps the point under the pointer', async ({
+    request,
     page,
     browserName,
   }) => {
-    await page.goto('/');
+    await openFreshBoard(page, request);
     await watchPrevented(page);
     const zoomBefore = await pageZoom(page);
     const geom = await gridGeometry(page);
@@ -186,8 +189,8 @@ test.describe('first visit navigation', () => {
 
 test.describe('limits and recovery', () => {
   // TC-25
-  test('zooming in stops at 400% and the zoom-in control is disabled', async ({ page }) => {
-    await page.goto('/');
+  test('zooming in stops at 400% and the zoom-in control is disabled', async ({ page, request }) => {
+    await openFreshBoard(page, request);
     const labels: string[] = [];
     for (let i = 0; i < 12; i++) {
       if (await zoomInButton(page).isDisabled()) break;
@@ -212,8 +215,8 @@ test.describe('limits and recovery', () => {
   });
 
   // TC-26
-  test('Reset view returns to 100% at the board start from far away', async ({ page }) => {
-    await page.goto('/');
+  test('Reset view returns to 100% at the board start from far away', async ({ page, request }) => {
+    await openFreshBoard(page, request);
     await setCamera(page, {
       x: UNBOUNDED_PAN_TESTED_EXTENT,
       y: -UNBOUNDED_PAN_TESTED_EXTENT,
@@ -239,8 +242,8 @@ test.describe('limits and recovery', () => {
 
 test.describe('far travel', () => {
   // TC-27: dragging a million units away behaves exactly as anywhere else
-  test('dragging a million units away moves the board by exactly the delta', async ({ page }) => {
-    await page.goto('/');
+  test('dragging a million units away moves the board by exactly the delta', async ({ page, request }) => {
+    await openFreshBoard(page, request);
     await setCamera(page, {
       x: UNBOUNDED_PAN_TESTED_EXTENT,
       y: UNBOUNDED_PAN_TESTED_EXTENT,
@@ -276,10 +279,11 @@ test.describe('far travel', () => {
   // TC-27: at maximum zoom the grid is GRID_SPACING_WORLD * zoom pixels apart,
   // and zooming there keeps the point under the pointer fixed
   test('the rendered grid is GRID_SPACING_WORLD * zoom apart far from the origin', async ({
+    request,
     page,
     browserName,
   }) => {
-    await page.goto('/');
+    await openFreshBoard(page, request);
     await setCamera(page, {
       x: UNBOUNDED_PAN_TESTED_EXTENT,
       y: UNBOUNDED_PAN_TESTED_EXTENT,
@@ -315,10 +319,11 @@ test.describe('another window size', () => {
   // window, so a wider window means a different world coordinate at the top-left
   // and a different place for Reset view to centre on.
   test('a wider window pans the same and Reset view centres on its own size', async ({
+    request,
     page,
   }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto('/');
+    await openFreshBoard(page, request);
     expect(await areaCentre(page)).toEqual({ x: 960, y: 540 });
 
     const start = await readCamera(page);
@@ -354,8 +359,8 @@ test.describe('another window size', () => {
 
 test.describe('the page itself is never zoomed', () => {
   // TC-31 (negative case)
-  test('board gestures leave the browser page zoom alone', async ({ page, browserName }) => {
-    await page.goto('/');
+  test('board gestures leave the browser page zoom alone', async ({ page, browserName, request }) => {
+    await openFreshBoard(page, request);
     const before = await pageZoom(page);
 
     let camera = await readCamera(page);

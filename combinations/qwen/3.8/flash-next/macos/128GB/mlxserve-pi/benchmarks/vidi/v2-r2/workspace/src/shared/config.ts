@@ -131,3 +131,21 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Version of the *storage* tables (the Yjs document schema is versioned separately in `meta.schemaVersion`). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Sharing a board by link (story 5) ---
+
+/**
+ * The click-to-board budget for creating a board (PRD share.create): how long
+ * after New board is clicked the empty board must be on screen on a typical
+ * broadband connection. e2e reports the measured time against it rather than
+ * failing on it, because the model, browsers and server share one machine.
+ */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the Share panel's "Link copied" confirmation shows. */
+export const LINK_COPIED_MS = 2000;
+/**
+ * First wait before re-checking whether a board link exists. Each further failure
+ * doubles it, up to `RECONNECT_MAX_BACKOFF_MS` (story 3), which is what makes the
+ * "Couldn't reach vidi6. Retrying…" promise a backoff rather than a hammer.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

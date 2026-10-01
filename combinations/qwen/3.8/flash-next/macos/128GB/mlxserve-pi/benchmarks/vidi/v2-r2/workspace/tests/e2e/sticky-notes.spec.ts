@@ -17,6 +17,7 @@ import { PROSE_1000, PROSE_1200 } from '../fixtures/texts';
 import {
   areaCentre,
   expectPixels,
+  openFreshBoard,
   pageZoom,
   readCamera,
   setCamera,
@@ -176,8 +177,8 @@ async function clickAt(page: Page, x: number, y: number): Promise<void> {
 /** A point on empty board space, clear of every fixed control. */
 const EMPTY_BOARD = { x: 180, y: 720 };
 
-test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+test.beforeEach(async ({ page, request }) => {
+  await openFreshBoard(page, request);
   await expect(page.locator('[data-testid="board-viewport"]')).toBeVisible();
 });
 

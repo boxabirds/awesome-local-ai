@@ -3,17 +3,20 @@ import { SELF, env, listDurableObjectIds } from 'cloudflare:test';
 import { createSticky, type StickySnapshot } from '../../src/shared/board-model';
 import { isValidBoardId, newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
+import { createdBoardId } from './helpers/room';
 import { TestClient } from './helpers/ws-client';
 
 // These exercise the real Worker `fetch` handler and the real Durable Object
 // namespace in workerd via `SELF.fetch` — no mocks anywhere in the path.
 describe('worker routing (TC-04 to TC-06, TC-13, TC-17)', () => {
-  it('TC-04 refuses an invalid board id (400) without ever touching the namespace', async () => {
+  it('TC-04 refuses an invalid board id (404) without ever touching the namespace', async () => {
     const before = await listDurableObjectIds(env.BOARD_ROOM);
     const res = await SELF.fetch('http://localhost/api/rooms/bad!id', {
       headers: { Upgrade: 'websocket' },
     });
-    expect(res.status).toBe(400);
+    // Story 5 made the answer 404: to a reader holding a link, a malformed id and
+    // an unknown one are the same thing - "there is no board here".
+    expect(res.status).toBe(404);
     // Validating before the namespace means no object was addressed at all.
     const after = await listDurableObjectIds(env.BOARD_ROOM);
     expect(after.length).toBe(before.length);
@@ -33,7 +36,7 @@ describe('worker routing (TC-04 to TC-06, TC-13, TC-17)', () => {
   });
 
   it('TC-13 accepts over-capacity joins and still relays to everyone', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     // One socket per allowed editor, plus one more: the boundary is a design
     // target, never a limit the room enforces.
     const clients: TestClient[] = [];
@@ -53,8 +56,8 @@ describe('worker routing (TC-04 to TC-06, TC-13, TC-17)', () => {
   });
 
   it('TC-17 keeps boards isolated from each other', async () => {
-    const boardA = newBoardId();
-    const boardB = newBoardId();
+    const boardA = await createdBoardId();
+    const boardB = await createdBoardId();
     const a = await TestClient.connect(boardA);
     const b = await TestClient.connect(boardB);
     await Promise.all([a.waitForSync(), b.waitForSync()]);

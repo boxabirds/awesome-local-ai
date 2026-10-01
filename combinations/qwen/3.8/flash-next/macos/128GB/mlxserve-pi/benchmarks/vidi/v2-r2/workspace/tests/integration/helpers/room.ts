@@ -51,6 +51,24 @@ export function boardId(): string {
   return newBoardId();
 }
 
+/**
+ * A board that *exists*: an id plus the one call `POST /api/boards` makes.
+ * Since story 5 a room is no longer brought into being by connecting to it, so a
+ * test that wants a board to collaborate on has to create it first - exactly what
+ * the page behind a "New board" button does.
+ */
+export async function createdBoardId(): Promise<string> {
+  const id = boardId();
+  const outcome = await stubFor(id).initialize();
+  if (outcome !== 'created') throw new Error(`board ${id} was not created (${outcome})`);
+  return id;
+}
+
+/** Whether the room answers that this board exists (the `GET /api/boards/:id` RPC). */
+export function boardExists(id: string): Promise<boolean> {
+  return stubFor(id).exists();
+}
+
 export function stubFor(id: string): DurableObjectStub<BoardRoom> {
   return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(id));
 }
@@ -164,9 +182,11 @@ export function armWriteFailure(id: string): Promise<void> {
 }
 
 /**
- * Make the next read the *load* performs fail once (TC-26): the first statement a
- * load runs is the `storage_meta` lookup, so this is a genuine read error inside
- * `BoardStore.load` rather than a test throwing for its own reasons.
+ * Make the next read the *load* performs fail once (TC-26). The pattern is the
+ * `storage_meta` lookup inside `BoardStore.load`; the existence check reads the
+ * same table, and goes first on a connecting socket, so whichever of the two runs
+ * next is the one that fails - both are genuine read errors on the way to serving
+ * a board.
  */
 export function armLoadReadFailure(id: string): Promise<void> {
   return onRoom(id, (room) => {
@@ -239,7 +259,7 @@ export function deliverStrangerNote(
 
 /** Two synced clients on a fresh board, with their logs cleared. */
 export async function pairedClients(): Promise<{ id: string; a: TestClient; b: TestClient }> {
-  const id = boardId();
+  const id = await createdBoardId();
   const a = await TestClient.connect(id);
   const b = await TestClient.connect(id);
   await Promise.all([a.waitForSync(), b.waitForSync()]);

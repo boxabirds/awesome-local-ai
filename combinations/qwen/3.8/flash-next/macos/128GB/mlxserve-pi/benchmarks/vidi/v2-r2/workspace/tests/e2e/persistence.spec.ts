@@ -121,7 +121,7 @@ test.afterEach(async () => {
 test.describe('returning to a board', () => {
   test('TC-19 a restarted server serves the same board', async ({ browser }) => {
     test.setTimeout(180_000);
-    const boardId = newBoardId();
+    const boardId = await server.createBoard();
     const page = await openAt(server, browser, boardId);
 
     // Made the way a person makes them, so what has to survive is real content.
@@ -164,7 +164,7 @@ test.describe('returning to a board', () => {
     browser,
   }) => {
     test.setTimeout(300_000);
-    const boardId = newBoardId();
+    const boardId = await server.createBoard();
     const page = await openAt(server, browser, boardId);
 
     // More separate edits than the log is allowed to hold, so the room has to fold
@@ -203,7 +203,7 @@ test.describe('a board that cannot be loaded', () => {
     browser,
   }) => {
     test.setTimeout(360_000);
-    const boardId = newBoardId();
+    const boardId = await server.createBoard();
     const page = await openAt(server, browser, boardId);
     await createNotes(page, 25);
     await expect.poll(() => noteCount(page)).toBe(25);
@@ -291,7 +291,7 @@ test.describe('how long a board takes to come back', () => {
     browser,
   }) => {
     test.setTimeout(420_000);
-    const boardId = newBoardId();
+    const boardId = await server.createBoard();
     const page = await openAt(server, browser, boardId);
 
     // A board of the size the setting names, built in edits of `NOTES_PER_EDIT` at a

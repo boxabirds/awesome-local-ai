@@ -23,6 +23,13 @@
 //     and every socket is closed with CLOSE_STORAGE_FAILURE, so each page keeps
 //     its own copy of the change and re-sends it on reconnect (persist.save_failure).
 //
+// What sharing by link adds (story 5)
+//   - The room is created by an explicit act. `initialize()` (a Durable Object
+//     method call, issued by `POST /api/boards`) lays down the schema and stamps
+//     `created_at`; a socket upgrade for an id that was never created is answered
+//     404 before a socket is accepted, and `exists()` answers the same question for
+//     `GET /api/boards/:id` without creating anything (share.link, share.not_found).
+//
 // Test seams in this file are named and commented as such (`store`, `doc`,
 // `loadFailedAt`, `loadNow`, `diagnostics`, and the test-only routes in
 // `fetch`). Production behaviour never depends on them.
@@ -94,15 +101,65 @@ export class BoardRoom extends DurableObject<Env> {
     this.store = new BoardStore(ctx.storage);
     // Nothing may be served, and no socket may be accepted, before the board has
     // been read back out of storage: a board is never presented empty.
+    //
+    // A load reads; it never lays down the schema. An id that somebody merely
+    // pasted must stay as empty as it was, so `migrate()` belongs to `initialize()`
+    // and to the first write, not to being looked at.
     void this.ctx.blockConcurrencyWhile(async () => {
       this.load('construct');
     });
   }
 
+  // --- creation and existence (Durable Object methods; see create-board.ts) ---
+
+  /**
+   * Bring this board into existence. Reachable only as a Durable Object *method*
+   * call - `env.BOARD_ROOM.get(id).initialize()` - never as an HTTP route, so there
+   * is no way to create a board by asking for one over the network.
+   *
+   * @returns `'created'` the first time, `'exists'` on every later call for the same
+   * id: creation is idempotent and never restamps `created_at` (TC-15).
+   */
+  initialize(): 'created' | 'exists' {
+    this.store.migrate();
+    if (!this.store.markCreated()) return 'exists';
+    // The document the constructor read out of empty storage is this board: empty,
+    // and ready to be served to the first person holding the link.
+    this.log('board_created', { state: this.state });
+    return 'created';
+  }
+
+  /**
+   * Whether this board exists: `created_at`, or - for a board written before that
+   * field existed - any stored content. Reads only: asking is never what makes a
+   * board exist.
+   */
+  exists(): boolean {
+    return this.store.existsReadOnly();
+  }
+
+  /**
+   * Whether this board exists, in the path that has to decide whether to accept a
+   * socket. A failure to *ask* is never answered "no": that claim needs a read that
+   * worked, and the alternative taken here - falling through to the load, which
+   * reports 4500 and retries - is the truthful answer.
+   */
+  private async boardExists(): Promise<boolean> {
+    try {
+      return this.store.existsReadOnly();
+    } catch (error) {
+      this.log('board_exists_check_failed', { error: errorMessage(error) });
+      return true;
+    }
+  }
+
   /**
    * WebSocket upgrade only; every other request is a programming error.
    * `TEST-ONLY` routes (`/__test/...`) are handled first and only when
-   * `TEST_HOOKS` is set, which the production configuration never does.
+   * `TEST_HOOKS` is set, which the production configuration never does - first,
+   * because a test hook is one of the ways a board comes to exist at all (TC-31
+   * seeds a legacy board that has no `created_at` yet), so they may not sit behind
+   * the existence check that answers "no board here".
    */
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -126,6 +183,13 @@ export class BoardRoom extends DurableObject<Env> {
         status: 426,
         headers: { Upgrade: 'websocket' },
       });
+    }
+
+    // A link is the whole of a reader's access, so it is also the only thing they
+    // can get wrong. An id that was never created gets a 404 and no socket - not a
+    // socket carrying an empty board that looks like somebody deleted their work.
+    if (!(await this.boardExists())) {
+      return new Response('No such board', { status: 404 });
     }
 
     // A room that could not load, or could not save, is given a chance to recover
@@ -308,7 +372,6 @@ export class BoardRoom extends DurableObject<Env> {
     });
 
     try {
-      this.store.migrate();
       const result = this.store.load(doc);
       if (!result.ok) {
         this.failLoad(`${result.reason}: ${result.error}`);

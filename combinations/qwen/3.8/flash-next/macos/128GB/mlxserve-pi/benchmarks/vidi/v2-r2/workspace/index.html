@@ -3,6 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      A board link is the whole of a reader's access, so the id in it is worth
+      keeping out of other people's hands: with no-referrer, a link pasted into a
+      page that reports outbound links (or a proxy that logs them) does not carry a
+      board address away with it.
+    -->
+    <meta name="referrer" content="no-referrer" />
     <title>vidi6</title>
   </head>
   <body>

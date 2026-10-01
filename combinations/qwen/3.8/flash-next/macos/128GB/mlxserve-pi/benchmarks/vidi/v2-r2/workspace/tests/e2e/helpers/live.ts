@@ -8,6 +8,7 @@ import type { StickySnapshot } from '../../../src/shared/board-model';
 import { newBoardId } from '../../../src/shared/board-id';
 
 export { newBoardId };
+export { createBoard } from './board';
 
 /** A board note reduced to the fields that must agree across every client. */
 export interface Content {

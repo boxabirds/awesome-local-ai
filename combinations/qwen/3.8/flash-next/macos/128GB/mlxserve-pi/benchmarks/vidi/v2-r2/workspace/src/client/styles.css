@@ -436,3 +436,195 @@ button:focus-visible,
   font-weight: 400;
   opacity: 0.75;
 }
+
+/* --- Home, Board not found, and the page that is waiting for an answer (story 5) --- */
+
+/* One centred card for every page that is not a board. `body` already hides the
+   overflow and #root fills the window, so a page that is not a board simply takes
+   the window and centres itself in it. */
+.notice-page {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--board-bg);
+}
+
+.notice-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 44ch;
+  text-align: center;
+}
+
+.notice-title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.notice-line {
+  margin: 0;
+  font-size: 16px;
+  opacity: 0.8;
+}
+
+.notice-button {
+  margin-top: 6px;
+  padding: 10px 22px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--focus);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notice-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+/* A button that cannot be used again yet says so: dimmer, and not a target. */
+.notice-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.notice-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* The line under the button, reserved whether or not anything is in it: an error
+   that arrives must not push the button (and the pointer above it) out of place. */
+.notice-under {
+  min-height: 20px;
+  margin: 0;
+  color: #b3261e;
+  font-size: 13px;
+}
+
+.notice-foot {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.65;
+}
+
+.notice-back {
+  color: var(--focus);
+  font-size: 13px;
+}
+
+/* --- Share (story 5) --- */
+
+/* Top-right, away from the tool rail on the left and the connection badge in the
+   middle: the two places a board already puts words. */
+.share-button {
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  z-index: 41;
+  padding: 8px 16px;
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.share-button:hover {
+  background: #fff;
+}
+
+.share-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.share-panel {
+  position: fixed;
+  right: 16px;
+  top: 56px;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 320px;
+  padding: 14px;
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  background: var(--ui-bg);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+}
+
+.share-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.7;
+  text-align: left;
+}
+
+.share-field {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ui-text);
+  font: inherit;
+  font-size: 13px;
+  /* The link is the thing: it must be selectable to its end even when the panel is
+     too narrow to show all of it. */
+  text-overflow: ellipsis;
+}
+
+.share-field:focus-visible {
+  outline: 2px solid var(--focus);
+}
+
+.share-copy {
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--focus);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.share-copy:hover {
+  filter: brightness(1.08);
+}
+
+.share-copy:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The alternative to a copy that was not allowed: not an error, an instruction. */
+.share-manual {
+  margin: 0;
+  color: #8a5a00;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* The access model, in the panel where the link is handed over. */
+.share-note {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.7;
+  text-align: left;
+}

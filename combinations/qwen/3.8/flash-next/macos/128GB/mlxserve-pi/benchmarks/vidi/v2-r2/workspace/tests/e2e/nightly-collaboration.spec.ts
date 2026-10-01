@@ -31,12 +31,12 @@ import {
   badgeState,
   connectionState,
   content,
+  createBoard,
   createNote,
   deleteNote,
   destroyConnection,
   dragNoteTo,
   editNote,
-  newBoardId,
   noteCount,
   openBoard,
   reconnectCount,
@@ -88,8 +88,8 @@ function reportLatency(latencies: number[]): void {
   expect(latencies.length).toBeGreaterThan(0);
 }
 
-test('@nightly TC-29 idle editors never show Reconnecting', async ({ browser }) => {
-  const boardId = newBoardId();
+test('@nightly TC-29 idle editors never show Reconnecting', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const [alex, sam] = await openMany(browser, 2, boardId);
   await watchBadge(alex);
 
@@ -114,8 +114,8 @@ test('@nightly TC-29 idle editors never show Reconnecting', async ({ browser }) 
   await expect.poll(() => connectionState(alex)).toBe('connected');
 });
 
-test('@nightly TC-30 full-capacity soak converges and reports latency', async ({ browser }) => {
-  const boardId = newBoardId();
+test('@nightly TC-30 full-capacity soak converges and reports latency', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const pages = await openMany(browser, MAX_CONCURRENT_EDITORS, boardId);
 
   // Notes live on a spread-out grid so peers' notes never pile up on one spot

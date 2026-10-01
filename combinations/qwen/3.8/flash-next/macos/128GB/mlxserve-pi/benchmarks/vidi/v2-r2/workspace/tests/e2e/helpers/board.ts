@@ -2,7 +2,7 @@
 // label and grid geometry, drive the pointer, and jump the camera with the
 // test hook (dragging a million pixels is not practical).
 
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import {
   GRID_SPACING_WORLD,
   UNBOUNDED_PAN_TESTED_EXTENT,
@@ -33,6 +33,37 @@ export interface GridGeometry {
 export const VIEWPORT = { width: 1280, height: 800 };
 /** Tolerance the PRD allows for "the same place": one pixel. */
 export const PIXEL_TOLERANCE = 1;
+
+/**
+ * Ask the service for a board of its own - the same call the New board button makes.
+ *
+ * Since story 5 an address does not create a board, so a test cannot arrive at a
+ * board by inventing an id and navigating to it: it has to create one first, like
+ * anyone who wants a board to work on. This goes over the HTTP API rather than by
+ * any test-only route, because that creation is part of what is being tested.
+ */
+export async function createBoard(request: APIRequestContext): Promise<string> {
+  const response = await request.post('/api/boards');
+  if (!response.ok()) {
+    throw new Error(`creating a board: HTTP ${response.status()} ${await response.text()}`);
+  }
+  const body = (await response.json()) as { id?: unknown };
+  if (typeof body.id !== 'string' || body.id === '') {
+    throw new Error(`creating a board: no id in the answer: ${JSON.stringify(body)}`);
+  }
+  return body.id;
+}
+
+/** Make a board and open it, for a test that wants a board and no address of its own. */
+export async function openFreshBoard(
+  page: Page,
+  request: APIRequestContext,
+): Promise<string> {
+  const id = await createBoard(request);
+  await page.goto(`/b/${id}`);
+  await expect(viewport(page)).toBeVisible();
+  return id;
+}
 
 export function boardArea(page: Page): Locator {
   return page.getByTestId('board-area');

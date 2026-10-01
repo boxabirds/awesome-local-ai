@@ -200,6 +200,39 @@ export class WranglerProcess {
     });
   }
 
+  /**
+   * Ask for a board of this server's own, over the same `POST /api/boards` the New
+   * board button uses. An address no one created is not a board now, so a test that
+   * means to work on one has to create it here.
+   */
+  async createBoard(): Promise<string> {
+    const response = await fetch(`${this.url}/api/boards`, { method: 'POST' });
+    if (!response.ok) {
+      throw new Error(`creating a board: HTTP ${response.status} \n${this.output()}`);
+    }
+    const body = (await response.json()) as { id?: unknown };
+    if (typeof body.id !== 'string' || body.id === '') {
+      throw new Error(`creating a board: no id in the answer: ${JSON.stringify(body)}`);
+    }
+    return body.id;
+  }
+
+  /**
+   * Put a board's rows in without a creation stamp (test hooks only): a board as a
+   * build before sharing by link left it, which is the only way to test that such a
+   * board is still a board.
+   */
+  async seedLegacy(boardId: string, updates: Uint8Array[]): Promise<void> {
+    const response = await fetch(`${this.url}/__test/boards/${boardId}/seed-legacy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates: updates.map((u) => Buffer.from(u).toString('base64')) }),
+    });
+    if (!response.ok) {
+      throw new Error(`seeding ${boardId}: HTTP ${response.status} ${await response.text()}\n${this.output()}`);
+    }
+  }
+
   /** Ask a board's room how it is doing (test hooks only). */
   async diagnostics(boardId: string): Promise<RoomDiagnostics> {
     const response = await fetch(`${this.url}/__test/boards/${boardId}/diagnostics`);

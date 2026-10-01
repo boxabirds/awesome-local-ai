@@ -42,6 +42,19 @@ export const LOAD_ORIGIN: unique symbol = Symbol('vidi6-load');
  */
 export const META_SCHEMA_VERSION = 'storage_schema_version';
 export const META_SNAPSHOT_THROUGH = 'snapshot_through_seq';
+/**
+ * Set when a board is created through `POST /api/boards` (story 5). It is what
+ * makes "this board exists" a fact the service can answer instead of a guess:
+ * an id that was never created has no tables at all, so a link typed with one
+ * character changed is refused without the board being brought into existence.
+ *
+ * Boards written before that field existed have no `created_at` but do have rows;
+ * `existsReadOnly()` accepts either, so no link that worked before stops working.
+ */
+export const META_CREATED_AT = 'created_at';
+
+/** Table whose presence means this board has been created at all. */
+const OWNED_TABLE = 'updates';
 
 export const CREATE_TABLES: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -137,6 +150,8 @@ export class BoardStore {
   /** Log rows and bytes currently stored (tracked to avoid COUNT(*) per write). */
   private logCount = 0;
   private logBytes = 0;
+  /** Whether the tables are known to exist in *this* object's storage. */
+  private tablesReady = false;
 
   /**
    * Test seam, unset in production: called with the SQL of every statement this
@@ -161,7 +176,73 @@ export class BoardStore {
     return this.sql.exec(query, ...params);
   }
 
-  /** Create the tables and record the storage schema version. Writes no data rows. */
+  /**
+   * Whether this board's tables exist. Reads `sqlite_master`, so it cannot create
+   * anything: the difference between "empty board" and "no board" has to be
+   * answerable without writing (TC-06, TC-09).
+   */
+  private hasOwnedTable(): boolean {
+    for (const _ of this.run(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?1`,
+      OWNED_TABLE,
+    )) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * When this board was created, from `created_at`, or `null` when it carries no
+   * creation stamp. A board made before that field exists still answers `null`
+   * here while `existsReadOnly()` says true from its rows - which is the
+   * difference between "never created" and "created before we stamped it".
+   */
+  createdAt(): number | null {
+    const raw = this.metaValue(META_CREATED_AT);
+    if (raw === null) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  /**
+   * Whether the board exists: created through the API (`created_at`), or holding
+   * data from before that field existed. Never creates a table and never writes.
+   */
+  existsReadOnly(): boolean {
+    if (!this.hasOwnedTable()) return false;
+    if (this.metaValue(META_CREATED_AT) !== null) return true;
+    // A legacy board: rows in the log or a snapshot, written by a build that had
+    // no creation step. Its link must keep working.
+    for (const _ of this.run(`SELECT 1 FROM updates LIMIT 1`)) return true;
+    for (const _ of this.run(`SELECT 1 FROM snapshot_chunks LIMIT 1`)) return true;
+    return false;
+  }
+
+  /**
+   * Record that this board was created now.
+   *
+   * @returns true when this call is what created it, false when `created_at` was
+   * already there - which is how `initialize()` answers "created" vs "exists"
+   * (TC-15: the second call must not move the timestamp).
+   */
+  markCreated(): boolean {
+    const existing = this.metaValue(META_CREATED_AT);
+    if (existing !== null) return false;
+    this.run(
+      `INSERT OR IGNORE INTO storage_meta (key, value) VALUES (?1, ?2)`,
+      META_CREATED_AT,
+      String(Date.now()),
+    );
+    return true;
+  }
+
+  /**
+   * Create the tables and record the storage schema version. Writes no data rows.
+   *
+   * Called by `initialize()` (board creation) and, through `ensureMigrated()`,
+   * before the first `append()` - never from the constructor, because a board that
+   * is only being *looked at* must not gain tables.
+   */
   migrate(): void {
     for (const statement of CREATE_TABLES) this.run(statement);
     // Set only when absent: a board written by a newer build (a higher schema
@@ -171,6 +252,17 @@ export class BoardStore {
       META_SCHEMA_VERSION,
       String(STORAGE_SCHEMA_VERSION),
     );
+    this.tablesReady = true;
+  }
+
+  /** The tables the store needs, created if something else did not create them. */
+  ensureMigrated(): void {
+    if (this.tablesReady) return;
+    if (this.hasOwnedTable()) {
+      this.tablesReady = true;
+      return;
+    }
+    this.migrate();
   }
 
   /**
@@ -178,6 +270,10 @@ export class BoardStore {
    * room); the counters only move once the row is in.
    */
   append(update: Uint8Array): void {
+    // A board written by a client that arrived without a creation step (a legacy
+    // board, or a test that drives a room directly) still gets its tables here;
+    // writes are the one path allowed to create them.
+    this.ensureMigrated();
     this.run(`INSERT INTO updates (data, bytes) VALUES (?1, ?2)`, update, update.byteLength);
     this.logCount += 1;
     this.logBytes += update.byteLength;
@@ -186,6 +282,12 @@ export class BoardStore {
   /** Fill `doc` with everything stored: snapshot first, then the newer log rows. */
   load(doc: Y.Doc): LoadResult {
     try {
+      // No tables: there is nothing stored. This is the normal state of a board id
+      // that was looked at but never created, and of a brand new board before its
+      // first write - an empty board is a correct answer, and reading it must not
+      // create the schema (that is `migrate()`'s job alone).
+      if (!this.hasOwnedTable()) return { ok: true, quarantined: 0 };
+
       const through = this.metaNumber(META_SNAPSHOT_THROUGH);
 
       // 1. the snapshot, if one has ever been compacted
@@ -313,6 +415,15 @@ export class BoardStore {
   /** Seq the stored snapshot covers, `0` when there is none. */
   snapshotThrough(): number {
     return this.metaNumber(META_SNAPSHOT_THROUGH);
+  }
+
+  /** Read one `storage_meta` value as text, `null` when the key is absent. */
+  private metaValue(key: string): string | null {
+    for (const row of this.run(`SELECT value FROM storage_meta WHERE key = ?1`, key)) {
+      const value = row.value;
+      return value === null || value === undefined ? null : String(value);
+    }
+    return null;
   }
 
   /** Read one `storage_meta` value as a number, 0 when the key is absent. */

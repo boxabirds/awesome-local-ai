@@ -16,14 +16,14 @@ import {
   snapshot as snapshotDoc,
   type StickySnapshot,
 } from '../../src/shared/board-model';
-import { newBoardId } from '../../src/shared/board-id';
+import { createdBoardId } from './helpers/room';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { CLOSE_UNSUPPORTED_DATA, MESSAGE_SYNC } from '../../src/shared/protocol';
 import { TestClient } from './helpers/ws-client';
 import { applyRandomOp, createRng } from './helpers/random-ops';
 
 async function syncedPair(): Promise<[TestClient, TestClient]> {
-  const boardId = newBoardId();
+  const boardId = await createdBoardId();
   const a = await TestClient.connect(boardId);
   const b = await TestClient.connect(boardId);
   await Promise.all([a.waitForSync(), b.waitForSync()]);
@@ -138,7 +138,7 @@ describe('BoardRoom sync, merge and errors (TC-07 to TC-12, TC-14 to TC-18, TC-3
   it('TC-12 converges many clients doing 200 seeded random ops', async () => {
     const seed = 0x1a2b3c; // logged so a failure is reproducible
     console.log(`TC-12 random-ops seed = ${seed}`);
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const clients: TestClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) {
       clients.push(await TestClient.connect(boardId));
@@ -164,7 +164,7 @@ describe('BoardRoom sync, merge and errors (TC-07 to TC-12, TC-14 to TC-18, TC-3
   });
 
   it('TC-14 a late joiner converges to the live board', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await Promise.all([a.waitForSync(), b.waitForSync()]);
@@ -199,7 +199,7 @@ describe('BoardRoom sync, merge and errors (TC-07 to TC-12, TC-14 to TC-18, TC-3
 
     for (const [name, send] of cases) {
       it(name, async () => {
-        const boardId = newBoardId();
+        const boardId = await createdBoardId();
         const a = await TestClient.connect(boardId);
         const b = await TestClient.connect(boardId);
         await Promise.all([a.waitForSync(), b.waitForSync()]);
@@ -241,7 +241,7 @@ describe('BoardRoom sync, merge and errors (TC-07 to TC-12, TC-14 to TC-18, TC-3
   });
 
   it('TC-18 a restarted room repopulates from the first client to reconnect', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await Promise.all([a.waitForSync(), b.waitForSync()]);
@@ -263,7 +263,7 @@ describe('BoardRoom sync, merge and errors (TC-07 to TC-12, TC-14 to TC-18, TC-3
   });
 
   it('TC-31 a dead socket does not stop the room from serving later sockets', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await TestClient.connect(boardId);
     const b = await TestClient.connect(boardId);
     await Promise.all([a.waitForSync(), b.waitForSync()]);

@@ -26,7 +26,16 @@
 //     can see compaction happen while the board is being used. Reads nothing and
 //     changes nothing.
 //
-// Both answer with the room's diagnostics as JSON, which is what the tests assert.
+//   POST /__test/seed-legacy
+//     Body: `{ "updates": ["<base64 Yjs update>", ...] }`. Lay down the tables and
+//     append those updates as log rows, and deliberately do *not* write
+//     `created_at` - which is what a board written before board creation existed
+//     looks like. The room then reads its storage back, so a page opening the link
+//     is served the seeded notes by the ordinary load path. TC-31.
+//     Refused (409) on a board that has a `created_at`: seeding would rewrite a
+//     board somebody made through the API.
+//
+// All answer with the room's diagnostics as JSON, which is what the tests assert.
 
 import type { RoomDiagnostics } from './board-room';
 import type { RoomState } from './room-state';
@@ -74,7 +83,10 @@ function json(body: unknown, status = 200): Response {
  * Handle a `/__test/...` request on a room. Returns 404 when the hooks are not
  * enabled, so a production deployment answers like any unknown path.
  */
-export function handleTestHook(target: TestHookTarget, request: Request): Response {
+export async function handleTestHook(
+  target: TestHookTarget,
+  request: Request,
+): Promise<Response> {
   const action = new URL(request.url).pathname.slice('/__test/'.length);
   if (!target.enabled) {
     return new Response('Not found', { status: 404 });
@@ -112,6 +124,46 @@ export function handleTestHook(target: TestHookTarget, request: Request): Respon
     // to serve a board it cannot read.
     const state = target.reload();
     return json({ ...target.diagnostics(), corrupted: true, state });
+  }
+
+  if (action === 'seed-legacy') {
+    // The schema comes first: a board that never existed has no tables for
+    // `created_at` to live in yet, and reading them would throw rather than answer.
+    store.ensureMigrated();
+    // Only a board that was never created can be made into a legacy one.
+    if (store.createdAt() !== null) {
+      return json({ error: 'this board was created through the API; seeding would rewrite it' }, 409);
+    }
+    const body: unknown = await request.json().catch(() => null);
+    const updates =
+      body !== null && typeof body === 'object' && Array.isArray((body as { updates?: unknown }).updates)
+        ? (body as { updates: unknown[] }).updates
+        : null;
+    if (updates === null) return json({ error: 'expected { updates: [base64] }' }, 400);
+    if (updates.length === 0) return json({ error: 'no updates to seed with' }, 400);
+
+    const rows: Uint8Array[] = [];
+    for (const item of updates) {
+      if (typeof item !== 'string') return json({ error: 'updates must be base64 strings' }, 400);
+      try {
+        const binary = atob(item);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        rows.push(bytes);
+      } catch {
+        return json({ error: 'update is not base64' }, 400);
+      }
+    }
+
+    // The schema a board of this build has - and no `created_at`, which is the whole
+    // point: the board has to be reachable by the existence rule that predates it.
+    store.migrate();
+    for (const bytes of rows) store.append(bytes);
+
+    // Read it back, so the room serves the board it now holds rather than the empty
+    // document it happened to be holding when the seed arrived.
+    const state = target.reload();
+    return json({ ...target.diagnostics(), seeded: rows.length, state });
   }
 
   if (action === 'repair-snapshot') {

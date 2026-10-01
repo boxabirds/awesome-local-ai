@@ -16,13 +16,13 @@ import {
   badgeLog,
   badgeState,
   content,
+  createBoard,
   createNote,
   createNoteViaToolbar,
   deleteNote,
   dragNote,
   dropSocket,
   editNote,
-  newBoardId,
   noteCount,
   openBoard,
   recolourNote,
@@ -56,8 +56,8 @@ async function timed(label: string, action: () => Promise<void>, observe: () => 
   console.log(`[latency] ${label}: ${ms}ms (budget ${LIVE_UPDATE_LATENCY_BUDGET_MS}ms)`);
 }
 
-test('TC-22 every kind of change reaches the other editor', async ({ browser }) => {
-  const boardId = newBoardId();
+test('TC-22 every kind of change reaches the other editor', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const [alex, sam] = await openMany(browser, 2, boardId);
 
   await timed(
@@ -99,8 +99,8 @@ test('TC-22 every kind of change reaches the other editor', async ({ browser }) 
   await waitForContentsMatch([alex, sam], E2E_EVENTUAL_TIMEOUT_MS);
 });
 
-test('TC-23 both typing in one note keeps every character on both pages', async ({ browser }) => {
-  const boardId = newBoardId();
+test('TC-23 both typing in one note keeps every character on both pages', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const [alex, sam] = await openMany(browser, 2, boardId);
   await createNote(alex, { x: 500, y: 320 });
   await expect.poll(() => noteCount(sam)).toBe(1);
@@ -118,8 +118,8 @@ test('TC-23 both typing in one note keeps every character on both pages', async 
   expect((await texts(sam))[0]?.split('').sort().join('')).toBe('AAAABBBB');
 });
 
-test('TC-24 both dragging one note settles on one identical position', async ({ browser }) => {
-  const boardId = newBoardId();
+test('TC-24 both dragging one note settles on one identical position', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const [alex, sam] = await openMany(browser, 2, boardId);
   await createNote(alex, { x: 480, y: 320 });
   await expect.poll(() => noteCount(sam)).toBe(1);
@@ -134,8 +134,8 @@ test('TC-24 both dragging one note settles on one identical position', async ({ 
   expect({ x: a.x, y: a.y }).toEqual({ x: s.x, y: s.y });
 });
 
-test('TC-25 deleting a note a peer is editing closes the editor without an error', async ({ browser }) => {
-  const boardId = newBoardId();
+test('TC-25 deleting a note a peer is editing closes the editor without an error', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const [alex, sam] = await openMany(browser, 2, boardId);
   await createNote(alex, { x: 420, y: 300 }, 'shared');
   await expect.poll(() => noteCount(sam)).toBe(1);
@@ -158,8 +158,13 @@ test('TC-25 deleting a note a peer is editing closes the editor without an error
   await waitForContentsMatch([alex, sam], E2E_EVENTUAL_TIMEOUT_MS);
 });
 
-test('TC-26 five editors each create and move notes and converge identically', async ({ browser }) => {
-  const boardId = newBoardId();
+test('TC-26 five editors each create and move notes and converge identically', async ({ browser, request }) => {
+  // Five pages, five notes each, then a drag on every one of them: what runs out on a
+  // loaded machine is the time the mouse actions take, not the time the board takes to
+  // agree - which is measured below and logged against its own budget. Same reasoning
+  // as the slow group in `navigation.spec.ts` and the persistence tests.
+  test.setTimeout(60_000);
+  const boardId = await createBoard(request);
   const pages = await openMany(browser, MAX_CONCURRENT_EDITORS, boardId);
 
   const labels: string[] = [];
@@ -190,8 +195,8 @@ test('TC-26 five editors each create and move notes and converge identically', a
   expect(final.every((c) => JSON.stringify(c) === JSON.stringify(final[0]))).toBe(true);
 });
 
-test('TC-27 an offline editor catches up on reconnect and its badge reflects it', async ({ browser }) => {
-  const boardId = newBoardId();
+test('TC-27 an offline editor catches up on reconnect and its badge reflects it', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const [alex, sam] = await openMany(browser, 2, boardId);
   await watchBadge(alex);
 
@@ -221,8 +226,8 @@ test('TC-27 an offline editor catches up on reconnect and its badge reflects it'
   expect(CATCH_UP_TEST_OUTAGE_MS).toBeGreaterThan(0);
 });
 
-test('TC-28 one editor selection and editing stay private', async ({ browser }) => {
-  const boardId = newBoardId();
+test('TC-28 one editor selection and editing stay private', async ({ browser, request }) => {
+  const boardId = await createBoard(request);
   const [alex, sam] = await openMany(browser, 2, boardId);
   await createNote(alex, { x: 460, y: 300 }, 'mine');
   await expect.poll(() => noteCount(sam)).toBe(1);

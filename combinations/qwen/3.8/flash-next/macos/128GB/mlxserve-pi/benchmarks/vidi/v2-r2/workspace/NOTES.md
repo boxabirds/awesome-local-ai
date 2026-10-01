@@ -425,3 +425,162 @@ Decisions, deviations from the design's file list, and things the next story
   the persistence projects are scheduled apart from the browsers', and a persistence
   test now waits for the room to hold the board before it kills the process - and both
   have passed every run since; neither was made less strict to get there.
+
+---
+
+# Story 5 — share a board with others using a link
+
+## What is here
+
+- `src/worker/board-store.ts` — the creation stamp (`storage_meta.created_at`) and the
+  read-only existence question; `ensureMigrated()` for callers that may write.
+- `src/worker/board-room.ts` — `initialize()` and `exists()` as Durable Object RPCs,
+  and the existence check in `fetch()` before the socket is accepted.
+- `src/worker/create-board.ts` (new) — the two-line decision the Worker makes: ask that
+  id's room whether it made the board, and answer one of `created` / `exists` /
+  `create_failed`. Exported separately so a test can hand it a namespace that lies.
+- `src/worker/index.ts` — `POST /api/boards`, `GET /api/boards/:boardId`,
+  `Allow`-carrying 405s, and `/api/rooms/:boardId` now 404ing a malformed id.
+- `src/worker/test-hooks.ts` — `POST /__test/boards/:id/seed-legacy`: makes a board out
+  of rows alone, with no stamp, so the "board made before links existed" test is real.
+- `src/client/api.ts` — `createBoardRequest()`, `checkBoard()`; both answer, neither
+  throws.
+- `src/client/router.ts` (new) — `routeFor()`, `useRoute()`, `navigate()`, `boardPath()`.
+- `src/client/pages/` (new) — `state.ts` (the board page's state machine), `HomePage`,
+  `NotFoundPage`, `BoardPage` (which holds the existence check and the `Connecting…`
+  screen).
+- `src/client/share/SharePanel.tsx` (new) — the Share button, the panel, the link field,
+  the copy button and the manual-copy fallback.
+- `src/client/App.tsx` — renders the router, or the board a component test injected.
+- `index.html` — `<meta name="referrer" content="no-referrer">`.
+- Tests: `tests/unit/create-board.test.ts` (TC-04), `tests/integration/board-api.test.ts`
+  (TC-05…TC-15), `tests/component/pages.test.tsx` (TC-16…TC-21),
+  `tests/component/SharePanel.test.tsx` (TC-22…TC-25), `tests/e2e/share.spec.ts`
+  (TC-26…TC-29, TC-31); existing e2e specs updated for the routes.
+
+## Implementation decisions
+
+- **`wrangler.jsonc` is unchanged.** The design asks that `compatibility_date` be at or
+  after 2024-08-21 for RPC; the repo is already at 2026-08-01. It was left alone rather
+  than pinned backwards.
+- **Existence is answered without an RPC.** `BoardRoom.exists()` is the RPC the design
+  names, and it exists — but the Worker's own `has()` (story 2) was rewritten to answer
+  from the room's in-memory state and, when that is silent, from whether SQLite has an
+  `updates` table (`hasOwnedTable()`). This matters because of what else is in
+  `storage_meta`: `migrate()` inserts `schema_version`, so a board whose snapshot cannot
+  be read would look *created* to a check that looked at `storage_meta`. The rule the
+  store follows now is **"the tables are there ⇒ someone wrote here ⇒ it is a board"**,
+  and `existsReadOnly()` asks only "is the stamp there".
+- **`load()` no longer migrates.** `BoardStore.load()` used to call `migrate()` first,
+  which meant *asking* about a board created its tables — exactly what TC-07 forbids.
+  `migrate()` now happens in `append()` (the only writer) and in `ensureMigrated()`, which
+  the seeding hook and the test hook call before they write or read the stamp.
+- **`initialize()` returning `exists` for a fresh id is `create_failed` (500)**, not a
+  retry, as the design says. A board that is already there for an id we just generated
+  means something is wrong with ids or with storage, and handing over a stranger's board
+  would be worse than a 500.
+- **`boardExists()` in the room swallows SQL errors and returns `true`.** A read that
+  fails is not evidence a board is absent; the load path is the thing that knows, and it
+  answers 4500 truthfully. Telling a person "Board not found" over a storage hiccup is
+  the failure mode PRD AC-6 is about.
+- **Test hooks are routed before the existence check** in `fetch()`, because a legacy
+  board seeded by `seed-legacy` has no stamp and would otherwise be impossible to seed.
+- **`nextBoardPageState()` takes a fourth argument, `boardId`.** The design sketches
+  three; `BoardPageState.ready` carries `boardId: string`, so the transition function has
+  to be given it. Nothing else about the shape changed.
+- **Error wording** (the design gives states, not sentences): *"Could not create a
+  board. Check your connection and try again."* and *"Cannot reach vidi6. Check your
+  connection."* — different sentences for different causes, neither a dead end, as PRD
+  AC-8 requires. The not-found page offers a working board in one click.
+- **`useCreateBoard()` lives in `HomePage.tsx` and `NotFoundPage.tsx` imports it**, so the
+  two "New board" buttons cannot drift into different behaviour - TC-19's "it is the
+  normal creation flow, not a special one" is true by construction.
+- **`BoardScreen`** (the viewport + toolbar + share button, wrapped in the camera
+  provider) is exported from `BoardPage.tsx`; `App.tsx` renders it directly when a test
+  injects a document. The existing `tests/component/helpers.tsx` (`renderApp(doc)`) keeps
+  working unchanged, which is the point: no existing component test was edited.
+- **Referrer policy** went into `index.html` (the design's first choice), as a meta tag —
+  it needs no plumbing and it is asserted by a test that reads the built HTML (TC-32).
+  No `Content-Security-Policy` header was added; story 13 owns that.
+- **`/api/rooms/:id` with a malformed id is now 404** (it was 400, story 2). That is what
+  the design's line 318 and TC-09 require, and it is the same answer the board route
+  gives. `worker-routing.test.ts` TC-04 and `boot.test.ts` were updated to expect 404;
+  nothing else about those tests changed.
+- **`armLoadReadFailure`'s blocked statement** (`FROM storage_meta`) now matches two
+  statements — the load and `existsReadOnly()`. Both go through the room's `load()`, so
+  the existing story-4 test behaves the same way for the same reason.
+
+- **Two names from the design's table were not made into files.** `Share.tsx` would have
+  been a pass-through around `SharePanel` (the board page already knows the board id and
+  the origin), and `useCopyToClipboard` is ten lines used once, so it is a state machine
+  inside `SharePanel.tsx` - the file the design's own description of `SharePanel` already
+  describes. Everything else in the table is a file of its own.
+- **Board creation is not auto-run on `/`.** The design says so ("a board is not created
+  until the visitor asks"), and the redirect-free shape is what makes TC-16's
+  "no board was created" checkable: a test can ask the service afterwards and get 404.
+
+## Verification
+
+`npm run build`, `npm run typecheck`, `npm run test:unit` (127), `npm run
+test:integration` (70), `npm run test:component` (116), `npm run test:e2e` (99, three
+browsers plus the persistence and nightly projects) and `npm run test:e2e:nightly` (3) all
+pass. Two full `test:e2e` runs in a row were clean.
+
+## Clipboard facts (measured here, not looked up)
+
+`tests/e2e/share.spec.ts` grants permissions rather than assuming them, because the two
+browsers that have a clipboard disagree:
+
+| browser | what works | what happens otherwise |
+| --- | --- | --- |
+| Chromium | `permissions: ['clipboard-read', 'clipboard-write']` | `writeText()` throws (NotAllowedError) |
+| WebKit | `permissions: ['clipboard-read']` **only** | granting `clipboard-write` too makes `context.newPage()` throw |
+| Firefox | no grant can make it work | `context.grantPermissions(['clipboard-read'])` itself throws |
+
+So TC-27/TC-29 run in Chromium and WebKit, and Firefox is skipped with that sentence as
+the reason. The grant list is *probed* on a throwaway context (`clipboardGrant`) rather
+than hard-coded, so a browser that changes its mind fails loudly instead of mysteriously.
+TC-29 runs in all three: it removes `navigator.clipboard` with an init script, which is
+the panel's problem to survive, not the browser's.
+
+## Test decisions
+
+- **No jest-dom in this repo**, and none was added: component and e2e tests assert with
+  `textContent`, `value`, `disabled`, `count` and `getAttribute`, and click by accessible
+  name (`getByRole('button', {name})`), which is also what the tests assert about.
+- **vitest 4 needs `vi.hoisted(() => {...})`** (a factory, not an object literal) — the
+  first draft of `pages.test.tsx` failed with *"factory value must be function, received
+  object"*.
+- **TC-21's clock** is advanced with `act(async () => vi.advanceTimersByTimeAsync(1000))`.
+  A synchronous `advanceTimersByTime` leaves the retry's promise continuation — and so
+  React's re-render — unpumped, and the test then fails on a screen that has already
+  moved on.
+- **TC-08 asserts a note's `colour`, not its `x`.** `createSticky(doc, {x: 12, y: 34})`
+  stores the *centre*, so `objects.get(id).x` is `12 - STICKY_SIZE_WORLD/2` = -88:
+  asserting 12 would assert a misunderstanding of the model, not a regression.
+- **TC-31 does not use the test hooks** even though it is a persistence-style test: the
+  globally-served dev server runs without `TEST_HOOKS` (as it should in production), and
+  this test's assertion is that *the room's own load path* accepts a board with rows and
+  no stamp. It writes with `runInDurableObject` and reads with the socket helpers, both of
+  which are how the product does it. The hook's own behaviour is tested in
+  `board-api.test.ts`, which calls `handleTestHook` with a target built the way the room
+  builds one — `TEST_HOOKS` is a deployment switch the integration environment does not
+  set, and switching it on globally would mean testing a configuration nobody ships.
+- **TC-28 opens four of the hundred pairs of boards**, not all hundred. All hundred
+  creations are checked (201, unique ids) and all hundred are asked about afterwards; the
+  content-isolation check is sampled because opening two hundred pages is minutes of
+  waiting that proves nothing the four pairs do not. The `Content[]` comparison includes
+  each note's `clientId`, so a page's own unsynced state can not masquerade as the other
+  board's content.
+- **After a reload, tests wait for content, not for the page.** `waitForSyncReady()` only
+  proves the test hook function exists on the new document; the board's content arrives
+  some milliseconds later. TC-29 and TC-31 use `expectNoteWithText()`, which polls. Its
+  budget (`RELOAD_SYNC_MS`, 30 s) is a page load under the load of the whole suite; the
+  timings the product promises are asserted in `live-collaboration.spec.ts` and
+  `persistence.spec.ts` against their own budgets.
+- **`live-collaboration.spec.ts`'s TC-26 got `test.setTimeout(60_000)`.** Five pages ×
+  five notes plus a drag on each runs past 30 s of *mouse* time when the whole suite is
+  running; the test's own convergence measurement logged 4.5-6.7 s against its 1000 ms
+  budget on this machine before story 5, and the file's siblings (`navigation.spec.ts`,
+  `persistence.spec.ts`) already raise wall-clock for the same reason. No assertion was
+  changed, relaxed or removed - the 1000 ms figure is logged, not asserted.
