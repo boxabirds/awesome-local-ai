@@ -651,6 +651,9 @@ fn print_job_detail(node: &str, v: &JobView) {
         println!("env       {}", env.join(" "));
     }
     println!("attempts  {}", j.attempt);
+    if let Some(h) = &j.harness {
+        println!("harness   {}", h.describe());
+    }
     if let Some(p) = &j.last_pull {
         println!(
             "git pull  {}",

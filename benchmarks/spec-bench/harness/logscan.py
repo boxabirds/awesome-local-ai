@@ -45,8 +45,10 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import roots
+
 SCAN_VERSION = 1
-REPO_ROOT = Path(__file__).resolve().parents[3]       # benchmarks/spec-bench/harness -> repo
+REPO_ROOT = roots.RESULTS_ROOT       # where every run's record is (roots.py)
 ROUTES = ("heldout_suite", "reference_build", "other_run_workspace", "repo_clone", "repo_github", "tmp_leftover")
 FULL_LOG = "agent-events.jsonl"
 COMPACT_LOG = "agent-events.compact.jsonl.gz"

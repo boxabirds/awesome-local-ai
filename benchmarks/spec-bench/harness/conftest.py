@@ -6,6 +6,10 @@ Likewise the owner's machine names (machine_names.py): no test reads the real db
 real hostname. Both are set here, at import, so module-scoped fixtures get them too; a test that needs names
 makes its own node list (machine_names.NODES_ENV) or patches machine_names.this_hostname.
 
+And the public repo itself: on 1 Oct 2026 a test whose results root fell back to this checkout committed made-up
+records on its main and pushed them. roots.NO_RECORD_ENV names this checkout as off limits for records, for
+every test and every process a test starts.
+
 A test that runs a command in the real sandbox is marked `needs_sandbox`. Where the platform's sandbox tool
 (SANDBOX_TOOL) is missing it is skipped with NO_SANDBOX_REASON, the same way in every test file; with
 $SPEC_BENCH_REQUIRE_SANDBOX set (CI sets it) it fails instead, so the sandbox can't go unproven there unnoticed."""
@@ -19,6 +23,14 @@ import pytest
 import heldout
 import hostenv
 import machine_names
+import roots
+
+# No test, and no process a test starts, records in the roots the tests run with (drive.record_refusal): the
+# checkout this code is in, and, in a release's self-test on a node, the node's results checkout. Set in the
+# environment at import, so it is inherited; a process a test starts keeps what it inherited (its own results
+# root is the repository the test made for it to record in). A test that records makes a repository of its own.
+os.environ.setdefault(roots.NO_RECORD_ENV,
+                      os.pathsep.join(dict.fromkeys([str(roots.CODE_ROOT), str(roots.RESULTS_ROOT)])))
 
 TEST_HOSTNAME = "made-up-bench-box.local"
 os.environ[machine_names.NODES_ENV] = "/nonexistent/dbench/nodes.toml"

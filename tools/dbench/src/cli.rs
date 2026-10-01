@@ -217,9 +217,13 @@ pub struct ServeArgs {
     pub path_prepend: Vec<PathBuf>,
     #[arg(long, default_value_t = DEFAULT_MAX_RESTARTS)]
     pub max_restarts: u32,
-    /// Don't `git pull --ff-only` before each job.
+    /// Don't `git pull --ff-only` (or fetch release tags) before each job.
     #[arg(long)]
     pub no_pull: bool,
+    /// For development: when there is no harness release (no harness-v* tag on origin/main), run the
+    /// checkout's own harness instead of refusing the job. With a release, jobs run it regardless.
+    #[arg(long)]
+    pub allow_unreleased: bool,
     #[arg(long, default_value_t = DEFAULT_RESTART_BACKOFF_MS, hide = true)]
     pub restart_backoff_ms: u64,
     #[arg(long, default_value_t = DEFAULT_UNFIT_BACKOFF_MS, hide = true)]
@@ -251,10 +255,13 @@ pub struct ServerConfig {
     pub repo: PathBuf,
     pub home: PathBuf,
     pub jobs_dir: PathBuf,
+    /// Where harness releases are materialised, one directory per tag (harness.rs).
+    pub releases_dir: PathBuf,
     pub share_dir: PathBuf,
     pub path_prepend: Vec<PathBuf>,
     pub max_restarts: u32,
     pub pull: bool,
+    pub allow_unreleased: bool,
     pub restart_backoff: Duration,
     pub unfit_backoff: Duration,
     pub cancel_grace: Duration,
@@ -275,6 +282,7 @@ impl ServeArgs {
         Ok(ServerConfig {
             bind: self.bind.clone(),
             jobs_dir: home.join("jobs"),
+            releases_dir: home.join(crate::harness::RELEASES_DIR),
             home,
             repo,
             share_dir: absolute(
@@ -290,6 +298,7 @@ impl ServeArgs {
                 .collect::<Result<_>>()?,
             max_restarts: self.max_restarts,
             pull: !self.no_pull,
+            allow_unreleased: self.allow_unreleased,
             restart_backoff: Duration::from_millis(self.restart_backoff_ms),
             unfit_backoff: Duration::from_millis(self.unfit_backoff_ms),
             cancel_grace: Duration::from_millis(self.cancel_grace_ms),
@@ -317,6 +326,9 @@ impl ServerConfig {
         ]);
         if !self.pull {
             a.push("--no-pull".into());
+        }
+        if self.allow_unreleased {
+            a.push("--allow-unreleased".into());
         }
         if self.restart_backoff != Duration::from_millis(DEFAULT_RESTART_BACKOFF_MS) {
             a.extend([
@@ -365,6 +377,25 @@ fn parse_key_value(s: &str) -> Result<(String, String), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn allow_unreleased_is_off_unless_asked_for_and_survives_a_service_unit() {
+        let serve = |extra: &[&str]| {
+            let mut argv = vec!["dbench", "serve", "--bind", "127.0.0.1:0", "--repo", "/", "--home", "/h"];
+            argv.extend(extra);
+            match Cli::try_parse_from(argv).unwrap().cmd {
+                Cmd::Serve(args) => args.resolve().unwrap(),
+                other => panic!("{other:?}"),
+            }
+        };
+        let off = serve(&[]);
+        assert!(!off.allow_unreleased);
+        assert!(!off.to_serve_argv().contains(&"--allow-unreleased".into()));
+        assert_eq!(off.releases_dir, Path::new("/h").join(crate::harness::RELEASES_DIR));
+        let on = serve(&["--allow-unreleased"]);
+        assert!(on.allow_unreleased);
+        assert!(on.to_serve_argv().contains(&"--allow-unreleased".into()));
+    }
 
     #[test]
     fn harness_release_does_not_take_over_release_of_a_held_node() {

@@ -41,6 +41,8 @@ from pathlib import Path
 HARNESS = Path(__file__).resolve().parent
 sys.path.insert(0, str(HARNESS))
 
+import roots  # noqa: E402 - found through the path above
+
 BASE_PORT = 18800
 PORTS_PER_JOB = 2          # the app, and the suite's control port right after it
 INSTALL_TIMEOUT_S = 900
@@ -337,8 +339,7 @@ def rescore_record(version: str, workers: int, host_limits: dict, environment: d
     """rescore.json, which is public: the machine is named by its hardware (hostenv.host_desc), never its hostname."""
     import hostenv
     return {
-        "pack_version": version, "harness_commit": subprocess.run(
-            ["git", "-C", str(HARNESS), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip(),
+        "pack_version": version, "harness_commit": roots.harness_commit(),
         "host": hostenv.host_desc(), "held_out_workers": workers, "host_limits": host_limits,
         "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "environment": environment,

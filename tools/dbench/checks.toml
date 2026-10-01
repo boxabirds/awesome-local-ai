@@ -28,6 +28,17 @@ paths = [
   "combinations/*/*/*/*/*/*/help.txt",
 ]
 
+# What a benchmark node runs. `dbench serve` runs the harness of the newest release, not of main: it takes
+# exactly these paths (directories or files, no globs) from the release tag into a directory of its own and
+# runs benchmarks/spec-bench/harness/run.sh there (src/harness.rs). Each must be under `paths` above, so what
+# runs is what the checks read. Not here, on purpose: the packs (versioned by their own tags) and each
+# combination's config (it belongs with the install on the node), which the harness reads from the node's
+# checkout of main, where results are also written.
+harness = [
+  "benchmarks/spec-bench",
+  "benchmarks/perf",
+]
+
 # Every harness test, including the end-to-end self-tests of the story loop (test_pipeline.py), which
 # need node, npm and npx and skip themselves without them. Other tests may skip (macOS-only, a tool
 # that isn't installed); the self-test may not.

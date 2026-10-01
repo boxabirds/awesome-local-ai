@@ -18,11 +18,16 @@ import os
 import sys
 from pathlib import Path
 
+import roots
+
 ENV = "SPEC_BENCH_PACK_DIR"
 LEGACY_ENV = {"vidi": "VIDI_PACK_DIR"}
 PRIVATE_REPO = "awesome-local-ai-bench-private"
 PRIVATE_PACKS = Path("packs")
-REPO_ROOT = Path(__file__).resolve().parents[3]  # benchmarks/spec-bench/harness -> repo
+# The results root (roots.py): the checkout of main. Packs are versioned by their own tags (pack-version.sh), not
+# by a harness release, so a released harness reads benchmarks/<name> and the private checkout beside the repo from
+# the node's checkout, exactly where a harness run from that checkout finds them.
+REPO_ROOT = roots.RESULTS_ROOT
 DEFAULT_PACK = "benchmarks/vidi"
 
 

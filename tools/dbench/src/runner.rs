@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::process::Command;
 
+use crate::harness::{self, Harness, Materialised};
 use crate::job::{harness_args, resolve_entry, JobState, PullRecord};
 use crate::progress::install_env_path;
 use crate::server::Shared;
@@ -283,6 +284,137 @@ async fn git_pull(st: &Shared, id: &str) {
     });
 }
 
+/// The harness this attempt runs, ready on disk. A job that has started before keeps what it
+/// started on, whatever has been released or allowed since; a new one takes the newest release
+/// on origin/main, or, with none, is refused (or with `--allow-unreleased` runs the checkout's
+/// own). Err is why the job can't run.
+async fn choose_harness(st: &Shared, id: &str) -> Result<Harness, String> {
+    let (kept, attempts) = {
+        let inner = st.lock();
+        let job = inner.jobs.get(id);
+        (job.and_then(|j| j.harness.clone()), job.map_or(0, |j| j.attempt))
+    };
+    let chosen = match kept {
+        Some(Harness::Release { tag, commit }) => {
+            resume_release(st, id, &tag, &commit).await?;
+            Harness::Release { tag, commit }
+        }
+        Some(Harness::Unreleased) => {
+            st.log_line(id, "harness: UNRELEASED, the checkout's own, as this job started on it");
+            Harness::Unreleased
+        }
+        // Started by a dbench from before releases: it has been running the checkout's own harness.
+        None if attempts > 0 => {
+            let text = "started before this node ran harness releases: keeps the checkout's own harness (UNRELEASED)";
+            st.log_line(id, &format!("harness: {text}"));
+            st.update(id, |j, _| {
+                j.harness = Some(Harness::Unreleased);
+                j.note(now_secs(), text);
+            });
+            Harness::Unreleased
+        }
+        None => {
+            let chosen = first_harness(st, id).await?;
+            let text = format!("runs harness {}", chosen.describe());
+            st.update(id, |j, _| {
+                j.harness = Some(chosen.clone());
+                j.note(now_secs(), text);
+            });
+            chosen
+        }
+    };
+    prune_releases(st, id, &chosen);
+    Ok(chosen)
+}
+
+/// A new job's harness: the newest release, materialised; or the checkout's own where allowed.
+async fn first_harness(st: &Shared, id: &str) -> Result<Harness, String> {
+    if st.cfg.pull {
+        if let Err(e) = harness::fetch(&st.cfg).await {
+            st.log_line(id, &format!("fetching release tags FAILED (using the tags already here): {e}"));
+        }
+    }
+    let none = match harness::latest_release(&st.cfg).await {
+        Ok(Some((tag, commit))) => {
+            let made = harness::materialise(&st.cfg, &tag, &commit).await?;
+            let dir = harness::release_dir(&st.cfg, &tag);
+            let how = if made == Materialised::Made { "made from the tag" } else { "already here" };
+            st.log_line(id, &format!("harness release {tag} ({commit}): {} ({how})", dir.display()));
+            return Ok(Harness::Release { tag, commit });
+        }
+        Ok(None) => format!(
+            "no {}* tag on {}/{}",
+            crate::release::TAG_PREFIX,
+            crate::release::REMOTE,
+            crate::release::MAIN_BRANCH
+        ),
+        Err(e) => format!("the releases could not be listed: {e}"),
+    };
+    if !st.cfg.allow_unreleased {
+        return Err(format!("no harness release ({none}): {}", harness::HOW_TO_RELEASE));
+    }
+    st.log_line(
+        id,
+        &format!("harness: UNRELEASED ({none}); running the checkout's own harness, as main has it (--allow-unreleased)"),
+    );
+    Ok(Harness::Unreleased)
+}
+
+/// A restarted job's release: its directory, made again from the tag if it is gone. The tag must
+/// still name the commit the job started on; otherwise the job fails rather than change harness.
+async fn resume_release(st: &Shared, id: &str, tag: &str, commit: &str) -> Result<(), String> {
+    let dir = harness::release_dir(&st.cfg, tag);
+    if !dir.join(harness::MANIFEST_FILE).is_file() {
+        match harness::tag_commit(&st.cfg, tag).await {
+            Ok(now) if now == commit => {}
+            other => {
+                let found = match other {
+                    Ok(now) => format!("the tag now names {now}"),
+                    Err(_) => "the tag is gone".into(),
+                };
+                return Err(format!(
+                    "this job started on harness release {tag} ({commit}); its directory {} is gone and {found}; \
+                     not switching harness part-way through a run: restore the tag, or cancel and \
+                     resubmit under a new run id",
+                    dir.display()
+                ));
+            }
+        }
+    }
+    let made = harness::materialise(&st.cfg, tag, commit).await?;
+    let how = if made == Materialised::Made {
+        st.update(id, |j, _| {
+            j.note(now_secs(), format!("the directory of harness release {tag} was gone; made again from the tag"));
+        });
+        "its directory was gone: made again from the tag"
+    } else {
+        "kept from the job's first start"
+    };
+    st.log_line(id, &format!("harness release {tag} ({commit}): {} ({how})", dir.display()));
+    Ok(())
+}
+
+/// Remove release directories nothing needs: all but the newest few, this job's, and those of
+/// other jobs that have started and not finished.
+fn prune_releases(st: &Shared, id: &str, chosen: &Harness) {
+    let mut needed: std::collections::BTreeSet<String> = st
+        .lock()
+        .jobs
+        .values()
+        .filter(|j| !j.state.is_terminal())
+        .filter_map(|j| match &j.harness {
+            Some(Harness::Release { tag, .. }) => Some(tag.clone()),
+            _ => None,
+        })
+        .collect();
+    if let Harness::Release { tag, .. } = chosen {
+        needed.insert(tag.clone());
+    }
+    for tag in harness::prune(&st.cfg, &needed) {
+        st.log_line(id, &format!("pruned release {tag}: no job needs it and {} newer are kept", harness::KEEP_RELEASES));
+    }
+}
+
 fn fail(st: &Shared, id: &str, reason: String) {
     st.log_line(id, &format!("failed: {reason}"));
     st.update(id, |j, _| {
@@ -305,8 +437,21 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> Option<Duration> {
         fail(st, id, format!("{} missing", env.display()));
         return None;
     }
-    let Some(entry) = resolve_entry(&st.cfg.repo, &spec.pack) else {
-        fail(st, id, format!("no harness for pack {}", spec.pack));
+    let chosen = match choose_harness(st, id).await {
+        Ok(h) => h,
+        Err(reason) => {
+            fail(st, id, reason);
+            return None;
+        }
+    };
+    // A release runs from its own directory and is told where results go; the checkout's own
+    // harness runs as it always did.
+    let (code_root, results_root) = match &chosen {
+        Harness::Release { tag, .. } => (harness::release_dir(&st.cfg, tag), Some(&st.cfg.repo)),
+        Harness::Unreleased => (st.cfg.repo.clone(), None),
+    };
+    let Some(entry) = resolve_entry(&code_root, &spec.pack) else {
+        fail(st, id, format!("no harness for pack {} in {}", spec.pack, code_root.display()));
         return None;
     };
     let args = harness_args(&entry, &spec);
@@ -332,11 +477,15 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> Option<Duration> {
     cmd.args(&args)
         .current_dir(&st.cfg.repo)
         .env("PATH", st.cfg.child_path())
+        .env_remove(harness::RESULTS_ROOT_ENV)
         .envs(&spec.server_env)
         .stdin(Stdio::null())
         .stdout(out)
         .stderr(errf)
         .process_group(0);
+    if let Some(root) = results_root {
+        cmd.env(harness::RESULTS_ROOT_ENV, root);
+    }
     let shown: Vec<String> = args
         .iter()
         .map(|a| a.to_string_lossy().into_owned())
