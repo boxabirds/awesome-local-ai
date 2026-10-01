@@ -6,6 +6,8 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
+import type { ObjectSnapshot } from '../../shared/board-model';
+import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Camera, type Point, type Size } from './camera';
 import { NavigationHint } from './NavigationHint';
@@ -21,6 +23,8 @@ const MARKER_ARM_PX = 8;
 
 const DOM_DELTA_LINE = 1;
 const DOM_DELTA_PAGE = 2;
+
+const NO_OBJECTS: readonly ObjectSnapshot[] = [];
 
 function positiveMod(v: number, m: number): number {
   return ((v % m) + m) % m;
@@ -47,14 +51,18 @@ export interface BoardViewportProps {
   onDoubleClickEmpty?: (world: Point) => void;
   /** Click (press and release without dragging) on empty board space. */
   onClickEmpty?: () => void;
+  /** Objects for Shift+drag selection and what to do with the ids fully inside the rectangle. */
+  snapshot?: readonly ObjectSnapshot[];
+  onMarqueeSelect?: (ids: string[]) => void;
 }
 
-export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEmpty }: BoardViewportProps) {
+export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEmpty, snapshot = NO_OBJECTS, onMarqueeSelect }: BoardViewportProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>({ width: window.innerWidth, height: window.innerHeight });
   const cam = useCamera(size);
   const [panning, setPanning] = useState(false);
   const downPoint = useRef<Point | null>(null);
+  const marqueeActive = useRef(false);
 
   // Event handlers registered once read the latest api through a ref.
   const apiRef = useRef(cam);
@@ -133,14 +141,30 @@ export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEm
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  const marquee = useMarquee(cam.camera, snapshot, (ids) => onMarqueeSelect?.(ids));
+  const surfacePoint = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget || e.button !== 0) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    if (e.shiftKey) {
+      marqueeActive.current = true;
+      marquee.begin(surfacePoint(e));
+      return;
+    }
     downPoint.current = { x: e.clientX, y: e.clientY };
     cam.beginPan({ x: e.clientX, y: e.clientY });
     setPanning(true);
   };
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeActive.current) {
+      marqueeActive.current = false;
+      marquee.end();
+      return;
+    }
     const down = downPoint.current;
     downPoint.current = null;
     if (down && e.target === e.currentTarget && Math.hypot(e.clientX - down.x, e.clientY - down.y) < DRAG_THRESHOLD_PX) {
@@ -154,9 +178,17 @@ export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEm
     onDoubleClickEmpty(screenToWorld(apiRef.current.camera, { x: e.clientX - r.left, y: e.clientY - r.top }));
   };
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeActive.current) {
+      marquee.move(surfacePoint(e));
+      return;
+    }
     cam.panMove({ x: e.clientX, y: e.clientY });
   };
   const endPan = () => {
+    if (marqueeActive.current) {
+      marqueeActive.current = false;
+      marquee.cancel();
+    }
     cam.endPan();
     setPanning(false);
   };
@@ -220,6 +252,7 @@ export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEm
             }}
           />
           {typeof children === 'function' ? children(ctx) : children}
+          <MarqueeRect rect={marquee.rect} camera={camera} />
         </div>
       </div>
       {overlay?.(ctx)}

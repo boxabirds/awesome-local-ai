@@ -46,3 +46,13 @@
 - `nextBoardPageState` does not know the board id (the state types carry none); `BoardPage` supplies it when moving to `ready`. `attempt` is the 0-based index of the check just made, so the first retry waits BOARD_CHECK_RETRY_BASE_MS, the second twice that.
 - `GET /api/boards/:id` answers 405 for methods other than GET/HEAD. The New board button is shared by Home and Board not found (`NewBoardButton`).
 - `ConnectionStatus` badge and Share button do not overlap (badge is top-centre, Share top-right).
+
+## Story 7
+- `snapshot()` now returns `ObjectSnapshot[]` (base fields incl. `width`/`height`) and only includes *known* types (`sticky` plus anything passed to `registerObjectType`, which calls `registerKnownType`); `stickies(doc)` returns just the sticky snapshots. Sticky-specific fields are read through `isSticky`. `allObjectIds`/`objectsInRect` also skip unknown types.
+- Selection bar, note toolbar and handles are rendered in screen space from `App` (via the viewport `overlay`), not inside each note; the single-note toolbar is `NoteToolbar` inside `SelectionBar`. Both are hidden during a drag/resize and while editing text. `SelectionBar` takes extra props (`camera`, `doc`, `editable`, `hidden`); on a board that failed to load the "N selected" bar shows with Delete disabled and handles are hidden.
+- `useTransformGesture` listens for move/up/cancel on `window` (pointer capture is also requested) and returns an extra `active` flag. The camera is read live through a ref-backed object in `App` because the camera state lives in `BoardViewport`.
+- Click behaviour: pointerdown on an unselected object selects only it immediately; pointerdown on a member of a multi-selection defers "select only this" to pointerup (no drag); Shift-click on an unselected object toggles it in on pointerdown, on a selected one toggles it out on pointerup (no drag).
+- Group resize keeps the size of non-resizable types (only their position scales). Aspect-locked edge handles scale about the centre of the unaffected axis. `clampScale` never forces an object already below its minimum (or above the maximum) back inside the limit.
+- Sticky text still fits within the 10-24px font range regardless of note size (only the height feeds the fit box).
+- "N selected" is announced through `role="status" aria-live="polite"` on the bar text, so only multi-selections announce.
+- `tests/fixtures/testbox.tsx` registers the test-only `testbox` type; e2e uses `tests/fixtures/selection-boards.ts`. Red-phase test commits were not made separately.

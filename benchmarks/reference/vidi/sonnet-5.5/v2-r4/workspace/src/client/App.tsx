@@ -1,19 +1,19 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type * as Y from 'yjs';
-import { createSticky, deleteObject } from '../shared/board-model';
+import { createSticky, deleteObjects } from '../shared/board-model';
+import { SelectionBar } from './board/SelectionBar';
+import { SelectionOverlay } from './board/SelectionOverlay';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
+import { useBoardKeys } from './board/useBoardKeys';
 import { useSelection } from './board/useSelection';
+import { useTransformGesture } from './board/useTransformGesture';
 import { BoardViewport } from './canvas/BoardViewport';
-import { StickyNote } from './objects/StickyNote';
+import type { Camera } from './canvas/camera';
 import { setTestConnectionState } from './canvas/testHooks';
+import { getObjectType } from './objects/registry';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
-
-function isTextTarget(t: EventTarget | null): boolean {
-  if (!(t instanceof HTMLElement)) return false;
-  return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable;
-}
 
 /** Editing is blocked only while a saved board cannot be loaded (it must not look like an empty board). */
 export function canEdit(state: ConnectionState): boolean {
@@ -21,42 +21,36 @@ export function canEdit(state: ConnectionState): boolean {
 }
 
 export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: string }) {
-  const { doc, notes, connection } = useBoardDoc(externalDoc, boardId);
+  const { doc, notes: objects, connection } = useBoardDoc(externalDoc, boardId);
   useEffect(() => setTestConnectionState(connection), [connection]);
-  const sel = useSelection();
-
+  const sel = useSelection(objects);
   const editable = canEdit(connection);
-  const stateRef = useRef({ sel, doc, editable });
-  stateRef.current = { sel, doc, editable };
 
-  // Selection never outlives its note (e.g. deleted through the model).
-  const { selectedId, editingId, select, endEdit } = sel;
-  const selectedMissing = selectedId !== null && !notes.some((n) => n.id === selectedId);
-  const editingMissing = editingId !== null && !notes.some((n) => n.id === editingId);
-  useEffect(() => {
-    if (editingMissing) endEdit('unselected');
-    else if (selectedMissing) select(null);
-  }, [selectedMissing, editingMissing, select, endEdit]);
+  // The camera lives in BoardViewport; the gesture reads it live through this view of the latest value.
+  const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 1 });
+  const liveCamera = useMemo<Camera>(
+    () => ({
+      get x() {
+        return cameraRef.current.x;
+      },
+      get y() {
+        return cameraRef.current.y;
+      },
+      get zoom() {
+        return cameraRef.current.zoom;
+      },
+    }),
+    [],
+  );
+  const gesture = useTransformGesture({ doc, camera: liveCamera, selection: sel, snapshot: objects, canEdit: editable });
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const { sel: s, doc: d, editable: ok } = stateRef.current;
-      if (!ok) return;
-      if (s.selectedId === null || s.editingId !== null || isTextTarget(e.target)) return;
-      if (e.key === 'Enter') {
-        if (e.target instanceof HTMLElement && e.target.tagName === 'BUTTON') return;
-        e.preventDefault();
-        s.startEdit(s.selectedId);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        deleteObject(d, s.selectedId);
-        s.select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable });
+
+  const deleteSelection = () => {
+    if (!editable) return;
+    deleteObjects(doc, [...sel.ids]);
+    sel.clear();
+  };
 
   const create = (at: { x: number; y: number }) => {
     if (!editable) return;
@@ -69,27 +63,57 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
     {boardId && <ConnectionStatus state={connection} />}
     <BoardViewport
       onDoubleClickEmpty={create}
-      onClickEmpty={() => sel.select(null)}
-      overlay={(ctx) => <Toolbar disabled={!editable} onCreateSticky={() => create(ctx.viewCentre)} />}
-    >
-      {(ctx) =>
-        [...notes]
-          .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-          .map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
+      onClickEmpty={sel.clear}
+      snapshot={objects}
+      onMarqueeSelect={(ids) => sel.setMany(ids, true)}
+      overlay={(ctx) => {
+        cameraRef.current = ctx.camera;
+        return (
+          <>
+            <Toolbar disabled={!editable} onCreateSticky={() => create(ctx.viewCentre)} />
+            <SelectionOverlay
+              ids={sel.ids}
+              snapshot={objects}
+              camera={ctx.camera}
+              editable={editable}
+              onHandlePointerDown={gesture.onHandlePointerDown}
+            />
+            <SelectionBar
+              ids={sel.ids}
+              snapshot={objects}
+              camera={ctx.camera}
               doc={doc}
               editable={editable}
-              zoom={ctx.camera.zoom}
-              selected={sel.selectedId === note.id}
-              editing={editable && sel.editingId === note.id}
-              onSelect={sel.select}
-              onStartEdit={sel.startEdit}
-              onEndEdit={sel.endEdit}
+              hidden={gesture.active || sel.editingId !== null}
+              onDelete={deleteSelection}
             />
-          ))
-      }
+          </>
+        );
+      }}
+    >
+      {(ctx) => {
+        cameraRef.current = ctx.camera;
+        return [...objects]
+          .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+          .map((object) => {
+            const Component = getObjectType(object.type)?.Component;
+            if (!Component) return null;
+            return (
+              <Component
+                key={object.id}
+                object={object}
+                doc={doc}
+                editable={editable}
+                zoom={ctx.camera.zoom}
+                selected={sel.ids.has(object.id)}
+                editing={editable && sel.editingId === object.id}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+                onStartEdit={sel.startEdit}
+                onEndEdit={sel.endEdit}
+              />
+            );
+          });
+      }}
     </BoardViewport>
     </>
   );

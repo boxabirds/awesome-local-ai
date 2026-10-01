@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import {
+  stickies,
   bringToFront,
   createSticky,
   deleteObject,
@@ -71,7 +72,7 @@ describe('board model', () => {
     const id = createSticky(doc, { x: 0, y: 0 });
     const base = updates();
     expect(setStickyColor(doc, id, 'teal')).toBe(false);
-    expect(snapshot(doc)[0].color).toBe('yellow');
+    expect(stickies(doc)[0].color).toBe('yellow');
     expect(updates() - base).toBe(0);
   });
 

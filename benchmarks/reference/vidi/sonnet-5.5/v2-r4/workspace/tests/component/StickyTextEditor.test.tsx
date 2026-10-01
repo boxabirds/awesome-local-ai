@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createSticky, getStickyText, snapshot } from '../../src/shared/board-model';
+import { createSticky, getStickyText, stickies } from '../../src/shared/board-model';
 import { OVER_LIMIT_TEXT } from '../fixtures/texts';
 import { click, noteEl, setupBoard, viewport } from './helpers';
 
@@ -26,7 +26,7 @@ describe('sticky text editor', () => {
     await userEvent.keyboard('Faster onboarding');
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('textbox')).toBeNull();
-    expect(snapshot(doc)[0].text).toBe('Faster onboarding');
+    expect(stickies(doc)[0].text).toBe('Faster onboarding');
     expect(noteEl().getAttribute('data-selected')).toBe('true');
   });
 
@@ -39,7 +39,7 @@ describe('sticky text editor', () => {
     expect(ta.value).toBe('Xab');
     expect(ta.selectionStart).toBe(3);
     await userEvent.keyboard('c');
-    expect(snapshot(doc)[0].text).toBe('Xabc');
+    expect(stickies(doc)[0].text).toBe('Xabc');
   });
 
   it('deleting the note remotely ends editing without an error', () => {
@@ -55,8 +55,8 @@ describe('sticky text editor', () => {
     const { doc } = setupBoard([{ x: 0, y: 0 }]);
     fireEvent.doubleClick(noteEl());
     await userEvent.keyboard('ab{Backspace}');
-    expect(snapshot(doc)).toHaveLength(1);
-    expect(snapshot(doc)[0].text).toBe('a');
+    expect(stickies(doc)).toHaveLength(1);
+    expect(stickies(doc)[0].text).toBe('a');
   });
 
   it('TC-38 clicking outside ends editing and unselects', async () => {
@@ -65,7 +65,7 @@ describe('sticky text editor', () => {
     await userEvent.keyboard('abc');
     await userEvent.click(viewport());
     expect(screen.queryByRole('textbox')).toBeNull();
-    expect(snapshot(doc)[0].text).toBe('abc');
+    expect(stickies(doc)[0].text).toBe('abc');
     expect(noteEl().getAttribute('data-selected')).toBe('false');
   });
 
@@ -73,7 +73,7 @@ describe('sticky text editor', () => {
     const { doc } = setupBoard([{ x: 0, y: 0 }]);
     fireEvent.doubleClick(noteEl());
     await userEvent.keyboard('a{Enter}b');
-    expect(snapshot(doc)[0].text).toBe('a\nb');
+    expect(stickies(doc)[0].text).toBe('a\nb');
   });
 
   it('pasting over the limit keeps exactly 1,000 characters and shows the counter', async () => {
@@ -81,7 +81,7 @@ describe('sticky text editor', () => {
     fireEvent.doubleClick(noteEl());
     expect(screen.queryByTestId('char-counter')).toBeNull();
     await userEvent.paste(OVER_LIMIT_TEXT);
-    expect(snapshot(doc)[0].text).toBe(OVER_LIMIT_TEXT.slice(0, 1000));
+    expect(stickies(doc)[0].text).toBe(OVER_LIMIT_TEXT.slice(0, 1000));
     expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toHaveLength(1000);
     expect(screen.getByTestId('char-counter').textContent).toBe('1000/1000');
   });
@@ -89,6 +89,6 @@ describe('sticky text editor', () => {
   it('an empty note stays on the board and shows no text', () => {
     const { doc } = setupBoard([{ x: 0, y: 0 }]);
     createSticky(doc, { x: 300, y: 300 });
-    expect(snapshot(doc)).toHaveLength(2);
+    expect(stickies(doc)).toHaveLength(2);
   });
 });

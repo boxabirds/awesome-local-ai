@@ -61,8 +61,8 @@ describe('BoardRoom merging', () => {
     getStickyText(a.doc, id)!.insert(0, 'red ');
     getStickyText(b.doc, id)!.insert(5, ' blue');
     await converge([a, b]);
-    expect(a.snapshot()[0].text).toBe('red green blue');
-    expect(b.snapshot()[0].text).toBe('red green blue');
+    expect(getStickyText(a.doc, id)!.toString()).toBe('red green blue');
+    expect(getStickyText(b.doc, id)!.toString()).toBe('red green blue');
   });
 
   it('TC-10: concurrent x writes settle to the same value', async () => {

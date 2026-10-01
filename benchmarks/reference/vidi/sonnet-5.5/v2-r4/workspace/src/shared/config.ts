@@ -11,6 +11,11 @@ export const STICKY_COUNTER_THRESHOLD_CHARS = 50; // counter shows when remainin
 export const STICKY_FONT_MAX_PX = 24;
 export const STICKY_FONT_MIN_PX = 10;
 export const DRAG_THRESHOLD_PX = 3;
+export const HANDLE_SIZE_PX = 8; // selection resize handles, constant on screen at any zoom
+export const STICKY_MIN_SIZE_WORLD = 50;
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+export const NUDGE_STEP_WORLD = 1;
+export const NUDGE_LARGE_STEP_WORLD = 10;
 export const STICKY_COLORS = {
   yellow: '#FFF59D', orange: '#FFCC80', green: '#C5E1A5',
   blue: '#90CAF9', pink: '#F48FB1', violet: '#CE93D8',
