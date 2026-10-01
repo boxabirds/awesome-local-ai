@@ -1,0 +1,19 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\nadded 1 package in 506ms\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.5,
+      "tail": "\n> kat-app@1.0.0 build\n> node build.js\n\n",
+      "passed": null,
+      "failed": null
+    }
+  },
+  "all_green": true
+}
