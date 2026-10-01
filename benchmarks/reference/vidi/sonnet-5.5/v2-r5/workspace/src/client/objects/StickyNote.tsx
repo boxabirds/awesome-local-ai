@@ -26,9 +26,11 @@ interface Press {
 export function StickyNote(props: {
   note: StickySnapshot; doc: Y.Doc; zoom: number;
   selected: boolean; editing: boolean;
+  /** Board is not editable (load_failed): no drag, text edit, colour or delete. */
+  readOnly?: boolean;
   onSelect(id: string): void; onStartEdit(id: string): void; onEndEdit(next: 'selected' | 'unselected'): void;
 }) {
-  const { note, doc, zoom, selected, editing } = props;
+  const { note, doc, zoom, selected, editing, readOnly = false } = props;
   const { id } = note;
   const press = useRef<Press | null>(null);
   const frame = useRef(0);
@@ -92,7 +94,7 @@ export function StickyNote(props: {
         cursor: dragging ? 'grabbing' : 'pointer',
       }}
       onPointerDown={(e) => {
-        if (editing || (e.button ?? PRIMARY_BUTTON) !== PRIMARY_BUTTON) return;
+        if (readOnly || editing || (e.button ?? PRIMARY_BUTTON) !== PRIMARY_BUTTON) return;
         e.stopPropagation();
         e.currentTarget.setPointerCapture?.(e.pointerId);
         press.current = {
@@ -119,17 +121,17 @@ export function StickyNote(props: {
       onLostPointerCapture={() => finish(false)}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        props.onStartEdit(id);
+        if (!readOnly) props.onStartEdit(id);
       }}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' && e.target === e.currentTarget && !editing) {
+        if (e.key === 'Enter' && e.target === e.currentTarget && !editing && !readOnly) {
           e.preventDefault();
           e.stopPropagation();
           props.onStartEdit(id);
         }
       }}
     >
-      {selected && !editing && !dragging && (
+      {selected && !editing && !dragging && !readOnly && (
         <div
           className="note-toolbar-anchor"
           style={{ transform: `translateX(-50%) scale(${1 / zoom})`, marginBottom: TOOLBAR_GAP_PX / zoom }}
@@ -147,7 +149,7 @@ export function StickyNote(props: {
       >
         <div ref={textRef} className="sticky-text" style={{ fontSize: fit.fontPx }}>{note.text}</div>
       </div>
-      {editing && (
+      {editing && !readOnly && (
         <StickyTextEditorHost doc={doc} id={id} fontPx={fit.fontPx} onEnd={props.onEndEdit} />
       )}
     </div>

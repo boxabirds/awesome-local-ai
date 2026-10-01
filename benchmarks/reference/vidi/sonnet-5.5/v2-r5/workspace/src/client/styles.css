@@ -83,6 +83,7 @@ body { font-family: system-ui, sans-serif; color: #222; overflow: hidden; }
   width: 100%;
   height: 100%;
   overflow: hidden;
+  contain: size layout style; /* text fitting reflows stay inside the note: keeps 2,000-note boards fast to open */
 }
 .sticky-text {
   width: 100%;
@@ -215,4 +216,5 @@ body { font-family: system-ui, sans-serif; color: #222; overflow: hidden; }
 }
 .connection-connecting { background: #e0e0e0; color: #333; }
 .connection-reconnecting { background: #ffb300; color: #3e2700; }
+.connection-load_failed { background: #c62828; color: #fff; }
 .connection-confirmed { background: #43a047; color: #fff; }

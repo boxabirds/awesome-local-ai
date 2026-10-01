@@ -6,16 +6,21 @@ import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 import { connectBoard, type ConnectionState, type ProviderLike } from '../../src/client/sync/connectBoard';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { createSticky } from '../../src/shared/board-model';
+import { canEdit } from '../../src/client/App';
 import { Harness, newDoc } from './helpers';
 
 class FakeProvider implements ProviderLike {
   private status: Array<(e: { status: 'connecting' | 'connected' | 'disconnected' }) => void> = [];
   private sync: Array<(s: boolean) => void> = [];
+  private close: Array<(e: { code: number } | null) => void> = [];
   destroyed = false;
   on(event: string, cb: never): void {
     if (event === 'status') this.status.push(cb);
+    else if (event === 'connection-close') this.close.push(cb);
     else this.sync.push(cb);
   }
+  /** What y-websocket does when a socket closes: connection-close, then status disconnected. */
+  emitClose(code: number) { this.close.forEach((f) => f({ code })); this.emitStatus('disconnected'); }
   emitStatus(status: 'connecting' | 'connected' | 'disconnected') { this.status.forEach((f) => f({ status })); }
   emitSync(synced: boolean) { this.sync.forEach((f) => f(synced)); }
   connect() { this.emitStatus('connected'); this.emitSync(true); }
@@ -73,6 +78,41 @@ describe('ConnectionStatus (sync.client)', () => {
     render(<Probe provider={p} />);
     act(() => p.emitStatus('disconnected'));
     expect(screen.getByRole('status').textContent).toBe('Connecting…');
+  });
+
+  it('TC-28 close 1011 and 1003 show Reconnecting… (not load_failed) and keep editing enabled', () => {
+    for (const code of [1011, 1003]) {
+      const p = new FakeProvider();
+      const states: ConnectionState[] = [];
+      connectBoard(new Y.Doc(), 'b', (st) => states.push(st), () => p);
+      p.connect();
+      p.emitClose(code);
+      expect(states.at(-1)).toBe('reconnecting');
+      expect(states).not.toContain('load_failed');
+      expect(canEdit(states.at(-1)!)).toBe(true);
+    }
+  });
+
+  it('TC-28 close 4500 → load_failed; a later sync → connected with editing enabled again', () => {
+    const p = new FakeProvider();
+    const states: ConnectionState[] = [];
+    connectBoard(new Y.Doc(), 'b', (st) => states.push(st), () => p);
+    p.emitStatus('connected');
+    p.emitClose(4500);
+    expect(states.at(-1)).toBe('load_failed');
+    expect(canEdit('load_failed')).toBe(false);
+    p.emitClose(4500); // another failed retry keeps the message
+    expect(states.at(-1)).toBe('load_failed');
+    p.connect();
+    expect(states.at(-1)).toBe('connected');
+    expect(canEdit(states.at(-1)!)).toBe(true);
+  });
+
+  it('TC-22 load_failed renders the red message with role=status', () => {
+    render(<ConnectionStatus state="load_failed" />);
+    const badge = screen.getByRole('status');
+    expect(badge.textContent).toBe("This board couldn't be loaded. Retrying…");
+    expect(badge.className).toContain('connection-load_failed');
   });
 
   it('destroy tears the provider down', () => {

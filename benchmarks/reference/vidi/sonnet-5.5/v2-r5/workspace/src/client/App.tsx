@@ -10,11 +10,17 @@ import { ZoomControls } from './canvas/ZoomControls';
 import { StickyNote } from './objects/StickyNote';
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 
 const HALF = 2;
 const TEXT_ENTRY_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 
 const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
+
+/** Editing is blocked only while the saved board could not be loaded (never present an empty editable board). */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 export function App() {
   // Anything that is not /b/<valid id> is redirected in place to a fresh board (replaced by
@@ -42,7 +48,12 @@ function Board({ boardId }: { boardId: string }) {
   // bringToFront never moves a note's element, which would drop its pointer capture mid-drag.
   const domOrder = useMemo(() => [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)), [notes]);
 
-  const createAt =(world: Point) => {
+  const editable = canEdit(connection);
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
+
+  const createAt = (world: Point) => {
+    if (!editableRef.current) return;
     const id = createSticky(doc, world);
     if (id) sel.startEdit(id);
   };
@@ -55,7 +66,7 @@ function Board({ boardId }: { boardId: string }) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const { selectedId, editingId, startEdit, select } = selRef.current;
-      if (!selectedId || editingId !== null || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!editableRef.current || !selectedId || editingId !== null || e.ctrlKey || e.metaKey || e.altKey) return;
       const t = e.target;
       if (t instanceof HTMLElement && (TEXT_ENTRY_TAGS.has(t.tagName) || t.isContentEditable)) return;
       if (e.key === 'Enter') {
@@ -79,6 +90,7 @@ function Board({ boardId }: { boardId: string }) {
       overlay={(api) => (
         <>
           <Toolbar
+            disabled={!editable}
             onCreateSticky={() => createAt(
               screenToWorld(api.getCamera(), { x: api.size.width / HALF, y: api.size.height / HALF }),
             )}
@@ -103,7 +115,8 @@ function Board({ boardId }: { boardId: string }) {
           doc={doc}
           zoom={api.camera.zoom}
           selected={sel.selectedId === note.id}
-          editing={sel.editingId === note.id}
+          editing={editable && sel.editingId === note.id}
+          readOnly={!editable}
           onSelect={sel.select}
           onStartEdit={sel.startEdit}
           onEndEdit={sel.endEdit}
