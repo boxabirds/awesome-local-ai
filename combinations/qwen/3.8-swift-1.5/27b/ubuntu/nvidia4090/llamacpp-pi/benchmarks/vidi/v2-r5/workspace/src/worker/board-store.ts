@@ -72,9 +72,54 @@ export class BoardStore {
   private rowCount = 0;
   private byteTotal = 0;
   private snapshotThroughSeq = 0;
+  private migrated = false;
 
   constructor(storage: DurableObjectStorageLike) {
     this.storage = storage;
+  }
+
+  /**
+   * Read-only existence check. Never creates tables.
+   * A board exists if:
+   * - storage_meta has created_at, OR
+   * - updates table has at least one row (legacy), OR
+   * - snapshot_chunks table has at least one row (legacy)
+   */
+  existsReadOnly(): boolean {
+    try {
+      // Check if any of our tables exist in sqlite_master
+      const tables = this.storage.sql.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_meta', 'updates', 'snapshot_chunks')"
+      ).all();
+      
+      if (tables.length === 0) return false;
+
+      // Check storage_meta for created_at
+      const hasStorageMeta = tables.some((t: any) => t.name === 'storage_meta');
+      if (hasStorageMeta) {
+        const row = this.storage.sql.prepare('SELECT value FROM storage_meta WHERE key = ?').get('created_at');
+        if (row) return true;
+      }
+
+      // Check updates table for any rows (legacy boards)
+      const hasUpdates = tables.some((t: any) => t.name === 'updates');
+      if (hasUpdates) {
+        const countRow = this.storage.sql.prepare('SELECT COUNT(*) as cnt FROM updates').get();
+        if (countRow && (countRow.cnt as number) > 0) return true;
+      }
+
+      // Check snapshot_chunks table for any rows (legacy boards)
+      const hasSnapshots = tables.some((t: any) => t.name === 'snapshot_chunks');
+      if (hasSnapshots) {
+        const countRow = this.storage.sql.prepare('SELECT COUNT(*) as cnt FROM snapshot_chunks').get();
+        if (countRow && (countRow.cnt as number) > 0) return true;
+      }
+
+      return false;
+    } catch {
+      // Tables don't exist or SQL error → board doesn't exist
+      return false;
+    }
   }
 
   migrate(): void {
@@ -100,9 +145,19 @@ export class BoardStore {
 
     const bytesRow = this.storage.sql.prepare('SELECT COALESCE(SUM(bytes), 0) as total FROM updates WHERE seq > ?').get(this.snapshotThroughSeq);
     this.byteTotal = bytesRow ? (bytesRow.total as number) : 0;
+
+    this.migrated = true;
+  }
+
+  /** Ensure tables exist (lazy migration before first write) */
+  private ensureMigrated(): void {
+    if (!this.migrated) {
+      this.migrate();
+    }
   }
 
   append(update: Uint8Array): void {
+    this.ensureMigrated();
     this.storage.sql.prepare('INSERT INTO updates (data, bytes) VALUES (?, ?)').run(update, update.length);
     this.rowCount++;
     this.byteTotal += update.length;
@@ -110,42 +165,76 @@ export class BoardStore {
 
   load(doc: Y.Doc): LoadResult {
     try {
+      // Check if tables exist; if not, treat as empty board
+      const tables = this.storage.sql.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_meta', 'updates', 'snapshot_chunks')"
+      ).all();
+      
+      if (tables.length === 0) {
+        // No tables exist → empty board, nothing to load
+        return { ok: true, quarantined: 0 };
+      }
+
+      const hasUpdates = tables.some((t: any) => t.name === 'updates');
+      const hasSnapshots = tables.some((t: any) => t.name === 'snapshot_chunks');
+      const hasStorageMeta = tables.some((t: any) => t.name === 'storage_meta');
+
+      // Load snapshot_through_seq if available
+      if (hasStorageMeta) {
+        const seqRow = this.storage.sql.prepare('SELECT value FROM storage_meta WHERE key = ?').get('snapshot_through_seq');
+        this.snapshotThroughSeq = seqRow ? parseInt(seqRow.value as string, 10) : 0;
+      }
+
       // Read and apply snapshot
-      const chunks = this.storage.sql.prepare('SELECT data FROM snapshot_chunks ORDER BY idx').all();
-      if (chunks.length > 0) {
-        const snapshotBytes = joinChunks(chunks.map(c => c.data as Uint8Array));
-        try {
-          Y.applyUpdate(doc, snapshotBytes, LOAD_ORIGIN);
-        } catch (e) {
-          return {
-            ok: false,
-            reason: 'snapshot-unreadable',
-            error: e instanceof Error ? e.message : String(e),
-          };
+      if (hasSnapshots) {
+        const chunks = this.storage.sql.prepare('SELECT data FROM snapshot_chunks ORDER BY idx').all();
+        if (chunks.length > 0) {
+          const snapshotBytes = joinChunks(chunks.map(c => c.data as Uint8Array));
+          try {
+            Y.applyUpdate(doc, snapshotBytes, LOAD_ORIGIN);
+          } catch (e) {
+            return {
+              ok: false,
+              reason: 'snapshot-unreadable',
+              error: e instanceof Error ? e.message : String(e),
+            };
+          }
         }
       }
 
       // Read and apply log rows
-      const rows = this.storage.sql.prepare('SELECT seq, data FROM updates WHERE seq > ? ORDER BY seq').all(this.snapshotThroughSeq);
       let quarantined = 0;
-
-      for (const row of rows) {
-        const seq = row.seq as number;
-        const data = row.data as Uint8Array;
-        try {
-          Y.applyUpdate(doc, data, LOAD_ORIGIN);
-        } catch (e) {
-          // Quarantine this row
-          const error = e instanceof Error ? e.message : String(e);
-          this.storage.transactionSync.run(() => {
-            this.storage.sql.prepare('DELETE FROM updates WHERE seq = ?').run(seq);
-            this.storage.sql.prepare('INSERT INTO quarantined_updates (seq, data, error, quarantined_at) VALUES (?, ?, ?, ?)').run(
-              seq, data, error, Date.now()
-            );
-          });
-          console.error('[BoardStore] Quarantined damaged update', { seq, error });
-          quarantined++;
+      if (hasUpdates) {
+        const rows = this.storage.sql.prepare('SELECT seq, data FROM updates WHERE seq > ? ORDER BY seq').all(this.snapshotThroughSeq);
+        
+        for (const row of rows) {
+          const seq = row.seq as number;
+          const data = row.data as Uint8Array;
+          try {
+            Y.applyUpdate(doc, data, LOAD_ORIGIN);
+          } catch (e) {
+            // Quarantine this row
+            const error = e instanceof Error ? e.message : String(e);
+            this.ensureMigrated();
+            this.storage.transactionSync.run(() => {
+              this.storage.sql.prepare('DELETE FROM updates WHERE seq = ?').run(seq);
+              this.storage.sql.prepare('INSERT INTO quarantined_updates (seq, data, error, quarantined_at) VALUES (?, ?, ?, ?)').run(
+                seq, data, error, Date.now()
+              );
+            });
+            console.error('[BoardStore] Quarantined damaged update', { seq, error });
+            quarantined++;
+          }
         }
+      }
+
+      // Load counters
+      if (hasUpdates) {
+        const countRow = this.storage.sql.prepare('SELECT COUNT(*) as cnt FROM updates WHERE seq > ?').get(this.snapshotThroughSeq);
+        this.rowCount = countRow ? (countRow.cnt as number) : 0;
+
+        const bytesRow = this.storage.sql.prepare('SELECT COALESCE(SUM(bytes), 0) as total FROM updates WHERE seq > ?').get(this.snapshotThroughSeq);
+        this.byteTotal = bytesRow ? (bytesRow.total as number) : 0;
       }
 
       return { ok: true, quarantined };
@@ -162,6 +251,7 @@ export class BoardStore {
     if (!shouldCompact(this.rowCount, this.byteTotal)) return false;
 
     try {
+      this.ensureMigrated();
       const state = Y.encodeStateAsUpdate(doc);
       const chunks = chunkBytes(state);
 
@@ -196,6 +286,22 @@ export class BoardStore {
     }
   }
 
+  /** Set created_at timestamp (called by initialize) */
+  setCreatedAt(timestamp: number): void {
+    this.ensureMigrated();
+    this.storage.sql.prepare('INSERT OR REPLACE INTO storage_meta (key, value) VALUES (?, ?)').run('created_at', String(timestamp));
+  }
+
+  /** Get created_at timestamp */
+  getCreatedAt(): number | null {
+    try {
+      const row = this.storage.sql.prepare('SELECT value FROM storage_meta WHERE key = ?').get('created_at');
+      return row ? parseInt(row.value as string, 10) : null;
+    } catch {
+      return null;
+    }
+  }
+
   /** Reset in-memory counters (used after storage failure) */
   resetCounters(): void {
     this.rowCount = 0;
@@ -205,5 +311,10 @@ export class BoardStore {
   /** Get current counters (for testing) */
   getCounters(): { rowCount: number; byteTotal: number; snapshotThroughSeq: number } {
     return { rowCount: this.rowCount, byteTotal: this.byteTotal, snapshotThroughSeq: this.snapshotThroughSeq };
+  }
+
+  /** For testing: check if migrated */
+  isMigrated(): boolean {
+    return this.migrated;
   }
 }

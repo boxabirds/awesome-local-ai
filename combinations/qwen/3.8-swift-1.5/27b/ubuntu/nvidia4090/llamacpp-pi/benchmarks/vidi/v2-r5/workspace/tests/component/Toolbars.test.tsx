@@ -4,6 +4,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import { App } from '../../src/client/App';
 
+// Mock the API so BoardPage's existence check resolves immediately
+vi.mock('../../src/client/api', () => ({
+  checkBoard: vi.fn().mockResolvedValue({ kind: 'exists' }),
+  createBoardRequest: vi.fn(),
+}));
+
 // Define pointer capture methods for jsdom
 if (!HTMLElement.prototype.setPointerCapture) {
   HTMLElement.prototype.setPointerCapture = () => {};
@@ -14,6 +20,7 @@ if (!HTMLElement.prototype.releasePointerCapture) {
 
 beforeEach(() => {
   cleanup();
+  window.history.pushState(null, '', '/b/testboardid1234567890a');
   vi.spyOn(HTMLElement.prototype, 'setPointerCapture').mockImplementation(() => {});
   vi.spyOn(HTMLElement.prototype, 'releasePointerCapture').mockImplementation(() => {});
 });
@@ -21,8 +28,9 @@ beforeEach(() => {
 describe('sticky.toolbar (component)', () => {
   // TC-27: Pink swatch → model colour pink, selection kept
   describe('TC-27: colour swatch', () => {
-    it('clicking pink swatch changes note colour and keeps selection', () => {
+    it('clicking pink swatch changes note colour and keeps selection', async () => {
       render(<App />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
       
       // Create a note
       const createBtn = screen.getByTestId('create-sticky-btn');
@@ -60,8 +68,9 @@ describe('sticky.toolbar (component)', () => {
 
   // TC-28: Sticky note button → one note centred on viewport centre, Editing
   describe('TC-28: create from toolbar button', () => {
-    it('creates a note and starts editing', () => {
+    it('creates a note and starts editing', async () => {
       render(<App />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
       
       // Click the Sticky note button
       const createBtn = screen.getByTestId('create-sticky-btn');
@@ -80,8 +89,9 @@ describe('sticky.toolbar (component)', () => {
 
   // TC-29: bin button → note removed, selection cleared
   describe('TC-29: delete via bin button', () => {
-    it('deletes the note and clears selection', () => {
+    it('deletes the note and clears selection', async () => {
       render(<App />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
       
       // Create a note
       const createBtn = screen.getByTestId('create-sticky-btn');

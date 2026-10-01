@@ -1,3 +1,34 @@
+commit 6b3f11fcd92543e680321f275a92e39ea06a7b93
+vidi-agent  Thu Oct 1 21:26:24 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                  | 146 ++++++++------
+ index.html                                |   1 +
+ src/client/App.tsx                        | 191 ++----------------
+ src/client/api.ts                         |  34 ++++
+ src/client/pages/BoardContent.tsx         | 169 ++++++++++++++++
+ src/client/pages/BoardPage.tsx            |  98 +++++++++
+ src/client/pages/HomePage.tsx             |  46 +++++
+ src/client/pages/NotFoundPage.tsx         |  50 +++++
+ src/client/pages/state.ts                 |  33 ++++
+ src/client/router.ts                      |  38 ++++
+ src/client/share/SharePanel.tsx           | 173 ++++++++++++++++
+ src/shared/config.ts                      |   5 +
+ src/worker/board-room.ts                  |  45 ++++-
+ src/worker/board-store.ts                 | 169 +++++++++++++---
+ src/worker/create-board.ts                |  27 +++
+ src/worker/index.ts                       |  70 ++++++-
+ tests/component/SharePanel.test.tsx       | 202 +++++++++++++++++++
+ tests/component/StickyNote.test.tsx       |  54 ++---
+ tests/component/StickyTextEditor.test.tsx |  19 +-
+ tests/component/Toolbars.test.tsx         |  16 +-
+ tests/component/pages.test.tsx            | 223 +++++++++++++++++++++
+ tests/e2e/share.spec.ts                   | 215 ++++++++++++++++++++
+ tests/integration/board-api.test.ts       | 317 ++++++++++++++++++++++++++++++
+ tests/integration/helpers/mock-storage.ts |  91 +++++++--
+ 24 files changed, 2114 insertions(+), 318 deletions(-)
 commit 928325880aa72ca0c16a9e35cbd9b3821ce1ef52
 vidi-agent  Thu Oct 1 21:03:00 2026 +0100
 

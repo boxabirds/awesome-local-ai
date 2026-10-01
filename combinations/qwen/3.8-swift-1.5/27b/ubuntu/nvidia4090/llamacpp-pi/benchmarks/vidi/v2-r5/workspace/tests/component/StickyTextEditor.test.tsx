@@ -4,6 +4,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import { App } from '../../src/client/App';
 
+// Mock the API so BoardPage's existence check resolves immediately
+vi.mock('../../src/client/api', () => ({
+  checkBoard: vi.fn().mockResolvedValue({ kind: 'exists' }),
+  createBoardRequest: vi.fn(),
+}));
+
 // Define pointer capture methods for jsdom
 if (!HTMLElement.prototype.setPointerCapture) {
   HTMLElement.prototype.setPointerCapture = () => {};
@@ -14,6 +20,7 @@ if (!HTMLElement.prototype.releasePointerCapture) {
 
 beforeEach(() => {
   cleanup();
+  window.history.pushState(null, '', '/b/testboardid1234567890a');
   vi.spyOn(HTMLElement.prototype, 'setPointerCapture').mockImplementation(() => {});
   vi.spyOn(HTMLElement.prototype, 'releasePointerCapture').mockImplementation(() => {});
 });
@@ -21,8 +28,9 @@ beforeEach(() => {
 describe('sticky.text (component)', () => {
   // TC-23: Enter on selected → Editing, textarea focused, caret at end
   describe('TC-23: Enter starts editing', () => {
-    it('Enter on selected note starts editing with textarea focused', () => {
+    it('Enter on selected note starts editing with textarea focused', async () => {
       render(<App />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
       
       // Create a note
       const createBtn = screen.getByTestId('create-sticky-btn');
@@ -54,8 +62,9 @@ describe('sticky.text (component)', () => {
 
   // TC-24: Escape → Selected, text preserved
   describe('TC-24: Escape ends editing', () => {
-    it('Escape ends editing and preserves text', () => {
+    it('Escape ends editing and preserves text', async () => {
       render(<App />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
       
       // Create a note (starts in editing mode)
       const createBtn = screen.getByTestId('create-sticky-btn');
@@ -83,8 +92,9 @@ describe('sticky.text (component)', () => {
 
   // TC-26: Backspace while editing 'ab' → note present, text 'a'
   describe('TC-26: Backspace while editing', () => {
-    it('Backspace edits text, does not delete note', () => {
+    it('Backspace edits text, does not delete note', async () => {
       render(<App />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
       
       // Create a note (starts in editing mode)
       const createBtn = screen.getByTestId('create-sticky-btn');
@@ -111,8 +121,9 @@ describe('sticky.text (component)', () => {
 
   // TC-38: type 'abc' then click outside → editor unmounted, Y.Text 'abc', Unselected
   describe('TC-38: type then click outside', () => {
-    it('clicking outside ends editing and unmounts editor', () => {
+    it('clicking outside ends editing and unmounts editor', async () => {
       render(<App />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
       
       // Create a note (starts in editing mode)
       const createBtn = screen.getByTestId('create-sticky-btn');

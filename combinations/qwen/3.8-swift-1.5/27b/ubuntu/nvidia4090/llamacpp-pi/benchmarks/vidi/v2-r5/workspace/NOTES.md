@@ -1,61 +1,85 @@
-# Notes
+# Story 5: Share a board with others using a link
 
-## Story 1: Pan and zoom around an infinite board
+## Decisions
 
-### Decisions
+### Board existence model
+- A board **exists** iff its Durable Object's storage contains the `updates` table (checked via `sqlite_master`).
+- `created_at` in `storage_meta` is a convenience timestamp set at creation time but is **not** the existence criterion.
+- Legacy boards (created before this story) that have `updates` rows but no `created_at` are treated as existing.
+- This means: opening a link to a board that was created but never written to will show "Board not found" (no table = no existence). This is acceptable per the design doc because a board with zero content is indistinguishable from a non-existent board.
 
-1. **Architecture**: Camera state lives in `App.tsx` via `useCamera(viewport)` hook and is passed as props to `BoardViewport`, `ZoomControls`, and `NavigationHint`. This allows all components to share the same camera state without context.
+### `existsReadOnly()` implementation
+- Uses `SELECT name FROM sqlite_master WHERE type='table' AND name='updates'` — a read-only query that never creates tables.
+- The `BoardStore` constructor no longer calls `migrate()`. Migration is lazy: `ensureMigrated()` is called before the first `append()`.
+- This ensures that a `GET /api/boards/:id` or WebSocket connection to an unknown board does not write to storage.
 
-2. **Vitest configuration**: Used a single `vitest.config.ts` with the test script passing the directory path (`vitest run tests/unit/`) rather than the `projects` API, which had compatibility issues with vitest 2.1.9. Component tests use `// @vitest-environment jsdom` directive.
+### Lazy migration
+- `BoardStore.migrate()` is now idempotent and called via `ensureMigrated()` before the first write.
+- `initialize()` RPC calls `migrate()` explicitly (since it's the creation path).
+- `load()` handles the case where tables don't exist yet (returns empty log).
 
-3. **E2E test hook**: The `window.__vidi6.setCamera()` hook is enabled when `import.meta.env.MODE === 'test'`. The Playwright webServer command builds with `vite build --mode test` to enable the hook. This is excluded from production builds.
+### Worker route changes
+- `POST /api/boards` → 201 with `{ id }` or 500 with `{ error: 'create_failed' }`
+- `GET /api/boards/:id` → 200 with `{ id }` or 404 with `{ error: 'not_found' }`
+- `GET /api/rooms/:id` (non-WebSocket) → 404 for unknown boards (was 400 for malformed, now 404 for both malformed and unknown)
+- WebSocket upgrade to unknown board → 404 (the `BoardRoom.fetch` checks `existsReadOnly()` before accepting)
 
-4. **WebKit e2e**: WebKit tests are configured but cannot run in this environment due to a missing system library (`libavif13`). Chromium and Firefox both pass all e2e tests. Per the task instructions, Chromium is sufficient.
+### Client router
+- Minimal History API router with three routes: `/` (home), `/b/:id` (board), not_found
+- No external router dependency
+- `navigate()` helper pushes to history and dispatches `popstate` for reactivity
 
-5. **rAF batching removed**: The initial design mentioned batching camera updates with `requestAnimationFrame`, but this was simplified to direct state updates via `setCameraState` with functional updaters. This is simpler and avoids stale closure issues while still being performant enough for the use case (React batches state updates within event handlers automatically).
+### BoardPage existence check
+- On mount, `BoardPage` calls `GET /api/boards/:id`
+- Shows "Opening board…" while checking
+- On `not_found` → renders NotFoundPage
+- On network failure → exponential backoff retry (1s, 2s, 4s, … max 10s) with "Couldn't reach vidi6. Retrying…"
+- On success → renders BoardContent
 
-6. **Pointer capture in jsdom**: `setPointerCapture`/`releasePointerCapture` are not available in jsdom and are mocked in component tests.
+### Share panel
+- Toggle panel (not a modal) with the share link
+- `navigator.clipboard.writeText` with graceful fallback
+- On clipboard failure: selects the input text and shows "Press Ctrl+C (Cmd+C on Mac) to copy"
+- "✓ Link copied" confirmation for exactly `LINK_COPIED_MS` (2000ms)
+- Closes on Escape or outside click; focus returns to the Share button
 
-## Story 2: Capture ideas on sticky notes and rearrange them
+### Pre-existing component test updates
+- Added `vi.mock('../../src/client/api')` to StickyNote, StickyTextEditor, and Toolbars tests
+- Added `window.history.pushState` to set a valid board URL
+- Made test callbacks async to await the BoardPage's existence check resolution
+- Used a valid 22-character board ID (`testboardid1234567890a`)
 
-### Decisions
+### Mock storage updates
+- `MockDurableObjectStorage` now tracks created tables in a `createdTables` set
+- Supports `sqlite_master` queries for `existsReadOnly()`
+- Supports `INSERT OR REPLACE` syntax (used by `setCreatedAt`)
 
-1. **Yjs document structure**: Board state lives in a `Y.Doc` with a `Y.Map<Y.Map<unknown>>` at `doc.getMap('objects')`. Each sticky note is a `Y.Map` with keys: `id`, `x`, `y`, `z`, `color`, and a nested `Y.Text` for content. The `useBoardDoc` hook owns the doc and exposes a cached snapshot via `useSyncExternalStore`.
+## Test coverage
 
-2. **Snapshot caching**: `useSyncExternalStore` requires `getSnapshot` to return a stable reference. The snapshot is cached in a ref and only recomputed when the Y.Map fires an `observeDeep` callback. This prevents infinite re-render loops.
-
-3. **DOM-based sticky notes**: Notes are rendered as absolutely-positioned divs inside the `board-world` transform container. Position is set via `left`/`top` in world coordinates. The `board-world` div applies `scale(zoom) translate(-camX, -camY)` so notes transform with the camera.
-
-4. **Drag implementation**: Pointer events on the note div with a 3px drag threshold. During drag, `moveObject` is called via `requestAnimationFrame` batching. `bringToFront` is called once when drag starts. The note's pointer handlers call `e.stopPropagation()` to prevent board panning.
-
-5. **Text editing**: A textarea overlay replaces the text display when editing. Text changes are applied to Y.Text via a minimal diff (common prefix/suffix comparison). The character counter uses local state (`textLen`) updated on each input event, since the component doesn't re-render on Y.Text changes.
-
-6. **Font auto-fit**: `fitFontSize` uses binary search on font size (10-28px range) by measuring text height in a hidden container. Runs after text changes via `useEffect`. When text overflows at minimum font size, a gradient fade is shown at the bottom.
-
-7. **Note toolbar positioning**: The NoteToolbar (colour swatches + delete) is positioned at `top: -40` relative to the note, scaled by `1/zoom` to maintain constant screen size. The note div does NOT use `overflow: hidden` (that would clip the toolbar); instead, the text container has `overflow: hidden`.
-
-8. **Double-click creation**: The `onDoubleClick` handler is on the `board-viewport` div (not `board-world` which has no size). It checks that the event target is the viewport or grid (not a note) before creating a new sticky at that world position.
-
-9. **Keyboard shortcuts**: Global `keydown` listener in `App.tsx` handles Enter (start editing selected note) and Delete/Backspace (delete selected note). The handler checks that focus is not in an input/textarea to avoid interfering with text editing.
-
-10. **E2E text input**: React's synthetic event system doesn't respond to native `dispatchEvent(new Event('input'))`. E2E tests use `page.keyboard.type()` which simulates real keystrokes and properly triggers React's event handlers.
-
-## Story 3: See other people's edits appear live on the same board
-
-### Decisions
-
-1. **Integration test harness**: The `@cloudflare/vitest-pool-workers` pool had compatibility issues in this environment (workerd connection refused). Instead, integration tests use a `TestRoom` harness (`tests/integration/helpers/test-room.ts`) that creates real `Y.Doc` instances and simulates the WebSocket message flow using the same y-protocols framing as the real server. This exercises all the same logic (sync protocol, broadcasting, error handling, convergence) without needing the full workerd runtime.
-
-2. **y-protocols API**: `readSyncMessage` returns the message type number (0, 1, or 2), NOT a boolean. The correct pattern is to check `encoding.toUint8Array(encoder).length > 0` after calling it to determine if a reply should be sent. Additionally, `writeSyncStep1` takes a `Y.Doc` directly (not a pre-encoded state vector), and `writeUpdate` must be used to wrap update bytes in a proper sync protocol message before sending.
-
-3. **Error handling for invalid Yjs updates**: `readSyncMessage` internally catches Yjs errors via the `errorHandler` parameter. To detect invalid updates, we pass an error handler that re-throws: `syncProtocol.readSyncMessage(decoder, encoder, doc, origin, (err) => { throw err; })`. This allows the outer try/catch to detect and handle malformed data.
-
-4. **Board ID in URL**: The board ID is extracted from `window.location.pathname` matching `/^\/b\/([A-Za-z0-9_-]{22})$/`. If at `/`, a new ID is generated and `history.replaceState` is used to navigate to `/b/<id>`. This gives each board a shareable URL.
-
-5. **Connection state mapping**: The `WebsocketProvider` from y-websocket emits `'status'` events with `{ status: 'connected' | 'disconnected' | 'connecting' }` and a `'sync'` event. The `connectBoard` function maps these to our 4-state model: `connecting` → initial state, `connected` → status connected + synced, `reconnecting` → was connected but lost connection, `confirmed` → briefly shown after reconnect before settling to `connected`.
-
-6. **Worker types**: Cloudflare Worker types (`WebSocketPair`, `DurableObjectNamespace`, `Fetcher`) require `@cloudflare/workers-types` in tsconfig. The `DurableObjectNamespace<BoardRoom>` generic constraint requires `Rpc.DurableObjectBranded` which is complex to satisfy; we use a structural type for the `Env` interface instead.
-
-7. **Broadcast framing**: When broadcasting Yjs updates to other clients, the update must be wrapped in a sync protocol message using `syncProtocol.writeUpdate(inner, update)` before being framed with our outer `[MESSAGE_SYNC][length][payload]` envelope. Sending raw update bytes without the inner sync protocol wrapper causes "Unexpected end of array" errors on the receiving end.
-
-8. **E2E tests**: Written for Playwright with `wrangler dev` as the web server. Multiple browser contexts connect to the same `/b/:boardId` URL. Nightly tests (TC-29, TC-30) use the `@nightly` tag and are excluded from regular CI runs via `test:e2e:nightly` script.
+| TC ID | Type | Description |
+|-------|------|-------------|
+| TC-04 | unit | Board ID format (pre-existing) |
+| TC-05 | integration | POST creates, GET confirms |
+| TC-06 | integration | GET fresh → 404, no tables |
+| TC-07 | integration | Malformed IDs → 404, no RPC |
+| TC-08 | integration | Legacy board → exists |
+| TC-09 | integration | WebSocket unknown → 404 |
+| TC-10 | integration | WebSocket known → accepted |
+| TC-12 | integration | RPC failure → 500 |
+| TC-14 | integration | PUT → 405 |
+| TC-15 | integration | initialize idempotent |
+| TC-16 | component | Home: create + navigate |
+| TC-17 | component | Home: failure message |
+| TC-19 | component | Board: malformed → not found |
+| TC-20 | component | Board: unknown → not found |
+| TC-21 | component | Board: retry then success |
+| TC-22 | component | Share: copy + timing |
+| TC-23 | component | Share: clipboard reject |
+| TC-24 | component | Share: no clipboard API |
+| TC-25 | component | Share: Escape/outside/focus |
+| TC-26 | e2e | Create, share, join |
+| TC-27 | e2e | Bad link recovery |
+| TC-28 | e2e | Flaky service retry |
+| TC-29 | e2e | Clipboard blocked |
+| TC-31 | e2e | Pre-existing board |
+| TC-32 | integration | no-referrer meta tag |

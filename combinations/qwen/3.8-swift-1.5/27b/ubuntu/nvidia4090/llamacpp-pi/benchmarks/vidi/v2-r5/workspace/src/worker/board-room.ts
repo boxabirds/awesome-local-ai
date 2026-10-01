@@ -59,7 +59,8 @@ export class BoardRoom {
     // Store reference for test hooks
     (this as any)._store = this.store;
     try {
-      await this.store.migrate();
+      // Note: migrate() is NOT called here. It is called by initialize()
+      // or lazily before the first append(). load() handles missing tables.
       const result = await this.store.load(this.doc);
       if (result.ok) {
         this.state = 'ready';
@@ -133,6 +134,36 @@ export class BoardRoom {
     this.doc = null;
   }
 
+  /**
+   * RPC: Initialize a new board. Creates tables and sets created_at.
+   * Returns 'created' if this is a new board, 'exists' if already initialized.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    if (!this.store || !(this.store instanceof BoardStore)) {
+      throw new Error('No SQL store available');
+    }
+    // Check if already initialized
+    const existingCreatedAt = this.store.getCreatedAt();
+    if (existingCreatedAt !== null) {
+      return 'exists';
+    }
+    // Migrate (creates tables) and set created_at
+    this.store.migrate();
+    this.store.setCreatedAt(Date.now());
+    return 'created';
+  }
+
+  /**
+   * RPC: Check if this board exists (read-only).
+   * A board exists if it has created_at, or legacy data (updates/snapshot rows).
+   */
+  async exists(): Promise<boolean> {
+    if (!this.store || !(this.store instanceof BoardStore)) {
+      return false;
+    }
+    return this.store.existsReadOnly();
+  }
+
   async fetch(req: Request): Promise<Response> {
     // Test-only routes (never available in production)
     const url = new URL(req.url);
@@ -145,6 +176,18 @@ export class BoardRoom {
     if (url.pathname === '/__test/seed' && req.method === 'POST') {
       const count = parseInt(new URL(req.url).searchParams.get('count') ?? '25', 10);
       return this.handleTestSeed(count);
+    }
+
+    // Check board existence before accepting the WebSocket connection.
+    // Unknown boards return 404 without writing any storage.
+    if (this.store instanceof BoardStore) {
+      const exists = this.store.existsReadOnly();
+      if (!exists) {
+        return new Response(JSON.stringify({ error: 'not_found' }), {
+          status: 404,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
     }
 
     const pairs = new WebSocketPair();

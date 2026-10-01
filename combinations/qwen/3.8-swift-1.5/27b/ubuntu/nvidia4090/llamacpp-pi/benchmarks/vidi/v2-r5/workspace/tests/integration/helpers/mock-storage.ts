@@ -38,22 +38,46 @@ class MockSql {
   snapshotChunks: Map<number, Uint8Array> = new Map();
   quarantinedUpdates: Map<number, { data: Uint8Array; error: string; quarantined_at: number }> = new Map();
 
+  // Track which tables have been "created" via exec()
+  createdTables: Set<string> = new Set();
+
   private _nextSeq = 1;
 
   prepare(q: string): MockStatement {
     return new MockStatement(q, this);
   }
 
-  exec(_query: string): void {
-    // CREATE TABLE IF NOT EXISTS - no-op in mock (tables are always "created")
-    // We just need to not throw
+  exec(query: string): void {
+    // Parse CREATE TABLE IF NOT EXISTS statements
+    const tableMatches = query.matchAll(/CREATE TABLE IF NOT EXISTS (\w+)/g);
+    for (const match of tableMatches) {
+      this.createdTables.add(match[1]);
+    }
   }
 
   execute(query: string, _mode: 'run' | 'all', params: (string | number | Uint8Array | null)[]): Row[] {
     const q = query.trim().replace(/\s+/g, ' ');
 
-    // INSERT INTO storage_meta
-    if (q.startsWith('INSERT INTO storage_meta')) {
+    // sqlite_master queries
+    if (q.startsWith('SELECT name FROM sqlite_master')) {
+      // Check which tables from the IN clause exist
+      const inMatch = q.match(/name IN \(([^)]+)\)/);
+      if (inMatch) {
+        const names = inMatch[1].split(',').map(s => s.trim().replace(/'/g, ''));
+        const results: Row[] = [];
+        for (const name of names) {
+          if (this.createdTables.has(name)) {
+            results.push({ name });
+          }
+        }
+        return results;
+      }
+      // Return all created tables
+      return [...this.createdTables].map(name => ({ name }));
+    }
+
+    // INSERT INTO storage_meta (handles both INSERT and INSERT OR REPLACE)
+    if (q.startsWith('INSERT INTO storage_meta') || q.startsWith('INSERT OR REPLACE INTO storage_meta')) {
       const key = params[0] as string;
       const value = params[1] as string;
       this.storageMeta.set(key, value);
@@ -103,21 +127,24 @@ class MockSql {
       return results;
     }
 
-    // SELECT COUNT(*) from updates
-    if (q.startsWith('SELECT COUNT(*) as cnt FROM updates WHERE seq > ')) {
-      // Handle both parameterized and literal forms
-      let minSeq: number;
-      if (q.includes('?')) {
-        minSeq = params[0] as number;
-      } else {
-        const match = q.match(/seq > (\d+)/);
-        minSeq = match ? parseInt(match[1], 10) : 0;
+    // SELECT COUNT(*) from updates (with or without WHERE clause)
+    if (q.startsWith('SELECT COUNT(*) as cnt FROM updates')) {
+      if (q.includes('WHERE seq >')) {
+        let minSeq: number;
+        if (q.includes('?')) {
+          minSeq = params[0] as number;
+        } else {
+          const match = q.match(/seq > (\d+)/);
+          minSeq = match ? parseInt(match[1], 10) : 0;
+        }
+        let count = 0;
+        for (const seq of this.updates.keys()) {
+          if (seq > minSeq) count++;
+        }
+        return [{ cnt: count }];
       }
-      let count = 0;
-      for (const seq of this.updates.keys()) {
-        if (seq > minSeq) count++;
-      }
-      return [{ cnt: count }];
+      // No WHERE clause - count all
+      return [{ cnt: this.updates.size }];
     }
 
     // SELECT COALESCE(SUM(bytes), 0) from updates
@@ -165,6 +192,11 @@ class MockSql {
       return results;
     }
 
+    // SELECT COUNT(*) from snapshot_chunks
+    if (q.startsWith('SELECT COUNT(*) as cnt FROM snapshot_chunks')) {
+      return [{ cnt: this.snapshotChunks.size }];
+    }
+
     // DELETE FROM snapshot_chunks
     if (q.startsWith('DELETE FROM snapshot_chunks')) {
       this.snapshotChunks.clear();
@@ -184,6 +216,13 @@ class MockSql {
       const data = params[0] as Uint8Array;
       const idx = params[1] as number;
       this.snapshotChunks.set(idx, data);
+      return [];
+    }
+
+    // UPDATE snapshot_chunks SET data = ? WHERE idx = 0 (literal)
+    if (q.startsWith('UPDATE snapshot_chunks SET data = ? WHERE idx = 0')) {
+      const data = params[0] as Uint8Array;
+      this.snapshotChunks.set(0, data);
       return [];
     }
 
@@ -237,11 +276,21 @@ class MockSql {
       this.updates.set(seq, { data, bytes: data.length });
     }
   }
+
+  // For testing: check if tables exist
+  hasTable(name: string): boolean {
+    return this.createdTables.has(name);
+  }
+
+  // For testing: get all table names
+  getTables(): string[] {
+    return [...this.createdTables];
+  }
 }
 
 export class MockDurableObjectStorage {
   sql: MockSql;
-  private snapshots: { storageMeta: Map<string, string>; updates: Map<number, { data: Uint8Array; bytes: number }>; snapshotChunks: Map<number, Uint8Array>; quarantinedUpdates: Map<number, { data: Uint8Array; error: string; quarantined_at: number }>; nextSeq: number }[] = [];
+  private snapshots: { storageMeta: Map<string, string>; updates: Map<number, { data: Uint8Array; bytes: number }>; snapshotChunks: Map<number, Uint8Array>; quarantinedUpdates: Map<number, { data: Uint8Array; error: string; quarantined_at: number }>; nextSeq: number; createdTables: Set<string> }[] = [];
 
   // For testing: inject failure at a specific statement index within the next transaction
   failTransactionAtStatement: number | null = null;
@@ -262,6 +311,7 @@ export class MockDurableObjectStorage {
           snapshotChunks: new Map([...self.sql.snapshotChunks].map(([k, v]) => [k, new Uint8Array(v)])),
           quarantinedUpdates: new Map([...self.sql.quarantinedUpdates].map(([k, v]) => [k, { data: new Uint8Array(v.data), error: v.error, quarantined_at: v.quarantined_at }])),
           nextSeq: (self.sql as any)._nextSeq,
+          createdTables: new Set(self.sql.createdTables),
         });
 
         self.txStmtCount = 0;
@@ -294,6 +344,7 @@ export class MockDurableObjectStorage {
           self.sql.snapshotChunks = snap.snapshotChunks;
           self.sql.quarantinedUpdates = snap.quarantinedUpdates;
           (self.sql as any)._nextSeq = snap.nextSeq;
+          self.sql.createdTables = snap.createdTables;
           throw e;
         } finally {
           if (origPrepare) {
