@@ -12,8 +12,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 2 | 10/10 | 0 | 0 | 20/20 |
 | 3 | 6/7 | 0 | 0 | 26/27 |
 | 4 | 4/4 | 0 | 0 | 30/31 |
+| 5 | 5/5 | 0 | 0 | 35/36 |
 
-**New work** 26/27, **regressions** 0, **repairs** 0, **cumulative** 30/31.
+**New work** 31/32, **regressions** 0, **repairs** 0, **cumulative** 35/36.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -21,10 +22,11 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 5.9 | None | None | None | — | — | green | 20/20 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 | 3 | See other people's edits appear live on the same board | DONE | 20.0 | None | None | None | — | — | green | 26/27 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 | 4 | Return to a board and find everything as it was left | DONE | 16.5 | None | None | None | — | — | green | 30/31 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
+| 5 | Share a board with others using a link | DONE | 8.6 | None | None | None | — | — | red | 35/36 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 
-**Totals:** 4 stories, 56 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/4, final acceptance 30/31, stalled 0, partial 0, 5150 lines in src+tests.
+**Totals:** 5 stories, 65 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/5, final acceptance 35/36, stalled 0, partial 0, 6045 lines in src+tests.
 
-> Stories 1, 2, 3, 4 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
+> Stories 1, 2, 3, 4, 5 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
 
 ## How it happened
 
@@ -36,6 +38,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 2 | 1 by the agent | 1588 / 11 | `StickyNote.tsx` (160), `board-model.ts` (141), `StickyText.ts` (90), `StickyTextEditor.tsx` (76), `App.tsx` (73), `BoardViewport.tsx` (61), +8 more |
 | 3 | 1 by the agent | 2889 / 222 | `board-room.ts` (107), `connectBoard.ts` (74), `useBoardDoc.ts` (37), `protocol.ts` (36), `App.tsx` (25), `index.ts` (22), +14 more |
 | 4 | 1 by the agent | 1479 / 90 | `board-room.ts` (187), `board-store.ts` (145), `StickyText.ts` (82), `room-state.ts` (41), `test-hooks.ts` (36), `NOTES.md` (16), +10 more |
+| 5 | 1 by the agent | 1033 / 126 | `App.tsx` (116), `SharePanel.tsx` (91), `BoardApp.tsx` (90), `HomePage.tsx` (53), `BoardPage.tsx` (45), `index.ts` (40), +12 more |
 
 ### Earlier stories broken or fixed
 
