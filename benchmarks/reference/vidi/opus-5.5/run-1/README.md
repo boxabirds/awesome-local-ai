@@ -39,9 +39,9 @@ Held-out acceptance suite (`accept.json`), after the suite fix in `5756fe5`. Tha
 - **Before the suite fix** this build scored 63/75. Ten of those failures were the suite's own faults, not the app's.
 - **Two full runs:** the second scored 72/75, because a story 12 file-chooser test timed out intermittently.
 
-**Delivery audit:** [AUDIT.md](AUDIT.md) lists 4 functional faults, 0 false completion claims, 1 missing test, 2 weak tests and 10 design/process deviations. The same rubric and reviewer were applied to Flash-Next, which has 33 functional faults and 13 false claims.
+**Delivery audit:** `AUDIT.md` (kept in the private repo, not published here) lists 4 functional faults, 0 false completion claims, 1 missing test, 2 weak tests and 10 design/process deviations. The same rubric and reviewer were applied to Flash-Next, which has 33 functional faults and 13 false claims.
 
-**Flash-Next** (`canvas-pi-01`), scored with the same fixed suite: **60/75**. The head-to-head is in AUDIT.md.
+**Flash-Next** (`canvas-pi-01`), scored with the same fixed suite: **60/75**. The head-to-head is in the same audit, in the private repo.
 
 ### Efficiency: where the speed difference comes from
 
@@ -82,6 +82,6 @@ Every story ended with the agent's own build, typecheck and unit, component and 
 | `prompts/` | the exact per-story prompt each subagent received |
 | `metrics.json` | minutes, subagent tokens, tool calls and commit per story |
 | `accept.json` | held-out suite results, per test (fixed suite) |
-| `AUDIT.md` | delivery audit: faults against the spec, one per row, and the held-out test faults |
+| `AUDIT.md` | delivery audit: faults against the spec, one per row, and the held-out test faults; kept in the private repo, not in this one |
 | `agent-reports/` | each story agent's final report (its own claims) |
 | `OMITTED.txt` | files left out for the repo's 512 KB limit (a synthetic test photo) |

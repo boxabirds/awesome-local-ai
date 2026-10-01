@@ -54,8 +54,13 @@ def test_macos_profile_hides_shared_temp_and_reopens_only_the_run_s_own(tmp_path
     profile = cmd[2]
     deny = profile[profile.index("(deny file-read* file-write*"):]
     deny = deny[:deny.index(")(allow")]
-    for p in ('"/private/tmp"', '"/private/var/tmp"', '"/private/var/folders/zz/abc/T"'):
-        assert f"(subpath {p})" in deny
+    # The shared temp dirs as this machine resolves them (drive.SHARED_TMP): /private/tmp and /private/var/tmp on
+    # macOS, where /tmp is a symlink; /tmp and /var/tmp where the profile is only built, never used (Linux).
+    shared = [str(p.resolve()) for p in drive.SHARED_TMP]
+    if hostenv.IS_MAC:
+        assert shared == ["/private/tmp", "/private/var/tmp"]
+    for p in (*shared, "/private/var/folders/zz/abc/T"):
+        assert f'(subpath "{p}")' in deny
     # mktemp's own names and xcrun's cache stay usable in the user temp dir, which can't be listed.
     assert '(allow file-read-metadata (literal "/private/var/folders/zz/abc/T"))' in profile
     assert '(regex #"^/private/var/folders/zz/abc/T/(tmp\\.|xcrun_db)")' in profile
@@ -79,11 +84,7 @@ def test_linux_command_binds_the_run_s_temp_dir_over_tmp_before_its_own_dir(tmp_
     assert (own / drive.AGENT_TMP).is_dir()
 
 
-def _sandbox_available() -> bool:
-    return shutil.which("sandbox-exec" if hostenv.IS_MAC else "bwrap") is not None
-
-
-needs_sandbox = pytest.mark.skipif(not _sandbox_available(), reason="no sandbox tool on this machine")
+needs_sandbox = pytest.mark.needs_sandbox      # conftest.py: skipped where the sandbox tool is missing
 
 
 @pytest.fixture

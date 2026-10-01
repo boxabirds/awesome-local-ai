@@ -2,7 +2,7 @@
 # build-linux.sh -- cross-build dbench for Linux x86_64 (glibc) from a Mac, using zig as the C
 # compiler, archiver and linker (ring, under rustls, has C code).
 #   tools/dbench/build-linux.sh            -> target/x86_64-unknown-linux-gnu/release/dbench
-# Needs: zig (brew install zig) and `rustup target add x86_64-unknown-linux-gnu`.
+# Needs: zig (brew install zig). The Rust target comes with the toolchain rust-toolchain.toml pins.
 set -euo pipefail
 GLIBC="${GLIBC:-2.35}"   # Ubuntu 22.04; lower it for older distros
 TARGET=x86_64-unknown-linux-gnu

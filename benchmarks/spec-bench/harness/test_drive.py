@@ -34,6 +34,7 @@ VIDI = REPO_ROOT / "benchmarks" / "vidi"   # the in-repo copy of the pack, which
 SECRET = VIDI / "acceptance" / "package.json"
 
 
+@pytest.mark.needs_sandbox
 def test_sandbox_blocks_reading_the_acceptance_suite(tmp_path: Path):
     own = tmp_path / "run"
     (own / "workspace").mkdir(parents=True)
@@ -41,6 +42,7 @@ def test_sandbox_blocks_reading_the_acceptance_suite(tmp_path: Path):
     assert r.returncode != 0 and "vidi-acceptance" not in r.stdout
 
 
+@pytest.mark.needs_sandbox
 def test_sandbox_blocks_listing_the_repo(tmp_path: Path):
     own = tmp_path / "run"
     (own / "workspace").mkdir(parents=True)
@@ -48,6 +50,7 @@ def test_sandbox_blocks_listing_the_repo(tmp_path: Path):
     assert r.returncode != 0 and "acceptance" not in r.stdout
 
 
+@pytest.mark.needs_sandbox
 def test_sandbox_allows_own_workspace(tmp_path: Path):
     own = tmp_path / "run"
     ws = own / "workspace"
@@ -57,6 +60,7 @@ def test_sandbox_allows_own_workspace(tmp_path: Path):
     assert r.returncode == 0 and r.stdout == "mine"
 
 
+@pytest.mark.needs_sandbox
 def test_sandbox_hides_sibling_runs_but_not_own():
     from drive import WORK_ROOT
     import shutil
@@ -74,6 +78,7 @@ def test_sandbox_hides_sibling_runs_but_not_own():
         shutil.rmtree(other, ignore_errors=True)
 
 
+@pytest.mark.needs_sandbox
 def test_agent_env_pwd_points_inside_sandbox(tmp_path: Path):
     """OpenCode lstat()s $PWD; an inherited PWD from the harness dir is denied (EPERM)."""
     import os
@@ -431,6 +436,7 @@ def test_tool_hang_guard_interrupts_only_a_silent_tool_call(tmp_path):
             p.kill()
 
 
+@pytest.mark.needs_sandbox
 def test_sandbox_allows_realpath_of_own_workspace():
     """wrangler/node resolve real paths by lstat()ing every ancestor. Denying the work root's
     own directory entry made `wrangler dev` fail inside the sandbox with EPERM (canvas-pi-01)."""
@@ -488,8 +494,11 @@ def test_hang_guard_kills_a_tool_child_that_left_the_workspace(tmp_path):
     ws = tmp_path / "workspace"
     ws.mkdir()
     # pi starts each bash tool call in its own session; the child leaves the workspace.
+    # The trailing `; true` keeps the shell as the child's parent: a newer bash (5.2 on the CI runner, 5.3) runs
+    # the last command of a -c list in place of the shell (no fork), which leaves no child and no process
+    # naming the workspace. macOS's bash 3.2 always forks.
     tool = subprocess.Popen(["/bin/bash", "-c", f"cd {ws} && true; python3 -c "
-                             "'import os,time; os.chdir(\"/\"); time.sleep(300)'"],
+                             "'import os,time; os.chdir(\"/\"); time.sleep(300)'; true"],
                             start_new_session=True, stdout=subprocess.PIPE)
     events = tmp_path / "agent-events.jsonl"
     events.write_text(_json.dumps({"type": "tool_execution_start"}) + "\n")
@@ -503,6 +512,37 @@ def test_hang_guard_kills_a_tool_child_that_left_the_workspace(tmp_path):
         time.sleep(1)
         alive = subprocess.run(["ps", "-p", child[0]], capture_output=True).returncode == 0
         assert tool.poll() is not None and not alive, "the tool and everything it started must be killed"
+    finally:
+        try:
+            os.killpg(tool.pid, 9)
+        except ProcessLookupError:
+            pass
+
+
+@pytest.mark.xfail(strict=True, reason="harness gap, reported 1 Oct 2026 and not fixed (drive.workspace_pids): a tool "
+                   "that replaced its shell and left the workspace has neither the workspace path in its command "
+                   "line nor its working directory there, so the hang guard finds nothing to kill")
+def test_hang_guard_kills_a_tool_that_replaced_its_shell_and_left_the_workspace(tmp_path):
+    """The case above, as a newer bash runs it (5.2 on the CI runner, 5.3 from Homebrew): the last command of
+    `bash -c "cd <ws> && ...; find / ..."` is run in place of the shell, with no fork. There is then no shell
+    left whose command line names the workspace, and the tool itself has left it. `exec` makes any bash do that."""
+    import json as _json, os, subprocess, time
+    from drive import tool_hang_check
+    ws = tmp_path / "workspace"
+    ws.mkdir()
+    tool = subprocess.Popen(["/bin/bash", "-c", f"cd {ws} && true; exec python3 -c "
+                             "'import os,time; os.chdir(\"/\"); time.sleep(300)'"],
+                            start_new_session=True, stdout=subprocess.PIPE)
+    events = tmp_path / "agent-events.jsonl"
+    events.write_text(_json.dumps({"type": "tool_execution_start"}) + "\n")
+    old = time.time() - 700
+    os.utime(events, (old, old))
+    try:
+        time.sleep(1)
+        assert tool.poll() is None, "the tool should be running"
+        assert tool_hang_check(events, ws, idle_s=600)
+        time.sleep(1)
+        assert tool.poll() is not None, "the tool must be killed"
     finally:
         try:
             os.killpg(tool.pid, 9)
@@ -744,6 +784,7 @@ def test_unmonitored_thermal_is_fit_and_not_throttled():
     assert summarise_conditions(2, [])["throttled_share"] == 0.0
 
 
+@pytest.mark.needs_sandbox
 def test_private_pack_checkout_is_hidden_from_the_agent(tmp_path):
     """Moving the held-out suite out of the public repo must not make it readable: the sandbox
     hides the private checkout exactly as it hides the repo."""
@@ -760,12 +801,14 @@ def test_private_pack_checkout_is_hidden_from_the_agent(tmp_path):
     assert r.returncode != 0 or not r.stdout.strip(), r.stdout
 
 
-def test_dbench_home_is_hidden_except_its_tools(tmp_path, monkeypatch):
+@pytest.mark.needs_sandbox
+def test_dbench_home_is_hidden_except_its_tools(tmp_path, outside_shared_temp, monkeypatch):
     """Agents under dbench must not reach its jobs, token, repo checkouts or other runs' builds,
     but must still run the tools installed in ~/.dbench/tools (pi, uv)."""
     import subprocess
     import drive
-    dbench = tmp_path / "dotdbench"
+    # Like the real ~/.dbench, not under /tmp: there (tmp_path on Linux) the sandbox's own /tmp covers it, tools and all.
+    dbench = outside_shared_temp / "dotdbench"
     (dbench / "jobs").mkdir(parents=True)
     (dbench / "jobs" / "job.json").write_text("secret")
     (dbench / "tools" / "bin").mkdir(parents=True)
@@ -804,6 +847,7 @@ def test_agent_browsers_are_kept_apart_from_the_held_out_suites(tmp_path: Path):
     assert suite_cache not in agent_cache.parents and agent_cache not in suite_cache.parents
 
 
+@pytest.mark.needs_sandbox
 def test_sandbox_blocks_the_held_out_suites_browsers(tmp_path: Path):
     import hostenv
     suite_cache = hostenv.playwright_cache(Path.home())
@@ -812,12 +856,19 @@ def test_sandbox_blocks_the_held_out_suites_browsers(tmp_path: Path):
     own = tmp_path / "run"
     (own / "workspace").mkdir(parents=True)
     r = subprocess.run(sandboxed(["ls", str(suite_cache)], own_dir=own), capture_output=True, text=True)
-    assert r.returncode != 0 and "chromium" not in r.stdout
     rm = subprocess.run(sandboxed(["touch", str(suite_cache / "agent-was-here")], own_dir=own),
                         capture_output=True, text=True)
-    assert rm.returncode != 0 and not (suite_cache / "agent-was-here").exists()
+    if hostenv.IS_MAC:
+        # sandbox-exec refuses the read and the write.
+        assert r.returncode != 0 and rm.returncode != 0
+    else:
+        # bwrap covers the folder with an empty tmpfs: it lists, as empty, and a write lands in the tmpfs.
+        assert r.stdout.strip() == ""
+    assert "chromium" not in r.stdout
+    assert not (suite_cache / "agent-was-here").exists()
 
 
+@pytest.mark.needs_sandbox
 def test_sandbox_hides_all_bench_state_but_the_agents_own_run():
     # Everything under the bench home (grading keys, reference builds and transcripts, logs, other
     # runs) is out of bounds; a reference build left readable once exposed Opus's whole solution.

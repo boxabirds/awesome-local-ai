@@ -98,9 +98,10 @@ pub fn parse_line(line: &str) -> Option<(Option<u32>, EventKind)> {
                 commit: s.split_whitespace().next()?.to_string(),
                 pushed: kv(s, "pushed").and_then(py_bool),
             }
-        } else if let Some(at) = rest.find(GATE_MARKER) {
+        } else {
             // "[story N] DONE gate green=…" — anything before the marker is the story's status.
-            let rest = &rest[at..];
+            // A story line with no marker (and none of the prefixes above) is not an event.
+            let rest = &rest[rest.find(GATE_MARKER)?..];
             let accept = rest.split_once(" accept ")?.1.split_whitespace().next()?;
             let (p, tot) = accept.split_once('/')?;
             EventKind::Scored {
@@ -110,8 +111,6 @@ pub fn parse_line(line: &str) -> Option<(Option<u32>, EventKind)> {
                 stalled: kv(rest, "stalled").and_then(py_bool),
                 degraded: rest.contains("DEGRADED"),
             }
-        } else {
-            return None;
         };
         return Some((Some(story), kind));
     }
