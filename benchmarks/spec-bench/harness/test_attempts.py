@@ -316,6 +316,34 @@ def test_a_live_restarted_story_records_every_attempt(tmp_path):
     assert [a["time_split"]["model"]["requests"] for a in rec["agent"]["attempts"]] == [4, 2]
 
 
+def _mlx_serve_log(started: float, drafts: list[tuple[int, int, int]], inp: int = 100, out: int = 7) -> str:
+    """mlx-serve's log after run.sh's start mark: per request its draft figures (accepts, drafted, attempts) and its
+    tokens, shaped as the real one (fixtures/engine-logs/mlx-serve-excerpt.txt)."""
+    import llama_log
+    return llama_log.start_marker(started) + "".join(
+        f"POST /v1/chat/completions (2 msgs, stream=true)\n"
+        f"  [spec-stats] mode=mtp attempts={r} accepts={a} avg_per_round={a / r:.2f} per_draft_pct={100 * a / d:.1f}% depth=6 drafted={d} runtime_disabled=false\n"
+        f"  <- {inp}+{out} tokens streamed [prefill: 1.0 tok/s, decode: 1.0 tok/s] [tool_calls]\n" for a, d, r in drafts)
+
+
+def test_a_restarted_story_s_draft_acceptance_covers_every_attempt(tmp_path):
+    """Summing the attempts' splits kept no draft figures: mlx-serve v2-r2's restarted stories (4, 9, 11) had none."""
+    import drive
+    ev = _write(tmp_path / "e.jsonl", _session(T0, "s1", 4)[:-1])
+    restart = T0 + 5000
+    earlier = drive.begin_attempt(PiClient(tmp_path), ev, prior="s1", started=restart, provenance={})
+    with ev.open("a") as f:
+        f.write("".join(json.dumps(e) + "\n" for e in _session(restart + 1, "s1", 2)))
+    drafts = [(3, 4, 1)] * 4 + [(1, 4, 1)] * 2
+    (tmp_path / "server.log").write_text(_mlx_serve_log(T0 - 60, drafts))
+    rec = {"started": restart, "agent_finished": restart + 32, "agent": _harness_agent(31.0, 2, 2, "s1")}
+    drive.record_attempts(rec, earlier)
+    split = drive.story_time_split(rec, ev, tmp_path / "server.log")
+    assert split["attempts"] == 2 and split["model"]["requests"] == 6
+    assert split["model"]["draft_acceptance"] == round(14 / 24, 3) and split["model"]["mean_accepted_len"] == 3.33
+    assert [a["time_split"]["model"]["draft_acceptance"] for a in rec["agent"]["attempts"]] == [0.75, 0.25]
+
+
 def test_a_story_run_once_is_recorded_as_before(tmp_path):
     import drive
     ev = _write(tmp_path / "e.jsonl", _session(T0 + 1, "s1", 2))

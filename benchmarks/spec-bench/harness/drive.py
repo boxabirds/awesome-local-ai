@@ -1747,6 +1747,8 @@ def story_time_split(rec: dict, events: Path, server_log: Path) -> dict:
                 a["seconds"] = round(s["wall_s"] - s.get("between_sessions_s", 0.0) - s.get("suspended_s", 0.0), 1)
         rec["agent"]["seconds"] = round(sum(a.get("seconds") or 0 for a in each), 1)
         split = attempts.sum_splits(splits)
+        if split.get("model"):   # summed splits can't recombine the attempts' draft figures: over every attempt's calls
+            split["model"].update(accounting.draft_figures(events, server_log, [(a["started"], a["ended"]) for a in each]))
     acc = split["accounting"]
     clock = accounting.check(split, agent_seconds=(rec.get("agent") or {}).get("seconds"))
     acc["problems"] += [p for p in clock if p not in acc["problems"]]
