@@ -30,6 +30,8 @@ export interface DbenchJob {
     stories?: DbenchStory[];
   };
   state: { status?: string; attempt?: number; reason?: string; started_at?: number };
+  /** Why it was cancelled, as the canceller gave it (dbench keeps one from 1 Oct 2026). */
+  cancel_reason?: string;
   attempt?: number;
   seq?: number;
   submitted_at?: number;
@@ -219,6 +221,27 @@ export function indexJobs(byNode: Record<string, DbenchJob[]>): Map<string, Node
   return idx;
 }
 
+const CANCEL_LINE = /^cancel(led while queued| requested) by /;
+const FAILURE_LINE = /FAILED/;                         // the harness's own failure lines: "PREFLIGHT FAILED (claude): …"
+const NONZERO_EXIT = /^harness exited [1-9]\d*/;
+const CANCEL_UNEXPLAINED = "no reason recorded; before the cancel its log shows: ";
+
+/** Why a job ended as it did: a failure's reason; a cancel's, as dbench kept it. A cancel from before dbench kept
+ * reasons gets the failure its log shows before the cancel (the harness's own FAILED line, else a non-zero exit of
+ * the harness), said to be that; "" when there is nothing to show. */
+export function jobReason(j: DbenchJob): string {
+  if (j.state.status === "failed") return j.state.reason ?? "";
+  if (j.state.status !== "cancelled") return j.state.reason ?? "";
+  const given = j.cancel_reason?.trim() || j.state.reason?.trim();
+  if (given) return given;
+  const tail = j.progress?.log_tail ?? [];
+  const at = tail.findIndex((l) => CANCEL_LINE.test(DBENCH_LINE.exec(l)?.[2] ?? ""));
+  const before = tail.slice(0, at < 0 ? 0 : at);
+  const failure = before.toReversed().find((l) => !DBENCH_LINE.test(l) && FAILURE_LINE.test(l))
+    ?? before.toReversed().map((l) => DBENCH_LINE.exec(l)?.[2] ?? "").find((t) => NONZERO_EXIT.test(t));
+  return failure ? CANCEL_UNEXPLAINED + failure.trim() : "";
+}
+
 /** Every job of each run, keyed as indexJobs keys them, oldest first. */
 export function jobsByRun(byNode: Record<string, DbenchJob[]>): Map<string, JobRef[]> {
   const out = new Map<string, JobRef[]>();
@@ -227,7 +250,7 @@ export function jobsByRun(byNode: Record<string, DbenchJob[]>): Map<string, JobR
       const key = jobKey(jobStack(j), packName(j.spec.pack), j.spec.run_id ?? "");
       out.set(key, [...(out.get(key) ?? []), {
         id: j.id, node, status: j.state.status ?? "", submittedAt: j.submitted_at ?? null, updatedAt: j.updated_at ?? null,
-        endedAt: jobEndedAt(j), reason: j.state.reason ?? "",
+        endedAt: jobEndedAt(j), reason: jobReason(j),
       }]);
     }
   }
