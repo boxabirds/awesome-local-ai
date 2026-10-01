@@ -8274,7 +8274,22 @@
           "found": 4,
           "total": 4
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2/server.log"
+        ],
+        "private": {
+          "copied": 70,
+          "committed": true,
+          "pushed": false,
+          "unpushed": true,
+          "error": "f that matches 'HEAD' on the remote side.\n- Checking if the <src> being pushed ('HEAD')\n  is a ref in \"refs/{heads,tags}/\". If so we add a corresponding\n  refs/{heads,tags}/ prefix on the remote side.\n\nNeither worked, so we gave up. You must fully qualify the ref.\nhint: The <src> part of the refspec is a commit object.\nhint: Did you mean to create a new branch by pushing to\nhint: 'HEAD:refs/heads/HEAD'?\nerror: failed to push some refs to 'github.com:boxabirds/awesome-local-ai-bench-private.git'\n"
+        },
+        "commit": "f52c6eec"
+      }
     }
   },
   "pack": "vidi",
