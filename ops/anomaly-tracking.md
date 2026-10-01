@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 13:45 UTC
+**Last updated:** 2026-10-01 14:02 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -40,7 +40,7 @@ test that would reproduce it. Details under the entries.
 
 | # | What | Fix / reproducing test |
 |---|---|---|
-| A-016 | Accounting on a restarted story: the killed tool call is "never ended" in both attempts, the profile reports it as the longest tool across the downtime and raises a false `hung-command`; the run's `interventions.md` omits guard stops and restarts | accounting v4 (`4b7ebf25`) should clear the check; verify on mlx v2-r2 stories 4, 9, 11 after the next job on the M5 Max runs a release with it. Test: a two-attempt story whose attempt 1 ends in a killed call → check ok, no `hung-command`, the stop listed as an intervention |
+| A-016 | Survived the automatic repair (13:51): on a restarted story the conversation profile still reports the killed call as the longest tool across the harness's downtime (1389 s, 1460 s) and raises a false `hung-command`; the run's `interventions.md` still omits both swap-guard stops and the restarts. (The accounting check itself is fixed.) | conversation.py: end an attempt's open tool call at that attempt's end, as accounting v4 does; drive/attempts: write a guard stop and each restart to interventions. Test: a two-attempt story whose attempt 1 ends in a guard-killed call → no `hung-command`, longest tool within one attempt, two interventions listed |
 | A-031 | dbench spends all three restarts within minutes on a failure that cannot change (a pull that fails on unmerged files, a model server that exits at start, a deterministic traceback) | stop after the same exit and the same last log line twice; test in dbench with a harness that always exits 1 |
 | A-011 | The M5 Max's private suite checkout is detached 31 commits past the tag with 6 private record commits not on the private main; mlx v2-r2 will end without a score of record until it is repaired | owner's repair when mlx v2-r2 ends; then the automatic re-score should produce the score. Test: `pack-version.sh` on a detached checkout at the tag's tree reports the tag |
 | A-028, A-029, A-030 | Stale records: 5 older stories with a failed accounting check, 94 stories with no check (from the feed; 72 with no time split at all), 27 runs that ended before `finalize.json` existed (12 have a hand-made re-score, 15 v1 runs have live scores only) | expected to be repaired by the sweep at the next run start/end on each machine; whatever survives is a bug in `repair_records` / `needing_repair` |
@@ -71,6 +71,9 @@ test that would reproduce it. Details under the entries.
   M5 Max's checkout is detached 31 commits past the tag (6 private commits made on the detached HEAD by
   the older harness, not yet on the private main); it will be repaired when mlx v2-r2 ends, so that run
   will end without a score of record until then.
+- **Note 2026-10-01 13:57:** mlx v2-r2 finished with a score of record after all: 69/75 under
+  vidi-v2.0-pre2 (`2b3d5847`; live 69/75, marked not comparable because the live stories carry
+  `pre2+88a5c4002`). Left to check: gufo v2-r5.
 - **Note 2026-10-01 11:37:** done: gufo v2-r4 now has a score of record, 66/75 (`9f6a8307`; live was 65/75,
   marked not comparable because the live suite version string differed). The failed attempt below was
   rerun by the owner. Left to check: gufo v2-r5 and mlx v2-r2.
@@ -100,6 +103,8 @@ test that would reproduce it. Details under the entries.
 - **Note 2026-10-01 12:55 (from the owner):** when mlx v2-r2 ends, the M5 Max is kept free on purpose for
   the approved TensorFold checks, then mlx-serve r3–r5 are queued. Idle there is expected for a few hours;
   flagged only if still idle 4 hours after v2-r2 ends.
+- **Note 2026-10-01 13:57:** mlx v2-r2 ended at 13:51; the M5 Max is idle as planned (feed: `machine_idle`).
+  Flag time: 17:51 if still idle.
 - **Status:** open. mlxserve-pi has one finished v2 run and one in progress, so it is short of three.
 - **Suggested action:** queue mlxserve-pi v2-r3 on the M5 Max and the next job on the Strix Halo box;
   check the holds release as intended when the running jobs end.
@@ -289,6 +294,9 @@ test that would reproduce it. Details under the entries.
   the 128 GB for macOS, the agent's builds, the browsers and the e2e tests, which is the likely setting for
   both stops. The monitor now samples the server's footprint and swap every cycle and flags a rise of more
   than 3 GB between consecutive stories on one server.
+- **Note 2026-10-01 13:57:** story 12 (no restart) reached 93 GB on the server started at 10:24, against
+  81 GB in story 11 on the same server; story 11 began on a fresh server mid-story, so this is the climb to
+  the 92–94 GB plateau after a start, not a leak. Run ended 69/75 with no third stop.
 - **Suggested action:** if it stops a third time the job fails with no restarts left: resubmit by hand.
   Consider capping the browsers' workers for this stack's memory, or counting a guard stop as a wait.
 
@@ -347,7 +355,14 @@ test that would reproduce it. Details under the entries.
   neither swap-guard stop nor the restarts, although it is meant to list every intervention.
 - **Note 2026-10-01 12:03:** `4b7ebf25` (accounting v4) stops counting a cut-off tool call as a failed
   check; whether the false `hung-command` and the missing interventions are covered wasn't checked.
-- **Status:** watching; a backfill after the run ends may clear stories 1–4.
+- **Note 2026-10-01 13:57 (automatic repair checked):** mlx v2-r2 finished; finalize repaired every story
+  with accounting v4 (`repair.left` empty, harness `a5c58a2a`), and all six accounting faults (stories 1–3
+  unchecked, 4, 9, 11 failed) left the feed: that part is fixed. Two parts survived the repair: stories 9 and
+  11 still carry `hung-command` with a longest tool of 1389 s and 1460 s (the killed call measured across
+  the downtime; v4 itself records it as an interrupted call of 0 s ended by the restart), and the run's
+  `interventions.md` still lists only a 30 Sep event, not the two guard stops or the restarts. Escalated as
+  an internal bug that survives the repair.
+- **Status:** open (two parts left); a backfill after the run ends may clear stories 1–4.
 - **Suggested action:** after the run, run the backfill with `--recompute` and see whether 4 and 9 still
   fail; if 9 does, the call belongs to attempt 1 only.
 
