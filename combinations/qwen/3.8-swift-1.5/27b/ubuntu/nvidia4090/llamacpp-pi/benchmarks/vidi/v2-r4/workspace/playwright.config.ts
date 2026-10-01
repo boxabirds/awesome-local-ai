@@ -1,7 +1,9 @@
 import { defineConfig } from '@playwright/test';
 import path from 'path';
-import fs from 'fs';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const persistDir = path.join(__dirname, '.e2e-persist');
 
 export default defineConfig({
@@ -23,11 +25,5 @@ export default defineConfig({
     url: 'http://localhost:8787',
     reuseExistingServer: true,
     timeout: 30000,
-  },
-  globalSetup: async () => {
-    // Clean up persist directory before each run
-    if (fs.existsSync(persistDir)) {
-      fs.rmSync(persistDir, { recursive: true, force: true });
-    }
   },
 });

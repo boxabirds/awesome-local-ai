@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import * as Y from 'yjs';
 import { initDoc, createSticky, snapshot, deleteObject, moveObject } from '../../src/shared/board-model';
-import { StickyNote } from '../../src/client/objects/StickyNote';
+import { StickyNoteComponent } from '../../src/client/objects/StickyNote';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -27,18 +27,19 @@ describe('StickyNote component tests', () => {
   it('TC-18: pointerdown+up without move selects the note and shows toolbar', () => {
     const doc = new Y.Doc();
     initDoc(doc);
-    const { id, note } = makeNote(doc, 300, 300);
+    const { note } = makeNote(doc, 300, 300);
 
-    let selectedArg: string | null = null;
+    let pointerDownCalled = false;
 
     const { container } = render(
-      <StickyNote
-        note={note}
+      <StickyNoteComponent
+        obj={note}
         doc={doc}
         zoom={1}
         selected={false}
         editing={false}
-        onSelect={(sid) => { selectedArg = sid; }}
+        editable={true}
+        onPointerDown={() => { pointerDownCalled = true; }}
         onStartEdit={() => {}}
         onEndEdit={() => {}}
       />
@@ -51,7 +52,7 @@ describe('StickyNote component tests', () => {
     fireEvent.pointerDown(noteEl, { clientX: 150, clientY: 150, pointerId: 1 });
     fireEvent.pointerUp(noteEl, { clientX: 150, clientY: 150, pointerId: 1 });
 
-    expect(selectedArg).toBe(id);
+    expect(pointerDownCalled).toBe(true);
   });
 
   // TC-19: move 2px (< DRAG_THRESHOLD_PX) → still Selected, no moveObject
@@ -63,13 +64,14 @@ describe('StickyNote component tests', () => {
     const startY = note.y;
 
     const { container } = render(
-      <StickyNote
-        note={note}
+      <StickyNoteComponent
+        obj={note}
         doc={doc}
         zoom={1}
         selected={false}
         editing={false}
-        onSelect={() => {}}
+        editable={true}
+        onPointerDown={() => {}}
         onStartEdit={() => {}}
         onEndEdit={() => {}}
       />
@@ -82,7 +84,7 @@ describe('StickyNote component tests', () => {
     fireEvent.pointerMove(noteEl, { clientX: 152, clientY: 150, pointerId: 1 });
     fireEvent.pointerUp(noteEl, { clientX: 152, clientY: 150, pointerId: 1 });
 
-    // Position should be unchanged
+    // Position should be unchanged (drag logic is in useTransformGesture)
     const after = snapshot(doc).find((n) => n.id === id)!;
     expect(after.x).toBe(startX);
     expect(after.y).toBe(startY);
@@ -112,13 +114,14 @@ describe('StickyNote component tests', () => {
     const { id, note } = makeNote(doc, 300, 300);
 
     const { container } = render(
-      <StickyNote
-        note={note}
+      <StickyNoteComponent
+        obj={note}
         doc={doc}
         zoom={1}
         selected={false}
         editing={false}
-        onSelect={() => {}}
+        editable={true}
+        onPointerDown={() => {}}
         onStartEdit={() => {}}
         onEndEdit={() => {}}
       />
@@ -140,21 +143,20 @@ describe('StickyNote component tests', () => {
   });
 
   // TC-22: click empty board → Unselected, toolbar gone
-  it('TC-22: clicking empty board deselects (onSelect called with null)', () => {
+  it('TC-22: clicking empty board deselects (selection cleared by BoardUI)', () => {
     const doc = new Y.Doc();
     initDoc(doc);
     const { note } = makeNote(doc, 300, 300);
 
-    let captured: string | null = 'sentinel';
-
     const { container } = render(
-      <StickyNote
-        note={note}
+      <StickyNoteComponent
+        obj={note}
         doc={doc}
         zoom={1}
         selected={true}
         editing={false}
-        onSelect={(sid) => { captured = sid; }}
+        editable={true}
+        onPointerDown={() => {}}
         onStartEdit={() => {}}
         onEndEdit={() => {}}
       />
@@ -162,10 +164,6 @@ describe('StickyNote component tests', () => {
 
     const noteEl = container.querySelector('[data-testid="sticky-note"]')!;
     expect(noteEl.hasAttribute('data-selected')).toBe(true);
-
-    // The App calls select(null) when empty board is clicked
-    captured = null;
-    expect(captured).toBe(null);
   });
 
   // TC-25: Delete and Backspace on selected → removed
@@ -189,13 +187,14 @@ describe('StickyNote component tests', () => {
     let editStarted = false;
 
     const { container } = render(
-      <StickyNote
-        note={note}
+      <StickyNoteComponent
+        obj={note}
         doc={doc}
         zoom={1}
         selected={true}
         editing={false}
-        onSelect={() => {}}
+        editable={true}
+        onPointerDown={() => {}}
         onStartEdit={(sid) => { editStarted = sid === id; }}
         onEndEdit={() => {}}
       />
@@ -215,7 +214,6 @@ describe('StickyNote component tests', () => {
     initDoc(doc);
     expect(snapshot(doc)).toHaveLength(0);
     // No note to edit, no selection - Enter should do nothing
-    // (The App keyboard handler checks selectedId before acting)
   });
 
   // TC-37: note deleted while Dragging or Editing → interaction ends, no exception
@@ -225,13 +223,14 @@ describe('StickyNote component tests', () => {
     const { id, note } = makeNote(doc, 300, 300);
 
     const { container } = render(
-      <StickyNote
-        note={note}
+      <StickyNoteComponent
+        obj={note}
         doc={doc}
         zoom={1}
         selected={true}
         editing={false}
-        onSelect={() => {}}
+        editable={true}
+        onPointerDown={() => {}}
         onStartEdit={() => {}}
         onEndEdit={() => {}}
       />

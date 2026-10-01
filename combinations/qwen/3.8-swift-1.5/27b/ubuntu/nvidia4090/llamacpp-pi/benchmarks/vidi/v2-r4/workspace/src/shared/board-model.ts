@@ -1,16 +1,23 @@
 import * as Y from 'yjs';
 import { STICKY_SIZE_WORLD, STICKY_COLORS, DEFAULT_STICKY_COLOR, type StickyColor } from './config';
+import type { Rect, Point } from './geometry';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('LOCAL_ORIGIN');
 
-export interface StickySnapshot {
+export interface ObjectSnapshot {
   id: string;
-  type: 'sticky';
+  type: string;
   x: number;
   y: number;
+  width?: number;
+  height?: number;
+  z: number;
+}
+
+export interface StickySnapshot extends ObjectSnapshot {
+  type: 'sticky';
   color: StickyColor;
   text: string;
-  z: number;
   createdAt: number;
 }
 
@@ -37,6 +44,10 @@ function isValidColor(color: string): color is StickyColor {
 
 function isFinitePoint(x: number, y: number): boolean {
   return Number.isFinite(x) && Number.isFinite(y);
+}
+
+function isFiniteRect(r: Rect): boolean {
+  return Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.width) && Number.isFinite(r.height);
 }
 
 function getMaxZ(doc: Y.Doc): number {
@@ -78,34 +89,13 @@ export function createSticky(doc: Y.Doc, at: { x: number; y: number }, color?: S
 
 export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolean {
   if (!isFinitePoint(x, y)) return false;
-  const objects = getObjects(doc);
-  const obj = objects.get(id);
-  if (!obj) return false;
-
-  const curX = obj.get('x') as number;
-  const curY = obj.get('y') as number;
-  if (curX === x && curY === y) return false;
-
-  doc.transact(() => {
-    obj.set('x', x);
-    obj.set('y', y);
-  }, LOCAL_ORIGIN);
-  return true;
+  const count = moveObjects(doc, new Map([[id, { x, y }]]));
+  return count > 0;
 }
 
 export function bringToFront(doc: Y.Doc, id: string): boolean {
-  const objects = getObjects(doc);
-  const obj = objects.get(id);
-  if (!obj) return false;
-
-  const curZ = obj.get('z') as number;
-  const maxZ = getMaxZ(doc);
-  if (curZ >= maxZ) return false;
-
-  doc.transact(() => {
-    obj.set('z', maxZ + 1);
-  }, LOCAL_ORIGIN);
-  return true;
+  const count = bringObjectsToFront(doc, [id]);
+  return count > 0;
 }
 
 export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
@@ -124,13 +114,8 @@ export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
 }
 
 export function deleteObject(doc: Y.Doc, id: string): boolean {
-  const objects = getObjects(doc);
-  if (!objects.has(id)) return false;
-
-  doc.transact(() => {
-    objects.delete(id);
-  }, LOCAL_ORIGIN);
-  return true;
+  const count = deleteObjects(doc, [id]);
+  return count > 0;
 }
 
 export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
@@ -152,12 +137,16 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
 
     const text = obj.get('text');
     const textStr = text instanceof Y.Text ? text.toString() : '';
+    const width = obj.get('width') as number | undefined;
+    const height = obj.get('height') as number | undefined;
 
     result.push({
       id,
       type: 'sticky',
       x: obj.get('x') as number,
       y: obj.get('y') as number,
+      width: typeof width === 'number' ? width : undefined,
+      height: typeof height === 'number' ? height : undefined,
       color: obj.get('color') as StickyColor,
       text: textStr,
       z: obj.get('z') as number,
@@ -167,4 +156,190 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
 
   result.sort((a, b) => a.z - b.z || a.id.localeCompare(b.id));
   return result;
+}
+
+// ─── Story 7: Group operations ────────────────────────────────────────────────
+
+/**
+ * Returns the bounding rect of an object. For sticky notes without explicit
+ * width/height, falls back to STICKY_SIZE_WORLD.
+ */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  const width = obj.width ?? STICKY_SIZE_WORLD;
+  const height = obj.height ?? STICKY_SIZE_WORLD;
+  return { x: obj.x, y: obj.y, width, height };
+}
+
+/**
+ * Returns the ids of all objects whose bounds are entirely inside the given rect.
+ */
+export function objectsInRect(snapshot: readonly ObjectSnapshot[], rect: Rect): string[] {
+  const result: string[] = [];
+  for (const obj of snapshot) {
+    if (rectContainsLocal(rect, objectBounds(obj))) {
+      result.push(obj.id);
+    }
+  }
+  return result;
+}
+
+function rectContainsLocal(outer: Rect, inner: Rect): boolean {
+  return (
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.width <= outer.x + outer.width &&
+    inner.y + inner.height <= outer.y + outer.height
+  );
+}
+
+/**
+ * Returns the ids of all objects with a registered type.
+ * The registry is checked via a callback to avoid circular imports.
+ */
+let registeredTypes: Set<string> | null = null;
+
+export function setRegisteredTypes(types: Set<string>): void {
+  registeredTypes = types;
+}
+
+export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
+  const types = registeredTypes;
+  if (!types) {
+    // Fallback: include all objects if registry not initialized
+    return snapshot.map((o) => o.id);
+  }
+  return snapshot.filter((o) => types.has(o.type)).map((o) => o.id);
+}
+
+/**
+ * Moves multiple objects to absolute positions.
+ * Returns the count of objects actually moved.
+ * Non-finite values or empty id list → 0, no transaction.
+ * Missing ids are skipped.
+ */
+export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): number {
+  if (positions.size === 0) return 0;
+
+  // Validate all positions are finite
+  for (const pos of positions.values()) {
+    if (!isFinitePoint(pos.x, pos.y)) return 0;
+  }
+
+  const objects = getObjects(doc);
+  let changed = 0;
+
+  doc.transact(() => {
+    for (const [id, pos] of positions) {
+      const obj = objects.get(id);
+      if (!obj) continue;
+      obj.set('x', pos.x);
+      obj.set('y', pos.y);
+      changed++;
+    }
+  }, LOCAL_ORIGIN);
+
+  return changed;
+}
+
+/**
+ * Resizes multiple objects to the given rects.
+ * Writes width and height fields (making implicit-size stickies explicit).
+ * Returns the count of objects actually resized.
+ * Non-finite values or empty id list → 0, no transaction.
+ */
+export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): number {
+  if (rects.size === 0) return 0;
+
+  // Validate all rects are finite
+  for (const r of rects.values()) {
+    if (!isFiniteRect(r)) return 0;
+  }
+
+  const objects = getObjects(doc);
+  let changed = 0;
+
+  doc.transact(() => {
+    for (const [id, r] of rects) {
+      const obj = objects.get(id);
+      if (!obj) continue;
+      obj.set('x', r.x);
+      obj.set('y', r.y);
+      obj.set('width', r.width);
+      obj.set('height', r.height);
+      changed++;
+    }
+  }, LOCAL_ORIGIN);
+
+  return changed;
+}
+
+/**
+ * Brings the given objects to the front (above all unselected objects)
+ * while preserving their relative stacking order.
+ * Returns the count of objects whose z was changed.
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+
+  const objects = getObjects(doc);
+  const idSet = new Set(ids);
+
+  // Collect current z values of selected objects, sorted
+  const selectedEntries: { id: string; z: number }[] = [];
+  for (const id of ids) {
+    const obj = objects.get(id);
+    if (obj) {
+      selectedEntries.push({ id, z: obj.get('z') as number });
+    }
+  }
+  if (selectedEntries.length === 0) return 0;
+
+  selectedEntries.sort((a, b) => a.z - b.z || a.id.localeCompare(b.id));
+
+  // Find max z of unselected objects
+  let maxUnselectedZ = 0;
+  objects.forEach((obj, id) => {
+    if (!idSet.has(id)) {
+      const z = obj.get('z') as number;
+      if (typeof z === 'number' && z > maxUnselectedZ) {
+        maxUnselectedZ = z;
+      }
+    }
+  });
+
+  let changed = 0;
+  doc.transact(() => {
+    for (let i = 0; i < selectedEntries.length; i++) {
+      const newZ = maxUnselectedZ + 1 + i;
+      const obj = objects.get(selectedEntries[i].id);
+      if (obj && (obj.get('z') as number) !== newZ) {
+        obj.set('z', newZ);
+        changed++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+
+  return changed;
+}
+
+/**
+ * Deletes multiple objects. Returns the count of objects actually deleted.
+ * Empty id list → 0, no transaction. Missing ids are skipped.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+
+  const objects = getObjects(doc);
+  let changed = 0;
+
+  doc.transact(() => {
+    for (const id of ids) {
+      if (objects.has(id)) {
+        objects.delete(id);
+        changed++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+
+  return changed;
 }

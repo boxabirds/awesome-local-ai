@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import * as Y from 'yjs';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { Toolbar } from '../../src/client/board/Toolbar';
-import { StickyNote } from '../../src/client/objects/StickyNote';
+import { StickyNoteComponent } from '../../src/client/objects/StickyNote';
 import { initDoc, type StickySnapshot } from '../../src/shared/board-model';
 
 afterEach(() => {
@@ -70,14 +70,14 @@ describe('TC-23: App edit lock', () => {
     const onStartEdit = vi.fn();
     const doc = makeTestDoc();
     render(
-      <StickyNote
-        note={mockNote}
+      <StickyNoteComponent
+        obj={mockNote}
         doc={doc}
         zoom={1}
         selected={false}
         editing={false}
         editable={false}
-        onSelect={vi.fn()}
+        onPointerDown={vi.fn()}
         onStartEdit={onStartEdit}
         onEndEdit={vi.fn()}
       />,
@@ -91,14 +91,14 @@ describe('TC-23: App edit lock', () => {
     const onStartEdit = vi.fn();
     const doc = makeTestDoc();
     render(
-      <StickyNote
-        note={mockNote}
+      <StickyNoteComponent
+        obj={mockNote}
         doc={doc}
         zoom={1}
         selected={false}
         editing={false}
         editable={true}
-        onSelect={vi.fn()}
+        onPointerDown={vi.fn()}
         onStartEdit={onStartEdit}
         onEndEdit={vi.fn()}
       />,

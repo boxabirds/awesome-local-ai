@@ -13,72 +13,114 @@ export interface BoardViewportProps {
   reset(): void;
   onDoubleClickEmpty?(p: Point): void;
   onPointerDownEmpty?(): void;
+  onMarqueeBegin?(p: Point): void;
+  onMarqueeMove?(p: Point): void;
+  onMarqueeEnd?(): void;
+  onMarqueeCancel?(): void;
 }
 
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
+  const isMarqueeingRef = useRef(false);
   const gestureScaleRef = useRef(1);
   const pointerDownWasEmptyRef = useRef(false);
+  const pointerDownMovedRef = useRef(false);
 
-  // Pointer events for drag panning
+  // Pointer events for drag panning and marquee
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       const target = e.target as HTMLElement;
       const isOnNote = target.closest('[data-note-id]');
-      const isOnToolbar = target.closest('[data-testid="toolbar"]') || target.closest('[data-testid="note-toolbar"]');
-      if (isOnNote || isOnToolbar) return;
+      const isOnToolbar = target.closest('[data-testid="toolbar"]') || target.closest('[data-testid="note-toolbar"]') || target.closest('[data-testid="selection-bar"]');
+      const isOnHandle = target.closest('[data-testid^="handle-"]');
+      if (isOnNote || isOnToolbar || isOnHandle) return;
 
       e.preventDefault();
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      isPanningRef.current = true;
       pointerDownWasEmptyRef.current = true;
+      pointerDownMovedRef.current = false;
+
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      props.beginPan({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      const screenPoint: Point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+
+      if (e.shiftKey) {
+        // Marquee selection
+        isMarqueeingRef.current = true;
+        props.onMarqueeBegin?.(screenPoint);
+      } else {
+        // Pan
+        isPanningRef.current = true;
+        props.beginPan(screenPoint);
+      }
     },
-    [props.beginPan],
+    [props.beginPan, props.onMarqueeBegin],
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!isPanningRef.current) return;
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      props.panMove({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      const screenPoint: Point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+
+      if (isPanningRef.current) {
+        pointerDownMovedRef.current = true;
+        props.panMove(screenPoint);
+      } else if (isMarqueeingRef.current) {
+        pointerDownMovedRef.current = true;
+        props.onMarqueeMove?.(screenPoint);
+      }
     },
-    [props.panMove],
+    [props.panMove, props.onMarqueeMove],
   );
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
-      if (!isPanningRef.current) return;
-      isPanningRef.current = false;
       try {
         (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
       } catch {
         // ignore
       }
-      props.endPan();
-      // If pointer down was on empty space and we didn't pan much, clear selection
-      if (pointerDownWasEmptyRef.current) {
+
+      if (isPanningRef.current) {
+        isPanningRef.current = false;
+        props.endPan();
+        // If pointer down was on empty space and we didn't pan much, clear selection
+        if (pointerDownWasEmptyRef.current && !pointerDownMovedRef.current) {
+          props.onPointerDownEmpty?.();
+        }
         pointerDownWasEmptyRef.current = false;
-        props.onPointerDownEmpty?.();
+        pointerDownMovedRef.current = false;
+      } else if (isMarqueeingRef.current) {
+        isMarqueeingRef.current = false;
+        props.onMarqueeEnd?.();
+        pointerDownWasEmptyRef.current = false;
+        pointerDownMovedRef.current = false;
       }
     },
-    [props.endPan, props.onPointerDownEmpty],
+    [props.endPan, props.onPointerDownEmpty, props.onMarqueeEnd],
   );
 
   const handlePointerCancel = useCallback(
     (e: React.PointerEvent) => {
-      if (!isPanningRef.current) return;
-      isPanningRef.current = false;
       try {
         (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
       } catch {
         // ignore
       }
-      props.endPan();
+
+      if (isPanningRef.current) {
+        isPanningRef.current = false;
+        props.endPan();
+        pointerDownWasEmptyRef.current = false;
+        pointerDownMovedRef.current = false;
+      } else if (isMarqueeingRef.current) {
+        isMarqueeingRef.current = false;
+        props.onMarqueeCancel?.();
+        pointerDownWasEmptyRef.current = false;
+        pointerDownMovedRef.current = false;
+      }
     },
-    [props.endPan],
+    [props.endPan, props.onMarqueeCancel],
   );
 
   // Double-click handler for creating notes on empty space
@@ -86,7 +128,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     (e: React.MouseEvent) => {
       const target = e.target as HTMLElement;
       const isOnNote = target.closest('[data-note-id]');
-      const isOnToolbar = target.closest('[data-testid="toolbar"]') || target.closest('[data-testid="note-toolbar"]');
+      const isOnToolbar = target.closest('[data-testid="toolbar"]') || target.closest('[data-testid="note-toolbar"]') || target.closest('[data-testid="selection-bar"]');
       if (isOnNote || isOnToolbar) return;
 
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();

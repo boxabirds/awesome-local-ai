@@ -11,9 +11,6 @@ declare global {
 }
 
 export function installTestHooks(setCamera: (cam: Camera) => void): void {
-  if (import.meta.env.MODE === 'test') {
-    window.__vidi6 = {
-      setCamera,
-    };
-  }
+  const existing = window.__vidi6 ?? {};
+  window.__vidi6 = { ...existing, setCamera };
 }

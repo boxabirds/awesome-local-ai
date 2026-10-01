@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import * as Y from 'yjs';
-import { initDoc, createSticky, snapshot } from '../../src/shared/board-model';
+import { initDoc, createSticky, snapshot, setStickyColor, deleteObjects } from '../../src/shared/board-model';
 import { Toolbar } from '../../src/client/board/Toolbar';
-import { StickyNote } from '../../src/client/objects/StickyNote';
+import { NoteToolbar } from '../../src/client/objects/NoteToolbar';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -27,15 +27,10 @@ describe('Toolbar component tests', () => {
     expect(note.color).toBe('yellow');
 
     const { container } = render(
-      <StickyNote
-        note={note}
-        doc={doc}
-        zoom={1}
-        selected={true}
-        editing={false}
-        onSelect={() => {}}
-        onStartEdit={() => {}}
-        onEndEdit={() => {}}
+      <NoteToolbar
+        color={note.color}
+        onColor={(c) => setStickyColor(doc, id, c)}
+        onDelete={() => deleteObjects(doc, [id])}
       />
     );
 
@@ -86,21 +81,19 @@ describe('Toolbar component tests', () => {
   it('TC-29: clicking delete button removes the note and clears selection', () => {
     const doc = new Y.Doc();
     initDoc(doc);
-    createSticky(doc, { x: 100, y: 100 });
+    const id = createSticky(doc, { x: 100, y: 100 });
     const note = snapshot(doc)[0];
 
     let selectionCleared = false;
 
     const { container } = render(
-      <StickyNote
-        note={note}
-        doc={doc}
-        zoom={1}
-        selected={true}
-        editing={false}
-        onSelect={(sid) => { if (sid === null) selectionCleared = true; }}
-        onStartEdit={() => {}}
-        onEndEdit={() => {}}
+      <NoteToolbar
+        color={note.color}
+        onColor={() => {}}
+        onDelete={() => {
+          deleteObjects(doc, [id]);
+          selectionCleared = true;
+        }}
       />
     );
 

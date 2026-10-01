@@ -28,6 +28,8 @@ export function useBoardDoc(boardId: string): {
     };
   }, [doc, boardId]);
 
+  const snapshotCacheRef = useRef<{ key: string; value: readonly StickySnapshot[] }>({ key: '', value: [] });
+
   const subscribe = useCallback(
     (callback: () => void) => {
       const objects = doc.getMap('objects');
@@ -38,7 +40,13 @@ export function useBoardDoc(boardId: string): {
   );
 
   const getSnapshot = useCallback(() => {
-    return snapshot(doc);
+    const snap = snapshot(doc);
+    // Create a stable key from the snapshot content
+    const key = snap.map((o) => `${o.id}:${o.x}:${o.y}:${o.z}:${o.width ?? ''}:${o.height ?? ''}`).join('\0');
+    if (key !== snapshotCacheRef.current.key) {
+      snapshotCacheRef.current = { key, value: snap };
+    }
+    return snapshotCacheRef.current.value;
   }, [doc]);
 
   const notes = useSyncExternalStore(subscribe, getSnapshot);

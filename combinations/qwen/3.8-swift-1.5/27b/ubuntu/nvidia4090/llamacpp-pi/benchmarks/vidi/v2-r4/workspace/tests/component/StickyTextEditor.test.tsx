@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, act, cleanup } from '@testing-library/react';
 import * as Y from 'yjs';
 import { initDoc, createSticky, getStickyText, snapshot } from '../../src/shared/board-model';
-import { StickyNote } from '../../src/client/objects/StickyNote';
+import { StickyNoteComponent } from '../../src/client/objects/StickyNote';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -24,13 +24,14 @@ describe('StickyTextEditor component tests', () => {
     const note = snapshot(doc)[0];
 
     const { container } = render(
-      <StickyNote
-        note={note}
+      <StickyNoteComponent
+        obj={note}
         doc={doc}
         zoom={1}
         selected={true}
         editing={true}
-        onSelect={() => {}}
+        editable={true}
+        onPointerDown={() => {}}
         onStartEdit={() => {}}
         onEndEdit={() => {}}
       />
@@ -51,18 +52,19 @@ describe('StickyTextEditor component tests', () => {
     const id = createSticky(doc, { x: 100, y: 100 });
     const note = snapshot(doc)[0];
 
-    let endedWith: string | null = null;
+    let ended = false;
 
     const { container } = render(
-      <StickyNote
-        note={note}
+      <StickyNoteComponent
+        obj={note}
         doc={doc}
         zoom={1}
         selected={true}
         editing={true}
-        onSelect={() => {}}
+        editable={true}
+        onPointerDown={() => {}}
         onStartEdit={() => {}}
-        onEndEdit={(next) => { endedWith = next; }}
+        onEndEdit={() => { ended = true; }}
       />
     );
 
@@ -79,7 +81,7 @@ describe('StickyTextEditor component tests', () => {
       textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     });
 
-    expect(endedWith).toBe('selected');
+    expect(ended).toBe(true);
     // Text is preserved in the Y.Text
     const ytext = getStickyText(doc, id)!;
     expect(ytext.toString()).toBe('Hello');
@@ -93,13 +95,14 @@ describe('StickyTextEditor component tests', () => {
     const note = snapshot(doc)[0];
 
     const { container } = render(
-      <StickyNote
-        note={note}
+      <StickyNoteComponent
+        obj={note}
         doc={doc}
         zoom={1}
         selected={true}
         editing={true}
-        onSelect={() => {}}
+        editable={true}
+        onPointerDown={() => {}}
         onStartEdit={() => {}}
         onEndEdit={() => {}}
       />
@@ -133,18 +136,19 @@ describe('StickyTextEditor component tests', () => {
     const id = createSticky(doc, { x: 100, y: 100 });
     const note = snapshot(doc)[0];
 
-    let endedWith: string | null = null;
+    let ended = false;
 
     const { container } = render(
-      <StickyNote
-        note={note}
+      <StickyNoteComponent
+        obj={note}
         doc={doc}
         zoom={1}
         selected={true}
         editing={true}
-        onSelect={() => {}}
+        editable={true}
+        onPointerDown={() => {}}
         onStartEdit={() => {}}
-        onEndEdit={(next) => { endedWith = next; }}
+        onEndEdit={() => { ended = true; }}
       />
     );
 
@@ -163,7 +167,7 @@ describe('StickyTextEditor component tests', () => {
       document.body.dispatchEvent(outsideEvent);
     });
 
-    expect(endedWith).toBe('unselected');
+    expect(ended).toBe(true);
     // Text is preserved
     const ytext = getStickyText(doc, id)!;
     expect(ytext.toString()).toBe('abc');
