@@ -216,6 +216,9 @@ fn start(env: &Env, pull: bool) -> Server {
         .arg("--path-prepend")
         .arg(&env.bin)
         .args(["--max-restarts", &MAX_RESTARTS.to_string()])
+        // These tests are about the server, not about which harness runs: the temp repo has no
+        // release (most aren't git repos), so jobs run its own harness. tests/harness.rs covers releases.
+        .arg("--allow-unreleased")
         .args([
             "--restart-backoff-ms",
             BACKOFF_MS,

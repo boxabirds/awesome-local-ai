@@ -19,7 +19,11 @@
 set -euo pipefail
 
 HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$HARNESS/../../.." && pwd)"
+# Two roots, the same checkout unless $SPEC_BENCH_RESULTS_ROOT is set (roots.py, the one place that decides):
+# CODE_ROOT is the tree this harness is in; RESULTS_ROOT is the checkout of main where runs are written, committed
+# and pushed, and where a combination's config lives. dbench runs the harness of a release from the release's own
+# directory with the variable naming the node's checkout.
+CODE_ROOT="$(python3 "$HARNESS/roots.py" code)"
 BENCH_PORT="${BENCH_PORT:-18010}"
 PROXY_PORT="${PROXY_PORT:-18100}"
 REASONING_EFFORT="${REASONING_EFFORT:-low}"
@@ -30,6 +34,7 @@ THERMAL_TIMEOUT_S=1800
 usage() { sed -n '2,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 [[ $# -ge 1 && "$1" != -h && "$1" != --help ]] || { usage; exit 0; }
+RESULTS_ROOT="$(python3 "$HARNESS/roots.py" results)" || exit 1
 INSTALL_ID="$1"; shift
 PACK="benchmarks/vidi"; SCOPE=""; EPIC=""; RUN_ID="$(date +%Y%m%d-%H%M)"; ONLY=""; METER=0; CLIENT_NAME=pi; RECORD=""; FROM_RUN=""
 while [[ $# -gt 0 ]]; do
@@ -57,11 +62,11 @@ ENV_FILE="$HOME/.local/share/$INSTALL_ID/install.env"
 [[ -f "$ENV_FILE" ]] || { echo "$INSTALL_ID is not installed (no $ENV_FILE)" >&2; exit 1; }
 COMBINATION="$(sed -n 's/^COMBINATION="\(.*\)"/\1/p' "$ENV_FILE")"
 BACKEND="$(sed -n 's/^BACKEND="\(.*\)"/\1/p' "$ENV_FILE")"
-COMBO_DIR="$REPO_ROOT/combinations/$COMBINATION"
+COMBO_DIR="$RESULTS_ROOT/combinations/$COMBINATION"
 CONFIG="$COMBO_DIR/config.sh"
 # A reference stack (benchmarks/reference/install-stack.sh) names its own config and results folder.
 RUN_BASE="$(sed -n 's/^RUN_BASE="\(.*\)"/\1/p' "$ENV_FILE")"
-[[ -n "$RUN_BASE" ]] && CONFIG="$REPO_ROOT/$(sed -n 's/^CONFIG_FILE="\(.*\)"/\1/p' "$ENV_FILE")"
+[[ -n "$RUN_BASE" ]] && CONFIG="$RESULTS_ROOT/$(sed -n 's/^CONFIG_FILE="\(.*\)"/\1/p' "$ENV_FILE")"
 . "$HARNESS/config-value.sh"
 CONTEXT_LIMIT="$(cfg CONTEXT_LIMIT "$CONFIG")"; OUTPUT_LIMIT="$(cfg OUTPUT_LIMIT "$CONFIG")"
 # BENCH_CONTEXT overrides the combination's context for this run, for the server (CTX) and the agent's
@@ -85,7 +90,7 @@ RUN_DIR="$COMBO_DIR/benchmarks/$SPEC_BENCH_PACK_NAME/$RUN_ID"
 # A reference stack is registered once (install-stack.sh, from benchmarks/reference/<pack>/<stack>) and runs
 # every pack: its runs go under the pack being run, benchmarks/reference/<this pack>/<stack>/<run-id>.
 [[ "$RUN_BASE" == benchmarks/reference/*/* ]] && RUN_BASE="benchmarks/reference/$SPEC_BENCH_PACK_NAME/${RUN_BASE##*/}"
-[[ -n "$RUN_BASE" ]] && RUN_DIR="$REPO_ROOT/$RUN_BASE/$RUN_ID"
+[[ -n "$RUN_BASE" ]] && RUN_DIR="$RESULTS_ROOT/$RUN_BASE/$RUN_ID"
 mkdir -p "$RUN_DIR"
 echo "run dir: $RUN_DIR"
 
@@ -167,7 +172,7 @@ fi
 if [[ "$(uname)" == Darwin ]]; then
   echo "cooling to thermal nominal"
   python3 -c "
-import sys; sys.path.insert(0, '$REPO_ROOT/benchmarks/perf')
+import sys; sys.path.insert(0, '$CODE_ROOT/benchmarks/perf')
 from thermal import wait_for_thermal
 print('  thermal=' + wait_for_thermal('nominal', timeout_s=$THERMAL_TIMEOUT_S))"
 fi  # elsewhere the driver waits for fit conditions (hostenv) before every story
@@ -228,6 +233,10 @@ case "$CLIENT_NAME" in
 esac
 [[ "$CLOUD" == 1 ]] || curl -s -m 5 "127.0.0.1:$BENCH_PORT/health" > "$RUN_DIR/server-health.json" || true
 
+# The harness this start runs (roots.py): its commit, and the release it is (null when run from a checkout).
+HARNESS_COMMIT="$(python3 "$HARNESS/roots.py" harness-commit)"
+HARNESS_RELEASE="$(python3 "$HARNESS/roots.py" release-tag)"
+HARNESS_RELEASE_JSON="$(python3 "$HARNESS/roots.py" release-json)"
 # A resumed run can change setup between stories (e.g. a memory limit); keep every start.
 # Effort is a setting of the local server; a cloud client runs at its own default (no flag is passed).
 EFFORT_RECORDED="$REASONING_EFFORT"; [[ "$CLOUD" == 1 ]] && EFFORT_RECORDED="client default"
@@ -244,15 +253,15 @@ ENGINE_SETTINGS_JSON="$(printf '%s' "$IDENTITY_JSON" | python3 "$HARNESS/engine_
 [[ -f "$RUN_DIR/run.json" ]] && { tr -d '\n' < "$RUN_DIR/run.json"; echo; } >> "$RUN_DIR/run-history.jsonl"
 cat > "$RUN_DIR/run.json" <<JSON
 {"install_id": "$INSTALL_ID", "combination": "$COMBINATION", "model_id": "$MODEL_ID",
- "pack": "$SPEC_BENCH_PACK_NAME", "scope": "${SCOPE:-${EPIC:+epic:$EPIC}}", "metered": $METER, "reasoning_effort": "$EFFORT_RECORDED", "client_thinking": "${CLIENT_THINKING:-}", "known_good_from": "${FROM_RUN#"$REPO_ROOT"/}", "context_limit": $CONTEXT_LIMIT,
+ "pack": "$SPEC_BENCH_PACK_NAME", "scope": "${SCOPE:-${EPIC:+epic:$EPIC}}", "metered": $METER, "reasoning_effort": "$EFFORT_RECORDED", "client_thinking": "${CLIENT_THINKING:-}", "known_good_from": "${FROM_RUN#"$RESULTS_ROOT"/}", "context_limit": $CONTEXT_LIMIT,
  "output_limit": $OUTPUT_LIMIT, "backend_version": "$( [[ "$BACKEND" == mtplx ]] && mtplx --version 2>/dev/null | awk '{print $NF}' )", "mtplx_memory_limit_bytes": "$( [[ "$BACKEND" == mtplx ]] && echo "${MTPLX_MEMORY_LIMIT_BYTES:-default}" )", "compact_at": "${COMPACT_AT:-client default}", "client": "$CLIENT_NAME", "client_version": "$CLIENT_VERSION", "backend": "$BACKEND", "host": "$HOST_DESC",
- "harness_commit": "$(git -C "$REPO_ROOT" rev-parse --short HEAD)", "pack_version": "$PACK_VERSION", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+ "harness_commit": "$HARNESS_COMMIT", "harness_release": $HARNESS_RELEASE_JSON, "pack_version": "$PACK_VERSION", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
  "identity": $IDENTITY_JSON,
  "engine_settings": $ENGINE_SETTINGS_JSON}
 JSON
 
 cd "$HARNESS"
-record_event started "harness $(git -C "$REPO_ROOT" rev-parse --short HEAD), client $CLIENT_NAME, model $MODEL_ID"
+record_event started "harness $HARNESS_COMMIT${HARNESS_RELEASE:+ ($HARNESS_RELEASE)}, client $CLIENT_NAME, model $MODEL_ID"
 uv run --quiet drive.py --run-dir "$RUN_DIR" --base-url "$AGENT_URL" --client "$CLIENT_NAME" \
   ${SERVER_LOG:+--server-log "$SERVER_LOG"} \
   --model-id "$MODEL_ID" --pack "$PACK" ${SCOPE:+--scope "$SCOPE"} ${EPIC:+--epic "$EPIC"} \

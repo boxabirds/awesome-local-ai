@@ -46,12 +46,17 @@ import packdir
 import progress
 import provenance
 import publicise
+import roots
 from hostenv import IS_MAC, THERMAL_OK, mem_free_pct
 from clients import CLIENTS, PI_THINKING_LEVELS, empty_state
 
 HARNESS = Path(__file__).resolve().parent
-REPO_ROOT = HARNESS.parent.parent.parent       # benchmarks/spec-bench/harness -> repo
-BENCHMARKS = REPO_ROOT / "benchmarks"
+# Two roots (roots.py), the same checkout unless $SPEC_BENCH_RESULTS_ROOT says otherwise. REPO_ROOT is where results
+# live: run directories, the records committed and pushed, other runs' records, combination config. CODE_ROOT is
+# the tree this harness is in (a release's own directory on a benchmark node): only its own files are read there.
+REPO_ROOT = roots.RESULTS_ROOT
+CODE_ROOT = roots.CODE_ROOT
+BENCHMARKS = CODE_ROOT / "benchmarks"
 # drive.py's exit code when the machine lacks something the run needs (a browser, …). Distinct from a
 # crash (1) so a supervisor (dbench) stops instead of restarting into the same wall.
 EXIT_MISSING_RESOURCES = 3
@@ -64,9 +69,10 @@ PACK = PK.dir
 # folder per run), keys/ (grading keys), reference/ (imported builds and transcripts), series logs.
 BENCH_HOME = hostenv.bench_home()
 WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", BENCH_HOME / "work")).resolve()
-# Nothing the agent runs may read these: the harness + held-out suite, the user's own agent
+# Nothing the agent runs may read these: the harness + held-out suite and every run's records (both roots: the
+# results checkout, and the code's own directory when it is a release), the user's own agent
 # config/skills/sessions, and other runs' work directories (WORK_ROOT minus the agent's own).
-SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
+SANDBOX_DENY = [*dict.fromkeys([REPO_ROOT, CODE_ROOT]), *(Path.home() / p for p in
                 (".claude", ".agents", ".codex", ".config/opencode", ".local/share/opencode", ".mtplx",
                  ".dbench",
                  # the RTX 4090 machine's file share held a clone of this repo, reference builds and all (25 Sep 2026).
@@ -413,6 +419,32 @@ def _rebase_in_progress(repo_root: Path, git: list[str]) -> bool:
     return False
 
 
+def record_refusal(repo_root: Path, run: Path, git: list[str]) -> str | None:
+    """Why this run must not be recorded in this checkout, or None when it may be. Checked before anything is
+    written or staged. The reason goes into metrics.json, which is public, so it names no path; the paths are
+    printed (the job log).
+
+    - The run must be inside the root: a results root that is not the one the run was written under (a variable
+      not honoured, a stale path) would otherwise commit something else's files, or nothing.
+    - The root must be the top of a git checkout. git looks upwards for a repository, so a root that is merely
+      inside one (a release's directory under a home that is a checkout) would commit into that one.
+    - The root must not be a checkout named off limits (roots.NO_RECORD_ENV; the tests name the one they run from)."""
+    root, where = repo_root.resolve(), run.resolve()
+    why = None
+    if any(root == p or p in root.parents for p in roots.off_limits()):
+        why = f"records may not be committed in this checkout in this process (${roots.NO_RECORD_ENV})"
+    elif where == root or root not in where.parents:
+        why = "the run's directory is not inside the results root"
+    else:
+        top = (subprocess.run([*git, "rev-parse", "--show-toplevel"], cwd=root, capture_output=True, text=True)
+               if root.is_dir() else None)
+        if top is None or top.returncode != 0 or Path(top.stdout.strip()).resolve() != root:
+            why = "the results root is not the top of a git checkout"
+    if why:
+        print(f"record: NOT RECORDED, {why}: run {where}, results root {root}", file=sys.stderr, flush=True)
+    return why
+
+
 def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None = None,
                  private: Path | None = None) -> dict:
     """Commit exactly this run's directory and push, so every story leaves a durable record.
@@ -421,12 +453,16 @@ def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None
     (publicise.py): each result gets its public summary, the run's private files are git-ignored (and untracked
     if an older harness committed them) and copied to the private repo (record_private), and every staged file
     is checked for held-out test titles first; if one has any, nothing is committed (refuse).
+    Nothing at all is done, and the reason returned, when the run doesn't belong in this checkout (record_refusal).
     A failed push is reported, never fatal: the benchmark carries on. When the remote has
     changed this run's own files (a rename of its combination, say), the pull-and-rebase
     conflicts: it is aborted, the story stays committed locally and is reported `unpushed`,
     and the next story's push carries the backlog once the remote no longer conflicts."""
     git = git or ["git"]
     out: dict = {"committed": False, "pushed": False}
+    refused = record_refusal(repo_root, run, git)
+    if refused:
+        return {**out, "error": f"not recorded: {refused}"}
     if _rebase_in_progress(repo_root, git):
         # Left by a harness killed mid-rebase: committing into it would bury the story.
         subprocess.run([*git, "rebase", "--abort"], cwd=repo_root, capture_output=True, text=True)
@@ -1710,6 +1746,12 @@ def story_time_split(rec: dict, events: Path, server_log: Path) -> dict:
     return split
 
 
+def harness_provenance(code_root: Path) -> dict:
+    """The harness this process loaded: its commit, whether it had uncommitted edits, and the release it is
+    (harness_release: the tag dbench materialised it from, None when it runs from a checkout)."""
+    return {**provenance.at_start(code_root), "harness_release": roots.release_tag(code_root)}
+
+
 def story_provenance(harness: dict, started_under: str, scored_under: str) -> dict:
     """What a story ran under: the harness this process loaded, and the pack version when it was scored; the pack
     version at the story's start too, when the pack's checkout moved while the story ran."""
@@ -1808,7 +1850,7 @@ def main() -> None:
         kill_strays(ws)
     derived("progress file", lambda: progress.write_progress(run, scope, stories, metrics, None), run=run)
     # Before any story is recorded: HEAD then is the harness this process loaded (the records move HEAD on).
-    harness = provenance.at_start(REPO_ROOT)
+    harness = harness_provenance(CODE_ROOT)
 
     for story in stories:
         sid = story["id"]

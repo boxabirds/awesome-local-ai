@@ -34,6 +34,11 @@ pub struct CheckList {
     /// and CI runs when any of it changes. The same strings are git `:(glob)` pathspecs and the workflow's
     /// `paths:` filters.
     pub paths: Vec<String>,
+    /// What a benchmark node runs: the repo-relative paths (directories or files, no globs) that
+    /// `dbench serve` takes from a release tag to make the release's directory (harness.rs). Each must
+    /// be under the checked paths, so what runs is what the checks read.
+    #[serde(default)]
+    pub harness: Vec<String>,
     #[serde(rename = "check")]
     pub checks: Vec<Check>,
 }
@@ -86,6 +91,12 @@ pub fn parse_checks(text: &str) -> Result<CheckList> {
     if let Some(p) = list.paths.iter().find(|p| !inside_repo(p)) {
         bail!("path {p:?} is not a path inside the repo");
     }
+    if let Some(p) = list.harness.iter().find(|p| !inside_repo(p)) {
+        bail!("harness path {p:?} is not a path inside the repo");
+    }
+    if let Some(p) = list.harness.iter().find(|p| !checked(p, &list.paths)) {
+        bail!("harness path {p:?} is not under the checked paths: what a node runs must be what the checks read");
+    }
     let mut seen = BTreeSet::new();
     for c in &list.checks {
         if c.name.trim().is_empty() {
@@ -104,7 +115,15 @@ pub fn parse_checks(text: &str) -> Result<CheckList> {
     Ok(list)
 }
 
-fn inside_repo(rel: &str) -> bool {
+/// Whether a plain path is under one of the checked globs that covers a whole tree (`dir/**`).
+fn checked(path: &str, paths: &[String]) -> bool {
+    paths
+        .iter()
+        .filter_map(|p| p.strip_suffix("/**"))
+        .any(|tree| Path::new(path).starts_with(tree))
+}
+
+pub(crate) fn inside_repo(rel: &str) -> bool {
     !rel.is_empty()
         && Path::new(rel)
             .components()
@@ -666,6 +685,34 @@ command = ["bash", "tests/run-tests.sh"]
             .unwrap();
         assert_eq!(replay.requires, ["test_replay_real_logs.py"]);
         assert_eq!(replay.env["REPLAY_ALL"], "1");
+    }
+
+    /// What a node runs is named by the release itself, is under the checked paths, and holds the
+    /// harness's entry point. The node reads the list with its own, more forgiving parser (a newer
+    /// checks.toml must not stop an older node); both must find the same paths.
+    #[test]
+    fn the_repos_check_list_names_the_harness_a_node_runs() {
+        let text = std::fs::read_to_string(repo_root().join(CHECKS_FILE)).unwrap();
+        let list = parse_checks(&text).unwrap();
+        assert!(!list.harness.is_empty());
+        assert_eq!(crate::harness::harness_paths(&text).unwrap(), list.harness);
+        let entry = Path::new(crate::job::SPEC_BENCH_ENTRY);
+        assert!(list.harness.iter().any(|p| entry.starts_with(p)), "{:?}", list.harness);
+        for p in &list.harness {
+            assert!(repo_root().join(p).exists(), "{p} is not in the repo");
+        }
+    }
+
+    #[test]
+    fn harness_paths_must_be_inside_the_repo_and_under_the_checked_paths() {
+        let with = |harness: &str| LIST.replace("paths = [\"src/**\", \"tests/**\"]", &format!("paths = [\"src/**\", \"tests/**\"]\nharness = [{harness}]"));
+        assert_eq!(parse_checks(&with("\"src/harness\", \"tests\"")).unwrap().harness, ["src/harness", "tests"]);
+        assert!(parse_checks(LIST).unwrap().harness.is_empty());
+        let err = |text: &str| format!("{:#}", parse_checks(text).unwrap_err());
+        assert!(err(&with("\"../src\"")).contains("../src"));
+        assert!(err(&with("\"docs\"")).contains("not under the checked paths"));
+        // Under a tree that is checked whole, not merely next to a file pattern.
+        assert!(err(&with("\"srcs\"")).contains("not under the checked paths"));
     }
 
     /// CI must run whenever a checked path changes: every entry of `paths` is a `paths:` filter of

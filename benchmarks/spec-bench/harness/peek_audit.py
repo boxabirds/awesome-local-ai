@@ -157,10 +157,10 @@ def audit(transcripts: list[Path], allowed: list[str], sensitive: list[str]) -> 
 
 def default_sensitive() -> list[str]:
     import packdir
-    here = Path(__file__).resolve().parent
-    repo = here.parent.parent.parent
+    import roots
     pack = packdir.resolve()
-    out = [str(repo), str(packdir.private_root(pack) or pack)]
+    # Both roots (roots.py): the checkout that holds the records, and the harness's own tree when it is a release.
+    out = [*dict.fromkeys([str(roots.RESULTS_ROOT), str(roots.CODE_ROOT)]), str(packdir.private_root(pack) or pack)]
     home = Path.home()
     import hostenv
     out += [str(hostenv.bench_home()), str(home / ".dbench")]

@@ -33,12 +33,14 @@ On a Linux box, `cargo build --release` works natively. TLS is rustls, so there'
 dbench serve --bind 100.x.y.z:7717 --repo ~/awesome-local-ai \
   [--home ~/.dbench] [--share-dir ~/.local/share] \
   [--path-prepend ~/.local/bin --path-prepend ~/node20/bin] \
-  [--max-restarts 3] [--no-pull]
+  [--max-restarts 3] [--no-pull] [--allow-unreleased]
 ```
 
 - On first start it creates `<home>/token` (32 random bytes as hex, mode 0600) and prints where it put it.
-- Before each job it runs `git -C <repo> pull --ff-only`, unless `--no-pull` is set. If the pull fails, the job still runs and the failure is recorded in the job.
+- Before each job it runs `git -C <repo> pull --ff-only`, unless `--no-pull` is set. If the pull fails, the job still runs and the failure is recorded in the job. The checkout stays on main: it is where results are written, committed and pushed.
+- **A job runs the harness of the latest release, not of main** (see "Which harness a job runs" below). With no release there is, the job fails and says how to make one, unless the server was started with `--allow-unreleased`.
 - A job runs `bash <run.sh> <install-id> [--pack P] --run-id R [--scope S] [--only 1,2] --client C [--record]`.
+  - `<run.sh>` is the release's `benchmarks/spec-bench/harness/run.sh`, and `SPEC_BENCH_RESULTS_ROOT` is set to the repo.
   - The working directory is the repo.
   - The job gets its own process group.
   - PATH is the `--path-prepend` directories, then the server's PATH.
@@ -115,7 +117,7 @@ git pull                                           # results, as each story is r
   - The pack must be a relative path with no `..`.
   - The server builds the argv itself and never runs a shell string it was sent. Unknown JSON fields are rejected.
   - A job's `server_env` may set only `GPU_BACKEND` (vulkan|rocm), `SPEC_MTP` (0|1), `SPEC_DRAFT_N_MAX` (1–16), `SPEC_DRAFT_P_MIN` (0–1) and `PROFILE` (a plain name), each value checked. Nothing else (PATH, LD_PRELOAD, …) can be set.
-- **What still runs as code:** a pack's harness and acceptance suite (Playwright). That code comes from the repo checkout at whatever `git pull` brought in, so anyone who can push to the repo can run code on the nodes.
+- **What still runs as code:** the harness and a pack's acceptance suite (Playwright). The harness is the latest release's, so it is code that passed every check; but a release is a tag anyone who can push to the repo can make, and the packs and each combination's config are read from the checkout at whatever `git pull` brought in. So anyone who can push to the repo can still run code on the nodes.
 
 ## API
 
@@ -125,7 +127,7 @@ git pull                                           # results, as each story is r
 | `GET /v1/node` | hostname, os, arch, cpus, `total_ram_bytes`, `cpu_brand`, `gpus` (nvidia-smi; on macOS the chip with unified memory), installed `combinations` (INSTALL_ID/COMBINATION/BACKEND), `tools` (node, pi, git, uv versions, using the prepended PATH), `dbench_version`, `repo_head`, `current_job` |
 | `PUT /v1/jobs/{id}` | body: `{install_id \| combination, pack, scope?, stories?, run_id, client: "pi"\|"opencode", record, server_env?}`. `server_env` is a map set in the harness's environment, and through it the model server's, from the allowed keys above; it is part of the job's identity, so the same id with a different `server_env` is a 409. `combination` is a directory under the node's `<repo>/combinations/` (a leading `combinations/` and trailing `/` are fine); the node reads `INSTALL_ID` from its `config.sh` and stores the job by install id, so both forms name the same job. Returns 201 if created, 200 if the same id and spec already exist, 409 if the id exists with a different spec, and 400 if a name is invalid, the combination isn't a whole directory in the repo or its install is of a different combination, the install is missing, or there's no harness for the pack. |
 | `GET /v1/jobs` | all jobs, newest first, each with `progress` |
-| `GET /v1/jobs/{id}` | `spec`, `state` (`queued` / `running{pid,pgid,attempt,started_at}` / `done{exit_code}` / `failed{reason,exit_code}` / `cancelled`), `attempt`, `history` (restarts, recoveries, pull failures, skip-story requests), `last_pull`, and `progress`. `progress` holds `run_dir`, `current_story`, `stories`, `stories_updated_at` and `log_tail` (last 20 lines). `stories` is every story in scope with its status, tasks, baselines and recent activity when the harness writes `progress.json`, and otherwise the finished stories from `metrics.json`; each always has `id`, `passed` and `total` (see below). |
+| `GET /v1/jobs/{id}` | `spec`, `state` (`queued` / `running{pid,pgid,attempt,started_at}` / `done{exit_code}` / `failed{reason,exit_code}` / `cancelled`), `attempt`, `history` (restarts, recoveries, pull failures, skip-story requests, the harness chosen), `last_pull`, `harness` (the release the job runs, once it has started: `{"kind": "release", "tag", "commit"}`, or `{"kind": "unreleased"}`), and `progress`. `progress` holds `run_dir`, `current_story`, `stories`, `stories_updated_at` and `log_tail` (last 20 lines). `stories` is every story in scope with its status, tasks, baselines and recent activity when the harness writes `progress.json`, and otherwise the finished stories from `metrics.json`; each always has `id`, `passed` and `total` (see below). |
 | `POST /v1/hold` | Body `{"reason": "…"}`, required (400 without one). The running job carries on; no queued job starts until a release. Kept in `~/.dbench/hold.json`, so it outlives a restart of the server; `GET /v1/node` shows it as `hold`. |
 | `POST /v1/release` | Ends a hold; queued jobs start again. Fine on a node that isn't held. |
 | `POST /v1/jobs/{id}/cancel` | Body `{"reason": "…"}`, required (400 without one): kept as the job's `cancel_reason`, in its history and its log. A queued job is cancelled at once (200). A running job gets SIGTERM to its process group and SIGKILL after 20 s (202), then becomes `cancelled`. A finished job returns 409. |
@@ -185,6 +187,20 @@ This ends the running story's work. The harness stops the agent (no resume, no n
 - **What it does:** dbench only writes `<run_dir>/control/skip-story.json` (`{story, reason, by, at}`, atomically). It records the request in the job's history and log, like a cancel. The harness checks for the file every few seconds and renames it to `skip-story-<N>.applied.json` once applied.
 - **Timing:** it takes effect within a few seconds. `dbench status` then shows the story as PARTIAL.
 
+## Which harness a job runs
+
+Every push to main used to reach the next job within minutes, untested. Now a job runs the harness of the newest release (`harness-v<YYYY.MM.DD>.<n>`, made by `dbench harness-release` only when every check passes), and main can move on without touching running nodes.
+
+- **Finding it.** Before a new job starts, the node fetches main and the tags, and takes the newest `harness-v*` tag that is on `origin/main`. Newest is by the tag's name (date, then that day's number, as numbers: `.2` < `.10` < the next day's `.1`), never by when the tag was made. A tag on a commit main doesn't have is ignored.
+- **Materialising it.** Once per tag, under `<home>/releases/<tag>/`: the paths the release itself calls the harness (`harness = [...]` in its `tools/dbench/checks.toml`: `benchmarks/spec-bench` and `benchmarks/perf`), taken from the tag with `git archive`, plus `RELEASE.json` (`tag`, `commit`, `commit_short`). The directory has no `.git` and is read-only: nothing can be committed into it or edited in it by accident, and it can't drift from the tag the way a worktree can. The harness reads `RELEASE.json` to record its commit and tag in every run (`run.json`, each story's `provenance`: `harness_commit`, `harness_release`).
+- **Running it.** `<release>/benchmarks/spec-bench/harness/run.sh`, with `SPEC_BENCH_RESULTS_ROOT=<repo>`. The harness's code comes from the release; everything else comes from the checkout, which stays on main: run directories and their commits and pushes, other runs' records, the packs (they have their own version tags), and each combination's `config.sh` (it belongs with the install on the node, which is made from the checkout too). `benchmarks/spec-bench/harness/roots.py` is the one place that decides which is which.
+- **What the job says.** `GET /v1/jobs/{id}` has `harness`: `{"kind": "release", "tag", "commit"}` or `{"kind": "unreleased"}`; `dbench status <node> <id>` shows it as `harness`, the job's history has a line for it, and the job log names the directory.
+- **No release.** The job fails at once, without starting anything, and its reason says how to cut a release. A benchmark number from untested code is worse than no number. For development, `dbench serve --allow-unreleased` runs the checkout's own harness when there is no release (exactly as before releases: no `SPEC_BENCH_RESULTS_ROOT`), and says UNRELEASED in the job's history and log; such runs record `harness_release: null`. With a release on main the flag changes nothing.
+- **Restarts keep the release.** The choice is stored in the job when it first starts. A restart after a crash, an unfit machine or a server restart runs the same release even if a newer one exists by then; the next job takes the newer one. If the release's directory is gone it is made again from the tag. If the tag no longer names the commit the job started on (deleted or moved), the job fails rather than change harness part-way through a run. The same goes for the checkout's own harness: a job that started unreleased, or under a dbench from before releases (nothing on record, and it has already started), keeps running the checkout's harness when it restarts, with or without `--allow-unreleased`.
+- **Pruning.** When a job starts, release directories are removed except the newest 3 and any that a job which has started and not finished runs from. Anything else in `<home>/releases` that isn't a release directory is left alone.
+- **A release that can't be run is refused**, and the job fails saying why: one whose `checks.toml` has no `harness` list, one without `benchmarks/spec-bench/harness/run.sh`, and one without `benchmarks/spec-bench/harness/roots.py` (a harness from before it could be told where results go would ignore `SPEC_BENCH_RESULTS_ROOT` and treat its own directory as the results root).
+- **The first release.** A node with this version refuses jobs until main has a release whose `checks.toml` has the `harness` list: cut one (`dbench harness-release`) before restarting nodes on this binary, or start them with `--allow-unreleased` for the meantime.
+
 ## Releasing the harness: `harness-release`
 
 A harness release is a git tag, `harness-v<YYYY.MM.DD>.<n>` (UTC date; `n` counts that day's releases from 1), made only after every check has passed on the commit it names.
@@ -197,7 +213,7 @@ dbench harness-release --dry-run     # show the checks and the tag a release wou
 
 It works on the git repository the current directory is in, or `--repo PATH`. This is not `dbench release <node>`, which ends a hold.
 
-- **The checks are one list:** `tools/dbench/checks.toml` in the repo, read when the command runs. Each check is a name, a working directory and a command. CI (`.github/workflows/checks.yml`) runs the same list with `--check-only`, so the two can't disagree. To add a check, add it there and nowhere else.
+- **The checks are one list:** `tools/dbench/checks.toml` in the repo, read when the command runs. The same file says what a node runs from a release (`harness`, plain paths that must be under the checked `paths`). Each check is a name, a working directory and a command. CI (`.github/workflows/checks.yml`) runs the same list with `--check-only`, so the two can't disagree. To add a check, add it there and nowhere else.
 - **What counts as a failure:**
   - the command exits non-zero;
   - the command can't be started (the program isn't installed);

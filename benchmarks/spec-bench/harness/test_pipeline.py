@@ -25,6 +25,7 @@ import signal
 import subprocess
 import sys
 import textwrap
+import uuid
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,7 @@ import gates
 import heldout
 import progress
 import rescore
+import roots
 
 pytestmark = pytest.mark.skipif(not (shutil.which("node") and shutil.which("npm") and shutil.which("npx")),
                                 reason="needs node, npm and npx")
@@ -282,9 +284,9 @@ def keep_pack(mp: pytest.MonkeyPatch) -> None:
 
 
 def drive_run(root: Path, mp: pytest.MonkeyPatch, client=None, script_text: str = AGENT_SCRIPT,
-              extra_args: tuple[str, ...] = ()) -> Path:
+              extra_args: tuple[str, ...] = (), run: Path | None = None, baselines=lambda *a, **k: []) -> Path:
     """Both stories through drive.py's own main loop, with the scripted pi agent unless told otherwise. Returns the
-    run directory."""
+    run directory (root/run unless one is given)."""
     client = client or ScriptedClient
     keep_pack(mp)
     pack = make_private_repo(root / "private")
@@ -299,9 +301,9 @@ def drive_run(root: Path, mp: pytest.MonkeyPatch, client=None, script_text: str 
     mp.setattr(drive, "sandboxed", lambda cmd, own_dir: cmd)       # sandbox-exec is macOS's; the test runs anywhere
     mp.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
     mp.setattr(drive, "ConditionSampler", QuietSampler)
-    mp.setattr(progress, "baselines", lambda *a, **k: [])          # other runs of this repo: not this test's
+    mp.setattr(progress, "baselines", baselines)                   # other runs of this repo: not this test's
     mp.setattr(containment, "StoryContainment", _Uncontained)
-    run = root / "run"
+    run = run or root / "run"
     mp.setattr(sys, "argv", ["drive.py", "--pack", PACK, "--run-dir", str(run), "--base-url", "http://127.0.0.1:9/v1",
                              "--model-id", MODEL, "--client", client.name, *extra_args])
     drive.main()
@@ -495,3 +497,147 @@ def test_a_claude_code_run_records_the_same_known_answer(tmp_path, monkeypatch):
         c = rec["conversation"]
         assert c["thinking_visible"] is False and c["thinking_chars"] is None and c["thinking_estimated_tokens"] == 120
         assert c["calls"] == 4 and c["tool_errors"] == 1, c
+
+
+# ---------- the harness in one directory, the results in another ----------
+
+HARNESS = Path(__file__).resolve().parent
+SPLIT_COMBINATION = "kat/combo"
+SPLIT_RUN_BASE = f"combinations/{SPLIT_COMBINATION}/benchmarks/{PACK}"
+SPLIT_RUN_ID_CHARS = 8
+# Another run's record in the results checkout, which the live progress shows as story 1's baseline.
+OTHER_RUN = "combinations/other/stack/benchmarks/vidi/r0"
+OTHER_RUN_METRICS = {"stories": {"1": {"finished": 2.0, "started": 1.0, "agent": {"seconds": 60, "steps": 7}}},
+                     "processed": [{"id": 1, "status": "DONE"}]}
+SPLIT_OUT = "split-roots.json"
+DEFAULT_PACK_STORY = "benchmarks/vidi/spec/stories/001-a"
+GIT_IDENTITY = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+
+
+def refuse_unless_throwaway(root: Path, results: Path) -> None:
+    """Stop unless what is about to be recorded can only reach the test's own directory: the results root the
+    harness resolved is the checkout the test made, inside the test's directory, and that checkout pushes to a
+    path inside it too."""
+    def stop(why: str) -> None:
+        sys.exit(f"refusing to record: {why}")
+    if roots.RESULTS_ROOT != results:
+        stop(f"the results root is {roots.RESULTS_ROOT}, not the test's own checkout {results}")
+    if roots.RESULTS_ROOT == roots.CODE_ROOT or root not in roots.RESULTS_ROOT.parents:
+        stop(f"the results root {roots.RESULTS_ROOT} is not inside the test's directory {root}")
+    url = subprocess.run(["git", "-C", str(results), "remote", "get-url", "--push", "origin"], capture_output=True,
+                         text=True).stdout.strip()
+    if not url or not Path(url).is_absolute() or root not in Path(url).resolve().parents:
+        stop(f"the checkout pushes to {url or 'nowhere'}, which is not inside the test's directory {root}")
+
+
+def split_roots_main(root: str, results: str, run_id: str) -> None:
+    """The story loop, the run's events and finalize, as a node runs a released harness: this process was started
+    with $SPEC_BENCH_RESULTS_ROOT naming a checkout that is not the one this code is in. Everything it records
+    must land there. Run in a process of its own (the roots are fixed when the modules load); what it saw goes to
+    root/SPLIT_OUT.
+
+    It commits and pushes for real, so it first makes sure they can only reach the test's own directory
+    (refuse_unless_throwaway): if the variable were ever not honoured, the records would otherwise be committed
+    and pushed in the checkout this code is in."""
+    import record_event
+    root = Path(root)
+    refuse_unless_throwaway(root.resolve(), Path(results).resolve())
+    run = roots.RESULTS_ROOT / SPLIT_RUN_BASE / run_id
+    seen: list = []
+    real_baselines = progress.baselines
+
+    def baselines(repo_root, story_id, exclude):
+        found = real_baselines(repo_root, story_id, exclude)
+        seen.append({"repo_root": str(repo_root), "story": story_id, "sources": [b["source"] for b in found]})
+        return found
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("SPEC_BENCH_PACK_NAME", PACK)                      # run.sh exports it for record_event
+        mp.setattr(sys, "argv", ["record_event.py", str(run), "started", "by the self-test"])
+        run.mkdir(parents=True)
+        record_event.main()
+        drive_run(root, mp, extra_args=("--record",), run=run, baselines=baselines)
+        mp.setattr(finalize, "rescore_with_harness", lambda pack: rescore_here(mp))
+        mp.setattr(sys, "argv", ["finalize.py", str(run), "--pack", PACK, "--record"])
+        finalize.main()
+    (root / SPLIT_OUT).write_text(json.dumps({
+        "results_root": str(drive.REPO_ROOT), "code_root": str(drive.CODE_ROOT), "baselines": seen,
+        "label": drive.combination_label(run), "deny": [str(p) for p in drive.SANDBOX_DENY]}))
+
+
+def test_the_story_loop_with_the_results_in_another_checkout(tmp_path):
+    """A node runs the harness of a release from its own directory and keeps results in its checkout of main
+    (dbench sets $SPEC_BENCH_RESULTS_ROOT). The run's directory, every record commit and push, the combination's
+    label, the other runs' baselines, finalize and its score all belong to the results checkout; the harness's
+    commit and release are those of the code."""
+    remote = tmp_path / "remote.git"
+    repo = tmp_path / "checkout"
+    env = {**os.environ, **GIT_IDENTITY}
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    subprocess.run(["git", "clone", "-q", str(remote), str(repo)], check=True, capture_output=True)
+    (repo / OTHER_RUN).mkdir(parents=True)
+    (repo / OTHER_RUN / "metrics.json").write_text(json.dumps(OTHER_RUN_METRICS))
+    # The default pack, which the harness loads as it starts: found in the checkout, like every pack.
+    (repo / DEFAULT_PACK_STORY).mkdir(parents=True)
+    (repo / DEFAULT_PACK_STORY / "story.md").write_text("# A story\n")
+    for args in (["add", "-A"], ["commit", "-qm", "another run"], ["push", "-q", "origin", "HEAD:main"]):
+        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, env=env)
+
+    run_id = f"r-{uuid.uuid4().hex[:SPLIT_RUN_ID_CHARS]}"       # its own name, so a stray copy anywhere else is this run's
+    r = subprocess.run([sys.executable, "-c", "import sys, conftest, test_pipeline; test_pipeline.split_roots_main(*sys.argv[1:])",
+                        str(tmp_path), str(repo), run_id], cwd=HARNESS, env={**env, roots.ENV: str(repo)},
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    seen = json.loads((tmp_path / SPLIT_OUT).read_text())
+
+    # The roots: results in the checkout, code where this file is; the agent may read neither.
+    assert seen["results_root"] == str(repo) and seen["code_root"] == str(HARNESS.parents[2])
+    assert str(repo) in seen["deny"] and seen["code_root"] in seen["deny"]
+    assert seen["label"] == SPLIT_COMBINATION
+    # The run's directory, with the known answer, the summary and finalize's status in it.
+    run = repo / SPLIT_RUN_BASE / run_id
+    got = recorded(run)
+    assert_known_answer(got)
+    assert (run / "summary.md").is_file() and (run / "workspace.bundle").is_file()
+    assert not (HARNESS.parents[2] / SPLIT_RUN_BASE / run_id).exists()       # nothing of it where the code is
+    # Every record is a commit in the checkout, pushed to its remote, under the combination's label.
+    pushed = subprocess.run(["git", "--git-dir", str(remote), "log", "--format=%s", "main"], capture_output=True,
+                            text=True).stdout.splitlines()
+    prefix = f"{PACK} {SPLIT_COMBINATION} {run_id}: "
+    for event in ("run started: by the self-test", "story 1 done", "story 2 done", "final score 4/5 under kat-v1"):
+        assert prefix + event in pushed, pushed
+    m = heldout.load_metrics(run)
+    for sid in ("1", "2"):
+        assert m["stories"][sid]["record"]["pushed"] is True, m["stories"][sid]["record"]
+        # ...and each story names the harness that ran it: this code's commit and release (null in a checkout).
+        p = m["stories"][sid]["provenance"]
+        assert p["harness_commit"] == roots.harness_commit() and p["harness_release"] == roots.release_tag()
+    # Other runs' records are read from the checkout too.
+    first = next(b for b in seen["baselines"] if b["story"] == 1)
+    assert first["repo_root"] == str(repo) and first["sources"] == ["other/stack r0"]
+
+
+def test_the_split_run_refuses_to_record_anywhere_but_its_own_checkout(tmp_path):
+    """The variant above commits and pushes. On 1 Oct 2026, run against a harness that did not yet read the
+    variable, it recorded a made-up run in the real repository and pushed it. It now checks where it is about to
+    record, and where that pushes, before it does anything. (Shown with throwaway directories only: never by
+    unsetting the variable.)"""
+    pack = make_private_repo(tmp_path / "private")
+    mine, other, pushes_out = tmp_path / "mine", tmp_path / "other", tmp_path / "pushes-out"
+    for d in (mine, other):
+        d.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main", str(pushes_out)], check=True)
+    subprocess.run(["git", "-C", str(pushes_out), "remote", "add", "origin", "/nonexistent/elsewhere.git"], check=True)
+
+    def attempt(results_root: Path, given: Path, root: Path = tmp_path):
+        return subprocess.run([sys.executable, "-c", "import sys, conftest, test_pipeline; test_pipeline.split_roots_main(*sys.argv[1:])",
+                               str(root), str(given), "r-x"], cwd=HARNESS, capture_output=True, text=True,
+                              env={**os.environ, roots.ENV: str(results_root), "VIDI_PACK_DIR": str(pack)})
+
+    for r, why in ((attempt(other, mine), "not the test's own checkout"),            # the variable names another root
+                   (attempt(mine, mine, root=other), "not inside the test's directory"),
+                   (attempt(mine, mine), "pushes to nowhere"),                         # not a checkout with a remote
+                   (attempt(pushes_out, pushes_out), "pushes to /nonexistent/elsewhere.git")):
+        assert r.returncode != 0 and "refusing to record" in r.stderr and why in r.stderr, r.stderr[-1500:]
+    assert not any(other.iterdir()) and not any(mine.iterdir())
+    assert [p.name for p in pushes_out.iterdir()] == [".git"]

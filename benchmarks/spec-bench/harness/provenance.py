@@ -8,6 +8,9 @@ which. Each story's record now carries its own provenance:
 - harness_commit: HEAD of this checkout when drive.py started (at_start), the same value run.json records. The
   harness's code is loaded once per process, so it holds for every story the process runs; harness_dirty says
   whether the harness had uncommitted edits. The per-story record commits touch only run directories, not it.
+  A released harness (roots.py: a directory dbench made from a release tag, with no .git) gives its release's
+  commit, and harness_dirty None: its files are not compared with the tag. drive.harness_provenance adds
+  harness_release, the tag (None from a checkout).
 - pack_version: pack-version.sh on the pack's directory when the story is scored, so a suite checkout moved while
   the run was going is caught at the story it affected.
 
@@ -21,6 +24,8 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+
+import roots
 
 HARNESS = Path(__file__).resolve().parent
 HARNESS_REL = "benchmarks/spec-bench/harness"
@@ -36,7 +41,11 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess:
 
 
 def at_start(repo_root: Path) -> dict:
-    """The harness this process runs: HEAD, and whether the harness directory had uncommitted edits."""
+    """The harness this process runs: HEAD, and whether the harness directory had uncommitted edits. For a
+    release (no git): its manifest's commit, and None for the edits, which nothing checks."""
+    released = roots.release(repo_root)
+    if released:
+        return {"harness_commit": released["commit_short"], "harness_dirty": None}
     head = _git(repo_root, "rev-parse", "--short", "HEAD")
     dirty = _git(repo_root, "status", "--porcelain", "--untracked-files=no", "--", HARNESS_REL)
     return {"harness_commit": head.stdout.strip() if head.returncode == 0 else UNKNOWN,

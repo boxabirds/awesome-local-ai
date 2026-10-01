@@ -47,8 +47,16 @@ pull records and failure reasons in `~/.dbench/jobs/` on the node (`dbench statu
 harness passed to the server launcher; a server without server-side effort, such as mlx-serve, ignores
 it), `client_thinking` (the effort pi itself sends with each request, empty when it sends none),
 `known_good_from` (known-good mode's reference run, empty for a full run), `context_limit`, `output_limit`, `compact_at` (the client's compaction threshold), `metered`
-(whether the Python proxy was on), `host` (CPU, RAM, GPU), `harness_commit`, `pack_version`,
+(whether the Python proxy was on), `host` (CPU, RAM, GPU), `harness_commit`, `harness_release`, `pack_version`,
 `started_at`, `identity`, `engine_settings`.
+
+`harness_commit` and `harness_release` name the harness code this start ran ([`harness/roots.py`](harness/roots.py)).
+A benchmark node runs the harness of the latest release: dbench materialises the newest `harness-vYYYY.MM.DD.n` tag
+on main as a directory of its own and runs it with `SPEC_BENCH_RESULTS_ROOT` naming the node's checkout, where the
+run is written, committed and pushed. `harness_release` is then that tag and `harness_commit` the commit it tags.
+Run from a checkout (a developer's `run.sh`, or a node started with `--allow-unreleased` before any release exists),
+`harness_release` is null and `harness_commit` is the checkout's HEAD, which may never have passed the release checks.
+Run records from before 1 Oct 2026 have no `harness_release`: all of them ran from a checkout.
 
 `identity` is what the start actually ran, from [`harness/identity.py`](harness/identity.py), so runs can
 be compared as variations over time: `backend`; `install_manifest` (every setting in the install's
@@ -108,7 +116,7 @@ baselines and the review tool leave these runs out.
 | `started`, `agent_finished`, `finished` | epoch seconds: story start, agent done, scoring done |
 | `continued_session` | set when a harness restart resumed the agent's own session (the first reply then re-plans: expect one long call) |
 | `first_started` | a restarted story only: when its first attempt started (its first logged event). `started` stays the last attempt's start |
-| `provenance` | what the story ran under: `harness_commit` (HEAD when this harness process started, as `run.json` records it; the harness's code is loaded once per process), `harness_dirty` (the harness had uncommitted edits), `pack_version` (`pack-version.sh` when the story was scored, so a suite checkout moved mid-run is caught), `started_under` (the `pack_version`, and in a backfill the `harness_commit`, at the story's start when they differ from its scoring), `source` (`drive`: recorded live; `run-history`: backfilled from the start that was current when the agent finished, with its `run_started_at`) |
+| `provenance` | what the story ran under: `harness_commit` (HEAD when this harness process started, as `run.json` records it; the harness's code is loaded once per process), `harness_dirty` (the harness had uncommitted edits; null for a release, whose files are made from the tag and not compared with it again), `harness_release` (the release tag the harness ran from, `harness-vYYYY.MM.DD.n`; null when it ran from a checkout, i.e. unreleased code; absent in stories recorded before 1 Oct 2026), `pack_version` (`pack-version.sh` when the story was scored, so a suite checkout moved mid-run is caught), `started_under` (the `pack_version`, and in a backfill the `harness_commit`, at the story's start when they differ from its scoring), `source` (`drive`: recorded live; `run-history`: backfilled from the start that was current when the agent finished, with its `run_started_at`) |
 | `time_split_covers` | `last attempt`: a restarted story recomputed from an old published log (cut strings, no deltas), whose `time_split` could not be redone over every attempt |
 | `agent_commits`, `commit`, `loc` | commits the agent made; the story's recorded commit; `files` and `lines` of code |
 | `spec_tampered` | the agent edited the spec (it is restored) |

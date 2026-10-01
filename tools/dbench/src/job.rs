@@ -273,6 +273,10 @@ pub struct Job {
     pub cancel_reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_pull: Option<PullRecord>,
+    /// The harness the job runs, chosen at its first start and kept for every restart: a run never
+    /// changes harness part-way. None until it starts (and for jobs from before releases).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness: Option<crate::harness::Harness>,
     /// Server-side interventions: restarts, recoveries, cancels, pull failures.
     #[serde(default)]
     pub history: Vec<Note>,
@@ -291,6 +295,7 @@ impl Job {
             cancel_requested: false,
             cancel_reason: None,
             last_pull: None,
+            harness: None,
             history: Vec::new(),
         }
     }
