@@ -213,7 +213,8 @@ export async function selectNoteById(page: Page, id: string): Promise<void> {
 /** The topmost note at a screen point, or `null`. */
 export async function topmostNoteId(page: Page, x: number, y: number): Promise<string | null> {
   return page.evaluate(
-    ([px, py]: [number, number]) => {
+    (args: number[]) => {
+      const [px, py] = args as [number, number];
       const element = document.elementFromPoint(px, py);
       const note = element?.closest('[data-testid="sticky-note"]');
       return note?.getAttribute('data-note-id') ?? null;

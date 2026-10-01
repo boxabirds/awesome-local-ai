@@ -13,6 +13,8 @@ export interface BoardTestHooks {
   setCamera(camera: Camera): void;
   /** Sticky notes as the model sees them, sorted by `(z, id)`. */
   getStickyNotes(): readonly StickySnapshot[];
+  /** Current connection state (story 3). */
+  connectionState?: string;
 }
 
 declare global {

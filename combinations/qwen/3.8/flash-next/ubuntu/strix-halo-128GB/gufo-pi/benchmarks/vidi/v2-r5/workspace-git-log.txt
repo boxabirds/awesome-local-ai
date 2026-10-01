@@ -1,3 +1,40 @@
+commit d483e5238697c684e2d7b424e0b81dc60e770636
+vidi-agent  Thu Oct 1 11:42:35 2026 +0000
+
+    feat(story3): live collaboration via Durable Object + Yjs sync
+
+
+ package-lock.json                         | 1258 +++++++++++++++++++++++++++++
+ package.json                              |   11 +-
+ playwright.config.ts                      |   17 +-
+ src/client/App.tsx                        |   27 +-
+ src/client/board/useBoardDoc.ts           |   25 +-
+ src/client/canvas/testHooks.ts            |    2 +
+ src/client/main.tsx                       |   20 +-
+ src/client/objects/StickyTextEditor.tsx   |   53 +-
+ src/client/styles.css                     |   29 +
+ src/client/sync/ConnectionStatus.tsx      |   29 +
+ src/client/sync/connectBoard.ts           |  100 +++
+ src/shared/board-id.ts                    |   32 +
+ src/shared/config.ts                      |   20 +
+ src/shared/protocol.ts                    |   86 ++
+ src/worker/board-room.ts                  |  172 ++++
+ src/worker/index.ts                       |   39 +
+ tests/component/ConnectionStatus.test.tsx |   34 +
+ tests/component/StickyTextEditor.test.tsx |    2 +-
+ tests/e2e/collaboration-nightly.spec.ts   |  214 +++++
+ tests/e2e/collaboration.spec.ts           |  313 +++++++
+ tests/e2e/helpers/board.ts                |    3 +-
+ tests/e2e/helpers/participants.ts         |  165 ++++
+ tests/integration/board-room.test.ts      |  499 ++++++++++++
+ tests/unit/board-id.test.ts               |   48 ++
+ tests/unit/protocol.test.ts               |  106 +++
+ tsconfig.integration.json                 |   23 +
+ tsconfig.json                             |    3 +-
+ tsconfig.worker.json                      |   22 +
+ vitest.integration.config.ts              |   14 +
+ wrangler.jsonc                            |   18 +-
+ 30 files changed, 3354 insertions(+), 30 deletions(-)
 commit a63d353ae97aac6ff81c95b703e31b1a43681885
 vidi-agent  Thu Oct 1 09:48:44 2026 +0000
 

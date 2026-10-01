@@ -11,6 +11,7 @@ import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
 import { installTestHooks } from './canvas/testHooks';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 
 /** True when the keypress belongs to a text field, which owns Delete and Enter itself. */
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -20,6 +21,12 @@ function isTypingTarget(target: EventTarget | null): boolean {
     target instanceof HTMLTextAreaElement ||
     target.isContentEditable
   );
+}
+
+/** Extract the boardId from /b/:boardId. */
+function readBoardIdFromPath(): string | undefined {
+  const match = window.location.pathname.match(/^\/b\/([^/]+)/);
+  return match?.[1];
 }
 
 /**
@@ -37,12 +44,15 @@ export interface AppProps {
    * from story 3 on this is also where a provider-backed document comes from.
    */
   doc?: Y.Doc;
+  /** Board id for connecting to the server. If absent, no provider is connected. */
+  boardId?: string;
 }
 
-export function App({ doc: providedDoc }: AppProps = {}) {
+export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
   const viewport = useViewportSize();
   const { camera, hasNavigated, ...handlers } = useCamera(viewport);
-  const { doc, notes } = useBoardDoc(providedDoc);
+  const boardId = boardIdProp ?? readBoardIdFromPath();
+  const { doc, notes, connectionState } = useBoardDoc(providedDoc, boardId);
   const selection = useSelection();
   const { selectedId, editingId, select, startEdit, endEdit } = selection;
 
@@ -99,13 +109,26 @@ export function App({ doc: providedDoc }: AppProps = {}) {
     if (selectedId !== null && !notes.some((note) => note.id === selectedId)) select(null);
   }, [notes, select, selectedId]);
 
+  // A note that is gone cannot stay in edit mode (deleted by someone else).
+  useEffect(() => {
+    if (editingId !== null && !notes.some((note) => note.id === editingId)) endEdit('unselected');
+  }, [notes, editingId, endEdit]);
+
   // Test build only: let the suites read the model, so a drag can be asserted in world units.
   useEffect(() => {
     installTestHooks({ getStickyNotes: () => snapshot(doc) });
   }, [doc]);
 
+  // Expose connection state for e2e tests.
+  useEffect(() => {
+    if (connectionState !== undefined) {
+      installTestHooks({ connectionState });
+    }
+  }, [connectionState]);
+
   return (
     <div className="app-root">
+      {connectionState !== undefined && <ConnectionStatus state={connectionState} />}
       <BoardViewport
         camera={camera}
         handlers={handlers}

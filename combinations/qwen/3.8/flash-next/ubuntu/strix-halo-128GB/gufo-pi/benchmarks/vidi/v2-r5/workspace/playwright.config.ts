@@ -32,10 +32,19 @@ export default defineConfig({
     stderr: 'pipe',
     env: { CI: '1' },
   },
-  projects: installedBrowsers().map((name) => ({
-    name,
-    use: { ...devices[name], viewport: VIEWPORT },
-  })),
+  projects: [
+    ...installedBrowsers().map((name) => ({
+      name,
+      use: { ...devices[name], viewport: VIEWPORT },
+      testIgnore: /nightly/,
+    })),
+    {
+      name: 'nightly',
+      use: { ...devices['chromium'], viewport: VIEWPORT },
+      testMatch: /nightly/,
+      timeout: 180_000,
+    },
+  ],
 });
 
 /**

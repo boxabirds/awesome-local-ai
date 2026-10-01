@@ -2,21 +2,21 @@ import { useEffect, useRef } from 'react';
 import type React from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
-import { applyTextDiff, clampToLimit } from './StickyText';
+import { clampToLimit } from './StickyText';
 import { NOTE_LINE_HEIGHT_FACTOR, NOTE_PADDING } from './layout';
 
 export interface StickyTextEditorProps {
   /** The shared text of the note; every committed keystroke goes straight into it. */
   ytext: Y.Text;
-  /** Font size (board units) measured for the note, used as the editor's starting size. */
+  /** Font size (board units) measured for the note, used as the editor's starting value. */
   fontPx: number;
   /** Escape stops editing and keeps the note selected; a press outside drops the selection. */
   onEnd(next: 'selected' | 'unselected'): void;
 }
 
 /**
- * The note's text editor: a plain textarea whose value is diffed into the shared `Y.Text` on
- * every `input` event.
+ * The note's text editor: a plain textarea that uses LOCAL diffing to avoid overwriting
+ * remote changes during concurrent editing.
  *
  * Writing on each keystroke (rather than on blur) is what makes "Escape keeps everything typed
  * so far" true — ending an edit performs no write at all — and it lets collaborators watch the
@@ -27,23 +27,58 @@ export interface StickyTextEditorProps {
  *
  * A press *outside* the note is detected by `StickyNote` (which owns the note element); the
  * editor's own `blur` only flushes the pending value defensively.
+ *
+ * CONCURRENT EDITING: we store the last textarea value and on each input compute only the
+ * LOCAL diff (prevTextarea → currTextarea), applying it directly to the YText via insert/delete.
+ * This prevents overwriting remote characters that appeared between keystrokes.
  */
 export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
+  // Tracks the textarea value at the last commit so we can compute local-only diffs.
+  const prevValueRef = useRef<string>('');
 
-  /** Write a value into the shared text, clamped to the character limit. */
+  /**
+   * Compute the local change (from prevValue to newValue) and apply it to the YText.
+   * This avoids the "full diff" problem where remote changes get overwritten.
+   */
   const commit = (raw: string): void => {
     const kept = clampToLimit(raw);
     const textarea = textareaRef.current;
     if (textarea && kept.length !== raw.length) {
-      // Characters beyond the limit are dropped; the caret sits at the end of what was kept.
       textarea.value = kept;
       textarea.setSelectionRange(kept.length, kept.length);
     }
-    applyTextDiff(ytext, kept, LOCAL_ORIGIN);
+
+    // Compute local diff: what the user changed between last commit and now.
+    const prev = prevValueRef.current;
+    if (prev !== kept) {
+      // Find common prefix
+      let start = 0;
+      const prevArr = Array.from(prev);
+      const nextArr = Array.from(kept);
+      while (start < prevArr.length && start < nextArr.length && prevArr[start] === nextArr[start]) {
+        start++;
+      }
+      // Find common suffix
+      let endPrev = prevArr.length;
+      let endNext = nextArr.length;
+      while (endPrev > start && endNext > start && prevArr[endPrev - 1] === nextArr[endNext - 1]) {
+        endPrev--;
+        endNext--;
+      }
+      const deletedLen = endPrev - start; // code points removed
+      const insertedStr = nextArr.slice(start, endNext).join(''); // code points added
+
+      ytext.doc?.transact(() => {
+        if (deletedLen > 0) ytext.delete(start, deletedLen);
+        if (insertedStr.length > 0) ytext.insert(start, insertedStr);
+      }, LOCAL_ORIGIN);
+
+      prevValueRef.current = kept;
+    }
   };
 
   const flush = (): void => {
@@ -55,7 +90,9 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    textarea.value = ytext.toString();
+    const initial = ytext.toString();
+    textarea.value = initial;
+    prevValueRef.current = initial;
     textarea.focus();
     const end = textarea.value.length;
     textarea.setSelectionRange(end, end);

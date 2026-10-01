@@ -366,3 +366,32 @@ body,
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* Connection status badge */
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  padding: 4px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.connection-status--connecting {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.connection-status--reconnecting {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.connection-status--confirmed {
+  background: #e8f5e9;
+  color: #2e7d32;
+}

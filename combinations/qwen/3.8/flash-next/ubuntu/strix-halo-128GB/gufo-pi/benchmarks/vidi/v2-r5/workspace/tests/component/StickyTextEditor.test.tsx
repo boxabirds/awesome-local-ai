@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 /** Select a note and start editing it the way a user does: click, then Enter. */
-const editNote = (doc: Y.Doc, id: string): HTMLElement => {
+const editNote = (_doc: Y.Doc, id: string): HTMLElement => {
   clickAt(noteElement(id), 300, 200);
   pressKey('Enter');
   const editor = editorElement();
