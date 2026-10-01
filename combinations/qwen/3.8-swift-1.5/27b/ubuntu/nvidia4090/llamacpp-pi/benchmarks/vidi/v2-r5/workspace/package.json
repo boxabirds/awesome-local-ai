@@ -9,16 +9,23 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run tests/unit/",
     "test:component": "vitest run tests/component/",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
+    "test:e2e:nightly": "playwright test --project=chromium --grep @nightly",
     "preview": "vite preview"
   },
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.6.0",
+    "@cloudflare/workers-types": "^4.20260702.1",
     "@playwright/test": "^1.45.0",
+    "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.0",
     "@types/node": "^26.6.3",

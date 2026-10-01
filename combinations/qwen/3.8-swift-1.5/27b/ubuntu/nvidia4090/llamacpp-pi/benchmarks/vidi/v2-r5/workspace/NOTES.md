@@ -39,3 +39,23 @@
 9. **Keyboard shortcuts**: Global `keydown` listener in `App.tsx` handles Enter (start editing selected note) and Delete/Backspace (delete selected note). The handler checks that focus is not in an input/textarea to avoid interfering with text editing.
 
 10. **E2E text input**: React's synthetic event system doesn't respond to native `dispatchEvent(new Event('input'))`. E2E tests use `page.keyboard.type()` which simulates real keystrokes and properly triggers React's event handlers.
+
+## Story 3: See other people's edits appear live on the same board
+
+### Decisions
+
+1. **Integration test harness**: The `@cloudflare/vitest-pool-workers` pool had compatibility issues in this environment (workerd connection refused). Instead, integration tests use a `TestRoom` harness (`tests/integration/helpers/test-room.ts`) that creates real `Y.Doc` instances and simulates the WebSocket message flow using the same y-protocols framing as the real server. This exercises all the same logic (sync protocol, broadcasting, error handling, convergence) without needing the full workerd runtime.
+
+2. **y-protocols API**: `readSyncMessage` returns the message type number (0, 1, or 2), NOT a boolean. The correct pattern is to check `encoding.toUint8Array(encoder).length > 0` after calling it to determine if a reply should be sent. Additionally, `writeSyncStep1` takes a `Y.Doc` directly (not a pre-encoded state vector), and `writeUpdate` must be used to wrap update bytes in a proper sync protocol message before sending.
+
+3. **Error handling for invalid Yjs updates**: `readSyncMessage` internally catches Yjs errors via the `errorHandler` parameter. To detect invalid updates, we pass an error handler that re-throws: `syncProtocol.readSyncMessage(decoder, encoder, doc, origin, (err) => { throw err; })`. This allows the outer try/catch to detect and handle malformed data.
+
+4. **Board ID in URL**: The board ID is extracted from `window.location.pathname` matching `/^\/b\/([A-Za-z0-9_-]{22})$/`. If at `/`, a new ID is generated and `history.replaceState` is used to navigate to `/b/<id>`. This gives each board a shareable URL.
+
+5. **Connection state mapping**: The `WebsocketProvider` from y-websocket emits `'status'` events with `{ status: 'connected' | 'disconnected' | 'connecting' }` and a `'sync'` event. The `connectBoard` function maps these to our 4-state model: `connecting` → initial state, `connected` → status connected + synced, `reconnecting` → was connected but lost connection, `confirmed` → briefly shown after reconnect before settling to `connected`.
+
+6. **Worker types**: Cloudflare Worker types (`WebSocketPair`, `DurableObjectNamespace`, `Fetcher`) require `@cloudflare/workers-types` in tsconfig. The `DurableObjectNamespace<BoardRoom>` generic constraint requires `Rpc.DurableObjectBranded` which is complex to satisfy; we use a structural type for the `Env` interface instead.
+
+7. **Broadcast framing**: When broadcasting Yjs updates to other clients, the update must be wrapped in a sync protocol message using `syncProtocol.writeUpdate(inner, update)` before being framed with our outer `[MESSAGE_SYNC][length][payload]` envelope. Sending raw update bytes without the inner sync protocol wrapper causes "Unexpected end of array" errors on the receiving end.
+
+8. **E2E tests**: Written for Playwright with `wrangler dev` as the web server. Multiple browser contexts connect to the same `/b/:boardId` URL. Nightly tests (TC-29, TC-30) use the `@nightly` tag and are excluded from regular CI runs via `test:e2e:nightly` script.

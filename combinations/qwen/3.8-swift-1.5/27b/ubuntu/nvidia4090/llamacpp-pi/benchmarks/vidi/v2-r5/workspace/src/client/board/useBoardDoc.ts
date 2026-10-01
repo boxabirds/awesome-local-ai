@@ -1,13 +1,15 @@
 // src/client/board/useBoardDoc.ts
-import { useRef, useSyncExternalStore, useCallback } from 'react';
+import { useRef, useSyncExternalStore, useCallback, useEffect, useState } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot } from '../../shared/board-model';
 import type { StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
-export function useBoardDoc() {
+export function useBoardDoc(boardId?: string) {
   const docRef = useRef<Y.Doc | null>(null);
   const snapshotRef = useRef<readonly StickySnapshot[]>([]);
   const versionRef = useRef(0);
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
 
   if (docRef.current === null) {
     const doc = new Y.Doc();
@@ -17,6 +19,15 @@ export function useBoardDoc() {
     snapshotRef.current = snapshot(doc);
   }
   const doc = docRef.current;
+
+  // Attach provider when boardId is provided
+  useEffect(() => {
+    if (!boardId) return;
+    const conn = connectBoard(doc, boardId, (s) => setConnectionState(s));
+    return () => {
+      conn.destroy();
+    };
+  }, [doc, boardId]);
 
   const subscribe = useCallback((callback: () => void) => {
     const objects = doc.getMap('objects');
@@ -38,7 +49,7 @@ export function useBoardDoc() {
 
   const notes = useSyncExternalStore(subscribe, getSnapshot);
 
-  return { doc, notes };
+  return { doc, notes, connectionState };
 }
 
-export type { StickySnapshot };
+export type { StickySnapshot, ConnectionState };

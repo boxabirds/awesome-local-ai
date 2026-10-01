@@ -12,24 +12,41 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { newBoardId } from '../shared/board-id';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 
 // Test-only hook
 declare global {
   interface Window {
     __vidi6?: {
       setCamera: (cam: Camera) => void;
+      connectionState?: string;
     };
   }
 }
 
+function getBoardIdFromPath(): string | null {
+  const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]{22})$/);
+  return match ? match[1] : null;
+}
+
 function App(): ReactElement {
+  const [boardId] = useState<string | null>(() => {
+    const id = getBoardIdFromPath();
+    if (id) return id;
+    // / redirects to /b/<newBoardId()>
+    const newId = newBoardId();
+    window.history.replaceState(null, '', `/b/${newId}`);
+    return newId;
+  });
+
   const [viewport, setViewport] = useState<Size>({
     width: typeof window !== 'undefined' ? window.innerWidth : 1280,
     height: typeof window !== 'undefined' ? window.innerHeight : 800,
   });
 
   const cam = useCamera(viewport);
-  const { doc, notes } = useBoardDoc();
+  const { doc, notes, connectionState } = useBoardDoc(boardId ?? undefined);
   const selection = useSelection();
 
   // Track viewport size
@@ -48,12 +65,23 @@ function App(): ReactElement {
         setCamera: (c: Camera) => {
           cam.setCamera(c);
         },
+        connectionState,
       };
     }
     return () => {
       delete window.__vidi6;
     };
   });
+
+  // Clear selection/editing when a note is deleted remotely
+  useEffect(() => {
+    if (selection.selectedId && !notes.some(n => n.id === selection.selectedId)) {
+      selection.select(null);
+    }
+    if (selection.editingId && !notes.some(n => n.id === selection.editingId)) {
+      selection.endEdit('unselected');
+    }
+  }, [notes, selection.selectedId, selection.editingId, selection]);
 
   // Create sticky at a screen point
   const createStickyAtScreen = useCallback((screenPoint: Point) => {
@@ -106,6 +134,7 @@ function App(): ReactElement {
 
   return (
     <>
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={cam.camera}
         beginPan={cam.beginPan}
