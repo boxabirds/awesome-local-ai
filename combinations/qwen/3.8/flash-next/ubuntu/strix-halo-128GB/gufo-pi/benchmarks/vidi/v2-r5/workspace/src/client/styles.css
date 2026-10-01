@@ -1,0 +1,177 @@
+:root {
+  --board-background: #fafbfc;
+  --board-dot: #c3c9d2;
+  --panel-background: #ffffff;
+  --panel-border: #d5dae1;
+  --panel-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+  --text: #1f2733;
+  --text-muted: #5b6675;
+  --accent: #1f6feb;
+  color: var(--text);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------------------------------------------------------------- board ---- */
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--board-background);
+  /* dot grid (background-image / size / position come from the camera) */
+  background-repeat: repeat;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-viewport[data-panning='true'] {
+  cursor: grabbing;
+}
+
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.origin-marker {
+  position: absolute;
+  pointer-events: none;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: '';
+  position: absolute;
+  background: var(--accent);
+  opacity: 0.55;
+}
+
+.origin-marker::before {
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  transform: translateX(-0.5px);
+}
+
+.origin-marker::after {
+  top: 50%;
+  left: 0;
+  height: 1px;
+  width: 100%;
+  transform: translateY(-0.5px);
+}
+
+/* --------------------------------------------------------- zoom controls --- */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+}
+
+.zoom-controls button {
+  font: inherit;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #eef1f5;
+}
+
+.zoom-controls button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.zoom-controls button:disabled {
+  color: var(--text-muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.zoom-controls .zoom-step {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.zoom-controls .zoom-reset {
+  margin-left: 4px;
+}
+
+.zoom-percent {
+  min-width: 52px;
+  padding: 0 4px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------------ hint --- */
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(31, 39, 51, 0.82);
+  color: #f7f9fb;
+  font-size: 13px;
+  line-height: 1.2;
+  pointer-events: none;
+  white-space: nowrap;
+}
