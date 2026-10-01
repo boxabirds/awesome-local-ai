@@ -1,3 +1,47 @@
+commit d816257edb54d50f752157f07b3749df5aaf1bb4
+vidi-agent  Thu Oct 1 03:53:45 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                    |  10 ++
+ src/client/App.tsx                          |  51 +++++++-
+ src/client/board/SelectionBar.tsx           |  11 +-
+ src/client/board/SelectionOverlay.tsx       |   4 +-
+ src/client/board/Toolbar.tsx                |  39 +++++-
+ src/client/board/undo.ts                    |   7 +
+ src/client/board/useBoardKeys.ts            |  15 ++-
+ src/client/board/useTool.ts                 |  18 +++
+ src/client/board/useTransformGesture.ts     |  15 ++-
+ src/client/canvas/BoardViewport.tsx         |  35 ++++-
+ src/client/identity.ts                      |  18 +++
+ src/client/objects/StickyText.ts            |  65 +---------
+ src/client/objects/StickyTextEditor.tsx     | 125 ++++--------------
+ src/client/objects/TextEditor.tsx           | 137 ++++++++++++++++++++
+ src/client/objects/TextObject.tsx           |  83 ++++++++++++
+ src/client/objects/TextToolbar.tsx          |  34 +++++
+ src/client/objects/registry.tsx             |  15 ++-
+ src/client/objects/textLayout.ts            | 106 ++++++++++++++++
+ src/client/objects/textResize.ts            |  20 +++
+ src/client/objects/useTextBoxSync.ts        |  44 +++++++
+ src/client/styles.css                       |  56 ++++++++
+ src/shared/board-model.ts                   |  19 ++-
+ src/shared/config.ts                        |  11 ++
+ src/shared/objects/text.ts                  | 102 +++++++++++++++
+ src/shared/text-edit.ts                     |  65 ++++++++++
+ tests/component/LoadFailedEditLock.test.tsx |   4 +-
+ tests/component/StickyNote.test.tsx         |   6 +-
+ tests/component/StickyTextEditor.test.tsx   |   2 +-
+ tests/component/TextBoxSync.test.tsx        |  92 ++++++++++++++
+ tests/component/TextObject.test.tsx         | 190 ++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx               | 109 ++++++++++++++++
+ tests/component/Toolbars.test.tsx           |   6 +-
+ tests/e2e/broken-board.spec.ts              |   6 +-
+ tests/e2e/sticky-notes.spec.ts              |   2 +-
+ tests/e2e/text.spec.ts                      | 173 +++++++++++++++++++++++++
+ tests/unit/text-layout.test.ts              |  63 +++++++++
+ tests/unit/text-model.test.ts               |  99 +++++++++++++++
+ 37 files changed, 1661 insertions(+), 196 deletions(-)
 commit a95f8979ee016a2b7f18fbbf1e4b027b8347c5f6
 vidi-agent  Thu Oct 1 03:39:00 2026 +0100
 
