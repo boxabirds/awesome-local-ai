@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 13:05 UTC
+**Last updated:** 2026-10-01 13:10 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -173,6 +173,13 @@ test that would reproduce it. Details under the entries.
   ones predate the policy). **Status:** open; the sweep's automatic re-score should write `finalize.json`
   for whichever it covers; the rest need a decision on whether v1 runs get one (passed to the owner 12:55).
   **Note 13:05:** approved; the existing v2 re-scores are being converted into scores of record now.
+- **Correction 2026-10-01 13:10:** the earlier count of 12 v2 runs with a hand-made re-score was wrong: 5
+  qualified. `0c2bad30` gave those five a score of record from their existing final re-score (each with a
+  `migrated` field): Swift 1.5 v2-r1 61/75, v2-r2 63/75, gufo v2-r1 68/75, v2-r2 58/75, Opus v2-r3 74/75; the
+  monitor saw all five `not_scored` faults clear at 13:04. mlx v2-r1, Swift 1.5 v2-r3, gufo v2-r3/r4 and
+  Sonnet v2-r4 already had records. Opus v2-r1 and v2-r2 were left out because they ran under
+  vidi-v2.0-pre1+94b980f-dirty, not pre2: a decision for the owner (see A-021). The rest of the 27 are v1,
+  unfinished, invalid or another pack. Left open: Opus v2-r1, v2-r2 and the v1 runs.
 
 ### A-031 — dbench burnt all three restarts in minutes on failures that could not change
 - **First seen:** 2026-09-25 · **Last seen:** 2026-10-01 05:15 (A-003's jobs)
@@ -309,7 +316,9 @@ test that would reproduce it. Details under the entries.
   pausing), which would make this environment rather than a bug: confidence lowered to low.
 - **Note 2026-10-01 12:03:** `4b7ebf25` (accounting v4: a cut-off tool call and a machine that slept are
   not failed checks) addresses this and A-016. Stories 5–12 of v2-r4 passed the check.
-- **Status:** watching for the same on later stories; stories 1–3 and 5 passed the check.
+- **Note 2026-10-01 13:04:** repaired: `2513b83f` recomputed v2-r4 with accounting v4 (the machine slept
+  30.8 s); the failed check is gone from the sweep. Resolved.
+- **Status:** resolved 13:04 by `2513b83f`.
 
 ### A-016 — mlx-serve v2-r2: accounting unchecked on stories 1–3, failed on stories 4 and 9
 - **First seen:** 2026-09-30 · **Last seen:** 2026-10-01 07:0x (story 9)
@@ -362,7 +371,10 @@ test that would reproduce it. Details under the entries.
   final commit re-scores 75/75.
 - **Bucket:** unexplained — **confidence low**. A scoring-side fault under the pre1 suite is likelier than
   the model (a green gate and a perfect re-score), but the live detail wasn't read.
-- **Status:** historic; listed because per-story live numbers for this run are not usable. Would need the
+- **Note 2026-10-01 13:10:** Opus v2-r1 and v2-r2 were left out of the migration to scores of record
+  (A-030) because they ran under vidi-v2.0-pre1 (dirty), not pre2; whether their pre2 re-scores (75/75
+  for v2-r1) count is with the owner. This is the same run whose live scores are 0 from story 5.
+- **Status:** open; per-story live numbers for this run are not usable. Would need the
   private held-out detail of story 5.
 
 ---
