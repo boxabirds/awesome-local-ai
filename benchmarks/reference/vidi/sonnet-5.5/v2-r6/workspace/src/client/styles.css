@@ -102,3 +102,22 @@ body { font-family: system-ui, sans-serif; background: #fff; overflow: hidden; }
 .share-panel { display: flex; flex-direction: column; gap: 8px; width: 320px; padding: 12px; background: #fff; border: 1px solid #dadce0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); }
 .share-panel input { padding: 8px; border: 1px solid #dadce0; border-radius: 6px; font: inherit; font-size: 13px; }
 .share-panel p { margin: 0; font-size: 13px; color: #5f6368; }
+
+.selection-box {
+  position: absolute; box-sizing: border-box; pointer-events: none; z-index: 10;
+  border: 1px solid #1a73e8;
+}
+.selection-handle {
+  position: absolute; box-sizing: border-box; padding: 0; margin: 0; pointer-events: auto;
+  background: #fff; border: 1px solid #1a73e8; touch-action: none;
+}
+.selection-bar-anchor { position: absolute; z-index: 11; transform: translate(-50%, -100%); }
+.selection-bar {
+  display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: #fff; font-size: 14px;
+  border: 1px solid #dadce0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.selection-delete { width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #3c4043; cursor: pointer; display: grid; place-items: center; }
+.selection-delete:hover { background: #f1f3f4; }
+.selection-delete:focus-visible { outline: 2px solid #1a73e8; outline-offset: 1px; }
+.marquee { position: absolute; box-sizing: border-box; pointer-events: none; background: rgba(26, 115, 232, 0.12); border: 1px solid #1a73e8; z-index: 1000000; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

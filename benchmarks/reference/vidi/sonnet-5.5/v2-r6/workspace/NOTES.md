@@ -69,3 +69,20 @@ Decisions:
 - Legacy seeding for TC-31 uses a `seed-legacy` test hook (TEST_HOOKS only) that appends update rows without `created_at`.
 - E2E TC-29 stubs `writeText` to reject; TC-26 runs in Chromium only (real clipboard permissions). Click-to-board time is logged against CREATE_BUDGET_MS, not asserted.
 - Firefox/WebKit not run here; Chromium passes all e2e and nightly.
+
+## Story 7 — Select, move, resize and delete several objects at once
+
+Decisions:
+- `ObjectSnapshot` is an alias of `StickySnapshot` for now (stories 9–12 widen it to a union). `snapshot()` returns objects of any registered type: `registerObjectType` calls `registerSelectableType` in `board-model`, so the shared model never imports client code. `allObjectIds`/`objectsInRect` skip types that are not registered.
+- New sticky notes store `width`/`height` (200); older notes without them read as 200 and gain both on first resize.
+- `ObjectProps` (registry) replaces the old StickyNote props: `object`, `dragging`, `onObjectPointerDown`. The note toolbar moved out of `StickyNote` into `SelectionBar`, which floats above the selection's bounding box in screen space (hidden while a gesture runs, while editing and on a read-only board).
+- `BoardViewport` owns the camera, so `useTransformGesture` accepts `camera` as a camera or a ref (`cameraRef` prop on the viewport) and only reads the zoom at move time. The hook also returns `active` (`move`/`resize`/null).
+- Gestures use window-level pointer listeners from pointerdown (plus pointer capture); lostpointercapture is ignored, pointercancel keeps the last applied state.
+- Clicking a selected object without dragging selects only it (on pointer up); Shift-click on an unselected object adds it on pointer down, on a selected one removes it on pointer up (so Shift+drag of a selected object still moves the group).
+- Resize applies to the whole selection if any selected type is resizable; handles are hidden when none is. Min size comes from each object's type; types that cannot resize are not special-cased yet (none exist).
+- Font size of sticky text is still capped at STICKY_FONT_MAX_PX, so enlarged notes only fit more text, not bigger text. Text fit now uses the note height.
+- Selection works on a board that failed to load (outline, bar-less), but handles, bar, move, nudge and delete are unavailable (PRD alternate flow).
+- The `SelectionBar` announces the count through its own `aria-live` label; a screen-reader-only region announces "1 selected" when the note toolbar replaces the bar.
+- Escape during a marquee is intercepted in the capture phase so it only cancels the marquee and does not clear the selection.
+- `tests/fixtures/testbox.tsx` is excluded from `tsconfig.worker.json` (it contains JSX). Component tests drive generic types through a harness around the hooks, since `BoardApp` is fed by `snapshot()`.
+- Task 6/7/9 red-phase commits skipped; tests were written alongside the implementation. Presence (story 6) hooks left out.

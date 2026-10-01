@@ -1,3 +1,34 @@
+commit e1f62f9dee2fa31f7baf98e4a98fe852218f5e10
+vidi-agent  Thu Oct 1 17:39:38 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                |  17 +
+ src/client/board/BoardApp.tsx           | 116 ++++---
+ src/client/board/Marquee.tsx            |  55 ++++
+ src/client/board/SelectionBar.tsx       |  68 ++++
+ src/client/board/SelectionOverlay.tsx   |  65 ++++
+ src/client/board/useBoardKeys.ts        |  73 +++++
+ src/client/board/useSelection.ts        | 104 ++++--
+ src/client/board/useTransformGesture.ts | 218 +++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  54 +++-
+ src/client/objects/StickyNote.tsx       | 121 +------
+ src/client/objects/registry.tsx         |  57 ++++
+ src/client/styles.css                   |  19 ++
+ src/shared/board-model.ts               | 134 ++++++--
+ src/shared/config.ts                    |   5 +
+ src/shared/geometry.ts                  | 109 +++++++
+ tests/component/selection.test.tsx      | 540 ++++++++++++++++++++++++++++++++
+ tests/e2e/selection.spec.ts             | 171 ++++++++++
+ tests/fixtures/boards.ts                |  25 ++
+ tests/fixtures/testbox.tsx              |  32 ++
+ tests/unit/board-model-group.test.ts    | 109 +++++++
+ tests/unit/geometry.test.ts             |  90 ++++++
+ tests/unit/registry.test.ts             |  32 ++
+ tests/unit/selection-reducer.test.ts    |  54 ++++
+ tsconfig.worker.json                    |   3 +-
+ 24 files changed, 2072 insertions(+), 199 deletions(-)
 commit 91994891ac51182b54f95e576ab690617b300125
 vidi-agent  Thu Oct 1 17:18:00 2026 +0100
 

@@ -1,7 +1,9 @@
 import {
   useEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode,
 } from 'react';
+import type { ObjectSnapshot } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import { MarqueeRect, useMarquee } from '../board/Marquee';
 import {
   canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Camera, type Point, type Size,
 } from './camera';
@@ -41,9 +43,18 @@ export interface BoardViewportProps {
   onEmptyDoubleClick?(world: Point): void;
   /** Click (press and release without dragging) on empty board space. */
   onEmptyClick?(): void;
+  /** Objects for Shift+drag selection; with onMarqueeSelect enables the marquee. */
+  snapshot?: readonly ObjectSnapshot[];
+  /** Ids fully inside a finished Shift+drag rectangle (never called with an empty list). */
+  onMarqueeSelect?(ids: string[]): void;
+  /** Kept up to date with the current camera so gestures outside the viewport can read the zoom. */
+  cameraRef?: { current: Camera };
 }
 
-export function BoardViewport({ children, overlay, onEmptyDoubleClick, onEmptyClick }: BoardViewportProps) {
+const NO_OBJECTS: readonly ObjectSnapshot[] = [];
+
+export function BoardViewport(props: BoardViewportProps) {
+  const { children, overlay, onEmptyDoubleClick, onEmptyClick, cameraRef } = props;
   const surfaceRef = useRef<HTMLDivElement>(null);
   const pressRef = useRef<Point | null>(null);
   const [size, setSize] = useState<Size>(() => ({
@@ -51,6 +62,9 @@ export function BoardViewport({ children, overlay, onEmptyDoubleClick, onEmptyCl
   }));
   const cam = useCamera(size);
   const { camera } = cam;
+  if (cameraRef) cameraRef.current = camera;
+  const marquee = useMarquee(camera, props.snapshot ?? NO_OBJECTS, (ids) => props.onMarqueeSelect?.(ids));
+  const marqueeActive = marquee.rect !== null;
   const { beginPan, panMove, endPan, wheel, zoomAtPoint, zoomStep, reset, setCamera } = cam;
 
   // Viewport size from a ResizeObserver; camera x,y (top-left) is intentionally unchanged.
@@ -131,25 +145,62 @@ export function BoardViewport({ children, overlay, onEmptyDoubleClick, onEmptyCl
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [zoomStep, reset]);
 
+  // Escape abandons a marquee in progress without touching the selection (and without clearing it).
+  useEffect(() => {
+    if (!marqueeActive) return undefined;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      marquee.cancel();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [marqueeActive, marquee]);
+
+  const surfacePoint = (e: PointerEvent<HTMLDivElement>): Point => {
+    const r = e.currentTarget.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+  const marqueeRef = useRef(false);
+
   const isSurface = (e: PointerEvent<HTMLDivElement> | MouseEvent<HTMLDivElement>) =>
     e.target === e.currentTarget || (e.target as HTMLElement).dataset?.boardSurface !== undefined;
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== PRIMARY_BUTTON || !isSurface(e)) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    if (e.shiftKey && props.onMarqueeSelect) {
+      marqueeRef.current = true;
+      marquee.begin(surfacePoint(e));
+      return;
+    }
     pressRef.current = { x: e.clientX, y: e.clientY };
     beginPan({ x: e.clientX, y: e.clientY });
   };
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (marqueeRef.current) {
+      marquee.move(surfacePoint(e));
+      return;
+    }
     panMove({ x: e.clientX, y: e.clientY });
   };
   const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (marqueeRef.current) {
+      marqueeRef.current = false;
+      marquee.move(surfacePoint(e));
+      marquee.end();
+      return;
+    }
     const press = pressRef.current;
     pressRef.current = null;
     endPan();
     if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) < DRAG_THRESHOLD_PX) onEmptyClick?.();
   };
   const onPointerEnd = () => {
+    if (marqueeRef.current) {
+      marqueeRef.current = false;
+      marquee.cancel();
+    }
     pressRef.current = null;
     endPan();
   };
@@ -200,6 +251,7 @@ export function BoardViewport({ children, overlay, onEmptyDoubleClick, onEmptyCl
         >
           <div className="board-origin-marker" data-testid="origin-marker" />
           {typeof children === 'function' ? children(ctx) : children}
+          <MarqueeRect rect={marquee.rect} camera={camera} />
         </div>
       </div>
       {overlay?.(ctx)}

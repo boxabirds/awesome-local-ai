@@ -10,5 +10,6 @@
     "isolatedModules": true,
     "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"]
   },
-  "include": ["src/worker", "src/shared", "tests/integration", "tests/fixtures"]
+  "include": ["src/worker", "src/shared", "tests/integration", "tests/fixtures"],
+  "exclude": ["tests/fixtures/testbox.tsx"]
 }

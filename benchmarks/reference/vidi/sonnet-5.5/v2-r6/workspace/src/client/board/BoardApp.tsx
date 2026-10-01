@@ -1,16 +1,17 @@
-import { useEffect } from 'react';
-import { createSticky, deleteObject } from '../../shared/board-model';
+import { useRef } from 'react';
+import { createSticky, deleteObjects, setStickyColor } from '../../shared/board-model';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
+import { SelectionBar } from './SelectionBar';
+import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
 import { useBoardDoc, type BoardDoc } from './useBoardDoc';
+import { useBoardKeys } from './useBoardKeys';
 import { useSelection } from './useSelection';
+import { useTransformGesture } from './useTransformGesture';
 import { BoardViewport } from '../canvas/BoardViewport';
-import type { Point } from '../canvas/camera';
-import { StickyNote } from '../objects/StickyNote';
-
-const TEXT_INPUT = 'input, textarea, select, [contenteditable]';
-const ANY_CONTROL = `${TEXT_INPUT}, button`;
+import type { Camera, Point } from '../canvas/camera';
+import { getObjectType } from '../objects/registry';
 
 /** False only while the saved board could not be loaded: it must not look like an empty editable board. */
 export function canEdit(state: ConnectionState | undefined): boolean {
@@ -24,10 +25,15 @@ export function ConnectedBoard({ boardId }: { boardId: string }) {
 /** The board UI over an existing document (tests supply their own to poke the model). */
 export function BoardApp({ board }: { board: BoardDoc }) {
   const { doc, notes } = board;
-  const sel = useSelection();
-  const { selectedId, editingId, select, startEdit, endEdit } = sel;
+  const sel = useSelection(notes);
+  const { ids, editingId, startEdit, endEdit } = sel;
+  const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 1 });
 
   const editable = canEdit(board.connection);
+  const gesture = useTransformGesture({
+    doc, camera: cameraRef, selection: sel, snapshot: notes, canEdit: editable,
+  });
+  useBoardKeys({ doc, selection: sel, snapshot: notes, canEdit: editable });
 
   const create = (centre: Point) => {
     if (!editable) return;
@@ -35,55 +41,69 @@ export function BoardApp({ board }: { board: BoardDoc }) {
     if (id) startEdit(id);
   };
 
-  // A selected or edited note that no longer exists (deleted elsewhere) is dropped silently.
-  useEffect(() => {
-    if (selectedId && !notes.some((n) => n.id === selectedId)) select(null);
-  }, [notes, selectedId, select]);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!editable || e.ctrlKey || e.metaKey || e.altKey || !selectedId || editingId !== null) return;
-      const target = e.target instanceof Element ? e.target : null;
-      if (e.key === 'Enter') {
-        if (target?.closest(ANY_CONTROL)) return;
-        e.preventDefault();
-        startEdit(selectedId);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (target?.closest(TEXT_INPUT)) return;
-        e.preventDefault();
-        deleteObject(doc, selectedId);
-        select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, editable, selectedId, editingId, select, startEdit]);
+  const deleteSelection = () => {
+    if (!editable) return;
+    deleteObjects(doc, [...ids]);
+    sel.clear();
+  };
 
   // DOM order is stable (by id) so pointer capture survives restacking; z-index does the stacking.
   const domOrder = [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const moving = gesture.active === 'move';
 
   return (
     <>
     {board.connection && <ConnectionStatus state={board.connection} />}
     <BoardViewport
+      cameraRef={cameraRef}
+      snapshot={notes}
+      onMarqueeSelect={(found) => sel.setMany(found, true)}
       onEmptyDoubleClick={create}
-      onEmptyClick={() => select(null)}
-      overlay={(ctx) => <Toolbar disabled={!editable} onCreateSticky={() => create(ctx.centreWorld())} />}
+      onEmptyClick={sel.clear}
+      overlay={(ctx) => (
+        <>
+          <Toolbar disabled={!editable} onCreateSticky={() => create(ctx.centreWorld())} />
+          {editingId === null && (
+            <SelectionOverlay
+              ids={ids}
+              snapshot={notes}
+              camera={ctx.camera}
+              readOnly={!editable}
+              onHandlePointerDown={gesture.onHandlePointerDown}
+            />
+          )}
+          {editingId === null && gesture.active === null && editable && (
+            <SelectionBar
+              ids={ids}
+              snapshot={notes}
+              camera={ctx.camera}
+              onDelete={deleteSelection}
+              onColor={(id, c) => { setStickyColor(doc, id, c); }}
+            />
+          )}
+        </>
+      )}
     >
-      {(ctx) => domOrder.map((note) => (
-        <StickyNote
-          key={note.id}
-          note={note}
-          doc={doc}
-          zoom={ctx.camera.zoom}
-          selected={note.id === selectedId}
-          editing={note.id === editingId}
-          readOnly={!editable}
-          onSelect={select}
-          onStartEdit={startEdit}
-          onEndEdit={endEdit}
-        />
-      ))}
+      {(ctx) => domOrder.map((note) => {
+        const Component = getObjectType(note.type)?.Component;
+        if (!Component) return null;
+        const selected = ids.has(note.id);
+        return (
+          <Component
+            key={note.id}
+            object={note}
+            doc={doc}
+            zoom={ctx.camera.zoom}
+            selected={selected}
+            editing={note.id === editingId}
+            dragging={moving && selected}
+            readOnly={!editable}
+            onObjectPointerDown={gesture.onObjectPointerDown}
+            onStartEdit={startEdit}
+            onEndEdit={endEdit}
+          />
+        );
+      })}
     </BoardViewport>
     </>
   );

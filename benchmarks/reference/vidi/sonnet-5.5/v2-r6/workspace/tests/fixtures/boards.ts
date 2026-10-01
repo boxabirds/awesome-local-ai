@@ -82,3 +82,28 @@ export function randomBytes(length: number, seed = 7): Uint8Array {
   const rand = lcg(seed);
   return Uint8Array.from({ length }, () => Math.floor(rand() * 256));
 }
+
+export interface PlacedNote { x: number; y: number; text?: string }
+
+/** A board with notes whose top-left corners are exactly the given points (the model's createSticky takes a centre). */
+export function boardWithNotes(notes: PlacedNote[]): GeneratedBoard {
+  const board = recording();
+  for (const n of notes) {
+    const id = createSticky(board.doc, { x: n.x + 100, y: n.y + 100 }) as string;
+    if (n.text) getStickyText(board.doc, id)!.insert(0, n.text);
+  }
+  return board;
+}
+
+/**
+ * 20-note retro board in two clusters: a 3x2 cluster at the top left (gaps of 60), one lone note to its
+ * right that a moved cluster lands on, and 13 more notes (cluster two) far below the first screen.
+ */
+export function selectionRetroBoard(): GeneratedBoard {
+  const texts = [SHORT_TEXT, RETRO_TEXT, 'Pairing helped a lot', 'Flaky tests'];
+  const notes: PlacedNote[] = [];
+  for (let i = 0; i < 6; i++) notes.push({ x: 100 + (i % 3) * 260, y: 100 + Math.floor(i / 3) * 260, text: texts[i % texts.length] });
+  notes.push({ x: 1000, y: 100, text: 'Release checklist' });
+  for (let i = 0; i < 13; i++) notes.push({ x: 100 + (i % 5) * 260, y: 1400 + Math.floor(i / 5) * 260, text: texts[i % texts.length] });
+  return boardWithNotes(notes);
+}
