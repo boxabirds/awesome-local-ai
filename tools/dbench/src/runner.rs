@@ -7,9 +7,10 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::process::Command;
 
+use crate::failure::{self, FailureMark, SAME_FAILURE_REASON};
 use crate::harness::{self, Harness, Materialised};
 use crate::job::{harness_args, resolve_entry, JobState, PullRecord};
-use crate::progress::install_env_path;
+use crate::progress::{self, install_env_path};
 use crate::server::Shared;
 use crate::sys;
 use crate::timefmt::now_secs;
@@ -549,9 +550,20 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> Option<Duration> {
         missing_resources_reason(&tail)
             .unwrap_or_else(|| "the harness gave no reason; see the job log".into())
     });
+    // What this failure was, to tell a repeat (which a restart can't get past) from a new one.
+    let mark = (code != 0 && missing.is_none() && code != EXIT_MACHINE_UNFIT).then(|| FailureMark {
+        signature: failure::signature(code, &log_tail(&st.log_path(id), REASON_LOG_TAIL_BYTES)),
+        stories: failure::recorded_stories(
+            &progress::compute(&st.cfg.repo, &st.cfg.share_dir, &spec, &st.log_path(id)).stories,
+        ),
+    });
     let mut requeued = false;
+    let mut repeated = None;
     let job = st.update(id, |j, inner| {
         let now = now_secs();
+        let repeat = mark
+            .as_ref()
+            .filter(|m| failure::is_repeat(j.last_failure.as_ref(), m));
         if j.cancel_requested {
             j.state = JobState::Cancelled;
         } else if code == 0 {
@@ -573,6 +585,14 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> Option<Duration> {
             j.state = JobState::Queued;
             inner.queue.push_front(id.to_string());
             requeued = true;
+        } else if let Some(m) = repeat {
+            let reason = format!("{SAME_FAILURE_REASON}: {}", m.signature);
+            j.note(now, format!("{reason}; not restarting"));
+            repeated = Some(reason.clone());
+            j.state = JobState::Failed {
+                reason,
+                exit_code: Some(code),
+            };
         } else if j.attempt > max {
             let reason = format!(
                 "harness exited {code} on attempt {}; all {max} restarts used",
@@ -588,12 +608,16 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> Option<Duration> {
                 now,
                 format!("harness exited {code} on attempt {}; restarting", j.attempt),
             );
+            j.last_failure = mark.clone();
             j.state = JobState::Queued;
             inner.queue.push_front(id.to_string());
             requeued = true;
         }
     });
     let label = job.map(|j| j.state.label()).unwrap_or("gone");
+    if let Some(reason) = repeated {
+        st.log_line(id, &format!("{reason}; not restarting"));
+    }
     if !requeued {
         st.log_line(id, &format!("harness exited {code}; job {label}"));
         return None;

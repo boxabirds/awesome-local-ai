@@ -68,10 +68,46 @@ exit 0
 "#;
 const UNFIT_BACKOFF_MS: &str = "150";
 
-const FAIL_BODY: &str = r#"echo "[story 1] Crashy story — agent starting"
+/// Crashes every time, but not the same way twice in a row (the exception alternates), so each
+/// failure could be one that a restart gets past.
+const FAIL_BODY: &str = r#"n=$(cat "$0.count" 2>/dev/null || echo 0); echo $((n + 1)) > "$0.count"
+echo "[story 1] Crashy story — agent starting"
 echo "Traceback (most recent call last):"
 echo '  File "drive.py", line 1, in <module>'
-echo "RuntimeError: fake crash"
+if [ $((n % 2)) -eq 0 ]; then echo "RuntimeError: fake crash"; else echo "ValueError: another fake crash"; fi
+exit 1
+"#;
+
+/// The same failure every time, word for word: a broken checkout, say.
+const SAME_FAIL_LINE: &str = "git pull --ff-only failed: unmerged files";
+const SAME_FAIL_BODY: &str = r#"echo "[story 1] Same story — agent starting"
+echo "error: Pulling is not possible because you have unmerged files." >&2
+echo "git pull --ff-only failed: unmerged files" >&2
+exit 1
+"#;
+
+/// The same traceback every time, but with what changes from one attempt to the next: the time,
+/// the pid, a temp path and a port.
+const VOLATILE_FAIL_BODY: &str = r#"n=$(cat "$0.count" 2>/dev/null || echo 0); echo $((n + 1)) > "$0.count"
+echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] [story 2] Volatile story — agent starting"
+echo "Traceback (most recent call last):"
+echo "  File \"/tmp/tmpq$n$$/drive.py\", line 9, in <module>"
+echo "ConnectionError: server pid $$ on 127.0.0.1:$((18000 + n)) stopped at $(date -u +%H:%M:%S).$n after 1.${n}s, see /tmp/run-$$-$n/server.log"
+exit 1
+"#;
+
+/// The same failure every time, but each attempt records one more finished story (metrics.json),
+/// as a run that crashes now and then yet moves forward does.
+const PROGRESS_FAIL_BODY: &str = r#"n=$(cat "$0.count" 2>/dev/null || echo 0); echo $((n + 1)) > "$0.count"
+stories=""
+for i in $(seq 1 $((n + 1))); do
+  stories="$stories${stories:+, }\"$i\": {\"title\": \"S$i\", \"accept\": {\"passed\": 1, \"total\": 1}}"
+done
+echo "{\"stories\": {$stories}}" > "$RUN_DIR/metrics.json"
+echo "[story $((n + 2))] Next story — agent starting"
+echo "Traceback (most recent call last):"
+echo '  File "drive.py", line 1, in <module>'
+echo "RuntimeError: crash after a recorded story"
 exit 1
 "#;
 
@@ -147,6 +183,9 @@ fn setup() -> Env {
         ("fakepack", FAKE_BODY),
         ("envpack", ENV_BODY),
         ("failpack", FAIL_BODY),
+        ("samefailpack", SAME_FAIL_BODY),
+        ("volatilefailpack", VOLATILE_FAIL_BODY),
+        ("progressfailpack", PROGRESS_FAIL_BODY),
         ("unfitpack", &format!("UNFIT_TIMES={UNFIT_TIMES}\n{UNFIT_BODY}")),
         ("missingpack", MISSING_BODY),
         ("slowpack", SLOW_BODY),
@@ -567,6 +606,72 @@ async fn failure_hits_max_restarts() {
     // The queue moves on after a failure: FIFO, one at a time.
     assert_eq!(srv.submit("after", &spec("fakepack", "run-a")).await.0, 201);
     srv.wait_status("after", "done").await;
+}
+
+/// The monitor's A-031: a failure that can't change between attempts (unmerged files in the
+/// checkout, a model server that exits at start, a traceback at import) used every restart within
+/// minutes. The second identical failure with no new story recorded ends the job, naming it.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_same_failure_twice_with_no_progress_stops_the_job() {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(srv.submit("same", &spec("samefailpack", "run-same")).await.0, 201);
+    let v = srv.wait_status("same", "failed").await;
+    assert_eq!(v["attempt"], 2, "{v}");
+    assert_eq!(v["state"]["exit_code"], 1);
+    let reason = v["state"]["reason"].as_str().unwrap();
+    assert_eq!(
+        reason,
+        format!("the same failure twice with no progress: exit 1: {SAME_FAIL_LINE}")
+    );
+    let notes: Vec<&str> = v["history"].as_array().unwrap().iter()
+        .map(|n| n["text"].as_str().unwrap()).collect();
+    assert_eq!(notes.iter().filter(|t| t.contains(SAME_FAIL_LINE)).count(), 1, "{notes:?}");
+    assert!(notes.iter().any(|t| t.starts_with(reason) && t.contains("not restarting")), "{notes:?}");
+    let log = srv.log("same").await;
+    assert_eq!(log.matches("] attempt ").count(), 2, "{log}");
+    assert!(log.contains(&format!("{reason}; not restarting")), "{log}");
+    assert!(!log.contains("restarts used"), "{log}");
+}
+
+/// Times, pids, temp paths and ports differ from one attempt to the next; the failure is the same.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_failure_that_differs_only_in_volatile_parts_counts_as_the_same() {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(srv.submit("vol", &spec("volatilefailpack", "run-vol")).await.0, 201);
+    let v = srv.wait_status("vol", "failed").await;
+    assert_eq!(v["attempt"], 2, "{v}");
+    let reason = v["state"]["reason"].as_str().unwrap();
+    assert!(reason.starts_with("the same failure twice with no progress: exit 1: ConnectionError: server pid "), "{reason}");
+    // The raw lines did differ.
+    let log = srv.log("vol").await;
+    assert!(log.contains("127.0.0.1:18000") && log.contains("127.0.0.1:18001"), "{log}");
+}
+
+/// Failures that differ each time could each be transient: every restart is used.
+#[tokio::test(flavor = "multi_thread")]
+async fn different_failures_use_all_the_restarts() {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(srv.submit("alt", &spec("failpack", "run-alt")).await.0, 201);
+    let v = srv.wait_status("alt", "failed").await;
+    assert_eq!(v["attempt"], MAX_RESTARTS + 1, "{v}");
+    let reason = v["state"]["reason"].as_str().unwrap();
+    assert!(reason.ends_with(&format!("all {MAX_RESTARTS} restarts used")), "{reason}");
+}
+
+/// The same failure, but each attempt recorded another story: the run is moving, so it keeps its restarts.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_same_failure_after_a_new_story_keeps_restarting() {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(srv.submit("moving", &spec("progressfailpack", "run-mv")).await.0, 201);
+    let v = srv.wait_status("moving", "failed").await;
+    assert_eq!(v["attempt"], MAX_RESTARTS + 1, "{v}");
+    let reason = v["state"]["reason"].as_str().unwrap();
+    assert!(reason.ends_with(&format!("all {MAX_RESTARTS} restarts used")), "{reason}");
+    assert_eq!(v["progress"]["stories"].as_array().unwrap().len() as u32, MAX_RESTARTS + 1, "{v}");
 }
 
 #[tokio::test(flavor = "multi_thread")]
