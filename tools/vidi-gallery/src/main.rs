@@ -93,18 +93,24 @@ fn rec_key(run: &runs::Run, story: u64) -> String {
 
 /// What the gallery's recordings run from: its checkouts and the held-out suite (record::reap_listeners).
 fn owned(app: &App) -> Vec<PathBuf> {
-    [app.cache.join("checkouts"), app.acceptance.clone()].into_iter().map(|p| p.canonicalize().unwrap_or(p)).collect()
+    [app.cache.join(builds::CHECKOUTS), app.acceptance.clone()].into_iter().map(|p| p.canonicalize().unwrap_or(p)).collect()
 }
 
 fn rec_dir(app: &App, run: &runs::Run, story: u64) -> PathBuf {
     app.recordings.join(record::blind_name(&app.rec_secret, &run.slug, story))
 }
 
+/// Whether a story of a build already has a finished, valid recording.
+fn recorded(app: &App, run: &runs::Run, story: u64) -> bool {
+    let out = rec_dir(app, run, story);
+    out.join("report.json").is_file() && record::app_never_started(&record::paths(&out, &out)).is_none()
+}
+
 /// Record one story's held-out tests on its prepared review build, retrying a failed attempt.
 async fn record_story(app: &App, run: &runs::Run, story: u64, ws: &std::path::Path) {
     let key = rec_key(run, story);
     let out = rec_dir(app, run, story);
-    if out.join("report.json").is_file() && record::app_never_started(&record::paths(&out, &out)).is_none() {
+    if recorded(app, run, story) {
         app.rec.lock().await.insert(key, "done".into());
         return;
     }
@@ -121,7 +127,7 @@ async fn record_story(app: &App, run: &runs::Run, story: u64, ws: &std::path::Pa
     let mut last = String::new();
     for attempt in 1..=REC_ATTEMPTS {
         app.rec.lock().await.insert(key.clone(), format!("recording (attempt {attempt})"));
-        match record::record(&app.acceptance, &app.record_config, ws, story, &processed, &out, port, &owned(&app)).await {
+        match record::record(&app.acceptance, &app.record_config, ws, story, &processed, &out, port, &owned(app)).await {
             Ok(()) => {
                 last.clear();
                 break;
@@ -139,65 +145,99 @@ fn review_build(app: &App, story: u64) -> u64 {
     app.stories.iter().find(|s| s.id == story).map(|s| s.review_build).unwrap_or(story)
 }
 
-/// How many builds are prepared at once at startup.
-const PREPARE_PARALLEL: usize = 3;
+/// The stories reviewed on one build, in review order.
+fn stories_on(app: &App, build: u64) -> Vec<u64> {
+    app.stories.iter().filter(|s| s.review_build == build).map(|s| s.id).collect()
+}
 
-/// Check out and build every (story, build) the review can open, story 1 first, a few at a time,
-/// so that opening one only starts its server.
+/// The checkout of one build of a run.
+fn checkout_dir(app: &App, run: &runs::Run, build: u64) -> PathBuf {
+    app.cache.join(builds::CHECKOUTS).join(story_slug(run, build))
+}
+
+/// How many builds are prepared at once.
+const PREPARE_PARALLEL: usize = 3;
+/// How many prepared builds may wait for the recorder. With the one the recorder is on and the one
+/// waiting to be queued, at most PREPARE_AHEAD + 2 checkouts are prepared for recording at a time.
+const PREPARE_AHEAD: usize = PREPARE_PARALLEL;
+
+/// Check out one build and, unless every story reviewed on it is already recorded, install and build
+/// it. Its checkout is always made: it is small, and the review's task list reads its history.
+async fn prepare_one(app: &App, run: &runs::Run, build: u64) {
+    let slug = story_slug(run, build);
+    app.prep.lock().await.insert(slug.clone(), "preparing".into());
+    let all_recorded = stories_on(app, build).iter().all(|&s| recorded(app, run, s));
+    let result = match story_checkout(&app.cache, run, build).await {
+        Ok(_) if all_recorded => Ok(()),
+        Ok(ws) => builds::prepare(&ws, &app.cache).await,
+        Err(e) => Err(e),
+    };
+    let status = match &result { Ok(_) => "ready".to_string(), Err(e) => format!("failed: {e:#}") };
+    app.prep.lock().await.insert(slug, status);
+}
+
+/// Record every story reviewed on one prepared build, then release its checkout: node_modules and
+/// the build output go (now, or when the build stops being served), the source stays.
+async fn record_build(app: &App, run: &runs::Run, build: u64) {
+    let slug = story_slug(run, build);
+    let ws = checkout_dir(app, run, build);
+    let ready = app.prep.lock().await.get(&slug).map(String::as_str) == Some("ready");
+    for story in stories_on(app, build) {
+        if ready {
+            record_story(app, run, story, &ws).await;
+        } else {
+            app.rec.lock().await.insert(rec_key(run, story), "failed: its build could not be prepared".into());
+        }
+    }
+    app.builds.release(&slug, &ws).await;
+}
+
+/// Prepare and record every (build, run) the review can open, story 1's builds first: a few builds
+/// are prepared at a time, at most PREPARE_AHEAD ahead of the recorder, and each build's checkout is
+/// released as soon as its recordings are done, so prepared checkouts (and the module stores they
+/// hold) stay few. A build that is already recorded is only checked out.
 async fn prepare_all(app: Arc<App>, runs: Vec<runs::Run>) {
-    let stories = app.stories.clone();
-    let mut jobs = Vec::new();
     let mut builds_needed: Vec<u64> = Vec::new();
-    for s in &stories {
+    for s in &app.stories {
         if !builds_needed.contains(&s.review_build) {
             builds_needed.push(s.review_build); // in review order, so the first story's builds come first
         }
     }
-    for s in &stories {
+    for s in &app.stories {
         for r in &runs {
             app.rec.lock().await.insert(rec_key(r, s.id), "queued".into());
         }
     }
+    let mut jobs = Vec::new();
     for b in builds_needed {
         for r in &runs {
             jobs.push((b, r.clone()));
             app.prep.lock().await.insert(story_slug(r, b), "queued".into());
         }
     }
+    let (tx, mut rx) = tokio::sync::mpsc::channel(PREPARE_AHEAD);
     let gate = Arc::new(tokio::sync::Semaphore::new(PREPARE_PARALLEL));
-    let mut tasks = Vec::new();
-    for (story, run) in jobs {
-        let (app, gate) = (app.clone(), gate.clone());
-        tasks.push(tokio::spawn(async move {
-            let _permit = gate.acquire().await;
-            let slug = story_slug(&run, story);
-            app.prep.lock().await.insert(slug.clone(), "preparing".into());
-            let result = match story_checkout(&app.cache, &run, story).await {
-                Ok(ws) => builds::prepare(&ws, &app.cache.join("modules")).await.map(|_| ws),
-                Err(e) => Err(e),
-            };
-            let status = match &result { Ok(_) => "ready".to_string(), Err(e) => format!("failed: {e:#}") };
-            app.prep.lock().await.insert(slug, status);
-            let _ = result;
-        }));
-    }
-    for t in tasks {
-        let _ = t.await;
-    }
-    println!("all review builds prepared");
-    // Then record walkthroughs in review order, story by story, so the story you start with has
-    // every build's recordings first.
-    for s in &stories {
-        for run in &runs {
-            let slug = story_slug(run, s.review_build);
-            if app.prep.lock().await.get(&slug).map(String::as_str) != Some("ready") {
-                app.rec.lock().await.insert(rec_key(run, s.id), "failed: its build could not be prepared".into());
-                continue;
+    let producer = {
+        let app = app.clone();
+        tokio::spawn(async move {
+            for (build, run) in jobs {
+                app.builds.pin(&story_slug(&run, build)).await;
+                let (app, gate, r) = (app.clone(), gate.clone(), run.clone());
+                let task = tokio::spawn(async move {
+                    let _permit = gate.acquire().await;
+                    prepare_one(&app, &r, build).await;
+                });
+                if tx.send((build, run, task)).await.is_err() {
+                    return;
+                }
             }
-            let ws = app.cache.join("checkouts").join(&slug);
-            record_story(&app, run, s.id, &ws).await;
-        }
+        })
+    };
+    while let Some((build, run, task)) = rx.recv().await {
+        let _ = task.await;
+        record_build(&app, &run, build).await;
     }
+    let _ = producer.await;
     println!("all walkthroughs recorded");
 }
 
@@ -259,7 +299,7 @@ fn story_slug(run: &runs::Run, story: u64) -> String {
 /// gallery cache. Reused if it exists.
 async fn story_checkout(cache: &std::path::Path, run: &runs::Run, story: u64) -> anyhow::Result<PathBuf> {
     let commit = run.story_commits.get(&story).ok_or_else(|| anyhow::anyhow!("no recorded commit for story {story}"))?;
-    let dir = cache.join("checkouts").join(story_slug(run, story));
+    let dir = cache.join(builds::CHECKOUTS).join(story_slug(run, story));
     if dir.join(".git").is_dir() {
         return Ok(dir);
     }
@@ -640,7 +680,7 @@ async fn api_review_tasks(State(app): State<Arc<App>>, UrlPath((story, key)): Ur
     let base = std::fs::read_to_string(run.path.join(format!("stories/{story:02}/base-commit"))).unwrap_or_default().trim().to_string();
     let head = run.story_commits.get(&story).cloned().unwrap_or_default();
     // The review build's checkout holds the whole history up to (at least) this story.
-    let checkout = app.cache.join("checkouts").join(story_slug(&run, review_build(&app, story)));
+    let checkout = checkout_dir(&app, &run, review_build(&app, story));
     let mut commits: Vec<(String, String)> = Vec::new();
     if !head.is_empty() && checkout.join(".git").is_dir() {
         let range = if base.is_empty() { head.clone() } else { format!("{base}..{head}") };
@@ -747,6 +787,8 @@ async fn main() -> anyhow::Result<()> {
         prep: Default::default(), acceptance, recordings, rec_secret, record_config, rec: Default::default(),
         rec_ports: tokio::sync::Mutex::new(rec_ports), build_order,
     });
+    // What an earlier gallery left half-deleted, and module stores beyond the limit.
+    builds::tidy(app.cache.clone()).await;
     tokio::spawn(prepare_all(app.clone(), app.rbs()));
     tokio::spawn(rescan(app.clone()));
     let router = Router::new()
@@ -872,7 +914,8 @@ mod tests {
         let app = Arc::new(App {
             repo: dir.clone(), builds: Builds::new(dir.join("cache")), cache: dir.join("cache"), blind: false,
             review_builds: std::sync::RwLock::new(vec![run]), family: "vidi-v2".into(), started: "t0".into(),
-            reviews: reviews::Store::new(dir.join("analysis/story-reviews.csv")), stories: Vec::new(), prep: Default::default(),
+            reviews: reviews::Store::new(dir.join("analysis/story-reviews.csv")),
+            stories: vec![stories::Story { id: STORY, review_build: STORY, ..Default::default() }], prep: Default::default(),
             acceptance: dir.join("acceptance"), recordings, rec_secret: secret, record_config: dir.join("record.config.ts"),
             rec: tokio::sync::Mutex::new(rec), rec_ports: tokio::sync::Mutex::new(Vec::new()), build_order: Vec::new(),
         });
@@ -1025,5 +1068,29 @@ mod tests {
             assert_no_tells(&format!("walkthrough {idx}"), &walkthrough(&f, idx).await);
         }
         assert_no_tells("the builds' status", &body(api_review_status(State(f.app.clone()), UrlPath(STORY)).await.into_response()).await.1);
+    }
+
+    // ---------- a checkout is released once its recordings are done ----------
+
+    #[tokio::test]
+    async fn once_a_builds_recordings_are_done_its_checkout_keeps_only_its_source() {
+        let f = fixture();
+        let run = f.app.rb(KEY).unwrap();
+        let ws = checkout_dir(&f.app, &run, STORY);
+        for file in [".git/HEAD", "src/main.ts", "node_modules/pkg/index.js", "dist/index.html", ".wrangler/state"] {
+            std::fs::create_dir_all(ws.join(file).parent().unwrap()).unwrap();
+            std::fs::write(ws.join(file), b"x").unwrap();
+        }
+        std::fs::write(ws.join(".gallery-prepared"), "k1").unwrap();
+        f.app.prep.lock().await.insert(story_slug(&run, STORY), "ready".into());
+        f.app.builds.pin(&story_slug(&run, STORY)).await;
+        record_build(&f.app, &run, STORY).await;
+        assert_eq!(f.app.rec.lock().await.get(&rec_key(&run, STORY)).map(String::as_str), Some("done"));
+        for gone in ["node_modules", "dist", ".wrangler", ".gallery-prepared"] {
+            assert!(!ws.join(gone).exists(), "{gone} should be gone once the recording is done");
+        }
+        for kept in [".git/HEAD", "src/main.ts"] {
+            assert!(ws.join(kept).is_file(), "{kept} should stay");
+        }
     }
 }

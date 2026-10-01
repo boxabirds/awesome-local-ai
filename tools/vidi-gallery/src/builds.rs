@@ -2,11 +2,11 @@
 //! this is agent-written code), build, start `wrangler dev` on a private port, and put the
 //! banner proxy in front of it. Stopped by the gallery, and all stopped when the gallery exits.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
@@ -52,6 +52,10 @@ struct Inner {
     states: HashMap<String, State>,
     live: HashMap<String, Live>,
     slots: HashMap<u16, String>,
+    /// Builds whose recording still needs their prepared checkout (see `pin`).
+    pinned: HashSet<String>,
+    /// Builds served from a checkout in place, by slug: stripped when they stop (see `release`).
+    in_place: HashMap<String, PathBuf>,
 }
 
 #[derive(Clone)]
@@ -76,33 +80,171 @@ pub fn is_prepared(ws: &Path) -> bool {
     ws.join(PREPARED_MARKER).is_file()
 }
 
+/// The gallery cache's parts: shared node_modules stores, checkouts, and what is being deleted.
+pub const MODULES: &str = "modules";
+pub const CHECKOUTS: &str = "checkouts";
+const TRASH: &str = "trash";
+/// How many module stores (one node_modules per package-lock.json; measured 0.33-1.0 GB each) are
+/// kept, by most recent use. A store a prepared checkout was cloned from, or one a prepare is using
+/// now, is never evicted; those count towards the N, so at most max(N, those) stores remain.
+pub const MODULE_STORES_KEPT: usize = 6;
+/// Next to each store `<key>`, a file `<key>.used` whose modification time is the store's last use.
+const USED_SUFFIX: &str = ".used";
+/// A store being made: `<key>.tmp`, renamed to `<key>` when complete.
+const TMP_SUFFIX: &str = ".tmp";
+/// What preparing adds to a checkout and stripping removes. The rest, its source and .git, stays:
+/// a few MB, and the review's task list reads its history.
+const PREPARED_PARTS: [&str; 3] = ["node_modules", "dist", ".wrangler"];
+
+/// Stores a prepare is using right now (key -> how many prepares), so eviction never takes one
+/// between choosing it and cloning it.
+static IN_PREPARE: LazyLock<std::sync::Mutex<HashMap<String, usize>>> = LazyLock::new(Default::default);
+
+/// Marks a store busy for as long as it lives.
+struct Busy(String);
+impl Busy {
+    fn new(key: &str) -> Self {
+        *IN_PREPARE.lock().expect("store lock").entry(key.to_string()).or_default() += 1;
+        Busy(key.to_string())
+    }
+}
+impl Drop for Busy {
+    fn drop(&mut self) {
+        let mut busy = IN_PREPARE.lock().expect("store lock");
+        if let Some(n) = busy.get_mut(&self.0) {
+            *n -= 1;
+            if *n == 0 {
+                busy.remove(&self.0);
+            }
+        }
+    }
+}
+
 /// Install and build a workspace so that opening it only has to start wrangler. Starts from clean
 /// (no dist/ or .wrangler/, which can hold a stale config). node_modules is shared between
-/// workspaces with the same package-lock.json: installed once into `modules/<hash>`, then cloned
-/// (APFS copy-on-write, `cp -c`), so 99 builds don't need 99 copies of ~500 MB.
-pub async fn prepare(ws: &Path, modules: &Path) -> anyhow::Result<()> {
+/// workspaces with the same package-lock.json: installed once into `<cache>/modules/<hash>`, then
+/// cloned (APFS copy-on-write, `cp -c`), so 99 builds don't need 99 copies of ~500 MB. Each use of
+/// a store is recorded, and stores beyond MODULE_STORES_KEPT are evicted, least recently used first.
+pub async fn prepare(ws: &Path, cache: &Path) -> anyhow::Result<()> {
     if is_prepared(ws) {
         return Ok(());
     }
-    for leftover in [".wrangler", "dist", "node_modules"] {
+    for leftover in PREPARED_PARTS {
         let _ = std::fs::remove_dir_all(ws.join(leftover));
     }
     let lock = std::fs::read(ws.join("package-lock.json")).unwrap_or_default();
     let key = format!("{:016x}", fnv1a(&lock));
+    let modules = cache.join(MODULES);
     let shared = modules.join(&key);
-    if !shared.is_dir() {
-        run("npm", &["ci", "--ignore-scripts", "--no-audit", "--no-fund"], ws).await?;
-        std::fs::create_dir_all(modules)?;
-        let tmp = modules.join(format!("{key}.tmp"));
-        let _ = std::fs::remove_dir_all(&tmp);
-        run("cp", &["-Rc", "node_modules", &tmp.display().to_string()], ws).await?;
-        let _ = std::fs::rename(&tmp, &shared); // another prepare may have won the race; either copy is fine
-    } else {
-        run("cp", &["-Rc", &shared.display().to_string(), "node_modules"], ws).await?;
+    {
+        let _busy = Busy::new(&key);
+        std::fs::create_dir_all(&modules)?;
+        if !shared.is_dir() {
+            run("npm", &["ci", "--ignore-scripts", "--no-audit", "--no-fund"], ws).await?;
+            let tmp = modules.join(format!("{key}{TMP_SUFFIX}"));
+            let _ = std::fs::remove_dir_all(&tmp);
+            run("cp", &["-Rc", "node_modules", &tmp.display().to_string()], ws).await?;
+            let _ = std::fs::rename(&tmp, &shared); // another prepare may have won the race; either copy is fine
+        } else {
+            run("cp", &["-Rc", &shared.display().to_string(), "node_modules"], ws).await?;
+        }
+        touch_store(&modules, &key);
+        run("npm", &["run", "build"], ws).await?;
+        std::fs::write(ws.join(PREPARED_MARKER), &key)?;
     }
-    run("npm", &["run", "build"], ws).await?;
-    std::fs::write(ws.join(PREPARED_MARKER), key)?;
+    tidy(cache.to_path_buf()).await;
     Ok(())
+}
+
+/// Record a use of the store `key`.
+fn touch_store(modules: &Path, key: &str) {
+    let _ = std::fs::write(modules.join(format!("{key}{USED_SUFFIX}")), b"");
+}
+
+/// Move `path` into the cache's trash (a rename: instant, and on the same volume).
+fn to_trash(path: &Path, cache: &Path) {
+    static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    if !path.exists() {
+        return;
+    }
+    let trash = cache.join(TRASH);
+    let _ = std::fs::create_dir_all(&trash);
+    let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let name = path.file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
+    if std::fs::rename(path, trash.join(format!("{}-{n}-{name}", std::process::id()))).is_err() {
+        let _ = std::fs::remove_dir_all(path);
+    }
+}
+
+/// Take a checkout back to its source: drop what `prepare` added (node_modules, the build output,
+/// wrangler's state) into the trash, and the marker first, so it never looks prepared without them.
+/// Fast (renames only); `empty_trash` does the slow part.
+pub fn strip(ws: &Path, cache: &Path) {
+    let _ = std::fs::remove_file(ws.join(PREPARED_MARKER));
+    for part in PREPARED_PARTS {
+        to_trash(&ws.join(part), cache);
+    }
+}
+
+/// The store keys that prepared checkouts were cloned from (their markers name them).
+fn stores_in_use(checkouts: &Path) -> HashSet<String> {
+    let Ok(dirs) = std::fs::read_dir(checkouts) else { return HashSet::new() };
+    dirs.flatten()
+        .filter_map(|d| std::fs::read_to_string(d.path().join(PREPARED_MARKER)).ok())
+        .map(|k| k.trim().to_string())
+        .collect()
+}
+
+/// Evict module stores beyond `keep`, least recently used first, never one a prepared checkout or a
+/// prepare in progress uses (evicting a store a checkout was cloned from would free nothing while
+/// that checkout exists anyway: they share their blocks). Returns the evicted keys.
+pub fn evict_modules(cache: &Path, keep: usize) -> Vec<String> {
+    let modules = cache.join(MODULES);
+    let Ok(dirs) = std::fs::read_dir(&modules) else { return Vec::new() };
+    let last_use = |key: &str| {
+        std::fs::metadata(modules.join(format!("{key}{USED_SUFFIX}")))
+            .or_else(|_| std::fs::metadata(modules.join(key)))
+            .and_then(|m| m.modified())
+            .unwrap_or(std::time::UNIX_EPOCH)
+    };
+    let mut stores: Vec<(std::time::SystemTime, String)> = dirs
+        .flatten()
+        .filter(|d| d.path().is_dir())
+        .map(|d| d.file_name().to_string_lossy().into_owned())
+        .filter(|k| !k.ends_with(TMP_SUFFIX))
+        .map(|k| (last_use(&k), k))
+        .collect();
+    stores.sort(); // least recently used first
+    let mut protected = stores_in_use(&cache.join(CHECKOUTS));
+    protected.extend(IN_PREPARE.lock().expect("store lock").keys().cloned());
+    let held = stores.iter().filter(|(_, k)| protected.contains(k)).count();
+    let free = stores.len() - held; // unprotected stores; the most recent of them fill the rest of `keep`
+    let to_evict = free.saturating_sub(keep.saturating_sub(held));
+    let evicted: Vec<String> =
+        stores.into_iter().map(|(_, k)| k).filter(|k| !protected.contains(k)).take(to_evict).collect();
+    for key in &evicted {
+        to_trash(&modules.join(key), cache);
+        let _ = std::fs::remove_file(modules.join(format!("{key}{USED_SUFFIX}")));
+    }
+    empty_trash(cache);
+    evicted
+}
+
+/// Delete what was moved to the trash.
+pub fn empty_trash(cache: &Path) {
+    let Ok(entries) = std::fs::read_dir(cache.join(TRASH)) else { return };
+    for e in entries.flatten() {
+        let _ = std::fs::remove_dir_all(e.path()).or_else(|_| std::fs::remove_file(e.path()));
+    }
+}
+
+/// Empty the trash and evict stores beyond MODULE_STORES_KEPT, off the async threads.
+pub async fn tidy(cache: PathBuf) {
+    let _ = tokio::task::spawn_blocking(move || {
+        empty_trash(&cache);
+        evict_modules(&cache, MODULE_STORES_KEPT);
+    })
+    .await;
 }
 
 /// A stable 64-bit hash (FNV-1a) of the lockfile, to name its shared node_modules.
@@ -133,6 +275,9 @@ impl Builds {
             return s;
         };
         inner.slots.insert(slot, spec.slug.clone());
+        if spec.in_place {
+            inner.in_place.insert(spec.slug.clone(), spec.workspace.clone());
+        }
         let s = State::Preparing { step: "copying the workspace".into() };
         inner.states.insert(spec.slug.clone(), s.clone());
         drop(inner);
@@ -150,6 +295,26 @@ impl Builds {
         s
     }
 
+    /// Keep a build's checkout prepared until `release`, even if it is served and stopped meanwhile:
+    /// its recording still needs it.
+    pub async fn pin(&self, slug: &str) {
+        self.inner.lock().await.pinned.insert(slug.to_string());
+    }
+
+    /// A build's recording is finished: strip its checkout now, or, while it is being served, when
+    /// it stops.
+    pub async fn release(&self, slug: &str, ws: &Path) {
+        {
+            let mut inner = self.inner.lock().await;
+            inner.pinned.remove(slug);
+            if serving(&inner, slug) {
+                return; // `stop` strips it
+            }
+            strip(ws, &self.cache); // under the lock, so an open can't start preparing it meanwhile
+        }
+        tidy(self.cache.clone()).await;
+    }
+
     async fn step(&self, slug: &str, step: &str) {
         self.inner.lock().await.states.insert(slug.into(), State::Preparing { step: step.into() });
     }
@@ -161,7 +326,7 @@ impl Builds {
         let ws = if spec.in_place {
             if !is_prepared(&spec.workspace) {
                 self.step(&spec.slug, "installing and building").await;
-                prepare(&spec.workspace, &self.cache.join("modules")).await?;
+                prepare(&spec.workspace, &self.cache).await?;
             }
             spec.workspace.clone()
         } else {
@@ -269,6 +434,21 @@ impl Builds {
             l.proxy.abort();
             kill_group(l.pgid).await;
         }
+        // A checkout served in place goes back to its source once nothing needs it prepared: its
+        // recording is done (not pinned) and it hasn't been opened again meanwhile.
+        let stripped = {
+            let inner = self.inner.lock().await;
+            match inner.in_place.get(slug) {
+                Some(ws) if !inner.pinned.contains(slug) && !serving(&inner, slug) => {
+                    strip(ws, &self.cache);
+                    true
+                }
+                _ => false,
+            }
+        };
+        if stripped {
+            tidy(self.cache.clone()).await;
+        }
     }
 
     pub async fn stop_all(&self) {
@@ -277,6 +457,11 @@ impl Builds {
             self.stop(&s).await;
         }
     }
+}
+
+/// Whether a build is being prepared or served right now.
+fn serving(inner: &Inner, slug: &str) -> bool {
+    matches!(inner.states.get(slug), Some(State::Preparing { .. } | State::Running { .. }))
 }
 
 async fn run(cmd: &str, args: &[&str], cwd: &Path) -> anyhow::Result<()> {
@@ -322,4 +507,180 @@ async fn kill_group(pgid: i32) {
     unsafe { libc::killpg(pgid, libc::SIGTERM) };
     tokio::time::sleep(STOP_GRACE).await;
     unsafe { libc::killpg(pgid, libc::SIGKILL) };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, SystemTime};
+
+    const SLUG: &str = "setup__run-1@04";
+    /// Source files a stripped checkout keeps.
+    const SOURCE: [&str; 2] = [".git/HEAD", "src/main.ts"];
+
+    fn tmp(tag: &str) -> PathBuf {
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("vidi-gallery-builds-{tag}-{}-{n}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn put(path: &Path) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, b"x").unwrap();
+    }
+
+    /// A checkout as `prepare` leaves it: source, .git, node_modules cloned from store `key`, a build
+    /// and wrangler state, and the marker naming the store.
+    fn prepared_checkout(cache: &Path, slug: &str, key: &str) -> PathBuf {
+        let ws = cache.join(CHECKOUTS).join(slug);
+        for f in SOURCE {
+            put(&ws.join(f));
+        }
+        for part in PREPARED_PARTS {
+            put(&ws.join(part).join("file"));
+        }
+        std::fs::write(ws.join(PREPARED_MARKER), key).unwrap();
+        ws
+    }
+
+    fn assert_stripped(ws: &Path) {
+        assert!(!is_prepared(ws), "the marker must go with node_modules");
+        for part in PREPARED_PARTS {
+            assert!(!ws.join(part).exists(), "{part} should be gone from {}", ws.display());
+        }
+        for f in SOURCE {
+            assert!(ws.join(f).is_file(), "{f} should stay");
+        }
+    }
+
+    fn assert_prepared(ws: &Path) {
+        assert!(is_prepared(ws));
+        for part in PREPARED_PARTS {
+            assert!(ws.join(part).join("file").is_file(), "{part} should still be there");
+        }
+    }
+
+    async fn serve_in_place(b: &Builds, slug: &str, ws: &Path) {
+        let mut inner = b.inner.lock().await;
+        inner.states.insert(slug.into(), State::Running { url: "http://127.0.0.1:1/".into() });
+        inner.in_place.insert(slug.into(), ws.to_path_buf());
+    }
+
+    #[tokio::test]
+    async fn a_released_checkout_loses_node_modules_and_its_build_but_keeps_its_source() {
+        let cache = tmp("release");
+        let ws = prepared_checkout(&cache, SLUG, "k1");
+        let b = Builds::new(cache.clone());
+        b.pin(SLUG).await;
+        b.release(SLUG, &ws).await;
+        assert_stripped(&ws);
+        assert!(!cache.join(TRASH).exists() || std::fs::read_dir(cache.join(TRASH)).unwrap().next().is_none(), "the trash is emptied");
+        let _ = std::fs::remove_dir_all(&cache);
+    }
+
+    #[tokio::test]
+    async fn a_checkout_being_served_is_stripped_only_when_it_stops() {
+        let cache = tmp("served");
+        let ws = prepared_checkout(&cache, SLUG, "k1");
+        let b = Builds::new(cache.clone());
+        serve_in_place(&b, SLUG, &ws).await;
+        b.release(SLUG, &ws).await;
+        assert_prepared(&ws);
+        b.stop(SLUG).await;
+        assert_stripped(&ws);
+        let _ = std::fs::remove_dir_all(&cache);
+    }
+
+    #[tokio::test]
+    async fn a_checkout_still_to_be_recorded_keeps_node_modules_when_its_server_stops() {
+        let cache = tmp("pinned");
+        let ws = prepared_checkout(&cache, SLUG, "k1");
+        let b = Builds::new(cache.clone());
+        b.pin(SLUG).await;
+        serve_in_place(&b, SLUG, &ws).await;
+        b.stop(SLUG).await;
+        assert_prepared(&ws);
+        b.release(SLUG, &ws).await;
+        assert_stripped(&ws);
+        let _ = std::fs::remove_dir_all(&cache);
+    }
+
+    /// n stores, least recently used first, named after the test's cache (busy stores are process-wide).
+    fn stores(cache: &Path, n: usize) -> Vec<String> {
+        let modules = cache.join(MODULES);
+        let tag = cache.file_name().unwrap().to_string_lossy().into_owned();
+        let base = SystemTime::now() - Duration::from_secs(3600);
+        (0..n)
+            .map(|i| {
+                let key = format!("{tag}-s{i}");
+                put(&modules.join(&key).join("pkg/index.js"));
+                let used = std::fs::File::create(modules.join(format!("{key}{USED_SUFFIX}"))).unwrap();
+                used.set_modified(base + Duration::from_secs(i as u64)).unwrap();
+                key
+            })
+            .collect()
+    }
+
+    fn present(cache: &Path) -> Vec<String> {
+        let mut v: Vec<String> = std::fs::read_dir(cache.join(MODULES))
+            .unwrap()
+            .flatten()
+            .filter(|e| e.path().is_dir())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        v.sort();
+        v
+    }
+
+    #[test]
+    fn with_one_store_too_many_the_least_recently_used_is_evicted() {
+        let cache = tmp("evict");
+        let keys = stores(&cache, MODULE_STORES_KEPT + 1);
+        assert_eq!(evict_modules(&cache, MODULE_STORES_KEPT), vec![keys[0].clone()]);
+        let mut left = keys[1..].to_vec();
+        left.sort();
+        assert_eq!(present(&cache), left);
+        assert!(!cache.join(MODULES).join(format!("{}{USED_SUFFIX}", keys[0])).exists(), "its use marker goes too");
+        let _ = std::fs::remove_dir_all(&cache);
+    }
+
+    #[test]
+    fn using_a_store_makes_it_the_most_recent() {
+        let cache = tmp("touch");
+        let keys = stores(&cache, MODULE_STORES_KEPT + 1);
+        touch_store(&cache.join(MODULES), &keys[0]);
+        assert_eq!(evict_modules(&cache, MODULE_STORES_KEPT), vec![keys[1].clone()]);
+        let _ = std::fs::remove_dir_all(&cache);
+    }
+
+    #[test]
+    fn a_store_a_prepared_checkout_was_cloned_from_is_never_evicted() {
+        let cache = tmp("protect");
+        let keys = stores(&cache, MODULE_STORES_KEPT + 2);
+        let ws = prepared_checkout(&cache, SLUG, &keys[0]);
+        // The protected store takes one of the N places: two others go.
+        assert_eq!(evict_modules(&cache, MODULE_STORES_KEPT), vec![keys[1].clone(), keys[2].clone()]);
+        assert!(present(&cache).contains(&keys[0]));
+        // Once the checkout is stripped, it is the least recently used: the next store in evicts it.
+        strip(&ws, &cache);
+        assert!(evict_modules(&cache, MODULE_STORES_KEPT).is_empty(), "exactly N stores are within the limit");
+        let newest = format!("{}-new", keys[0]);
+        put(&cache.join(MODULES).join(&newest).join("pkg/index.js"));
+        touch_store(&cache.join(MODULES), &newest);
+        assert_eq!(evict_modules(&cache, MODULE_STORES_KEPT), vec![keys[0].clone()]);
+        let _ = std::fs::remove_dir_all(&cache);
+    }
+
+    #[test]
+    fn a_store_a_prepare_is_using_is_never_evicted() {
+        let cache = tmp("busy");
+        let keys = stores(&cache, MODULE_STORES_KEPT + 1);
+        let busy = Busy::new(&keys[0]);
+        assert_eq!(evict_modules(&cache, MODULE_STORES_KEPT), vec![keys[1].clone()]);
+        drop(busy);
+        let _ = std::fs::remove_dir_all(&cache);
+    }
 }
