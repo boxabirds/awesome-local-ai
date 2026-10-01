@@ -45,6 +45,7 @@ const message = (e: unknown): string => (e instanceof Error ? e.message : String
 export class BoardStore {
   private rows = 0;
   private bytes = 0;
+  private migrated = false;
 
   constructor(private readonly storage: StoreStorage) {}
 
@@ -52,7 +53,32 @@ export class BoardStore {
     return this.storage.sql;
   }
 
+  private hasTable(name: string): boolean {
+    return this.sql.exec("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", name).toArray().length > 0;
+  }
+
+  /** Read-only: false for a board that was never created (no tables exist, and none are created here). */
+  existsReadOnly(): boolean {
+    if (this.hasTable('storage_meta')) {
+      if (this.sql.exec("SELECT 1 FROM storage_meta WHERE key = 'created_at'").toArray().length) return true;
+    }
+    // Legacy boards (from before explicit creation) are recognised by their saved content.
+    for (const table of ['updates', 'snapshot_chunks']) {
+      if (this.hasTable(table) && this.sql.exec(`SELECT 1 FROM ${table} LIMIT 1`).toArray().length) return true;
+    }
+    return false;
+  }
+
+  /** Creates the board: tables plus created_at, written once. */
+  initialize(): 'created' | 'exists' {
+    this.migrate();
+    if (this.sql.exec("SELECT 1 FROM storage_meta WHERE key = 'created_at'").toArray().length) return 'exists';
+    this.sql.exec("INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)", String(Date.now()));
+    return 'created';
+  }
+
   migrate(): void {
+    this.migrated = true;
     const sql = this.sql;
     sql.exec('CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
     sql.exec(
@@ -70,6 +96,7 @@ export class BoardStore {
 
   /** Throws on SQL failure; the caller resets the room. */
   append(update: Uint8Array): void {
+    if (!this.migrated) this.migrate();
     this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length);
     this.rows += 1;
     this.bytes += update.length;
@@ -83,6 +110,10 @@ export class BoardStore {
   load(doc: Y.Doc): LoadResult {
     let quarantined = 0;
     try {
+      // A board that was never created has no tables: it is empty, and loading must not create them.
+      if (!this.hasTable('snapshot_chunks') || !this.hasTable('updates') || !this.hasTable('storage_meta')) {
+        return { ok: true, quarantined };
+      }
       const chunks = this.sql.exec('SELECT data FROM snapshot_chunks ORDER BY idx').toArray();
       if (chunks.length) {
         try {

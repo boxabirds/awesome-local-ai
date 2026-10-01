@@ -4,6 +4,7 @@ import {
   dotNearCentre,
   gridInfo,
   originCentre,
+  openNewBoard,
   setCamera,
   zoomLabel,
   zoomValue,
@@ -26,7 +27,7 @@ async function drag(page: import('@playwright/test').Page, from: { x: number; y:
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await openNewBoard(page);
   await expect(zoomLabel(page)).toHaveText('100%');
 });
 

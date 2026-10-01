@@ -1,4 +1,4 @@
-import { exports } from 'cloudflare:workers';
+import { env, exports } from 'cloudflare:workers';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
@@ -32,7 +32,9 @@ export class WsClient {
   synced = false;
   private ws!: WebSocket;
 
-  static async connect(boardId: string, opts: { waitForSync?: boolean; doc?: Y.Doc } = {}): Promise<WsClient> {
+  /** Boards must exist before anyone can connect; `create: false` skips that (for unknown-board tests). */
+  static async connect(boardId: string, opts: { waitForSync?: boolean; doc?: Y.Doc; create?: boolean } = {}): Promise<WsClient> {
+    if (opts.create !== false) await env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).initialize();
     const res = await upgrade(boardId);
     if (res.status !== 101 || !res.webSocket) throw new Error(`upgrade refused: ${res.status}`);
     const c = new WsClient(opts.doc);

@@ -44,7 +44,6 @@ export class BoardRoom extends DurableObject<Env> {
     doc.on('update', (update: Uint8Array, origin: unknown) => this.onDocUpdate(doc, update, origin));
     let result;
     try {
-      this.store.migrate();
       result = this.store.load(doc);
     } catch (e) {
       result = { ok: false as const, reason: 'sql-error' as const, error: e instanceof Error ? e.message : String(e) };
@@ -118,10 +117,21 @@ export class BoardRoom extends DurableObject<Env> {
     return this.lifecycle === 'load-failed' ? null : this.doc;
   }
 
+  /** RPC: creates the board (tables + created_at) unless it already exists. */
+  async initialize(): Promise<'created' | 'exists'> {
+    return this.store.initialize();
+  }
+
+  /** RPC: read-only existence check. */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   async fetch(req: Request): Promise<Response> {
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Upgrade Required', { status: 426 });
     }
+    if (!this.store.existsReadOnly()) return new Response('Not Found', { status: 404 });
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
@@ -198,6 +208,13 @@ export class BoardRoom extends DurableObject<Env> {
     sql.exec('UPDATE snapshot_chunks SET data = ? WHERE idx = 0', chunk.slice(0, Math.max(1, chunk.length - 10)));
     this.loadNow();
     for (const s of this.ctx.getWebSockets()) this.closeSocket(s, CLOSE_BOARD_LOAD_FAILED, 'board could not be loaded');
+  }
+
+  /** A board from before explicit creation: saved content in the log but no created_at. */
+  testSeedLegacy(update: Uint8Array): void {
+    this.store.migrate();
+    this.store.append(update);
+    this.loadNow();
   }
 
   testRepairSnapshot(): void {

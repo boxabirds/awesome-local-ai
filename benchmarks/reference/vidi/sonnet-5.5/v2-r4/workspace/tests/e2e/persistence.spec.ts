@@ -6,7 +6,7 @@ import { newBoardId } from '../../src/shared/board-id';
 import { BOARD_LOAD_BUDGET_MS, E2E_EVENTUAL_TIMEOUT_MS, PERSIST_TESTED_NOTES } from '../../src/shared/config';
 import { largeBoard } from '../fixtures/boards';
 import { waitConnected } from './helpers/participants';
-import { seedBoard } from './helpers/seed';
+import { createBoardAt, seedBoard } from './helpers/seed';
 import { WranglerProcess } from './helpers/wrangler-process';
 
 // These tests own their own wrangler process (killed and restarted on purpose), on a separate port.
@@ -57,6 +57,7 @@ async function noteViews(page: Page): Promise<NoteView[]> {
 
 async function open(browser: Browser, boardId: string) {
   const context = await browser.newContext({ baseURL: server.url, viewport: { width: 1280, height: 800 } });
+  await createBoardAt(server.url, boardId);
   const page = await context.newPage();
   await page.goto(`/b/${boardId}`);
   await page.getByTestId('board-viewport').waitFor();

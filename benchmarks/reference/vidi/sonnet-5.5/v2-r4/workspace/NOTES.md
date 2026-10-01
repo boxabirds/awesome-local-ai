@@ -39,3 +39,10 @@
 - `tests/e2e/persistence.spec.ts` starts its own `wrangler dev --persist-to <tmp>` on port 8792 and kills the process tree (plus whatever listens on the port) to simulate a restart.
 - Measured on this machine, `wrangler dev` delivers the ~740 KB SyncStep2 of a 2,000-note board to Chromium in roughly 13-25 s (also with the story 3 room; the same message reaches a Node client in ~2 s), so BOARD_LOAD_BUDGET_MS is exceeded locally and only logged, and TC-21 waits up to 4x E2E_EVENTUAL_TIMEOUT_MS. The server load itself takes ~0.1 s. Production timing was not measured.
 - `fitFontSize` first tries the maximum font size (one layout read for short notes) and sticky notes use `contain: layout style`, to cut mount cost on big boards.
+
+## Story 5
+- Boards must now exist before anyone connects. Existing tests create boards first: `WsClient.connect` calls `initialize()` (opt out with `create: false`); e2e helpers use test-hook routes `POST /__test/boards/:id/initialize` and `/seed-legacy` (body = Yjs update; writes saved content without `created_at`). The persistence spec's own wrangler now also runs with `TEST_HOOKS:1`; story 1/2 e2e specs open boards via Home -> New board (`openNewBoard`).
+- `compatibility_date` 2025-09-01 already supports Durable Object RPC, so `wrangler.jsonc` is unchanged.
+- `nextBoardPageState` does not know the board id (the state types carry none); `BoardPage` supplies it when moving to `ready`. `attempt` is the 0-based index of the check just made, so the first retry waits BOARD_CHECK_RETRY_BASE_MS, the second twice that.
+- `GET /api/boards/:id` answers 405 for methods other than GET/HEAD. The New board button is shared by Home and Board not found (`NewBoardButton`).
+- `ConnectionStatus` badge and Share button do not overlap (badge is top-centre, Share top-right).

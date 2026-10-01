@@ -4,11 +4,27 @@ import * as syncProtocol from 'y-protocols/sync';
 import * as Y from 'yjs';
 import { MESSAGE_SYNC } from '../../../src/shared/protocol';
 
+/** Creates a board at a chosen id (test hook; needs `--var TEST_HOOKS:1`). */
+export async function createBoardAt(baseUrl: string, boardId: string): Promise<void> {
+  const res = await fetch(`${baseUrl}/__test/boards/${boardId}/initialize`, { method: 'POST' });
+  if (!res.ok) throw new Error(`could not create board: ${res.status}`);
+}
+
+/** Seeds a pre-story-5 board: saved content but no created_at (test hook). */
+export async function seedLegacyBoard(baseUrl: string, boardId: string, source: Y.Doc): Promise<void> {
+  const res = await fetch(`${baseUrl}/__test/boards/${boardId}/seed-legacy`, {
+    method: 'POST',
+    body: Buffer.from(Y.encodeStateAsUpdate(source)),
+  });
+  if (!res.ok) throw new Error(`could not seed legacy board: ${res.status}`);
+}
+
 /**
  * Writes a whole doc to a board through a real WebSocket (Node's global WebSocket) and resolves once the
  * server has answered a later SyncStep1, i.e. after it has processed the state sent before it.
  */
 export async function seedBoard(baseUrl: string, boardId: string, source: Y.Doc): Promise<void> {
+  await createBoardAt(baseUrl, boardId);
   const ws = new WebSocket(`${baseUrl.replace(/^http/, 'ws')}/api/rooms/${boardId}`);
   ws.binaryType = 'arraybuffer';
   const scratch = new Y.Doc();

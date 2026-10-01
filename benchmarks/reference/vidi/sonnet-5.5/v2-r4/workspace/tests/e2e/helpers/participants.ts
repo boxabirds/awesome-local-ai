@@ -21,6 +21,7 @@ export async function openParticipants(
   const people: Participant[] = [];
   for (let i = 0; i < n; i++) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.request.post(`/__test/boards/${boardId}/initialize`);
     const page = await context.newPage();
     const consoleErrors: string[] = [];
     page.on('console', (m) => {

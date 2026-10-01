@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX, STICKY_SIZE_WORLD } from '../../src/shared/config';
 import { LONG_TEXT } from '../fixtures/texts';
-import { setCamera } from './helpers/board';
+import { openNewBoard, setCamera } from './helpers/board';
 
 const TOL = 1;
 
@@ -25,7 +25,7 @@ async function dragBy(page: Page, from: { x: number; y: number }, dx: number, dy
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await openNewBoard(page);
   await page.getByTestId('board-viewport').waitFor();
 });
 

@@ -9,20 +9,10 @@ import { StickyNote } from './objects/StickyNote';
 import { setTestConnectionState } from './canvas/testHooks';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
-import { newBoardId } from '../shared/board-id';
 
 function isTextTarget(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
   return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable;
-}
-
-/** Board address from /b/:boardId; `/` is redirected to a fresh board (replaced by server-side creation in story 5). */
-export function boardIdFromLocation(): string {
-  const m = /^\/b\/([^/]+)\/?$/.exec(location.pathname);
-  if (m) return decodeURIComponent(m[1]);
-  const id = newBoardId();
-  history.replaceState(null, '', `/b/${id}`);
-  return id;
 }
 
 /** Editing is blocked only while a saved board cannot be loaded (it must not look like an empty board). */

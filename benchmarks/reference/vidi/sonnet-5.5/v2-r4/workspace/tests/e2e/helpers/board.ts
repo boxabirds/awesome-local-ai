@@ -40,3 +40,11 @@ export async function dotNearCentre(page: Page): Promise<{ x: number; y: number 
 export async function setCamera(page: Page, x: number, y: number, zoom: number): Promise<void> {
   await page.evaluate((c) => window.__vidi6!.setCamera(c), { x, y, zoom });
 }
+
+/** Home page → New board → the empty board. Returns the new board id. */
+export async function openNewBoard(page: Page): Promise<string> {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByTestId('board-viewport').waitFor();
+  return new URL(page.url()).pathname.replace('/b/', '');
+}

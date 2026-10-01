@@ -24,7 +24,7 @@ export class WranglerProcess {
 
   async start(): Promise<void> {
     this.killPortListeners();
-    const child = spawn('npx', ['wrangler', 'dev', '--port', String(this.port), '--persist-to', this.persistDir], {
+    const child = spawn('npx', ['wrangler', 'dev', '--port', String(this.port), '--persist-to', this.persistDir, '--var', 'TEST_HOOKS:1'], {
       detached: true, // own process group, so the whole tree (npx, wrangler, workerd) can be killed at once
       stdio: 'ignore',
     });

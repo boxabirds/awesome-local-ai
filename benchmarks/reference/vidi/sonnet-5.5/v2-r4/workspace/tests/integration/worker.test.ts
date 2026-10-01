@@ -7,10 +7,10 @@ import worker from '../../src/worker/index';
 import { WsClient, converge, waitFor } from './ws-client';
 
 describe('worker routing', () => {
-  it('TC-04: invalid id with Upgrade → 400 and no room is touched', async () => {
+  it('TC-04: invalid id with Upgrade → 404 and no room is touched', async () => {
     const spy = vi.spyOn(env.BOARD_ROOM, 'idFromName');
     const res = await exports.default.fetch('http://example.com/api/rooms/bad!id', { headers: { Upgrade: 'websocket' } });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });
@@ -19,7 +19,7 @@ describe('worker routing', () => {
     const idFromName = vi.fn();
     const fake = { BOARD_ROOM: { idFromName }, ASSETS: env.ASSETS } as unknown as Parameters<typeof worker.fetch>[1];
     const res = await worker.fetch(new Request('http://example.com/api/rooms/bad!id', { headers: { Upgrade: 'websocket' } }), fake);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(idFromName).not.toHaveBeenCalled();
   });
 
