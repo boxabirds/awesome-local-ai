@@ -212,6 +212,51 @@ describe("every job of a run", () => {
     expect(jobs[0]).toEqual({ id: "v2-r1", node: "node-a", status: "cancelled", submittedAt: 100, updatedAt: 200, endedAt: 200, reason: "stopped by the operator" });
   });
 
+  // 1 Oct 2026: a job cancelled after its preflight failed showed "none given" (dbench kept no reason then).
+  const SONNET_TAIL = [
+    "[dbench 2026-10-01T00:48:12Z] submitted by 100.86.117.127",
+    "[dbench 2026-10-01T00:48:15Z] git pull --ff-only: ok",
+    "  ok  held-out suite is hidden",
+    "PREFLIGHT FAILED (claude): Claude Code did not complete a session in the sandbox (token missing or invalid?)",
+    "EEXIST: file already exists, mkdir '/tmp/claude-501'",
+    "",
+    "preflight failed; not starting the run",
+    "[dbench 2026-10-01T00:49:26Z] harness exited 1; stopping processes left in its group",
+    "[dbench 2026-10-01T00:49:26Z] harness exited 1; restarting in 30s",
+    "[dbench 2026-10-01T00:49:56Z] cancelled while queued by 100.86.117.127",
+    "[dbench 2026-10-01T00:49:58Z] git pull --ff-only: ok",
+  ];
+  const reasonOf = (j: Parameters<typeof job>[0]) => [...jobsByRun({ "node-a": [job(j)] }).values()][0][0].reason;
+
+  it("a cancel's reason is the one dbench kept with it", () => {
+    expect(reasonOf({ id: "a", spec, state: { status: "cancelled" }, cancel_reason: "made room for a rerun",
+                      progress: { log_tail: SONNET_TAIL } })).toBe("made room for a rerun");
+  });
+
+  it("a cancel with no reason kept says so, with the failure its log shows before the cancel", () => {
+    expect(reasonOf({ id: "a", spec, state: { status: "cancelled" }, progress: { log_tail: SONNET_TAIL } })).toBe(
+      "no reason recorded; before the cancel its log shows: PREFLIGHT FAILED (claude): Claude Code did not complete a session in the sandbox (token missing or invalid?)");
+  });
+
+  it("without a failure in its log, the harness's exit before the cancel", () => {
+    const tail = ["[dbench 2026-10-01T00:49:26Z] harness exited 2; restarting in 30s",
+                  "[dbench 2026-10-01T00:49:56Z] cancelled while queued by 100.86.117.127"];
+    expect(reasonOf({ id: "a", spec, state: { status: "cancelled" }, progress: { log_tail: tail } })).toBe(
+      "no reason recorded; before the cancel its log shows: harness exited 2; restarting in 30s");
+  });
+
+  it("a job cancelled before it ever ran, with no reason kept, has none to show", () => {
+    const tail = ["[dbench 2026-10-01T00:48:12Z] submitted by 100.86.117.127",
+                  "[dbench 2026-10-01T00:49:53Z] cancelled while queued by 100.86.117.127"];
+    expect(reasonOf({ id: "a", spec, state: { status: "cancelled" }, progress: { log_tail: tail } })).toBe("");
+  });
+
+  it("a failure seen after the cancel (a later attempt) isn't taken as its reason", () => {
+    const tail = ["[dbench 2026-10-01T00:49:56Z] cancel requested by 100.86.117.127",
+                  "PREFLIGHT FAILED (claude): later"];
+    expect(reasonOf({ id: "a", spec, state: { status: "cancelled" }, progress: { log_tail: tail } })).toBe("");
+  });
+
   it("keeps different runs, packs and combinations apart", () => {
     const by = jobsByRun({ n: [
       job({ id: "a", spec }),
