@@ -4,6 +4,9 @@
 # without mlx-serve, a model or the network. `mlx-serve`, `hf`, `ps`, `curl`,
 # `memory_pressure` and `sysctl` are stubs on PATH that record what they were
 # asked to do, so these assert the command line itself, not a paraphrase.
+# The install refuses anything but a new-enough macOS, so `uname` and `sw_vers`
+# are stubs too: the machine running the test (a Linux CI runner, an older Mac)
+# must not decide its result.
 set -uo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$DIR/.." && pwd)"
@@ -45,6 +48,19 @@ STUB
   chmod +x "$1"
 }
 
+# A stand-in for the operating system: `uname -s` and `sw_vers -productVersion` answer as told.
+FAKE_OS_FLOOR="$MLXSERVE_MIN_MACOS"                       # exactly the floor mlx-serve asks for
+FAKE_OS_OLDER="15.6"
+mk_os_stub() { # dir kernel-name macos-version
+  mkdir -p "$1"
+  printf '#!/bin/sh\n[ "${1:-}" = "-s" ] && { echo "%s"; exit 0; }\nexit 1\n' "$2" > "$1/uname"
+  printf '#!/bin/sh\n[ "${1:-}" = "-productVersion" ] && { echo "%s"; exit 0; }\nexit 1\n' "$3" > "$1/sw_vers"
+  chmod +x "$1/uname" "$1/sw_vers"
+}
+mk_os_stub "$WORK/os-mac"     Darwin "$FAKE_OS_FLOOR"
+mk_os_stub "$WORK/os-old-mac" Darwin "$FAKE_OS_OLDER"
+mk_os_stub "$WORK/os-linux"   Linux  ""
+
 BH="$WORK/bhome"; mkdir -p "$BH"
 mk_mlxserve_stub "$WORK/oldbin/mlx-serve" 26.8.8          # e.g. an old Homebrew install
 mk_mlxserve_stub "$WORK/newbin/mlx-serve" 26.9.6          # a newer one outside HOME
@@ -54,12 +70,12 @@ mk_mlxserve_stub "$WORK/tarsrc/mlx-serve-macos-arm64/mlx-serve" 26.9.5
 tar -czf "$WORK/release.tar.gz" -C "$WORK/tarsrc" mlx-serve-macos-arm64
 TAR_SHA="$(shasum -a 256 "$WORK/release.tar.gz" | cut -d' ' -f1)"
 
-resolve() { # extra PATH dir, sha -> prints "BIN|REL|SYS|ORIGIN"
-  ( HOME="$BH"; PATH="$1:/usr/bin:/bin:/usr/sbin"
+resolve() { # extra PATH dir, sha, [os stub dir] -> prints "BIN|REL|SYS|ORIGIN"; why it failed is in $WORK/resolve.out
+  ( HOME="$BH"; PATH="${3:-$WORK/os-mac}:$1:/usr/bin:/bin:/usr/sbin"
     MLXSERVE_VERSION=26.9.5 MLXSERVE_TARBALL_SHA256="$2"
     MLXSERVE_TARBALL_URL="file://$WORK/release.tar.gz"
     . "$REPO_ROOT/lib/mlxserve.sh"
-    ensure_backend >/dev/null 2>&1 || exit 1
+    ensure_backend >"$WORK/resolve.out" 2>&1 || exit 1
     printf '%s|%s|%s|%s' "$MLXSERVE_BIN" "$MLXSERVE_BIN_REL" "$MLXSERVE_BIN_SYS" "$MLXSERVE_BIN_ORIGIN" )
 }
 
@@ -82,7 +98,14 @@ mv "$WORK/release.tar.gz.away" "$WORK/release.tar.gz"
 
 rm -rf "$BH/.local/share/awesome-local-ai"
 assert_fails "a tarball with the wrong sha256 is refused" resolve "$WORK/oldbin" "$(printf '0%.0s' {1..64})"
+assert_ok    "...as a sha256 mismatch, not for another reason" grep -q 'sha256 mismatch' "$WORK/resolve.out"
 assert_fails "...and nothing is unpacked" test -e "$BH/.local/share/awesome-local-ai/mlx-serve/v26.9.5/mlx-serve-macos-arm64"
+
+assert_fails "anything but macOS is refused" resolve "$WORK/newbin" "$TAR_SHA" "$WORK/os-linux"
+assert_ok    "...saying mlx-serve is macOS only" grep -q 'macOS only' "$WORK/resolve.out"
+assert_fails "a macOS older than mlx-serve's floor is refused" resolve "$WORK/newbin" "$TAR_SHA" "$WORK/os-old-mac"
+assert_ok    "...naming the floor and the version found" grep -q "needs macOS $FAKE_OS_FLOOR+.*runs $FAKE_OS_OLDER" "$WORK/resolve.out"
+assert_fails "...and nothing is unpacked for either" test -e "$BH/.local/share/awesome-local-ai/mlx-serve/v26.9.5/mlx-serve-macos-arm64"
 
 out="$(resolve "$WORK/newbin" "$TAR_SHA")"
 IFS='|' read -r r_bin r_rel r_sys r_origin <<< "$out"

@@ -188,7 +188,10 @@ def test_a_fake_agent_leaking_a_detached_server_through_an_interrupted_call_lose
     session and is then cut off. The server must go, the agent must stay, and the reaping must be
     recorded; at the end of the story the scope is emptied."""
     s = C.StoryContainment(f"test-{os.getpid()}", 1)
-    agent = subprocess.Popen(s.wrap(["bash", "-c", "sleep 2; setsid sleep 300 </dev/null >/dev/null 2>&1 & sleep 300"]),
+    # `exec`: the agent's own waiting must be the agent's process. As a child of bash, the last sleep starts
+    # after the tool call and is reaped with the server (rightly: it is something the call started); bash then
+    # ends, and whether it is still alive at the assert below is a race.
+    agent = subprocess.Popen(s.wrap(["bash", "-c", "sleep 2; setsid sleep 300 </dev/null >/dev/null 2>&1 & exec sleep 300"]),
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     s.started(agent.pid)
     deadline = time.time() + 10
@@ -199,6 +202,7 @@ def test_a_fake_agent_leaking_a_detached_server_through_an_interrupted_call_lose
     reaped = s.reap_interrupted()            # the harness cuts the call off
     assert reaped and all(r["rule"] == "interrupted" for r in reaped)
     assert any(r["comm"] == "sleep" for r in reaped)
+    assert agent.pid not in {r["pid"] for r in reaped}
     assert C._alive(agent.pid)
     summary = s.finish()
     agent.wait(timeout=10)

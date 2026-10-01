@@ -199,6 +199,7 @@ class SleepyClient:
         return None
 
 
+@pytest.mark.needs_sandbox      # run_story_agent runs the stand-in agent in the real sandbox
 def test_operator_skip_stops_the_agent_with_no_resume_or_nudge(tmp_path, monkeypatch):
     monkeypatch.setattr(drive, "SKIP_POLL_S", 0.2)
     run = tmp_path / "run"

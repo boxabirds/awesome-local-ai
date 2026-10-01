@@ -19,10 +19,11 @@ cd tools/dbench
 cargo build --release                 # native: target/release/dbench
 cargo test                            # unit tests, plus end-to-end tests against the real binary
 cargo clippy -- -D warnings           # kept at zero warnings; both are checks of `dbench harness-release`
-./build-linux.sh                      # Linux x86_64 glibc from a Mac, via zig (brew install zig;
-                                      #   rustup target add x86_64-unknown-linux-gnu)
+./build-linux.sh                      # Linux x86_64 glibc from a Mac, via zig (brew install zig)
                                       # -> target/x86_64-unknown-linux-gnu/release/dbench
 ```
+
+The Rust version is pinned in `rust-toolchain.toml` (an exact release, with clippy and the Linux target): rustup installs it the first time cargo runs here, and CI reads the same file, so a new stable release can't fail a commit that passed before. To move to a newer Rust, change `channel` there and run the checks.
 
 On a Linux box, `cargo build --release` works natively. TLS is rustls, so there's no OpenSSL.
 
@@ -210,7 +211,7 @@ It works on the git repository the current directory is in, or `--repo PATH`. Th
   - HEAD moved, or a tracked file under the checked paths changed, while the checks ran;
   - the tag can't be pushed. The local tag is then removed.
 - **`--check-only` doesn't look at git state:** no fetch, and a dirty tree or an unpushed commit is fine. It exits non-zero if any check fails.
-- **What the checks need installed:** uv, node with npm and npx, cargo with clippy, bun with the benchmarker's packages (`bun install` in `tools/benchmarker`), and Playwright's chromium (`bunx playwright install chromium` there).
+- **What the checks need installed:** uv, node with npm and npx, rustup (cargo and clippy come from `rust-toolchain.toml`), bun with the benchmarker's packages (`bun install` in `tools/benchmarker`), and Playwright's chromium (`bunx playwright install chromium` there). On Linux, bubblewrap (`bwrap`) too: the harness tests that run the agent's sandbox skip without it, and in CI, which sets `SPEC_BENCH_REQUIRE_SANDBOX`, fail without it.
 
 The machines don't run released tags yet: a job still runs whatever `git pull` brought in (see "Run the server").
 

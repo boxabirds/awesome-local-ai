@@ -687,4 +687,38 @@ command = ["bash", "tests/run-tests.sh"]
         }
         assert!(workflow.contains("harness-release --check-only"));
     }
+
+    /// One Rust version for local builds and for CI: the toolchain file names an exact release
+    /// (a channel like "stable" moves, and brings new clippy lints with it), and the workflow
+    /// takes its version from that file instead of naming one itself.
+    #[test]
+    fn the_rust_version_is_pinned_in_one_place() {
+        const WORKFLOW: &str = ".github/workflows/checks.yml";
+        const TOOLCHAIN_FILE: &str = "tools/dbench/rust-toolchain.toml";
+        const VERSION_PARTS: usize = 3; // major.minor.patch; "1.98" would follow its patch releases
+        let text = std::fs::read_to_string(repo_root().join(TOOLCHAIN_FILE)).unwrap();
+        let doc: toml::Value = toml::from_str(&text).unwrap();
+        let channel = doc["toolchain"]["channel"].as_str().unwrap();
+        let parts: Vec<&str> = channel.split('.').collect();
+        assert!(
+            parts.len() == VERSION_PARTS
+                && parts
+                    .iter()
+                    .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit())),
+            "{TOOLCHAIN_FILE}: channel {channel:?} is not an exact version"
+        );
+        // The workflow reads the version with sed, from a line of exactly this shape.
+        let line = format!("channel = \"{channel}\"");
+        assert!(
+            text.lines().any(|l| l == line),
+            "{TOOLCHAIN_FILE} should have the line {line}"
+        );
+        let workflow = std::fs::read_to_string(repo_root().join(WORKFLOW)).unwrap();
+        assert!(workflow.contains(&format!("RUST_TOOLCHAIN_FILE: {TOOLCHAIN_FILE}")));
+        assert!(workflow.contains("echo \"RUSTUP_TOOLCHAIN=$channel\" >> \"$GITHUB_ENV\""));
+        assert!(
+            !workflow.contains("rust-toolchain@"),
+            "{WORKFLOW} installs a toolchain of its own choosing"
+        );
+    }
 }

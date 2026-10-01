@@ -13,6 +13,13 @@ def no_port_listeners(monkeypatch):
     monkeypatch.setattr(gates, "_listeners", lambda port: [])
 
 
+# The held-out suite is in the private pack repo (packdir.py): a checkout of the public repo alone has none.
+needs_held_out_suite = pytest.mark.skipif(
+    not (gates.ACCEPTANCE / "tests").is_dir(),
+    reason="needs the held-out acceptance suite, which is in the private pack repo, not in this checkout")
+
+
+@needs_held_out_suite
 def test_unstartable_app_counts_every_applicable_test_as_failed(tmp_path: Path):
     ws = tmp_path / "ws"
     ws.mkdir()

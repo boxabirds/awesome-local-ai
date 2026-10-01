@@ -51,6 +51,10 @@ env:
   NODE_VERSION: "24"
   # Under the runner's temp directory: each check's full output, kept when a check fails.
   CHECK_LOGS: check-logs
+  # The one place the Rust version is set (its `channel`), for local builds too.
+  RUST_TOOLCHAIN_FILE: tools/dbench/rust-toolchain.toml
+  # The harness tests that run the real sandbox fail, rather than skip, if it is missing here (conftest.py).
+  SPEC_BENCH_REQUIRE_SANDBOX: "1"
 
 jobs:
   checks:
@@ -59,12 +63,39 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
+      # The pinned Rust, never "stable": a new release brings new clippy lints, and would fail a commit
+      # that passed the day before. RUSTUP_TOOLCHAIN makes every later cargo (all three crates) use it.
+      - name: Install the pinned Rust toolchain
+        run: |
+          channel="$(sed -n 's/^channel *= *"\(.*\)"$/\1/p' "$RUST_TOOLCHAIN_FILE")"
+          [ -n "$channel" ] || { echo "no channel in $RUST_TOOLCHAIN_FILE" >&2; exit 1; }
+          rustup toolchain install "$channel" --profile minimal --component clippy
+          echo "RUSTUP_TOOLCHAIN=$channel" >> "$GITHUB_ENV"
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: tools/dbench
+          workspaces: |
+            tools/dbench
+            tools/vidi-gallery
+            tools/power-collector
+
+      # The agent's sandbox on Linux is bubblewrap, which needs unprivileged user namespaces; Ubuntu 24.04
+      # restricts those through AppArmor. Least privilege (CLAUDE.md): the AppArmor profile gives them to
+      # bwrap alone, where the sysctl kernel.apparmor_restrict_unprivileged_userns=0 would give them to
+      # every program. The last line proves the sandbox starts, before any test needs it.
+      - name: Install the sandbox (bubblewrap)
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends bubblewrap
+          sudo tee /etc/apparmor.d/bwrap >/dev/null <<'PROFILE'
+          abi <abi/4.0>,
+          include <tunables/global>
+
+          profile bwrap /usr/bin/bwrap flags=(unconfined) {
+            userns,
+          }
+          PROFILE
+          sudo apparmor_parser --replace /etc/apparmor.d/bwrap
+          bwrap --bind / / --dev-bind /dev /dev true
 
       # The harness tests: uv for Python; node, npm and npx for the end-to-end self-test.
       - uses: astral-sh/setup-uv@v10.2.0
