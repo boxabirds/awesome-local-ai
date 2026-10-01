@@ -367,9 +367,13 @@ POLICY = Path(__file__).resolve().parents[1] / "EVALUATION-POLICY.md"
 
 
 def policy_link(run: Path) -> str:
-    """The policy's path relative to the run folder, whatever its depth, where summary.md is written."""
+    """The policy's path relative to the run folder, whatever its depth, where summary.md is written: the policy
+    in the checkout the run is written to (the results root), never the one beside the code, which on a node is
+    a release's directory outside that checkout."""
     import os
-    return os.path.relpath(POLICY, run.resolve())
+    import roots
+    in_results = roots.RESULTS_ROOT / POLICY.relative_to(roots.CODE_ROOT)
+    return os.path.relpath(in_results.resolve(), run.resolve())
 
 
 def render_per_story(run: Path) -> str:

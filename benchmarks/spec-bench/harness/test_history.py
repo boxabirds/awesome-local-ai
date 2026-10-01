@@ -292,3 +292,22 @@ def test_per_story_shows_flaky_tests_when_a_checkpoint_was_scored_more_than_once
     f.write_text(json.dumps(doc))
     assert history.per_story(tmp_path)[0]["flaky"] == 1
     assert "| Flaky |" in history.render_per_story(tmp_path)
+
+
+def test_the_policy_link_stays_inside_the_results_checkout_when_the_harness_runs_from_a_release(tmp_path, monkeypatch):
+    """A node runs the harness of a release from a directory of its own, outside its checkout of main (roots.py).
+    The summary's link was made to the policy beside the code, so in the repo it led out of it
+    (../releases/harness-v…/benchmarks/spec-bench/EVALUATION-POLICY.md) and the repo's link check failed. It is the
+    policy in the checkout the run is written to."""
+    import roots
+    checkout = tmp_path / "checkout"
+    run = checkout / "combinations" / "m" / "v" / "s" / "os" / "hw" / "stack" / "benchmarks" / "vidi" / "v2-r5"
+    run.mkdir(parents=True)
+    monkeypatch.setattr(roots, "RESULTS_ROOT", checkout)
+    link = history.policy_link(run)
+    assert link == "../../../../../../../../../../benchmarks/spec-bench/EVALUATION-POLICY.md"
+    assert (run / link).resolve() == (checkout / "benchmarks" / "spec-bench" / "EVALUATION-POLICY.md").resolve()
+    # In a checkout the two roots are one, and the link is what it always was.
+    monkeypatch.setattr(roots, "RESULTS_ROOT", roots.CODE_ROOT)
+    here = roots.CODE_ROOT / "combinations" / "x" / "benchmarks" / "vidi" / "r1"
+    assert (here / history.policy_link(here)).resolve() == history.POLICY
