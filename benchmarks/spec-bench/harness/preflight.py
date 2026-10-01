@@ -20,7 +20,7 @@ import sys
 import time
 import urllib.request
 
-from drive import PACK, REPO_ROOT, WORK_ROOT, agent_env, sandboxed
+from drive import PACK, REPO_ROOT, WORK_ROOT, agent_env, outside_packages, sandboxed
 
 PORT = 18899
 STEP_TIMEOUT_S = 300
@@ -97,6 +97,20 @@ def claude_probe(env: dict) -> None:
     print(f"  ok  claude code: {why}")
 
 
+def visible_outside_packages(own_dir: Path) -> list[Path]:
+    """The package directories and manifests above own_dir (drive.outside_packages) that exist on this machine and
+    that a sandboxed command can still read: there must be none, or an agent's build can use a package it never
+    declared (Sonnet 5.5 v2-r1, 1 Oct 2026). A masked one reads as empty (Linux) or is refused (macOS)."""
+    seen = []
+    for p in outside_packages(own_dir):
+        if p.exists():
+            r = subprocess.run(sandboxed(["ls" if p.is_dir() else "cat", str(p)], own_dir=own_dir),
+                               capture_output=True, text=True)
+            if r.returncode == 0 and r.stdout.strip():
+                seen.append(p)
+    return seen
+
+
 def main() -> None:
     import argparse
     ap = argparse.ArgumentParser()
@@ -133,6 +147,10 @@ def main() -> None:
         if leak.returncode == 0:
             raise SystemExit("PREFLIGHT FAILED: the sandbox can read the held-out acceptance suite")
         print("  ok  held-out suite is hidden")
+        if seen := visible_outside_packages(PROBE):
+            raise SystemExit("PREFLIGHT FAILED: the sandbox can read packages above the agent's workspace: "
+                             + ", ".join(str(p) for p in seen))
+        print("  ok  no packages above the workspace are readable")
         if a.client == "claude":
             claude_probe(env)
     finally:
