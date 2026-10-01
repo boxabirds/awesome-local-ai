@@ -14,7 +14,7 @@ export default defineConfig({
   use: { baseURL: `http://localhost:${PORT}`, viewport: { width: 1280, height: 800 } },
   webServer: {
     // Test-mode build so window.__vidi6 exists; served through wrangler's static assets.
-    command: `npm run build:test && npx wrangler dev --port ${PORT}`,
+    command: `npm run build:test && npx wrangler dev --port ${PORT} --var TEST_HOOKS:1`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 120_000,

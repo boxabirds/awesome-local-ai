@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { newBoardId } from '../shared/board-id';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc, type BoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
@@ -23,6 +24,11 @@ function boardIdFromLocation(): string {
   return id;
 }
 
+/** False only while the saved board could not be loaded: it must not look like an empty editable board. */
+export function canEdit(state: ConnectionState | undefined): boolean {
+  return state !== 'load_failed';
+}
+
 export function App() {
   const [boardId] = useState(boardIdFromLocation);
   return <ConnectedBoard boardId={boardId} />;
@@ -38,7 +44,10 @@ export function BoardApp({ board }: { board: BoardDoc }) {
   const sel = useSelection();
   const { selectedId, editingId, select, startEdit, endEdit } = sel;
 
+  const editable = canEdit(board.connection);
+
   const create = (centre: Point) => {
+    if (!editable) return;
     const id = createSticky(doc, centre);
     if (id) startEdit(id);
   };
@@ -50,7 +59,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || !selectedId || editingId !== null) return;
+      if (!editable || e.ctrlKey || e.metaKey || e.altKey || !selectedId || editingId !== null) return;
       const target = e.target instanceof Element ? e.target : null;
       if (e.key === 'Enter') {
         if (target?.closest(ANY_CONTROL)) return;
@@ -65,7 +74,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selectedId, editingId, select, startEdit]);
+  }, [doc, editable, selectedId, editingId, select, startEdit]);
 
   // DOM order is stable (by id) so pointer capture survives restacking; z-index does the stacking.
   const domOrder = [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -76,7 +85,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
     <BoardViewport
       onEmptyDoubleClick={create}
       onEmptyClick={() => select(null)}
-      overlay={(ctx) => <Toolbar onCreateSticky={() => create(ctx.centreWorld())} />}
+      overlay={(ctx) => <Toolbar disabled={!editable} onCreateSticky={() => create(ctx.centreWorld())} />}
     >
       {(ctx) => domOrder.map((note) => (
         <StickyNote
@@ -86,6 +95,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
           zoom={ctx.camera.zoom}
           selected={note.id === selectedId}
           editing={note.id === editingId}
+          readOnly={!editable}
           onSelect={select}
           onStartEdit={startEdit}
           onEndEdit={endEdit}

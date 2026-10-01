@@ -21,6 +21,7 @@ body { font-family: system-ui, sans-serif; background: #fff; overflow: hidden; }
 }
 .connection-status--connecting, .connection-status--reconnecting { background: #ffb300; color: #3e2723; }
 .connection-status--confirmed { background: #43a047; color: #fff; }
+.connection-status--load_failed { background: #d32f2f; color: #fff; }
 
 .navigation-hint {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);

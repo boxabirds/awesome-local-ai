@@ -7,7 +7,7 @@ import {
   DRAG_THRESHOLD_PX, STICKY_COLORS, STICKY_FONT_MAX_PX, STICKY_SIZE_WORLD,
 } from '../../shared/config';
 import { NoteToolbar } from './NoteToolbar';
-import { fitFontSize } from './StickyText';
+import { requestFit } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 
 const PRIMARY_BUTTON = 0;
@@ -19,11 +19,13 @@ interface Press {
 
 export function StickyNote(props: {
   note: StickySnapshot; doc: Y.Doc; zoom: number;
-  selected: boolean; editing: boolean;
+  selected: boolean; editing: boolean; readOnly?: boolean;
   onSelect(id: string | null): void; onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
 }) {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const { note, doc, zoom, selected, editing, onSelect, onEndEdit } = props;
+  const readOnly = props.readOnly === true;
+  const onStartEdit = (id: string) => { if (!readOnly) props.onStartEdit(id); };
   const [dragging, setDragging] = useState(false);
   const [fit, setFit] = useState({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
   const boxRef = useRef<HTMLDivElement>(null);
@@ -32,7 +34,9 @@ export function StickyNote(props: {
   latest.current = { note, zoom };
 
   useLayoutEffect(() => {
-    if (boxRef.current) setFit(fitFontSize(boxRef.current, STICKY_SIZE_WORLD));
+    if (!boxRef.current) return undefined;
+    return requestFit(boxRef.current, STICKY_SIZE_WORLD, (r) => setFit((prev) => (
+      prev.fontPx === r.fontPx && prev.overflow === r.overflow ? prev : r)));
   }, [note.text]);
 
   const cancelFrame = (p: Press) => {
@@ -58,7 +62,7 @@ export function StickyNote(props: {
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== PRIMARY_BUTTON) return;
     e.stopPropagation();
-    if (editing) return;
+    if (editing || readOnly) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     press.current = {
       startX: e.clientX, startY: e.clientY, noteX: note.x, noteY: note.y,
@@ -143,7 +147,7 @@ export function StickyNote(props: {
         const ytext = getStickyText(doc, note.id);
         return ytext ? <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} /> : null;
       })()}
-      {selected && !editing && !dragging && (
+      {selected && !editing && !dragging && !readOnly && (
         <div className="note-toolbar-anchor" style={{ transform: `translateX(-50%) scale(${1 / zoom})` }}>
           <NoteToolbar
             color={note.color}

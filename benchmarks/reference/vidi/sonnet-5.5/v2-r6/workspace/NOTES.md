@@ -42,3 +42,19 @@ Decisions:
 - Nightly e2e (TC-29, TC-30) live in `tests/e2e/nightly/` and run via `npm run test:e2e:nightly` (Chromium only); excluded from `npm run test:e2e`.
 - Task 1 red-phase commit skipped; tests written alongside implementation.
 Chromium: all e2e and nightly pass. WebKit passes TC-22..26/28 (TC-27 and story-2 TC-32 failed once in the full multi-browser run; TC-32 passes alone). Firefox cannot launch in this sandbox.
+
+## Story 4 — Return to a board and find everything as it was left
+
+Decisions:
+- `BoardStore` takes a structural `StorageLike` (not `DurableObjectStorage`) so the pure chunk/threshold functions can be imported by the DOM-typed unit tests. `compactIfNeeded(doc, force?)` has an optional `force` used by the test hooks and tests.
+- `BoardRoom` exposes `store`, `doc`, `state` and `loadFromStorage()` publicly (and keeps `loadFailedAt` as a plain field) so integration tests can inject failures and backdate the retry interval, instead of waiting 5 s real time (TC-16).
+- `nextRoomState` models the full lifecycle diagram (including compacting/hibernated); the room drives load, storage-failure and compaction transitions through it. Hibernation itself is done by the runtime, so the `hibernate`/`wake` events are only exercised by the unit test; TC-18 uses `evictDurableObject` to prove sockets survive a rebuilt instance.
+- A damaged log row stalls later rows from the *same* Yjs client (Yjs keeps them pending behind the clock gap). Rows from other clients are unaffected, so TC-09 builds the log from one client per update. Quarantine still guarantees the board opens.
+- Test hooks (`src/worker/test-hooks.ts`) are served by the room, routed by `src/worker/index.ts`, only when `TEST_HOOKS=1`. Playwright starts the shared server with `--var TEST_HOOKS:1`; `wrangler.jsonc` never sets it. Corrupt also forces a compaction (so a snapshot exists) and re-runs the load so the room is immediately LoadFailed.
+- Persistence e2e (TC-19..21) start their own `wrangler dev --persist-to <tmp>` per test (ports 8830+, Chromium only, serial) via `tests/e2e/helpers/wrangler-process.ts`; TC-20/TC-19 kill with SIGKILL. A single Playwright config is used (the shared web server also runs for these files; it is simply unused by them).
+- Large board: the first measurement showed 2000 notes taking 12-19 s to render, entirely in `fitFontSize` (several forced layouts per note). Fitting is now batched (`fitFontSizes`/`requestFit` in `StickyText.ts`): all notes of a commit are written then read together, a few layouts in total, before paint. 2000 notes now render in ~1.3-2.2 s locally. The budget is logged, not asserted.
+- `canEdit(state)` gates create (dblclick and the disabled Sticky note button), drag, text edit, colour and delete via a `readOnly` prop on `StickyNote`; notes cannot be selected while read-only.
+- The per-row size limit of SQLite-backed Durable Objects was not re-checked online (no network use); snapshot chunks are 512 KB, but a single client update larger than the platform limit would fail to append and be treated as a storage failure.
+- Task 1 red-phase commit skipped; tests written alongside the implementation.
+
+E2E status: Chromium passes (all specs and nightly). Firefox/WebKit not run for story 4.

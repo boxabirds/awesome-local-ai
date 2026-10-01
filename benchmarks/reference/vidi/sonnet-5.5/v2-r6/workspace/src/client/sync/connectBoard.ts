@@ -1,13 +1,15 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 /** The slice of WebsocketProvider this module uses; tests supply a fake. */
 export interface ProviderLike {
   on(event: 'status', cb: (e: { status: 'connecting' | 'connected' | 'disconnected' }) => void): void;
   on(event: 'sync', cb: (synced: boolean) => void): void;
+  on(event: 'connection-close', cb: (e: { code: number } | null) => void): void;
   destroy(): void;
 }
 
@@ -32,6 +34,7 @@ export function connectBoard(
   let state: ConnectionState = 'connecting';
   let everSynced = false;
   let lost = false;
+  let loadFailed = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
 
@@ -47,7 +50,14 @@ export function connectBoard(
   onState(state);
   const provider = createProvider(doc, boardId);
 
+  provider.on('connection-close', (event) => {
+    if (event?.code !== CLOSE_BOARD_LOAD_FAILED) return;
+    loadFailed = true;
+    clearTimer();
+    set('load_failed');
+  });
   provider.on('status', ({ status }) => {
+    if (loadFailed) return; // stays on the load-failed message until a sync succeeds
     if (status === 'disconnected' && everSynced) {
       lost = true;
       clearTimer();
@@ -57,6 +67,7 @@ export function connectBoard(
   provider.on('sync', (synced) => {
     if (!synced) return;
     everSynced = true;
+    if (loadFailed) { loadFailed = false; lost = false; set('connected'); return; }
     if (!lost) { set('connected'); return; }
     lost = false;
     clearTimer();

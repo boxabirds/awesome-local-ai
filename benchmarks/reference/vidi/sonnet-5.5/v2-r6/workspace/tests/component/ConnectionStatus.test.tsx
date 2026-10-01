@@ -13,12 +13,14 @@ type Status = 'connecting' | 'connected' | 'disconnected';
 class FakeProvider implements ProviderLike {
   private status: ((e: { status: Status }) => void)[] = [];
   private sync: ((s: boolean) => void)[] = [];
+  private close: ((e: { code: number } | null) => void)[] = [];
   destroyed = false;
-  on(event: 'status' | 'sync', cb: never): void {
-    (event === 'status' ? this.status : this.sync).push(cb);
+  on(event: 'status' | 'sync' | 'connection-close', cb: never): void {
+    (event === 'status' ? this.status : event === 'sync' ? this.sync : this.close).push(cb);
   }
   emitStatus(status: Status) { this.status.forEach((cb) => cb({ status })); }
   emitSync(s: boolean) { this.sync.forEach((cb) => cb(s)); }
+  emitClose(code: number) { this.close.forEach((cb) => cb({ code })); }
   destroy() { this.destroyed = true; }
 }
 
