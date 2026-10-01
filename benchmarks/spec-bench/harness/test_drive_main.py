@@ -583,7 +583,7 @@ def test_a_story_that_never_finishes_is_capped_recorded_partial_and_its_work_com
     # The work is kept: what the agent committed, and what it left, in a harness commit that is the story's commit.
     log = git(loop.ws, "log", "--format=%an %s", rec["commit"]).split("\n")
     assert log[0] == "vidi-agent harness: snapshot after story 1 (uncommitted agent work)"
-    assert log[1:drive.MAX_NUDGES + 2] == ["vidi-agent story 1: work"] * (drive.MAX_NUDGES + 1)
+    assert log[1:drive.MAX_NUDGES + 2] == ["agent story 1: work"] * (drive.MAX_NUDGES + 1)
     assert git(loop.ws, "show", "--name-only", "--format=", rec["commit"]) == "notes.txt"
     assert rec["agent_commits"] == drive.MAX_NUDGES + 1                     # the agent's own; the snapshot is not counted
     assert f"story 1: ended by the operator ({drive.STOP_SENT_BY}) after" in (loop.run / "interventions.md").read_text()
@@ -705,7 +705,7 @@ RUNTIME_ADDED_ENV = {"SHLVL", "_", "LC_CTYPE", "__CF_USER_TEXT_ENCODING"}
 SANDBOXED_AGENT = textwrap.dedent(r'''
     import json, os, re, subprocess, sys
     from pathlib import Path
-    story = re.search(r"story (\d+)", sys.argv[1]).group(1)
+    story = re.search(r"story (\d+)", sys.argv[1], re.I).group(1)
     emit = lambda e: print(json.dumps(e), flush=True)
     sh = lambda *cmd: subprocess.run(cmd, check=True, capture_output=True)
     emit({"type": "session", "id": f"sbx-{story}"})
@@ -747,7 +747,7 @@ def test_in_the_real_sandbox_an_agent_that_edits_the_spec_is_refused_and_keeps_i
     monkeypatch.setattr(sandbox, "view_root", REAL_VIEW_ROOT)
     monkeypatch.setattr(sandbox, "tmp_view", REAL_TMP_VIEW)
     monkeypatch.setattr(sandbox, "world_for", lambda *a, **k: dataclasses.replace(
-        REAL_WORLD_FOR(*a, **k), extra_read_only=(fake,), kernel_picked_ports=False))
+        REAL_WORLD_FOR(*a, **k), extra_read_only=(fake,), host_ports=(), kernel_picked_ports=False))   # the test's model URL names port 9: a port a user cannot bridge
     with_tasks(loop, 1)
     monkeypatch.setenv("SPEC_BENCH_RESULTS_ROOT", str(loop.root / "awesome-local-ai"))       # as dbench sets it
     for name, value in CANARY_ENV.items():
@@ -764,8 +764,8 @@ def test_in_the_real_sandbox_an_agent_that_edits_the_spec_is_refused_and_keeps_i
         assert seen["cwd"] == "/w/workspace"
     env = seen["env"]
     assert env["PWD"] == seen["cwd"] and "SPEC_BENCH_RESULTS_ROOT" not in env
-    assert set(env) <= set(sandbox.ENV_ALLOWED) | set(sandbox.ENV_FROM_SANDBOX) | RUNTIME_ADDED_ENV, \
-        sorted(set(env) - set(sandbox.ENV_ALLOWED) - set(sandbox.ENV_FROM_SANDBOX) - RUNTIME_ADDED_ENV)
+    assert set(env) <= set(sandbox.ENV_ALLOWED) | set(sandbox.ENV_FROM_HARNESS) | set(sandbox.ENV_FROM_SANDBOX) | RUNTIME_ADDED_ENV, \
+        sorted(set(env) - set(sandbox.ENV_ALLOWED) - set(sandbox.ENV_FROM_HARNESS) - set(sandbox.ENV_FROM_SANDBOX) - RUNTIME_ADDED_ENV)
     assert not set(CANARY_ENV) & set(env)
     for k, v in env.items():
         for word in ("bench", MODEL, Scripted.name, "covpack", str(loop.run), str(loop.root / "awesome-local-ai")):

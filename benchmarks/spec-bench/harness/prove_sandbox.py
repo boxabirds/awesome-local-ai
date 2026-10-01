@@ -153,7 +153,8 @@ say no_new_privs "$(grep NoNewPrivs /proc/self/status 2>/dev/null || echo n/a)"
 say pkill_canary "$(pkill -f @CANARY_RE@ 2>&1; echo "rc=$?")"
 say kill_canary "$(kill -9 @CANARY_PID@ 2>&1; echo "rc=$?")"
 say pgrep_canary "$(pgrep -f @CANARY_RE@ 2>&1 | head -c 100; echo "rc=$?")"
-say ps_text "$(ps -eo pid,args 2>&1 | head -c 40000)"
+say ps_text "$(ps -eo pid,comm 2>&1 | head -c 40000)"
+say ps_pid1 "$(ps -o args= -p 1 2>&1 | head -c 300)"
 say model_server "$(curl -s -m 5 http://127.0.0.1:@MODEL_PORT@/ 2>&1; echo " rc=$?")"
 say other_runs_server "$(curl -s -m 5 http://127.0.0.1:@OTHER_PORT@/ 2>&1; echo " rc=$?")"
 say npm_registry "$(curl -sS -m @CURL_SECONDS@ -o /dev/null -w '%{http_code}' @NPM_REGISTRY@ 2>&1; echo " rc=$?")"
@@ -215,7 +216,7 @@ def observe(scratch: Path, with_network: bool | None = None) -> Observed:
         f.write_text(SECRET)
         assert f.read_text() == SECRET          # readable from outside: a refusal below is the sandbox's
     marker = f"CANARY_PROC_{uuid.uuid4().hex[:TEMP_TAG_CHARS]}"
-    o.canary = subprocess.Popen(["sh", "-c", f"sleep 600 # {marker}"])
+    o.canary = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)", marker])      # its command line holds the marker
     taken: set[int] = set()
     o.model_port = free_fixed_port(taken)
     taken.add(o.model_port)
@@ -331,6 +332,8 @@ def checks(o: Observed) -> list[Check]:
         and "rc=0" not in out.get("kill_canary", "rc=0"), f"{out.get('pgrep_canary')} {out.get('kill_canary')}")
     ps = out.get("ps_text", "x")
     add("`ps` shows nothing of the sandbox, the job runner or the harness", not _no((*(w.lower() for w in SANDBOX_WORDS), RUN_NAME.lower(), "bench"), ps), ps)
+    if not mac:
+        add("process 1 is `init` and nothing is behind its name", out.get("ps_pid1", "").strip() == "init", out.get("ps_pid1", ""))
     add("it can serve on its own port", out.get("own_port", "").strip() == "served", out.get("own_port", ""))
     if mac:
         add("on macOS it cannot serve on a port it was not given", "EPERM" in out.get("foreign_port", ""), out.get("foreign_port", ""))

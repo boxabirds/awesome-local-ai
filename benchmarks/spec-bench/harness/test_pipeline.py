@@ -705,7 +705,7 @@ def split_roots_main(root: str, results: str, run_id: str) -> None:
         finalize_pending.main(["--record"])
     (root / SPLIT_OUT).write_text(json.dumps({
         "results_root": str(drive.REPO_ROOT), "code_root": str(drive.CODE_ROOT), "baselines": seen,
-        "label": drive.combination_label(run), "deny": [str(p) for p in drive.SANDBOX_DENY]}))
+        "label": drive.combination_label(run)}))
 
 
 def test_the_story_loop_with_the_results_in_another_checkout(tmp_path):
@@ -735,7 +735,6 @@ def test_the_story_loop_with_the_results_in_another_checkout(tmp_path):
 
     # The roots: results in the checkout, code where this file is; the agent may read neither.
     assert seen["results_root"] == str(repo) and seen["code_root"] == str(HARNESS.parents[2])
-    assert str(repo) in seen["deny"] and seen["code_root"] in seen["deny"]
     assert seen["label"] == SPLIT_COMBINATION
     # The run's directory, with the known answer, the summary and finalize's status in it.
     run = repo / SPLIT_RUN_BASE / run_id

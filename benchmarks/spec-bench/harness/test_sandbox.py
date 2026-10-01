@@ -244,15 +244,18 @@ def test_a_binary_can_be_named_and_then_nothing_is_built(source, monkeypatch, tm
 
 
 def test_no_source_no_cargo_or_a_failed_build_stops_the_run_before_it_starts_and_says_why(source, monkeypatch):
+    sandbox.binary.cache_clear()
     monkeypatch.setattr(sandbox, "_cargo", lambda: None)
     with pytest.raises(sandbox.SandboxUnavailable, match="no cargo"):
         sandbox.binary()
     monkeypatch.setattr(sandbox, "_cargo", lambda: "/usr/bin/cargo")
     monkeypatch.setattr(sandbox.subprocess, "run", lambda cmd, **kw: SimpleNamespace(returncode=101, stdout="", stderr="error[E0432]"))
-    with pytest.raises(sandbox.SandboxUnavailable, match="building agent-sandbox failed.*E0432"):
+    sandbox.binary.cache_clear()
+    with pytest.raises(sandbox.SandboxUnavailable, match="(?s)building agent-sandbox failed.*E0432"):
         sandbox.binary()
     for f in source.src.glob("Cargo.toml"):
         f.unlink()
+    sandbox.binary.cache_clear()
     with pytest.raises(sandbox.SandboxUnavailable, match="is not here"):
         sandbox.binary()
 
@@ -274,6 +277,9 @@ def test_the_cache_is_under_the_bench_home_unless_named(monkeypatch):
 
 
 def test_the_run_s_identity_is_the_builds_and_says_the_mode(source, monkeypatch):
+    fake_binary = lambda: Path("/opt/agent-sandbox")
+    fake_binary.cache_clear = lambda: None                      # the fixture clears the cache of the real one when it ends
+    monkeypatch.setattr(sandbox, "binary", fake_binary)
     monkeypatch.setattr(sandbox.subprocess, "run", lambda cmd, **kw: SimpleNamespace(
         returncode=0, stdout=json.dumps({"version": "0.2.0", "platform": "linux-x86_64", "policy_hash": "ab" * 32}), stderr=""))
     assert sandbox.identity() == {"mode": ENFORCED, "version": "0.2.0", "platform": "linux-x86_64", "policy_hash": "ab" * 32}

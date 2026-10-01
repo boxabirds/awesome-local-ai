@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 import llama_log
+from sandbox_testing import fake_sandbox_env
 from test_record_event import HARNESS, IDENTITY, fake_pack, repo_with_remote
 
 FAKE_SERVER = '''#!/usr/bin/env python3
@@ -52,7 +53,7 @@ def test_each_server_start_is_appended_after_a_start_marker(tmp_path):
                                    f'exec "{real_python}" "$@"\n')
     for f in stubs.iterdir():
         f.chmod(0o755)
-    env = {**os.environ, **IDENTITY, "HOME": str(home), "VIDI_PACK_DIR": str(pack),
+    env = {**os.environ, **IDENTITY, **fake_sandbox_env(), "HOME": str(home), "VIDI_PACK_DIR": str(pack),
            "PATH": f"{stubs}:{os.environ['PATH']}", "BENCH_PORT": str(free_port())}
     log = repo / "runs/fake/r1/server.log"
     for _ in range(2):

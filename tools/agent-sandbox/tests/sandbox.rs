@@ -1553,16 +1553,19 @@ fn linux_ps_lists_only_the_command_and_its_children_and_no_launcher() {
     let bench = Bench::new();
     let out = bench.bash(
         &["--own-at", SHOWN_AT, "--workdir", "workspace"],
-        "ps -eo pid,ppid,args",
+        "ps -eo pid,ppid,args; echo ---; ps -eo pid,comm",
     );
     assert!(out.status.success(), "{}", describe(&out));
     let text = stdout(&out);
     for hidden in ["bwrap", "agent-sandbox", "--bind", bench.own.to_str().unwrap(), "unshare", "/run/agent-sandbox"] {
         assert!(!text.contains(hidden), "ps shows {hidden}: {text}");
     }
-    let lines: Vec<&str> = text.lines().skip(1).collect();
+    let (args, comm) = text.split_once("---").expect("both listings");
+    let lines: Vec<&str> = args.lines().skip(1).collect();
     assert!(lines.iter().any(|l| l.trim_start().starts_with("1 ") && l.ends_with("init")), "{text}");
     assert!(lines.len() <= 4, "only init, the shell, ps: {text}");
+    // The process's name (`ps -o comm`, `top`) is `init` too, not this program's file name.
+    assert!(comm.lines().any(|l| l.trim() == "1 init"), "{text}");
 }
 
 #[cfg(target_os = "linux")]

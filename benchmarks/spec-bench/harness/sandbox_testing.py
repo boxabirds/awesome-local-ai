@@ -4,7 +4,9 @@ the sandbox where a test is about something else."""
 from __future__ import annotations
 
 import os
+import stat
 import subprocess
+import tempfile
 from pathlib import Path
 
 import drive
@@ -30,9 +32,24 @@ def agent_run(cmd: list[str], own_dir: Path, env: dict | None = None, world: san
 
 def unsandboxed(cmd: list[str], own_dir: Path, env: dict, secrets: dict[str, str] | None = None,
                 world: sandbox.World | None = None) -> sandbox.Launch:
-    """In place of drive.launch_agent for a test of the session loop that runs a fake agent: no sandbox, the
-    environment the harness has with the agent's on top (what the permissive mode is)."""
-    return sandbox.Launch(argv=list(cmd), env={**os.environ, **env, **(secrets or {})})
+    """In place of drive.launch_agent for a test of the session loop that runs a fake agent: no sandbox, but the same
+    allow-listed environment (PATH from the harness, the rest as asked), so a fake agent sees what a real one would."""
+    return sandbox.Launch(argv=list(cmd), env=sandbox.process_env({"PATH": os.environ.get("PATH", ""), **env}))
+
+
+FAKE_IDENTITY = '{"version": "0.0.0", "platform": "test", "policy_hash": "' + "0" * 64 + '"}'
+_fake_binary: list[Path] = []
+
+
+def fake_sandbox_env() -> dict:
+    """For a test that runs run.sh (and so `sandbox.py identity`) from a directory with no tools/agent-sandbox: a stand-in
+    for the binary that answers `identity` and nothing else. The real one is built by the tests that run in it."""
+    if not _fake_binary:
+        f = Path(tempfile.mkdtemp(prefix="spec-bench-fake-sandbox-")) / "agent-sandbox"
+        f.write_text(f"#!/bin/sh\n[ \"$1\" = identity ] && echo '{FAKE_IDENTITY}'\n")
+        f.chmod(f.stat().st_mode | stat.S_IXUSR)
+        _fake_binary.append(f)
+    return {sandbox.BINARY_ENV: str(_fake_binary[0])}
 
 
 def no_sandbox(monkeypatch) -> None:
