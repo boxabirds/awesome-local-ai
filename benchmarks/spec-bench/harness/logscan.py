@@ -274,7 +274,9 @@ def _all_strings(args) -> list[str]:
 
 
 def _cut(token: str) -> tuple[str, bool]:
-    i = token.find("…")
+    """(the token up to where the compaction cut it, whether it was cut). Only the compaction's own mark is a cut: a
+    "…" the agent wrote itself (`Retrying…` in a sed script) is part of what it wrote."""
+    i = token.find(TRUNC_MARK)
     return (token[:i], True) if i >= 0 else (token, False)
 
 

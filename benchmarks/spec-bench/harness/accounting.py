@@ -299,7 +299,8 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
                  "cached_tokens": cached, **extra}
     split = {
         "wall_s": r(t_to - t_from), "model": model, "tools_s": r(owned["tool"]),
-        "tools_by_kind": {k: r(v) for k, v in sorted(kinds.items(), key=lambda kv: -kv[1]) if r(v) > 0},
+        # Every kind that owned time, one that rounds to 0.0 too: check() allows a rounding step for each kind it sees.
+        "tools_by_kind": {k: r(v) for k, v in sorted(kinds.items(), key=lambda kv: -kv[1])},
         "compaction_s": r(owned["compaction"]),
         "compactions": sum(1 for a, b in comps if min(b, t_to) > max(a, t_from)),
         "between_sessions_s": r(owned["between_sessions"]),

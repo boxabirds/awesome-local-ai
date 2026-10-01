@@ -157,6 +157,11 @@ class OpenCodeClient:
 # Our token fields and the names Claude Code's `result` usage gives them.
 CLAUDE_USAGE_FIELDS = (("input", "input_tokens"), ("output", "output_tokens"),
                        ("cache_read", "cache_read_input_tokens"), ("cache_write", "cache_creation_input_tokens"))
+# Where a state keeps the model messages ClaudeClient.scan has counted into it: {message id: events seen}. In the
+# state, not on the client: the harness reads a restarted story's log several times with its one client
+# (drive.last_session, attempts.earlier_attempts, progress.EventTally), each pass into a state of its own, and a
+# client that remembered the ids itself counted no steps in any pass after its first (Sonnet v2-r1 story 9).
+CLAUDE_MESSAGES = "claude_messages"
 
 
 class ClaudeClient:
@@ -173,7 +178,6 @@ class ClaudeClient:
 
     def __init__(self, work: Path):
         self.config_dir = work / "claude-config"
-        self._seen_messages: set[str] = set()
 
     def token(self) -> str:
         path = Path(os.environ.get(self.TOKEN_FILE_ENV) or self.DEFAULT_TOKEN_FILE).expanduser()
@@ -202,9 +206,11 @@ class ClaudeClient:
         elif t == "assistant":
             msg = e.get("message") or {}
             mid = msg.get("id")
-            if mid and mid not in self._seen_messages:  # one model call spans several assistant events
-                self._seen_messages.add(mid)
-                st["steps"] += 1
+            if mid:
+                seen = st.setdefault(CLAUDE_MESSAGES, {})
+                if mid not in seen:  # one model call spans several assistant events
+                    st["steps"] += 1
+                seen[mid] = seen.get(mid, 0) + 1
             for c in msg.get("content") or []:
                 if isinstance(c, dict) and c.get("type") == "tool_use":
                     st["tool_calls"] += 1

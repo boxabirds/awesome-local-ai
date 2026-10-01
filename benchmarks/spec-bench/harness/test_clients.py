@@ -182,3 +182,43 @@ def test_claude_a_later_successful_result_still_clears_an_earlier_error():
     st, _ = claude_scan([_result(a, is_error=True, subtype="error_during_execution", result="API Error: 529"),
                          _result(b)])
     assert st["error"] is None and st["tokens"]["output"] == a["output_tokens"] + b["output_tokens"]
+
+
+# ---------- Claude Code steps: counted in every pass over a log, not only the client's first ----------
+# The harness reads a restarted story's log more than once with the one client it has: drive.last_session (which
+# session to continue), then attempts.earlier_attempts (what the earlier attempts did), then the progress tally.
+# ClaudeClient kept the message ids it had counted on itself, so every pass after the first counted no steps:
+# Sonnet v2-r1 story 9's earlier attempts were recorded with 0 steps against 84 tool calls (its log holds 60).
+# The events: that story's first two model calls, the second arriving as two blocks (cut to the fields read).
+def _claude_block(rx: float, mid: str, block: dict) -> dict:
+    return {"_rx": rx, "type": "assistant", "parent_tool_use_id": None, "session_id": "683db215-79f7-4f8a-9d88-34a405c202ed",
+            "message": {"model": "claude-sonnet-5-5", "id": mid, "type": "message", "role": "assistant", "content": [block],
+                        "usage": {"input_tokens": 2, "cache_read_input_tokens": 11998, "output_tokens": 16}}}
+
+
+RESTARTED_CLAUDE_EVENTS = [
+    _claude_block(1790822539.434, "msg_011CfakFwkiXETQpzsmdz8jy",
+                  {"type": "tool_use", "id": "toolu_01GMD8d7EsEAerbJLsrZ3BqB", "name": "Bash", "input": {"command": "cat package.json"}}),
+    _claude_block(1790822543.089, "msg_011CfakGEJsC4zHNpuk9VnBM", {"type": "thinking", "thinking": "", "signature": "CAQS"}),
+    _claude_block(1790822543.407, "msg_011CfakGEJsC4zHNpuk9VnBM",
+                  {"type": "tool_use", "id": "toolu_0121eE3QoJiY9P8WZoZKb2d9", "name": "Bash", "input": {"command": "wc -l src/*"}}),
+]
+RESTARTED_CLAUDE_STEPS = 2
+
+
+def test_claude_counts_a_logs_steps_in_every_pass_with_the_same_client():
+    from clients import ClaudeClient
+    c = ClaudeClient(Path("/tmp/w"))
+    for _ in range(2):                      # the second pass is the one the harness records
+        st = empty_state()
+        for e in RESTARTED_CLAUDE_EVENTS:
+            c.scan(e, st)
+        assert st["steps"] == RESTARTED_CLAUDE_STEPS and st["tool_calls"] == 2
+
+
+def test_claude_state_stays_json_serialisable():
+    from clients import ClaudeClient
+    c, st = ClaudeClient(Path("/tmp/w")), empty_state()
+    for e in RESTARTED_CLAUDE_EVENTS:
+        c.scan(e, st)
+    assert json.loads(json.dumps(st))["steps"] == RESTARTED_CLAUDE_STEPS

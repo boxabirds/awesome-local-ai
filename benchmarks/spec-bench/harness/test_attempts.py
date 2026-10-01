@@ -195,6 +195,22 @@ def test_a_problem_in_one_attempt_is_named_with_its_attempt():
     assert total["accounting"]["abandoned_calls"] == 1 and total["accounting"]["ok"] is False
 
 
+def test_tokens_no_attempt_knows_stay_unknown_when_summed():
+    """Claude Code's stream doesn't give a call's output tokens (accounting.py: decode_tokens None). Summed over
+    attempts they became 0: Sonnet v2-r1 story 9, 62 model calls over five attempts, was recorded as generating
+    nothing. The model parts are that record's first and last attempts."""
+    first = {"source": accounting.CLAUDE_STREAM, "requests": 57, "prefill_s": 95.0, "prefill_tokens": 322570, "prefill_tok_s": None,
+             "decode_s": 360.5, "decode_tokens": None, "decode_tok_s": None, "cached_tokens": 7153607}
+    last = {**first, "requests": 2, "prefill_s": 2.5, "prefill_tokens": 13478, "decode_s": 6.7, "cached_tokens": 257640}
+    split = lambda model, wall: {"wall_s": wall, "model": model, "tools_s": 0.0, "tools_by_kind": {}, "compaction_s": 0.0,
+                                 "compactions": 0, "between_sessions_s": 0.0, "other_s": round(wall - model["prefill_s"] - model["decode_s"], 1),
+                                 "accounting": {"version": accounting.VERSION, "ok": True, "problems": [], "abandoned_calls": 0}}
+    total = attempts.sum_splits([split(first, 693.5), split(last, 11.2)])
+    assert total["model"]["decode_tokens"] is None and total["model"]["decode_tok_s"] is None
+    assert total["model"]["requests"] == 59 and total["model"]["prefill_tokens"] == 336048
+    assert total["accounting"]["ok"] is True
+
+
 # ---------- recompute for past records ----------
 
 def _metrics_story(started: float, finished: float, agent: dict) -> dict:
@@ -376,3 +392,18 @@ def test_an_earlier_attempts_waits_between_sessions_are_not_counted_twice(tmp_pa
     split = drive.story_time_split(rec, ev, tmp_path / "server.log")
     assert split["between_sessions_s"] > 0                                 # the wait is there, and named
     assert split["accounting"]["ok"], split["accounting"]["problems"]
+
+
+# ---------- a Claude story's earlier attempts, counted after another pass over its log ----------
+
+def test_earlier_attempts_count_claude_steps_after_the_harness_looked_for_the_session(tmp_path):
+    """drive.py finds the session to continue (drive.last_session: every event through client.scan) before it
+    counts the earlier attempts, with the same client. Sonnet v2-r1 story 9 was recorded with 0 steps for them."""
+    from clients import ClaudeClient, empty_state
+    from test_clients import RESTARTED_CLAUDE_EVENTS, RESTARTED_CLAUDE_STEPS
+    log = _write(tmp_path / "agent-events.jsonl", RESTARTED_CLAUDE_EVENTS)
+    client = ClaudeClient(tmp_path)
+    for e in attempts.events(log):                       # as drive.last_session does
+        client.scan(e, empty_state())
+    [earlier] = attempts.earlier_attempts(client, log, before=RESTARTED_CLAUDE_EVENTS[-1]["_rx"] + 1)
+    assert earlier["steps"] == RESTARTED_CLAUDE_STEPS and earlier["tool_calls"] == 2
