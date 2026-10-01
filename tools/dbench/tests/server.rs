@@ -59,6 +59,15 @@ EOF
 exit 0
 "#;
 
+/// Exits as the harness does while the machine hasn't recovered from a swap or memory guard stop (75), more times
+/// than the restart cap allows, then finishes. The count is kept beside the script.
+const UNFIT_TIMES: u32 = MAX_RESTARTS + 2;
+const UNFIT_BODY: &str = r#"n=$(cat "$0.count" 2>/dev/null || echo 0); echo $((n + 1)) > "$0.count"
+if [ "$n" -lt "$UNFIT_TIMES" ]; then echo "MACHINE UNFIT: story 9 was stopped (swap guard)" >&2; exit 75; fi
+exit 0
+"#;
+const UNFIT_BACKOFF_MS: &str = "150";
+
 const FAIL_BODY: &str = r#"echo "[story 1] Crashy story — agent starting"
 echo "Traceback (most recent call last):"
 echo '  File "drive.py", line 1, in <module>'
@@ -138,6 +147,7 @@ fn setup() -> Env {
         ("fakepack", FAKE_BODY),
         ("envpack", ENV_BODY),
         ("failpack", FAIL_BODY),
+        ("unfitpack", &format!("UNFIT_TIMES={UNFIT_TIMES}\n{UNFIT_BODY}")),
         ("missingpack", MISSING_BODY),
         ("slowpack", SLOW_BODY),
         ("stubbornpack", STUBBORN_BODY),
@@ -213,6 +223,8 @@ fn start(env: &Env, pull: bool) -> Server {
             GRACE_MS,
             "--tree-poll-ms",
             TREE_POLL_MS,
+            "--unfit-backoff-ms",
+            UNFIT_BACKOFF_MS,
         ])
         .env("HOME", &env.user_home)
         .stdout(Stdio::piped())
@@ -500,6 +512,25 @@ async fn submit_run_done_log_events_progress_and_idempotence() {
     assert!(node["tools"].as_object().unwrap().contains_key("git"));
     assert!(node["cpus"].as_u64().unwrap() > 0);
     assert_eq!(node["current_job"], Value::Null);
+    drop(env.root);
+}
+
+/// 1 Oct 2026: the swap guard stopped a run, and dbench restarted it 30 s later like any crash, without waiting
+/// for the machine to recover; three more such stops would have failed the job. Exit 75 (machine unfit) waits
+/// the longer backoff each time, isn't counted against the restart cap, and is noted as a wait.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_machine_unfit_exit_waits_and_does_not_use_up_the_restarts() {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(srv.submit("unfit", &spec("unfitpack", "run-u")).await.0, 201);
+    let v = srv.wait_status("unfit", "done").await;
+    assert!(v["attempt"].as_u64().unwrap() <= u64::from(MAX_RESTARTS) + 1, "{v}");
+    let waits = v["history"].as_array().unwrap().iter()
+        .filter(|n| n["text"].as_str().unwrap().contains("machine unfit")).count() as u32;
+    assert_eq!(waits, UNFIT_TIMES, "{v}");
+    let log = srv.log("unfit").await;
+    assert!(log.contains("machine unfit (exit 75); waiting"), "{log}");
+    assert!(!log.contains("restarts used"), "{log}");
     drop(env.root);
 }
 

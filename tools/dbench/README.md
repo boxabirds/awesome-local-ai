@@ -192,3 +192,10 @@ A server restarted mid-job adopts the running harness but can't learn how it end
 resume; and between two jobs there are only seconds. So: `dbench hold <node> --reason …`, wait until `dbench
 nodes` shows no job on it, restart the service (it stays held: the hold is kept on disk), then `dbench release
 <node>`.
+
+## When the machine is unfit
+
+The harness's swap and memory guards stop a run before memory pressure can take the machine down. That exit (75)
+isn't a crash: dbench waits `--unfit-backoff-ms` (5 minutes) and tries again, without counting a restart, and notes
+each wait. The harness decides: run.sh first checks the machine has recovered (machine_fit.py) and exits 75 again,
+before loading anything, until it has.

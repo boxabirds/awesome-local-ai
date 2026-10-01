@@ -115,6 +115,11 @@ cleanup() {
 trap cleanup EXIT
 trap 'STOPPED=1; exit 143' INT TERM
 
+# A run the swap or memory guard stopped resumes only once the machine has recovered (machine_fit.py), checked
+# before anything here takes memory: the preflight's builds and the model server. Until then it exits 75, and
+# dbench waits instead of counting a restart (1 Oct 2026: a restart 30 s after the swap guard, unchecked).
+(cd "$HARNESS" && uv run --quiet machine_fit.py "$RUN_DIR") || exit $?
+
 if [[ "$CLOUD" == 0 ]] && curl -s -m 2 "127.0.0.1:$BENCH_PORT/v1/models" >/dev/null; then
   echo "port $BENCH_PORT already serving; refusing to benchmark against an unknown server" >&2; exit 1
 fi
