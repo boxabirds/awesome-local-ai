@@ -16,6 +16,7 @@ import { textSnapshots } from '../../shared/objects/text';
 import { shapeSnapshots } from '../../shared/objects/shape';
 import { connectorSnapshots } from '../../shared/objects/connector';
 import { strokeSnapshots } from '../../shared/objects/stroke';
+import { imageSnapshots } from '../../shared/objects/image';
 import type { StickyColor } from '../../shared/config';
 import { COLLAB_ENDPOINT } from '../sync/endpoint';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -38,6 +39,12 @@ interface MutableApi {
   __createNotes?(count: number, withTextEvery?: number, perTransaction?: number): Promise<number>;
   __applyUpdate?(update: Uint8Array | number[], origin?: string): void;
   __forceConnectionState?(state: ConnectionState): void;
+  /**
+   * The pictures on the board, as plain JSON: which have bytes, which are waiting for
+   * some, which will never have any. An upload cannot be made to happen on a schedule by
+   * a test, so an end-to-end test reads these fields instead of the pixels.
+   */
+  __images?(): readonly object[];
   connectionState?: string;
 }
 
@@ -83,7 +90,9 @@ export function registerBoardDoc(doc: Y.Doc | null): void {
       ...shapeSnapshots(doc),
       ...connectorSnapshots(doc),
       ...strokeSnapshots(doc),
+      ...imageSnapshots(doc),
     ],
+    __images: () => imageSnapshots(doc),
     __serverMode: COLLAB_ENDPOINT !== '',
     /**
      * Create `count` notes, giving every `withTextEvery`th one some text, and

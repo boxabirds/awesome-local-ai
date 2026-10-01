@@ -40,6 +40,20 @@ export function canEdit(state: ConnectionState): boolean {
   return state !== 'load_failed';
 }
 
+/**
+ * Whether an upload may start (story 12).
+ *
+ * Stricter than `canEdit`, and deliberately so. A link that is down keeps taking edits into the
+ * local document because they sit there safely and catch up later; a picture's bytes are not in
+ * the document at all, so an upload started on a link that is not carrying anything would fail,
+ * and the person would be told their picture failed when what happened is that they are not
+ * connected. So an image waits for a link that has actually said it is there - `connected` from
+ * the provider's own events, or `confirmed` once the room has answered - and says so meanwhile.
+ */
+export function canUpload(state: ConnectionState): boolean {
+  return state === 'connected' || state === 'confirmed';
+}
+
 /** The one field of a close event the badge reads, named so a test can hand over
  *  a plain object instead of a browser event. */
 export interface CloseEventLike {

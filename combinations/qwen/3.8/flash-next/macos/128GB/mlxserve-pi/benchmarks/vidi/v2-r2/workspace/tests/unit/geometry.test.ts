@@ -17,6 +17,7 @@ import {
 } from '../../src/shared/geometry';
 import {
   MAX_OBJECT_SIZE_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   STICKY_SIZE_WORLD,
 } from '../../src/shared/config';
@@ -36,6 +37,8 @@ function applyResize(
     rects,
     minSizes,
     MAX_OBJECT_SIZE_WORLD,
+    // the same flag the gesture gives it: a locked drag has one bound, not two
+    aspectLocked,
   );
   return anchorBox(startBox, handle, scale, aspectLocked);
 }
@@ -158,6 +161,73 @@ describe('geometry', () => {
   it('clampScale rejects non-finite input by keeping the scale at 1x1', () => {
     const rects = [{ x: 0, y: 0, width: 100, height: 100 }];
     expect(clampScale({ x: NaN, y: 2 }, rects, [50], MAX_OBJECT_SIZE_WORLD)).toEqual({ x: 1, y: 1 });
+  });
+
+  // story 12: an aspect-locked drag has one bound, not two. resizeRect already made both axes ask
+  // for the same scale, and the bounds have to be found the same way or the lock is dropped at the
+  // two places where it matters - the floor, where a 4:3 picture would land at 16x16, and the
+  // ceiling, where it would land at 1200x900 with one edge over the maximum.
+  describe('clampScale with the aspect locked', () => {
+    const picture: Rect = { x: 0, y: 0, width: 400, height: 300 };
+    const lockedScale = (scale: Point, maxSize = MAX_OBJECT_SIZE_WORLD): Point =>
+      clampScale(scale, [picture], [IMAGE_MIN_SIZE_WORLD], maxSize, true);
+
+    it('stops a shrink at the shorter edge, so the ratio is the picture own', () => {
+      // a corner shoved far past the middle of the picture: both axes asked for nothing
+      const scale = lockedScale({ x: 0, y: 0 });
+      expect(scale.x).toBe(IMAGE_MIN_SIZE_WORLD / 300);
+      expect(scale.x).toBe(scale.y);
+
+      const box = anchorBox(picture, 'se', scale, true);
+      expect(box.height).toBe(IMAGE_MIN_SIZE_WORLD);
+      expect(box.width).toBeCloseTo((IMAGE_MIN_SIZE_WORLD * 400) / 300, 9);
+      expect(box.width / box.height).toBeCloseTo(400 / 300, 9);
+    });
+
+    it('stops a growth at the longer edge, so no edge crosses the maximum', () => {
+      const scale = lockedScale({ x: 3, y: 3 }, 1000);
+      // the longest edge is 400: it may reach 1000, and the other axis comes with it
+      expect(scale.x).toBe(1000 / 400);
+      expect(scale.y).toBe(1000 / 400);
+
+      const box = anchorBox(picture, 'se', scale, true);
+      expect(box.width).toBe(1000);
+      expect(box.height).toBe(750);
+    });
+
+    it('leaves an axis the drag did not move alone', () => {
+      // an edge handle asks for one axis; the lock binds corners and does not reach here
+      expect(lockedScale({ x: 1.5, y: 1 })).toEqual({ x: 1.5, y: 1 });
+      expect(lockedScale({ x: 1, y: 1.5 })).toEqual({ x: 1, y: 1.5 });
+      // and a drag that asked for nothing at all changes nothing
+      expect(lockedScale({ x: 1, y: 1 })).toEqual({ x: 1, y: 1 });
+    });
+
+    it('applies one bound to a group of locked objects, as it does to one', () => {
+      const panorama: Rect = { x: 0, y: 0, width: 800, height: 200 };
+      const scale = clampScale(
+        { x: 0, y: 0 },
+        [picture, panorama],
+        [IMAGE_MIN_SIZE_WORLD, IMAGE_MIN_SIZE_WORLD],
+        MAX_OBJECT_SIZE_WORLD,
+        true,
+      );
+      // the shortest edge in the group is the picture's 300; every object scales together, so the
+      // one that would go under its minimum first stops the drag for all of them
+      expect(scale.x).toBe(IMAGE_MIN_SIZE_WORLD / 200);
+      expect(scale.y).toBe(scale.x);
+      expect(anchorBox(panorama, 'se', scale, true).height).toBeCloseTo(IMAGE_MIN_SIZE_WORLD, 9);
+    });
+
+    it('is the same clamp as before for an object with no ratio to keep', () => {
+      // the flag is opt-in: everything story 7 wrote about a free resize still holds
+      const free = clampScale({ x: 2, y: 0.5 }, [picture], [IMAGE_MIN_SIZE_WORLD], MAX_OBJECT_SIZE_WORLD);
+      expect(free).toEqual({ x: 2, y: 0.5 });
+      expect(clampScale({ x: 0, y: 0 }, [picture], [50], MAX_OBJECT_SIZE_WORLD)).toEqual({
+        x: 50 / 400,
+        y: 50 / 300,
+      });
+    });
   });
 
   // TC-04

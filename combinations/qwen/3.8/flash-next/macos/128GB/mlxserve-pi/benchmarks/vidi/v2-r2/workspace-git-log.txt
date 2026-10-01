@@ -1,3 +1,48 @@
+commit 16def4a8cc5a06dec87d7b501937d36ec7365e95
+vidi-agent  Thu Oct 1 14:47:23 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                | 177 ++++++++
+ env.d.ts                                |   6 +
+ src/client/board/Toolbar.tsx            |  48 +++
+ src/client/board/useBoardDoc.ts         |  23 +-
+ src/client/board/useBoardKeys.ts        |  26 +-
+ src/client/board/useTransformGesture.ts |   2 +-
+ src/client/canvas/BoardViewport.tsx     | 103 +++++
+ src/client/canvas/testHooks.ts          |   9 +
+ src/client/images/DropHighlight.tsx     |  27 ++
+ src/client/images/uploadImage.ts        | 121 ++++++
+ src/client/images/useImageInsert.tsx    | 462 +++++++++++++++++++++
+ src/client/images/validateFiles.ts      | 101 +++++
+ src/client/objects/ImageObject.tsx      | 328 +++++++++++++++
+ src/client/objects/registry.tsx         |  41 +-
+ src/client/pages/BoardPage.tsx          | 115 +++++-
+ src/client/styles.css                   | 207 ++++++++++
+ src/client/sync/connectBoard.ts         |  14 +
+ src/client/tools/useActiveTool.ts       |   8 +
+ src/client/ui/Toast.tsx                 |  43 ++
+ src/shared/board-model.ts               |   2 +
+ src/shared/config.ts                    |  50 +++
+ src/shared/geometry.ts                  |  34 +-
+ src/shared/image-format.ts              |  75 ++++
+ src/shared/objects/image.ts             | 387 ++++++++++++++++++
+ src/worker/assets.ts                    | 203 ++++++++++
+ src/worker/index.ts                     |  86 +++-
+ tests/component/ImageObject.test.tsx    | 679 +++++++++++++++++++++++++++++++
+ tests/component/helpers.tsx             | 196 ++++++++-
+ tests/component/useImageInsert.test.tsx | 698 ++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/images.ts             | 547 +++++++++++++++++++++++++
+ tests/e2e/images.spec.ts                | 382 +++++++++++++++++
+ tests/fixtures/image-bytes.ts           |  75 ++++
+ tests/integration/assets-api.test.ts    | 357 ++++++++++++++++
+ tests/unit/geometry.test.ts             |  70 ++++
+ tests/unit/image-format.test.ts         | 137 +++++++
+ tests/unit/image-object.test.ts         | 464 +++++++++++++++++++++
+ tests/unit/validate-files.test.ts       | 180 ++++++++
+ wrangler.jsonc                          |  10 +
+ 38 files changed, 6474 insertions(+), 19 deletions(-)
 commit 9ed8618d20dca74f0624ae63982c22800af3f172
 vidi-agent  Thu Oct 1 11:44:34 2026 +0100
 

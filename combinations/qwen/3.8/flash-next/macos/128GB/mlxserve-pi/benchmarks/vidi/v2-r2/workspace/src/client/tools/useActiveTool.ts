@@ -67,6 +67,14 @@ export const TOOL_SHORTCUTS: Readonly<Record<string, ToolId>> = Object.freeze(
  * names a tool that is not here does nothing: a board left holding a tool with
  * nothing to render it would eat the next click and make nothing happen, which is
  * worse than a key that does nothing.
+ *
+ * `image` is the name of a tool that is deliberately not in this list, and story 12 is why. Adding
+ * a picture is a thing you do once - the picker opens, the pictures arrive, and the pointer wants
+ * its Select back - so the I key and the Image button open the picker and hand the tool back to
+ * Select in the same breath, rather than leaving the board holding a mode with nothing to draw.
+ * The name stays in `ToolId` and in `TOOL_KEYS` because the button's accessible name ("Image
+ * (I)") is that table's, and so the next story that does have a held tool adds it here and finds
+ * the key already named.
  */
 export const SHIPPED_TOOLS: readonly ToolId[] = Object.freeze([
   'select',

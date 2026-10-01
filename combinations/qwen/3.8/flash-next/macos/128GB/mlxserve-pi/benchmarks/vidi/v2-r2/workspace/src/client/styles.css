@@ -1397,3 +1397,210 @@ button:focus-visible,
   stroke-linejoin: round;
   pointer-events: none;
 }
+
+/* --- Pictures on the board (story 12) --- */
+
+/* A picture is an object like any other: placed in board units, sized in board units, and the
+   selection handles around it are drawn by the same overlay every object wears. It is the only
+   object that is a photograph rather than something the board drew, which is what the states
+   below are for: while its bytes are on their way up, and afterwards if they never arrive, the
+   space it will occupy is already on the board and has to say what is happening to it. */
+.image-object {
+  position: absolute;
+  box-sizing: border-box;
+  /* The world lets the board have every press that nothing is on, so each object has to take its
+     own back: without this a picture is something you can look at and nothing else - it cannot be
+     selected, moved, resized or deleted, and the mouse goes straight through it to the board. */
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.image-object.is-dragging {
+  cursor: grabbing;
+}
+
+/* A board that could not be read is read-only, and a picture on it is part of what cannot be
+   touched: the press belongs to the board behind it, as it does for a note. */
+.image-object.is-locked {
+  pointer-events: none;
+}
+
+/* The picture fills the box its own proportions chose. Nothing is cropped: a resize that kept the
+   ratio (the registry's `aspectLocked`) cannot squash it, and a box written by somebody else is
+   drawn at the ratio the bytes they sent have. */
+.image-object-picture {
+  display: block;
+  border-radius: 3px;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Selected, the frame is the selection colour and the picture keeps its own colours - selecting a
+   photograph is not tinting it. The overlay draws the handles; this is the line they belong to. */
+.image-object[data-selected='true'] .image-object-picture {
+  outline: 2px solid var(--select);
+  outline-offset: 1px;
+}
+
+/* The grey box: the same size and place the picture will have, with the news inside it. It is
+   drawn for every state that is not a picture - bytes in flight, an upload that failed, an upload
+   nobody finished, a file that will not decode - because what a person needs from all four is the
+   same thing: to see how big the hole is, and to be told which of the four it is. */
+.image-object-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px dashed var(--ui-border);
+  border-radius: 3px;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  text-align: center;
+}
+
+/* The box that is only waiting says so quietly; the three that went wrong say so in the colour the
+   board uses for things that went wrong. A percentage that is climbing is not a failure, and
+   painting it as one would be the loudest possible way of saying nothing is wrong yet. */
+.image-object.is-failed .image-object-placeholder,
+.image-object.is-unfinished .image-object-placeholder,
+.image-object.is-unavailable .image-object-placeholder {
+  border-color: var(--marker);
+  background: rgba(198, 60, 50, 0.07);
+}
+
+.image-object-words {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.image-object-icon {
+  color: var(--ui-border);
+}
+
+/* The upload's own bar: what only the browser that is sending the bytes can show, since it is the
+   only one that can see how much of the file has left. */
+.image-object-bar {
+  width: 100%;
+  max-width: 180px;
+  height: 6px;
+  appearance: none;
+  border: none;
+  border-radius: 3px;
+  background: rgba(20, 20, 30, 0.12);
+  accent-color: var(--select);
+}
+
+.image-object-controls {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  /* The buttons own their own clicks, which is what keeps a press on Retry from starting a drag
+     of the box it sits in. */
+  pointer-events: auto;
+}
+
+.image-object-button {
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: 4px;
+  background: var(--board-bg);
+  color: var(--ui-text);
+  cursor: pointer;
+}
+
+.image-object-button:hover {
+  background: #ffffff;
+}
+
+.image-object-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* A board that cannot be written shows no way to write to it. */
+.image-object.is-locked .image-object-button {
+  display: none;
+}
+
+/* While a file is being dragged over the board. It sits over the board and under nothing: a
+   highlight that ate the drop would be a board that cannot be dropped on. The dashes are the shape
+   of the thing a person is holding, and the words say what will happen if they let go. */
+.drop-highlight {
+  position: fixed;
+  inset: 12px;
+  z-index: 50;
+  pointer-events: none;
+  border: 2px dashed var(--select);
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.06);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 24px;
+}
+
+.drop-highlight-words {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--hint-bg);
+  color: #ffffff;
+  font-size: 13px;
+}
+
+/* What the board has to say about pictures, at the bottom of the screen where the board's other
+   news is. It is a live region, so it is in the document even when it has nothing to say - an
+   empty one is simply not visible - and messages time out through React rather than through a CSS
+   animation, because a message that fades out in the stylesheet while staying in the tree is
+   invisible news. */
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: 78px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.toast-stack.is-empty {
+  /* Still here, still announced, nothing drawn. */
+  min-height: 0;
+}
+
+.toast {
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--hint-bg);
+  color: #ffffff;
+  font-size: 13px;
+  box-shadow: 0 4px 14px rgba(20, 20, 30, 0.22);
+  max-width: min(80vw, 460px);
+}
+
+/* The file picker's door. It is hidden the way a control that nothing points at is hidden rather
+   than the way one that does not exist is: `display: none` on an input is a click that goes
+   nowhere, and the Image button and the I key both exist to click it. */
+.image-file-input {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  pointer-events: none;
+}

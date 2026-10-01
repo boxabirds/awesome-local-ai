@@ -263,7 +263,7 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         x: start.width === 0 ? 1 : target.width / start.width,
         y: start.height === 0 ? 1 : target.height / start.height,
       };
-      const allowed = clampScale(asked, rects, press.minSizes, MAX_OBJECT_SIZE_WORLD);
+      const allowed = clampScale(asked, rects, press.minSizes, MAX_OBJECT_SIZE_WORLD, press.aspectLocked);
       const box = anchorBox(start, handle, allowed, press.aspectLocked);
       const writes = new Map<string, Rect>();
       for (const [id, from] of press.startRects) {

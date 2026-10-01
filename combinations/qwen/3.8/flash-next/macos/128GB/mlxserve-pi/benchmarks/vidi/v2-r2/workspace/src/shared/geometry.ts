@@ -180,6 +180,7 @@ export function clampScale(
   rects: readonly Rect[],
   minSizes: readonly number[],
   maxSize: number,
+  aspectLocked = false,
 ): Point {
   if (!finite(scale.x) || !finite(scale.y)) return { x: 1, y: 1 };
 
@@ -202,9 +203,38 @@ export function clampScale(
     }
   }
 
+  if (!aspectLocked) {
+    return {
+      x: Math.min(Math.max(scale.x, loX), hiX),
+      y: Math.min(Math.max(scale.y, loY), hiY),
+    };
+  }
+
+  // An aspect-locked resize applies ONE scale to both axes, so its bounds are one number as well:
+  // the least scale that keeps every box's shorter edge at or above its minimum, and the greatest
+  // that keeps its longer edge at or below the maximum. Two bounds read one axis at a time would
+  // let a 4:3 picture land at 16x16 - the floor and the ceiling are exactly the two places where a
+  // lock has to be honoured or it is not a lock, because everywhere else the pointer is asking for
+  // a scale that both axes can take together.
+  let lo = 0;
+  let hi = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < rects.length; i += 1) {
+    const rect = rects[i];
+    const min = minSizes[i];
+    if (!finiteRect(rect) || !finite(min)) continue;
+    const shorter = Math.min(rect.width, rect.height);
+    const longer = Math.max(rect.width, rect.height);
+    if (shorter > 0) lo = Math.max(lo, min / shorter);
+    if (longer > 0) hi = Math.min(hi, maxSize / longer);
+  }
+  // The scale the drag asked for is the larger of the two axes, which is what `resizeRect` made
+  // them both; an axis still asking for 1 was not moved by the request (the same sniff, for the
+  // same reason, that `resizeRect` documents), and stays out of the lock's way.
+  const asked = Math.max(scale.x, scale.y);
+  const uniform = Math.min(Math.max(asked, lo), hi);
   return {
-    x: Math.min(Math.max(scale.x, loX), hiX),
-    y: Math.min(Math.max(scale.y, loY), hiY),
+    x: scale.x === 1 && scale.y !== 1 ? 1 : uniform,
+    y: scale.y === 1 && scale.x !== 1 ? 1 : uniform,
   };
 }
 

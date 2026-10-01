@@ -35,6 +35,7 @@ import {
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   TYPE_CONNECTOR,
+  TYPE_IMAGE,
   TYPE_SHAPE,
   TYPE_STROKE,
   TYPE_TEXT,
@@ -142,6 +143,7 @@ const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set<string>([
   TYPE_SHAPE,
   TYPE_CONNECTOR,
   TYPE_STROKE,
+  TYPE_IMAGE,
 ]);
 
 /**

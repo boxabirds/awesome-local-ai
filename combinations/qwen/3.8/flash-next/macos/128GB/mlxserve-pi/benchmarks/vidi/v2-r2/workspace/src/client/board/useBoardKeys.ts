@@ -52,6 +52,15 @@ export interface BoardKeyOptions {
    * owns where the note goes.
    */
   onCreateSticky?(): void;
+  /**
+   * I: the file picker, to add pictures to the board (story 12). The same thing the toolbar's
+   * Image button does, and for the same reason the board owns it rather than this hook: where the
+   * pictures land is a question about what is on screen, which only the board knows.
+   *
+   * It is a key that opens something rather than a tool that is held, which is the difference
+   * between this and V, S, T, L and P. A picture on the board is not a mode the pointer stays in.
+   */
+  onPickImage?(): void;
 }
 
 const ARROWS: Record<string, Point> = {
@@ -81,6 +90,7 @@ export function useBoardKeys(options: BoardKeyOptions): void {
         tool,
         setTool,
         onCreateSticky,
+        onPickImage,
       } = optionsRef.current;
       if (!editable) return;
       if (isTypingTarget(event.target)) return;
@@ -113,12 +123,12 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       // shortcuts in the viewport; Alt is nobody's here.
       if (modified || event.altKey) return;
 
-      // The tools (stories 9-12). V, S, T, L and P name one, N makes a sticky note
-      // where the view is. They are plain keys, so they answer after the
+      // The tools (stories 9-12). V, S, T, L and P name one; N makes a sticky note where the view
+      // is; I opens the file picker. They are plain keys, so they answer after the
       // modified-key guard and after the typing-target guard at the top - which is
       // what keeps a T typed into an object from being taken away from the caret
-      // (TC-16). A key that names a tool this build does not ship - I, C - is
-      // nobody's, and stays with the browser.
+      // (TC-16). A key that names a tool this build does not ship - C - is nobody's, and stays
+      // with the browser.
       const named = toolIdForKey(event.key);
       if (named !== null && setTool !== undefined) {
         event.preventDefault();
@@ -128,6 +138,14 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       if ((event.key === 'n' || event.key === 'N') && onCreateSticky !== undefined) {
         event.preventDefault();
         onCreateSticky();
+        return;
+      }
+      // I opens the picker. It is not `toolIdForKey('i')`, and that is the point: `image` is not a
+      // tool that can be held, because a board left holding it would be a board with a button
+      // showing pressed and nothing left for it to do.
+      if ((event.key === 'i' || event.key === 'I') && onPickImage !== undefined) {
+        event.preventDefault();
+        onPickImage();
         return;
       }
 

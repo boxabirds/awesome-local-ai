@@ -20,6 +20,16 @@
       }
     ]
   },
+  // The board pictures (story 12). One object per image, keyed `<boardId>/<assetId>`.
+  // Development and the tests get Miniflare's own bucket at the same binding name; a real
+  // deployment points it at a bucket that exists, and the asset route's 404 is what a board
+  // whose bucket was never made looks like.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   // SQLite-backed from the start so story 4's persistence needs no class migration.
   "migrations": [
     {

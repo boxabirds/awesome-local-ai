@@ -16,6 +16,7 @@
 // without writing - anything (TC-07).
 
 import { isValidBoardId } from '../shared/board-id';
+import { handleServe, handleUpload } from './assets';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 
@@ -30,6 +31,10 @@ export type Env = Cloudflare.Env;
 const ROOM_PREFIX = '/api/rooms/';
 const BOARDS_PATH = '/api/boards';
 const BOARD_PREFIX = '/api/boards/';
+/** Where one board's pictures are uploaded to (story 12). */
+const BOARD_ASSET_SUFFIX = '/assets';
+/** Where one picture's bytes are read back from. */
+const ASSET_PREFIX = '/api/assets/';
 /** TEST-ONLY prefix; routed only when `TEST_HOOKS` is `'1'` (see `src/worker/test-hooks.ts`). */
 const TEST_PREFIX = '/__test/boards/';
 
@@ -69,6 +74,54 @@ function methodNotAllowed(allow: string): Response {
     status: 405,
     headers: { 'Content-Type': 'application/json', Allow: allow },
   });
+}
+
+/**
+ * The board id in `/api/boards/:boardId/assets`, or null when the path is not an upload.
+ *
+ * This is asked after `boardsRouteOf`, which answers only for an address that ends at a board
+ * id - so an upload never reaches the board itself, and the room is asked only whether the
+ * board exists (see `worker/assets.ts`).
+ */
+function uploadRouteOf(pathname: string): string | null {
+  if (!pathname.startsWith(BOARD_PREFIX) || !pathname.endsWith(BOARD_ASSET_SUFFIX)) return null;
+  const rest = pathname.slice(BOARD_PREFIX.length, -BOARD_ASSET_SUFFIX.length);
+  if (rest === '' || rest.includes('/')) return null;
+  return decodeSegment(rest);
+}
+
+/**
+ * The key in `/api/assets/:boardId/:assetId`, as `<boardId>/<assetId>`, or null when the path
+ * is not two segments. Whether the two halves are two real ids is the asset module's to
+ * decide, which is also where anything else - a traversal, a suffix, a shape that is not two
+ * ids - becomes a `404`.
+ */
+function assetRouteOf(pathname: string): string | null {
+  if (!pathname.startsWith(ASSET_PREFIX)) return null;
+  const parts = pathname.slice(ASSET_PREFIX.length).split('/');
+  if (parts.length !== 2 || parts.some((part) => part === '')) return null;
+  const decoded = parts.map(decodeSegment);
+  return decoded.includes(null) ? null : decoded.join('/');
+}
+
+/**
+ * Whether the path lies in the picture namespace at all.
+ *
+ * Everything under `/api/assets` belongs to pictures, so an address in it that is not two ids
+ * is answered as a picture that is not there rather than handed to the app: a board that got
+ * the index page back for a picture would draw a broken image and say nothing about why.
+ */
+function inAssetNamespace(pathname: string): boolean {
+  return pathname === ASSET_PREFIX.slice(0, -1) || pathname.startsWith(ASSET_PREFIX);
+}
+
+/** One path segment, or null when its escaping is not escaping at all. */
+function decodeSegment(segment: string): string | null {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
 }
 
 /** The board id and hook name in `/__test/boards/:boardId/<action>`. */
@@ -130,7 +183,38 @@ export default {
     }
 
     const boardId = boardIdOf(url.pathname);
-    if (boardId === null) return env.ASSETS.fetch(request);
+    if (boardId === null) {
+      // Images (story 12). Two addresses that are nobody's board's: the upload, which
+      // reaches a Worker that has not been near the room, and the read-back, which is not a
+      // board at all. Both are asked before the room route, which wants a bare board id and
+      // would otherwise hand a picture to a WebSocket upgrade that never comes.
+      const upload = uploadRouteOf(url.pathname);
+      if (upload !== null) {
+        if (request.method !== 'POST') return methodNotAllowed('POST');
+        return handleUpload(request, env, upload);
+      }
+
+      const assetKey = assetRouteOf(url.pathname);
+      if (inAssetNamespace(url.pathname)) {
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
+          return methodNotAllowed('GET, HEAD');
+        }
+        // Not two ids: no bucket was asked, and none ever will be. The namespace is keyed by
+        // two ids and nothing keyed like that is reachable from an address like this.
+        if (assetKey === null) return json({ error: 'not_found' }, 404);
+        const served = await handleServe(env, assetKey);
+        // a HEAD is the headers of a GET and no body, which is what the cache testers ask
+        return request.method === 'HEAD'
+          ? new Response(null, {
+              status: served.status,
+              statusText: served.statusText,
+              headers: served.headers,
+            })
+          : served;
+      }
+
+      return env.ASSETS.fetch(request);
+    }
 
     // Validate before touching the namespace: an invalid id must never create an
     // object instance (TC-04). Since story 5 a malformed id and an unknown one mean

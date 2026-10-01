@@ -370,3 +370,53 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
 
 /** The shortest edge a stroke's box may be resized to, in board units. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// -----------------------------------------------------------------------------
+// Images (story 12). The four formats are the ones a browser can be relied on both
+// to decode and to serve inline, so they are also the only Content-Types the asset
+// route will ever write. `IMAGE_MAX_BYTES` is the ceiling per file for a drop, a
+// paste or a picker batch; the Worker re-checks it, because a client that says
+// otherwise gets an answer, not trust.
+//
+// The world numbers are separate on purpose. `IMAGE_MAX_PLACE_SIZE_WORLD` is only
+// how big a *placement* may be; `IMAGE_MIN_SIZE_WORLD` is the resize floor, shared
+// by every way a resize is asked for; the global `MAX_OBJECT_SIZE_WORLD` stays the
+// most an image can ever be resized to. A picture 100 m wide on a board is still a
+// picture, and nothing here makes a big upload out of a big display.
+//
+// `IMAGE_UPLOAD_STALE_MS` is the wait after which a still-`uploading` image is
+// called `unfinished`: the client that was uploading it is gone, and a closed tab
+// cannot fail an upload it never finished. It is a display rule, and the only clock
+// that decides it is the one that renders - nothing deletes anything, and an image
+// that has gone stale can still be fetched by anyone who opens the board again.
+// -----------------------------------------------------------------------------
+export const TYPE_IMAGE = 'image';
+export const IMAGE_ACCEPTED_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+] as const;
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024; // 10,485,760 bytes
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+export const IMAGE_MIN_SIZE_WORLD = 16;
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+export const IMAGE_SNIFF_BYTES = 12;
+
+/**
+ * How often a board re-renders while an upload is in flight, so that an upload that
+ * never came back becomes `unfinished` without an event to mark the moment (the
+ * 30-second clock of the design). Only a board with an image still uploading starts
+ * it, and a board with none never does.
+ */
+export const IMAGE_STATUS_TICK_MS = 30_000;
+
+/**
+ * How long a rejection toast stays up. Not in the design's list of settings: a toast
+ * that never went away would cover the board for good (the same kind of addition as
+ * the story 1 interaction constants - see NOTES.md).
+ */
+export const IMAGE_TOAST_MS = 4_000;

@@ -28,6 +28,14 @@ export interface ToolbarProps {
   /** A tool button. Optional for the same reason as `tool`. */
   onTool?: (tool: ToolId) => void;
   /**
+   * The Image button (story 12): opens the system file picker. Optional, like the tools, and an
+   * action rather than a tool - which is why the button carries no `aria-pressed`. A picture is
+   * not something the pointer goes on holding after the picture is on the board, and a button
+   * that said "pressed" afterwards would be describing a state that never arrives. The I key
+   * does the same thing as this button, through the board's keyboard.
+   */
+  onPickImage?: () => void;
+  /**
    * The kind the next shape is drawn as, and the menu that picks it (story 10).
    * Optional, like the tool itself: a rail rendered on its own has no Shape tool to
    * choose a kind for. The menu is shown while the Shape tool is held.
@@ -51,6 +59,7 @@ export interface ToolbarProps {
 
 export function Toolbar({
   onCreateSticky,
+  onPickImage,
   tool = 'select',
   onTool,
   shapeKind = 'rect',
@@ -237,6 +246,45 @@ export function Toolbar({
             strokeWidth="1.6"
             strokeLinejoin="round"
             d="M12.2 5.4l1.3-1.3a1.2 1.2 0 0 1 1.7 0l1.4 1.4a1.2 1.2 0 0 1 0 1.7l-1.3 1.3"
+          />
+        </svg>
+      </button>
+      <span className="board-toolbar__divider" aria-hidden="true" />
+      {/* The Image button (story 12): the file picker, for somebody who has the picture in a
+          folder rather than on the clipboard or in another window. It is the same three ways in
+          as dragging a file onto the board and pasting one - this is only the door that opens a
+          window - and it puts the pictures in the middle of what is on screen, because a person
+          who has just opened a picker is not looking at a particular corner of the board. */}
+      <button
+        type="button"
+        className="board-tool"
+        data-testid="tool-image"
+        aria-label={toolLabel('image')}
+        aria-disabled={disabled || undefined}
+        disabled={disabled}
+        title={reason ?? 'Add a PNG, JPEG, GIF or WebP image – I, or drop it on the board'}
+        onClick={onPickImage}
+      >
+        <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
+          <rect
+            x="3"
+            y="4"
+            width="14"
+            height="12"
+            rx="1.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+          <circle cx="7.2" cy="8" r="1.2" fill="currentColor" />
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4 14.5l4-4 3 3 2.2-2.2L17 14"
           />
         </svg>
       </button>

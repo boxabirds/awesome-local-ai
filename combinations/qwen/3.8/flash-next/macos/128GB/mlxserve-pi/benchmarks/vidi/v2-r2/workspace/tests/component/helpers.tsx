@@ -13,7 +13,9 @@ import {
   snapshotByCreation,
   type StickySnapshot,
 } from '../../src/shared/board-model';
-import { HANDLE_SIZE_PX } from '../../src/shared/config';
+import { HANDLE_SIZE_PX, IMAGE_UPLOAD_STALE_MS } from '../../src/shared/config';
+import { assetKeyFor } from '../../src/shared/image-format';
+import { newBoardId } from '../../src/shared/board-id';
 import {
   createText,
   getTextContent,
@@ -43,6 +45,13 @@ import {
   type StrokeSnapshot,
 } from '../../src/shared/objects/stroke';
 import { smoothPath } from '../../src/shared/geometry/simplify';
+import {
+  createImagePlaceholders,
+  imageSnapshots,
+  markImageFailed,
+  markImageReady,
+  type ImageSnapshot,
+} from '../../src/shared/objects/image';
 import type { PenColor, PenThickness, ShapeKind } from '../../src/shared/config';
 
 function number(value: string | undefined): number {
@@ -1319,3 +1328,188 @@ export function expectedInk(doc: Y.Doc, id: string): string {
   const snap = strokeSnapshot(doc, id);
   return snap === null ? '' : smoothPath(scaledPoints(snap));
 }
+
+// --------------------------------------------------------------------------------
+// Picture helpers (story 12)
+// --------------------------------------------------------------------------------
+
+/**
+ * A picture on the board, made the way the app makes one: a placeholder through the model, and
+ * then whatever became of it. `status` is the state the *document* is left in - which is not the
+ * state the box is necessarily shown in: `unfinished` is never stored, it is what a box whose
+ * upload started more than `IMAGE_UPLOAD_STALE_MS` ago is called, and asking for it here starts
+ * the clock back that far.
+ */
+export interface NewImageOptions {
+  at?: Point;
+  /** The box on the board. Defaults to a 400x300 picture. */
+  size?: Size;
+  /** The proportions of the bytes, when they are not the box's own. */
+  natural?: Size;
+  status?: 'uploading' | 'ready' | 'failed';
+  assetKey?: string;
+  uploaderId?: string;
+  /** When the upload began. Default: now, or long enough ago for `unfinished`. */
+  startedAt?: number;
+  createdAt?: number;
+}
+
+/**
+ * An asset key of the shape the service hands out: two ids and a slash. Made by the same
+ * functions the service uses, so a test that builds a URL from one gets the URL the board would
+ * have built.
+ */
+export function fakeAssetKey(): string {
+  return assetKeyFor(newBoardId(), newBoardId());
+}
+
+export function newImage(doc: Y.Doc, options: NewImageOptions = {}): string {
+  const size = options.size ?? { width: 400, height: 300 };
+  const natural = options.natural ?? size;
+  const at = options.at ?? { x: 0, y: 0 };
+  const uploaderId = options.uploaderId ?? 'client-test';
+  const status = options.status ?? 'uploading';
+  // `unfinished` is a matter of the clock, so the fixture winds the clock back instead of
+  // inventing a status the document is not allowed to hold.
+  const startedAt =
+    options.startedAt ??
+    (status === 'uploading' ? Date.now() : Date.now() - IMAGE_UPLOAD_STALE_MS - 60_000);
+  let id = '';
+  act(() => {
+    [id] = createImagePlaceholders(
+      doc,
+      [
+        {
+          rect: { x: at.x, y: at.y, width: size.width, height: size.height },
+          naturalWidth: natural.width,
+          naturalHeight: natural.height,
+          contentType: 'image/png',
+        },
+      ],
+      uploaderId,
+      startedAt,
+    );
+    if (id === '') throw new Error('newImage: the model refused the placeholder');
+    if (status === 'ready') markImageReady(doc, id, options.assetKey ?? fakeAssetKey());
+    if (status === 'failed') markImageFailed(doc, id);
+    if (options.createdAt !== undefined) {
+      doc.getMap<Y.Map<unknown>>('objects').get(id)?.set('createdAt', options.createdAt);
+    }
+  });
+  return id;
+}
+
+export function imageElements(): HTMLElement[] {
+  return allTestId('image-object');
+}
+
+export function imageAt(index: number): HTMLElement {
+  const el = imageElements()[index];
+  if (el === undefined) {
+    throw new Error(`no image at index ${index} (${imageElements().length} rendered)`);
+  }
+  return el;
+}
+
+export function imageCount(): number {
+  return imageElements().length;
+}
+
+/** The state the box is *shown* in, which is the state the document holds plus the stale clock. */
+export function imageStatusOf(index: number): string {
+  return imageAt(index).dataset.imageStatus ?? '';
+}
+
+export function imageBox(index: number): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const el = imageAt(index);
+  return {
+    x: number(el.dataset.imageX),
+    y: number(el.dataset.imageY),
+    width: number(el.dataset.imageWidth),
+    height: number(el.dataset.imageHeight),
+  };
+}
+
+/** The proportions the bytes the box was made from had. */
+export function imageNaturalOf(index: number): Size {
+  const el = imageAt(index);
+  return { width: number(el.dataset.naturalWidth), height: number(el.dataset.naturalHeight) };
+}
+
+export function imageAssetKeyOf(index: number): string {
+  return imageAt(index).dataset.assetKey ?? '';
+}
+
+/** Whether this browser is the one whose upload the box is (`data-uploader`). */
+export function imageIsUploader(index: number): boolean {
+  return imageAt(index).dataset.uploader === 'true';
+}
+
+export function imageSelected(index: number): boolean {
+  return imageAt(index).dataset.selected === 'true';
+}
+
+/** The picture itself, or nothing while the box holds a state that has no picture. */
+export function imagePicture(index: number): HTMLImageElement | null {
+  return imageAt(index).querySelector<HTMLImageElement>('[data-testid="image-picture"]');
+}
+
+export function imageSrcOf(index: number): string | null {
+  return imagePicture(index)?.getAttribute('src') ?? null;
+}
+
+/** What the box says, in words. Empty when the box holds a picture rather than news. */
+export function imageWords(index: number): string {
+  return imageAt(index).querySelector('.image-object-words')?.textContent ?? '';
+}
+
+/**
+ * The upload's own percentage, or null when this browser has no upload to report. The bar's own
+ * scale, which is whole per-cent (`max=100`), because what a person reads off a progress bar is
+ * the number on it however the framework put it there.
+ */
+export function imageProgressOf(index: number): number | null {
+  const el = imageAt(index).querySelector<HTMLProgressElement>('[data-testid="image-progress-bar"]');
+  // The property rather than the attribute: what a person reads off a progress bar is what the
+  // element measures, however the framework chose to put it there.
+  return el === null ? null : el.value;
+}
+
+export const imageRetryButton = (index: number): HTMLElement | null =>
+  imageAt(index).querySelector<HTMLElement>('[data-testid="image-retry"]');
+
+export const imageRemoveButton = (index: number): HTMLElement | null =>
+  imageAt(index).querySelector<HTMLElement>('[data-testid="image-remove"]');
+
+/** The screen point at the middle of a picture, for dragging it about. */
+export function imageCentreScreen(index: number): Point {
+  const box = imageBox(index);
+  return screenOf({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
+}
+
+/** The pictures on the board, in the order they were added. */
+export function snapshotImages(doc: Y.Doc): ImageSnapshot[] {
+  return [...imageSnapshots(doc)];
+}
+
+/** One picture as the document holds it, by id. */
+export function imageSnapshotOf(doc: Y.Doc, id: string): ImageSnapshot | null {
+  return snapshotImages(doc).find((image) => image.id === id) ?? null;
+}
+
+/** The file input the Image button opens, which is in the document the whole time. */
+export const imageFileInput = (): HTMLInputElement | null =>
+  document.querySelector<HTMLInputElement>('input.image-file-input[type="file"]');
+
+/** The board's own sentences, in the order they were said. */
+export function toastTexts(): string[] {
+  return allTestId('toast').map((el) => el.textContent ?? '');
+}
+
+/** The dashed frame the board wears while a file is being dragged over it. */
+export const dropHighlightEl = (): HTMLElement | null => byTestId('drop-highlight');

@@ -20,6 +20,8 @@ import {
 } from '../../shared/config';
 import { screenToWorld, worldToScreen, type Point } from './camera';
 import { useBoardCamera } from './CameraProvider';
+import { dragCarriesFiles, imageFilesOf } from '../images/validateFiles';
+import type { FilesDragListener } from '../images/useImageInsert';
 import type { ToolId } from '../tools/useActiveTool';
 
 /** Interaction state: Idle -> Panning -> Idle (see the story state diagram). */
@@ -93,6 +95,19 @@ export interface BoardViewportProps {
   onEmptyClick?: () => void;
   /** Shift+drag on empty board space: the marquee, instead of a pan. */
   onMarquee?: BoardMarqueeHandlers;
+  /**
+   * Files are being dragged over the board, or have left it (story 12). The counting of a drag
+   * crossing the board's own children is done here, because this is the component that knows what
+   * is inside the board surface: a drag that enters a sticky note and leaves it again has not
+   * left the board, and a highlight that flickered with every element it passed would be a
+   * highlight nobody could read.
+   */
+  onFilesDrag?: FilesDragListener;
+  /**
+   * Files were dropped on the board: the files, and the point in world units the drop landed on.
+   * Anything that is not a file is dropped here as nothing, and the browser is told so.
+   */
+  onFilesDrop?: (files: File[], world: Point) => void;
 }
 
 export function BoardViewport({
@@ -103,6 +118,8 @@ export function BoardViewport({
   tool = 'select',
   onTextToolClick,
   overlay,
+  onFilesDrag,
+  onFilesDrop,
 }: BoardViewportProps): JSX.Element {
   const api = useBoardCamera();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -116,6 +133,11 @@ export function BoardViewport({
   /** Same props, readable synchronously from the pointer handlers. */
   const marqueeCbRef = useRef(onMarquee);
   marqueeCbRef.current = onMarquee;
+  /** Same again, for the drag handlers, which are installed once and live for hours. */
+  const filesDragCbRef = useRef(onFilesDrag);
+  filesDragCbRef.current = onFilesDrag;
+  const filesDropCbRef = useRef(onFilesDrop);
+  filesDropCbRef.current = onFilesDrop;
 
   // Keep the newest camera API in a ref so the non-passive wheel, gesture and
   // key listeners are attached once and never call a stale camera.
@@ -184,6 +206,87 @@ export function BoardViewport({
       el.removeEventListener('gestureend', onGestureEnd);
     };
   }, [pointOf]);
+
+  // --- Files dragged over the board (story 12). -------------------------------
+  // Installed as native listeners rather than React's `onDragEnter`/`onDrop` props for the same
+  // reason the wheel ones are: a drag has to be refused at the surface, in the event, and the
+  // board is the thing that says so. `dragover` is the call that makes a drop possible at all -
+  // a browser that is not told otherwise opens the file in the tab - and `drop` is where the
+  // files are handed over with the world point they landed on.
+  //
+  // `dragenter`/`dragleave` are counted rather than obeyed. A drag that crosses a sticky note on
+  // the way to the board sends a `dragleave` for the surface, and a drop highlight that blinked
+  // every time the pointer crossed something it was hovering over would be a highlight that says
+  // nothing. A drag carrying no files - a link, selected text - is left entirely alone, so the
+  // board neither lights up nor claims to have refused what it was never offered.
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (el === null) return undefined;
+    let depth = 0;
+
+    const onDragEnter = (event: DragEvent) => {
+      if (!dragCarriesFiles(event.dataTransfer)) return;
+      depth += 1;
+      filesDragCbRef.current?.(true);
+    };
+    const onDragOver = (event: DragEvent) => {
+      if (!dragCarriesFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      // A `dragenter` can be missed (a drag that starts already over the board), and the count
+      // may not go negative from here: `dragleave` is the only thing that turns the highlight off.
+      depth = Math.max(depth, 1);
+      filesDragCbRef.current?.(true);
+    };
+    const onDragLeave = (event: DragEvent) => {
+      if (!dragCarriesFiles(event.dataTransfer)) return;
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) filesDragCbRef.current?.(false);
+    };
+    const onDrop = (event: DragEvent) => {
+      if (!dragCarriesFiles(event.dataTransfer)) return;
+      // The browser was going to navigate to this file. It is not going to.
+      event.preventDefault();
+      event.stopPropagation();
+      depth = 0;
+      filesDragCbRef.current?.(false);
+      const dropped = imageFilesOf(event.dataTransfer);
+      if (dropped.length === 0) return;
+      filesDropCbRef.current?.(
+        dropped,
+        screenToWorld(apiRef.current.camera, pointOf(event.clientX, event.clientY)),
+      );
+    };
+
+    el.addEventListener('dragenter', onDragEnter);
+    el.addEventListener('dragover', onDragOver);
+    el.addEventListener('dragleave', onDragLeave);
+    el.addEventListener('drop', onDrop);
+    return () => {
+      el.removeEventListener('dragenter', onDragEnter);
+      el.removeEventListener('dragover', onDragOver);
+      el.removeEventListener('dragleave', onDragLeave);
+      el.removeEventListener('drop', onDrop);
+      depth = 0;
+    };
+  }, [pointOf]);
+
+  // ...and the same refusal over the rest of the window. The board covers the page but the
+  // toolbar does not: a file dropped on the toolbar, or on the connection badge, would otherwise
+  // be opened by the browser and the board would be gone - with everything in it that had not been
+  // written down. Nothing is added for a drop outside the board; the browser is simply not the one
+  // that decides what happens to it.
+  useEffect(() => {
+    const refuses = (event: DragEvent) => {
+      if (dragCarriesFiles(event.dataTransfer)) event.preventDefault();
+    };
+    window.addEventListener('dragover', refuses);
+    window.addEventListener('drop', refuses);
+    return () => {
+      window.removeEventListener('dragover', refuses);
+      window.removeEventListener('drop', refuses);
+    };
+  }, []);
 
   // --- Keyboard: Ctrl/Cmd + = (zoom in), Ctrl/Cmd + - (zoom out),
   // Ctrl/Cmd + 0 (Reset view). preventDefault stops the browser zooming the page. ---

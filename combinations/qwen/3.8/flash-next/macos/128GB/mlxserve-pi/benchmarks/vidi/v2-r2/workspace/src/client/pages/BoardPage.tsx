@@ -18,7 +18,7 @@
 // and keeps the timer - which is cleared on unmount, because a retry scheduled for a
 // page nobody is looking at is a request nobody asked for.
 
-import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import type * as Y from 'yjs';
 import { checkBoard, type CheckResponse } from '../api';
 import {
@@ -51,6 +51,9 @@ import { ConnectorTool, type ConnectorCreateSpec } from '../tools/ConnectorTool'
 import { PenTool } from '../tools/PenTool';
 import { PenToolbar } from '../tools/PenToolbar';
 import { usePenOptions } from '../tools/usePenOptions';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { Toast } from '../ui/Toast';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit } from '../sync/connectBoard';
 import { getObjectType, handlesFor } from '../objects/registry';
@@ -189,7 +192,8 @@ export function BoardScreen({ doc: injected, boardId }: BoardScreenProps): JSX.E
 /** Everything that needs the board camera, the document and the selection. */
 function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element {
   const { camera, viewport, hasNavigated, zoomStep, reset } = useBoardCamera();
-  const { doc, notes, texts, shapes, connectors, strokes, objects, connection } = useBoardDoc(injected, boardId);
+  const { doc, notes, texts, shapes, connectors, strokes, images, objects, connection } =
+    useBoardDoc(injected, boardId);
   const { selection: selectionState, select, toggle, setSelection, clear, startEdit, endEdit } =
     useSelection(objects);
   const selectedIds = selectionState.ids;
@@ -226,6 +230,60 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
   const undoController = useUndoController(doc);
   const undo = useUndo(undoController, editable);
   const undoBoundary = useCallback(() => undoController.boundary(), [undoController]);
+
+  /**
+   * The three ways a picture gets onto the board (story 12): dragged onto it, pasted in, or
+   * chosen from the file picker this hook also owns. It is handed the same things the other ways
+   * of acting on a board are handed - the document, the camera, this person's id, and the undo
+   * boundary a group of new objects is bounded by - and hands back the progress of the boxes it
+   * made, the sentences the board is saying, whether files are being dragged over the board, and
+   * the clock that lets an upload nobody is watching go stale.
+   *
+   * The picker is a thing that was done rather than a mode that is held, so choosing files hands
+   * the pointer back to Select - the same reason the I key opens a picker instead of holding an
+   * Image tool.
+   */
+  const insert = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    viewport,
+    connection,
+    identityId: actorId,
+    onFilesChosen: () => setTool('select'),
+    onBoundary: undoBoundary,
+  });
+
+  // A paste anywhere in the window is the board's to consider. The listener is installed once and
+  // always calls the newest handler through a ref, so panning the board does not resubscribe it,
+  // and the hook itself is what decides whether the caret has this paste or the board does.
+  const pasteHandler = useRef(insert.onPaste);
+  pasteHandler.current = insert.onPaste;
+  useEffect(() => {
+    const listener = (event: Event): void => pasteHandler.current(event as ClipboardEvent);
+    window.addEventListener('paste', listener);
+    return () => window.removeEventListener('paste', listener);
+  }, []);
+
+  /** The Image button and the I key: the file picker. */
+  const pickImage = useCallback((): void => {
+    if (!editable) return;
+    insert.openPicker();
+  }, [editable, insert.openPicker]);
+
+  /**
+   * Remove one picture that is going nowhere: the same delete the bin makes, and the same undo
+   * step around it. It is offered on a placeholder rather than on a picture, which is why it does
+   * not go by the selection.
+   */
+  const removeImage = useCallback(
+    (id: string): void => {
+      undoBoundary();
+      deleteObjects(doc, [id]);
+      undoBoundary();
+    },
+    [doc, undoBoundary],
+  );
 
   /**
    * Re-measure these text objects, and store the box their text came to. Called by
@@ -332,6 +390,7 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
     tool,
     setTool,
     onCreateSticky: createAtCentre,
+    onPickImage: pickImage,
   });
 
   // The selection's bounding box, in world units: what the overlay frames and
@@ -488,6 +547,11 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
         onDoubleClickBoard={createAtPoint}
         onEmptyClick={clear}
         onMarquee={marquee.handlers}
+        // Files dragged over the board and dropped on it (story 12). The viewport owns these two
+        // because it owns the surface the file is dragged across and the camera that says where
+        // the middle of it is - which is the same reason it owns the double-click and the marquee.
+        onFilesDrag={insert.onFilesDrag}
+        onFilesDrop={insert.onFilesDrop}
         // The tool the board takes clicks for. While a caret is inside an object
         // that object owns the clicks: a layer over the board would be a layer over
         // the text you are typing in, and the tool is waiting for you to finish -
@@ -523,6 +587,45 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
           ) : null
         }
       >
+        {/* Pictures first (story 12): a note written across a photograph is the thing you do with
+            a picture on a board, and at an equal stacking order the words have to come out on
+            top. Everything else about an image is the registry's and the gesture's - it is
+            grabbed, moved, resized with its proportions kept and deleted like any object - plus
+            the two things only a picture needs: how far its upload has got, and what to do when
+            it is going nowhere. */}
+        {images.map((image) => {
+          const spec = getObjectType(image.type);
+          if (spec === undefined) return null;
+          const Component = spec.Component;
+          return (
+            <Component
+              key={image.id}
+              note={image}
+              doc={doc}
+              zoom={camera.zoom}
+              selected={selectedIds.has(image.id)}
+              single={selectedIds.size <= 1}
+              dragging={gesture.draggingIds.has(image.id)}
+              editing={false}
+              editable={editable}
+              progress={insert.progress.get(image.id)}
+              isUploader={image.uploaderId === actorId}
+              canRetry={insert.canRetry(image.id)}
+              now={insert.now}
+              onRetry={(id) => {
+                insert.retry(id);
+              }}
+              onRemove={removeImage}
+              onGesturePointerDown={(event) => gesture.onObjectPointerDown(event, image.id)}
+              onSelect={select}
+              onFocusNote={(id) => {
+                if (!gesture.isPressed()) select(id);
+              }}
+              onStartEdit={startEditObject}
+              onEndEdit={endEdit}
+            />
+          );
+        })}
         {/* One element per note, in creation order; the registry says which
             component draws which type, and a type it does not know draws
             nothing, exactly as the snapshot skips it. */}
@@ -738,8 +841,16 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
         </div>
       )}
       {marquee.rect === null ? null : <MarqueeRect rect={marquee.rect} />}
+      {/* While a file is being dragged over the board: the board saying it can take it. */}
+      <DropHighlight active={insert.highlight} />
+      {/* The picker the Image button and the I key open, and the sentences the board has to say
+          about pictures - a file that is too big, a board that is offline - which stay up long
+          enough to be read and then go away by themselves. */}
+      {insert.fileInput}
+      <Toast messages={insert.toasts} />
       <Toolbar
         onCreateSticky={createAtCentre}
+        onPickImage={pickImage}
         tool={tool}
         onTool={setTool}
         shapeKind={shapeKind}

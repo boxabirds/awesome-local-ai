@@ -1338,3 +1338,180 @@ named in a test title.
 skipped) plus this story's 30 pen runs: TC-17 to TC-20 green in chromium, firefox and
 webkit. The delivery times the design budgets were logged, never asserted; the single
 failure was the story-8 case written up above.
+
+# Story 12 — Drop images onto the board
+
+## What is here (story 12)
+
+- `src/shared/image-format.ts` — what a picture is: `sniffImageType` reads the first bytes
+  (`IMAGE_SNIFF_BYTES`) and says PNG, JPEG, GIF87a/89a or WebP, or nothing; `assetKeyFor`
+  mints `boardId/imageId`, `isValidAssetKey` is the shape that may be read back, and
+  `assetUrlFor` is the only place that knows the URL. A file's own name is never consulted.
+- `src/shared/objects/image.ts` — the picture in the document: `ImageSnapshot`, and the five
+  writes a picture goes through (`createImagePlaceholders`, `markImageReady`,
+  `markImageFailed`, `markImageRetrying`, plus `placementSize` / `layoutRow` which decide
+  where a row of boxes goes). `displayStatus` is the one function that knows what a person
+  is told: `uploading`, `ready`, `failed`, or `unfinished` for an upload that has been
+  sitting there since `IMAGE_UPLOAD_STALE_MS` ago.
+- `src/worker/assets.ts` — the bytes: `storeAsset` (one put, `httpMetadata` and
+  `customMetadata` both carrying the type) and `fetchAsset` (get, or `not_found`, or
+  `too_big` for an object that should never have been that large). `handleUpload` and
+  `handleServe` put the numbers on those: the size ceiling, the board-must-exist rule, the
+  year of `immutable` caching (`ASSET_CACHE_MAX_AGE_SECONDS`) and `nosniff`.
+- `src/client/images/` — `validateFiles.ts` (the three refusals, in the design's exact
+  words, before a byte moves), `uploadImage.ts` (an XHR, because only an XHR reports
+  progress on the way up, with an `abort` that means it), `useImageInsert.tsx` (the three
+  doors, the in-memory files a Retry needs, the progress map, the toasts, the highlight,
+  and the hidden file input), `DropHighlight.tsx`.
+- `src/client/objects/ImageObject.tsx` — one box in each of its five states, and
+  `src/client/ui/Toast.tsx` — the live region the refusals are said through.
+- `src/worker/index.ts` gained the asset namespace: `POST /api/boards/:id/assets`,
+  `GET|HEAD /api/assets/:boardId/:imageId`, and `inAssetNamespace`, which decides that
+  everything under `/api/assets` belongs to pictures. `wrangler.jsonc` and `env.d.ts` bind
+  `ASSETS_BUCKET`.
+- Tests: `tests/unit/{image-format,image-object,validate-files}.test.ts`, the five new
+  aspect-lock cases in `tests/unit/geometry.test.ts`,
+  `tests/component/{ImageObject,useImageInsert}.test.tsx`,
+  `tests/integration/assets-api.test.ts`, `tests/e2e/images.spec.ts` with
+  `tests/e2e/helpers/images.ts`, and `tests/fixtures/image-bytes.ts`.
+
+## Where the design and the code disagreed, and what won
+
+- **`useImageInsert` is handed the viewport as well as the camera.** The design's option list
+  has the camera and asks that a dropped file land "centred in the visible board area", which
+  the camera alone cannot answer: a camera's x/y is the world point at the *top-left* of the
+  view, not its middle. `{camera, viewport}` is what the hook takes, and the middle is
+  arithmetic from there.
+- **`BoardViewport` reports two things instead of three.** The design names `onDragEnter`,
+  `onDragOver` and `onDragLeave`; the viewport ships `onFilesDrag(over)` and
+  `onFilesDrop(files, world)`. Drag-leave fires for every child a file passes over, so the
+  only meaningful state is a depth count, and the component that owns the surface and the
+  camera is the one that should hold it and do the conversion. The window is also taught to
+  swallow `dragover`/`drop` of files, or letting go of a file outside the board navigates to
+  it.
+- **Two origins, not one.** Creating a picture is a local edit (`LOCAL_ORIGIN`), so Ctrl+Z
+  takes a drop back. Its upload finishing is not anybody's edit, so `markImageReady`,
+  `markImageFailed` and `markImageRetrying` write under a separate `UPLOAD_ORIGIN` —
+  otherwise an undo could land between two writes and a box would remember a state it had
+  already outgrown.
+- **`clampScale` grew `aspectLocked`** (default `false`, so everything written before this
+  story is untouched). When it is set, the floor and the ceiling are one uniform scale
+  rather than two per-axis ones: a 10:3 picture squeezed by its height stops at 16 tall and
+  53 wide, which is the difference between a picture and a squash. The registry already said
+  `aspectLocked: true` for pictures (and, as it happens, for sticky notes);
+  `useTransformGesture` now passes it down, which is where the registry's promise becomes a
+  fact.
+- **`validateFiles` reports on every file in the batch and accepts twenty.** Twenty is a
+  limit on what arrives, not on what was wrong; a drop of forty-one oversized files says
+  both sentences rather than twenty of them. Refusals are ordered `count`, `type`, `size`,
+  because the batch being too big is the sentence that explains the other two.
+- **`placementSize` answers zero for nonsense instead of throwing**, and
+  `createImagePlaceholders` skips a zero-sized item: a file that will not decode is refused
+  with a word, not a stack trace. Nothing is clamped *up* to `IMAGE_MIN_SIZE_WORLD` at
+  placement, because clamping both axes to a floor breaks the proportions of a small file —
+  the floor is the resize gesture's business, where one axis moving means the other does.
+- **`storeAsset` and `fetchAsset` answer in outcomes** (`'stored' | 'too_big' | …`) rather
+  than in `Response`s, so the routes decide the status and the worker's routing table stays
+  readable; `HEAD` re-answers with the same headers and no body, because a cache is not
+  supposed to be the reason a picture travels twice.
+- **The asset routes sit after the board-route check**, which is safe because
+  `boardsRouteOf` answers "not mine" for `/api/boards/:id/assets`; and anything that lives
+  under `/api/assets` but is not exactly two valid ids gets a JSON 404 rather than the
+  single-page app's HTML, because a page that answers a picture's address with a
+  `<script>` tag is a page that lied. `decodeSegment` wraps `decodeURIComponent` so that a
+  malformed `%` sequence cannot take the worker down.
+- **`imageSnapshots` sorts by `createdAt` alone** — a stable sort, so a batch dropped at the
+  same millisecond keeps the order the files came in, which is the order of the row.
+- **An aborted upload leaves its box `uploading`.** Putting the pointer down and walking away
+  is not a failure the board may announce; the box goes `unfinished` in five minutes and
+  nobody says it is broken. Unmount aborts everything in flight.
+- **`retry(id)` marks the box `uploading` with a fresh clock before it sends**, so the
+  thirty-second stale clock measures this attempt and not the one that failed; and the
+  thirty-second clock only ticks while something is uploading (`IMAGE_STATUS_TICK_MS`),
+  because a board with five finished pictures on it has nothing to re-read every second.
+- **The toast region is always in the document**, an empty zero-height box until it has
+  something to say. `role="status"` is announced from the node that is already there —
+  a live region that arrives with its message is a live region that says nothing.
+- **`canUpload` is stricter than `canEdit`.** An edit that cannot be made is a change nobody
+  sees; an upload that cannot be made is bytes sent to nowhere. A board that is still
+  looking for its room, or has lost it, refuses files with the offline sentence.
+- **`image` is a letter in `TOOL_KEYS` but not a tool in `SHIPPED_TOOLS`.** `i` opens the
+  picker and the toolbar's Image button opens the picker; neither *holds* a mode, because a
+  picture is handed over rather than drawn with. Both leave the held tool where it was.
+- **Pictures are painted before notes**, so at an equal stacking order the words come out on
+  top of the photograph — which is the thing a sticky note across a picture is for.
+- **The hook is given `onBoundary` rather than reading it from context**, because the hook
+  runs in the component that *provides* that context; and `boardId` may be `undefined`, in
+  which case there is nowhere to send bytes and the refusal is the same offline sentence.
+- `IMAGE_TOAST_MS` is named for the story's own prefix, and is 4 s.
+
+## Two things only a real browser could have told me
+
+- **A picture you could look at and nothing else.** `.image-object` never took its pointer
+  events back: the world layer answers `pointer-events: none` so that a press on empty board
+  belongs to the board, and every object reclaims its own — the sticky note, the text, the
+  shape all say `pointer-events: auto`. The picture did not, so a mouse went straight
+  through it to the board behind: no selecting, no moving, no resize handles, no deleting.
+  Nothing in jsdom can see this; the component tests dispatched their events on the element
+  itself, and hit-testing is not a thing jsdom does. The stylesheet now carries the comment
+  and the e2e carries the assertion (`pictureIsSelected` reads the paint, not the document).
+- **Files can only be handed over to a board that has a room to hand them to.** TC-27 was
+  red because the drop happened while the badge still said *Connecting* and the hook,
+  correctly, turned the file away. The fix was not a longer sleep but a wait for the thing a
+  person would look at first: `waitForUploadable` polls `__vidi6.connectionState` until the
+  board is connected or confirmed.
+
+## Test decisions (story 12)
+
+- **jsdom's `DragEvent` is not a `MouseEvent`.** It descends from `UIEvent`, matching an old
+  draft of the spec, so `clientX` / `clientY` are not constructor fields and
+  `fireEvent.drop(el, {clientX, clientY})` loses the point without a word — the world point
+  came out `NaN`, the layout refused every file, and the test said "zero placeholders" about
+  code that was right. The helpers build their drag events by hand: an `Event` with
+  `dataTransfer`, `clientX` and `clientY` defined on it, dispatched inside `act()`.
+- **The files are drawn by the browser under test.** `picture()` paints a canvas and hands
+  the bytes back to Node, so a file can be given to any of the three doors on any browser; a
+  hand-written PNG is only a byte pattern one decoder happens to like today. Because WebKit
+  answers a request for a WebP with a PNG and does not mention it, `writablePictureKinds`
+  asks each browser what it can really write and `anAcceptedPicture` takes the least
+  ordinary thing it can: WebKit is handed a GIF (which it writes itself), Chromium and
+  Firefox carry WebP end to end.
+- **A chooser has to be listened for before it is opened.** Playwright only starts telling a
+  page about its file choosers once something is listening, and that instruction needs a
+  round trip to land; listening and pressing `i` in the same breath missed the dialog
+  outright about once in four runs. `watchPicturePickers(page)` goes on before the page is
+  even opened, and a chooser that arrives early waits in line.
+- **The bytes are slowed, not the board.** Three small pictures over loopback are written and
+  acknowledged before anything asks, and the row of boxes waiting for its pictures — the
+  state this story exists for — was over before it could be looked at.
+  `slowTheWayToTheBytes` holds up the *POSTs* only, and everything else still runs at full
+  speed.
+- **Paste is tested at the component level, and not in the browser.** The clipboard is the
+  one door this machine has never let a test open honestly (stories 9 and 10 both carry
+  skips about it), so the drag and the picker carry the end-to-end weight and a hand-built
+  clipboard event carries the paste.
+- **Progress is read the way a browser holds it**: the `<progress>` element's own `.value`,
+  on the whole per-cent scale the markup asks for (`max=100`), so a quarter of the way is
+  25. And because a multi-file drop starts every upload at once, every box in the batch
+  shows its own 0 % — "Uploading…" with no number is what *another* person's upload looks
+  like, where this screen has no progress to show.
+- **A ready picture has no status line**, only the picture; asking a finished picture what it
+  thinks is a locator that waits fifteen seconds for an element that never exists. Absence
+  of failure is `image-failed` with a count of zero.
+- **Resize drags stay inside the window.** A picture placed at the middle of the default view
+  is 800 world units wide, and its bottom-right corner is off the edge of the screen — a
+  pointer aimed outside the window is aimed at nothing. TC-27 drops where the whole box and
+  its handle can be reached, and its drags are large enough to pass the floor by a mile
+  without leaving the screen.
+- **The aspect-lock unit tests go through `applyResize(…, {aspectLocked})`**, with the floor
+  stated as a uniform scale, and the anchor assertion for a bottom-right drag is the
+  top-left — the corner that was not grabbed.
+
+## Verification (story 12)
+
+`npm run typecheck` (both tsconfigs), `npm run build`, `test:unit` (378),
+`test:component` (273) and `test:integration` (96) pass. `test:e2e` is 218 passed, 4
+skipped — the same skips stories 9 to 11 recorded, nothing new skipped — including this
+story's twelve runs: TC-25 to TC-28 green in chromium, firefox and webkit, and stable over
+five repeats in chromium and two in all three browsers. The delivery time the design
+budgets is logged and not asserted (12–164 ms against a 1 000 ms budget).

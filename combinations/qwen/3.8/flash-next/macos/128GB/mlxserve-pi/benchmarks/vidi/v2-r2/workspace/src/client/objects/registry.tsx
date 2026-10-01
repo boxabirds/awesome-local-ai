@@ -20,12 +20,14 @@ import type { Handle, Point } from '../../shared/geometry';
 import { HANDLES, objectBounds } from '../../shared/geometry';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   STROKE_HIT_TOLERANCE_PX,
   STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
   TYPE_CONNECTOR,
+  TYPE_IMAGE,
   TYPE_SHAPE,
   TYPE_STICKY,
   TYPE_STROKE,
@@ -37,6 +39,7 @@ import type { TextSnapshot } from '../../shared/objects/text';
 import type { ShapeSnapshot } from '../../shared/objects/shape';
 import type { ConnectorSnapshot } from '../../shared/objects/connector';
 import type { StrokeSnapshot } from '../../shared/objects/stroke';
+import type { ImageSnapshot } from '../../shared/objects/image';
 import { scaledPoints, strokeThicknessWorld } from '../../shared/objects/stroke';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import type { StickyNoteProps } from './StickyNote';
@@ -45,6 +48,7 @@ import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
+import { ImageObject } from './ImageObject';
 
 /** Every object this build can draw. */
 export type BoardObject =
@@ -52,7 +56,8 @@ export type BoardObject =
   | TextSnapshot
   | ShapeSnapshot
   | ConnectorSnapshot
-  | StrokeSnapshot;
+  | StrokeSnapshot
+  | ImageSnapshot;
 
 /**
  * The props the board passes to any object component. Every object type in
@@ -63,6 +68,21 @@ export type BoardObject =
  */
 export interface ObjectProps extends Omit<StickyNoteProps, 'note'> {
   note: BoardObject;
+  /**
+   * Pictures only (story 12), and only while *this client* is the one uploading: 0 to 1.
+   * Everyone else has no number to be shown, which is why it is optional rather than 0.
+   */
+  progress?: number;
+  /** Whether the person reading this board is the one who added the picture. */
+  isUploader?: boolean;
+  /** Whether a retry would achieve anything - the file is still in this browser's memory. */
+  canRetry?: boolean;
+  /** The board's render clock, which is how an upload is allowed to go stale. */
+  now?: number;
+  /** Upload the same file again. */
+  onRetry?(id: string): void;
+  /** Delete a placeholder that is going nowhere. */
+  onRemove?(id: string): void;
 }
 
 /**
@@ -246,9 +266,26 @@ registerObjectType(TYPE_STROKE, {
   },
 });
 
+// A picture is a box that holds bytes kept somewhere else: it is moved, resized, deleted and
+// undone like any object - and resized in proportion, because a photograph squashed sideways is
+// a different photograph, which is the one thing the story 7 resize is told here rather than
+// asked about. It holds nothing to type into, and being "on" it is being inside its box, which
+// is why it is the only type in this build that registers no hit test at all: a picture fills
+// its box completely, so the shared rule is exactly right.
+//
+// The minimum edge is here rather than in the drag maths because a picture may be shrunk to a
+// thumbnail but not to nothing: below sixteen board units there are no pixels left to show.
+registerObjectType(TYPE_IMAGE, {
+  Component: componentForType<ImageSnapshot>(ImageObject),
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  handles: 'all',
+});
+
 /** Nothing a selection can be dragged by. */
 const NO_HANDLES: readonly Handle[] = [];
-
 /**
  * The handles a selection gets: the eight of a box you resize from any side, or -
  * when every object in it is a type whose height is its content's, which today
