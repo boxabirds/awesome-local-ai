@@ -118,8 +118,8 @@ test.afterEach(() => {
 });
 
 test.describe('two people on one board', () => {
-  test('TC-22 one person’s changes appear on the other person’s screen', async ({ browser }) => {
-    const board = newBoard();
+  test('TC-22 one person’s changes appear on the other person’s screen', async ({ browser, request }) => {
+    const board = await newBoard(request);
     const alex = await joinBoard(browser, 'Alex', board);
     const sam = await joinBoard(browser, 'Sam', board);
     await watchNotes(alex.page);
@@ -165,8 +165,8 @@ test.describe('two people on one board', () => {
     await leaveAll([alex, sam]);
   });
 
-  test('TC-23 both type into one note at the same time and keep everything', async ({ browser }) => {
-    const board = newBoard();
+  test('TC-23 both type into one note at the same time and keep everything', async ({ browser, request }) => {
+    const board = await newBoard(request);
     const alex = await joinBoard(browser, 'Alex', board);
     const sam = await joinBoard(browser, 'Sam', board);
     await watchNotes(alex.page);
@@ -198,8 +198,8 @@ test.describe('two people on one board', () => {
     await leaveAll([alex, sam]);
   });
 
-  test('TC-24 both drag the same note at once and end up in the same place', async ({ browser }) => {
-    const board = newBoard();
+  test('TC-24 both drag the same note at once and end up in the same place', async ({ browser, request }) => {
+    const board = await newBoard(request);
     const alex = await joinBoard(browser, 'Alex', board);
     const sam = await joinBoard(browser, 'Sam', board);
     await watchNotes(alex.page);
@@ -224,8 +224,8 @@ test.describe('two people on one board', () => {
     await leaveAll([alex, sam]);
   });
 
-  test('TC-25 a note deleted while the other person is typing in it goes away for both', async ({ browser }) => {
-    const board = newBoard();
+  test('TC-25 a note deleted while the other person is typing in it goes away for both', async ({ browser, request }) => {
+    const board = await newBoard(request);
     const alex = await joinBoard(browser, 'Alex', board);
     const sam = await joinBoard(browser, 'Sam', board);
     await watchNotes(alex.page);
@@ -264,8 +264,8 @@ test.describe('two people on one board', () => {
     await leaveAll([alex, sam]);
   });
 
-  test('TC-28 choosing and editing a note is nobody else’s business', async ({ browser }) => {
-    const board = newBoard();
+  test('TC-28 choosing and editing a note is nobody else’s business', async ({ browser, request }) => {
+    const board = await newBoard(request);
     const alex = await joinBoard(browser, 'Alex', board);
     const sam = await joinBoard(browser, 'Sam', board);
 
@@ -292,9 +292,9 @@ test.describe('two people on one board', () => {
 });
 
 test.describe('a board full of people', () => {
-  test('TC-26 everyone sees every change made by everyone else', async ({ browser }) => {
+  test('TC-26 everyone sees every change made by everyone else', async ({ browser, request }) => {
     test.setTimeout(300_000);
-    const board = newBoard();
+    const board = await newBoard(request);
     // The capacity the product is designed for, and the number of people this
     // test puts on one board. Nothing here is the +1 case: the room has no limit,
     // and that is the room's own test (TC-13).
@@ -349,9 +349,9 @@ test.describe('a board full of people', () => {
 });
 
 test.describe('a board one person loses', () => {
-  test('TC-27 a board missed while the link is down arrives when it comes back', async ({ browser }) => {
+  test('TC-27 a board missed while the link is down arrives when it comes back', async ({ browser, request }) => {
     test.setTimeout(CATCH_UP_TEST_OUTAGE_MS + 150_000);
-    const board = newBoard();
+    const board = await newBoard(request);
     const alex = await joinBoard(browser, 'Alex', board);
     const sam = await joinBoard(browser, 'Sam', board);
     await watchNotes(alex.page);

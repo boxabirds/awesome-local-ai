@@ -12,7 +12,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Doc } from 'yjs';
 import type { WebsocketProvider } from 'y-websocket';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
 import { CLOSE_BOARD_LOAD_FAILED } from '../../src/shared/protocol';
 import {
   createNote,
@@ -40,7 +40,7 @@ function openApp(): { doc: Doc; provider: WebsocketProvider } {
   let provider: WebsocketProvider | null = null;
   act(() => {
     render(
-      <App
+      <Board
         onDocReady={(d: Doc) => {
           doc = d;
         }}

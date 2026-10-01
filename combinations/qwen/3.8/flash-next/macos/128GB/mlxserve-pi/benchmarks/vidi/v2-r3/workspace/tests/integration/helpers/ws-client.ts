@@ -145,6 +145,14 @@ export class TestClient {
 
   /** Open a socket and start the sync exchange. */
   async open(): Promise<void> {
+    // Story 5: a room is no longer brought into being by the first connection — a
+    // board has to exist before a socket will open on it. A test that connects is
+    // asking to *use* a board, so it creates one first if it is not there (the
+    // same one-RPC `initialize()` that `POST /api/boards` makes). Tests that
+    // assert a board does *not* exist — the 404 to an unknown or malformed id —
+    // go through `SELF.fetch` directly, never through here, so this cannot mask
+    // the not-found path.
+    await createRoom(this.boardId);
     const response = await SELF.fetch(`http://localhost${ROOM_PATH_PREFIX}${this.boardId}`, {
       headers: { Upgrade: 'websocket' },
     });
@@ -441,6 +449,18 @@ export async function connectClient(boardId: string, name: string): Promise<Test
   await client.open();
   await settle(client);
   return client;
+}
+
+/**
+ * Create a board if it does not exist yet, the way `POST /api/boards` does — the
+ * one `initialize()` RPC. Since story 5 a board must exist before a socket opens
+ * on it, so tests that need a board first call this (indirectly, through
+ * `open()`); tests that assert a board does *not* exist never do.
+ */
+export async function createRoom(boardId: string): Promise<void> {
+  await runInDurableObject(roomStub(boardId), async (object) => {
+    await (object as unknown as { initialize(): Promise<unknown> }).initialize();
+  });
 }
 
 /** Several connected editors. */

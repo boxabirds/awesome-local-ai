@@ -379,3 +379,196 @@ body,
 .connection-status--load-failed {
   color: #b3261e;
 }
+
+/* --- Story 5: the Home page and the Board-not-found page -------------------
+   Both are the same centred card: a title, a line, one prominent button and a
+   line of text under it. The Home page's title is the product name; the not-found
+   page's is its heading. */
+.home {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--board-bg);
+  /* The only scrollable thing is a long link in the Share panel, not this page. */
+  overflow: hidden;
+}
+
+.home-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 56px;
+  text-align: center;
+}
+
+.home-title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.home-tagline {
+  margin: 0;
+  font-size: 15px;
+  color: #55555f;
+}
+
+.home-new-board {
+  margin-top: 8px;
+  padding: 12px 28px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--marker-color);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: var(--panel-shadow);
+}
+
+.home-new-board:hover:not(:disabled) {
+  background: #c93a6c;
+}
+
+.home-new-board:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.home-new-board:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* The create-failure line sits under the button (share.create_failure). It keeps
+   its space (min-height) whether or not it holds text, so the button never jumps. */
+.home-error {
+  min-height: 20px;
+  font-size: 14px;
+  color: #b3261e;
+}
+
+.home-home-link {
+  margin: 0;
+  font-size: 14px;
+}
+
+.home-home-link a {
+  color: var(--marker-color);
+  text-decoration: none;
+}
+
+/* The board page's loading and unreachable notices: one centred line, the same
+   placement as the Home card, so nothing else is on screen to distract from it. */
+.board-status {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: #55555f;
+  background: var(--board-bg);
+}
+
+/* --- Story 5: the Share button and panel (share.copy) ---------------------
+   Top-right, mirroring the zoom control's card. Its copy is 14 px; a panel that
+   would not fit the viewport scrolls its link rather than overflowing. */
+.share-button {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  padding: 8px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--board-ink);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  cursor: pointer;
+}
+
+.share-button:hover {
+  background: #f3f3f7;
+}
+
+.share-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.share-panel {
+  position: fixed;
+  top: 52px;
+  right: 12px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 14px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: var(--panel-shadow);
+}
+
+.share-link {
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--board-ink);
+  background: #f5f5f8;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+.share-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.share-copy {
+  padding: 9px 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--marker-color);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.share-copy:hover {
+  background: #c93a6c;
+}
+
+.share-copy:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.share-manual,
+.share-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #55555f;
+}
+
+.share-manual {
+  color: #b3261e;
+}

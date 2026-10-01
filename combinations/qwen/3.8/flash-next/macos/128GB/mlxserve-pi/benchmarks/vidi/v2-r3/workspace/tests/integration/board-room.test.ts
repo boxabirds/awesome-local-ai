@@ -23,6 +23,7 @@ import {
   type RoomInternals,
   connectClient,
   connectClients,
+  createRoom,
   env,
   inspectRoom,
   roomStub,
@@ -563,6 +564,10 @@ describe('the room and the address (live.isolation)', () => {
 
   it('the socket route is the address the client uses', async () => {
     const boardId = newBoardId();
+    // Story 5: the room refuses a socket to a board that does not exist, so a
+    // test that reaches the room's `fetch` directly (bypassing the client that
+    // would have created it) has to create the board itself first.
+    await createRoom(boardId);
     const response = await env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).fetch(
       `http://localhost${ROOM_PATH_PREFIX}${boardId}`,
       { headers: { Upgrade: 'websocket' } },

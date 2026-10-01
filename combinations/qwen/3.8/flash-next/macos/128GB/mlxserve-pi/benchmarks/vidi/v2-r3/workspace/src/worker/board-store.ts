@@ -68,13 +68,23 @@ export class BoardStore {
   private logBytes = 0;
   /** The highest log sequence the snapshot already contains (0 for none). */
   private throughSeq = 0;
+  /** Whether the tables are known to exist in this store's lifetime, so a
+   *  board's first `append` migrates once and no later write re-checks. */
+  private tablesCreated = false;
 
   constructor(storage: DurableObjectStorage) {
     this.sql = storage.sql;
     this.transactionSync = storage.transactionSync.bind(storage);
   }
 
-  /** Create the tables. Writes no update rows, ever (TC-25). */
+  /**
+   * Create the tables. Writes no update rows, ever (TC-25).
+   *
+   * Story 5 moved this out of the room's constructor: the tables are created by
+   * `initialize()` (when a board is created) and lazily before the first
+   * `append()`, so that merely *probing* a link — a GET, or a WebSocket to a
+   * board that does not exist — writes nothing at all (share.not_found).
+   */
   migrate(): void {
     this.sql.exec(
       'CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
@@ -94,10 +104,82 @@ export class BoardStore {
         String(STORAGE_SCHEMA_VERSION),
       );
     }
+    this.tablesCreated = true;
   }
 
-  /** Append one update to the log. A SQL failure is rethrown: the room resets. */
+  /** Do the tables exist? Reads `sqlite_master` only — never writes. */
+  private tablesExist(): boolean {
+    const rows = this.sql
+      .exec<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'storage_meta'",
+      )
+      .toArray();
+    return (rows[0]?.n ?? 0) > 0;
+  }
+
+  /**
+   * Does this board exist? Purely read-only (share.not_found): a link to a board
+   * that does not exist must leave no storage behind, so this reads `sqlite_master`
+   * first and only touches content tables that are already present — it never
+   * creates a table or a row.
+   *
+   * The rule the design states: a board exists if its storage has
+   * `storage_meta.created_at`, OR it has at least one row in `updates` or
+   * `snapshot_chunks`. The second half is the legacy case (share.legacy_boards):
+   * a board that already had saved content before this feature shipped has rows
+   * but was never given a `created_at`, and must still open.
+   */
+  existsReadOnly(): boolean {
+    if (!this.tablesExist()) return false;
+    const created = this.sql
+      .exec<MetaRow>("SELECT value FROM storage_meta WHERE key = 'created_at'")
+      .toArray();
+    if (created.length > 0) return true;
+    const updates = this.sql
+      .exec<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'updates'",
+      )
+      .toArray();
+    if ((updates[0]?.n ?? 0) > 0 && this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM updates').toArray()[0]!.n > 0) {
+      return true;
+    }
+    const snapshot = this.sql
+      .exec<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'snapshot_chunks'",
+      )
+      .toArray();
+    if ((snapshot[0]?.n ?? 0) > 0) {
+      return this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM snapshot_chunks').toArray()[0]!.n > 0;
+    }
+    return false;
+  }
+
+  /**
+   * Mark a freshly created board as existing: write `created_at` (epoch ms) once.
+   * Returns true if this call created the board, false if it already existed
+   * (so `initialize()` can tell `created` from `exists`, TC-15). Migrates first;
+   * only `initialize()` calls this, so a probe never reaches it.
+   */
+  markCreated(): boolean {
+    this.migrate();
+    const present = this.sql
+      .exec<MetaRow>("SELECT value FROM storage_meta WHERE key = 'created_at'")
+      .toArray();
+    if (present.length > 0) return false;
+    this.sql.exec('INSERT INTO storage_meta (key, value) VALUES (?, ?)', 'created_at', String(Date.now()));
+    return true;
+  }
+
+  /**
+   * Append one update to the log. A SQL failure is rethrown: the room resets.
+   *
+   * Migrates lazily on the first write (story 5): `migrate()` no longer runs on
+   * the room's construction, so a legacy board — which already has its tables —
+   * and a freshly created one alike are covered without a probe having to create
+   * anything. `CREATE TABLE IF NOT EXISTS` makes the extra call harmless.
+   */
   append(update: Uint8Array): void {
+    if (!this.tablesCreated) this.migrate();
     // A view over a shared buffer must not be handed over as a detached one.
     const bytes = update.slice();
     this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', bytes, bytes.length);
@@ -114,6 +196,10 @@ export class BoardStore {
    * the snapshot is the thing that is broken (TC-10).
    */
   load(doc: Y.Doc): LoadResult {
+    // A board with no tables at all is an empty one, not a broken one (story 5):
+    // `load` no longer creates the tables, so merely opening a board that was
+    // only ever probed reads as empty and writes nothing.
+    if (!this.tablesExist()) return { ok: true, quarantined: 0 };
     let snapshot: Uint8Array | null;
     let rows: UpdateRow[];
     try {

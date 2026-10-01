@@ -79,7 +79,12 @@ test('TC-24: an unreadable board says so, and comes back whole once it can be re
 
 /** Open a board at this spec's own server and wait for the app to be ready. */
 async function openBoard(page: import('@playwright/test').Page): Promise<string> {
+  // Story 5: `/` is the Home page and a board is the server's to create, so a
+  // board is opened by clicking New board — the same POST /api/boards the app
+  // makes — which leaves the browser on the new board's own `/b/<id>` address.
   await page.goto(`${wrangler.origin}/`);
+  await page.getByRole('button', { name: 'New board' }).click();
+  await expect(page).toHaveURL(/\/b\/[A-Za-z0-9_-]{22}$/, { timeout: 20_000 });
   await expect(page.locator('[data-testid="zoom-label"]')).toHaveText('100%', { timeout: 20_000 });
   await page.waitForFunction(
     () =>

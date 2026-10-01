@@ -2,7 +2,7 @@ import { act, fireEvent, render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import type { Doc } from 'yjs';
 import { vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
 import { UNBOUNDED_PAN_TESTED_EXTENT, ZOOM_STEP_FACTOR } from '../../src/shared/config';
 import { createSticky, getStickyText, snapshot, type StickySnapshot } from '../../src/shared/board-model';
 import { applyTextDiff } from '../../src/client/objects/StickyText';
@@ -12,22 +12,23 @@ export const VIEWPORT = { width: 1280, height: 800 };
 export const CENTRED_TRANSFORM = `scale(1) translate(${VIEWPORT.width / 2}px, ${VIEWPORT.height / 2}px)`;
 export const INITIAL_ZOOM_TRANSFORM = `scale(${ZOOM_STEP_FACTOR}) translate(${VIEWPORT.width / 2 / ZOOM_STEP_FACTOR}px, ${VIEWPORT.height / 2 / ZOOM_STEP_FACTOR}px)`;
 
-/** Render the whole app (viewport + controls + hint wired together). */
+/** Render the board UI (viewport + controls + hint wired together). Since
+ *  story 5 `App` is the router, so a board-UI test renders `Board` directly. */
 export function renderApp() {
-  return render(<App />);
+  return render(<Board />);
 }
 
 /**
- * Render the app and capture its board document through the app's test seam,
- * so a component test can create and delete notes with the real model while
- * React keeps rendering them.
+ * Render the board and capture its document through the board's test seam, so a
+ * component test can create and delete notes with the real model while React
+ * keeps rendering them.
  */
 export function renderBoard(): Doc {
   let captured: Doc | null = null;
-  render(<App onDocReady={(doc: Doc) => {
+  render(<Board onDocReady={(doc: Doc) => {
     captured = doc;
   }} />);
-  if (captured === null) throw new Error('App did not expose its Y.Doc');
+  if (captured === null) throw new Error('Board did not expose its Y.Doc');
   return captured;
 }
 

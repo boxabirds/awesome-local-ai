@@ -89,9 +89,9 @@ function seeded(seed: number): () => number {
 }
 
 test.describe('nightly', () => {
-  test('TC-29 a board nobody touches stays connected', async ({ browser }) => {
+  test('TC-29 a board nobody touches stays connected', async ({ browser, request }) => {
     test.setTimeout(IDLE_WAIT_MS + 120_000);
-    const board = newBoard();
+    const board = await newBoard(request);
     const alex = await joinBoard(browser, 'Alex', board);
     const sam = await joinBoard(browser, 'Sam', board);
     // Both of them are listening for what the connection says, for the whole of
@@ -130,9 +130,9 @@ test.describe('nightly', () => {
     await leaveAll([alex, sam]);
   });
 
-  test('TC-30 everybody keeps editing for a minute and everything arrives everywhere', async ({ browser }) => {
+  test('TC-30 everybody keeps editing for a minute and everything arrives everywhere', async ({ browser, request }) => {
     test.setTimeout(SOAK_MS + 300_000);
-    const board = newBoard();
+    const board = await newBoard(request);
     const names = ['Ana', 'Bo', 'Cy', 'Di', 'Eli'].slice(0, MAX_CONCURRENT_EDITORS);
     const soakers = [];
     for (const [index, name] of names.entries()) {

@@ -4,12 +4,18 @@ import type { Camera } from '../../../src/client/canvas/camera';
 export const HINT_TEXT = 'Drag to move around · Ctrl/Cmd + scroll or pinch to zoom';
 
 /**
- * Load the board and wait until the app has fully initialised (the test
- * hook installed and the start point centred), so test-driven camera sets
- * never race the app's own one-time centring.
+ * Load a board and wait until the app has fully initialised (the test hook
+ * installed and the start point centred), so test-driven camera sets never race
+ * the app's own one-time centring.
+ *
+ * Story 5 removed the client-side redirect from `/` to a fresh board: `/` is now
+ * the Home page, and a board exists only once the server has made one. So getting
+ * onto a board is done the way a person does it — click New board — and then the
+ * address is the board's own (`/b/<id>`), which is what the app is tested on.
  */
 export async function gotoBoard(page: Page): Promise<void> {
   await page.goto('/');
+  await createBoardOnHome(page);
   await expect(zoomLabel(page)).toHaveText('100%');
   await page.waitForFunction(
     () =>
@@ -18,6 +24,17 @@ export async function gotoBoard(page: Page): Promise<void> {
       window.__vidi6.getCamera().y === -window.innerHeight / 2,
   );
   await settle(page);
+}
+
+/**
+ * Click New board on the Home page and wait for the browser to be on the new
+ * board's own address. This is the app's creation path (a POST to /api/boards,
+ * then the client's own navigation), so it tests the same route a person takes.
+ */
+export async function createBoardOnHome(page: Page): Promise<string> {
+  await page.getByRole('button', { name: 'New board' }).click();
+  await expect(page).toHaveURL(/\/b\/[A-Za-z0-9_-]{22}$/);
+  return page.url();
 }
 
 /**

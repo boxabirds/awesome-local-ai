@@ -120,3 +120,28 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 
 /** The version of the storage tables (not the Yjs document schema). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Story 5: sharing a board by link --------------------------------------
+
+/**
+ * Creation budget (share.create): a click on "New board" must bring up the new
+ * empty board within this many milliseconds on a typical broadband connection.
+ * Reported and logged by e2e (TC-26), never asserted: the model, the browsers
+ * and the server share one machine, so wall-clock timing here is not a
+ * pass/fail signal.
+ */
+export const CREATE_BUDGET_MS = 2000;
+
+/**
+ * How long the "Link copied" confirmation stays up in the Share panel
+ * (share.copy). Boundary values tested at LINK_COPIED_MS - 1 and exactly
+ * LINK_COPIED_MS (TC-22).
+ */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * First backoff interval when a board link cannot reach the service while
+ * opening it (share.unreachable). Doubles on each retry up to
+ * RECONNECT_MAX_BACKOFF_MS (story 3), which is the ceiling.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

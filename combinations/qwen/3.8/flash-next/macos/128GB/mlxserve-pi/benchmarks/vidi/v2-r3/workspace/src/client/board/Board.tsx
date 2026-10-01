@@ -1,0 +1,215 @@
+import { useEffect, useMemo, useState, type JSX } from 'react';
+import type * as Y from 'yjs';
+import { newBoardId } from '../../shared/board-id';
+import { BoardViewport } from '../canvas/BoardViewport';
+import { NavigationHint } from '../canvas/NavigationHint';
+import { ZoomControls } from '../canvas/ZoomControls';
+import { useCamera } from '../canvas/useCamera';
+import { canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Point, type Size } from '../canvas/camera';
+import { useBoardDoc } from './useBoardDoc';
+import { useSelection } from './useSelection';
+import { Toolbar } from './Toolbar';
+import { StickyNote } from '../objects/StickyNote';
+import type { ConnectionState } from '../sync/connectBoard';
+import { createSticky, deleteObject } from '../../shared/board-model';
+import { reportConnectionState, setOutageHandler, setSeedNotesHandler } from '../canvas/testHooks';
+import { ConnectionStatus } from '../sync/ConnectionStatus';
+import type { WebsocketProvider } from 'y-websocket';
+
+/** Is the keyboard focus inside something that owns Delete/Backspace/Enter? */
+function isTextTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
+}
+
+export interface BoardProps {
+  /**
+   * Test seam: hands the board's Y.Doc to the caller once, so component
+   * tests can create and delete notes through the model while the app keeps
+   * rendering them. Unused by the app itself.
+   */
+  onDocReady?(doc: Y.Doc): void;
+  /**
+   * The board to open, instead of the one the address names. Only a test needs
+   * it: two component tests on one page would otherwise share a board.
+   */
+  boardId?: string;
+  /**
+   * Test seam (story 4, TC-23): the live provider, so a component test can
+   * emit a close event and drive the app into `load_failed`.
+   */
+  onProviderReady?(provider: WebsocketProvider): void;
+}
+
+/**
+ * Whether the board can be edited from a connection state. False only for
+ * `load_failed` — a board whose stored state could not be read must not be
+ * written, because what a person would be editing is not what is really there.
+ * "Connecting…" and "Reconnecting…" stay editable: the document is readable.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
+/**
+ * Top-level layout and wiring. The camera lives in useCamera (story 1); the
+ * notes live in a Y.Doc owned by useBoardDoc (stories 3 and 4 will sync and
+ * persist that same document); which note is selected or edited is local
+ * interaction state and is never written to the document.
+ */
+export function Board(props: BoardProps = {}): JSX.Element {
+  const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
+  const cam = useCamera(viewport);
+  const { camera } = cam;
+  // The board this is: the one `BoardPage` checked exists and opened (story 5).
+  // Story 3's client-side "make a board at the root and rewrite the address"
+  // redirect is gone: creation is the server's job now, behind the Home page's
+  // New board button. A board id only ever needs to be stable for one mount here,
+  // so a bare `<Board />` (a component test with no address) falls back to a
+  // fresh id that is never written to the address bar.
+  const [boardId] = useState(() => props.boardId ?? newBoardId());
+
+  const { doc, notes, connection, emulateOutage } = useBoardDoc(boardId, props.onProviderReady);
+  const selection = useSelection();
+
+  // A board that could not be loaded is shown but not edited: every write is
+  // gated on this, and the Sticky note button is disabled while it is false.
+  const editable = canEdit(connection);
+
+  // A test build lets the test take this board's link down; the app never does.
+  useEffect(() => {
+    setOutageHandler((ms: number) => emulateOutage(ms));
+  }, [emulateOutage]);
+
+  // The connection state a test can read as well as see. The badge is only up
+  // for two seconds of a 45-second idle wait, so a test that has to know what
+  // the connection said in that time reads it here rather than the screen.
+  useEffect(() => {
+    reportConnectionState(connection);
+  }, [connection]);
+
+  // A note can disappear at any moment (its bin button, the Delete key, later
+  // another person). Selection and editing are filtered to ids that still
+  // exist, so a stale note never stays selected and never ends mid-drag or
+  // mid-edit with a dangling outline.
+  const selectedId = notes.some((note) => note.id === selection.selectedId) ? selection.selectedId : null;
+  const editingId = notes.some((note) => note.id === selection.editingId) ? selection.editingId : null;
+
+  // The board renders notes in a stable order (by id) and lets CSS z-index do
+  // the stacking. Reordering keyed children would move the dragged note's DOM
+  // node out of the document, which drops pointer capture and kills the drag
+  // the moment it is brought to the front.
+  const rendered = useMemo(() => [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)), [notes]);
+
+  const { onDocReady } = props;
+  useEffect(() => {
+    if (onDocReady !== undefined) onDocReady(doc);
+  }, [doc, onDocReady]);
+
+  // A test build can fill this board to its tested size in one transaction, so a
+  // persistence test does not have to double-click two thousand times. The handler
+  // is stored only in a test build (see `setSeedNotesHandler`); in production this
+  // effect hands over a function nothing ever keeps.
+  useEffect(() => {
+    setSeedNotesHandler((count: number) => {
+      const stride = 260;
+      const columns = Math.ceil(Math.sqrt(count));
+      doc.transact(() => {
+        for (let i = 0; i < count; i++) {
+          createSticky(doc, { x: (i % columns) * stride, y: Math.floor(i / columns) * stride });
+        }
+      });
+    });
+  }, [doc]);
+
+  /** Create a note centred on a world point and start typing straight away. */
+  const createAt = (world: Point): void => {
+    if (!editable) return;
+    const id = createSticky(doc, world);
+    if (id !== '') selection.startEdit(id);
+  };
+
+  const createAtViewportCentre = (): void => {
+    createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }));
+  };
+
+  // Board-wide keyboard rules for the selected note. While a note is being
+  // edited these keys belong to its textarea and are left completely alone.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        if (selectedId === null || editingId !== null || isTextTarget(e.target)) return;
+        e.preventDefault();
+        selection.startEdit(selectedId);
+        return;
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedId === null || editingId !== null || isTextTarget(e.target)) return;
+        e.preventDefault();
+        // A board that could not be loaded is not deleted from either.
+        if (!editable) return;
+        deleteObject(doc, selectedId);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [doc, selectedId, editingId, selection, editable]);
+
+  return (
+    <div className="app">
+      <BoardViewport
+        camera={camera}
+        onViewportSize={setViewport}
+        onBeginPan={cam.beginPan}
+        onPanMove={cam.panMove}
+        onEndPan={cam.endPan}
+        onWheel={cam.wheel}
+        onZoomAtPoint={cam.zoomAtPoint}
+        onZoomStep={cam.zoomStep}
+        onReset={cam.reset}
+        onEmptyDblClick={(point) => {
+          createAt(screenToWorld(camera, point));
+        }}
+        onEmptyClick={() => {
+          selection.select(null);
+        }}
+      >
+        {rendered.map((note) => (
+          <StickyNote
+            key={note.id}
+            note={note}
+            doc={doc}
+            zoom={camera.zoom}
+            selected={note.id === selectedId}
+            editing={note.id === editingId}
+            canEdit={editable}
+            onSelect={(id) => {
+              selection.select(id);
+            }}
+            onStartEdit={(id) => {
+              selection.startEdit(id);
+            }}
+            onEndEdit={(next) => {
+              selection.endEdit(next);
+            }}
+          />
+        ))}
+      </BoardViewport>
+      <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} />
+      <ZoomControls
+        zoomPercent={zoomPercent(camera)}
+        canZoomIn={canZoomIn(camera)}
+        canZoomOut={canZoomOut(camera)}
+        onZoomIn={() => cam.zoomStep('in')}
+        onZoomOut={() => cam.zoomStep('out')}
+        onReset={cam.reset}
+      />
+      <NavigationHint visible={!cam.hasNavigated} />
+      <ConnectionStatus state={connection} />
+    </div>
+  );
+}

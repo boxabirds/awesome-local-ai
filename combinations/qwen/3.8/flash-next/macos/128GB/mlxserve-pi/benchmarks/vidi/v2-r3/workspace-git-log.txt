@@ -1,3 +1,61 @@
+commit 7faa09f6d8f679e70cf782d66f9367ef9356bd86
+vidi-agent  Thu Oct 1 23:41:38 2026 +0100
+
+    story 5: end-to-end tests for the board link
+
+
+ tests/e2e/broken-board.spec.ts               |   5 +
+ tests/e2e/helpers/board.ts                   |  23 +++-
+ tests/e2e/helpers/participants.ts            |  23 +++-
+ tests/e2e/live-collaboration.nightly.spec.ts |   8 +-
+ tests/e2e/live-collaboration.spec.ts         |  28 ++---
+ tests/e2e/persistence.spec.ts                |   5 +
+ tests/e2e/share.spec.ts                      | 176 +++++++++++++++++++++++++++
+ 7 files changed, 243 insertions(+), 25 deletions(-)
+commit 753e4c63042ce812b90caa4e2db7e66b0cbd6f8c
+vidi-agent  Thu Oct 1 23:40:30 2026 +0100
+
+    story 5: a home page, a client router, and the share panel
+
+
+ index.html                               |   7 +
+ src/client/App.tsx                       | 232 +++----------------------------
+ src/client/api.ts                        |  61 ++++++++
+ src/client/board/Board.tsx               | 215 ++++++++++++++++++++++++++++
+ src/client/pages/BoardPage.tsx           | 105 ++++++++++++++
+ src/client/pages/HomePage.tsx            |  57 ++++++++
+ src/client/pages/NotFoundPage.tsx        |  54 +++++++
+ src/client/pages/state.ts                |  71 ++++++++++
+ src/client/router.ts                     |  51 +++++++
+ src/client/share/SharePanel.tsx          | 128 +++++++++++++++++
+ src/client/styles.css                    | 193 +++++++++++++++++++++++++
+ tests/component/App-load-failed.test.tsx |   4 +-
+ tests/component/BoardPage.test.tsx       |  82 +++++++++++
+ tests/component/HomePage.test.tsx        |  76 ++++++++++
+ tests/component/SharePanel.test.tsx      | 104 ++++++++++++++
+ tests/component/helpers.tsx              |  17 +--
+ tests/component/router.test.tsx          |  76 ++++++++++
+ tests/unit/router.test.ts                |  46 ++++++
+ 18 files changed, 1358 insertions(+), 221 deletions(-)
+commit 5a2a65c563cfe50909cfb1557b0f19a2b5ec882e
+vidi-agent  Thu Oct 1 23:40:01 2026 +0100
+
+    story 5: create boards on the server and answer only for ones that exist
+
+
+ src/shared/config.ts                   |  25 ++++
+ src/shared/protocol.ts                 |  11 ++
+ src/shared/routes.ts                   |  13 ++
+ src/worker/board-room.ts               |  33 ++++-
+ src/worker/board-store.ts              |  90 +++++++++++-
+ src/worker/create-board.ts             |  37 +++++
+ src/worker/index.ts                    |  70 ++++++++-
+ tests/integration/board-api.test.ts    | 249 +++++++++++++++++++++++++++++++++
+ tests/integration/board-room.test.ts   |   5 +
+ tests/integration/helpers/ws-client.ts |  20 +++
+ tests/integration/worker.test.ts       |  25 ++--
+ tests/unit/board-id.test.ts            |  18 +++
+ 12 files changed, 577 insertions(+), 19 deletions(-)
 commit 16ceba03cca6bd4a06ecc097fa91cab3af1aa680
 vidi-agent  Thu Oct 1 22:54:07 2026 +0100
 

@@ -3,6 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Privacy (story 5): a board's link is its only access control, so it must
+      never be sent off this page. `no-referrer` stops the browser putting the
+      board's address — with its unguessable code — in the Referer header of any
+      request a followed link or embedded resource makes to another origin.
+    -->
+    <meta name="referrer" content="no-referrer" />
     <title>vidi6</title>
   </head>
   <body>

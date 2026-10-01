@@ -106,3 +106,14 @@ export const STATUS_UPGRADE_REQUIRED = 426;
  *  such board to reach and no room to create for it.
  */
 export const STATUS_INVALID_BOARD_ID = 400;
+
+/** 404 Not Found (story 5): the board this address names does not exist.
+ *  Unknown and malformed ids are answered the same way and with the same body,
+ *  so a probe learns nothing about which of the two it was — and, decisively,
+ *  nothing about whether a board is there (share.not_found). A malformed room
+ *  address used to be a 400 (story 3); story 5 folds it into this 404.
+ */
+export const STATUS_NOT_FOUND = 404;
+
+/** 405 Method Not Allowed (story 5): the board API only accepts POST and GET. */
+export const STATUS_METHOD_NOT_ALLOWED = 405;

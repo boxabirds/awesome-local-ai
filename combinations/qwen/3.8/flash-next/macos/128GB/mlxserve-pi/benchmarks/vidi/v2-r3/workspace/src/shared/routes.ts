@@ -8,6 +8,19 @@ import { isValidBoardId, newBoardId } from './board-id';
 export const BOARD_PATH_PREFIX = '/b/';
 export const ROOM_PATH_PREFIX = '/api/rooms/';
 
+/**
+ * The board collection: `POST` here creates a board, `GET /api/boards/<id>` asks
+ * whether one exists (story 5). The worker routes on it, the client calls it, and
+ * the tests check all three against this one string so the address a person opens
+ * and the address the client asks about cannot drift apart.
+ */
+export const BOARDS_PATH = '/api/boards';
+
+/** The existence endpoint for one board. */
+export function boardApiPath(boardId: string): string {
+  return `${BOARDS_PATH}/${boardId}`;
+}
+
 /** The page for a board. */
 export function boardPath(boardId: string): string {
   return `${BOARD_PATH_PREFIX}${boardId}`;

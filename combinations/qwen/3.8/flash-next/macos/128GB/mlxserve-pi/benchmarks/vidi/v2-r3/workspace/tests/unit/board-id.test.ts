@@ -62,6 +62,24 @@ describe('newBoardId (generation)', () => {
     }
     expect(ids.size).toBe(10_000);
   });
+
+  // TC-04 (story 5): 1000 ids, 1000 distinct. The collision probability the PRD
+  // says can be ignored must actually be ignorable — 128 bits over 1000 draws is
+  // ~10⁻³⁴, so any repeat is a broken generator, not bad luck.
+  it('TC-04 draws 1000 distinct ids', () => {
+    const ids = new Set<string>();
+    for (let i = 0; i < 1000; i += 1) ids.add(newBoardId());
+    expect(ids.size).toBe(1000);
+  });
+
+  // TC-04 (story 5): every one of the 64 base64url digits is reachable, so no
+  // entropy was dropped. A generator that used a counter, a timestamp or a short
+  // alphabet would never produce the tail digits; a full 128-bit draw does.
+  it('TC-04 draws from the full base64url alphabet', () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 5000; i += 1) for (const ch of newBoardId()) seen.add(ch);
+    for (const ch of B64URL) expect(seen.has(ch)).toBe(true);
+  });
 });
 
 // Story 3 adds the other half of the address: which board a browser asking for

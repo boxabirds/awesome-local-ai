@@ -20,11 +20,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BOARD_ID_PATTERN, newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { ROOM_PATH_PREFIX } from '../../src/shared/routes';
-import {
-  STATUS_INVALID_BOARD_ID,
-  STATUS_UPGRADE_REQUIRED,
-} from '../../src/shared/protocol';
-import { connectClients, inspectRoom, settle } from './helpers/ws-client';
+import { STATUS_NOT_FOUND, STATUS_UPGRADE_REQUIRED } from '../../src/shared/protocol';
+import { connectClients, createRoom, inspectRoom, settle } from './helpers/ws-client';
 
 /** Ask the app for a path, as a browser or a provider would. */
 const get = (path: string, init?: RequestInit): Promise<Response> =>
@@ -64,6 +61,7 @@ afterEach(() => {
 describe('TC-04, TC-05, TC-06: the address before the object', () => {
   it('TC-04 takes a well-formed address with an upgrade and gives a socket', async () => {
     const boardId = newBoardId();
+    await createRoom(boardId); // story 5: a board must exist before a socket opens
     expect(boardId).toMatch(BOARD_ID_PATTERN);
     const response = await upgrade(boardId);
     expect(response.status).toBe(101);
@@ -75,7 +73,9 @@ describe('TC-04, TC-05, TC-06: the address before the object', () => {
     const { names } = spyOnLookup();
     for (const bad of ['bad!id', '', 'short', 'a'.repeat(21), 'a'.repeat(23), '+'.repeat(22)]) {
       const response = await upgrade(bad);
-      expect(response.status).toBe(STATUS_INVALID_BOARD_ID);
+      // Story 5: a malformed socket address is now a 404, answered exactly like
+      // an unknown board, so a probe learns nothing about the id's shape.
+      expect(response.status).toBe(STATUS_NOT_FOUND);
       expect(response.webSocket ?? null).toBeNull();
       expect(await response.text()).toContain('board');
     }
@@ -89,7 +89,7 @@ describe('TC-04, TC-05, TC-06: the address before the object', () => {
     // board; the percent-encoded forms stay in the path and fail the shape.
     for (const bad of ['../x', '..%2Fx', '%2e%2e/x', '../../etc/passwd']) {
       const response = await upgrade(bad);
-      expect([STATUS_INVALID_BOARD_ID, 200]).toContain(response.status);
+      expect([STATUS_NOT_FOUND, 200]).toContain(response.status);
       expect(response.webSocket ?? null).toBeNull();
     }
     expect(names).toEqual([]);
@@ -105,7 +105,9 @@ describe('TC-04, TC-05, TC-06: the address before the object', () => {
 
   it('TC-05 accepts the Upgrade header in any case and with padding', async () => {
     for (const header of ['websocket', 'WebSocket', '  Websocket  ']) {
-      const response = await upgrade(newBoardId(), header);
+      const boardId = newBoardId();
+      await createRoom(boardId); // story 5: it must exist before a socket opens
+      const response = await upgrade(boardId, header);
       expect(response.status).toBe(101);
       response.webSocket?.close();
     }
@@ -151,6 +153,7 @@ describe('TC-13, TC-17: capacity and separation', () => {
 
   it('TC-13 the socket route itself does not count people either', async () => {
     const boardId = newBoardId();
+    await createRoom(boardId); // story 5: the board must exist to be joined
     for (let index = 0; index < MAX_CONCURRENT_EDITORS + 3; index++) {
       const response = await upgrade(boardId);
       expect(response.status).toBe(101);
@@ -187,8 +190,12 @@ describe('TC-13, TC-17: capacity and separation', () => {
   });
 
   it('TC-17 the id alone decides which object a connection lands in', async () => {
-    const { names, ids } = spyOnLookup();
     const boardIds = [newBoardId(), newBoardId(), newBoardId(), newBoardId()];
+    // Create the boards before spying on lookups, so `names` below holds only
+    // the lookups the upgrades themselves make (story 5 needs a board to exist
+    // first; that creation is not what this test is about).
+    for (const boardId of boardIds) await createRoom(boardId);
+    const { names, ids } = spyOnLookup();
     for (const boardId of boardIds) {
       const response = await upgrade(boardId);
       expect(response.status).toBe(101);

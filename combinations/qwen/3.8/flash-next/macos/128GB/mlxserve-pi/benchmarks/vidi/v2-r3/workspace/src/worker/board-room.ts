@@ -46,6 +46,7 @@ import {
   CLOSE_STORAGE_FAILURE,
   CLOSE_UNSUPPORTED_DATA,
   MESSAGE_SYNC,
+  STATUS_NOT_FOUND,
   decodeMessage,
   type Decoded,
 } from '../shared/protocol';
@@ -99,6 +100,15 @@ export class BoardRoom extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
     if ((request.headers.get('Upgrade') ?? '').trim().toLowerCase() !== 'websocket') {
       return new Response('Expected a WebSocket upgrade\n', { status: 426 });
+    }
+
+    // A board only exists once it has been created (share.not_found). A socket to
+    // an address that was never created is refused before anything is accepted,
+    // and — because the check only reads — it leaves no storage behind. Before
+    // story 5 a room was created by the first connection; that is what this
+    // replaces: story 3/4 rooms can no longer come into being by connecting.
+    if (!this.store.existsReadOnly()) {
+      return new Response('No such board\n', { status: STATUS_NOT_FOUND });
     }
 
     // A room that lost its document (a storage failure reset it, or a load
@@ -190,7 +200,9 @@ export class BoardRoom extends DurableObject<Env> {
     // The schema marker's own update is written before the broadcast-and-store
     // handler exists, so an empty board never gains a log row just for existing.
     initDoc(doc);
-    this.store.migrate();
+    // Story 5: `load()` no longer creates the tables (that is `initialize()`'s and
+    // `append()`'s job), so opening a board never writes and a board that was only
+    // ever probed stays absent.
     doc.on('update', this.onDocUpdate);
 
     const result = this.store.load(doc);
@@ -331,6 +343,25 @@ export class BoardRoom extends DurableObject<Env> {
     } catch {
       /* already gone */
     }
+  }
+
+  // --- board creation and existence (story 5 RPC, callable on the stub) --------
+
+  /**
+   * Create this board: make its tables and stamp `created_at` if the board is
+   * not already there. Returns `created` for a board this call brought into being
+   * and `exists` for one that already was (TC-15: a second `initialize()` neither
+   * re-initialises nor moves `created_at`). The one RPC `POST /api/boards` makes.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    return this.store.markCreated() ? 'created' : 'exists';
+  }
+
+  /**
+   * Does this board exist? Read-only: no tables, no rows, nothing (share.not_found).
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
   }
 
   // --- test-only hooks (compiled out of the Worker when TEST_HOOKS is unset) ---
