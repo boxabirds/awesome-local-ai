@@ -429,6 +429,17 @@
           "pushed": true
         },
         "commit": "f83ff656"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "claude-code",
+          "calls": 44
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -883,6 +894,17 @@
           "pushed": true
         },
         "commit": "06907efa"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "claude-code",
+          "calls": 50
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "3": {
@@ -1432,6 +1454,17 @@
           "pushed": true
         },
         "commit": "e404f0e8"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "claude-code",
+          "calls": 92
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "4": {
@@ -2292,6 +2325,17 @@
           "pushed": true
         },
         "commit": "da40e1df"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "claude-code",
+          "calls": 92
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "5": {
@@ -2735,6 +2779,17 @@
           "pushed": true
         },
         "commit": "ab4d745b"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "claude-code",
+          "calls": 59
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "7": {
@@ -3488,6 +3543,17 @@
           "pushed": true
         },
         "commit": "6337a2bb"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "claude-code",
+          "calls": 67
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "8": {
@@ -4035,6 +4101,17 @@
           "pushed": true
         },
         "commit": "b0df84f2"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "claude-code",
+          "calls": 46
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "9": {
@@ -4628,6 +4705,17 @@
           "pushed": true
         },
         "commit": "172e4b22"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "claude-code",
+          "calls": 90
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "10": {
@@ -5117,6 +5205,17 @@
           "pushed": true
         },
         "commit": "d615fe8a"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "claude-code",
+          "calls": 86
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "11": {
@@ -5562,6 +5661,17 @@
           "pushed": true
         },
         "commit": "ed9b5ade"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "claude-code",
+          "calls": 47
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "12": {
@@ -6048,7 +6158,29 @@
           "found": 4,
           "total": 4
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "private": {
+          "copied": 19,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "a6d8c51c"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "claude-code",
+          "calls": 100
+        },
+        "truncated": false,
+        "reaches": []
+      }
     }
   },
   "pack": "vidi",
