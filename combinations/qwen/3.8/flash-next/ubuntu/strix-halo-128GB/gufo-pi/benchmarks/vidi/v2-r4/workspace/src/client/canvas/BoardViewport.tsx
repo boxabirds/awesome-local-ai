@@ -72,6 +72,14 @@ export interface BoardViewportProps {
   tool?: Tool;
   /** Called when the board is clicked while Text tool is active. */
   onTextToolClick?(worldPoint: Point): void;
+  /** Drag enter handler for file drops. */
+  onDragEnter?(e: DragEvent): void;
+  /** Drag over handler for file drops. */
+  onDragOver?(e: DragEvent): void;
+  /** Drag leave handler for file drops. */
+  onDragLeave?(e: DragEvent): void;
+  /** Drop handler for file drops. */
+  onDrop?(e: DragEvent): void;
 }
 
 /**
@@ -103,6 +111,10 @@ export function BoardViewport({
   overlay,
   tool,
   onTextToolClick,
+  onDragEnter,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: BoardViewportProps): React.JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
@@ -409,6 +421,36 @@ export function BoardViewport({
   useEffect(() => {
     onCameraChange?.(controller.camera);
   }, [controller.camera, onCameraChange]);
+
+  // Native drag/drop handlers (React's synthetic events don't reliably expose dataTransfer from dispatched events)
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const handlers: [string, EventListener][] = [];
+    if (onDragEnter) {
+      const h = (e: Event) => onDragEnter(e as DragEvent);
+      el.addEventListener('dragenter', h);
+      handlers.push(['dragenter', h]);
+    }
+    if (onDragOver) {
+      const h = (e: Event) => onDragOver(e as DragEvent);
+      el.addEventListener('dragover', h);
+      handlers.push(['dragover', h]);
+    }
+    if (onDragLeave) {
+      const h = (e: Event) => onDragLeave(e as DragEvent);
+      el.addEventListener('dragleave', h);
+      handlers.push(['dragleave', h]);
+    }
+    if (onDrop) {
+      const h = (e: Event) => onDrop(e as DragEvent);
+      el.addEventListener('drop', h);
+      handlers.push(['drop', h]);
+    }
+    return () => {
+      for (const [type, h] of handlers) el.removeEventListener(type, h);
+    };
+  }, [onDragEnter, onDragOver, onDragLeave, onDrop]);
 
   const { camera } = controller;
   const gridSpacing = GRID_SPACING_WORLD * camera.zoom;

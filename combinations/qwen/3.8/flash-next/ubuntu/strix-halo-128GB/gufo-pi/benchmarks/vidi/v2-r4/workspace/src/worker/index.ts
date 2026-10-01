@@ -1,10 +1,12 @@
 import { isValidBoardId } from '../shared/board-id';
 import { createBoard } from './create-board';
+import { handleUpload, handleServe } from './assets';
 export { BoardRoom } from './board-room';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   TEST_HOOKS?: string;
 }
 
@@ -63,6 +65,30 @@ export default {
         status: 404,
         headers: { 'content-type': 'application/json' },
       });
+    }
+
+    // POST /api/boards/:id/assets – upload image
+    const uploadMatch = url.pathname.match(/^\/api\/boards\/([^/]+)\/assets$/);
+    if (uploadMatch) {
+      if (req.method !== 'POST') {
+        return new Response(JSON.stringify({ error: 'method_not_allowed' }), {
+          status: 405,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return handleUpload(req, env, uploadMatch[1]);
+    }
+
+    // GET /api/assets/:boardId/:assetId – serve image
+    const assetMatch = url.pathname.match(/^\/api\/assets\/(.+)$/);
+    if (assetMatch) {
+      if (req.method !== 'GET') {
+        return new Response(JSON.stringify({ error: 'method_not_allowed' }), {
+          status: 405,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return handleServe(env, assetMatch[1]);
     }
 
     // /api/rooms/:id – WebSocket sync

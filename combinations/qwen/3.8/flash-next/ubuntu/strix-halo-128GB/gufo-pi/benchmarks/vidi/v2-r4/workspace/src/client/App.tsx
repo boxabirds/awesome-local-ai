@@ -17,7 +17,11 @@ import { TextObject } from './objects/TextObject';
 import { ShapeObject } from './objects/ShapeObject';
 import { ConnectorObject } from './objects/ConnectorObject';
 import { StrokeObject } from './objects/StrokeObject';
+import { ImageObject } from './objects/ImageObject';
 import { ShapeToolbar } from './objects/ShapeToolbar';
+import { useImageInsert } from './images/useImageInsert';
+import { DropHighlight } from './images/DropHighlight';
+import { ToastContainer, useToastState } from './ui/Toast';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createUndo, type UndoController } from './board/undo';
 import { useUndo } from './board/useUndo';
@@ -34,6 +38,7 @@ import { createText } from '../shared/objects/text';
 import { createShape, setShapeStyle, type ShapeSnap } from '../shared/objects/shape';
 import { createConnector, type ConnectorSnap } from '../shared/objects/connector';
 import { type StrokeSnap } from '../shared/objects/stroke';
+import { type ImageSnap } from '../shared/objects/image';
 import type { Endpoint } from '../shared/geometry/connector-geometry';
 import { isTestMode, setTestConnectionState } from './testHooks';
 import { canEdit } from './sync/connectBoard';
@@ -84,6 +89,9 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
   const onCameraChange = useCallback((cam: Camera) => setCamera(cam), []);
 
+  // Toast state for image messages
+  const toastState = useToastState();
+
   // Tool state — use useActiveTool for the extended tool set
   const onSelect = useCallback(
     (id: string) => { selection.click(id); },
@@ -102,6 +110,44 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
 
   // Pen options
   const penOptions = usePenOptions();
+
+  // Image insert (story 12)
+  const getViewCentre = useCallback((): Point | null => {
+    return bridgeRef.current?.centreWorld() ?? null;
+  }, []);
+  const imageInsert = useImageInsert({
+    doc,
+    boardId: boardId ?? 'local',
+    camera,
+    connection: connectionState,
+    identityId: 'local',
+    showToast: toastState.show,
+    getViewCentre,
+  });
+
+  // Clock tick every 30s to detect unfinished uploads
+  const [clockTick, setClockTick] = useState(Date.now());
+  const hasUploadingImages = notes.some((n) => n.type === 'image' && (n as ImageSnap).status === 'uploading');
+  useEffect(() => {
+    if (!hasUploadingImages) return;
+    const interval = setInterval(() => setClockTick(Date.now()), 30_000);
+    return () => clearInterval(interval);
+  }, [hasUploadingImages]);
+
+  // Paste handler on window
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => imageInsert.onPaste(e);
+    window.addEventListener('paste', handler);
+    return () => window.removeEventListener('paste', handler);
+  }, [imageInsert.onPaste]);
+
+  // Image tool: open picker when 'image' tool is activated
+  useEffect(() => {
+    if (activeTool.tool === 'image') {
+      imageInsert.openPicker();
+      activeTool.setTool('select');
+    }
+  }, [activeTool.tool]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Measurer for text objects
   const measurer = useMemo(() => createCanvasMeasurer(), []);
@@ -300,6 +346,7 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
   const shapes = notes.filter((n): n is ShapeSnap => n.type === 'shape');
   const connectors = notes.filter((n): n is ConnectorSnap => n.type === 'connector');
   const strokes = notes.filter((n): n is StrokeSnap => n.type === 'stroke');
+  const images = notes.filter((n): n is ImageSnap => n.type === 'image');
 
   // Build rects map for connector resolution
   const rectsMap = useMemo(() => {
@@ -361,6 +408,10 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
         overlay={overlay}
         tool={activeToolId === 'text' ? 'text' : 'select'}
         onTextToolClick={onTextToolClick}
+        onDragEnter={imageInsert.onDragEnter}
+        onDragOver={imageInsert.onDragOver}
+        onDragLeave={imageInsert.onDragLeave}
+        onDrop={imageInsert.onDrop}
       >
         {/* SVG layer for shapes and connectors */}
         <svg
@@ -443,6 +494,21 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
             measurer={measurer}
           />
         ))}
+        {images.map((img) => (
+          <ImageObject
+            key={img.id}
+            image={img}
+            isUploader={img.uploaderId === 'local'}
+            progress={imageInsert.progress.get(img.id)}
+            canRetry={imageInsert.canRetry(img.id)}
+            now={clockTick}
+            selected={selection.ids.has(img.id)}
+            zoom={camera.zoom}
+            onRetry={() => imageInsert.retry(img.id)}
+            onRemove={() => { deleteObjects(doc, [img.id]); }}
+            onPointerDown={onObjectPointerDown}
+          />
+        ))}
       </BoardViewport>
 
       {/* Pen tool overlay (captures pointer events when pen tool is active) */}
@@ -490,11 +556,14 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
         </div>
       )}
 
+      {imageInsert.isDragging && <DropHighlight />}
+      <ToastContainer toasts={toastState.toasts} />
       <Toolbar
         tool={activeToolId}
         onToolChange={(t) => activeTool.setTool(t)}
         canEdit={!isReadOnly}
         onCreateSticky={onCreateSticky}
+        onImagePick={() => imageInsert.openPicker()}
         undo={undoState}
         shapeKind={activeTool.shapeKind}
         onShapeKindChange={activeTool.setShapeKind}

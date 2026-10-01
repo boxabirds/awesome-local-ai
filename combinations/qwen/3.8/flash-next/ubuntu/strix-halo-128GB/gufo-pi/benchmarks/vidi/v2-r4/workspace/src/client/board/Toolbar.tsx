@@ -11,6 +11,7 @@ export interface ToolbarProps {
   onToolChange(tool: ToolId): void;
   canEdit: boolean;
   onCreateSticky(): void;
+  onImagePick?(): void;
   undo: UseUndoResult;
   shapeKind?: ShapeKind;
   onShapeKindChange?(kind: ShapeKind): void;
@@ -24,6 +25,7 @@ export function Toolbar({
   onToolChange,
   canEdit,
   onCreateSticky,
+  onImagePick,
   undo,
   shapeKind = 'rect',
   onShapeKindChange,
@@ -187,6 +189,25 @@ export function Toolbar({
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
           <path fill="#FFF59D" stroke="#c9b458" d="M3 3h14v10l-4 4H3V3Z" />
           <path fill="#e6d488" d="M13 17v-4h4l-4 4Z" />
+        </svg>
+      </button>
+      {/* Image button (story 12) */}
+      <button
+        type="button"
+        className="board-toolbar-button"
+        data-testid="tool-image"
+        aria-label="Image (I)"
+        title="Add image (I)"
+        disabled={!canEdit}
+        onClick={(event: ReactMouseEvent) => {
+          event.stopPropagation();
+          onImagePick?.();
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <rect x="2" y="3" width="16" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <circle cx="7" cy="8" r="2" fill="currentColor" />
+          <path d="M2 14l5-4 3 2 4-3 4 3v3a2 2 0 01-2 2H4a2 2 0 01-2-2v-1z" fill="currentColor" opacity="0.3" />
         </svg>
       </button>
       <UndoButtons {...undo} />

@@ -584,3 +584,38 @@ body {
   color: #b42318;
   margin: 0;
 }
+
+/* Toast (story 12) */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast {
+  background: #323232;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+/* Drop highlight (story 12) */
+.drop-highlight {
+  position: absolute;
+  inset: 0;
+  border: 3px dashed #1E88E5;
+  border-radius: 8px;
+  background-color: rgba(30, 136, 229, 0.05);
+  pointer-events: none;
+  z-index: 50;
+}
