@@ -4,6 +4,7 @@ import {
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
 import {
@@ -13,8 +14,10 @@ import {
   WHEEL_PIXELS_PER_LINE,
   WHEEL_PIXELS_PER_PAGE,
 } from '../../shared/config';
-import type { Camera } from './camera';
+import type { Camera, Point } from './camera';
+import { screenToWorld } from './camera';
 import type { CameraHandlers } from './useCamera';
+import { DRAG_THRESHOLD_PX } from '../../shared/config';
 
 export interface BoardViewportProps {
   /** Current camera; drives the dot grid and the world layer transform. */
@@ -23,6 +26,13 @@ export interface BoardViewportProps {
   handlers: CameraHandlers;
   /** Board content (sticky notes from story 2) rendered in world coordinates. */
   children?: ReactNode;
+  /**
+   * A double-click on empty board space, with the click converted to world coordinates.
+   * The click did not land on an object: a double-click on a note is handled by the note.
+   */
+  onCreateSticky?(world: Point): void;
+  /** A press on empty board space without dragging: clears the selection. */
+  onClearSelection?(): void;
 }
 
 /** Safari trackpad gestures (`gesturestart` / `gesturechange` / `gestureend`). */
@@ -45,15 +55,25 @@ const toPixels = (delta: number, deltaMode: number): number => {
 const mod = (value: number, period: number): number =>
   period > 0 ? ((value % period) + period) % period : 0;
 
-export function BoardViewport({ camera, handlers, children }: BoardViewportProps) {
+export function BoardViewport({
+  camera,
+  handlers,
+  children,
+  onCreateSticky,
+  onClearSelection,
+}: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const pointerIdRef = useRef<number | null>(null);
+  const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const [panning, setPanning] = useState(false);
 
   // Keep the latest handlers without re-subscribing the native listeners every render.
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
+
+  const cameraRef = useRef(camera);
+  cameraRef.current = camera;
 
   /** Only the empty board (viewport or world layer itself) starts a pan. */
   const isBoardSurface = (target: EventTarget | null): boolean => {
@@ -72,6 +92,7 @@ export function BoardViewport({ camera, handlers, children }: BoardViewportProps
     if (!isBoardSurface(event.target)) return;
 
     pointerIdRef.current = event.pointerId;
+    pressRef.current = { x: event.clientX, y: event.clientY, moved: false };
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
@@ -83,6 +104,12 @@ export function BoardViewport({ camera, handlers, children }: BoardViewportProps
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== event.pointerId) return;
+    const press = pressRef.current;
+    if (press && !press.moved) {
+      const distance = Math.hypot(event.clientX - press.x, event.clientY - press.y);
+      // A pan that actually moved is not a click: it must not clear the selection.
+      if (distance >= DRAG_THRESHOLD_PX) press.moved = true;
+    }
     handlersRef.current.panMove({ x: event.clientX, y: event.clientY });
   };
 
@@ -92,6 +119,22 @@ export function BoardViewport({ camera, handlers, children }: BoardViewportProps
     setPanning(false);
     // Whatever the camera was at the moment of interruption is kept.
     handlersRef.current.endPan();
+    const press = pressRef.current;
+    pressRef.current = null;
+    // A press on empty board space that never dragged is a click: clear the selection.
+    if (press && !press.moved && onClearSelection) onClearSelection();
+  };
+
+  const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!onCreateSticky) return;
+    // Only empty board space creates; a double-click on a note is handled by the note.
+    if (!isBoardSurface(event.target)) return;
+    const rect = viewportRef.current?.getBoundingClientRect();
+    const point: Point = {
+      x: event.clientX - (rect?.left ?? 0),
+      y: event.clientY - (rect?.top ?? 0),
+    };
+    onCreateSticky(screenToWorld(cameraRef.current, point));
   };
 
   useEffect(() => {
@@ -196,6 +239,7 @@ export function BoardViewport({ camera, handlers, children }: BoardViewportProps
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
       onLostPointerCapture={handlePointerEnd}
+      onDoubleClick={handleDoubleClick}
     >
       <div
         ref={worldRef}

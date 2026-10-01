@@ -143,3 +143,81 @@ export const expectedGridSpacing = (zoom: number): number => GRID_SPACING_WORLD 
 
 /** Zoom level from a percentage label. */
 export const zoomFromPercent = (percent: number): number => percent / PERCENT;
+
+/* ------------------------------------------------------------------------- sticky notes */
+
+/** A sticky note as the shared model holds it. */
+export interface NoteModel {
+  id: string;
+  x: number;
+  y: number;
+  z: number;
+  color: string;
+  text: string;
+}
+
+/** Read the notes from the shared model (test build only), in stacking order. */
+export async function readNotes(page: Page): Promise<readonly NoteModel[]> {
+  const notes = await page.evaluate(() => window.__vidi6?.getStickyNotes());
+  if (!notes) throw new Error(HOOK_SELECT_ERROR);
+  return notes as unknown as readonly NoteModel[];
+}
+
+export const noteLocator = (page: Page, id: string) =>
+  page.locator(`[data-testid="sticky-note"][data-note-id="${id}"]`);
+
+/** Centre of a note in viewport pixels, read from the rendered element. */
+export async function noteCentre(page: Page, id: string): Promise<{ x: number; y: number }> {
+  const box = await noteLocator(page, id).boundingBox();
+  if (!box) throw new Error(`note ${id} has no bounding box`);
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/** World point under the centre of the viewport. */
+export function worldToScreen(camera: Camera, world: { x: number; y: number }): {
+  x: number;
+  y: number;
+} {
+  return { x: (world.x - camera.x) * camera.zoom, y: (world.y - camera.y) * camera.zoom };
+}
+
+/** Double-click an empty spot of the board: creates a note there and starts editing it. */
+export async function doubleClickBoard(page: Page, x: number, y: number): Promise<void> {
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.mouse.dblclick(x, y);
+  await waitForSettled(page);
+}
+
+/** Press a note, move it by (dx, dy) screen pixels, release. */
+export async function dragNoteById(page: Page, id: string, dx: number, dy: number): Promise<void> {
+  const from = await noteCentre(page, id);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + dx / 2, from.y + dy / 2, { steps: 4 });
+  await page.mouse.move(from.x + dx, from.y + dy, { steps: 4 });
+  await page.mouse.up();
+  await waitForSettled(page);
+}
+
+/** Select a note with a single click. */
+export async function selectNoteById(page: Page, id: string): Promise<void> {
+  const at = await noteCentre(page, id);
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  await waitForSettled(page);
+}
+
+/** The topmost note at a screen point, or `null`. */
+export async function topmostNoteId(page: Page, x: number, y: number): Promise<string | null> {
+  return page.evaluate(
+    ([px, py]: [number, number]) => {
+      const element = document.elementFromPoint(px, py);
+      const note = element?.closest('[data-testid="sticky-note"]');
+      return note?.getAttribute('data-note-id') ?? null;
+    },
+    [x, y],
+  );
+}
