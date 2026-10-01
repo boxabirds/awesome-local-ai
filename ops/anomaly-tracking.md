@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 14:02 UTC
+**Last updated:** 2026-10-01 14:15 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -41,6 +41,7 @@ test that would reproduce it. Details under the entries.
 | # | What | Fix / reproducing test |
 |---|---|---|
 | A-016 | Survived the automatic repair (13:51): on a restarted story the conversation profile still reports the killed call as the longest tool across the harness's downtime (1389 s, 1460 s) and raises a false `hung-command`; the run's `interventions.md` still omits both swap-guard stops and the restarts. (The accounting check itself is fixed.) | conversation.py: end an attempt's open tool call at that attempt's end, as accounting v4 does; drive/attempts: write a guard stop and each restart to interventions. Test: a two-attempt story whose attempt 1 ends in a guard-killed call → no `hung-command`, longest tool within one attempt, two interventions listed |
+| A-034 | CI red on main from a flaky agent-sandbox test: `fixed_port()` checks a port is free by binding and releasing it, and the test binds it again later (`pong_server_on(...).unwrap()`), so anything taking the port in between panics the test | have `fixed_port()` return the bound listener and pass it on, instead of a port number; test: run that test 50 times in parallel with a process grabbing ports in the range |
 | A-031 | dbench spends all three restarts within minutes on a failure that cannot change (a pull that fails on unmerged files, a model server that exits at start, a deterministic traceback) | stop after the same exit and the same last log line twice; test in dbench with a harness that always exits 1 |
 | A-011 | The M5 Max's private suite checkout is detached 31 commits past the tag with 6 private record commits not on the private main; mlx v2-r2 will end without a score of record until it is repaired | owner's repair when mlx v2-r2 ends; then the automatic re-score should produce the score. Test: `pack-version.sh` on a detached checkout at the tag's tree reports the tag |
 | A-028, A-029, A-030 | Stale records: 5 older stories with a failed accounting check, 94 stories with no check (from the feed; 72 with no time split at all), 27 runs that ended before `finalize.json` existed (12 have a hand-made re-score, 15 v1 runs have live scores only) | expected to be repaired by the sweep at the next run start/end on each machine; whatever survives is a bug in `repair_records` / `needing_repair` |
@@ -205,6 +206,20 @@ test that would reproduce it. Details under the entries.
   run-1/run-2 and the todoodle pack), part of the A-030 decision. `job_restarted` ×26: dbench's history of
   attempt > 1, which A-001, A-003, A-005 and A-031 cover; the restart of Sonnet v2-r4 at 10:12 was deliberate.
 - **Bucket:** none of its own (bookkeeping). **Status:** kept for the mapping.
+
+### A-034 — CI red on main: a flaky agent-sandbox test
+- **First seen:** 2026-10-01 14:07 (run on `d991cc98`, 13:44) · **Last seen:** 2026-10-01 14:10
+- **Where:** the `checks` workflow, "agent-sandbox tests": 25 passed, 1 failed,
+  `a_host_loopback_port_that_was_not_named_is_unreachable`, panicking at `tests/sandbox.rs:998` on
+  `pong_server_on(loopback, fixed_port()).unwrap()` (None).
+- **Observed:** the commit under test only changed TensorFold config and shell tests; the same test passed on
+  `7086cf63` just before. `fixed_port()` (line 161) finds a free port by binding and dropping a listener, and
+  returns only the number; `pong_server_on` binds it again later and returns None if anything took it
+  meanwhile (a check-then-use race). No later code commit has run CI yet, so main shows red.
+- **Bucket:** internal bug (a flaky test) — **confidence medium-high** (the commit can't affect it; the race is
+  in the helper as written).
+- **Status:** open. Not blocking runs (the harness import check passes at every commit), but a red main
+  hides real failures and could block a release (`--verified-by-ci`).
 
 ### A-012 — Every held-out test fails for several stories in a row (Swift 1.5, v2-r4 stories 2–4)
 - **First seen:** 2026-09-29 (v2-r1) · **Last seen:** 2026-10-01 08:41 (v2-r4 story 4)
@@ -566,13 +581,13 @@ By bucket (A-018 is a scheduling flag and has no bucket):
 
 | Bucket | Open: needs someone | Open: watched | Explained / resolved | Total |
 |---|---|---|---|---|
-| internal bug | 0 | 5 (A-016, A-020, A-028, A-029, A-031) | 11 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-015, A-023, A-025, A-032) | 16 |
+| internal bug | 0 | 6 (A-016, A-020, A-028, A-029, A-031, A-034) | 11 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-015, A-023, A-025, A-032) | 17 |
 | genuine LLM behaviour | 0 | 4 (A-010, A-012, A-013, A-026) | 3 (A-006, A-007, A-017) | 7 |
 | stuck job | 0 | 0 | 0 | 0 |
 | broken pipeline | 1 (A-011) | 1 (A-030) | 1 (A-024) | 3 |
 | environment | 1 (A-022) | 1 (A-005) | 0 | 2 |
 | unexplained | 0 | 2 (A-019, A-021) | 0 | 2 |
-| **Total** | **2** (+A-018) | **13** | **15** | **30** (+A-018, A-027, A-033) |
+| **Total** | **2** (+A-018) | **14** | **15** | **31** (+A-018, A-027, A-033) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
@@ -585,5 +600,5 @@ By combination (an anomaly is listed under the one it mainly concerns):
 | qwen 3.8 Swift 1.5 27B, llamacpp-pi | the RTX 4090 machine | A-012, A-026 |
 | qwen 3.8 27B and Swift 27B (v1), llamacpp-pi | the RTX 4090 machine | A-009 |
 | several | — | A-008 |
-| none (harness tests, CI, dbench) | — | A-023, A-024, A-025, A-031 |
+| none (harness tests, CI, dbench) | — | A-023, A-024, A-025, A-031, A-034 |
 | older runs, several stacks | all four | A-028, A-029, A-030 |
