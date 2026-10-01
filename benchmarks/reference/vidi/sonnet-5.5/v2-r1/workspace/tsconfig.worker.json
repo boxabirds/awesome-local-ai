@@ -10,5 +10,6 @@
     "isolatedModules": true,
     "types": []
   },
-  "include": ["worker-configuration.d.ts", "src/worker", "src/shared", "tests/integration", "tests/fixtures", "node_modules/@cloudflare/vitest-pool-workers/types/cloudflare-test.d.ts"]
+  "include": ["worker-configuration.d.ts", "src/worker", "src/shared", "tests/integration", "tests/fixtures", "node_modules/@cloudflare/vitest-pool-workers/types/cloudflare-test.d.ts"],
+  "exclude": ["tests/fixtures/testbox.tsx"]
 }

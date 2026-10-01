@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot } from '../../shared/board-model';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot } from '../../shared/board-model';
 import { reportConnectionState } from '../canvas/testHooks';
 import { connectBoard } from '../sync/connectBoard';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -9,7 +9,7 @@ import type { ConnectionState } from '../sync/connectBoard';
 /** Without a `boardId` the doc stays local (no connection); with one it syncs live through the board's room. */
 export function useBoardDoc(boardId?: string): {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  objects: readonly ObjectSnapshot[];
   connection: ConnectionState;
 } {
   const doc = useMemo(() => {
@@ -17,7 +17,7 @@ export function useBoardDoc(boardId?: string): {
     initDoc(d);
     return d;
   }, []);
-  const cache = useRef<readonly StickySnapshot[] | null>(null);
+  const cache = useRef<readonly ObjectSnapshot[] | null>(null);
   const [connection, setConnection] = useState<ConnectionState>(boardId ? 'connecting' : 'connected');
 
   useEffect(() => {
@@ -42,6 +42,6 @@ export function useBoardDoc(boardId?: string): {
     [doc],
   );
   const getSnapshot = useCallback(() => (cache.current ??= snapshot(doc)), [doc]);
-  const notes = useSyncExternalStore(subscribe, getSnapshot);
-  return { doc, notes, connection };
+  const objects = useSyncExternalStore(subscribe, getSnapshot);
+  return { doc, objects, connection };
 }

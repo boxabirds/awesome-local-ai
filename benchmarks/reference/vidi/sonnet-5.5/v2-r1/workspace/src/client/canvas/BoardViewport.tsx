@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import type { ObjectSnapshot } from '../../shared/board-model';
+import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './camera';
 import type { Camera, Point, Size } from './camera';
 import { NavigationHint } from './NavigationHint';
@@ -15,6 +17,7 @@ const DOM_DELTA_PAGE = 2;
 const GRID_DOT_RADIUS_PX = 1;
 const GRID_DOT_COLOR = 'rgba(30, 41, 59, 0.28)';
 const HALF = 2;
+const NO_OBJECTS: readonly ObjectSnapshot[] = [];
 
 type GestureEventLike = Event & { scale: number; clientX?: number; clientY?: number };
 type Mode = 'idle' | 'panning';
@@ -44,6 +47,11 @@ export function BoardViewport(props: {
   overlay?: (ctx: BoardContext) => ReactNode;
   onCreateAt?(world: Point): void;
   onEmptyClick?(): void;
+  /** Objects a Shift+drag rectangle can select, and what to do with the ones fully inside it. */
+  snapshot?: readonly ObjectSnapshot[];
+  onMarqueeSelect?(ids: string[]): void;
+  /** Called after the camera changes (the transform gesture converts pointer movement with it). */
+  onCameraChange?(camera: Camera): void;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const downPoint = useRef<Point | null>(null);
@@ -56,6 +64,23 @@ export function BoardViewport(props: {
   // Always call the latest controller from long-lived listeners.
   const navRef = useRef(nav);
   navRef.current = nav;
+
+  const marquee = useMarquee(camera, props.snapshot ?? NO_OBJECTS, (ids) => props.onMarqueeSelect?.(ids));
+  const marqueeActive = useRef(false);
+  const onCameraChange = props.onCameraChange;
+  useEffect(() => onCameraChange?.(camera), [camera, onCameraChange]);
+
+  // Escape abandons a rectangle in progress, leaving the selection as it was.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && marqueeActive.current) {
+        marqueeActive.current = false;
+        marquee.cancel();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [marquee.cancel]);
 
   useEffect(() => installTestHooks(nav.setCamera, nav.getCamera), [nav.setCamera, nav.getCamera]);
 
@@ -160,19 +185,47 @@ export function BoardViewport(props: {
     // Only empty board space starts a drag; later object stories can intercept their own targets.
     if (e.target !== e.currentTarget) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    if (e.shiftKey) {
+      marqueeActive.current = true;
+      marquee.begin(viewportPoint(e));
+      return;
+    }
     downPoint.current = { x: e.clientX, y: e.clientY };
     modeRef.current = 'panning';
     setMode('panning');
     nav.beginPan({ x: e.clientX, y: e.clientY });
   };
 
+  const viewportPoint = (e: ReactPointerEvent<HTMLDivElement>): Point => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeActive.current) {
+      marquee.move(viewportPoint(e));
+      return;
+    }
     if (modeRef.current !== 'panning') return;
     nav.panMove({ x: e.clientX, y: e.clientY });
   };
 
+  const onInterrupted = () => {
+    if (marqueeActive.current) {
+      marqueeActive.current = false;
+      marquee.cancel();
+    }
+    endPan();
+  };
+
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     e.currentTarget.releasePointerCapture?.(e.pointerId);
+    if (marqueeActive.current) {
+      marqueeActive.current = false;
+      marquee.move(viewportPoint(e));
+      marquee.end();
+      return;
+    }
     const down = downPoint.current;
     downPoint.current = null;
     if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < DRAG_THRESHOLD_PX) props.onEmptyClick?.();
@@ -208,8 +261,8 @@ export function BoardViewport(props: {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onDoubleClick={onDoubleClick}
-        onPointerCancel={endPan}
-        onLostPointerCapture={endPan}
+        onPointerCancel={onInterrupted}
+        onLostPointerCapture={onInterrupted}
       >
         <div
           className="board-world"
@@ -221,6 +274,7 @@ export function BoardViewport(props: {
         >
           <div className="origin-marker" data-testid="origin-marker" />
           {typeof props.children === 'function' ? props.children(ctx) : props.children}
+          <MarqueeRect rect={marquee.rect} camera={camera} />
         </div>
       </div>
       {props.overlay?.(ctx)}

@@ -1,10 +1,14 @@
 import { act, fireEvent, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import type * as Y from 'yjs';
-import { createSticky, getStickyText } from '../../src/shared/board-model';
+import { createSticky, deleteObjects, getStickyText } from '../../src/shared/board-model';
+import { SelectionBar } from '../../src/client/board/SelectionBar';
+import { SelectionOverlay } from '../../src/client/board/SelectionOverlay';
 import { useBoardDoc } from '../../src/client/board/useBoardDoc';
+import { useBoardKeys } from '../../src/client/board/useBoardKeys';
 import { useSelection } from '../../src/client/board/useSelection';
-import { StickyNote } from '../../src/client/objects/StickyNote';
+import { useTransformGesture } from '../../src/client/board/useTransformGesture';
+import { getObjectType } from '../../src/client/objects/registry';
 
 export const FRAME_MS = 20;
 
@@ -20,37 +24,71 @@ export const notes = () => screen.queryAllByRole('group', { name: 'Sticky note' 
 /** Mirrors the App wiring for one board, exposing the real Y.Doc and selection state to the test. */
 export interface Probe {
   doc: Y.Doc;
+  /** The selected id when exactly one object is selected. */
   selectedId: string | null;
+  ids: ReadonlySet<string>;
   editingId: string | null;
+  gestureStarts: number;
+  gestureEnds: number;
 }
 
-export function Harness(props: { probe: Probe; zoom?: number; onReady?(doc: Y.Doc): void }) {
-  const { doc, notes: list } = useBoardDoc();
-  const sel = useSelection();
+export function Harness(props: { probe: Probe; zoom?: number; canEdit?: boolean }) {
+  const { doc, objects } = useBoardDoc();
+  const sel = useSelection(objects);
+  const camera = { x: 0, y: 0, zoom: props.zoom ?? 1 };
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection: sel,
+    snapshot: objects,
+    canEdit: props.canEdit ?? true,
+    onGestureStart: () => props.probe.gestureStarts++,
+    onGestureEnd: () => props.probe.gestureEnds++,
+  });
+  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: props.canEdit ?? true });
   props.probe.doc = doc;
-  props.probe.selectedId = sel.selectedId;
+  props.probe.ids = sel.ids;
+  props.probe.selectedId = sel.ids.size === 1 ? [...sel.ids][0] : null;
   props.probe.editingId = sel.editingId;
   return (
-    <div data-testid="harness" onPointerDown={() => sel.select(null)}>
-      {list.map((n) => (
-        <StickyNote
-          key={n.id}
-          note={n}
-          doc={doc}
-          zoom={props.zoom ?? 1}
-          selected={sel.selectedId === n.id}
-          editing={sel.editingId === n.id}
-          onSelect={sel.select}
-          onStartEdit={sel.startEdit}
-          onEndEdit={sel.endEdit}
-        />
-      ))}
+    <div data-testid="harness" onPointerDown={() => sel.clear()}>
+      {objects.map((n) => {
+        const spec = getObjectType(n.type);
+        if (!spec) return null;
+        return (
+          <spec.Component
+            key={n.id}
+            object={n}
+            doc={doc}
+            zoom={props.zoom ?? 1}
+            selected={sel.ids.has(n.id)}
+            editing={sel.editingId === n.id}
+            onObjectPointerDown={gesture.onObjectPointerDown}
+            onStartEdit={sel.startEdit}
+            onEndEdit={sel.endEdit}
+          />
+        );
+      })}
+      <SelectionOverlay
+        ids={sel.ids}
+        snapshot={objects}
+        camera={camera}
+        onHandlePointerDown={gesture.onHandlePointerDown}
+      />
+      <SelectionBar ids={sel.ids} snapshot={objects} onDelete={() => { deleteObjects(doc, [...sel.ids]); sel.clear(); }} />
     </div>
   );
 }
 
 export function newProbe(): Probe {
-  return { doc: undefined as unknown as Y.Doc, selectedId: null, editingId: null };
+  return {
+    doc: undefined as unknown as Y.Doc,
+    selectedId: null,
+    ids: new Set(),
+    editingId: null,
+    gestureStarts: 0,
+    gestureEnds: 0,
+  };
 }
 
 export function addNote(probe: Probe, text = '', at = { x: 100, y: 100 }): string {

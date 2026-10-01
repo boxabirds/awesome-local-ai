@@ -111,8 +111,75 @@ body,
   touch-action: none;
 }
 
-.sticky-note--selected {
-  outline: 3px solid #2563eb;
+.selection-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.selection-outline {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid #2563eb;
+  pointer-events: none;
+}
+
+.selection-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid #2563eb;
+  pointer-events: none;
+}
+
+.selection-handle {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 0;
+  border: 1px solid #2563eb;
+  border-radius: 1px;
+  background: #fff;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.selection-bar .note-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.selection-bar .note-delete:hover {
+  background: #e2e8f0;
+}
+
+.marquee {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid #2563eb;
+  background: rgba(37, 99, 235, 0.15);
+  pointer-events: none;
+  z-index: 1000000;
 }
 
 .sticky-note:focus-visible {

@@ -1,23 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import { STICKY_SIZE_WORLD } from '../shared/config';
-import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
+import { useState } from 'react';
+import { createSticky, deleteObjects, setStickyColor } from '../shared/board-model';
+import { SelectionBar } from './board/SelectionBar';
+import { SelectionOverlay } from './board/SelectionOverlay';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
+import { useBoardKeys } from './board/useBoardKeys';
 import { useSelection } from './board/useSelection';
-import { worldToScreen } from './canvas/camera';
-import type { Point } from './canvas/camera';
+import { useTransformGesture } from './board/useTransformGesture';
+import type { Camera, Point } from './canvas/camera';
 import { BoardViewport } from './canvas/BoardViewport';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
-import { NoteToolbar } from './objects/NoteToolbar';
-import { StickyNote } from './objects/StickyNote';
+import { getObjectType } from './objects/registry';
 
-const NOTE_TOOLBAR_GAP_PX = 10;
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
-}
+const INITIAL_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
 
 /** Editing is blocked only while the saved board cannot be loaded (never present it as an empty editable board). */
 export function canEdit(state: ConnectionState): boolean {
@@ -29,41 +25,22 @@ function byId(a: { id: string }, b: { id: string }): number {
 }
 
 export function App({ boardId }: { boardId?: string } = {}) {
-  const { doc, notes, connection } = useBoardDoc(boardId);
-  const sel = useSelection();
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const { doc, objects, connection } = useBoardDoc(boardId);
+  const sel = useSelection(objects);
+  const [gesturing, setGesturing] = useState(false);
+  const [camera, setCamera] = useState<Camera>(INITIAL_CAMERA);
 
   const editable = canEdit(connection);
-  const editableRef = useRef(editable);
-  editableRef.current = editable;
-  const selRef = useRef(sel);
-  selRef.current = sel;
-
-  // A note that vanished (deleted by this or another client) can no longer be selected or edited.
-  useEffect(() => {
-    if (sel.selectedId && !notes.some((n) => n.id === sel.selectedId)) sel.select(null);
-    if (sel.editingId && !notes.some((n) => n.id === sel.editingId)) sel.select(null);
-    setDraggingId((d) => (d && !notes.some((n) => n.id === d) ? null : d));
-  }, [notes, sel]);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const { selectedId, editingId } = selRef.current;
-      if (!editableRef.current || !selectedId || editingId !== null || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (isTypingTarget(e.target)) return;
-      if (e.key === 'Enter') {
-        if ((e.target as HTMLElement | null)?.tagName === 'BUTTON') return;
-        e.preventDefault();
-        selRef.current.startEdit(selectedId);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        deleteObject(doc, selectedId);
-        selRef.current.select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc]);
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection: sel,
+    snapshot: objects,
+    canEdit: editable,
+    onGestureStart: () => setGesturing(true),
+    onGestureEnd: () => setGesturing(false),
+  });
+  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable });
 
   const create = (at: Point) => {
     if (!editable) return;
@@ -71,55 +48,62 @@ export function App({ boardId }: { boardId?: string } = {}) {
     if (id) sel.startEdit(id);
   };
 
-  const selected = notes.find((n) => n.id === sel.selectedId);
+  const deleteSelection = () => {
+    deleteObjects(doc, [...sel.ids]);
+    sel.clear();
+  };
 
   return (
     <BoardViewport
       onCreateAt={create}
-      onEmptyClick={() => sel.select(null)}
+      onEmptyClick={sel.clear}
+      snapshot={objects}
+      onMarqueeSelect={(ids) => sel.setMany(ids, true)}
+      onCameraChange={setCamera}
       overlay={(ctx) => (
         <>
           <ConnectionStatus state={connection} />
           <Toolbar onCreateSticky={() => create(ctx.centerWorld())} disabled={!editable} />
-          {editable && selected && sel.editingId === null && draggingId === null && (
-            <div
-              className="note-toolbar-anchor"
-              style={(() => {
-                const p = worldToScreen(ctx.camera, { x: selected.x, y: selected.y });
-                const w = STICKY_SIZE_WORLD * ctx.zoom;
-                return { left: p.x + w / 2, top: p.y - NOTE_TOOLBAR_GAP_PX };
-              })()}
-            >
-              <NoteToolbar
-                color={selected.color}
-                onColor={(c) => setStickyColor(doc, selected.id, c)}
-                onDelete={() => {
-                  deleteObject(doc, selected.id);
-                  sel.select(null);
-                }}
-              />
-            </div>
+          {sel.editingId === null && (
+            <SelectionOverlay
+              ids={sel.ids}
+              snapshot={objects}
+              camera={ctx.camera}
+              onHandlePointerDown={gesture.onHandlePointerDown}
+            />
+          )}
+          {editable && sel.editingId === null && !gesturing && (
+            <SelectionBar
+              ids={sel.ids}
+              snapshot={objects}
+              camera={ctx.camera}
+              onDelete={deleteSelection}
+              onColor={(id, color) => setStickyColor(doc, id, color)}
+            />
           )}
         </>
       )}
     >
       {(ctx) =>
         // DOM order is stable (by id) and stacking uses z-index: re-ordering nodes mid-drag would drop pointer capture.
-        [...notes].sort(byId).map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={ctx.zoom}
-            selected={sel.selectedId === note.id}
-            editing={sel.editingId === note.id}
-            onSelect={sel.select}
-            onStartEdit={sel.startEdit}
-            onEndEdit={sel.endEdit}
-            onDragChange={(d) => setDraggingId(d ? note.id : null)}
-            readOnly={!editable}
-          />
-        ))
+        [...objects].sort(byId).map((object) => {
+          const spec = getObjectType(object.type);
+          if (!spec) return null;
+          return (
+            <spec.Component
+              key={object.id}
+              object={object}
+              doc={doc}
+              zoom={ctx.zoom}
+              selected={sel.ids.has(object.id)}
+              editing={sel.editingId === object.id}
+              onObjectPointerDown={gesture.onObjectPointerDown}
+              onStartEdit={sel.startEdit}
+              onEndEdit={sel.endEdit}
+              readOnly={!editable}
+            />
+          );
+        })
       }
     </BoardViewport>
   );

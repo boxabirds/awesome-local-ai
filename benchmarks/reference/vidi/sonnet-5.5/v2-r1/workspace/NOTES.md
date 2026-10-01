@@ -57,3 +57,18 @@
 - Legacy-board e2e (TC-31) uses a test-hook route `POST /__test/boards/:id/seed-legacy` (body = one Yjs update) that stores the update with no `created_at`; it exists only with `TEST_HOOKS=1`.
 - `BoardStore.load()` returns an empty board when the tables are missing; `append()` migrates lazily; `migrate()` no longer runs on room construction. `initialize()` on the store backs the room RPC.
 - Only Chromium was run for e2e. Red-phase commits were skipped.
+
+# Notes — story 7
+
+- `snapshot()` now returns `ObjectSnapshot[]` for every object with a string `type` and numeric `x`/`y`/`z` (sticky entries also carry `color`/`text`). Types without a registered component are skipped by the renderer and by `allObjectIds` (optional `isKnownType` argument; the client passes the registry), so they cannot be selected. `useBoardDoc` returns `objects` (the former `notes`).
+- Registry component props are `ObjectProps` (`object`, `doc`, `zoom`, `selected`, `editing`, `readOnly`, `onObjectPointerDown`, `onStartEdit`, `onEndEdit`). `StickyNote` renders `width`/`height` with the `STICKY_SIZE_WORLD` fallback and has no drag code of its own.
+- `BoardViewport` still owns the camera; it reports it through `onCameraChange` so `App` can hand it to `useTransformGesture`. It also takes `snapshot` and `onMarqueeSelect` for the Shift+drag marquee.
+- The gesture hook listens on `window` for pointermove/up/cancel (no pointer capture), so a drag survives leaving the note. A press on an unselected note selects it at pointerdown; Shift-click toggles on release (or at drag start if the note is not yet selected). A plain click on a selected note narrows the selection to it on release.
+- An edge handle with an aspect lock (sticky or Shift) scales about the centre of the untouched axis; corner handles scale from the opposite corner.
+- `clampScale` clamps x and y together when they are equal (aspect locked) and independently otherwise.
+- Selection outlines are drawn by `SelectionOverlay` (screen space); the old `sticky-note--selected` outline is gone, `data-selected` stays on the note.
+- The "N selected" text itself is the `aria-live="polite"` element, so `getByText('N selected')` matches one element.
+- While the board is `load_failed`, selecting still works but drag, resize, nudge, delete and Enter-to-edit are ignored.
+- `tests/fixtures/testbox.tsx` registers the test-only `testbox` type; `tsconfig.worker.json` excludes it (JSX, client only).
+- Only Chromium was run for e2e. The persistence e2e needs a test-mode build (`vite build --mode test`); `npm run build` overwrites `dist` with a production build that has no `window.__vidi6`.
+- Red-phase commits for the test-first tasks were skipped; tests and implementation are committed together.
