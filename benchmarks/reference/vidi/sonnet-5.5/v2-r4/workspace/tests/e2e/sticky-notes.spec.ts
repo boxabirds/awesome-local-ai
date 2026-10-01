@@ -117,7 +117,7 @@ test('TC-33 text shrinks to fit then clips with a fade', async ({ page }) => {
 test('TC-34 the Sticky note button creates a visible note at screen centre when panned far away', async ({ page }) => {
   await setCamera(page, 1_000_000, 1_000_000, 1);
   await page.waitForTimeout(100);
-  await page.getByRole('button', { name: 'Sticky note' }).click();
+  await page.getByRole('button', { name: 'Sticky note (N)' }).click();
   const note = notes(page).first();
   await expect(note).toBeVisible();
   const vp = page.viewportSize()!;

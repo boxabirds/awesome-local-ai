@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
-import { bringObjectsToFront, moveObjects, resizeObjects, type ObjectSnapshot } from '../../shared/board-model';
+import { bringObjectsToFront, LOCAL_ORIGIN, moveObjects, resizeObjects, type ObjectSnapshot } from '../../shared/board-model';
+import { setTextWidthFixed, type TextSnapshot } from '../../shared/objects/text';
+import { defaultMeasurer } from '../objects/textLayout';
+import { remeasureText } from '../objects/useTextBoxSync';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
 import { clampScale, rectFromScale, resizeRect, scaleWithin, unionRects, type Handle, type Rect } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
@@ -70,27 +73,44 @@ export function useTransformGesture(opts: {
       return;
     }
     const entries = [...g.startRects].map(([id, rect]) => {
-      const type = snapshot.find((o) => o.id === id)?.type ?? '';
-      return { id, rect, spec: getObjectType(type) };
+      const snap = snapshot.find((o) => o.id === id);
+      const isTextObject = snap?.type === 'text';
+      return { id, rect, spec: getObjectType(snap?.type ?? ''), isTextObject, fixed: isTextObject && (snap as TextSnapshot).widthMode === 'fixed' };
     });
     const box = unionRects(entries.map((e) => e.rect));
     if (!box) return;
     const resizable = entries.filter((e) => e.spec?.resizable);
-    const aspect = p.shift || resizable.some((e) => e.spec?.aspectLocked);
+    const allText = entries.every((e) => e.isTextObject);
+    const single = entries.length === 1;
+    // A text's height is derived from its content, and an automatic width only becomes fixed when it is the one being dragged.
+    const limitRect = (e: (typeof entries)[number]): Rect =>
+      e.isTextObject ? { ...e.rect, width: single || e.fixed ? e.rect.width : 0, height: 0 } : e.rect;
+    const aspect = !allText && (p.shift || resizable.some((e) => e.spec?.aspectLocked));
     const raw = resizeRect(box, g.handle!, { x: dx, y: dy }, aspect);
     const scale = clampScale(
       { x: box.width > 0 ? raw.width / box.width : 1, y: box.height > 0 ? raw.height / box.height : 1 },
-      resizable.map((e) => e.rect),
+      resizable.map(limitRect),
       resizable.map((e) => e.spec!.minSize),
       MAX_OBJECT_SIZE_WORLD,
     );
     const to = rectFromScale(box, scale.x, scale.y, g.handle!);
     const rects = new Map<string, Rect>();
+    const texts: { id: string; x: number; y: number; width: number | null }[] = [];
     for (const e of entries) {
       const scaled = scaleWithin(e.rect, box, to);
-      rects.set(e.id, e.spec?.resizable ? scaled : { ...scaled, width: e.rect.width, height: e.rect.height });
+      if (e.isTextObject) {
+        texts.push({ id: e.id, x: scaled.x, y: scaled.y, width: single || e.fixed ? scaled.width : null });
+      } else rects.set(e.id, e.spec?.resizable ? scaled : { ...scaled, width: e.rect.width, height: e.rect.height });
     }
-    resizeObjects(doc, rects);
+    doc.transact(() => {
+      resizeObjects(doc, rects);
+      const measure = defaultMeasurer();
+      for (const t of texts) {
+        moveObjects(doc, new Map([[t.id, { x: t.x, y: t.y }]]));
+        if (t.width !== null) setTextWidthFixed(doc, t.id, t.width);
+        remeasureText(doc, t.id, measure);
+      }
+    }, LOCAL_ORIGIN);
   }, []);
 
   const finish = useCallback(

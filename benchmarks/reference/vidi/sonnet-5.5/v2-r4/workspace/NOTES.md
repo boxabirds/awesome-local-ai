@@ -63,3 +63,14 @@
 - The controller reaches the text editor through `UndoContext` (set in `App`); the `NO_UNDO` inert controller is used until the real one exists (created in an effect, so StrictMode double-mount is safe).
 - Colour change and Delete/nudge/create call `boundary()` before and after the model call; useBoardKeys ignores undo keys while a note is being edited (the textarea handles them).
 - The e2e fixture (`tests/fixtures/undo-board.ts`) has an 8-note cluster plus 10 other notes.
+
+## Story 9
+- Text width: auto width = longest line + `TEXT_PADDING_WORLD` (caret room), capped at `TEXT_MAX_AUTO_WIDTH_WORLD`; once any line wraps the box is exactly 600 wide. Fixed width = the stored width. Padding and the no-canvas glyph ratio (`TEXT_ESTIMATE_GLYPH_RATIO`) are extra named settings.
+- `createdBy` comes from `src/client/identity.ts` (anonymous id in localStorage) because story 6 `useIdentity` is not part of this build.
+- `text` is a known object type in `board-model` from the start (like `sticky`), so snapshots and unit tests need no registry import; `TextSnapshot` lives in `src/shared/objects/text.ts`.
+- Placing text happens on `click` (not pointerdown) so the new textarea keeps focus; while the Text tool is active the viewport swallows pointerdown in the capture phase (no pan, marquee, select or drag, also on top of objects).
+- Creating text does not close the undo step after creation, and the editor skips its start boundary for an empty text: creation and first typing are one step, so one undo removes the text instead of leaving an invisible empty object.
+- A handle drag on a single text always converts it to fixed width; in a mixed selection only already-fixed texts scale their width, auto texts are just repositioned. Gesture writes (position, width, remeasured height) are one transaction.
+- Size buttons are named by their visible text (S, M, L, XL; title "Size XL"); the delete button is "Delete text". Text groups are announced as "Text: <content>".
+- Undoing a text that was created and abandoned empty within one step leaves a no-op undo entry (Yjs keeps the empty stack item).
+- E2E under full parallel load: `selection.spec` TC-33/34 and TC-36 (and sometimes others) occasionally time out waiting for the "N selected" bar; they pass when run alone. Story 1 TC-27 (1,000,000-unit pan) still fails as noted under Story 3. Story 3 TC-25 now types `abcdefg` after the note is deleted, because V/T/N are shortcuts once nothing is being edited.

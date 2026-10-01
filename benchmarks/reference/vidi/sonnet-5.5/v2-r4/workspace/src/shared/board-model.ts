@@ -1,5 +1,6 @@
 import * as Y from 'yjs';
-import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
+import { DEFAULT_STICKY_COLOR, DEFAULT_TEXT_SIZE, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES, type StickyColor, type TextSize } from './config';
+import type { TextSnapshot } from './objects/text';
 import { rectContains, type Point, type Rect } from './geometry';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
@@ -27,7 +28,7 @@ export function isSticky(o: ObjectSnapshot): o is StickySnapshot {
 }
 
 /** Object types the client can render, select and transform (the registry adds its own). */
-const knownTypes = new Set<string>(['sticky']);
+const knownTypes = new Set<string>(['sticky', 'text']);
 export function registerKnownType(type: string): void {
   knownTypes.add(type);
 }
@@ -36,6 +37,10 @@ const SCHEMA_VERSION = 1;
 
 function objects(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects') as Y.Map<Y.Map<unknown>>;
+}
+
+function isTextSize(s: string): s is TextSize {
+  return Object.prototype.hasOwnProperty.call(TEXT_SIZES, s);
 }
 
 function isColor(c: string): c is StickyColor {
@@ -214,6 +219,17 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         text: text instanceof Y.Text ? text.toString() : '',
       };
       out.push(sticky);
+    } else if (type === 'text') {
+      const text = o.get('text');
+      const size = o.get('size') as string;
+      const t: TextSnapshot = {
+        ...base,
+        type: 'text',
+        text: text instanceof Y.Text ? text.toString() : '',
+        size: isTextSize(size) ? size : DEFAULT_TEXT_SIZE,
+        widthMode: o.get('widthMode') === 'fixed' ? 'fixed' : 'auto',
+      };
+      out.push(t);
     } else out.push(base);
   });
   out.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

@@ -1,9 +1,10 @@
 import type * as Y from 'yjs';
 import { objectBounds, registerKnownType, type ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import type { PointerLike } from '../board/useTransformGesture';
 import type { Point } from '../canvas/camera';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /** Everything the board hands to an object's component; selection, moving and resizing stay generic. */
 export interface ObjectProps {
@@ -27,6 +28,8 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  /** Handles shown when every selected object is of a 'horizontal' type; default 'all'. */
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -53,5 +56,15 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: boundsHitTest,
+});
+
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: boundsHitTest,
 });

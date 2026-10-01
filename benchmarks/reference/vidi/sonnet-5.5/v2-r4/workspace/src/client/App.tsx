@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { createSticky, deleteObjects } from '../shared/board-model';
+import { createText } from '../shared/objects/text';
+import { localIdentityId } from './identity';
+import { useTool } from './board/useTool';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { createUndo, NO_UNDO, type UndoController } from './board/undo';
@@ -58,7 +61,8 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
   const gesture = useTransformGesture({ doc, camera: liveCamera, selection: sel, snapshot: objects, canEdit: editable, onGestureStart: undoCtl.boundary, onGestureEnd: undoCtl.boundary });
   const undoState = useUndo(undoCtl, editable);
 
-  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable, undo: undoCtl });
+  const { tool, setTool } = useTool(editable);
+  const viewCentreRef = useRef({ x: 0, y: 0 });
 
   const deleteSelection = () => {
     if (!editable) return;
@@ -76,6 +80,25 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
     if (id) sel.startEdit(id);
   };
 
+  // No boundary after creating: the first typing joins the creation step, so one undo removes the whole text.
+  const placeText = (at: { x: number; y: number }) => {
+    if (!editable) return;
+    undoCtl.boundary();
+    const id = createText(doc, at, localIdentityId());
+    setTool('select');
+    if (id) sel.startEdit(id);
+  };
+
+  useBoardKeys({
+    doc,
+    selection: sel,
+    snapshot: objects,
+    canEdit: editable,
+    undo: undoCtl,
+    setTool,
+    onCreateSticky: () => create(viewCentreRef.current),
+  });
+
   return (
     <UndoContext.Provider value={undoCtl}>
     {boardId && <ConnectionStatus state={connection} />}
@@ -84,11 +107,14 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
       onClickEmpty={sel.clear}
       snapshot={objects}
       onMarqueeSelect={(ids) => sel.setMany(ids, true)}
+      textToolActive={tool === 'text'}
+      onTextClick={placeText}
       overlay={(ctx) => {
         cameraRef.current = ctx.camera;
+        viewCentreRef.current = ctx.viewCentre;
         return (
           <>
-            <Toolbar disabled={!editable} onCreateSticky={() => create(ctx.viewCentre)}>
+            <Toolbar disabled={!editable} tool={tool} onTool={setTool} onCreateSticky={() => create(ctx.viewCentre)}>
               <UndoButtons {...undoState} />
             </Toolbar>
             <SelectionOverlay

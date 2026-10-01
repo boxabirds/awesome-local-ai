@@ -3,6 +3,10 @@ import { isSticky, setStickyColor, type ObjectSnapshot } from '../../shared/boar
 import type { Camera } from '../canvas/camera';
 import type { UndoController } from './undo';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { isText, setTextSize } from '../../shared/objects/text';
+import { TextToolbar } from '../objects/TextToolbar';
+import { defaultMeasurer } from '../objects/textLayout';
+import { remeasureText } from '../objects/useTextBoxSync';
 import { selectionScreenBox } from './SelectionOverlay';
 
 const BAR_GAP_PX = 10;
@@ -30,7 +34,7 @@ export function SelectionBar(props: {
   const box = selectionScreenBox(ids, snapshot, camera);
   if (!box || selected.length === 0 || props.hidden) return null;
   const single = selected.length === 1 ? selected[0] : null;
-  if (single && !isSticky(single)) return null;
+  if (single && !isSticky(single) && !isText(single)) return null;
   if (single && !editable) return null;
 
   return (
@@ -43,7 +47,17 @@ export function SelectionBar(props: {
         zIndex: 11,
       }}
     >
-      {single && isSticky(single) ? (
+      {single && isText(single) ? (
+        <TextToolbar
+          size={single.size}
+          onSize={(s) => {
+            props.undo?.boundary();
+            if (setTextSize(doc, single.id, s)) remeasureText(doc, single.id, defaultMeasurer());
+            props.undo?.boundary();
+          }}
+          onDelete={props.onDelete}
+        />
+      ) : single && isSticky(single) ? (
         <NoteToolbar
           color={single.color}
           onColor={(c) => {

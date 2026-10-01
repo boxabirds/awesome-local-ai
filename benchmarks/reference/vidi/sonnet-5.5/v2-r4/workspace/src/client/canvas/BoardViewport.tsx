@@ -54,9 +54,12 @@ export interface BoardViewportProps {
   /** Objects for Shift+drag selection and what to do with the ids fully inside the rectangle. */
   snapshot?: readonly ObjectSnapshot[];
   onMarqueeSelect?: (ids: string[]) => void;
+  /** With the Text tool active a click anywhere on the board (also on top of objects) places text there. */
+  textToolActive?: boolean;
+  onTextClick?: (world: Point) => void;
 }
 
-export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEmpty, snapshot = NO_OBJECTS, onMarqueeSelect }: BoardViewportProps) {
+export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEmpty, snapshot = NO_OBJECTS, onMarqueeSelect, textToolActive = false, onTextClick }: BoardViewportProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>({ width: window.innerWidth, height: window.innerHeight });
   const cam = useCamera(size);
@@ -172,6 +175,16 @@ export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEm
     }
     endPan();
   };
+  // While the Text tool is active the board neither pans, selects nor drags: the press is swallowed and the click places text.
+  const onPointerDownCapture = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (textToolActive && e.button === 0) e.stopPropagation();
+  };
+  const onClickCapture = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (!textToolActive || e.button !== 0) return;
+    e.stopPropagation();
+    const r = e.currentTarget.getBoundingClientRect();
+    onTextClick?.(screenToWorld(apiRef.current.camera, { x: e.clientX - r.left, y: e.clientY - r.top }));
+  };
   const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget || !onDoubleClickEmpty) return;
     const r = e.currentTarget.getBoundingClientRect();
@@ -209,6 +222,8 @@ export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEm
         ref={surfaceRef}
         data-testid="board-viewport"
         tabIndex={0}
+        onPointerDownCapture={onPointerDownCapture}
+        onClickCapture={onClickCapture}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -223,7 +238,7 @@ export function BoardViewport({ children, overlay, onDoubleClickEmpty, onClickEm
           backgroundImage: `radial-gradient(circle at center, ${GRID_DOT_COLOR} ${DOT_RADIUS_PX}px, transparent ${DOT_RADIUS_PX + 0.5}px)`,
           backgroundSize: `${spacing}px ${spacing}px`,
           backgroundPosition: `${bgX}px ${bgY}px`,
-          cursor: panning ? 'grabbing' : 'grab',
+          cursor: textToolActive ? 'text' : panning ? 'grabbing' : 'grab',
           touchAction: 'none',
           outline: 'none',
         }}

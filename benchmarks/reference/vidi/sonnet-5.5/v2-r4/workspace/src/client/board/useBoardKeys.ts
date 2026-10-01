@@ -5,6 +5,7 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
 import type { Selection } from './useSelection';
+import type { Tool } from './useTool';
 
 const ARROWS: Record<string, [number, number]> = {
   ArrowLeft: [-1, 0],
@@ -25,13 +26,16 @@ export function useBoardKeys(opts: {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undo?: UndoController;
+  /** V, T and Escape switch tools; N creates a sticky note at the view centre. */
+  setTool?(t: Tool): void;
+  onCreateSticky?(): void;
 }): void {
   const ref = useRef(opts);
   ref.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, undo } = ref.current;
+      const { doc, selection, snapshot, canEdit, undo, setTool, onCreateSticky } = ref.current;
       if (selection.editingId !== null || isTextTarget(e.target)) return;
 
       if ((e.ctrlKey || e.metaKey) && !e.altKey) {
@@ -55,7 +59,21 @@ export function useBoardKeys(opts: {
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
+      const lower = e.key.toLowerCase();
+      if (lower === 'v' && !e.shiftKey) {
+        setTool?.('select');
+        return;
+      }
+      if (lower === 't' && !e.shiftKey) {
+        if (canEdit) setTool?.('text');
+        return;
+      }
+      if (lower === 'n' && !e.shiftKey) {
+        if (canEdit) onCreateSticky?.();
+        return;
+      }
       if (e.key === 'Escape') {
+        setTool?.('select');
         selection.clear();
         return;
       }

@@ -19,7 +19,7 @@ describe('toolbars', () => {
 
   it('TC-28 the Sticky note button creates a centred note in edit mode', () => {
     const { doc } = setupBoard();
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     const notes = stickies(doc);
     expect(notes).toHaveLength(1);
     // jsdom window is 1024x768 and the starting camera centres the origin on screen.
@@ -31,8 +31,8 @@ describe('toolbars', () => {
 
   it('the Sticky note button has the specified tooltip', () => {
     setupBoard();
-    expect(screen.getByRole('button', { name: 'Sticky note' }).getAttribute('title')).toBe(
-      'Sticky note – or double-click the board',
+    expect(screen.getByRole('button', { name: 'Sticky note (N)' }).getAttribute('title')).toBe(
+      'Sticky note (N) – or double-click the board',
     );
   });
 

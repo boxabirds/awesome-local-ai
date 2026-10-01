@@ -1,45 +1,11 @@
-import type * as Y from 'yjs';
 import { STICKY_COUNTER_THRESHOLD_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX, STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { applyTextDiff, clampToLimit as sharedClamp } from '../../shared/text-edit';
 
-function isHigh(code: number): boolean {
-  return code >= 0xd800 && code <= 0xdbff;
-}
-function isLow(code: number): boolean {
-  return code >= 0xdc00 && code <= 0xdfff;
-}
-
-/** Keeps at most `max` UTF-16 units without cutting a surrogate pair in half. */
+/** Story 2 callers keep the sticky limit as the default; the shared implementation lives in text-edit.ts. */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (next.length <= max) return next;
-  let end = max;
-  if (end > 0 && isHigh(next.charCodeAt(end - 1))) end -= 1;
-  return next.slice(0, end);
+  return sharedClamp(next, max);
 }
-
-/** Applies the smallest single delete and/or insert that turns the Y.Text into `next`. */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const prev = ytext.toString();
-  if (prev === next) return;
-  const max = Math.min(prev.length, next.length);
-  let prefix = 0;
-  while (prefix < max && prev.charCodeAt(prefix) === next.charCodeAt(prefix)) prefix++;
-  if (prefix > 0 && isHigh(prev.charCodeAt(prefix - 1))) prefix--;
-  let suffix = 0;
-  while (
-    suffix < max - prefix &&
-    prev.charCodeAt(prev.length - 1 - suffix) === next.charCodeAt(next.length - 1 - suffix)
-  )
-    suffix++;
-  if (suffix > 0 && isLow(prev.charCodeAt(prev.length - suffix))) suffix--;
-  const removeCount = prev.length - prefix - suffix;
-  const insert = next.slice(prefix, next.length - suffix);
-  const apply = () => {
-    if (removeCount > 0) ytext.delete(prefix, removeCount);
-    if (insert.length > 0) ytext.insert(prefix, insert);
-  };
-  if (ytext.doc) ytext.doc.transact(apply, origin);
-  else apply();
-}
+export { applyTextDiff };
 
 export function counterVisible(length: number): boolean {
   return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;

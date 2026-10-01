@@ -101,7 +101,7 @@ test.describe('Two-person workshop', () => {
     await alex.page.keyboard.press('Delete');
     await expectEventually('note gone for Sam', () => notes(sam.page).count(), 0);
     await expect(sam.page.getByRole('textbox')).toHaveCount(0);
-    await sam.page.keyboard.type('still typing');
+    await sam.page.keyboard.type('abcdefg') // no V, T or N: those are tool shortcuts once nothing is being edited;
     await expect(notes(sam.page)).toHaveCount(0);
     expect(sam.consoleErrors).toEqual([]);
     expect(alex.consoleErrors).toEqual([]);

@@ -40,7 +40,7 @@ describe('TC-23: a board that failed to load cannot be edited', () => {
     const before = JSON.stringify(snapshot(doc));
 
     fireEvent.doubleClick(viewport(), { clientX: 300, clientY: 300 });
-    const button = screen.getByRole('button', { name: 'Sticky note' }) as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     fireEvent.click(button);
 

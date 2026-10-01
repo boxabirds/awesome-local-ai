@@ -13,7 +13,7 @@ const HANDLES: { handle: Handle; label: string; fx: number; fy: number; cursor: 
   { handle: 'se', label: 'bottom-right', fx: 1, fy: 1, cursor: 'nwse-resize' },
   { handle: 's', label: 'bottom', fx: 0.5, fy: 1, cursor: 'ns-resize' },
   { handle: 'sw', label: 'bottom-left', fx: 0, fy: 1, cursor: 'nesw-resize' },
-  { handle: 'w', label: 'left', fx: 0, fy: 0.5, cursor: 'nesw-resize' },
+  { handle: 'w', label: 'left', fx: 0, fy: 0.5, cursor: 'ew-resize' },
 ];
 
 const BOX_COLOR = '#1e88e5';
@@ -39,6 +39,8 @@ export function SelectionOverlay(props: {
   const box = selectionScreenBox(ids, snapshot, camera);
   if (!box) return null;
   const resizable = props.editable !== false && snapshot.some((o) => ids.has(o.id) && getObjectType(o.type)?.resizable);
+  const horizontalOnly = snapshot.filter((o) => ids.has(o.id)).every((o) => getObjectType(o.type)?.handles === 'horizontal');
+  const handles = horizontalOnly ? HANDLES.filter((h) => h.handle === 'e' || h.handle === 'w') : HANDLES;
 
   return (
     <div
@@ -56,7 +58,7 @@ export function SelectionOverlay(props: {
       }}
     >
       {resizable &&
-        HANDLES.map((h) => (
+        handles.map((h) => (
           <div
             key={h.handle}
             role="button"

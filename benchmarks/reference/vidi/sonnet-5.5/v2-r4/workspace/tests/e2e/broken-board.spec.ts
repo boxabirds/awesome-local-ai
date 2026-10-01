@@ -21,7 +21,7 @@ test('TC-24 broken board: honest failure, no editing, recovery without a reload'
   await expect(notes).toHaveCount(0);
 
   // Not an editable empty board.
-  await expect(page.getByRole('button', { name: 'Sticky note' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Sticky note (N)' })).toBeDisabled();
   await page.mouse.dblclick(600, 400);
   await page.keyboard.type('should not appear');
   await expect(notes).toHaveCount(0);
@@ -31,7 +31,7 @@ test('TC-24 broken board: honest failure, no editing, recovery without a reload'
   expect((await hook('repair')).ok()).toBe(true);
   await expect(notes).toHaveCount(25, { timeout: LOAD_RETRY_MIN_INTERVAL_MS + 25_000 });
   await expect(page.getByText(MESSAGE)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Sticky note' })).toBeEnabled();
-  await page.getByRole('button', { name: 'Sticky note' }).click();
+  await expect(page.getByRole('button', { name: 'Sticky note (N)' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Sticky note (N)' }).click();
   await expect(notes).toHaveCount(26);
 });
