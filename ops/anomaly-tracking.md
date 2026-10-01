@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 14:15 UTC
+**Last updated:** 2026-10-01 17:05 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -41,6 +41,7 @@ test that would reproduce it. Details under the entries.
 | # | What | Fix / reproducing test |
 |---|---|---|
 | A-016 | Survived the automatic repair (13:51): on a restarted story the conversation profile still reports the killed call as the longest tool across the harness's downtime (1389 s, 1460 s) and raises a false `hung-command`; the run's `interventions.md` still omits both swap-guard stops and the restarts. (The accounting check itself is fixed.) | conversation.py: end an attempt's open tool call at that attempt's end, as accounting v4 does; drive/attempts: write a guard stop and each restart to interventions. Test: a two-attempt story whose attempt 1 ends in a guard-killed call → no `hung-command`, longest tool within one attempt, two interventions listed |
+| A-035 | Sonnet v2-r5 has no score of record: story 12's live held-out scoring ran 0 tests (`runner_exit` 1, 0/0, no `harness_fault`), and finalize's guard then flagged the good re-score (74/75) for differing from that void live score | gates: a runner that exits non-zero with 0 tests is a harness fault, never 0/0 (the rule of `40a02fd4` missed this shape); finalize guard: a live score with total 0 is not comparable. Test: an accept result with build 0, runner exit 1, no tests → `harness_fault` set; guard with live 0/0 → not flagged |
 | A-034 | CI red on main from a flaky agent-sandbox test: `fixed_port()` checks a port is free by binding and releasing it, and the test binds it again later (`pong_server_on(...).unwrap()`), so anything taking the port in between panics the test | have `fixed_port()` return the bound listener and pass it on, instead of a port number; test: run that test 50 times in parallel with a process grabbing ports in the range |
 | A-031 | dbench spends all three restarts within minutes on a failure that cannot change (a pull that fails on unmerged files, a model server that exits at start, a deterministic traceback) | stop after the same exit and the same last log line twice; test in dbench with a harness that always exits 1 |
 | A-011 | The M5 Max's private suite checkout is detached 31 commits past the tag with 6 private record commits not on the private main; mlx v2-r2 will end without a score of record until it is repaired | owner's repair when mlx v2-r2 ends; then the automatic re-score should produce the score. Test: `pack-version.sh` on a detached checkout at the tag's tree reports the tag |
@@ -51,6 +52,22 @@ test that would reproduce it. Details under the entries.
 ---
 
 ## Open — needs someone
+
+### A-035 — Sonnet 5.5 v2-r5 finished without a score of record: live scoring of story 12 ran no tests
+- **First seen:** 2026-10-01 16:56 (run finished earlier in the afternoon) · **Last seen:** 2026-10-01 17:05
+- **Where:** reference/sonnet-5.5 v2-r5, the M2 MacBook Air; feed: `rescore_flagged` and `not_scored`.
+- **Observed:** story 12's record: build exit 0, `runner_exit` 1, held-out 0/0 (no per-story counts),
+  `harness_fault` null, status DONE; the job log prints "accept 0/0". Story 11 had been 69/70. Finalize then
+  re-scored the final commit at 74/75 and its guard flagged it: "differs from the live score of the same
+  code (0/0) by 74 tests, more than 3; the re-score ran 75 tests where the live scoring ran 0"
+  (`rescore: flagged`, 2 attempts, `needs_person` false). So the run has no score, with a sound re-score
+  set aside.
+- **Bucket:** internal bug — **confidence high**: two faults. The live held-out runner died before
+  running a test and was recorded as a 0/0 score instead of a harness fault (the case `40a02fd4` was meant
+  to close); and the guard compares against a live score that has no tests in it.
+- **Status:** open. Nothing will change it by itself (the guard flags every retry the same way).
+- **Suggested action:** fix both (see the table above), then re-run finalize for v2-r5; why the runner
+  died on story 12 wasn't looked at (the laptop was loaded: A-022).
 
 ### A-011 — Runs end with no score of record: the suite checkout is one commit off its tag
 - **First seen:** 2026-10-01 07:26 · **Last seen:** 2026-10-01 09:12 (still true for the running jobs)
@@ -581,19 +598,19 @@ By bucket (A-018 is a scheduling flag and has no bucket):
 
 | Bucket | Open: needs someone | Open: watched | Explained / resolved | Total |
 |---|---|---|---|---|
-| internal bug | 0 | 6 (A-016, A-020, A-028, A-029, A-031, A-034) | 11 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-015, A-023, A-025, A-032) | 17 |
+| internal bug | 1 (A-035) | 6 (A-016, A-020, A-028, A-029, A-031, A-034) | 11 (A-001, A-002, A-003, A-004, A-008, A-009, A-014, A-015, A-023, A-025, A-032) | 18 |
 | genuine LLM behaviour | 0 | 4 (A-010, A-012, A-013, A-026) | 3 (A-006, A-007, A-017) | 7 |
 | stuck job | 0 | 0 | 0 | 0 |
 | broken pipeline | 1 (A-011) | 1 (A-030) | 1 (A-024) | 3 |
 | environment | 1 (A-022) | 1 (A-005) | 0 | 2 |
 | unexplained | 0 | 2 (A-019, A-021) | 0 | 2 |
-| **Total** | **2** (+A-018) | **14** | **15** | **31** (+A-018, A-027, A-033) |
+| **Total** | **3** (+A-018) | **14** | **15** | **32** (+A-018, A-027, A-033) |
 
 By combination (an anomaly is listed under the one it mainly concerns):
 
 | Combination | Machine | Anomalies |
 |---|---|---|
-| reference/sonnet-5.5 | the M2 MacBook Air | A-002, A-003, A-004, A-010, A-015, A-020, A-022 |
+| reference/sonnet-5.5 | the M2 MacBook Air | A-002, A-003, A-004, A-010, A-015, A-020, A-022, A-035 |
 | reference/opus-5.5 | the M2 MacBook Air | A-021 |
 | qwen 3.8 flash-next, mlxserve-pi | the M5 Max | A-001, A-005, A-016, A-017 (and A-011, A-018) |
 | qwen 3.8 flash-next, gufo-pi | the Strix Halo box | A-006, A-007, A-011, A-013, A-014, A-019 (and A-018) |
