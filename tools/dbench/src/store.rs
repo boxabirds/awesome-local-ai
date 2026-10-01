@@ -92,6 +92,7 @@ mod tests {
             record: false,
             server_env: Default::default(),
             from_run: None,
+            from_story: None,
         };
         let mut job = Job::new("j1".into(), spec, 100);
         job.attempt = 2;

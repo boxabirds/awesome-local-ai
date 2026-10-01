@@ -79,8 +79,13 @@ pub enum Cmd {
         /// Known-good mode: run --stories on a finished run's code as it was when the story before
         /// ended. A run directory relative to the repo, e.g. combinations/…/benchmarks/vidi/v2-r1;
         /// the node needs its workspace.bundle and metrics.json. The result is diagnostic.
-        #[arg(long, requires = "stories")]
+        #[arg(long)]
         from_run: Option<String>,
+        /// With --from-run (instead of --stories): run this story and every later story of the
+        /// scope, each built on the one before, starting from the reference run's code as it was
+        /// when the story before this one ended. A positive story number.
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+        from_story: Option<u32>,
         #[arg(long)]
         run_id: String,
         #[arg(long, value_enum, default_value = "pi")]

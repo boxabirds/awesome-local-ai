@@ -653,6 +653,9 @@ fn print_job_detail(node: &str, v: &JobView) {
     if let Some(from_run) = &j.spec.from_run {
         println!("from run  {from_run}");
     }
+    if let Some(n) = j.spec.from_story {
+        println!("from story  {n}");
+    }
     println!("attempts  {}", j.attempt);
     if let Some(h) = &j.harness {
         println!("harness   {}", h.describe());

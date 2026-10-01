@@ -109,6 +109,10 @@ pub struct JobSpec {
     /// as it was when the story before ended (`--from-run`). Part of the job's identity.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub from_run: Option<String>,
+    /// With `from_run`: run this story and every later story of the scope, each built on the one
+    /// before in this run (`--from-story`), instead of `stories`. Part of the job's identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_story: Option<u32>,
 }
 
 impl JobSpec {
@@ -154,8 +158,21 @@ impl JobSpec {
                 ));
             }
             // Which stories, and how many, is the harness's rule; that there are some is ours.
-            if self.stories.is_none() {
-                return Err("from_run needs stories: the stories to run on the reference run's code".into());
+            if self.stories.is_none() && self.from_story.is_none() {
+                return Err("from_run needs stories (--stories: the stories to run on the reference run's \
+                            code) or from_story (--from-story: that story and every later one)"
+                    .into());
+            }
+        }
+        if let Some(n) = self.from_story {
+            if n == 0 {
+                return Err("from_story must be a story number from 1".into());
+            }
+            if self.from_run.is_none() {
+                return Err("from_story needs from_run (--from-run): the finished run whose code the stories build on".into());
+            }
+            if self.stories.is_some() {
+                return Err("from_story is for story N and every later one; it cannot be given with stories (--stories)".into());
             }
         }
         Ok(())
@@ -219,7 +236,7 @@ pub fn reference_run_problem(results_root: &Path, from_run: &str) -> Option<Stri
 }
 
 /// Arguments for `bash`:
-/// `<run.sh> <install_id> [--pack P] --run-id R [--scope X] [--only 1,2] [--from-run DIR] --client C [--record]`.
+/// `<run.sh> <install_id> [--pack P] --run-id R [--scope X] [--only 1,2] [--from-run DIR [--from-story N]] --client C [--record]`.
 /// The reference run is given as an absolute path in `results_root` (the node's checkout), so it
 /// names the same directory whether the harness runs from that checkout or from a release.
 pub fn harness_args(entry: &Entry, spec: &JobSpec, results_root: &Path) -> Vec<OsString> {
@@ -242,6 +259,10 @@ pub fn harness_args(entry: &Entry, spec: &JobSpec, results_root: &Path) -> Vec<O
     if let Some(from_run) = &spec.from_run {
         a.push("--from-run".into());
         a.push(results_root.join(from_run).into());
+    }
+    if let Some(n) = spec.from_story {
+        a.push("--from-story".into());
+        a.push(n.to_string().into());
     }
     a.push("--client".into());
     a.push(spec.client.as_str().into());
@@ -401,6 +422,7 @@ mod tests {
             record: true,
             server_env: Default::default(),
             from_run: None,
+            from_story: None,
         }
     }
 
@@ -567,6 +589,84 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&root);
         let _ = std::fs::remove_dir_all(&outside);
+    }
+
+    fn from_story_spec() -> JobSpec {
+        let mut s = spec();
+        s.from_run = Some(REFERENCE_RUN.into());
+        s.from_story = Some(FROM_STORY);
+        s
+    }
+
+    const FROM_STORY: u32 = 2;
+
+    #[test]
+    fn a_spec_round_trips_with_and_without_a_first_story() {
+        let text = serde_json::to_string(&spec()).unwrap();
+        assert!(!text.contains("from_story"), "{text}");
+        let old: JobSpec = serde_json::from_str(
+            r#"{"install_id":"x","pack":"p","run_id":"r","client":"pi","record":true}"#,
+        )
+        .unwrap();
+        assert_eq!(old.from_story, None);
+        let fs = from_story_spec();
+        let text = serde_json::to_string(&fs).unwrap();
+        assert!(text.contains(r#""from_story":2"#), "{text}");
+        let back: JobSpec = serde_json::from_str(&text).unwrap();
+        assert_eq!(back, fs);
+        assert_eq!(back.validate(), Ok(()));
+    }
+
+    #[test]
+    fn a_first_story_reaches_the_harness_instead_of_only() {
+        let generic = Entry {
+            script: "/release/benchmarks/spec-bench/harness/run.sh".into(),
+            uses_pack_flag: true,
+        };
+        let got = args_of(&generic, &from_story_spec());
+        assert!(!got.contains(&"--only".to_string()), "{got:?}");
+        let at = got.iter().position(|a| a == "--from-run").unwrap();
+        assert_eq!(got[at + 1], format!("{RESULTS_ROOT}/{REFERENCE_RUN}"));
+        assert_eq!(got[at + 2], "--from-story");
+        assert_eq!(got[at + 3], FROM_STORY.to_string());
+        assert_eq!(got[at + 4], "--client");
+        assert!(!args_of(&generic, &known_good()).contains(&"--from-story".to_string()));
+    }
+
+    #[test]
+    fn a_first_story_needs_a_reference_run_and_excludes_stories() {
+        let mut no_run = from_story_spec();
+        no_run.from_run = None;
+        let e = no_run.validate().unwrap_err();
+        assert!(e.contains("from_story") && e.contains("from_run"), "{e}");
+
+        let mut with_stories = from_story_spec();
+        with_stories.stories = Some(vec![FROM_STORY]);
+        let e = with_stories.validate().unwrap_err();
+        assert!(e.contains("from_story") && e.contains("stories"), "{e}");
+
+        let mut zero = from_story_spec();
+        zero.from_story = Some(0);
+        let e = zero.validate().unwrap_err();
+        assert!(e.contains("from_story"), "{e}");
+
+        // A reference run alone, with neither stories nor a first story, is still refused.
+        let mut neither = from_story_spec();
+        neither.from_story = None;
+        assert!(neither.validate().is_err());
+    }
+
+    #[test]
+    fn the_first_story_is_part_of_the_job_identity() {
+        let a = from_story_spec();
+        assert_eq!(submit_decision(Some(&a), &a.clone()), SubmitOutcome::Existing);
+        let mut other = a.clone();
+        other.from_story = Some(FROM_STORY + 1);
+        assert_eq!(submit_decision(Some(&a), &other), SubmitOutcome::Conflict);
+        let mut none = a.clone();
+        none.from_story = None;
+        none.stories = Some(vec![FROM_STORY]);
+        assert_eq!(submit_decision(Some(&a), &none), SubmitOutcome::Conflict);
     }
 
     #[test]
