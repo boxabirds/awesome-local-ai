@@ -1,0 +1,17 @@
+{
+  "skipped": false,
+  "build_exit": 0,
+  "runner_exit": 1,
+  "passed": 0,
+  "total": 0,
+  "on_partial": {
+    "passed": 0,
+    "total": 0
+  },
+  "by_story": {},
+  "setup_fallbacks": {
+    "tests": 0,
+    "by_owner": {}
+  },
+  "harness_fault": null
+}

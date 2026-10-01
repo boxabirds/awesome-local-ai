@@ -4,7 +4,12 @@ import { createText, setTextSize } from '../../shared/objects/text';
 import { remeasureText } from '../objects/useTextBoxSync';
 import { sharedMeasurer } from '../objects/textLayout';
 import { localIdentityId } from './localIdentity';
-import { useActiveTool } from '../tools/useActiveTool';
+import { useActiveTool, type ToolId } from '../tools/useActiveTool';
+import { IMAGE_ACCEPTED_TYPES } from '../../shared/config';
+import { DropHighlight } from '../images/DropHighlight';
+import { ImageContext, type ImageContextValue } from '../images/ImageContext';
+import { useImageInsert } from '../images/useImageInsert';
+import { Toast } from '../ui/Toast';
 import { ShapeTool } from '../tools/ShapeTool';
 import { PenTool } from '../tools/PenTool';
 import { PenToolbar } from '../tools/PenToolbar';
@@ -62,6 +67,18 @@ export function Board({ boardId }: { boardId: string }) {
     onGestureStart: boundary, onGestureEnd: boundary,
   });
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({ canEdit: editable, select: sel.select });
+  const images = useImageInsert({
+    doc, boardId, camera: liveCamera, connection, identityId: localIdentityId(), undo: undoCtl,
+    viewSize: () => apiRef.current?.size ?? { width: window.innerWidth, height: window.innerHeight },
+  });
+  const imageContext = useMemo<ImageContextValue>(() => ({
+    identityId: localIdentityId(), progress: images.progress, canRetry: images.canRetry, retry: images.retry,
+  }), [images.progress, images.canRetry, images.retry]);
+  // The Image tool is an action, not a mode: it opens the file picker and the tool stays Select.
+  const chooseTool = (t: ToolId) => {
+    if (t !== 'image') setTool(t);
+    else if (editable) images.openPicker();
+  };
   const pen = usePenOptions();
   const rects = useMemo(() => attachableRects(objects), [objects]);
 
@@ -83,7 +100,7 @@ export function Board({ boardId }: { boardId: string }) {
   };
   useBoardKeys({
     doc, selection: sel, snapshot: objects, canEdit: editable, undo: undoCtl,
-    tools: { tool, setTool, createSticky: createStickyAtCentre },
+    tools: { tool, setTool: chooseTool, createSticky: createStickyAtCentre },
   });
   const createTextAt = (world: Point) => {
     if (!editable) return;
@@ -111,11 +128,16 @@ export function Board({ boardId }: { boardId: string }) {
   };
 
   return (
+    <ImageContext.Provider value={imageContext}>
     <BoardViewport
       onDoubleClickEmpty={createAt}
       textMode={tool === 'text'}
       onTextClick={createTextAt}
       onEmptyClick={sel.clear}
+      onDragEnter={images.onDragEnter}
+      onDragLeave={images.onDragLeave}
+      onDragOver={images.onDragOver}
+      onDrop={images.onDrop}
       objects={objects}
       onMarqueeSelect={(ids) => sel.setMany(ids, true)}
       overlay={(api) => (
@@ -139,7 +161,7 @@ export function Board({ boardId }: { boardId: string }) {
             disabled={!editable}
             undoButtons={<UndoButtons {...undoState} />}
             tool={tool}
-            onTool={setTool}
+            onTool={chooseTool}
             onCreateSticky={createStickyAtCentre}
             shapeKind={shapeKind}
             onShapeKind={setShapeKind}
@@ -165,6 +187,17 @@ export function Board({ boardId }: { boardId: string }) {
               onCreated={toolCreated}
             />
           )}
+          <DropHighlight active={images.dragActive} />
+          <input
+            ref={images.inputRef} type="file" hidden multiple accept={IMAGE_ACCEPTED_TYPES.join(',')}
+            aria-label="Choose images" data-testid="image-file-input"
+            onChange={(e) => {
+              const picked = Array.from(e.target.files ?? []);
+              e.target.value = '';
+              images.onPickerChange(picked);
+            }}
+          />
+          <Toast />
           <ConnectionStatus state={connection} />
           <NavigationHint visible={!api.hasNavigated} />
           <ZoomControls
@@ -204,5 +237,6 @@ export function Board({ boardId }: { boardId: string }) {
         });
       }}
     </BoardViewport>
+    </ImageContext.Provider>
   );
 }

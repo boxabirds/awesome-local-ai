@@ -1,3 +1,49 @@
+commit d1d1576e5053cbd2e1a02a03f347802771d790c3
+vidi-agent  Thu Oct 1 15:31:21 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                |  12 +++
+ src/client/board/Board.tsx              |  40 +++++++-
+ src/client/board/Toolbar.tsx            |  11 ++
+ src/client/board/useBoardKeys.ts        |   3 +-
+ src/client/canvas/BoardViewport.tsx     |  11 +-
+ src/client/images/DropHighlight.tsx     |   4 +
+ src/client/images/ImageContext.ts       |  13 +++
+ src/client/images/uploadImage.ts        |  30 ++++++
+ src/client/images/useImageInsert.ts     | 175 ++++++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts      |  27 +++++
+ src/client/objects/ImageObject.tsx      | 134 ++++++++++++++++++++++++
+ src/client/objects/registry.tsx         |  12 ++-
+ src/client/styles.css                   |  23 +++++
+ src/client/ui/Toast.tsx                 |  33 ++++++
+ src/shared/board-model.ts               |  17 ++++
+ src/shared/config.ts                    |  10 ++
+ src/shared/image-format.ts              |  22 ++++
+ src/shared/objects/image.ts             | 104 +++++++++++++++++++
+ src/worker/assets.ts                    |  48 +++++++++
+ src/worker/index.ts                     |  14 ++-
+ tests/component/ImageObject.test.tsx    | 122 ++++++++++++++++++++++
+ tests/component/useImageInsert.test.tsx | 159 +++++++++++++++++++++++++++++
+ tests/e2e/helpers/drop-files.ts         |  23 +++++
+ tests/e2e/images.spec.ts                | 121 ++++++++++++++++++++++
+ tests/fixtures/images/animated.gif      | Bin 0 -> 313 bytes
+ tests/fixtures/images/index.ts          |  12 +++
+ tests/fixtures/images/inline.ts         |  16 +++
+ tests/fixtures/images/not-an-image.png  |   4 +
+ tests/fixtures/images/photo.jpg         | Bin 0 -> 79834 bytes
+ tests/fixtures/images/screenshot.png    | Bin 0 -> 17196 bytes
+ tests/fixtures/images/script.svg        |   1 +
+ tests/fixtures/images/small.png         | Bin 0 -> 325550 bytes
+ tests/fixtures/images/small.webp        | Bin 0 -> 3166 bytes
+ tests/fixtures/images/truncated.png     | Bin 0 -> 200 bytes
+ tests/integration/assets.test.ts        |  84 +++++++++++++++
+ tests/unit/image-format.test.ts         |  34 +++++++
+ tests/unit/image-model.test.ts          | 100 ++++++++++++++++++
+ tests/unit/validate-files.test.ts       |  42 ++++++++
+ wrangler.jsonc                          |   1 +
+ 39 files changed, 1455 insertions(+), 7 deletions(-)
 commit 9a9416ec1aa61211379967e8ae931bb2521df13a
 vidi-agent  Thu Oct 1 15:07:48 2026 +0100
 

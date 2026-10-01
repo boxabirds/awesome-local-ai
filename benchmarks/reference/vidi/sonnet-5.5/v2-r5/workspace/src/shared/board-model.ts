@@ -7,6 +7,7 @@ import { rectContains, type Point, type Rect } from './geometry';
 import { connectorBBox, resolveEndpoints, type ConnectorSnap } from './geometry/connector-geometry';
 import { detachConnectorsTo, parseEndpoint } from './objects/connector';
 import { isPenColor, isPenThickness, type StrokeSnap } from './objects/stroke';
+import { isImageStatus, type ImageSnap } from './objects/image';
 import { isFillColor, isShapeKind, isStrokeColor, type ShapeSnap } from './objects/shape';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
@@ -281,6 +282,22 @@ export function snapshotObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
           color: isPenColor(color) ? color : 'black', thickness: isPenThickness(thickness) ? thickness : 'medium',
         } as StrokeSnap);
       }
+    } else if (type === 'image') {
+      const status = obj.get('status');
+      const assetKey = obj.get('assetKey');
+      const started = obj.get('uploadStartedAt');
+      const contentType = obj.get('contentType');
+      const uploaderId = obj.get('uploaderId');
+      out.push({
+        ...base, type: 'image',
+        assetKey: typeof assetKey === 'string' ? assetKey : null,
+        contentType: typeof contentType === 'string' ? contentType : '',
+        naturalWidth: size(obj.get('naturalWidth')) ?? base.width ?? 1,
+        naturalHeight: size(obj.get('naturalHeight')) ?? base.height ?? 1,
+        status: isImageStatus(status) ? status : 'failed',
+        uploadStartedAt: typeof started === 'number' ? started : 0,
+        uploaderId: typeof uploaderId === 'string' ? uploaderId : '',
+      } as ImageSnap);
     } else {
       out.push(base);
     }

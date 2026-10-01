@@ -107,3 +107,15 @@
 - Escape mid-drag unmounts the layer and discards the unfinished stroke (the explicit non-interrupt path); pointercancel / lostpointercapture commit it.
 - Dot: a gesture whose pointer never moved DRAG_THRESHOLD_PX commits a single point. A continuation part holding only its join point is not committed.
 - E2E: `TC-26 full-capacity session` in live-collaboration.spec.ts (story 3) fails in this environment with and without story 11 changes (verified on a clean stash); other chromium e2e pass. Firefox/WebKit are not installed.
+
+## Story 12 decisions
+- R2 binding `ASSETS_BUCKET` (bucket `vidi6-assets`) is added to `wrangler.jsonc`; `wrangler dev` and the Miniflare test pool use local R2, so no remote bucket is needed for tests.
+- The registry component for images is `BoardImage` (in `ImageObject.tsx`); it bridges generic `ObjectProps` to the contract's `ImageObject` through `ImageContext` (progress, canRetry, retry, identity), provided by `Board`.
+- `useImageInsert` returns extras beyond the contract: `onDragEnter/onDragLeave`, `dragActive`, `inputRef`, `onPickerChange`; it takes optional `viewSize`, `undo` (undo boundaries around the add, so one add is one step) and `onPickerDone`.
+- The picker is a persistent hidden `<input type=file data-testid=image-file-input>` in `Board`; the Image tool is an action (the tool stays Select) rather than a mode. Image button is disabled only in load_failed; offline shows the toast.
+- Toasts are a tiny module store (`showToast`) rendered by one `<Toast/>` (role=status, polite). Identical messages are not duplicated; 5 s auto-dismiss.
+- Client type validation uses `File.type`; content is checked by decoding with `createImageBitmap` (failure → type toast) and again by the server's magic-byte sniffing.
+- The unfinished clock is a per-image 30 s interval that only runs while the image is uploading (instead of one shared interval).
+- Image DOM order is by id, so e2e picks images by position, not index.
+- Integration tests use inline fixtures (`tests/fixtures/images/inline.ts`) because workerd cannot read files from disk. Fixture photo/screenshot are small synthetic images (not 3 MB); the 10 MB boundary files are generated.
+- Firefox/WebKit are not installed, so e2e ran in Chromium only (TC-26 is therefore not verified in those browsers).

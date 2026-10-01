@@ -8,6 +8,7 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": true
   },
+  "r2_buckets": [{ "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }],
   "durable_objects": { "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
 }

@@ -2,7 +2,7 @@ import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, registerKnownObjectType, type ObjectSnapshot } from '../../shared/board-model';
 import {
-  CONNECTOR_HIT_TOLERANCE_PX, PEN_THICKNESS_WORLD, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD,
+  CONNECTOR_HIT_TOLERANCE_PX, IMAGE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD,
   STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
@@ -12,6 +12,7 @@ import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { resolveEndpoints, type ConnectorSnap } from '../../shared/geometry/connector-geometry';
 import type { UndoController } from '../board/undo';
 import { ConnectorObject } from './ConnectorObject';
+import { BoardImage } from './ImageObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
@@ -106,6 +107,15 @@ registerObjectType('stroke', {
     return distanceToPolyline(scaledPoints(s), local)
       <= Math.max(PEN_THICKNESS_WORLD[s.thickness] / 2, STROKE_HIT_TOLERANCE_PX / (ctx?.zoom ?? 1));
   },
+});
+
+registerObjectType('image', {
+  Component: BoardImage,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: boundsHitTest,
 });
 
 registerObjectType('connector', {

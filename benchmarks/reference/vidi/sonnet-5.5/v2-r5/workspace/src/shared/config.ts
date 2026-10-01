@@ -80,3 +80,13 @@ export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
 export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+export const IMAGE_MIN_SIZE_WORLD = 16;
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+export const IMAGE_SNIFF_BYTES = 12;

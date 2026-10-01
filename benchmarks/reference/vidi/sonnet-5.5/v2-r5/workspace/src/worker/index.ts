@@ -1,13 +1,16 @@
 import { isValidBoardId } from '../shared/board-id';
 import type { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
+import { handleServe, handleUpload } from './assets';
 import { handleTestHook } from './test-hooks';
 
-export interface Env { BOARD_ROOM: DurableObjectNamespace<BoardRoom>; ASSETS: Fetcher; TEST_HOOKS?: string }
+export interface Env { BOARD_ROOM: DurableObjectNamespace<BoardRoom>; ASSETS: Fetcher; ASSETS_BUCKET: R2Bucket; TEST_HOOKS?: string }
 
 const ROOM_PREFIX = '/api/rooms/';
 const BOARDS_PATH = '/api/boards';
 const BOARD_PREFIX = '/api/boards/';
+const ASSET_PREFIX = '/api/assets/';
+const UPLOAD_ROUTE = /^\/api\/boards\/([^/]+)\/assets$/;
 
 const json = (body: unknown, status: number) => Response.json(body, { status });
 
@@ -26,6 +29,15 @@ export default {
       if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
       const created = await createBoard(env);
       return created.ok ? json({ id: created.id }, 201) : json({ error: created.reason }, 500);
+    }
+    const upload = UPLOAD_ROUTE.exec(url.pathname);
+    if (upload) {
+      if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+      return handleUpload(req, env, upload[1]);
+    }
+    if (url.pathname.startsWith(ASSET_PREFIX)) {
+      if (req.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
+      return handleServe(env, url.pathname.slice(ASSET_PREFIX.length));
     }
     if (url.pathname.startsWith(BOARD_PREFIX)) {
       if (req.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);

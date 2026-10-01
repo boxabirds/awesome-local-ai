@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { MarqueeRect, useMarquee } from '../board/Marquee';
@@ -36,6 +36,11 @@ export function BoardViewport(props: {
   /** While true the board shows a text cursor, does not pan or marquee, and a click reports its world point. */
   textMode?: boolean;
   onTextClick?: (world: Point) => void;
+  /** File drag-and-drop handlers (images); `currentTarget` is the viewport element. */
+  onDragEnter?: (e: DragEvent<HTMLElement>) => void;
+  onDragLeave?: (e: DragEvent<HTMLElement>) => void;
+  onDragOver?: (e: DragEvent<HTMLElement>) => void;
+  onDrop?: (e: DragEvent<HTMLElement>) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>(() => ({
@@ -219,6 +224,10 @@ export function BoardViewport(props: {
             props.onEmptyClick?.();
           }
         }}
+        onDragEnter={props.onDragEnter}
+        onDragLeave={props.onDragLeave}
+        onDragOver={props.onDragOver}
+        onDrop={props.onDrop}
         onPointerCancel={() => { emptyPress.current = null; marquee.cancel(); api.endPan(); }}
         onLostPointerCapture={() => { marquee.cancel(); api.endPan(); }}
       >
