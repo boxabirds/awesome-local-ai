@@ -21,8 +21,10 @@ const BIN: &str = env!("CARGO_BIN_EXE_agent-sandbox");
 const SANDBOX_EXEC: &str = "/usr/bin/sandbox-exec";
 const BASH: &str = "/bin/bash";
 const ANY_PORT: u16 = 0;
-/// Where fixed_port() looks for free ports: below the range the kernel picks from for port 0
-/// (49152 and up), and away from the ports dev servers and the harness use by habit.
+/// Where fixed_listener() looks for free ports: away from the ports dev servers and the harness
+/// use by habit, and on macOS below the range the kernel picks from for port 0 (49152 and up).
+/// On Linux that range is 32768 to 60999 by default, so there a port from here can be handed to
+/// any bind to port 0 the moment it is free: one more reason a chosen port is never released.
 const FIXED_PORT_BASE: u16 = 41_100;
 const FIXED_PORT_TRIES: u16 = 800;
 /// The kernel's range for a bind to port 0 unless a machine was reconfigured (IANA dynamic ports).
@@ -156,17 +158,30 @@ fn real_home() -> PathBuf {
     PathBuf::from(std::env::var_os("HOME").expect("HOME is set for the test run"))
 }
 
-/// A free loopback port that the kernel would not hand out for port 0, different on every call:
-/// what a harness gives a run for its dev server.
-fn fixed_port() -> u16 {
+/// A listener bound to a fixed loopback port (not one the kernel picked for port 0), a different
+/// port on every call. The port is taken from the moment it is chosen: whoever serves on it is
+/// handed this listener, never the number to bind again, because anything on the machine can take
+/// a port between a bind that only checked it and the bind that uses it.
+fn fixed_listener() -> TcpListener {
     static NEXT: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
     for _ in 0..FIXED_PORT_TRIES {
         let port = FIXED_PORT_BASE + NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        if TcpListener::bind((Ipv4Addr::LOCALHOST, port)).is_ok() {
-            return port;
+        if let Ok(listener) = TcpListener::bind((Ipv4Addr::LOCALHOST, port)) {
+            return listener;
         }
     }
     panic!("no free port in {FIXED_PORT_TRIES} tries from {FIXED_PORT_BASE}");
+}
+
+/// A fixed port for the sandboxed command itself: what a harness gives a run for its dev server.
+/// Only for a port the test names in a flag or the command binds. The command is another
+/// process, so no listener can be handed to it and the port is free until it binds; a test
+/// that serves on a fixed port itself uses fixed_listener().
+fn port_for_the_command() -> u16 {
+    fixed_listener()
+        .local_addr()
+        .expect("a bound listener has an address")
+        .port()
 }
 
 /// Playwright's browsers as the harness provides them, if this machine has any.
@@ -313,13 +328,16 @@ fn quoted(p: &Path) -> String {
 }
 
 /// A server on `addr`, on a port the kernel picks, that answers each line with "pong".
+/// None when `addr` cannot be bound on this machine.
 fn pong_server(addr: IpAddr) -> Option<SocketAddr> {
-    pong_server_on(addr, ANY_PORT)
+    TcpListener::bind((addr, ANY_PORT)).ok().map(serve_pong)
 }
 
-fn pong_server_on(addr: IpAddr, port: u16) -> Option<SocketAddr> {
-    let listener = TcpListener::bind((addr, port)).ok()?;
-    let bound = listener.local_addr().ok()?;
+/// Serves "pong" on a listener that is already bound, and says where.
+fn serve_pong(listener: TcpListener) -> SocketAddr {
+    let bound = listener
+        .local_addr()
+        .expect("a bound listener has an address");
     std::thread::spawn(move || {
         for conn in listener.incoming().flatten() {
             let mut line = String::new();
@@ -329,7 +347,7 @@ fn pong_server_on(addr: IpAddr, port: u16) -> Option<SocketAddr> {
             }
         }
     });
-    Some(bound)
+    bound
 }
 
 /// bash: send a line to host:port and print the line that comes back.
@@ -339,6 +357,42 @@ fn ping_script(addr: SocketAddr) -> String {
         addr.ip(),
         addr.port()
     )
+}
+
+// ---------- the tests' own servers ----------
+
+/// CI, 1 Oct 2026: a_host_loopback_port_that_was_not_named_is_unreachable panicked because the
+/// fixed port it had chosen was taken before it served on it. Here the taker is this test.
+#[test]
+fn a_fixed_port_cannot_be_taken_between_choosing_it_and_serving_on_it() {
+    let loopback = IpAddr::V4(Ipv4Addr::LOCALHOST);
+    let chosen = fixed_listener();
+    let port = chosen.local_addr().unwrap().port();
+    let taker = TcpListener::bind((loopback, port));
+    let server = serve_pong(chosen);
+    assert!(
+        taker.is_err(),
+        "port {port} was free for anyone to take after it was chosen"
+    );
+    assert_eq!(server.port(), port);
+    let mut conn = TcpStream::connect_timeout(&server, ONLINE_TIMEOUT).unwrap();
+    conn.write_all(b"ping\n").unwrap();
+    let mut answer = String::new();
+    BufReader::new(conn).read_line(&mut answer).unwrap();
+    assert_eq!(answer, "pong\n", "the server on port {port}");
+}
+
+#[test]
+fn fixed_ports_differ_and_are_not_the_kernels_choice_for_port_0() {
+    let (a, b) = (fixed_listener(), fixed_listener());
+    let (a, b) = (
+        a.local_addr().unwrap().port(),
+        b.local_addr().unwrap().port(),
+    );
+    assert_ne!(a, b);
+    for port in [a, b, port_for_the_command()] {
+        assert!((FIXED_PORT_BASE..FIXED_PORT_BASE + FIXED_PORT_TRIES).contains(&port));
+    }
 }
 
 // ---------- the policy as printed ----------
@@ -899,7 +953,7 @@ fn the_command_can_serve_and_reach_a_port_given_to_it() {
         return;
     }
     let bench = Bench::new();
-    let port = fixed_port();
+    let port = port_for_the_command();
     let out = finish(
         bench.sandboxed(
             &["--agent-ports", &format!("{port}-{}", port + 1)],
@@ -948,8 +1002,8 @@ fn macos_a_port_that_was_not_given_cannot_be_served_on() {
         return;
     }
     let bench = Bench::new();
-    let given = fixed_port();
-    let other = fixed_port();
+    let given = port_for_the_command();
+    let other = port_for_the_command();
     for port in [other, ANY_PORT] {
         let control = finish(
             bench.unsandboxed(&["node", "-e", &serve_and_fetch_script(port)]),
@@ -984,7 +1038,7 @@ fn a_host_loopback_port_that_was_not_named_is_unreachable() {
     let bench = Bench::new();
     let loopback = IpAddr::V4(Ipv4Addr::LOCALHOST);
     let named = pong_server(loopback).unwrap();
-    let own = fixed_port();
+    let own = port_for_the_command();
     let extra = [
         "--host-port",
         &named.port().to_string(),
@@ -993,10 +1047,7 @@ fn a_host_loopback_port_that_was_not_named_is_unreachable() {
         "--preset",
         "npm",
     ];
-    for server in [
-        pong_server(loopback).unwrap(),
-        pong_server_on(loopback, fixed_port()).unwrap(),
-    ] {
+    for server in [pong_server(loopback).unwrap(), serve_pong(fixed_listener())] {
         let control = bench.bash_outside(&ping_script(server));
         assert_eq!(
             stdout(&control),
@@ -1031,7 +1082,7 @@ fn macos_ephemeral_ports_open_that_range_and_no_fixed_port() {
     }
     let bench = Bench::new();
     let loopback = IpAddr::V4(Ipv4Addr::LOCALHOST);
-    let fixed = pong_server_on(loopback, fixed_port()).unwrap();
+    let fixed = serve_pong(fixed_listener());
     let out = bench.bash(&["--ephemeral-ports"], &ping_script(fixed));
     assert!(
         !out.status.success() && !stdout(&out).contains("pong"),
@@ -1289,7 +1340,10 @@ fn online_the_harness_workload_installs_builds_serves_and_loads_in_chromium() {
     }
     // The app's port and wrangler's inspector port are the run's own; workerd and miniflare also
     // bind ports the kernel picks and connect to them, which needs --ephemeral-ports.
-    let (port, inspector) = (fixed_port().to_string(), fixed_port().to_string());
+    let (port, inspector) = (
+        port_for_the_command().to_string(),
+        port_for_the_command().to_string(),
+    );
     extra.extend([
         "--agent-ports",
         &port,
