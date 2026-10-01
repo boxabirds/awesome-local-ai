@@ -33,7 +33,7 @@ const job = (id: string, status: string, updatedAt: number | null, reason = "", 
 const score = (passed: number | null, total: number | null): Score => ({ passed, total, flaky: 0, at: "2026-09-30T18:30:00Z" });
 
 const row = (over: Partial<Row> = {}): Row => ({
-  pack: "vidi", stack: "qwen/x/pi", runId: "r1", dir: "d", node: "node-a", host: "h", machine: "node-a", label: "x pi",
+  pack: "vidi", stack: "qwen/x/pi", runId: "r1", dir: "d", node: "node-a", host: "h", machine: "node-a", label: "x pi", client: "pi",
   packVersion: SUITE, family: "vidi-v2", suite: SUITE, state: "finished", stateAt: "", status: "finished",
   storiesWorking: { working: 0, scope: 0, squares: [] },
   usage: { outTokens: null, inTokens: null, readTokens: null, calls: null, tokS: null, decodeTokS: null, prefillTokS: null },

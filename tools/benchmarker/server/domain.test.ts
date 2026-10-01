@@ -229,6 +229,16 @@ describe("every job of a run", () => {
     expect(rows.find((r) => r.runId === "v2-r1")!.jobs.map((j) => j.id)).toEqual(["j1"]);
     expect(rows.find((r) => r.runId === "v2-r9")!.jobs).toEqual([]);
   });
+
+  it("each row carries its record's client, else its job's; one that names none has \"\"", () => {
+    const rec = { pack: "vidi", stack: SWIFT, runId: "v2-r1", dir: "d", rescores: [], rescoreLast: {}, hasBundle: false,
+      host: "", packVersion: "", state: "finished", stateAt: "", stories: [], scores: {} };
+    const rows = buildRows([{ ...rec, client: "claude" }, { ...rec, runId: "v2-r9", dir: "e" }], { "node-a": [
+      job({ id: "j2", spec: { pack: "benchmarks/vidi", run_id: "v2-r3", client: "claude" }, state: { status: "queued" } }),
+      job({ id: "j3", spec: { pack: "benchmarks/vidi", run_id: "v2-r4" }, state: { status: "queued" } }),
+    ] }, {}, 0);
+    expect(Object.fromEntries(rows.map((r) => [r.runId, r.client]))).toEqual({ "v2-r1": "claude", "v2-r9": "", "v2-r3": "claude", "v2-r4": "" });
+  });
 });
 
 describe("merging runs and jobs", () => {

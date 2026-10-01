@@ -6,7 +6,7 @@ import {
   AGAINST_MEASURES, COMPARE_MEASURES, DIFF_THRESHOLD, SEGMENTS, STATUS_ICON, againstCombination, agentTime, compareRuns,
   conversationView, divergence, heldOutAgreement, isOver, jobsView, liveProgress, median, neighbours, otherRuns, relDiff,
   runTimeBars, runTotals, scopeIds, scoreOfRecord, segmentTip, signedPercent, splitParts, squareTip, statusView,
-  storyRunState, storyTitle, toolKinds, whyMissing, whyRunMissing,
+  storyRunState, storyTitle, toolKinds, whyMissing, whyRunMissing, againstAbsent,
   groupInterventions, interventionsOf, interventionTip, invalidTip, MAX_TIP_INTERVENTIONS,
   againstFlagTip, typicalRun, whatDiffered, BELOW_CAVEAT, HELD_OUT_CAVEAT,
 } from "./runView.ts";
@@ -43,7 +43,7 @@ const squares = (states: StorySquare["state"][]): StorySquare[] =>
 const score = (passed: number | null, total: number | null, at = "2026-09-30T18:30:00Z"): Score => ({ passed, total, flaky: 0, at });
 
 const row = (over: Partial<Row> = {}): Row => ({
-  pack: "vidi", stack: "qwen/x/pi", runId: "r1", dir: "d", node: "n", host: "h", machine: "m", label: "x pi",
+  pack: "vidi", stack: "qwen/x/pi", runId: "r1", dir: "d", node: "n", host: "h", machine: "m", label: "x pi", client: "pi",
   packVersion: SUITE, family: "vidi-v2", suite: SUITE, state: "finished", stateAt: "2026-09-30T15:28:00Z", status: "finished",
   storiesWorking: { working: 0, scope: 3, squares: squares(["ok", "ok", "unbuilt"]) },
   usage: { outTokens: 2000, inTokens: 200, readTokens: 2000, calls: 20, tokS: 1.7, decodeTokS: 2.25, prefillTokS: 1.7 },
@@ -205,6 +205,40 @@ describe("story state", () => {
 
   it("out of scope: a story the run was never going to build", () => {
     expect(storyRunState(row(), "99")).toEqual({ kind: "outOfScope" });
+  });
+
+  it("not built, run running but already past it: skipped, not still to come", () => {
+    const r = { ...running, stories: [story("1"), story("3")], live: live({ runningStory: "4" }), storiesWorking: { working: 0, scope: 4, squares: squares(["ok", "unbuilt", "ok", "running"]) } };
+    expect(storyRunState(r, "2")).toEqual({ kind: "notBuilt", why: "Not built: the run went past this story without recording it." });
+  });
+
+  // The Against table's cell for a run without the story: a short phrase, with the full why on hover.
+  describe("a run without the story, in the Against table", () => {
+    it("running, not there yet: it hasn't reached the story", () => {
+      expect(againstAbsent(running, "3")).toEqual({ text: "hasn't reached this story yet", why: "Not built yet: the run is at story 2." });
+    });
+
+    it("running, on the story now: being built", () => {
+      expect(againstAbsent(running, "2")).toEqual({ text: "building this story now", why: "The run is building this story now: it has no record of it until the story ends." });
+    });
+
+    it("queued: not started", () => {
+      const r = row({ status: "queued", stories: [], storiesWorking: { working: 0, scope: 2, squares: squares(["unbuilt", "unbuilt"]) } });
+      expect(againstAbsent(r, "1")).toEqual({ text: "queued: not started yet", why: "The run is queued: no story is built yet." });
+    });
+
+    it("running, but already past it: not built in this run", () => {
+      const r = { ...running, stories: [story("1"), story("3")], live: live({ runningStory: "4" }), storiesWorking: { working: 0, scope: 4, squares: squares(["ok", "unbuilt", "ok", "running"]) } };
+      expect(againstAbsent(r, "2")).toEqual({ text: "not built in this run", why: "Not built: the run went past this story without recording it." });
+    });
+
+    it.each(["finished", "failed", "stopped", "cancelled"] as RunStatus[])("%s without it: not built in this run", (status) => {
+      expect(againstAbsent(row({ status }), "3").text).toBe("not built in this run");
+    });
+
+    it("out of scope: says so", () => {
+      expect(againstAbsent(row(), "99")).toEqual({ text: "not in this run's scope", why: "The run's scope doesn't include this story." });
+    });
   });
 
   describe("scope and neighbours", () => {

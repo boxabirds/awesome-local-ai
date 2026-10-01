@@ -6,7 +6,7 @@ import { StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { duration } from "../../format.ts";
 import { Missing, Section } from "./bits.tsx";
-import { CheckMark, SegmentLegend, SplitBar } from "./SplitBar.tsx";
+import { CheckMark, CheckSummary, SegmentLegend, SplitBar } from "./SplitBar.tsx";
 
 export function RunTime({ run }: { run: Row }) {
   const { bars, scaleSeconds } = runTimeBars(run);
@@ -14,6 +14,7 @@ export function RunTime({ run }: { run: Row }) {
     <Section term="timeSplit" id="time" aside={bars.length ? <span className="small">one scale: the longest story, {duration(scaleSeconds)}</span> : null}>
       {bars.length === 0 ? <p className="rp-empty">No story recorded yet{run.status === "queued" ? ": the run is queued" : ""}.</p> : <>
         <SegmentLegend />
+        <CheckSummary run={run} />
         <div className="rp-bars">
           {bars.map((b) => (
             <div className="rp-bar-row" key={b.id} data-story={b.id}>
@@ -30,7 +31,7 @@ export function RunTime({ run }: { run: Row }) {
               </span>
               <span className="rp-bar-total num">{b.split ? duration(b.split.wall) : b.usage?.agentSeconds != null ? duration(b.usage.agentSeconds) : ""}</span>
               <span className="rp-bar-check">
-                {b.split ? <CheckMark check={b.split.check} /> : null}{" "}
+                {b.split ? <CheckMark check={b.split.check} run={run} /> : null}{" "}
                 <span className="rp-bar-story" data-tip={GLOSSARY.storyInEveryCombination.what}><StoryLink pack={run.pack} story={b.id}>all runs</StoryLink></span>
               </span>
             </div>

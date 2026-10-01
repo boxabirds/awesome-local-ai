@@ -17,6 +17,20 @@ const storyRunHref = (stack: string, run: string, story: string) => `#/vidi/r/${
 const section = (page: Page, id: string) => page.locator(`[data-page="storyRun"] [data-section="${id}"]`);
 const stat = (page: Page, sec: string, term: string) => section(page, sec).locator(`[data-stat="${term}"]`);
 const rowOf = (s: State, stack: string, runId: string) => s.rows.find((r) => r.stack === stack && r.runId === runId)!;
+const tip = (page: Page) => page.getByRole("tooltip");
+const SWIFT_R1_DIR = `combinations/${SWIFT}/benchmarks/vidi/v2-r1`;
+const RECOMPUTE_R1 = `uv run backfill_timing.py --recompute ../../../${SWIFT_R1_DIR}`;
+const RECOMPUTE_R5 = `uv run backfill_timing.py --recompute ../../../combinations/${SWIFT}/benchmarks/vidi/v2-r5`;
+// The problem the owner saw (mlx-serve v2-r2 story 4), and one of each other kind accounting.py's check() records.
+const DOUBLE = "wall 13113.4 s differs from the agent's own clock (13111.7 s + 205.8 s between sessions)";
+const FAILED_MEANING = "This story run's time figures (the bar, the agent time and the shares) can't be trusted. Its held-out result is unaffected.";
+const CLAUDE_MEANING = "This Claude Code run was recorded before the harness read Claude Code's logs for its time, so the whole story counts as “Model, not split” and there is nothing to check. It isn't a fault, and the held-out result is unaffected.";
+const CLAUDE_TODO = "nothing is needed for the held-out result. To fill in its time, recompute this record on ";
+const OLDER_MEANING = "This story run was recorded before the harness checked its time accounting, so its parts were never verified to add up. The held-out result is unaffected.";
+/** Set one story's recorded accounting check. */
+const setCheck = (s: State, stack: string, run: string, story: string, check: { status: "ok" | "problems" | "unchecked"; problems: string[] }) => {
+  rowOf(s, stack, run).stories.find((x) => x.id === story)!.usage!.split!.check = check;
+};
 
 /** Serve the page a changed state for this test: the real one, passed through `change`. */
 async function patchState(page: Page, change: (s: State) => void) {
@@ -101,11 +115,62 @@ test.describe("where the time went", () => {
     await expect(section(page, "time").locator('[data-kind="unit"]')).toContainText("1 min");
   });
 
-  test("the accounting check failed: flagged, with each problem listed", async ({ page }) => {
+  test("the accounting check passed: says the time figures can be trusted", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(section(page, "time").locator('[data-check="ok"] .check-meaning')).toHaveText("The parts add up to the wall time and agree with the agent's own clock, so this story run's time figures can be trusted.");
+    await expect(section(page, "time").locator(".check-explain")).toHaveCount(0);
+  });
+
+  test("the accounting check failed, a call with no end: what it means, the problem in words and as recorded, and that recomputing won't change it", async ({ page }) => {
     await open(page, SWIFT, "v2-r1", "1");
     const c = section(page, "time").locator('[data-check="problems"]');
     await expect(c).toContainText("failed");
-    await expect(c.locator(".problems li")).toHaveText(["tool call t9 never ended; counted to the agent's next step"]);
+    const x = section(page, "time").locator(".check-explain");
+    await expect(x.locator(".check-meaning")).toHaveText(FAILED_MEANING);
+    await expect(x.locator(".problems li .problem-text")).toHaveText(["Tool call t9 has no end in the log, so its time was counted up to the agent's next step."]);
+    await expect(x.locator(".problems li .problem-raw")).toHaveText(["tool call t9 never ended; counted to the agent's next step"]);
+    await expect(x.locator(".check-cause")).toHaveText("Likely cause: the agent's log has no end for it, usually a session cut off mid-call.");
+    await expect(x.locator(".check-todo")).toHaveText("What to do: nothing to fix: recomputing reads the same log and gives the same answer. Read the part it fell in as an upper estimate.");
+    await expect(x.locator(".check-command")).toHaveCount(0);
+  });
+
+  test("the accounting check failed, waits counted twice, run still going: the older harness's bug, and recompute once it has finished", async ({ page }) => {
+    await patchState(page, (s) => setCheck(s, SWIFT, "v2-r1", "1", { status: "problems", problems: [DOUBLE] }));
+    await open(page, SWIFT, "v2-r1", "1");
+    const x = section(page, "time").locator(".check-explain");
+    await expect(x.locator(".problems li .problem-text")).toHaveText(["The wall time (13113.4 s) already matches the agent's own clock (13111.7 s), but 205.8 s of waits between sessions were added on top of it: they were counted twice."]);
+    await expect(x.locator(".problems li .problem-raw")).toHaveText([DOUBLE]);
+    await expect(x.locator(".check-cause")).toHaveText("Likely cause: an older harness counted the waits between sessions twice (a bug since fixed), and this run is still going on it.");
+    await expect(x.locator(".check-todo")).toHaveText(/^What to do: once the run has finished, recompute this record from the full logs on node-a, the machine that ran it, in the repo's benchmarks\/spec-bench\/harness:/);
+    await expect(x.locator(".check-command")).toHaveText(RECOMPUTE_R1);
+  });
+
+  const KINDS: [string, string, string][] = [
+    ["the wall and the agent's clock disagree", "wall 900.0 s differs from the agent's own clock (700.0 s)", "The wall time (900.0 s) doesn't match the agent's own clock (700.0 s)."],
+    ["the parts don't add up", "parts sum to 590.0 s, not the wall's 600.0 s", "The parts add up to 590.0 s, but the wall time is 600.0 s."],
+    ["a negative part", "negative tools: -3.2 s", "The Tools part is negative (-3.2 s); no part of the time can be."],
+    ["tools by kind don't add up", "tools by kind sum to 80.0 s, not tools' 90.0 s", "The tools by kind add up to 80.0 s, but Tools is 90.0 s."],
+    ["anything else, as recorded", "the window ends before it starts", "The window ends before it starts."],
+  ];
+  for (const [what, raw, text] of KINDS) {
+    test(`the accounting check failed, ${what}: in words, the generic cause, and the recompute`, async ({ page }) => {
+      await patchState(page, (s) => setCheck(s, SWIFT, "v2-r5", "2", { status: "problems", problems: [raw] }));
+      await open(page, SWIFT, "v2-r5", "2");
+      const x = section(page, "time").locator(".check-explain");
+      await expect(x.locator(".problems li .problem-text")).toHaveText([text]);
+      await expect(x.locator(".check-cause")).toHaveText("Likely cause: the record was made by a harness with a bug since fixed.");
+      await expect(x.locator(".check-todo")).toHaveText(/^What to do: recompute this record from the full logs on /);
+      await expect(x.locator(".check-command")).toHaveText(RECOMPUTE_R5);
+    });
+  }
+
+  test("the failed mark is reached by keyboard and says the same on focus", async ({ page }) => {
+    await open(page, SWIFT, "v2-r1", "1");
+    const flag = section(page, "time").locator('[data-check="problems"] .check-flag');
+    await expect(flag).toHaveAttribute("tabindex", "0");
+    await flag.focus();
+    await expect(tip(page)).toContainText("Accounting check failed. This story run's time figures");
+    await expect(tip(page)).toContainText("Tool call t9 has no end in the log");
   });
 
   test("parts that don't add up to the wall: what's unaccounted, in its own row", async ({ page }) => {
@@ -120,6 +185,33 @@ test.describe("where the time went", () => {
     await expect(t.locator('tr[data-seg="modelUnsplit"]')).toHaveText("Model, not split480 s100%");
     await expect(t.locator('[data-check="unchecked"] .check-unchecked')).toHaveText("unchecked");
     await expect(t.locator(".kinds")).toContainText("not recorded by kind");
+  });
+
+  test("unchecked, a Claude Code run from before the harness read its logs: why, that it isn't a fault, and how to fill it in", async ({ page }) => {
+    await open(page, OPUS, "run-9", "1");
+    const x = section(page, "time").locator(".check-explain");
+    await expect(x.locator(".check-meaning")).toHaveText(CLAUDE_MEANING);
+    await expect(x.locator(".check-todo")).toHaveText(new RegExp(`^What to do: ${CLAUDE_TODO}.* It needs the full logs that machine kept: without them this story run can't be checked\\.$`));
+    await expect(x.locator(".check-command")).toHaveText(/^uv run backfill_timing\.py --recompute \.\.\/\.\.\/\.\.\/.*run-9$/);
+    await expect(x.locator(".check-cause, .problems")).toHaveCount(0);
+    const mark = section(page, "time").locator('[data-check="unchecked"] .check-unchecked');
+    await mark.focus();
+    await expect(tip(page)).toContainText(`Unchecked: no accounting check was made. ${CLAUDE_MEANING} What to do: ${CLAUDE_TODO}`);
+  });
+
+  test("unchecked, an older run: recorded before the harness checked; recompute where the full logs are, else it can't be checked", async ({ page }) => {
+    await patchState(page, (s) => setCheck(s, SWIFT, "v2-r5", "2", { status: "unchecked", problems: [] }));
+    await open(page, SWIFT, "v2-r5", "2");
+    const x = section(page, "time").locator(".check-explain");
+    await expect(x.locator(".check-meaning")).toHaveText(OLDER_MEANING);
+    await expect(x.locator(".check-todo")).toHaveText(/^What to do: to check it, recompute this record on .*, the machine that ran it, in the repo's benchmarks\/spec-bench\/harness\. It needs the full logs that machine kept: without them this story run can't be checked\.$/);
+    await expect(x.locator(".check-command")).toHaveText(RECOMPUTE_R5);
+  });
+
+  test("the label 'Accounting check' says what the check is", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(section(page, "time").locator('.check .term')).toHaveAttribute("data-tip", GLOSSARY.accountingCheck.what);
+    expect(GLOSSARY.accountingCheck.what).toMatch(/held-out score/);
   });
 
   test("no split recorded: says so", async ({ page }) => {
@@ -168,6 +260,23 @@ test.describe("cost", () => {
 
 // ---------------------------------------------------------------------------------------------------------------
 test.describe("conversation profile", () => {
+  const LONG_GIST = "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r2/workspace && for i in 1 ";
+
+  test("a long longest-tool-call gist stays on one line, cut with an ellipsis, the whole of it on hover and keyboard focus", async ({ page }) => {
+    await patchState(page, (s) => { rowOf(s, SWIFT, "v2-r5").stories[1].conversation!.longestTool = { seconds: 505.8, name: "bash", gist: LONG_GIST }; });
+    await open(page, SWIFT, "v2-r5", "2");
+    const sub = stat(page, "conversation", "longestTool").locator(".stat-sub");
+    const gist = sub.locator(".tool-gist");
+    const box = (await sub.boundingBox())!;
+    const lineHeight = await sub.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
+    expect(box.height).toBeLessThan(lineHeight * 1.5);                                       // one line, not a tall column
+    await expect(gist).toHaveCSS("text-overflow", "ellipsis");
+    expect(await gist.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);        // cut, not wrapped
+    await expect(gist).toHaveAttribute("tabindex", "0");
+    await gist.focus();
+    await expect(tip(page)).toHaveText(`bash: ${LONG_GIST.trim()}`);
+  });
+
   test("every figure, from the harness's count", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     const want: [string, string, string | null][] = [
@@ -273,9 +382,39 @@ test.describe("against the combination", () => {
   test("runs without the story, or without its figures, say which", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     const a = section(page, "against");
-    await expect(a.locator('tr[data-run="v2-r2"] .bar-col')).toHaveText("not built in this run");
+    await expect(a.locator('tr[data-run="v2-r2"] .bar-col')).toHaveText("queued: not started yet");
     await expect(a.locator('tr[data-run="v2-r1"] .bar-col')).toHaveText("no time split recorded");
     await expect(a.locator('tr[data-run="v2-r1"] [data-measure="minutes"] .missing')).toHaveAttribute("data-tip", "Not recorded for this story run.");
+  });
+
+  test("a running run that hasn't reached the story says so, not that it wasn't built", async ({ page }) => {
+    await patchState(page, (s) => { const r = rowOf(s, SWIFT, "v2-r1"); r.stories = r.stories.filter((x) => x.id === "1"); r.live!.runningStory = "1"; r.storiesWorking.squares = r.storiesWorking.squares.map((q) => ({ ...q, state: q.id === "1" ? "running" : "unbuilt" })); });
+    await open(page, SWIFT, "v2-r5", "2");
+    const cell = section(page, "against").locator('tr[data-run="v2-r1"] .bar-col');
+    await expect(cell).toHaveText("hasn't reached this story yet");
+    await cell.locator("[data-tip]").focus();
+    await expect(tip(page)).toHaveText("Not built yet: the run is at story 1.");
+  });
+
+  test("a running run on the story now: being built", async ({ page }) => {
+    await patchState(page, (s) => { const r = rowOf(s, SWIFT, "v2-r1"); r.stories = r.stories.filter((x) => x.id === "1"); r.live!.runningStory = "2"; r.storiesWorking.squares = r.storiesWorking.squares.map((q) => ({ ...q, state: q.id === "2" ? "running" : q.state === "running" ? "unbuilt" : q.state })); });
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(section(page, "against").locator('tr[data-run="v2-r1"] .bar-col')).toHaveText("building this story now");
+  });
+
+  test("a finished run that never recorded the story: not built in this run", async ({ page }) => {
+    await patchState(page, (s) => { const r = rowOf(s, SWIFT, "v2-r4"); r.stories = r.stories.filter((x) => x.id !== "2"); });
+    await open(page, SWIFT, "v2-r5", "2");
+    await expect(section(page, "against").locator('tr[data-run="v2-r4"] .bar-col')).toHaveText("not built in this run");
+  });
+
+  test("a failed check in the table: its mark explains itself on keyboard focus", async ({ page }) => {
+    await open(page, SWIFT, "v2-r5", "1");
+    const flag = section(page, "against").locator('tr[data-run="v2-r1"] .check-flag');
+    await expect(flag).toHaveAttribute("tabindex", "0");
+    await flag.focus();
+    await expect(tip(page)).toContainText("Accounting check failed. This story run's time figures");
+    await expect(tip(page)).toContainText("Likely cause: the agent's log has no end for it");
   });
 
   test("a run without a conversation profile: its thinking missing, and left out of the thinking median", async ({ page }) => {

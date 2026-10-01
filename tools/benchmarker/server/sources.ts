@@ -73,14 +73,17 @@ function json<T>(text: string | undefined): T | null {
   }
 }
 
-/** The files a run's notes are read from: its run.json (the "invalid" mark) and interventions.md. */
+/** The files a run's notes are read from: its run.json (the client, the "invalid" mark) and interventions.md. */
 export const runNotePaths = (dir: string) => [`${dir}/run.json`, `${dir}/interventions.md`];
 
-/** What the record says about the run itself: whether it is invalid, and what was done to it by hand. */
-export function runNotes(blobs: Map<string, string>, dir: string): { invalid: Invalid | null; interventions: Intervention[] } {
+/** What the record says about the run itself: the client that ran it, whether it is invalid, and what was done to
+ * it by hand. */
+export function runNotes(blobs: Map<string, string>, dir: string): { client: string; invalid: Invalid | null; interventions: Intervention[] } {
   const [meta, notes] = runNotePaths(dir);
+  const run = json<{ client?: unknown; invalid?: unknown }>(blobs.get(meta));
   return {
-    invalid: parseInvalid(json<{ invalid?: unknown }>(blobs.get(meta))?.invalid),
+    client: typeof run?.client === "string" ? run.client : "",
+    invalid: parseInvalid(run?.invalid),
     interventions: parseInterventions(blobs.get(notes)),
   };
 }

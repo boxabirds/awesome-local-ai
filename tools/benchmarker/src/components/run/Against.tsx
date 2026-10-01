@@ -2,7 +2,7 @@
 // held-out result and the key numbers, with this story run marked where it is more than 10% from the median of the
 // others, and each mark carrying its mechanism (the combination page's rules) with the rules that fired on hover.
 import type { Row, State, Story } from "../../../shared/types.ts";
-import { AGAINST_MEASURES, againstCombination, againstFlagTip, signedPercent, type AgainstKey } from "../../../shared/runView.ts";
+import { AGAINST_MEASURES, againstAbsent, againstCombination, againstFlagTip, signedPercent, type AgainstKey } from "../../../shared/runView.ts";
 import { RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
@@ -19,6 +19,12 @@ const MISSING_WHY: Record<AgainstKey, string> = {
   heldOut: "Its own held-out tests weren't recorded.", minutes: "Not recorded for this story run.", outTokens: "Not recorded for this story run.",
   calls: "Not recorded for this story run.", thinking: "No conversation profile for this story run.", largestThinking: "No conversation profile for this story run.",
 };
+
+/** A run without the story: whether it hasn't got there yet or never built it, with why on hover and focus. */
+function Absent({ run, storyId }: { run: Row; storyId: string }) {
+  const a = againstAbsent(run, storyId);
+  return <span className="small absent" tabIndex={0} data-tip={a.why}>{a.text}</span>;
+}
 
 export function Against({ run, state, storyId }: { run: Row; state: State; storyId: string }) {
   const { entries, scaleSeconds, flags, mechanism } = againstCombination(run, state.rows, storyId);
@@ -53,8 +59,8 @@ export function Against({ run, state, storyId }: { run: Row; state: State; story
                     {isThis ? <span className="this-mark">this story run</span> : <> · <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId} invalid={r.invalid} /></>}
                   </td>
                   <td className="bar-col">
-                    {split ? <span className="bar-track"><SplitBar split={split} usage={story!.usage ?? null} scaleSeconds={scaleSeconds} label={`${r.runId}: ${duration(split.wall)}`} /><CheckMark check={split.check} /></span>
-                      : <span className="small">{story ? "no time split recorded" : "not built in this run"}</span>}
+                    {split ? <span className="bar-track"><SplitBar split={split} usage={story!.usage ?? null} scaleSeconds={scaleSeconds} label={`${r.runId}: ${duration(split.wall)}`} /><CheckMark check={split.check} run={r} /></span>
+                      : story ? <span className="small">no time split recorded</span> : <Absent run={r} storyId={storyId} />}
                   </td>
                   {AGAINST_MEASURES.map((m) => {
                     const v = story ? m.value(story) : null;

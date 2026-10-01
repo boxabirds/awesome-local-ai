@@ -465,10 +465,11 @@ test.describe("where the time went", () => {
     await expect(bars(page).locator('[data-run="v2-r4"] [data-seg="decode"]')).toHaveAttribute("data-tip", /^Generation \d+\.\d min: .* tokens at \d+ tok\/s$/);
   });
 
-  test("the accounting check: a split that failed is flagged, an unchecked one says so", async ({ page }) => {
+  test("the accounting check: a split that failed is flagged, an unchecked one says so, each explaining itself", async ({ page }) => {
     await open(page, "1");
-    await expect(bars(page).locator('[data-run="v2-r1"] .check-flag')).toHaveAttribute("data-tip", /tool call t9 never ended/);
+    await expect(bars(page).locator('[data-run="v2-r1"] .check-flag')).toHaveAttribute("data-tip", /^Accounting check failed\. This story run's time figures .*Tool call t9 has no end in the log/);
     await expect(bars(page).locator('[data-run="run-9"] .check-unchecked')).toBeVisible();
+    await expect(bars(page).locator('[data-run="run-9"] .check-unchecked')).toHaveAttribute("data-tip", /^Unchecked: no accounting check was made\. This Claude Code run was recorded before the harness read Claude Code's logs.*What to do: nothing is needed for the held-out result/);
     await expect(bars(page).locator('[data-run="v2-r4"] .check-flag, [data-run="v2-r4"] .check-unchecked')).toHaveCount(0);
   });
 

@@ -183,7 +183,7 @@ test.describe("needs you: each kind", () => {
     const n = need(page, "accounting");
     await expect(n).toContainText("3.8-swift-1.5/27b llamacpp v2-r1: the time accounting failed its checks on story 1");
     await n.locator("a.story-run-link").hover();
-    await expect(tip(page)).toBeVisible();
+    await expect(tip(page)).toHaveText("Tool call t9 has no end in the log, so its time was counted up to the agent's next step.");
     await n.locator("a.resolve").click();
     await expect(page).toHaveURL(new RegExp(`${storyRunHref(SWIFT, "v2-r1", "1").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
   });

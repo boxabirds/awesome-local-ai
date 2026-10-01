@@ -369,16 +369,9 @@ describe("runSplit: where a run's time went", () => {
     expect(s.wall).toBe(1800);
     expect(s.parts.tools).toBe(800);
     expect(s.parts.decode).toBe(800);
-    expect(s).toMatchObject({ stories: 2, withoutSplit: 1, problems: [], unchecked: 0 });
+    expect(s).toMatchObject({ stories: 2, withoutSplit: 1 });
   });
-  it("collects accounting problems with their story, and counts unchecked splits", () => {
-    const s = runSplit(run([
-      story("1", { usage: usage({ split: split({ check: { status: "problems", problems: ["tool call t9 never ended"] } }) }) }),
-      story("2", { usage: usage({ split: split({ check: { status: "unchecked", problems: [] } }) }) }),
-    ]))!;
-    expect(s.problems).toEqual(["story 1: tool call t9 never ended"]);
-    expect(s.unchecked).toBe(1);
-  });
+  // Its accounting checks are shared/accountingView.ts's runCheckSummary, tested there.
   it("no story with a split: null", () => expect(runSplit(run([story("1", { usage: null })]))).toBeNull());
 });
 
