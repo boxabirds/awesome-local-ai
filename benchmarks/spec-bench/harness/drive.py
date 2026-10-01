@@ -25,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import re
 import threading
 from urllib.parse import urlparse
@@ -1049,7 +1050,8 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
                                       resume_from=last["session"], fork=True))
         elif (not last["error"] and not last["stalled"] and last["session"]
               and toolcall_text_resumes < MAX_TOOLCALL_TEXT_RESUMES
-              and tool_call_as_text(final_reply_text(events_path))):
+              and derived("reply check", lambda: tool_call_as_text(final_reply_text(events_path)), False,
+                          run=events_path.parent.parent.parent)):
             toolcall_text_resumes += 1
             why = (f"story {events_path.parent.name}: the agent's last reply was a tool call written as text "
                    f"(not run); continued the session ({toolcall_text_resumes}/{MAX_TOOLCALL_TEXT_RESUMES})")
@@ -1559,6 +1561,40 @@ class ProgressWatcher(threading.Thread):
         self.join()
 
 
+# Faults in the harness's own bookkeeping for the story being processed (derived()); kept in its record.
+STORY_FAULTS: list[dict] = []
+FAULT_ERROR_CHARS = 300
+EMPTY_EVIDENCE = {"written": set(), "committed": set(), "named": set(), "last_commit_at": None, "head": ""}
+NO_REQUESTS = {"requests": 0}
+UNKNOWN_VERDICT = "unknown"
+
+
+def derived(step: str, fn, default=None, run: Path | None = None):
+    """fn(), for a step the story's result doesn't depend on (its profile, time split, summary, …): a fault in it
+    is recorded with the story (harness_faults) and in the run's interventions, the step's result is `default`,
+    and the story is still scored, committed and recorded. A bug in two such steps lost stories after hours of
+    the agent's work (30 Sep and 1 Oct 2026). SystemExit (a guard stopping the run) is not caught.
+    What a fault left out can be filled in afterwards from the logs (backfill_timing.py)."""
+    try:
+        return fn()
+    except Exception as e:
+        frame = traceback.extract_tb(e.__traceback__)[-1]
+        STORY_FAULTS.append({"step": step, "error": f"{type(e).__name__}: {e}"[:FAULT_ERROR_CHARS],
+                             "where": f"{Path(frame.filename).name}:{frame.lineno}"})
+        print(f"    HARNESS FAULT in {step} ({type(e).__name__}: {str(e)[:160]}); the story is recorded without it",
+              flush=True)
+        if run is not None:
+            derived("interventions log", lambda: log_intervention(
+                run, f"harness fault in {step}: {type(e).__name__}: {str(e)[:160]} "
+                     f"({Path(frame.filename).name}:{frame.lineno}); the story was recorded without it"))
+        return default
+
+
+def keep_faults(rec: dict) -> None:
+    if STORY_FAULTS:
+        rec["harness_faults"] = list(STORY_FAULTS)
+
+
 def log_intervention(run: Path, text: str) -> None:
     f = run / "interventions.md"
     if not f.exists():
@@ -1710,7 +1746,7 @@ def main() -> None:
         acc = gates.accept(ws, processed, run / history.BASE_DIR, PK.acceptance)
         heldout.write_accept(run / history.BASE_DIR / "accept.json", acc)
         kill_strays(ws)
-    progress.write_progress(run, scope, stories, metrics, None)
+    derived("progress file", lambda: progress.write_progress(run, scope, stories, metrics, None), run=run)
     # Before any story is recorded: HEAD then is the harness this process loaded (the records move HEAD on).
     harness = provenance.at_start(REPO_ROOT)
 
@@ -1726,6 +1762,7 @@ def main() -> None:
         (sdir / "prompt.md").write_text(prompt)
         events = sdir / "agent-events.jsonl"
         STORY_SKIP.clear()
+        STORY_FAULTS.clear()
         head_before = sh(["git", "rev-parse", "HEAD"], ws).strip()
         prior = last_session(client, events)
         # Where the story began: kept across harness restarts, so evidence counts the whole story.
@@ -1779,7 +1816,7 @@ def main() -> None:
             rec["agent"] = run_story_agent(client, ws, env, a.model_id, prompt, events, continue_session=prior,
                                            on_cap=skipper.cap)
             rec["agent_finished"] = time.time()
-            record_attempts(rec, earlier)
+            derived("totals over attempts", lambda: record_attempts(rec, earlier), run=run)
             skip = skipper.stop()
             watcher.stop()
             rec["conditions"] = sampler.stop()
@@ -1802,7 +1839,8 @@ def main() -> None:
         rec["agent_commits"] = int(sh(["git", "rev-list", "--count", f"{head_before}..HEAD"], ws).strip())
 
         print(f"[story {sid}] agent done in {rec['agent']['seconds']}s; running gates", flush=True)
-        rec["provenance"] = story_provenance(harness, pack_started, provenance.pack_version(PK.dir, PK.name))
+        rec["provenance"] = derived("provenance", lambda: story_provenance(
+            harness, pack_started, provenance.pack_version(PK.dir, PK.name)), run=run)
         rec["gate"] = gates.gate(ws, PK.gate)
         (sdir / "gate.json").write_text(json.dumps(rec["gate"], indent=2))
         kill_strays(ws)
@@ -1811,7 +1849,7 @@ def main() -> None:
         heldout.write_accept(sdir / "accept.json", acc)
         rec["accept"] = {k: v for k, v in acc.items() if k != "tests"}
         # Task evidence before the snapshot below, which would make uncommitted work look committed.
-        ev = progress.evidence(ws, base)
+        ev = derived("task evidence", lambda: progress.evidence(ws, base), dict(EMPTY_EVIDENCE), run=run)
         if not skip and pending_skip(run, sid):
             # Arrived as the agent finished by itself: the story is DONE; keep the request, unapplied.
             f = run / CONTROL_DIR / SKIP_FILE
@@ -1821,27 +1859,30 @@ def main() -> None:
         if sh(["git", "status", "--porcelain"], ws).strip():
             sh(["git", "commit", "-qm", f"harness: snapshot after story {sid} (uncommitted agent work)"], ws, GIT_IDENTITY)
         rec["commit"] = sh(["git", "rev-parse", "HEAD"], ws).strip()
-        rec["requests"] = server_stats(a.server_log, rec["started"], rec["agent_finished"],
-                                       earlier=[(x["started"], x["ended"]) for x in earlier])
+        rec["requests"] = derived("server statistics", lambda: server_stats(
+            a.server_log, rec["started"], rec["agent_finished"],
+            earlier=[(x["started"], x["ended"]) for x in earlier]), dict(NO_REQUESTS), run=run)
         # Over every attempt of a restarted story; the wall should agree with the agent's own clock, and a
         # disagreement is recorded with the other checks.
-        rec["time_split"] = story_time_split(rec, sdir / "agent-events.jsonl", run / "server.log")
+        rec["time_split"] = derived("time split", lambda: story_time_split(
+            rec, sdir / "agent-events.jsonl", run / "server.log"), run=run)
         import conversation
-        rec["conversation"] = conversation.profile(sdir / "agent-events.jsonl", rec.get("first_started", rec["started"]),
-                                                   rec["agent_finished"])
-        rec["loc"] = loc(ws)
-        mirror(ws, run / "workspace")
+        rec["conversation"] = derived("conversation profile", lambda: conversation.profile(
+            sdir / "agent-events.jsonl", rec.get("first_started", rec["started"]), rec["agent_finished"]), run=run)
+        rec["loc"] = derived("lines of code", lambda: loc(ws), {}, run=run)
+        derived("workspace mirror", lambda: mirror(ws, run / "workspace"), run=run)
         rec["finished"] = time.time()
         # Where the story stands, from workspace evidence: its tasks, and, if it was ended early,
         # whether later stories can build on it (never stops the run).
-        table = progress.task_table(tasks, ev, rec["gate"])
+        table = derived("task table", lambda: progress.task_table(tasks, ev, rec["gate"]), [], run=run)
         own = acc["by_story"].get(f"{sid:02d}")
         rec.update(status=status, ended_by="operator" if skip else "agent", partial_base=partial_base, tasks=table)
         if partial_base:
-            rec["stub_markers"] = progress.stub_markers(ws, base)
-            earlier = {p: heldout.read_json(run, f"stories/{p:02d}/accept.json") for p in partial_base}
-            rec["partial_heldout_changes"] = {str(p): progress.heldout_changes(e, acc["tests"], p)
-                                              for p, e in earlier.items() if e is not None}
+            rec["stub_markers"] = derived("stub markers", lambda: progress.stub_markers(ws, base), [], run=run)
+            rec["partial_heldout_changes"] = derived("held-out changes", lambda: {
+                str(p): progress.heldout_changes(e, acc["tests"], p)
+                for p, e in ((p, heldout.read_json(run, f"stories/{p:02d}/accept.json")) for p in partial_base)
+                if e is not None}, {}, run=run)
         entry = {"id": sid, "title": title, "status": status, "ended_by": rec["ended_by"],
                  "started_at": rec["started"], "ended_at": rec["agent_finished"],
                  "agent_minutes": round(rec["agent"]["seconds"] / 60, 1), "calls": rec["agent"]["steps"],
@@ -1849,7 +1890,10 @@ def main() -> None:
                  "last_commit_at": ev["last_commit_at"], "accept": own,
                  "partial_base": partial_base, "tasks": table, "baselines": live["baselines"]}
         if skip:
-            health = progress.base_health(rec["gate"], table, own, live["baselines"])
+            health = derived("verdict", lambda: progress.base_health(rec["gate"], table, own, live["baselines"]), {
+                "verdict": UNKNOWN_VERDICT, "gate_green": bool(rec["gate"].get("all_green")), "unverified_tasks": [],
+                "unverified_implementation_tasks": [], "heldout": own, "heldout_floor": None, "heldout_ok": None},
+                run=run)
             rec.update(skip=skip, verdict=health)
             entry.update(reason=skip.get("reason"), by=skip.get("by"), requested_at=skip.get("at"),
                          verdict=health["verdict"], health=health)
@@ -1863,16 +1907,26 @@ def main() -> None:
                 f"The run continued with the next story."))
         processed.append(entry)
         metrics["stories"][str(sid)] = rec
+        keep_faults(rec)
         save_metrics(run, metrics)
-        progress.write_progress(run, scope, stories, metrics, None)
+        derived("progress file", lambda: progress.write_progress(run, scope, stories, metrics, None), run=run)
         if a.record:
             import report
-            report.write_summary(run)
-            compact_events(sdir / "agent-events.jsonl")
+            derived("summary", lambda: report.write_summary(run), run=run)
+            derived("compacted log", lambda: compact_events(sdir / "agent-events.jsonl"), run=run)
             label = combination_label(run)
             outcome = "done" if status == DONE else "partial (ended by operator)"
-            rec["record"] = record_story(REPO_ROOT, run, f"{PK.name} {label} {run.name}: story {sid} {outcome}")
+            # Recorded with the faults so far; a fault in recording itself leaves the story on the machine, and
+            # the next story's record carries it.
+            keep_faults(rec)
             save_metrics(run, metrics)
+            rec["record"] = derived("record", lambda: record_story(
+                REPO_ROOT, run, f"{PK.name} {label} {run.name}: story {sid} {outcome}"),
+                {"committed": False, "pushed": False, "error": "recording failed: see harness_faults"}, run=run)
+        keep_faults(rec)
+        if a.record or STORY_FAULTS:
+            save_metrics(run, metrics)
+        if a.record:
             r = rec["record"]
             print(f"[story {sid}] recorded: commit {r.get('commit', '-')} pushed={r['pushed']}"
                   f"{'  NOT PUSHED, kept locally; the next story retries' if r.get('unpushed') else ''}"

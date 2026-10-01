@@ -281,7 +281,8 @@ def keep_pack(mp: pytest.MonkeyPatch) -> None:
         mp.setattr(drive, name, getattr(drive, name))
 
 
-def drive_run(root: Path, mp: pytest.MonkeyPatch, client=None, script_text: str = AGENT_SCRIPT) -> Path:
+def drive_run(root: Path, mp: pytest.MonkeyPatch, client=None, script_text: str = AGENT_SCRIPT,
+              extra_args: tuple[str, ...] = ()) -> Path:
     """Both stories through drive.py's own main loop, with the scripted pi agent unless told otherwise. Returns the
     run directory."""
     client = client or ScriptedClient
@@ -302,7 +303,7 @@ def drive_run(root: Path, mp: pytest.MonkeyPatch, client=None, script_text: str 
     mp.setattr(containment, "StoryContainment", _Uncontained)
     run = root / "run"
     mp.setattr(sys, "argv", ["drive.py", "--pack", PACK, "--run-dir", str(run), "--base-url", "http://127.0.0.1:9/v1",
-                             "--model-id", MODEL, "--client", client.name])
+                             "--model-id", MODEL, "--client", client.name, *extra_args])
     drive.main()
     return run
 
