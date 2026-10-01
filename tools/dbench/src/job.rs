@@ -5,13 +5,17 @@ use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use crate::ids::{valid_id, valid_pack};
+use crate::ids::{valid_id, valid_pack, valid_run_dir};
 
 /// Repo-relative path of the generic harness. When it exists it takes the pack
 /// as `--pack`; otherwise each pack carries its own `harness/run.sh`.
 pub const SPEC_BENCH_ENTRY: &str = "benchmarks/spec-bench/harness/run.sh";
 /// Path of a pack's own entry point, relative to the pack directory.
 pub const PACK_ENTRY: &str = "harness/run.sh";
+/// What known-good mode reads from the run it starts from (drive.py known_good_base): the run's
+/// whole workspace history, and its record, which names the commit each story ended on.
+pub const REFERENCE_BUNDLE: &str = "workspace.bundle";
+pub const REFERENCE_METRICS: &str = "metrics.json";
 
 /// Environment a job may set for its harness, and through it the model server
 /// run.sh starts: which GPU backend a multi-backend build runs on, and the
@@ -100,6 +104,11 @@ pub struct JobSpec {
     /// job's identity: the same id with a different server_env is a conflict.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub server_env: BTreeMap<String, String>,
+    /// Known-good mode: a finished run to start from, as a run directory relative to the repo
+    /// (e.g. `combinations/…/benchmarks/vidi/v2-r1`). The harness runs `stories` on that run's code
+    /// as it was when the story before ended (`--from-run`). Part of the job's identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_run: Option<String>,
 }
 
 impl JobSpec {
@@ -138,6 +147,17 @@ impl JobSpec {
         for (k, v) in &self.server_env {
             valid_server_env(k, v)?;
         }
+        if let Some(from_run) = &self.from_run {
+            if !valid_run_dir(from_run) {
+                return Err(format!(
+                    "invalid from_run {from_run:?} (a run directory relative to the repo, without `..`)"
+                ));
+            }
+            // Which stories, and how many, is the harness's rule; that there are some is ours.
+            if self.stories.is_none() {
+                return Err("from_run needs stories: the stories to run on the reference run's code".into());
+            }
+        }
         Ok(())
     }
 
@@ -170,8 +190,39 @@ pub fn resolve_entry(repo: &Path, pack: &str) -> Option<Entry> {
     })
 }
 
-/// Arguments for `bash`: `<run.sh> <install_id> [--pack P] --run-id R [--scope X] [--only 1,2] --client C [--record]`.
-pub fn harness_args(entry: &Entry, spec: &JobSpec) -> Vec<OsString> {
+/// Why a reference run can't be started from, or None when it has what known-good mode reads.
+/// `from_run` is relative to `results_root`, the node's checkout: a finished run is a result, and a
+/// harness release's own directory holds none.
+pub fn reference_run_problem(results_root: &Path, from_run: &str) -> Option<String> {
+    let dir = results_root.join(from_run);
+    let root = results_root.display();
+    let (Ok(real_root), Ok(real_dir)) = (results_root.canonicalize(), dir.canonicalize()) else {
+        return Some(format!("reference run {from_run}: no such directory in {root}"));
+    };
+    if !real_dir.is_dir() {
+        return Some(format!("reference run {from_run}: no such directory in {root}"));
+    }
+    if !real_dir.starts_with(&real_root) {
+        return Some(format!("reference run {from_run} is outside {root}"));
+    }
+    let missing: Vec<&str> = [REFERENCE_BUNDLE, REFERENCE_METRICS]
+        .into_iter()
+        .filter(|f| !real_dir.join(f).is_file())
+        .collect();
+    if missing.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "reference run {from_run} has no {}: a job can only start from a finished run that kept them",
+        missing.join(" and no ")
+    ))
+}
+
+/// Arguments for `bash`:
+/// `<run.sh> <install_id> [--pack P] --run-id R [--scope X] [--only 1,2] [--from-run DIR] --client C [--record]`.
+/// The reference run is given as an absolute path in `results_root` (the node's checkout), so it
+/// names the same directory whether the harness runs from that checkout or from a release.
+pub fn harness_args(entry: &Entry, spec: &JobSpec, results_root: &Path) -> Vec<OsString> {
     let mut a: Vec<OsString> = vec![entry.script.clone().into(), spec.install_id.clone().into()];
     if entry.uses_pack_flag {
         a.push("--pack".into());
@@ -187,6 +238,10 @@ pub fn harness_args(entry: &Entry, spec: &JobSpec) -> Vec<OsString> {
         let list: Vec<String> = stories.iter().map(u32::to_string).collect();
         a.push("--only".into());
         a.push(list.join(",").into());
+    }
+    if let Some(from_run) = &spec.from_run {
+        a.push("--from-run".into());
+        a.push(results_root.join(from_run).into());
     }
     a.push("--client".into());
     a.push(spec.client.as_str().into());
@@ -345,7 +400,173 @@ mod tests {
             client: AgentClient::Pi,
             record: true,
             server_env: Default::default(),
+            from_run: None,
         }
+    }
+
+    const RESULTS_ROOT: &str = "/node/checkout";
+    const REFERENCE_RUN: &str = "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r3";
+
+    fn known_good() -> JobSpec {
+        let mut s = spec();
+        s.stories = Some(vec![2]);
+        s.from_run = Some(REFERENCE_RUN.into());
+        s
+    }
+
+    fn args_of(entry: &Entry, spec: &JobSpec) -> Vec<String> {
+        harness_args(entry, spec, Path::new(RESULTS_ROOT))
+            .into_iter()
+            .map(|a| a.into_string().unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn a_spec_round_trips_with_and_without_a_reference_run() {
+        let plain = spec();
+        let text = serde_json::to_string(&plain).unwrap();
+        assert!(!text.contains("from_run"), "{text}");
+        assert_eq!(serde_json::from_str::<JobSpec>(&text).unwrap(), plain);
+        // A spec stored before the field existed is a job with no reference run.
+        let old: JobSpec = serde_json::from_str(
+            r#"{"install_id":"x","pack":"p","run_id":"r","client":"pi","record":true}"#,
+        )
+        .unwrap();
+        assert_eq!(old.from_run, None);
+
+        let kg = known_good();
+        let text = serde_json::to_string(&kg).unwrap();
+        assert!(text.contains(&format!(r#""from_run":"{REFERENCE_RUN}""#)), "{text}");
+        let back: JobSpec = serde_json::from_str(&text).unwrap();
+        assert_eq!(back, kg);
+        assert_eq!(back.validate(), Ok(()));
+    }
+
+    #[test]
+    fn the_reference_run_reaches_the_harness_as_a_path_in_the_results_checkout() {
+        let generic = Entry {
+            script: "/release/benchmarks/spec-bench/harness/run.sh".into(),
+            uses_pack_flag: true,
+        };
+        assert_eq!(
+            args_of(&generic, &known_good()),
+            [
+                "/release/benchmarks/spec-bench/harness/run.sh",
+                "mtplx-qwen38-27b",
+                "--pack",
+                "benchmarks/vidi",
+                "--run-id",
+                "canvas-pi-01",
+                "--scope",
+                "canvas",
+                "--only",
+                "2",
+                "--from-run",
+                &format!("{RESULTS_ROOT}/{REFERENCE_RUN}"),
+                "--client",
+                "pi",
+                "--record"
+            ]
+        );
+        // Several stories pass through as given: how many a known-good run takes is the harness's rule.
+        let mut several = known_good();
+        several.stories = Some(vec![10, 11, 12]);
+        let got = args_of(&generic, &several);
+        let only = got.iter().position(|a| a == "--only").unwrap();
+        assert_eq!(got[only + 1], "10,11,12");
+        assert_eq!(got[only + 2], "--from-run");
+        assert!(!args_of(&generic, &spec()).contains(&"--from-run".to_string()));
+    }
+
+    #[test]
+    fn a_reference_run_must_be_a_path_inside_the_repo() {
+        for bad in [
+            "..",
+            "../outside",
+            "combinations/../../outside",
+            "combinations/x/..",
+            "/etc",
+            "/node/checkout/combinations/x",
+            "combinations//x",
+            "combinations/x/",
+            "./combinations/x",
+            "",
+            "combinations/a b",
+        ] {
+            let mut s = known_good();
+            s.from_run = Some(bad.into());
+            let e = s.validate().expect_err(bad);
+            assert!(e.contains("from_run"), "{bad:?}: {e}");
+        }
+    }
+
+    #[test]
+    fn a_reference_run_needs_the_stories_to_run() {
+        let mut s = known_good();
+        s.stories = None;
+        let e = s.validate().unwrap_err();
+        assert!(e.contains("from_run") && e.contains("stories"), "{e}");
+    }
+
+    #[test]
+    fn the_reference_run_is_part_of_the_job_identity() {
+        let a = known_good();
+        assert_eq!(submit_decision(Some(&a), &a.clone()), SubmitOutcome::Existing);
+        let mut other = a.clone();
+        other.from_run = Some(format!("{REFERENCE_RUN}-other"));
+        assert_eq!(submit_decision(Some(&a), &other), SubmitOutcome::Conflict);
+        let mut none = a.clone();
+        none.from_run = None;
+        assert_eq!(submit_decision(Some(&a), &none), SubmitOutcome::Conflict);
+        assert_eq!(submit_decision(Some(&none), &a), SubmitOutcome::Conflict);
+    }
+
+    #[test]
+    fn a_reference_run_without_its_bundle_or_metrics_is_a_problem_with_a_plain_reason() {
+        let root = std::env::temp_dir().join(format!("dbench-job-ref-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let root = root.canonicalize().unwrap();
+        let run = |name: &str, files: &[&str]| {
+            let rel = format!("combinations/c/benchmarks/vidi/{name}");
+            std::fs::create_dir_all(root.join(&rel)).unwrap();
+            for f in files {
+                std::fs::write(root.join(&rel).join(f), "{}").unwrap();
+            }
+            rel
+        };
+        let whole = run("whole", &[REFERENCE_BUNDLE, REFERENCE_METRICS]);
+        assert_eq!(reference_run_problem(&root, &whole), None);
+
+        let no_bundle = run("no-bundle", &[REFERENCE_METRICS]);
+        let why = reference_run_problem(&root, &no_bundle).expect("no bundle");
+        assert!(why.contains(REFERENCE_BUNDLE) && why.contains(&no_bundle), "{why}");
+        assert!(!why.contains(REFERENCE_METRICS), "{why}");
+
+        let no_metrics = run("no-metrics", &[REFERENCE_BUNDLE]);
+        let why = reference_run_problem(&root, &no_metrics).expect("no metrics");
+        assert!(why.contains(REFERENCE_METRICS) && !why.contains(REFERENCE_BUNDLE), "{why}");
+
+        let empty = run("empty", &[]);
+        let why = reference_run_problem(&root, &empty).expect("empty");
+        assert!(why.contains(REFERENCE_BUNDLE) && why.contains(REFERENCE_METRICS), "{why}");
+
+        let why = reference_run_problem(&root, "combinations/c/benchmarks/vidi/absent").expect("absent");
+        assert!(why.contains("no such directory"), "{why}");
+
+        // A link out of the checkout is not a run in the checkout, whatever it points at.
+        let outside = root.with_extension("outside");
+        let _ = std::fs::remove_dir_all(&outside);
+        std::fs::create_dir_all(&outside).unwrap();
+        for f in [REFERENCE_BUNDLE, REFERENCE_METRICS] {
+            std::fs::write(outside.join(f), "{}").unwrap();
+        }
+        std::os::unix::fs::symlink(&outside, root.join("combinations/c/benchmarks/vidi/link")).unwrap();
+        let why = reference_run_problem(&root, "combinations/c/benchmarks/vidi/link").expect("link");
+        assert!(why.contains("outside"), "{why}");
+
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(&outside);
     }
 
     #[test]
@@ -455,10 +676,7 @@ mod tests {
         };
         let mut s = spec();
         s.stories = Some(vec![3, 4]);
-        let got: Vec<String> = harness_args(&own, &s)
-            .into_iter()
-            .map(|a| a.into_string().unwrap())
-            .collect();
+        let got = args_of(&own, &s);
         assert_eq!(
             got,
             [
@@ -482,10 +700,7 @@ mod tests {
         let mut s = spec();
         s.record = false;
         s.scope = None;
-        let got: Vec<String> = harness_args(&generic, &s)
-            .into_iter()
-            .map(|a| a.into_string().unwrap())
-            .collect();
+        let got = args_of(&generic, &s);
         assert_eq!(
             got,
             [

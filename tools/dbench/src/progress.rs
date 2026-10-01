@@ -844,6 +844,7 @@ mod tests {
             client: crate::job::AgentClient::Pi,
             record: false,
             server_env: Default::default(),
+            from_run: None,
         };
         let repo = root.join("repo");
         let dir = run_dir(&repo, "a/b", &spec);

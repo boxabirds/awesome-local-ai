@@ -91,6 +91,7 @@ mod tests {
             client: AgentClient::Opencode,
             record: false,
             server_env: Default::default(),
+            from_run: None,
         };
         let mut job = Job::new("j1".into(), spec, 100);
         job.attempt = 2;
