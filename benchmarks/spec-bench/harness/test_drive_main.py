@@ -85,6 +85,8 @@ AGENT = textwrap.dedent(r'''
         progress.write_text(progress.read_text().replace(old, new))
     if plan.get("progress_gone"):
         progress.unlink()
+    if plan.get("seen"):                                             # where the agent finds itself
+        (home / "seen.json").write_text(json.dumps({"cwd": os.getcwd(), "env": dict(os.environ)}))
     if plan.get("try_spec"):                                         # what agents did in recorded runs: edit the spec
         try:
             target = Path("spec/README.md")
@@ -173,8 +175,7 @@ class Loop:
         self.root, self.mp = root, mp
         self.pack = (root / "pack").resolve()
         self.run = root / "run"
-        self.work = root / "work" / "run"
-        self.ws = self.work / "workspace"
+        self.ws_links = root / "links"                                       # drive.WORK_LINKS: the long names
         self.strays: list[Path] = []
         self.recorded: list[tuple] = []
         self.record_result: dict = {"committed": True, "pushed": True, "commit": "abc1234"}
@@ -190,6 +191,9 @@ class Loop:
         mp.setattr(Scripted, "script", script, raising=False)
         mp.setitem(drive.CLIENTS, Scripted.name, Scripted)
         mp.setattr(drive, "WORK_ROOT", root / "work")
+        mp.setattr(drive, "WORK_LINKS", self.ws_links)
+        self.work = drive.work_dir_for(self.run)                             # root/work/<id>: short and neutral
+        self.ws = self.work / "workspace"
         mp.setattr(drive, "sandboxed", lambda cmd, own_dir: cmd)
         mp.setattr(hostenv, "oom_first", lambda cmd: cmd)
         mp.setattr(drive, "conditions", lambda: dict(NOMINAL))
@@ -449,6 +453,7 @@ def test_the_agent_gets_each_story_s_prompt_in_the_workspace_and_the_prompt_is_k
 def test_the_run_s_bookkeeping_files_and_the_workspace_are_where_local_tools_look(loop):
     loop.main()
     assert (loop.run / "work_dir.txt").read_text() == str(loop.work) and (loop.run / "current_story").read_text() == ""
+    assert loop.work.name == drive.work_id("run") and (loop.ws_links / "run").resolve() == loop.work.resolve()   # the long name links
     doc = json.loads((loop.run / "progress.json").read_text())
     assert doc["scope"] == "two" and [(s["id"], s["status"]) for s in doc["stories"]] == [(1, drive.DONE), (2, drive.DONE)]
     assert git(loop.ws, "log", "--format=%s").split("\n") == [
@@ -687,10 +692,23 @@ def test_in_the_real_sandbox_an_agent_that_edits_the_spec_is_refused_and_keeps_i
     loop = Loop(outside_shared_temp, monkeypatch, default_scope="two")
     monkeypatch.setattr(drive, "sandboxed", REAL_SANDBOX)
     with_tasks(loop, 1)
-    loop.plan(s1={"try_spec": True,
+    loop.plan(s1={"try_spec": True, "seen": True,
                   "progress": {"| 1 | Unit tests for the thing | todo |": "| 1 | Unit tests for the thing | done |"}})
+    monkeypatch.setenv("SPEC_BENCH_RESULTS_ROOT", str(loop.root / "awesome-local-ai"))       # as dbench sets it
     loop.main("--only", "1")
     assert (loop.root / "spec-write.txt").read_text().startswith("refused: ")
+    # What the agent saw of where it is: a short neutral path, and an environment with nothing of the run in it.
+    seen = json.loads((loop.root / "seen.json").read_text())
+    assert seen["cwd"] == str(loop.ws.resolve()) and seen["cwd"].endswith(f"/work/{drive.work_id('run')}/workspace")
+    env = seen["env"]
+    assert env["PWD"] == seen["cwd"] and env["HOME"] == str((loop.work / "agent-home").resolve())
+    for k, v in env.items():
+        if k == "PATH":
+            continue
+        v = v.replace(str(loop.root), "<the test's root>")                   # which conftest names after the sandbox tests
+        assert "bench" not in k.lower() and "bench" not in v.lower(), (k, v)
+        for word in (MODEL, Scripted.name, "covpack", str(loop.run), str(loop.root / "awesome-local-ai")):
+            assert word not in v, (k, v)
     rec = loop.story(1)
     assert rec["status"] == drive.DONE and "spec_tampered" not in rec and "spec_changed_files" not in rec
     assert rec["tasks_claimed"] == {"file": progress_file.READ, "tasks": {"1": "done", "2": "todo"}}

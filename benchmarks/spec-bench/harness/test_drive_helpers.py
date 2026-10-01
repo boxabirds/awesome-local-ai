@@ -11,6 +11,7 @@ from __future__ import annotations
 import gzip
 import json
 import os
+import re
 import stat
 import subprocess
 import sys
@@ -1299,17 +1300,70 @@ def test_missing_resources_and_interrupted_scoring_each_stop_the_run_with_their_
 
 # ---------- labels and work directories ----------
 
-def test_a_run_is_labelled_and_given_a_work_dir_by_its_place_in_the_results(tmp_path, monkeypatch):
+def test_a_run_is_labelled_and_named_by_its_place_in_the_results_and_its_work_dir_is_short_and_neutral(tmp_path, monkeypatch):
+    """The agent's cwd is under its work dir, and pi puts the cwd in the system prompt: the old name
+    (<model>__<engine>__…__benchmarks__vidi__<run>) told every model it was in a benchmark, and 594 tool calls
+    mistyped it. The work dir is now WORK_ROOT/<id>, the id a hash of the long name, which stays the name of a
+    symlink under the bench home for people and tools (link_work_dir)."""
     monkeypatch.setattr(drive, "REPO_ROOT", tmp_path / "repo")
-    monkeypatch.setattr(drive, "WORK_ROOT", tmp_path / "work")
+    monkeypatch.setattr(drive, "WORK_ROOT", tmp_path / "w")
     combo = tmp_path / "repo" / "combinations" / "fam" / "ver" / "size" / "os" / "ram" / "stack" / "benchmarks" / "vidi" / "r1"
     assert drive.combination_label(combo) == "fam/ver/size/os/ram/stack"
-    assert drive.work_dir_for(combo) == tmp_path / "work" / "fam__ver__size__os__ram__stack__benchmarks__vidi__r1"
+    assert drive.work_dir_name(combo) == "fam__ver__size__os__ram__stack__benchmarks__vidi__r1"
+    work = drive.work_dir_for(combo)
+    assert work.parent == tmp_path / "w" and re.fullmatch(f"[0-9a-f]{{{drive.WORK_ID_CHARS}}}", work.name) and drive.WORK_ID_CHARS == 10
+    assert work.name == drive.work_id("fam__ver__size__os__ram__stack__benchmarks__vidi__r1")
+    for word in ("fam", "stack", "bench", "vidi", "r1"):
+        assert word not in str(work.relative_to(tmp_path))
     ref = tmp_path / "repo" / "benchmarks" / "reference" / "vidi" / "some-stack" / "run-2"
     assert drive.combination_label(ref) == "reference/some-stack"
-    assert drive.work_dir_for(ref) == tmp_path / "work" / "benchmarks__reference__vidi__some-stack__run-2"
+    assert drive.work_dir_name(ref) == "benchmarks__reference__vidi__some-stack__run-2"
     elsewhere = tmp_path / "elsewhere" / "run-9"
-    assert drive.combination_label(elsewhere) == "run-9" and drive.work_dir_for(elsewhere) == tmp_path / "work" / "run-9"
+    assert drive.combination_label(elsewhere) == "run-9" and drive.work_dir_name(elsewhere) == "run-9"
+    assert len({drive.work_dir_for(r) for r in (combo, ref, elsewhere)}) == 3
+    assert drive.WORK_ROOT_NAME == ".w"                                       # ~/.w by default (VIDI_WORK_ROOT overrides)
+
+
+def test_the_long_name_is_a_symlink_to_the_short_work_dir_and_a_run_from_before_is_moved_there(tmp_path, monkeypatch):
+    monkeypatch.setattr(drive, "REPO_ROOT", tmp_path / "repo")
+    monkeypatch.setattr(drive, "WORK_ROOT", tmp_path / "w")
+    monkeypatch.setattr(drive, "WORK_LINKS", tmp_path / "bench" / "work")
+    run = tmp_path / "repo" / "combinations" / "fam" / "ver" / "size" / "os" / "ram" / "stack" / "benchmarks" / "vidi" / "r1"
+    work = drive.work_dir_for(run)
+    link = tmp_path / "bench" / "work" / drive.work_dir_name(run)
+    # A new run: the link is made (its target may not exist yet: setup makes the workspace after).
+    drive.link_work_dir(run, work)
+    assert link.is_symlink() and link.resolve() == work.resolve() and not work.exists()
+    drive.link_work_dir(run, work)                                             # again: nothing changes
+    assert link.is_symlink() and link.resolve() == work.resolve()
+    # A run that began under an earlier harness has a real directory at the long name: moved, and linked.
+    link.unlink()
+    (link / "workspace" / "src").mkdir(parents=True)
+    (link / "workspace" / "src" / "a.ts").write_text("the agent's work so far")
+    drive.link_work_dir(run, work)
+    assert link.is_symlink() and (work / "workspace" / "src" / "a.ts").read_text() == "the agent's work so far"
+    # Both a real directory at the long name and the short dir: nobody can say which is the run's. Stop.
+    link.unlink()
+    (link / "workspace").mkdir(parents=True)
+    with pytest.raises(SystemExit) as e:
+        drive.link_work_dir(run, work)
+    assert str(link) in str(e.value) and str(work) in str(e.value)
+
+
+def test_the_harness_s_own_variables_are_not_inherited_by_the_agent():
+    """What the harness, run.sh and dbench set for themselves names the results checkout, the bench home and the
+    run: none of it is the agent's to see (PATH is, whatever is on it)."""
+    environ = {"PATH": "/x/.dbench/tools/bin:/x/awesome-local-ai/bin:/usr/bin", "LANG": "C.UTF-8", "CTX": "131072",
+               "VIDI_BENCH_HOME": "/x/.vidi-bench", "VIDI_WORK_ROOT": "/x/w", "SPEC_BENCH_RESULTS_ROOT": "/x/awesome-local-ai",
+               "SPEC_BENCH_PACK_NAME": "vidi", "DBENCH_JOB": "canvas-vk-03", "BENCH_CONTEXT": "131072",
+               # A tool's own variable naming a root the sandbox denies (pyenv's, when the harness ran from its dir).
+               "PYENV_DIR": "/x/awesome-local-ai/benchmarks/spec-bench/harness", "OLDPWD": "/x/.vidi-bench/work",
+               "RELEASE_DIR": "/x/releases/harness-v1/benchmarks"}
+    denied = (Path("/x/awesome-local-ai"), Path("/x/releases/harness-v1"), Path("/x/.vidi-bench"))
+    assert drive.inherited_env(environ, denied) == {"PATH": "/x/.dbench/tools/bin:/x/awesome-local-ai/bin:/usr/bin",
+                                                   "LANG": "C.UTF-8", "CTX": "131072"}
+    assert drive.HARNESS_ENV_PREFIXES == ("VIDI_", "SPEC_BENCH_", "DBENCH_", "BENCH_")
+    assert "PYENV_DIR" not in drive.inherited_env({"PYENV_DIR": str(drive.HARNESS)})       # the real roots by default
 
 
 def test_outside_packages_name_every_ancestor_s_package_dir_and_manifests(tmp_path):

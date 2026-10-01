@@ -4,19 +4,25 @@
 #
 #   benchmarks/spec-bench/harness/fetch-work.sh <node> benchmarks/reference/vidi/opus-5.5/run-2
 #
-# The folder's name comes from the run's place in the repo (drive.work_dir_for), so it's the same on
-# every machine. Needs ssh access to <host> (e.g. Tailscale SSH). Refuses to overwrite a local copy.
+# The folder is ~/.w/<id> on every machine, the id from the run's place in the repo (drive.work_dir_for); its long
+# name, ~/.vidi-bench/work/<...>__benchmarks__<pack>__<run>, is a symlink to it on both (drive.link_work_dir), and
+# is what is copied from, so a run from before the short dirs is fetched the same way. Needs ssh access to <host>
+# (e.g. Tailscale SSH). Refuses to overwrite a local copy.
 set -euo pipefail
 HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ $# -eq 2 ]] || { sed -n '2,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 2; }
 HOST="$1"; RUN="${2%/}"
-NAME="$(cd "$HARNESS" && uv run --quiet python -c "
+read -r NAME LOCAL < <(cd "$HARNESS" && uv run --quiet python -c "
 import sys; from pathlib import Path; import drive
-print(drive.work_dir_for(drive.REPO_ROOT / sys.argv[1]).name)" "$RUN")"
-LOCAL="$HOME/.vidi-bench/work/$NAME"
+run = drive.REPO_ROOT / sys.argv[1]
+print(drive.work_dir_name(run), drive.work_dir_for(run))" "$RUN")
 [[ -e "$LOCAL" ]] && { echo "$LOCAL already exists here; not overwriting" >&2; exit 1; }
-mkdir -p "$(dirname "$LOCAL")"
-echo "fetching $HOST:.vidi-bench/work/$NAME -> $LOCAL"
+mkdir -p "$LOCAL"
+echo "fetching $HOST:.vidi-bench/work/$NAME/ -> $LOCAL (its long name: ~/.vidi-bench/work/$NAME)"
 rsync -a --exclude node_modules --exclude dist --exclude .wrangler "$HOST:.vidi-bench/work/$NAME/" "$LOCAL/"
+(cd "$HARNESS" && uv run --quiet python -c "
+import sys; from pathlib import Path; import drive
+run = drive.REPO_ROOT / sys.argv[1]
+drive.link_work_dir(run, drive.work_dir_for(run))" "$RUN")
 git -C "$LOCAL/workspace" log --oneline | head -3
 echo "done: run.sh … --run-id ${RUN##*/} will continue from the next unfinished story"

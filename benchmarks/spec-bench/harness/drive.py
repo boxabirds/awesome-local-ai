@@ -70,7 +70,24 @@ PACK = PK.dir
 # All benchmark state lives under one hidden folder, never loose in the home directory: work/ (one
 # folder per run), keys/ (grading keys), reference/ (imported builds and transcripts), series logs.
 BENCH_HOME = hostenv.bench_home()
-WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", BENCH_HOME / "work")).resolve()
+# Where the agents work: WORK_ROOT/<id>/workspace, the id a hash of the run's long name (work_dir_for). Short and
+# neutral on purpose: the agent's cwd is under it, pi puts the cwd in the system prompt and every command shows it,
+# and the old name (~/.vidi-bench/work/<model>__<engine>__…__benchmarks__vidi__<run>) told every model it was in a
+# benchmark (46 Qwen stories said so; 594 tool calls mistyped it). A fixed path such as /w is not possible without
+# root on either platform (bwrap can't make a mount point on the host's /, sandbox-exec can't remap a path, and a
+# symlink is resolved by node's process.cwd()), so the directory is real and its name is short. The long name is
+# kept for people and tools as a symlink under the bench home (WORK_LINKS, link_work_dir).
+# What the model can still see: its cwd and $HOME, ~/.w/<id>/workspace and ~/.w/<id>/agent-home (and `pwd`, error
+# messages and git's paths under them); in a process listing on macOS the sandbox profile with the paths it denies
+# (the bench home, the results checkout), on Linux bwrap's arguments with the same; PATH, which may name
+# ~/.dbench/tools; its browsers' path ~/.cache/vidi-agent-ms-playwright (vidi is the app's name, in the spec too).
+WORK_ROOT_NAME = ".w"
+WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", Path.home() / WORK_ROOT_NAME)).resolve()
+WORK_LINKS = BENCH_HOME / "work"
+WORK_ID_CHARS = 10
+# The harness's, run.sh's and dbench's own variables name the results checkout, the bench home and the run: the
+# agent inherits none of them (inherited_env). PATH is inherited as it is, whatever it names.
+HARNESS_ENV_PREFIXES = ("VIDI_", "SPEC_BENCH_", "DBENCH_", "BENCH_")
 # Nothing the agent runs may read these: the harness + held-out suite and every run's records (both roots: the
 # results checkout, and the code's own directory when it is a release), the user's own agent
 # config/skills/sessions, and other runs' work directories (WORK_ROOT minus the agent's own).
@@ -322,8 +339,9 @@ def combination_label(run: Path) -> str:
         return run.name
 
 
-def work_dir_for(run: Path) -> Path:
-    """Stable per-run work directory outside the repo, named after the run's place in it."""
+def work_dir_name(run: Path) -> str:
+    """The run's long name, after its place in the repo: the symlink's name under WORK_LINKS, and what the work
+    dir was called before 1 Oct 2026."""
     try:
         rel = run.resolve().relative_to(REPO_ROOT / "combinations")
     except ValueError:
@@ -331,7 +349,43 @@ def work_dir_for(run: Path) -> Path:
             rel = run.resolve().relative_to(REPO_ROOT)
         except ValueError:
             rel = Path(run.resolve().name)
-    return WORK_ROOT / "__".join(rel.parts)
+    return "__".join(rel.parts)
+
+
+def work_id(name: str) -> str:
+    return hashlib.sha256(name.encode()).hexdigest()[:WORK_ID_CHARS]
+
+
+def work_dir_for(run: Path) -> Path:
+    """Stable per-run work directory outside the repo: WORK_ROOT/<id>, the id from the run's long name, so it is
+    the same on every machine and says nothing to the agent."""
+    return WORK_ROOT / work_id(work_dir_name(run))
+
+
+def link_work_dir(run: Path, work: Path) -> None:
+    """The run's long name as a symlink to its work dir, for people and tools (fetch-work.sh, logscan). A run that
+    began under an earlier harness has a real directory at the long name: it is moved to the short path, so its
+    next story runs there, and the link put in its place."""
+    link = WORK_LINKS / work_dir_name(run)
+    WORK_LINKS.mkdir(parents=True, exist_ok=True)
+    if link.is_dir() and not link.is_symlink():
+        if work.exists():
+            raise SystemExit(f"both {link} (a run from before) and {work} exist: which is the run's work must be decided by hand")
+        work.parent.mkdir(parents=True, exist_ok=True)
+        os.rename(link, work)
+        print(f"work dir moved to {work} (its long name is now a link)", flush=True)
+    if not link.is_symlink():
+        link.symlink_to(work)
+
+
+def inherited_env(environ, denied: tuple[Path, ...] | None = None) -> dict:
+    """The environment the agent inherits: everything but the harness's own variables (HARNESS_ENV_PREFIXES) and,
+    PATH apart, any variable naming a root the sandbox denies (the results checkout, the code, the bench home):
+    a tool's own variable can name the harness's directory (pyenv's PYENV_DIR did), and naming a hidden path
+    only tells the agent what it is."""
+    roots_ = [str(p) for p in (denied if denied is not None else (REPO_ROOT, CODE_ROOT, BENCH_HOME))]
+    return {k: v for k, v in environ.items()
+            if not k.startswith(HARNESS_ENV_PREFIXES) and (k == "PATH" or not any(r in v for r in roots_))}
 
 
 def mirror(ws: Path, dest: Path) -> None:
@@ -1142,7 +1196,7 @@ def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_pa
     if CONTAINMENT:
         cmd = CONTAINMENT.wrap(cmd)
     t0 = time.monotonic()
-    full_env = {**os.environ, **env, **client.env()}
+    full_env = {**inherited_env(os.environ), **env, **client.env()}
     for k in getattr(client, "env_remove", ()):  # e.g. an API key that would override subscription auth
         full_env.pop(k, None)
     proc = subprocess.Popen(cmd, cwd=ws, env=full_env, stdin=subprocess.DEVNULL,
@@ -2000,7 +2054,8 @@ def main() -> None:
     run = a.run_dir.resolve()
     run.mkdir(parents=True, exist_ok=True)
     work = work_dir_for(run)
-    ws = work / "workspace"
+    link_work_dir(run, work)
+    ws = work / WORKSPACE_DIR
     known_good = known_good_base(a.from_run.resolve(), stories[0]["id"]) if a.from_run else None
     if known_good:
         setup_workspace_from(ws, known_good, SPEC)

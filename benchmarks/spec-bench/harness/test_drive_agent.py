@@ -179,6 +179,18 @@ def test_a_resumed_session_is_asked_of_the_client_and_appended_to_the_log(sessio
     assert [e["id"] for e in logged(events)] == ["s1", "s2"]
 
 
+def test_the_harness_s_own_variables_do_not_reach_the_agent(session, monkeypatch):
+    for k, v in {"SPEC_BENCH_RESULTS_ROOT": "/x/awesome-local-ai", "VIDI_WORK_ROOT": "/x/w", "DBENCH_JOB": "j",
+                 "BENCH_CONTEXT": "1", "CTX": "131072"}.items():
+        monkeypatch.setenv(k, v)
+    body = """
+        emit({"type": "session", "id": "s", "env": sorted(k for k in os.environ if k in
+              ("SPEC_BENCH_RESULTS_ROOT", "VIDI_WORK_ROOT", "DBENCH_JOB", "BENCH_CONTEXT", "CTX", "PATH"))})
+    """
+    _, _, events = session(body)
+    assert logged(events)[0]["env"] == ["CTX", "PATH"]
+
+
 def test_the_agent_runs_in_the_workspace_with_the_given_and_the_client_s_environment(session, monkeypatch):
     monkeypatch.setenv("COV_API_KEY", "would override the subscription")
     monkeypatch.setenv("COV_INHERITED", "from the harness")
