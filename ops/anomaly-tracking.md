@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 10:06 UTC
+**Last updated:** 2026-10-01 10:17 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -82,7 +82,10 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Note 2026-10-01 09:31:** story 7 has not started: the job has been waiting on "thermal: heavy" since
   about 09:05 (26 min and counting), on AC, with the video call still using about 2 cores and the load
   average at 7–10. The run is blocked until the machine cools, which it won't while it is in use like this.
-- **Note 2026-10-01 09:52:** still waiting before story 7: 47 min so far.
+- **Note 2026-10-01 10:15:** the wait before story 7 lasted 67 min (09:05–10:12) and ended when the job
+  was stopped (exit 143) and restarted as attempt 2, after `2c35fa92` (a cloud model's run is never held
+  up for the machine's power or temperature). The run's record shows "stopped: exit 143" in between;
+  that is the restart, not a failure. Waits so far: before story 3 (short), story 5 (short), story 7 (67 min).
 - **Note 2026-10-01 09:40:** known to the owner (on AC now; a video call and development work load the
   machine). Not escalated again unless the run makes no progress for 2 hours. Waits are logged here:
   before story 7, from about 09:05, still waiting at 09:36 (31 min so far).
@@ -114,6 +117,7 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Status:** watching for whether a later story repairs it, as happened in v2-r1 and v2-r3.
 - **Note 2026-10-01 09:12:** story 5 done in 22 min (the other runs: 87–128 min): 2/5 of its own held-out
   tests and 3/36 overall, gate still red. The app now renders for a few tests; not repaired.
+- **Note 2026-10-01 10:15:** story 7: 0/8 of its own, 13/44 overall, gate red (the other runs: 8/8).
 - **Suggested action:** none for the harness. Worth knowing when reading this stack's story-level scores:
   stories 2–4 will show 0 own held-out tests although unit-level work exists.
 
@@ -147,9 +151,12 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Observed:** the job log: "tool call silent 10 min — interrupted (Ctrl-C equivalent)". The agent carried
   on afterwards (edits and builds). Shortly before, its activity included probing a local server with curl,
   so a command waiting on a server that never answers is the likely cause.
-- **Bucket:** genuine LLM behaviour — **confidence low** until the story's record shows which command it
-  was (`conversation.longest_tool`, `tool_interruptions`).
-- **Status:** watching; the guard did its job.
+- **Bucket:** genuine LLM behaviour — **confidence medium** (was low until the record named the command).
+- **Note 2026-10-01 10:15:** the record names it: a `curl` of the agent's own local dev server with no
+  time limit, 616 s (`hung-command` signal, 1 tool interruption). The story ended DONE in 49 min with 0/8
+  of its own held-out tests (13/44 overall), gate red. Confidence raised to medium: the agent's server
+  accepted the connection and never answered, and the agent set no timeout.
+- **Status:** explained; kept here in case it recurs. The guard did its job.
 
 ### A-010 — Sonnet 5.5 v2-r4: its own e2e suite fails in the gate on stories 2 and 3 while held-out passes
 - **First seen:** 2026-10-01 07:5x (story 2) · **Last seen:** 2026-10-01 08:2x (story 3)
