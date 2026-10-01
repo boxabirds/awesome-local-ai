@@ -28,6 +28,10 @@
 .stat-value { font-size: 18px; font-weight: 650; color: var(--ink); overflow-wrap: anywhere; }
 .stat-sub { font-size: 12px; color: var(--faint); max-width: 380px; margin-top: 2px; }
 .stat-sub .why { color: var(--muted); }
+/* A finished run's final score that is still owed: pending (the harness retries it) or needing a person. */
+.final-score-note { color: var(--muted); }
+.stat-sub .final-score-note { display: block; margin-top: 2px; }
+.final-score-note[data-final-score="needsPerson"] { color: var(--part); font-weight: 600; }
 .unit { font-size: 12px; font-weight: 500; color: var(--faint); }
 .big-n { font-size: 28px; font-weight: 750; letter-spacing: -.01em; line-height: 1.1; }
 .record-n { font-size: 36px; font-weight: 800; letter-spacing: -.02em; line-height: 1; }

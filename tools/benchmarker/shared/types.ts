@@ -121,6 +121,14 @@ export interface Finalize {
   packRef: string;
   /** When, as written (ISO); "" when not recorded. */
   at: string;
+  /** Whether the harness says a person is needed (needs_person). It retries a final re-score by itself at the
+   * machine's next run, and says true only when that can't put it right. Null when the record doesn't say (every
+   * record from before the harness wrote it): never taken as a person needed. */
+  needsPerson: boolean | null;
+  /** How many times the harness has tried the final re-score; null when not recorded. */
+  attempts: number | null;
+  /** When it last tried, as written (ISO); "" when not recorded. */
+  lastAttemptAt: string;
 }
 
 /** One line of a run's interventions.md: something done to the run by hand, by the operator or the harness's

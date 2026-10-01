@@ -554,14 +554,27 @@ describe("the harness's current accounting version, from accounting.py", () => {
 describe("what a run's final re-score recorded (finalize.json)", () => {
   const RAW = { version: "vidi-v2.0-pre2+28ace8b", pack_ref: "vidi-v2.0-pre2", at: "2026-10-01T08:25:57Z", bundle: "workspace.bundle",
     rescore: "skipped", reason: "the suite checkout is at vidi-v2.0-pre2+28ace8b, not the pack's vidi-v2.0-pre2" };
+  const NOT_SAID = { needsPerson: null, attempts: null, lastAttemptAt: "" };
   it("skipped, with its reason as written", () => {
-    expect(parseFinalize(RAW)).toEqual({ rescore: "skipped", reason: RAW.reason, version: RAW.version, packRef: "vidi-v2.0-pre2", at: RAW.at });
+    expect(parseFinalize(RAW)).toEqual({ rescore: "skipped", reason: RAW.reason, version: RAW.version, packRef: "vidi-v2.0-pre2", at: RAW.at, ...NOT_SAID });
+  });
+  it("whether a person is needed, how often it was tried and when last, as the harness wrote them", () => {
+    expect(parseFinalize({ ...RAW, rescore: "failed", needs_person: true, attempts: 3, last_attempt_at: " 2026-10-01T12:00:00Z " }))
+      .toMatchObject({ needsPerson: true, attempts: 3, lastAttemptAt: "2026-10-01T12:00:00Z" });
+    expect(parseFinalize({ ...RAW, needs_person: false, attempts: 1 })).toMatchObject({ needsPerson: false, attempts: 1, lastAttemptAt: "" });
+  });
+  it("a record from before the harness wrote them says nothing: never taken as a person needed", () => {
+    expect(parseFinalize(RAW)).toMatchObject(NOT_SAID);
+  });
+  it("only a boolean says whether a person is needed, only a whole count of at least one is an attempt count", () => {
+    for (const needs_person of ["true", 1, null, "yes"]) expect(parseFinalize({ ...RAW, needs_person })!.needsPerson).toBeNull();
+    for (const attempts of ["3", 0, -1, 1.5, null, NaN]) expect(parseFinalize({ ...RAW, attempts })!.attempts).toBeNull();
   });
   it.each(["done", "failed", "flagged"])("%s", (rescore) => {
     expect(parseFinalize({ ...RAW, rescore, reason: " why " })).toMatchObject({ rescore, reason: "why" });
   });
   it("missing fields are empty, never invented", () => {
-    expect(parseFinalize({ rescore: "failed" })).toEqual({ rescore: "failed", reason: "", version: "", packRef: "", at: "" });
+    expect(parseFinalize({ rescore: "failed" })).toEqual({ rescore: "failed", reason: "", version: "", packRef: "", at: "", ...NOT_SAID });
   });
   it("no record, or one that doesn't say how the re-score ended: nothing", () => {
     for (const raw of [undefined, null, "skipped", {}, { rescore: "pending" }, { reason: "x" }]) expect(parseFinalize(raw)).toBeNull();

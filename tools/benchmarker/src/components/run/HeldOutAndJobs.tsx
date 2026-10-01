@@ -3,6 +3,7 @@ import type { Row } from "../../../shared/types.ts";
 import { heldOutAgreement, jobsView, liveProgress, scoreOfRecord } from "../../../shared/runView.ts";
 import { StoryRunLink } from "../EntityLinks.tsx";
 import { LiveTag, Missing, RecordTag, Section, Term, utc } from "./bits.tsx";
+import { FinalScoreNote } from "./RunHeader.tsx";
 
 export function HeldOut({ run }: { run: Row }) {
   const steps = liveProgress(run);
@@ -25,7 +26,7 @@ export function HeldOut({ run }: { run: Row }) {
         </div>
         <div data-row="record">
           <dt><Term id="scoreOfRecord" /> <RecordTag /></dt>
-          <dd>{rec.kind === "scored" ? <strong className="record-inline">{rec.passed}/{rec.total}</strong> : <><span className="na">n/a</span> <span className="small">{rec.why}</span></>}</dd>
+          <dd>{rec.kind === "scored" ? <strong className="record-inline">{rec.passed}/{rec.total}</strong> : <><span className="na">n/a</span> <span className="small">{rec.why}</span></>} <span className="small"><FinalScoreNote run={run} /></span></dd>
         </div>
         <div data-row="agreement">
           <dt><Term id="heldOutAgreement" /></dt>

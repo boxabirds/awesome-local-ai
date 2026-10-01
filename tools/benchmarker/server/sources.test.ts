@@ -62,7 +62,11 @@ describe("a run's final re-score (finalize.json) and the harness's accounting ve
   });
   it("present: how the re-score ended and why", () => {
     const blob = JSON.stringify({ version: `${V}+28ace8b`, pack_ref: V, at: "2026-10-01T08:25:57Z", rescore: "skipped", reason: `the suite checkout is at ${V}+28ace8b, not the pack's ${V}` });
-    expect(runFinalize(new Map([[FIN, blob]]), DIR)).toEqual({ rescore: "skipped", reason: `the suite checkout is at ${V}+28ace8b, not the pack's ${V}`, version: `${V}+28ace8b`, packRef: V, at: "2026-10-01T08:25:57Z" });
+    expect(runFinalize(new Map([[FIN, blob]]), DIR)).toEqual({ rescore: "skipped", reason: `the suite checkout is at ${V}+28ace8b, not the pack's ${V}`, version: `${V}+28ace8b`, packRef: V, at: "2026-10-01T08:25:57Z", needsPerson: null, attempts: null, lastAttemptAt: "" });
+  });
+  it("present, with what the harness says about retrying it: whether a person is needed, the attempts and the last one", () => {
+    const blob = JSON.stringify({ version: V, pack_ref: V, at: "2026-10-01T08:25:57Z", rescore: "failed", reason: "no browser", needs_person: true, attempts: 3, last_attempt_at: "2026-10-01T12:00:00Z" });
+    expect(runFinalize(new Map([[FIN, blob]]), DIR)).toMatchObject({ rescore: "failed", needsPerson: true, attempts: 3, lastAttemptAt: "2026-10-01T12:00:00Z" });
   });
   it("absent, or not parseable: null", () => {
     expect(runFinalize(new Map(), DIR)).toBeNull();

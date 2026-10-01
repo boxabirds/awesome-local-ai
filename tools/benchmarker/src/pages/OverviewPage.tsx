@@ -16,7 +16,7 @@ import "./machine.css";  // the "now" line, shared with the machines list
  *   every run, whatever the header shows: a machine runs every pack.
  * - `serverNow`: the server's clock now (useBenchState); `state.now` stands in until it is known.
  * - `rows`: the runs of the pack and version family chosen in the header, *before* the status filter. The run
- *   exceptions (failed or stopped, unscored, re-score fault, accounting) are over these, and never filtered by
+ *   exceptions (failed or stopped, and a final score that needs a person) are over these, and never filtered by
  *   status: an exception is never hidden.
  * - `hidden`: the statuses the header's status filter hides. It applies to the Combinations table only (as today:
  *   the table's heading says the filters decide which runs it is over). Leave it out to hide nothing.

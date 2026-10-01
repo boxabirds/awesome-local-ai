@@ -36,14 +36,6 @@
   .need-copy:hover { background: var(--chip); }
   .resolve { white-space: nowrap; font-size: 12px; font-weight: 600; }
 
-  /* Nothing to do now: the same lines, quieter. */
-  .needs-quiet { border-top: 1px solid var(--line); }
-  .needs-quiet > h3 { margin: 0; padding: 7px 12px; display: flex; align-items: baseline; gap: 4px 12px; border-bottom: 1px solid var(--line);
-                      background: var(--panel-2); font-size: 12px; font-weight: 600; color: var(--muted); }
-  .needs-quiet > h3 .count { font-size: 12px; font-weight: 700; }
-  .needs-quiet .needs li { padding-block: 7px; color: var(--muted); }
-  .needs-quiet .need-lead { font-weight: 600; }
-
   /* Now: one row per machine. */
   table.now-table { min-width: 0; table-layout: auto; font-size: 13px; }
   .now-table th[scope="row"] { width: 1%; white-space: nowrap; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--ink); background: var(--panel); }

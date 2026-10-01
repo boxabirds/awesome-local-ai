@@ -2,6 +2,7 @@
 // and the ways out to judging and the record.
 import type { Row, State } from "../../../shared/types.ts";
 import { agentTime, interventionsOf, scoreOfRecord, statusView } from "../../../shared/runView.ts";
+import { finalScoreNote, finalScoreOwed } from "../../../shared/finalScore.ts";
 import { InterventionMark } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { CombinationLink, MachineLink } from "../EntityLinks.tsx";
@@ -21,11 +22,17 @@ export function StatusBadge({ run }: { run: Row }) {
   );
 }
 
+/** While a finished run's final score is owed: whether the harness retries it by itself or says a person is needed. */
+export function FinalScoreNote({ run }: { run: Row }) {
+  const note = finalScoreNote(run);
+  return note ? <span className="final-score-note" data-final-score={finalScoreOwed(run)}>{note}</span> : null;
+}
+
 function RecordScore({ run, state }: { run: Row; state: State }) {
   const r = scoreOfRecord(run);
   if (r.kind === "none") {
     return (
-      <Stat term="scoreOfRecord" tag={<RecordTag />} sub={<span className="why">{r.why}</span>}>
+      <Stat term="scoreOfRecord" tag={<RecordTag />} sub={<><span className="why">{r.why}</span> <FinalScoreNote run={run} /></>}>
         <span className="na" data-tip={`${GLOSSARY.noScore.what} ${r.why}`} data-reason={r.reason}>n/a</span>
       </Stat>
     );
@@ -37,6 +44,7 @@ function RecordScore({ run, state }: { run: Row; state: State }) {
       re-scored {r.at ? utc(r.at) : "(no time recorded)"} · suite <span className="mono">{r.version}</span>
       {r.flaky ? ` · ${r.flaky} flaky` : ""}
       {r.currentSuite ? null : <span className="warn" data-tip={GLOSSARY.suite.what}> · not the current suite ({run.suite})</span>}
+      {" "}<FinalScoreNote run={run} />
     </>}>
       {link ? <a className="record-link" href={link} target="_blank" rel="noopener" data-tip={`${r.passed} of ${r.total} held-out tests pass · per-story results`}>{n}</a> : n}
     </Stat>

@@ -69,13 +69,15 @@ test.describe("invalid: left out of every figure", () => {
   });
 
   test("overview: needs you says nothing about an invalid run (it would, unmarked: the control)", async ({ page }) => {
-    await patchState(page, (s) => { Object.assign(rowOf(s, "v2-r8"), { scores: {}, rescores: [] }); });
+    // A finished run with no score of record that the harness says needs a person: listed, unless it is invalid.
+    const NEEDS_PERSON = { rescore: "failed" as const, reason: "no browser", version: "", packRef: "", at: "", needsPerson: true, attempts: null, lastAttemptAt: "" };
+    await patchState(page, (s) => { Object.assign(rowOf(s, "v2-r8"), { scores: {}, rescores: [], finalize: NEEDS_PERSON }); });
     await page.goto("/");
     const needs = page.locator('[data-page="overview"] [data-section="needs"]');
     await expect(needs).toBeVisible();
     await expect(needs.locator('li[data-need="unscored"]', { hasText: "v2-r8" })).toHaveCount(0);
     await page.unroute("**/api/state");
-    await patchState(page, (s) => { Object.assign(rowOf(s, "v2-r8"), { scores: {}, rescores: [], invalid: null }); });
+    await patchState(page, (s) => { Object.assign(rowOf(s, "v2-r8"), { scores: {}, rescores: [], finalize: NEEDS_PERSON, invalid: null }); });
     await page.reload();
     await expect(needs.locator('li[data-need="unscored"]', { hasText: "v2-r8" })).toHaveCount(1);
   });

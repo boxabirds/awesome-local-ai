@@ -45,6 +45,9 @@ export function scoreOf(row: Row): [string, Score] | null {
 export const SMALL_N = 5;
 export const INDISTINGUISHABLE_TESTS = 12;
 
+/** The version family a suite belongs to: "vidi-v2" for "vidi-v2.0-pre1" (as the header picks the current one). */
+export const suiteFamily = (suite: string) => /^(.*?-v\d+)/.exec(suite)?.[1] ?? "";
+
 /** A run's score of record: its finished build re-scored under exactly its pack's current suite. No fallback to
  * another suite version, and none to live scores: a run without one is counted as unscored, never ranked. An invalid
  * run has none, however it was scored. */

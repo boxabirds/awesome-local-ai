@@ -10,6 +10,7 @@ import type { State } from "../shared/types.ts";
 
 const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
 const GUFO = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi";
+const VK = "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi";   // two finished runs, neither scored
 const MLX = "qwen/3.8/flash-next/macos/128GB/mlxserve-pi";
 const QWEN_27B = "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi";
 const OPUS = "reference/opus-5.5";
@@ -36,7 +37,7 @@ test.describe("overview: combinations ranked on finished runs of record", () => 
   test("ranked by the score-of-record median; combinations without a finished, scored run last, saying why", async ({ page }) => {
     const order = await combos(page).locator("tbody tr").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.stack));
     // Before, the pooled live figure put Swift (97%, its running run's easy stories included) above Opus.
-    expect(order).toEqual([OPUS, SWIFT, QWEN_27B, MLX]);
+    expect(order).toEqual([OPUS, SWIFT, QWEN_27B, VK, MLX]);
     await expect(combos(page).locator(`tr[data-stack="${QWEN_27B}"] td.score`)).toHaveText("not ranked: no finished run yet");
     await expect(combos(page).locator(`tr[data-stack="${MLX}"]`)).toHaveAttribute("data-ranked", "false");
     await expect(combos(page).getByRole("columnheader", { name: /^Score/ })).toHaveAttribute("aria-sort", "descending");
@@ -66,7 +67,7 @@ test.describe("overview: combinations ranked on finished runs of record", () => 
   test("sorting by score reverses; unranked combinations stay last either way", async ({ page }) => {
     await combos(page).getByRole("columnheader", { name: /^Score/ }).click();
     const order = await combos(page).locator("tbody tr").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.stack));
-    expect(order).toEqual([SWIFT, OPUS, QWEN_27B, MLX]);
+    expect(order).toEqual([SWIFT, OPUS, QWEN_27B, VK, MLX]);
   });
 });
 

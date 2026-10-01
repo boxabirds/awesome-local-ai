@@ -6,6 +6,7 @@ import type { Row } from "../../../shared/types.ts";
 import type { TermId } from "../../../shared/glossary.ts";
 import { buildMatrix, DIVERGENCE, MECHANISM_TERM, METRICS, runTotal, type Matrix, type MatrixCell, type Metric, type StoryMedian } from "../../../shared/combinationView.ts";
 import { scoreOfRecord, unscoredReason } from "../../../shared/stats.ts";
+import { finalScoreNote } from "../../../shared/finalScore.ts";
 import { duration } from "../../format.ts";
 import { RunLink, StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
@@ -66,7 +67,8 @@ function cellTip(c: MatrixCell, run: Row, metric: Metric, m: StoryMedian | null 
 function RunHead({ run }: { run: Row }) {
   const score = scoreOfRecord(run);
   const built = run.storiesWorking.squares.filter((q) => q.state !== "unbuilt" && q.state !== "running").length;
-  const why = run.status === "finished" ? `Unscored: ${unscoredReason(run)}.` : `No score of record: the run is ${run.status}, and only a finished run is re-scored.`;
+  const note = finalScoreNote(run);
+  const why = run.status === "finished" ? `Unscored: ${unscoredReason(run)}.${note ? ` ${note}` : ""}` : `No score of record: the run is ${run.status}, and only a finished run is re-scored.`;
   return (
     <>
       <th scope="row" className="m-run">
