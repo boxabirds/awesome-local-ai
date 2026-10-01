@@ -1,85 +1,69 @@
-# Story 5: Share a board with others using a link
+# Story 7: Multi-Select Implementation Notes
 
-## Decisions
+## Key Decisions
 
-### Board existence model
-- A board **exists** iff its Durable Object's storage contains the `updates` table (checked via `sqlite_master`).
-- `created_at` in `storage_meta` is a convenience timestamp set at creation time but is **not** the existence criterion.
-- Legacy boards (created before this story) that have `updates` rows but no `created_at` are treated as existing.
-- This means: opening a link to a board that was created but never written to will show "Board not found" (no table = no existence). This is acceptable per the design doc because a board with zero content is indistinguishable from a non-existent board.
+### Selection Model
+- **Set-based selection**: Replaced single `selectedId: string | null` with `ids: ReadonlySet<string>` in a `useReducer`-based hook (`useSelection`).
+- **Pure reducer**: `selectionReducer` is a pure function exported for unit testing. Actions: `click`, `toggle`, `setMany`, `clear`, `edit`, `prune`.
+- **Pruning**: Selection is pruned whenever the object list changes (remote deletes, local deletes) to prevent dangling IDs.
 
-### `existsReadOnly()` implementation
-- Uses `SELECT name FROM sqlite_master WHERE type='table' AND name='updates'` — a read-only query that never creates tables.
-- The `BoardStore` constructor no longer calls `migrate()`. Migration is lazy: `ensureMigrated()` is called before the first `append()`.
-- This ensures that a `GET /api/boards/:id` or WebSocket connection to an unknown board does not write to storage.
+### Object Type Registry
+- **`ObjectTypeSpec`**: Each object type registers a spec with `Component`, `resizable`, `aspectLocked`, `minSize`, `editableText`, and `hitTest`.
+- **Deferred component registration**: `registerSticky.ts` uses a mutable ref to avoid circular dependency between `StickyNote.tsx` and `registry.tsx`.
+- **Duplicate registration throws**: Prevents accidental double-registration during development.
 
-### Lazy migration
-- `BoardStore.migrate()` is now idempotent and called via `ensureMigrated()` before the first write.
-- `initialize()` RPC calls `migrate()` explicitly (since it's the creation path).
-- `load()` handles the case where tables don't exist yet (returns empty log).
+### Geometry
+- **`Rect` type**: `{x, y, width, height}` in world units.
+- **`resizeRect`**: Computes new rect from anchor corner + delta. Supports `aspectLocked` for uniform scaling.
+- **`clampScale`**: Clamps scale factors to keep all objects within `[minSize, maxSize]` bounds. Stops uniformly when any object would exceed limits.
+- **`scaleWithin`**: Proportionally maps a rect from one bounding box to another (used for group resize).
+- **`unionRects`**: Computes the bounding box of multiple rects.
 
-### Worker route changes
-- `POST /api/boards` → 201 with `{ id }` or 500 with `{ error: 'create_failed' }`
-- `GET /api/boards/:id` → 200 with `{ id }` or 404 with `{ error: 'not_found' }`
-- `GET /api/rooms/:id` (non-WebSocket) → 404 for unknown boards (was 400 for malformed, now 404 for both malformed and unknown)
-- WebSocket upgrade to unknown board → 404 (the `BoardRoom.fetch` checks `existsReadOnly()` before accepting)
+### Group Operations (board-model)
+- **Single transaction**: All group operations (`moveObjects`, `resizeObjects`, `bringObjectsToFront`, `deleteObjects`) use a single Yjs transaction, producing exactly 1 update event.
+- **Missing IDs skipped**: Operations gracefully skip IDs that no longer exist (e.g., deleted remotely).
+- **Non-finite values rejected**: NaN/Infinity positions are rejected without opening a transaction.
+- **Implicit to explicit size**: Sticks without `width`/`height` use `STICKY_SIZE_WORLD`. First `resizeObjects` call writes both fields.
 
-### Client router
-- Minimal History API router with three routes: `/` (home), `/b/:id` (board), not_found
-- No external router dependency
-- `navigate()` helper pushes to history and dispatches `popstate` for reactivity
+### Transform Gesture
+- **Element-level listeners**: `useTransformGesture` attaches `pointermove`/`pointerup` listeners to the specific element (via `setPointerCapture`), not to `window`. This prevents interference with viewport panning.
+- **Shift-click toggles**: Shift+click on an object toggles its selection without starting a drag.
+- **`onGestureStart`/`onGestureEnd`**: Callbacks for enter/exit edit mode (used to disable viewport panning during object manipulation).
 
-### BoardPage existence check
-- On mount, `BoardPage` calls `GET /api/boards/:id`
-- Shows "Opening board…" while checking
-- On `not_found` → renders NotFoundPage
-- On network failure → exponential backoff retry (1s, 2s, 4s, … max 10s) with "Couldn't reach vidi6. Retrying…"
-- On success → renders BoardContent
+### Keyboard
+- **`useBoardKeys`**: Centralized keyboard handler for the board.
+- **Ctrl/Cmd+A**: Selects all objects (prevents default browser select-all).
+- **Escape**: Ends editing if in edit mode, otherwise clears selection.
+- **Arrow keys**: Nudge selection by `NUDGE_STEP_WORLD` (10) or `NUDGE_LARGE_STEP_WORLD` (50 with Shift).
+- **Delete/Backspace**: Deletes all selected objects (ignored while editing text).
+- **Input guard**: Keyboard shortcuts are disabled when focus is in an input/textarea/contenteditable.
 
-### Share panel
-- Toggle panel (not a modal) with the share link
-- `navigator.clipboard.writeText` with graceful fallback
-- On clipboard failure: selects the input text and shows "Press Ctrl+C (Cmd+C on Mac) to copy"
-- "✓ Link copied" confirmation for exactly `LINK_COPIED_MS` (2000ms)
-- Closes on Escape or outside click; focus returns to the Share button
+### Selection UI
+- **`SelectionOverlay`**: Renders bounding box + 8 resize handles in screen space for multi-selection (2+ objects).
+- **`SelectionBar`**: Shows "N selected" + Delete button for multi-selection, or `NoteToolbar` for single sticky.
+- **`Marquee`**: Shift+drag on empty space creates a marquee rect. Fully-inside objects are added to selection.
 
-### Pre-existing component test updates
-- Added `vi.mock('../../src/client/api')` to StickyNote, StickyTextEditor, and Toolbars tests
-- Added `window.history.pushState` to set a valid board URL
-- Made test callbacks async to await the BoardPage's existence check resolution
-- Used a valid 22-character board ID (`testboardid1234567890a`)
+### Compatibility
+- **Backward-compatible snapshots**: `ObjectSnapshot` includes optional `width`/`height` fields. Old sticks without these fields use `STICKY_SIZE_WORLD`.
+- **Existing tests pass**: All story 1-5 component tests continue to pass without modification.
 
-### Mock storage updates
-- `MockDurableObjectStorage` now tracks created tables in a `createdTables` set
-- Supports `sqlite_master` queries for `existsReadOnly()`
-- Supports `INSERT OR REPLACE` syntax (used by `setCreatedAt`)
+## Files Changed
+- `src/shared/config.ts` — Added constants
+- `src/shared/geometry.ts` — NEW: geometry operations
+- `src/shared/board-model.ts` — Added group operations + `ObjectSnapshot`
+- `src/client/objects/registry.tsx` — NEW: type registry
+- `src/client/objects/registerSticky.ts` — NEW: sticky registration
+- `src/client/objects/StickyNote.tsx` — Rewritten to use registry + gesture
+- `src/client/board/useSelection.ts` — Rewritten: set-based selection
+- `src/client/board/SelectionBar.tsx` — NEW
+- `src/client/board/SelectionOverlay.tsx` — NEW
+- `src/client/board/Marquee.tsx` — NEW
+- `src/client/board/useTransformGesture.ts` — NEW
+- `src/client/board/useBoardKeys.ts` — NEW
+- `src/client/canvas/BoardViewport.tsx` — Added marquee support
+- `src/client/pages/BoardContent.tsx` — Rewired for multi-select
 
-## Test coverage
-
-| TC ID | Type | Description |
-|-------|------|-------------|
-| TC-04 | unit | Board ID format (pre-existing) |
-| TC-05 | integration | POST creates, GET confirms |
-| TC-06 | integration | GET fresh → 404, no tables |
-| TC-07 | integration | Malformed IDs → 404, no RPC |
-| TC-08 | integration | Legacy board → exists |
-| TC-09 | integration | WebSocket unknown → 404 |
-| TC-10 | integration | WebSocket known → accepted |
-| TC-12 | integration | RPC failure → 500 |
-| TC-14 | integration | PUT → 405 |
-| TC-15 | integration | initialize idempotent |
-| TC-16 | component | Home: create + navigate |
-| TC-17 | component | Home: failure message |
-| TC-19 | component | Board: malformed → not found |
-| TC-20 | component | Board: unknown → not found |
-| TC-21 | component | Board: retry then success |
-| TC-22 | component | Share: copy + timing |
-| TC-23 | component | Share: clipboard reject |
-| TC-24 | component | Share: no clipboard API |
-| TC-25 | component | Share: Escape/outside/focus |
-| TC-26 | e2e | Create, share, join |
-| TC-27 | e2e | Bad link recovery |
-| TC-28 | e2e | Flaky service retry |
-| TC-29 | e2e | Clipboard blocked |
-| TC-31 | e2e | Pre-existing board |
-| TC-32 | integration | no-referrer meta tag |
+## Test Coverage
+- **Unit**: geometry (16), board-model group ops (13), registry (6), selection reducer (10)
+- **Component**: selection-multi (16 tests covering TC-16 to TC-31)
+- **E2E**: multi-select.spec.ts (TC-32 to TC-36)

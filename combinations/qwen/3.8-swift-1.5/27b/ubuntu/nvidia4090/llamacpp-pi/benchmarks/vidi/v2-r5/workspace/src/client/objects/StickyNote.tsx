@@ -1,13 +1,15 @@
 // src/client/objects/StickyNote.tsx
+// Sticky note component (story 7: delegates drag to transform gesture).
+
 import { useCallback, useRef, useEffect, useState } from 'react';
 import type { ReactElement, PointerEvent as ReactPointerEvent } from 'react';
 import * as Y from 'yjs';
 import type { StickySnapshot } from '../../shared/board-model';
-import { moveObject, bringToFront, getStickyText, setStickyColor, deleteObject } from '../../shared/board-model';
-import { STICKY_SIZE_WORLD, STICKY_COLORS, DRAG_THRESHOLD_PX, STICKY_FONT_MAX_PX, type StickyColor } from '../../shared/config';
+import { getStickyText } from '../../shared/board-model';
+import { STICKY_SIZE_WORLD, STICKY_COLORS, STICKY_FONT_MAX_PX } from '../../shared/config';
 import { fitFontSize } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
-import { NoteToolbar } from './NoteToolbar';
+import { _registerStickyComponent } from './registerSticky';
 
 export interface StickyNoteProps {
   note: StickySnapshot;
@@ -15,144 +17,44 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
-  onSelect: (id: string | null) => void;
-  onStartEdit: (id: string) => void;
+  onPointerDown: (e: ReactPointerEvent, id: string) => void;
+  onDblClick: (e: React.MouseEvent, id: string) => void;
   onEndEdit: (next: 'selected' | 'unselected') => void;
 }
 
-type InteractionState = 'unselected' | 'pressed' | 'dragging';
-
 export function StickyNote(props: StickyNoteProps): ReactElement {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const { note, doc, selected, editing, onPointerDown, onDblClick, onEndEdit } = props;
   const elRef = useRef<HTMLDivElement>(null);
-  const [interaction, setInteraction] = useState<InteractionState>('unselected');
   const [fontPx, setFontPx] = useState(STICKY_FONT_MAX_PX);
   const [overflow, setOverflow] = useState(false);
 
-  // Drag state refs
-  const dragStartRef = useRef<{ screenX: number; screenY: number; worldX: number; worldY: number } | null>(null);
-  const rafRef = useRef<number>(0);
-  const lastMoveRef = useRef<{ x: number; y: number } | null>(null);
+  const width = note.width ?? STICKY_SIZE_WORLD;
+  const height = note.height ?? STICKY_SIZE_WORLD;
 
   // Fit font size when text changes
   useEffect(() => {
     const el = elRef.current?.querySelector('[data-sticky-text]');
     if (el && !editing) {
-      const result = fitFontSize(el as HTMLElement, STICKY_SIZE_WORLD);
+      const result = fitFontSize(el as HTMLElement, width);
       setFontPx(result.fontPx);
       setOverflow(result.overflow);
     }
-  }, [note.text, editing]);
-
-  // If the note is deleted from the doc, end interaction silently
-  useEffect(() => {
-    if (interaction === 'dragging') {
-      const objects = doc.getMap('objects');
-      if (!objects.has(note.id)) {
-        setInteraction('unselected');
-        dragStartRef.current = null;
-        lastMoveRef.current = null;
-      }
-    }
-  }, [doc, note.id, interaction]);
+  }, [note.text, editing, width]);
 
   const handlePointerDown = useCallback((e: ReactPointerEvent) => {
     if (editing) return;
-    e.stopPropagation(); // Prevent board pan
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    setInteraction('pressed');
-    dragStartRef.current = {
-      screenX: e.clientX,
-      screenY: e.clientY,
-      worldX: note.x,
-      worldY: note.y,
-    };
-    lastMoveRef.current = null;
-  }, [editing, note.x, note.y]);
-
-  const handlePointerMove = useCallback((e: ReactPointerEvent) => {
-    if (interaction === 'unselected') return;
-    const start = dragStartRef.current;
-    if (!start) return;
-
-    const dx = e.clientX - start.screenX;
-    const dy = e.clientY - start.screenY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (interaction === 'pressed' && dist >= DRAG_THRESHOLD_PX) {
-      // Start dragging
-      setInteraction('dragging');
-      bringToFront(doc, note.id);
-    }
-
-    if (interaction === 'dragging' || dist >= DRAG_THRESHOLD_PX) {
-      const newWorldX = start.worldX + dx / zoom;
-      const newWorldY = start.worldY + dy / zoom;
-      lastMoveRef.current = { x: newWorldX, y: newWorldY };
-
-      if (!rafRef.current) {
-        rafRef.current = requestAnimationFrame(() => {
-          rafRef.current = 0;
-          if (lastMoveRef.current) {
-            moveObject(doc, note.id, lastMoveRef.current.x, lastMoveRef.current.y);
-          }
-        });
-      }
-    }
-  }, [interaction, doc, note.id, zoom]);
-
-  const handlePointerUp = useCallback((e: ReactPointerEvent) => {
-    try {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch { /* already released */ }
-
-    if (interaction === 'pressed') {
-      // Was just a click - select
-      setInteraction('unselected');
-      onSelect(note.id);
-    } else if (interaction === 'dragging') {
-      setInteraction('unselected');
-      // Already selected (or was selected before drag)
-      onSelect(note.id);
-    }
-    dragStartRef.current = null;
-    lastMoveRef.current = null;
-  }, [interaction, note.id, onSelect]);
-
-  const handlePointerCancel = useCallback(() => {
-    if (interaction === 'dragging') {
-      // Keep last applied position
-      setInteraction('unselected');
-      onSelect(note.id);
-    } else if (interaction === 'pressed') {
-      setInteraction('unselected');
-    }
-    dragStartRef.current = null;
-    lastMoveRef.current = null;
-  }, [interaction, note.id, onSelect]);
-
-  const handleLostPointerCapture = useCallback(() => {
-    if (interaction === 'dragging') {
-      setInteraction('unselected');
-      onSelect(note.id);
-    } else if (interaction === 'pressed') {
-      setInteraction('unselected');
-    }
-    dragStartRef.current = null;
-    lastMoveRef.current = null;
-  }, [interaction, note.id, onSelect]);
+    onPointerDown(e, note.id);
+  }, [editing, note.id, onPointerDown]);
 
   const handleDblClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (!editing) {
-      onStartEdit(note.id);
+      onDblClick(e, note.id);
     }
-  }, [editing, note.id, onStartEdit]);
+  }, [editing, note.id, onDblClick]);
 
   // Get the Y.Text for this note
   const ytext = getStickyText(doc, note.id);
-
-  const isDragging = interaction === 'dragging';
 
   return (
     <div
@@ -163,23 +65,19 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
       data-testid={`sticky-note-${note.id}`}
       tabIndex={0}
       onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
-      onLostPointerCapture={handleLostPointerCapture}
       onDoubleClick={handleDblClick}
       style={{
         position: 'absolute',
         left: note.x,
         top: note.y,
-        width: STICKY_SIZE_WORLD,
-        height: STICKY_SIZE_WORLD,
+        width,
+        height,
         background: STICKY_COLORS[note.color],
         borderRadius: 2,
         boxShadow: '2px 2px 8px rgba(0,0,0,0.2)',
-        outline: selected ? '3px solid #2196F3' : 'none',
+        outline: selected ? '2px solid #2196F3' : 'none',
         outlineOffset: 2,
-        cursor: isDragging ? 'grabbing' : 'grab',
+        cursor: 'grab',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -229,28 +127,9 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
           )}
         </div>
       )}
-
-      {/* Note toolbar: shown when selected, not editing, not dragging */}
-      {selected && !editing && !isDragging && (
-        <div
-          style={{
-            position: 'absolute',
-            top: -40,
-            left: '50%',
-            transform: `translateX(-50%) scale(${1 / zoom})`,
-            transformOrigin: 'bottom center',
-          }}
-        >
-          <NoteToolbar
-            color={note.color}
-            onColor={(c: StickyColor) => setStickyColor(doc, note.id, c)}
-            onDelete={() => {
-              deleteObject(doc, note.id);
-              onSelect(null);
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 }
+
+// Register this component with the sticky type
+_registerStickyComponent(StickyNote);

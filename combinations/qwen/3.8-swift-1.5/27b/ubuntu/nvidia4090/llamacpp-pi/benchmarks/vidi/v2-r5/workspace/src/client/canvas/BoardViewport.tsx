@@ -15,6 +15,10 @@ export interface BoardViewportProps {
   reset: () => void;
   onDblClickEmpty?: (screenPoint: Point) => void;
   onClickEmpty?: () => void;
+  onMarqueeBegin?: (screenPoint: Point) => void;
+  onMarqueeMove?: (screenPoint: Point) => void;
+  onMarqueeEnd?: () => void;
+  onMarqueeCancel?: () => void;
   children?: ReactNode;
 }
 
@@ -22,9 +26,10 @@ const WHEEL_LINE_DELTA = 16;
 const WHEEL_PAGE_DELTA = 100;
 
 export function BoardViewport(props: BoardViewportProps): ReactElement {
-  const { camera, beginPan, panMove, endPan, wheel, zoomIn, zoomOut, reset, onDblClickEmpty, onClickEmpty } = props;
+  const { camera, beginPan, panMove, endPan, wheel, zoomIn, zoomOut, reset, onDblClickEmpty, onClickEmpty, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
+  const isMarqueeRef = useRef(false);
   const didPanRef = useRef(false);
 
   // Pointer drag handling
@@ -33,21 +38,49 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
     if (!target.classList.contains('board-viewport') && !target.classList.contains('board-grid')) {
       return;
     }
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const screenPoint: Point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+
+    // Shift+drag on empty space → marquee
+    if (e.shiftKey && onMarqueeBegin) {
+      isMarqueeRef.current = true;
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      onMarqueeBegin(screenPoint);
+      return;
+    }
+
+    // Plain drag → pan
     isPanningRef.current = true;
     didPanRef.current = false;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    beginPan({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  }, [beginPan]);
+    beginPan(screenPoint);
+  }, [beginPan, onMarqueeBegin]);
 
   const onPointerMove = useCallback((e: ReactPointerEvent) => {
+    if (isMarqueeRef.current && onMarqueeMove) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const screenPoint: Point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      onMarqueeMove(screenPoint);
+      return;
+    }
+
     if (!isPanningRef.current) return;
     didPanRef.current = true;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     panMove({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  }, [panMove]);
+  }, [panMove, onMarqueeMove]);
 
   const onPointerUp = useCallback((e: ReactPointerEvent) => {
+    if (isMarqueeRef.current) {
+      isMarqueeRef.current = false;
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch { /* already released */ }
+      onMarqueeEnd?.();
+      return;
+    }
+
     if (!isPanningRef.current) return;
     isPanningRef.current = false;
     try {
@@ -61,22 +94,36 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
         onClickEmpty();
       }
     }
-  }, [endPan, onClickEmpty]);
+  }, [endPan, onClickEmpty, onMarqueeEnd]);
 
   const onPointerCancel = useCallback((e: ReactPointerEvent) => {
+    if (isMarqueeRef.current) {
+      isMarqueeRef.current = false;
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch { /* already released */ }
+      onMarqueeCancel?.();
+      return;
+    }
+
     if (!isPanningRef.current) return;
     isPanningRef.current = false;
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     } catch { /* already released */ }
     endPan();
-  }, [endPan]);
+  }, [endPan, onMarqueeCancel]);
 
   const onLostPointerCapture = useCallback(() => {
+    if (isMarqueeRef.current) {
+      isMarqueeRef.current = false;
+      onMarqueeCancel?.();
+      return;
+    }
     if (!isPanningRef.current) return;
     isPanningRef.current = false;
     endPan();
-  }, [endPan]);
+  }, [endPan, onMarqueeCancel]);
 
   // Wheel handling (non-passive)
   useEffect(() => {
@@ -123,7 +170,6 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
         x: gesture.clientX - rect.left,
         y: gesture.clientY - rect.top,
       };
-      // Convert scale to a deltaY equivalent: factor = scale, so deltaY = -ln(scale)/sensitivity
       wheel({ deltaX: 0, deltaY: -Math.log(gesture.scale) / 0.01, ctrlOrMeta: true, point });
     };
 
@@ -184,7 +230,6 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
       onLostPointerCapture={onLostPointerCapture}
       onDoubleClick={(e) => {
         const target = e.target as HTMLElement;
-        // Only handle double-click on empty board space (not on notes)
         if (target.classList.contains('board-viewport') || target.classList.contains('board-grid')) {
           e.stopPropagation();
           const rect = containerRef.current!.getBoundingClientRect();
