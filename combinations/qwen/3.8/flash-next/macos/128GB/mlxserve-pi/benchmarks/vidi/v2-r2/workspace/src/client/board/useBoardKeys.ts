@@ -25,7 +25,7 @@ import {
 import type { Point } from '../../shared/geometry';
 import { isTypingTarget } from '../canvas/BoardViewport';
 import type { SelectionState } from './useSelection';
-import { toolForKey, type Tool } from './useTool';
+import { toolIdForKey, type ToolId } from '../tools/useActiveTool';
 
 export interface BoardKeyOptions {
   doc: Y.Doc;
@@ -44,8 +44,8 @@ export interface BoardKeyOptions {
    * The tool the pointer holds, and the way back to Select (story 9). Left out,
    * V, T and Escape-to-Select do nothing, which is what a board with one tool is.
    */
-  tool?: Tool;
-  setTool?(tool: Tool): void;
+  tool?: ToolId;
+  setTool?(tool: ToolId): void;
   /**
    * N: a sticky note in the middle of what is on screen (story 9). The same thing
    * the toolbar's Sticky note button does, which is why the board, not this hook,
@@ -113,11 +113,13 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       // shortcuts in the viewport; Alt is nobody's here.
       if (modified || event.altKey) return;
 
-      // The tools (story 9). V and T name one, N makes a sticky note where the view
-      // is. They are plain keys, so they answer after the modified-key guard and
-      // after the typing-target guard at the top - which is what keeps a T typed
-      // into an object from being taken away from the caret (TC-16).
-      const named = toolForKey(event.key);
+      // The tools (stories 9-12). V, S, T and L name one, N makes a sticky note
+      // where the view is. They are plain keys, so they answer after the
+      // modified-key guard and after the typing-target guard at the top - which is
+      // what keeps a T typed into an object from being taken away from the caret
+      // (TC-16). A key that names a tool this build does not ship - P, I, C - is
+      // nobody's, and stays with the browser.
+      const named = toolIdForKey(event.key);
       if (named !== null && setTool !== undefined) {
         event.preventDefault();
         setTool(named);

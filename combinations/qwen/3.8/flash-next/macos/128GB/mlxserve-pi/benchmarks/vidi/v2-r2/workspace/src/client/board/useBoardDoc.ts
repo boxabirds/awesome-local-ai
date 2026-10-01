@@ -11,6 +11,8 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshotByCreation, type ObjectSnapshot, type StickySnapshot } from '../../shared/board-model';
 import { textSnapshots, type TextSnapshot } from '../../shared/objects/text';
+import { shapeSnapshots, type ShapeSnapshot } from '../../shared/objects/shape';
+import { connectorSnapshots, type ConnectorSnapshot } from '../../shared/objects/connector';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 import {
   registerConnectionControl,
@@ -36,10 +38,21 @@ export interface BoardDocApi {
    */
   texts: readonly TextSnapshot[];
   /**
-   * Every renderable object, notes first then texts, in creation order within each
-   * type. The z order is each object's own business (they are drawn by `z`), so
-   * this order is only the order the DOM is built in - which never changes while a
-   * pointer is holding one of them.
+   * Renderable shapes (story 10), in the same shape as `notes`.
+   */
+  shapes: readonly ShapeSnapshot[];
+  /**
+   * Renderable arrows (story 10). An arrow's place is worked out from the objects
+   * its ends point at every time the document is read, so an arrow that a shape
+   * moved - here or anywhere - comes out of this list already drawn where it now
+   * belongs, with nothing written about it.
+   */
+  connectors: readonly ConnectorSnapshot[];
+  /**
+   * Every renderable object, notes, then texts, then shapes, then arrows, in
+   * creation order within each type. The z order is each object's own business (they
+   * are drawn by `z`), so this order is only the order the DOM is built in - which
+   * never changes while a pointer is holding one of them.
    */
   objects: readonly ObjectSnapshot[];
   /**
@@ -55,6 +68,8 @@ export interface BoardDocApi {
 export interface BoardObjects {
   notes: readonly StickySnapshot[];
   texts: readonly TextSnapshot[];
+  shapes: readonly ShapeSnapshot[];
+  connectors: readonly ConnectorSnapshot[];
   objects: readonly ObjectSnapshot[];
 }
 
@@ -92,7 +107,18 @@ function createStore(injected: Y.Doc | undefined): SnapshotStore {
       if (cached === null) {
         const notes = snapshotByCreation(doc);
         const texts = textSnapshots(doc);
-        cached = { notes, texts, objects: [...notes, ...texts] };
+        const shapes = shapeSnapshots(doc);
+        // read after the shapes on purpose: an arrow's place is measured from the
+        // objects its ends point at, so it is resolved against this same read of
+        // the board and never against a board a moment older
+        const connectors = connectorSnapshots(doc);
+        cached = {
+          notes,
+          texts,
+          shapes,
+          connectors,
+          objects: [...notes, ...texts, ...shapes, ...connectors],
+        };
       }
       return cached;
     },
@@ -110,7 +136,7 @@ export function useBoardDoc(injected?: Y.Doc, boardId?: string): BoardDocApi {
   const subscribe = useCallback((onStoreChange: () => void) => store.subscribe(onStoreChange), [store]);
   const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  const { notes, texts, objects } = snapshot;
+  const { notes, texts, shapes, connectors, objects } = snapshot;
 
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   useEffect(() => {
@@ -140,8 +166,8 @@ export function useBoardDoc(injected?: Y.Doc, boardId?: string): BoardDocApi {
     };
   }, [store, boardId]);
 
-  return { doc: store.doc, notes, texts, objects, connection };
+  return { doc: store.doc, notes, texts, shapes, connectors, objects, connection };
 }
 
 /** Re-export so callers do not import Yjs just to type a prop. */
-export type { StickySnapshot, TextSnapshot };
+export type { StickySnapshot, TextSnapshot, ShapeSnapshot, ConnectorSnapshot };

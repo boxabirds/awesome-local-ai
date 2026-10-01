@@ -20,7 +20,7 @@ import {
 } from '../../shared/config';
 import { screenToWorld, worldToScreen, type Point } from './camera';
 import { useBoardCamera } from './CameraProvider';
-import type { Tool } from '../board/useTool';
+import type { ToolId } from '../tools/useActiveTool';
 
 /** Interaction state: Idle -> Panning -> Idle (see the story state diagram). */
 export type InteractionMode = 'idle' | 'panning';
@@ -76,9 +76,17 @@ export interface BoardViewportProps {
    * travelled places a new text object at that point - on top of an object or on
    * empty board, the layer is above both.
    */
-  tool?: Tool;
+  tool?: ToolId;
   /** A click that belongs to the Text tool, in world units. */
   onTextToolClick?: WorldClickHandler;
+  /**
+   * The layer of the tool that is held, when it is not the Text tool (story 10).
+   * It is put on the board the way the Text tool's own layer is put on - a child of
+   * the board surface, above every object, so the tool takes the next press
+   * whatever it lands on, and the wheel and the trackpad gesture still reach the
+   * listeners above it and zooming goes on working while the tool is held.
+   */
+  overlay?: ReactNode;
   /** Double-click on empty board space: the world point that was clicked. */
   onDoubleClickBoard?: WorldClickHandler;
   /** A press on empty board space that ended without moving. */
@@ -94,6 +102,7 @@ export function BoardViewport({
   onMarquee,
   tool = 'select',
   onTextToolClick,
+  overlay,
 }: BoardViewportProps): JSX.Element {
   const api = useBoardCamera();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -376,6 +385,10 @@ export function BoardViewport({
         <div data-testid="origin-marker" className="origin-marker" aria-hidden="true" />
         {children}
       </div>
+      {/* The tool that is held, when it is one that brings its own layer. Below
+          the Text tool's layer and above every object: a tool's press belongs to
+          the tool, and the object under the pointer is never the one that moves. */}
+      {overlay}
       {tool === 'text' ? (
         <div
           data-testid="text-tool-layer"

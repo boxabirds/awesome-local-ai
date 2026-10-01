@@ -19,20 +19,29 @@ import type { ComponentType, JSX } from 'react';
 import type { Handle, Point } from '../../shared/geometry';
 import { HANDLES, objectBounds } from '../../shared/geometry';
 import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
+  TYPE_CONNECTOR,
+  TYPE_SHAPE,
   TYPE_STICKY,
   TYPE_TEXT,
 } from '../../shared/config';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import type { StickySnapshot } from '../../shared/board-model';
 import type { TextSnapshot } from '../../shared/objects/text';
+import type { ShapeSnapshot } from '../../shared/objects/shape';
+import type { ConnectorSnapshot } from '../../shared/objects/connector';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
 import type { StickyNoteProps } from './StickyNote';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
 
 /** Every object this build can draw. */
-export type BoardObject = StickySnapshot | TextSnapshot;
+export type BoardObject = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot;
 
 /**
  * The props the board passes to any object component. Every object type in
@@ -77,19 +86,24 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /**
    * Per-type override of the point-in-object rule; absent means the shared
-   * one: inside the object's bounds.
+   * one: inside the object's bounds. Given the point in board units and the
+   * zoom, because a type whose body is a line rather than a box has to measure
+   * its tolerance in screen pixels - and only the zoom says how wide a board
+   * unit is on the screen.
    */
-  hitTest?: (object: ObjectSnapshot) => boolean;
+  hitTest?: (object: ObjectSnapshot, point: Point, zoom: number) => boolean;
   /**
    * Which handles a single selected object gets. 'all' (the default) is a box
    * resized from any of eight; 'horizontal' is a box whose height belongs to its
-   * content - text - so it has an east and a west handle and nothing else.
+   * content - text - so it has an east and a west handle and nothing else;
+   * 'none' is an object with no box to resize at all - an arrow, whose two ends
+   * are handles of their own, drawn by the arrow itself.
    */
   handles?: ObjectHandles;
 }
 
 /** The handle set an object type shows when it is selected on its own. */
-export type ObjectHandles = 'all' | 'horizontal';
+export type ObjectHandles = 'all' | 'horizontal' | 'none';
 
 const registrations = new Map<string, ObjectTypeSpec>();
 
@@ -132,10 +146,10 @@ export function registeredTypes(): string[] {
  * the next object, never to both. An unknown type answers false: what this
  * build cannot draw it cannot click either.
  */
-export function hitTestObject(object: ObjectSnapshot, point: Point): boolean {
+export function hitTestObject(object: ObjectSnapshot, point: Point, zoom = 1): boolean {
   const spec = registrations.get(object.type);
   if (spec === undefined) return false;
-  if (spec.hitTest !== undefined) return spec.hitTest(object);
+  if (spec.hitTest !== undefined) return spec.hitTest(object, point, zoom);
   const b = objectBounds(object);
   return (
     point.x >= b.x &&
@@ -166,18 +180,59 @@ registerObjectType(TYPE_TEXT, {
   handles: 'horizontal',
 });
 
+// A shape is a box that holds words: the sticky note's eight handles and its
+// editor, but no ratio to keep - a rectangle drawn wide stays wide, and the only
+// square a shape is obliged to be is the one Shift asks for as it is drawn. Its
+// box is its own, never its text's, so it is measured by nothing.
+registerObjectType(TYPE_SHAPE, {
+  Component: componentForType<ShapeSnapshot>(ShapeObject),
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  handles: 'all',
+});
+
+// An arrow is not a box. It cannot be resized, it holds no text, and it takes no
+// handles - and being "on" it means being near its line rather than inside its
+// box, which is the one thing about it the shared rule cannot say.
+registerObjectType(TYPE_CONNECTOR, {
+  Component: componentForType<ConnectorSnapshot>(ConnectorObject),
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  handles: 'none',
+  hitTest: (object, point, zoom) =>
+    distanceToPolyline(
+      [(object as ConnectorSnapshot).ends.from, (object as ConnectorSnapshot).ends.to],
+      point,
+    ) <= CONNECTOR_HIT_TOLERANCE_PX / zoom,
+});
+
 /** The two handles of a box whose height belongs to its content. */
 const SIDE_HANDLES: readonly Handle[] = ['e', 'w'];
+
+/** Nothing a selection can be dragged by. */
+const NO_HANDLES: readonly Handle[] = [];
 
 /**
  * The handles a selection gets: the eight of a box you resize from any side, or -
  * when every object in it is a type whose height is its content's, which today
  * means text and nothing else - the two side handles, because there is no height
- * for a top or bottom handle to set.
+ * for a top or bottom handle to set; or none at all, when every object in it is a
+ * type that is not resized - which is what leaves an arrow, selected on its own,
+ * with nothing on the board but its own two ends.
+ *
+ * Objects of unknown types are skipped: the board draws nothing for them and
+ * selects nothing, so they neither take handles nor deny the others their own.
+ * A selection of nothing the build knows - an empty selection - has nothing to
+ * drag, and says so.
  */
 export function handlesFor(objects: readonly ObjectSnapshot[]): readonly Handle[] {
-  const horizontal =
-    objects.length > 0 &&
-    objects.every((object) => registrations.get(object.type)?.handles === 'horizontal');
+  const known = objects.filter((object) => registrations.has(object.type));
+  if (known.length === 0) return NO_HANDLES;
+  if (known.every((object) => registrations.get(object.type)?.handles === 'none')) return NO_HANDLES;
+  const horizontal = known.every((object) => registrations.get(object.type)?.handles === 'horizontal');
   return horizontal ? SIDE_HANDLES : [...HANDLES];
 }

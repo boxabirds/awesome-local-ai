@@ -10,20 +10,33 @@
 import { act, fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { snapshot } from '../../src/shared/board-model';
+import { connectorSnapshot } from '../../src/shared/objects/connector';
+import type { Point } from '../../src/shared/geometry';
 import {
   clickOn,
+  connectorCount,
+  connectorToolLayer,
   dragNote,
+  dragOn,
   editorElement,
   editorFocused,
   flushFrames,
+  holdConnectorTool,
+  holdShapeTool,
   modelText,
+  newConnector,
   newNote,
+  newShape,
   noteAt,
   noteCount,
   notePosition,
   pressKey,
   pressKeyOn,
   renderBoard,
+  shapeAt,
+  shapeBox,
+  shapeCount,
+  shapeToolLayer,
   typeInto,
   useBoardTestLifecycle,
 } from './helpers';
@@ -199,5 +212,82 @@ describe('undo and redo at the board', () => {
     // the same two objects, each once, where they were
     expect(after).toEqual(before);
     expect(noteCount()).toBe(2);
+  });
+});
+
+// Story 10 adds two kinds of object and two ways of drawing them. Undo is the story
+// 8 convention they have to keep: "creating, restyling, labelling and re-attaching are
+// each one undo step" - which is only true if a shape and an arrow are written with the
+// board's own transaction origin, the one the undo stack watches. A string of their own
+// would make every shape and arrow drawn here invisible to Ctrl+Z.
+describe('undo and redo for shapes and arrows', () => {
+  useBoardTestLifecycle();
+
+  /** Where the middle of a drawn shape is, which is where a press on it lands. */
+  const centreOf = (index: number): Point => {
+    const box = shapeBox(index);
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  };
+
+  it('a shape drawn with the Shape tool is one undo step, and Redo draws it again', () => {
+    renderBoard();
+    holdShapeTool();
+    dragOn(shapeToolLayer(), { x: 120, y: 120 }, { x: 320, y: 240 });
+    flushFrames();
+    expect(shapeCount()).toBe(1);
+
+    fireEvent.click(undoButton());
+    flushFrames();
+    expect(shapeCount()).toBe(0);
+
+    fireEvent.click(redoButton());
+    flushFrames();
+    expect(shapeCount()).toBe(1);
+  });
+
+  it('an arrow drawn with the Connector tool is one undo step of its own', () => {
+    const { doc } = renderBoard();
+    newShape(doc, { x: 100, y: 100 });
+    newShape(doc, { x: 600, y: 100 });
+    flushFrames();
+
+    holdConnectorTool();
+    dragOn(connectorToolLayer(), centreOf(0), centreOf(1));
+    flushFrames();
+    expect(connectorCount()).toBe(1);
+
+    fireEvent.click(undoButton());
+    flushFrames();
+    // only the arrow goes: the two shapes it was drawn between stay on the board
+    expect(connectorCount()).toBe(0);
+    expect(shapeCount()).toBe(2);
+
+    fireEvent.click(redoButton());
+    flushFrames();
+    expect(connectorCount()).toBe(1);
+  });
+
+  it('undoing the delete of a shape puts the arrow back pointing at it, in one step', () => {
+    const { doc } = renderBoard();
+    const a = newShape(doc, { x: 100, y: 100 });
+    const b = newShape(doc, { x: 600, y: 100 });
+    const arrow = newConnector(doc, a, b);
+    flushFrames();
+    expect(connectorSnapshot(doc, arrow)?.to.kind).toBe('attached');
+
+    const at = centreOf(1);
+    clickOn(shapeAt(1), at.x, at.y);
+    pressKey('Delete');
+    flushFrames();
+    expect(shapeCount()).toBe(1);
+    // the arrow outlived the shape, its end freed where the shape's side was
+    expect(connectorSnapshot(doc, arrow)?.to.kind).toBe('free');
+
+    // one undo, and the shape is back with the arrow pointing at it again: the detach
+    // was written in the delete's own transaction, so it goes back with it
+    fireEvent.click(undoButton());
+    flushFrames();
+    expect(shapeCount()).toBe(2);
+    expect(connectorSnapshot(doc, arrow)?.to).toMatchObject({ kind: 'attached', objectId: b });
   });
 });

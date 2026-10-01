@@ -123,6 +123,81 @@ export const TEXT_MIN_WIDTH_WORLD = 40;
 /** A text object holds at most this many characters; typing stops there. */
 export const TEXT_MAX_CHARS = 5000;
 
+// -----------------------------------------------------------------------------
+// Shapes (story 10). A shape is a drawn box - rectangle, ellipse or diamond - with
+// a centred label and two colours of its own: the fill inside it and the outline
+// round it. Every length is in world units (board units), so a shape dragged out
+// at 50% zoom is the same object at 200%.
+// -----------------------------------------------------------------------------
+
+/** A shape of a type this build does not know is not drawn, never guessed at. */
+export const TYPE_SHAPE = 'shape';
+/** An arrow between two objects (story 10). */
+export const TYPE_CONNECTOR = 'connector';
+
+/** The three kinds, in the order the Shape menu shows them. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** The kind a new shape starts as, which is also the menu's highlighted entry. */
+export const DEFAULT_SHAPE_KIND: ShapeKind = 'rect';
+
+/** The shape a click drops: this wide and this tall, centred on the point. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** A drag that never reached this in either direction is a click, not a shape. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** A label holds at most this many characters; typing stops there. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** The outline's thickness, in world units, whatever the zoom. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** The seven fills: the six swatches and 'none', drawn as no fill at all. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** The six outline colours. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** A new shape is a white card with a dark outline: what a drag makes. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+// -----------------------------------------------------------------------------
+// Connectors (story 10). An arrow is a straight line between two ends, each of
+// which is either attached to an object - and then drawn at the midpoint of that
+// object's side nearest the other end, recomputed from wherever the object is now
+// - or fixed at a board point. `CONNECTOR_HIT_TOLERANCE_PX` is the one screen
+// measurement here: it is divided by the zoom to get board units, which is what
+// makes "close to the line" mean 6 pixels at every zoom.
+// -----------------------------------------------------------------------------
+
+/** The shortest arrow the Connector tool will draw, in world units. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** How near an arrow's line a click must come to select it, in screen pixels. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** The line's thickness, in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** How long the arrowhead is, in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** A connection dot's radius, in screen pixels (dots do not grow with zoom). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
 // --- Live collaboration (story 3) ---
 
 /**

@@ -415,7 +415,11 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         const spec = getObjectType(object.type);
         if (spec === undefined || !spec.aspectLocked) aspectLocked = false;
         minSizes.push(spec?.minSize ?? STICKY_MIN_SIZE_WORLD);
-        if (spec !== undefined && spec.handles !== undefined) textIds.push(id);
+        // Only a box whose height is its text's needs the layout asked again: a
+        // text's two side handles set a width, and a group resize that scaled a text
+        // has to have its box remeasured. A shape's box is its own - it is resized by
+        // the generic path, like a note - and an arrow has no box to resize at all.
+        if (spec !== undefined && spec.handles === 'horizontal') textIds.push(id);
       }
       if (rects.length === 0) return;
 

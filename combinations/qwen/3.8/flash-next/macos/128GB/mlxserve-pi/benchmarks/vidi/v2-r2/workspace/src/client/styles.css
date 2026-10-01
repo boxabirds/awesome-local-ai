@@ -874,3 +874,347 @@ button:focus-visible,
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
+
+/* --- story 10: shapes and arrows ------------------------------------------- */
+
+/* A shape is a box that holds words: positioned, sized and stacked by the board
+   like every other object, and drawn by an SVG that is exactly its box. The words
+   are not drawn by the SVG - they are HTML, centred in the shape by this rule,
+   because a shape's label has to wrap, break and be typed into the way the board's
+   other words are, and an SVG cannot do that. */
+.shape-object {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: auto;
+  color: var(--ink);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.shape-object.is-dragging {
+  cursor: grabbing;
+}
+
+/* The shape's own outline is the selection: a shape is drawn with a border of its
+   own already, so the mark that says "this one" goes outside the box, the way a
+   text object's does, and never changes where the words are. */
+.shape-object[data-selected='true'] {
+  outline: 1.5px solid var(--select);
+  outline-offset: 3px;
+}
+
+.shape-object:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 5px;
+}
+
+.shape-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+  /* the shape is drawn; every click belongs to the object it sits in */
+  pointer-events: none;
+}
+
+/* The label: centred both ways in the shape, whatever the shape's kind - a diamond
+   is drawn across a box and its words belong in the middle of that box. It never
+   takes a pointer, so a press on the words grabs the shape behind them. */
+.shape-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.3;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* While the label is being typed into, the words take the pointer: a caret is a
+   thing to click into, and the shape behind it is already the one being edited. */
+.shape-label.is-editing {
+  pointer-events: auto;
+}
+
+.shape-input {
+  width: 100%;
+  max-height: 100%;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  resize: none;
+  overflow: hidden;
+  cursor: text;
+  user-select: text;
+}
+
+.shape-input:focus {
+  outline: none;
+}
+
+/* The Shape tool's layer: over the whole board, above every object, screen-sized -
+   the Text tool's rule, for the same reason: the next press belongs to the tool
+   whatever it lands on, a sticky note under the pointer is never the thing that
+   moves, and the wheel and the trackpad gesture still reach the board's own
+   listeners so zooming goes on working while the tool is held. */
+.shape-tool-layer {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+}
+
+/* The box the drag would store, drawn where it would appear. Dashed like the
+   marquee, in the shape's own outline: an ellipse is previewed as an ellipse, so
+   the dashed box is the shape and not merely its bounds. */
+.shape-preview {
+  position: absolute;
+  border: 1.5px dashed var(--select);
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+.shape-preview--ellipse {
+  border-radius: 50%;
+}
+
+.shape-preview--diamond {
+  /* the box turned on its point: the same four points the drawn diamond uses */
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+/* The Connector tool's layer, and the line it draws while an end is being dragged
+   out. Like the other tool layers it is screen-sized and above every object. */
+.connector-tool-layer {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+}
+
+.connector-tool-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-tool-preview {
+  stroke: var(--select);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  fill: none;
+}
+
+/* The four sides of the object the pointer is over: where an end dropped there
+   would be drawn. They are the tool's, never the object's, so they say what the
+   tool would do rather than what the object is. */
+.connector-dots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.connector-dot {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid var(--select);
+  background: var(--ui-bg);
+}
+
+/* The side that would take the end, if the pointer came up here. */
+.connector-dot[data-highlighted='true'] {
+  background: var(--select);
+  transform: scale(1.4);
+}
+
+/* An arrow: the box around its two ends, with nothing in it but the line. The box
+   itself takes no pointer at all - only the line does, and only within the
+   tolerance - which is what lets a click beside an arrow reach the board, to pan
+   it or to deselect, exactly as if the arrow were not there. */
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.connector-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+}
+
+/* The line you click: as thick as the click tolerance, and invisible. `stroke`
+   rather than `visibleStroke`: an invisible line is still the line you can hit. */
+.connector-hit {
+  stroke: transparent;
+  fill: none;
+  stroke-linecap: round;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.connector-line {
+  stroke: var(--ink);
+  stroke-width: 1;
+  fill: none;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+/* Selected, the arrow is drawn in the colour the board draws a selection with: an
+   arrow has no fill and no border of its own to recolour. */
+.connector-object[data-selected='true'] .connector-line,
+.connector-object[data-selected='true'] .connector-head {
+  stroke: var(--select);
+  fill: var(--select);
+}
+
+.connector-drag-preview {
+  stroke: var(--select);
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+  fill: none;
+}
+
+/* An end handle. The same size in screen pixels at every zoom (the object sizes it
+   by the zoom, as the selection overlay sizes its handles), because a handle you
+   cannot hit at 25% is not a handle. */
+.connector-end {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid var(--select);
+  background: #ffffff;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.connector-end:active {
+  cursor: grabbing;
+}
+
+/* The shape toolbar: both rows of swatches in one bar, because they are the same
+   act done to the same object, and two bars would fight over the same corner of
+   the screen. */
+.shape-toolbar-anchor {
+  position: fixed;
+  z-index: 41;
+}
+
+.shape-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  background: var(--ui-bg);
+  box-shadow: 0 2px 8px rgba(20, 20, 30, 0.08);
+}
+
+.shape-toolbar__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.shape-toolbar__divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--ui-border);
+}
+
+/* A swatch is the colour it means, drawn on the button itself: what you are about
+   to get is what you are looking at. The one the shape already wears is pressed. */
+.shape-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.shape-swatch--none {
+  /* "no fill": the shape's own background shows through, with a line through it to
+     say the absence is the choice */
+  background-image: linear-gradient(
+    to top right,
+    transparent calc(50% - 1px),
+    #b3261e calc(50% - 1px),
+    #b3261e calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+
+.shape-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--select);
+  outline-offset: 1px;
+}
+
+.shape-swatch:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* The Shape tool's kind menu: beside the button that holds the tool, not above it,
+   because the choice is made on the way to drawing and the board must stay visible
+   while it is made. */
+.board-tool__with-menu {
+  position: relative;
+  display: flex;
+}
+
+.tool-kind-menu {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--ui-border);
+  border-radius: 9px;
+  background: var(--ui-bg);
+  box-shadow: 0 2px 8px rgba(20, 20, 30, 0.12);
+  white-space: nowrap;
+}
+
+.tool-kind-menu__option {
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-text);
+  cursor: pointer;
+}
+
+.tool-kind-menu__option:hover {
+  background: rgba(20, 20, 30, 0.06);
+}
+
+.tool-kind-menu__option[aria-checked='true'] {
+  background: var(--select);
+  color: #ffffff;
+}
+
+.tool-kind-menu__option:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}

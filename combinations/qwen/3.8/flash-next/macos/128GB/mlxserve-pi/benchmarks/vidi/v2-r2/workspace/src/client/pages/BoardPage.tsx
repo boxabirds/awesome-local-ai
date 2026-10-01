@@ -45,11 +45,14 @@ import { useBoardKeys } from '../board/useBoardKeys';
 import { UndoControllerContext, useUndo, useUndoController } from '../board/useUndo';
 import { SelectionOverlay, MarqueeRect, screenBox } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
-import { useTool } from '../board/useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool, type ShapeCreateSpec } from '../tools/ShapeTool';
+import { ConnectorTool, type ConnectorCreateSpec } from '../tools/ConnectorTool';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit } from '../sync/connectBoard';
 import { getObjectType, handlesFor } from '../objects/registry';
 import { TextToolbar } from '../objects/TextToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { remeasureTextBox } from '../objects/useTextBoxSync';
 import { SharePanel } from '../share/SharePanel';
 import {
@@ -60,7 +63,9 @@ import {
   objectBounds,
 } from '../../shared/board-model';
 import { createText, setTextSize, type TextSnapshot } from '../../shared/objects/text';
-import type { TextSize } from '../../shared/config';
+import { createShape, setShapeStyle, type ShapeSnapshot } from '../../shared/objects/shape';
+import { createConnector } from '../../shared/objects/connector';
+import type { FillColor, StrokeColor, TextSize } from '../../shared/config';
 import { unionRects } from '../../shared/geometry';
 import { BOARD_LOAD_FAILED_MESSAGE } from '../../shared/protocol';
 import { isValidBoardId } from '../../shared/board-id';
@@ -181,7 +186,7 @@ export function BoardScreen({ doc: injected, boardId }: BoardScreenProps): JSX.E
 /** Everything that needs the board camera, the document and the selection. */
 function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element {
   const { camera, viewport, hasNavigated, zoomStep, reset } = useBoardCamera();
-  const { doc, notes, texts, objects, connection } = useBoardDoc(injected, boardId);
+  const { doc, notes, texts, shapes, connectors, objects, connection } = useBoardDoc(injected, boardId);
   const { selection: selectionState, select, toggle, setSelection, clear, startEdit, endEdit } =
     useSelection(objects);
   const selectedIds = selectionState.ids;
@@ -193,9 +198,13 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
   // sent when the link returns.
   const editable = canEdit(connection);
 
-  // Which tool the next click on the board belongs to (story 9). Screen state,
+  // Which tool the next click on the board belongs to (stories 9-12). Screen state,
   // never document state: two people on one board are not choosing this together.
-  const { tool, setTool } = useTool(editable);
+  // The hook also holds the one choice a tool makes before it is used - the kind of
+  // the next shape - and the rule that a tool which has just made a thing hands the
+  // pointer back to Select.
+  const active = useActiveTool({ canEdit: editable, select });
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = active;
 
   // Who made an object. Story 6 gives a board real people; until then this tab has
   // one id of the same shape, made once and kept, because a `createdBy` that
@@ -281,9 +290,26 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
     createAt(screenToWorld(camera, viewportCentre(viewport)));
   }, [createAt, camera, viewport]);
 
+  /**
+   * Open the editor on an object that holds words. An arrow holds none - it is the
+   * line, and nothing else - and a board that opened an editor on it would be left
+   * holding an editor with nothing in it, with the selection overlay gone and
+   * nothing on the screen to say why. Which types hold words is the registry's
+   * business, and this is the one place that asks before opening.
+   */
+  const startEditObject = useCallback(
+    (id: string): void => {
+      const object = objects.find((candidate) => candidate.id === id);
+      if (object === undefined) return;
+      if (getObjectType(object.type)?.editableText !== true) return;
+      startEdit(id);
+    },
+    [objects, startEdit],
+  );
+
   // The keyboard comes last of the three ways a selection acts, because two of its
   // keys do the same things the toolbar's buttons do: N makes a sticky note in the
-  // middle of the view, and V, T and Escape hold and let go of a tool.
+  // middle of the view, and V, S, T, L and Escape hold and let go of a tool.
   useBoardKeys({
     doc,
     editable,
@@ -291,7 +317,7 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
     selection: selectionState,
     setSelection,
     clear,
-    startEdit,
+    startEdit: startEditObject,
     undo: () => undoController.undo(),
     redo: () => undoController.redo(),
     boundary: undoBoundary,
@@ -321,6 +347,18 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
     const id = [...selectedIds][0] as string;
     return texts.find((text) => text.id === id) ?? null;
   }, [texts, selectedIds, selectionState.editingId]);
+
+  /**
+   * The one selected shape, when the selection is exactly that: what says whether
+   * the shape toolbar goes up, and which swatches it has to show as pressed. An
+   * arrow gets no toolbar of its own: it has no colours to pick, and the bin it can
+   * be deleted with is the group bar's, or the Delete key.
+   */
+  const singleShape: ShapeSnapshot | null = useMemo(() => {
+    if (selectedIds.size !== 1 || selectionState.editingId !== null) return null;
+    const id = [...selectedIds][0] as string;
+    return shapes.find((shape) => shape.id === id) ?? null;
+  }, [shapes, selectedIds, selectionState.editingId]);
 
   const bringSelectionToFront = useCallback((): void => {
     undoBoundary();
@@ -359,6 +397,43 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
   );
 
   /**
+   * A drag that belonged to the Shape tool (story 10): draw the shape the drag
+   * describes, make it the selection, and hand the pointer back to Select, so the
+   * thing just drawn can be moved, sized or coloured without reaching for the
+   * toolbar. A drag the model would not draw - a box too small to be a shape -
+   * makes nothing, selects nothing and leaves the tool where it was.
+   */
+  const createShapeFromTool = useCallback(
+    (spec: ShapeCreateSpec): void => {
+      undoBoundary();
+      const id = createShape(
+        doc,
+        { kind: spec.kind, rect: spec.rect, at: spec.at, square: spec.square },
+        actorId,
+      );
+      toolCreated(id);
+      undoBoundary();
+    },
+    [doc, actorId, undoBoundary, toolCreated],
+  );
+
+  /**
+   * A drag that belonged to the Connector tool: the arrow between the two ends the
+   * drag dropped, selected, and the pointer back on Select. An arrow the model
+   * refuses - two ends on one object, or no two ends at all - is not drawn, and the
+   * tool stays held, so the next drag can be the one you meant.
+   */
+  const createConnectorFromTool = useCallback(
+    (spec: ConnectorCreateSpec): void => {
+      undoBoundary();
+      const id = createConnector(doc, spec.from, spec.to, actorId);
+      toolCreated(id);
+      undoBoundary();
+    },
+    [doc, actorId, undoBoundary, toolCreated],
+  );
+
+  /**
    * A size button. The text reflows at the new size and its box follows: width if
    * the width is still the content's, height always. Where it sits does not move,
    * which is why the size is stored rather than a width the size happens to make.
@@ -373,6 +448,32 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
     [doc, singleText, undoBoundary, remeasure],
   );
 
+  /**
+   * A colour swatch: this shape takes it, and nothing else changes. A shape's box
+   * is its own and its label is centred in it, so unlike a text's size there is
+   * nothing to re-measure - and the selection is never touched, so the shape stays
+   * selected and its toolbar stays up.
+   */
+  const changeShapeFill = useCallback(
+    (fill: FillColor): void => {
+      if (singleShape === null) return;
+      undoBoundary();
+      setShapeStyle(doc, singleShape.id, { fill });
+      undoBoundary();
+    },
+    [doc, singleShape, undoBoundary],
+  );
+
+  const changeShapeStroke = useCallback(
+    (stroke: StrokeColor): void => {
+      if (singleShape === null) return;
+      undoBoundary();
+      setShapeStyle(doc, singleShape.id, { stroke });
+      undoBoundary();
+    },
+    [doc, singleShape, undoBoundary],
+  );
+
   return (
     <UndoControllerContext.Provider value={undoController}>
       <BoardViewport
@@ -385,6 +486,17 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
         // it is still held, as the rail says, and comes back when the caret leaves.
         tool={selectionState.editingId === null ? tool : 'select'}
         onTextToolClick={onTextToolClick}
+        // The tool that brings its own layer over the board (story 10): the Shape
+        // tool and the Connector tool both draw a thing where the pointer is
+        // dragged, so both need the next press whatever it lands on. While a caret
+        // is inside an object that object owns the clicks, and no tool layer is up.
+        overlay={
+          selectionState.editingId !== null ? null : tool === 'shape' ? (
+            <ShapeTool kind={shapeKind} canCreate={editable} onCreate={createShapeFromTool} />
+          ) : tool === 'connector' ? (
+            <ConnectorTool doc={doc} canCreate={editable} onCreate={createConnectorFromTool} />
+          ) : null
+        }
       >
         {/* One element per note, in creation order; the registry says which
             component draws which type, and a type it does not know draws
@@ -447,6 +559,64 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
             />
           );
         })}
+        {/* Shapes, after the texts (story 10): the same loop, the same props, the
+            same gesture - a shape is grabbed, moved and resized like the box it is.
+            The registry is the only thing that knows it is a shape. */}
+        {shapes.map((shape) => {
+          const spec = getObjectType(shape.type);
+          if (spec === undefined) return null;
+          const Component = spec.Component;
+          return (
+            <Component
+              key={shape.id}
+              note={shape}
+              doc={doc}
+              zoom={camera.zoom}
+              selected={selectedIds.has(shape.id)}
+              single={selectedIds.size <= 1}
+              dragging={gesture.draggingIds.has(shape.id)}
+              editing={shape.id === selectionState.editingId}
+              editable={editable}
+              onGesturePointerDown={(event) => gesture.onObjectPointerDown(event, shape.id)}
+              onSelect={select}
+              onFocusNote={(id) => {
+                if (!gesture.isPressed()) select(id);
+              }}
+              onStartEdit={startEditObject}
+              onEndEdit={endEdit}
+            />
+          );
+        })}
+        {/* Arrows last of all (story 10): an arrow is drawn over the objects it
+            joins, which is what a line between two boxes means. It takes the same
+            props as every other object and uses two of them - it is selected by a
+            click on its line, and its ends are dragged by their own handles, because
+            an arrow has no place of its own to move. */}
+        {connectors.map((connector) => {
+          const spec = getObjectType(connector.type);
+          if (spec === undefined) return null;
+          const Component = spec.Component;
+          return (
+            <Component
+              key={connector.id}
+              note={connector}
+              doc={doc}
+              zoom={camera.zoom}
+              selected={selectedIds.has(connector.id)}
+              single={selectedIds.size <= 1}
+              dragging={gesture.draggingIds.has(connector.id)}
+              editing={connector.id === selectionState.editingId}
+              editable={editable}
+              onGesturePointerDown={(event) => gesture.onObjectPointerDown(event, connector.id)}
+              onSelect={select}
+              onFocusNote={(id) => {
+                if (!gesture.isPressed()) select(id);
+              }}
+              onStartEdit={startEditObject}
+              onEndEdit={endEdit}
+            />
+          );
+        })}
       </BoardViewport>
       {selectionRect === null || selectionState.editingId !== null ? null : (
         <SelectionOverlay
@@ -490,11 +660,36 @@ function BoardContent({ doc: injected, boardId }: BoardScreenProps): JSX.Element
           />
         </div>
       )}
+      {singleShape === null || selectionRect === null || !editable ? null : (
+        // A single shape's own toolbar, in the same place: the colour it is filled
+        // with, the colour it is outlined in, and the bin. An arrow is not given one
+        // - an arrow has no colours to choose - and a group of shapes takes the
+        // group bar, because one bar cannot say what three shapes are coloured.
+        <div
+          className="shape-toolbar-anchor"
+          data-testid="shape-toolbar-anchor"
+          style={{
+            left: screenBox(camera, selectionRect).x + screenBox(camera, selectionRect).width / 2,
+            top: screenBox(camera, selectionRect).y + screenBox(camera, selectionRect).height + 12,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <ShapeToolbar
+            fill={singleShape.fill}
+            stroke={singleShape.stroke}
+            onFill={changeShapeFill}
+            onStroke={changeShapeStroke}
+            onDelete={deleteSelection}
+          />
+        </div>
+      )}
       {marquee.rect === null ? null : <MarqueeRect rect={marquee.rect} />}
       <Toolbar
         onCreateSticky={createAtCentre}
         tool={tool}
         onTool={setTool}
+        shapeKind={shapeKind}
+        onShapeKind={setShapeKind}
         disabled={!editable}
         disabledReason={BOARD_LOAD_FAILED_MESSAGE}
         undo={undo}

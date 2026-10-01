@@ -5,6 +5,7 @@
 
 import type { Camera } from './camera';
 import type * as Y from 'yjs';
+import { applyUpdate } from 'yjs';
 import {
   createSticky,
   getStickyText,
@@ -12,6 +13,8 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { textSnapshots } from '../../shared/objects/text';
+import { shapeSnapshots } from '../../shared/objects/shape';
+import { connectorSnapshots } from '../../shared/objects/connector';
 import type { StickyColor } from '../../shared/config';
 import { COLLAB_ENDPOINT } from '../sync/endpoint';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -32,6 +35,7 @@ interface MutableApi {
   __stateLog?(): readonly string[];
   __destroy?(): void;
   __createNotes?(count: number, withTextEvery?: number, perTransaction?: number): Promise<number>;
+  __applyUpdate?(update: Uint8Array | number[], origin?: string): void;
   __forceConnectionState?(state: ConnectionState): void;
   connectionState?: string;
 }
@@ -64,11 +68,19 @@ export function registerBoardDoc(doc: Y.Doc | null): void {
   if (doc === null) return;
   patch({
     doc,
-    // Every object on the board, of every type: notes first, then text objects,
-    // each group in creation order. A board with no text on it reads exactly as it
-    // did before story 9, so the tests written against the older shape are
-    // unaffected; a test that wants only one type filters on `type`.
-    snapshot: () => [...snapshotByCreation(doc), ...textSnapshots(doc)],
+    // Every object on the board, of every type: notes, then text objects, then
+    // shapes, then arrows, each group in creation order. A board with nothing new on
+    // it reads exactly as it did before story 9, so the tests written against the
+    // older shape are unaffected; a test that wants only one type filters on `type`.
+    // An arrow comes out with the box around the two ends it resolved to at this
+    // moment, which is how a test reads an arrow following a shape: snapshot, move,
+    // snapshot, and compare the two boxes.
+    snapshot: () => [
+      ...snapshotByCreation(doc),
+      ...textSnapshots(doc),
+      ...shapeSnapshots(doc),
+      ...connectorSnapshots(doc),
+    ],
     __serverMode: COLLAB_ENDPOINT !== '',
     /**
      * Create `count` notes, giving every `withTextEvery`th one some text, and
@@ -110,6 +122,20 @@ export function registerBoardDoc(doc: Y.Doc | null): void {
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
       return count;
+    },
+    /**
+     * Put a whole update into the board document, the way a peer's update arrives. This
+     * is how an end-to-end test seeds a board with something nobody could click into
+     * existence: a fixture built by the same model functions the tools call goes in as
+     * the bytes the room would have sent, and everything after it - the painting, the
+     * undo stack, what the other clients are told - is the board's own work.
+     *
+     * The bytes may be a plain array because that is what survives the boundary of a
+     * browser-driven test; the update is applied as a local change, so it goes on out
+     * to the room exactly as the edit of anyone else on the board would.
+     */
+    __applyUpdate: (update: Uint8Array | number[], origin = 'test'): void => {
+      applyUpdate(doc, update instanceof Uint8Array ? update : Uint8Array.from(update), origin);
     },
   });
 }

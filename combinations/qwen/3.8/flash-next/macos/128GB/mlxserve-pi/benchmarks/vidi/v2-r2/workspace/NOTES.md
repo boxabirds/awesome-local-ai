@@ -981,3 +981,205 @@ landing rather than once.
 (149 passed, 4 skipped — TC-36 and TC-30 in firefox and webkit, both
 chromium-only) all pass; the text spec is green in chromium, firefox and webkit
 apart from TC-30, for the reason above.
+
+# Story 10 — Draw shapes and connect them with arrows that follow when moved
+
+## What is here (story 10)
+
+**Shared, and it is shared on purpose**
+
+- `src/shared/config.ts` — `TYPE_SHAPE`, `TYPE_CONNECTOR`, `SHAPE_KINDS` /
+  `ShapeKind` / `SHAPE_KIND_NAMES` / `DEFAULT_SHAPE_KIND`,
+  `SHAPE_DEFAULT_SIZE_WORLD` (160, the click-makes-a-shape size),
+  `SHAPE_MIN_SIZE_WORLD` (20), `SHAPE_LABEL_MAX_CHARS` (500),
+  `SHAPE_STROKE_WIDTH_WORLD`, `SHAPE_FILL_COLORS` / `SHAPE_STROKE_COLORS` with
+  `FillColor` / `StrokeColor` and `DEFAULT_SHAPE_FILL` / `DEFAULT_SHAPE_STROKE`,
+  and on the arrow side `CONNECTOR_MIN_LENGTH_WORLD`, `CONNECTOR_HIT_TOLERANCE_PX`
+  (6, in *screen* pixels, divided by the zoom wherever it is used),
+  `CONNECTOR_STROKE_WIDTH_WORLD`, `CONNECTOR_ARROWHEAD_SIZE_WORLD`,
+  `CONNECTOR_DOT_RADIUS_PX`.
+- `src/shared/objects/shape.ts` — `createShape`, `setShapeStyle`, `getShapeLabel`
+  (a shape's own `Y.Text`, named `label`, never `text`), `readShape`,
+  `shapeSnapshot`, `shapeSnapshots`, `shapeRectOf` (the box a drag describes,
+  including the "it never travelled, so make it the standard size centred on the
+  click" rule) and `shapeSnapshots` for the board's snapshot read.
+- `src/shared/objects/connector.ts` — `createConnector`, `setConnectorEndpoint`,
+  `detachConnectorsTo`, `attachTarget` (what is under this point, by front object),
+  `endpointAtDrop`, `dropEndpointOn` (what a drop *means*, both ends considered
+  together), `connectorRects` (every box an end could live on), `connectorSnapshot`,
+  `connectorSnapshots`, plus the geometry this module lives on re-exported from
+  `../geometry/connector-geometry` (`centre`, `nearestSide`, `sideAnchor`,
+  `resolveEndpoints`, `distanceToPolyline`).
+- `src/shared/geometry/connector-geometry.ts`, `src/shared/geometry/polyline.ts` —
+  the side arithmetic and the point-to-segment distance, with no Yjs in either.
+- `src/shared/board-model.ts` — `shape` and `connector` are in `KNOWN_OBJECT_TYPES`
+  (so a shape a newer client added is skipped, not a board that cannot be read),
+  `deleteObjects` frees the ends that pointed at what it removed, and the schema
+  comment says what the two new kinds hold.
+
+**Client**
+
+- `src/client/tools/useActiveTool.ts` — the tool the board is holding, the one place
+  that knows `ToolId`, `TOOL_SHORTCUTS` and `toolIdForKey`. `src/client/board/useTool.ts`
+  is gone: a hook named for one tool among nine would be the next file someone forgets
+  to look in.
+- `src/client/tools/ShapeTool.tsx`, `src/client/tools/ConnectorTool.tsx` — the two
+  tools that draw, each a layer over the board in screen space, each asking the board
+  to make the thing rather than writing it.
+- `src/client/objects/ShapeObject.tsx`, `ShapeToolbar.tsx`, `ConnectorObject.tsx` —
+  the two new kinds of thing on the board, and the bar that recolours a shape.
+- Changed: `Toolbar.tsx` (the Shape button with its kind menu, the Connector button),
+  `BoardPage.tsx`, `BoardViewport.tsx` (an `overlay` slot, after everything else in the
+  pane), `useBoardKeys.ts`, `useBoardDoc.ts` (the snapshot carries shapes and arrows),
+  `useTransformGesture.ts`, `registry.tsx`, `styles.css`, `canvas/testHooks.ts`.
+
+**Tests** — `tests/unit/shape-model.test.ts` (21), `connector-geometry.test.ts` (20),
+`connector-model.test.ts` (22), `tests/component/ShapeTool.test.tsx` (10),
+`Connector.test.tsx` (9), `useActiveTool.test.tsx` (8), three new cases in
+`UndoRedo.test.tsx`, `tests/e2e/shapes.spec.ts` (5) and `connectors.spec.ts` (4), and
+`tests/fixtures/checkout-flow.ts`. Every case TC-01 to TC-29 is named in a test title.
+
+## Where the design and the code disagreed, and what won
+
+- **The tools do not touch the document.** The design's `ShapeTool` / `ConnectorTool`
+  interfaces take no `doc` while the board's rule is that nothing in React calls a Yjs
+  mutation; both tools are written to that rule - `onCreate(spec): void`, and
+  BoardPage does the undo boundary, the write and the selection. `ConnectorTool` is
+  given a `doc` to *read*, because deciding what is under the pointer is a question
+  about the document, and it asks `attachTarget` rather than reach into the map.
+- **`onCreate` hears nothing back.** The design says `void` and that turned out to be
+  right rather than merely minimal: a shape or arrow the model refused is a thing that
+  is not on the board, and the tool has no use for the difference between "refused" and
+  "created and already deleted" - it stops drawing either way.
+- **`Tool` became `ToolId`, and only four of the nine letters do anything.** 'n' still
+  makes a sticky note on the spot, exactly as it has since story 2; 'p', 'i', 'c' are
+  tools this build has no component for, and a shortcut that appeared to switch to one
+  would be a key that lies. When story 11 arrives it adds an entry to `TOOL_SHORTCUTS`,
+  a button and a layer, and touches nothing else.
+- **`hitTest` grew two arguments** (`point`, `zoom`) because an arrow's "am I on it?" is
+  a distance in screen pixels divided by the zoom. A shape's is the plain box it already
+  had.
+- **An arrow has no box to drag.** `ObjectHandles` gained `'none'`, which is what the
+  connector registers and what makes the selection overlay draw its outline and nothing
+  else. Dragging the middle of an arrow means nothing - its place is a question about
+  two other objects - so its two ends are draggable and it is selectable by its line,
+  and that is the whole of it.
+- **`rects` is not a prop.** The design hands `ConnectorObject` a rects map to resolve
+  against. It is not given one: the snapshot it *is* handed has its ends resolved
+  already, by `resolveEndpoints`, against the document, and a drag - mine or anyone's -
+  writes to the document on every move, so the map would be a second copy of a value
+  that is never behind the first. `resolveEndpoints` stays exported, and is where the
+  side-switching is unit-tested.
+- **The detach is written in the delete's own transaction.** `deleteObjects` reads the
+  rects first, then deletes and detaches inside one `LOCAL_ORIGIN` transaction, which is
+  what makes TC-13's "one update" and one undo step both true.
+- **`dropEndpointOn` is the only place that knows what a drop means**, and the
+  same-object refusal is enforced twice on purpose: once in the tool, so a drag from a
+  shape back onto itself draws nothing, and once in `createConnector` /
+  `setConnectorEndpoint`, so an arrow that points at the object at its other end cannot
+  exist in a document at all - including one a peer sends.
+
+## Two bugs, both found by a test rather than by reading
+
+- **A shape was being resized as if it were a text.** Dragging a shape's east handle
+  moved the handle and left the shape the width it was; the same drag on a text worked.
+  `useTransformGesture` decided "this press is a side handle, so it sets a width and the
+  box has to be measured again" with `spec.handles !== undefined` - a question story 9
+  wrote when `horizontal` was the only kind of handle in the file. Shapes take all
+  eight, so they were caught by that test and sent to `setTextWidthFixed`, a function
+  that knows only texts and does nothing to anything else. The predicate is now
+  `spec.handles === 'horizontal'`, which is the question it was actually asking. A group
+  resize still asks for a remeasure of the texts in it (`remeasureTextBox` answers false
+  for a shape, so a shape in a group is measured by nobody, which is right), and nothing
+  about a note or a text changed - 207 component tests and the whole e2e suite pass
+  unchanged apart from the new ones.
+- **Shapes and arrows were invisible to Undo.** Every module of story 10 opened its
+  transactions with an origin of its own - `'shape:create'`, `'connector:end'`,
+  `'connector:detach'` - and the undo stack watches one origin, the board's own symbol,
+  because that is how a remote change stays out of your undo history. So nothing that
+  story 10 wrote was ever captured: Ctrl+Z after drawing a shape undid whatever you had
+  done *before* it. The PRD's line is "creating, restyling, labelling and re-attaching
+  are each one undo step", and the three new `UndoRedo.test.tsx` cases say so in the
+  browser the app really runs in; they fail on the string origins and pass on
+  `LOCAL_ORIGIN`, which `text.ts` and every mutation in `board-model.ts` already use.
+  The undo of a delete that freed an end puts the shape back *and* re-attaches the end,
+  in one press, because of the transaction the two share.
+
+## Test decisions (story 10)
+
+- **TC-20 asserts state rather than events.** The design's "assert the board's own
+  click handler was not entered" cannot be done here: `boardEventsSeen` listens with a
+  native `addEventListener` on the viewport, and React's delegation fires at the root
+  container after the event has bubbled past the viewport, so a stopped event and a
+  missed one look identical to it. The test asks what a person would notice instead:
+  the line's `stroke-width` in world units at two zooms (6 screen pixels at both, which
+  is the zoom-awareness, measured), selection at 7 pixels on and at 5 pixels off, and
+  the board's mode still `idle` after a press 40 pixels from the line inside its own box.
+- **TC-27's race is forced by holding the pointer, not by delaying a route.** The design
+  suggests a WebSocket route delay on Sam's traffic; holding Dana's pointer down over B
+  while Sam deletes achieves the same interleaving with nothing to time out and nothing
+  to wait for. The assertion is that the end is *free* at the point where B was and that
+  it is stable after both peers settle - not that a `free` end survives a re-attach,
+  which is the bug.
+- **The world a test clicks has to be in the window.** The board starts with its world
+  origin centred, so the camera is (-640, -400) and a scene written at (1200, 400) is
+  off the right edge of the screen: Playwright moves the mouse to a clamped position,
+  every point of a shape lands inside its own box, `nearestSide` answers with the side
+  already facing, and the test reports a wrong side. `screenOf` in the e2e helpers now
+  goes through the board's own `worldToScreen`, which is the mapping that was always
+  true, and the scenes are laid out around the world origin.
+- **`data-arrow-to-x/y`, not the bounding box**, for exact arrow positions: the arrowhead
+  is drawn beyond the end point, so the box's right edge is 12 pixels further along than
+  the end the document names.
+- **TC-27 selects before it presses.** Firefox (Juggler) will not let a page click a
+  second time while another page in the same browser holds its pointer down - the click
+  is delivered and hits nothing. Selecting B before Dana presses down keeps the race the
+  test is about (the delete lands while Dana's pointer is held over B) and takes out the
+  harness. This is the same shared-virtual-mouse class of problem story 9 wrote up for
+  TC-36 and TC-30.
+- **The fixture is built with the model, not with literals.** `checkout-flow.ts` calls
+  `createShape`, `attachTarget`, `endpointAtDrop` and `createConnector`, so the bytes it
+  produces are the bytes a person's drags produce, and the test that seeds it is testing
+  the reader rather than a scene invented to match it. It arrives through
+  `__applyUpdate`, a test-build hook that feeds an update into the live document - the
+  same route a peer's update takes.
+- **The component tests press keys on the document and read state**, `aria-pressed` on
+  the tool buttons and `data-selected` on what is drawn, as the stories before did.
+
+## Known flakiness on this machine (story 10)
+
+Two cases that predate this story are not reliably green in a full three-browser run here.
+Neither was skipped, slowed down or deleted; both were measured with this story's work
+stashed away, at the story 9 commit, and both fail there as they do here.
+
+- **Story 8's `undo.spec.ts` TC-24, "every editor undoes only their own move and typing
+  while everyone works at once", firefox.** Two full runs at the story 9 commit failed it
+  and two passed; with story 10 in, the same. It passes in isolation, in chromium and in
+  webkit. Read out with per-page logging: after five editors each drag their own note by
+  (+40, +40), type a word in another note and press Ctrl+Z twice, four editors are back
+  where they started and one note sits exactly one drag's delta from where it began - and
+  is still there after six presses. A page cannot undo a change another page's mouse wrote
+  into the same note, which is what a duplicated input event does. Undo itself behaves:
+  nothing of anyone else's is reverted and no object disappears.
+- **Story 3's `navigation.spec.ts` "a mouse drag moves the board by exactly the pointer
+  delta", webkit.** It wants the camera 200 to the left of where it was and reads 80:
+  `waitForCameraChange` answers on the *first* change and the assertion then runs while the
+  drag is still arriving, which is a thing that only shows when the machine is busy. This
+  story writes nothing to the camera, and the shape and connector layers are not even in
+  the document while the select tool is held, so the case behaves the same with this story
+  stashed.
+- Both are the class already written up twice in this file: five windows and one OS cursor
+  on macOS (story 9's five-window TC-36 and TC-30, and TC-27 above), and a functional wait
+  that reads a board mid-flight. The fixes belong to those suites: either five editors'
+  mouse work joins TC-36 and TC-30 as chromium-only, or the editors are driven without one
+  shared cursor; and a mid-drag read should wait for the drag to be *over*, not for the
+  first sign of it. Neither is a decision a story 10 commit should make.
+
+## Verification (story 10)
+
+`npm run typecheck` (both tsconfigs), `npm run build`, `test:unit` (294),
+`test:component` (207) and `test:integration` (70, unchanged) pass. `test:e2e` is
+176 passed, 4 skipped - the 4 are story 9's TC-36 and TC-30 chromium-only skips, nothing
+new is skipped - and all 27 of this story's e2e cases (TC-23 to TC-27 and the fixture
+flow) are green in chromium, firefox and webkit in every run. The two cases written up
+above are the ones that come and go between runs, in stories that are not this one.

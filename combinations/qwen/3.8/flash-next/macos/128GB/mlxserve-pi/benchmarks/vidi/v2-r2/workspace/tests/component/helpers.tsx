@@ -26,7 +26,16 @@ import type {
   ConnectionEmitter,
   ConnectionState,
 } from '../../src/client/sync/connectBoard';
-import { resetCamera, type Camera, type Point, type Size } from '../../src/client/canvas/camera';
+import { resetCamera, screenToWorld, worldToScreen, type Camera, type Point, type Size } from '../../src/client/canvas/camera';
+import {
+  connectorRects,
+  createConnector,
+  sideAnchor,
+  nearestSide,
+  centre,
+} from '../../src/shared/objects/connector';
+import { createShape, getShapeLabel } from '../../src/shared/objects/shape';
+import type { ShapeKind } from '../../src/shared/config';
 
 function number(value: string | undefined): number {
   if (value === undefined) throw new Error('missing data attribute');
@@ -825,4 +834,251 @@ export function allObjects(doc: Y.Doc): (StickySnapshot | TextSnapshot)[] {
 /** The text objects on the board, in creation order. */
 export function snapshotTexts(doc: Y.Doc): TextSnapshot[] {
   return [...textSnapshots(doc)];
+}
+
+// --------------------------------------------------------------------------------
+// Shape and connector helpers (story 10)
+// --------------------------------------------------------------------------------
+
+/** The shapes, in the order the board builds them. */
+export function shapeElements(): HTMLElement[] {
+  return allTestId('shape-object');
+}
+
+export function shapeAt(index: number): HTMLElement {
+  const el = shapeElements()[index];
+  if (el === undefined) {
+    throw new Error(`no shape at index ${index} (${shapeElements().length} rendered)`);
+  }
+  return el;
+}
+
+export function shapeCount(): number {
+  return shapeElements().length;
+}
+
+/** The box a shape is drawn with, in world units, read back from the element. */
+export function shapeBox(index: number): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const el = shapeAt(index);
+  return {
+    x: Number(el.dataset.shapeX),
+    y: Number(el.dataset.shapeY),
+    width: Number(el.dataset.shapeWidth),
+    height: Number(el.dataset.shapeHeight),
+  };
+}
+
+export function shapeKindOf(index: number): string {
+  return String(shapeAt(index).dataset.shapeKind);
+}
+
+/** The label a shape is drawn with, as read from the document by the board. */
+export function shapeLabelOf(index: number): string {
+  return shapeAt(index).querySelector<HTMLElement>('[data-testid="shape-label"]')?.textContent ?? '';
+}
+
+/** Shapes carrying the selection outline. */
+export function selectedShapes(): HTMLElement[] {
+  return shapeElements().filter((el) => el.dataset.selected === 'true');
+}
+
+/** The open shape label editor. */
+export function shapeInput(): HTMLTextAreaElement | null {
+  return document.querySelector<HTMLTextAreaElement>('textarea[data-testid="shape-input"]');
+}
+
+export function shapeInputValue(): string {
+  return shapeInput()?.value ?? '';
+}
+
+/** The arrows, in the order the board builds them. */
+export function connectorElements(): HTMLElement[] {
+  return allTestId('connector-object');
+}
+
+export function connectorAt(index: number): HTMLElement {
+  const el = connectorElements()[index];
+  if (el === undefined) {
+    throw new Error(`no connector at index ${index} (${connectorElements().length} rendered)`);
+  }
+  return el;
+}
+
+export function connectorCount(): number {
+  return connectorElements().length;
+}
+
+/** The box an arrow is drawn in - the box around its two resolved ends. */
+export function connectorBox(index: number): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const style = connectorAt(index).style;
+  return {
+    x: px(style.left),
+    y: px(style.top),
+    width: px(style.width),
+    height: px(style.height),
+  };
+}
+
+/** Arrows carrying the selection outline. */
+export function selectedConnectors(): HTMLElement[] {
+  return connectorElements().filter((el) => el.dataset.selected === 'true');
+}
+
+/** The fat invisible line an arrow is clicked through. */
+export function connectorHit(index = 0): HTMLElement {
+  const el = connectorAt(index).querySelector<HTMLElement>('[data-testid="connector-hit"]');
+  if (el === null) throw new Error('connectorHit: the arrow draws no hit line');
+  return el;
+}
+
+export function connectorEndEl(end: 'from' | 'to'): HTMLElement | null {
+  return byTestId(`connector-end-${end}`);
+}
+
+export const shapeToolButton = (): HTMLElement | null => byTestId('tool-shape');
+export const connectorToolButton = (): HTMLElement | null => byTestId('tool-connector');
+export const shapeKindMenu = (): HTMLElement | null => byTestId('shape-kind-menu');
+export const shapeKindButton = (kind: string): HTMLElement | null =>
+  byTestId(`shape-kind-${kind}`);
+/** The layer the Shape tool puts over the board, or null while it is not held. */
+export const shapeToolLayer = (): HTMLElement | null => byTestId('shape-tool-layer');
+/** The dashed box the Shape tool draws while a shape is being dragged out. */
+export const shapePreviewEl = (): HTMLElement | null => byTestId('shape-preview');
+export const connectorToolLayer = (): HTMLElement | null => byTestId('connector-tool-layer');
+export const connectorDotsBox = (): HTMLElement | null => byTestId('connector-dots');
+export const connectorToolPreviewEl = (): HTMLElement | null => byTestId('connector-tool-preview');
+export const shapeToolbarElement = (): HTMLElement | null => byTestId('shape-toolbar');
+export const shapeFillSwatch = (color: string): HTMLElement | null =>
+  byTestId(`shape-fill-${color}`);
+export const shapeStrokeSwatch = (color: string): HTMLElement | null =>
+  byTestId(`shape-stroke-${color}`);
+export const shapeToolbarDelete = (): HTMLElement | null => byTestId('shape-toolbar-delete');
+
+/** The four side dots the Connector tool draws for the object being pointed at. */
+export function connectorDots(): HTMLElement[] {
+  return allTestId('connector-dot');
+}
+
+/** The dot that says "this side, if you let go here". */
+export function highlightedDot(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-testid="connector-dot"][data-highlighted="true"]');
+}
+
+/** A dot's centre in world units, which is the anchor it stands for. */
+export function dotPoint(el: HTMLElement): { x: number; y: number } {
+  return { x: px(el.style.left) + px(el.style.width) / 2, y: px(el.style.top) + px(el.style.height) / 2 };
+}
+
+/** Hold the Shape tool the way the keyboard does. */
+export function holdShapeTool(): void {
+  pressKey('s');
+}
+
+/** Hold the Connector tool the way the keyboard does. */
+export function holdConnectorTool(): void {
+  pressKey('l');
+}
+
+/** One pointer event on a layer or handle, in screen coordinates. */
+export function pointerOnLayer(
+  el: Element | null,
+  kind: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+  at: Point,
+  init: Record<string, unknown> = {},
+): void {
+  if (el === null) throw new Error(`pointerOnLayer: the element is missing (${kind})`);
+  pointerOn(el, kind, { clientX: at.x, clientY: at.y, ...init });
+}
+
+/**
+ * A drag in screen pixels: press, four moves, release. Capture is a no-op in jsdom,
+ * so the moves go to the element the press began on - which is where a real browser
+ * sends them while it holds the capture, and so reaches the same handler.
+ */
+export function dragOn(
+  el: Element | null,
+  from: Point,
+  to: Point,
+  steps = 4,
+  init: Record<string, unknown> = {},
+): void {
+  pointerOnLayer(el, 'pointerdown', from, init);
+  for (let i = 1; i <= steps; i += 1) {
+    pointerOnLayer(el, 'pointermove', {
+      x: from.x + ((to.x - from.x) * i) / steps,
+      y: from.y + ((to.y - from.y) * i) / steps,
+    }, init);
+  }
+  pointerOnLayer(el, 'pointerup', to, init);
+  flushFrames();
+}
+
+/** Add a shape through the model, the way the app does, and return its id. */
+export function newShape(
+  doc: Y.Doc,
+  world: Point = { x: 0, y: 0 },
+  size: { kind?: ShapeKind; width?: number; height?: number; label?: string } = {},
+): string {
+  let id: string | null = null;
+  act(() => {
+    id = createShape(
+      doc,
+      {
+        kind: size.kind ?? 'rect',
+        rect: { x: world.x, y: world.y, width: size.width ?? 200, height: size.height ?? 120 },
+        at: world,
+      },
+      'g_test_creator',
+    );
+    if (id !== null && size.label !== undefined) getShapeLabel(doc, id)?.insert(0, size.label);
+  });
+  if (id === null) throw new Error('newShape: the model refused the box');
+  return id;
+}
+
+/** Add an arrow between two objects, both ends attached, and return its id. */
+export function newConnector(doc: Y.Doc, fromId: string, toId: string): string {
+  const rects = connectorRects(doc);
+  const a = rects.get(fromId);
+  const b = rects.get(toId);
+  if (a === undefined || b === undefined) throw new Error('newConnector: one end is not on the board');
+  let id: string | null = null;
+  act(() => {
+    id = createConnector(
+      doc,
+      {
+        kind: 'attached',
+        objectId: fromId,
+        fallback: sideAnchor(a, nearestSide(a, centre(b))),
+      },
+      {
+        kind: 'attached',
+        objectId: toId,
+        fallback: sideAnchor(b, nearestSide(b, centre(a))),
+      },
+      'g_test_creator',
+    );
+  });
+  if (id === null) throw new Error('newConnector: the model refused the arrow');
+  return id;
+}
+
+/** The screen point a world point is drawn at, right now. */
+export function screenOf(world: Point): Point {
+  return worldToScreen(readCamera(), world);
+}
+
+/** The world point a screen point names, right now. */
+export function worldOfScreen(screen: Point): Point {
+  return screenToWorld(readCamera(), screen);
 }

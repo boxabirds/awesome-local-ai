@@ -10,6 +10,10 @@
 //   meta:    Y.Map { schemaVersion: 1 }
 //   objects: Y.Map<id, Y.Map> where each object is
 //     { type: 'sticky', x, y, width?, height?, color, text: Y.Text, z, createdAt }
+//   and, from stories 9 and 10, of type 'text', 'shape' and 'connector' - the
+//   modules under objects/ own those entries' fields. A connector stores which
+//   objects its ends point at and keeps x/y/width/height at 0: where it is drawn
+//   is derived from those objects, which is what lets an arrow follow a move.
 //   (x, y) is the note's top-left in world units; higher z draws on top. A
 //   sticky without stored width/height is STICKY_SIZE_WORLD wide and tall - the
 //   fields arrive with the first resize (story 7), so no migration rewrites the
@@ -28,9 +32,15 @@ import {
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  TYPE_CONNECTOR,
+  TYPE_SHAPE,
   TYPE_TEXT,
   type StickyColor,
 } from './config';
+import {
+  connectorRects,
+  detachConnectorsTo,
+} from './objects/connector';
 import {
   objectBounds,
   rectContains,
@@ -123,7 +133,12 @@ function stickyMapOf(doc: Y.Doc, id: string): YObject | null {
  * something it can promise to move, resize or delete safely. Stories 9-12
  * add their types to the model, and to this set, as they add them here.
  */
-const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set<string>([TYPE_STICKY, TYPE_TEXT]);
+const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set<string>([
+  TYPE_STICKY,
+  TYPE_TEXT,
+  TYPE_SHAPE,
+  TYPE_CONNECTOR,
+]);
 
 /**
  * Any object entry this build can position and stack: a Y.Map with finite
@@ -419,6 +434,12 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 /**
  * Remove many objects in one transaction (one undo unit). Ids that are not on
  * the board are skipped; the count of actual removals is returned.
+ *
+ * An arrow that pointed at one of them is not deleted with it (story 10): its end
+ * is freed at the point on the deleted object's nearest side where it was drawn.
+ * The rects the arrows are drawn from are read before anything goes, so the end
+ * lands where it was, and the detach is written in the same transaction as the
+ * delete - one update, one undo step.
  */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const objects = objectsMap(doc);
@@ -430,8 +451,13 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
     if (objects.get(id) instanceof Y.Map) present.push(id);
   }
   if (present.length === 0) return 0;
+  const rects = connectorRects(doc);
   doc.transact(() => {
     for (const id of present) objects.delete(id);
+    // Inside the delete's own transaction, so a delete that frees an arrow end is one
+    // update on the wire and one step on the undo stack: undone together, the shape is
+    // back and the arrow is pointing at it again.
+    detachConnectorsTo(doc, present, rects);
   }, LOCAL_ORIGIN);
   return present.length;
 }
