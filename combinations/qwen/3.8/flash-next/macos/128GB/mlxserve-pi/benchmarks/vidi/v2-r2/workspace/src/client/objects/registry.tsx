@@ -15,21 +15,48 @@
 // creators): the registry describes behaviour of existing objects, it does
 // not own the schema.
 
-import type { ComponentType } from 'react';
-import type { Point } from '../../shared/geometry';
-import { objectBounds } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TYPE_STICKY } from '../../shared/config';
+import type { ComponentType, JSX } from 'react';
+import type { Handle, Point } from '../../shared/geometry';
+import { HANDLES, objectBounds } from '../../shared/geometry';
+import {
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+  TYPE_STICKY,
+  TYPE_TEXT,
+} from '../../shared/config';
 import type { ObjectSnapshot } from '../../shared/board-model';
+import type { StickySnapshot } from '../../shared/board-model';
+import type { TextSnapshot } from '../../shared/objects/text';
 import type { StickyNoteProps } from './StickyNote';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
+
+/** Every object this build can draw. */
+export type BoardObject = StickySnapshot | TextSnapshot;
 
 /**
  * The props the board passes to any object component. Every object type in
  * this build takes exactly what a sticky note takes - the snapshot, the
  * document, the zoom, the selection and editing flags and the interaction
  * callbacks - which is what lets the board render types it has no `if` for.
+ * The snapshot is whichever object of that type it is handed.
  */
-export type ObjectProps = StickyNoteProps;
+export interface ObjectProps extends Omit<StickyNoteProps, 'note'> {
+  note: BoardObject;
+}
+
+/**
+ * A component declares the snapshot of its own type in `note`; the board hands a
+ * component the snapshot of the object's own type. The registry keeps one
+ * component type for all of them, so this is where the two meet - one cast, whose
+ * promise ("this component is registered for the snapshot it is handed") is the
+ * board's to keep, since it renders a component chosen from the object's type.
+ */
+function componentForType<N extends ObjectSnapshot>(
+  Component: (props: Omit<ObjectProps, 'note'> & { note: N }) => JSX.Element,
+): ComponentType<ObjectProps> {
+  return Component as unknown as ComponentType<ObjectProps>;
+}
 
 export interface ObjectTypeSpec {
   Component: ComponentType<ObjectProps>;
@@ -53,7 +80,16 @@ export interface ObjectTypeSpec {
    * one: inside the object's bounds.
    */
   hitTest?: (object: ObjectSnapshot) => boolean;
+  /**
+   * Which handles a single selected object gets. 'all' (the default) is a box
+   * resized from any of eight; 'horizontal' is a box whose height belongs to its
+   * content - text - so it has an east and a west handle and nothing else.
+   */
+  handles?: ObjectHandles;
 }
+
+/** The handle set an object type shows when it is selected on its own. */
+export type ObjectHandles = 'all' | 'horizontal';
 
 const registrations = new Map<string, ObjectTypeSpec>();
 
@@ -112,9 +148,36 @@ export function hitTestObject(object: ObjectSnapshot, point: Point): boolean {
 // --- the types this build ships ---------------------------------------------
 
 registerObjectType(TYPE_STICKY, {
-  Component: StickyNote,
+  Component: componentForType<StickySnapshot>(StickyNote),
   resizable: true,
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
 });
+
+// Text is a sticky note with no box behind the words: resizable, editable, no
+// ratio to keep - and only a side handle, because its height is its content's.
+registerObjectType(TYPE_TEXT, {
+  Component: componentForType<TextSnapshot>(TextObject),
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+});
+
+/** The two handles of a box whose height belongs to its content. */
+const SIDE_HANDLES: readonly Handle[] = ['e', 'w'];
+
+/**
+ * The handles a selection gets: the eight of a box you resize from any side, or -
+ * when every object in it is a type whose height is its content's, which today
+ * means text and nothing else - the two side handles, because there is no height
+ * for a top or bottom handle to set.
+ */
+export function handlesFor(objects: readonly ObjectSnapshot[]): readonly Handle[] {
+  const horizontal =
+    objects.length > 0 &&
+    objects.every((object) => registrations.get(object.type)?.handles === 'horizontal');
+  return horizontal ? SIDE_HANDLES : [...HANDLES];
+}

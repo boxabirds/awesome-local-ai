@@ -25,6 +25,7 @@ import {
 import type { Point } from '../../shared/geometry';
 import { isTypingTarget } from '../canvas/BoardViewport';
 import type { SelectionState } from './useSelection';
+import { toolForKey, type Tool } from './useTool';
 
 export interface BoardKeyOptions {
   doc: Y.Doc;
@@ -39,6 +40,18 @@ export interface BoardKeyOptions {
   undo(): void;
   redo(): void;
   boundary(): void;
+  /**
+   * The tool the pointer holds, and the way back to Select (story 9). Left out,
+   * V, T and Escape-to-Select do nothing, which is what a board with one tool is.
+   */
+  tool?: Tool;
+  setTool?(tool: Tool): void;
+  /**
+   * N: a sticky note in the middle of what is on screen (story 9). The same thing
+   * the toolbar's Sticky note button does, which is why the board, not this hook,
+   * owns where the note goes.
+   */
+  onCreateSticky?(): void;
 }
 
 const ARROWS: Record<string, Point> = {
@@ -54,8 +67,21 @@ export function useBoardKeys(options: BoardKeyOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      const { doc, editable, objects, selection, setSelection, clear, startEdit, undo, redo, boundary } =
-        optionsRef.current;
+      const {
+        doc,
+        editable,
+        objects,
+        selection,
+        setSelection,
+        clear,
+        startEdit,
+        undo,
+        redo,
+        boundary,
+        tool,
+        setTool,
+        onCreateSticky,
+      } = optionsRef.current;
       if (!editable) return;
       if (isTypingTarget(event.target)) return;
 
@@ -87,7 +113,30 @@ export function useBoardKeys(options: BoardKeyOptions): void {
       // shortcuts in the viewport; Alt is nobody's here.
       if (modified || event.altKey) return;
 
+      // The tools (story 9). V and T name one, N makes a sticky note where the view
+      // is. They are plain keys, so they answer after the modified-key guard and
+      // after the typing-target guard at the top - which is what keeps a T typed
+      // into an object from being taken away from the caret (TC-16).
+      const named = toolForKey(event.key);
+      if (named !== null && setTool !== undefined) {
+        event.preventDefault();
+        setTool(named);
+        return;
+      }
+      if ((event.key === 'n' || event.key === 'N') && onCreateSticky !== undefined) {
+        event.preventDefault();
+        onCreateSticky();
+        return;
+      }
+
       if (event.key === 'Escape') {
+        // Escape backs out of one thing at a time: first the tool you are holding,
+        // then the selection. A tool that is still held would place an object with
+        // the next click, so it is the thing to let go of first (story 9).
+        if (tool !== undefined && tool !== 'select' && setTool !== undefined) {
+          setTool('select');
+          return;
+        }
         if (selection.ids.size === 0) return;
         clear();
         return;

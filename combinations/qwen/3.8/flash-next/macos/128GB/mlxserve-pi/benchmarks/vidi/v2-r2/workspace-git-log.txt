@@ -1,3 +1,45 @@
+commit 79e97ed33713b7f782c7efb175af80cd9449553f
+vidi-agent  Thu Oct 1 06:25:34 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                | 243 ++++++++++++++++++
+ src/client/board/SelectionOverlay.tsx   |  17 +-
+ src/client/board/Toolbar.tsx            |  76 +++++-
+ src/client/board/useBoardDoc.ts         |  44 +++-
+ src/client/board/useBoardKeys.ts        |  53 +++-
+ src/client/board/useSelection.ts        |  13 +-
+ src/client/board/useTool.ts             |  55 ++++
+ src/client/board/useTransformGesture.ts |  64 ++++-
+ src/client/canvas/BoardViewport.tsx     |  78 +++++-
+ src/client/canvas/testHooks.ts          |  11 +-
+ src/client/objects/StickyText.ts        |  63 +----
+ src/client/objects/StickyTextEditor.tsx | 240 +++--------------
+ src/client/objects/TextEditor.tsx       | 326 +++++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 318 +++++++++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  60 +++++
+ src/client/objects/registry.tsx         |  75 +++++-
+ src/client/objects/textLayout.ts        | 193 ++++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  75 ++++++
+ src/client/pages/BoardPage.tsx          | 191 ++++++++++++--
+ src/client/styles.css                   | 141 ++++++++++
+ src/shared/board-model.ts               |  11 +-
+ src/shared/config.ts                    |  53 ++++
+ src/shared/objects/text.ts              | 308 ++++++++++++++++++++++
+ src/shared/text-edit.ts                 |  66 +++++
+ tests/component/TextBoxSync.test.tsx    | 155 +++++++++++
+ tests/component/TextObject.test.tsx     | 377 +++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx           | 328 ++++++++++++++++++++++++
+ tests/component/Toolbars.test.tsx       |   6 +-
+ tests/component/helpers.tsx             | 274 +++++++++++++++++++-
+ tests/e2e/helpers/live.ts               | 134 +++++++++-
+ tests/e2e/persistence.spec.ts           |   9 +-
+ tests/e2e/sticky-notes.spec.ts          |   3 +-
+ tests/e2e/text.spec.ts                  | 442 ++++++++++++++++++++++++++++++++
+ tests/unit/text-layout.test.ts          | 202 +++++++++++++++
+ tests/unit/text-model.test.ts           | 347 +++++++++++++++++++++++++
+ 35 files changed, 4721 insertions(+), 330 deletions(-)
 commit a14efff3a006a1d6d6a98e2bdad965f6c5a1013e
 vidi-agent  Thu Oct 1 04:23:10 2026 +0100
 

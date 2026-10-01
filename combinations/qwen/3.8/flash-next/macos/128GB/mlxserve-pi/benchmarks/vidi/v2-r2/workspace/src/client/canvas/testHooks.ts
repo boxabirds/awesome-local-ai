@@ -9,8 +9,9 @@ import {
   createSticky,
   getStickyText,
   snapshotByCreation,
-  type StickySnapshot,
+  type ObjectSnapshot,
 } from '../../shared/board-model';
+import { textSnapshots } from '../../shared/objects/text';
 import type { StickyColor } from '../../shared/config';
 import { COLLAB_ENDPOINT } from '../sync/endpoint';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -22,7 +23,7 @@ let setter: CameraSetter | null = null;
 interface MutableApi {
   setCamera?(x: number, y: number, zoom: number): void;
   doc?: Y.Doc;
-  snapshot?(): readonly StickySnapshot[];
+  snapshot?(): readonly ObjectSnapshot[];
   __serverMode?: boolean;
   __drop?(): void;
   __restore?(): void;
@@ -63,7 +64,11 @@ export function registerBoardDoc(doc: Y.Doc | null): void {
   if (doc === null) return;
   patch({
     doc,
-    snapshot: () => snapshotByCreation(doc),
+    // Every object on the board, of every type: notes first, then text objects,
+    // each group in creation order. A board with no text on it reads exactly as it
+    // did before story 9, so the tests written against the older shape are
+    // unaffected; a test that wants only one type filters on `type`.
+    snapshot: () => [...snapshotByCreation(doc), ...textSnapshots(doc)],
     __serverMode: COLLAB_ENDPOINT !== '',
     /**
      * Create `count` notes, giving every `withTextEvery`th one some text, and

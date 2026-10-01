@@ -139,8 +139,10 @@ describe('sticky note toolbars', () => {
     const { doc } = renderBoard();
     const centre = screenCentre();
     const tool = stickyToolButton();
-    expect(tool?.getAttribute('aria-label')).toBe('Sticky note');
-    expect(tool?.getAttribute('title')).toBe('Sticky note – or double-click the board');
+    // story 9 puts the key each tool answers to in its name, so the rail teaches
+    // the shortcuts and the e2e tests can name one button without guessing
+    expect(tool?.getAttribute('aria-label')).toBe('Sticky note (N)');
+    expect(tool?.getAttribute('title')).toBe('Sticky note – N, or double-click the board');
 
     clickOn(tool);
 

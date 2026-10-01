@@ -59,6 +59,9 @@ export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 /** The one sticky note object type this build ships, as stored in the Y.Map. */
 export const TYPE_STICKY = 'sticky';
 
+/** A free text object (story 9): plain text on the board, no background. */
+export const TYPE_TEXT = 'text';
+
 /** Resize handle edge, in CSS pixels at any zoom (handles are screen-space). */
 export const HANDLE_SIZE_PX = 8;
 /** The smallest edge a sticky note may become, in world units. */
@@ -69,6 +72,56 @@ export const MAX_OBJECT_SIZE_WORLD = 20_000;
 export const NUDGE_STEP_WORLD = 1;
 /** A Shift+nudge, in world units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+/** The one font of every object's text, so a measurement matches the rendering. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+// -----------------------------------------------------------------------------
+// Text objects (story 9). A text object is plain text on the board: its font
+// size comes from one of four named presets and never from a drag, its box
+// width follows the text in 'auto' mode and is the user's in 'fixed' mode, and
+// its height is always the content's. Every length is in world units.
+// -----------------------------------------------------------------------------
+
+/** The four size presets, in the order the toolbar shows them. */
+export type TextSize = 'S' | 'M' | 'L' | 'XL';
+
+export const TEXT_SIZE_ORDER: readonly TextSize[] = ['S', 'M', 'L', 'XL'];
+
+/** The preset a new text object starts with; the toolbar always highlights one. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Font size in CSS pixels (world units at zoom 1), per preset. */
+export const TEXT_SIZES: Record<TextSize, number> = { S: 14, M: 20, L: 32, XL: 56 };
+
+/** A preset as a control sees it: its name, its label and what it is worth. */
+export interface TextSizeOption {
+  size: TextSize;
+  label: string;
+  fontPx: number;
+}
+
+/**
+ * The four presets with their labels and font sizes, in TEXT_SIZE_ORDER - the one
+ * list, so the order a toolbar shows is the model's order and not the file's.
+ */
+export const TEXT_SIZE_OPTIONS: readonly TextSizeOption[] = TEXT_SIZE_ORDER.map((size) => ({
+  size,
+  label: size,
+  fontPx: TEXT_SIZES[size],
+}));
+
+/** Lines are this many times the font size tall, in the layout and in the CSS. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** Auto width stops here: longer text wraps into it instead of growing. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** The narrowest box a side handle may drag a text into, at any preset. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** A text object holds at most this many characters; typing stops there. */
+export const TEXT_MAX_CHARS = 5000;
 
 // --- Live collaboration (story 3) ---
 

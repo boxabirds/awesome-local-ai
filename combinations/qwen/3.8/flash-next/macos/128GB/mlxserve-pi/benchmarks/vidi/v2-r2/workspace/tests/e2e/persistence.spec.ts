@@ -182,7 +182,14 @@ test.describe('returning to a board', () => {
       .toBeGreaterThan(0);
     const compacted = await server.diagnostics(boardId);
     expect(compacted.updates).toBeLessThan(560);
-    expect(await connectionState(page)).toBe('connected');
+    // Every connection read in this file waits for the state it names, and this one
+    // has to as much: a board that has just compacted is a board that has just
+    // resynced, and "confirmed" is the state shown for a moment on the way back to
+    // "connected". Waiting keeps the assertion, which is that the page ends up
+    // connected; assuming it had already got there was the flake.
+    await expect
+      .poll(() => connectionState(page), { timeout: 30_000 })
+      .toBe('connected');
     const before = await content(page);
     expect(before).toHaveLength(560);
 

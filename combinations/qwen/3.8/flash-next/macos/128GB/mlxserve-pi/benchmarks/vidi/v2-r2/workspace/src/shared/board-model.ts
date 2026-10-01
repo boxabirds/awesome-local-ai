@@ -28,6 +28,7 @@ import {
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  TYPE_TEXT,
   type StickyColor,
 } from './config';
 import {
@@ -122,7 +123,7 @@ function stickyMapOf(doc: Y.Doc, id: string): YObject | null {
  * something it can promise to move, resize or delete safely. Stories 9-12
  * add their types to the model, and to this set, as they add them here.
  */
-const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set<string>([TYPE_STICKY]);
+const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set<string>([TYPE_STICKY, TYPE_TEXT]);
 
 /**
  * Any object entry this build can position and stack: a Y.Map with finite
@@ -208,7 +209,7 @@ export function createSticky(doc: Y.Doc, at: PointLike, color?: StickyColor): st
     return '';
   }
   const fill: StickyColor = isStickyColor(color) ? color : DEFAULT_STICKY_COLOR;
-  const id = newId();
+  const id = newObjectId();
   const z = maxZ(doc) + 1;
   const objects = objectsMap(doc);
   const half = STICKY_SIZE_WORLD / 2;
@@ -479,7 +480,11 @@ export function snapshotByCreation(doc: Y.Doc): readonly StickySnapshot[] {
   return notes;
 }
 
-function newId(): string {
+/**
+ * Identifier for a new object. Every type's own model module creates its ids
+ * with this, so one board never holds two objects that share an entry.
+ */
+export function newObjectId(): string {
   const cryptoRef: Crypto | undefined = typeof crypto === 'undefined' ? undefined : crypto;
   if (cryptoRef !== undefined && typeof cryptoRef.randomUUID === 'function') {
     return cryptoRef.randomUUID();

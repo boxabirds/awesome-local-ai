@@ -5,6 +5,7 @@
 
 import { expect, type Browser, type Page } from '@playwright/test';
 import type { StickySnapshot } from '../../../src/shared/board-model';
+import type { Point } from './board';
 import { newBoardId } from '../../../src/shared/board-id';
 
 export { newBoardId };
@@ -100,7 +101,7 @@ export async function createNote(page: Page, at: { x: number; y: number }, text 
  * rather than create a new one.
  */
 export async function createNoteViaToolbar(page: Page, text = ''): Promise<void> {
-  await page.getByRole('button', { name: 'Sticky note', exact: true }).click();
+  await page.getByRole('button', { name: 'Sticky note (N)', exact: true }).click();
   const editor = page.getByRole('textbox', { name: 'Sticky note text' });
   await editor.waitFor({ state: 'visible' });
   if (text !== '') await page.keyboard.type(text);
@@ -245,4 +246,135 @@ export function destroyConnection(page: Page): Promise<void> {
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// --------------------------------------------------------------------------------
+// text objects (story 9)
+// --------------------------------------------------------------------------------
+
+/** A board text reduced to the fields that must agree across every client. */
+export interface TextContent {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  size: string;
+  width: number;
+  height: number;
+  widthMode: string;
+}
+
+/**
+ * The texts on the board, read from the live document. `snapshot()` answers with
+ * every object, of every type, so a test that wants the words has to say so.
+ */
+export async function textContent(page: Page): Promise<TextContent[]> {
+  return page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          __vidi6: { snapshot(): { type: string }[] };
+        }
+      )
+        .__vidi6.snapshot()
+        .filter((o) => o.type === 'text')
+        .map((o) => {
+          const t = o as unknown as TextContent & { createdBy?: string | null };
+          return {
+            id: t.id,
+            x: t.x,
+            y: t.y,
+            text: t.text,
+            size: t.size,
+            width: t.width,
+            height: t.height,
+            widthMode: t.widthMode,
+          };
+        })
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+  );
+}
+
+/** How many text objects the document holds. */
+export async function textCount(page: Page): Promise<number> {
+  return (await textContent(page)).length;
+}
+
+/** True once every page holds the same texts, words and boxes included. */
+export async function textContentsMatch(pages: Page[]): Promise<boolean> {
+  const all = await Promise.all(pages.map(textContent));
+  const first = JSON.stringify(all[0]);
+  return all.every((c) => JSON.stringify(c) === first);
+}
+
+export async function waitForTextContentsMatch(
+  pages: Page[],
+  timeout = 15_000,
+): Promise<void> {
+  await expect
+    .poll(() => textContentsMatch(pages), { timeout, message: 'the texts to converge' })
+    .toBe(true);
+}
+
+/** The layer the Text tool holds clicks in, while the tool is held. */
+export function textToolLayer(page: Page) {
+  return page.locator('.text-tool-layer');
+}
+
+/** The open text editor. */
+export function textEditor(page: Page) {
+  return page.locator('textarea[data-testid="text-editor"]');
+}
+
+/** The rendered lines of one text, in the order they are drawn. */
+export async function textLines(page: Page, index = 0): Promise<string[]> {
+  return page
+    .locator('[data-testid="text-object"]')
+    .nth(index)
+    .locator('.text-line')
+    .allTextContents();
+}
+
+/**
+ * Hold the Text tool and click at a screen point: that places a text and puts the
+ * caret in it, which is the whole story of how words get onto the board. Returns
+ * the new text's id.
+ */
+export async function createText(
+  page: Page,
+  at: Point,
+  text = '',
+): Promise<string> {
+  await page.keyboard.press('t');
+  await expect(textToolLayer(page)).toHaveCount(1);
+  await page.mouse.click(at.x, at.y);
+  await expect(textEditor(page)).toHaveCount(1);
+  if (text !== '') await page.keyboard.type(text);
+  // The new text is the one the caret is in - which is a fact about the screen, and
+  // far more reliable than diffing the document while other clients' objects are
+  // arriving over the wire.
+  const id = await page.evaluate(() => {
+    const el = document.querySelector('textarea[data-testid="text-editor"]');
+    return el?.closest('[data-text-id]')?.getAttribute('data-text-id') ?? null;
+  });
+  if (id === null) throw new Error('createText: no text was placed under the click');
+  return id;
+}
+
+/** Open a text's editor by double-clicking it (the caret goes to the end). */
+export async function editText(page: Page, index: number): Promise<void> {
+  const box = await page.locator('[data-testid="text-object"]').nth(index).boundingBox();
+  if (box === null) throw new Error(`text ${index} is not rendered`);
+  await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(textEditor(page)).toHaveCount(1);
+}
+
+/** Choose a size from the text toolbar for the text currently selected. */
+export async function pickTextSize(page: Page, size: string): Promise<void> {
+  await page.getByTestId(`text-size-${size}`).click();
+}
+
+/** Delete the selected text with the toolbar's bin. */
+export async function deleteTextViaToolbar(page: Page): Promise<void> {
+  await page.getByTestId('text-toolbar-delete').click();
 }

@@ -41,7 +41,8 @@ const noteAt = (page: Page, index: number) => noteList(page).nth(index);
 /** A note by id: the painted order changes when a note is raised to the top. */
 const noteById = (page: Page, id: string) => page.locator(`[data-note-id="${id}"]`);
 const editor = (page: Page) => page.locator('textarea[data-testid="sticky-text"]');
-const stickyTool = (page: Page) => page.getByRole('button', { name: 'Sticky note', exact: true });
+// story 9 named the key each tool answers to, in the button's own name
+const stickyTool = (page: Page) => page.getByRole('button', { name: 'Sticky note (N)', exact: true });
 const noteTools = (page: Page) => page.getByRole('toolbar', { name: 'Note tools' });
 const swatch = (page: Page, color: string) =>
   page.getByRole('button', { name: `${color.charAt(0).toUpperCase()}${color.slice(1)} colour` });

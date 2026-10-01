@@ -45,14 +45,16 @@ import {
   DRAG_THRESHOLD_PX,
   MAX_OBJECT_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import {
   bringObjectsToFront,
   moveObjects,
   objectBounds,
   resizeObjects,
-  type StickySnapshot,
+  type ObjectSnapshot,
 } from '../../shared/board-model';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import {
   anchorBox,
   clampScale,
@@ -66,12 +68,13 @@ import {
 import { getObjectType } from '../objects/registry';
 import type { SelectionState } from './useSelection';
 
+
 export interface TransformGestureOptions {
   doc: Y.Doc;
   /** The live selection, read at pointerdown to decide the subject. */
   selection: SelectionState;
-  /** The live object snapshots, for their starting rects. */
-  objects: readonly StickySnapshot[];
+  /** The live object snapshots, of every type, for their starting rects. */
+  objects: readonly ObjectSnapshot[];
   /** Board zoom: screen pixels become world units by dividing by it. */
   zoom: number;
   /** A locked board takes no transforms at all. */
@@ -85,6 +88,15 @@ export interface TransformGestureOptions {
    */
   onGestureStart?(): void;
   onGestureEnd?(): void;
+  /**
+   * Re-measure these text objects after a transform wrote their box (story 9). A
+   * text's height is its content's, so a resize that scaled a text's box has to be
+   * followed by the layout, which is the only thing that knows how many lines the
+   * text now makes. The board hands over the measurer; the gesture only says which
+   * objects it just moved. It is called inside the same undo capture window as the
+   * transform, so a resize and the box that follows it are one undo step.
+   */
+  remeasureTexts?(ids: readonly string[]): void;
 }
 
 export interface TransformGesture {
@@ -126,6 +138,16 @@ interface GesturePress {
   handle: Handle | null;
   /** True once the pointer travelled enough to be a transform, not a click. */
   moved: boolean;
+  /**
+   * The objects in the subject whose height is their text's - texts - whose box
+   * the layout has to be asked about again after the transform wrote it.
+   */
+  textIds: string[];
+  /**
+   * The one text grabbed by one of the two handles that set a width, which is
+   * resized sideways only. Empty for every other press.
+   */
+  sideHandleIds: string[];
 }
 
 const NO_DRAGGING: ReadonlySet<string> = new Set<string>();
@@ -209,6 +231,28 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
       const start = press.startBox;
       const handle = press.handle;
       if (start === null || handle === null) return;
+
+      // One text, grabbed by a side handle (story 9): its height belongs to its
+      // text, so the drag sets a fixed width and nothing else - the edge that was
+      // not grabbed stays where it was, and the layout is called on the same frame
+      // so the words are seen to wrap as the box narrows.
+      if (press.sideHandleIds.length === 1 && press.subject.length === 1) {
+        const id = press.subject[0];
+        const from = press.startRects.get(id);
+        if (from === undefined) return;
+        const right = from.x + from.width;
+        const asked = handle === 'e' ? from.width + world.x : right - (from.x + world.x);
+        const min = press.minSizes[0] ?? TEXT_MIN_WIDTH_WORLD;
+        const width = Math.min(Math.max(asked, min), MAX_OBJECT_SIZE_WORLD);
+        setTextWidthFixed(doc, id, width);
+        if (handle === 'w') {
+          // the right edge did not move, so the left one takes up the whole change
+          moveObjects(doc, new Map<string, Point>([[id, { x: right - width, y: from.y }]]));
+        }
+        optionsRef.current.remeasureTexts?.(press.sideHandleIds);
+        return;
+      }
+
       const rects: Rect[] = [];
       for (const id of press.subject) {
         const from = press.startRects.get(id);
@@ -226,6 +270,11 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         writes.set(id, scaleWithin(from, start, box));
       }
       resizeObjects(doc, writes);
+      // A group resize scales a text's box like any other box; its height is the
+      // text's, so the layout is asked again - which also puts an auto-width text
+      // back to the width of its own longest line. The font size is never part of
+      // a resize, at any zoom, for any type.
+      if (press.textIds.length > 0) optionsRef.current.remeasureTexts?.(press.textIds);
     },
     [],
   );
@@ -337,6 +386,8 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         aspectLocked: false,
         handle: null,
         moved: false,
+        textIds: [],
+        sideHandleIds: [],
       });
       attach(event.pointerId);
     },
@@ -353,6 +404,7 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
       const startRects = new Map<string, Rect>();
       const rects: Rect[] = [];
       const minSizes: number[] = [];
+      const textIds: string[] = [];
       let aspectLocked = true;
       for (const id of subject) {
         const object = objects.find((o) => o.id === id);
@@ -363,6 +415,7 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         const spec = getObjectType(object.type);
         if (spec === undefined || !spec.aspectLocked) aspectLocked = false;
         minSizes.push(spec?.minSize ?? STICKY_MIN_SIZE_WORLD);
+        if (spec !== undefined && spec.handles !== undefined) textIds.push(id);
       }
       if (rects.length === 0) return;
 
@@ -381,6 +434,11 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         aspectLocked,
         handle,
         moved: true, // a handle drag is never a click: it transforms at once
+        // A type with handles of its own only answers to those: one text grabbed by
+        // a side handle is a width, not a scale. A corner of a mixed group's box is a
+        // group resize, and the layout follows it - which is what `textIds` is for.
+        textIds,
+        sideHandleIds: subject.length === 1 && (handle === 'e' || handle === 'w') ? textIds : [],
       });
       optionsRef.current.onGestureStart?.();
       attach(event.pointerId);

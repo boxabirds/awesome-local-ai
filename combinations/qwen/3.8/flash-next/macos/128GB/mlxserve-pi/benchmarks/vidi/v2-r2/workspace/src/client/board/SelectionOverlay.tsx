@@ -49,10 +49,23 @@ export interface SelectionOverlayProps {
   rect: Rect;
   /** True while the gesture is transforming: the box follows the objects. */
   transforming: boolean;
+  /**
+   * Which handles to show. The board hands over what the selected objects' types
+   * allow - a text's two side handles, a note's eight - and this component draws
+   * the list it is given, because a box that has no top-bottom handle would be
+   * shown by a component that knows nothing about why (the registry knows).
+   * Defaults to every handle.
+   */
+  handles?: readonly Handle[];
   onHandlePointerDown(handle: Handle, event: ReactPointerEvent<HTMLElement>): void;
 }
 
-export function SelectionOverlay({ rect, transforming, onHandlePointerDown }: SelectionOverlayProps): JSX.Element {
+export function SelectionOverlay({
+  rect,
+  transforming,
+  handles = HANDLES,
+  onHandlePointerDown,
+}: SelectionOverlayProps): JSX.Element {
   const { camera } = useBoardCamera();
   const box = screenBox(camera, rect);
   const inset = HANDLE_SIZE_PX / 2;
@@ -64,7 +77,7 @@ export function SelectionOverlay({ rect, transforming, onHandlePointerDown }: Se
       className={`selection-box${transforming ? ' is-transforming' : ''}`}
       style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
     >
-      {HANDLES.map((handle) => {
+      {handles.map((handle) => {
         const at = handleCentre(box, handle);
         return (
           <div

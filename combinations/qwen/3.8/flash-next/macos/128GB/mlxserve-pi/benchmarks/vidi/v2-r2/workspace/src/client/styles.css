@@ -733,3 +733,144 @@ button:focus-visible,
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
+
+/* --- Story 9: text objects, the Text tool's layer, and the text toolbar -----
+   A text object is words with nothing behind them: no fill, no border, no
+   radius. Its box is the text's own - the model stores the width and height the
+   layout measured, and the board draws that box rather than measuring it again -
+   so this CSS has only to place the box and draw the type at the size the preset
+   names. Font size, font family and line height are written on the element by the
+   object, out of the same settings the layout measures with, so what was measured
+   and what is drawn cannot drift apart. */
+
+.text-object {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: auto;
+  color: var(--ink);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.text-object.is-dragging {
+  cursor: grabbing;
+}
+
+/* The outline says "this is the text you are working on". It sits outside the
+   box, so it never changes where the words are. */
+.text-object[data-selected='true'] {
+  outline: 1.5px solid var(--select);
+  outline-offset: 3px;
+}
+
+.text-object:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 5px;
+}
+
+/* Reading and typing share one box, so opening the caret does not move the text.
+   The wrapping is the one the layout does: lines break between words. A single
+   word wider than the box is the one case the two cannot agree on - the layout
+   gives it a line of its own, and a pre-wrap box breaks it across lines rather
+   than let it run off the board (NOTES.md, story 9). */
+.text-body,
+.text-input {
+  position: absolute;
+  inset: var(--text-inset, 0px);
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* Reading: one element per paragraph the person typed, wrapped by the browser
+   inside the box the document stores. The layer never takes a click of its own:
+   the object behind it is what gets grabbed. */
+.text-body {
+  pointer-events: none;
+}
+
+/* An empty line keeps a line box of its own, so a paragraph break shows as a gap
+   and not as two lines that came together. The height is the same line height the
+   layout multiplied by the number of lines to get this box's height. */
+.text-line {
+  min-height: calc(1em * var(--text-line-height, 1.3));
+}
+
+.text-input {
+  pointer-events: auto;
+  resize: none;
+  display: block;
+  cursor: text;
+  user-select: text;
+  /* the box grows with the text, so there is never anything scrolled out of it */
+  overflow: hidden;
+}
+
+.text-input:focus {
+  outline: none;
+}
+
+/* The Text tool's layer: over the whole board, above every object, screen-sized
+   (a child of the board surface, not of the world) so the wheel and the trackpad
+   gesture still reach the board's own listeners and zooming goes on working while
+   the tool is held. The cursor says what the next click will do. */
+.text-tool-layer {
+  position: absolute;
+  inset: 0;
+  cursor: text;
+}
+
+/* The anchor puts the text toolbar where the selection bar would have stood: the
+   same screen-fixed box under the selection, because a per-object toolbar and a
+   group toolbar never appear at once. */
+.text-toolbar-anchor {
+  position: fixed;
+  z-index: 41;
+}
+
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.text-toolbar-button {
+  font: inherit;
+  font-size: 12px;
+  min-width: 26px;
+  padding: 4px 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ui-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.text-toolbar-button:hover {
+  background: rgba(20, 20, 30, 0.06);
+}
+
+/* The pressed size is the size the text already is: the toolbar says what it would
+   change, not what it did last. */
+.text-toolbar-button[aria-pressed='true'] {
+  background: var(--select);
+  border-color: var(--select);
+  color: #ffffff;
+}
+
+.text-toolbar-button--danger {
+  color: #b3261e;
+}
+
+.text-toolbar-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}

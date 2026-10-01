@@ -9,7 +9,8 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshotByCreation, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshotByCreation, type ObjectSnapshot, type StickySnapshot } from '../../shared/board-model';
+import { textSnapshots, type TextSnapshot } from '../../shared/objects/text';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 import {
   registerConnectionControl,
@@ -27,16 +28,40 @@ export interface BoardDocApi {
    */
   notes: readonly StickySnapshot[];
   /**
+   * Renderable text objects (story 9), oldest first, in the same shape as `notes`.
+   * They come out as their own list rather than merged into one so that a board
+   * renders each type with the code that knows it; every operation that works on
+   * "the objects" - select-all, the marquee, the transform gesture, the keyboard -
+   * is handed the two lists together.
+   */
+  texts: readonly TextSnapshot[];
+  /**
+   * Every renderable object, notes first then texts, in creation order within each
+   * type. The z order is each object's own business (they are drawn by `z`), so
+   * this order is only the order the DOM is built in - which never changes while a
+   * pointer is holding one of them.
+   */
+  objects: readonly ObjectSnapshot[];
+  /**
    * Live collaboration state. Stays `connecting` for a standalone board with no
    * `boardId` (a component test, or the pre-network app), so nothing connects.
    */
   connection: ConnectionState;
 }
 
+/** Everything the board draws out of the document, in one object: the store's
+ * snapshot has to be one value, because two lists that changed together have to
+ * arrive in one render. */
+export interface BoardObjects {
+  notes: readonly StickySnapshot[];
+  texts: readonly TextSnapshot[];
+  objects: readonly ObjectSnapshot[];
+}
+
 interface SnapshotStore {
   readonly doc: Y.Doc;
   subscribe(onStoreChange: () => void): () => void;
-  getSnapshot(): readonly StickySnapshot[];
+  getSnapshot(): BoardObjects;
 }
 
 function createStore(injected: Y.Doc | undefined): SnapshotStore {
@@ -45,7 +70,7 @@ function createStore(injected: Y.Doc | undefined): SnapshotStore {
   const objects = doc.getMap('objects');
   const listeners = new Set<() => void>();
   /** Cleared on any document change and rebuilt on the next read. */
-  let cached: readonly StickySnapshot[] | null = null;
+  let cached: BoardObjects | null = null;
 
   const handle = (): void => {
     cached = null;
@@ -64,7 +89,11 @@ function createStore(injected: Y.Doc | undefined): SnapshotStore {
       };
     },
     getSnapshot() {
-      if (cached === null) cached = snapshotByCreation(doc);
+      if (cached === null) {
+        const notes = snapshotByCreation(doc);
+        const texts = textSnapshots(doc);
+        cached = { notes, texts, objects: [...notes, ...texts] };
+      }
       return cached;
     },
   };
@@ -80,7 +109,8 @@ export function useBoardDoc(injected?: Y.Doc, boardId?: string): BoardDocApi {
   const [store] = useState(() => createStore(injected));
   const subscribe = useCallback((onStoreChange: () => void) => store.subscribe(onStoreChange), [store]);
   const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
-  const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const { notes, texts, objects } = snapshot;
 
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   useEffect(() => {
@@ -110,8 +140,8 @@ export function useBoardDoc(injected?: Y.Doc, boardId?: string): BoardDocApi {
     };
   }, [store, boardId]);
 
-  return { doc: store.doc, notes, connection };
+  return { doc: store.doc, notes, texts, objects, connection };
 }
 
 /** Re-export so callers do not import Yjs just to type a prop. */
-export type { StickySnapshot };
+export type { StickySnapshot, TextSnapshot };

@@ -15,7 +15,6 @@
 // which is why editingId is a nullable id and not a Set.
 
 import { useCallback, useEffect, useReducer } from 'react';
-import type { StickySnapshot } from '../../shared/board-model';
 
 export interface SelectionState {
   /** Selected object ids. Insertion order; the board never depends on it. */
@@ -150,11 +149,15 @@ export interface UseSelection {
 }
 
 /**
- * The hook around the reducer. `objects` is the live snapshot list; whenever
- * it changes the selection is pruned, so an object deleted by a remote peer
- * leaves the selection while a peer merely *editing* its text does not.
+ * The hook around the reducer. `objects` is the live snapshot list of every type;
+ * whenever it changes the selection is pruned, so an object deleted by a remote
+ * peer leaves the selection while a peer merely *editing* its text does not.
+ *
+ * It asks each object for nothing but its id, which is what lets one selection
+ * hold a sticky note and a text object at the same time: a selection is a set of
+ * ids and no more, and the story-9 board hands it both types together.
  */
-export function useSelection(objects: readonly StickySnapshot[]): UseSelection {
+export function useSelection(objects: readonly { id: string }[]): UseSelection {
   const [selection, dispatch] = useReducer(selectionReducer, undefined, emptySelection);
 
   useEffect(() => {

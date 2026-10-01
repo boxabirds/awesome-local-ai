@@ -738,3 +738,246 @@ selects, which is what story 2's keyboard tests assert.
 `test:component` (134) and `test:e2e` (112 passed, 2 skipped — the TC-36
 chromium-only note above) all pass; the selection spec is green in chromium,
 firefox and webkit (TC-32, the case the tasks require in all three, included).
+
+---
+
+# Story 9 — Write free text anywhere on the board
+
+## What is here (story 9)
+
+- `src/shared/config.ts` — the text settings the design names: `TYPE_TEXT`,
+  `TextSize`/`TEXT_SIZE_ORDER`/`TEXT_SIZES`/`TEXT_SIZE_OPTIONS`,
+  `DEFAULT_TEXT_SIZE`, `TEXT_LINE_HEIGHT`, `TEXT_MAX_AUTO_WIDTH_WORLD`,
+  `TEXT_MIN_WIDTH_WORLD`, `TEXT_MAX_CHARS`, `TEXT_FONT_FAMILY`.
+- `src/shared/objects/text.ts` — the text model: `createText`, `setTextSize`,
+  `setTextWidthFixed`, `setTextWidthAuto`, `setTextBox`, `getTextContent`,
+  `isEmptyText`, `deleteIfEmpty`, plus the read side (`readText`,
+  `textSnapshot(s)`, `TextSnapshot`) and `textLineHeight`/`asTextSize`.
+- `src/shared/text-edit.ts` — `clampToLimit` and `applyTextDiff`, lifted out of
+  `StickyText.ts`, which re-exports them with `STICKY_TEXT_MAX_CHARS` so every
+  story 2 caller and test is unchanged.
+- `src/client/objects/textLayout.ts` — `layoutText`, `createCanvasMeasurer`,
+  `estimateTextWidth`, `Measurer`. Pure: the measurer is an argument.
+- `src/client/objects/useTextBoxSync.ts` — `remeasureTextBox` (the one place that
+  writes a box), one measurer shared by the whole board, the hook.
+- `src/client/objects/TextEditor.tsx` — the caret, generalised: limit, font,
+  width, `fit`, `onInput`, `onEnd`, test ids. `StickyTextEditor.tsx` is now a
+  thin wrapper that supplies a sticky's numbers: the 18 editor tests story 2
+  left are unchanged and pass against it.
+- `tests/component/Toolbars.test.tsx`, `tests/e2e/sticky-notes.spec.ts` and
+  `tests/e2e/helpers/live.ts` were updated in one string each: the design's
+  tool_ui contract renames the story 2 sticky button's accessible name to
+  "Sticky note (N)", so every selector that named the old label names the new
+  one. No assertion was changed.
+- `src/client/objects/TextObject.tsx`, `src/client/objects/TextToolbar.tsx`.
+- `src/client/board/useTool.ts` — `Tool`, `useTool(canEdit)`, `toolForKey`.
+- Changed: `Toolbar.tsx` (Select/Text buttons, `aria-pressed`, "Sticky note
+  (N)"), `useBoardKeys.ts` (V/T/N, Escape backs out of a tool first),
+  `BoardViewport.tsx` (the Text tool's layer), `SelectionOverlay.tsx` (a
+  `handles` prop), `useTransformGesture.ts` (a side handle on a text drags its
+  width; a group resize remeasures the texts in it), `useBoardDoc.ts` (objects
+  are stickies *and* texts), `useSelection.ts` (it only ever needed `.id`),
+  `registry.tsx`, `BoardPage.tsx`, `styles.css`, `testHooks.ts`,
+  `board-model.ts` (`TYPE_TEXT` is a known type; `newObjectId` is exported).
+- Tests: `tests/unit/text-model.test.ts` (25), `tests/unit/text-layout.test.ts`
+  (16), `tests/component/TextBoxSync.test.tsx` (5), `tests/component/Tool.test.tsx`
+  (14), `tests/component/TextObject.test.tsx` (16), `tests/e2e/text.spec.ts`
+  (10, three browsers).
+
+## Where the two spec documents disagree, and what won
+
+1. **Padding.** Design's TC-07 says a 'Went well' text comes to "width 90 +
+   padding"; the PRD — which is the normative document — says the width *is*
+   "equal to its longest line", and its settings list has no padding constant at
+   all. There is no padding: `layoutText` returns the measured width of the
+   longest line, `.text-body`, `.text-line` and `.text-input` have no padding in
+   the CSS, and so the width that was measured is the width the words are drawn
+   in. Adding padding to the box without adding it to the measurement would give
+   every text object a box that is wrong by that much.
+2. **One name for the width cap.** The PRD states 600 board units once; the
+   design's prose alternates between `TEXT_MAX_AUTO_WIDTH_WORLD` and a shorter
+   `TEXT_MAX_WIDTH_WORLD`. Only the first is exported. Two settings for one
+   number is how the two end up meaning different things.
+3. **The registry call.** The design writes `registerObjectType('text', {
+   Component: TextObject, resizable: true, aspectLocked: false, minSize:
+   TEXT_MIN_WIDTH_WORLD, editableText: true, handles: 'horizontal', hitTest })`.
+   This build's registry has no `resizable`/`aspectLocked`/`editableText` fields
+   — resize comes from the object's box and editing from the component — so only
+   the two real ones were added: `minSize` (which the group resize already
+   reads) and `handles: 'horizontal'`. Inventing the other three to match a
+   sketch would leave settings nothing reads.
+4. **Where the pure layout lives.** `layoutText` is pure arithmetic, so the eye
+   puts it in `src/shared/`. It is in `src/client/objects/`, where the design's
+   own file table puts it, and that is not only tidiness: `src/shared` is
+   compiled twice, once with the DOM lib and once without it
+   (`tsconfig.worker.json`), and a `Measurer` that talks about
+   `CanvasRenderingContext2D` would not survive the second. The schema-level
+   `TextWidthMode`, which the Y.Map stores, is in `src/shared/objects/text.ts`
+   for the opposite reason — it belongs to the document, not to a browser.
+5. **`SelectionBar` was not touched.** Its header comment says it is
+   type-blind, and the Text toolbar is the opposite: it knows it belongs to one
+   text. The text toolbar therefore renders in its own positioned anchor at the
+   same corner of the screen, and shows for exactly one selected text — a group
+   still gets the selection bar, which is the only toolbar that can speak for a
+   mix of types.
+
+## Implementation decisions
+
+- **The auto-width rule, made exact.** A paragraph measured unwrapped: over the
+  600-unit budget → the box is 600 and the paragraph wraps into it (TC-08); at
+  or under it → the box is the measured width, rounded up to a whole unit and
+  never below `TEXT_MIN_WIDTH_WORLD` (TC-07, TC-09 — a line of exactly 600 stays
+  one line). Height is never rounded: `lines × TEXT_SIZES[size] ×
+  TEXT_LINE_HEIGHT`, so a one-line 'M' text is 26 units tall, not 26.000004.
+- **Words only, never a character.** Wrapping happens at spaces; a word longer
+  than the box gets a line of its own and overflows it (TC-10). Cutting
+  'migration' into 'migra' + 'tion' to be tidy is worse than a line that sticks
+  out, and the e2e asserts the same words come back out.
+- **The one case the box and the paint cannot agree on.** A single word wider
+  than the box is that case: `layoutText` must not cut characters, so it counts
+  one line, while a `white-space: pre-wrap` box breaks an over-long word across
+  lines rather than let it run off the board (that is what `pre-wrap` does,
+  whatever `overflow-wrap` says). The stored height is then short of what is
+  drawn, for a word nobody writes in a 600-unit box at 20 pixels — 40 characters
+  of one word. The layout keeps the rule the spec names; the browser does what a
+  browser does; the mismatch is written here instead of hidden by making the
+  layout agree with one rendering engine.
+- **The box is stored, and only the client that changed the text writes it.**
+  `useTextBoxSync`/`remeasureTextBox` run on a local keystroke, a size change
+  and a side-handle drag — and never on an update that arrived from elsewhere,
+  which is why `TextBoxSync.test.tsx` counts box writes on `afterTransaction`
+  and expects zero for a remote edit (TC-12, TC-13).
+- **What is rendered and what is measured are the same text.** The body renders
+  one element per *paragraph* and lets CSS `pre-wrap` break it inside the stored
+  width, in the stored font, with the same `TEXT_FONT_FAMILY` and line height
+  the layout used. The stored height is the layout's line count for those same
+  inputs, so the two agree — and where a question is about the agreement, the
+  test asks the screen (see Test decisions).
+- **The Text tool holds a layer, not a flag.** `BoardViewport` renders
+  `.text-tool-layer` (absolute, inset 0, `cursor: text`) over the world while
+  the tool is Text. `onPointerDown` on the viewport only acts when the event
+  target *is* the viewport element, so a layer click cannot pan, marquee or
+  deselect — and a click that lands on a sticky note creates a text on top of
+  it, which is what "write anywhere" needs. The wheel is a native listener on
+  the viewport, so it bubbles up from the layer and panning and zooming go on
+  working under the tool (there is an e2e for exactly that).
+- **The layer steps aside for a caret.** `BoardPage` hands the viewport
+  `tool = editingId === null ? tool : 'select'`: while the caret is in an object
+  there is nothing to place, and a layer over an open editor would swallow the
+  click that finishes it. The toolbar keeps showing the tool that is *held* —
+  TC-17 asserts `aria-pressed` on the Text button itself, not merely that the
+  layer is gone, so a tool that silently reverted would fail it.
+- **Toolbar props are optional.** `tool`/`onTool` are optional on `Toolbar`, so
+  every existing call site and story 2 test renders it unchanged; a board that
+  does not pass them has one tool.
+- **Who created a text.** `BoardContent` makes one id per tab with
+  `useState(() => newObjectId())` and passes it as `createdBy`. Story 6 (identities)
+  is not in this build; a stable-per-tab id is the honest placeholder, and it is
+  the model's `createdBy` field rather than a client's guess at a name.
+- **Every model mutation is a `LOCAL_ORIGIN` transaction**, including the ones
+  added here. That is not a style point: story 8's undo tracks transactions by
+  that symbol, and a text written with a string origin would be invisible to
+  undo. (This was a real failure — the first draft of `text.ts` passed `'model'`
+  and no undo test could see a text.)
+- **A side handle on a text drags its width, and the height follows live.** For
+  one text and handle `e`/`w`, the gesture writes `setTextWidthFixed` and then
+  remeasures, every frame; the `w` handle anchors the right edge so the text
+  does not slide out from under the pointer. A group resize stays generic
+  (`resizeObjects`), with fixed widths scaled, auto widths untouched, and the
+  texts in the group remeasured once at the end.
+- **Two id lists in the press, because they answer two questions.**
+  `GesturePress.textIds` is every text in the selection (a group resize needs
+  them all, to remeasure), and `sideHandleIds` is the single-text side-handle
+  case only. They were one list until a group resize with a text in it left that
+  text's height stale — the single-text test never noticed, because it never
+  grouped.
+- **A text left empty is deleted on edit end** (`deleteIfEmpty` inside the same
+  undo window as the typing), so abandoning a text leaves nothing behind, and
+  one undo brings the empty object back rather than a board with a stray object
+  two steps away (TC-31, and the erase-the-last-character case).
+
+## A real bug the browsers found: two people, one text
+
+TC-29 has two pages type into the same text at the same time. Before the fix the
+merged words came out like `Ship li migration plsant: importer` — characters of
+both, but scrambled, and sometimes with the other person's characters deleted.
+
+The editor is a controlled `<textarea>`, and a remote change was applied by
+setting React state *and* writing `el.value` directly. React keeps its own
+notion of what a controlled input's value is, and after an input event it puts
+back the value it last *rendered*. A remote change lands on a websocket message,
+outside React's hands, so its state update waits for a scheduled render — and a
+keystroke dispatched in the millisecond before that render was diffed against
+the text *without* the other person's characters in it, which reads as "those
+characters are gone" and deletes them.
+
+It is fixed by flushing the update (`flushSync`) instead of scheduling it, so the
+field is showing the merged text before the next keystroke is diffed, and by
+keeping the caret the same distance from the *end* of the text — a character that
+landed further off leaves this caret alone, one that landed on it is typed after
+rather than over.
+
+jsdom could not have found this. In a component test everything is flushed
+inside `act`, so a keystroke never arrives in the window between the update and
+the render; the bug needed a real browser, a real network and a real second
+writer. TC-29 is the test for it, and it is run with `--repeat-each=10` before
+landing rather than once.
+
+## Test decisions
+
+- **TC-29 asserts what merging actually guarantees.** Two carets in one text
+  interleave per character, so the words are *not* in the order anybody typed
+  them; what is true is that the text still starts with what was there first,
+  and that it holds exactly the characters of both, once each. The test compares
+  sorted characters rather than a string, which is the invariant, rather than
+  picking an interleaving and calling it the contract.
+- **Lines are counted off the paint in the e2e.** `.text-line` elements are
+  paragraphs, not lines (see above), so `paintedLines()` selects the range over
+  the body and counts the rectangles the browser drew. That is also the only way
+  to test that the *stored* height matches the words: the test checks the box on
+  screen is the box in the document at the board's own zoom, with a height
+  greater than three lines of the font, so a stale measurement fails it.
+- **`parseFloat(el.style.width)`, never `Number(el.style.width)`.** jsdom hands
+  back the string with its unit, `Number('240px')` is NaN, and a test written
+  that way fails for a reason that has nothing to do with the code.
+- **Anything that lives in CSS is asserted in the browser.** jsdom never loads
+  `styles.css`, so `cursor: text` over the layer and the fixed positioning of
+  the toolbar anchor are e2e assertions (`toHaveCSS`), not component ones. The
+  component tests assert the layer's *existence*, which is what the component
+  decides.
+- **`countBoxWrites` compares the stored numbers on `afterTransaction`.** This
+  yjs version has no `transact` event and no `.changes` on a `YMapEvent`, and
+  comparing `width|height` per transaction is a fact about the document rather
+  than about an API that may change under it.
+- **`createText` in the e2e takes the new id from the caret's own element**
+  (`textarea[data-testid="text-editor"]`, then up to `[data-text-id]`) rather
+  than by diffing the document, because diffing answers "which objects appeared"
+  and, with five clients creating at once, that is not the question it can
+  answer — TC-30 was flaking on exactly that, reporting "expected one new text,
+  got 2" when another client's text arrived first.
+- **TC-30 is chromium-only**, for the reason already written up for TC-36: five
+  browser windows on macOS route native mouse input to whichever window holds
+  OS focus. It is skipped with the same harness comment, not deleted.
+- **The tool tests press keys on the document and assert `aria-pressed`**, which
+  is the state, rather than a class name. TC-18 flips `editable` at the running
+  board, because "a board you cannot edit has no tools to hold" is about the
+  board changing under you, not about a prop.
+
+## Known flakiness on this machine (story 9)
+
+- Persistence TC-21 failed once, in a full three-browser run, at
+  `expect(await connectionState(page)).toBe('connected')` with `confirmed` —
+  which is the state the client shows for a moment after a resync, and a board
+  that has just compacted has just resynced. Every other connection read in that
+  file already polls for the state it names; this one line did not, so it was
+  reading a state mid-transition and calling it a failure. It polls now. The
+  assertion is the same one ("the page ends up connected"), and it passed every
+  time in isolation, before and after; nothing was relaxed.
+
+## Verification (story 9)
+
+`npm run typecheck` (both tsconfigs), `npm run build`, `test:unit` (231),
+`test:component` (177), `test:integration` (70, unchanged) and `test:e2e`
+(149 passed, 4 skipped — TC-36 and TC-30 in firefox and webkit, both
+chromium-only) all pass; the text spec is green in chromium, firefox and webkit
+apart from TC-30, for the reason above.

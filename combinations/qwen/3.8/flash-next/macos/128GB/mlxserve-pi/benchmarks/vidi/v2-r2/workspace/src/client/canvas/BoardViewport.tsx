@@ -20,6 +20,7 @@ import {
 } from '../../shared/config';
 import { screenToWorld, worldToScreen, type Point } from './camera';
 import { useBoardCamera } from './CameraProvider';
+import type { Tool } from '../board/useTool';
 
 /** Interaction state: Idle -> Panning -> Idle (see the story state diagram). */
 export type InteractionMode = 'idle' | 'panning';
@@ -68,6 +69,16 @@ export interface BoardMarqueeHandlers {
 export interface BoardViewportProps {
   /** Board content, rendered in world coordinates. */
   children?: ReactNode;
+  /**
+   * The tool the pointer holds (story 9). While the Text tool is up, a layer over
+   * the board takes the next click: the board does not pan, does not marquee and
+   * does not clear its selection, the cursor says text, and a click that never
+   * travelled places a new text object at that point - on top of an object or on
+   * empty board, the layer is above both.
+   */
+  tool?: Tool;
+  /** A click that belongs to the Text tool, in world units. */
+  onTextToolClick?: WorldClickHandler;
   /** Double-click on empty board space: the world point that was clicked. */
   onDoubleClickBoard?: WorldClickHandler;
   /** A press on empty board space that ended without moving. */
@@ -76,7 +87,14 @@ export interface BoardViewportProps {
   onMarquee?: BoardMarqueeHandlers;
 }
 
-export function BoardViewport({ children, onDoubleClickBoard, onEmptyClick, onMarquee }: BoardViewportProps): JSX.Element {
+export function BoardViewport({
+  children,
+  onDoubleClickBoard,
+  onEmptyClick,
+  onMarquee,
+  tool = 'select',
+  onTextToolClick,
+}: BoardViewportProps): JSX.Element {
   const api = useBoardCamera();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<InteractionMode>('idle');
@@ -251,6 +269,49 @@ export function BoardViewport({ children, onDoubleClickBoard, onEmptyClick, onMa
     onDoubleClickBoard?.(screenToWorld(apiRef.current.camera, point));
   };
 
+  // --- the Text tool's layer (story 9). -----------------------------------------
+  // A press on it is not a pan and not a marquee; a press that never travelled is
+  // the click that places the text. The layer is a child of the board surface, so
+  // the wheel and the trackpad gesture still reach the listeners above and zooming
+  // goes on working while the tool is held.
+  const textPressRef = useRef<{ pointerId: number; x: number; y: number; moved: boolean } | null>(
+    null,
+  );
+
+  const onTextLayerPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    // nothing behind this layer sees the press: no pan, no marquee, no empty click
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    textPressRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      moved: false,
+    };
+  };
+
+  const onTextLayerPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const press = textPressRef.current;
+    if (press === null || event.pointerId !== press.pointerId) return;
+    // a drag with the Text tool held places nothing: it is the same "is this a
+    // click or a move" threshold the rest of the board uses
+    if (Math.hypot(event.clientX - press.x, event.clientY - press.y) >= DRAG_THRESHOLD_PX) {
+      press.moved = true;
+    }
+  };
+
+  const finishTextPress = (): void => {
+    textPressRef.current = null;
+  };
+
+  const onTextLayerPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const press = textPressRef.current;
+    textPressRef.current = null;
+    if (press === null || press.moved || event.pointerId !== press.pointerId) return;
+    onTextToolClick?.(screenToWorld(apiRef.current.camera, pointOf(event.clientX, event.clientY)));
+  };
+
   const endDrag = useCallback(() => {
     apiRef.current.endPan();
     modeRef.current = 'idle';
@@ -315,6 +376,21 @@ export function BoardViewport({ children, onDoubleClickBoard, onEmptyClick, onMa
         <div data-testid="origin-marker" className="origin-marker" aria-hidden="true" />
         {children}
       </div>
+      {tool === 'text' ? (
+        <div
+          data-testid="text-tool-layer"
+          className="text-tool-layer"
+          aria-hidden="true"
+          onPointerDown={onTextLayerPointerDown}
+          onPointerMove={onTextLayerPointerMove}
+          onPointerUp={onTextLayerPointerUp}
+          onPointerCancel={finishTextPress}
+          onLostPointerCapture={finishTextPress}
+          // a double-click belongs to the tool that is held, not to the board's
+          // "double-click the board makes a note"
+          onDoubleClick={(event) => event.stopPropagation()}
+        />
+      ) : null}
     </div>
   );
 }

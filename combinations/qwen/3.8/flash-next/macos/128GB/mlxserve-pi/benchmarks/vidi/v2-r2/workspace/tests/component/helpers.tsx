@@ -6,7 +6,21 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, vi } from 'vitest';
 import * as Y from 'yjs';
 import App from '../../src/client/App';
-import { initDoc, createSticky, getStickyText } from '../../src/shared/board-model';
+import {
+  initDoc,
+  createSticky,
+  getStickyText,
+  snapshotByCreation,
+  type StickySnapshot,
+} from '../../src/shared/board-model';
+import { HANDLE_SIZE_PX } from '../../src/shared/config';
+import {
+  createText,
+  getTextContent,
+  textSnapshot,
+  textSnapshots,
+  type TextSnapshot,
+} from '../../src/shared/objects/text';
 import type {
   CloseEventLike,
   ConnectionEmitter,
@@ -463,12 +477,26 @@ export function typeInto(value: string): void {
   });
 }
 
-/** Press a key where the browser would: on the focused element, up to window. */
-export function pressKeyOn(target: EventTarget | Element | null, key: string): Event {
+/**
+ * Press a key where the browser would: on the focused element, up to window.
+ * The modifiers are optional, so every story-2 call site still reads the same.
+ */
+export function pressKeyOn(
+  target: EventTarget | Element | null,
+  key: string,
+  init: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean } = {},
+): Event {
   if (target === null) throw new Error(`pressKeyOn: element is missing for ${key}`);
   let event!: Event;
   act(() => {
-    event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key });
+    event = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      key,
+      ctrlKey: init.ctrlKey ?? false,
+      metaKey: init.metaKey ?? false,
+      shiftKey: init.shiftKey ?? false,
+    });
     target.dispatchEvent(event);
   });
   return event;
@@ -559,4 +587,242 @@ export function forceConnectionState(state: ConnectionState): void {
   act(() => {
     api.__forceConnectionState?.(state);
   });
+}
+
+// --------------------------------------------------------------------------------
+// Text object helpers (story 9)
+// --------------------------------------------------------------------------------
+
+/** The text objects, in the order the board builds them. */
+export function textElements(): HTMLElement[] {
+  return allTestId('text-object');
+}
+
+export function textAt(index: number): HTMLElement {
+  const el = textElements()[index];
+  if (el === undefined) {
+    throw new Error(`no text at index ${index} (${textElements().length} rendered)`);
+  }
+  return el;
+}
+
+export function textCount(): number {
+  return textElements().length;
+}
+
+function px(value: string): number {
+  return Number.parseFloat(value);
+}
+
+/**
+ * The box the board paints for a text object, in world units: the box the model
+ * stored, placed by the camera. This is what a test asserts when it wants to know
+ * what the layout decided, because the layout's answer is stored rather than
+ * measured at paint time.
+ */
+export function textBox(index: number): { x: number; y: number; width: number; height: number } {
+  const style = textAt(index).style;
+  return { x: px(style.left), y: px(style.top), width: px(style.width), height: px(style.height) };
+}
+
+export function textSizeOf(index: number): string {
+  return String(textAt(index).dataset.size);
+}
+
+export function textWidthModeOf(index: number): string {
+  return String(textAt(index).dataset.widthMode);
+}
+
+export function textFontPxOf(index: number): number {
+  return Number(textAt(index).dataset.fontPx);
+}
+
+/** The lines the board renders for a text, in order. */
+export function textBodyLines(index: number): string[] {
+  return Array.from(textAt(index).querySelectorAll<HTMLElement>('[data-testid="text-line"]')).map(
+    (el) => el.textContent ?? '',
+  );
+}
+
+/** Text objects carrying the selection outline. */
+export function selectedTexts(): HTMLElement[] {
+  return textElements().filter((el) => el.dataset.selected === 'true');
+}
+
+/** The open text editor, whichever object it belongs to. */
+export function textEditorElement(): HTMLTextAreaElement | null {
+  return document.querySelector<HTMLTextAreaElement>('textarea[data-testid="text-editor"]');
+}
+
+/** Any open editor, of either type: the board has one caret at a time. */
+export function anyEditorOpen(): boolean {
+  return document.querySelector('textarea[data-testid="sticky-text"], textarea[data-testid="text-editor"]') !== null;
+}
+
+export const textToolSelectButton = (): HTMLElement | null => byTestId('tool-select');
+export const textToolTextButton = (): HTMLElement | null => byTestId('tool-text');
+/** The layer the Text tool puts over the board, or null while it is held down. */
+export const textToolLayer = (): HTMLElement | null => byTestId('text-tool-layer');
+export const textToolbarElement = (): HTMLElement | null => byTestId('text-toolbar');
+export const textSizeButton = (size: string): HTMLElement | null => byTestId(`text-size-${size}`);
+export const textToolbarDelete = (): HTMLElement | null => byTestId('text-toolbar-delete');
+
+/** Every resize handle now on screen, by name. */
+export function handlesShown(): string[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-testid^="resize-handle-"]')).map(
+    (el) => String(el.getAttribute('data-testid')).replace('resize-handle-', ''),
+  );
+}
+
+export const selectionBarElement = (): HTMLElement | null => byTestId('selection-bar');
+
+/** Add a text through the model, the way the app does, and return its id. */
+export function newText(doc: Y.Doc, world: { x: number; y: number } = { x: 0, y: 0 }): string {
+  let id: string | null = null;
+  act(() => {
+    id = createText(doc, world, 'g_test_creator');
+  });
+  if (id === null) throw new Error('newText: the model refused the point');
+  return id;
+}
+
+/** Text arriving in a text object, and the box that goes with it. */
+export function newTextWithText(
+  doc: Y.Doc,
+  world: { x: number; y: number } = { x: 0, y: 0 },
+  text = 'Faster onboarding',
+): string {
+  const id = newText(doc, world);
+  act(() => {
+    getTextContent(doc, id)?.insert(0, text);
+  });
+  return id;
+}
+
+/**
+ * A change that arrived from elsewhere: the same write to the same shared type,
+ * with an origin the local undo manager does not track, which is how a remote
+ * person's keystroke reaches this document.
+ */
+export function remoteTextEdit(doc: Y.Doc, id: string, text: string, index = 0): void {
+  act(() => {
+    doc.transact(() => {
+      getTextContent(doc, id)?.insert(index, text);
+    }, 'from-another-person');
+  });
+}
+
+/** What the document holds for a text object, or null when it has no box. */
+export function storedBox(
+  doc: Y.Doc,
+  id: string,
+): { x: number; y: number; width: number; height: number; size: string; widthMode: string } | null {
+  const snap = textSnapshot(doc, id);
+  if (snap === null) return null;
+  return {
+    x: snap.x,
+    y: snap.y,
+    width: snap.width,
+    height: snap.height,
+    size: snap.size,
+    widthMode: snap.widthMode,
+  };
+}
+
+/** The text a text object holds. */
+export function modelTextOf(doc: Y.Doc, id: string): string {
+  return getTextContent(doc, id)?.toString() ?? '';
+}
+
+/**
+ * Run something and count how many transactions changed this object's stored
+ * width or height. That is the question a layout test has to ask: a board where
+ * every client measures for itself writes a box that never settles, and the only
+ * proof that it does not is that nobody wrote one.
+ */
+export function countBoxWrites(doc: Y.Doc, id: string, run: () => void): number {
+  // The stored box as one comparable string. A transaction that leaves both
+  // numbers as they were is not a write, which is the difference between a board
+  // that settles and one whose clients keep measuring over each other.
+  const box = (): string => {
+    const object = doc.getMap<Y.Map<unknown>>('objects').get(id);
+    return object === undefined ? 'gone' : `${String(object.get('width'))}|${String(object.get('height'))}`;
+  };
+  let writes = 0;
+  let previous = box();
+  const onTransact = (): void => {
+    const next = box();
+    if (next !== previous) writes += 1;
+    previous = next;
+  };
+  // 'afterTransaction' fires once per transaction, which is the unit a remote
+  // client receives: the box either changed in that transaction or it did not.
+  doc.on('afterTransaction', onTransact);
+  try {
+    run();
+  } finally {
+    doc.off('afterTransaction', onTransact);
+  }
+  return writes;
+}
+
+/** A press-and-release on the Text tool's layer: the click that places text. */
+export function clickTextToolLayer(clientX = 300, clientY = 200): void {
+  const layer = textToolLayer();
+  if (layer === null) throw new Error('clickTextToolLayer: the Text tool is not held');
+  pointerOn(layer, 'pointerdown', { clientX, clientY });
+  pointerOn(layer, 'pointerup', { clientX, clientY });
+  fireEvent.click(layer, { clientX, clientY });
+}
+
+/** Hold the Text tool the way the keyboard does. */
+export function holdTextTool(): void {
+  pressKey('t');
+}
+/** Put text in the open text editor the way a paste or a keystroke arrives. */
+export function typeIntoText(value: string): void {
+  const el = textEditorElement();
+  if (el === null) throw new Error('typeIntoText: no text object is being edited');
+  act(() => {
+    fireEvent.input(el, { target: { value } });
+  });
+}
+
+/**
+ * Grab one named resize handle of the selection box and drag it. The handle's own
+ * centre is the grab point, and the move and release go to the window, which is
+ * where a real drag ends up once the pointer outruns an eight-pixel handle.
+ */
+export function dragHandle(handle: string, dx: number, dy: number): void {
+  const el = byTestId(`resize-handle-${handle}`);
+  if (el === null) throw new Error(`dragHandle: no ${handle} handle on screen`);
+  const cx = px(el.style.left) + HANDLE_SIZE_PX / 2;
+  const cy = px(el.style.top) + HANDLE_SIZE_PX / 2;
+  pointerOn(el, 'pointerdown', { clientX: cx, clientY: cy });
+  fireEvent.pointerMove(window, { pointerId: 1, pointerType: 'mouse', buttons: 1, clientX: cx + dx, clientY: cy + dy });
+  flushFrames();
+  fireEvent.pointerUp(window, { pointerId: 1, pointerType: 'mouse', clientX: cx + dx, clientY: cy + dy });
+  flushFrames();
+}
+
+/** Delete an object the way a person elsewhere on the board does it. */
+export function remoteDelete(doc: Y.Doc, id: string): void {
+  act(() => {
+    doc.transact(() => {
+      doc.getMap<Y.Map<unknown>>('objects').delete(id);
+    }, 'from-another-person');
+  });
+}
+/**
+ * Every object on the board, of every type: notes then texts, each group in
+ * creation order - the same list the board builds its elements from, and the one
+ * the end-to-end hook hands to a test.
+ */
+export function allObjects(doc: Y.Doc): (StickySnapshot | TextSnapshot)[] {
+  return [...snapshotByCreation(doc), ...textSnapshots(doc)];
+}
+
+/** The text objects on the board, in creation order. */
+export function snapshotTexts(doc: Y.Doc): TextSnapshot[] {
+  return [...textSnapshots(doc)];
 }
