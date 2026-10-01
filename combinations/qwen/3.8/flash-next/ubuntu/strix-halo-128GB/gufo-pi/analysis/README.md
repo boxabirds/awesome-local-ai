@@ -179,8 +179,9 @@ None has been taken; each needs the owner's approval.
 **A. A finished story must not keep running**
 - **Problem:** an agent that finishes without committing is nudged to continue, up to five times. It cost 2.9 hours
   in these runs and let one story absorb two others.
-- **Recommended solution:** when the agent stops without a commit, the nudge names the story and says to commit it
-  and stop, and not to start any other story. If the agent stops again with the work still uncommitted, the harness
+- **Recommended solution:** the nudge today never says which story the agent is on ("Continue with the task from
+  where you left off…"). It should say so: "You are working on story 10, <its title>. If it is finished, commit it
+  now and stop. Do not start any other story." If the agent stops again with the work still uncommitted, the harness
   commits it and ends the story, instead of nudging again.
 - **Proposed actions:** a test that reproduces `v2-r1` story 10 from its log (the agent says done, uncommitted), then
   the change.
