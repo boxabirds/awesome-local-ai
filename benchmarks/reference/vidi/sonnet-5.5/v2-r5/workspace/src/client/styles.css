@@ -174,7 +174,7 @@ body { font-family: system-ui, sans-serif; color: #222; overflow: hidden; }
 }
 .note-toolbar .swatch[aria-pressed='true'] { outline: 2px solid #2563eb; outline-offset: 1px; }
 .note-toolbar button:focus-visible, .left-toolbar button:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
-.note-toolbar .note-delete {
+.note-toolbar .note-delete, .selection-bar .note-delete {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -186,7 +186,7 @@ body { font-family: system-ui, sans-serif; color: #222; overflow: hidden; }
   background: transparent;
   cursor: pointer;
 }
-.note-toolbar .note-delete:hover { background: #eee; }
+.note-toolbar .note-delete:hover, .selection-bar .note-delete:hover { background: #eee; }
 
 .left-toolbar {
   position: fixed;
@@ -232,3 +232,11 @@ body { font-family: system-ui, sans-serif; color: #222; overflow: hidden; }
 .connection-reconnecting { background: #ffb300; color: #3e2700; }
 .connection-load_failed { background: #c62828; color: #fff; }
 .connection-confirmed { background: #43a047; color: #fff; }
+
+.selection-overlay { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
+.selection-box { position: absolute; box-sizing: border-box; border: 1px solid #2563eb; pointer-events: none; }
+.selection-handle { position: absolute; box-sizing: border-box; padding: 0; border: 1px solid #2563eb; background: #fff; pointer-events: auto; touch-action: none; }
+.selection-bar-anchor { position: fixed; z-index: 21; transform: translate(-50%, -100%); pointer-events: auto; cursor: default; }
+.selection-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #fff; border: 1px solid #d0d0d0; border-radius: 8px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); font-size: 14px; white-space: nowrap; }
+.marquee { position: absolute; box-sizing: border-box; background: rgba(37, 99, 235, 0.15); border: 1px solid #2563eb; pointer-events: none; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

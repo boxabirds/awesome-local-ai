@@ -7,7 +7,7 @@ export default defineConfig({
     projects: [
       {
         extends: true,
-        test: { name: 'unit', environment: 'node', include: ['tests/unit/**/*.test.ts'] },
+        test: { name: 'unit', environment: 'node', include: ['tests/unit/**/*.test.{ts,tsx}'] },
       },
       {
         extends: true,

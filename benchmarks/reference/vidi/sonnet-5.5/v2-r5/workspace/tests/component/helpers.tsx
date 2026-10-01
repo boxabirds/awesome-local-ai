@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../src/shared/board-model';
-import { useSelection } from '../../src/client/board/useSelection';
-import { StickyNote } from '../../src/client/objects/StickyNote';
+import { deleteObjects, initDoc, snapshotObjects, setStickyColor, type ObjectSnapshot } from '../../src/shared/board-model';
+import { SelectionBar } from '../../src/client/board/SelectionBar';
+import { SelectionOverlay } from '../../src/client/board/SelectionOverlay';
+import { useBoardKeys } from '../../src/client/board/useBoardKeys';
+import { useSelection, type Selection } from '../../src/client/board/useSelection';
+import { useTransformGesture } from '../../src/client/board/useTransformGesture';
+import { getObjectType } from '../../src/client/objects/registry';
+import '../fixtures/testbox';
 
 // jsdom has no PointerEvent; MouseEvent carries the coordinates and button we need.
 if (typeof window.PointerEvent === 'undefined') {
@@ -22,25 +27,53 @@ export function newDoc(): Y.Doc {
   return doc;
 }
 
-/** Renders StickyNotes for a doc the test owns, with real selection state. */
-export function Harness({ doc, zoom = 1 }: { doc: Y.Doc; zoom?: number }) {
-  const [notes, setNotes] = useState<readonly StickySnapshot[]>(() => snapshot(doc));
-  const sel = useSelection();
+/** Renders the registered objects of a doc the test owns, with the real selection, gesture, keys, overlay and bar. */
+export function Harness({ doc, zoom = 1, canEdit = true, onGestureStart, onGestureEnd, onSelection }: {
+  doc: Y.Doc; zoom?: number; canEdit?: boolean;
+  onGestureStart?(): void; onGestureEnd?(): void;
+  onSelection?(sel: Selection): void;
+}) {
+  const [objects, setObjects] = useState<readonly ObjectSnapshot[]>(() => snapshotObjects(doc));
+  const sel = useSelection(objects);
+  const camera = useMemo(() => ({ x: 0, y: 0, zoom }), [zoom]);
+  const gesture = useTransformGesture({ doc, camera, selection: sel, snapshot: objects, canEdit, onGestureStart, onGestureEnd });
+  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit });
+  useEffect(() => { onSelection?.(sel); });
   useEffect(() => {
-    const objects = doc.getMap('objects');
-    const h = () => setNotes(snapshot(doc));
-    objects.observeDeep(h);
-    return () => objects.unobserveDeep(h);
+    const map = doc.getMap('objects');
+    const h = () => setObjects(snapshotObjects(doc));
+    map.observeDeep(h);
+    return () => map.unobserveDeep(h);
   }, [doc]);
   return (
-    <div data-testid="empty-board" onPointerDown={() => sel.select(null)}>
-      {[...notes].sort((a, b) => (a.id < b.id ? -1 : 1)).map((n) => (
-        <StickyNote
-          key={n.id} note={n} doc={doc} zoom={zoom}
-          selected={sel.selectedId === n.id} editing={sel.editingId === n.id}
-          onSelect={sel.select} onStartEdit={sel.startEdit} onEndEdit={sel.endEdit}
-        />
-      ))}
+    <div data-testid="empty-board" onPointerDown={() => sel.clear()}>
+      {[...objects].sort((a, b) => (a.id < b.id ? -1 : 1)).map((o) => {
+        const spec = getObjectType(o.type);
+        if (!spec) return null;
+        const { Component } = spec;
+        return (
+          <Component
+            key={o.id} object={o} doc={doc} zoom={zoom}
+            selected={sel.ids.has(o.id)} editing={canEdit && sel.editingId === o.id}
+            dragging={gesture.activeIds.has(o.id)} readOnly={!canEdit}
+            onPointerDown={gesture.onObjectPointerDown}
+            onStartEdit={sel.startEdit} onEndEdit={sel.endEdit}
+          />
+        );
+      })}
+      {sel.editingId === null && (
+        <>
+          <SelectionOverlay
+            ids={sel.ids} snapshot={objects} camera={camera} canEdit={canEdit}
+            onHandlePointerDown={gesture.onHandlePointerDown}
+          />
+          <SelectionBar
+            ids={sel.ids} snapshot={objects} camera={camera} readOnly={!canEdit}
+            onDelete={() => { deleteObjects(doc, [...sel.ids]); sel.clear(); }}
+            onColor={(id, c) => { setStickyColor(doc, id, c); }}
+          />
+        </>
+      )}
     </div>
   );
 }

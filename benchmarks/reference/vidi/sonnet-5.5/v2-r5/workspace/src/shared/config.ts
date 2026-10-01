@@ -34,3 +34,9 @@ export const E2E_EVENTUAL_TIMEOUT_MS = 15_000; // functional wait in e2e (all st
 export const CREATE_BUDGET_MS = 2000; // PRD share.create
 export const LINK_COPIED_MS = 2000; // "Link copied" confirmation duration
 export const BOARD_CHECK_RETRY_BASE_MS = 1000; // doubles up to RECONNECT_MAX_BACKOFF_MS
+
+export const HANDLE_SIZE_PX = 8; // resize handles keep this size on screen at any zoom
+export const STICKY_MIN_SIZE_WORLD = 50;
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+export const NUDGE_STEP_WORLD = 1;
+export const NUDGE_LARGE_STEP_WORLD = 10;

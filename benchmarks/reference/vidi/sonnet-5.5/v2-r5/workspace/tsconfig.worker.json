@@ -21,5 +21,6 @@
     "src/shared",
     "tests/integration",
     "tests/fixtures"
-  ]
+  ],
+  "exclude": ["tests/fixtures/testbox.tsx"]
 }

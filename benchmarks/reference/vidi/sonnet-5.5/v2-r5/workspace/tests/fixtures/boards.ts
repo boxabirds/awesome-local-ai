@@ -84,3 +84,35 @@ export function randomBytes(length: number, seed = 7): Uint8Array {
   const rand = mulberry32(seed);
   return Uint8Array.from({ length }, () => Math.floor(rand() * 256));
 }
+
+/**
+ * 20-note retro board in two clusters (positions are world coordinates; notes are 200 wide).
+ * Cluster A: 6 notes in 3 columns x 2 rows with top-left x -600/-350/-100, y -350/-100, clear of everything else.
+ * Cluster B: 14 overlapping notes to the right (x >= 250) with distinct stacking.
+ */
+export function build20NoteBoard(doc: Y.Doc = new Y.Doc()): Y.Doc {
+  initDoc(doc);
+  for (let i = 0; i < 6; i += 1) {
+    const at = { x: -500 + (i % 3) * 250, y: -250 + Math.floor(i / 3) * 250 }; // centres
+    const id = createSticky(doc, at, COLORS[i % COLORS.length]) as string;
+    setText(doc, id, `${PHRASES[i % PHRASES.length]}\nnote A${i}`);
+  }
+  for (let i = 0; i < 14; i += 1) {
+    const at = { x: 350 + (i % 4) * 100, y: -250 + Math.floor(i / 4) * 100 };
+    const id = createSticky(doc, at, COLORS[(i + 3) % COLORS.length]) as string;
+    setText(doc, id, `${PHRASES[(i + 4) % PHRASES.length]}\nnote B${i}`);
+  }
+  return doc;
+}
+
+/** `columns` x `rows` widely spaced notes (230 apart; first top-left at x -575, y -300): nothing overlaps. */
+export function buildGridBoard(columns: number, rows: number, doc: Y.Doc = new Y.Doc()): Y.Doc {
+  initDoc(doc);
+  for (let c = 0; c < columns; c += 1) {
+    for (let r = 0; r < rows; r += 1) {
+      const id = createSticky(doc, { x: -475 + c * 230, y: -200 + r * 230 }) as string;
+      setText(doc, id, `grid ${c}-${r}`);
+    }
+  }
+  return doc;
+}

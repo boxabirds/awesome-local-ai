@@ -10,7 +10,7 @@ const hoisted = vi.hoisted(() => ({ doc: null as unknown as Y.Doc, connection: '
 vi.mock('../../src/client/board/useBoardDoc', async () => {
   const model = await import('../../src/shared/board-model');
   return {
-    useBoardDoc: () => ({ doc: hoisted.doc, notes: model.snapshot(hoisted.doc), connection: hoisted.connection }),
+    useBoardDoc: () => ({ doc: hoisted.doc, objects: model.snapshotObjects(hoisted.doc), connection: hoisted.connection }),
   };
 });
 
@@ -23,6 +23,10 @@ vi.mock('../../src/shared/board-model', async (importOriginal) => {
     bringToFront: vi.fn(actual.bringToFront),
     setStickyColor: vi.fn(actual.setStickyColor),
     deleteObject: vi.fn(actual.deleteObject),
+    moveObjects: vi.fn(actual.moveObjects),
+    resizeObjects: vi.fn(actual.resizeObjects),
+    bringObjectsToFront: vi.fn(actual.bringObjectsToFront),
+    deleteObjects: vi.fn(actual.deleteObjects),
     getStickyText: vi.fn(actual.getStickyText),
   };
 });
@@ -30,7 +34,8 @@ vi.mock('../../src/shared/board-model', async (importOriginal) => {
 import * as model from '../../src/shared/board-model';
 import { App } from './TestApp';
 
-const MUTATIONS = [model.createSticky, model.moveObject, model.bringToFront, model.setStickyColor, model.deleteObject];
+const MUTATIONS = [model.createSticky, model.moveObject, model.bringToFront, model.setStickyColor, model.deleteObject,
+  model.moveObjects, model.resizeObjects, model.bringObjectsToFront, model.deleteObjects];
 
 function setup(connection: ConnectionState) {
   hoisted.connection = connection;

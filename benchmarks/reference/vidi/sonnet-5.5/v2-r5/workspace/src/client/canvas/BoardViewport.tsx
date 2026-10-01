@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import type { ObjectSnapshot } from '../../shared/board-model';
+import { MarqueeRect, useMarquee } from '../board/Marquee';
 import { screenToWorld, type Point, type Size } from './camera';
 import { installTestHooks } from './testHooks';
 import { useCamera, type CameraApi } from './useCamera';
@@ -9,6 +11,7 @@ const DOM_DELTA_LINE = 1;
 const DOM_DELTA_PAGE = 2;
 const HALF = 2;
 const PRIMARY_BUTTON = 0;
+const NO_OBJECTS: readonly ObjectSnapshot[] = [];
 
 interface GestureLikeEvent extends Event {
   scale?: number;
@@ -27,6 +30,9 @@ export function BoardViewport(props: {
   overlay?: (api: BoardApi) => ReactNode;
   onDoubleClickEmpty?: (world: Point) => void;
   onEmptyClick?: () => void;
+  /** Objects a Shift+drag rectangle can select; ids of those fully inside go to onMarqueeSelect. */
+  objects?: readonly ObjectSnapshot[];
+  onMarqueeSelect?: (ids: string[]) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>(() => ({
@@ -37,6 +43,26 @@ export function BoardViewport(props: {
   const apiRef = useRef(api);
   apiRef.current = api;
   const emptyPress = useRef<Point | null>(null);
+  const marquee = useMarquee(api.camera, props.objects ?? NO_OBJECTS, (ids) => props.onMarqueeSelect?.(ids));
+  const marqueeRef = useRef(marquee);
+  marqueeRef.current = marquee;
+  const marqueeActive = marquee.rect !== null;
+  const viewportPoint = (e: { clientX: number; clientY: number }): Point => {
+    const r = ref.current?.getBoundingClientRect();
+    return { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) };
+  };
+
+  // Escape during a marquee discards it and must not also clear the selection (capture phase runs first).
+  useEffect(() => {
+    if (!marqueeActive) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      marqueeRef.current.cancel();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [marqueeActive]);
   const sizeRef = useRef(size);
   sizeRef.current = size;
 
@@ -150,6 +176,11 @@ export function BoardViewport(props: {
         onPointerDown={(e) => {
           if (e.target !== e.currentTarget || (e.button ?? PRIMARY_BUTTON) !== PRIMARY_BUTTON) return;
           e.currentTarget.setPointerCapture?.(e.pointerId);
+          if (e.shiftKey) {
+            emptyPress.current = null;
+            marquee.begin(viewportPoint(e));
+            return;
+          }
           emptyPress.current = { x: e.clientX, y: e.clientY };
           api.beginPan({ x: e.clientX, y: e.clientY });
         }}
@@ -160,8 +191,12 @@ export function BoardViewport(props: {
             screenToWorld(apiRef.current.getCamera(), { x: e.clientX - r.left, y: e.clientY - r.top }),
           );
         }}
-        onPointerMove={(e) => api.panMove({ x: e.clientX, y: e.clientY })}
+        onPointerMove={(e) => {
+          if (marquee.rect) marquee.move(viewportPoint(e));
+          else api.panMove({ x: e.clientX, y: e.clientY });
+        }}
         onPointerUp={(e) => {
+          if (marquee.rect) { marquee.move(viewportPoint(e)); marquee.end(); return; }
           const start = emptyPress.current;
           emptyPress.current = null;
           api.endPan();
@@ -169,8 +204,8 @@ export function BoardViewport(props: {
             props.onEmptyClick?.();
           }
         }}
-        onPointerCancel={() => { emptyPress.current = null; api.endPan(); }}
-        onLostPointerCapture={api.endPan}
+        onPointerCancel={() => { emptyPress.current = null; marquee.cancel(); api.endPan(); }}
+        onLostPointerCapture={() => { marquee.cancel(); api.endPan(); }}
       >
         <div
           className="board-world"
@@ -181,6 +216,7 @@ export function BoardViewport(props: {
           }}
         >
           <div className="origin-marker" data-testid="origin-marker" />
+          <MarqueeRect rect={marquee.rect} camera={camera} />
           {typeof props.children === 'function' ? props.children(boardApi) : props.children}
         </div>
       </div>
