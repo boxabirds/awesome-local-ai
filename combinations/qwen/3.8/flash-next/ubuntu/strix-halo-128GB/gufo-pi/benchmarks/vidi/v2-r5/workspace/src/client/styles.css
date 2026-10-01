@@ -400,3 +400,125 @@ body,
   background: #fdecea;
   color: #c62828;
 }
+
+/* ------------------------------------------------------- sharing pages ---- */
+
+.home-page,
+.not-found-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  text-align: center;
+}
+
+.home-description {
+  color: var(--text-muted);
+  margin: 0.5rem 0 1.5rem;
+}
+
+.home-page button,
+.not-found-page button {
+  padding: 0.75rem 2rem;
+  font-size: 1.1rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.home-page button:disabled,
+.not-found-page button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.home-error {
+  color: #c62828;
+  margin-top: 1rem;
+}
+
+.not-found-page a {
+  color: var(--accent);
+}
+
+.board-loading,
+.board-unreachable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 1.2rem;
+  color: var(--text-muted);
+}
+
+.board-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Share panel */
+.share-button {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1001;
+  padding: 6px 14px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  box-shadow: var(--panel-shadow);
+}
+
+.share-panel {
+  position: fixed;
+  top: 48px;
+  right: 12px;
+  z-index: 1000;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: var(--panel-shadow);
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.share-panel input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-family: monospace;
+}
+
+.share-panel button {
+  padding: 6px 12px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.share-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.share-manual {
+  font-size: 0.8rem;
+  color: #e65100;
+  margin: 0;
+}

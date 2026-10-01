@@ -13,6 +13,7 @@ import {
   CLOSE_STORAGE_FAILURE,
 } from '../shared/protocol';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config';
+import { chunkBytes } from '../shared/persistence';
 import { BoardStore, LOAD_ORIGIN, type LoadResult } from './board-store';
 import { nextRoomState, type RoomState, type RoomEvent } from '../shared/room-state';
 import type { Env } from './index';
@@ -30,9 +31,11 @@ export class BoardRoom extends DurableObject<Env> {
   private lastLoadFailedAt = 0;
   private loadPromise: Promise<void>;
   private savedChunk0: Uint8Array | null = null;
+  private store: BoardStore;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    this.store = new BoardStore(this.ctx.storage);
     this.loadPromise = this.ctx.blockConcurrencyWhile(async () => {
       this.performLoad();
     });
@@ -52,8 +55,8 @@ export class BoardRoom extends DurableObject<Env> {
     this.state = 'loading';
 
     try {
-      const store = new BoardStore(this.ctx.storage);
-      store.migrate();
+      const store = this.store;
+      // Do NOT call migrate() here; load() handles missing tables gracefully
       const doc = new Y.Doc();
       const result: LoadResult = store.load(doc);
 
@@ -126,10 +129,25 @@ export class BoardRoom extends DurableObject<Env> {
     if (url.pathname === '/repair' && request.method === 'POST') {
       return this.handleRepair();
     }
+    if (url.pathname === '/seed-legacy' && request.method === 'POST') {
+      return this.handleSeedLegacy(request);
+    }
+    if (url.pathname === '/compact' && request.method === 'POST') {
+      return this.handleCompact();
+    }
+    if (url.pathname === '/reload' && request.method === 'POST') {
+      this.performLoad();
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }
 
     const upgradeHeader = request.headers.get('Upgrade');
     if (upgradeHeader !== 'websocket') {
       return new Response('Expected WebSocket', { status: 426 });
+    }
+
+    // Check board existence before accepting
+    if (!this.store.existsReadOnly()) {
+      return new Response('Not Found', { status: 404 });
     }
 
     // Handle state-specific connection logic
@@ -267,6 +285,35 @@ export class BoardRoom extends DurableObject<Env> {
     // Nothing needed
   }
 
+  /**
+   * RPC: Initialize a board. Creates tables and sets created_at if absent.
+   * Returns 'created' on first call, 'exists' on subsequent calls.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    await this.loadPromise;
+    this.store.migrate();
+    const sql = this.ctx.storage.sql;
+    const existing = sql
+      .exec<{ value: string }>(`SELECT value FROM storage_meta WHERE key = 'created_at'`)
+      .toArray();
+    if (existing.length > 0) {
+      return 'exists';
+    }
+    sql.exec(
+      `INSERT INTO storage_meta (key, value) VALUES ('created_at', ?1)`,
+      String(Date.now()),
+    );
+    return 'created';
+  }
+
+  /**
+   * RPC: Check if a board exists (read-only, never creates tables).
+   */
+  async exists(): Promise<boolean> {
+    await this.loadPromise;
+    return this.store.existsReadOnly();
+  }
+
   private broadcastUpdate(update: Uint8Array, origin: WebSocket | null): void {
     // Frame as: varuint(MESSAGE_SYNC) + syncProtocol.writeUpdate(update)
     const enc = encoding.createEncoder();
@@ -315,6 +362,59 @@ export class BoardRoom extends DurableObject<Env> {
     } else {
       sql.exec(`INSERT INTO snapshot_chunks (idx, data) VALUES (0, ?1)`, this.savedChunk0);
     }
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }
+
+  /** Test hook: force compaction on the board. */
+  private handleCompact(): Response {
+    if (this.state !== 'ready' || !this.doc) {
+      return new Response(JSON.stringify({ ok: false, error: 'not ready' }), { status: 409 });
+    }
+    // Compact regardless of thresholds
+    const chunks = chunkBytes(Y.encodeStateAsUpdate(this.doc));
+    const sql = this.ctx.storage.sql;
+    const maxRows = sql.exec<{ seq: number }>(`SELECT MAX(seq) as seq FROM updates`).toArray();
+    const maxSeq = maxRows[0]?.seq ?? 0;
+    this.ctx.storage.transactionSync(() => {
+      sql.exec(`DELETE FROM snapshot_chunks`);
+      for (let i = 0; i < chunks.length; i++) {
+        sql.exec(`INSERT INTO snapshot_chunks (idx, data) VALUES (?1, ?2)`, i, chunks[i]!);
+      }
+      sql.exec(`DELETE FROM updates WHERE seq <= ?1`, maxSeq);
+      const existing = sql.exec<{ value: string }>(
+        `SELECT value FROM storage_meta WHERE key = 'snapshot_through_seq'`,
+      ).toArray();
+      if (existing.length > 0) {
+        sql.exec(`UPDATE storage_meta SET value = ?1 WHERE key = 'snapshot_through_seq'`, String(maxSeq));
+      } else {
+        sql.exec(`INSERT INTO storage_meta (key, value) VALUES ('snapshot_through_seq', ?1)`, String(maxSeq));
+      }
+    });
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }
+
+  /**
+   * Test hook: seed a legacy board (updates rows without created_at).
+   * Body: { updates: string[] } — each string is a hex-encoded Yjs update.
+   */
+  private async handleSeedLegacy(request: Request): Promise<Response> {
+    const body = await request.json() as { updates: string[] };
+    const sql = this.ctx.storage.sql;
+    // Create tables (like migrate) but do NOT set created_at
+    sql.exec(`CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+    sql.exec(`CREATE TABLE IF NOT EXISTS updates (seq INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB NOT NULL, bytes INTEGER NOT NULL)`);
+    sql.exec(`CREATE TABLE IF NOT EXISTS snapshot_chunks (idx INTEGER PRIMARY KEY, data BLOB NOT NULL)`);
+    sql.exec(`CREATE TABLE IF NOT EXISTS quarantined_updates (seq INTEGER PRIMARY KEY, data BLOB NOT NULL, error TEXT NOT NULL, quarantined_at INTEGER NOT NULL)`);
+
+    for (const hex of body.updates) {
+      const bytes = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+      }
+      sql.exec(`INSERT INTO updates (data, bytes) VALUES (?1, ?2)`, bytes, bytes.length);
+    }
+    // Reload the in-memory doc from storage
+    this.performLoad();
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   }
 }

@@ -22,6 +22,12 @@ function getStub(boardId: string) {
   return env.BOARD_ROOM.get(id);
 }
 
+/** Initialize a board so it can be connected to. */
+async function initializeBoard(boardId: string): Promise<void> {
+  const stub = getStub(boardId);
+  await stub.initialize();
+}
+
 /**
  * Connect a Y.Doc to a BoardRoom via SELF.fetch.
  */
@@ -31,6 +37,7 @@ async function connectClient(boardId: string): Promise<{
   close: () => void;
   closedCode: () => number | undefined;
 }> {
+  await initializeBoard(boardId);
   const req = new Request(`http://localhost/api/rooms/${boardId}`, {
     headers: { Upgrade: 'websocket' },
   });

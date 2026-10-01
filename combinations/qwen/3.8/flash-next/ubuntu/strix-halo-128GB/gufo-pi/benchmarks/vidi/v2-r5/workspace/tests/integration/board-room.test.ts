@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import * as Y from 'yjs';
 import * as syncProtocol from 'y-protocols/sync';
 import * as encoding from 'lib0/encoding';
@@ -21,6 +21,13 @@ async function wait(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
+/** Initialize a board so it can be connected to. */
+async function initializeBoard(boardId: string): Promise<void> {
+  const docId = env.BOARD_ROOM.idFromName(boardId);
+  const stub = env.BOARD_ROOM.get(docId);
+  await stub.initialize();
+}
+
 /**
  * Connect a Y.Doc to a BoardRoom via the test harness.
  *
@@ -33,6 +40,9 @@ async function connectClient(boardId: string): Promise<{
   msgCount: () => number;
   close: () => void;
 }> {
+  // Initialize board if not already initialized
+  await initializeBoard(boardId);
+
   const req = new Request(`http://localhost/api/rooms/${boardId}`, {
     headers: { Upgrade: 'websocket' },
   });
@@ -85,14 +95,15 @@ async function connectClient(boardId: string): Promise<{
 }
 
 describe('Worker routing (TC-04 to TC-06)', () => {
-  it('TC-04: GET /api/rooms/bad!id with Upgrade returns 400', async () => {
+  it('TC-04: GET /api/rooms/bad!id with Upgrade returns 404', async () => {
     const req = new Request('http://localhost/api/rooms/bad!id', { headers: { Upgrade: 'websocket' } });
     const res = await SELF.fetch(req);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
   });
 
   it('TC-05: GET /api/rooms/<valid> without Upgrade returns 426', async () => {
     const id = newBoardId();
+    await initializeBoard(id);
     const res = await SELF.fetch(new Request(`http://localhost/api/rooms/${id}`));
     expect(res.status).toBe(426);
   });

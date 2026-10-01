@@ -1,3 +1,39 @@
+commit d07f6bcf4dafa95b182d5f02d3353a4d29cdeea2
+vidi-agent  Thu Oct 1 13:14:08 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ index.html                                       |   1 +
+ src/client/Router.tsx                            |  20 ++
+ src/client/api.ts                                |  33 ++++
+ src/client/main.tsx                              |  22 +--
+ src/client/pages/BoardPage.tsx                   |  90 +++++++++
+ src/client/pages/HomePage.tsx                    |  40 ++++
+ src/client/pages/NotFoundPage.tsx                |  37 ++++
+ src/client/pages/state.ts                        |  31 +++
+ src/client/router.ts                             |  37 ++++
+ src/client/share/SharePanel.tsx                  | 154 +++++++++++++++
+ src/client/styles.css                            | 122 ++++++++++++
+ src/shared/config.ts                             |  11 ++
+ src/worker/board-room.ts                         | 104 +++++++++-
+ src/worker/board-store.ts                        |  53 +++++
+ src/worker/create-board.ts                       |  24 +++
+ src/worker/index.ts                              |  57 +++++-
+ src/worker/test-hooks.ts                         |  59 +++++-
+ tests/component/SharePanel.test.tsx              | 153 +++++++++++++++
+ tests/component/pages.test.tsx                   | 196 +++++++++++++++++++
+ tests/e2e/broken-board.spec.ts                   |  15 ++
+ tests/e2e/helpers/board.ts                       |   8 +-
+ tests/e2e/helpers/participants.ts                |  13 +-
+ tests/e2e/helpers/wrangler-process.ts            |  20 +-
+ tests/e2e/persistence.spec.ts                    |  19 +-
+ tests/e2e/share.spec.ts                          | 239 +++++++++++++++++++++++
+ tests/integration/board-api.test.ts              | 181 +++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |   7 +
+ tests/integration/board-room.test.ts             |  17 +-
+ tests/unit/create-board.test.ts                  |  27 +++
+ 29 files changed, 1756 insertions(+), 34 deletions(-)
 commit 6dc1a2200d89bf64b243750483fa14ee69847236
 vidi-agent  Thu Oct 1 12:17:02 2026 +0000
 

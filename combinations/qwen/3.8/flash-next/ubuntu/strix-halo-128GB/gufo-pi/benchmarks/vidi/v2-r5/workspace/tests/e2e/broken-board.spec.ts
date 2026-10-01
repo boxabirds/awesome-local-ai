@@ -42,9 +42,18 @@ async function createNoteViaToolbar(page: import('@playwright/test').Page): Prom
 }
 
 async function corruptBoard(boardId: string): Promise<void> {
+  // Force compaction first to ensure snapshot_chunks exist
+  const compactRes = await fetch(`${BASE}/__test/boards/${boardId}/compact`, { method: 'POST' });
+  const compactBody = await compactRes.json();
+  if (!compactBody.ok) throw new Error(`compact failed: ${JSON.stringify(compactBody)}`);
+
   const res = await fetch(`${BASE}/__test/boards/${boardId}/corrupt-snapshot`, { method: 'POST' });
   const body = await res.json();
   if (!body.ok) throw new Error(`corrupt-snapshot failed: ${JSON.stringify(body)}`);
+
+  // Reload the DO's in-memory doc from (now corrupt) storage
+  const reloadRes = await fetch(`${BASE}/__test/boards/${boardId}/reload`, { method: 'POST' });
+  if (!reloadRes.ok) throw new Error(`reload failed: ${reloadRes.status}`);
 }
 
 async function repairBoard(boardId: string): Promise<void> {
@@ -53,9 +62,15 @@ async function repairBoard(boardId: string): Promise<void> {
   if (!body.ok) throw new Error(`repair failed: ${JSON.stringify(body)}`);
 }
 
+async function initializeBoard(boardId: string): Promise<void> {
+  const res = await fetch(`${BASE}/__test/boards/${boardId}/initialize`, { method: 'POST' });
+  if (!res.ok) throw new Error(`initialize failed: ${res.status}`);
+}
+
 test.describe('TC-24: Broken board', () => {
   test('honest failure, edit lock, recovery without reload', async ({ browser }) => {
     const boardId = newBoardId();
+    await initializeBoard(boardId);
 
     // Step 1: Create 25 notes, trigger compaction
     const seedContext = await browser.newContext();

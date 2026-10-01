@@ -9,12 +9,54 @@ export class BoardStore {
   private sql: SqlStorage;
   private rowCount = 0;
   private rowBytes = 0;
+  private migrated = false;
 
   constructor(private storage: DurableObjectStorage) {
     this.sql = storage.sql;
   }
 
+  /**
+   * Read-only existence check. Never creates tables.
+   * A board exists if storage_meta.created_at is set, OR (legacy) if
+   * there are rows in updates or snapshot_chunks.
+   */
+  existsReadOnly(): boolean {
+    // Check if any relevant tables exist
+    const tables = this.sql
+      .exec<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_meta', 'updates', 'snapshot_chunks')`,
+      )
+      .toArray();
+    if (tables.length === 0) return false;
+
+    // Check created_at
+    const hasMeta = tables.some((t: { name: string }) => t.name === 'storage_meta');
+    if (hasMeta) {
+      const meta = this.sql
+        .exec<{ value: string }>(`SELECT value FROM storage_meta WHERE key = 'created_at'`)
+        .toArray();
+      if (meta.length > 0) return true;
+    }
+
+    // Check legacy: any updates rows
+    const hasUpdates = tables.some((t: { name: string }) => t.name === 'updates');
+    if (hasUpdates) {
+      const rows = this.sql.exec(`SELECT 1 FROM updates LIMIT 1`).toArray();
+      if (rows.length > 0) return true;
+    }
+
+    // Check legacy: any snapshot_chunks rows
+    const hasSnaps = tables.some((t: { name: string }) => t.name === 'snapshot_chunks');
+    if (hasSnaps) {
+      const rows = this.sql.exec(`SELECT 1 FROM snapshot_chunks LIMIT 1`).toArray();
+      if (rows.length > 0) return true;
+    }
+
+    return false;
+  }
+
   migrate(): void {
+    this.migrated = true;
     this.sql.exec(
       `CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
     );
@@ -39,6 +81,7 @@ export class BoardStore {
   }
 
   append(update: Uint8Array): void {
+    if (!this.migrated) this.migrate();
     this.sql.exec(
       `INSERT INTO updates (data, bytes) VALUES (?1, ?2)`,
       update,
@@ -50,6 +93,16 @@ export class BoardStore {
 
   load(doc: Y.Doc): LoadResult {
     try {
+      // If no tables exist, treat as empty board without creating them
+      const tables = this.sql
+        .exec<{ name: string }>(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name='snapshot_chunks'`,
+        )
+        .toArray();
+      if (tables.length === 0) {
+        return { ok: true, quarantined: 0 };
+      }
+
       const snapshotRows = this.sql
         .exec<{ idx: number; data: ArrayBuffer }>(
           `SELECT idx, data FROM snapshot_chunks ORDER BY idx`,

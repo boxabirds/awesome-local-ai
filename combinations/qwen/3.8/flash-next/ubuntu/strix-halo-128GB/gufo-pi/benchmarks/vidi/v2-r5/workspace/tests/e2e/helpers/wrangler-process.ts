@@ -2,7 +2,8 @@ import { execSync, spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface WranglerInstance {
   port: number;
@@ -10,7 +11,9 @@ export interface WranglerInstance {
   stop(): Promise<void>;
 }
 
-const ROOT = resolve(__dirname, '../..');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const ROOT = resolve(__dirname, '../../..');
 
 /**
  * Start `wrangler dev` with its own persist-to directory and port.
@@ -19,8 +22,9 @@ const ROOT = resolve(__dirname, '../..');
 export async function startWrangler(port: number): Promise<WranglerInstance> {
   const persistDir = mkdtempSync(path.join(tmpdir(), 'vidi6-persist-'));
 
-  const proc = spawn('npx', [
-    '--no-install', 'wrangler', 'dev',
+  const wranglerBin = path.join(ROOT, 'node_modules', '.bin', 'wrangler');
+  const proc = spawn(wranglerBin, [
+    'dev',
     '--config', path.join(ROOT, 'wrangler.jsonc'),
     '--ip', '127.0.0.1',
     '--port', String(port),
@@ -30,6 +34,7 @@ export async function startWrangler(port: number): Promise<WranglerInstance> {
     cwd: ROOT,
     env: { ...process.env, CI: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
+    detached: true,
   });
 
   // Wait for readiness
@@ -49,11 +54,14 @@ export async function startWrangler(port: number): Promise<WranglerInstance> {
     port,
     persistDir,
     stop: async () => {
-      proc.kill('SIGTERM');
+      const pid = proc.pid!;
+      try { process.kill(-pid, 'SIGTERM'); } catch { /* already dead */ }
       await new Promise<void>(resolve2 => {
         proc.on('close', () => resolve2());
-        setTimeout(() => { proc.kill('SIGKILL'); resolve2(); }, 5000);
+        setTimeout(() => { try { process.kill(-pid, 'SIGKILL'); } catch {} resolve2(); }, 5000);
       });
+      // Extra wait for port to be fully released
+      await new Promise(r => setTimeout(r, 500));
     },
   };
 }

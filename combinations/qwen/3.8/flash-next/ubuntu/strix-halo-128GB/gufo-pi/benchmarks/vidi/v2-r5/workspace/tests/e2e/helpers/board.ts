@@ -4,9 +4,13 @@ import { GRID_SPACING_WORLD, PERCENT } from '../../../src/shared/config';
 
 const HOOK_SELECT_ERROR = 'window.__vidi6 is missing (build the client with `npm run build:test`)';
 
-/** Load the board and wait for the first painted frame. */
+/** Load the board by creating one via API and navigating to it. */
 export async function openBoard(page: Page): Promise<void> {
-  await page.goto('/');
+  // Create a board via the API
+  const res = await page.request.post('/api/boards');
+  if (!res.ok()) throw new Error(`Failed to create board: ${res.status()}`);
+  const { id } = await res.json() as { id: string };
+  await page.goto(`/b/${id}`);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await waitForSettled(page);
 }

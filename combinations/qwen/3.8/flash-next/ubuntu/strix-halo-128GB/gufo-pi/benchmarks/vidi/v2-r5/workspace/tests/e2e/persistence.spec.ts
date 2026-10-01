@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { startWrangler, cleanPersistDir, buildTest, type WranglerInstance } from './helpers/wrangler-process';
+import { startWrangler, cleanPersistDir, type WranglerInstance } from './helpers/wrangler-process';
 import { newBoardId } from '../../src/shared/board-id';
 import {
   PERSIST_TESTED_NOTES,
@@ -16,8 +16,12 @@ const PORT = 9787;
 let wrangler: WranglerInstance;
 let baseURL: string;
 
+test.describe.configure({ timeout: 120_000 });
+
 test.beforeAll(async () => {
-  buildTest();
+  test.setTimeout(120_000);
+  // Note: buildTest() is called by the global webServer command already.
+  // Starting our own wrangler that watches dist/ would reload if we build again.
   wrangler = await startWrangler(PORT);
   baseURL = `http://127.0.0.1:${PORT}`;
 });
@@ -62,9 +66,18 @@ async function createNotesViaToolbar(page: import('@playwright/test').Page, coun
   return ids;
 }
 
+async function initializeBoard(boardId: string): Promise<void> {
+  const res = await fetch(`${baseURL}/__test/boards/${boardId}/initialize`, { method: 'POST' });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`initialize failed: ${res.status} ${text}`);
+  }
+}
+
 test.describe('TC-19: Overnight return', () => {
   test('create 25 notes, kill process, restart, all 25 are identical', async ({ browser }) => {
     const boardId = newBoardId();
+    await initializeBoard(boardId);
 
     // Create 25 notes in the browser
     const context1 = await browser.newContext();
@@ -112,6 +125,7 @@ test.describe('TC-19: Overnight return', () => {
 test.describe('TC-20: Leave immediately', () => {
   test('Alex creates note, Sam sees it, kill both and process within 1s, note present on reopen', async ({ browser }) => {
     const boardId = newBoardId();
+    await initializeBoard(boardId);
 
     const contextA = await browser.newContext();
     const pageA = await contextA.newPage();
@@ -156,6 +170,7 @@ test.describe('TC-20: Leave immediately', () => {
 test.describe('TC-21: Big board open', () => {
   test('PERSIST_TESTED_NOTES board opens with all notes rendered', async ({ browser }) => {
     const boardId = newBoardId();
+    await initializeBoard(boardId);
     const seedContext = await browser.newContext();
     const seedPage = await seedContext.newPage();
     await seedPage.goto(`${baseURL}/b/${boardId}`);

@@ -20,18 +20,29 @@ export async function openPair(
   return [a, b];
 }
 
+/** Initialize a board via test hook (only works when TEST_HOOKS=1). */
+export async function initializeBoard(page: Page, boardId: string): Promise<void> {
+  const res = await page.request.post(`/__test/boards/${boardId}/initialize`);
+  if (!res.ok()) throw new Error(`Failed to initialize board ${boardId}: ${res.status()}`);
+}
+
 /** Open N isolated browser contexts on the same board and wait for them to sync. */
 export async function openParticipants(
   browser: Browser,
   boardId: string,
   count: number,
 ): Promise<Participant[]> {
+  // Initialize the board via test hook so it exists
+  const initCtx = await browser.newContext();
+  const initPage = await initCtx.newPage();
+  await initializeBoard(initPage, boardId);
+  await initCtx.close();
   const participants: Participant[] = [];
   for (let i = 0; i < count; i++) {
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto(`/b/${boardId}`);
-    await expect(page.getByTestId('board-viewport')).toBeVisible();
+    await expect(page.getByTestId('board-viewport')).toBeVisible({ timeout: E2E_EVENTUAL_TIMEOUT_MS });
     participants.push({ context, page, label: `P${i}` });
   }
 
