@@ -46,12 +46,17 @@ import packdir
 import progress
 import provenance
 import publicise
+import roots
 from hostenv import IS_MAC, THERMAL_OK, mem_free_pct
 from clients import CLIENTS, PI_THINKING_LEVELS, empty_state
 
 HARNESS = Path(__file__).resolve().parent
-REPO_ROOT = HARNESS.parent.parent.parent       # benchmarks/spec-bench/harness -> repo
-BENCHMARKS = REPO_ROOT / "benchmarks"
+# Two roots (roots.py), the same checkout unless $SPEC_BENCH_RESULTS_ROOT says otherwise. REPO_ROOT is where results
+# live: run directories, the records committed and pushed, other runs' records, combination config. CODE_ROOT is
+# the tree this harness is in (a release's own directory on a benchmark node): only its own files are read there.
+REPO_ROOT = roots.RESULTS_ROOT
+CODE_ROOT = roots.CODE_ROOT
+BENCHMARKS = CODE_ROOT / "benchmarks"
 # drive.py's exit code when the machine lacks something the run needs (a browser, …). Distinct from a
 # crash (1) so a supervisor (dbench) stops instead of restarting into the same wall.
 EXIT_MISSING_RESOURCES = 3
@@ -64,9 +69,10 @@ PACK = PK.dir
 # folder per run), keys/ (grading keys), reference/ (imported builds and transcripts), series logs.
 BENCH_HOME = hostenv.bench_home()
 WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", BENCH_HOME / "work")).resolve()
-# Nothing the agent runs may read these: the harness + held-out suite, the user's own agent
+# Nothing the agent runs may read these: the harness + held-out suite and every run's records (both roots: the
+# results checkout, and the code's own directory when it is a release), the user's own agent
 # config/skills/sessions, and other runs' work directories (WORK_ROOT minus the agent's own).
-SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
+SANDBOX_DENY = [*dict.fromkeys([REPO_ROOT, CODE_ROOT]), *(Path.home() / p for p in
                 (".claude", ".agents", ".codex", ".config/opencode", ".local/share/opencode", ".mtplx",
                  ".dbench",
                  # the RTX 4090 machine's file share held a clone of this repo, reference builds and all (25 Sep 2026).
@@ -153,7 +159,13 @@ TOOLCALL_TEXT_MARKERS = ("<tool_call>",)
 MAX_TOOLCALL_TEXT_RESUMES = 3
 # A reasoning model can end a turn with thinking only and no tool call; the agent then exits 0 as
 # if finished (canvas-pi-01 story 2: 3 minutes, one task in). If a session ends with no commit, the
-# harness continues the same session with RESUME_PROMPT, as a person would. Counted as nudges.
+# harness continues the same session with NUDGE_PROMPT, as a person would. Counted as nudges.
+# The nudge says what is missing (owner's wording, 1 Oct 2026): an agent that believed it had finished but never
+# committed was told only to "continue", answered five times that nothing was left, and lost the story's DONE
+# (gufo v2-r4 story 4: 33 agent-minutes of nudges, 4/4 held-out, recorded PARTIAL). The story prompt already asks
+# for the commit; this repeats it and asks for the hash as evidence.
+NUDGE_PROMPT = ("Continue with the task from where you left off. Make sure you are committing your work after each "
+                "task you complete, and give the commit hash as evidence.")
 # No cap (user decision, 24 Sep): the only stop is a nudge that makes no model call at all.
 # pi's bash tool has no default timeout. An agent that backgrounds a server inside a tool call
 # (`(wrangler dev &)`) leaves children holding the tool's output pipe and the call never returns.
@@ -1085,7 +1097,7 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
                 break
             nudges += 1
             print(f"    agent stopped without committing — nudge {nudges}: continuing the session", flush=True)
-            attempts.append(run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
+            attempts.append(run_agent(client, ws, env, model_id, NUDGE_PROMPT, events_path,
                                       resume_from=last["session"], fork=False))
         else:
             break
@@ -1704,6 +1716,12 @@ def story_time_split(rec: dict, events: Path, server_log: Path) -> dict:
     return split
 
 
+def harness_provenance(code_root: Path) -> dict:
+    """The harness this process loaded: its commit, whether it had uncommitted edits, and the release it is
+    (harness_release: the tag dbench materialised it from, None when it runs from a checkout)."""
+    return {**provenance.at_start(code_root), "harness_release": roots.release_tag(code_root)}
+
+
 def story_provenance(harness: dict, started_under: str, scored_under: str) -> dict:
     """What a story ran under: the harness this process loaded, and the pack version when it was scored; the pack
     version at the story's start too, when the pack's checkout moved while the story ran."""
@@ -1802,7 +1820,7 @@ def main() -> None:
         kill_strays(ws)
     derived("progress file", lambda: progress.write_progress(run, scope, stories, metrics, None), run=run)
     # Before any story is recorded: HEAD then is the harness this process loaded (the records move HEAD on).
-    harness = provenance.at_start(REPO_ROOT)
+    harness = harness_provenance(CODE_ROOT)
 
     for story in stories:
         sid = story["id"]

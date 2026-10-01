@@ -952,6 +952,39 @@ def test_the_nudge_cap_ends_the_story_after_the_fifth_nudge(tmp_path, monkeypatc
     assert len(capped) == 1 and "5 nudges" in capped[0]
 
 
+
+def test_a_no_commit_nudge_says_the_work_must_be_committed_and_other_resumes_do_not(tmp_path, monkeypatch):
+    """gufo v2-r4 story 4 (1 Oct 2026): the agent finished, never committed, and was told five times only to
+    "continue from where you left off"; each time it answered that nothing was left, and 33 agent-minutes and the
+    story's DONE went on it. The no-commit nudge now says what is missing; a resume after an error and the
+    continuation after a harness restart keep the plain prompt."""
+    import drive
+    assert "commit" in drive.NUDGE_PROMPT.lower() and "hash" in drive.NUDGE_PROMPT.lower()
+    assert drive.NUDGE_PROMPT.startswith("Continue") and "commit" not in drive.RESUME_PROMPT.lower()
+    prompts = []
+    clean = {"stalled": False, "error": None, "session": "s", "steps": 3, "tool_calls": 2, "exit": 0,
+             "seconds": 60, "compactions": 0, "tokens": {"input": 1, "output": 1}}
+    replies = iter([dict(clean), {**clean, "error": "boom"}, dict(clean)])
+
+    def fake_run(client, ws, env, model_id, prompt, events_path, **k):
+        prompts.append(prompt)
+        return next(replies)
+    commits = iter([0, 1])                             # asked after each clean stop: no commit, then committed
+    monkeypatch.setattr(drive, "run_agent", fake_run)
+    monkeypatch.setattr(drive, "commits_since", lambda ws, head: next(commits))
+    monkeypatch.setattr(drive, "sh", lambda *a, **k: "HEAD")
+    monkeypatch.setattr(drive, "RESUME_BACKOFF_S", 0)
+
+    class NoGuard:
+        def __init__(self, *a): pass
+        def start(self): pass
+        def stop(self): return 0
+    monkeypatch.setattr(drive, "ToolHangGuard", NoGuard)
+    res = drive.run_story_agent(None, tmp_path, {}, "m", "the story", tmp_path / "ev.jsonl")
+    assert prompts == ["the story", drive.NUDGE_PROMPT, drive.RESUME_PROMPT]
+    assert res["nudges"] == 1 and res["resumes"] == 1
+
+
 def test_missing_resources_stop_the_run_with_their_own_exit_code_and_reason(capsys):
     """A machine that can't run the tests must stop the run, not score story after story against
     nothing, and say why in a line dbench can show (run.sh's last stderr lines, the job log)."""
