@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 10:56 UTC
+**Last updated:** 2026-10-01 11:32 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -47,6 +47,12 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   M5 Max's checkout is detached 31 commits past the tag (6 private commits made on the detached HEAD by
   the older harness, not yet on the private main); it will be repaired when mlx v2-r2 ends, so that run
   will end without a score of record until then.
+- **Note 2026-10-01 11:28 (needs someone):** the re-score of gufo v2-r4 was attempted at about 11:25 and
+  failed: `finalize.json` now says `rescore: failed`, reason "[Errno 2] No such file or directory: 'uv'"
+  (commit `a058bf53`). The job that ran it on the Strix Halo box doesn't have `uv` on its PATH (a unit's
+  environment is not a login shell's). It also ran while v2-r5 was still on story 3, not after it ended.
+  v2-r4 still has no score of record, and nothing will retry it. **Action:** rerun the re-score with
+  `uv`'s directory on the unit's PATH (or its full path), preferably when v2-r5 is not scoring.
 - **Status:** open, known to the owner. To check: a final score for gufo v2-r4 appears after v2-r5 ends;
   gufo v2-r5 finalizes with a score; mlx v2-r2 gets one after the repair.
 - **Suggested action:** either tag the suite again where it is now and bump the pack's `pack_ref`, or put
@@ -202,6 +208,8 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
 - **Note 2026-10-01 09:12:** story 5's gate is red again (36/36 held-out). The machine was heavily loaded
   during these stories (A-022), so a timing-sensitive test of the agent's own failing only under load is
   now the likelier reading; bucket unchanged until a log is read.
+- **Note 2026-10-01 11:28:** gate red again on stories 9, 10 and 11 (held-out 57/57, 65/65, 70/70); green
+  on 4, 7 and 8. Story 9 was also marked DEGRADED.
 - **Status:** watching v2-r4's later stories and v2-r5/r6.
 
 ### A-015 — Sonnet 5.5 v2-r4 story 4: accounting check failed, and the story took 39 min
