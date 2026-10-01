@@ -1,3 +1,94 @@
+commit 572759fc48e0f5742b0d6e6bc8ae122b1be0edfa
+vidi-agent  Fri Oct 2 00:35:07 2026 +0100
+
+    story 7: e2e regression tests for marquee, transform, keyboard, concurrent editing (TC-32–TC-36)
+
+
+ src/client/board/SelectionOverlay.tsx |  16 +--
+ tests/e2e/selection.spec.ts           | 203 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 211 insertions(+), 8 deletions(-)
+commit 765b63b555f6ea06aa1de771e38c7c3a51ff7fdf
+vidi-agent  Fri Oct 2 00:30:07 2026 +0100
+
+    story 7: e2e collaboration tests for multi-selection
+
+
+ src/client/objects/registry.tsx |   2 +-
+ tests/e2e/selection.spec.ts     | 266 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 267 insertions(+), 1 deletion(-)
+commit 09c4a61d55ff10d46783adec43f95151b1f6b366
+vidi-agent  Fri Oct 2 00:22:47 2026 +0100
+
+    story 7: component tests for selection, marquee, transform, keyboard (TC-16–TC-31)
+
+
+ src/client/canvas/BoardViewport.tsx |  15 +-
+ tests/component/selection.test.tsx  | 330 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 339 insertions(+), 6 deletions(-)
+commit d393527a5bbc7b67f2eee0f39a49b92f244094de
+vidi-agent  Fri Oct 2 00:19:36 2026 +0100
+
+    story 7: selection keyboard commands (select all, clear, nudge, delete)
+
+
+ src/client/board/Board.tsx       | 24 +++++-----
+ src/client/board/useBoardKeys.ts | 97 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 107 insertions(+), 14 deletions(-)
+commit 2c15d4fee2ddf7ac10f947da85211b39352dfcff
+vidi-agent  Fri Oct 2 00:19:02 2026 +0100
+
+    story 7: generic transform gesture (group move + resize handles)
+
+
+ src/client/board/Board.tsx              |  23 ++-
+ src/client/board/SelectionOverlay.tsx   | 121 +++++++++++++
+ src/client/board/useTransformGesture.ts | 308 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyNote.tsx       | 143 ++++-----------
+ 4 files changed, 490 insertions(+), 105 deletions(-)
+commit 0d02864d6688da524267c5c2293b363dfbbcd05e
+vidi-agent  Fri Oct 2 00:16:02 2026 +0100
+
+    story 7: Shift+drag marquee selection
+
+
+ src/client/board/Board.tsx          |  22 +++++++-
+ src/client/board/Marquee.tsx        | 109 ++++++++++++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx |  33 ++++++++++-
+ 3 files changed, 160 insertions(+), 4 deletions(-)
+commit bd53a57c0c7b265166fd8471fbdec2b64ac66f19
+vidi-agent  Fri Oct 2 00:14:34 2026 +0100
+
+    story 7: multi-selection state, reducer, selection bar (TC-13–TC-15)
+
+
+ src/client/board/Board.tsx           | 104 +++++++++++------------
+ src/client/board/SelectionBar.tsx    |  47 +++++++++++
+ src/client/board/useSelection.ts     | 158 ++++++++++++++++++++++++++++++-----
+ src/client/objects/StickyNote.tsx    |  14 +++-
+ src/client/styles.css                |  79 ++++++++++++++++++
+ tests/unit/selection-reducer.test.ts | 112 +++++++++++++++++++++++++
+ 6 files changed, 436 insertions(+), 78 deletions(-)
+commit 6bee5671ef28c63cf8ec087721825e80958b31f7
+vidi-agent  Fri Oct 2 00:10:41 2026 +0100
+
+    story 7: object type registry with sticky registration (TC-11, TC-12)
+
+
+ src/client/objects/registry.tsx |  88 +++++++++++++++++++++++++++++
+ tests/unit/registry.test.ts     | 119 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 207 insertions(+)
+commit baddd5a9e0cec70bc267d34e446f5ca82996111c
+vidi-agent  Fri Oct 2 00:09:57 2026 +0100
+
+    story 7: geometry and generic group operations in board-model (TC-01–TC-10)
+
+
+ src/shared/board-model.ts            | 182 ++++++++++++++++++++++++++---
+ src/shared/config.ts                 |  17 +++
+ src/shared/geometry.ts               | 210 +++++++++++++++++++++++++++++++++
+ tests/unit/board-model-group.test.ts | 219 +++++++++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts          | 127 ++++++++++++++++++++
+ 5 files changed, 741 insertions(+), 14 deletions(-)
 commit 7faa09f6d8f679e70cf782d66f9367ef9356bd86
 vidi-agent  Thu Oct 1 23:41:38 2026 +0100
 
