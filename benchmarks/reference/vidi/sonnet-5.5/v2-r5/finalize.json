@@ -1,7 +1,7 @@
 {
   "version": "vidi-v2.0-pre2",
   "pack_ref": "vidi-v2.0-pre2",
-  "at": "2026-10-01T14:38:29Z",
+  "at": "2026-10-01T14:56:28Z",
   "bundle": "workspace.bundle",
   "outside_workspace": {
     "ok": true,
@@ -9,23 +9,10 @@
     "unjudged": []
   },
   "repair": {
-    "repaired": [
-      "1",
-      "2",
-      "3",
-      "4",
-      "5",
-      "7",
-      "8",
-      "9",
-      "10",
-      "11",
-      "12"
-    ],
+    "repaired": [],
     "left": {},
     "accounting_version": 4,
-    "harness_commit": "6b4db8ce",
-    "at": "2026-10-01T14:38:30Z"
+    "harness_commit": "42f67b41"
   },
   "guard": {
     "story": 12,
@@ -45,12 +32,18 @@
   "reason_kind": "flagged",
   "needs_person": false,
   "retries_exhausted": false,
-  "attempts": 1,
+  "attempts": 2,
   "max_attempts": 5,
-  "last_attempt_at": "2026-10-01T14:38:29Z",
+  "last_attempt_at": "2026-10-01T14:56:28Z",
   "history": [
     {
       "at": "2026-10-01T14:38:29Z",
+      "rescore": "flagged",
+      "reason_kind": "flagged",
+      "reason": "the re-score (74/75) differs from the live score of the same code (0/0 under vidi-v2.0-pre2) by 74 tests, more than 3; the re-score ran 75 tests where the live scoring ran 0"
+    },
+    {
+      "at": "2026-10-01T14:56:28Z",
       "rescore": "flagged",
       "reason_kind": "flagged",
       "reason": "the re-score (74/75) differs from the live score of the same code (0/0 under vidi-v2.0-pre2) by 74 tests, more than 3; the re-score ran 75 tests where the live scoring ran 0"

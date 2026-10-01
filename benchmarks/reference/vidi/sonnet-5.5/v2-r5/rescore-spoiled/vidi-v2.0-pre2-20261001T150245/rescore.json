@@ -1,0 +1,57 @@
+{
+  "pack_version": "vidi-v2.0-pre2",
+  "suite_commit": "e100d47daa13",
+  "harness_commit": "42f67b41",
+  "host": "Apple M2 16GB",
+  "held_out_workers": 4,
+  "host_limits": {
+    "cores": 8,
+    "memory_gb": 16.0,
+    "free_gb": 9.3
+  },
+  "finished_at": "2026-10-01T15:02:45Z",
+  "environment": {
+    "node": "v24.15.0",
+    "npm": "11.12.1",
+    "playwright": "1.58.2",
+    "chromium": "145.0.7632.6 (r1208)",
+    "os": "macOS 26.6.2",
+    "arch": "arm64",
+    "workers": 4
+  },
+  "passing_sample": {
+    "fraction": 0.2,
+    "min": 5
+  },
+  "results": [
+    {
+      "story": 12,
+      "passed": 74,
+      "total": 75,
+      "fallbacks": 0,
+      "scores": [
+        74,
+        74,
+        74
+      ],
+      "flaky": 0,
+      "flaky_failing": 0,
+      "flaky_passing": 0,
+      "passing_sampled": 15,
+      "harness_fault": null,
+      "build_exit": 0,
+      "environment": {
+        "node": "v24.15.0",
+        "npm": "11.12.1",
+        "playwright": "1.58.2",
+        "chromium": "145.0.7632.6 (r1208)",
+        "os": "macOS 26.6.2",
+        "arch": "arm64",
+        "workers": 4,
+        "install_command": "npm ci --no-audit --no-fund"
+      },
+      "seconds": 370,
+      "commit": "d1d1576e5053cbd2e1a02a03f347802771d790c3"
+    }
+  ]
+}
