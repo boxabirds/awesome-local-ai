@@ -9,10 +9,12 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
+import type { ConnectionState } from './sync/connectBoard';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { boardIdForPath, boardPath } from '../shared/routes';
-import { reportConnectionState, setOutageHandler } from './canvas/testHooks';
+import { reportConnectionState, setOutageHandler, setSeedNotesHandler } from './canvas/testHooks';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { WebsocketProvider } from 'y-websocket';
 
 /** Is the keyboard focus inside something that owns Delete/Backspace/Enter? */
 function isTextTarget(target: EventTarget | null): boolean {
@@ -36,6 +38,21 @@ export interface AppProps {
    * it: two component tests on one page would otherwise share a board.
    */
   boardId?: string;
+  /**
+   * Test seam (story 4, TC-23): the live provider, so a component test can
+   * emit a close event and drive the app into `load_failed`.
+   */
+  onProviderReady?(provider: WebsocketProvider): void;
+}
+
+/**
+ * Whether the board can be edited from a connection state. False only for
+ * `load_failed` — a board whose stored state could not be read must not be
+ * written, because what a person would be editing is not what is really there.
+ * "Connecting…" and "Reconnecting…" stay editable: the document is readable.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
 }
 
 /**
@@ -59,8 +76,12 @@ export function App(props: AppProps = {}): JSX.Element {
     if (window.location.pathname !== path) window.history.replaceState(null, '', path);
   }, [boardId]);
 
-  const { doc, notes, connection, emulateOutage } = useBoardDoc(boardId);
+  const { doc, notes, connection, emulateOutage } = useBoardDoc(boardId, props.onProviderReady);
   const selection = useSelection();
+
+  // A board that could not be loaded is shown but not edited: every write is
+  // gated on this, and the Sticky note button is disabled while it is false.
+  const editable = canEdit(connection);
 
   // A test build lets the test take this board's link down; the app never does.
   useEffect(() => {
@@ -92,8 +113,25 @@ export function App(props: AppProps = {}): JSX.Element {
     if (onDocReady !== undefined) onDocReady(doc);
   }, [doc, onDocReady]);
 
+  // A test build can fill this board to its tested size in one transaction, so a
+  // persistence test does not have to double-click two thousand times. The handler
+  // is stored only in a test build (see `setSeedNotesHandler`); in production this
+  // effect hands over a function nothing ever keeps.
+  useEffect(() => {
+    setSeedNotesHandler((count: number) => {
+      const stride = 260;
+      const columns = Math.ceil(Math.sqrt(count));
+      doc.transact(() => {
+        for (let i = 0; i < count; i++) {
+          createSticky(doc, { x: (i % columns) * stride, y: Math.floor(i / columns) * stride });
+        }
+      });
+    });
+  }, [doc]);
+
   /** Create a note centred on a world point and start typing straight away. */
   const createAt = (world: Point): void => {
+    if (!editable) return;
     const id = createSticky(doc, world);
     if (id !== '') selection.startEdit(id);
   };
@@ -115,12 +153,14 @@ export function App(props: AppProps = {}): JSX.Element {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedId === null || editingId !== null || isTextTarget(e.target)) return;
         e.preventDefault();
+        // A board that could not be loaded is not deleted from either.
+        if (!editable) return;
         deleteObject(doc, selectedId);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selectedId, editingId, selection]);
+  }, [doc, selectedId, editingId, selection, editable]);
 
   return (
     <div className="app">
@@ -149,6 +189,7 @@ export function App(props: AppProps = {}): JSX.Element {
             zoom={camera.zoom}
             selected={note.id === selectedId}
             editing={note.id === editingId}
+            canEdit={editable}
             onSelect={(id) => {
               selection.select(id);
             }}
@@ -161,7 +202,7 @@ export function App(props: AppProps = {}): JSX.Element {
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtViewportCentre} />
+      <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

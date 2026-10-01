@@ -20,6 +20,7 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 import { ROOM_PATH_PREFIX } from '../../shared/routes';
 import { emulateOutage } from './emulateOutage';
 
@@ -31,8 +32,11 @@ import { emulateOutage } from './emulateOutage';
  */
 const SYNC_SERVER_URL: string = import.meta.env.VITE_BOARD_WS_URL ?? '';
 
-/** Where the connection is, in the states the badge can show. */
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+/** Where the connection is, in the states the badge can show. `load_failed` is
+ * not "no link": it is the room answering and saying it could not read this
+ * board, which is why it is its own state and not folded into `reconnecting`.
+ */
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 /**
  * The socket URL for a board: the configured origin when there is one, the
@@ -110,6 +114,10 @@ export function connectBoard(
   let dropped = false;
   let linkUp = false;
   let stopped = false;
+  // The room closed us because it could not read this board (CLOSE_BOARD_LOAD_#
+  // FAILED). Until a sync proves otherwise, that is what the badge says, and
+  // editing is stopped; the provider keeps retrying underneath regardless.
+  let loadFailed = false;
   const emit = (next: ConnectionState): void => {
     if (stopped || next === state) return;
     state = next;
@@ -124,10 +132,21 @@ export function connectBoard(
   const onStatus = (event: { status: 'connecting' | 'connected' | 'disconnected' }): void => {
     linkUp = event.status === 'connected';
     if (event.status === 'disconnected') {
+      if (loadFailed) {
+        // A board that cannot be read is retried in the background, but the tab
+        // keeps saying so rather than the "Reconnecting…" that promises a board.
+        emit('load_failed');
+        return;
+      }
       if (agreed) dropped = true;
       // Before the document has ever been agreed this is still the first
       // attempt; after that it is an outage, which is what "Reconnecting…" is.
       emit(agreed ? 'reconnecting' : 'connecting');
+      return;
+    }
+    if (loadFailed) {
+      // Open again, but not yet read: still no board to call connected over.
+      emit('load_failed');
       return;
     }
     if (event.status === 'connected' && agreed) {
@@ -138,11 +157,23 @@ export function connectBoard(
     }
   };
 
+  // The close event carries the code, and it is the only place that does: the
+  // `status` event says only "disconnected". `connection-close` fires while the
+  // socket is still the provider's, so its code is readable here and nowhere else.
+  const onClose = (event: unknown): void => {
+    const code = (event as { code?: number } | null)?.code;
+    loadFailed = code === CLOSE_BOARD_LOAD_FAILED;
+    if (loadFailed) emit('load_failed');
+  };
+
   // The document is agreed with the room when the room has answered this
   // document's sync step two. Until then nobody is told they are connected: a
   // socket that opens onto an empty board is not yet a board.
   const onSync = (synced: boolean): void => {
     if (!synced) return;
+    // The room read the board and agreed it: whatever it said before is no longer
+    // true, so the load-failure message comes down and editing is allowed again.
+    loadFailed = false;
     agreed = true;
     if (!linkUp) return;
     if (dropped) {
@@ -158,6 +189,7 @@ export function connectBoard(
 
   provider.on('status', onStatus);
   provider.on('sync', onSync);
+  provider.on('connection-close', onClose as (...args: unknown[]) => void);
 
   return {
     provider,
@@ -168,6 +200,7 @@ export function connectBoard(
       stopped = true;
       provider.off('status', onStatus);
       provider.off('sync', onSync);
+      provider.off('connection-close', onClose as (...args: unknown[]) => void);
       provider.awareness.setLocalStateField(CONNECTION_AWARENESS, null);
       provider.destroy();
     },

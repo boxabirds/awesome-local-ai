@@ -3,6 +3,10 @@ import type { JSX, PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEv
 export interface ToolbarProps {
   /** Create a note at the centre of the visible board area and edit it. */
   onCreateSticky(): void;
+  /** False only while the board cannot be edited (a board that failed to
+   * load): the Sticky note button is disabled, so a click creates nothing.
+   */
+  disabled?: boolean;
 }
 
 /**
@@ -35,6 +39,8 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         className="toolbar-button toolbar-sticky-note-button"
         data-testid="sticky-note-button"
         aria-label="Sticky note"
+        aria-disabled={props.disabled ? 'true' : undefined}
+        disabled={props.disabled === true}
         title="Sticky note – or double-click the board"
         onClick={() => {
           props.onCreateSticky();

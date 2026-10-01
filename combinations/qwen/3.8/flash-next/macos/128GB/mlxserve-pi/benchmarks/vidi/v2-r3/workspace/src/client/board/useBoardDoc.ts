@@ -10,6 +10,7 @@
 // through a transaction on this document too.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Y from 'yjs';
+import type { WebsocketProvider } from 'y-websocket';
 import { createSticky, deleteObject, moveObject, setStickyColor, snapshot, type StickySnapshot } from '../../shared/board-model';
 import type { StickyColor } from '../../shared/config';
 import { connectBoard, type BoardConnection, type ConnectionState } from '../sync/connectBoard';
@@ -44,7 +45,10 @@ export interface BoardDoc {
  * mounted board, never one per note, and never a second one when a parent
  * re-renders.
  */
-export function useBoardDoc(boardId: string): BoardDoc {
+export function useBoardDoc(
+  boardId: string,
+  onProvider?: (provider: WebsocketProvider) => void,
+): BoardDoc {
   // One document for the lifetime of this mount. The board address is read
   // once and cannot change underneath it: arriving at a different address is
   // a different document and a fresh mount of this component.
@@ -52,6 +56,8 @@ export function useBoardDoc(boardId: string): BoardDoc {
   const [notes, setNotes] = useState<readonly StickySnapshot[]>([]);
   const [ready, setReady] = useState(false);
   const [connection, setConnection] = useState<ConnectionState>('connecting');
+  const providerReady = useRef(onProvider);
+  providerReady.current = onProvider;
 
   useEffect(() => {
     // One read of the document per update event, published in the event itself:
@@ -77,6 +83,7 @@ export function useBoardDoc(boardId: string): BoardDoc {
   useEffect(() => {
     const connection = connectBoard(doc, boardId, setConnection);
     board.current = connection;
+    providerReady.current?.(connection.provider);
     return () => {
       board.current = null;
       connection.destroy();

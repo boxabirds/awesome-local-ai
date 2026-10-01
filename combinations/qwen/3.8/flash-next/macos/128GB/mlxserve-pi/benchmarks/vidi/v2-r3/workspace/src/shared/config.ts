@@ -93,3 +93,30 @@ export const STICKY_COLOR_LABELS: Record<StickyColor, string> = {
   pink: 'Pink',
   violet: 'Violet',
 };
+
+// --- Story 4: persistence ---------------------------------------------------
+
+/** Compact the update log into a snapshot once this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** Or once the log's bytes reach this total.
+ * keeps every stored row well under the platform per-row size limit.
+ */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/** The size of one snapshot chunk written to storage. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** A LoadFailed room retries its load at most this often (persist.load_failure). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** The board size the product is tested at (PRD persist.large_board). */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/** The open-time target for a saved board (PRD persist.large_board). Reported
+ * by e2e, never asserted: the model, browsers and server share one machine.
+ */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/** The version of the storage tables (not the Yjs document schema). */
+export const STORAGE_SCHEMA_VERSION = 1;

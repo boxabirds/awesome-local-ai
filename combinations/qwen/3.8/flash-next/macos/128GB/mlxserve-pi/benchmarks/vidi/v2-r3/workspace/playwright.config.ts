@@ -5,14 +5,16 @@ import { defineConfig, devices } from '@playwright/test';
 // `vite build --mode test` so the window.__vidi6 test hook is included.
 export default defineConfig({
   testDir: 'tests/e2e',
-  timeout: 60_000,
-  // The nightly soak (TC-29, TC-30) waits for minutes and is run by its own
-  // script, `npm run test:e2e:nightly`, so it is kept out of every commit's run.
-  testIgnore: /nightly/,
+  timeout: 120_000,
   // A story-3 test is two to five browsers on one board, and every one of them
   // is measured against how long a change takes to cross them. Four at a time
   // keeps those numbers worth reading on a machine also running the room.
   workers: 4,
+  // Two families are kept out of the ordinary browser projects: the nightly soak
+  // (its own script), and the persistence specs, which own their own `wrangler
+  // dev` process — they start and stop a server on their own ports and must not
+  // be run once per browser or fight the shared webServer for a port.
+  testIgnore: [/nightly/, /(persistence|broken-board)\.spec/],
   expect: { timeout: 5_000 },
   use: {
     baseURL: 'http://127.0.0.1:4173',
@@ -40,6 +42,16 @@ export default defineConfig({
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 800 } },
+    },
+    {
+      // Story 4: boards survive a service restart, an empty room, the tested size,
+      // and an unreadable board. Each test drives its own `wrangler dev` process
+      // (started, killed and restarted in the spec), so it runs once, on chromium,
+      // and is excluded from the three browser projects above.
+      name: 'persistence',
+      testIgnore: [],
+      testMatch: /(persistence|broken-board)\.spec/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
     {
       // The two long checks: an idle connection watched for longer than it takes

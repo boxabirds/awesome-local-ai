@@ -17,6 +17,8 @@ import { useState, type JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
+import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE, CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
+import { canEdit } from '../../src/client/App';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import {
   boardSocketUrl,
@@ -45,6 +47,14 @@ function feed(
 ): void {
   act(() => {
     provider.emit(name, [arg] as never);
+  });
+}
+
+/** The socket went away with `code`. lib0 spreads the emit args, so the handler
+ * sees the close event first — the same shape y-websocket emits. */
+function feedClose(provider: WebsocketProvider, code: number): void {
+  act(() => {
+    provider.emit('connection-close', [{ code }, provider] as never);
   });
 }
 
@@ -132,6 +142,17 @@ describe('TC-19 to TC-21: the badge, given its states', () => {
       vi.advanceTimersByTime(CONNECTED_CONFIRMATION_MS * 2);
     });
     expect(badge()).toBeNull();
+  });
+
+  it('TC-22 says the board could not be loaded, in red, and says it quietly', () => {
+    const { container } = render(<ConnectionStatus state="load_failed" />);
+    const shown = badge();
+    expect(shown).toHaveTextContent('This board couldn\'t be loaded. Retrying…');
+    // A load failure is not an emergency: it is a status, not an alert, so a
+    // screen reader does not interrupt what the person is doing to say it.
+    expect(shown).toHaveAttribute('role', 'status');
+    // and it is drawn in the failure colour, not the "Reconnecting…" grey
+    expect(container.querySelector('.connection-status--load-failed')).not.toBeNull();
   });
 });
 
@@ -275,6 +296,49 @@ describe('TC-19 to TC-21: the states the connection reports', () => {
     const board = boardWithConnection(id);
     const opened = openedSockets[openedSockets.length - 1];
     expect(opened?.url).toBe(url);
+    board.destroy();
+  });
+
+  it('TC-28 reads a storage failure and a bad frame as "Reconnecting…", not a load failure', () => {
+    const board = boardWithConnection('boardStorageFault');
+    agreeBoard(board.provider); // the board is open and agreed
+    const last = () => board.states[board.states.length - 1];
+
+    // A storage failure closes with 1011. The board is readable and the change
+    // is retried on reconnect, so this is "Reconnecting…" and stays editable.
+    feedClose(board.provider, CLOSE_STORAGE_FAILURE);
+    drop(board.provider);
+    expect(last()).toBe('reconnecting');
+    expect(canEdit(last()!)).toBe(true);
+
+    // Back up and agreed again.
+    agreeBoard(board.provider);
+
+    // A frame the room could not read closes with 1003: same story, a lost link
+    // that will be retried, not a board that cannot be loaded.
+    feedClose(board.provider, CLOSE_UNSUPPORTED_DATA);
+    drop(board.provider);
+    expect(last()).toBe('reconnecting');
+    expect(canEdit(last()!)).toBe(true);
+    board.destroy();
+  });
+
+  it('TC-28 recovers to "connected" and editable once a load-failed board reads back', () => {
+    const board = boardWithConnection('boardLoadThenRecovers');
+    agreeBoard(board.provider);
+    const last = () => board.states[board.states.length - 1];
+
+    // The room could not read this board: it closes with the load-failure code.
+    feedClose(board.provider, CLOSE_BOARD_LOAD_FAILED);
+    drop(board.provider);
+    expect(last()).toBe('load_failed');
+    expect(canEdit(last()!)).toBe(false);
+
+    // The link is back and, this time, the room reads the board and agrees it.
+    feed(board.provider, 'status', { status: 'connected' });
+    feed(board.provider, 'sync', true);
+    expect(last()).toBe('connected');
+    expect(canEdit(last()!)).toBe(true);
     board.destroy();
   });
 });

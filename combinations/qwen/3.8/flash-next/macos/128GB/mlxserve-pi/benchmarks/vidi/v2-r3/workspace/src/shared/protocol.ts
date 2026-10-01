@@ -19,6 +19,19 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code sent to a socket that sent data the room cannot use. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/** Close code sent to a socket whose board could not be loaded from storage
+ * (persist.load_failure). The client shows "This board couldn't be loaded."
+ * and keeps retrying; the room reloads at most once per LOAD_RETRY_MIN_INTERVAL_MS.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/** Close code sent to every socket when the room could not write a change to
+ * storage (persist.save_failure). The change was never broadcast, so nobody
+ * saw it as saved; the client keeps it in its own document and re-sends it on
+ * the next connection. It maps to "Reconnecting\u2026", not to a load failure.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 /** y-protocols/sync sub-message types (the first byte of a sync payload). */
 export const SYNC_STEP_1 = 0;
 export const SYNC_STEP_2 = 1;

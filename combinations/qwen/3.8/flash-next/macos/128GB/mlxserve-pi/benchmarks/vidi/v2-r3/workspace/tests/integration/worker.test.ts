@@ -204,3 +204,28 @@ describe('TC-13, TC-17: capacity and separation', () => {
     expect(ids[4]).toBe(ids[0]);
   });
 });
+
+describe('the storage hooks are not a production route', () => {
+  // The corruption and repair hooks live behind `TEST_HOOKS`, which the end-to-end
+  // wrangler environment sets and the deployed config never does. These tests run
+  // against `wrangler.jsonc` exactly as it ships, so `env.TEST_HOOKS` is absent
+  // here — which is what production is. A hook request must never be answered by
+  // the hook: it never returns the hook's JSON, and (decisively) it never looks a
+  // board object up, so a deployed board can never be corrupted or repaired over
+  // HTTP. Inert, the static-assets layer answers instead — the SPA for a GET, a
+  // method-not-allowed for a POST — and neither is the hook.
+  const hookPost = (path: string): Promise<Response> => get(path, { method: 'POST' });
+
+  for (const action of ['corrupt-snapshot', 'repair'] as const) {
+    it(`a ${action} request is never the hook, and never touches a board, without the flag`, async () => {
+      const { names } = spyOnLookup();
+      const boardId = newBoardId();
+      const response = await hookPost(`/api/__test/boards/${boardId}/${action}`);
+      // The hook answers with `{"ok":…}` JSON; an inert route never does.
+      expect(response.headers.get('content-type') ?? '').not.toContain('application/json');
+      expect(await response.text()).not.toContain('"ok"');
+      // Decisively: a live hook would look this board up; inert, none was touched.
+      expect(names).toEqual([]);
+    });
+  }
+});

@@ -5,3 +5,11 @@ playwright-report
 test-results
 .playwright
 .logs
+
+# story 4 e2e: per-spec Durable Object state and wrangler scratch
+.e2e-persist-*
+.wr*.log
+.build.log
+
+# scratch logs and temp from local runs
+.tmp/

@@ -18,6 +18,7 @@ const LABELS: Record<Exclude<ConnectionState, 'connected'>, string> = {
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
   confirmed: 'Connected',
+  load_failed: "This board couldn't be loaded. Retrying…",
 };
 
 export interface ConnectionStatusProps {
@@ -59,6 +60,24 @@ export function ConnectionStatus({ state, confirmationMs = CONNECTED_CONFIRMATIO
 
   if (state === 'connected') return null;
   if (state === 'confirmed' && !confirming) return null;
+
+  if (state === 'load_failed') {
+    // A board that could not be read is an error, not a status: it is red rather
+    // than the muted amber of "Reconnecting…", it does not fade away after a
+    // few seconds the way "Connected" does, and it says "couldn't be loaded",
+    // never "empty". It stays up for as long as the retrying does.
+    return (
+      <div
+        className="connection-status connection-status--load-failed"
+        data-state={state}
+        role="status"
+        aria-live="polite"
+        data-testid="connection-status"
+      >
+        {LABELS.load_failed}
+      </div>
+    );
+  }
 
   return (
     <div

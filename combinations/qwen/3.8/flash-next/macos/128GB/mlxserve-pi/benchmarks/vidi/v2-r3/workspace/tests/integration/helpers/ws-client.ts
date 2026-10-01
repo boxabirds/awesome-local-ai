@@ -60,12 +60,24 @@ const ORIGIN_LOCAL = 'test-client';
 /** Origin of everything the room wrote into this client's document. */
 const ORIGIN_REMOTE = 'test-room';
 
-/** The room's guts, for the few tests that must look inside one. */
+/** The room's guts, for the few tests that must look inside one.
+ * Story 4 moved the room to the hibernation API: its sockets are the runtime's
+ * (`ctx.getWebSockets()`), no longer an in-memory `Set`, so that is what the
+ * tests read. `state` is the room's own lifecycle field (`RoomState`). */
 export interface RoomInternals {
+  ctx: DurableObjectState;
   ydoc: Y.Doc | null;
-  sockets: Set<WebSocket>;
+  state: string;
+  store: unknown;
   broadcast(data: Uint8Array | ArrayBuffer, except: unknown): void;
   sendTo(socket: WebSocket, data: Uint8Array | ArrayBuffer): void;
+}
+
+/** A WebSocket the runtime reports as open. `getWebSockets()` keeps a socket
+ * while it is still closing, so "how many people are connected" counts only
+ * the ones that can still carry bytes. */
+function openSockets(room: RoomInternals): WebSocket[] {
+  return room.ctx.getWebSockets().filter((socket) => socket.readyState === WebSocket.OPEN);
 }
 
 /** What a test may put on the wire. */
@@ -465,34 +477,185 @@ export function roomStub(boardId: string): DurableObjectStub {
 }
 
 /**
- * Evict the room: throw away its document and drop its sockets, which is what
- * a deploy or a runtime eviction does to a board whose document only lives in
- * memory (story 4 is what gives it storage). `inspectRoom` afterwards reports
- * an empty room, which is the observable proof the board really was lost; any
- * client can then rebuild it by reconnecting, because Yjs merges.
+ * Evict the room: drop its sockets and throw away its in-memory document, which
+ * is what a deploy or a runtime eviction does. Story 4 keeps the board in the
+ * room's own storage, so eviction is no longer loss — going to `storage-failed`
+ * is exactly what makes the next connection read the board back from storage,
+ * which is the point of the story. Any client can rebuild it by reconnecting,
+ * because Yjs merges; and a room that reloads from storage arrives with the
+ * board already in it.
  */
 export async function simulateRoomEviction(boardId: string): Promise<void> {
   await runInDurableObject(roomStub(boardId), (object) => {
     const room = object as unknown as RoomInternals;
-    for (const socket of [...room.sockets]) {
+    for (const socket of room.ctx.getWebSockets()) {
       try {
         socket.close(1001, 'evicted');
       } catch {
         /* already gone */
       }
     }
-    room.sockets.clear();
+    room.ydoc?.destroy();
+    room.ydoc = null;
+    // Ask the next connection to read storage rather than trust what is here.
+    room.state = 'storage-failed';
+  });
+}
+
+/** Read the room's own state (how many sockets it holds open, what its document
+ * has). A hibernated room reports its live sockets through `ctx.getWebSockets()`. */
+export async function inspectRoom(boardId: string): Promise<{ sockets: number; notes: number }> {
+  return runInDurableObject(roomStub(boardId), (object) => {
+    const room = object as unknown as RoomInternals;
+    return {
+      sockets: openSockets(room).length,
+      notes: room.ydoc === null ? 0 : snapshot(room.ydoc).length,
+    };
+  });
+}
+
+/** The store the room holds, for the tests that must inject a storage fault. */
+interface StoreInternals {
+  append(update: Uint8Array): void;
+  readSnapshot(): Uint8Array | null;
+  load(doc: Y.Doc): unknown;
+  countUpdates(): number;
+  countChunks(): number;
+  countQuarantined(): number;
+}
+
+/**
+ * Make the next `store.append` throw once, then behave normally: the fixture
+ * `persist.room` names for a write that fails (`store.append` stubbed to throw).
+ * The fault is installed on the room's own live store instance.
+ */
+export async function stubAppendOnce(boardId: string): Promise<void> {
+  await runInDurableObject(roomStub(boardId), (object) => {
+    const store = (object as unknown as RoomInternals).store as StoreInternals & {
+      __origAppend?: (u: Uint8Array) => void;
+    };
+    const original = store.append.bind(store);
+    let armed = true;
+    store.append = (update: Uint8Array): void => {
+      if (armed) {
+        armed = false;
+        throw new Error('injected storage write failure');
+      }
+      original(update);
+    };
+  });
+}
+
+/** Undo any injected append fault, restoring the store's real method. */
+export async function clearAppendFault(boardId: string): Promise<void> {
+  await runInDurableObject(roomStub(boardId), (object) => {
+    // Re-loading the prototype method clears the shadowing own property. Cast
+    // through a string index so `delete` is allowed on a method the class declares.
+    const store = (object as unknown as RoomInternals).store as unknown as Record<string, unknown>;
+    delete store.append;
+  });
+}
+
+/**
+ * Make the store's snapshot read throw: the real `load` then reports
+ * `ok: false, reason: 'sql-error'`, which is `persist.room`'s read-failure
+ * fixture ("make SELECT throw via injected store"). It is installed on the
+ * live store and the room's document is dropped so the next connection reloads.
+ */
+export async function stubReadFailureAndDrop(boardId: string): Promise<void> {
+  await runInDurableObject(roomStub(boardId), (object) => {
+    const room = object as unknown as RoomInternals;
+    const store = room.store as StoreInternals;
+    store.readSnapshot = (): Uint8Array | null => {
+      throw new Error('injected storage read failure');
+    };
+    // Force the next connection to read storage again, into the fault.
     room.ydoc?.destroy();
     room.ydoc = null;
   });
 }
 
-/** Read the room's own state (how many sockets it holds, what its document has). */
-export async function inspectRoom(boardId: string): Promise<{ sockets: number; notes: number }> {
+/** Remove the injected read fault so a later load succeeds. */
+export async function clearReadFault(boardId: string): Promise<void> {
+  await runInDurableObject(roomStub(boardId), (object) => {
+    const room = object as unknown as RoomInternals;
+    const store = room.store as unknown as Record<string, unknown>;
+    delete store.readSnapshot;
+    // The room is sitting on a load-failed state from the fault; ask the next
+    // connection to read storage now rather than wait out the retry interval.
+    room.state = 'storage-failed';
+  });
+}
+
+/**
+ * Drop the room's in-memory document but keep its storage, which is what a
+ * runtime eviction or a redeploy does: the board is gone from memory and must
+ * come back from SQLite on the next connection. The state stays `ready`, so a
+ * reload is driven only by "there is no document here any more".
+ */
+export async function forceMemoryEviction(boardId: string): Promise<void> {
+  await runInDurableObject(roomStub(boardId), (object) => {
+    const room = object as unknown as RoomInternals;
+    for (const socket of room.ctx.getWebSockets()) {
+      try {
+        socket.close(1001, 'evicted');
+      } catch {
+        /* already gone */
+      }
+    }
+    room.ydoc?.destroy();
+    room.ydoc = null;
+  });
+}
+
+/** Read the board straight out of a board's SQLite, into a fresh document. */
+export async function notesInStorage(boardId: string): Promise<readonly StickySnapshot[]> {
   return runInDurableObject(roomStub(boardId), (object) => {
     const room = object as unknown as RoomInternals;
-    return { sockets: room.sockets.size, notes: room.ydoc === null ? 0 : snapshot(room.ydoc).length };
+    const store = room.store as StoreInternals;
+    const fresh = new Y.Doc();
+    // Load the stored board into a document that has never been on the wire.
+    (store as { load(doc: Y.Doc): unknown }).load(fresh);
+    return snapshot(fresh);
   });
+}
+
+/** How many log rows a board's storage holds. */
+export async function updateRowsInStorage(boardId: string): Promise<number> {
+  return runInDurableObject(roomStub(boardId), (object) => {
+    const store = (object as unknown as RoomInternals).store as StoreInternals;
+    return store.countUpdates();
+  });
+}
+
+/** The room's own test hooks, called in-object (they are RPC methods). */
+interface RoomHooks {
+  testCorruptSnapshot(): boolean;
+  testRepairSnapshot(): boolean;
+  store: StoreInternals & { compactNow(doc: Y.Doc): boolean };
+  ydoc: Y.Doc | null;
+}
+
+/** Fold the room's log into a snapshot now, so a snapshot exists to inspect. */
+export async function compactRoomNow(boardId: string): Promise<void> {
+  await runInDurableObject(roomStub(boardId), (object) => {
+    const room = object as unknown as RoomHooks;
+    if (room.ydoc !== null) room.store.compactNow(room.ydoc);
+  });
+}
+
+/** Damage the board's snapshot through the room's own test hook. */
+export async function corruptSnapshot(boardId: string): Promise<boolean> {
+  return runInDurableObject(roomStub(boardId), (object) =>
+    (object as unknown as RoomHooks).testCorruptSnapshot(),
+  );
+}
+
+/** Repair the board's snapshot through the room's own test hook. */
+export async function repairSnapshot(boardId: string): Promise<boolean> {
+  return runInDurableObject(roomStub(boardId), (object) =>
+    (object as unknown as RoomHooks).testRepairSnapshot(),
+  );
 }
 
 export { runInDurableObject, env, SELF };

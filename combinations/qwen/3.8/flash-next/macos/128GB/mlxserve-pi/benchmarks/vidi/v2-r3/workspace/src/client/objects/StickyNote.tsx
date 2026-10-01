@@ -38,6 +38,12 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** False only while the board cannot be edited (it failed to load): every
+   * write this note could make — move, bring to front, recolour, delete, open
+   * for typing — is a no-op. Selecting the note still works; it changes nothing
+   * in the document. Defaults to editable.
+   */
+  canEdit?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: EndEditNext): void;
@@ -99,6 +105,9 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
     const target = pendingRef.current;
     pendingRef.current = null;
     if (target === null) return;
+    // A board that cannot be edited is not moved by a drag; the pointer gesture
+    // is simply dropped, the note stays where it was.
+    if (propsRef.current.canEdit === false) return;
     // The note may be gone by now (deleted while this drag was in flight);
     // then the interaction simply ends, it never re-creates the note.
     if (!moveObject(doc, propsRef.current.note.id, target.x, target.y)) {
@@ -165,7 +174,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
       draggingRef.current = true;
       setDragging(true);
       // Once, so the dragged note is drawn above everything it overlaps.
-      bringToFront(doc, note.id);
+      if (propsRef.current.canEdit !== false) bringToFront(doc, note.id);
     }
     const z = zoomRef.current > 0 ? zoomRef.current : 1;
     // Dividing the screen delta by the camera zoom keeps the grabbed point
@@ -201,14 +210,19 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>) => {
     // Editing this note; the viewport must not create another one here.
     e.stopPropagation();
+    // A board that cannot be loaded cannot be typed into either: the editor
+    // never opens, so there is no caret to write with.
+    if (propsRef.current.canEdit === false) return;
     propsRef.current.onStartEdit(note.id);
   };
 
   const onColor = (color: StickyColor) => {
+    if (propsRef.current.canEdit === false) return;
     setStickyColor(doc, note.id, color);
   };
 
   const onDelete = () => {
+    if (propsRef.current.canEdit === false) return;
     deleteObject(doc, note.id);
   };
 

@@ -372,3 +372,10 @@ body,
   outline: none;
   box-shadow: var(--focus-ring);
 }
+
+/* Story 4: a board that could not be loaded is the one thing the badge says in
+   red. It is the same badge as "Reconnecting…", in the same place, and only the
+   colour and the words change — there is no second indicator to miss. */
+.connection-status--load-failed {
+  color: #b3261e;
+}

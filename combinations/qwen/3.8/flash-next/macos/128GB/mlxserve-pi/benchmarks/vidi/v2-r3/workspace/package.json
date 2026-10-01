@@ -13,7 +13,7 @@
     "test:component": "vitest run --project component",
     "test:integration": "npm run build:test && vitest run --project integration",
     "test": "npm run test:unit && npm run test:component && npm run test:integration",
-    "test:e2e": "playwright test --project=chromium --project=webkit",
+    "test:e2e": "playwright test --project=chromium --project=webkit --project=persistence",
     "test:chromium": "playwright test --project=chromium",
     "test:firefox": "playwright test --project=firefox",
     "test:webkit": "playwright test --project=webkit",

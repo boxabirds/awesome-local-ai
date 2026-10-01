@@ -15,12 +15,20 @@ import { isValidBoardId } from '../shared/board-id';
 import { STATUS_INVALID_BOARD_ID, STATUS_UPGRADE_REQUIRED } from '../shared/protocol';
 import { ROOM_PATH_PREFIX } from '../shared/routes';
 import { BoardRoom } from './board-room';
+import { handleTestHook } from './test-hooks';
 
 export interface Env {
   /** One BoardRoom per board address. */
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client (static assets), served for every non-API path. */
   ASSETS: Fetcher;
+  /**
+   * Turns on the `/__test/boards/:id/*` hooks (see `test-hooks.ts`) that break and
+   * mend a saved board on demand. Wrangler coerces a `--var NAME:1` to a number,
+   * so the check reads the value's text, not its type. The production config never
+   * sets it, so those routes are not there at all in a production build.
+   */
+  TEST_HOOKS?: string | number | boolean;
 }
 
 /** 426 Upgrade Required: the address is a board, but this is not a WebSocket. */
@@ -39,6 +47,16 @@ function isUpgradeToWebsocket(request: Request): boolean {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url);
+
+    // Test hooks, and only when the environment turns them on. Without the flag
+    // the very next lines are unreachable, and a request to a hook path is
+    // handled as any other path — the client's SPA fallback (never a hook).
+    // The value is compared as text because wrangler types a `--var NAME:1` as a
+    // number, not a string.
+    if (env.TEST_HOOKS !== undefined && String(env.TEST_HOOKS) === '1') {
+      const hook = await handleTestHook(request, env);
+      if (hook !== null) return hook;
+    }
 
     if (pathname.startsWith(ROOM_PATH_PREFIX)) {
       // The id is validated before the namespace is touched, so a malformed
