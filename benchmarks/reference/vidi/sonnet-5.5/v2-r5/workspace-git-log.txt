@@ -1,3 +1,51 @@
+commit 94bca2144cadb67488ea84a298894525fc70918e
+vidi-agent  Thu Oct 1 13:52:54 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                         |  11 +-
+ index.html                                       |   1 +
+ src/client/App.tsx                               | 134 ++-------------------
+ src/client/api.ts                                |  24 ++++
+ src/client/board/Board.tsx                       | 112 ++++++++++++++++++
+ src/client/pages/BoardPage.tsx                   |  43 +++++++
+ src/client/pages/HomePage.tsx                    |  11 ++
+ src/client/pages/NewBoardButton.tsx              |  30 +++++
+ src/client/pages/NotFoundPage.tsx                |  22 ++++
+ src/client/pages/state.ts                        |  31 +++++
+ src/client/router.ts                             |  31 +++++
+ src/client/share/SharePanel.tsx                  |  93 +++++++++++++++
+ src/client/styles.css                            |  14 +++
+ src/shared/config.ts                             |   3 +
+ src/worker/board-room.ts                         |  28 ++++-
+ src/worker/board-store.ts                        |  31 +++++
+ src/worker/create-board.ts                       |  15 +++
+ src/worker/index.ts                              |  23 +++-
+ src/worker/test-hooks.ts                         |   7 +-
+ tests/component/BoardViewport.test.tsx           |   2 +-
+ tests/component/ConnectionStatus.test.tsx        |   2 +-
+ tests/component/LoadFailedEditLock.test.tsx      |   2 +-
+ tests/component/NavigationHint.test.tsx          |   2 +-
+ tests/component/SharePanel.test.tsx              | 102 ++++++++++++++++
+ tests/component/StickyNote.test.tsx              |   2 +-
+ tests/component/StickyTextEditor.test.tsx        |   2 +-
+ tests/component/TestApp.tsx                      |   7 ++
+ tests/component/Toolbars.test.tsx                |   2 +-
+ tests/component/pages.test.tsx                   | 142 +++++++++++++++++++++++
+ tests/e2e/broken-board.spec.ts                   |   4 +-
+ tests/e2e/helpers/create.ts                      |  25 ++++
+ tests/e2e/helpers/participants.ts                |  13 ++-
+ tests/e2e/navigation.spec.ts                     |   3 +-
+ tests/e2e/persistence.spec.ts                    |   9 +-
+ tests/e2e/share.spec.ts                          | 109 +++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts                   |   3 +-
+ tests/integration/board-api.test.ts              | 113 ++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |   3 +-
+ tests/integration/helpers/ws-client.ts           |   9 +-
+ tests/integration/worker.test.ts                 |   6 +-
+ tests/unit/create-board.test.ts                  |  30 +++++
+ 41 files changed, 1098 insertions(+), 158 deletions(-)
 commit 92247966149a69b32dccc1085a1f731766692ea8
 vidi-agent  Thu Oct 1 13:38:59 2026 +0100
 
