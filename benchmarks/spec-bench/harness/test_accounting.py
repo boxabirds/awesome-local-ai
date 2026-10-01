@@ -356,6 +356,79 @@ def test_E4_no_model_time_at_all_for_a_log_in_no_format_the_harness_reads(tmp_pa
     assert s["model"] is None and s["other_s"] == WALL
 
 
+# Real excerpts (fixtures/engine-logs): gufo v2-r4 story 1's first four requests, and mlx-serve v2-r2 story 1's.
+# Each call is what pi recorded for that request: (input, cacheRead, output), which sum to the server's own counts.
+ENGINE_LOGS = Path(__file__).resolve().parent / "fixtures" / "engine-logs"
+GUFO_CALLS = [(2049, 0, 103), (3382, 2152, 55), (7007, 5589, 53), (2954, 12649, 70)]
+GUFO_DRAFTS = [(76, 90), (47, 49), (39, 45), (49, 62)]            # draft_accepted, draft_proposed
+MLX_CALLS = [(2093, 0, 201), (9596, 2062, 206), (3522, 11627, 335), (415, 15118, 67)]
+MLX_DRAFTS = [(83, 95, 30), (62, 99, 23), (166, 234, 68), (41, 46, 15)]   # accepts, drafted, attempts
+CALL_EVERY = 10.0
+
+
+def engine_split(tmp_path, log_name: str, calls: list, t_from=T0, first=T0 + 1, **kw) -> dict:
+    """pi's calls one after another from `first`, against the engine's real log after a server start before them."""
+    log = Log()
+    for i, (fresh, cached, out) in enumerate(calls):
+        at = first + i * CALL_EVERY
+        log.call(at, at + 2, at + 8, fresh=fresh, cached=cached, out=out)
+    for a, b in kw.get("compactions", []):
+        log.compaction(a, b)
+    text = llama_log.start_marker(kw.get("server_start", T0 - 600)) + (ENGINE_LOGS / log_name).read_text()
+    return split(tmp_path, log, text, t_from=t_from)
+
+
+def test_E5_draft_acceptance_comes_from_gufo_s_log_when_pi_s_stream_gives_the_time(tmp_path):
+    """gufo v2 runs: every story's time came from pi's stream and none had draft_acceptance (47 of 47)."""
+    m = engine_split(tmp_path, "gufo-excerpt.txt", GUFO_CALLS)["model"]
+    assert m["source"] == accounting.CLIENT_STREAM and m["requests"] == len(GUFO_CALLS)
+    acc, proposed = (sum(x) for x in zip(*GUFO_DRAFTS))
+    assert m["draft_acceptance"] == round(acc / proposed, 3) == 0.858
+    assert m["mean_accepted_len"] is None          # gufo doesn't say how many verification rounds it ran
+
+
+def test_E6_draft_acceptance_and_mean_length_come_from_mlx_serve_s_log(tmp_path):
+    """mlx-serve v2 runs: 21 of 21 stories without draft_acceptance. Its log has no clock: each request is the
+    call with its tokens. Mean accepted length as llama.cpp's: 1 + accepted per round, weighted by tokens made."""
+    m = engine_split(tmp_path, "mlx-serve-excerpt.txt", MLX_CALLS)["model"]
+    assert m["source"] == accounting.CLIENT_STREAM and m["requests"] == len(MLX_CALLS)
+    acc, drafted, _ = (sum(x) for x in zip(*MLX_DRAFTS))
+    assert m["draft_acceptance"] == round(acc / drafted, 3) == 0.743
+    gen = [out for _, _, out in MLX_CALLS]
+    mean = sum((1 + a / r) * n for (a, _, r), n in zip(MLX_DRAFTS, gen)) / sum(gen)
+    assert m["mean_accepted_len"] == round(mean, 2)
+
+
+def test_E7_only_the_calls_counted_in_the_window_count_their_drafts(tmp_path):
+    """An earlier attempt's call (before the window) and a compaction's own call are not the story's."""
+    m = engine_split(tmp_path, "gufo-excerpt.txt", GUFO_CALLS, t_from=T0 + CALL_EVERY / 2, first=T0)["model"]
+    (a0, p0), *rest = GUFO_DRAFTS
+    assert m["requests"] == len(rest) and m["draft_acceptance"] == round(sum(a for a, _ in rest) / sum(p for _, p in rest), 3)
+    last = T0 + 1 + (len(GUFO_CALLS) - 1) * CALL_EVERY
+    m = engine_split(tmp_path, "gufo-excerpt.txt", GUFO_CALLS, compactions=[(last - 1, last + 9)])["model"]
+    kept = GUFO_DRAFTS[:-1]
+    assert m["draft_acceptance"] == round(sum(a for a, _ in kept) / sum(p for _, p in kept), 3)
+
+
+def test_E8_a_call_is_matched_only_in_the_server_run_that_was_up_when_it_was_sent(tmp_path):
+    """The server started after the calls: its requests are some other call's, so there are no draft figures."""
+    m = engine_split(tmp_path, "gufo-excerpt.txt", GUFO_CALLS, server_start=T1 + 1)["model"]
+    assert m["source"] == accounting.CLIENT_STREAM and "draft_acceptance" not in m
+
+
+def test_E9_a_call_the_engine_s_log_does_not_have_is_skipped_and_the_rest_still_match(tmp_path):
+    calls = [GUFO_CALLS[0], (1, 2, 3), *GUFO_CALLS[1:]]
+    m = engine_split(tmp_path, "gufo-excerpt.txt", calls)["model"]
+    acc, proposed = (sum(x) for x in zip(*GUFO_DRAFTS))
+    assert m["requests"] == len(calls) and m["draft_acceptance"] == round(acc / proposed, 3)
+
+
+def test_E10_no_draft_figures_without_an_engine_log_as_before(tmp_path):
+    for server_log in (None, "", llama([(T0 - 50, 1000, 1, 1000, 1)])):
+        m = split(tmp_path, Log().call(T0 + 10, T0 + 12, T0 + 20), server_log=server_log)["model"]
+        assert "draft_acceptance" not in m and "mean_accepted_len" not in m
+
+
 # ---------- F. how a model call streamed ----------
 
 def test_F1_nothing_streamed_before_the_end_is_all_prefill(tmp_path):

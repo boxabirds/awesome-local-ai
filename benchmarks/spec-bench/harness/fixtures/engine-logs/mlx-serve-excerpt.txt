@@ -1,0 +1,87 @@
+POST /v1/chat/completions (2 msgs, max_tokens=32768, temp=1.00, top_p=0.95, top_k=20, stream=true, thinking=true, sys=2774b, user=1783b, tools=2841b, tool_msgs=0) 
+  > "You are implementing the web app "vidi6" (a collaborative whiteboard) in the cur..."
+[admission] needed=2729 MB available=34757 MB reclaimable=0 MB width=8192 verdict=admit
+  prompt=2093 tokens, max_gen=32768, ctx=131072
+  spec-gate: ngram-score=0.121 (threshold=0.010)
+  reasoning budget 32768: enforced in-stream
+  mtp=enabled (streaming, depth=6)
+[hc-prefill] engaged: S=2062 B=1 pending=false native_inject=true
+[gdn-prefill] engaged: S=2062 B=1 cold=true
+[qwen4] PLE prefill gather: SERIAL mmap walk (prefill width: 32992 rows; the pool engages past kv 262144, QWEN4_PLE_PREFETCH_PREFILL_MIN_KV overrides)
+[qsa] sparse attention engaged: kv=2062 blocks=515 top-512 (budget 2048, ratio 4)
+[qsa-select] engaged (S=2062 nb=515 k=512 tg=256) — MLX_SERVE_QSA_SELECT_KERNEL=0 restores the argpartition chain
+[qsa-fused] engaged: msv_attn_p256 mask arm qL=2062 kL=2062 Hq=24 Hkv=2 (MLX_SERVE_QSA_FUSED=0 restores stock sdpa)
+[qsa-score] engaged (S=1 nb=523 layout=base nsg=4 nsh=17) — MLX_SERVE_QSA_SCORE_FUSED=0 restores the composed chain
+[qsa-select] engaged (S=1 nb=523 k=512 tg=1024) — MLX_SERVE_QSA_SELECT_KERNEL=0 restores the argpartition chain
+[mtp] draft rerank engaged (3-bit coarse -> top-32 -> trunk re-score)
+[qsa-score] engaged (S=2 nb=523 layout=base nsg=4 nsh=17) — MLX_SERVE_QSA_SCORE_FUSED=0 restores the composed chain
+[qsa-select] engaged (S=2 nb=523 k=512 tg=1024) — MLX_SERVE_QSA_SELECT_KERNEL=0 restores the argpartition chain
+[sdpa-split] masked arm engaged: qL=3 kL=2095 gqa=12 rows/group=2 (MLX_SERVE_SDPA_SPLIT=0 restores the single dispatch)
+[mtp] prompt-lookup drafts engaged: k=7 suffix=8
+[mtp] cost table: bucket 2-4k measured w4:8.45/3 (ms/tok) replaces the fitted surface (scale 0.0532 at w4)
+  [spec-stats] mode=mtp attempts=30 accepts=83 avg_per_round=2.77 per_draft_pct=87.4% depth=6 drafted=95 ext_rounds=0 partial_rounds=10 runtime_disabled=false reason=none adaptive=undecided serial_cell=0.00 sync_ms=0.00 round_ms=33.36 two_ms_tok=0.00 one_ms_tok=7.77 verdict_round=0 trials=0 width_trials=2 table=2-4k:w4:7.71/8 table_drops=t8/c0/b0/i0 serial_drops=t0/c0/b0 depth_policy=accept lookup=12/98/77
+  [spec-stats] lookup_table=2-4k:k7:45.1/9,k14:73.1/1
+  [qsa-arms] qsa=mask calls=528 mask=528 decode=0 verify=0 prefill=0
+  [hot-cache] resident=116.45 / 16384.00 MB (1/32 entries)
+  <- 2093+201 tokens streamed [prefill: 1120.8 tok/s, decode: 133.5 tok/s] [tool_calls]
+  pld=enabled (draft_len=5, key_len=3)
+POST /v1/chat/completions (5 msgs, max_tokens=32768, temp=1.00, top_p=0.95, top_k=20, stream=true, thinking=true, sys=2774b, user=1783b, tools=2841b, tool_msgs=2) 
+  > "# Technical Design
+
+Client-only infinite canvas: a pure camera module (world<->s..."
+  prompt=11658 tokens, max_gen=32768, ctx=131072
+  spec-gate: ngram-score=0.168 (threshold=0.010)
+  reasoning budget 32768: enforced in-stream
+  mtp=enabled (streaming, depth=6)
+  [hot-cache] reused 2062/11658 tokens (matched 2295; entry 1/1)
+  [qwen4] MTP head restored (2062 tokens from base 0)
+[qsa-gather] engaged: msv_qsa_nax_precise S=3435 kv=11627 blocks=512 bk=32 tgmem=20992 (MLX_SERVE_QSA_NAX=0 restores the stock gather)
+[qsa-decode-gather] engaged (S=1 kv=11661 rows=2049) (MLX_SERVE_QSA_DECODE_GATHER=0 restores the dense mask arm)
+[mtp] regime gate: two-chunk 37.32 ms/tok vs single 7.38 ms/tok -> two-chunk throttled (period 128)
+  [spec-stats] mode=mtp attempts=23 accepts=62 avg_per_round=2.70 per_draft_pct=62.6% depth=6 drafted=99 ext_rounds=1 partial_rounds=18 runtime_disabled=false reason=none adaptive=undecided serial_cell=0.00 sync_ms=3.39 round_ms=38.20 two_ms_tok=37.32 one_ms_tok=10.27 verdict_round=16 trials=0 width_trials=2 table=8-16k:w4:9.72/8,w5:7.03/1 table_drops=t16/c0/b0/i0 serial_drops=t0/c0/b0 depth_policy=legacy lookup=16/143/106
+  [spec-stats] lookup_table=8-16k:k7:47.3/10,k14:72.4/4
+  [qsa-arms] qsa=mask calls=504 mask=480 decode=0 verify=0 prefill=24
+  [hot-cache] resident=555.12 / 16384.00 MB (1/32 entries)
+  <- 11658+206 tokens streamed [prefill: 1928.0 tok/s (2062 cached / 11658 total), decode: 118.8 tok/s] [tool_calls]
+  pld=enabled (draft_len=5, key_len=3)
+POST /v1/chat/completions (8 msgs, max_tokens=32768, temp=1.00, top_p=0.95, top_k=20, stream=true, thinking=true, sys=2774b, user=1783b, tools=2841b, tool_msgs=4) 
+  > "# vidi6
+
+A shared board for thinking together.
+README.md
+epics
+stories
+001-pan-a..."
+  prompt=15149 tokens, max_gen=32768, ctx=131072
+  spec-gate: ngram-score=0.189 (threshold=0.010)
+  reasoning budget 32768: enforced in-stream
+  mtp=enabled (streaming, depth=6)
+  [hot-cache] reused 11627/15149 tokens (matched 11865; entry 1/1)
+  [qwen4] MTP head restored (11627 tokens from base 0)
+[mtp] regime gate: two-chunk 42.22 ms/tok vs single 19.24 ms/tok -> two-chunk throttled (period 128)
+  [spec-stats] mode=mtp attempts=68 accepts=166 avg_per_round=2.44 per_draft_pct=70.9% depth=6 drafted=234 ext_rounds=0 partial_rounds=29 runtime_disabled=false reason=none adaptive=undecided serial_cell=0.00 sync_ms=3.53 round_ms=37.69 two_ms_tok=42.22 one_ms_tok=10.41 verdict_round=15 trials=0 width_trials=4 table=8-16k:w3:10.48/33,w4:14.00/19,w5:12.20/2 table_drops=t32/c0/b0/i0 serial_drops=t0/c0/b0 depth_policy=legacy lookup=13/112/94
+  [spec-stats] lookup_table=8-16k:k7:53.9/20,k14:77.5/7
+  [qsa-arms] qsa=mask calls=996 mask=972 decode=0 verify=0 prefill=24
+  [hot-cache] resident=711.69 / 16384.00 MB (1/32 entries)
+  <- 15149+335 tokens streamed [prefill: 1815.8 tok/s (11627 cached / 15149 total), decode: 98.9 tok/s] [tool_calls]
+  pld=enabled (draft_len=5, key_len=3)
+POST /v1/chat/completions (10 msgs, max_tokens=32768, temp=1.00, top_p=0.95, top_k=20, stream=true, thinking=true, sys=2774b, user=1783b, tools=2841b, tool_msgs=5) 
+  > "19.3.0
+8.3.1
+4.145.0
+5.0.3
+1.63.0
+"
+  prompt=15533 tokens, max_gen=32768, ctx=131072
+  spec-gate: ngram-score=0.192 (threshold=0.010)
+  reasoning budget 32768: enforced in-stream
+  mtp=enabled (streaming, depth=6)
+  [hot-cache] reused 15118/15533 tokens (matched 15490; entry 1/1)
+  [qwen4] MTP head restored (15118 tokens from base 0)
+[mtp] regime gate: two-chunk 30.65 ms/tok vs single 8.24 ms/tok -> two-chunk throttled (period 128)
+  [spec-stats] mode=mtp attempts=15 accepts=41 avg_per_round=2.73 per_draft_pct=89.1% depth=6 drafted=46 ext_rounds=1 partial_rounds=5 runtime_disabled=false reason=none adaptive=undecided serial_cell=0.00 sync_ms=3.12 round_ms=35.25 two_ms_tok=30.65 one_ms_tok=8.23 verdict_round=15 trials=0 width_trials=0 table=8-16k:w3:8.96/43,w4:14.00/19,w5:12.20/2 table_drops=t34/c0/b0/i0 serial_drops=t0/c0/b0 depth_policy=legacy lookup=3/21/13
+  [spec-stats] lookup_table=8-16k:k7:52.6/23,k14:77.5/7
+  [qsa-arms] qsa=mask calls=240 mask=216 decode=0 verify=0 prefill=24
+  [hot-cache] resident=768.27 / 16384.00 MB (1/32 entries)
+  <- 15533+67 tokens streamed [prefill: 836.8 tok/s (15118 cached / 15533 total), decode: 111.7 tok/s] [tool_calls]
+  pld=enabled (draft_len=5, key_len=3)

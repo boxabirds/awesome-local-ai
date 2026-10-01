@@ -32,6 +32,10 @@ block carries a running count of a few), so its decode tokens and both rates are
 (tok/s) come from the counted calls' own durations; the owned seconds are what the partition gave each part. A call is
 counted (requests, tokens, rates) when it lies wholly inside the window and isn't a compaction's own call.
 
+MTP draft figures (draft_acceptance, mean_accepted_len) come from the server's own log whichever source gave the time:
+llama-server's lines for its requests, or gufo's and mlx-serve's for the requests that are the counted calls
+(engine_log.py). They describe the model calls; no part of the partition depends on them.
+
 check() re-derives the invariants from a finished split, so a stored record can be checked too; time_split() records
 them as "accounting": {version, ok, problems, abandoned_calls, interrupted_tools, interrupted_compactions}.
 Tests: test_accounting.py.
@@ -43,6 +47,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import engine_log
 import llama_log
 
 # Bump when the calculation changes; records say which one made them, and backfill_timing.py --recompute redoes
@@ -345,7 +350,8 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
         problems.append("the window ends before it starts")
         t_to = t_from
     comps = p.compactions
-    reqs = llama_log.parse(server_log.read_text(errors="replace")) if server_log and Path(server_log).exists() else []
+    text = _read(server_log)
+    reqs = llama_log.parse(text)
     in_window = [r for r in reqs if t_from <= r["end"] <= t_to]
     if in_window:
         source = "llama-log"
@@ -353,7 +359,7 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
         counted = [r for r in in_window if r["end"] - (r["gen_ms"] + r["prompt_ms"]) / MS_PER_S >= t_from and not _in_compaction(r["end"], comps)]
         pre_n, dec_n = sum(r["prompt_n"] for r in counted), sum(r["gen_n"] for r in counted)
         pre_raw, dec_raw = sum(r["prompt_ms"] for r in counted) / MS_PER_S, sum(r["gen_ms"] for r in counted) / MS_PER_S
-        extra = {k: v for k, v in llama_log.summarise(counted, t_from, t_to).items() if k in ("draft_acceptance", "mean_accepted_len")} if counted else {}
+        extra = {k: v for k, v in llama_log.summarise(counted, t_from, t_to).items() if k in engine_log.DRAFT_KEYS} if counted else {}
         cached = 0
     elif p.calls:
         source = p.source
@@ -364,7 +370,7 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
         # A cloud API's time to first output is queueing and network as much as reading: no rate is made of it.
         pre_raw = sum(c.first - c.sent for c in counted) if source != CLAUDE_STREAM else 0
         dec_raw = sum(c.end - c.first for c in counted) if dec_n is not None else 0
-        extra = {}
+        extra = engine_log.draft(text, p.calls, counted)
     else:
         source, spans, counted = None, [], []
     intervals = ([(a, b, "compaction", None) for a, b in comps] + [(a, b, "tool", k) for a, b, k in p.tools]
@@ -399,6 +405,26 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
                            "interrupted_tools": cut,
                            "interrupted_compactions": sum(1 for a, _ in p.cut_compactions if t_from <= a <= t_to)}
     return split
+
+
+def _read(server_log: Path | None) -> str:
+    return Path(server_log).read_text(errors="replace") if server_log and Path(server_log).exists() else ""
+
+
+def draft_figures(events: Path, server_log: Path, windows: list[tuple[float, float]]) -> dict:
+    """draft_acceptance and mean_accepted_len over several windows at once (a restarted story's attempts, whose
+    summed split can't recombine them), counting what time_split counts in each: llama-server's requests wholly
+    inside one, else the client's calls wholly inside one; never a compaction's own. {} when the log has none."""
+    if not windows:
+        return {}
+    p = parse(events, max(b for _, b in windows))
+    text = _read(server_log)
+    inside = lambda a, b: any(lo <= a and b <= hi for lo, hi in windows)
+    reqs = [r for r in llama_log.parse(text) if inside(r["end"] - (r["gen_ms"] + r["prompt_ms"]) / MS_PER_S, r["end"])
+            and not _in_compaction(r["end"], p.compactions)]
+    if reqs:
+        return {k: v for k, v in llama_log.summarise(reqs, float("-inf"), float("inf")).items() if k in engine_log.DRAFT_KEYS}
+    return engine_log.draft(text, p.calls, [c for c in p.calls if inside(c.sent, c.end) and not _in_compaction(c.end, p.compactions)])
 
 
 def check(split: dict, agent_seconds: float | None = None) -> list[str]:
