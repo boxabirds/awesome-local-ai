@@ -1,0 +1,53 @@
+{
+  "pack_version": "vidi-v2.0-pre2",
+  "harness_commit": "dfa5505e",
+  "host": "Apple M2 16GB",
+  "held_out_workers": 4,
+  "host_limits": {
+    "cores": 8,
+    "memory_gb": 16.0,
+    "free_gb": 8.0
+  },
+  "finished_at": "2026-10-01T06:28:37Z",
+  "environment": {
+    "node": "v24.15.0",
+    "npm": "11.12.1",
+    "playwright": "1.58.2",
+    "chromium": "145.0.7632.6 (r1208)",
+    "os": "macOS 26.6.2",
+    "arch": "arm64",
+    "workers": 4
+  },
+  "passing_sample": {
+    "fraction": 0.2,
+    "min": 5
+  },
+  "results": [
+    {
+      "story": 12,
+      "passed": 0,
+      "total": 75,
+      "fallbacks": 0,
+      "scores": [
+        0
+      ],
+      "flaky": 0,
+      "flaky_failing": 0,
+      "flaky_passing": 0,
+      "passing_sampled": 0,
+      "harness_fault": "scoring interrupted: the app's build failed in the re-score (exit 1) but passed where the agent worked, on the same commit: .spec.ts(115,83): error TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+      "build_exit": 1,
+      "environment": {
+        "node": "v24.15.0",
+        "npm": "11.12.1",
+        "playwright": "1.58.2",
+        "chromium": "145.0.7632.6 (r1208)",
+        "os": "macOS 26.6.2",
+        "arch": "arm64",
+        "workers": 4,
+        "install_command": "npm ci --no-audit --no-fund"
+      },
+      "seconds": 100
+    }
+  ]
+}
