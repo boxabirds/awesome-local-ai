@@ -75,3 +75,23 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS;
 
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/* Live collaboration (story 3) ------------------------------------------- */
+
+/** Soft capacity: design + test target, never enforced. */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/** PRD live.propagate: 1-second budget for change delivery. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Passed to WebsocketProvider maxBackoffTime. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** Green badge duration after reconnect. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** PRD live.catch_up verification outage. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/** Functional wait in e2e (all stories); latency is logged, not asserted. */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;

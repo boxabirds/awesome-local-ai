@@ -10,15 +10,17 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 |---|---|---|---|---|
 | 1 | 6/6 | 0 | 0 | 6/6 |
 | 2 | 9/10 | 0 | 0 | 19/20 |
+| 3 | 4/7 | 0 | 0 | 23/27 |
 
-**New work** 15/16, **regressions** 0, **repairs** 0, **cumulative** 19/20.
+**New work** 19/23, **regressions** 0, **repairs** 0, **cumulative** 23/27.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 34.5 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 0 | — | throttled 0%, server peak 0 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 51.7 | None | None | None | — | — | green | 19/20 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
+| 3 | See other people's edits appear live on the same board | DONE | 39.2 | None | None | None | — | — | green | 23/27 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 2 stories, 86 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 19/20, stalled 0, partial 0, 5492 lines in src+tests.
+**Totals:** 3 stories, 125 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/3, final acceptance 23/27, stalled 0, partial 0, 7383 lines in src+tests.
 
 ## How it happened
 
@@ -28,6 +30,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 4 by the agent | 7219 / 83 | `BoardViewport.tsx` (278), `useCamera.ts` (227), `camera.ts` (189), `styles.css` (183), `NOTES.md` (84), `ZoomControls.tsx` (75), +15 more |
 | 2 | 2 by the agent | 3111 / 34 | `StickyNote.tsx` (288), `board-model.ts` (234), `styles.css` (184), `StickyTextEditor.tsx` (142), `StickyText.ts` (138), `App.tsx` (126), +8 more |
+| 3 | 1 by the agent | 3290 / 21 | `board-room.ts` (148), `connectBoard.ts` (99), `protocol.ts` (58), `App.tsx` (47), `ConnectionStatus.tsx` (40), `styles.css` (31), +11 more |
 
 ### Earlier stories broken or fixed
 

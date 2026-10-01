@@ -1,11 +1,13 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 export interface BoardDoc {
   readonly doc: Y.Doc;
   /** Sticky notes sorted by (z, id); a new array only when the doc changed. */
   readonly notes: readonly StickySnapshot[];
+  readonly connectionState: ConnectionState;
 }
 
 function createDoc(): Y.Doc {
@@ -44,13 +46,26 @@ class DocStore {
 
 /**
  * Owns the board's `Y.Doc` for this page and exposes its sticky notes as an
- * immutable snapshot through `useSyncExternalStore`. Story 3 attaches a network
- * provider to the same doc; story 4 persists it — this hook's API does not
- * change. Passing a doc (component tests, future providers) uses that document
- * instead of creating one.
+ * immutable snapshot through `useSyncExternalStore`. When a boardId is provided
+ * it attaches a WebSocket provider for live collaboration.
+ *
+ * Passing a doc (component tests, future providers) uses that document instead
+ * of creating one.
  */
-export function useBoardDoc(external?: Y.Doc): BoardDoc {
+export function useBoardDoc(external?: Y.Doc, boardId?: string): BoardDoc {
   const [store] = useState<DocStore>(() => new DocStore(external ?? createDoc()));
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const notes = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
-  return { doc: store.doc, notes };
+
+  useEffect(() => {
+    if (!boardId) {
+      // No boardId: no connection needed (component tests etc.)
+      setConnectionState('connected');
+      return;
+    }
+    const conn = connectBoard(store.doc, boardId, setConnectionState);
+    return () => conn.destroy();
+  }, [store.doc, boardId]);
+
+  return { doc: store.doc, notes, connectionState };
 }

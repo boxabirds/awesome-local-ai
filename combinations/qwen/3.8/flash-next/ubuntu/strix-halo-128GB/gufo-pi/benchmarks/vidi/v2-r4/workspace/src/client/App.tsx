@@ -7,8 +7,11 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import * as Y from 'yjs';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { newBoardId } from '../shared/board-id';
+import { isTestMode, setTestConnectionState } from './testHooks';
 import type { Camera, Point } from './canvas/camera';
 
 /** True when the key press belongs to the focused field, not the board. */
@@ -20,9 +23,17 @@ function isTextEntry(target: EventTarget | null): boolean {
 }
 
 /**
+ * Extract boardId from a /b/:boardId pathname.
+ */
+function extractBoardId(pathname: string): string | null {
+  const match = pathname.match(/^\/b\/([^/]+)$/);
+  return match ? match[1] : null;
+}
+
+/**
  * The board: a navigable infinite canvas (story 1) populated with sticky notes
- * (story 2). Selection and editing are local; the notes live in the board
- * document.
+ * (story 2), with live collaboration (story 3). Selection and editing are local;
+ * the notes live in the board document.
  */
 export interface AppProps {
   /**
@@ -30,14 +41,35 @@ export interface AppProps {
    * component tests pass a doc they can also read and mutate.
    */
   doc?: Y.Doc;
+  /**
+   * Optional boardId to connect to the sync server. If omitted, no connection.
+   */
+  boardId?: string;
 }
 
-export function App({ doc: externalDoc }: AppProps = {}): React.JSX.Element {
-  const { doc, notes } = useBoardDoc(externalDoc);
+export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): React.JSX.Element {
+  // If no boardId prop is given, try to extract from URL; generate one if absent
+  const [boardId] = useState<string | undefined>(() => {
+    if (propBoardId) return propBoardId;
+    const fromUrl = extractBoardId(window.location.pathname);
+    if (fromUrl) return fromUrl;
+    // No boardId in URL: generate one and update the address bar
+    const id = newBoardId();
+    window.history.replaceState(null, '', `/b/${id}`);
+    return id;
+  });
+
+  const { doc, notes, connectionState } = useBoardDoc(externalDoc, boardId);
+
+  // Expose connection state for e2e tests
+  useEffect(() => {
+    if (isTestMode()) {
+      setTestConnectionState(connectionState);
+    }
+  }, [connectionState]);
+
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   const bridgeRef = useRef<ViewportBridge | null>(null);
-  // Notes are drawn inside the zoomed world layer; they need the zoom for the
-  // drag delta and to counter-scale their toolbar.
   const [zoom, setZoom] = useState(1);
   const onCameraChange = useCallback((camera: Camera) => setZoom(camera.zoom), []);
 
@@ -74,8 +106,6 @@ export function App({ doc: externalDoc }: AppProps = {}): React.JSX.Element {
   );
 
   // Board keyboard: Enter edits the selected note; Delete/Backspace removes it.
-  // Both are ignored while a note is being edited or while a field has focus,
-  // so the keys keep editing text instead of touching notes.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -100,6 +130,7 @@ export function App({ doc: externalDoc }: AppProps = {}): React.JSX.Element {
 
   return (
     <div className="app">
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         bridgeRef={bridgeRef}
         onCreateStickyWorld={onCreateStickyWorld}

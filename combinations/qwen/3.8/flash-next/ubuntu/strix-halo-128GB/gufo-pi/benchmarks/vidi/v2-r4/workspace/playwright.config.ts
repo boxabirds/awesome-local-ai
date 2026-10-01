@@ -31,6 +31,7 @@ const selected = (process.env.E2E_PROJECTS ?? 'chromium')
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
+  workers: 3,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: [['list']],

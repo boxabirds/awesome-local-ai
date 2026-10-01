@@ -359,3 +359,34 @@ body {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* Connection status badge (story 3) ------------------------------------ */
+
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.connection-status.connecting {
+  background: rgb(31 35 40 / 82%);
+  color: #fff;
+}
+
+.connection-status.reconnecting {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.connection-status.confirmed {
+  background: #dcfce7;
+  color: #166534;
+}
