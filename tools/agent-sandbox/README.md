@@ -234,3 +234,11 @@ What must change with it, each seen while testing:
 - **Linux, one sandbox per session.** With a private network each `run` has its own loopback. `preflight.py` starts `wrangler dev` in one sandbox, polls it from the host and loads it from a second sandbox; all three must happen inside one sandbox (as tests/sandbox.rs does it). An agent session is already one sandbox.
 - **`pkill`/`pgrep` on macOS** stop working (see above); `lsof -ti tcp:<port>` and `kill` work.
 - **Homebrew tools** (a Homebrew node or OpenCode) need `--ro /opt/homebrew`: their scripts name Homebrew's node by absolute path.
+
+## Known limit, accepted (owner's decision, 1 October 2026)
+
+On macOS a run that needs `--ephemeral-ports` (anything that serves on kernel-picked ports: `wrangler dev` does)
+can connect to every listener in the kernel's ephemeral port range, its own or not. Seatbelt can't say "the ports
+this sandbox bound". It is accepted while one agent runs per Mac at a time and nothing in that range holds
+held-out data; revisit it if a Mac ever runs two agents at once (the alternatives: narrow the machine's ephemeral
+range, or run the agent in a Linux VM on the bubblewrap path, where the loopback is the sandbox's own).
