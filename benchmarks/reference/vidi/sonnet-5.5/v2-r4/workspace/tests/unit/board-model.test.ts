@@ -128,7 +128,7 @@ describe('board model', () => {
     createSticky(doc, { x: 0, y: 0 });
     const shape = new Y.Map<unknown>();
     (doc.getMap('objects') as Y.Map<Y.Map<unknown>>).set('s1', shape);
-    shape.set('type', 'shape');
+    shape.set('type', 'hologram');
     expect(() => snapshot(doc)).not.toThrow();
     expect(snapshot(doc)).toHaveLength(1);
   });

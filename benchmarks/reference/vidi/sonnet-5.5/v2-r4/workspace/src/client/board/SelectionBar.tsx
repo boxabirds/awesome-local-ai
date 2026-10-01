@@ -5,6 +5,8 @@ import type { UndoController } from './undo';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { isText, setTextSize } from '../../shared/objects/text';
 import { TextToolbar } from '../objects/TextToolbar';
+import { isShape, setShapeStyle } from '../../shared/objects/shape';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { defaultMeasurer } from '../objects/textLayout';
 import { remeasureText } from '../objects/useTextBoxSync';
 import { selectionScreenBox } from './SelectionOverlay';
@@ -34,7 +36,7 @@ export function SelectionBar(props: {
   const box = selectionScreenBox(ids, snapshot, camera);
   if (!box || selected.length === 0 || props.hidden) return null;
   const single = selected.length === 1 ? selected[0] : null;
-  if (single && !isSticky(single) && !isText(single)) return null;
+  if (single && !isSticky(single) && !isText(single) && !isShape(single)) return null;
   if (single && !editable) return null;
 
   return (
@@ -47,7 +49,23 @@ export function SelectionBar(props: {
         zIndex: 11,
       }}
     >
-      {single && isText(single) ? (
+      {single && isShape(single) ? (
+        <ShapeToolbar
+          fill={single.fill}
+          stroke={single.stroke}
+          onFill={(fill) => {
+            props.undo?.boundary();
+            setShapeStyle(doc, single.id, { fill });
+            props.undo?.boundary();
+          }}
+          onStroke={(stroke) => {
+            props.undo?.boundary();
+            setShapeStyle(doc, single.id, { stroke });
+            props.undo?.boundary();
+          }}
+          onDelete={props.onDelete}
+        />
+      ) : single && isText(single) ? (
         <TextToolbar
           size={single.size}
           onSize={(s) => {

@@ -5,7 +5,7 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
 import type { Selection } from './useSelection';
-import type { Tool } from './useTool';
+import { TOOL_SHORTCUTS, type Tool } from '../tools/useActiveTool';
 
 const ARROWS: Record<string, [number, number]> = {
   ArrowLeft: [-1, 0],
@@ -64,8 +64,8 @@ export function useBoardKeys(opts: {
         setTool?.('select');
         return;
       }
-      if (lower === 't' && !e.shiftKey) {
-        if (canEdit) setTool?.('text');
+      if ((lower === 't' || lower === 's' || lower === 'l') && !e.shiftKey) {
+        if (canEdit) setTool?.(TOOL_SHORTCUTS[lower]);
         return;
       }
       if (lower === 'n' && !e.shiftKey) {

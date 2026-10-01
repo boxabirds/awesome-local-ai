@@ -1,6 +1,10 @@
 import * as Y from 'yjs';
 import { DEFAULT_STICKY_COLOR, DEFAULT_TEXT_SIZE, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES, type StickyColor, type TextSize } from './config';
 import type { TextSnapshot } from './objects/text';
+import type { ShapeSnap } from './objects/shape';
+import { detachConnectorsTo, parseEndpoint, type ConnectorSnap } from './objects/connector';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import { DEFAULT_SHAPE_FILL, DEFAULT_SHAPE_STROKE, SHAPE_FILL_COLORS, SHAPE_KINDS, SHAPE_STROKE_COLORS } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
@@ -28,7 +32,7 @@ export function isSticky(o: ObjectSnapshot): o is StickySnapshot {
 }
 
 /** Object types the client can render, select and transform (the registry adds its own). */
-const knownTypes = new Set<string>(['sticky', 'text']);
+const knownTypes = new Set<string>(['sticky', 'text', 'shape', 'connector']);
 export function registerKnownType(type: string): void {
   knownTypes.add(type);
 }
@@ -126,9 +130,15 @@ export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): 
   for (const p of positions.values()) if (!finite(p.x, p.y)) return 0;
   const present = [...positions].filter(([id]) => objects(doc).has(id));
   if (present.length === 0) return 0;
+  const bounds = present.some(([id]) => objects(doc).get(id)!.get('type') === 'connector') ? connectorBounds(doc) : null;
   doc.transact(() => {
     for (const [id, p] of present) {
       const obj = objects(doc).get(id)!;
+      if (obj.get('type') === 'connector') {
+        const b = bounds?.get(id);
+        if (b) translateConnector(obj, p.x - b.x, p.y - b.y);
+        continue;
+      }
       obj.set('x', p.x);
       obj.set('y', p.y);
     }
@@ -136,14 +146,36 @@ export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): 
   return present.length;
 }
 
+/** Derived bounding boxes of the connectors on the board. */
+function connectorBounds(doc: Y.Doc): Map<string, Rect> {
+  const out = new Map<string, Rect>();
+  for (const o of snapshot(doc)) if (o.type === 'connector') out.set(o.id, objectBounds(o));
+  return out;
+}
+
+/** A connector has no position of its own: moving it shifts its free ends; attached ends follow their objects. */
+function translateConnector(obj: Y.Map<unknown>, dx: number, dy: number): void {
+  if (dx === 0 && dy === 0) return;
+  for (const key of ['from', 'to']) {
+    const e = parseEndpoint(obj.get(key));
+    if (e.kind === 'free') obj.set(key, { kind: 'free', x: e.x + dx, y: e.y + dy });
+  }
+}
+
 /** Absolute rects; the first resize of an implicitly sized sticky writes width and height. */
 export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): number {
   for (const r of rects.values()) if (!finite(r.x, r.y, r.width, r.height) || r.width <= 0 || r.height <= 0) return 0;
   const present = [...rects].filter(([id]) => objects(doc).has(id));
   if (present.length === 0) return 0;
+  const bounds = present.some(([id]) => objects(doc).get(id)!.get('type') === 'connector') ? connectorBounds(doc) : null;
   doc.transact(() => {
     for (const [id, r] of present) {
       const obj = objects(doc).get(id)!;
+      if (obj.get('type') === 'connector') {
+        const b = bounds?.get(id);
+        if (b) translateConnector(obj, r.x - b.x, r.y - b.y);
+        continue;
+      }
       obj.set('x', r.x);
       obj.set('y', r.y);
       obj.set('width', r.width);
@@ -174,7 +206,10 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = [...new Set(ids)].filter((id) => objects(doc).has(id));
   if (present.length === 0) return 0;
-  doc.transact(() => present.forEach((id) => objects(doc).delete(id)), LOCAL_ORIGIN);
+  doc.transact(() => {
+    detachConnectorsTo(doc, present);
+    present.forEach((id) => objects(doc).delete(id));
+  }, LOCAL_ORIGIN);
   return present.length;
 }
 
@@ -188,8 +223,20 @@ export function stickies(doc: Y.Doc): readonly StickySnapshot[] {
   return snapshot(doc).filter(isSticky);
 }
 
+/** Rectangles of every board object that arrows can attach to (everything but connectors). */
+export function objectRects(doc: Y.Doc): Map<string, Rect> {
+  const out = new Map<string, Rect>();
+  for (const o of readObjects(doc, false)) out.set(o.id, objectBounds(o));
+  return out;
+}
+
 export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
+  return readObjects(doc, true);
+}
+
+function readObjects(doc: Y.Doc, withConnectors: boolean): readonly ObjectSnapshot[] {
   const out: ObjectSnapshot[] = [];
+  const connectors: [string, Y.Map<unknown>, ObjectSnapshot][] = [];
   objects(doc).forEach((o, id) => {
     if (!(o instanceof Y.Map)) return;
     const type = o.get('type');
@@ -230,8 +277,34 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         widthMode: o.get('widthMode') === 'fixed' ? 'fixed' : 'auto',
       };
       out.push(t);
+    } else if (type === 'shape') {
+      const label = o.get('label');
+      const kind = o.get('kind') as string;
+      const fill = o.get('fill') as string;
+      const stroke = o.get('stroke') as string;
+      const shape: ShapeSnap = {
+        ...base,
+        type: 'shape',
+        kind: (SHAPE_KINDS as readonly string[]).includes(kind) ? (kind as ShapeSnap['kind']) : 'rect',
+        fill: Object.prototype.hasOwnProperty.call(SHAPE_FILL_COLORS, fill) ? (fill as ShapeSnap['fill']) : DEFAULT_SHAPE_FILL,
+        stroke: Object.prototype.hasOwnProperty.call(SHAPE_STROKE_COLORS, stroke) ? (stroke as ShapeSnap['stroke']) : DEFAULT_SHAPE_STROKE,
+        label: label instanceof Y.Text ? label.toString() : '',
+      };
+      out.push(shape);
+    } else if (type === 'connector') {
+      if (withConnectors) connectors.push([id, o, base]);
     } else out.push(base);
   });
+  if (connectors.length > 0) {
+    const rects = new Map<string, Rect>();
+    for (const o of out) rects.set(o.id, objectBounds(o));
+    for (const [, o, base] of connectors) {
+      const c = { from: parseEndpoint(o.get('from')), to: parseEndpoint(o.get('to')) };
+      const ends = resolveEndpoints(c, rects);
+      const conn: ConnectorSnap = { ...base, type: 'connector', ...c, ends, ...connectorBBox(ends.from, ends.to) };
+      out.push(conn);
+    }
+  }
   out.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;
 }

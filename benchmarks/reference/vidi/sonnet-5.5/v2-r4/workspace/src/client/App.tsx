@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
-import { createSticky, deleteObjects } from '../shared/board-model';
+import { createSticky, deleteObjects, objectBounds } from '../shared/board-model';
 import { createText } from '../shared/objects/text';
 import { localIdentityId } from './identity';
-import { useTool } from './board/useTool';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
+import { ObjectRectsContext } from './objects/rectsContext';
+import type { Rect } from '../shared/geometry';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { createUndo, NO_UNDO, type UndoController } from './board/undo';
@@ -61,7 +65,12 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
   const gesture = useTransformGesture({ doc, camera: liveCamera, selection: sel, snapshot: objects, canEdit: editable, onGestureStart: undoCtl.boundary, onGestureEnd: undoCtl.boundary });
   const undoState = useUndo(undoCtl, editable);
 
-  const { tool, setTool } = useTool(editable);
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({ canEdit: editable, select: sel.select });
+  const rects = useMemo(() => {
+    const m = new Map<string, Rect>();
+    for (const o of objects) if (o.type !== 'connector') m.set(o.id, objectBounds(o));
+    return m;
+  }, [objects]);
   const viewCentreRef = useRef({ x: 0, y: 0 });
 
   const deleteSelection = () => {
@@ -101,6 +110,7 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
 
   return (
     <UndoContext.Provider value={undoCtl}>
+    <ObjectRectsContext.Provider value={rects}>
     {boardId && <ConnectionStatus state={connection} />}
     <BoardViewport
       onDoubleClickEmpty={create}
@@ -114,7 +124,19 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
         viewCentreRef.current = ctx.viewCentre;
         return (
           <>
-            <Toolbar disabled={!editable} tool={tool} onTool={setTool} onCreateSticky={() => create(ctx.viewCentre)}>
+            {tool === 'shape' && <ShapeTool kind={shapeKind} camera={ctx.camera} doc={doc} undo={undoCtl} onCreated={toolCreated} />}
+            {tool === 'connector' && <ConnectorTool camera={ctx.camera} snapshot={objects} doc={doc} undo={undoCtl} onCreated={toolCreated} />}
+            <Toolbar
+              disabled={!editable}
+              tool={tool}
+              onTool={setTool}
+              shapeKind={shapeKind}
+              onShapeKind={(k) => {
+                setShapeKind(k);
+                setTool('shape');
+              }}
+              onCreateSticky={() => create(ctx.viewCentre)}
+            >
               <UndoButtons {...undoState} />
             </Toolbar>
             <SelectionOverlay
@@ -162,6 +184,7 @@ export function App({ doc: externalDoc, boardId }: { doc?: Y.Doc; boardId?: stri
           });
       }}
     </BoardViewport>
+    </ObjectRectsContext.Provider>
     </UndoContext.Provider>
   );
 }

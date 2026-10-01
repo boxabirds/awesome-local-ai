@@ -1,6 +1,10 @@
 import type * as Y from 'yjs';
 import { objectBounds, registerKnownType, type ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import type { ConnectorSnap } from '../../shared/objects/connector';
+import { ConnectorObject } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import type { PointerLike } from '../board/useTransformGesture';
 import type { Point } from '../canvas/camera';
 import { StickyNote } from './StickyNote';
@@ -30,7 +34,8 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** Handles shown when every selected object is of a 'horizontal' type; default 'all'. */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /** `zoom` converts screen-pixel tolerances (arrows) to board units. */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const types = new Map<string, ObjectTypeSpec>();
@@ -67,4 +72,25 @@ registerObjectType('text', {
   editableText: true,
   handles: 'horizontal',
   hitTest: boundsHitTest,
+});
+
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: boundsHitTest,
+});
+
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest: (obj, p, zoom = 1) => {
+    const { from, to } = (obj as ConnectorSnap).ends;
+    return distanceToPolyline([from, to], p) <= CONNECTOR_HIT_TOLERANCE_PX / zoom;
+  },
 });

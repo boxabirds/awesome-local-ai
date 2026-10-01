@@ -12,6 +12,7 @@ export type SelectionAction =
   | { type: 'setMany'; ids: string[]; additive: boolean }
   | { type: 'clear' }
   | { type: 'prune'; presentIds: ReadonlySet<string> }
+  | { type: 'select'; id: string }
   | { type: 'edit'; id: string | null };
 
 export const EMPTY_SELECTION: SelectionState = { ids: new Set(), editingId: null };
@@ -41,6 +42,8 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
       if (kept.length === state.ids.size && editingId === state.editingId) return state;
       return { ids: new Set(kept), editingId };
     }
+    case 'select':
+      return { ids: new Set([action.id]), editingId: null };
     case 'edit':
       return action.id === null ? (state.editingId === null ? state : { ...state, editingId: null }) : { ids: new Set([action.id]), editingId: action.id };
   }
@@ -53,6 +56,8 @@ export interface Selection {
   toggle(id: string): void;
   setMany(ids: string[], additive: boolean): void;
   clear(): void;
+  /** Makes `id` the only selected object, even before the snapshot has seen it (a tool just created it). */
+  select(id: string): void;
   startEdit(id: string): void;
   /** `'unselected'` also clears the selection (story 2: Escape-less exits such as an emptied-out edit). */
   endEdit(next?: 'selected' | 'unselected'): void;
@@ -77,11 +82,12 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   );
   const clear = useCallback(() => dispatch({ type: 'clear' }), []);
   // Not filtered: a note is created and put into edit mode before the snapshot has seen it (prune covers a bad id).
+  const select = useCallback((id: string) => dispatch({ type: 'select', id }), []);
   const startEdit = useCallback((id: string) => dispatch({ type: 'edit', id }), []);
   const endEdit = useCallback((next: 'selected' | 'unselected' = 'selected') => dispatch(next === 'selected' ? { type: 'edit', id: null } : { type: 'clear' }), []);
 
   return useMemo(
-    () => ({ ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit }),
-    [state, click, toggle, setMany, clear, startEdit, endEdit],
+    () => ({ ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, select, startEdit, endEdit }),
+    [state, click, toggle, setMany, clear, select, startEdit, endEdit],
   );
 }
