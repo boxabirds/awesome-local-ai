@@ -2,21 +2,25 @@ import { useEffect, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
 
 export function StickyTextEditor(props: {
-  ytext: Y.Text; fontPx: number; onEnd(next: 'selected' | 'unselected'): void;
+  ytext: Y.Text; fontPx: number; onEnd(next: 'selected' | 'unselected'): void; undo?: UndoController;
 }) {
   const { ytext, fontPx, onEnd } = props;
   const ref = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
+  const undoRef = useRef(props.undo);
+  undoRef.current = props.undo;
   const [length, setLength] = useState(() => ytext.length);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    undoRef.current?.boundary(); // edit start
     el.value = ytext.toString();
     el.focus();
     el.setSelectionRange(el.value.length, el.value.length);
@@ -52,6 +56,7 @@ export function StickyTextEditor(props: {
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
       ytext.unobserve(onRemote);
+      undoRef.current?.boundary(); // edit end
     };
   }, [ytext]);
 
@@ -79,6 +84,16 @@ export function StickyTextEditor(props: {
         onCompositionEnd={() => { composing.current = false; flush(); }}
         onBlur={() => { if (!composing.current) flush(); }}
         onKeyDown={(e) => {
+          const key = e.key.toLowerCase();
+          const ctl = props.undo;
+          if (ctl && (e.ctrlKey || e.metaKey) && !e.altKey && (key === 'z' || (key === 'y' && e.ctrlKey))) {
+            e.preventDefault(); // native textarea undo would diverge from the Y.Text
+            e.stopPropagation();
+            if (composing.current) return;
+            flush();
+            if (key === 'y' || e.shiftKey) ctl.redo(); else ctl.undo();
+            return;
+          }
           if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();

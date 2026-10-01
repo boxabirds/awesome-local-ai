@@ -68,16 +68,16 @@ export function StickyNote(props: ObjectProps) {
         <div ref={textRef} className="sticky-text" style={{ fontSize: fit.fontPx }}>{note.text}</div>
       </div>
       {editing && !readOnly && (
-        <StickyTextEditorHost doc={doc} id={id} fontPx={fit.fontPx} onEnd={props.onEndEdit} />
+        <StickyTextEditorHost doc={doc} id={id} fontPx={fit.fontPx} onEnd={props.onEndEdit} undo={props.undo} />
       )}
     </div>
   );
 }
 
 function StickyTextEditorHost(props: {
-  doc: ObjectProps['doc']; id: string; fontPx: number; onEnd(next: 'selected' | 'unselected'): void;
+  doc: ObjectProps['doc']; id: string; fontPx: number; onEnd(next: 'selected' | 'unselected'): void; undo?: ObjectProps['undo'];
 }) {
   const ytext = getStickyText(props.doc, props.id);
   if (!ytext) return null; // note deleted while editing: no write, no re-creation
-  return <StickyTextEditor ytext={ytext} fontPx={props.fontPx} onEnd={props.onEnd} />;
+  return <StickyTextEditor ytext={ytext} fontPx={props.fontPx} onEnd={props.onEnd} undo={props.undo} />;
 }

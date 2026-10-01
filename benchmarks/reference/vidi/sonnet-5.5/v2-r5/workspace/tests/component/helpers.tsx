@@ -6,6 +6,7 @@ import { SelectionOverlay } from '../../src/client/board/SelectionOverlay';
 import { useBoardKeys } from '../../src/client/board/useBoardKeys';
 import { useSelection, type Selection } from '../../src/client/board/useSelection';
 import { useTransformGesture } from '../../src/client/board/useTransformGesture';
+import type { UndoController } from '../../src/client/board/undo';
 import { getObjectType } from '../../src/client/objects/registry';
 import '../fixtures/testbox';
 
@@ -28,16 +29,18 @@ export function newDoc(): Y.Doc {
 }
 
 /** Renders the registered objects of a doc the test owns, with the real selection, gesture, keys, overlay and bar. */
-export function Harness({ doc, zoom = 1, canEdit = true, onGestureStart, onGestureEnd, onSelection }: {
-  doc: Y.Doc; zoom?: number; canEdit?: boolean;
+export function Harness({ doc, zoom = 1, canEdit = true, undo, onGestureStart, onGestureEnd, onSelection }: {
+  doc: Y.Doc; zoom?: number; canEdit?: boolean; undo?: UndoController;
   onGestureStart?(): void; onGestureEnd?(): void;
   onSelection?(sel: Selection): void;
 }) {
   const [objects, setObjects] = useState<readonly ObjectSnapshot[]>(() => snapshotObjects(doc));
   const sel = useSelection(objects);
   const camera = useMemo(() => ({ x: 0, y: 0, zoom }), [zoom]);
-  const gesture = useTransformGesture({ doc, camera, selection: sel, snapshot: objects, canEdit, onGestureStart, onGestureEnd });
-  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit });
+  const gesture = useTransformGesture({ doc, camera, selection: sel, snapshot: objects, canEdit,
+    onGestureStart: () => { undo?.boundary(); onGestureStart?.(); }, onGestureEnd: () => { undo?.boundary(); onGestureEnd?.(); },
+  });
+  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit, undo });
   useEffect(() => { onSelection?.(sel); });
   useEffect(() => {
     const map = doc.getMap('objects');
@@ -55,7 +58,7 @@ export function Harness({ doc, zoom = 1, canEdit = true, onGestureStart, onGestu
           <Component
             key={o.id} object={o} doc={doc} zoom={zoom}
             selected={sel.ids.has(o.id)} editing={canEdit && sel.editingId === o.id}
-            dragging={gesture.activeIds.has(o.id)} readOnly={!canEdit}
+            dragging={gesture.activeIds.has(o.id)} readOnly={!canEdit} undo={undo}
             onPointerDown={gesture.onObjectPointerDown}
             onStartEdit={sel.startEdit} onEndEdit={sel.endEdit}
           />

@@ -3,8 +3,10 @@ import { createSticky, deleteObjects, setStickyColor } from '../../shared/board-
 import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
 import { Toolbar } from './Toolbar';
+import { UndoButtons } from './UndoButtons';
 import { useBoardDoc } from './useBoardDoc';
 import { useBoardKeys } from './useBoardKeys';
+import { useUndo, useUndoController } from './useUndo';
 import { useSelection } from './useSelection';
 import { useTransformGesture } from './useTransformGesture';
 import { BoardViewport, type BoardApi } from '../canvas/BoardViewport';
@@ -39,8 +41,14 @@ export function Board({ boardId }: { boardId: string }) {
     get zoom() { return apiRef.current?.getCamera().zoom ?? 1; },
   }), []);
 
-  const gesture = useTransformGesture({ doc, camera: liveCamera, selection: sel, snapshot: objects, canEdit: editable });
-  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable });
+  const undoCtl = useUndoController(doc);
+  const undoState = useUndo(undoCtl, editable);
+  const boundary = undoCtl.boundary;
+  const gesture = useTransformGesture({
+    doc, camera: liveCamera, selection: sel, snapshot: objects, canEdit: editable,
+    onGestureStart: boundary, onGestureEnd: boundary,
+  });
+  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable, undo: undoCtl });
 
   // Stacking is CSS z-index (z, with id as DOM-order tie-break). The DOM order stays stable so that
   // raising objects never moves an element, which would drop its pointer capture mid-drag.
@@ -48,12 +56,16 @@ export function Board({ boardId }: { boardId: string }) {
 
   const createAt = (world: Point) => {
     if (!editable) return;
+    boundary();
     const id = createSticky(doc, world);
+    boundary();
     if (id) sel.startEdit(id);
   };
   const deleteSelection = () => {
     if (!editable) return;
+    boundary();
     deleteObjects(doc, [...sel.ids]);
+    boundary();
     sel.clear();
   };
 
@@ -74,12 +86,13 @@ export function Board({ boardId }: { boardId: string }) {
               <SelectionBar
                 ids={sel.ids} snapshot={objects} camera={api.camera} readOnly={!editable}
                 onDelete={deleteSelection}
-                onColor={(id, c) => { setStickyColor(doc, id, c); }}
+                onColor={(id, c) => { boundary(); setStickyColor(doc, id, c); boundary(); }}
               />
             </>
           )}
           <Toolbar
             disabled={!editable}
+            undoButtons={<UndoButtons {...undoState} />}
             onCreateSticky={() => createAt(
               screenToWorld(api.getCamera(), { x: api.size.width / HALF, y: api.size.height / HALF }),
             )}
@@ -113,6 +126,7 @@ export function Board({ boardId }: { boardId: string }) {
               editing={editable && sel.editingId === object.id}
               dragging={gesture.activeIds.has(object.id)}
               readOnly={!editable}
+              undo={undoCtl}
               onPointerDown={gesture.onObjectPointerDown}
               onStartEdit={sel.startEdit}
               onEndEdit={sel.endEdit}

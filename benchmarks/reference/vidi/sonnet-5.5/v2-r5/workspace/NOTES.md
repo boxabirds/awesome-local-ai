@@ -67,3 +67,12 @@
 - `resizeRect`/`handleScale`/`scaleRectFrom` are split in `geometry.ts` so the gesture can clamp the scale between computing it and applying it. Aspect-locked corner resize uses the axis with the larger relative change; aspect-locked edge resize centres the other axis.
 - `tests/fixtures/testbox.tsx` registers the test-only type and is excluded from `tsconfig.worker.json` (JSX). The unit project now also picks up `*.test.tsx`.
 - e2e ran in Chromium only (Firefox/WebKit not installed), so TC-32 was not run in Firefox/WebKit. `npm run test:e2e` runs all configured projects, so use `npx playwright test --project=chromium --workers=2` here.
+
+## Story 8 decisions
+- The controller is created in `Board.tsx` (via `useUndoController`) rather than `App.tsx`, because story 5 moved the board screen there and existing component tests mock `useBoardDoc`. It is replaced when the doc changes and recreated after a StrictMode effect cycle (history is empty either way).
+- `undo()`/`redo()` expose only the newest step to `Y.UndoManager` (older steps are set aside during the call). Yjs would otherwise keep popping until a step changes something, so undoing a move of a note someone else deleted would silently also undo the next real step; now that step is consumed with no visible effect and the next undo continues normally.
+- Objects receive an optional `undo` prop (`ObjectProps`), used by `StickyTextEditor` for edit start/end boundaries and for Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl+Y inside the textarea (`useBoardKeys` ignores keys while editing).
+- `useBoardKeys` takes an optional `undo`; nudges and Delete wrap the model call in `boundary()`, so each arrow press is its own step.
+- Unit test TC-12/13 call `vi.hoisted(() => vi.useFakeTimers())` because lib0 captures `Date.now` at import time; installing the fake clock afterwards would not move the Yjs capture clock.
+- Tests use a `Harness` `undo` prop (component) and `tests/unit/helpers/peer.ts` (simulated peer and LOAD-origin updates). e2e ran in Chromium only.
+- TC-26 (story 3) is flaky under parallel workers here; it passes alone. Run e2e as `npx vite build --mode test` first (a plain `npm run build` removes the test hooks from dist).

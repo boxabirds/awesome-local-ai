@@ -1,4 +1,6 @@
-export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
+import type { ReactNode } from 'react';
+
+export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean; undoButtons?: ReactNode }) {
   return (
     <div className="left-toolbar" role="toolbar" aria-label="Tools" onPointerDown={(e) => e.stopPropagation()}>
       <button
@@ -12,6 +14,7 @@ export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
           <path d="M4 4h16v10l-6 6H4z M14 20v-6h6" />
         </svg>
       </button>
+      {props.undoButtons}
     </div>
   );
 }

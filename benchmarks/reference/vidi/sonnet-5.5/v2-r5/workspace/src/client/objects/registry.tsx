@@ -3,6 +3,7 @@ import type * as Y from 'yjs';
 import { objectBounds, registerKnownObjectType, type ObjectSnapshot } from '../../shared/board-model';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
+import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 
 /** Everything a board object component receives; selection, move, resize and delete stay generic (sel.all_types). */
@@ -19,6 +20,8 @@ export interface ObjectProps {
   onPointerDown(e: ReactPointerEvent, id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /** This tab's undo history; editors use it for step boundaries and Ctrl/Cmd+Z. */
+  undo?: UndoController;
 }
 
 export interface ObjectTypeSpec {

@@ -7,6 +7,7 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { Selection } from './useSelection';
+import type { UndoController } from './undo';
 
 const TEXT_ENTRY_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 const ARROWS: Record<string, Point> = {
@@ -16,13 +17,14 @@ const ARROWS: Record<string, Point> = {
 /** Ctrl/Cmd+A, Escape, arrow nudging, Delete/Backspace and Enter-to-edit for the board. */
 export function useBoardKeys(opts: {
   doc: Y.Doc; selection: Selection; snapshot: readonly ObjectSnapshot[]; canEdit: boolean;
+  undo?: UndoController;
 }): void {
   const ref = useRef(opts);
   ref.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit } = ref.current;
+      const { doc, selection, snapshot, canEdit, undo } = ref.current;
       if (selection.editingId !== null || e.defaultPrevented) return;
       const t = e.target;
       if (t instanceof HTMLElement && (TEXT_ENTRY_TAGS.has(t.tagName) || t.isContentEditable)) return;
@@ -31,6 +33,13 @@ export function useBoardKeys(opts: {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         selection.setMany(allObjectIds(snapshot), false);
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && (key === 'z' || (key === 'y' && e.ctrlKey && !e.metaKey))) {
+        if (!canEdit || !undo) return;
+        e.preventDefault();
+        if (key === 'y' || e.shiftKey) undo.redo(); else undo.undo();
         return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -48,11 +57,15 @@ export function useBoardKeys(opts: {
           const b = objectBounds(o);
           positions.set(o.id, { x: b.x + d.x * step, y: b.y + d.y * step });
         });
+        undo?.boundary();
         moveObjects(doc, positions);
+        undo?.boundary();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         if (!canEdit) return;
+        undo?.boundary();
         deleteObjects(doc, ids.map((o) => o.id));
+        undo?.boundary();
         selection.clear();
       } else if (e.key === 'Enter' && ids.length === 1 && getObjectType(ids[0].type)?.editableText) {
         if (!canEdit || t instanceof HTMLButtonElement) return; // Enter activates the focused button
