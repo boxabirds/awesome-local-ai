@@ -149,17 +149,21 @@
           "e2e": 85.1,
           "build": 14.8,
           "unit": 4.1,
-          "bash": 0.5
+          "bash": 0.5,
+          "read": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.8,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -505,17 +509,21 @@
           "build": 1.6,
           "bash": 1.6,
           "read": 0.4,
-          "write": 0.2
+          "write": 0.2,
+          "edit": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 0.7,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -892,17 +900,21 @@
           "background": 5.5,
           "bash": 5.0,
           "build": 2.1,
-          "read": 0.3
+          "read": 0.3,
+          "schedulewakeup": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 0.6,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -1290,11 +1302,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 0.7,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -1682,11 +1697,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -2046,17 +2064,21 @@
           "background": 5.7,
           "bash": 2.9,
           "build": 2.6,
-          "read": 0.4
+          "read": 0.4,
+          "schedulewakeup": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.1,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -2500,11 +2522,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -2879,17 +2904,21 @@
           "unit": 34.4,
           "bash": 5.0,
           "build": 1.2,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.2,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -3311,11 +3340,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.1,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -3723,11 +3755,14 @@
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.2,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -4088,17 +4123,21 @@
           "bash": 6.7,
           "build": 0.8,
           "read": 0.6,
-          "write": 0.1
+          "write": 0.1,
+          "schedulewakeup": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 1.1,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
