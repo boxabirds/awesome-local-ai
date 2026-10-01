@@ -1,3 +1,99 @@
+commit 9e2014467ff0d78d5ddd9f98b3b4d938f4143f53
+vidi-agent  Thu Oct 1 21:19:01 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                     | 142 ++++++++
+ playwright.config.ts                         |  17 +
+ tests/e2e/helpers/participants.ts            | 476 +++++++++++++++++++++++++++
+ tests/e2e/live-collaboration.nightly.spec.ts | 373 +++++++++++++++++++++
+ tests/e2e/live-collaboration.spec.ts         | 401 ++++++++++++++++++++++
+ 5 files changed, 1409 insertions(+)
+commit d5776c7d0ec529d2a30f69368743d8a120c0c997
+vidi-agent  Thu Oct 1 21:18:52 2026 +0100
+
+    story 3: connect the client to the board's room, and say what the connection is doing
+
+
+ src/client/App.tsx                                 |  34 ++-
+ src/client/board/useBoardDoc.ts                    | 135 ++++++----
+ src/client/canvas/testHooks.ts                     |  41 ++-
+ src/client/objects/StickyText.ts                   |  70 ++++++
+ src/client/objects/StickyTextEditor.tsx            |  74 +++++-
+ src/client/sync/ConnectionStatus.tsx               |  74 ++++++
+ src/client/sync/connectBoard.ts                    | 175 +++++++++++++
+ src/client/sync/emulateOutage.ts                   |  61 +++++
+ src/shared/protocol.ts                             |  12 +
+ src/shared/routes.ts                               |  42 +++-
+ src/worker/index.ts                                |   9 +-
+ tests/component/ConnectionStatus.test.tsx          | 280 +++++++++++++++++++++
+ .../component/StickyTextEditor.concurrent.test.tsx | 206 +++++++++++++++
+ tests/component/setup.ts                           |  49 ++++
+ tests/integration/worker.test.ts                   |  12 +-
+ tests/unit/board-id.test.ts                        |  45 ++++
+ tests/unit/sticky-text.test.ts                     | 197 ++++++++++++++-
+ vite.config.ts                                     |   8 +
+ 18 files changed, 1451 insertions(+), 73 deletions(-)
+commit a6de125acf7340f5f6d4bfb0e86d07bc2f433fb5
+vidi-agent  Thu Oct 1 19:40:54 2026 +0100
+
+    task 3/5/6: integration tests for the worker route and the board room (35 green)
+
+
+ src/worker/index.ts                     |  14 +-
+ tests/integration/board-room.test.ts    | 770 ++++++++++++++++----------------
+ tests/integration/helpers/random-ops.ts | 128 ++++++
+ tests/integration/helpers/ws-client.ts  |  31 ++
+ tests/integration/worker.test.ts        | 167 ++++---
+ 5 files changed, 651 insertions(+), 459 deletions(-)
+commit 77079e0f80838cd40056fdf4d50165ab66ffffaf
+vidi-agent  Thu Oct 1 19:24:03 2026 +0100
+
+    task 3/5/6: integration tests for the worker route and the board room (33 green)
+
+
+ src/worker/board-room.ts               |  30 +-
+ tests/integration/board-room.test.ts   | 569 +++++++++++++++++++++++++++++++++
+ tests/integration/helpers/wait.ts      |  14 +
+ tests/integration/helpers/ws-client.ts |  61 ++--
+ 4 files changed, 649 insertions(+), 25 deletions(-)
+commit b0208f9465ba8f2857cb695002d1b46fad18caa3
+vidi-agent  Thu Oct 1 19:15:10 2026 +0100
+
+    task 2: Worker entry, BoardRoom, wrangler DO config, integration project
+
+
+ package-lock.json                      | 1464 +++++++-------------------------
+ package.json                           |   11 +-
+ src/shared/board-id.ts                 |   13 +-
+ src/shared/protocol.ts                 |   40 +-
+ src/shared/routes.ts                   |   25 +
+ src/worker/board-room.ts               |  182 ++++
+ src/worker/index.ts                    |   69 ++
+ tests/integration/helpers/wait.ts      |   29 +
+ tests/integration/helpers/ws-client.ts |  452 ++++++++++
+ tests/integration/worker.test.ts       |  167 ++++
+ tsconfig.json                          |    6 +-
+ tsconfig.worker.json                   |   13 +
+ vitest.config.ts                       |   51 +-
+ vitest.integration.config.ts           |   43 +
+ wrangler.jsonc                         |   20 +-
+ 15 files changed, 1404 insertions(+), 1181 deletions(-)
+commit 79b10d90072ace129829fcd330d13be75de474f6
+vidi-agent  Thu Oct 1 18:46:42 2026 +0100
+
+    task 1: board id + protocol unit tests (failing), story 3 settings, protocol/board-id stubs
+
+
+ package-lock.json           | 1359 +++++++++++++++++++++++++++++++++++++++++++
+ package.json                |    3 +
+ src/shared/board-id.ts      |   20 +
+ src/shared/config.ts        |   28 +
+ src/shared/protocol.ts      |   45 ++
+ tests/unit/board-id.test.ts |   64 ++
+ tests/unit/protocol.test.ts |  126 ++++
+ 7 files changed, 1645 insertions(+)
 commit ed5bcdfc174b27262a3c34e9bdf10b5c8e94588d
 vidi-agent  Thu Oct 1 18:28:08 2026 +0100
 
