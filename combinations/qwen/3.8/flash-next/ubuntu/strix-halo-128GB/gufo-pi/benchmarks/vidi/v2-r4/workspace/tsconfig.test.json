@@ -4,5 +4,6 @@
     "types": ["vite/client", "node", "@cloudflare/workers-types", "@testing-library/jest-dom"],
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo"
   },
+  "exclude": ["tests/integration/store"],
   "include": ["tests", "vitest.config.ts", "playwright.config.ts", "vite.config.ts", "src-types"]
 }

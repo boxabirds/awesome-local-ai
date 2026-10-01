@@ -13,7 +13,7 @@
     "test": "npm run test:unit && npm run test:component",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts && vitest run --config vitest.workers.config.ts",
     "test:e2e": "playwright test --grep-invert @nightly",
     "test:e2e:nightly": "playwright test --grep @nightly",
     "test:e2e:all": "E2E_PROJECTS=chromium,firefox,webkit playwright test"

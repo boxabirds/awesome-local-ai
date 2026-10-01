@@ -390,3 +390,9 @@ body {
   background: #dcfce7;
   color: #166534;
 }
+
+.connection-status.load-failed {
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 500;
+}

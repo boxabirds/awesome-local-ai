@@ -128,9 +128,11 @@ export class WsTestClient {
   }
 
   /** Send raw bytes or text (for malformed message tests). */
-  sendRaw(data: ArrayBuffer | string) {
+  sendRaw(data: ArrayBuffer | Uint8Array | string) {
     if (typeof data === 'string') {
       this.ws.send(data);
+    } else if (data instanceof Uint8Array) {
+      this.ws.send(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
     } else {
       this.ws.send(data);
     }

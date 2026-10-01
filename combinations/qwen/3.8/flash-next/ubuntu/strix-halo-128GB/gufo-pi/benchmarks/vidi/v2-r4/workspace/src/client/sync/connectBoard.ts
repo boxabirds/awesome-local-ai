@@ -1,8 +1,14 @@
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { RECONNECT_MAX_BACKOFF_MS, CONNECTED_CONFIRMATION_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
+
+/** Returns false only when the board cannot be loaded (read-only mode). */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 export interface BoardConnection {
   destroy(): void;
@@ -32,6 +38,12 @@ export function connectBoard(
   const provider = new WebsocketProvider(url, boardId, doc, {
     maxBackoffTime: RECONNECT_MAX_BACKOFF_MS,
     disableBc: true,
+    shouldReconnect(event: { code: number }) {
+      // Treat our load-failed close code as permanent (stop reconnecting)
+      if (event.code === CLOSE_BOARD_LOAD_FAILED) return false;
+      // Default: 4400-4499 are permanent; everything else reconnects
+      return !(event.code >= 4400 && event.code < 4500);
+    },
   });
 
   let hasConnected = false;
@@ -79,8 +91,15 @@ export function connectBoard(
     }
   };
 
+  const onClosed = (event: { code: number; reason: string }) => {
+    if (event.code === CLOSE_BOARD_LOAD_FAILED) {
+      setState('load_failed');
+    }
+  };
+
   provider.on('status', onStatus);
   provider.on('sync', onSync);
+  provider.on('closed', onClosed);
 
   // If already synced immediately
   if (provider.wsconnected && provider.synced) {
@@ -93,6 +112,7 @@ export function connectBoard(
       clearConfirmation();
       provider.off('status', onStatus);
       provider.off('sync', onSync);
+      provider.off('closed', onClosed);
       provider.destroy();
     },
   };

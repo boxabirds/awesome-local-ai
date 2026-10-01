@@ -1,0 +1,3 @@
+# Copy to .dev.vars for local development
+# Required for integration and e2e tests that exercise storage failure paths
+TEST_HOOKS=1

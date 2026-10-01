@@ -12,6 +12,7 @@ import * as Y from 'yjs';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { newBoardId } from '../shared/board-id';
 import { isTestMode, setTestConnectionState } from './testHooks';
+import { canEdit } from './sync/connectBoard';
 import type { Camera, Point } from './canvas/camera';
 
 /** True when the key press belongs to the focused field, not the board. */
@@ -60,6 +61,7 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
   });
 
   const { doc, notes, connectionState } = useBoardDoc(externalDoc, boardId);
+  const isReadOnly = !canEdit(connectionState);
 
   // Expose connection state for e2e tests
   useEffect(() => {
@@ -76,10 +78,11 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
   /** Centre a new note on a world point, select it and start typing. */
   const createAndEdit = useCallback(
     (world: Point) => {
+      if (isReadOnly) return;
       const id = createSticky(doc, world);
       if (id) startEdit(id);
     },
-    [doc, startEdit],
+    [doc, startEdit, isReadOnly],
   );
 
   const onCreateStickyWorld = useCallback(
@@ -119,6 +122,7 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
       }
       if (event.key === 'Delete' || event.key === 'Backspace') {
         if (!selectedId) return;
+        if (isReadOnly) return;
         event.preventDefault();
         deleteObject(doc, selectedId);
         select(null);
@@ -126,7 +130,7 @@ export function App({ doc: externalDoc, boardId: propBoardId }: AppProps = {}): 
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, editingId, selectedId, select, startEdit]);
+  }, [doc, editingId, selectedId, select, startEdit, isReadOnly]);
 
   return (
     <div className="app">

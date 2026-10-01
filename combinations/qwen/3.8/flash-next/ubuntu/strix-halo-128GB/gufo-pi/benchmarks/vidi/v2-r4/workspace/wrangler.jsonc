@@ -17,6 +17,9 @@
       "new_sqlite_classes": ["BoardRoom"]
     }
   ],
+  "vars": {
+    "TEST_HOOKS": ""
+  },
   "assets": {
     "directory": "./dist/client",
     "not_found_handling": "single-page-application",
