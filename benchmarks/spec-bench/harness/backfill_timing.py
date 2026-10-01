@@ -9,7 +9,8 @@ Every step is idempotent and only fills or corrects; it prints what each changed
 3. timing: stories with no model time (servers other than llama.cpp, before the harness timed them from the agent's
    stream) get their prefill and decode time, exactly as a live run computes it (drive.story_time_split, over every
    attempt of a restarted story). Only stories whose model time is missing are changed, each marked "backfilled";
-   --recompute also redoes those, any whose parts overran the wall, and any made by an older accounting version.
+   --recompute also redoes those, any whose parts overran the wall, any made by an older accounting version, and
+   any whose stored accounting check failed.
 4. conversation: each story with no conversation profile gets one (conversation.py).
 5. provenance: each story with none gets the harness commit and pack version it ran under (provenance.py), from
    run.sh's record of each start (run-history.jsonl, run.json).
@@ -79,13 +80,15 @@ def backfill_attempts(run: Path) -> list[str]:
 
 def backfill(run: Path, recompute: bool = False) -> list[str]:
     """Fill stories with no model time (or no time split at all). With recompute, also redo stories filled before (marked "backfilled"), any
-    whose parts added up to more than its wall time (other_s < 0), and any made by an older accounting version."""
+    whose parts added up to more than its wall time (other_s < 0), any made by an older accounting version, and any whose
+    stored accounting check failed (made by a harness with a bug since fixed: mlx-serve v2-r2 story 4, 1 Oct 2026)."""
     metrics = heldout.load_metrics(run)
     filled = []
     for sid, rec in _stories(metrics):
         ts = rec.get("time_split")
         raw = _raw(run, sid)
-        stale = (ts or {}).get("accounting", {}).get("version", 0) < accounting.VERSION
+        acc = (ts or {}).get("accounting", {})
+        stale = acc.get("version", 0) < accounting.VERSION or acc.get("ok") is False
         wanted = not ts or (ts.get("model") is None or (recompute and (ts.get("backfilled") or ts.get("other_s", 0) < 0 or stale)))
         if not wanted or not raw.is_file() or "started" not in rec or "agent_finished" not in rec:
             continue
