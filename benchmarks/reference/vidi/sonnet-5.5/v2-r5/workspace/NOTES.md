@@ -23,3 +23,15 @@
 - A selected note's toolbar can be covered by a higher-z overlapping note.
 - Delete/Backspace work when a toolbar button has focus; Enter does not (it activates the button).
 - E2E ran in Chromium only (Firefox/WebKit not installed). `test:e2e` builds in test mode, so run `npm run build` afterwards for the production bundle.
+
+## Story 3 decisions
+- `@cloudflare/vitest-pool-workers` 0.12.x is used because newer versions need vitest 4; the repo is on vitest 3.2. Vitest 3.2 cannot resolve the pool by bare name, so `vitest.integration.config.ts` passes the resolved path as `pool` and sets `isolatedStorage: false` (open Durable Object sockets break per-test storage isolation). The root `vitest.config.ts` lists it as a project; `npm run test:integration` builds first because the Worker serves `dist/client`.
+- Typechecking is split: `tsconfig.json` (browser) excludes `src/worker` and `tests/integration`; `tsconfig.worker.json` (workers-types) covers them. `npm run typecheck` and `build` run both.
+- `/` and any non-`/b/<valid id>` path are redirected with `history.replaceState` to `/b/<newBoardId()>` (no reload, so e2e helpers do not race a navigation). Story 5 replaces this.
+- `wrangler.jsonc` uses `run_worker_first: true` so the Worker sees every request and forwards non-room paths to `ASSETS` (needed for TC-06 under `SELF.fetch`).
+- y-protocols `applyUpdate` swallows undecodable updates (logs, ignores), so BoardRoom validates update payloads with `Y.decodeUpdate` before applying, to close with 1003 as designed (TC-15).
+- `connectBoard` takes an optional 4th `factory` argument (fake provider in component tests). `window.__vidi6.connectionState` is set from `App` in test builds (TC-29).
+- `StickyTextEditor` now mirrors remote Y.Text changes into the textarea, shifting the caret through the delta; story 2 only wrote local edits.
+- Component tests get `tests/component/setup.ts`: a never-opening `WebSocket` stub and a `/b/<id>` location.
+- The ConnectionStatus badge is found in e2e by text, because the zoom `<output>` also has role=status.
+- E2E TC-27 really waits the 30 s outage (CATCH_UP_TEST_OUTAGE_MS); Playwright `setOffline` did drop the socket and the badge showed Reconnecting. Latencies are logged (`[latency]`), never asserted. Nightly TC-29/TC-30 are tagged `@nightly` and run with `npm run test:e2e:nightly`. Chromium only here.

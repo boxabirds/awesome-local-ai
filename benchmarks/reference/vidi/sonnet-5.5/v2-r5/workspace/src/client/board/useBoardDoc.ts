@@ -1,10 +1,11 @@
-import { useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
-export interface BoardDoc { doc: Y.Doc; notes: readonly StickySnapshot[] }
+export interface BoardDoc { doc: Y.Doc; notes: readonly StickySnapshot[]; connection: ConnectionState }
 
-export function useBoardDoc(): BoardDoc {
+export function useBoardDoc(boardId: string): BoardDoc {
   const store = useMemo(() => {
     const doc = new Y.Doc();
     initDoc(doc);
@@ -19,7 +20,13 @@ export function useBoardDoc(): BoardDoc {
       },
       get: () => current,
     };
-  }, []);
+  }, [boardId]);
+  const [connection, setConnection] = useState<ConnectionState>('connecting');
+  useEffect(() => {
+    setConnection('connecting');
+    const conn = connectBoard(store.doc, boardId, setConnection);
+    return () => conn.destroy();
+  }, [store, boardId]);
   const notes = useSyncExternalStore(store.subscribe, store.get);
-  return { doc: store.doc, notes };
+  return { doc: store.doc, notes, connection };
 }

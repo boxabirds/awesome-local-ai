@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -8,12 +8,32 @@ import { canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Point } from '.
 import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
 import { StickyNote } from './objects/StickyNote';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 
 const HALF = 2;
 const TEXT_ENTRY_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 
+const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
+
 export function App() {
-  const { doc, notes } = useBoardDoc();
+  // Anything that is not /b/<valid id> is redirected in place to a fresh board (replaced by
+  // server-side creation in story 5). No page reload, so the first paint is already the board.
+  const [boardId] = useState(() => {
+    const match = BOARD_PATH.exec(location.pathname);
+    if (match && isValidBoardId(match[1])) return match[1];
+    const id = newBoardId();
+    history.replaceState(null, '', `/b/${id}`);
+    return id;
+  });
+  return <Board key={boardId} boardId={boardId} />;
+}
+
+function Board({ boardId }: { boardId: string }) {
+  const { doc, notes, connection } = useBoardDoc(boardId);
+  useEffect(() => {
+    if (window.__vidi6) window.__vidi6.connectionState = connection;
+  }, [connection]);
   const sel = useSelection();
   const selRef = useRef(sel);
   selRef.current = sel;
@@ -63,6 +83,7 @@ export function App() {
               screenToWorld(api.getCamera(), { x: api.size.width / HALF, y: api.size.height / HALF }),
             )}
           />
+          <ConnectionStatus state={connection} />
           <NavigationHint visible={!api.hasNavigated} />
           <ZoomControls
             zoomPercent={zoomPercent(api.camera)}

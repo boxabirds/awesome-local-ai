@@ -3,6 +3,7 @@ import type { Camera } from './camera';
 export interface TestHooks {
   setCamera(cam: Camera): void;
   getCamera(): Camera;
+  connectionState?: string;
 }
 
 declare global {

@@ -14,9 +14,11 @@ export default defineConfig({
         test: {
           name: 'component',
           environment: 'jsdom',
+          setupFiles: ['tests/component/setup.ts'],
           include: ['tests/component/**/*.test.tsx'],
         },
       },
+      './vitest.integration.config.ts', // workerd pool (needs its own config file)
     ],
   },
 });

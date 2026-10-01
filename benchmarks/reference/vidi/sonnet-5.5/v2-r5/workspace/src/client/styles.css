@@ -201,3 +201,18 @@ body { font-family: system-ui, sans-serif; color: #222; overflow: hidden; }
 .left-toolbar button:hover { background: #eee; }
 
 .zoom-controls output { min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
+
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font: 600 13px system-ui, sans-serif;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.connection-connecting { background: #e0e0e0; color: #333; }
+.connection-reconnecting { background: #ffb300; color: #3e2700; }
+.connection-confirmed { background: #43a047; color: #fff; }
