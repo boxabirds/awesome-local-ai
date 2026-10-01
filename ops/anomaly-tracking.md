@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 12:50 UTC
+**Last updated:** 2026-10-01 12:55 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -98,6 +98,9 @@ test that would reproduce it. Details under the entries.
 - **Bucket:** none — scheduling, not a fault (not counted in the bucket table).
 - **Note 2026-10-01 09:40 (from the owner):** the holds release by themselves when the current jobs end;
   a concern only if a node is still held 15 min after its job ended or sits idle with jobs queued.
+- **Note 2026-10-01 12:55 (from the owner):** when mlx v2-r2 ends, the M5 Max is kept free on purpose for
+  the approved TensorFold checks, then mlx-serve r3–r5 are queued. Idle there is expected for a few hours;
+  flagged only if still idle 4 hours after v2-r2 ends.
 - **Status:** open. mlxserve-pi has one finished v2 run and one in progress, so it is short of three.
 - **Suggested action:** queue mlxserve-pi v2-r3 on the M5 Max and the next job on the Strix Halo box;
   check the holds release as intended when the running jobs end.
@@ -168,7 +171,7 @@ test that would reproduce it. Details under the entries.
   canvas-vk-01/02, ab-s7s8-01).
 - **Bucket:** broken pipeline — low severity (the v2 ones have their score of record in `rescore/`; the v1
   ones predate the policy). **Status:** open; the sweep's automatic re-score should write `finalize.json`
-  for whichever it covers; the rest need a decision on whether v1 runs get one.
+  for whichever it covers; the rest need a decision on whether v1 runs get one (passed to the owner 12:55).
 
 ### A-031 — dbench burnt all three restarts in minutes on failures that could not change
 - **First seen:** 2026-09-25 · **Last seen:** 2026-10-01 05:15 (A-003's jobs)
@@ -176,6 +179,7 @@ test that would reproduce it. Details under the entries.
   "git pull --ff-only failed: unmerged files" in the checkout; the M5 Max, 29 Sep 19:37: vidi-v2-mlx-r1,
   four attempts in 3 min, the model server exited at start; the M2 MacBook Air, 1 Oct: the three Sonnet
   "b" jobs (A-003) and mlx v2b-r2 on the M5 Max (A-001), deterministic tracebacks.
+- **Note 2026-10-01 12:55:** being fixed in dbench (test first); the commit will be noted here.
 - **Bucket:** internal bug (dbench's restart policy) — high. **Status:** open; the newer dbench waits for an
   unfit machine instead of restarting, but a start-up failure that repeats is still retried.
 
