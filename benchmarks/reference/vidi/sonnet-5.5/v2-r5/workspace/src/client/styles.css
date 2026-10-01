@@ -1,0 +1,70 @@
+html, body, #root { height: 100%; margin: 0; }
+body { font-family: system-ui, sans-serif; color: #222; overflow: hidden; }
+
+.board-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background-color: #fafafa;
+  background-image: radial-gradient(circle, #c4c4c4 1px, transparent 1.5px);
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+
+.board-world { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+
+.origin-marker {
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  background:
+    linear-gradient(#999, #999) center / 1px 100% no-repeat,
+    linear-gradient(#999, #999) center / 100% 1px no-repeat;
+}
+
+.nav-hint {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(30, 30, 30, 0.85);
+  color: #fff;
+  font-size: 14px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  font-size: 14px;
+}
+
+.zoom-controls button {
+  min-width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.zoom-controls button:hover:not(:disabled) { background: #eee; }
+.zoom-controls button:disabled { color: #aaa; cursor: default; }
+.zoom-controls button:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+.zoom-controls output { min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
