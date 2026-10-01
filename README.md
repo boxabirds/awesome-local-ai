@@ -268,6 +268,11 @@ setup actually produces. A coding agent (pi or OpenCode, on one combination) imp
 specification one story at a time, each story with a PRD, a technical design and ordered tasks,
 and every story is recorded: time, model calls, tokens, commits and the agent's own tests.
 
+**New here? Start with the [guide to how the benchmark works](benchmarks/docs/guide/index.html).** It is an interactive
+walkthrough of the concepts, the entities and how they relate, the components, and the key flows from submitting a job
+to a number on a page, with the findings from analysing every recorded conversation attached as concrete examples. It is
+a single HTML page: open the file in a browser after cloning (GitHub shows HTML files as source, not as a page).
+
 **Spec packs:**
 
 | Pack | What it builds | Spec | Held-out suite |
