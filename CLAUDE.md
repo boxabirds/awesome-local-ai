@@ -37,3 +37,13 @@ Why: the owner works on main only. During the 30 September 2026 history rewrite 
 ## Build in Rust unless there's good reason not to
 
 Unless there's good reason, use Rust as the language to build. It's more efficient, tractable, provably eliminates entire classes of bugs, and runs faster. Only when compile times or tech stacks become a problem should other languages be considered.
+
+## Refactor DELETE FIRST
+
+Refactoring breaks things easily, so all refactoring in this repository follows three steps, in order:
+
+1. **Prove 100% coverage.** Assert that the code to be refactored has 100% test coverage (lines and branches), with exhaustive test fixtures. If it doesn't, write the missing tests first, against the code as it is, until it does. Never refactor code that isn't fully covered.
+2. **Delete first.** Delete all the actual code, leaving only the functions (their signatures, as stubs). The tests stay, and now fail.
+3. **Rebuild step by step.** Insert new code in the new design, piece by piece, until every test passes again.
+
+Why: moving working code around keeps its untested assumptions and hides what was lost. Deleting it makes the tests the only definition of the behaviour, so whatever they don't pin down is found in step 1, before the refactor, and not on a live run after it.
