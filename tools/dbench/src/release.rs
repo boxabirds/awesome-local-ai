@@ -716,6 +716,29 @@ command = ["bash", "tests/run-tests.sh"]
             .unwrap();
         assert!(unit.no_skips_of.contains(&"test_pipeline.py".to_string()));
         assert!(unit.command.contains(&"-rs".to_string()));
+        // The coverage gate: drive.py stays at 100% of lines and branches, measured by the whole suite.
+        // Its plugin comes from `uv run --with`, like every other package, never from a step of the workflow.
+        const COVERAGE_GATE: [&str; 4] = [
+            "--cov=drive",
+            "--cov-branch",
+            "--cov-fail-under=100",
+            "--cov-report=term-missing:skip-covered",
+        ];
+        for arg in COVERAGE_GATE {
+            assert!(unit.command.contains(&arg.to_string()), "the unit suite should run with {arg}");
+        }
+        let with: Vec<&str> = unit
+            .command
+            .windows(2)
+            .filter(|w| w[0] == "--with")
+            .map(|w| w[1].as_str())
+            .collect();
+        assert!(with.contains(&"pytest-cov"), "{with:?}");
+        let workflow =
+            std::fs::read_to_string(repo_root().join(crate::release_ci::WORKFLOW_FILE)).unwrap();
+        for by_hand in ["pip install", "uv pip", "uv tool install"] {
+            assert!(!workflow.contains(by_hand), "the workflow installs a Python package itself ({by_hand})");
+        }
         let replay = list
             .checks
             .iter()

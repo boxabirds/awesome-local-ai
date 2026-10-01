@@ -42,14 +42,17 @@ harness = [
 # Every harness test, including the end-to-end self-tests of the story loop (test_pipeline.py), which
 # need node, npm and npx and skip themselves without them. Other tests may skip (macOS-only, a tool
 # that isn't installed); the self-test may not.
+# The coverage gate: drive.py (the story loop) stays at 100% of its lines and branches, on the machine the
+# checks run on. Anything less fails the check and lists the lines; the answer is a test, never a lower figure.
 [[check]]
 name = "harness unit suite"
 dir = "benchmarks/spec-bench/harness"
 command = [
   "uv", "run", "--quiet",
-  "--with", "pytest", "--with", "hypothesis", "--with", "httpx",
+  "--with", "pytest", "--with", "pytest-cov", "--with", "hypothesis", "--with", "httpx",
   "--with", "uvicorn", "--with", "starlette", "--with", "fastapi",
   "pytest", "-q", "-rs", "-p", "no:cacheprovider",
+  "--cov=drive", "--cov-branch", "--cov-fail-under=100", "--cov-report=term-missing:skip-covered",
 ]
 no_skips_of = ["test_pipeline.py"]
 
