@@ -1,0 +1,90 @@
+{
+ "node-a": {
+  "status": "ok",
+  "node": {
+   "arch": "x86_64",
+   "cpu_brand": "13th Gen Intel(R) Core(TM) i9-13900F",
+   "cpus": 32,
+   "current_job": "vidi-v2b-swift15-r4",
+   "dbench_version": "0.1.0+53b93c48",
+   "gpus": [
+    {
+     "memory_mib": 24564,
+     "name": "NVIDIA GeForce RTX 4090",
+     "unified": false
+    }
+   ],
+   "hold": {
+    "at": 1790834081,
+    "by": "10.0.0.1",
+    "reason": "restart on the new dbench (waits for an unfit machine instead of using restarts); released automatically"
+   },
+   "hostname": "node-a",
+   "os": "linux",
+   "repo_head": "0c4a0f20d877a5dd7a49f850de15a9a10a47b774",
+   "total_ram_bytes": 67219427328
+  }
+ },
+ "node-b": {
+  "status": "ok",
+  "node": {
+   "arch": "aarch64",
+   "cpu_brand": "Apple M2",
+   "cpus": 8,
+   "current_job": "vidi-v2-sonnet-d-r6",
+   "dbench_version": "0.1.0+0a712ce6",
+   "gpus": [
+    {
+     "memory_mib": 16384,
+     "name": "Apple M2",
+     "unified": true
+    }
+   ],
+   "hostname": "node-b.local",
+   "os": "macos",
+   "repo_head": "d6ff470e69efdbaa11a37a23dc0fd8ec553a562b",
+   "total_ram_bytes": 17179869184
+  }
+ },
+ "node-c": {
+  "status": "ok",
+  "node": {
+   "arch": "aarch64",
+   "cpu_brand": "Apple M5 Max",
+   "cpus": 18,
+   "current_job": "vidi-v2b-mlx-r3b",
+   "dbench_version": "0.1.0+0a712ce6",
+   "gpus": [
+    {
+     "memory_mib": 131072,
+     "name": "Apple M5 Max",
+     "unified": true
+    }
+   ],
+   "hostname": "node-c",
+   "os": "macos",
+   "repo_head": "b8105759376511504dc2e06101621037e0ada805",
+   "total_ram_bytes": 137438953472
+  }
+ },
+ "node-d": {
+  "status": "ok",
+  "node": {
+   "arch": "x86_64",
+   "cpu_brand": "AMD RYZEN AI MAX+ 395 w/ Radeon 8060S",
+   "cpus": 32,
+   "current_job": "vidi-v2-gufo-r5",
+   "dbench_version": "0.1.0+0a712ce6",
+   "gpus": [],
+   "hold": {
+    "at": 1790873444,
+    "by": "10.0.0.1",
+    "reason": "restart on the dbench that can queue reruns (owner approved 1 Oct)"
+   },
+   "hostname": "node-d",
+   "os": "linux",
+   "repo_head": "6f97186faa6b8eba02c6e653befd6df72199be81",
+   "total_ram_bytes": 131209486336
+  }
+ }
+}
