@@ -13,3 +13,13 @@
   on port 8791. The production `npm run build` contains no test hook.
 - Only Chromium is installed in this environment; e2e was run in Chromium only (config also lists Firefox and WebKit).
 - Component tests polyfill `PointerEvent` for jsdom.
+
+## Story 2 decisions
+- `createSticky` returns `string | false` (false on non-finite coordinates, per TC-39) rather than plain `string`.
+- `NoteToolbar` is rendered inside `StickyNote` (counter-scaled by 1/zoom so it keeps screen size) so the note can hide it while dragging/editing.
+- Stacking uses CSS `z-index` = `z`; DOM order is by id and stays stable. Reordering DOM nodes on `bringToFront` dropped pointer capture mid-drag.
+- `BoardViewport` accepts `children` as a render function and passes `size` to `overlay`/children (`BoardApi`), plus `onDoubleClickEmpty` and `onEmptyClick`.
+- While editing, the textarea is top-aligned (display text is vertically centred).
+- A selected note's toolbar can be covered by a higher-z overlapping note.
+- Delete/Backspace work when a toolbar button has focus; Enter does not (it activates the button).
+- E2E ran in Chromium only (Firefox/WebKit not installed). `test:e2e` builds in test mode, so run `npm run build` afterwards for the production bundle.

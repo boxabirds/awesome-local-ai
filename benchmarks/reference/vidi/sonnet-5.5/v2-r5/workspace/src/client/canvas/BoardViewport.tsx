@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { GRID_SPACING_WORLD } from '../../shared/config';
-import type { Size } from './camera';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import { screenToWorld, type Point, type Size } from './camera';
 import { installTestHooks } from './testHooks';
 import { useCamera, type CameraApi } from './useCamera';
 
@@ -20,9 +20,13 @@ function mod(a: number, n: number): number {
   return ((a % n) + n) % n;
 }
 
+export type BoardApi = CameraApi & { size: Size };
+
 export function BoardViewport(props: {
-  children?: ReactNode;
-  overlay?: (api: CameraApi) => ReactNode;
+  children?: ReactNode | ((api: BoardApi) => ReactNode);
+  overlay?: (api: BoardApi) => ReactNode;
+  onDoubleClickEmpty?: (world: Point) => void;
+  onEmptyClick?: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>(() => ({
@@ -32,6 +36,7 @@ export function BoardViewport(props: {
   const api = useCamera(size);
   const apiRef = useRef(api);
   apiRef.current = api;
+  const emptyPress = useRef<Point | null>(null);
   const sizeRef = useRef(size);
   sizeRef.current = size;
 
@@ -123,6 +128,7 @@ export function BoardViewport(props: {
   }, []);
 
   const { camera, panning } = api;
+  const boardApi: BoardApi = { ...api, size };
   const spacing = GRID_SPACING_WORLD * camera.zoom;
   // Dots sit at the centre of each tile, so shift by half a tile to put them on world multiples.
   const gridX = mod(-camera.x * camera.zoom - spacing / HALF, spacing);
@@ -144,11 +150,26 @@ export function BoardViewport(props: {
         onPointerDown={(e) => {
           if (e.target !== e.currentTarget || (e.button ?? PRIMARY_BUTTON) !== PRIMARY_BUTTON) return;
           e.currentTarget.setPointerCapture?.(e.pointerId);
+          emptyPress.current = { x: e.clientX, y: e.clientY };
           api.beginPan({ x: e.clientX, y: e.clientY });
         }}
+        onDoubleClick={(e) => {
+          if (e.target !== e.currentTarget) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          props.onDoubleClickEmpty?.(
+            screenToWorld(apiRef.current.getCamera(), { x: e.clientX - r.left, y: e.clientY - r.top }),
+          );
+        }}
         onPointerMove={(e) => api.panMove({ x: e.clientX, y: e.clientY })}
-        onPointerUp={api.endPan}
-        onPointerCancel={api.endPan}
+        onPointerUp={(e) => {
+          const start = emptyPress.current;
+          emptyPress.current = null;
+          api.endPan();
+          if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) < DRAG_THRESHOLD_PX) {
+            props.onEmptyClick?.();
+          }
+        }}
+        onPointerCancel={() => { emptyPress.current = null; api.endPan(); }}
         onLostPointerCapture={api.endPan}
       >
         <div
@@ -160,10 +181,10 @@ export function BoardViewport(props: {
           }}
         >
           <div className="origin-marker" data-testid="origin-marker" />
-          {props.children}
+          {typeof props.children === 'function' ? props.children(boardApi) : props.children}
         </div>
       </div>
-      {props.overlay?.(api)}
+      {props.overlay?.(boardApi)}
     </>
   );
 }

@@ -67,4 +67,137 @@ body { font-family: system-ui, sans-serif; color: #222; overflow: hidden; }
 .zoom-controls button:hover:not(:disabled) { background: #eee; }
 .zoom-controls button:disabled { color: #aaa; cursor: default; }
 .zoom-controls button:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+.sticky-note {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: auto;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  touch-action: none;
+  user-select: none;
+}
+.sticky-note:focus-visible { box-shadow: 0 0 0 3px #93c5fd, 0 2px 8px rgba(0, 0, 0, 0.25); }
+.sticky-text-box {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.sticky-text {
+  width: 100%;
+  margin: auto 0; /* centres short text; long text overflows downward only */
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+  color: #222;
+}
+.sticky-fade::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 32px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.85));
+}
+.sticky-editor {
+  position: absolute;
+  inset: 12px;
+  width: calc(100% - 24px);
+  height: calc(100% - 24px);
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  font-family: inherit;
+  line-height: 1.2;
+  text-align: center;
+  color: #222;
+  user-select: text;
+  cursor: text;
+}
+.sticky-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 11px;
+  color: #555;
+  pointer-events: none;
+}
+.note-toolbar-anchor {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform-origin: bottom center;
+  cursor: default;
+}
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}
+.note-toolbar .swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.note-toolbar .swatch[aria-pressed='true'] { outline: 2px solid #2563eb; outline-offset: 1px; }
+.note-toolbar button:focus-visible, .left-toolbar button:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+.note-toolbar .note-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.note-toolbar .note-delete:hover { background: #eee; }
+
+.left-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+.left-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.left-toolbar button:hover { background: #eee; }
+
 .zoom-controls output { min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
