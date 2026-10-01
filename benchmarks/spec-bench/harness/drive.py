@@ -146,9 +146,10 @@ MAX_AGENT_RESUMES = 3
 SECONDS_PER_HOUR = 3600
 MAX_STORY_AGENT_S = 4 * SECONDS_PER_HOUR
 MAX_NUDGES = 5
-# The console line for each nudge, up to its number. dbench reads a job's nudges from it (tools/dbench/src/events.rs),
-# so its start is kept word for word from before the stop rule, when a stop without a commit was the only kind nudged.
-NUDGE_LINE = "agent stopped without committing — nudge"
+# The console line for each stop message sent, up to its number: "<this> 2 of 5 sent". dbench counts a job's stop
+# messages from it (tools/dbench/src/events.rs, which holds these words too and still reads the line of before
+# 1 Oct 2026, "agent stopped without committing — nudge N: …", in stored job logs).
+STOP_SENT_LINE = "agent stopped before the story was finished — message"
 RESUME_BACKOFF_S = 60
 RESUME_PROMPT = "Continue with the task from where you left off."
 # The stop rule (owner's decision and wording, 1 Oct 2026). Every time the agent stops cleanly the harness asks one
@@ -1178,8 +1179,7 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
                 break
             else:
                 nudges += 1
-                print(f"    {NUDGE_LINE} {nudges}: the story is not finished (no verified DONE line); "
-                      f"the stop message was sent", flush=True)
+                print(f"    {STOP_SENT_LINE} {nudges} of {MAX_NUDGES} sent", flush=True)
             attempts.append(run_agent(client, ws, env, model_id, message, events_path,
                                       resume_from=last["session"], fork=False))
         else:

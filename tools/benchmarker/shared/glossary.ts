@@ -86,7 +86,7 @@ export const GLOSSARY = {
   segModelUnsplit: { name: "Model, not split", what: "a model whose time wasn't split into reading and writing (a cloud model), together with the agent's own time" },
   segCompaction: { name: "Compaction", what: "the model summarising its own conversation to make room" },
   segTools: { name: "Tools", what: "the agent waiting on its own tool calls: its test runs, builds, file reads and edits, and any other command" },
-  segBetweenSessions: { name: "Between sessions", what: "waiting to start the agent's next session after one ended: a pause before resuming an agent whose session ended in an error, and a nudge to one that stopped without committing" },
+  segBetweenSessions: { name: "Between sessions", what: "waiting to start the agent's next session after one ended: a pause before resuming an agent whose session ended in an error, and a message to one that stopped before the story was finished" },
   segOther: { name: "Other", what: "the agent's own overhead between steps" },
   intervened: { name: "intervened", what: "Something was done to this run by hand or by a watchdog: a frozen machine restarted, a silent tool call killed, a story ended at its cap. The run stays in every figure; this marks it so its numbers are read with that in mind. The hover lists each one." },
   interventions: { name: "Interventions", what: "What was done to the run by hand or by a watchdog, oldest first, and in which story. Repeated lines are shown once, with how many times." },
