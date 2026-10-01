@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -557,8 +558,63 @@ def test_E4_a_failed_private_push_is_reported_and_the_next_record_pushes_it(tmp_
     assert res["private"]["committed"] and not res["private"]["pushed"] and res["private"]["error"]
     (tmp_path / "away.git").rename(tmp_path / "private.git")
     res = drive.record_story(repo, run, "story 3 done", git=G, private=private)
-    assert res["private"] == {"copied": 0, "committed": False, "pushed": True}
+    assert res["private"] == {"copied": 0, "committed": True, "pushed": True}     # rebuilt on the remote's head
     assert "stories/01/accept.json" in git(tmp_path / "private", "ls-tree", "-r", "--name-only", "origin/main")
+
+
+def _remote_main_files(tmp_path: Path) -> list[str]:
+    return subprocess.run(["git", "--git-dir", str(tmp_path / "private.git"), "ls-tree", "-r", "--name-only", "main"],
+                          capture_output=True, text=True, check=True).stdout.split()
+
+
+def _branches(private: Path) -> list[str]:
+    return git(private, "for-each-ref", "--format=%(refname)", "refs/heads").split()
+
+
+def test_E9_a_private_checkout_left_on_the_suite_tag_still_gets_the_detail_onto_main(tmp_path):
+    """setup-node.sh leaves the private checkout detached at the pack's tag, where the runs read their suite. On
+    1 Oct 2026 the detail was committed on that detached HEAD and never pushed. The record goes to main on the
+    remote; the checkout stays on its tag, with no branch made or moved."""
+    private = private_suite(tmp_path)
+    git(private, "checkout", "-q", VERSION)
+    tag, branches = git(private, "rev-parse", "HEAD").strip(), _branches(private)
+    repo, _ = cloned(tmp_path, "public")
+    run = small_run(repo)
+    write(run / "stories/01/accept.json", STORY_1)
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
+    assert res["private"]["committed"] and res["private"]["pushed"] and "error" not in res["private"], res
+    assert f"{heldout.PRIVATE_RUNS}/{RUN_REL}/stories/01/accept.json" in _remote_main_files(tmp_path)
+    assert git(private, "rev-parse", "HEAD").strip() == tag
+    assert _branches(private) == branches
+    assert git(private, "status", "--porcelain", "--untracked-files=no") == ""   # the suite checkout is untouched
+
+
+def test_E10_detail_already_copied_but_not_on_the_remote_is_still_pushed(tmp_path):
+    """On 1 Oct 2026 the copy found nothing new to commit, called that an error, and left the detail unpushed."""
+    private = private_suite(tmp_path)
+    repo, _ = cloned(tmp_path, "public")
+    run = small_run(repo)
+    write(run / "stories/01/accept.json", STORY_1)
+    heldout.copy_private(run, repo, private)                 # an earlier copy that never reached the remote
+    res = drive.record_story(repo, run, MESSAGE, git=G, private=private)
+    assert "error" not in res["private"] and res["private"]["pushed"], res
+    assert f"{heldout.PRIVATE_RUNS}/{RUN_REL}/stories/01/accept.json" in _remote_main_files(tmp_path)
+
+
+def test_E11_a_copy_with_new_timestamps_but_the_same_content_is_not_an_error(tmp_path):
+    """Files re-copied byte for byte (a checkout rewrote them, say): nothing new to record, and nothing wrong."""
+    private = private_suite(tmp_path)
+    repo, _ = cloned(tmp_path, "public")
+    run = small_run(repo)
+    write(run / "stories/01/accept.json", STORY_1)
+    assert drive.record_story(repo, run, MESSAGE, git=G, private=private)["private"]["pushed"]
+    head = git(tmp_path / "private.git", "rev-parse", "main")
+    for f in run.rglob("*"):
+        if f.is_file():
+            os.utime(f, (f.stat().st_atime, f.stat().st_mtime + 60))
+    res = drive.record_story(repo, run, "story 3 done", git=G, private=private)
+    assert "error" not in res["private"] and not res["private"]["committed"], res
+    assert git(tmp_path / "private.git", "rev-parse", "main") == head          # no empty commit either
 
 
 def _here_and_private(tmp_path: Path) -> tuple[Path, Path]:

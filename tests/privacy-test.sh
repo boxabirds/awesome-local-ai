@@ -45,32 +45,13 @@ fi
 
 echo
 echo "committed evidence stays small"
-# A results file large enough to matter is usually raw capture that should have
-# been summarised. 512 KB is well above any legitimate summary here. Some kinds are
-# large on purpose, and each has its own ceiling instead:
-#   workspace.bundle                 the agent's git history, which re-scoring and judging rebuild from
-#   <run>/workspace/**               the agent's own work, mirrored (agents write large test images)
-#   agent-events.compact.jsonl.gz    the lossless conversation log (drive.EVENT_LOG_MAX_BYTES)
-#   metrics.json                     per-story records with conversation profiles
-KB=1024; MB=$((1024 * 1024))
-limit_for() {
-  case "$1" in
-    */workspace.bundle) echo $((20 * MB)) ;;
-    */workspace/*) echo $((20 * MB)) ;;
-    */agent-events.compact.jsonl.gz) echo $((50 * MB)) ;;
-    */metrics.json) echo $((2 * MB)) ;;
-    *) echo $((512 * KB)) ;;
-  esac
-}
-big=""
-while IFS= read -r f; do
-  [[ -f "$f" ]] || continue
-  sz=$(wc -c < "$f" | tr -d ' ')
-  lim=$(limit_for "$f")
-  (( sz > lim )) && big="${big} ${f}($((sz/KB))K > $((lim/KB))K)"
-done < <(git ls-files -- 'combinations/**/benchmarks/*' 'benchmarks/*')
-if [[ -n "$big" ]]; then
-  _fail "no committed benchmark file over its size limit" "none" "$big"
+# Each kind of committed benchmark file has a size limit. The table is publicise.size_limit, which the harness
+# also uses before every commit, so the two can't disagree.
+if ! listed="$(uv run --quiet --python '>=3.11' "$REPO_ROOT/benchmarks/spec-bench/harness/publicise.py" over-limit "$REPO_ROOT")"; then
+  _fail "no committed benchmark file over its size limit" "a list" "publicise.py over-limit failed"
+elif [[ -n "$listed" ]]; then
+  _fail "no committed benchmark file over its size limit" "none" \
+    "$(printf '%s\n' "$listed" | awk -F'\t' '{ printf " %s(%dK > %dK)", $1, $2 / 1024, $3 / 1024 }')"
 else
   _pass "no committed benchmark file over its size limit"
 fi
