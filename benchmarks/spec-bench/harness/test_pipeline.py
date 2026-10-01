@@ -186,11 +186,16 @@ AGENT_WORK = textwrap.dedent(r'''
     def emit(*events):
         for e in events:
             print(json.dumps(e), flush=True)
+    def done_line():
+        """What ends a story (drive.story_finished): the line the story's prompt asks for, with the commit's hash."""
+        head = subprocess.run(["git", "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+        return f"STORY {story} DONE {head}"
 ''')
 AGENT_SCRIPT = AGENT_WORK + textwrap.dedent(r'''
     work()
     emit({"type": "session", "id": f"kat-{story}"},
          {"type": "message_end", "message": {"role": "assistant", "stopReason": "stop",
+                                             "content": [{"type": "text", "text": done_line()}],
                                              "usage": {"input": 10, "output": %d}}})
 ''' % OUTPUT_TOKENS_PER_STORY)
 
@@ -227,7 +232,7 @@ AGENT_SCRIPT_CLAUDE = AGENT_WORK + textwrap.dedent(r'''
           "result": "waiting", "usage": usage(%d)},
          {"type": "system", "subtype": "task_notification", "status": "completed", "session_id": sid},
          {"type": "system", "subtype": "init", "session_id": sid},
-         block("m4", {"type": "text", "text": f"Story {story} is done and committed."}),
+         block("m4", {"type": "text", "text": f"Story {story} is done and committed.\n\n{done_line()}"}),
          {"type": "result", "subtype": "success", "is_error": False, "session_id": sid,
           "result": "done", "usage": usage(%d)})
 ''' % (CLAUDE_FIRST_RESULT_TOKENS, OUTPUT_TOKENS_PER_STORY - CLAUDE_FIRST_RESULT_TOKENS))
@@ -431,6 +436,9 @@ def test_the_live_scores_and_commits_are_recorded_per_story(run_copy):
     assert m["stories"]["1"]["commit"] == log[1].split()[0]
     assert m["stories"]["2"]["gate"]["all_green"] is False       # the gate's own `npm ci` refuses the peer range
     assert m["stories"]["2"]["accept"]["build_exit"] == 0        # but the agent's installed modules build
+    for sid in ("1", "2"):                                       # each ended on its DONE line, with no stop message
+        agent = m["stories"][sid]["agent"]
+        assert (agent["finished"], agent["nudges"], agent["steps"]) == (True, 0, 1), (sid, agent)
 
 
 # ---------- a broken stage changes the answer ----------
@@ -598,6 +606,7 @@ def test_a_claude_code_run_records_the_same_known_answer(tmp_path, monkeypatch):
         c = rec["conversation"]
         assert c["thinking_visible"] is False and c["thinking_chars"] is None and c["thinking_estimated_tokens"] == 120
         assert c["calls"] == 4 and c["tool_errors"] == 1, c
+        assert rec["agent"]["finished"] is True and rec["agent"]["nudges"] == 0, (sid, rec["agent"])
 
 
 # ---------- the harness in one directory, the results in another ----------

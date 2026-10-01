@@ -54,7 +54,8 @@ def git(cwd: Path, *args: str) -> str:
 
 
 # What the scripted agent does for a story, from plan.json ({story: {...}}); with no plan it writes one file,
-# commits it and reports one model call. Each run is appended to runs.jsonl with the prompt it was given.
+# commits it, reports one model call and ends its reply with the story's DONE line (the stop rule: test_stop_rule.py).
+# Each run is appended to runs.jsonl with the prompt it was given.
 AGENT = textwrap.dedent(r'''
     import json, os, subprocess, sys
     from pathlib import Path
@@ -64,7 +65,9 @@ AGENT = textwrap.dedent(r'''
     with (home / "runs.jsonl").open("a") as f:
         f.write(json.dumps({"story": int(story), "prompt": sys.argv[1], "resume_from": sys.argv[2], "fork": sys.argv[3],
                             "cwd": os.getcwd()}) + "\n")
-    n = len((home / "runs.jsonl").read_text().splitlines())
+    runs = [json.loads(l) for l in (home / "runs.jsonl").read_text().splitlines()]
+    n = len(runs)
+    first_run_of_story = sum(r["story"] == int(story) for r in runs) == 1
     def emit(e):
         print(json.dumps(e), flush=True)
     def sh(*cmd):
@@ -91,8 +94,12 @@ AGENT = textwrap.dedent(r'''
         control.mkdir(exist_ok=True)
         (control / "skip-story.json").write_text(json.dumps({"story": int(story), "reason": "too slow", "by": "someone"}))
     emit({"type": "tool_execution_start", "toolName": "bash", "args": {"command": "git commit"}})
+    head = subprocess.run(["git", "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+    says = plan.get("says", f"STORY {story} DONE {head}")          # "says": every time; "first_says": the first time only
+    if first_run_of_story:
+        says = plan.get("first_says", says)
     emit({"type": "message_end", "message": {"role": "assistant", "stopReason": "stop",
-                                             "content": [{"type": "text", "text": f"Story {story} done."}],
+                                             "content": [{"type": "text", "text": says}],
                                              "usage": {"input": 10, "output": @OUTPUT@}}})
     sys.exit(plan.get("exit", 0))
 ''')
@@ -257,6 +264,12 @@ def no_story_so_far() -> str:
     return "Stories already implemented in this repository, in order: none (empty repository)."
 
 
+def prompt(sid: int, so_far: str, note: str = SCOPE_NOTE) -> str:
+    """The story's prompt: the pack's template filled in, then the harness's request for the DONE line."""
+    filled = f"STORY {sid}: {TITLES[sid]}\n{so_far}\n{note}\n"
+    return f"{filled.rstrip()}\n\n{drive.DONE_LINE_PROMPT_TMPL.format(n=sid)}\n"
+
+
 # ======================= the dry run =======================
 
 def test_a_dry_run_prints_the_pack_the_scope_and_the_first_prompt_and_runs_nothing(loop, capsys):
@@ -266,20 +279,20 @@ def test_a_dry_run_prints_the_pack_the_scope_and_the_first_prompt_and_runs_nothi
         "scope two: stories [1, 2]\n"
         "held-out suite: none (acceptance reported n/a); gate: ['build']\n"
         "--- first prompt ---\n"
-        f"STORY 1: First\n{no_story_so_far()}\n{SCOPE_NOTE}\n\n")
+        f"{prompt(1, no_story_so_far())}\n")
     assert not loop.run.exists() and not (loop.root / "work").exists() and loop.agent_runs() == []
 
 
 def test_a_dry_run_of_an_epic_takes_the_epic_s_stories_over_the_default_scope(loop, capsys):
     loop.bare("--dry-run", "--epic", "small")
     out = capsys.readouterr().out
-    assert "scope epic:small: stories [2]\n" in out and f"STORY 2: Second\n{no_story_so_far()}\n\n" in out
+    assert "scope epic:small: stories [2]\n" in out and out.endswith(prompt(2, no_story_so_far(), note="") + "\n")
 
 
 def test_a_dry_run_of_a_pack_without_a_default_scope_takes_every_story(whole, capsys):
     whole.bare("--dry-run")
     out = capsys.readouterr().out
-    assert "scope all: stories [1, 2, 3]\n" in out and out.endswith(f"STORY 1: First\n{no_story_so_far()}\n\n\n")
+    assert "scope all: stories [1, 2, 3]\n" in out and out.endswith(prompt(1, no_story_so_far(), note="") + "\n")
 
 
 def test_a_dry_run_of_a_named_scope_narrowed_to_some_stories(whole, capsys):
@@ -353,6 +366,7 @@ def test_each_story_in_scope_is_run_scored_snapshotted_and_recorded_in_order(loo
         agent = rec["agent"]
         assert (agent["steps"], agent["tool_calls"], agent["exit"], agent["stalled"], agent["sessions"]) == (1, 1, 0, False, [f"cov-{sid}"])
         assert (agent["resumes"], agent["nudges"], agent["errors"], agent["ended_by_operator"]) == (0, 0, [], False)
+        assert agent["finished"] is True                                    # on its DONE line, at its first stop
         assert agent["tokens"]["output"] == OUTPUT_TOKENS
         assert rec["agent_commits"] == 1 and rec["commit"] == git(loop.ws, "rev-parse", f"HEAD~{2 - sid}")
         assert rec["provenance"] == {**HARNESS_PROVENANCE, "pack_version": PACK_VERSION, "source": drive.provenance.LIVE}
@@ -382,8 +396,8 @@ def test_each_story_in_scope_is_run_scored_snapshotted_and_recorded_in_order(loo
 
 def test_the_agent_gets_each_story_s_prompt_in_the_workspace_and_the_prompt_is_kept(loop):
     loop.main()
-    first = f"STORY 1: First\n{no_story_so_far()}\n{SCOPE_NOTE}\n"
-    second = f"STORY 2: Second\nStories already implemented in this repository, in order: 1.\n{SCOPE_NOTE}\n"
+    first = prompt(1, no_story_so_far())
+    second = prompt(2, "Stories already implemented in this repository, in order: 1.")
     assert loop.agent_runs() == [
         {"story": 1, "prompt": first, "resume_from": "None", "fork": "True", "cwd": str(loop.ws.resolve())},
         {"story": 2, "prompt": second, "resume_from": "None", "fork": "True", "cwd": str(loop.ws.resolve())}]
@@ -494,20 +508,54 @@ def test_a_fault_in_the_bookkeeping_is_saved_with_the_story_even_without_record(
 
 # ======================= what the agent left behind =======================
 
-def test_uncommitted_work_is_snapshotted_in_a_harness_commit_and_not_counted_as_the_agent_s(loop):
-    loop.plan(s1={"leave": "notes.txt"})
+def test_a_story_that_never_finishes_is_capped_recorded_partial_and_its_work_committed_by_the_harness(loop, capsys):
+    """The stop rule's cap, through the real loop: the agent keeps saying it is done, with work left uncommitted;
+    it gets the stop message MAX_NUDGES times; then the harness ends the story as it does an operator's skip."""
+    loop.plan(s1={"leave": "notes.txt", "says": "All tasks are complete."})
+    loop.main()
+    runs = [r for r in loop.agent_runs() if r["story"] == 1]
+    message = drive.stop_message(1, "First", "spec/stories/001-first/tasks.md")
+    assert [r["prompt"] for r in runs] == [prompt(1, no_story_so_far())] + [message] * drive.MAX_NUDGES
+    assert {(r["resume_from"], r["fork"]) for r in runs[1:]} == {("cov-1", "False")}
+    rec, entry = loop.story(1), loop.metrics()["processed"][0]
+    reason = f"story cap: the stop message was sent {drive.MAX_NUDGES} times without the story finishing (cap {drive.MAX_NUDGES})"
+    assert (rec["status"], rec["ended_by"]) == (drive.PARTIAL, "operator")
+    assert (rec["skip"]["by"], rec["skip"]["reason"], rec["skip"]["story"]) == ("harness (cap)", reason, 1)
+    assert (rec["agent"]["nudges"], rec["agent"]["finished"], rec["agent"]["steps"]) == (drive.MAX_NUDGES, False, drive.MAX_NUDGES + 1)
+    assert (entry["status"], entry["by"], entry["reason"], entry["verdict"]) == (drive.PARTIAL, "harness (cap)", reason, "red")
+    # The work is kept: what the agent committed, and what it left, in a harness commit that is the story's commit.
+    log = git(loop.ws, "log", "--format=%an %s", rec["commit"]).split("\n")
+    assert log[0] == "vidi-agent harness: snapshot after story 1 (uncommitted agent work)"
+    assert log[1:drive.MAX_NUDGES + 2] == ["vidi-agent story 1: work"] * (drive.MAX_NUDGES + 1)
+    assert git(loop.ws, "show", "--name-only", "--format=", rec["commit"]) == "notes.txt"
+    assert rec["agent_commits"] == drive.MAX_NUDGES + 1                     # the agent's own; the snapshot is not counted
+    assert f"story 1: ended by the operator (harness (cap)) after" in (loop.run / "interventions.md").read_text()
+    out = capsys.readouterr().out
+    for n in range(1, drive.MAX_NUDGES + 1):
+        assert f"    agent stopped without committing — nudge {n}: " in out   # the line dbench reads its nudges from
+    assert f"    the story cap ended story 1 (harness (cap)): {reason}\n" in out
+    # And the run goes on: the next story is built on the partial one and finishes.
+    second = loop.story(2)
+    assert second["status"] == drive.DONE and second["partial_base"] == [1] and second["agent"]["finished"] is True
+
+
+def test_a_commit_without_the_done_line_gets_the_stop_message_through_the_real_loop(loop):
+    """What the old rule accepted as a finished story: the agent committed, and stopped without saying it was done."""
+    loop.plan(s1={"first_says": "Task 1 is committed. Now let me look at task 2."})
     loop.main("--only", "1")
+    runs = loop.agent_runs()
+    assert [r["prompt"] for r in runs] == [prompt(1, no_story_so_far()), drive.stop_message(1, "First", "spec/stories/001-first/tasks.md")]
     rec = loop.story(1)
-    assert git(loop.ws, "log", "--format=%an %s").split("\n")[:2] == [
-        "vidi-agent harness: snapshot after story 1 (uncommitted agent work)", "vidi-agent story 1: work"]
-    assert rec["commit"] == git(loop.ws, "rev-parse", "HEAD") and rec["agent_commits"] == 1
-    assert git(loop.ws, "show", "--name-only", "--format=", "HEAD") == "notes.txt" and git(loop.ws, "status", "--porcelain") == ""
+    assert rec["status"] == drive.DONE and rec["agent"]["nudges"] == 1 and rec["agent"]["finished"] is True
+    assert rec["agent_commits"] == 2 and "skip" not in rec
 
 
 def test_a_spec_the_agent_edited_is_put_back_and_the_story_says_so(loop):
+    """An edit left uncommitted: the tree is not clean, so the story is not finished and ends at its cap."""
     loop.plan(s1={"tamper": "uncommitted"})
     loop.main()
     assert loop.story(1)["spec_tampered"] is True and "spec_tampered" not in loop.story(2)
+    assert loop.story(1)["status"] == drive.PARTIAL and loop.story(1)["skip"]["by"] == "harness (cap)"
     assert (loop.ws / "spec" / "README.md").read_text() == "# covpack\n"
     assert git(loop.ws, "log", "--format=%s", "--", "spec") == "harness: empty repository with spec"
 
@@ -772,7 +820,7 @@ def test_a_dry_run_in_known_good_mode_names_the_base_and_prompts_with_its_storie
     whole.bare("--dry-run", "--from-run", str(ref), "--only", "3")
     out = capsys.readouterr().out
     assert f"known-good base: {ref.resolve()} at {stories['2']['commit'][:12]}, processed [1, 2]\n" in out
-    assert out.endswith("STORY 3: Third\nStories already implemented in this repository, in order: 1, 2.\n\n\n")
+    assert out.endswith(prompt(3, "Stories already implemented in this repository, in order: 1, 2.", note="") + "\n")
     assert not whole.run.exists()
 
 

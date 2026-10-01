@@ -3,8 +3,8 @@
 
 - run_agent: one session of a scripted agent (a real process printing pi's events): what is logged, counted and
   returned; the loop detector's stop; the kill after the grace period; errors and the operator's skip.
-- run_story_agent: the first attempt and what follows it (resume after an error, nudge after a stop without a
-  commit, their caps), with run_agent scripted.
+- run_story_agent, the attempts of one story (resume after an error, the stop rule, their caps), is
+  test_stop_rule.py's.
 - The watchers (hang guard, conditions sampler, skip watcher, progress watcher): each loop is run a set number of
   times by a stand-in for its halt event, so nothing here waits on a clock or samples the machine.
 - The process helpers that find and kill what an agent left behind, with ps, pgrep, lsof and the signals faked.
@@ -24,7 +24,7 @@ import pytest
 import drive
 import hostenv
 import progress
-from clients import PiClient, empty_state
+from clients import PiClient
 
 NOMINAL = {"ac": True, "low_power": False, "thermal": "nominal"}
 ON_BATTERY = {"ac": False, "low_power": False, "thermal": "nominal"}
@@ -283,164 +283,6 @@ def test_a_json_line_that_is_not_an_event_does_not_stop_the_last_session_being_f
     ev = tmp_path / "e.jsonl"
     ev.write_text('{"type": "session", "id": "s"}\n42\n')
     assert drive.last_session(PiClient(tmp_path), ev) == "s"
-
-
-# ======================= run_story_agent: the attempts of one story =======================
-
-def attempt(**changes) -> dict:
-    return {"exit": 0, "seconds": 60.0, "stalled": False, "session": "s1", "error": None, "steps": 3, "tool_calls": 2,
-            "compactions": 1, "tokens": {**empty_state()["tokens"], "input": 100, "output": 10}, **changes}
-
-
-class Guard:
-    """Stands in for the hang guard: records how it was built, started and stopped."""
-    made: list = []
-
-    def __init__(self, events, ws, log):
-        self.args = (events, ws, log)
-        self.calls: list[str] = []
-        Guard.made.append(self)
-
-    def start(self):
-        self.calls.append("start")
-
-    def stop(self):
-        self.calls.append("stop")
-        return 2
-
-
-@pytest.fixture
-def story(tmp_path, monkeypatch):
-    """run_story_agent with run_agent scripted: story(attempts, commits=...) -> (result, calls)."""
-    run = tmp_path / "run"
-    events = run / "stories" / "01" / "agent-events.jsonl"
-    events.parent.mkdir(parents=True)
-    ws = tmp_path / "ws"
-    Guard.made = []
-    monkeypatch.setattr(drive, "ToolHangGuard", Guard)
-    monkeypatch.setattr(drive, "sh", lambda cmd, cwd: "the-head\n")
-    slept: list[float] = []
-    monkeypatch.setattr(drive.time, "sleep", slept.append)
-
-    def go(attempts: list[dict], commits: int | list[int] = 1, final_reply: str = "All done.", **kwargs):
-        script = iter(attempts)
-        calls: list[dict] = []
-        counts = iter(commits) if isinstance(commits, list) else None
-        heads: list[str] = []
-
-        def fake_run_agent(client, ws_, env, model_id, prompt, events_path, resume_from=None, fork=True):
-            calls.append({"prompt": prompt, "resume_from": resume_from, "fork": fork,
-                          "log_existed": events_path.exists(), "args": (client, ws_, env, model_id, events_path)})
-            with events_path.open("a") as f:
-                f.write(json.dumps({"type": "message_end", "message": {
-                    "role": "assistant", "content": [{"type": "text", "text": final_reply}]}}) + "\n")
-            return next(script)
-
-        def commits_since(ws_, head):
-            heads.append(head)
-            return next(counts) if counts else commits
-        monkeypatch.setattr(drive, "run_agent", fake_run_agent)
-        monkeypatch.setattr(drive, "commits_since", commits_since)
-        result = drive.run_story_agent("the-client", ws, {"E": "1"}, "the-model", "the story prompt", events, **kwargs)
-        assert list(script) == [], "every scripted attempt was run"
-        assert set(heads) <= {"the-head"}
-        return result, calls
-    go.events, go.ws, go.run, go.slept = events, ws, run, slept
-    return go
-
-
-def test_a_story_done_in_one_session_is_returned_with_its_totals(story):
-    story.events.write_text("left by an earlier, abandoned start of this story\n")
-    result, calls = story([attempt()])
-    assert result == {"seconds": 60.0, "steps": 3, "tool_calls": 2, "compactions": 1, "tool_interruptions": 2,
-                      "tokens": {"input": 100, "output": 10, "reasoning": 0, "cache_read": 0, "cache_write": 0},
-                      "exit": 0, "stalled": False, "resumes": 0, "nudges": 0, "toolcall_text_resumes": 0, "errors": [],
-                      "ended_by_operator": False, "ended_in_error": False, "sessions": ["s1"]}
-    assert len(calls) == 1 and calls[0]["prompt"] == "the story prompt" and calls[0]["resume_from"] is None and calls[0]["fork"] is True
-    assert calls[0]["log_existed"] is False                           # a fresh story starts a fresh log
-    assert calls[0]["args"] == ("the-client", story.ws, {"E": "1"}, "the-model", story.events)
-    guard, = Guard.made
-    assert guard.args == (story.events, story.ws, story.run / "interventions.md") and guard.calls == ["start", "stop"]
-
-
-def test_a_story_continued_after_a_harness_restart_keeps_its_log_and_its_session(story):
-    story.events.write_text('{"type": "session", "id": "s0"}\n')
-    result, calls = story([attempt()], continue_session="s0")
-    assert [(c["prompt"], c["resume_from"], c["fork"], c["log_existed"]) for c in calls] == [
-        (drive.RESUME_PROMPT, "s0", False, True)]
-    assert story.events.read_text().startswith('{"type": "session", "id": "s0"}\n') and result["resumes"] == 0
-
-
-def test_an_error_is_resumed_in_a_fork_of_its_session_until_the_cap(story):
-    failing = [attempt(session=f"s{n}", error=f"error {n}", exit=1) for n in range(drive.MAX_AGENT_RESUMES + 1)]
-    result, calls = story(failing, commits=0)
-    assert [(c["prompt"], c["resume_from"], c["fork"]) for c in calls] == [("the story prompt", None, True)] + [
-        (drive.RESUME_PROMPT, f"s{n}", True) for n in range(drive.MAX_AGENT_RESUMES)]
-    assert story.slept == [drive.RESUME_BACKOFF_S] * drive.MAX_AGENT_RESUMES
-    assert result["resumes"] == drive.MAX_AGENT_RESUMES and result["nudges"] == 0
-    assert result["errors"] == [f"error {n}" for n in range(drive.MAX_AGENT_RESUMES + 1)]
-    assert result["ended_in_error"] is True and result["exit"] == 1
-    assert result["sessions"] == [f"s{n}" for n in range(drive.MAX_AGENT_RESUMES + 1)]
-    n = drive.MAX_AGENT_RESUMES + 1
-    assert (result["seconds"], result["steps"], result["tool_calls"], result["compactions"]) == (60.0 * n, 3 * n, 2 * n, n)
-    assert result["tokens"]["input"] == 100 * n and result["tokens"]["output"] == 10 * n
-
-
-def test_an_error_that_a_resume_clears_ends_the_story_cleanly(story):
-    result, calls = story([attempt(error="dropped stream", exit=1), attempt(session="s2")])
-    assert len(calls) == 2 and result["resumes"] == 1
-    assert result["errors"] == ["dropped stream"] and result["ended_in_error"] is False and result["exit"] == 0
-
-
-@pytest.mark.parametrize("failed", [attempt(error="no session to resume", session=None, exit=1),
-                                    attempt(error="stopped in a loop", stalled=True, exit=-15)])
-def test_an_error_with_no_session_or_from_a_stall_is_not_resumed(story, failed):
-    result, calls = story([failed], commits=0)
-    assert len(calls) == 1 and result["resumes"] == 0 and result["nudges"] == 0
-    assert result["ended_in_error"] is True and result["stalled"] is failed["stalled"] and story.slept == []
-
-
-def test_a_clean_stop_without_a_commit_is_nudged_in_the_same_session_until_it_commits(story):
-    result, calls = story([attempt(), attempt(), attempt()], commits=[0, 0, 1])
-    assert [(c["prompt"], c["resume_from"], c["fork"]) for c in calls] == [
-        ("the story prompt", None, True), (drive.NUDGE_PROMPT, "s1", False), (drive.NUDGE_PROMPT, "s1", False)]
-    assert result["nudges"] == 2 and result["resumes"] == 0 and story.slept == []
-
-
-def test_a_nudge_that_made_no_tool_call_ends_the_nudging(story):
-    result, calls = story([attempt(), attempt(tool_calls=0)], commits=0)
-    assert len(calls) == 2 and result["nudges"] == 1
-
-
-def test_the_nudge_cap_ends_the_story_and_tells_whoever_asked_to_know(story):
-    told: list[str] = []
-    result, calls = story([attempt()] * (drive.MAX_NUDGES + 1), commits=0, on_cap=told.append)
-    assert result["nudges"] == drive.MAX_NUDGES and len(calls) == drive.MAX_NUDGES + 1
-    assert told == [f"story cap: {drive.MAX_NUDGES} nudges without committing (cap {drive.MAX_NUDGES})"]
-
-
-def test_the_nudge_cap_ends_the_story_when_nobody_asked_to_know(story):
-    result, calls = story([attempt()] * (drive.MAX_NUDGES + 1), commits=0)
-    assert result["nudges"] == drive.MAX_NUDGES and len(calls) == drive.MAX_NUDGES + 1 and result["ended_by_operator"] is False
-
-
-def test_a_reply_that_is_a_tool_call_written_as_text_is_continued_and_logged_up_to_its_cap(story):
-    n = drive.MAX_TOOLCALL_TEXT_RESUMES
-    result, calls = story([attempt()] * (n + 1), commits=1, final_reply='<tool_call>{"name": "edit"}</tool_call>')
-    assert [(c["prompt"], c["resume_from"], c["fork"]) for c in calls[1:]] == [(drive.TOOLCALL_AS_TEXT_PROMPT, "s1", False)] * n
-    assert result["toolcall_text_resumes"] == n and result["nudges"] == 0 and result["resumes"] == 0
-    log = (story.run / "interventions.md").read_text()
-    for i in range(1, n + 1):
-        assert (f"story 01: the agent's last reply was a tool call written as text (not run); continued the session "
-                f"({i}/{n})") in log
-
-
-@pytest.mark.parametrize("flag, by_operator", [("RUN_ABORT", False), ("STORY_SKIP", True)])
-def test_a_story_a_guard_or_the_operator_stopped_is_neither_resumed_nor_nudged(story, flag, by_operator):
-    getattr(drive, flag).set()
-    result, calls = story([attempt(error="killed", exit=-15)], commits=0)
-    assert len(calls) == 1 and result["resumes"] == 0 and result["nudges"] == 0
-    assert result["ended_by_operator"] is by_operator and result["ended_in_error"] is True
 
 
 # ======================= the loop detector =======================
