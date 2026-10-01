@@ -1,5 +1,7 @@
 import * as Y from 'yjs';
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
+import type { Rect } from './geometry';
+import { rectContains } from './geometry';
 
 /**
  * Board document model: the Yjs schema and every mutation a user can perform on the board.
@@ -29,14 +31,21 @@ export const SCHEMA_VERSION = 1;
 const META_MAP = 'meta';
 const OBJECTS_MAP = 'objects';
 
-export interface StickySnapshot {
+/** Generic object snapshot for group operations (select-all, marquee, bounds). */
+export interface ObjectSnapshot {
   id: string;
-  type: 'sticky';
+  type: string;
   x: number;
   y: number;
+  z: number;
+  width?: number;
+  height?: number;
+}
+
+export interface StickySnapshot extends ObjectSnapshot {
+  type: 'sticky';
   color: StickyColor;
   text: string;
-  z: number;
   createdAt: number;
 }
 
@@ -168,6 +177,170 @@ export function deleteObject(doc: Y.Doc, id: string): boolean {
     objectsMap(doc).delete(id);
   }, LOCAL_ORIGIN);
   return true;
+}
+
+/* ------------------------------------------------------- group operations ---- */
+
+/**
+ * Compute the bounding Rect of an object snapshot. Uses explicit width/height when present,
+ * otherwise falls back to STICKY_SIZE_WORLD (for stickies created before story 7).
+ */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  const w = obj.width ?? STICKY_SIZE_WORLD;
+  const h = obj.height ?? STICKY_SIZE_WORLD;
+  return { x: obj.x, y: obj.y, width: w, height: h };
+}
+
+/**
+ * Return ids of objects that lie entirely inside `rect` (for marquee selection).
+ * Objects only partially inside, or touching the edge from outside, are NOT selected.
+ */
+export function objectsInRect(
+  snapshotArr: readonly ObjectSnapshot[],
+  rect: Rect,
+): string[] {
+  const result: string[] = [];
+  for (const obj of snapshotArr) {
+    if (rectContains(rect, objectBounds(obj))) {
+      result.push(obj.id);
+    }
+  }
+  return result;
+}
+
+/** Return ids of all objects in the snapshot array (which already excludes unknown types). */
+export function allObjectIds(snapshotArr: readonly ObjectSnapshot[]): string[] {
+  return snapshotArr.map((obj) => obj.id);
+}
+
+/**
+ * Move multiple objects to absolute positions. Skips missing ids and non-finite values.
+ * Returns the count of objects actually moved. One transaction if count > 0.
+ */
+export function moveObjects(
+  doc: Y.Doc,
+  positions: ReadonlyMap<string, { x: number; y: number }>,
+): number {
+  if (positions.size === 0) return 0;
+  // Validate all entries before opening a transaction
+  const entries: [string, number, number][] = [];
+  for (const [id, pos] of positions) {
+    if (!isFiniteNumber(pos.x) || !isFiniteNumber(pos.y)) continue;
+    entries.push([id, pos.x, pos.y]);
+  }
+  if (entries.length === 0) return 0;
+
+  let count = 0;
+  doc.transact(() => {
+    for (const [id, x, y] of entries) {
+      const map = objectsMap(doc).get(id);
+      if (!map) continue;
+      map.set('x', x);
+      map.set('y', y);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Resize multiple objects (writes width and height). Skips missing ids and non-finite values.
+ * Turns implicit-size stickies explicit.
+ * Returns the count of objects actually resized. One transaction if count > 0.
+ */
+export function resizeObjects(
+  doc: Y.Doc,
+  rects: ReadonlyMap<string, Rect>,
+): number {
+  if (rects.size === 0) return 0;
+  const entries: [string, Rect][] = [];
+  for (const [id, rect] of rects) {
+    if (!isFiniteNumber(rect.x) || !isFiniteNumber(rect.y) ||
+        !isFiniteNumber(rect.width) || !isFiniteNumber(rect.height)) continue;
+    entries.push([id, rect]);
+  }
+  if (entries.length === 0) return 0;
+
+  let count = 0;
+  doc.transact(() => {
+    for (const [id, rect] of entries) {
+      const map = objectsMap(doc).get(id);
+      if (!map) continue;
+      map.set('x', rect.x);
+      map.set('y', rect.y);
+      map.set('width', rect.width);
+      map.set('height', rect.height);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Bring objects to front: raise the whole selection above all unselected objects
+ * while preserving relative z among selected objects.
+ * Returns count of objects whose z changed. One transaction if count > 0.
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const idSet = new Set(ids);
+  const maps: Map<string, Y.Map<unknown>> = new Map();
+  let maxUnselectedZ = 0;
+
+  for (const [id, map] of objectsMap(doc)) {
+    if (idSet.has(id)) {
+      maps.set(id, map);
+    } else {
+      const z = numberField(map, 'z');
+      if (z > maxUnselectedZ) maxUnselectedZ = z;
+    }
+  }
+  if (maps.size === 0) return 0;
+
+  // Sort selected objects by current z to preserve relative order
+  const sorted = [...maps.entries()].sort((a, b) => numberField(a[1], 'z') - numberField(b[1], 'z'));
+
+  // Check if all are already above unselected
+  let allAbove = true;
+  for (const [, map] of sorted) {
+    if (numberField(map, 'z') <= maxUnselectedZ) {
+      allAbove = false;
+      break;
+    }
+  }
+  if (allAbove) return 0;
+
+  let count = 0;
+  doc.transact(() => {
+    let nextZ = maxUnselectedZ + 1;
+    for (const [, map] of sorted) {
+      const currentZ = numberField(map, 'z');
+      if (currentZ <= maxUnselectedZ) {
+        map.set('z', nextZ);
+        count++;
+      }
+      nextZ++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Delete multiple objects. Skips missing ids. Returns count actually deleted.
+ * One transaction if count > 0.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  let count = 0;
+  doc.transact(() => {
+    for (const id of ids) {
+      if (objectsMap(doc).has(id)) {
+        objectsMap(doc).delete(id);
+        count++;
+      }
+    }
+  }, LOCAL_ORIGIN);
+  return count;
 }
 
 /** The note's shared text, or `undefined` when the id is stale or not a note. */

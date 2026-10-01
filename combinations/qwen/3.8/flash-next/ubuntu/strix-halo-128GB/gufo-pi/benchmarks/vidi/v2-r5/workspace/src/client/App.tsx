@@ -8,21 +8,20 @@ import { useCamera, useViewportSize } from './canvas/useCamera';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { SelectionOverlay } from './board/SelectionOverlay';
+import { SelectionBar } from './board/SelectionBar';
+import { useTransformGesture } from './board/useTransformGesture';
+import { useBoardKeys } from './board/useBoardKeys';
+import { useMarquee, MarqueeRect } from './board/Marquee';
 import { StickyNote } from './objects/StickyNote';
-import { createSticky, deleteObject, snapshot } from '../shared/board-model';
+import { createSticky, deleteObjects, deleteObject, snapshot } from '../shared/board-model';
 import { installTestHooks } from './canvas/testHooks';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
+import type { Handle } from '../shared/geometry';
 
-/** True when the keypress belongs to a text field, which owns Delete and Enter itself. */
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target.isContentEditable
-  );
-}
+// Register object types (side effect)
+import './objects/registerSticky';
 
 /** Extract the boardId from /b/:boardId. */
 function readBoardIdFromPath(): string | undefined {
@@ -34,18 +33,10 @@ function readBoardIdFromPath(): string | undefined {
  * Top-level layout: a full-window board, the tool toolbar on the left, the zoom control in the
  * bottom-right corner and the first-use navigation hint near the bottom centre.
  *
- * The camera lives here so the board and its controls share one source of truth, the board
- * document lives in `useBoardDoc` (in memory in this story), and selection lives in
- * `useSelection` (never shared). The window keyboard handler is the single place that turns
- * Enter / Delete / Backspace into a board action for the selected note.
+ * Story 7: multi-select, group move, resize, nudge and delete.
  */
 export interface AppProps {
-  /**
-   * Use this board document instead of creating one. Tests seed a document and render it;
-   * from story 3 on this is also where a provider-backed document comes from.
-   */
   doc?: Y.Doc;
-  /** Board id for connecting to the server. If absent, no provider is connected. */
   boardId?: string;
 }
 
@@ -54,9 +45,30 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
   const { camera, hasNavigated, ...handlers } = useCamera(viewport);
   const boardId = boardIdProp ?? readBoardIdFromPath();
   const { doc, notes, connectionState } = useBoardDoc(providedDoc, boardId);
-  const selection = useSelection();
-  const { selectedId, editingId, select, startEdit, endEdit } = selection;
+  const selection = useSelection(notes);
   const editable = connectionState === undefined || canEdit(connectionState);
+
+  // Keyboard commands (select-all, clear, nudge, delete, enter-to-edit)
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable });
+
+  // Transform gesture (group move and resize)
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+  });
+
+  // Marquee (Shift+drag)
+  const marquee = useMarquee({
+    camera,
+    snapshot: notes,
+    onSelect: useCallback(
+      (ids: string[]) => selection.setMany(ids, true),
+      [selection],
+    ),
+  });
 
   /** Create a note whose centre is the given world point, and start typing straight away. */
   const createAt = useCallback(
@@ -64,62 +76,36 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
       if (!editable) return;
       const id = createSticky(doc, world);
       if (!id) return;
-      startEdit(id);
+      selection.startEdit(id);
     },
-    [doc, startEdit, editable],
+    [doc, selection, editable],
   );
 
-  /** Toolbar creation: the centre of the visible board area, wherever the board is panned. */
+  /** Toolbar creation: the centre of the visible board area. */
   const createAtViewportCentre = useCallback(() => {
     if (!editable) return;
     createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }));
   }, [camera, createAt, viewport.height, viewport.width, editable]);
 
-  /** Bin button and Delete key: remove the note and drop the selection with it. */
-  const remove = useCallback(
+  /** Delete the entire selection (SelectionBar button). */
+  const deleteSelection = useCallback(() => {
+    if (!editable) return;
+    const ids = [...selection.ids];
+    deleteObjects(doc, ids);
+    selection.clear();
+  }, [doc, selection, editable]);
+
+  /** Delete a single note (NoteToolbar button). */
+  const removeOne = useCallback(
     (id: string) => {
       if (!editable) return;
       deleteObject(doc, id);
-      select(null);
+      selection.clear();
     },
-    [doc, select, editable],
+    [doc, selection, editable],
   );
 
-  // Enter starts editing the selected note; Delete/Backspace removes it. Both are ignored while
-  // a note is being edited (the keys belong to the textarea) or while focus is in any field.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (editingId !== null) return;
-      if (isTypingTarget(event.target)) return;
-      if (selectedId === null) return;
-
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        startEdit(selectedId);
-        return;
-      }
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        event.preventDefault();
-        remove(selectedId);
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [editingId, remove, selectedId, startEdit]);
-
-  // A note that is gone cannot stay selected (deleted by the bin button, the keyboard, or from
-  // story 3 on by someone else): the selection follows the document.
-  useEffect(() => {
-    if (selectedId !== null && !notes.some((note) => note.id === selectedId)) select(null);
-  }, [notes, select, selectedId]);
-
-  // A note that is gone cannot stay in edit mode (deleted by someone else).
-  useEffect(() => {
-    if (editingId !== null && !notes.some((note) => note.id === editingId)) endEdit('unselected');
-  }, [notes, editingId, endEdit]);
-
-  // Test build only: let the suites read the model, so a drag can be asserted in world units.
+  // Test build only: let the suites read the model.
   useEffect(() => {
     installTestHooks({ getStickyNotes: () => snapshot(doc) });
   }, [doc]);
@@ -131,6 +117,13 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
     }
   }, [connectionState]);
 
+  const handleHandlePointerDown = useCallback(
+    (e: React.PointerEvent, handle: Handle) => {
+      gesture.onHandlePointerDown(e, handle);
+    },
+    [gesture],
+  );
+
   return (
     <div className="app-root">
       {connectionState !== undefined && <ConnectionStatus state={connectionState} />}
@@ -138,7 +131,26 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
         camera={camera}
         handlers={handlers}
         onCreateSticky={createAt}
-        onClearSelection={() => select(null)}
+        onClearSelection={selection.clear}
+        onMarqueeStart={marquee.begin}
+        onMarqueeMove={marquee.move}
+        onMarqueeEnd={marquee.end}
+        onMarqueeCancel={marquee.cancel}
+        overlay={
+          <SelectionOverlay
+            ids={selection.ids}
+            snapshot={notes}
+            camera={camera}
+            onHandlePointerDown={handleHandlePointerDown}
+          />
+        }
+        bar={
+          <SelectionBar
+            ids={selection.ids}
+            snapshot={notes}
+            onDelete={deleteSelection}
+          />
+        }
       >
         {notes.map((note) => (
           <StickyNote
@@ -146,14 +158,17 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
             note={note}
             doc={doc}
             zoom={camera.zoom}
-            selected={note.id === selectedId}
-            editing={note.id === editingId}
-            onSelect={select}
-            onStartEdit={startEdit}
-            onEndEdit={endEdit}
-            onDelete={remove}
+            selected={selection.ids.has(note.id)}
+            editing={note.id === selection.editingId}
+            onSelect={selection.click}
+            onToggle={selection.toggle}
+            onStartEdit={selection.startEdit}
+            onEndEdit={selection.endEdit}
+            onDelete={removeOne}
+            onObjectPointerDown={gesture.onObjectPointerDown}
           />
         ))}
+        <MarqueeRect rect={marquee.rect} camera={camera} />
       </BoardViewport>
       <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} />
       <ZoomControls

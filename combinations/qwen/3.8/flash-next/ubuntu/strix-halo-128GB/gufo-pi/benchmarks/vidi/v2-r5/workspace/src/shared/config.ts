@@ -59,6 +59,23 @@ export const STICKY_FONT_MIN_PX = 10;
 /** Pointer movement (screen px) before a press on a note becomes a drag. */
 export const DRAG_THRESHOLD_PX = 3;
 
+/* ------------------------------------------------------- selection & transform ---- */
+
+/** Size of each resize handle in screen pixels (constant on screen at any zoom). */
+export const HANDLE_SIZE_PX = 8;
+
+/** Minimum size of a sticky note in world units (cannot be resized smaller). */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/** Maximum size of any object in world units (cannot be resized larger). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** Arrow-key nudge step in world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Shift+Arrow-key nudge step in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 /** The six preset note colours, in toolbar order. */
 export const STICKY_COLORS = {
   yellow: '#FFF59D',

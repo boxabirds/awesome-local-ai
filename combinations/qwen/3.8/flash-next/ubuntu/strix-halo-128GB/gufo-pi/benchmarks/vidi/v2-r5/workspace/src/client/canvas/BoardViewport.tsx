@@ -24,15 +24,23 @@ export interface BoardViewportProps {
   camera: Camera;
   /** Navigation handlers from `useCamera`. */
   handlers: CameraHandlers;
-  /** Board content (sticky notes from story 2) rendered in world coordinates. */
+  /** Board content (sticky notes, marquee, etc.) rendered in world coordinates. */
   children?: ReactNode;
   /**
    * A double-click on empty board space, with the click converted to world coordinates.
-   * The click did not land on an object: a double-click on a note is handled by the note.
    */
   onCreateSticky?(world: Point): void;
   /** A press on empty board space without dragging: clears the selection. */
   onClearSelection?(): void;
+  /** Shift+drag on empty space: marquee selection. */
+  onMarqueeStart?(screen: Point): void;
+  onMarqueeMove?(screen: Point): void;
+  onMarqueeEnd?(): void;
+  onMarqueeCancel?(): void;
+  /** Overlay content rendered in screen-space (position absolute over the viewport). */
+  overlay?: ReactNode;
+  /** Top-bar content rendered in screen-space above the board. */
+  bar?: ReactNode;
 }
 
 /** Safari trackpad gestures (`gesturestart` / `gesturechange` / `gestureend`). */
@@ -42,7 +50,7 @@ interface GestureLike extends Event {
   readonly clientY: number;
 }
 
-/** Wheel deltaMode values (https://www.w3.org/TR/uievents/#ref-for-dom-wheelevent-deltamode). */
+/** Wheel deltaMode values. */
 const DELTA_MODE_LINE = 1;
 const DELTA_MODE_PAGE = 2;
 
@@ -61,11 +69,18 @@ export function BoardViewport({
   children,
   onCreateSticky,
   onClearSelection,
+  onMarqueeStart,
+  onMarqueeMove,
+  onMarqueeEnd,
+  onMarqueeCancel,
+  overlay,
+  bar,
 }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const pointerIdRef = useRef<number | null>(null);
   const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const marqueeActiveRef = useRef(false);
   const [panning, setPanning] = useState(false);
 
   // Keep the latest handlers without re-subscribing the native listeners every render.
@@ -74,6 +89,9 @@ export function BoardViewport({
 
   const cameraRef = useRef(camera);
   cameraRef.current = camera;
+
+  const marqueeCallbacksRef = useRef({ onMarqueeStart, onMarqueeMove, onMarqueeEnd, onMarqueeCancel });
+  marqueeCallbacksRef.current = { onMarqueeStart, onMarqueeMove, onMarqueeEnd, onMarqueeCancel };
 
   /** Only the empty board (viewport or world layer itself) starts a pan. */
   const isBoardSurface = (target: EventTarget | null): boolean => {
@@ -86,17 +104,32 @@ export function BoardViewport({
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    // Touch screens are out of scope for story 1.
     if (event.pointerType === 'touch') return;
     if (event.button !== 0) return;
     if (!isBoardSurface(event.target)) return;
+
+    // Shift+drag on empty space: start marquee instead of pan
+    if (event.shiftKey && marqueeCallbacksRef.current.onMarqueeStart) {
+      marqueeActiveRef.current = true;
+      pointerIdRef.current = event.pointerId;
+      pressRef.current = { x: event.clientX, y: event.clientY, moved: false };
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture is best-effort
+      }
+      const rect = viewportRef.current?.getBoundingClientRect();
+      const screenPoint = { x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) };
+      marqueeCallbacksRef.current.onMarqueeStart(screenPoint);
+      return;
+    }
 
     pointerIdRef.current = event.pointerId;
     pressRef.current = { x: event.clientX, y: event.clientY, moved: false };
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
-      // Pointer capture is best-effort (unsupported in some test environments).
+      // Pointer capture is best-effort
     }
     setPanning(true);
     handlersRef.current.beginPan({ x: event.clientX, y: event.clientY });
@@ -107,17 +140,32 @@ export function BoardViewport({
     const press = pressRef.current;
     if (press && !press.moved) {
       const distance = Math.hypot(event.clientX - press.x, event.clientY - press.y);
-      // A pan that actually moved is not a click: it must not clear the selection.
       if (distance >= DRAG_THRESHOLD_PX) press.moved = true;
     }
+
+    if (marqueeActiveRef.current) {
+      const rect = viewportRef.current?.getBoundingClientRect();
+      const screenPoint = { x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) };
+      marqueeCallbacksRef.current.onMarqueeMove?.(screenPoint);
+      return;
+    }
+
     handlersRef.current.panMove({ x: event.clientX, y: event.clientY });
   };
 
   const handlePointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== null && pointerIdRef.current !== event.pointerId) return;
     pointerIdRef.current = null;
+
+    if (marqueeActiveRef.current) {
+      marqueeActiveRef.current = false;
+      marqueeCallbacksRef.current.onMarqueeEnd?.();
+      // A marquee press is not a selection-clearing click
+      pressRef.current = null;
+      return;
+    }
+
     setPanning(false);
-    // Whatever the camera was at the moment of interruption is kept.
     handlersRef.current.endPan();
     const press = pressRef.current;
     pressRef.current = null;
@@ -125,9 +173,24 @@ export function BoardViewport({
     if (press && !press.moved && onClearSelection) onClearSelection();
   };
 
+  const handlePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (pointerIdRef.current !== null && pointerIdRef.current !== event.pointerId) return;
+    pointerIdRef.current = null;
+
+    if (marqueeActiveRef.current) {
+      marqueeActiveRef.current = false;
+      marqueeCallbacksRef.current.onMarqueeCancel?.();
+      pressRef.current = null;
+      return;
+    }
+
+    setPanning(false);
+    handlersRef.current.endPan();
+    pressRef.current = null;
+  };
+
   const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     if (!onCreateSticky) return;
-    // Only empty board space creates; a double-click on a note is handled by the note.
     if (!isBoardSurface(event.target)) return;
     const rect = viewportRef.current?.getBoundingClientRect();
     const point: Point = {
@@ -142,7 +205,6 @@ export function BoardViewport({
     if (!element) return;
 
     const onWheel = (event: WheelEvent) => {
-      // The board owns every wheel over it: no page scroll, no browser page zoom.
       event.preventDefault();
       handlersRef.current.wheel({
         deltaX: toPixels(event.deltaX, event.deltaMode),
@@ -190,7 +252,6 @@ export function BoardViewport({
       switch (event.key) {
         case '=':
         case '+':
-          // Stop the browser zooming the page; zoom the board one step instead.
           event.preventDefault();
           handlersRef.current.zoomStep('in');
           break;
@@ -237,7 +298,7 @@ export function BoardViewport({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerEnd}
-      onPointerCancel={handlePointerEnd}
+      onPointerCancel={handlePointerCancel}
       onLostPointerCapture={handlePointerEnd}
       onDoubleClick={handleDoubleClick}
     >
@@ -261,6 +322,8 @@ export function BoardViewport({
         />
         {children}
       </div>
+      {overlay}
+      {bar}
     </div>
   );
 }
