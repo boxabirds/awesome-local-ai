@@ -169,6 +169,14 @@ else
   echo "harness self-test WAIVED (SKIP_SELF_TEST=1)"
 fi
 
+# Earlier runs on this machine that ended without their score of record get it now, while the machine is free:
+# the self-test has passed and no model server is up (finalize_pending.py: bounded by its own time budget, most
+# recent first, and it refuses while another run is active). First remember this start's PATH (and Playwright's
+# platform override), so a re-score started later from a barer shell finds the same uv, node and npm
+# (scoring_tools.py). Neither can fail or stop this run; the sweep's messages are not this run's errors.
+python3 "$HARNESS/scoring_tools.py" remember || true
+(cd "$HARNESS" && uv run --quiet finalize_pending.py --exclude "$RUN_DIR" ${RECORD:+--record} 2>&1) || true
+
 # A cloud model doesn't run on this machine: its run is never held up for the machine's power or temperature
 # (the conditions are still recorded with each story).
 NO_CONDITION_WAIT=""; [[ "$CLOUD" == 1 ]] && NO_CONDITION_WAIT=1
@@ -273,8 +281,11 @@ uv run --quiet drive.py --run-dir "$RUN_DIR" --base-url "$AGENT_URL" --client "$
   ${CLIENT_THINKING:+--client-thinking "$CLIENT_THINKING"} ${FROM_RUN:+--from-run "$FROM_RUN"} \
   ${NO_CONDITION_WAIT:+--no-condition-wait}
 uv run --quiet report.py "$RUN_DIR"
-# The run's history as workspace.bundle, and its final build re-scored under the pack's suite (finalize.py),
-# so a finished run is scored and judgeable without anyone doing it by hand. Never fails the run.
+# The run's history as workspace.bundle, and its final build re-scored under the suite at the pack's tag
+# (finalize.py), so a finished run is scored and judgeable without anyone doing it by hand. Never fails the run;
+# what it could not do this time is in finalize.json, and the sweep (below, and at every later start) retries it.
 uv run --quiet finalize.py "$RUN_DIR" --pack "$PACK" ${RECORD:+--record} || true
 FINISHED=1
 record_event finished
+# And once more for any other run still waiting for its score (this one just had its own try, and is left out).
+uv run --quiet finalize_pending.py --exclude "$RUN_DIR" ${RECORD:+--record} 2>&1 || true

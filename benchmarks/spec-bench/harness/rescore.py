@@ -8,6 +8,11 @@ its public counts), beside a per-story table.
 
     uv run rescore.py <run-dir> --bundle <workspace.bundle> [--pack benchmarks/vidi]
 
+The suite is the one at the pack's tag (bench.json "pack_ref"), taken from the private repo's git objects and
+kept on this machine (tagsuite.py), never the private checkout's working tree: where that checkout is cannot
+change the score, and the version recorded is the tag that was scored (rescore.json also has its commit). A
+pack without a pack_ref is scored from its working tree, under what pack-version.sh says that is.
+
 Every checkpoint gets two more scorings (no rebuild) of the tests that failed and of a seeded sample of the
 tests that passed (PASSING_SAMPLE_FRACTION, PASSING_SAMPLE_MIN), and each rerun test takes its majority
 result. The tests whose result changed are listed as flaky, both ways: flaky_failing (failed first) and
@@ -50,6 +55,7 @@ INSTALL_TIMEOUT_S = 900
 # (canvas-mlx-02 story 7) failed 5 more tests than scoring it alone, keystrokes dropped under load.
 DEFAULT_JOBS = 1
 TERMINATED = 143   # the usual exit status after SIGTERM
+EXIT_NO_SUITE = 4  # the suite at the pack's tag could not be had (tagsuite.SuiteError); nothing was scored
 
 
 def checkpoints(run: Path) -> list[dict]:
@@ -187,6 +193,11 @@ def majority(accs: list[dict], sampled_passing: int = 0) -> dict:
             "flaky_failing": flaky_failing, "passing_sampled": sampled_passing}
 
 
+# Phrases of this module's faults that finalize.classify_fault tells them apart by.
+NOT_INSTALLED_MARK = "is not installed on this machine"       # the package manager itself is missing
+INSTALL_FAULT_MARK = "the app's dependencies didn't install"
+BUILD_FAULT_MARK = "the app's build failed in the re-score"
+
 NPM_CI = ["npm", "ci", "--no-audit", "--no-fund"]
 # The spec never asks for a clean `npm ci`, and agents do install with --legacy-peer-deps when peers conflict,
 # leaving a lockfile a plain `npm ci` refuses. Install as the agent could have; say when it took the fallback.
@@ -225,7 +236,7 @@ def install(ws: Path, run=subprocess.run) -> dict:
             r = run(cmd, cwd=ws, capture_output=True, text=True, timeout=INSTALL_TIMEOUT_S)
         except FileNotFoundError:
             return {"ok": False, "command": " ".join(cmd), "fallback": i > 0,
-                    "error": f"{cmd[0]} is not installed on this machine"}
+                    "error": f"{cmd[0]} {NOT_INSTALLED_MARK}"}
         except subprocess.TimeoutExpired:
             err = f"`{' '.join(cmd)}` timed out after {INSTALL_TIMEOUT_S}s"
             continue
@@ -238,7 +249,7 @@ def install(ws: Path, run=subprocess.run) -> dict:
 def install_fault(inst: dict) -> str | None:
     """A checkpoint whose dependencies didn't install can't be scored: its tests would say nothing about the app."""
     import gates
-    return None if inst.get("ok") else f"{gates.SCORING_INTERRUPTED} the app's dependencies didn't install ({inst.get('error', '')[-200:]})"
+    return None if inst.get("ok") else f"{gates.SCORING_INTERRUPTED} {INSTALL_FAULT_MARK} ({inst.get('error', '')[-200:]})"
 
 
 BUILD_TAIL_IN_FAULT = 200
@@ -255,7 +266,7 @@ def build_fault(acc: dict, live_build_exit) -> str | None:
     where = ("but passed where the agent worked, on the same commit" if live_build_exit == 0
              else "and the run has no live build of this commit to compare")
     tail = (acc.get("build_tail") or "").strip()[-BUILD_TAIL_IN_FAULT:]
-    return f"{gates.SCORING_INTERRUPTED} the app's build failed in the re-score (exit {code}) {where}: {tail}"
+    return f"{gates.SCORING_INTERRUPTED} {BUILD_FAULT_MARK} (exit {code}) {where}: {tail}"
 
 
 def score_checkpoint(ws: Path, cp: dict, sdir: Path, acceptance: Path | None, accept=None, install=None,
@@ -308,22 +319,29 @@ def out_dir(run: Path, version: str) -> Path:
     return run / "rescore" / version
 
 
-def _score_one(cp: dict, base_repo: str, work_root: str, out: str, port: int, pack: str) -> dict:
-    """One checkpoint: worktree at the recorded commit, its own dependencies, the suite on its own port."""
+PACK_SUITE = "the pack's own"     # _score_one's acceptance: the suite the pack resolves to (drive.PK.acceptance)
+
+
+def _score_one(cp: dict, base_repo: str, work_root: str, out: str, port: int, pack: str,
+               acceptance: str | None = PACK_SUITE) -> dict:
+    """One checkpoint: worktree at the recorded commit, its own dependencies, the suite on its own port.
+    acceptance: the suite to run (main passes the one at the pack's tag); None for a pack without one."""
     os.environ["ACCEPT_PORT"] = str(port)
     import drive, gates, heldout
     drive.set_pack(pack)
+    suite = drive.PK.acceptance if acceptance == PACK_SUITE else (Path(acceptance) if acceptance else None)
     ws = Path(work_root) / f"s{cp['story']:02d}"
     subprocess.run(["git", "-C", base_repo, "worktree", "add", "-q", "--detach", str(ws), cp["commit"]],
                    check=True, capture_output=True)
     t0 = time.time()
     try:
         sdir = Path(out) / "stories" / f"{cp['story']:02d}"
-        acc = score_checkpoint(ws, cp, sdir, drive.PK.acceptance, accept=gates.accept,
+        acc = score_checkpoint(ws, cp, sdir, suite, accept=gates.accept,
                                between=lambda: drive.kill_strays(ws))
         heldout.write_accept(sdir / "accept.json", acc)   # its public summary beside it
         drive.kill_strays(ws)
-        return result_row(cp["story"], acc, round(time.time() - t0))
+        # The commit that was scored: finalize tells a score of the run's final build from one of an earlier one.
+        return {**result_row(cp["story"], acc, round(time.time() - t0)), "commit": cp["commit"]}
     finally:
         subprocess.run(["git", "-C", base_repo, "worktree", "remove", "--force", str(ws)], capture_output=True)
 
@@ -335,11 +353,13 @@ def progress_line(r: dict) -> str:
 
 
 
-def rescore_record(version: str, workers: int, host_limits: dict, environment: dict, results: list[dict]) -> dict:
-    """rescore.json, which is public: the machine is named by its hardware (hostenv.host_desc), never its hostname."""
+def rescore_record(version: str, workers: int, host_limits: dict, environment: dict, results: list[dict],
+                   suite_commit: str | None = None) -> dict:
+    """rescore.json, which is public: the machine is named by its hardware (hostenv.host_desc), never its hostname.
+    suite_commit: the commit of the pack's tag the suite was taken from (None: the pack's working tree)."""
     import hostenv
     return {
-        "pack_version": version, "harness_commit": roots.harness_commit(),
+        "pack_version": version, "suite_commit": suite_commit, "harness_commit": roots.harness_commit(),
         "host": hostenv.host_desc(), "held_out_workers": workers, "host_limits": host_limits,
         "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "environment": environment,
@@ -361,8 +381,18 @@ def main() -> int:
     signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(TERMINATED))
     import drive
     drive.set_pack(a.pack)
-    version = subprocess.run([str(HARNESS / "pack-version.sh"), str(drive.PK.dir), drive.PK.name],
-                             capture_output=True, text=True).stdout.strip()
+    import scoring_tools, tagsuite
+    # The tools run.sh had (uv, node, npm, npx), whatever PATH this was started with: for the suite's install, the
+    # app's install and build, and the runner.
+    tools_env = scoring_tools.environment()
+    os.environ.update({k: tools_env[k] for k in scoring_tools.KEPT if k in tools_env})
+    try:        # the suite at the pack's tag (built on first use)
+        suite = tagsuite.for_pack(drive.PK, env=tools_env)
+    except tagsuite.SuiteError as e:
+        print(f"rescore: no suite to score with: {e}", file=sys.stderr)
+        return EXIT_NO_SUITE
+    version = suite.version
+    acceptance = str(suite.acceptance) if suite.acceptance else None
     workers, host = host_workers() if a.workers == "auto" else (int(a.workers), {})
     os.environ["ACCEPT_WORKERS"] = str(workers)
     run = a.run.resolve()
@@ -383,13 +413,13 @@ def main() -> int:
     try:
         if a.jobs == 1:   # in this process, so the clean-up runs here when the re-score is stopped
             for i, cp in enumerate(cps):
-                r = _score_one(cp, str(base), str(tmp), str(out), BASE_PORT, a.pack)
+                r = _score_one(cp, str(base), str(tmp), str(out), BASE_PORT, a.pack, acceptance)
                 results.append(r)
                 print(progress_line(r), flush=True)
         else:
           with ProcessPoolExecutor(max_workers=a.jobs) as pool:
             futs = {pool.submit(_score_one, cp, str(base), str(tmp), str(out),
-                                BASE_PORT + PORTS_PER_JOB * i, a.pack): cp for i, cp in enumerate(cps)}
+                                BASE_PORT + PORTS_PER_JOB * i, a.pack, acceptance): cp for i, cp in enumerate(cps)}
             for f in as_completed(futs):
                 r = f.result()
                 results.append(r)
@@ -399,7 +429,7 @@ def main() -> int:
     import heldout, scoring_env
     heldout.save_metrics(out, heldout.load_metrics(run))   # per_story reads the processed order from here
     (out / "rescore.json").write_text(json.dumps(rescore_record(
-        version, workers, host, scoring_env.environment(drive.PK.acceptance, workers), results), indent=2))
+        version, workers, host, scoring_env.environment(suite.acceptance, workers), results, suite.commit), indent=2))
     import history
     (out / "per-story.md").write_text(history.render_per_story(out))
     print(history.render_per_story(out))

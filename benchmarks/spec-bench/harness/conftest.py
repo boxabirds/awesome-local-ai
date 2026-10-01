@@ -10,11 +10,17 @@ And the public repo itself: on 1 Oct 2026 a test whose results root fell back to
 records on its main and pushed them. roots.NO_RECORD_ENV names this checkout as off limits for records, for
 every test and every process a test starts.
 
+And the scoring home (scoring_tools.home(): the suites kept at their tags, the remembered tool paths): every test
+gets a temporary one, set at import and removed when the tests end, so no test reads or writes the machine's own
+under the bench home. A test of the cache itself passes a directory in tmp_path.
+
 A test that runs a command in the real sandbox is marked `needs_sandbox`. Where the platform's sandbox tool
 (SANDBOX_TOOL) is missing it is skipped with NO_SANDBOX_REASON, the same way in every test file; with
 $SPEC_BENCH_REQUIRE_SANDBOX set (CI sets it) it fails instead, so the sandbox can't go unproven there unnoticed."""
+import atexit
 import os
 import shutil
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -24,6 +30,7 @@ import heldout
 import hostenv
 import machine_names
 import roots
+import scoring_tools
 
 # No test, and no process a test starts, records in the roots the tests run with (drive.record_refusal): the
 # checkout this code is in, and, in a release's self-test on a node, the node's results checkout. Set in the
@@ -31,6 +38,9 @@ import roots
 # root is the repository the test made for it to record in). A test that records makes a repository of its own.
 os.environ.setdefault(roots.NO_RECORD_ENV,
                       os.pathsep.join(dict.fromkeys([str(roots.CODE_ROOT), str(roots.RESULTS_ROOT)])))
+
+os.environ[scoring_tools.HOME_ENV] = tempfile.mkdtemp(prefix="spec-bench-test-scoring-home-")
+atexit.register(shutil.rmtree, os.environ[scoring_tools.HOME_ENV], ignore_errors=True)
 
 TEST_HOSTNAME = "made-up-bench-box.local"
 os.environ[machine_names.NODES_ENV] = "/nonexistent/dbench/nodes.toml"
