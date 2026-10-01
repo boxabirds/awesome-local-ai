@@ -1,6 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
-import { GRID_SPACING_WORLD } from '../../shared/config';
-import { canZoomIn, canZoomOut, zoomPercent, type Point, type Size } from './camera';
+import {
+  useEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode,
+} from 'react';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import {
+  canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Camera, type Point, type Size,
+} from './camera';
 import { NavigationHint } from './NavigationHint';
 import { installTestHooks } from './testHooks';
 import { useCamera } from './useCamera';
@@ -21,8 +25,27 @@ function positiveMod(v: number, m: number): number {
   return ((v % m) + m) % m;
 }
 
-export function BoardViewport({ children }: { children?: ReactNode }) {
+export interface BoardContext {
+  camera: Camera;
+  size: Size;
+  /** World point at the centre of the visible board area. */
+  centreWorld(): Point;
+}
+
+export interface BoardViewportProps {
+  /** World-layer content; a function receives the current camera. */
+  children?: ReactNode | ((ctx: BoardContext) => ReactNode);
+  /** Screen-space content (toolbars) rendered above the board. */
+  overlay?: (ctx: BoardContext) => ReactNode;
+  /** Double-click on empty board space, with the world point. */
+  onEmptyDoubleClick?(world: Point): void;
+  /** Click (press and release without dragging) on empty board space. */
+  onEmptyClick?(): void;
+}
+
+export function BoardViewport({ children, overlay, onEmptyDoubleClick, onEmptyClick }: BoardViewportProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
+  const pressRef = useRef<Point | null>(null);
   const [size, setSize] = useState<Size>(() => ({
     width: window.innerWidth, height: window.innerHeight,
   }));
@@ -108,18 +131,38 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [zoomStep, reset]);
 
-  const isSurface = (e: PointerEvent<HTMLDivElement>) =>
+  const isSurface = (e: PointerEvent<HTMLDivElement> | MouseEvent<HTMLDivElement>) =>
     e.target === e.currentTarget || (e.target as HTMLElement).dataset?.boardSurface !== undefined;
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== PRIMARY_BUTTON || !isSurface(e)) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    pressRef.current = { x: e.clientX, y: e.clientY };
     beginPan({ x: e.clientX, y: e.clientY });
   };
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     panMove({ x: e.clientX, y: e.clientY });
   };
-  const onPointerEnd = () => endPan();
+  const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    const press = pressRef.current;
+    pressRef.current = null;
+    endPan();
+    if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) < DRAG_THRESHOLD_PX) onEmptyClick?.();
+  };
+  const onPointerEnd = () => {
+    pressRef.current = null;
+    endPan();
+  };
+  const onDoubleClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (!isSurface(e)) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    onEmptyDoubleClick?.(screenToWorld(camera, { x: e.clientX - r.left, y: e.clientY - r.top }));
+  };
+  const ctx: BoardContext = {
+    camera,
+    size,
+    centreWorld: () => screenToWorld(camera, { x: size.width / HALF, y: size.height / HALF }),
+  };
 
   const spacing = GRID_SPACING_WORLD * camera.zoom;
   // Dots sit at the centre of each tile, so shift by half a tile to land on world multiples of the spacing.
@@ -141,7 +184,8 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
         style={surfaceStyle}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
-        onPointerUp={onPointerEnd}
+        onPointerUp={onPointerUp}
+        onDoubleClick={onDoubleClick}
         onPointerCancel={onPointerEnd}
         onLostPointerCapture={onPointerEnd}
       >
@@ -155,9 +199,10 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
           }}
         >
           <div className="board-origin-marker" data-testid="origin-marker" />
-          {children}
+          {typeof children === 'function' ? children(ctx) : children}
         </div>
       </div>
+      {overlay?.(ctx)}
       <NavigationHint visible={!cam.hasNavigated} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

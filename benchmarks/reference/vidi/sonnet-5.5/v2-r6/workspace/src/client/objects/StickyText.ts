@@ -1,0 +1,90 @@
+import type * as Y from 'yjs';
+import {
+  STICKY_COUNTER_THRESHOLD_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX, STICKY_TEXT_MAX_CHARS,
+} from '../../shared/config';
+
+const HIGH_SURROGATE_MIN = 0xd800;
+const HIGH_SURROGATE_MAX = 0xdbff;
+const LOW_SURROGATE_MIN = 0xdc00;
+const LOW_SURROGATE_MAX = 0xdfff;
+const MID = 2;
+
+const isHigh = (c: number) => c >= HIGH_SURROGATE_MIN && c <= HIGH_SURROGATE_MAX;
+const isLow = (c: number) => c >= LOW_SURROGATE_MIN && c <= LOW_SURROGATE_MAX;
+
+/** Keeps at most `max` UTF-16 units without splitting a surrogate pair. */
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  let end = max;
+  if (end > 0 && isHigh(s.charCodeAt(end - 1))) end -= 1;
+  return s.slice(0, end);
+}
+
+export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
+  return truncate(next, max);
+}
+
+export function counterVisible(length: number): boolean {
+  return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;
+}
+
+interface Diff { start: number; removed: number; inserted: string }
+
+/** Common prefix/suffix diff; never cuts a surrogate pair in half. */
+function diff(prev: string, next: string): Diff {
+  const minLen = Math.min(prev.length, next.length);
+  let p = 0;
+  while (p < minLen && prev.charCodeAt(p) === next.charCodeAt(p)) p += 1;
+  if (p > 0 && p < Math.max(prev.length, next.length) && isHigh(prev.charCodeAt(p - 1))) p -= 1;
+  let s = 0;
+  while (s < minLen - p && prev.charCodeAt(prev.length - 1 - s) === next.charCodeAt(next.length - 1 - s)) s += 1;
+  if (s > 0 && isLow(prev.charCodeAt(prev.length - s))) s -= 1;
+  return { start: p, removed: prev.length - p - s, inserted: next.slice(p, next.length - s) };
+}
+
+/**
+ * Applies the edit prev → next but never lets the result exceed `max`: characters of the
+ * inserted run beyond the limit are dropped (not characters elsewhere in the text).
+ * `caret` is the position just after the kept insertion.
+ */
+export function clampEdit(prev: string, next: string, max: number = STICKY_TEXT_MAX_CHARS): { value: string; caret: number } {
+  if (next.length <= max) return { value: next, caret: next.length };
+  const d = diff(prev, next);
+  const room = Math.max(0, max - (prev.length - d.removed));
+  const kept = truncate(d.inserted, room);
+  const value = prev.slice(0, d.start) + kept + prev.slice(d.start + d.removed);
+  return { value, caret: d.start + kept.length };
+}
+
+/** Minimal insert/delete so concurrent edits by others survive. */
+export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
+  const prev = ytext.toString();
+  if (prev === next) return;
+  const d = diff(prev, next);
+  const run = () => {
+    if (d.removed > 0) ytext.delete(d.start, d.removed);
+    if (d.inserted.length > 0) ytext.insert(d.start, d.inserted);
+  };
+  if (ytext.doc) ytext.doc.transact(run, origin);
+  else run();
+}
+
+/** Largest integer font size in [MIN, MAX] at which the content fits `box` px; leaves it applied. */
+export function fitFontSize(el: HTMLElement, box: number): { fontPx: number; overflow: boolean } {
+  const fits = (px: number) => {
+    el.style.fontSize = `${px}px`;
+    return el.scrollHeight <= box;
+  };
+  let lo = STICKY_FONT_MIN_PX;
+  let hi = STICKY_FONT_MAX_PX;
+  if (fits(hi)) return { fontPx: hi, overflow: false };
+  if (!fits(lo)) return { fontPx: lo, overflow: true };
+  // invariant: lo fits, hi does not
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / MID);
+    if (fits(mid)) lo = mid;
+    else hi = mid;
+  }
+  el.style.fontSize = `${lo}px`;
+  return { fontPx: lo, overflow: false };
+}
