@@ -33,6 +33,7 @@ from pathlib import Path
 
 import attempts
 import engine_settings
+import machine_fit
 import containment
 import gates
 import heldout
@@ -1784,11 +1785,10 @@ def main() -> None:
             rec["conditions"] = sampler.stop()
             rec["containment"] = CONTAINMENT.finish()   # kills what is left in the story's scopes
             CONTAINMENT = None
-        if rec["conditions"]["aborted_swap"]:
+        if rec["conditions"]["aborted_swap"] or rec["conditions"]["aborted_memory"]:
             kill_strays(ws)
             (run / "current_story").write_text("")
-            raise SystemExit(f"[story {sid}] stopped by the swap guard (swap {rec['conditions']['swap_start_gb']} -> "
-                             f"{rec['conditions']['swap_max_gb']} GB). Not checkpointed; check memory before resuming.")
+        stop_if_machine_unfit(run, sid, rec["conditions"])
         kill_strays(ws)
         (run / "current_story").write_text("")
         if rec["agent"]["steps"] == 0 and not skip:
@@ -1884,6 +1884,22 @@ def main() -> None:
               f"{' DEGRADED (power/thermal) — timing not comparable' if rec['conditions']['degraded'] else ''}",
               flush=True)
         stop_if_missing_resources(sid, rec["gate"], acc)
+
+
+def stop_if_machine_unfit(run: Path, sid: int, conditions: dict) -> None:
+    """Stop the run if the swap or memory guard stopped the story: it isn't a story result, so nothing is
+    checkpointed. The marker and the exit tell run.sh and dbench to wait for the machine to recover before the
+    story runs again (machine_fit.py), instead of restarting at once as after a crash."""
+    if not (conditions.get("aborted_swap") or conditions.get("aborted_memory")):
+        return
+    guard = "memory" if conditions.get("aborted_memory") else "swap"
+    reason = (f"{guard} guard: swap {conditions.get('swap_start_gb')} -> {conditions.get('swap_max_gb')} GB, "
+              f"free memory at least {conditions.get('free_min_pct')}%")
+    machine_fit.record_unfit(run, sid, reason, conditions.get("swap_start_gb"), conditions.get("swap_max_gb"),
+                             conditions.get("free_min_pct"))
+    print(f"[story {sid}] stopped by the {reason}. Not checkpointed; the run resumes once the machine has "
+          f"recovered (machine_fit.py).", file=sys.stderr, flush=True)
+    sys.exit(machine_fit.EXIT_MACHINE_UNFIT)
 
 
 def stop_if_missing_resources(sid: int, gate: dict, acc: dict) -> None:

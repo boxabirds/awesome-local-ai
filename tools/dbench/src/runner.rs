@@ -26,6 +26,9 @@ const SIGNAL_EXIT_BASE: i32 = 128;
 /// The harness's exit when the machine lacks what the run needs (drive.py EXIT_MISSING_RESOURCES).
 /// A restart would hit the same wall, so the job fails at once.
 pub const EXIT_MISSING_RESOURCES: i32 = 3;
+/// The harness's exit while the machine hasn't recovered from a swap or memory guard stop (machine_fit.py
+/// EXIT_MACHINE_UNFIT). Not a crash: the job waits the unfit backoff and tries again, without using a restart.
+pub const EXIT_MACHINE_UNFIT: i32 = 75;
 /// The line the harness prints before that exit (drive.py stop_if_missing_resources).
 const MISSING_RESOURCES_MARK: &str = "MISSING RESOURCES";
 /// How much of the end of the job log to search for that line.
@@ -42,8 +45,8 @@ pub async fn run(st: Arc<Shared>, adopt: Vec<crate::server::Adopted>) {
         };
         let backoff = run_one(&st, &id).await;
         st.lock().current = None;
-        if backoff {
-            tokio::time::sleep(st.cfg.restart_backoff).await;
+        if let Some(wait) = backoff {
+            tokio::time::sleep(wait).await;
         }
     }
 }
@@ -291,21 +294,20 @@ fn fail(st: &Shared, id: &str, reason: String) {
 }
 
 /// Run one attempt of a job. Returns true when it was requeued for a restart.
-async fn run_one(st: &Arc<Shared>, id: &str) -> bool {
+/// Runs the job once; the wait before the next job, if the job was requeued.
+async fn run_one(st: &Arc<Shared>, id: &str) -> Option<Duration> {
     if st.cfg.pull {
         git_pull(st, id).await;
     }
-    let Some(spec) = st.lock().jobs.get(id).map(|j| j.spec.clone()) else {
-        return false;
-    };
+    let spec = st.lock().jobs.get(id).map(|j| j.spec.clone())?;
     let env = install_env_path(&st.cfg.share_dir, &spec.install_id);
     if !env.is_file() {
         fail(st, id, format!("{} missing", env.display()));
-        return false;
+        return None;
     }
     let Some(entry) = resolve_entry(&st.cfg.repo, &spec.pack) else {
         fail(st, id, format!("no harness for pack {}", spec.pack));
-        return false;
+        return None;
     };
     let args = harness_args(&entry, &spec);
     let log = match std::fs::OpenOptions::new()
@@ -316,14 +318,14 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> bool {
         Ok(f) => f,
         Err(e) => {
             fail(st, id, format!("open log: {e}"));
-            return false;
+            return None;
         }
     };
     let (out, errf) = match (log.try_clone(), log.try_clone()) {
         (Ok(a), Ok(b)) => (a, b),
         _ => {
             fail(st, id, "duplicate log handle".into());
-            return false;
+            return None;
         }
     };
     let mut cmd = Command::new("bash");
@@ -343,11 +345,9 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> bool {
     // Spawn under the lock so a cancel can't slip between the check and the start.
     let (mut child, pgid) = {
         let mut inner = st.lock();
-        let Some(job) = inner.jobs.get_mut(id) else {
-            return false;
-        };
+        let job = inner.jobs.get_mut(id)?;
         if job.state != JobState::Queued {
-            return false; // cancelled while preparing
+            return None; // cancelled while preparing
         }
         let attempt = job.attempt + 1;
         st.log_line(id, &format!("attempt {attempt}: bash {}", shown.join(" ")));
@@ -356,7 +356,7 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> bool {
             Err(e) => {
                 drop(inner);
                 fail(st, id, format!("spawn bash: {e}"));
-                return false;
+                return None;
             }
         };
         let pid = child.id().map(|p| p as i32).unwrap_or(0);
@@ -414,6 +414,16 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> bool {
                 reason,
                 exit_code: Some(code),
             };
+        } else if code == EXIT_MACHINE_UNFIT {
+            // A wait for the machine, not a failed attempt: the attempt is given back.
+            j.attempt = j.attempt.saturating_sub(1);
+            j.note(
+                now,
+                format!("machine unfit (exit {code}); waiting {}s, not counted as a restart", st.cfg.unfit_backoff.as_secs()),
+            );
+            j.state = JobState::Queued;
+            inner.queue.push_front(id.to_string());
+            requeued = true;
         } else if j.attempt > max {
             let reason = format!(
                 "harness exited {code} on attempt {}; all {max} restarts used",
@@ -435,18 +445,20 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> bool {
         }
     });
     let label = job.map(|j| j.state.label()).unwrap_or("gone");
-    if requeued {
-        st.log_line(
-            id,
-            &format!(
-                "harness exited {code}; restarting in {}s",
-                st.cfg.restart_backoff.as_secs_f32()
-            ),
-        );
-    } else {
+    if !requeued {
         st.log_line(id, &format!("harness exited {code}; job {label}"));
+        return None;
     }
-    requeued
+    let wait = if code == EXIT_MACHINE_UNFIT { st.cfg.unfit_backoff } else { st.cfg.restart_backoff };
+    st.log_line(
+        id,
+        &if code == EXIT_MACHINE_UNFIT {
+            format!("machine unfit (exit {code}); waiting {}s for it to recover", wait.as_secs_f32())
+        } else {
+            format!("harness exited {code}; restarting in {}s", wait.as_secs_f32())
+        },
+    );
+    Some(wait)
 }
 
 /// The last `len` bytes of a file, lossily decoded; empty if it can't be read.

@@ -11,6 +11,9 @@ use crate::job::AgentClient;
 pub const DEFAULT_MAX_RESTARTS: u32 = 3;
 /// Wait between a failed harness exit and its restart.
 pub const DEFAULT_RESTART_BACKOFF_MS: u64 = 30_000;
+/// Wait before trying again after the harness said the machine is unfit (a swap or memory guard stop): long enough
+/// for memory to settle, and the check that decides is the harness's own (machine_fit.py), done first.
+pub const DEFAULT_UNFIT_BACKOFF_MS: u64 = 300_000;
 /// Time between SIGTERM and SIGKILL when cancelling.
 pub const DEFAULT_CANCEL_GRACE_MS: u64 = 20_000;
 /// How often a running harness's process tree is sampled (see `runner::track_tree`).
@@ -195,6 +198,8 @@ pub struct ServeArgs {
     pub no_pull: bool,
     #[arg(long, default_value_t = DEFAULT_RESTART_BACKOFF_MS, hide = true)]
     pub restart_backoff_ms: u64,
+    #[arg(long, default_value_t = DEFAULT_UNFIT_BACKOFF_MS, hide = true)]
+    pub unfit_backoff_ms: u64,
     #[arg(long, default_value_t = DEFAULT_CANCEL_GRACE_MS, hide = true)]
     pub cancel_grace_ms: u64,
     #[arg(long, default_value_t = DEFAULT_TREE_POLL_MS, hide = true)]
@@ -227,6 +232,7 @@ pub struct ServerConfig {
     pub max_restarts: u32,
     pub pull: bool,
     pub restart_backoff: Duration,
+    pub unfit_backoff: Duration,
     pub cancel_grace: Duration,
     pub tree_poll: Duration,
 }
@@ -261,6 +267,7 @@ impl ServeArgs {
             max_restarts: self.max_restarts,
             pull: !self.no_pull,
             restart_backoff: Duration::from_millis(self.restart_backoff_ms),
+            unfit_backoff: Duration::from_millis(self.unfit_backoff_ms),
             cancel_grace: Duration::from_millis(self.cancel_grace_ms),
             tree_poll: Duration::from_millis(self.tree_poll_ms),
         })
@@ -291,6 +298,12 @@ impl ServerConfig {
             a.extend([
                 "--restart-backoff-ms".into(),
                 self.restart_backoff.as_millis().to_string().into(),
+            ]);
+        }
+        if self.unfit_backoff != Duration::from_millis(DEFAULT_UNFIT_BACKOFF_MS) {
+            a.extend([
+                "--unfit-backoff-ms".into(),
+                self.unfit_backoff.as_millis().to_string().into(),
             ]);
         }
         if self.cancel_grace != Duration::from_millis(DEFAULT_CANCEL_GRACE_MS) {
