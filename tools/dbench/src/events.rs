@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 const STORY_PREFIX: &str = "[story ";
 const GATE_MARKER: &str = "gate green=";
 const MINUTE_S: u64 = 60;
+/// The console line for each stop message the harness sends, up to its number (drive.py's STOP_SENT_LINE).
+const STOP_SENT_PREFIX: &str = "agent stopped before the story was finished — message ";
+/// The same line as harnesses before 1 Oct 2026 printed it: stored job logs have it.
+const STOP_SENT_PREFIX_BEFORE: &str = "agent stopped without committing — nudge ";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -122,7 +126,10 @@ pub fn parse_line(line: &str) -> Option<(Option<u32>, EventKind)> {
             },
         ));
     }
-    if let Some(rest) = t.strip_prefix("agent stopped without committing — nudge ") {
+    if let Some(rest) = [STOP_SENT_PREFIX, STOP_SENT_PREFIX_BEFORE]
+        .iter()
+        .find_map(|p| t.strip_prefix(p))
+    {
         return Some((
             None,
             EventKind::Nudge {
@@ -253,6 +260,38 @@ RuntimeError: boom
                 (9, Some(5), EventKind::Crash { exception: Some("RuntimeError: boom".into()) }),
             ]
         );
+    }
+
+    /// The line as the harness prints it now, and as it printed it before: a job log stored under either
+    /// earlier wording gives the same event, with the same number.
+    #[test]
+    fn a_stop_message_is_read_under_its_wording_now_and_before() {
+        // The harness now: the stop rule's message, N of the cap.
+        const NOW: &str = "    agent stopped before the story was finished — message 2 of 5 sent";
+        // From this repo's stored job logs, before the stop rule (a stop without a commit was the only kind).
+        const BEFORE_THE_STOP_RULE: &str = "    agent stopped without committing — nudge 1: continuing the session";
+        // Between the stop rule and the rename (1 Oct 2026).
+        const UNDER_THE_STOP_RULE: &str = "    agent stopped without committing — nudge 3: the story is not finished (no verified DONE line); the stop message was sent";
+        for (line, n) in [(NOW, 2), (BEFORE_THE_STOP_RULE, 1), (UNDER_THE_STOP_RULE, 3)] {
+            let ev = parse_log(&format!("[story 7] A title — agent starting\n{line}\n"));
+            assert_eq!(ev.len(), 2, "{line}");
+            assert_eq!((ev[1].story, ev[1].kind.clone()), (Some(7), EventKind::Nudge { n }), "{line}");
+        }
+        // The stored form of the event is what it was: readers of events.jsonl see no change.
+        let json = serde_json::to_string(&parse_log(&format!("{NOW}\n"))[0]).unwrap();
+        assert!(json.contains(r#""kind":"nudge""#) && json.contains(r#""n":2"#), "{json}");
+        // A line that only resembles it is not one.
+        assert!(parse_log("    agent stopped before the story was finished — message sent\n").is_empty());
+    }
+
+    /// The harness prints the line and dbench reads it: the words each side holds are the same words.
+    #[test]
+    fn the_harness_prints_the_line_this_reads() {
+        const HARNESS: &str = "benchmarks/spec-bench/harness/drive.py";
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let drive = std::fs::read_to_string(root.join(HARNESS)).unwrap();
+        let constant = format!("STOP_SENT_LINE = \"{}\"", STOP_SENT_PREFIX.trim_end());
+        assert!(drive.lines().any(|l| l.starts_with(&constant)), "{HARNESS} should have: {constant}");
     }
 
     #[test]

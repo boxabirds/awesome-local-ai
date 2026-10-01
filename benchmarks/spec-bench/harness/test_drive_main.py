@@ -551,7 +551,7 @@ def test_a_story_that_never_finishes_is_capped_recorded_partial_and_its_work_com
     assert f"story 1: ended by the operator (harness (cap)) after" in (loop.run / "interventions.md").read_text()
     out = capsys.readouterr().out
     for n in range(1, drive.MAX_NUDGES + 1):
-        assert f"    agent stopped without committing — nudge {n}: " in out   # the line dbench reads its nudges from
+        assert f"    agent stopped before the story was finished — message {n} of {drive.MAX_NUDGES} sent\n" in out   # dbench reads it
     assert f"    the story cap ended story 1 (harness (cap)): {reason}\n" in out
     # And the run goes on: the next story is built on the partial one and finishes.
     second = loop.story(2)

@@ -365,12 +365,14 @@ def test_an_agent_that_never_finishes_gets_the_same_message_until_the_cap(loop):
                     f"(cap {drive.MAX_NUDGES})"]
 
 
-def test_each_nudge_is_announced_on_the_line_dbench_reads_them_from(loop, capsys):
-    """tools/dbench/src/events.rs takes a job's nudges from lines that start this way; the start is kept word for word."""
+def test_each_stop_message_is_announced_in_plain_words_on_the_line_dbench_reads(loop, capsys):
+    """The line says what happened (the agent stopped, the story isn't finished, which message of how many went out),
+    not what used to trigger it (a stop without a commit). tools/dbench/src/events.rs counts a job's stop messages
+    from lines that start this way, and one of its tests reads STOP_SENT_LINE from drive.py."""
     loop([stop("Done."), stop("Done again."), stop(DONE, commits=True)])
     out = capsys.readouterr().out.splitlines()
-    assert out == [f"    agent stopped without committing — nudge {n}: the story is not finished (no verified DONE line); "
-                   f"the stop message was sent" for n in (1, 2)]
+    assert out == [f"    agent stopped before the story was finished — message {n} of 5 sent" for n in (1, 2)]
+    assert drive.MAX_NUDGES == 5 and "without committing" not in "".join(out)
 
 
 def test_the_cap_ends_the_story_when_nobody_asked_to_be_told(loop):
