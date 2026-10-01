@@ -116,6 +116,8 @@ function runFaults(r: FullRow): Fault[] {
     const check = s.usage?.split?.check;
     if (check?.status === "problems") out.push(ofRun(r, "accounting_failed", { problems: check.problems, accounting_version: check.version }, { story: s.id }));
     if (check?.status === "unchecked") out.push(ofRun(r, "accounting_unchecked", { accounting_version: check.version }, { story: s.id }));
+    // A recorded story with no time split at all has no accounting either: worse than unchecked, never left out.
+    if (s.usage && !s.usage.split) out.push(ofRun(r, "accounting_unchecked", { accounting_version: null, time_split: null }, { story: s.id }));
     if (s.harnessFaults?.length) out.push(ofRun(r, "harness_fault", { faults: s.harnessFaults }, { story: s.id }));
   }
   r.dbenchJobs.forEach((j, i) => {
