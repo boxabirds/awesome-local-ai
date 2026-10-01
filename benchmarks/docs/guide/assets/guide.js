@@ -72,7 +72,8 @@
       var wrap = $(".toc-wrap");
       if (wrap && mq.matches) {
         var r = a.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
-        if (r.top < wr.top + 20 || r.bottom > wr.bottom - 20) a.scrollIntoView({ block: "nearest" });
+        if (r.top < wr.top + 20) wrap.scrollTop -= wr.top + 20 - r.top;
+        else if (r.bottom > wr.bottom - 20) wrap.scrollTop += r.bottom - (wr.bottom - 20);
       }
     }
     on(window, "scroll", function () { if (!ticking) { ticking = true; window.requestAnimationFrame(update); } }, { passive: true });
