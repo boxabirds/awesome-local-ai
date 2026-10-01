@@ -208,6 +208,9 @@ describe("needs you", () => {
 
   describe("a story whose accounting check failed", () => {
     const bad = (id: string) => story(id, { usage: usage({ split: split({ status: "problems", problems: ["parts sum to 590 s of 600 s"] }) }) });
+    const failing = (id: string, problem: string, current: boolean | null = null) => story(id, { usage: usage({ split: split({ status: "problems", problems: [problem], version: 3, current }) }) });
+    const DOUBLE = "wall 13113.4 s differs from the agent's own clock (13111.7 s + 205.8 s between sessions)";
+    const CLOCK = "wall 2352.1 s differs from the agent's own clock (2321.2 s)";
     it("one line per run, naming each failing story and its problems", () => {
       expect(needs({ rows: [row({ stories: [bad("1"), story("2"), bad("4")] })] })).toMatchObject([
         { kind: "accounting", stories: [{ id: "1", problems: ["parts sum to 590 s of 600 s"] }, { id: "4" }] },
@@ -221,6 +224,34 @@ describe("needs you", () => {
         story("1"), story("2", { usage: usage({ split: split({ status: "unchecked", problems: [] }) }) }),
         story("3", { usage: usage({ split: null }) }), story("4", { usage: null }),
       ] })] })).toEqual([]);
+    });
+    it("each failing story says which accounting made its record, for the advice", () => {
+      const n = needs({ rows: [row({ stories: [failing("4", DOUBLE, true), failing("5", CLOCK, false), bad("9")] })] });
+      expect(n).toMatchObject([{ kind: "accounting", stories: [
+        { id: "4", problems: [DOUBLE], version: 3, current: true }, { id: "5", problems: [CLOCK], version: 3, current: false }, { id: "9", version: null, current: null },
+      ] }]);
+    });
+    it("a need's run says where its record is and whether it is still going, for the advice", () => {
+      const [n] = needs({ rows: [row({ status: "running", dir: "some/dir", scores: {}, rescores: [], stories: [bad("1")] })] });
+      expect((n as Extract<Need, { kind: "accounting" }>).run).toMatchObject({ dir: "some/dir", status: "running" });
+    });
+  });
+
+  describe("a finished run with no score of record carries what its final re-score recorded", () => {
+    const SKIPPED = { rescore: "skipped" as const, reason: "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1", version: "vidi-v2.0-pre1+28ace8b", packRef: SUITE, at: "2026-10-01T08:25:57Z" };
+    it("not scored: its finalize record, or null when it has none", () => {
+      expect(needs({ rows: [row({ rescores: [], scores: {}, finalize: SKIPPED })] })).toMatchObject([{ kind: "unscored", finalize: SKIPPED }]);
+      expect(needs({ rows: [row({ rescores: [], scores: {} })] })).toMatchObject([{ kind: "unscored", finalize: null }]);
+    });
+    it("both say whether the run's machine is running a job now: a re-score there would share it", () => {
+      const rows = [row({ runId: "u", rescores: [], scores: {} }), row({ runId: "f", rescores: [SUITE], scores: {} })];
+      expect(needs({ rows, machines: [busy("node-a")] })).toMatchObject([{ kind: "rescoreFault", machineBusy: true }, { kind: "unscored", machineBusy: true }]);
+      expect(needs({ rows, machines: [machine("node-a", { queued: 1 }), busy("node-b")] })).toMatchObject([{ machineBusy: false }, { machineBusy: false }]);
+      expect(needs({ rows })).toMatchObject([{ machineBusy: false }, { machineBusy: false }]);
+    });
+    it("a re-score fault: whether its record has a bundle to re-score from", () => {
+      expect(needs({ rows: [row({ rescores: [SUITE], scores: {}, hasBundle: true })] })).toMatchObject([{ kind: "rescoreFault", hasBundle: true }]);
+      expect(needs({ rows: [row({ rescores: [SUITE], scores: {} })] })).toMatchObject([{ kind: "rescoreFault", hasBundle: false }]);
     });
   });
 

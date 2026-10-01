@@ -112,23 +112,52 @@ const DOUBLE_CAUSE = "An older harness counted the waits between sessions twice 
 const GENERIC_CAUSE = "The record was made by a harness with a bug since fixed";
 
 const isClaude = (run: Pick<Row, "client">) => run.client === CLAUDE_CLIENT;
-const stillGoing = (run: Pick<Row, "status">) => STILL_GOING.includes(run.status);
-const where = (run: CheckRun) => `on ${run.machine}, the machine that ran it, in the repo's ${HARNESS_DIR}`;
+export const stillGoing = (run: Pick<Row, "status">) => STILL_GOING.includes(run.status);
+export const where = (run: Pick<Row, "machine">) => `on ${run.machine}, the machine that ran it, in the repo's ${HARNESS_DIR}`;
 /** A recompute of a record never checked needs the full logs the machine kept (backfill_timing.py reads them). */
 const needsLogs = (what: string) => `It needs the full logs that machine kept: without them ${what} can't be checked.`;
 
-/** Why the problems happened, and what to do, from their kinds: calls with no end are the log itself, which a
- * recompute can't change; any other problem is the harness's own arithmetic, which a recompute redoes. */
-function failedAdvice(problems: ProblemView[], run: CheckRun): Pick<CheckView, "cause" | "todo" | "command"> {
-  if (problems.every((p) => p.kind === "neverEnded")) return { cause: NEVER_ENDED_CAUSE, todo: NEVER_ENDED_TODO, command: null };
-  const going = stillGoing(run);
-  // A cause is named only when it explains every problem a recompute would redo.
-  const base = problems.filter((p) => p.kind !== "neverEnded").every((p) => p.kind === "waitsCountedTwice") ? DOUBLE_CAUSE : GENERIC_CAUSE;
-  return {
-    cause: `${base}${going ? ", and this run is still going on it" : ""}.`,
-    todo: `${going ? "Once the run has finished, recompute" : "Recompute"} this record from the full logs ${where(run)}:`,
-    command: run.dir ? recomputeCommand(run.dir) : null,
-  };
+const INVESTIGATE_TODO = "Nothing to run: recomputing does the same calculation on the same log and gives the same answer. It is a harness problem to investigate.";
+const investigateCause = (version: number | null | undefined) =>
+  `Not known. The harness's current accounting${version == null ? "" : ` (version ${version})`} made this record, so it isn't a bug since fixed.`;
+
+type Check = TimeSplit["check"];
+
+/** What fixes a failed check.
+ * - "log": only calls with no end. That is the agent's log itself, which nothing changes.
+ * - "recompute": the harness's own arithmetic, redone by a recompute: the waits counted twice (a known bug since
+ *   fixed, whatever made the record), or any problem in a record the current accounting didn't make (or isn't known
+ *   to have made).
+ * - "investigate": any other problem in a record the harness's current accounting made. It isn't a bug since fixed,
+ *   and a recompute (the same calculation on the same log) gives the same answer. */
+export type FixClass = "recompute" | "log" | "investigate";
+
+const redone = (problems: ProblemView[]) => problems.filter((p) => p.kind !== "neverEnded");
+
+export function fixClass(check: Pick<Check, "problems" | "current">): FixClass {
+  const rest = redone(check.problems.map(readProblem));
+  if (!rest.length) return "log";
+  return check.current === true && rest.some((p) => p.kind !== "waitsCountedTwice") ? "investigate" : "recompute";
+}
+
+/** Why failed checks happened, and what to do, for one story's check or several stories' together: a recompute if
+ * any needs one (its cause from those it would redo), else to investigate if any does, else the log itself. A
+ * recompute's cause is named only when it explains every problem the recompute would redo. */
+export function failedAdvice(checks: Pick<Check, "problems" | "current" | "version">[], run: Pick<CheckRun, "dir" | "machine" | "status">): Pick<CheckView, "cause" | "todo" | "command"> & { fix: FixClass } {
+  const of = (fix: FixClass) => checks.filter((c) => fixClass(c) === fix);
+  const recompute = of("recompute"), investigate = of("investigate");
+  if (recompute.length) {
+    const going = stillGoing(run);
+    const base = redone(recompute.flatMap((c) => c.problems.map(readProblem))).every((p) => p.kind === "waitsCountedTwice") ? DOUBLE_CAUSE : GENERIC_CAUSE;
+    return {
+      fix: "recompute",
+      cause: `${base}${going ? ", and this run is still going on it" : ""}.`,
+      todo: `${going ? "Once the run has finished, recompute" : "Recompute"} this record from the full logs ${where(run)}:`,
+      command: run.dir ? recomputeCommand(run.dir) : null,
+    };
+  }
+  if (investigate.length) return { fix: "investigate", cause: investigateCause(investigate[0].version), todo: INVESTIGATE_TODO, command: null };
+  return { fix: "log", cause: NEVER_ENDED_CAUSE, todo: NEVER_ENDED_TODO, command: null };
 }
 
 /** One story's check: what it means, what was wrong, why and what to do. */
@@ -142,8 +171,8 @@ export function checkView(check: TimeSplit["check"], run: CheckRun): CheckView {
     if (isClaude(run)) return { ...base, meaning: CLAUDE_MEANING, command, todo: `Nothing is needed for the held-out result. To fill in its time, recompute this record ${where(run)}. ${needsLogs("this story run")}` };
     return { ...base, meaning: OLDER_MEANING, command, todo: `To check it, recompute this record ${where(run)}. ${needsLogs("this story run")}` };
   }
-  const problems = check.problems.map(readProblem);
-  return { ...base, meaning: FAILED_MEANING, problems, ...failedAdvice(problems, run) };
+  const { cause, todo, command } = failedAdvice([check], run);
+  return { ...base, meaning: FAILED_MEANING, problems: check.problems.map(readProblem), cause, todo, command };
 }
 
 /** "What to do: …", then the command. */
@@ -193,7 +222,7 @@ export function runCheckSummary(run: Pick<Row, "stories"> & CheckRun): RunCheckS
     const one = failed.length === 1;
     const head = `Accounting check failed on ${storyList(failed.map((s) => s.id))}: ${one ? "its" : "their"} time figures can't be trusted. ${one ? "Its held-out result is" : "Their held-out results are"} unaffected.`;
     const problems = failed.flatMap((s) => s.usage!.split!.check.problems.map((p) => ({ id: s.id, p: readProblem(p) })));
-    const advice = failedAdvice(problems.map((x) => x.p), run);
+    const advice = failedAdvice(failed.map((s) => s.usage!.split!.check), run);
     texts.push(head);
     tips.push(head, ...problems.map(({ id, p }) => `Story ${Number(id)}: ${lower(p.text)}`), `Likely cause: ${lower(advice.cause!)}`, todoLine(advice.todo, advice.command));
   }

@@ -34,8 +34,11 @@ export interface TimeSplit {
   betweenSessions: number;
   /** The split's own checks, recorded with it: parts sum to the wall, none negative, every tool call ended, the wall
    * agrees with the agent's clock. "unchecked": no accounting recorded (a Claude Code run, or one recorded before the
-   * harness checked). shared/accountingView.ts says what each means. */
-  check: { status: "ok" | "problems" | "unchecked"; problems: string[] };
+   * harness checked). shared/accountingView.ts says what each means.
+   * - `version`: the accounting version that made the record (accounting.py's VERSION, bumped when the calculation
+   *   changes); null or absent when the record doesn't say.
+   * - `current`: whether that is the harness's current version on main; null or absent when either isn't known. */
+  check: { status: "ok" | "problems" | "unchecked"; problems: string[]; version?: number | null; current?: boolean | null };
   /** Tools time by kind: the agent's tests (unit, e2e, …), builds, file reads and edits, and "bash" for every other command. */
   toolsByKind?: Record<string, number>;
 }
@@ -101,6 +104,23 @@ export interface Invalid {
   reason: string;
   /** The date it was marked, as written; "" when the mark gives none. */
   since: string;
+}
+
+/** How a run's final re-score ended, as finalize.py recorded it (finalize.json): done, skipped (the suite checkout
+ * wasn't at the pack's version, say), failed, or flagged (set aside by the live-against-record guard). */
+export type FinalRescore = "done" | "skipped" | "failed" | "flagged";
+export const FINAL_RESCORES: FinalRescore[] = ["done", "skipped", "failed", "flagged"];
+
+/** A run's finalize.json: what its final re-score recorded. */
+export interface Finalize {
+  rescore: FinalRescore;
+  /** Why it was skipped, failed or flagged, as written; "" when none was recorded (and for one that is done). */
+  reason: string;
+  /** The suite version the checkout was at, and the pack's own (bench.json pack_ref); "" when not recorded. */
+  version: string;
+  packRef: string;
+  /** When, as written (ISO); "" when not recorded. */
+  at: string;
 }
 
 /** One line of a run's interventions.md: something done to the run by hand, by the operator or the harness's
@@ -220,6 +240,8 @@ export interface Row {
   invalid: Invalid | null;
   /** interventions.md, oldest first; [] when it has none. */
   interventions: Intervention[];
+  /** finalize.json; null or absent when the record has none (a run not finished, or from before the harness kept one). */
+  finalize?: Finalize | null;
 }
 
 /** One dbench node: the job it runs now (null: idle) and how many wait behind it. */

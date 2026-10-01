@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rescoreStoryPaths, rescoredStory, runNotes, runNotePaths } from "./sources.ts";
+import { ACCOUNTING_PATH, finalizePath, rescoreStoryPaths, rescoredStory, runFinalize, runNotes, runNotePaths } from "./sources.ts";
 
 // A re-scored story's counts: since 30 Sep 2026 a record has only the public summary (accept-summary.json);
 // the full result (accept.json) is private. Older records have only the full result.
@@ -49,5 +49,23 @@ describe("a run's notes: its client and invalid mark (run.json), and interventio
   });
   it("a run.json that doesn't parse says nothing about validity", () => {
     expect(runNotes(new Map([[RUN, "{not json"]]), DIR).invalid).toBeNull();
+  });
+});
+
+// ---------- what the run's final re-score recorded, and the harness's accounting ----------
+
+describe("a run's final re-score (finalize.json) and the harness's accounting version", () => {
+  const FIN = `${DIR}/finalize.json`;
+  it("finalize.json is read from the run's folder; accounting.py from the harness", () => {
+    expect(finalizePath(DIR)).toBe(FIN);
+    expect(ACCOUNTING_PATH).toBe("benchmarks/spec-bench/harness/accounting.py");
+  });
+  it("present: how the re-score ended and why", () => {
+    const blob = JSON.stringify({ version: `${V}+28ace8b`, pack_ref: V, at: "2026-10-01T08:25:57Z", rescore: "skipped", reason: `the suite checkout is at ${V}+28ace8b, not the pack's ${V}` });
+    expect(runFinalize(new Map([[FIN, blob]]), DIR)).toEqual({ rescore: "skipped", reason: `the suite checkout is at ${V}+28ace8b, not the pack's ${V}`, version: `${V}+28ace8b`, packRef: V, at: "2026-10-01T08:25:57Z" });
+  });
+  it("absent, or not parseable: null", () => {
+    expect(runFinalize(new Map(), DIR)).toBeNull();
+    expect(runFinalize(new Map([[FIN, "{not json"]]), DIR)).toBeNull();
   });
 });

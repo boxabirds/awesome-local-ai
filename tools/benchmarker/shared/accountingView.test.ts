@@ -4,7 +4,7 @@
 // unchecked, Claude Code or older); a run's stories together.
 import { describe, expect, it } from "vitest";
 import type { Row, Story, TimeSplit } from "./types.ts";
-import { checkTip, checkView, readProblem, recomputeCommand, runCheckSummary, type CheckRun } from "./accountingView.ts";
+import { checkTip, checkView, failedAdvice, fixClass, readProblem, recomputeCommand, runCheckSummary, type CheckRun } from "./accountingView.ts";
 
 const DIR = "combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2";
 const pi = (over: Partial<CheckRun> = {}): CheckRun => ({ client: "pi", dir: DIR, machine: "node-c", status: "finished", ...over });
@@ -139,6 +139,59 @@ describe("one story's check", () => {
 
     it("a record that names no client is an older one", () => {
       expect(checkView(UNCHECKED, pi({ client: "" })).meaning).toMatch(/^This story run was recorded before the harness checked/);
+    });
+  });
+});
+
+// The record says which accounting version made it; the server says whether that is the harness's current one
+// (`current`: true, false, or null when either isn't known). A failure the current accounting made is not a bug since
+// fixed, and a recompute (the same calculation on the same log) can't change it.
+describe("what fixes a failed check: by its problems × whether the current accounting made the record", () => {
+  const made = (current: boolean | null, ...problems: string[]): TimeSplit["check"] => ({ status: "problems", problems, version: 3, current });
+
+  it.each([true, false, null])("only calls with no end (current: %s): the log itself, nothing fixes it", (current) => {
+    expect(fixClass(made(current, TOOL_NEVER, COMPACTION_NEVER))).toBe("log");
+  });
+  it.each([true, false, null])("the waits counted twice (current: %s): a known bug since fixed, so a recompute", (current) => {
+    expect(fixClass(made(current, DOUBLE))).toBe("recompute");
+    expect(fixClass(made(current, DOUBLE, TOOL_NEVER))).toBe("recompute");
+  });
+  it.each([CLOCK, PARTS, NEGATIVE, KINDS, ODD])("%s, made by an older accounting or one not known: a recompute", (p) => {
+    expect(fixClass(made(false, p))).toBe("recompute");
+    expect(fixClass(made(null, p))).toBe("recompute");
+    expect(fixClass(failed(p))).toBe("recompute");
+  });
+  it.each([CLOCK, PARTS, NEGATIVE, KINDS, ODD])("%s, made by the current accounting: a harness problem to investigate", (p) => {
+    expect(fixClass(made(true, p))).toBe("investigate");
+    expect(fixClass(made(true, p, TOOL_NEVER))).toBe("investigate");
+    expect(fixClass(made(true, p, DOUBLE))).toBe("investigate");
+  });
+
+  it("to investigate: says the current accounting made it, that recomputing gives the same answer, and gives no command", () => {
+    for (const status of ["finished", "running"] as const) {
+      const v = checkView(made(true, CLOCK), pi({ status }));
+      expect(v.cause).toBe("Not known. The harness's current accounting (version 3) made this record, so it isn't a bug since fixed.");
+      expect(v.todo).toBe("Nothing to run: recomputing does the same calculation on the same log and gives the same answer. It is a harness problem to investigate.");
+      expect(v.command).toBeNull();
+    }
+  });
+  it("made by an older accounting: the cause says which, and a recompute redoes it", () => {
+    const v = checkView(made(false, CLOCK), pi());
+    expect(v.cause).toBe("The record was made by a harness with a bug since fixed.");
+    expect(v.command).toBe(`uv run backfill_timing.py --recompute ../../../${DIR}`);
+  });
+
+  describe("several stories together: a recompute if any needs one, else to investigate if any does, else the log", () => {
+    it("a recompute wins, its cause from the stories it would redo", () => {
+      const a = failedAdvice([made(true, CLOCK), made(null, DOUBLE), made(true, TOOL_NEVER)], pi());
+      expect(a).toMatchObject({ fix: "recompute", cause: "An older harness counted the waits between sessions twice (a bug since fixed)." });
+      expect(a.command).not.toBeNull();
+    });
+    it("to investigate beside calls with no end", () => {
+      expect(failedAdvice([made(true, CLOCK), made(true, TOOL_NEVER)], pi())).toMatchObject({ fix: "investigate", command: null });
+    });
+    it("only calls with no end", () => {
+      expect(failedAdvice([made(true, TOOL_NEVER), made(false, COMPACTION_NEVER)], pi())).toMatchObject({ fix: "log", command: null });
     });
   });
 });

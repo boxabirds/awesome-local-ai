@@ -798,6 +798,13 @@
         "vidi-v2.0-pre0"
       ],
       "hasBundle": true,
+      "finalize": {
+        "rescore": "skipped",
+        "reason": "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1",
+        "version": "vidi-v2.0-pre1+28ace8b",
+        "packRef": "vidi-v2.0-pre1",
+        "at": "2026-09-27T09:00:00Z"
+      },
       "packVersion": "vidi-v2.0-pre0",
       "state": "finished",
       "stateAt": "2026-09-27T09:00:00Z",

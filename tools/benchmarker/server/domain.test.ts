@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
   mergeStories, stages, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, finalScore, runUsage, RECENT_S, type DbenchJob,
-  jobsByRun, buildRows,
+  jobsByRun, buildRows, parseAccountingVersion, parseFinalize,
 } from "./domain.ts";
 import type { Row } from "../shared/types.ts";
 
@@ -483,11 +483,22 @@ describe("tokens and speed", () => {
 
   it("says whether the split passed its checks, failed them (and why), or was recorded before there were checks", () => {
     const ts = (accounting?: object) => ({ agent: { seconds: 100, tokens: {} }, time_split: { wall_s: 100, tools_s: 0, compaction_s: 0, other_s: 100, model: null, accounting } });
-    expect(storyEntry("1", ts({ version: 3, ok: true, problems: [] }) as never).usage!.split!.check).toEqual({ status: "ok", problems: [] });
+    expect(storyEntry("1", ts({ version: 3, ok: true, problems: [] }) as never).usage!.split!.check).toMatchObject({ status: "ok", problems: [] });
     expect(storyEntry("1", ts({ version: 3, ok: false, problems: ["tool call t1 never ended; counted to the agent's next step"] }) as never).usage!.split!.check)
-      .toEqual({ status: "problems", problems: ["tool call t1 never ended; counted to the agent's next step"] });
+      .toMatchObject({ status: "problems", problems: ["tool call t1 never ended; counted to the agent's next step"] });
     expect(storyEntry("1", ts() as never).usage!.split!.check).toEqual({ status: "unchecked", problems: [] });
     expect(storyEntry("1", ts() as never).usage!.split!.betweenSessions).toBe(0);
+  });
+
+  it("says which accounting version made the check, and whether that is the harness's current one", () => {
+    const ts = (accounting?: object) => ({ agent: { seconds: 100, tokens: {} }, time_split: { wall_s: 100, tools_s: 0, compaction_s: 0, other_s: 100, model: null, accounting } });
+    const check = (accounting: object, current?: number | null) => storyEntry("1", ts(accounting) as never, current).usage!.split!.check;
+    expect(check({ version: 3, ok: false, problems: ["x"] }, 3)).toEqual({ status: "problems", problems: ["x"], version: 3, current: true });
+    expect(check({ version: 2, ok: false, problems: ["x"] }, 3)).toMatchObject({ version: 2, current: false });
+    // Either not known: nothing is claimed.
+    expect(check({ version: 3, ok: true, problems: [] }, null)).toMatchObject({ version: 3, current: null });
+    expect(check({ version: 3, ok: true, problems: [] })).toMatchObject({ version: 3, current: null });
+    expect(check({ ok: false, problems: ["x"] }, 3)).toMatchObject({ version: null, current: null });
   });
 
   it("keeps the conversation's profile, in the page's names; none recorded is null", () => {
@@ -525,5 +536,40 @@ describe("tokens and speed", () => {
     expect(u.tokS).toBeCloseTo(12000 / 1200, 6); // each story took 600 s
     expect(u.decodeTokS).toBeNull();              // the model-only rate needs the meter; nothing timed here
     expect(storyEntry("1", raw(5000, 40, null, null)).usage!.tokS).toBeCloseTo(5000 / 600, 6);
+  });
+});
+
+describe("the harness's current accounting version, from accounting.py", () => {
+  it("is the number its VERSION line gives", () => {
+    expect(parseAccountingVersion('import llama_log\n\nVERSION = 3                     # bump when the calculation changes\nMS_PER_S = 1000\n')).toBe(3);
+    expect(parseAccountingVersion("VERSION = 12\n")).toBe(12);
+  });
+  it("is not known without that line, or without the file", () => {
+    expect(parseAccountingVersion("ACCOUNTING_VERSION = 3\n  VERSION = 4\n")).toBeNull();
+    expect(parseAccountingVersion("VERSION = three\n")).toBeNull();
+    expect(parseAccountingVersion(undefined)).toBeNull();
+  });
+});
+
+describe("what a run's final re-score recorded (finalize.json)", () => {
+  const RAW = { version: "vidi-v2.0-pre2+28ace8b", pack_ref: "vidi-v2.0-pre2", at: "2026-10-01T08:25:57Z", bundle: "workspace.bundle",
+    rescore: "skipped", reason: "the suite checkout is at vidi-v2.0-pre2+28ace8b, not the pack's vidi-v2.0-pre2" };
+  it("skipped, with its reason as written", () => {
+    expect(parseFinalize(RAW)).toEqual({ rescore: "skipped", reason: RAW.reason, version: RAW.version, packRef: "vidi-v2.0-pre2", at: RAW.at });
+  });
+  it.each(["done", "failed", "flagged"])("%s", (rescore) => {
+    expect(parseFinalize({ ...RAW, rescore, reason: " why " })).toMatchObject({ rescore, reason: "why" });
+  });
+  it("missing fields are empty, never invented", () => {
+    expect(parseFinalize({ rescore: "failed" })).toEqual({ rescore: "failed", reason: "", version: "", packRef: "", at: "" });
+  });
+  it("no record, or one that doesn't say how the re-score ended: nothing", () => {
+    for (const raw of [undefined, null, "skipped", {}, { rescore: "pending" }, { reason: "x" }]) expect(parseFinalize(raw)).toBeNull();
+  });
+  it("a row carries its record's, or null", () => {
+    const rec = { pack: "vidi", stack: SWIFT, runId: "v2-r1", dir: "d", rescores: [], rescoreLast: {}, hasBundle: false, packVersion: "", state: "finished", stateAt: "", stories: [], scores: {} };
+    const f = parseFinalize(RAW)!;
+    expect(buildRows([{ ...rec, finalize: f }], {}, {}, 0)[0].finalize).toEqual(f);
+    expect(buildRows([rec], {}, {}, 0)[0].finalize).toBeNull();
   });
 });
