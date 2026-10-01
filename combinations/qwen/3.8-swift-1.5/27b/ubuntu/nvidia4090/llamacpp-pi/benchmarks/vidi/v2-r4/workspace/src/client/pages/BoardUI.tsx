@@ -29,6 +29,9 @@ import { setShapeStyle } from '../../shared/objects/shape';
 import { setConnectorEndpoint, type Endpoint } from '../../shared/objects/connector';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { ShapeToolbar } from '../objects/ShapeToolbar';
 import type { ShapeSnap } from '../../shared/objects/shape';
 import { objectBounds } from '../../shared/board-model';
@@ -146,7 +149,7 @@ export function BoardUI({ boardId }: { boardId: string }) {
     createStickyAt(worldPoint);
   }, [camera, viewportSize, createStickyAt]);
 
-  // Tool mode (story 9 + 10): select | text | shape | connector, with shortcuts
+  // Tool mode (story 9 + 10 + 11): select | text | shape | connector | pen
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useTool({
     canEdit,
     editingId: selection.editingId,
@@ -155,6 +158,9 @@ export function BoardUI({ boardId }: { boardId: string }) {
       selection.click(id);
     },
   });
+
+  // Pen options (story 11): session-only colour and thickness
+  const penOptions = usePenOptions();
 
   // Create a text object at a world point, start editing it, and switch the
   // tool back to Select (text.create sequence).
@@ -311,6 +317,18 @@ export function BoardUI({ boardId }: { boardId: string }) {
         onMarqueeCancel={handleMarqueeCancel}
         tool={tool}
         onTextToolClick={handleTextToolClick}
+        overlayChildren={
+          tool === 'pen' && canEdit ? (
+            <PenTool
+              camera={camera}
+              color={penOptions.color}
+              thickness={penOptions.thickness}
+              doc={doc}
+              identityId={SESSION_ID}
+              onGestureEnd={() => undo?.boundary()}
+            />
+          ) : undefined
+        }
       >
         {notes.map((obj) => {
           // Registry-based rendering (story 9: text is the first type added
@@ -424,6 +442,15 @@ export function BoardUI({ boardId }: { boardId: string }) {
         shapeKind={shapeKind}
         setShapeKind={setShapeKind}
       />
+      {/* Pen toolbar (story 11): visible while the Pen tool is active */}
+      {tool === 'pen' && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
+        />
+      )}
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

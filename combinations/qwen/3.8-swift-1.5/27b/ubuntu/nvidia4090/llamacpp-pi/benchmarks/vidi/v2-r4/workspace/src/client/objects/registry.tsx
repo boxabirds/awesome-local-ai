@@ -120,6 +120,25 @@ registerObjectType('shape', {
   },
 });
 
+// Register the stroke type (story 11: select by the line, proportional resize)
+import { StrokeObjectComponent } from './StrokeObject';
+import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
+import { PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from '../../shared/config';
+
+registerObjectType('stroke', {
+  Component: StrokeObjectComponent,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean {
+    const z = zoom ?? 1;
+    const s = obj as unknown as StrokeSnap;
+    const dist = distanceToPolyline(scaledPoints(s), worldPoint);
+    return dist <= Math.max(PEN_THICKNESS_WORLD[s.thickness] / 2, STROKE_HIT_TOLERANCE_PX / z);
+  },
+});
+
 // Register the connector type (story 10)
 import { ConnectorObjectComponent } from './ConnectorObject';
 import { distanceToPolyline } from '../../shared/geometry/polyline';

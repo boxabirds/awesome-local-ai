@@ -3,6 +3,7 @@ import { STICKY_SIZE_WORLD, STICKY_COLORS, DEFAULT_STICKY_COLOR, TEXT_SIZES, typ
 import type { Rect, Point } from './geometry';
 import type { TextSnapshot } from './objects/text';
 import type { ShapeSnap } from './objects/shape';
+import type { StrokeSnap } from './objects/stroke';
 import type { ConnectorEndpointSnap, ConnectorSnap } from './geometry/connector-geometry';
 import { resolveEndpoints, connectorBBox } from './geometry/connector-geometry';
 import { detachConnectorsTo } from './objects/connector';
@@ -27,7 +28,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 }
 
 /** Every object type the client knows how to render. */
-export type AnySnapshot = StickySnapshot | TextSnapshot | ShapeSnap | ConnectorSnap;
+export type AnySnapshot = StickySnapshot | TextSnapshot | ShapeSnap | StrokeSnap | ConnectorSnap;
 
 function getMeta(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap('meta');
@@ -202,6 +203,34 @@ export function snapshot(doc: Y.Doc): readonly AnySnapshot[] {
         z: obj.get('z') as number,
         createdAt: obj.get('createdAt') as number,
         createdBy: obj.get('createdBy') as string,
+      });
+      return;
+    }
+
+    if (type === 'stroke') {
+      const points = obj.get('points');
+      const baseWidth = obj.get('baseWidth');
+      const baseHeight = obj.get('baseHeight');
+      if (
+        !Array.isArray(points) ||
+        typeof baseWidth !== 'number' ||
+        typeof baseHeight !== 'number'
+      ) {
+        return; // malformed stroke; skip rather than render garbage
+      }
+      result.push({
+        id,
+        type: 'stroke',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: (obj.get('width') as number) ?? baseWidth,
+        height: (obj.get('height') as number) ?? baseHeight,
+        points: points as number[],
+        baseWidth,
+        baseHeight,
+        color: obj.get('color') as StrokeSnap['color'],
+        thickness: obj.get('thickness') as StrokeSnap['thickness'],
+        z: obj.get('z') as number,
       });
       return;
     }

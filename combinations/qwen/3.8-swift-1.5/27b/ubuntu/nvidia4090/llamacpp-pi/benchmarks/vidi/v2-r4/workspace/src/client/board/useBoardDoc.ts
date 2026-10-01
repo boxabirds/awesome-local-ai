@@ -57,6 +57,8 @@ export function useBoardDoc(boardId: string): {
         } else if (o.type === 'shape') {
           extras = `${o.kind}:${o.fill}:${o.stroke}`;
           text = o.label;
+        } else if (o.type === 'stroke') {
+          extras = `${o.color}:${o.thickness}`;
         } else if (o.type === 'connector') {
           extras = `${o.from.kind}:${o.to.kind}`;
         }

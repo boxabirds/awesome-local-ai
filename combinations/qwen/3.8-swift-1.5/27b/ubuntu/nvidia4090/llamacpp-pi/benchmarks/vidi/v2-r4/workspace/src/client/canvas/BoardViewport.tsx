@@ -16,6 +16,11 @@ export interface BoardViewportProps {
   onPointerDownEmpty?(): void;
   /** Active tool (story 9). While 'text', board clicks create text. */
   tool?: Tool;
+  /**
+   * Screen-space overlay rendered above the world layer (story 11: the Pen
+   * tool preview and cursor). Not transformed by the camera.
+   */
+  overlayChildren?: React.ReactNode;
   /** Text tool: pointerdown anywhere on the board (screen coords). */
   onTextToolClick?(p: Point): void;
   onMarqueeBegin?(p: Point): void;
@@ -35,6 +40,10 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   // Pointer events for drag panning and marquee
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      // While the Pen tool is active, drags draw strokes (routed to the Pen
+      // tool overlay); they never pan the board (pen.navigation).
+      if (props.tool === 'pen') return;
+
       const target = e.target as HTMLElement;
       const isOnNote = target.closest('[data-note-id]');
       const isOnToolbar = target.closest('[data-testid="toolbar"]') || target.closest('[data-testid="note-toolbar"]') || target.closest('[data-testid="selection-bar"]');
@@ -329,6 +338,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         </div>
         {props.children}
       </div>
+      {props.overlayChildren}
     </div>
   );
 }

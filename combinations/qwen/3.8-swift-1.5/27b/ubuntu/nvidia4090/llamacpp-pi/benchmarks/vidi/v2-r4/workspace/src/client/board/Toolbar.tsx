@@ -151,6 +151,17 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           >
             →
           </button>
+
+          <button
+            aria-label="Pen (P)"
+            title="Pen – P"
+            aria-pressed={tool === 'pen'}
+            onClick={disabled ? undefined : () => setTool('pen')}
+            disabled={disabled}
+            style={toolButtonStyle(tool === 'pen', disabled)}
+          >
+            ✎
+          </button>
         </>
       )}
       <button
