@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import {
-  bringObjectsToFront, moveObjects, objectBounds, resizeObjects, snapshot as readSnapshot,
+  bringObjectsToFront, LOCAL_ORIGIN, moveObjects, objectBounds, resizeObjects, snapshot as readSnapshot,
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
@@ -10,6 +10,9 @@ import {
 } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
+import { setTextWidthFixed } from '../../shared/objects/text';
+import { defaultMeasurer } from '../objects/textLayout';
+import { remeasureText } from '../objects/useTextBoxSync';
 import type { useSelection } from './useSelection';
 
 const PRIMARY_BUTTON = 0;
@@ -187,6 +190,7 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     if (!box) return;
     const minSizes = specs.map((s) => s?.minSize ?? FALLBACK_MIN_SIZE);
     const aspectLocked = specs.some((s) => s?.aspectLocked);
+    const horizontalOnly = specs.every((s) => s?.handles === 'horizontal');
     const startX = e.clientX;
     const startY = e.clientY;
 
@@ -200,11 +204,33 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         const z = zoomOf(latest.current.camera);
         const delta = { x: (ev.clientX - startX) / z, y: (ev.clientY - startY) / z };
         const raw = resizeRect(box, handle, delta, aspectLocked || ev.shiftKey);
-        const scale = clampScale({ x: raw.width / box.width, y: raw.height / box.height }, rects, minSizes, MAX_OBJECT_SIZE_WORLD);
+        let scale = clampScale({ x: raw.width / box.width, y: raw.height / box.height }, rects, minSizes, MAX_OBJECT_SIZE_WORLD);
+        if (horizontalOnly) {
+          // Height follows the content, so only the width scales (and never below the minimum).
+          const floor = Math.max(...rects.map((r, i) => (minSizes[i] ?? 0) / r.width));
+          scale = { x: Math.max(floor, Math.min(raw.width / box.width, MAX_OBJECT_SIZE_WORLD / box.width)), y: 1 };
+        }
         const target = scaledRect(box, handle, scale);
         const next = new Map<string, Rect>();
-        objects.forEach((o, i) => next.set(o.id, scaleWithin(rects[i], box, target)));
-        resizeObjects(doc, next);
+        const texts: { id: string; rect: Rect }[] = [];
+        objects.forEach((o, i) => {
+          const r = scaleWithin(rects[i], box, target);
+          if (o.type === 'text') texts.push({ id: o.id, rect: r });
+          else next.set(o.id, r);
+        });
+        doc.transact(() => {
+          resizeObjects(doc, next);
+          const positions = new Map<string, { x: number; y: number }>();
+          for (const t of texts) positions.set(t.id, { x: t.rect.x, y: t.rect.y });
+          moveObjects(doc, positions);
+          // Auto-width text only follows the group; fixed-width text (or any text when only text is
+          // selected) takes the scaled width. Font size never changes.
+          for (const t of texts) {
+            const o = objects.find((x) => x.id === t.id);
+            if (horizontalOnly || (o?.type === 'text' && o.widthMode === 'fixed')) setTextWidthFixed(doc, t.id, t.rect.width);
+            remeasureText(doc, t.id, defaultMeasurer());
+          }
+        }, LOCAL_ORIGIN);
       },
       end: (wasDrag) => {
         if (!wasDrag) return;

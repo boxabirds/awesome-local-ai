@@ -6,6 +6,7 @@ import {
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { UndoController } from './undo';
 import type { useSelection } from './useSelection';
+import type { Tool } from './useTool';
 
 const TEXT_INPUT = 'input, textarea, select, [contenteditable]';
 const ANY_CONTROL = `${TEXT_INPUT}, button`;
@@ -17,6 +18,7 @@ const ARROWS: Record<string, [number, number]> = {
 export function useBoardKeys(opts: {
   doc: Y.Doc; selection: ReturnType<typeof useSelection>;
   snapshot: readonly ObjectSnapshot[]; canEdit: boolean; undo?: UndoController | null;
+  tool?: Tool; setTool?(t: Tool): void; onCreateSticky?(): void;
 }): void {
   const latest = useRef(opts);
   latest.current = opts;
@@ -48,8 +50,24 @@ export function useBoardKeys(opts: {
       }
       if (mod || e.altKey) return;
       if (e.key === 'Escape') {
-        selection.clear();
+        if (latest.current.tool === 'text') latest.current.setTool?.('select');
+        else selection.clear();
         return;
+      }
+      if (!e.shiftKey && e.key.length === 1) {
+        const letter = e.key.toLowerCase();
+        if (letter === 'v') {
+          latest.current.setTool?.('select');
+          return;
+        }
+        if (letter === 't') {
+          if (canEdit) latest.current.setTool?.('text');
+          return;
+        }
+        if (letter === 'n') {
+          if (canEdit) latest.current.onCreateSticky?.();
+          return;
+        }
       }
       if (selection.ids.size === 0) return;
 

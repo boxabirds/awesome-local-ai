@@ -97,3 +97,20 @@ Decisions:
 - TC-12/13 import Yjs after `vi.useFakeTimers()` because lib0 captures `Date.now` at import time.
 - TC-23 e2e: Mia's note was created and typed into, so her "next undo" first reverts the typing, then the creation (typing and creation are separate steps by design).
 - Red-phase commits skipped; tests were written alongside the implementation.
+
+## Story 9 — Write free text anywhere on the board
+
+Decisions:
+- `ObjectSnapshot` is now `StickySnapshot | TextSnapshot`; `TextSnapshot` declares `color?: undefined` so code that reads either kind can ask for a colour. `TextSnapshot` lives in `board-model.ts` (avoids an import cycle) and is re-exported from `shared/objects/text.ts`.
+- `layoutText` auto width is the longest *logical* line (before wrapping) plus `TEXT_PADDING_WORLD` (4), capped at 600; so wrapped long text gets a 600-unit box. Lines wrap when they measure more than 600 (so a line of exactly 600 stays on one line). Fixed width wraps at the stored width; words wider than the box break by character.
+- The estimate measurer (no canvas, also forced under jsdom to avoid its noisy "not implemented" error) uses `TEXT_ESTIMATE_GLYPH_RATIO` (0.55 x font size per character).
+- `createdBy` has no identity source yet (story 6 not built): `localIdentityId()` keeps a per-browser `g_<uuid>` in localStorage.
+- The Text tool creates on the board `click` (not pointerdown) so the new editor keeps focus; in Text mode the viewport swallows pointerdown in the capture phase (no pan, marquee, selection or drag, also over objects).
+- Empty text still untouched when editing starts stays in the creation undo step (`UndoController.hold` while editing it), so creating then abandoning text leaves one inert step and typing in new text undoes together with its creation; editing existing text keeps story 8 boundaries. A new text that was abandoned leaves an undo step that has no visible effect.
+- Fixed-width drag, size change and typing all call `remeasureText` (the non-hook core of `useTextBoxSync`), local only. In a mixed selection auto-width text is only repositioned, fixed-width text scales its width; text-only selections take the dragged width and become fixed.
+- Size buttons are named by their visible text ("S", "M", "L", "XL", title "Text size XL"); Delete is "Delete text".
+- Shortcuts V/T/N/Escape live in `useBoardKeys`; the existing "Sticky note" tests were updated to the new "Sticky note (N)" name. Escape in Text mode only leaves the tool (it does not also clear the selection).
+- Red-phase commits skipped; tests were written alongside the implementation.
+
+E2E status: Chromium passes (text.spec.ts and the earlier specs); Firefox/WebKit not run here.
+- Story 7 e2e TC-36 now drags its marquee from the bottom-right corner: the left toolbar grew (Select, Text, Sticky, Undo, Redo) and covers the old start point. Story 8 e2e TC-24 compares against a snapshot taken before sync finishes and can fail occasionally (pre-existing race; passes on rerun).

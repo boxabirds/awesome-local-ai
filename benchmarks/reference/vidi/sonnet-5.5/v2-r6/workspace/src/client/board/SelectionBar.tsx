@@ -1,8 +1,9 @@
 import type { CSSProperties } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
 import type { Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 import { selectionScreenBox } from './SelectionOverlay';
 
 const BAR_GAP_PX = 12;
@@ -15,7 +16,7 @@ const HALF = 2;
  */
 export function SelectionBar(props: {
   ids: ReadonlySet<string>; snapshot: readonly ObjectSnapshot[]; onDelete(): void;
-  camera?: Camera; onColor?(id: string, c: StickyColor): void;
+  camera?: Camera; onColor?(id: string, c: StickyColor): void; onSize?(id: string, s: TextSize): void;
 }) {
   const { ids, snapshot, onDelete, camera } = props;
   const selected = snapshot.filter((o) => ids.has(o.id));
@@ -38,11 +39,15 @@ export function SelectionBar(props: {
       <>
         <div className="sr-only" aria-live="polite">1 selected</div>
         <div className="selection-bar-anchor" style={style}>
-          <NoteToolbar
-            color={note.color}
-            onColor={(c) => props.onColor?.(note.id, c)}
-            onDelete={onDelete}
-          />
+          {note.type === 'text' ? (
+            <TextToolbar size={note.size} onSize={(s) => props.onSize?.(note.id, s)} onDelete={onDelete} />
+          ) : (
+            <NoteToolbar
+              color={note.type === 'sticky' ? note.color : 'yellow'}
+              onColor={(c) => props.onColor?.(note.id, c)}
+              onDelete={onDelete}
+            />
+          )}
         </div>
       </>
     );

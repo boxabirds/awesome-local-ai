@@ -6,8 +6,8 @@ import { readCamera } from './helpers';
 describe('toolbars', () => {
   it('the Sticky note button has the specified name and tooltip', () => {
     renderBoard();
-    const button = screen.getByRole('button', { name: 'Sticky note' });
-    expect(button.getAttribute('title')).toBe('Sticky note – or double-click the board');
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
+    expect(button.getAttribute('title')).toBe('Sticky note (N) – or double-click the board');
   });
 
   it('TC-27 the Pink swatch recolours and keeps the selection', () => {
@@ -25,7 +25,7 @@ describe('toolbars', () => {
 
   it('TC-28 the Sticky note button creates a centred note in edit mode', () => {
     const { doc, world } = renderBoard();
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     expect(notes(doc)).toHaveLength(1);
     const cam = readCamera(world);
     const [n] = notes(doc);

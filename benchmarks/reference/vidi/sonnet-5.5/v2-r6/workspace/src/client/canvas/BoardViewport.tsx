@@ -49,12 +49,17 @@ export interface BoardViewportProps {
   onMarqueeSelect?(ids: string[]): void;
   /** Kept up to date with the current camera so gestures outside the viewport can read the zoom. */
   cameraRef?: { current: Camera };
+  /** Active tool; with 'text' the board neither pans nor selects and a click reports a world point. */
+  tool?: 'select' | 'text';
+  /** A click on the board (also on top of objects) while the Text tool is active. */
+  onTextToolClick?(world: Point): void;
 }
 
 const NO_OBJECTS: readonly ObjectSnapshot[] = [];
 
 export function BoardViewport(props: BoardViewportProps) {
   const { children, overlay, onEmptyDoubleClick, onEmptyClick, cameraRef } = props;
+  const textTool = props.tool === 'text';
   const surfaceRef = useRef<HTMLDivElement>(null);
   const pressRef = useRef<Point | null>(null);
   const [size, setSize] = useState<Size>(() => ({
@@ -204,6 +209,20 @@ export function BoardViewport(props: BoardViewportProps) {
     pressRef.current = null;
     endPan();
   };
+  // With the Text tool nothing on the board reacts to the press (no pan, marquee, selection or drag);
+  // the click that follows places the text, so the new editor keeps focus.
+  const onTextToolPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (!textTool || e.button !== PRIMARY_BUTTON) return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const onTextToolClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (!textTool || e.button !== PRIMARY_BUTTON) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const r = e.currentTarget.getBoundingClientRect();
+    props.onTextToolClick?.(screenToWorld(camera, { x: e.clientX - r.left, y: e.clientY - r.top }));
+  };
   const onDoubleClick = (e: MouseEvent<HTMLDivElement>) => {
     if (!isSurface(e)) return;
     const r = e.currentTarget.getBoundingClientRect();
@@ -221,7 +240,7 @@ export function BoardViewport(props: BoardViewportProps) {
     backgroundImage: `radial-gradient(circle, ${GRID_DOT_COLOR} ${GRID_DOT_RADIUS_PX}px, transparent ${GRID_DOT_RADIUS_PX}px)`,
     backgroundSize: `${spacing}px ${spacing}px`,
     backgroundPosition: `${positiveMod(-camera.x * camera.zoom - spacing / HALF, spacing)}px ${positiveMod(-camera.y * camera.zoom - spacing / HALF, spacing)}px`,
-    cursor: cam.isPanning ? 'grabbing' : 'grab',
+    cursor: textTool ? 'text' : cam.isPanning ? 'grabbing' : 'grab',
   };
 
   return (
@@ -231,6 +250,9 @@ export function BoardViewport(props: BoardViewportProps) {
         className="board-viewport"
         data-testid="board-viewport"
         data-pan-state={cam.isPanning ? 'panning' : 'idle'}
+        data-tool={textTool ? 'text' : 'select'}
+        onPointerDownCapture={onTextToolPointerDown}
+        onClickCapture={onTextToolClick}
         data-board-surface=""
         style={surfaceStyle}
         onPointerDown={onPointerDown}

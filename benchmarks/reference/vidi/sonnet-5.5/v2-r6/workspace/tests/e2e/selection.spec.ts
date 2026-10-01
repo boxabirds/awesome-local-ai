@@ -152,7 +152,8 @@ test(`TC-36 ${MAX_CONCURRENT_EDITORS} people move different selections at once a
 
   // Each person boxes in their own row (half-scale screen coordinates) and drags it by a different amount.
   await Promise.all(people.map(async ({ page }, r) => {
-    await shiftDrag(page, [25, 25 + r * 150], [350, 175 + r * 150]);
+    // Dragged from the bottom-right corner: the taller left toolbar (Select, Text, Sticky, Undo, Redo) now covers x 25 at some rows.
+    await shiftDrag(page, [350, 175 + r * 150], [25, 25 + r * 150]);
     await expect(selectedNotes(page)).toHaveCount(2);
     const first = (await page.locator(`[data-sticky-note][style*="top: ${100 + r * 300}px"]`).first().boundingBox())!;
     await drag(page, { x: first.x + 20, y: first.y + 20 }, 40 * (r + 1), 0);

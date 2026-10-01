@@ -1,12 +1,13 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { getStickyText } from '../../shared/board-model';
+import { getStickyText, type StickySnapshot } from '../../shared/board-model';
 import { STICKY_COLORS, STICKY_FONT_MAX_PX } from '../../shared/config';
 import type { ObjectProps } from './registry';
 import { requestFit } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 
 export function StickyNote(props: ObjectProps) {
-  const { object: note, doc, selected, editing, dragging, onEndEdit } = props;
+  const { doc, selected, editing, dragging, onEndEdit } = props;
+  const note = props.object as StickySnapshot;
   const readOnly = props.readOnly;
   const onStartEdit = (id: string) => { if (!readOnly) props.onStartEdit(id); };
   const [fit, setFit] = useState({ fontPx: STICKY_FONT_MAX_PX, overflow: false });

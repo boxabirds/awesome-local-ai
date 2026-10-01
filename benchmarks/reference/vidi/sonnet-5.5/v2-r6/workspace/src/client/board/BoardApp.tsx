@@ -1,5 +1,10 @@
 import { useRef } from 'react';
 import { createSticky, deleteObjects, setStickyColor } from '../../shared/board-model';
+import { createText, setTextSize } from '../../shared/objects/text';
+import { defaultMeasurer } from '../objects/textLayout';
+import { remeasureText } from '../objects/useTextBoxSync';
+import { localIdentityId } from './identity';
+import { useTool } from './useTool';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
 import { SelectionBar } from './SelectionBar';
@@ -13,6 +18,7 @@ import { useSelection } from './useSelection';
 import { useTransformGesture } from './useTransformGesture';
 import { BoardViewport } from '../canvas/BoardViewport';
 import type { Camera, Point } from '../canvas/camera';
+import type { TextSize } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
 
 /** False only while the saved board could not be loaded: it must not look like an empty editable board. */
@@ -30,6 +36,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
   const sel = useSelection(notes);
   const { ids, editingId, startEdit, endEdit } = sel;
   const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 1 });
+  const centreRef = useRef<() => Point>(() => ({ x: 0, y: 0 }));
 
   const editable = canEdit(board.connection);
   const undo = useCreateUndo(doc);
@@ -40,7 +47,7 @@ export function BoardApp({ board }: { board: BoardDoc }) {
     onGestureStart: () => { undo?.boundary(); undo?.hold?.(true); },
     onGestureEnd: () => { undo?.hold?.(false); undo?.boundary(); },
   });
-  useBoardKeys({ doc, selection: sel, snapshot: notes, canEdit: editable, undo });
+  const { tool, setTool } = useTool(editable);
 
   const create = (centre: Point) => {
     if (!editable) return;
@@ -49,6 +56,26 @@ export function BoardApp({ board }: { board: BoardDoc }) {
     boundary();
     if (id) startEdit(id);
   };
+
+  const createTextAt = (world: Point) => {
+    if (!editable) return;
+    boundary();
+    const id = createText(doc, world, localIdentityId());
+    if (!id) return;
+    setTool('select');
+    startEdit(id);
+  };
+
+  const changeTextSize = (id: string, size: TextSize) => {
+    boundary();
+    if (setTextSize(doc, id, size)) remeasureText(doc, id, defaultMeasurer());
+    boundary();
+  };
+
+  useBoardKeys({
+    doc, selection: sel, snapshot: notes, canEdit: editable, undo,
+    tool, setTool, onCreateSticky: () => create(centreRef.current()),
+  });
 
   const deleteSelection = () => {
     if (!editable) return;
@@ -71,9 +98,13 @@ export function BoardApp({ board }: { board: BoardDoc }) {
       onMarqueeSelect={(found) => sel.setMany(found, true)}
       onEmptyDoubleClick={create}
       onEmptyClick={sel.clear}
-      overlay={(ctx) => (
+      tool={tool}
+      onTextToolClick={createTextAt}
+      overlay={(ctx) => {
+        centreRef.current = ctx.centreWorld;
+        return (
         <>
-          <Toolbar disabled={!editable} onCreateSticky={() => create(ctx.centreWorld())}>
+          <Toolbar disabled={!editable} tool={tool} onTool={setTool} onCreateSticky={() => create(ctx.centreWorld())}>
             <UndoButtons {...undoState} />
           </Toolbar>
           {editingId === null && (
@@ -92,10 +123,12 @@ export function BoardApp({ board }: { board: BoardDoc }) {
               camera={ctx.camera}
               onDelete={deleteSelection}
               onColor={(id, c) => { boundary(); setStickyColor(doc, id, c); boundary(); }}
+              onSize={changeTextSize}
             />
           )}
         </>
-      )}
+        );
+      }}
     >
       {(ctx) => domOrder.map((note) => {
         const Component = getObjectType(note.type)?.Component;

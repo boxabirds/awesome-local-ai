@@ -39,10 +39,12 @@ export function SelectionOverlay(props: {
   if (!box) return null;
   const selected = snapshot.filter((o) => ids.has(o.id));
   const resizable = !props.readOnly && selected.some((o) => getObjectType(o.type)?.resizable);
+  const horizontalOnly = selected.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+  const handles = horizontalOnly ? HANDLES.filter((h) => h.handle === 'e' || h.handle === 'w') : HANDLES;
   const style: CSSProperties = { left: box.x, top: box.y, width: box.width, height: box.height };
   return (
     <div className="selection-box" data-testid="selection-box" style={style}>
-      {resizable && HANDLES.map((h) => (
+      {resizable && handles.map((h) => (
         <button
           key={h.handle}
           type="button"

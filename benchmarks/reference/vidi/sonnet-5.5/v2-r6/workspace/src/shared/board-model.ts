@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 import {
-  DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor,
+  DEFAULT_STICKY_COLOR, DEFAULT_TEXT_SIZE, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES, type StickyColor, type TextSize,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
 
@@ -30,8 +30,24 @@ export interface StickySnapshot {
   createdAt: number;
 }
 
-/** Every board object; today only sticky notes, later stories widen this to a union. */
-export type ObjectSnapshot = StickySnapshot;
+export interface TextSnapshot {
+  /** Text has no colour; declared so code reading either kind of object can ask for it. */
+  color?: undefined;
+  id: string;
+  type: 'text';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+  size: TextSize;
+  widthMode: 'auto' | 'fixed';
+  z: number;
+  createdAt: number;
+}
+
+/** Every board object; later stories widen this union. */
+export type ObjectSnapshot = StickySnapshot | TextSnapshot;
 
 function objectsOf(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects') as Y.Map<Y.Map<unknown>>;
@@ -210,13 +226,30 @@ export function allObjectIds(snap: readonly ObjectSnapshot[]): string[] {
 }
 
 /** All objects of registered types sorted by (z, id); objects of unknown type are skipped. */
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
-  const out: StickySnapshot[] = [];
+export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const out: ObjectSnapshot[] = [];
   objectsOf(doc).forEach((m, id) => {
     const type = m instanceof Y.Map ? m.get('type') : undefined;
     if (!(m instanceof Y.Map) || typeof type !== 'string' || !SELECTABLE_TYPES.has(type)) return;
     const color = m.get('color');
     const text = m.get('text');
+    if (type === 'text') {
+      const sz = m.get('size');
+      out.push({
+        id,
+        type: 'text',
+        x: num(m.get('x')),
+        y: num(m.get('y')),
+        width: size(m.get('width')),
+        height: size(m.get('height')),
+        text: text instanceof Y.Text ? text.toString() : '',
+        size: typeof sz === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, sz) ? (sz as TextSize) : DEFAULT_TEXT_SIZE,
+        widthMode: m.get('widthMode') === 'fixed' ? 'fixed' : 'auto',
+        z: zOf(m),
+        createdAt: num(m.get('createdAt')),
+      });
+      return;
+    }
     out.push({
       id,
       type: type as 'sticky',

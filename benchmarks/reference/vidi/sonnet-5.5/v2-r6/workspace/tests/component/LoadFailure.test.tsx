@@ -55,7 +55,7 @@ describe('TC-23: nothing is editable while the board could not be loaded', () =>
 
     const viewport = screen.getByTestId('board-viewport');
     fireEvent.doubleClick(viewport, { clientX: 100, clientY: 100 });
-    const add = screen.getByRole('button', { name: 'Sticky note' }) as HTMLButtonElement;
+    const add = screen.getByRole('button', { name: 'Sticky note (N)' }) as HTMLButtonElement;
     expect(add.disabled).toBe(true);
     await userEvent.click(add);
 
@@ -85,7 +85,7 @@ describe('TC-28: close-code mapping', () => {
     return <BoardApp board={{ doc, notes: [], connection: state }} />;
   }
   const status = () => screen.queryByTestId('connection-status')?.textContent ?? null;
-  const addDisabled = () => (screen.getByRole('button', { name: 'Sticky note' }) as HTMLButtonElement).disabled;
+  const addDisabled = () => (screen.getByRole('button', { name: 'Sticky note (N)' }) as HTMLButtonElement).disabled;
 
   it('4500 -> load_failed, then a successful sync -> connected and editable (no reload)', () => {
     const p = new FakeProvider();

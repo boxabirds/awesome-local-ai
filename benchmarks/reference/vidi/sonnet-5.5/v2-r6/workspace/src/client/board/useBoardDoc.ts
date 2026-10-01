@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshot, type ObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 import { setTestConnectionState } from '../canvas/testHooks';
 
 export interface BoardDoc {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  notes: readonly ObjectSnapshot[];
   /** Absent when the doc is not connected to a room (component tests). */
   connection?: ConnectionState;
 }
@@ -14,7 +14,7 @@ export interface BoardDoc {
 interface Store {
   doc: Y.Doc;
   subscribe(cb: () => void): () => void;
-  getSnapshot(): readonly StickySnapshot[];
+  getSnapshot(): readonly ObjectSnapshot[];
 }
 
 function createStore(): Store {
