@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "types": []
+  },
+  "include": ["worker-configuration.d.ts", "src/worker", "src/shared", "tests/integration", "tests/fixtures", "node_modules/@cloudflare/vitest-pool-workers/types/cloudflare-test.d.ts"]
+}

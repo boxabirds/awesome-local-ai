@@ -11,5 +11,6 @@
     "isolatedModules": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "tests", "*.ts"]
+  "include": ["src", "tests", "*.ts"],
+  "exclude": ["src/worker", "tests/integration"]
 }

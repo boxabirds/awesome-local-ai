@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import { applyTextDiff, clampToLimit, counterVisible, mapCaretThroughDelta } from './StickyText';
 
 export function StickyTextEditor(props: {
   ytext: Y.Text;
@@ -23,10 +23,14 @@ export function StickyTextEditor(props: {
     el.focus();
     el.setSelectionRange(el.value.length, el.value.length);
     setLength(el.value.length);
-    const onRemote = () => {
+    const onRemote = (event: Y.YTextEvent) => {
       const text = ytext.toString();
       if (composing.current || el.value === text) return;
+      // Setting `value` moves the caret to the end; keep it beside the same characters instead.
+      const start = mapCaretThroughDelta(el.selectionStart, event.delta);
+      const end = mapCaretThroughDelta(el.selectionEnd, event.delta);
       el.value = text;
+      el.setSelectionRange(Math.min(start, text.length), Math.min(end, text.length));
       setLength(text.length);
     };
     ytext.observe(onRemote);

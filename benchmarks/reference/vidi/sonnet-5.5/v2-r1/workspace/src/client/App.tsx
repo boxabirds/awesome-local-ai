@@ -7,6 +7,7 @@ import { useSelection } from './board/useSelection';
 import { worldToScreen } from './canvas/camera';
 import type { Point } from './canvas/camera';
 import { BoardViewport } from './canvas/BoardViewport';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { StickyNote } from './objects/StickyNote';
 
@@ -21,8 +22,8 @@ function byId(a: { id: string }, b: { id: string }): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-export function App() {
-  const { doc, notes } = useBoardDoc();
+export function App({ boardId }: { boardId?: string } = {}) {
+  const { doc, notes, connection } = useBoardDoc(boardId);
   const sel = useSelection();
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -32,6 +33,8 @@ export function App() {
   // A note that vanished (deleted by this or another client) can no longer be selected or edited.
   useEffect(() => {
     if (sel.selectedId && !notes.some((n) => n.id === sel.selectedId)) sel.select(null);
+    if (sel.editingId && !notes.some((n) => n.id === sel.editingId)) sel.select(null);
+    setDraggingId((d) => (d && !notes.some((n) => n.id === d) ? null : d));
   }, [notes, sel]);
 
   useEffect(() => {
@@ -66,6 +69,7 @@ export function App() {
       onEmptyClick={() => sel.select(null)}
       overlay={(ctx) => (
         <>
+          <ConnectionStatus state={connection} />
           <Toolbar onCreateSticky={() => create(ctx.centerWorld())} />
           {selected && sel.editingId === null && draggingId === null && (
             <div

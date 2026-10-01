@@ -246,3 +246,30 @@ body,
 .note-toolbar .swatch[aria-pressed='true'] {
   border-color: #1e293b;
 }
+
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.connection-status--connecting,
+.connection-status--reconnecting {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+.connection-status--confirmed {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #22c55e;
+}

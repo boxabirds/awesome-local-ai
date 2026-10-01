@@ -55,6 +55,25 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
   else apply();
 }
 
+export type TextDelta = { insert?: unknown; delete?: number; retain?: number }[];
+
+/** Moves a caret position through a remote Y.Text delta so the local caret stays next to the same characters. */
+export function mapCaretThroughDelta(pos: number, delta: TextDelta): number {
+  let oldIndex = 0; // position in the text before the change
+  let result = pos;
+  for (const op of delta) {
+    if (op.retain !== undefined) {
+      oldIndex += op.retain;
+    } else if (typeof op.insert === 'string') {
+      if (oldIndex < pos) result += op.insert.length; // an insert exactly at the caret leaves the caret before it
+    } else if (op.delete !== undefined) {
+      if (oldIndex < pos) result -= Math.min(op.delete, pos - oldIndex);
+      oldIndex += op.delete;
+    }
+  }
+  return Math.max(0, result);
+}
+
 /** Largest integer font size in [min, max] whose content height fits in `box`. Sets `el.style.fontSize`. */
 export function fitFontSize(el: HTMLElement, box: number): { fontPx: number; overflow: boolean } {
   let lo = STICKY_FONT_MIN_PX;
