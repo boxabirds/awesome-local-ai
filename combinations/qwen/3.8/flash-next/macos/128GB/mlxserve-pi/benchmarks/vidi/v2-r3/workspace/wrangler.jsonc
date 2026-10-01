@@ -1,0 +1,10 @@
+{
+  // Cloudflare Worker config. The client build (dist/client) is served as
+  // static assets. Worker code (main) and Durable Objects arrive in story 3.
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist/client"
+  }
+}

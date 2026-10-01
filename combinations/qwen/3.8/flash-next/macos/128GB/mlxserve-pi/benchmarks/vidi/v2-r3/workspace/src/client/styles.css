@@ -1,0 +1,156 @@
+:root {
+  --board-bg: #fafafa;
+  --board-ink: #1a1a24;
+  --marker-color: #e0457b;
+  --panel-bg: #ffffff;
+  --panel-border: #d9d9e0;
+  --panel-shadow: 0 2px 10px rgba(20, 20, 40, 0.12);
+  --focus-ring: 0 0 0 2px #4f8cff;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--board-ink);
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Board surface: fills the window, shows the dot grid, owns board gestures. */
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  background-color: var(--board-bg);
+  background-repeat: repeat;
+  cursor: grab;
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-viewport.is-panning {
+  cursor: grabbing;
+}
+
+/* World layer: children are positioned in world (board) coordinates. */
+.world-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* The board's starting point (world 0,0): a small unscaled crosshair. */
+.board-marker {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px; /* centres the box on its anchor point */
+}
+
+.origin-marker {
+  left: 0;
+  top: 0;
+}
+
+.board-marker::before,
+.board-marker::after {
+  content: '';
+  position: absolute;
+  background: var(--marker-color);
+  border-radius: 1px;
+}
+
+.board-marker::before {
+  left: 0;
+  top: 9px;
+  width: 20px;
+  height: 2px;
+}
+
+.board-marker::after {
+  left: 9px;
+  top: 0;
+  width: 2px;
+  height: 20px;
+}
+
+/* Bottom-right zoom control. */
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  font-size: 14px;
+}
+
+.zoom-controls button {
+  appearance: none;
+  font: inherit;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.zoom-controls button.reset-view-button {
+  min-width: 0;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: rgba(20, 20, 40, 0.07);
+}
+
+.zoom-controls button:disabled {
+  color: #b6b6bf;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible,
+.zoom-controls .reset-view-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.zoom-label {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* First-use navigation hint, near the bottom centre. */
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  background: rgba(26, 26, 36, 0.85);
+  color: #ffffff;
+  border-radius: 8px;
+  font-size: 14px;
+  pointer-events: none;
+  white-space: nowrap;
+}

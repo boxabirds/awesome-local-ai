@@ -1,0 +1,241 @@
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT } from '../../shared/config';
+import type { Camera, Point, Size } from './camera';
+import type { WheelInput } from './useCamera';
+
+/** deltaMode conversions to pixels (named constants per design). */
+const PIXELS_PER_WHEEL_LINE = 16;
+const PIXELS_PER_WHEEL_PAGE = 800;
+
+/** Safari (WebKit) GestureEvent shape — not in the TS DOM lib. */
+interface GestureEventLike extends Event {
+  readonly scale?: number;
+  readonly clientX?: number;
+  readonly clientY?: number;
+}
+
+export interface BoardViewportProps {
+  children?: ReactNode;
+  camera: Camera;
+  onViewportSize(size: Size): void;
+  onBeginPan(p: Point): void;
+  onPanMove(p: Point): void;
+  onEndPan(): void;
+  onWheel(e: WheelInput): void;
+  /** Zoom around a screen point by a factor (Safari gesture events). */
+  onZoomAtPoint(point: Point, factor: number): void;
+  onZoomStep(dir: 'in' | 'out'): void;
+  onReset(): void;
+}
+
+function mod(value: number, m: number): number {
+  return ((value % m) + m) % m;
+}
+
+function gestureScale(e: Event): number {
+  const scale = (e as GestureEventLike).scale;
+  return typeof scale === 'number' && Number.isFinite(scale) && scale > 0 ? scale : 1;
+}
+
+/**
+ * The input surface and renderer of the infinite board:
+ * - a dot grid drawn with a repeating CSS background that pans/zooms with
+ *   the camera (its position is taken modulo the spacing so values stay
+ *   small even a million units from the start),
+ * - a world layer positioned with a single CSS transform,
+ * - pointer-drag panning, non-passive wheel handling, Safari gesture
+ *   zooming and Ctrl/Cmd + =/−/0 keyboard shortcuts.
+ */
+export function BoardViewport(props: BoardViewportProps) {
+  const { camera } = props;
+  const [panning, setPanning] = useState(false);
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  const pointerIdRef = useRef<number | null>(null);
+  const propsRef = useRef(props);
+
+  useEffect(() => {
+    propsRef.current = props;
+  });
+
+  // Report the viewport size (ResizeObserver); camera x, y is unchanged by
+  // resizes by design. getBoundingClientRect is used (not clientWidth) so
+  // jsdom component tests can drive a deterministic size.
+  useEffect(() => {
+    const el = surfaceRef.current;
+    if (el === null) return;
+    const report = () => {
+      const rect = el.getBoundingClientRect();
+      propsRef.current.onViewportSize({ width: rect.width, height: rect.height });
+    };
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Wheel: attached natively with passive:false (React's onWheel is passive)
+  // and preventDefault-ed for EVERY wheel over the board, so the page never
+  // scrolls or zooms (zoom.no_page_zoom).
+  useEffect(() => {
+    const el = surfaceRef.current;
+    if (el === null) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const factor = e.deltaMode === 1 ? PIXELS_PER_WHEEL_LINE : e.deltaMode === 2 ? PIXELS_PER_WHEEL_PAGE : 1;
+      const deltaX = e.deltaX * factor;
+      const deltaY = e.deltaY * factor;
+      const ctrlOrMeta = e.ctrlKey || e.metaKey;
+      if (!ctrlOrMeta && deltaX === 0 && deltaY === 0) return;
+      propsRef.current.onWheel({ deltaX, deltaY, ctrlOrMeta, point: { x: e.clientX, y: e.clientY } });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // Safari trackpad pinch arrives as gesturestart/gesturechange (GestureEvent).
+  // Preventing these keeps the browser's page zoom from changing; each change
+  // zooms the board around the pointer by the scale ratio.
+  useEffect(() => {
+    const el = surfaceRef.current;
+    if (el === null) return;
+    let lastScale = 1;
+    const onGestureStart = (e: Event) => {
+      e.preventDefault();
+      lastScale = gestureScale(e);
+    };
+    const onGestureChange = (e: Event) => {
+      e.preventDefault();
+      const scale = gestureScale(e);
+      const ratio = scale / lastScale;
+      lastScale = scale;
+      if (Number.isFinite(ratio) && ratio > 0 && ratio !== 1) {
+        const ge = e as GestureEventLike;
+        const point = { x: ge.clientX ?? 0, y: ge.clientY ?? 0 };
+        propsRef.current.onZoomAtPoint(point, ratio);
+      }
+    };
+    const onGestureEnd = (e: Event) => {
+      e.preventDefault();
+      lastScale = 1;
+    };
+    el.addEventListener('gesturestart', onGestureStart);
+    el.addEventListener('gesturechange', onGestureChange);
+    el.addEventListener('gestureend', onGestureEnd);
+    return () => {
+      el.removeEventListener('gesturestart', onGestureStart);
+      el.removeEventListener('gesturechange', onGestureChange);
+      el.removeEventListener('gestureend', onGestureEnd);
+    };
+  }, []);
+
+  // Ctrl/Cmd + =/− zoom one step, Ctrl/Cmd + 0 resets; preventDefault stops
+  // the browser's own page zoom shortcuts.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault();
+        propsRef.current.onZoomStep('in');
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        propsRef.current.onZoomStep('out');
+      } else if (e.key === '0') {
+        e.preventDefault();
+        propsRef.current.onReset();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const isBoardSurface = (e: ReactPointerEvent<HTMLDivElement>): boolean =>
+    e.target === e.currentTarget; // empty board space (the grid itself)
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (!isBoardSurface(e)) return;
+    pointerIdRef.current = e.pointerId;
+    setPanning(true);
+    const el = surfaceRef.current;
+    if (el !== null && typeof el.setPointerCapture === 'function') {
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        /* pointer already gone; drag just won't be captured */
+      }
+    }
+    props.onBeginPan({ x: e.clientX, y: e.clientY });
+  };
+
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (pointerIdRef.current === null || e.pointerId !== pointerIdRef.current) return;
+    props.onPanMove({ x: e.clientX, y: e.clientY });
+  };
+
+  const endDrag = (pointerId: number) => {
+    if (pointerIdRef.current !== pointerId) return;
+    pointerIdRef.current = null;
+    setPanning(false);
+    const el = surfaceRef.current;
+    if (el !== null && typeof el.releasePointerCapture === 'function') {
+      try {
+        el.releasePointerCapture(pointerId);
+      } catch {
+        /* already released */
+      }
+    }
+    // The board simply stays where it was at the moment of interruption.
+    props.onEndPan();
+  };
+
+  const { x, y, zoom } = camera;
+  const spacing = GRID_SPACING_WORLD * zoom;
+  const gridOffsetX = mod(-x * zoom, spacing);
+  const gridOffsetY = mod(-y * zoom, spacing);
+
+  return (
+    <div
+      ref={surfaceRef}
+      className={`board-viewport${panning ? ' is-panning' : ''}`}
+      data-testid="board-viewport"
+      data-state={panning ? 'panning' : 'idle'}
+      style={{
+        backgroundImage: 'radial-gradient(circle, rgba(20, 20, 30, 0.22) 1px, transparent 1.5px)',
+        backgroundSize: `${spacing}px ${spacing}px`,
+        backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px`,
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={(e) => endDrag(e.pointerId)}
+      onPointerCancel={(e) => endDrag(e.pointerId)}
+      onLostPointerCapture={(e) => endDrag(e.pointerId)}
+    >
+      <div
+        className="world-layer"
+        data-testid="world-layer"
+        style={{ transform: `scale(${zoom}) translate(${-x}px, ${-y}px)`, transformOrigin: '0 0' }}
+      >
+        <span
+          className="board-marker origin-marker"
+          data-testid="origin-marker"
+          aria-hidden="true"
+          style={{ transform: `scale(${1 / zoom})` }}
+        />
+        {import.meta.env.MODE === 'test' ? (
+          <span
+            className="board-marker far-marker"
+            data-testid="far-marker"
+            aria-hidden="true"
+            style={{
+              left: `${UNBOUNDED_PAN_TESTED_EXTENT}px`,
+              top: `${UNBOUNDED_PAN_TESTED_EXTENT}px`,
+              transform: `scale(${1 / zoom})`,
+            }}
+          />
+        ) : null}
+        {props.children}
+      </div>
+    </div>
+  );
+}
