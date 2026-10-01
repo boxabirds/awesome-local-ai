@@ -64,8 +64,10 @@ def test_macos_profile_hides_shared_temp_and_reopens_only_the_run_s_own(tmp_path
     # mktemp's own names and xcrun's cache stay usable in the user temp dir, which can't be listed.
     assert '(allow file-read-metadata (literal "/private/var/folders/zz/abc/T"))' in profile
     assert '(regex #"^/private/var/folders/zz/abc/T/(tmp\\.|xcrun_db)")' in profile
-    # The run's own directory (its temp dir inside) is the last rule, so it wins over every deny.
-    assert profile.endswith(f"(allow file-read* file-write* (subpath {drive._sb_quote(own)}))")
+    # The run's own directory (its temp dir inside) is the last allow, so it wins over every deny before it; the one
+    # rule after it closes the workspace's spec to writing (test_drive.py runs that in the real sandbox).
+    assert profile.endswith(f"(allow file-read* file-write* (subpath {drive._sb_quote(own)}))"
+                            f"(deny file-write* (subpath {drive._sb_quote(own / drive.WORKSPACE_DIR / drive.SPEC_DIR)}))")
 
 
 def test_linux_command_binds_the_run_s_temp_dir_over_tmp_before_its_own_dir(tmp_path, monkeypatch):

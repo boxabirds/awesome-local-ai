@@ -144,7 +144,11 @@ def test_macos_profile_without_a_user_temp_dir_reopens_only_tools_that_exist(tmp
     for d in (own, tools):
         for ancestor in d.resolve().parents:
             assert f"(literal {drive._sb_quote(ancestor)})" in metadata
-    assert profile.endswith(f"(allow file-read* file-write* (subpath {drive._sb_quote(own)}))")
+    # Last, so they win (SBPL applies the last rule that matches): the run's own dir re-opened, and in it the
+    # workspace's spec closed to writing again.
+    assert profile.endswith(f"(allow file-read* file-write* (subpath {drive._sb_quote(own)}))"
+                            f"(deny file-write* (subpath {drive._sb_quote(own / 'workspace' / 'spec')}))")
+    assert (drive.WORKSPACE_DIR, drive.SPEC_DIR) == ("workspace", "spec")
 
 
 def test_the_linux_sandbox_masks_what_is_denied_and_binds_the_run_s_temp_dir_over_the_shared_ones(tmp_path, monkeypatch):
@@ -156,17 +160,32 @@ def test_the_linux_sandbox_masks_what_is_denied_and_binds_the_run_s_temp_dir_ove
     monkeypatch.setattr(drive, "SANDBOX_REOPEN_RO", [tools])
     monkeypatch.setattr(drive, "WORK_ROOT", tmp_path / "work")
     own = tmp_path / "work" / "run"
+    spec = own / "workspace" / "spec"
+    spec.mkdir(parents=True)
     cmd = drive.sandboxed(["true", "x"], own_dir=own)
-    own_s, tmp_s = str(own.resolve()), str((own / drive.AGENT_TMP).resolve())
+    own_s, tmp_s, spec_s = str(own.resolve()), str((own / drive.AGENT_TMP).resolve()), str(spec.resolve())
     assert (own / drive.AGENT_TMP).is_dir()
     assert cmd[0] == "bwrap" and cmd[-3:] == ["--", "true", "x"]
-    # In order: the masks, the tools re-opened read-only, the run's temp dir over each shared one, then the run's own dir.
+    # In order (bwrap mounts in order, a later mount over an earlier one): the masks, the tools re-opened read-only,
+    # the run's temp dir over each shared one, the run's own dir, and over it the workspace's spec, read-only.
     tail = ["--ro-bind", str(tools.resolve()), str(tools.resolve()),
-            *(a for p in drive.SHARED_TMP for a in ("--bind", tmp_s, str(p))), "--bind", own_s, own_s, "--", "true", "x"]
+            *(a for p in drive.SHARED_TMP for a in ("--bind", tmp_s, str(p))), "--bind", own_s, own_s,
+            "--ro-bind", spec_s, spec_s, "--", "true", "x"]
     assert cmd[-len(tail):] == tail
     masks = cmd[:-len(tail)]
     for hidden in (denied, tmp_path / "work"):
         assert masks[masks.index(str(hidden.resolve())) - 1] == "--tmpfs"
+
+
+def test_the_linux_sandbox_of_a_run_without_a_spec_binds_none(tmp_path, monkeypatch):
+    """bwrap can't bind a source that isn't there (the preflight's probe has a workspace and no spec)."""
+    monkeypatch.setattr(drive, "IS_MAC", False)
+    monkeypatch.setattr(drive, "SANDBOX_DENY", [])
+    monkeypatch.setattr(drive, "SANDBOX_REOPEN_RO", [])
+    monkeypatch.setattr(drive, "WORK_ROOT", tmp_path / "work")
+    own = tmp_path / "work" / "run"
+    cmd = drive.sandboxed(["true"], own_dir=own)
+    assert cmd[-5:] == ["--bind", str(own.resolve()), str(own.resolve()), "--", "true"] and "--ro-bind" not in cmd
 
 
 def test_a_path_is_quoted_for_the_sandbox_profile_with_its_quotes_and_backslashes_escaped(tmp_path):
@@ -465,6 +484,76 @@ def test_a_known_good_workspace_is_on_main_whichever_branch_the_clone_took_for_h
     assert git(ws, "status", "--porcelain") == ""
 
 
+def spec_repo(tmp_path: Path) -> tuple[Path, str]:
+    """A workspace whose first commit is the harness's, with the spec; returns it and that commit."""
+    ws = tmp_path / "ws"
+    for rel, text in {"prd.md": "requirements", "stories/001/tasks.md": "| 1 | Do it | proposed |", "stories/001/story.md": "# One"}.items():
+        (ws / "spec" / rel).parent.mkdir(parents=True, exist_ok=True)
+        (ws / "spec" / rel).write_text(text)
+    git(ws, "init", "-q", "-b", "main")
+    git(ws, "add", "-A")
+    git(ws, "commit", "-qm", "harness: empty repository with spec")
+    drive.spec_files_read_only(ws)
+    return ws, git(ws, "rev-parse", "HEAD")
+
+
+def test_the_first_commit_is_the_harness_s_however_many_follow(tmp_path):
+    ws, first = spec_repo(tmp_path)
+    (ws / "a.ts").write_text("a")
+    git(ws, "add", "-A")
+    git(ws, "commit", "-qm", "story 1")
+    assert drive.first_commit(ws) == first != git(ws, "rev-parse", "HEAD")
+
+
+def test_restoring_the_spec_undoes_edits_deletions_additions_and_closed_directories_and_names_the_files(tmp_path):
+    ws, first = spec_repo(tmp_path)
+    before = drive.tree_hash(ws / "spec")
+    tasks = ws / "spec" / "stories" / "001" / "tasks.md"
+    tasks.chmod(0o644)
+    tasks.write_text("| 1 | Do it | done |")                                 # edited and committed
+    git(ws, "rm", "-q", "spec/prd.md")                                       # deleted and committed
+    (ws / "spec" / "design").mkdir()
+    (ws / "spec" / "design" / "mine.md").write_text("my own design")         # added and committed
+    git(ws, "add", "-A")
+    git(ws, "commit", "-qm", "spec: suit myself")
+    (ws / "spec" / "stories" / "001" / "story.md").unlink()                  # deleted, not committed
+    (ws / "spec" / "loose.md").write_text("left lying")                      # added, not committed
+    (ws / "src.ts").write_text("the agent's uncommitted work")
+    (ws / "spec" / "design").chmod(0o500)                                    # a directory closed to writing
+    changed = drive.restore_spec(ws, first, 7)
+    assert changed == ["spec/design/mine.md", "spec/loose.md", "spec/prd.md", "spec/stories/001/story.md", "spec/stories/001/tasks.md"]
+    assert drive.tree_hash(ws / "spec") == before and not (ws / "spec" / "design").exists()
+    assert all(mode(f) == drive.SPEC_FILE_MODE for f in (ws / "spec").rglob("*") if f.is_file())
+    assert git(ws, "log", "-1", "--format=%an|%s") == "vidi-agent|harness: spec restored after story 7"
+    assert git(ws, "diff", "--name-only", first, "HEAD", "--", "spec") == ""       # the spec at HEAD is the first commit's
+    assert git(ws, "status", "--porcelain") == "?? src.ts"                   # the agent's own work is left as it was
+
+
+def test_restoring_a_spec_changed_only_in_the_working_tree_makes_no_commit(tmp_path):
+    ws, first = spec_repo(tmp_path)
+    (ws / "spec" / "prd.md").chmod(0o644)
+    (ws / "spec" / "prd.md").write_text("rewritten")
+    assert drive.restore_spec(ws, first, 2) == ["spec/prd.md"]
+    assert (ws / "spec" / "prd.md").read_text() == "requirements" and git(ws, "rev-parse", "HEAD") == first
+    assert git(ws, "status", "--porcelain") == ""
+
+
+def test_the_progress_file_is_committed_by_itself_even_where_the_agent_ignored_it_and_once_while_unchanged(tmp_path):
+    ws, first = spec_repo(tmp_path)
+    (ws / ".gitignore").write_text("PROGRESS.md\n")
+    (ws / "half.ts").write_text("staged by the agent, not committed")
+    git(ws, "add", ".gitignore", "half.ts")
+    tasks = [{"n": 1, "title": "Do it"}]
+    drive.begin_progress_file(ws, 3, "Third", tasks)
+    assert git(ws, "log", "--format=%an|%s").split("\n") == ["vidi-agent|harness: PROGRESS.md for story 3", "t|harness: empty repository with spec"]
+    assert git(ws, "show", "--name-only", "--format=", "HEAD") == "PROGRESS.md"
+    assert (ws / "PROGRESS.md").read_text() == drive.progress_file.text(3, "Third", tasks)
+    assert git(ws, "status", "--porcelain") == "A  .gitignore\nA  half.ts"   # what the agent had staged is still only staged
+    head = git(ws, "rev-parse", "HEAD")
+    drive.begin_progress_file(ws, 3, "Third", tasks)                         # the story started again: nothing new to commit
+    assert git(ws, "rev-parse", "HEAD") == head
+
+
 def test_a_known_good_workspace_that_already_exists_is_not_rebuilt(tmp_path, monkeypatch):
     ws = tmp_path / "workspace"
     (ws / ".git").mkdir(parents=True)
@@ -593,7 +682,7 @@ def test_the_prompt_fills_every_placeholder_of_the_pack_s_template(tmp_path, mon
     monkeypatch.setattr(drive, "PK", SimpleNamespace(app_line="the app", rules="1. a rule"))
     story = {"id": 7, "dir": "007-seventh"}
     so_far = drive.stories_so_far([], 7)
-    done_line = "\n\n" + drive.DONE_LINE_PROMPT_TMPL.format(n=7) + "\n"        # the harness's own last paragraph
+    done_line = "\n\n" + drive.harness_paragraph(7) + "\n"        # the harness's own last paragraph
     assert drive.render_prompt(story, "Seventh", [], {"out_of_scope_note": "not the eighth"}) == (
         f"the app|1. a rule|7|Seventh|spec/|spec/stories/007-seventh|{so_far}|not the eighth{done_line}")
     assert drive.render_prompt(story, "Seventh", [], {}) == (                        # a scope without a note

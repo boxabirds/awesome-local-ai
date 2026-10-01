@@ -37,6 +37,7 @@ import finalize
 import gates
 import heldout
 import progress
+import progress_file
 import finalize_pending
 import rescore
 import roots
@@ -109,6 +110,18 @@ def git(cwd: Path, *args: str) -> str:
                           capture_output=True, text=True).stdout
 
 
+# Each story's tasks, as a pack's tasks.md lists them. The Status column is the pack's and read-only; the agent
+# keeps its own account in PROGRESS.md (progress_file.py), which the harness starts at todo for every task.
+KAT_TASKS = """# Tasks
+
+| # | Task | Status | Type | Implements |
+|---|---|---|---|---|
+| 1 | Build the app | proposed | implementation | app |
+| 2 | Check it by hand | proposed | implementation | app |
+"""
+KAT_CLAIMS = {"1": "done", "2": "blocked"}        # what the scripted agent says of them in every story
+
+
 def make_private_repo(root: Path) -> Path:
     """A private repo holding pack `kat`, tagged at PACK_REF like a real pack's release."""
     pack = root / "packs" / PACK
@@ -116,7 +129,7 @@ def make_private_repo(root: Path) -> Path:
         d = pack / "spec" / "stories" / f"{n:03d}-{slug}"
         d.mkdir(parents=True)
         (d / "story.md").write_text(f"# {title}\n")
-        (d / "tasks.md").write_text("# Tasks\n")
+        (d / "tasks.md").write_text(KAT_TASKS)
     (pack / "spec" / "README.md").write_text("# kat\n")
     (pack / "prompts").mkdir()
     (pack / "prompts" / "story.md.tmpl").write_text("STORY {{ID}}: {{TITLE}}\n{{STORIES_SO_FAR}}\n")
@@ -181,6 +194,10 @@ AGENT_WORK = textwrap.dedent(r'''
     write(".gitignore", "node_modules/\ndist/\n")
     def work():
         subprocess.run(install, check=True, capture_output=True)
+        progress = ws / "PROGRESS.md"                 # the harness wrote it for this story, every task at todo
+        assert f"# Story {story}: " in progress.read_text() and progress.read_text().count("| todo |") == 2
+        progress.write_text(progress.read_text().replace("| Build the app | todo |", "| Build the app | done |")
+                            .replace("| Check it by hand | todo |", "| Check it by hand | blocked |"))
         subprocess.run(["git", "add", "-A"], check=True)
         subprocess.run(["git", "commit", "-qm", f"story {story}"], check=True)
     def emit(*events):
@@ -433,7 +450,13 @@ def test_the_live_scores_and_commits_are_recorded_per_story(run_copy):
     ws = Path((run_copy / "work_dir.txt").read_text().strip()) / "workspace"
     log = git(ws, "log", "--format=%H %s").splitlines()
     assert m["stories"]["2"]["commit"] == log[0].split()[0] and log[0].endswith("story 2")
-    assert m["stories"]["1"]["commit"] == log[1].split()[0]
+    # Under each story's commit, the harness's own: that story's PROGRESS.md, written before the story began.
+    assert [l.split(" ", 1)[1] for l in log] == ["story 2", "harness: PROGRESS.md for story 2", "story 1",
+                                                 "harness: PROGRESS.md for story 1", "harness: empty repository with spec"]
+    assert m["stories"]["1"]["commit"] == log[2].split()[0]
+    for sid in ("1", "2"):                                       # what the agent claimed, beside the evidence
+        assert m["stories"][sid]["tasks_claimed"] == {"file": progress_file.READ, "tasks": KAT_CLAIMS}
+        assert m["stories"][sid]["agent_commits"] == 1 and "spec_tampered" not in m["stories"][sid]
     assert m["stories"]["2"]["gate"]["all_green"] is False       # the gate's own `npm ci` refuses the peer range
     assert m["stories"]["2"]["accept"]["build_exit"] == 0        # but the agent's installed modules build
     for sid in ("1", "2"):                                       # each ended on its DONE line, with no stop message

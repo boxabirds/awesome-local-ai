@@ -40,12 +40,12 @@ MIN_HASH_CHARS = 7
 MESSAGE_FOR_STORY_4 = """\
 This is an automated message from a script. Nobody reads your replies and nobody can answer questions. You will get this same message every time you stop, until story 4 is finished in the way described here.
 
-You are working on story 4, "Edit a note", and nothing else. Its tasks are in spec/stories/004-edit-a-note/tasks.md.
+You are working on story 4, "Edit a note", and nothing else. Its tasks are in spec/stories/004-edit-a-note/tasks.md; your progress on them is in PROGRESS.md.
 
 Do the first of these that applies:
 
 1. Your last message contained a tool call written as text: it was not run. Make the call again as a real tool call.
-2. A task in tasks.md is not finished: carry on with it now. Do not write a summary first.
+2. A task in PROGRESS.md is not done: carry on with it now. Do not write a summary first.
 3. Something cannot be done on this machine (for example a browser that is not installed): write what and why in NOTES.md and treat that task as finished.
 4. Every task is finished: do not re-check or improve anything. Run
    git add -A && git commit -m "story 4: Edit a note"
@@ -101,7 +101,7 @@ def test_the_stop_message_is_the_owner_s_wording_with_the_story_filled_in():
 def test_the_stop_message_names_the_story_the_commit_command_and_that_no_other_story_is_started():
     text = drive.stop_message(12, "Share a board", "spec/stories/012-share/tasks.md")
     assert 'You are working on story 12, "Share a board", and nothing else.' in text
-    assert "Its tasks are in spec/stories/012-share/tasks.md." in text
+    assert "Its tasks are in spec/stories/012-share/tasks.md; your progress on them is in PROGRESS.md." in text
     assert '   git add -A && git commit -m "story 12: Share a board"\n   then git rev-parse HEAD.' in text
     assert "\nSTORY 12 DONE <commit hash>\n" in text and "until story 12 is finished" in text
     assert text.endswith("Do not start any other story. Do not offer further work. Do not ask what to do next.")
@@ -533,7 +533,12 @@ def test_the_story_s_prompt_ends_by_asking_for_the_done_line(tmp_path, monkeypat
     prompt = drive.render_prompt({"id": 4, "dir": "004-edit-a-note"}, "Edit a note", [], {})
     assert prompt == ("Implement story 4, Edit a note, and commit it.\n\n"
                       "After that commit, run `git rev-parse HEAD` and end your final reply with exactly this line: "
-                      "STORY 4 DONE <commit hash>. The story is not finished until you have sent it.\n")
+                      "STORY 4 DONE <commit hash>. The story is not finished until you have sent it. "
+                      "`spec/` is read-only: you cannot change it, and the Status column in tasks.md is not yours to "
+                      "update. Track your progress on the tasks in `PROGRESS.md` (todo, doing, done, blocked).\n")
+    # The statuses it names are the ones the file allows.
+    import progress_file
+    assert f"({', '.join(progress_file.STATUSES)})" in drive.SPEC_READ_ONLY_PROMPT and progress_file.FILE in drive.SPEC_READ_ONLY_PROMPT
 
 
 def test_the_old_prompts_are_gone():

@@ -20,6 +20,7 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import signal
 import subprocess
 import sys
@@ -44,6 +45,7 @@ import machine_names
 import pack as packmod
 import packdir
 import progress
+import progress_file
 import provenance
 import publicise
 import roots
@@ -91,6 +93,12 @@ SANDBOX_REOPEN_RO = [Path.home() / ".dbench" / "tools"]
 # until 30 Sep 2026, when a run found another run's leftover git worktree at /tmp/vidi-baseline; the held-out suite
 # also keeps its app's state in the harness's temp dir (os.tmpdir()/vidi-accept-*).
 AGENT_TMP = "tmp"
+# In a run's work dir: the agent's repository, and in it the pack's spec. The spec is the agent's to read and never
+# to write: its files' read-only mode is only a hint (the agent is the same user), so the sandbox refuses the
+# write (sandboxed). 13 recorded runs have stories in which the agent changed it, mostly the Status column of a
+# story's tasks.md (one rewrote the file): its own progress goes in PROGRESS.md instead (progress_file.py).
+WORKSPACE_DIR = "workspace"
+SPEC_DIR = "spec"
 # CLAUDE_CODE_TMPDIR: Claude Code ignores TMPDIR for its own temp files and uses /tmp/claude-<uid> unless this is
 # set; with /tmp denied it couldn't see that dir existed and failed to start (EEXIST, 1 Oct 2026).
 TMP_ENV = ("TMPDIR", "TMP", "TEMP", "CLAUDE_CODE_TMPDIR")
@@ -164,12 +172,12 @@ RESUME_PROMPT = "Continue with the task from where you left off."
 STOP_MESSAGE_TMPL = """\
 This is an automated message from a script. Nobody reads your replies and nobody can answer questions. You will get this same message every time you stop, until story {n} is finished in the way described here.
 
-You are working on story {n}, "{title}", and nothing else. Its tasks are in {tasks_path}.
+You are working on story {n}, "{title}", and nothing else. Its tasks are in {tasks_path}; your progress on them is in PROGRESS.md.
 
 Do the first of these that applies:
 
 1. Your last message contained a tool call written as text: it was not run. Make the call again as a real tool call.
-2. A task in tasks.md is not finished: carry on with it now. Do not write a summary first.
+2. A task in PROGRESS.md is not done: carry on with it now. Do not write a summary first.
 3. Something cannot be done on this machine (for example a browser that is not installed): write what and why in NOTES.md and treat that task as finished.
 4. Every task is finished: do not re-check or improve anything. Run
    git add -A && git commit -m "story {n}: {title}"
@@ -184,6 +192,9 @@ Do not start any other story. Do not offer further work. Do not ask what to do n
 # is the pack's and is not edited here: an agent that does as it is asked finishes on its first stop, with no message.
 DONE_LINE_PROMPT_TMPL = ("After that commit, run `git rev-parse HEAD` and end your final reply with exactly this line: "
                          "STORY {n} DONE <commit hash>. The story is not finished until you have sent it.")
+# In the same paragraph: the spec can't be written (sandboxed), and where the agent's account of its tasks goes.
+SPEC_READ_ONLY_PROMPT = ("`spec/` is read-only: you cannot change it, and the Status column in tasks.md is not yours to "
+                         "update. Track your progress on the tasks in `PROGRESS.md` (todo, doing, done, blocked).")
 # The DONE line, on a line of its own; code or bold marks around it (a model's habit) are not part of it.
 DONE_HASH_MIN_CHARS = 7
 DONE_HASH_MAX_CHARS = 40
@@ -254,13 +265,15 @@ def outside_packages(own_dir: Path) -> list[Path]:
 
 def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
     """Wrap cmd in a sandbox that hides everything in SANDBOX_DENY except own_dir, with own_dir/AGENT_TMP as the
-    agent's only temp dir.
+    agent's only temp dir, and own_dir's workspace spec read-only.
 
-    macOS: sandbox-exec; SBPL applies the last matching rule, so the final allow re-opens
-    own_dir even though it sits under WORK_ROOT. Linux: bubblewrap (see hostenv.bwrap_wrap).
+    macOS: sandbox-exec; SBPL applies the last matching rule, so the allow that re-opens own_dir wins even though
+    it sits under WORK_ROOT, and the deny after it closes the spec to writing again. Linux: bubblewrap (see
+    hostenv.bwrap_wrap), which mounts in order: the spec's read-only bind comes after own_dir's.
     """
     own_tmp = own_dir / AGENT_TMP
     own_tmp.mkdir(parents=True, exist_ok=True)   # bwrap can't bind a missing source; agent_env makes it too
+    spec = own_dir / WORKSPACE_DIR / SPEC_DIR
     if not IS_MAC:
         args = hostenv.bwrap_wrap([], own_dir, [*SANDBOX_DENY, WORK_ROOT, *outside_packages(own_dir)],
                                   reopen_ro=SANDBOX_REOPEN_RO)
@@ -269,7 +282,8 @@ def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
         # After the masks (bwrap mounts in order; a later mount covers an earlier one) and before own_dir, which
         # may itself sit under /tmp and must stay visible.
         tmp = [a for p in SHARED_TMP for a in ("--bind", str(own_tmp.resolve()), str(p))]
-        return [*args[:-4], *tmp, *args[-4:], *cmd]
+        spec_ro = ["--ro-bind", str(spec.resolve()), str(spec.resolve())] if spec.is_dir() else []
+        return [*args[:-4], *tmp, *args[-4:-1], *spec_ro, "--", *cmd]
     user_tmp = user_temp_dir()
     denied = [*SANDBOX_DENY, WORK_ROOT, *(p.resolve() for p in SHARED_TMP), *([user_tmp] if user_tmp else [])]
     deny = " ".join([*(f"(subpath {_sb_quote(p)})" for p in denied),
@@ -289,7 +303,8 @@ def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
                f"(allow file-read-metadata {ancestors})"
                f"{user_tmp_rules}"
                f"{reopen_rules}"
-               f"(allow file-read* file-write* (subpath {_sb_quote(own_dir)}))")
+               f"(allow file-read* file-write* (subpath {_sb_quote(own_dir)}))"
+               f"(deny file-write* (subpath {_sb_quote(spec)}))")
     return ["sandbox-exec", "-p", profile, *cmd]
 
 
@@ -725,18 +740,58 @@ def save_metrics(run: Path, m: dict) -> None:
     heldout.save_metrics(run, m)
 
 
+SPEC_FILE_MODE = 0o444
+
+
+def spec_files_read_only(ws: Path) -> None:
+    """The spec's files read-only, as a hint to the agent; directories stay writable so runs can be mirrored and
+    deleted. What stops a write is the sandbox (sandboxed), and behind it the check after every story (restore_spec)."""
+    for f in (ws / SPEC_DIR).rglob("*"):
+        if f.is_file():
+            f.chmod(SPEC_FILE_MODE)
+
+
+def first_commit(ws: Path) -> str:
+    """The workspace's first commit: the harness's, holding the spec as the pack has it."""
+    return sh(["git", "rev-list", "--max-parents=0", "HEAD"], ws).split()[-1]
+
+
+def restore_spec(ws: Path, spec_commit: str, sid: int) -> list[str]:
+    """Put the workspace's spec back as it is in spec_commit (a harness commit: never HEAD, which may hold the
+    agent's own change), in a harness commit when the agent had committed its change, and return the files that
+    differed, so a status edited in a tasks.md can be told from changed requirements or design. Later stories
+    then build on the pack's spec, and only the story in which the change was made is flagged."""
+    changed = {*sh(["git", "diff", "--name-only", spec_commit, "--", SPEC_DIR], ws).splitlines(),
+               *sh(["git", "ls-files", "--others", "--", SPEC_DIR], ws).splitlines()}
+    for d in [ws / SPEC_DIR, *(p for p in (ws / SPEC_DIR).rglob("*") if p.is_dir() and not p.is_symlink())]:
+        d.chmod(d.stat().st_mode | stat.S_IRWXU)        # a directory the agent closed can still be emptied
+    shutil.rmtree(ws / SPEC_DIR)
+    sh(["git", "checkout", spec_commit, "--", SPEC_DIR], ws)
+    spec_files_read_only(ws)
+    sh(["git", "add", "-A", "--", SPEC_DIR], ws)
+    if sh(["git", "diff", "--cached", "--name-only", "--", SPEC_DIR], ws).strip():
+        sh(["git", "commit", "-qm", f"harness: spec restored after story {sid}", "--", SPEC_DIR], ws, GIT_IDENTITY)
+    return sorted(changed)
+
+
+def begin_progress_file(ws: Path, sid: int, title: str, tasks: list[dict]) -> None:
+    """The story's PROGRESS.md (progress_file.py), every task at todo, in a harness commit of its own: made before
+    the story's starting commit is taken, so it is never the agent's commit nor among the story's own lines."""
+    progress_file.write(ws, sid, title, tasks)
+    sh(["git", "add", "-f", "--", progress_file.FILE], ws)
+    if sh(["git", "diff", "--cached", "--name-only", "--", progress_file.FILE], ws).strip():
+        sh(["git", "commit", "-qm", f"harness: {progress_file.FILE} for story {sid}", "--", progress_file.FILE], ws,
+           GIT_IDENTITY)
+
+
 def setup_workspace(ws: Path) -> None:
     """Fresh repo containing only README.md (as story 1's design assumes) plus the read-only spec."""
     if (ws / ".git").exists():
         return
     ws.mkdir(parents=True)
     (ws / "README.md").write_text("# vidi6\n\nA shared board for thinking together.\n")
-    shutil.copytree(SPEC, ws / "spec")
-    # Files read-only as a hint; directories stay writable so runs can be mirrored and
-    # deleted. Real protection is the hash check + restore after every story.
-    for f in (ws / "spec").rglob("*"):
-        if f.is_file():
-            f.chmod(0o444)
+    shutil.copytree(SPEC, ws / SPEC_DIR)
+    spec_files_read_only(ws)
     sh(["git", "init", "-q", "-b", "main"], ws)
     sh(["git", "add", "-A"], ws)
     sh(["git", "commit", "-qm", "harness: empty repository with spec"], ws, GIT_IDENTITY)
@@ -794,9 +849,7 @@ def setup_workspace_from(ws: Path, base: dict, spec: Path) -> None:
         shutil.copytree(spec, ws / "spec", ignore=shutil.ignore_patterns(*FINDER_FILES))
         sh(["git", "add", "-A", "spec"], ws)
         sh(["git", "commit", "-qm", "harness: spec updated to this pack's version (known-good base)"], ws, GIT_IDENTITY)
-    for f in (ws / "spec").rglob("*"):
-        if f.is_file():
-            f.chmod(0o444)
+    spec_files_read_only(ws)
 
 
 NPM_CI_TIMEOUT_S = 900
@@ -884,6 +937,12 @@ def stories_so_far(processed: list[dict], this_id: int) -> str:
     return "\n".join(lines)
 
 
+def harness_paragraph(story_id: int) -> str:
+    """The harness's own last paragraph of a story's prompt: how the agent says the story is finished (the stop
+    rule), and where its progress goes now that the spec is read-only."""
+    return f"{DONE_LINE_PROMPT_TMPL.format(n=story_id)} {SPEC_READ_ONLY_PROMPT}"
+
+
 def render_prompt(story: dict, title: str, processed: list[dict], scope: dict) -> str:
     """The pack's template filled in, then the harness's request for the DONE line.
     processed: the queue of stories already processed, each {"id", "status": DONE|PARTIAL, ...}."""
@@ -897,8 +956,7 @@ def render_prompt(story: dict, title: str, processed: list[dict], scope: dict) -
             .replace("{{STORY_DIR}}", story_dir)
             .replace("{{STORIES_SO_FAR}}", stories_so_far(processed, story["id"]))
             .replace("{{SCOPE_NOTE}}", scope.get("out_of_scope_note", "")))
-    # The harness's own last paragraph: how the agent says the story is finished (the stop rule).
-    return f"{text.rstrip()}\n\n{DONE_LINE_PROMPT_TMPL.format(n=story['id'])}\n"
+    return f"{text.rstrip()}\n\n{harness_paragraph(story['id'])}\n"
 
 
 def story_title(story: dict) -> str:
@@ -1911,7 +1969,7 @@ def main() -> None:
     else:
         setup_workspace(ws)
     (run / "work_dir.txt").write_text(str(work))
-    spec_hash = tree_hash(ws / "spec")
+    spec_hash = tree_hash(ws / SPEC_DIR)
     env = agent_env(work)
     if a.client_thinking and a.client != "pi":
         raise SystemExit("--client-thinking applies to pi only")
@@ -1925,11 +1983,15 @@ def main() -> None:
         metrics.setdefault("known_good", {"from_run": str(ref.relative_to(REPO_ROOT)) if ref.is_relative_to(REPO_ROOT) else str(ref),
                                  "commit": known_good["commit"], "story": known_good["story"],
                                  "spec_updated": known_good.get("spec_updated", False),
+                                 # The harness commit that holds this pack's spec (restore_spec): the base's
+                                 # own, or the one that updated it.
+                                 "spec_commit": sh(["git", "rev-parse", "HEAD"], ws).strip(),
                                  # False: that one story. True: it and every later story of the scope.
                                  "continues": a.from_story is not None})  # kept across restarts
         metrics.setdefault("processed", known_good["processed"])
     processed = load_processed(metrics, scope["stories"])
     metrics["processed"] = processed
+    spec_commit = metrics.get("known_good", {}).get("spec_commit") or first_commit(ws)
     if known_good and not (run / history.BASE_DIR / "accept.json").exists():
         # The base's own held-out results, so the story's regressions and repairs can be measured.
         print(f"[known-good] scoring the base (stories {[p['id'] for p in processed]})", flush=True)
@@ -1953,13 +2015,16 @@ def main() -> None:
         events = sdir / "agent-events.jsonl"
         STORY_SKIP.clear()
         STORY_FAULTS.clear()
-        head_before = sh(["git", "rev-parse", "HEAD"], ws).strip()
         prior = last_session(client, events)
         # Where the story began: kept across harness restarts, so evidence counts the whole story.
         base_file = sdir / "base-commit"
-        base = base_file.read_text().strip() if prior and base_file.exists() else head_before
-        base_file.write_text(base)
+        continued = bool(prior) and base_file.exists()
         tasks = progress.parse_tasks(SPEC / "stories" / story["dir"] / "tasks.md")
+        if not continued:       # a story continued after a restart keeps the file as its agent left it
+            begin_progress_file(ws, sid, title, tasks)
+        head_before = sh(["git", "rev-parse", "HEAD"], ws).strip()
+        base = base_file.read_text().strip() if continued else head_before
+        base_file.write_text(base)
         partial_base = [p["id"] for p in processed if p["status"] == PARTIAL]
         live = {"id": sid, "title": title, "status": "running", "started_at": time.time(), "tasks": [],
                 "partial_base": partial_base, "baselines": progress.baselines(REPO_ROOT, sid, run)}
@@ -2025,10 +2090,12 @@ def main() -> None:
             raise SystemExit(f"[story {sid}] agent made no model calls (exit {rec['agent']['exit']}); "
                              f"see {sdir / 'agent-events.jsonl'}. Not checkpointed.")
 
-        if tree_hash(ws / "spec") != spec_hash:
-            rec["spec_tampered"] = True
-            sh(["git", "checkout", "--", "spec"], ws, check=False)
         rec["agent_commits"] = int(sh(["git", "rev-list", "--count", f"{head_before}..HEAD"], ws).strip())
+        # The backstop behind the sandbox's read-only spec: it should never fire. Where it does, this story is
+        # flagged with the files that changed, and the spec is put back for the stories after it.
+        if tree_hash(ws / SPEC_DIR) != spec_hash:
+            rec["spec_tampered"] = True
+            rec["spec_changed_files"] = derived("spec restore", lambda: restore_spec(ws, spec_commit, sid), [], run=run)
 
         print(f"[story {sid}] agent done in {rec['agent']['seconds']}s; running gates", flush=True)
         rec["provenance"] = derived("provenance", lambda: story_provenance(
@@ -2069,6 +2136,9 @@ def main() -> None:
         table = derived("task table", lambda: progress.task_table(tasks, ev, rec["gate"]), [], run=run)
         own = acc["by_story"].get(f"{sid:02d}")
         rec.update(status=status, ended_by="operator" if skip else "agent", partial_base=partial_base, tasks=table)
+        # Beside the evidence, what the agent itself said of each task (its PROGRESS.md): a claim, never proof.
+        rec["tasks_claimed"] = derived("claimed task statuses", lambda: progress_file.claimed(ws),
+                                       {"file": progress_file.UNPARSEABLE, "tasks": {}}, run=run)
         if partial_base:
             rec["stub_markers"] = derived("stub markers", lambda: progress.stub_markers(ws, base), [], run=run)
             rec["partial_heldout_changes"] = derived("held-out changes", lambda: {

@@ -30,6 +30,7 @@ import heldout
 import hostenv
 import machine_fit
 import progress
+import progress_file
 from clients import PiClient
 
 PACK = "covpack"
@@ -75,16 +76,33 @@ AGENT = textwrap.dedent(r'''
     if plan.get("silent"):
         sys.exit(plan.get("exit", 0))
     emit({"type": "session", "id": f"cov-{story}"})
+    progress = Path("PROGRESS.md")
+    with (home / "progress-seen.jsonl").open("a") as f:
+        f.write(json.dumps({"story": int(story), "text": progress.read_text() if progress.exists() else None}) + "\n")
+    for old, new in plan.get("progress", {}).items():                # its own account of its tasks: {"row before": "row after"}
+        progress.write_text(progress.read_text().replace(old, new))
+    if plan.get("progress_gone"):
+        progress.unlink()
+    if plan.get("try_spec"):                                         # what agents did in recorded runs: edit the spec
+        try:
+            target = Path("spec/README.md")
+            target.chmod(0o644)
+            target.write_text("# rewritten by the agent\n")
+            outcome = "written"
+        except OSError as e:
+            outcome = f"refused: {type(e).__name__}"
+        (home / "spec-write.txt").write_text(outcome)
     if plan.get("commit", True):
         Path("src").mkdir(exist_ok=True)
         Path(f"src/story{story}.ts").write_text(f"// story {story}, run {n}\n")
-        sh("git", "add", "-A", "src")
+        sh("git", "add", "-A", "src", "PROGRESS.md")
         sh("git", "commit", "-qm", f"story {story}: work")
     if plan.get("leave"):
         Path(plan["leave"]).write_text("not committed\n")
     if plan.get("tamper"):
-        target = Path("spec/README.md")
-        target.chmod(0o644)
+        target = Path(plan.get("tamper_file", "spec/README.md"))
+        if target.exists():
+            target.chmod(0o644)
         target.write_text("# rewritten by the agent\n")
         if plan["tamper"] == "committed":
             sh("git", "add", "-A", "spec")
@@ -267,7 +285,7 @@ def no_story_so_far() -> str:
 def prompt(sid: int, so_far: str, note: str = SCOPE_NOTE) -> str:
     """The story's prompt: the pack's template filled in, then the harness's request for the DONE line."""
     filled = f"STORY {sid}: {TITLES[sid]}\n{so_far}\n{note}\n"
-    return f"{filled.rstrip()}\n\n{drive.DONE_LINE_PROMPT_TMPL.format(n=sid)}\n"
+    return f"{filled.rstrip()}\n\n{drive.harness_paragraph(sid)}\n"
 
 
 # ======================= the dry run =======================
@@ -364,7 +382,7 @@ def test_known_good_mode_is_refused_unless_it_is_told_plainly_which_stories_to_r
 
 RECORD_KEYS = {"title", "conditions_start", "started", "engine_settings", "agent", "agent_finished", "conditions",
                "containment", "agent_commits", "provenance", "gate", "accept", "commit", "requests", "time_split",
-               "conversation", "loc", "finished", "status", "ended_by", "partial_base", "tasks"}
+               "conversation", "loc", "finished", "status", "ended_by", "partial_base", "tasks", "tasks_claimed"}
 ENTRY_KEYS = {"id", "title", "status", "ended_by", "started_at", "ended_at", "agent_minutes", "calls", "output_tokens",
               "compactions", "last_commit_at", "accept", "partial_base", "tasks", "baselines"}
 
@@ -387,7 +405,7 @@ def test_each_story_in_scope_is_run_scored_snapshotted_and_recorded_in_order(loo
         assert (agent["resumes"], agent["nudges"], agent["errors"], agent["ended_by_operator"]) == (0, 0, [], False)
         assert agent["finished"] is True                                    # on its DONE line, at its first stop
         assert agent["tokens"]["output"] == OUTPUT_TOKENS
-        assert rec["agent_commits"] == 1 and rec["commit"] == git(loop.ws, "rev-parse", f"HEAD~{2 - sid}")
+        assert rec["agent_commits"] == 1 and rec["commit"] == git(loop.ws, "rev-parse", f"HEAD~{2 * (2 - sid)}")
         assert rec["provenance"] == {**HARNESS_PROVENANCE, "pack_version": PACK_VERSION, "source": drive.provenance.LIVE}
         assert rec["gate"] == {"steps": {}, "error": "no package.json"}
         assert rec["accept"] == {"skipped": True, "build_exit": None, "runner_exit": None, "runner_tail": "", "passed": 0,
@@ -404,7 +422,9 @@ def test_each_story_in_scope_is_run_scored_snapshotted_and_recorded_in_order(loo
         sdir = loop.run / "stories" / f"{sid:02d}"
         assert json.loads((sdir / "gate.json").read_text()) == rec["gate"]
         assert json.loads((sdir / "accept.json").read_text())["tests"] == []
-        assert (sdir / "base-commit").read_text() == git(loop.ws, "rev-parse", f"HEAD~{3 - sid}")
+        # The story began at the harness's commit of its PROGRESS.md: that commit is not the agent's, nor the story's.
+        assert (sdir / "base-commit").read_text() == git(loop.ws, "rev-parse", f"HEAD~{5 - 2 * sid}")
+        assert rec["tasks_claimed"] == {"file": progress_file.READ, "tasks": {}}          # covpack's stories list no tasks
     out = capsys.readouterr().out
     for sid in (1, 2):
         assert f"[story {sid}] {TITLES[sid]} — agent starting\n" in out
@@ -429,9 +449,11 @@ def test_the_run_s_bookkeeping_files_and_the_workspace_are_where_local_tools_loo
     assert (loop.run / "work_dir.txt").read_text() == str(loop.work) and (loop.run / "current_story").read_text() == ""
     doc = json.loads((loop.run / "progress.json").read_text())
     assert doc["scope"] == "two" and [(s["id"], s["status"]) for s in doc["stories"]] == [(1, drive.DONE), (2, drive.DONE)]
-    assert git(loop.ws, "log", "--format=%s").split("\n") == ["story 2: work", "story 1: work", "harness: empty repository with spec"]
+    assert git(loop.ws, "log", "--format=%s").split("\n") == [
+        "story 2: work", "harness: PROGRESS.md for story 2", "story 1: work", "harness: PROGRESS.md for story 1",
+        "harness: empty repository with spec"]
     assert git(loop.ws, "status", "--porcelain") == ""
-    assert sorted(p.name for p in (loop.run / "workspace").iterdir()) == ["README.md", "src"]      # the mirror: no .git, no spec
+    assert sorted(p.name for p in (loop.run / "workspace").iterdir()) == ["PROGRESS.md", "README.md", "src"]      # the mirror: no .git, no spec
     assert "story 2: work" in (loop.run / "workspace-git-log.txt").read_text()
     assert not (loop.run / "interventions.md").exists()
 
@@ -574,20 +596,166 @@ def test_a_spec_the_agent_edited_is_put_back_and_the_story_says_so(loop):
     loop.plan(s1={"tamper": "uncommitted"})
     loop.main()
     assert loop.story(1)["spec_tampered"] is True and "spec_tampered" not in loop.story(2)
+    assert loop.story(1)["spec_changed_files"] == ["spec/README.md"]
     assert loop.story(1)["status"] == drive.PARTIAL and loop.story(1)["skip"]["by"] == "harness (cap)"
     assert (loop.ws / "spec" / "README.md").read_text() == "# covpack\n"
     assert git(loop.ws, "log", "--format=%s", "--", "spec") == "harness: empty repository with spec"
 
 
-@pytest.mark.xfail(strict=True, reason="suspected bug: `git checkout -- spec` restores the spec from the agent's own "
-                                       "commit, so a spec change the agent committed is flagged but never put back, "
-                                       "and every later story builds on (and is flagged for) the changed spec")
 def test_a_spec_change_the_agent_committed_is_put_back_too(loop):
+    """`git checkout -- spec` restored the spec from HEAD, the agent's own commit: the change was flagged, never put
+    back, and every later story was built on it and flagged for it. It is restored from the harness's first commit."""
     loop.plan(s1={"tamper": "committed"})
     loop.main()
-    assert loop.story(1)["spec_tampered"] is True
+    first = loop.story(1)
+    assert first["spec_tampered"] is True and first["spec_changed_files"] == ["spec/README.md"]
     assert (loop.ws / "spec" / "README.md").read_text() == "# covpack\n"
-    assert "spec_tampered" not in loop.story(2)
+    assert (loop.ws / "spec" / "README.md").stat().st_mode & 0o777 == drive.SPEC_FILE_MODE
+    assert "spec_tampered" not in loop.story(2) and "spec_changed_files" not in loop.story(2)
+    # The restore is a harness commit, after the agent's two (its work, its change to the spec), which alone are counted.
+    assert git(loop.ws, "log", "--format=%s", first["commit"]).split("\n")[:3] == [
+        "harness: spec restored after story 1", "spec: suit myself", "story 1: work"]
+    assert first["agent_commits"] == 2 and "harness_faults" not in first
+    assert git(loop.ws, "status", "--porcelain") == ""
+    assert drive.tree_hash(loop.ws / "spec") == drive.tree_hash(loop.pack / "spec")
+
+
+def test_a_second_change_to_the_spec_in_a_later_story_is_flagged_in_that_story(whole):
+    whole.plan(s1={"tamper": "committed"}, s3={"tamper": "committed", "tamper_file": "spec/stories/003-third/tasks.md"})
+    whole.main()
+    flagged = {sid: whole.story(sid).get("spec_changed_files") for sid in (1, 2, 3)}
+    assert flagged == {1: ["spec/README.md"], 2: None, 3: ["spec/stories/003-third/tasks.md"]}
+    assert [whole.story(sid).get("spec_tampered") for sid in (1, 2, 3)] == [True, None, True]
+    assert drive.tree_hash(whole.ws / "spec") == drive.tree_hash(whole.pack / "spec")
+
+
+def test_a_file_the_agent_added_to_the_spec_is_named_and_removed(loop):
+    loop.plan(s1={"tamper": "committed", "tamper_file": "spec/stories/001-first/my-notes.md"})
+    loop.main("--only", "1")
+    assert loop.story(1)["spec_changed_files"] == ["spec/stories/001-first/my-notes.md"]
+    assert not (loop.ws / "spec" / "stories" / "001-first" / "my-notes.md").exists()
+    assert git(loop.ws, "ls-files", "spec/stories/001-first") == "spec/stories/001-first/story.md\nspec/stories/001-first/tasks.md"
+
+
+def test_a_known_good_run_restores_the_spec_its_base_was_given_not_the_reference_s_first(whole, tmp_path, monkeypatch):
+    """A reference built before a spec revision gets this pack's spec in a harness commit (setup_workspace_from):
+    that commit, not the repository's first, is what the spec is restored from."""
+    ref, _ = reference_run(whole, tmp_path)
+    (whole.pack / "spec" / "README.md").write_text("# covpack, revised\n")             # the pack moved on since
+    monkeypatch.setattr(drive, "install_base_deps", lambda ws: None)
+    whole.plan(s3={"tamper": "committed"})
+    whole.main("--from-run", str(ref), "--only", "3")
+    m = whole.metrics()
+    assert m["known_good"]["spec_updated"] is True
+    assert git(whole.ws, "log", "-1", "--format=%s", m["known_good"]["spec_commit"]) == (
+        "harness: spec updated to this pack's version (known-good base)")
+    assert m["stories"]["3"]["spec_changed_files"] == ["spec/README.md"]
+    assert (whole.ws / "spec" / "README.md").read_text() == "# covpack, revised\n"
+
+
+# ======================= the agent's own account of its tasks: PROGRESS.md =======================
+
+REAL_SANDBOX = drive.sandboxed
+
+
+@pytest.mark.needs_sandbox
+def test_in_the_real_sandbox_an_agent_that_edits_the_spec_is_refused_and_keeps_its_progress_in_its_own_file(
+        outside_shared_temp, monkeypatch):
+    """The story loop with the agent in the real sandbox (sandbox-exec on macOS, bwrap on Linux): its write to the
+    spec is refused, so nothing is flagged or restored, and its PROGRESS.md and its commit go through."""
+    loop = Loop(outside_shared_temp, monkeypatch, default_scope="two")
+    monkeypatch.setattr(drive, "sandboxed", REAL_SANDBOX)
+    with_tasks(loop, 1)
+    loop.plan(s1={"try_spec": True,
+                  "progress": {"| 1 | Unit tests for the thing | todo |": "| 1 | Unit tests for the thing | done |"}})
+    loop.main("--only", "1")
+    assert (loop.root / "spec-write.txt").read_text().startswith("refused: ")
+    rec = loop.story(1)
+    assert rec["status"] == drive.DONE and "spec_tampered" not in rec and "spec_changed_files" not in rec
+    assert rec["tasks_claimed"] == {"file": progress_file.READ, "tasks": {"1": "done", "2": "todo"}}
+    assert (loop.ws / "spec" / "README.md").read_text() == "# covpack\n"
+    assert git(loop.ws, "log", "--format=%s", "--", "spec") == "harness: empty repository with spec"
+
+TASKS_MD = """# Tasks
+
+| # | Task | Status | Type | Implements |
+|---|---|---|---|---|
+| 1 | Unit tests for the thing | proposed | test:unit | thing |
+| 2 | The thing | proposed | implementation | thing |
+"""
+STORY_TASKS = [{"n": 1, "title": "Unit tests for the thing"}, {"n": 2, "title": "The thing"}]
+
+
+def with_tasks(loop: Loop, *sids: int) -> None:
+    for sid in sids:
+        (loop.pack / "spec" / "stories" / STORY_DIRS[sid] / "tasks.md").write_text(TASKS_MD)
+
+
+def progress_seen(loop: Loop) -> list[tuple[int, str | None]]:
+    """PROGRESS.md as the agent found it, each time it was started."""
+    return [(e["story"], e["text"]) for e in map(json.loads, (loop.root / "progress-seen.jsonl").read_text().splitlines())]
+
+
+def test_each_story_starts_with_its_own_progress_file_every_task_todo_committed_by_the_harness(loop):
+    with_tasks(loop, 1)
+    loop.plan(s1={"progress": {"| 1 | Unit tests for the thing | todo |": "| 1 | Unit tests for the thing | done |"}})
+    loop.main()
+    assert progress_seen(loop) == [(1, progress_file.text(1, "First", STORY_TASKS)), (2, progress_file.text(2, "Second", []))]
+    # Story 2's file replaced story 1's, which the agent had edited and committed.
+    assert (loop.ws / progress_file.FILE).read_text() == progress_file.text(2, "Second", [])
+    assert "| 1 | Unit tests for the thing | done |" in git(loop.ws, "show", f"{loop.story(1)['commit']}:PROGRESS.md")
+    # The harness's commit comes before the story's starting commit: not the agent's, and not among the story's lines.
+    for sid in (1, 2):
+        base = (loop.run / "stories" / f"{sid:02d}" / "base-commit").read_text()
+        assert git(loop.ws, "log", "-1", "--format=%an|%s", base) == f"vidi-agent|harness: PROGRESS.md for story {sid}"
+        assert git(loop.ws, "show", "--name-only", "--format=", base) == "PROGRESS.md"
+        assert loop.story(sid)["agent_commits"] == 1
+    assert "PROGRESS.md" not in git(loop.ws, "diff", "--name-only", (loop.run / "stories" / "02" / "base-commit").read_text(), "HEAD")
+
+
+def test_what_the_agent_claimed_for_each_task_is_recorded_beside_the_evidence(loop):
+    with_tasks(loop, 1)
+    loop.plan(s1={"progress": {"| 1 | Unit tests for the thing | todo |": "| 1 | Unit tests for the thing | **Done** |",
+                               "| 2 | The thing | todo |": "| 2 | The thing | nearly there |"}})
+    loop.main("--only", "1")
+    rec = loop.story(1)
+    assert rec["tasks_claimed"] == {"file": progress_file.READ, "tasks": {"1": "done", "2": "nearly there"}}
+    # The harness's own table is from evidence, as before: nothing the agent wrote in PROGRESS.md moves it.
+    assert [(t["n"], t["status"]) for t in rec["tasks"]] == [(1, "not-started"), (2, "not-started")]
+    assert rec["status"] == drive.DONE and "harness_faults" not in rec
+
+
+def test_a_progress_file_the_agent_deleted_is_recorded_as_missing(loop):
+    loop.plan(s1={"progress_gone": True})
+    loop.main("--only", "1")
+    assert loop.story(1)["tasks_claimed"] == {"file": progress_file.MISSING, "tasks": {}}
+    assert loop.story(1)["status"] == drive.DONE
+
+
+def test_a_fault_reading_the_progress_file_is_a_harness_fault_and_the_story_is_still_recorded(loop, monkeypatch):
+    def boom(ws):
+        raise ValueError("no such table")
+    monkeypatch.setattr(progress_file, "claimed", boom)
+    loop.main("--only", "1")
+    rec = loop.story(1)
+    assert rec["tasks_claimed"] == {"file": progress_file.UNPARSEABLE, "tasks": {}} and rec["status"] == drive.DONE
+    assert [f["step"] for f in rec["harness_faults"]] == ["claimed task statuses"]
+
+
+def test_a_story_continued_after_a_harness_restart_keeps_the_progress_file_as_its_agent_left_it(loop):
+    with_tasks(loop, 1)
+    edit = {"| 1 | Unit tests for the thing | todo |": "| 1 | Unit tests for the thing | doing |"}
+    loop.plan(s1={"progress": edit})
+    Sampler.record = {**Sampler.record, "aborted_swap": True}                # the first start is stopped by a guard
+    with pytest.raises(SystemExit):
+        loop.main("--only", "1")
+    Sampler.record = {**Sampler.record, "aborted_swap": False}
+    loop.plan()
+    loop.main("--only", "1")
+    edited = progress_file.text(1, "First", STORY_TASKS).replace(*next(iter(edit.items())))
+    assert progress_seen(loop) == [(1, progress_file.text(1, "First", STORY_TASKS)), (1, edited)]
+    assert loop.story(1)["tasks_claimed"]["tasks"] == {"1": "doing", "2": "todo"}
+    assert git(loop.ws, "log", "--format=%s").count("harness: PROGRESS.md for story 1") == 1
 
 
 def test_an_agent_that_never_reached_the_model_stops_the_run_and_checkpoints_nothing(loop, capsys):
@@ -807,12 +975,12 @@ def test_a_known_good_run_builds_one_story_on_another_run_s_code_and_scores_the_
     whole.main("--from-run", str(ref), "--only", "3")
     m = whole.metrics()
     assert m["known_good"] == {"from_run": str(ref.resolve()), "commit": stories["2"]["commit"], "story": 3,
-                               "spec_updated": False, "continues": False}
+                               "spec_updated": False, "spec_commit": stories["2"]["commit"], "continues": False}
     assert m["processed"][:2] == known_good_processed() and [p["id"] for p in m["processed"]] == [1, 2, 3]
     assert sorted(m["stories"]) == ["3"] and m["stories"]["3"]["status"] == drive.DONE and m["scope"] == "all"
     assert installed == [whole.ws]
     assert git(whole.ws, "log", "--format=%s").split("\n") == [
-        "story 3: work", "story 2", "story 1", "harness: empty repository with spec"]
+        "story 3: work", "harness: PROGRESS.md for story 3", "story 2", "story 1", "harness: empty repository with spec"]
     assert not (whole.ws / "ref3.ts").exists()                               # how the reference did story 3 is not there
     base = json.loads((whole.run / drive.history.BASE_DIR / "accept.json").read_text())
     assert base["skipped"] is True and (whole.run / drive.history.BASE_DIR / "accept-summary.json").exists()
@@ -854,15 +1022,16 @@ def test_a_known_good_continuation_runs_the_story_and_every_later_one_each_built
     whole.main("--from-run", str(ref), "--from-story", "2")
     m = whole.metrics()
     assert m["known_good"] == {"from_run": str(ref.resolve()), "commit": stories["1"]["commit"], "story": 2,
-                               "spec_updated": False, "continues": True}
+                               "spec_updated": False, "spec_commit": stories["1"]["commit"], "continues": True}
     assert m["processed"][0] == base_entry(1) and [p["id"] for p in m["processed"]] == [1, 2, 3]
     assert [(p["status"], p["ended_by"]) for p in m["processed"][1:]] == [(drive.DONE, "agent")] * 2
     assert sorted(m["stories"]) == ["2", "3"]
     assert git(whole.ws, "log", "--format=%s").split("\n") == [
-        "story 3: work", "story 2: work", "story 1", "harness: empty repository with spec"]
+        "story 3: work", "harness: PROGRESS.md for story 3", "story 2: work", "harness: PROGRESS.md for story 2",
+        "story 1", "harness: empty repository with spec"]
     assert not (whole.ws / "ref2.ts").exists() and not (whole.ws / "ref3.ts").exists()   # none of the reference's later work
     assert m["stories"]["3"]["commit"] == git(whole.ws, "rev-parse", "HEAD")
-    assert m["stories"]["2"]["commit"] == git(whole.ws, "rev-parse", "HEAD~1")           # story 3 was built on this run's story 2
+    assert m["stories"]["2"]["commit"] == git(whole.ws, "rev-parse", "HEAD~2")           # story 3 was built on this run's story 2
     runs = whole.agent_runs()
     assert [r["story"] for r in runs] == [2, 3]
     assert runs[0]["prompt"] == prompt(2, "Stories already implemented in this repository, in order: 1.", note="")
@@ -891,7 +1060,9 @@ def test_a_known_good_continuation_survives_a_harness_restart_between_its_storie
     assert [p["id"] for p in m["processed"]] == [1, 2, 3] and m["processed"][0] == base_entry(1)
     assert [r["story"] for r in whole.agent_runs()] == [2, 3, 3]             # 3: the start that failed, then the one that ran
     assert "[known-good]" not in capsys.readouterr().out                     # the base was not scored again
-    assert git(whole.ws, "log", "--format=%s").split("\n")[:3] == ["story 3: work", "story 2: work", "story 1"]
+    # Story 3 began twice and has one PROGRESS.md commit: the second start found the file as the first wrote it.
+    assert git(whole.ws, "log", "--format=%s").split("\n")[:4] == [
+        "story 3: work", "harness: PROGRESS.md for story 3", "story 2: work", "harness: PROGRESS.md for story 2"]
 
 
 def test_a_reference_run_that_stopped_before_the_end_of_the_scope_still_supplies_the_base(whole, tmp_path, monkeypatch):
