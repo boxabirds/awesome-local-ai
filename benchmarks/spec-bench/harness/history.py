@@ -145,7 +145,8 @@ def _event_times(run: Path, sid: str) -> list[float]:
                 continue
             if not isinstance(e, dict):
                 continue
-            v = e.get("_rx") or e.get("timestamp") or (e.get("message") or {}).get("timestamp")
+            m = e.get("message")
+            v = e.get("_rx") or e.get("timestamp") or (m.get("timestamp") if isinstance(m, dict) else None)
             if isinstance(v, str):
                 v = _epoch(v)
             if isinstance(v, (int, float)) and v > 0:

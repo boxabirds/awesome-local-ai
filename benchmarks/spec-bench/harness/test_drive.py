@@ -977,6 +977,34 @@ def test_the_final_reply_is_the_last_assistant_messages_text(tmp_path):
     assert drive.final_reply_text(tmp_path / "missing.jsonl") == ""
 
 
+# Claude Code's record of a tool call it refused: its "message" is a string, not a model message (from Sonnet 5.5
+# v2-r1 story 9, 1 Oct 2026, the sandbox having hidden /tmp).
+PERMISSION_DENIED = {"_rx": 1790822953.124, "type": "system", "subtype": "permission_denied", "tool_name": "Write",
+                     "tool_use_id": "toolu_011xkvABddBnSf8Ej4ZTCFRu", "decision_reason_type": "other",
+                     "message": "Refusing to write /tmp/patch_app.py: where it leads on disk could not be determined"}
+
+
+def test_the_final_reply_skips_events_whose_message_is_not_a_model_message(tmp_path):
+    """1 Oct 2026: every Sonnet 5.5 run crashed at the end of a story (AttributeError: 'str' object has no attribute
+    'get') once Claude Code had refused a tool call, and used up its restarts."""
+    import drive
+    ev = tmp_path / "ev.jsonl"
+    ev.write_text(_event("assistant", {"type": "text", "text": "the reply"}) + json.dumps(PERMISSION_DENIED) + "\n")
+    assert drive.final_reply_text(ev) == "the reply"
+
+
+
+def test_event_times_skip_an_unstamped_event_whose_message_is_a_string(tmp_path):
+    """The history's event times read a message's own timestamp when an event has no receive stamp; a refused tool
+    call's message is a string, which has none."""
+    import history
+    d = tmp_path / "stories" / "01"
+    d.mkdir(parents=True)
+    unstamped = {k: v for k, v in PERMISSION_DENIED.items() if k != "_rx"}
+    (d / "agent-events.jsonl").write_text(json.dumps(unstamped) + "\n" + json.dumps({"_rx": 1790822960.0, "type": "x"}) + "\n")
+    assert history._event_times(tmp_path, "1") == [1790822960.0]
+
+
 def test_a_tool_call_written_as_text_is_recognised():
     """28 Sep: gufo b722a61 returned an `edit` call with raw newlines in its JSON argument as plain
     text (gufo-org/gufo#304); pi read it as "finished" and the story ended mid-work."""
