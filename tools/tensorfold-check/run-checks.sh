@@ -21,6 +21,9 @@
 #   5. stops the server by its PID, prints PASS/FAIL with the evidence, and, when both pass, the one-story
 #      dbench submission for check 3
 #
+#   One prepare at a time: while one is still preparing, a second exits 2 naming the first one's PID (the lock is
+#   runs/.prepare.lock; one left by a process that is no longer running is taken over).
+#
 #   --prepare-only   prepare, then stop: exit 0 once everything is in place, busy or not
 #   (no option)      prepare, then check; on a busy Mac it still prepares, then exits 3 with the checks waiting
 #   --even-if-busy   run the checks even though the Mac is busy
@@ -90,6 +93,40 @@ stop_server() {
 
 pyrun() { (cd "$HERE" && uv run --quiet --no-project --python "${TFC_PYTHON:-$TENSORFOLD_PYTHON}" python -m "$@"); }
 
+# ---- one prepare at a time ------------------------------------------------------------------------------------------
+# Two prepares would download into the same checkpoint folder at once (a --prepare-only still fetching when the checks
+# are started, say). The lock is a file holding the PID of the shell that is preparing, made with a hard link so that
+# it appears whole or not at all. A lock whose PID is no longer running was left by a prepare that was killed
+# outright; it is taken over. Held only while preparing: the checks have busy.sh.
+PREPARE_LOCK="$RUNS_ROOT/.prepare.lock"
+# Once to take a free lock, once more after clearing a stale one.
+LOCK_ATTEMPTS=2
+PREPARE_PID=""; LOCK_HELD=0
+take_prepare_lock() {
+  local mine="$RUN_DIR/.prepare.pid.$$" holder="" attempt
+  # The PID of this shell, the one that prepares and whose traps release the lock ($$ is the script's first shell,
+  # and bash 3.2 has no BASHPID).
+  sh -c 'echo "$PPID"' > "$mine"
+  PREPARE_PID="$(cat "$mine")"
+  for (( attempt = 0; attempt < LOCK_ATTEMPTS; attempt++ )); do
+    if ln "$mine" "$PREPARE_LOCK" 2>/dev/null; then LOCK_HELD=1; rm -f "$mine"; return 0; fi
+    holder="$(cat "$PREPARE_LOCK" 2>/dev/null || true)"
+    if [[ "$holder" =~ ^[0-9]+$ ]] && kill -0 "$holder" 2>/dev/null; then break; fi
+    echo "taking over the prepare lock left by a process that is no longer running (pid ${holder:-unknown})"
+    rm -f "$PREPARE_LOCK"
+  done
+  rm -f "$mine"
+  echo "another run-checks.sh is still preparing (pid ${holder:-unknown}); wait for it to finish, then run this again." >&2
+  echo "  its lock: $PREPARE_LOCK" >&2
+  return "$EXIT_ERROR"
+}
+# Only ever removes this run's own lock.
+release_prepare_lock() {
+  [[ "$LOCK_HELD" == 1 ]] || return 0
+  [[ "$(cat "$PREPARE_LOCK" 2>/dev/null || true)" == "$PREPARE_PID" ]] && rm -f "$PREPARE_LOCK"
+  LOCK_HELD=0
+}
+
 # ---- prepare: disk and network only, so it is never gated by busy.sh ------------------------------------------------
 # Nothing in here may start a model server, load weights or bind a bench port. Sets TF_BIN and TF_MODEL_DIR.
 TF_BIN=""; TF_MODEL_DIR=""
@@ -128,10 +165,15 @@ checks_may_start() {
 }
 
 run_all() {
-  trap 'stop_server' EXIT
-  trap 'stop_server; exit 130' INT TERM
+  # Every way out, failure and interruption included, stops the server and lets the prepare lock go.
+  trap 'stop_server; release_prepare_lock' EXIT
+  trap 'stop_server; release_prepare_lock; exit 130' INT TERM
   echo "run folder: $RUN_DIR"
-  prepare || return
+  take_prepare_lock || return
+  local prepared=0
+  prepare || prepared=$?
+  release_prepare_lock
+  (( prepared == 0 )) || return "$prepared"
   if [[ "$PREPARE_ONLY" == 1 ]]; then
     echo "Prepared: TensorFold $TENSORFOLD_VERSION is installed, the checkpoint is verified and pi's requests render."
     echo "The checks are still to run: run this again without --prepare-only once the Mac is free."

@@ -70,7 +70,9 @@ This installs TensorFold 0.6.0 at its exact commit into its own venv, fetches th
 checks the disk first, and resumes if interrupted) and renders a recorded pi session into the requests pi sends. It
 uses disk and network only: it starts no model server, loads no weights and binds no bench port, so it is not held
 back by a running benchmark. It exits 0 once everything is in place and 2 if something failed. Run again, it finds
-everything there and downloads nothing. On 1 Oct 2026 the download was left until the machine was free, and the
+everything there and downloads nothing. Only one prepare runs at a time: started while another is still preparing
+(the checks begun before `--prepare-only` has finished, say), the script exits 2 naming the other's PID; wait for it
+and run again. On 1 Oct 2026 the download was left until the machine was free, and the
 machine then sat idle for two hours waiting for it.
 
 **Once the current run has ended and before another is queued** (hold the dbench node, or leave nothing queued):
