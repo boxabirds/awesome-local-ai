@@ -140,7 +140,7 @@ def make_private_repo(root: Path) -> Path:
 
 # What the agent writes in each story. Story 2 adds a library whose peer range its sibling doesn't meet: npm
 # refuses it unless --legacy-peer-deps, which the agent uses, as Swift 1.5 v2-r2's agent did.
-AGENT_SCRIPT = textwrap.dedent(r'''
+AGENT_WORK = textwrap.dedent(r'''
     import json, os, re, subprocess, sys
     from pathlib import Path
     story = int(re.search(r"STORY (\d+)", sys.argv[1]).group(1))
@@ -167,20 +167,76 @@ AGENT_SCRIPT = textwrap.dedent(r'''
     write("build.js", "const fs = require('fs');\nfs.mkdirSync('dist', {recursive: true});\n"
                       f"fs.writeFileSync('dist/app.json', JSON.stringify({{{fields}}}));\n")
     write(".gitignore", "node_modules/\ndist/\n")
-    subprocess.run(install, check=True, capture_output=True)
-    subprocess.run(["git", "add", "-A"], check=True)
-    subprocess.run(["git", "commit", "-qm", f"story {story}"], check=True)
-    for e in ({"type": "session", "id": f"kat-{story}"},
-              {"type": "message_end", "message": {"role": "assistant", "stopReason": "stop",
-                                                  "usage": {"input": 10, "output": %d}}}):
-        print(json.dumps(e), flush=True)
+    def work():
+        subprocess.run(install, check=True, capture_output=True)
+        subprocess.run(["git", "add", "-A"], check=True)
+        subprocess.run(["git", "commit", "-qm", f"story {story}"], check=True)
+    def emit(*events):
+        for e in events:
+            print(json.dumps(e), flush=True)
+''')
+AGENT_SCRIPT = AGENT_WORK + textwrap.dedent(r'''
+    work()
+    emit({"type": "session", "id": f"kat-{story}"},
+         {"type": "message_end", "message": {"role": "assistant", "stopReason": "stop",
+                                             "usage": {"input": 10, "output": %d}}})
 ''' % OUTPUT_TOKENS_PER_STORY)
+
+# The same work as Claude Code reports it (stream-json), with the events real runs have shown and that broke or
+# could break the harness: each content block its own event, thinking withheld behind running estimates, a tool
+# call it refused (a system event whose message is a string: Sonnet 5.5 v2-r1, 1 Oct 2026), and a turn ended
+# waiting on a background command, then resumed by Claude Code itself (Opus v2-r3 story 12). Output tokens come
+# from the results, one per stretch of the session.
+CLAUDE_FIRST_RESULT_TOKENS = OUTPUT_TOKENS_PER_STORY - 10
+AGENT_SCRIPT_CLAUDE = AGENT_WORK + textwrap.dedent(r'''
+    sid = f"kat-claude-{story}"
+    usage = lambda out: {"input_tokens": 2, "cache_creation_input_tokens": 500, "cache_read_input_tokens": 1000,
+                         "output_tokens": out}
+    def block(mid, b):
+        return {"type": "assistant", "parent_tool_use_id": None, "session_id": sid,
+                "message": {"id": f"{sid}-{mid}", "role": "assistant", "content": [b], "usage": usage(8)}}   # ids are unique, as Claude's are
+    emit({"type": "system", "subtype": "init", "session_id": sid},
+         {"type": "system", "subtype": "thinking_tokens", "estimated_tokens": 50, "estimated_tokens_delta": 50},
+         {"type": "system", "subtype": "thinking_tokens", "estimated_tokens": 120, "estimated_tokens_delta": 70},
+         block("m1", {"type": "thinking", "thinking": "", "signature": "sig"}),
+         block("m1", {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": " ".join(install)}}))
+    work()
+    emit({"type": "user", "parent_tool_use_id": None, "session_id": sid,
+          "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "ok"}]}},
+         block("m2", {"type": "tool_use", "id": "t2", "name": "Write", "input": {"file_path": "/tmp/scratch.py"}}),
+         {"type": "system", "subtype": "permission_denied", "tool_name": "Write", "tool_use_id": "t2",
+          "decision_reason_type": "other", "session_id": sid,
+          "message": "Refusing to write /tmp/scratch.py: where it leads on disk could not be determined"},
+         {"type": "user", "parent_tool_use_id": None, "session_id": sid,
+          "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t2", "is_error": True,
+                                                   "content": "refused"}]}},
+         block("m3", {"type": "text", "text": "Started the e2e suite in the background; waiting for it."}),
+         {"type": "result", "subtype": "success", "is_error": False, "session_id": sid,
+          "result": "waiting", "usage": usage(%d)},
+         {"type": "system", "subtype": "task_notification", "status": "completed", "session_id": sid},
+         {"type": "system", "subtype": "init", "session_id": sid},
+         block("m4", {"type": "text", "text": f"Story {story} is done and committed."}),
+         {"type": "result", "subtype": "success", "is_error": False, "session_id": sid,
+          "result": "done", "usage": usage(%d)})
+''' % (CLAUDE_FIRST_RESULT_TOKENS, OUTPUT_TOKENS_PER_STORY - CLAUDE_FIRST_RESULT_TOKENS))
 
 
 class ScriptedClient(clients.PiClient):
     """pi's event stream and config, with the scripted agent in place of `pi`."""
     name = "kat"
     script: Path
+
+    def command(self, model_id, prompt, resume_from=None, fork=True):
+        return [sys.executable, str(self.script), prompt]
+
+
+class ScriptedClaudeClient(clients.ClaudeClient):
+    """Claude Code's event stream and config, with the scripted agent in place of `claude` (and no real token)."""
+    name = "kat-claude"
+    script: Path
+
+    def token(self) -> str:
+        return "kat-not-a-token"
 
     def command(self, model_id, prompt, resume_from=None, fork=True):
         return [sys.executable, str(self.script), prompt]
@@ -225,17 +281,19 @@ def keep_pack(mp: pytest.MonkeyPatch) -> None:
         mp.setattr(drive, name, getattr(drive, name))
 
 
-def drive_run(root: Path, mp: pytest.MonkeyPatch) -> Path:
-    """Both stories through drive.py's own main loop. Returns the run directory."""
+def drive_run(root: Path, mp: pytest.MonkeyPatch, client=None, script_text: str = AGENT_SCRIPT) -> Path:
+    """Both stories through drive.py's own main loop, with the scripted pi agent unless told otherwise. Returns the
+    run directory."""
+    client = client or ScriptedClient
     keep_pack(mp)
     pack = make_private_repo(root / "private")
     mp.setenv("SPEC_BENCH_PACK_DIR", str(pack))
     mp.setenv(heldout.PRIVATE_ENV, str(root / "no-private-copy"))
     offline_node_env(mp)
     script = root / "agent.py"
-    script.write_text(AGENT_SCRIPT)
-    ScriptedClient.script = script
-    mp.setitem(drive.CLIENTS, ScriptedClient.name, ScriptedClient)
+    script.write_text(script_text)
+    mp.setattr(client, "script", script, raising=False)
+    mp.setitem(drive.CLIENTS, client.name, client)
     mp.setattr(drive, "WORK_ROOT", root / "work")
     mp.setattr(drive, "sandboxed", lambda cmd, own_dir: cmd)       # sandbox-exec is macOS's; the test runs anywhere
     mp.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
@@ -244,7 +302,7 @@ def drive_run(root: Path, mp: pytest.MonkeyPatch) -> Path:
     mp.setattr(containment, "StoryContainment", _Uncontained)
     run = root / "run"
     mp.setattr(sys, "argv", ["drive.py", "--pack", PACK, "--run-dir", str(run), "--base-url", "http://127.0.0.1:9/v1",
-                             "--model-id", MODEL, "--client", ScriptedClient.name])
+                             "--model-id", MODEL, "--client", client.name])
     drive.main()
     return run
 
@@ -411,3 +469,28 @@ def test_scoring_only_the_latest_story_is_caught(tmp_path, monkeypatch):
             for sid, s in heldout.load_metrics(run)["stories"].items()}
     assert live != EXPECTED_LIVE                   # no re-score needed: the live record already differs
     assert live["2"] == {"passed": 1, "total": 2}
+
+
+# ---------- the same known answer from a Claude Code run ----------
+
+def test_a_claude_code_run_records_the_same_known_answer(tmp_path, monkeypatch):
+    """The reference stacks run Claude Code, whose log the harness reads its own way (steps, tokens, time, the
+    profile, the end-of-story checks). Its crashes were found mid-run until 1 Oct 2026; now every run's self-test
+    drives a Claude Code log too, with the events that broke the harness."""
+    root = tmp_path / "kat-claude"
+    with monkeypatch.context() as mp:
+        drive_run(root, mp, client=ScriptedClaudeClient, script_text=AGENT_SCRIPT_CLAUDE)
+    run = root / "run"
+    monkeypatch.setenv("SPEC_BENCH_PACK_DIR", str(root / "private" / "packs" / PACK))
+    offline_node_env(monkeypatch)
+    finalize_run(run, monkeypatch)
+    got = recorded(run)
+    assert_known_answer(got)
+    assert got["tokens"] == {"1": OUTPUT_TOKENS_PER_STORY, "2": OUTPUT_TOKENS_PER_STORY}   # both results, added
+    for sid, rec in heldout.load_metrics(run)["stories"].items():
+        ts = rec["time_split"]
+        assert ts["accounting"]["ok"], (sid, ts["accounting"]["problems"])
+        assert ts["model"]["source"] == "claude-stream" and ts["between_sessions_s"] == 0, (sid, ts)
+        c = rec["conversation"]
+        assert c["thinking_visible"] is False and c["thinking_chars"] is None and c["thinking_estimated_tokens"] == 120
+        assert c["calls"] == 4 and c["tool_errors"] == 1, c
