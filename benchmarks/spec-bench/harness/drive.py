@@ -447,33 +447,80 @@ def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None
     return {**out, **push_with_rebase(repo_root, git)}
 
 
+EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"   # git's well-known id of the empty tree
+
+
 def push_with_rebase(repo_root: Path, git: list[str]) -> dict:
-    """Push HEAD to origin; if the remote moved, replay onto it and try once more. Never raises: returns
-    {"pushed"} plus, when it didn't, {"unpushed", "error"}."""
+    """Push HEAD to origin; if the remote moved, replay our commits onto it and try once more. Never raises:
+    returns {"pushed"} plus, when it didn't, {"unpushed", "error"}.
+
+    The replay is git plumbing (replay_onto_remote), never pull --rebase --autostash: other processes edit files
+    in this checkout (an agent building the benchmarker, 1 Oct 2026), and an autostash takes their uncommitted
+    work away and writes it back. Only the files the remote changed are checked out, and only if none of them
+    has uncommitted edits; otherwise nothing moves and the commits stay local, pushed by a later record."""
     out: dict = {"pushed": False}
     push = subprocess.run([*git, "push", "-q", "origin", "HEAD"], cwd=repo_root, capture_output=True, text=True)
     if push.returncode != 0:
-        # The remote moved during a long run: replay our commit on top, keeping any
-        # uncommitted work in the repo exactly as it was, then try once more.
-        branch = subprocess.run([*git, "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root,
-                                capture_output=True, text=True).stdout.strip()
-        pull = subprocess.run([*git, "pull", "-q", "--rebase", "--autostash", "origin", branch],
-                              cwd=repo_root, capture_output=True, text=True)
-        if pull.returncode != 0:
-            # Most likely a conflict with the remote's copy of this run. Undo the rebase (which
-            # also re-applies the autostash) so the checkout stays usable; keep the commit.
-            if _rebase_in_progress(repo_root, git):
-                subprocess.run([*git, "rebase", "--abort"], cwd=repo_root, capture_output=True, text=True)
-            out["unpushed"] = True
-            out["error"] = ("pull --rebase hit a conflict with the remote; rebase aborted, the story is "
-                            "committed locally and unpushed. " + (pull.stdout + pull.stderr)[-300:])
-            return out
+        replay = replay_onto_remote(repo_root, git)
+        if "error" in replay:
+            return {**out, "unpushed": True, "error": replay["error"]}
         push = subprocess.run([*git, "push", "-q", "origin", "HEAD"], cwd=repo_root, capture_output=True, text=True)
     out["pushed"] = push.returncode == 0
     if not out["pushed"]:
         out["unpushed"] = True
         out["error"] = push.stderr[-500:]
     return out
+
+
+def replay_onto_remote(repo_root: Path, git: list[str]) -> dict:
+    """Our commits since the remote's branch, made again on top of it, without a rebase or a stash: each commit's
+    tree is merged in an index of its own (_merged_tree), then the checkout moves with a two-tree read-tree, which
+    updates only the files that differ and refuses, moving nothing, if one of them has uncommitted edits.
+    {} or {"error"}. Plain plumbing that git 2.34 has (the RTX 4090 machine's): no merge-tree --write-tree."""
+    def run(*args: str, env: dict | None = None, input: str | None = None) -> subprocess.CompletedProcess:
+        return subprocess.run([*git, *args], cwd=repo_root, capture_output=True, text=True, env=env, input=input)
+    branch = run("symbolic-ref", "-q", "--short", "HEAD").stdout.strip()
+    if not branch:
+        return {"error": "the checkout is not on a branch, so there is nothing to replay onto the remote's"}
+    fetch = run("fetch", "-q", "origin", branch)
+    if fetch.returncode != 0:
+        return {"error": "fetch failed: " + fetch.stderr[-300:]}
+    old = run("rev-parse", "HEAD").stdout.strip()
+    tip = run("rev-parse", "FETCH_HEAD").stdout.strip()
+    ours = run("rev-list", "--reverse", "--topo-order", f"{tip}..{old}").stdout.split()
+    new = tip
+    for c in ours:
+        parent = run("rev-parse", "-q", "--verify", f"{c}^").stdout.strip() or EMPTY_TREE   # a root commit: none
+        tree = _merged_tree(repo_root, git, parent, new, c)
+        if tree is None:
+            return {"error": "the remote changed the same files as our commits: the story is committed locally and "
+                             "unpushed, and a later record pushes it once the remote no longer conflicts"}
+        who = run("log", "-1", "--format=%an%x00%ae%x00%ad%x00%B", "--date=raw", c).stdout.split("\0", 3)
+        env = {**os.environ, "GIT_AUTHOR_NAME": who[0], "GIT_AUTHOR_EMAIL": who[1], "GIT_AUTHOR_DATE": who[2]}
+        made = run("commit-tree", tree, "-p", new, "-F", "-", env=env, input=who[3])
+        if made.returncode != 0:
+            return {"error": made.stderr[-300:]}
+        new = made.stdout.strip()
+    moved = run("read-tree", "-m", "-u", old, new)
+    if moved.returncode != 0:
+        return {"error": "the remote changed files with uncommitted edits here; nothing was moved, the story is "
+                         "committed locally and unpushed. " + moved.stderr[-300:]}
+    run("update-ref", "-m", "record: replayed onto the remote", f"refs/heads/{branch}", new, old)
+    return {}
+
+
+def _merged_tree(repo_root: Path, git: list[str], base: str, ours: str, theirs: str) -> str | None:
+    """The three-way merge of two trees in an index of its own, file by file: a file changed on one side only takes
+    that side; one both changed, differently, is a conflict (None). Records touch only their own run dir."""
+    with tempfile.TemporaryDirectory(prefix="replay-index-") as tmp:
+        env = {**os.environ, "GIT_INDEX_FILE": str(Path(tmp) / "index")}
+        if subprocess.run([*git, "read-tree", "-m", "--aggressive", base, ours, theirs], cwd=repo_root, env=env,
+                          capture_output=True).returncode != 0:
+            return None
+        if subprocess.run([*git, "ls-files", "-u"], cwd=repo_root, env=env, capture_output=True, text=True).stdout:
+            return None
+        tree = subprocess.run([*git, "write-tree"], cwd=repo_root, env=env, capture_output=True, text=True)
+        return tree.stdout.strip() if tree.returncode == 0 else None
 
 
 def untrack_private(repo_root: Path, rel: str, git: list[str], env: dict | None = None) -> list[str]:

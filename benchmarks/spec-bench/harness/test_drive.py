@@ -253,6 +253,80 @@ def test_record_story_rebases_when_remote_moved(tmp_path):
     assert (repo / "dirty.txt").read_text() == "uncommitted user work"
 
 
+
+def test_record_story_after_the_remote_moved_never_stashes_or_rewrites_uncommitted_work(tmp_path):
+    """1 Oct 2026: recording from a checkout where another process was editing files ran pull --rebase --autostash,
+    which stashed that process's uncommitted work and wrote it back. The replay onto the remote now leaves every
+    file the remote didn't change exactly as it was (same inode, same mtime), and never starts a rebase."""
+    import os, subprocess
+    from drive import record_story
+    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    repo, other = tmp_path / "repo", tmp_path / "other"
+    subprocess.run(["git", "clone", "-q", str(remote), str(repo)], check=True)
+    (repo / "app.ts").write_text("v1")
+    subprocess.run([*g, "add", "-A"], cwd=repo, check=True)
+    subprocess.run([*g, "commit", "-qm", "app"], cwd=repo, check=True)
+    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=repo, check=True)
+    subprocess.run(["git", "clone", "-q", str(remote), str(other)], check=True)
+    (other / "elsewhere.md").write_text("another machine's record")
+    subprocess.run([*g, "add", "-A"], cwd=other, check=True)
+    subprocess.run([*g, "commit", "-qm", "other"], cwd=other, check=True)
+    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=other, check=True)
+    (repo / "app.ts").write_text("v2, being edited")              # tracked and modified: what autostash takes
+    (repo / "new.ts").write_text("untracked work")
+    before = {f: os.stat(repo / f) for f in ("app.ts", "new.ts")}
+    run = repo / "c" / "benchmarks" / "vidi" / "r"
+    run.mkdir(parents=True)
+    (run / "metrics.json").write_text("{}")
+    res = record_story(repo, run, "story 1 done", git=g)
+    assert res["pushed"], res
+    for f, st in before.items():
+        now = os.stat(repo / f)
+        assert (now.st_ino, now.st_mtime_ns) == (st.st_ino, st.st_mtime_ns), f"{f} was rewritten"
+    assert (repo / "app.ts").read_text() == "v2, being edited"
+    assert (repo / "elsewhere.md").read_text() == "another machine's record"     # the remote's change is checked out
+    reflog = subprocess.run(["git", "reflog", "--format=%gs"], cwd=repo, capture_output=True, text=True).stdout
+    assert "rebase" not in reflog and "autostash" not in reflog, reflog
+    log = subprocess.run(["git", "log", "--format=%s", "main"], cwd=repo, capture_output=True, text=True).stdout.split()
+    assert subprocess.run(["git", "--git-dir", str(remote), "rev-parse", "main"], capture_output=True, text=True).stdout == \
+        subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True).stdout
+    assert subprocess.run(["git", "status", "--porcelain", "--", "c"], cwd=repo, capture_output=True, text=True).stdout == ""
+
+
+def test_record_story_leaves_the_checkout_alone_when_the_remote_changed_a_file_being_edited(tmp_path):
+    """The remote changed a file this checkout has uncommitted edits to: nothing is overwritten and nothing moves;
+    the story stays committed locally, reported unpushed, as with a conflicting remote."""
+    import subprocess
+    from drive import record_story
+    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    repo, other = tmp_path / "repo", tmp_path / "other"
+    subprocess.run(["git", "clone", "-q", str(remote), str(repo)], check=True)
+    (repo / "app.ts").write_text("v1")
+    subprocess.run([*g, "add", "-A"], cwd=repo, check=True)
+    subprocess.run([*g, "commit", "-qm", "app"], cwd=repo, check=True)
+    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=repo, check=True)
+    subprocess.run(["git", "clone", "-q", str(remote), str(other)], check=True)
+    (other / "app.ts").write_text("v1, changed on the remote")
+    subprocess.run([*g, "commit", "-qam", "other"], cwd=other, check=True)
+    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=other, check=True)
+    (repo / "app.ts").write_text("v2, being edited")
+    run = repo / "c" / "benchmarks" / "vidi" / "r"
+    run.mkdir(parents=True)
+    (run / "metrics.json").write_text("{}")
+    head_before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True).stdout
+    res = record_story(repo, run, "story 1 done", git=g)
+    assert res["committed"] and not res["pushed"] and res.get("unpushed"), res
+    assert (repo / "app.ts").read_text() == "v2, being edited"
+    head = subprocess.run(["git", "log", "-1", "--format=%s"], cwd=repo, capture_output=True, text=True).stdout.strip()
+    assert head == "story 1 done"
+    parent = subprocess.run(["git", "rev-parse", "HEAD~1"], cwd=repo, capture_output=True, text=True).stdout
+    assert parent == head_before                                   # not moved onto the remote
+
+
 def test_record_story_survives_a_conflicting_remote_and_pushes_the_backlog_later(tmp_path):
     """The remote changed this run's own files (as the 24GB -> nvidia4090 rename did to the RTX 4090 machine's
     canvas-pi-02): the pull-and-rebase conflicts. The checkout must not be left mid-rebase, each
