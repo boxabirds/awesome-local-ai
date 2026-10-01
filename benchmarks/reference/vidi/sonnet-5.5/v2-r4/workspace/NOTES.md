@@ -7,3 +7,12 @@
 - Ctrl/Cmd +/-/0 are handled on window regardless of focus.
 - Reset view always counts as navigation (it yields a new camera object even when values are equal).
 - Task 1 red phase was not committed separately; camera tests and implementation landed together.
+
+## Story 2
+- BoardViewport accepts `children` as a render function (camera context), an `overlay` render prop (screen-space Toolbar), `onDoubleClickEmpty` and `onClickEmpty`; App passes these.
+- `App` takes an optional `doc` prop so component tests can drive the real Y.Doc.
+- `createSticky` returns an empty string (writes nothing) for non-finite coordinates. `setStickyColor` with the current colour returns false (no-op).
+- NoteToolbar is rendered inside the note, counter-scaled by 1/zoom, so it stays screen-sized above the note. `onSelect` accepts `null` to clear selection.
+- Notes are rendered in stable id order and stacked with `z-index` (not DOM order) so a drag never re-parents the captured element.
+- While editing, the textarea is vertically centred by auto-sizing its height; text is hidden-measured in the display div for font fit.
+- Red-phase test commits were not made separately.
