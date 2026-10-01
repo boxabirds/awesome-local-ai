@@ -572,3 +572,82 @@ body,
 .share-manual {
   color: #b3261e;
 }
+
+/* --- Story 7: selection bar, marquee, overlay handles ---------------------- */
+
+.selection-bar {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  box-shadow: var(--panel-shadow);
+  z-index: 1000;
+}
+
+.selection-count {
+  font-size: 13px;
+  color: var(--board-ink);
+  white-space: nowrap;
+}
+
+.selection-delete-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #b3261e;
+}
+
+.selection-delete-button:hover {
+  background: #fdecea;
+}
+
+/* Marquee rectangle overlay */
+.marquee-rect {
+  position: absolute;
+  border: 1px solid #4f8cff;
+  background: rgba(79, 140, 255, 0.08);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Selection overlay handles */
+.resize-handle {
+  position: absolute;
+  width: var(--handle-size, 8px);
+  height: var(--handle-size, 8px);
+  background: #fff;
+  border: 1.5px solid #4f8cff;
+  border-radius: 1px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  z-index: 10000;
+}
+
+.resize-handle-nw { cursor: nw-resize; }
+.resize-handle-n { cursor: n-resize; }
+.resize-handle-ne { cursor: ne-resize; }
+.resize-handle-e { cursor: e-resize; }
+.resize-handle-se { cursor: se-resize; }
+.resize-handle-s { cursor: s-resize; }
+.resize-handle-sw { cursor: sw-resize; }
+.resize-handle-w { cursor: w-resize; }
+
+.selection-bounding-box {
+  position: absolute;
+  border: 1px solid #4f8cff;
+  pointer-events: none;
+  z-index: 9998;
+}

@@ -30,6 +30,11 @@ export interface BoardViewportProps {
   onEmptyDblClick(point: Point): void;
   /** Click (press and release without dragging) on empty board space. */
   onEmptyClick(point: Point): void;
+  /** Shift+drag marquee: begin, move, end, cancel. */
+  onMarqueeBegin?(p: Point): void;
+  onMarqueeMove?(p: Point): void;
+  onMarqueeEnd?(): void;
+  onMarqueeCancel?(): void;
 }
 
 function mod(value: number, m: number): number {
@@ -53,9 +58,11 @@ function gestureScale(e: Event): number {
 export function BoardViewport(props: BoardViewportProps) {
   const { camera } = props;
   const [panning, setPanning] = useState(false);
+  const [marqueeing, setMarqueeing] = useState(false);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const pointerIdRef = useRef<number | null>(null);
   const downPointRef = useRef<Point | null>(null);
+  const marqueeModeRef = useRef(false);
   const propsRef = useRef(props);
 
   useEffect(() => {
@@ -170,7 +177,6 @@ export function BoardViewport(props: BoardViewportProps) {
     if (!isBoardSurface(e)) return;
     pointerIdRef.current = e.pointerId;
     downPointRef.current = relative(e.clientX, e.clientY);
-    setPanning(true);
     const el = surfaceRef.current;
     if (el !== null && typeof el.setPointerCapture === 'function') {
       try {
@@ -179,20 +185,36 @@ export function BoardViewport(props: BoardViewportProps) {
         /* pointer already gone; drag just won't be captured */
       }
     }
-    props.onBeginPan({ x: e.clientX, y: e.clientY });
+    // Shift+drag on empty space starts a marquee (if handler provided).
+    if (e.shiftKey && props.onMarqueeBegin !== undefined) {
+      marqueeModeRef.current = true;
+      setMarqueeing(true);
+      props.onMarqueeBegin({ x: e.clientX, y: e.clientY });
+    } else {
+      marqueeModeRef.current = false;
+      setPanning(true);
+      props.onBeginPan({ x: e.clientX, y: e.clientY });
+    }
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current === null || e.pointerId !== pointerIdRef.current) return;
-    props.onPanMove({ x: e.clientX, y: e.clientY });
+    if (marqueeModeRef.current && props.onMarqueeMove !== undefined) {
+      props.onMarqueeMove({ x: e.clientX, y: e.clientY });
+    } else {
+      props.onPanMove({ x: e.clientX, y: e.clientY });
+    }
   };
 
-  const endDrag = (pointerId: number, up: Point | null) => {
+  const endDrag = (pointerId: number, up: Point | null, cancelled = false) => {
     if (pointerIdRef.current !== pointerId) return;
     const down = downPointRef.current;
     pointerIdRef.current = null;
     downPointRef.current = null;
+    const wasMarquee = marqueeModeRef.current;
+    marqueeModeRef.current = false;
     setPanning(false);
+    setMarqueeing(false);
     const el = surfaceRef.current;
     if (el !== null && typeof el.releasePointerCapture === 'function') {
       try {
@@ -200,6 +222,14 @@ export function BoardViewport(props: BoardViewportProps) {
       } catch {
         /* already released */
       }
+    }
+    if (wasMarquee) {
+      if (cancelled) {
+        if (props.onMarqueeCancel !== undefined) props.onMarqueeCancel();
+      } else {
+        if (props.onMarqueeEnd !== undefined) props.onMarqueeEnd();
+      }
+      return;
     }
     // The board simply stays where it was at the moment of interruption.
     props.onEndPan();
@@ -228,9 +258,9 @@ export function BoardViewport(props: BoardViewportProps) {
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={(e) => endDrag(e.pointerId, relative(e.clientX, e.clientY))}
-      onPointerCancel={(e) => endDrag(e.pointerId, null)}
-      onLostPointerCapture={(e) => endDrag(e.pointerId, null)}
+      onPointerUp={(e) => endDrag(e.pointerId, relative(e.clientX, e.clientY), false)}
+      onPointerCancel={(e) => endDrag(e.pointerId, null, true)}
+      onLostPointerCapture={(e) => endDrag(e.pointerId, null, true)}
       onDoubleClick={(e) => {
         // Only empty board space: a double-click on a note edits that note.
         if (!isBoardSurface(e)) return;

@@ -145,3 +145,20 @@ export const LINK_COPIED_MS = 2000;
  * RECONNECT_MAX_BACKOFF_MS (story 3), which is the ceiling.
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Story 7: select, move, resize and delete several objects at once ------
+
+/** Resize handle size in screen pixels (constant across zoom). */
+export const HANDLE_SIZE_PX = 8;
+
+/** Minimum size of a sticky note in world units after resize. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/** Maximum size of any object in world units. */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** Nudge step: one arrow key press moves selected objects this many world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Large nudge step: Shift+Arrow moves this many world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
