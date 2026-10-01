@@ -1,0 +1,6 @@
+{
+  "state": "failed",
+  "reason": "exit 1: EEXIST: file already exists, mkdir '/tmp/claude-501' preflight failed; not starting the run",
+  "at": "2026-10-01T00:49:12Z",
+  "host": "Apple M2 16GB"
+}
