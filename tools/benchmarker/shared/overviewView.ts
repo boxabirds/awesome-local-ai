@@ -1,9 +1,7 @@
-// What the overview and the machine pages show, worked out from the state: pure functions, so every rule (what
-// needs you, what a machine is doing now, how a machine's history is grouped) is tested once here and the
-// components only lay it out (plan sections 4.1 and 4.6).
-import type { Finalize, Invalid, Machine, Row, RunStatus } from "./types.ts";
-import { isInvalid, unscoredReason } from "./stats.ts";
-import { finalScoreOwed } from "./finalScore.ts";
+// What the overview and the machine pages show, worked out from the state: pure functions, so every rule (what a
+// machine is doing now, how long a running story has been silent, how a machine's history is grouped) is tested
+// once here and the components only lay it out (plan sections 4.1 and 4.6).
+import type { Machine, Row, RunStatus } from "./types.ts";
 
 export { suiteFamily } from "./stats.ts";
 
@@ -25,8 +23,8 @@ export const SILENT_MINUTES = 15;
 /** A failed or stopped run is news for a day after it ended; after that it is history (on its run page). */
 export const RECENT_END_S = HOURS_PER_DAY * SECONDS_PER_HOUR;
 
-/** Whether dbench answered for a machine, from /api/machines: `ok`, or the error it gave. */
-export interface Reach { ok: boolean; error?: string }
+/** Whether a machine answered the last request, from /api/machines. */
+export interface Reach { ok: boolean }
 /** Per machine name; null until /api/machines has answered (nothing is then said about reachability). */
 export type Reachability = Record<string, Reach> | null;
 
@@ -48,39 +46,10 @@ export function silentMinutes(row: Pick<Row, "live">, now: number): number | nul
   return Math.max(0, (now - l.storyStartedAt) / SECONDS_PER_MINUTE - l.agentMinutes);
 }
 
-// ---------- needs you ----------
+/** A run as a now line names it. */
+export interface RunRef { pack: string; stack: string; runId: string; label: string; machine: string }
 
-/** The kinds of exception, in the order they are listed: what wastes a machine first, then what blocks a result.
- * Every kind is one a person must act on now, because the system can't do it by itself. What the system handles is
- * not a kind: a final re-score the harness retries (shared/finalScore.ts says so on the run's own pages) and a failed
- * accounting check, which the harness recomputes (shared/accountingView.ts, on the pages that show time figures). */
-export const NEED_KINDS = ["silent", "unreachable", "ended", "idle", "rescoreFault", "unscored"] as const;
-export type NeedKind = (typeof NEED_KINDS)[number];
-
-/** A run as a need or a now line names it; `invalid` so the link can be struck through. `dir` (the repo path of its
- * record) and `status` are what a need's advice depends on (shared/needView.ts): absent on a now line, which gives none. */
-export interface RunRef { pack: string; stack: string; runId: string; label: string; machine: string; invalid?: Invalid | null; dir?: string | null; status?: RunStatus }
-
-export type Need =
-  /** A running story whose harness has been silent for SILENT_MINUTES or more. */
-  | { kind: "silent"; key: string; machine: string; run: RunRef; story: string; minutes: number }
-  /** A dbench node in the list that didn't answer. */
-  | { kind: "unreachable"; key: string; machine: string; error: string }
-  /** A failed or stopped run that ended within RECENT_END_S. */
-  | { kind: "ended"; key: string; run: RunRef; status: "failed" | "stopped"; endedAt: number; note: string }
-  /** A reachable dbench node with nothing running and nothing queued. */
-  | { kind: "idle"; key: string; machine: string }
-  /** A finished run re-scored under the current suite whose re-score gave no score of record, which the harness says
-   * needs a person. `finalize`: what its final re-score recorded. `hasBundle`: whether its record has the workspace
-   * bundle a re-score is made from. `machineBusy`: whether the run's machine is running a job now (a re-score there
-   * would share the machine with it). */
-  | { kind: "rescoreFault"; key: string; run: RunRef; suite: string; hasBundle: boolean; machineBusy: boolean; finalize: Finalize }
-  /** A finished run of the current spec version never re-scored under the current suite, which the harness says needs
-   * a person. `finalize`: what its final re-score recorded (skipped, failed or flagged, with the reason). */
-  | { kind: "unscored"; key: string; run: RunRef; why: string; finalize: Finalize; machineBusy: boolean };
-
-const ref = (r: Row): RunRef => ({ pack: r.pack, stack: r.stack, runId: r.runId, label: r.label, machine: r.machine, invalid: r.invalid ?? null, dir: r.dir, status: r.status });
-const runKey = (r: Row) => `${r.pack}\u0000${r.stack}\u0000${r.runId}`;
+const ref = (r: Row): RunRef => ({ pack: r.pack, stack: r.stack, runId: r.runId, label: r.label, machine: r.machine });
 
 /** A job's end as dbench recorded it, else its last report. */
 const jobEnd = (j: Row["jobs"][number] | undefined): number | null => j?.endedAt ?? j?.updatedAt ?? null;
@@ -93,76 +62,6 @@ export function endedAt(r: Pick<Row, "jobs" | "stateAt">): number | null {
   return times.length ? Math.max(...times) : null;
 }
 
-export interface NeedsInput {
-  /** The runs in the page's context (the pack and version chosen in the header): run exceptions are over these. */
-  rows: Row[];
-  /** Every run of every pack: a machine's running story is found here, whatever the header shows. */
-  all: Row[];
-  /** dbench's nodes (State.machines). */
-  machines: Machine[];
-  reach: Reachability;
-  /** The server's clock, Unix seconds. */
-  now: number;
-}
-
-/** Everything a person must act on, each with the entity it is about. Missing data never raises one: a story with
- * no start time is never called stuck, a run with no end time never called recent, and a finished run whose record
- * doesn't say a person is needed for its final score is left to the harness. An invalid run raises nothing:
- * it is left out of "needs you" like every other figure (its machine is still judged as a machine). */
-export function needsYou({ rows: shown, all, machines, reach, now }: NeedsInput): Need[] {
-  const out: Need[] = [];
-  const rows = shown.filter((r) => !isInvalid(r));
-
-  // Machines: a stuck story, an unreachable node, an idle one.
-  for (const r of all) {
-    if (isInvalid(r)) continue;
-    const m = silentMinutes(r, now);
-    const story = runningStory(r).story;
-    if (m !== null && m >= SILENT_MINUTES && story) {
-      out.push({ kind: "silent", key: `silent:${runKey(r)}`, machine: r.node ?? r.machine, run: ref(r), story, minutes: m });
-    }
-  }
-  for (const [machine, re] of Object.entries(reach ?? {})) {
-    if (!re.ok) out.push({ kind: "unreachable", key: `unreachable:${machine}`, machine, error: re.error ?? "" });
-  }
-  for (const m of machines) {
-    if (reach && reach[m.node] && !reach[m.node].ok) continue;  // unreachable, said above
-    if (m.running === null && m.queued === 0) out.push({ kind: "idle", key: `idle:${m.node}`, machine: m.node });
-  }
-
-  // Runs in the page's context.
-  for (const r of rows) {
-    if (r.status === "failed" || r.status === "stopped") {
-      const at = endedAt(r);
-      if (at !== null && now - at <= RECENT_END_S) {
-        out.push({ kind: "ended", key: `ended:${runKey(r)}`, run: ref(r), status: r.status, endedAt: at, note: r.statusNote || r.jobs.at(-1)?.reason || "" });
-      }
-    }
-    // A finished run with no score of record is the harness's to put right (it retries the final re-score at the
-    // machine's next run) until its finalize.json says a person is needed.
-    if (r.finalize && finalScoreOwed(r) === "needsPerson") {
-      const machineBusy = machines.some((m) => m.node === r.machine && m.running !== null);
-      if (r.rescores.includes(r.suite)) {
-        out.push({ kind: "rescoreFault", key: `rescoreFault:${runKey(r)}`, run: ref(r), suite: r.suite, hasBundle: r.hasBundle, machineBusy, finalize: r.finalize });
-      } else {
-        out.push({ kind: "unscored", key: `unscored:${runKey(r)}`, run: ref(r), why: unscoredReason(r), finalize: r.finalize, machineBusy });
-      }
-    }
-  }
-
-  const order = (n: Need) => NEED_KINDS.indexOf(n.kind);
-  return out.toSorted((a, b) => order(a) - order(b) || subject(a).localeCompare(subject(b), undefined, { numeric: true }));
-}
-
-/** What a need is about, as text: its machine, or its run. Orders needs of one kind. */
-export function subject(n: Need): string {
-  switch (n.kind) {
-    case "unreachable": case "idle": return n.machine;
-    case "silent": return `${n.machine} ${n.run.label} ${n.run.runId}`;
-    default: return `${n.run.label} ${n.run.runId}`;
-  }
-}
-
 // ---------- now: one line per machine ----------
 
 export type NowState = "running" | "queuedOnly" | "idle" | "unreachable";
@@ -170,7 +69,8 @@ export type NowState = "running" | "queuedOnly" | "idle" | "unreachable";
 export interface NowLine {
   machine: string;
   state: NowState;
-  /** The running run, when there is one (found among every run, whatever the header shows). */
+  /** The running run, when there is one (found among every run, whatever the header shows); null while running
+   * when the machine is busy with a run the page doesn't show. */
   run: RunRef | null;
   story: string | null;
   storyTitle: string | null;
@@ -180,12 +80,11 @@ export interface NowLine {
   /** See silentMinutes; null when it can't be told. */
   silent: number | null;
   queued: number;
-  /** Why it is unreachable, for an unreachable machine. */
-  error: string;
 }
 
-/** One line per machine dbench knows or the machine list names, by name. An unreachable machine says so whatever
- * dbench last said about it; a machine with a queue and nothing running is not idle (its queue is waiting). */
+/** One line per machine known or named in the machine list, by name. An unreachable machine says so whatever was
+ * last said about it; a machine with a queue and nothing running is not idle (its queue is waiting); one busy with
+ * a run the page doesn't show is running, with no run named. */
 export function nowLines(machines: Machine[], all: Row[], reach: Reachability, now: number): NowLine[] {
   const names = [...new Set([...machines.map((m) => m.node), ...Object.keys(reach ?? {})])]
     .toSorted((a, b) => a.localeCompare(b, undefined, { numeric: true }));
@@ -193,9 +92,10 @@ export function nowLines(machines: Machine[], all: Row[], reach: Reachability, n
     const m = machines.find((x) => x.node === machine) ?? null;
     const re = reach?.[machine];
     const row = m?.running ? all.find((r) => r.node === machine && r.stack === m.running!.stack && r.runId === m.running!.runId && r.live?.status === "running") ?? null : null;
-    const base = { machine, run: null, story: null, storyTitle: null, finishing: false, minutes: null, silent: null, queued: m?.queued ?? 0, error: "" };
-    if (re && !re.ok) return { ...base, state: "unreachable" as const, error: re.error || "no answer" };
-    if (!m) return { ...base, state: "unreachable" as const, error: "dbench's job list has nothing for it" };
+    const base = { machine, run: null, story: null, storyTitle: null, finishing: false, minutes: null, silent: null, queued: m?.queued ?? 0 };
+    if (re && !re.ok) return { ...base, state: "unreachable" as const };
+    if (!m) return { ...base, state: "unreachable" as const };
+    if (m.busy) return { ...base, state: "running" as const };
     if (m.running) {
       return {
         ...base, state: "running" as const,

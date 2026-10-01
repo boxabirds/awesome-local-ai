@@ -8,7 +8,7 @@ export function NowTable({ lines }: { lines: NowLine[] }) {
   return (
     <section className="ov-section now" data-section="now" aria-labelledby="h-now">
       <h2 id="h-now"><span className="term" data-tip={GLOSSARY.now.what}>{GLOSSARY.now.name}</span></h2>
-      {lines.length === 0 ? <p className="empty-note">No machines: dbench answered for none, and none is in the list.</p> : (
+      {lines.length === 0 ? <p className="empty-note">No machines: none answered, and none is in the list.</p> : (
         <table className="now-table" aria-label="Now">
           <thead>
             <tr>

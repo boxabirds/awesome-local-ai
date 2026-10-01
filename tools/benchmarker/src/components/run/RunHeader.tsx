@@ -1,8 +1,7 @@
 // Who the run is and how it came out: identity, status, the score of record (or why there is none), agent time,
 // and the ways out to judging and the record.
 import type { Row, State } from "../../../shared/types.ts";
-import { agentTime, interventionsOf, scoreOfRecord, statusView } from "../../../shared/runView.ts";
-import { finalScoreNote, finalScoreOwed } from "../../../shared/finalScore.ts";
+import { agentTime, interventionsOf, leadScore, PENDING, scoreOfRecord, statusView } from "../../../shared/runView.ts";
 import { InterventionMark } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { CombinationLink, MachineLink } from "../EntityLinks.tsx";
@@ -22,32 +21,48 @@ export function StatusBadge({ run }: { run: Row }) {
   );
 }
 
-/** While a finished run's final score is owed: whether the harness retries it by itself or says a person is needed. */
-export function FinalScoreNote({ run }: { run: Row }) {
-  const note = finalScoreNote(run);
-  return note ? <span className="final-score-note" data-final-score={finalScoreOwed(run)}>{note}</span> : null;
+/** A finished run's score that isn't in yet: one word, nothing about why. */
+export function PendingScore() {
+  return <span className="na pending" data-reason="pending" data-tip={GLOSSARY.noScore.what}>{PENDING}</span>;
 }
 
-function RecordScore({ run, state }: { run: Row; state: State }) {
+/** The first thing on the page: the score of record as "62/75 held-out tests pass"; a running run's live score so
+ * far, said to be so far and over how many stories; a finished run with none: "—". */
+function LeadScore({ run, state }: { run: Row; state: State }) {
+  const lead = leadScore(run);
   const r = scoreOfRecord(run);
-  if (r.kind === "none") {
+  if (lead.kind === "none") {
     return (
-      <Stat term="scoreOfRecord" tag={<RecordTag />} sub={<><span className="why">{r.why}</span> <FinalScoreNote run={run} /></>}>
-        <span className="na" data-tip={`${GLOSSARY.noScore.what} ${r.why}`} data-reason={r.reason}>n/a</span>
-      </Stat>
+      <div className="lead-score" data-section="lead" data-lead="none">
+        <Stat term="scoreOfRecord" tag={<RecordTag />}>
+          {r.kind === "none" && r.reason === "pending" ? <PendingScore /> : <span className="na" data-reason={r.kind === "none" ? r.reason : "pending"} data-tip={GLOSSARY.noScore.what}>—</span>}
+        </Stat>
+      </div>
     );
   }
-  const link = state.web && run.dir ? `${state.web}/blob/${state.branch}/${run.dir}/rescore/${r.version}/per-story.md` : null;
-  const n = <><strong className={`record-n ${qualityClass(r.passed / r.total)}`}>{r.passed}</strong><span className="record-of">/{r.total}</span></>;
+  const n = <><strong className={`record-n ${qualityClass(lead.passed / lead.total)}`}>{lead.passed}</strong><span className="record-of">/{lead.total}</span></>;
+  if (lead.kind === "live") {
+    return (
+      <div className="lead-score" data-section="lead" data-lead="live">
+        <Stat term="liveHeldOut" tag={<LiveTag />} sub={<>so far, after {lead.stories} recorded {lead.stories === 1 ? "story" : "stories"}</>}>
+          <span className="lead-n live-n">{n}</span> <span className="lead-text">held-out tests pass</span>
+        </Stat>
+      </div>
+    );
+  }
+  const rec = r.kind === "scored" ? r : null;
+  const link = state.web && run.dir && rec ? `${state.web}/blob/${state.branch}/${run.dir}/rescore/${rec.version}/per-story.md` : null;
   return (
-    <Stat term="scoreOfRecord" tag={<RecordTag />} sub={<>
-      re-scored {r.at ? utc(r.at) : "(no time recorded)"} · suite <span className="mono">{r.version}</span>
-      {r.flaky ? ` · ${r.flaky} flaky` : ""}
-      {r.currentSuite ? null : <span className="warn" data-tip={GLOSSARY.suite.what}> · not the current suite ({run.suite})</span>}
-      {" "}<FinalScoreNote run={run} />
-    </>}>
-      {link ? <a className="record-link" href={link} target="_blank" rel="noopener" data-tip={`${r.passed} of ${r.total} held-out tests pass · per-story results`}>{n}</a> : n}
-    </Stat>
+    <div className="lead-score" data-section="lead" data-lead="record">
+      <Stat term="scoreOfRecord" tag={<RecordTag />} sub={rec ? <>
+        re-scored {rec.at ? utc(rec.at) : "(no time recorded)"} · suite <span className="mono">{rec.version}</span>
+        {rec.flaky ? ` · ${rec.flaky} flaky` : ""}
+        {rec.currentSuite ? null : <span className="warn" data-tip={GLOSSARY.suite.what}> · not the current suite ({run.suite})</span>}
+      </> : undefined}>
+        <span className="lead-n">{link ? <a className="record-link" href={link} target="_blank" rel="noopener" data-tip={`${lead.passed} of ${lead.total} held-out tests pass · per-story results`}>{n}</a> : n}</span>
+        {" "}<span className="lead-text">held-out tests pass</span>
+      </Stat>
+    </div>
   );
 }
 
@@ -68,20 +83,20 @@ function AgentTimeStat({ run }: { run: Row }) {
 export function RunHeader({ run, state }: { run: Row; state: State }) {
   return (
     <div className="rp-header" data-section="header">
+      <LeadScore run={run} state={state} />
       <div className="eyebrow">Run</div>
-      <h1><CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> <span className={`run-id${run.invalid ? " invalid-run" : ""}`}>{run.runId}</span></h1>
+      <h1><CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> <span className="run-id">{run.runId}</span></h1>
       <dl className="facts">
-        <div><dt><Term id="machine" /></dt><dd data-fact="machine"><MachineLink machine={run.machine} host={run.host || "no hardware recorded"} /></dd></div>
+        <div><dt><Term id="machine" /></dt><dd data-fact="machine"><MachineLink machine={run.machine} host={run.host} /></dd></div>
         <div><dt><Term id="packVersion" /></dt><dd data-fact="packVersion" className="mono">{run.packVersion || <Missing why="The record doesn't name its pack version (a run with no record yet)." />}</dd></div>
         <div><dt><Term id="suite" /></dt><dd data-fact="suite" className="mono">{run.suite}</dd></div>
         <div><dt><Term id="runStatus" /></dt><dd data-fact="status"><StatusBadge run={run} /> <InterventionMark list={interventionsOf(run)} /></dd></div>
       </dl>
       <div className="outcome">
-        <RecordScore run={run} state={state} />
         <AgentTimeStat run={run} />
         <div className="run-links" data-section="links">
-          {/* Judging opens as the Judge cell builds it; until it's ready, the stage says why not. */}
-          {run.stages.judge === "ready" ? <JudgeCell row={run} building={false} url={state.judgeUrl} /> : <span className="wait judge-wait">Judge: {run.stages.judge}</span>}
+          {/* Judging opens once the run can be judged; until then there is nothing to open. */}
+          {run.judgeReady ? <JudgeCell row={run} url={state.judgeUrl} /> : null}
           <LinksCell row={run} web={state.web} branch={state.branch} />
         </div>
       </div>

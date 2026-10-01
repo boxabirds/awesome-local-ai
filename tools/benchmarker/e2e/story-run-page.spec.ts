@@ -18,20 +18,6 @@ const section = (page: Page, id: string) => page.locator(`[data-page="storyRun"]
 const stat = (page: Page, sec: string, term: string) => section(page, sec).locator(`[data-stat="${term}"]`);
 const rowOf = (s: State, stack: string, runId: string) => s.rows.find((r) => r.stack === stack && r.runId === runId)!;
 const tip = (page: Page) => page.getByRole("tooltip");
-const SWIFT_R1_DIR = `combinations/${SWIFT}/benchmarks/vidi/v2-r1`;
-const RECOMPUTE_R1 = `uv run backfill_timing.py --recompute ../../../${SWIFT_R1_DIR}`;
-const RECOMPUTE_R5 = `uv run backfill_timing.py --recompute ../../../combinations/${SWIFT}/benchmarks/vidi/v2-r5`;
-// The problem the owner saw (mlx-serve v2-r2 story 4), and one of each other kind accounting.py's check() records.
-const DOUBLE = "wall 13113.4 s differs from the agent's own clock (13111.7 s + 205.8 s between sessions)";
-const FAILED_MEANING = "This story run's time figures (the bar, the agent time and the shares) can't be trusted. Its held-out result is unaffected.";
-const CLAUDE_MEANING = "This Claude Code run was recorded before the harness read Claude Code's logs for its time, so the whole story counts as “Model, not split” and there is nothing to check. It isn't a fault, and the held-out result is unaffected.";
-const CLAUDE_TODO = "nothing is needed for the held-out result. To fill in its time, recompute this record on ";
-const OLDER_MEANING = "This story run was recorded before the harness checked its time accounting, so its parts were never verified to add up. The held-out result is unaffected.";
-/** Set one story's recorded accounting check. */
-const setCheck = (s: State, stack: string, run: string, story: string, check: { status: "ok" | "problems" | "unchecked"; problems: string[] }) => {
-  rowOf(s, stack, run).stories.find((x) => x.id === story)!.usage!.split!.check = check;
-};
-
 /** Serve the page a changed state for this test: the real one, passed through `change`. */
 async function patchState(page: Page, change: (s: State) => void) {
   await page.route("**/api/state", async (route) => {
@@ -87,7 +73,7 @@ test.describe("header", () => {
   test("recorded by dbench before its record: its own result; the rest missing with why", async ({ page }) => {
     await open(page, SWIFT, "v2-r1", "2");
     await expect(section(page, "header").locator('[data-fact="own"]')).toHaveText("9/10");
-    await expect(section(page, "header").locator('[data-fact="cumulative"] .missing')).toHaveAttribute("data-tip", /dbench reported this story first/);
+    await expect(section(page, "header").locator('[data-fact="cumulative"] .missing')).toHaveAttribute("data-tip", "The whole-suite figure arrives with the story's record.");
     await expect(section(page, "header").locator('[data-fact="agentTime"] .missing')).toHaveAttribute("data-tip", "This story's record has no time.");
   });
 });
@@ -107,70 +93,29 @@ test.describe("where the time went", () => {
     await expect(t.locator(".rp-head")).toContainText("1h20m wall");
   });
 
-  test("the accounting check passed; tools time by kind, longest first", async ({ page }) => {
+  test("tools time by kind, longest first", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
-    await expect(section(page, "time").locator('[data-check="ok"]')).toContainText("✓ passed: the parts add up");
     const kinds = await section(page, "time").locator("[data-kind]").evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.kind));
     expect(kinds).toEqual(["unit", "e2e", "build", "bash"]);
     await expect(section(page, "time").locator('[data-kind="unit"]')).toContainText("1 min");
   });
 
-  test("the accounting check passed: says the time figures can be trusted", async ({ page }) => {
+  test("no accounting-check block, for a passing story or any other: the parts, the bar and the kinds, and no more", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
-    await expect(section(page, "time").locator('[data-check="ok"] .check-meaning')).toHaveText("The parts add up to the wall time and agree with the agent's own clock, so this story run's time figures can be trusted.");
-    await expect(section(page, "time").locator(".check-explain")).toHaveCount(0);
+    const t = section(page, "time");
+    await expect(t.locator(".check, .check-explain, .check-flag, .check-unchecked, [data-check]")).toHaveCount(0);
+    await expect(t).not.toContainText(/accounting|passed|the parts add up|can be trusted|unchecked|Likely cause|What to do/i);
+    for (const tip of await t.locator("[data-tip]").evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.tip ?? ""))) expect(tip).not.toMatch(/accounting|Likely cause|What to do|recompute|harness/i);
   });
 
-  test("the accounting check failed, a call with no end: what it means, the problem in words and as recorded, and that recomputing won't change it", async ({ page }) => {
+  test("a story whose breakdown failed its check (v2-r1 story 1): not available, and nothing about why; its own figures stay", async ({ page }) => {
     await open(page, SWIFT, "v2-r1", "1");
-    const c = section(page, "time").locator('[data-check="problems"]');
-    await expect(c).toContainText("failed");
-    const x = section(page, "time").locator(".check-explain");
-    await expect(x.locator(".check-meaning")).toHaveText(FAILED_MEANING);
-    await expect(x.locator(".problems li .problem-text")).toHaveText(["Tool call t9 has no end in the log, so its time was counted up to the agent's next step."]);
-    await expect(x.locator(".problems li .problem-raw")).toHaveText(["tool call t9 never ended; counted to the agent's next step"]);
-    await expect(x.locator(".check-cause")).toHaveText("Likely cause: the agent's log has no end for it, usually a session cut off mid-call.");
-    await expect(x.locator(".check-todo")).toHaveText("What to do: nothing to fix: recomputing reads the same log and gives the same answer. Read the part it fell in as an upper estimate.");
-    await expect(x.locator(".check-command")).toHaveCount(0);
-  });
-
-  test("the accounting check failed, waits counted twice, run still going: the older harness's bug, and recompute once it has finished", async ({ page }) => {
-    await patchState(page, (s) => setCheck(s, SWIFT, "v2-r1", "1", { status: "problems", problems: [DOUBLE] }));
-    await open(page, SWIFT, "v2-r1", "1");
-    const x = section(page, "time").locator(".check-explain");
-    await expect(x.locator(".problems li .problem-text")).toHaveText(["The wall time (13113.4 s) already matches the agent's own clock (13111.7 s), but 205.8 s of waits between sessions were added on top of it: they were counted twice."]);
-    await expect(x.locator(".problems li .problem-raw")).toHaveText([DOUBLE]);
-    await expect(x.locator(".check-cause")).toHaveText("Likely cause: an older harness counted the waits between sessions twice (a bug since fixed), and this run is still going on it.");
-    await expect(x.locator(".check-todo")).toHaveText(/^What to do: once the run has finished, recompute this record from the full logs on node-a, the machine that ran it, in the repo's benchmarks\/spec-bench\/harness:/);
-    await expect(x.locator(".check-command")).toHaveText(RECOMPUTE_R1);
-  });
-
-  const KINDS: [string, string, string][] = [
-    ["the wall and the agent's clock disagree", "wall 900.0 s differs from the agent's own clock (700.0 s)", "The wall time (900.0 s) doesn't match the agent's own clock (700.0 s)."],
-    ["the parts don't add up", "parts sum to 590.0 s, not the wall's 600.0 s", "The parts add up to 590.0 s, but the wall time is 600.0 s."],
-    ["a negative part", "negative tools: -3.2 s", "The Tools part is negative (-3.2 s); no part of the time can be."],
-    ["tools by kind don't add up", "tools by kind sum to 80.0 s, not tools' 90.0 s", "The tools by kind add up to 80.0 s, but Tools is 90.0 s."],
-    ["anything else, as recorded", "the window ends before it starts", "The window ends before it starts."],
-  ];
-  for (const [what, raw, text] of KINDS) {
-    test(`the accounting check failed, ${what}: in words, the generic cause, and the recompute`, async ({ page }) => {
-      await patchState(page, (s) => setCheck(s, SWIFT, "v2-r5", "2", { status: "problems", problems: [raw] }));
-      await open(page, SWIFT, "v2-r5", "2");
-      const x = section(page, "time").locator(".check-explain");
-      await expect(x.locator(".problems li .problem-text")).toHaveText([text]);
-      await expect(x.locator(".check-cause")).toHaveText("Likely cause: the record was made by a harness with a bug since fixed.");
-      await expect(x.locator(".check-todo")).toHaveText(/^What to do: recompute this record from the full logs on /);
-      await expect(x.locator(".check-command")).toHaveText(RECOMPUTE_R5);
-    });
-  }
-
-  test("the failed mark is reached by keyboard and says the same on focus", async ({ page }) => {
-    await open(page, SWIFT, "v2-r1", "1");
-    const flag = section(page, "time").locator('[data-check="problems"] .check-flag');
-    await expect(flag).toHaveAttribute("tabindex", "0");
-    await flag.focus();
-    await expect(tip(page)).toContainText("Accounting check failed. This story run's time figures");
-    await expect(tip(page)).toContainText("Tool call t9 has no end in the log");
+    const t = section(page, "time");
+    await expect(t.locator(".rp-empty[data-empty=\"split\"]")).toContainText("No time breakdown for this story.");
+    await expect(t.locator(".big-bar, table.parts")).toHaveCount(0);
+    await expect(t).not.toContainText(/accounting|check|⚠|Likely cause|What to do|recompute|harness|log/i);
+    await expect(section(page, "header").locator('[data-fact="agentTime"]')).toHaveText("12 min");
+    await expect(stat(page, "cost", "outTokens").locator(".stat-value")).not.toBeEmpty();
   });
 
   test("parts that don't add up to the wall: what's unaccounted, in its own row", async ({ page }) => {
@@ -179,49 +124,22 @@ test.describe("where the time went", () => {
     await expect(section(page, "time").locator('tr[data-seg="unaccounted"]')).toHaveText("Unaccounted100 s2%");
   });
 
-  test("a cloud model: all 'model, not split', unchecked, no tools by kind", async ({ page }) => {
+  test("a cloud model: all 'model, not split', no tools by kind, and no mark of any kind", async ({ page }) => {
     await open(page, OPUS, "run-9", "1");
     const t = section(page, "time");
     await expect(t.locator('tr[data-seg="modelUnsplit"]')).toHaveText("Model, not split480 s100%");
-    await expect(t.locator('[data-check="unchecked"] .check-unchecked')).toHaveText("unchecked");
     await expect(t.locator(".kinds")).toContainText("not recorded by kind");
+    await expect(t).not.toContainText(/unchecked|accounting/i);
   });
 
-  test("unchecked, a Claude Code run from before the harness read its logs: why, that it isn't a fault, and how to fill it in", async ({ page }) => {
-    await open(page, OPUS, "run-9", "1");
-    const x = section(page, "time").locator(".check-explain");
-    await expect(x.locator(".check-meaning")).toHaveText(CLAUDE_MEANING);
-    await expect(x.locator(".check-todo")).toHaveText(new RegExp(`^What to do: ${CLAUDE_TODO}.* It needs the full logs that machine kept: without them this story run can't be checked\\.$`));
-    await expect(x.locator(".check-command")).toHaveText(/^uv run backfill_timing\.py --recompute \.\.\/\.\.\/\.\.\/.*run-9$/);
-    await expect(x.locator(".check-cause, .problems")).toHaveCount(0);
-    const mark = section(page, "time").locator('[data-check="unchecked"] .check-unchecked');
-    await mark.focus();
-    await expect(tip(page)).toContainText(`Unchecked: no accounting check was made. ${CLAUDE_MEANING} What to do: ${CLAUDE_TODO}`);
-  });
-
-  test("unchecked, an older run: recorded before the harness checked; recompute where the full logs are, else it can't be checked", async ({ page }) => {
-    await patchState(page, (s) => setCheck(s, SWIFT, "v2-r5", "2", { status: "unchecked", problems: [] }));
-    await open(page, SWIFT, "v2-r5", "2");
-    const x = section(page, "time").locator(".check-explain");
-    await expect(x.locator(".check-meaning")).toHaveText(OLDER_MEANING);
-    await expect(x.locator(".check-todo")).toHaveText(/^What to do: to check it, recompute this record on .*, the machine that ran it, in the repo's benchmarks\/spec-bench\/harness\. It needs the full logs that machine kept: without them this story run can't be checked\.$/);
-    await expect(x.locator(".check-command")).toHaveText(RECOMPUTE_R5);
-  });
-
-  test("the label 'Accounting check' says what the check is", async ({ page }) => {
-    await open(page, SWIFT, "v2-r5", "2");
-    await expect(section(page, "time").locator('.check .term')).toHaveAttribute("data-tip", GLOSSARY.accountingCheck.what);
-    expect(GLOSSARY.accountingCheck.what).toMatch(/held-out score/);
-  });
-
-  test("no split recorded: says so", async ({ page }) => {
+  test("no breakdown recorded: not available, the same words as a breakdown that isn't", async ({ page }) => {
     await open(page, SWIFT, "v2-r1", "2");
-    await expect(section(page, "time").locator(".rp-empty")).toHaveText("No time split recorded for this story: its record has no usage.");
+    await expect(section(page, "time").locator(".rp-empty")).toContainText("No time breakdown for this story.");
   });
 
   test("the segments have hovers that explain them", async ({ page }) => {
     await open(page, GUFO, "canvas-gufo-r3", "1");
-    await expect(section(page, "time").locator('.big-bar [data-seg="betweenSessions"]')).toHaveAttribute("data-tip", /Between sessions 1\.0 min: the harness restarting the agent/);
+    await expect(section(page, "time").locator('.big-bar [data-seg="betweenSessions"]')).toHaveAttribute("data-tip", /Between sessions 1\.0 min: waiting to start the agent's next session/);
   });
 });
 
@@ -230,11 +148,12 @@ test.describe("cost", () => {
   test("tokens, calls and every speed", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     const want: [string, string][] = [
-      ["outTokens", "175,000"], ["inputRead", "5.0M"], ["calls", "204"], ["tokS", "36.3"], ["decodeTokS", "41.7"], ["prefillTokS", "750.0"],
-      ["compactions", "2"], ["nudges", "0"],
+      ["outTokens", "175,000"], ["inputRead", "5.0M"], ["calls", "204"], ["tokS", "36.3"], ["compactions", "2"], ["nudges", "0"],
     ];
     for (const [term, text] of want) await expect(stat(page, "cost", term).locator(".stat-value"), term).toHaveText(text);
     await expect(stat(page, "cost", "inputRead").locator(".stat-sub")).toHaveText("90% cached");
+    await expect(stat(page, "cost", "tokS").locator(".term")).toHaveText("generated tok/s");
+    await expect(section(page, "cost").locator('[data-stat="engineSpeed"]')).toHaveText("engine speed: generation 41.7 tok/s · reading 750.0 tok/s");
   });
 
   test("draft acceptance where the engine drafts; '—' with why where it doesn't", async ({ page }) => {
@@ -244,10 +163,10 @@ test.describe("cost", () => {
     await expect(stat(page, "cost", "draftAcceptance").locator(".missing")).toHaveAttribute("data-tip", /speculative decoding/);
   });
 
-  test("a cloud model: no decode or prefill speed, and says it's a cloud model", async ({ page }) => {
+  test("a cloud model: no engine speeds, and says it's a cloud model", async ({ page }) => {
     await open(page, OPUS, "run-9", "1");
-    await expect(stat(page, "cost", "decodeTokS").locator(".missing")).toHaveAttribute("data-tip", /cloud model/);
-    await expect(stat(page, "cost", "prefillTokS").locator(".missing")).toHaveAttribute("data-tip", /cloud model/);
+    await expect(section(page, "cost").locator('[data-stat="engineSpeed"] [data-fact="decode"] .missing')).toHaveAttribute("data-tip", /cloud model/);
+    await expect(section(page, "cost").locator('[data-stat="engineSpeed"] [data-fact="prefill"] .missing')).toHaveAttribute("data-tip", /cloud model/);
     await expect(stat(page, "cost", "compactions").locator(".stat-value")).toHaveText("0");  // zero, not missing
   });
 
@@ -313,13 +232,13 @@ test.describe("conversation profile", () => {
     await expect(section(page, "conversation").locator(".signal-list li")).toHaveText(["a command that hung"]);
   });
 
-  test("parts the harness couldn't count: '—' with why, and no ratio from them", async ({ page }) => {
+  test("parts that couldn't be counted: '—' with why, and no ratio from them", async ({ page }) => {
     await patchState(page, (s) => Object.assign(rowOf(s, SWIFT, "v2-r5").stories[1].conversation!, {
       thinkingMedianBefore: null, thinkingMedianAfter: null, largestThinking: null, contextStart: null, largestContextJump: null, longestTool: null,
     }));
     await open(page, SWIFT, "v2-r5", "2");
     const before = stat(page, "conversation", "thinkingMedian").locator('[data-fact="before"] .missing');
-    await expect(before).toHaveAttribute("data-tip", /couldn't count thinking before the largest block/);
+    await expect(before).toHaveAttribute("data-tip", "Not counted: thinking before the largest block.");
     await expect(stat(page, "conversation", "thinkingMedian").locator(".stat-sub")).toHaveCount(0);
     await expect(stat(page, "conversation", "largestThinking").locator(".missing")).toBeVisible();
     await expect(stat(page, "conversation", "contextGrowth").locator(".stat-sub")).toHaveCount(0);
@@ -329,7 +248,7 @@ test.describe("conversation profile", () => {
 
   test("not recorded: says so, instead of zeros", async ({ page }) => {
     await open(page, OPUS, "run-9", "1");
-    await expect(section(page, "conversation").locator('[data-empty="conversation"]')).toContainText("Not recorded for this story");
+    await expect(section(page, "conversation").locator('[data-empty="conversation"]')).toHaveText("No conversation profile for this story.");
     await expect(section(page, "conversation").locator(".stat")).toHaveCount(0);
   });
 });
@@ -357,8 +276,10 @@ test.describe("against the combination", () => {
     await expect(me.locator('[data-measure="minutes"] .diff')).toHaveText("⚑ +381%");
     await expect(me.locator('[data-measure="minutes"] .diff')).toHaveAttribute("data-tip", /The median of the other 3 runs: 17 min/);
     const median = section(page, "against").locator("tr.median-row");
-    await expect(median.locator('[data-measure="minutes"]')).toHaveText("17 min n=3");
+    await expect(median).toContainText("Median of the other 4 runs");   // v2-r1, r4, r6 and r7 recorded story 2
+    await expect(median.locator('[data-measure="minutes"]')).toHaveText("17 min n=3");   // v2-r1 has no time: its own n
     await expect(median.locator('[data-measure="outTokens"]')).toHaveText("72k n=3");
+    await expect(median.locator('[data-measure="heldOut"]')).toHaveText("88%");           // all 4: no n of its own
   });
 
   test("within 10% of the others' median: nothing marked", async ({ page }) => {
@@ -383,7 +304,7 @@ test.describe("against the combination", () => {
     await open(page, SWIFT, "v2-r5", "2");
     const a = section(page, "against");
     await expect(a.locator('tr[data-run="v2-r2"] .bar-col')).toHaveText("queued: not started yet");
-    await expect(a.locator('tr[data-run="v2-r1"] .bar-col')).toHaveText("no time split recorded");
+    await expect(a.locator('tr[data-run="v2-r1"] .bar-col .missing')).toHaveAttribute("data-tip", "No time breakdown for this story.");
     await expect(a.locator('tr[data-run="v2-r1"] [data-measure="minutes"] .missing')).toHaveAttribute("data-tip", "Not recorded for this story run.");
   });
 
@@ -408,21 +329,13 @@ test.describe("against the combination", () => {
     await expect(section(page, "against").locator('tr[data-run="v2-r4"] .bar-col')).toHaveText("not built in this run");
   });
 
-  test("a failed check in the table: its mark explains itself on keyboard focus", async ({ page }) => {
-    await open(page, SWIFT, "v2-r5", "1");
-    const flag = section(page, "against").locator('tr[data-run="v2-r1"] .check-flag');
-    await expect(flag).toHaveAttribute("tabindex", "0");
-    await flag.focus();
-    await expect(tip(page)).toContainText("Accounting check failed. This story run's time figures");
-    await expect(tip(page)).toContainText("Likely cause: the agent's log has no end for it");
-  });
-
   test("a run without a conversation profile: its thinking missing, and left out of the thinking median", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "1");
     const a = section(page, "against");
     await expect(a.locator('tr[data-run="v2-r7"] [data-measure="thinking"] .missing')).toHaveAttribute("data-tip", "No conversation profile for this story run.");
+    await expect(a.locator("tr.median-row")).toContainText("Median of the other 4 runs");
     await expect(a.locator('tr.median-row [data-measure="thinking"]')).toContainText("n=3");
-    await expect(a.locator('tr.median-row [data-measure="minutes"]')).toContainText("n=4");
+    await expect(a.locator('tr.median-row [data-measure="minutes"]')).not.toContainText("n=");
   });
 
   test("each other run links to its run and to the same story there", async ({ page }) => {
@@ -435,20 +348,34 @@ test.describe("against the combination", () => {
 
   test("no run of the combination has the story: says so, no empty table", async ({ page }) => {
     await open(page, SWIFT, "v2-r1", "3");
-    await expect(section(page, "against").locator(".rp-empty")).toHaveText("No run of this combination has recorded story 3 yet, so there is nothing to set this story run against.");
+    await expect(section(page, "against").locator(".rp-empty")).toHaveText("No run of this combination has recorded story 3 yet.");
     await expect(section(page, "against").locator("table")).toHaveCount(0);
   });
 
-  test("the only run with figures: no median, '—' with why", async ({ page }) => {
+  test("no other run has the story: no median row at all, no flags; the table is this run's row", async ({ page }) => {
+    await patchState(page, (s) => { rowOf(s, OPUS, "v2-r1").stories = []; });
     await open(page, OPUS, "run-9", "1");
-    await expect(section(page, "against").locator('tr.median-row [data-measure="minutes"] .missing')).toHaveAttribute("data-tip", /no median to compare with/);
-    await expect(section(page, "against").locator('[data-flagged="true"]')).toHaveCount(0);
+    const a = section(page, "against");
+    await expect(a.locator("tr.median-row")).toHaveCount(0);
+    await expect(a.locator('[data-flagged="true"]')).toHaveCount(0);
+    await expect(a.locator("tbody tr")).toHaveCount(2);                 // run-9 and v2-r1 (which hasn't got there)
+    await expect(a).not.toContainText(/no median|nothing to compare/i);
+  });
+
+  test("one other run has the story: 'Median of the other run', its figures, no n", async ({ page }) => {
+    await patchState(page, (s) => { for (const id of ["v2-r1", "v2-r4", "v2-r6"]) rowOf(s, SWIFT, id).stories = rowOf(s, SWIFT, id).stories.filter((x) => x.id !== "2"); });
+    await open(page, SWIFT, "v2-r5", "2");
+    const median = section(page, "against").locator("tr.median-row");
+    await expect(median).toHaveAttribute("data-others", "1");
+    await expect(median).toContainText("Median of the other run");
+    await expect(median.locator('[data-measure="minutes"]')).toHaveText("17 min");
+    await expect(median.locator('[data-measure="minutes"]')).not.toContainText("n=");
   });
 });
 
 // ---------------------------------------------------------------------------------------------------------------
 // Held-out beside the cost: SWIFT story 2 is 14/14 in v2-r5 against 9/10, 12/14, 11/14 and 13/14 in v2-r1, v2-r4, v2-r6
-// and v2-r7 (v2-r8 is invalid: in no median), so the median is 88%, between 12/14 and 9/10.
+// and v2-r7, so the median is 88%, between 12/14 and 9/10.
 test.describe("against the combination: held-out", () => {
   const heldOut = (page: Page, run: string) => section(page, "against").locator(`tr[data-run="${run}"] [data-measure="heldOut"]`);
 
@@ -467,7 +394,7 @@ test.describe("against the combination: held-out", () => {
     await expect(heldOut(page, "v2-r5")).toHaveAttribute("data-flagged", "true");
     await expect(heldOut(page, "v2-r5").locator(".diff")).toHaveText("⚑ +14%");
     await expect(heldOut(page, "v2-r5").locator(".diff")).toHaveAttribute("data-tip", /The median of the other 4 runs: 88%\./);
-    await expect(section(page, "against").locator('tr.median-row [data-measure="heldOut"]')).toHaveText("88% n=4");
+    await expect(section(page, "against").locator('tr.median-row [data-measure="heldOut"]')).toHaveText("88%");
   });
 
   test("below by more than 10%: flagged, negative", async ({ page }) => {
@@ -487,7 +414,7 @@ test.describe("against the combination: held-out", () => {
     await open(page, SWIFT, "v2-r5", "2");
     await expect(heldOut(page, "v2-r4").locator(".missing")).toHaveAttribute("data-tip", "Its own held-out tests weren't recorded.");
     await expect(heldOut(page, "v2-r4")).not.toContainText("0");
-    await expect(section(page, "against").locator('tr.median-row [data-measure="heldOut"]')).toHaveText("90% n=3");   // 9/10, 11/14, 13/14
+    await expect(section(page, "against").locator('tr.median-row [data-measure="heldOut"]')).toHaveText("90% n=3");   // 9/10, 11/14, 13/14: v2-r4 has none
   });
 });
 
@@ -507,7 +434,7 @@ test.describe("against the combination: why it differs", () => {
     const tip = await me(page).locator('[data-measure="minutes"] .diff').getAttribute("data-tip");
     expect(tip).toContain("The median of the other 3 runs: 17 min.");
     expect(tip).toContain("Mechanism: verbose thinking.");
-    expect(tip).toContain("verbose thinking: thinking per call 1,588 chars against 95 (16.7×)");   // v2-r4, r6, r7: not the invalid r8
+    expect(tip).toContain("verbose thinking: thinking per call 1,588 chars against 95 (16.7×)");   // v2-r4, r6, r7
     expect(tip).toContain("slower generation: decode 41.7 tok/s against 99.0");
     await me(page).locator('[data-measure="minutes"] .mech').hover();
     await expect(page.getByRole("tooltip")).toContainText("Mechanism: verbose thinking.");
@@ -563,7 +490,7 @@ test.describe("against the combination: why it differs", () => {
 
 // ---------------------------------------------------------------------------------------------------------------
 // This story run beside the most typical other one: for SWIFT story 2 and v2-r5 that is v2-r7, nearest the median row
-// (v2-r4 is a little further off, v2-r6 has 2.2× the calls, v2-r1 has only its held-out result, v2-r8 is invalid).
+// (v2-r4 is a little further off, v2-r6 has 2.2× the calls, v2-r1 has only its held-out result).
 test.describe("what differed", () => {
   const d = (page: Page) => section(page, "differed");
   const tr = (page: Page, key: string) => d(page).locator(`tr[data-row="${key}"]`);
@@ -611,11 +538,10 @@ test.describe("what differed", () => {
     await expect(tr(page, "heldOut").locator(".b")).toHaveText("11/14");
   });
 
-  test("every other run that recorded the story can be chosen, the invalid one marked", async ({ page }) => {
+  test("every other run that recorded the story can be chosen", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     const values = await pick(page).locator("option").evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value));
-    expect(values.toSorted()).toEqual(["v2-r1", "v2-r4", "v2-r6", "v2-r7", "v2-r8"]);
-    await expect(pick(page).locator('option[value="v2-r8"]')).toContainText("invalid");
+    expect(values.toSorted()).toEqual(["v2-r1", "v2-r4", "v2-r6", "v2-r7"]);
   });
 
   test("the other run has no conversation profile: says so plainly in its column", async ({ page }) => {
@@ -671,7 +597,7 @@ test.describe("what differed", () => {
 
 // ---------------------------------------------------------------------------------------------------------------
 // How every combination fares on this story. In the fixture, v2 story 2 is recorded by SWIFT (v2-r4 to r7 finished,
-// v2-r1 running, v2-r8 invalid) and by OPUS (run-9 finished, with only its held-out result; v2-r1 is building it);
+// v2-r1 running) and by OPUS (run-9 finished, with only its held-out result; v2-r1 is building it);
 // 3.8/27b is only queued or cancelled and mlx-serve is on story 1, so neither has a record of it.
 test.describe("against every combination", () => {
   const MLX = "qwen/3.8/flash-next/macos/128GB/mlxserve-pi";
@@ -709,12 +635,12 @@ test.describe("against every combination", () => {
     expect(onStoryPage.slice(0, 2)).toEqual([OPUS, SWIFT]);
   });
 
-  test("a combination's row: n, and each measure's median and range over its valid finished runs", async ({ page }) => {
+  test("a combination's row: n, and each measure's median and range over its finished runs", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     const runs = combo(page, SWIFT).locator('td[data-col="runs"]');
     await expect(runs.locator("b")).toHaveText("n=4");
     await expect(runs.locator('[data-unfinished="running"]')).toHaveText("+1 running");
-    await expect(runs.locator("[data-invalid-runs]")).toHaveText("1 invalid, left out");
+    await expect(runs).not.toContainText("invalid");
     await expect(cell(page, SWIFT, "heldOut").locator(".median")).toHaveText("89%");
     await expect(cell(page, SWIFT, "heldOut").locator(".range")).toHaveText("79%–100%");
     await expect(cell(page, SWIFT, "minutes").locator(".median")).toHaveText("17 min");
@@ -767,17 +693,6 @@ test.describe("against every combination", () => {
       await expect(cell(page, OPUS, measure).locator(".missing")).toHaveAttribute("data-tip", `No finished run of this combination recorded its ${name} for story 2.`);
     }
     await expect(combo(page, OPUS).locator(".across-bar")).toHaveCount(0);
-  });
-
-  test("a combination with only invalid runs: kept, 'no valid runs yet', every figure '—' with why", async ({ page }) => {
-    await patchState(page, (s) => { rowOf(s, OPUS, "run-9").invalid = { reason: "built in a sandbox that exposed the machine's packages", since: "2026-10-01" }; });
-    await open(page, SWIFT, "v2-r5", "2");
-    await expect(combo(page, OPUS)).toHaveAttribute("data-state", "noValid");
-    await expect(combo(page, OPUS).locator('td[data-col="runs"] .no-median')).toHaveText("no valid runs yet");
-    await expect(combo(page, OPUS).locator("[data-invalid-runs]")).toHaveText("1 invalid, left out");
-    await expect(combo(page, OPUS).locator("td[data-measure] .missing")).toHaveCount(4);
-    await expect(cell(page, OPUS, "heldOut").locator(".missing")).toHaveAttribute("data-tip", "No valid runs yet: the one run of this combination that recorded story 2 is invalid, and an invalid run is in no figure.");
-    expect(await stacksShown(page)).toEqual([SWIFT, OPUS]);   // nothing to rank it by: after the measured one
   });
 
   test("a combination whose only run with the story is still running: 'no finished run yet', the run counted as running", async ({ page }) => {
@@ -1023,9 +938,7 @@ test.describe("links and keyboard", () => {
       }
       if (route.page === "storyRun") {
         await expect(page.locator('[data-page="storyRun"] .rp-header h1'), href).toContainText(`Story ${route.story}`);
-        // An invalid run's link adds why it is invalid after its name.
-        const name = `${route.stack} · ${route.runId}`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        await expect(page.locator('[data-page="storyRun"] .breadcrumb a.run-link'), href).toHaveAttribute("data-tip", new RegExp(`^${name}($|\\. Invalid run: )`));
+        await expect(page.locator('[data-page="storyRun"] .breadcrumb a.run-link'), href).toHaveAttribute("data-tip", `${route.stack} · ${route.runId}`);
         continue;
       }
       throw new Error(`${href} names no page`);

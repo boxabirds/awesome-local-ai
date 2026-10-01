@@ -83,10 +83,6 @@ table.usage td.story-name { max-width: 260px; }
 .story-list { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 100px; }
 .story-list button { text-align: left; background: none; border: 0; border-radius: 6px; padding: 6px 8px; color: var(--ink); font: inherit; cursor: pointer; }
 .story-list button.on { background: var(--chip); font-weight: 600; }
-.story-jobs h2 { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-family: inherit; font-size: 14px; }
-.story-jobs .toolbar { display: flex; gap: 6px; }
-.story-jobs .toolbar button { font: inherit; font-size: 12px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
-.story-jobs .toolbar button:disabled { opacity: .45; cursor: default; }
 .compare-note { padding: 6px 12px; }
 table.by-job { min-width: 0; }
 table.by-job tbody tr { cursor: pointer; }
@@ -149,8 +145,6 @@ figure.time-bars figcaption b { color: var(--ink); font-size: 13px; margin-right
 .bar-row { display: grid; grid-template-columns: minmax(160px, 260px) minmax(0, 1fr) 70px; gap: 10px; align-items: center; padding: 3px 0; }
 .bar-label { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-machine { display: block; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
-.check-flag { color: var(--bad); font-weight: 700; margin-left: 4px; cursor: help; }
-.check-unchecked { color: var(--faint); font-size: 11px; margin-left: 4px; border: 1px dashed var(--line); border-radius: 3px; padding: 0 3px; cursor: help; }
 .bar-track { display: block; }
 .bar { display: flex; height: 18px; border-radius: 4px; overflow: hidden; min-width: 2px; }
 .seg { display: block; height: 100%; }
@@ -195,16 +189,10 @@ table.combos td.score .spread .range { display: inline; }
 /* A term with a definition on hover (shared/glossary.ts). */
 .term { cursor: help; }
 
-/* A run's record marks (RunMarks.tsx). Neither takes a held-out or status colour: an invalid run is struck through and
-   muted; an intervened one carries a hand in a dashed outline. */
+/* A run's record mark (RunMarks.tsx): an intervened run carries an asterisk in a dashed outline. No held-out or
+   status colour. */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.invalid-run, .invalid-run b, .invalid-run .stack-label { text-decoration: line-through; text-decoration-thickness: 1.5px; color: var(--muted); }
-tr[data-invalid="true"] > td { opacity: .55; }
-tr[data-invalid="true"] > td:hover, tr[data-invalid="true"] > td:focus-within { opacity: 1; }
-.invalid-tag { display: inline-block; font-size: 11px; font-weight: 650; letter-spacing: .02em; text-transform: uppercase; color: var(--ink);
-  border: 1.5px solid var(--ink); border-radius: 4px; padding: 0 5px; line-height: 16px; }
-.invalid-banner { margin: 10px 0 14px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-left: 5px solid var(--ink);
-  border-radius: 6px; font-size: 14px; }
+.pending { font-size: 12px; color: var(--muted); font-style: italic; cursor: help; }
 .intervened { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--ink); white-space: nowrap;
   border: 1.5px dashed var(--muted); border-radius: 10px; padding: 0 6px; line-height: 16px; vertical-align: 1px; }
 .intervened.compact { padding: 0 3px; border-radius: 8px; font-size: 10px; line-height: 14px; }

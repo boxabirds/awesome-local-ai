@@ -1,11 +1,10 @@
-// The overview's and the machine page's rules, by dimension: each "needs you" rule at its boundary, with its
-// absence and missing data; the "now" line for every machine state; a machine's jobs; and its history grouped
-// across packs and versions. Each dimension's cases cover every value it can take.
+// The overview's and the machine page's rules, by dimension: how long a running story has been silent; the "now"
+// line for every machine state; a machine's jobs; and its history grouped across packs and versions. Each dimension's cases cover every value it can take.
 import { describe, expect, it } from "vitest";
-import type { Finalize, JobRef, Live, Machine, Row, RunStatus, Score, Story, TimeSplit, Usage } from "./types.ts";
+import type { JobRef, Live, Machine, Row, Score, Story, TimeSplit, Usage } from "./types.ts";
 import {
-  NEED_KINDS, RECENT_END_S, SILENT_MINUTES, endedAt, jobEndedAt, jobPlace, machineHistory, machineJobs, needsYou, nowLines,
-  runningStory, silentMinutes, subject, suiteFamily, type Need, type Reachability,
+  RECENT_END_S, endedAt, jobEndedAt, jobPlace, machineHistory, machineJobs, nowLines,
+  runningStory, silentMinutes, suiteFamily, type Reachability,
 } from "./overviewView.ts";
 
 const SUITE = "vidi-v2.0-pre1";
@@ -13,21 +12,21 @@ const NOW = 1_790_800_000;
 const MIN = 60;
 const DAY = 86_400;
 
-const split = (check: TimeSplit["check"]): TimeSplit => ({
-  wall: 600, prefill: 60, decode: 400, tools: 100, compaction: 20, other: 20, modelUnsplit: 0, betweenSessions: 0, check,
+const split = (): TimeSplit => ({
+  wall: 600, prefill: 60, decode: 400, tools: 100, compaction: 20, other: 20, modelUnsplit: 0, betweenSessions: 0,
 });
 const usage = (over: Partial<Usage> = {}): Usage => ({
   outTokens: 1000, inTokens: 100, cacheRead: 900, readTokens: 1000, calls: 10, agentSeconds: 600, tokS: 1.7,
   decodeTokens: 900, decodeSeconds: 400, decodeTokS: 2.25, prefillTokens: 100, prefillSeconds: 60, prefillTokS: 1.7,
-  draftAcceptance: null, compactions: 1, nudges: 0, split: split({ status: "ok", problems: [] }), ...over,
+  draftAcceptance: null, compactions: 1, nudges: 0, split: split(), ...over,
 });
 const story = (id: string, over: Partial<Story> = {}): Story => ({
   id, title: `Story ${id}`, status: "DONE", passed: 5, total: 10, ownPassed: 5, ownTotal: 5, usage: usage(), conversation: null, ...over,
 });
 const live = (over: Partial<Live> = {}): Live => ({
-  jobId: "job", status: "running", attempt: 1, currentStory: null, runningStory: null, agentMinutes: null, calls: null,
+  jobId: "job", status: "running", currentStory: null, runningStory: null, agentMinutes: null, calls: null,
   outputTokens: null, tasksWritten: null, tasksTotal: null, lastActivity: null, storyStartedAt: null, storyTitle: null,
-  storiesInScope: null, runStartedAt: null, totalAgentMinutes: null, logTail: [], queue: null, ...over,
+  storiesInScope: null, runStartedAt: null, totalAgentMinutes: null, queue: null, ...over,
 });
 const job = (id: string, status: string, updatedAt: number | null, reason = "", ended: number | null = null): JobRef => ({ id, node: "node-a", status, submittedAt: null, updatedAt, reason, endedAt: ended });
 const score = (passed: number | null, total: number | null): Score => ({ passed, total, flaky: 0, at: "2026-09-30T18:30:00Z" });
@@ -37,8 +36,7 @@ const row = (over: Partial<Row> = {}): Row => ({
   packVersion: SUITE, family: "vidi-v2", suite: SUITE, state: "finished", stateAt: "", status: "finished",
   storiesWorking: { working: 0, scope: 0, squares: [] },
   usage: { outTokens: null, inTokens: null, readTokens: null, calls: null, tokS: null, decodeTokS: null, prefillTokS: null },
-  statusNote: "", stories: [story("1")], rescores: [SUITE], scores: { [SUITE]: score(60, 75) }, hasBundle: false,
-  stages: { build: "finished", score: "", judge: "" }, live: null, jobs: [], invalid: null, interventions: [], ...over,
+  statusNote: "", stories: [story("1")], rescores: [SUITE], scores: { [SUITE]: score(60, 75) }, judgeReady: false, live: null, jobs: [], interventions: [], ...over,
 });
 
 /** A running row on story 3 that started `startedMinAgo` minutes ago and last reported `agentMinutes`. */
@@ -47,13 +45,10 @@ const running = (startedMinAgo: number | null, agentMinutes: number | null, over
   live: live({ currentStory: "3", runningStory: "3", storyStartedAt: startedMinAgo === null ? null : NOW - startedMinAgo * MIN, agentMinutes, ...over }),
 });
 
-const machine = (node: string, over: Partial<Machine> = {}): Machine => ({ node, running: null, queued: 0, ...over });
+const machine = (node: string, over: Partial<Machine> = {}): Machine => ({ node, running: null, busy: false, queued: 0, ...over });
 const busy = (node: string, runId = "run", queued = 0): Machine =>
   machine(node, { running: { stack: "qwen/x/pi", short: "x pi", runId, story: "3", finishing: false, agentMinutes: 12 }, queued });
 
-const needs = (input: Partial<Parameters<typeof needsYou>[0]>) =>
-  needsYou({ rows: [], all: [], machines: [], reach: null, now: NOW, ...input });
-const kinds = (ns: Need[]) => ns.map((n) => n.kind);
 
 // ---------------------------------------------------------------------------------------------------------------
 describe("the running story", () => {
@@ -87,187 +82,6 @@ describe("silent minutes: how long the harness has said nothing about a running 
   });
 });
 
-// ---------------------------------------------------------------------------------------------------------------
-describe("needs you", () => {
-  it("nothing needs you when all is well: a busy reachable machine, a scored run, checked stories", () => {
-    const ok = running(10, 10);
-    expect(needs({ rows: [row(), ok], all: [row(), ok], machines: [busy("node-a")], reach: { "node-a": { ok: true } } })).toEqual([]);
-  });
-
-  describe("a running story with no activity for a long time", () => {
-    it(`fires at exactly ${SILENT_MINUTES} silent minutes, and not a minute before`, () => {
-      const at = running(SILENT_MINUTES + 5, 5);
-      const before = running(SILENT_MINUTES + 4, 5);
-      expect(needs({ all: [at] })).toMatchObject([{ kind: "silent", machine: "node-a", story: "3", run: { runId: "run" } }]);
-      expect((needs({ all: [at] })[0] as Extract<Need, { kind: "silent" }>).minutes).toBeCloseTo(SILENT_MINUTES);
-      expect(needs({ all: [before] })).toEqual([]);
-    });
-    it("a long story that is still reporting is not stuck", () => {
-      expect(needs({ all: [running(600, 600)] })).toEqual([]);
-    });
-    it("is looked for in every run, whatever pack or version the page shows", () => {
-      expect(kinds(needs({ rows: [], all: [running(120, 5)] }))).toEqual(["silent"]);
-    });
-    it("never fires on missing data or while the story finishes", () => {
-      expect(needs({ all: [running(null, 5), running(120, null), running(120, 5, { currentStory: null })] })).toEqual([]);
-    });
-    it("names the node the job runs on", () => {
-      expect(needs({ all: [{ ...running(120, 5), node: "node-d", machine: "AMD box" }] })).toMatchObject([{ machine: "node-d" }]);
-    });
-  });
-
-  describe("an idle machine: reachable, nothing running, nothing queued", () => {
-    it("fires for a node with nothing running and nothing queued", () => {
-      expect(needs({ machines: [machine("node-d")], reach: { "node-d": { ok: true } } })).toMatchObject([{ kind: "idle", machine: "node-d" }]);
-    });
-    it("fires before /api/machines answers: dbench listing the node is an answer", () => {
-      expect(kinds(needs({ machines: [machine("node-d")], reach: null }))).toEqual(["idle"]);
-    });
-    it("not with one job queued and nothing running, nor with one running and nothing queued", () => {
-      expect(needs({ machines: [machine("node-d", { queued: 1 }), busy("node-a")] })).toEqual([]);
-    });
-    it("an unreachable machine is unreachable, not idle", () => {
-      expect(kinds(needs({ machines: [machine("node-d")], reach: { "node-d": { ok: false, error: "timed out" } } }))).toEqual(["unreachable"]);
-    });
-  });
-
-  describe("an unreachable machine", () => {
-    it("fires for each machine /api/machines couldn't reach, with dbench's error", () => {
-      expect(needs({ reach: { down: { ok: false, error: "connection refused" }, up: { ok: true } } })).toEqual([
-        { kind: "unreachable", key: "unreachable:down", machine: "down", error: "connection refused" },
-      ]);
-    });
-    it("says nothing before /api/machines answers", () => {
-      expect(needs({ reach: null })).toEqual([]);
-    });
-  });
-
-  describe("a failed or stopped run from the last day", () => {
-    const ended = (status: RunStatus, agoS: number, over: Partial<Row> = {}) =>
-      row({ status, scores: {}, rescores: [], jobs: [job("j1", status, NOW - agoS, "agent crashed")], ...over });
-    it("fires for failed and for stopped, with the reason", () => {
-      expect(needs({ rows: [ended("failed", 60)] })).toMatchObject([{ kind: "ended", status: "failed", note: "agent crashed", endedAt: NOW - 60 }]);
-      expect(kinds(needs({ rows: [ended("stopped", 60)] }))).toEqual(["ended"]);
-    });
-    it(`fires at exactly ${RECENT_END_S / 3600} hours, and not a second after`, () => {
-      expect(kinds(needs({ rows: [ended("failed", RECENT_END_S)] }))).toEqual(["ended"]);
-      expect(needs({ rows: [ended("failed", RECENT_END_S + 1)] })).toEqual([]);
-    });
-    it("not for cancelled (the operator did it), finished, running or queued runs", () => {
-      for (const s of ["cancelled", "finished", "running", "queued"] as RunStatus[]) {
-        expect(needs({ rows: [ended(s, 60, { scores: { [SUITE]: score(60, 75) }, rescores: [SUITE] })] }).filter((n) => n.kind === "ended")).toEqual([]);
-      }
-    });
-    it("uses the record's time when there is no job, and the later of the two when both", () => {
-      expect(kinds(needs({ rows: [row({ status: "failed", jobs: [], stateAt: new Date((NOW - 60) * 1000).toISOString() })] }))).toEqual(["ended"]);
-      expect(kinds(needs({ rows: [ended("failed", 2 * DAY, { stateAt: new Date((NOW - 60) * 1000).toISOString() })] }))).toEqual(["ended"]);
-    });
-    it("never fires when when it ended is unknown", () => {
-      expect(needs({ rows: [row({ status: "failed", jobs: [job("j", "failed", null)], stateAt: "" })] })).toEqual([]);
-    });
-    it("takes the reason from the run's note first, then its last job's", () => {
-      expect(needs({ rows: [ended("failed", 60, { statusNote: "out of memory" })] })).toMatchObject([{ note: "out of memory" }]);
-    });
-    it("is only looked for in the runs the page shows", () => {
-      expect(needs({ rows: [], all: [ended("failed", 60)] })).toEqual([]);
-    });
-  });
-
-  // The harness's final re-score is retried by itself; its finalize.json says when a person is needed (needs_person).
-  // Only then is a finished run with no score of record listed: otherwise its own pages say the score is pending.
-  const fin = (over: Partial<Finalize> = {}): Finalize => ({
-    rescore: "skipped", reason: "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1", version: "vidi-v2.0-pre1+28ace8b", packRef: SUITE,
-    at: "2026-10-01T08:25:57Z", needsPerson: null, attempts: null, lastAttemptAt: "", ...over,
-  });
-  const PERSON = fin({ rescore: "failed", reason: "no browser", needsPerson: true, attempts: 3 });
-  const scoring = (ns: Need[]) => ns.filter((n) => n.kind === "unscored" || n.kind === "rescoreFault");
-
-  describe("a finished run with no score of record: listed only when the harness says a person is needed", () => {
-    const unscoredRun = { rescores: [], scores: {} };
-    const faultRun = { rescores: [SUITE], scores: {} };
-    it("a person is needed: not scored, with why", () => {
-      expect(needs({ rows: [row({ ...unscoredRun, finalize: PERSON })] })).toMatchObject([{ kind: "unscored", why: `not re-scored under ${SUITE} yet`, finalize: PERSON }]);
-    });
-    it("a person is needed, re-scored only under another suite version: the reason names it", () => {
-      const n = needs({ rows: [row({ rescores: ["vidi-v2.0-pre0"], scores: { "vidi-v2.0-pre0": score(60, 75) }, finalize: PERSON })] });
-      expect(n).toMatchObject([{ kind: "unscored" }]);
-      expect((n[0] as Extract<Need, { kind: "unscored" }>).why).toMatch(/only under another suite version \(60\/75 under vidi-v2\.0-pre0\)/);
-    });
-    it("a person is needed, re-scored under the current suite with no score of it: a re-score fault, with the record", () => {
-      expect(needs({ rows: [row({ ...faultRun, finalize: PERSON })] })).toMatchObject([{ kind: "rescoreFault", suite: SUITE, finalize: PERSON }]);
-      expect(kinds(needs({ rows: [row({ rescores: [SUITE], scores: { [SUITE]: score(null, 75) }, finalize: PERSON })] }))).toEqual(["rescoreFault"]);
-    });
-    it("the harness says no person is needed: nothing is listed (it retries it at the machine's next run)", () => {
-      const f = fin({ needsPerson: false, attempts: 2 });
-      expect(needs({ rows: [row({ ...unscoredRun, finalize: f }), row({ runId: "r2", ...faultRun, finalize: f })] })).toEqual([]);
-    });
-    it("the harness says nothing about a person (every record from before it did): nothing is listed", () => {
-      expect(needs({ rows: [row({ ...unscoredRun, finalize: fin() }), row({ runId: "r2", ...faultRun, finalize: fin({ rescore: "failed" }) })] })).toEqual([]);
-    });
-    it("no finalize record at all: nothing is listed", () => {
-      expect(needs({ rows: [row(unscoredRun), row({ runId: "r2", ...faultRun }), row({ runId: "r3", ...unscoredRun, finalize: null })] })).toEqual([]);
-    });
-    it("a run of an older spec version is not flagged: this suite can't score another spec", () => {
-      expect(needs({ rows: [row({ family: "vidi-v1", packVersion: "vidi-v1.1", ...unscoredRun, finalize: PERSON })] })).toEqual([]);
-    });
-    it("a run whose version family is unknown is not flagged either", () => {
-      expect(needs({ rows: [row({ family: "", ...unscoredRun, finalize: PERSON })] })).toEqual([]);
-    });
-    it("a scored run, and runs that haven't finished, are not flagged, whatever their finalize record says", () => {
-      for (const status of ["running", "queued", "failed", "stopped", "cancelled", "unknown"] as RunStatus[]) {
-        expect(scoring(needs({ rows: [row({ status, ...unscoredRun, finalize: PERSON })] }))).toEqual([]);
-      }
-      expect(needs({ rows: [row({ finalize: PERSON })] })).toEqual([]);
-    });
-    it("both say whether the run's machine is running a job now: a re-score there would share it", () => {
-      const rows = [row({ runId: "u", ...unscoredRun, finalize: PERSON }), row({ runId: "f", ...faultRun, finalize: PERSON })];
-      expect(needs({ rows, machines: [busy("node-a")] })).toMatchObject([{ kind: "rescoreFault", machineBusy: true }, { kind: "unscored", machineBusy: true }]);
-      expect(needs({ rows, machines: [machine("node-a", { queued: 1 }), busy("node-b")] })).toMatchObject([{ machineBusy: false }, { machineBusy: false }]);
-      expect(needs({ rows })).toMatchObject([{ machineBusy: false }, { machineBusy: false }]);
-    });
-    it("a re-score fault: whether its record has a bundle to re-score from", () => {
-      expect(needs({ rows: [row({ ...faultRun, hasBundle: true, finalize: PERSON })] })).toMatchObject([{ kind: "rescoreFault", hasBundle: true }]);
-      expect(needs({ rows: [row({ ...faultRun, finalize: PERSON })] })).toMatchObject([{ kind: "rescoreFault", hasBundle: false }]);
-    });
-  });
-
-  // A failed accounting check makes a story's time figures doubtful, and nobody has to do anything about it on the
-  // Overview: the harness recomputes its records by itself. It is said on the story run's, run's and combination's
-  // pages (shared/accountingView.ts), where the time figures are read.
-  describe("a story whose accounting check failed is never listed", () => {
-    const bad = (id: string, current: boolean | null = null) => story(id, { usage: usage({ split: split({ status: "problems", problems: ["wall 2352.1 s differs from the agent's own clock (2321.2 s)"], version: 3, current }) }) });
-    it.each(["finished", "running", "failed", "stopped"] as RunStatus[])("in a %s run", (status) => {
-      expect(needs({ rows: [row({ status, stateAt: "", stories: [bad("1"), story("2"), bad("4", true), bad("5", false)] })] })).toEqual([]);
-    });
-    it("no kind of need is about accounting", () => {
-      expect(NEED_KINDS).not.toContain("accounting");
-    });
-  });
-
-  describe("order", () => {
-    it("by kind: what wastes a machine first, then what blocks a result", () => {
-      expect(NEED_KINDS).toEqual(["silent", "unreachable", "ended", "idle", "rescoreFault", "unscored"]);
-      const all = [running(120, 5)];
-      const rows = [
-        row({ runId: "u", rescores: [], scores: {}, finalize: PERSON }),
-        row({ runId: "f", status: "failed", scores: {}, rescores: [], jobs: [job("j", "failed", NOW)] }),
-        row({ runId: "a", stories: [story("1", { usage: usage({ split: split({ status: "problems", problems: ["x"] }) }) })] }),
-        row({ runId: "r", rescores: [SUITE], scores: {}, finalize: PERSON }),
-      ];
-      const reach: Reachability = { down: { ok: false }, "node-d": { ok: true } };
-      expect(kinds(needs({ rows, all, machines: [machine("node-d")], reach }))).toEqual(["silent", "unreachable", "ended", "idle", "rescoreFault", "unscored"]);
-    });
-    it("within a kind, by what it is about, numbers in order", () => {
-      const n = needs({ machines: [machine("node-10"), machine("node-9"), machine("alpha")] });
-      expect(n.map(subject)).toEqual(["alpha", "node-9", "node-10"]);
-    });
-    it("every need has its own key", () => {
-      const n = needs({ rows: [row({ runId: "a", rescores: [], scores: {}, finalize: PERSON }), row({ runId: "b", rescores: [], scores: {}, finalize: PERSON })], machines: [machine("x"), machine("y")] });
-      expect(new Set(n.map((x) => x.key)).size).toBe(n.length);
-    });
-  });
-});
-
 describe("helpers", () => {
   it("a suite's version family is its name up to the major version", () => {
     expect(suiteFamily("vidi-v2.0-pre1")).toBe("vidi-v2");
@@ -296,7 +110,7 @@ describe("now: one line per machine", () => {
     const [line] = nowLines([busy("node-a", "run", 2)], [r], reach, NOW);
     expect(line).toMatchObject({
       machine: "node-a", state: "running", run: { pack: "vidi", stack: "qwen/x/pi", runId: "run", label: "x pi" },
-      story: "3", storyTitle: "Sticky notes", finishing: false, minutes: 12, queued: 2, error: "",
+      story: "3", storyTitle: "Sticky notes", finishing: false, minutes: 12, queued: 2,
     });
     expect(line.silent).toBeCloseTo(8);
   });
@@ -318,12 +132,18 @@ describe("now: one line per machine", () => {
   it("queued only: nothing running but a queue waiting, which is not idle", () => {
     expect(nowLines([machine("node-d", { queued: 3 })], [], { "node-d": { ok: true } }, NOW)).toMatchObject([{ state: "queuedOnly", queued: 3, run: null }]);
   });
-  it("unreachable: /api/machines couldn't reach it, whatever dbench last said", () => {
-    expect(nowLines([busy("node-a")], [], { "node-a": { ok: false, error: "timed out" } }, NOW)[0]).toMatchObject({ state: "unreachable", error: "timed out", run: null });
-    expect(nowLines([], [], { down: { ok: false } }, NOW)[0]).toMatchObject({ machine: "down", state: "unreachable", error: "no answer" });
+  it("unreachable: /api/machines couldn't reach it, whatever was last said about it; never why", () => {
+    const line = nowLines([busy("node-a")], [], { "node-a": { ok: false } }, NOW)[0];
+    expect(line).toMatchObject({ state: "unreachable", run: null });
+    expect(line).not.toHaveProperty("error");
+    expect(nowLines([], [], { down: { ok: false } }, NOW)[0]).toMatchObject({ machine: "down", state: "unreachable" });
   });
-  it("in the machine list and reachable, but not in dbench's job list: can't say what it does", () => {
-    expect(nowLines([], [], { fresh: { ok: true } }, NOW)[0]).toMatchObject({ state: "unreachable", error: "dbench's job list has nothing for it" });
+  it("busy with a run the page doesn't show: running, with no run named", () => {
+    const m = { ...machine("node-a"), busy: true };
+    expect(nowLines([m], [], reach, NOW)[0]).toMatchObject({ state: "running", run: null, story: null, minutes: null, silent: null });
+  });
+  it("in the machine list and reachable, but not in the job list: can't say what it does, so unreachable", () => {
+    expect(nowLines([], [], { fresh: { ok: true } }, NOW)[0]).toMatchObject({ state: "unreachable" });
   });
   it("before /api/machines answers, dbench's nodes are listed as dbench sees them", () => {
     expect(nowLines([machine("node-d"), busy("node-a")], [], null, NOW).map((l) => [l.machine, l.state])).toEqual([["node-a", "running"], ["node-d", "idle"]]);
@@ -410,34 +230,6 @@ describe("when a machine's job ended", () => {
   it("null when nothing says", () => expect(jobEndedAt({ jobs: [job("a", "done", null)], live: live({ jobId: "a", status: "done" }), stateAt: "" })).toBeNull());
   it("a run's end uses its last job's recorded end over its last report", () => {
     expect(endedAt({ jobs: [job("a", "done", 900, "", 500)], stateAt: "" })).toBe(500);
-  });
-});
-
-// ---------------------------------------------------------------------------------------------------------------
-describe("an invalid run needs nothing from you: it is left out", () => {
-  const INVALID = { reason: "read the reference build in story 7", since: "2026-09-30" };
-  const bad = (over: Partial<Row>) => row({ invalid: INVALID, ...over });
-  const PERSON: Finalize = { rescore: "failed", reason: "no browser", version: SUITE, packRef: SUITE, at: "", needsPerson: true, attempts: null, lastAttemptAt: "" };
-  it("not unscored, not a re-score fault, even when the harness says a person is needed", () => {
-    expect(needs({ rows: [bad({ rescores: [], scores: {}, finalize: PERSON })] })).toEqual([]);
-    expect(needs({ rows: [bad({ rescores: [SUITE], scores: {}, finalize: PERSON })] })).toEqual([]);
-  });
-  it("not a failure or stop from the last day", () => {
-    expect(needs({ rows: [bad({ status: "failed", scores: {}, rescores: [], jobs: [job("j", "failed", NOW - 60)] })] })).toEqual([]);
-  });
-  it("not a silent story", () => {
-    expect(needs({ all: [{ ...running(120, 5), invalid: INVALID }] })).toEqual([]);
-  });
-  it("the same run without the mark does need you (the control)", () => {
-    expect(kinds(needs({ rows: [row({ rescores: [], scores: {}, finalize: PERSON })] }))).toEqual(["unscored"]);
-  });
-  it("its machine is still judged as a machine: busy with it is not idle", () => {
-    expect(needs({ machines: [busy("node-a")], all: [{ ...running(1, 1), invalid: INVALID }] })).toEqual([]);
-  });
-  it("the machine's now line names the run with its mark, so it can be struck through", () => {
-    const r = { ...running(1, 1), invalid: INVALID };
-    const [line] = nowLines([busy("node-a")], [r], null, NOW);
-    expect(line.run?.invalid).toEqual(INVALID);
   });
 });
 

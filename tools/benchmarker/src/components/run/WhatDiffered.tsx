@@ -33,7 +33,6 @@ const SHOW: Record<Exclude<DifferUnit, "passRate">, (n: number) => string> = {
 /** Each group's heading; the outcome (one row, held-out) needs none. */
 const GROUP_TERM: Partial<Record<DifferGroup, TermId>> = { cost: "cost", time: "timeSplit", conversation: "conversation" };
 
-const NO_PROFILE = "it was recorded before the harness kept one, or its client's log can't be read.";
 const NO_RATIO = "No ratio without both conversation profiles.";
 
 function Value({ row, side, story, which }: { row: DifferRow; side: DifferSide; story: Story; which: "a" | "b" }) {
@@ -55,10 +54,10 @@ function Label({ row }: { row: DifferRow }) {
 function ConversationRows({ rows, a, b, thisRun, other }: { rows: DifferRow[]; a: Story; b: Story; thisRun: Row; other: Row }) {
   const hasA = !!a.conversation, hasB = !!b.conversation;
   if (!hasA && !hasB) {
-    return <tr data-row="no-profile"><td colSpan={4} className="no-profile" data-side="both">Neither story run has a conversation profile: each was recorded before the harness kept one, or its client's log can't be read.</td></tr>;
+    return <tr data-row="no-profile"><td colSpan={4} className="no-profile" data-side="both">Neither story run has a conversation profile.</td></tr>;
   }
   const span = rows.length;
-  const none = (run: Row, which: "a" | "b") => <td rowSpan={span} className="no-profile" data-side={which}>{run.runId} has no conversation profile for this story: {NO_PROFILE}</td>;
+  const none = (run: Row, which: "a" | "b") => <td rowSpan={span} className="no-profile" data-side={which}>{run.runId} has no conversation profile for this story.</td>;
   return <>{rows.map((r, i) => (
     <tr key={r.key} data-row={r.key} data-group={r.group} data-differs={r.differs ? "true" : undefined}>
       <Label row={r} />
@@ -92,7 +91,7 @@ export function WhatDiffered({ run, state, storyId, params }: { run: Row; state:
         {chosen ? null : <option value="">choose a run…</option>}
         {options.map((e) => (
           <option key={e.run.runId} value={e.run.runId}>
-            {e.run.runId}{e.run.runId === typical?.run.runId ? " · most typical" : ""}{e.run.invalid ? " · invalid" : ""}
+            {e.run.runId}{e.run.runId === typical?.run.runId ? " · most typical" : ""}
           </option>
         ))}
       </select>
@@ -104,7 +103,7 @@ export function WhatDiffered({ run, state, storyId, params }: { run: Row; state:
     return (
       <Section term="whatDiffered" id="differed" aside={aside}>
         {notes}
-        <p className="rp-empty">Every other run that recorded this story is invalid, so none is the most typical. Choose one to compare with anyway.</p>
+        <p className="rp-empty">Choose a run to compare with.</p>
       </Section>
     );
   }
@@ -126,7 +125,7 @@ export function WhatDiffered({ run, state, storyId, params }: { run: Row; state:
             <tr>
               <th>Figure</th>
               <th className="n">this story run <span className="run-id">{run.runId}</span></th>
-              <th className="n"><StoryRunLink pack={other.pack} stack={other.stack} runId={other.runId} story={storyId} invalid={other.invalid}>{other.runId}</StoryRunLink></th>
+              <th className="n"><StoryRunLink pack={other.pack} stack={other.stack} runId={other.runId} story={storyId}>{other.runId}</StoryRunLink></th>
               <th className="n"><Term id="ratioThisOverOther" /></th>
             </tr>
           </thead>

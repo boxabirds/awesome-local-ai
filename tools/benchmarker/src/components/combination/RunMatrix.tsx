@@ -5,14 +5,13 @@ import { useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent 
 import type { Row } from "../../../shared/types.ts";
 import type { TermId } from "../../../shared/glossary.ts";
 import { buildMatrix, DIVERGENCE, MECHANISM_TERM, METRICS, runTotal, type Matrix, type MatrixCell, type Metric, type StoryMedian } from "../../../shared/combinationView.ts";
-import { scoreOfRecord, unscoredReason } from "../../../shared/stats.ts";
-import { finalScoreNote } from "../../../shared/finalScore.ts";
+import { scoreOfRecord } from "../../../shared/stats.ts";
 import { duration } from "../../format.ts";
 import { RunLink, StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { Missing, Term, termName, termTip } from "./Term.tsx";
-import { InterventionMark, InvalidTag } from "../RunMarks.tsx";
-import { interventionsOf } from "../../../shared/runView.ts";
+import { InterventionMark } from "../RunMarks.tsx";
+import { interventionsOf, PENDING } from "../../../shared/runView.ts";
 
 const PERCENT = 100;
 const SECONDS_PER_MINUTE = 60;
@@ -28,7 +27,7 @@ const METRIC_VIEW: Record<Metric, { term: TermId; label: string; cell: (v: numbe
     cell: (v, c) => (c?.story?.ownTotal ? `${c.story.ownPassed ?? 0}/${c.story.ownTotal}` : `${Math.round(v * PERCENT)}%`),
     total: (v, run) => `${v} of ${run.stories.filter((s) => s.ownTotal).length} pass`,
   },
-  tokS: { term: "tokS", label: "tok/s", cell: (v) => v.toFixed(SPEED_DECIMALS), total: (v) => v.toFixed(SPEED_DECIMALS) },
+  tokS: { term: "tokS", label: "generated tok/s", cell: (v) => v.toFixed(SPEED_DECIMALS), total: (v) => v.toFixed(SPEED_DECIMALS) },
 };
 
 export const metricLabel = (m: Metric) => METRIC_VIEW[m].label;
@@ -55,7 +54,7 @@ function flagTip(c: MatrixCell, metric: Metric, m: StoryMedian | null | undefine
 
 function cellTip(c: MatrixCell, run: Row, metric: Metric, m: StoryMedian | null | undefined): string {
   const where = `${run.runId} · story ${c.storyId}${c.story?.title ? ` (${c.story.title})` : ""}`;
-  const marks = `${run.invalid ? " Invalid run: not in the median, never flagged." : ""}${interventionsOf(run, c.storyId).length ? ` Intervened ${interventionsOf(run, c.storyId).length}× in this story.` : ""}`;
+  const marks = interventionsOf(run, c.storyId).length ? ` Intervened ${interventionsOf(run, c.storyId).length}× in this story.` : "";
   if (c.state === "absent") return `${where}: not built.`;
   if (c.state === "building") return `${where}: being built now.`;
   const v = c.value === null ? `— (${c.missing})` : METRIC_VIEW[metric].cell(c.value, c);
@@ -63,23 +62,22 @@ function cellTip(c: MatrixCell, run: Row, metric: Metric, m: StoryMedian | null 
   return `${where}: ${v}; ${med}. ${HELD_OUT_WORD[c.heldOut]}${c.story?.ownTotal ? ` (${c.story.ownPassed ?? 0}/${c.story.ownTotal})` : ""}.${c.divergence ? ` Flagged: ${flagTip(c, metric, m)}` : ""}${marks}`;
 }
 
-/** The run's head: its link, status, and score of record, or "—" and why; live progress is labelled live. */
+/** The run's head: its link, status, and score of record, pending for a finished run without one; live progress is
+ * labelled live. */
 function RunHead({ run }: { run: Row }) {
   const score = scoreOfRecord(run);
   const built = run.storiesWorking.squares.filter((q) => q.state !== "unbuilt" && q.state !== "running").length;
-  const note = finalScoreNote(run);
-  const why = run.status === "finished" ? `Unscored: ${unscoredReason(run)}.${note ? ` ${note}` : ""}` : `No score of record: the run is ${run.status}, and only a finished run is re-scored.`;
+  const why = `No score of record: the run is ${run.status}, and only a finished run is re-scored.`;
   return (
     <>
       <th scope="row" className="m-run">
-        <RunLink pack={run.pack} stack={run.stack} runId={run.runId} invalid={run.invalid} />
+        <RunLink pack={run.pack} stack={run.stack} runId={run.runId} />
         <span className={`m-status s-${run.status}`} data-tip={`${termName("runStatus")}: ${run.status}${run.statusNote ? ` (${run.statusNote})` : ""}`}>{STATUS_ICON[run.status] ?? "?"} {run.status}</span>
         <InterventionMark list={interventionsOf(run)} compact />
       </th>
       <td className="m-score">
-        {run.invalid ? <InvalidTag invalid={run.invalid} />
-          : score ? <b className="of-record" data-tip={termTip("scoreOfRecord")}>{score.passed}<span className="small">/{score.total}</span></b>
-          : run.status === "finished" ? <span className="unscored" tabIndex={0} data-tip={why}>unscored</span>
+        {score ? <b className="of-record" data-tip={termTip("scoreOfRecord")}>{score.passed}<span className="small">/{score.total}</span></b>
+          : run.status === "finished" ? <span className="pending" data-tip={termTip("noScore")}>{PENDING}</span>
           : built ? <span className="live" tabIndex={0} data-tip={`${termTip("liveBadge")} ${why}`}><span className="live-badge">live</span> {run.storiesWorking.working}/{built}</span>
           : <Missing why={why} />}
       </td>
@@ -176,7 +174,7 @@ export function RunMatrix({ runs, metric, matrix: given }: { runs: Row[]; metric
           {matrix.rows.map((r, i) => {
             const total = r.run.stories.length ? runTotal(r.run, metric) : null;
             return (
-              <tr key={r.run.runId} data-run={r.run.runId} data-status={r.run.status} data-invalid={r.run.invalid ? "true" : undefined}>
+              <tr key={r.run.runId} data-run={r.run.runId} data-status={r.run.status}>
                 <RunHead run={r.run} />
                 {r.cells.map((c, j) => <MatrixCellView key={c.storyId} c={c} run={r.run} metric={metric} m={matrix.medians.get(c.storyId)} row={i} col={j} />)}
                 <td className="m-total">{total === null ? <Missing why="Nothing recorded for this run yet." /> : view.total(total, r.run)}</td>
@@ -186,7 +184,7 @@ export function RunMatrix({ runs, metric, matrix: given }: { runs: Row[]; metric
         </tbody>
         <tfoot>
           <tr className="m-median">
-            <th scope="row" className="m-run" colSpan={2}><Term id="storyMedian" /> <span className="small" data-tip={runs.some((r) => r.invalid) ? "Over the finished runs; invalid runs are left out." : undefined}>finished runs</span></th>
+            <th scope="row" className="m-run" colSpan={2}><Term id="storyMedian" /> <span className="small">finished runs</span></th>
             {matrix.stories.map((id) => {
               const m = matrix.medians.get(id);
               return <td key={id} data-story={id} data-tip={m ? `Story ${id}: median ${medianText(m, metric)} over ${m.n} finished run${m.n === 1 ? "" : "s"}` : `Story ${id}: no finished run has it, so there is no median`}>{m ? medianText(m, metric) : "—"}</td>;
@@ -200,7 +198,6 @@ export function RunMatrix({ runs, metric, matrix: given }: { runs: Row[]; metric
         <span className="legend"><i className="sq q-unbuilt" />not measured</span> <span className="legend"><i className="sq q-running" />building</span>{" "}
         · colour: <Term id="storyRunHeldOut">held-out for that story</Term> · text: {view.label} · <span className="flag" aria-hidden="true">⚑</span> <Term id="divergence">more than {DIVERGENCE * PERCENT}% from the story's median</Term> (filled above it, outlined below), with its mechanism on hover ({MECHANISM_LIST}).
         {runs.some((r) => r.interventions?.length) ? <> <span className="intervened compact" aria-hidden="true">✱</span> <Term id="intervened">intervened</Term>: done by hand, still counted.</> : null}
-        {runs.some((r) => r.invalid) ? <> <span className="invalid-run">struck through</span>: <Term id="invalidRun">invalid</Term>, in no figure.</> : null}
       </p>
     </div>
   );

@@ -1,6 +1,10 @@
 // Pure logic: from repo paths, run records and dbench jobs to the rows the page shows. No I/O here.
-import { FINAL_RESCORES, type FinalRescore, type Finalize } from "../shared/types.ts";
-import type { ConversationProfile, Intervention, Invalid, JobRef, Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, Usage, Score, Stages, Story } from "../shared/types.ts";
+//
+// Two shapes: the server's own (RunRecord, FullRow), which keep everything a record says, faults included (the
+// invalid mark, finalize.json, each story's accounting check and harness faults, each job's reason), and the page's
+// (Row), which carries none of that: invalid runs are left out, a split that failed its check is sent as none, and a
+// job's failure reason stays here. server/faults.ts reads the full shape for GET /api/faults.
+import type { ConversationProfile, Intervention, JobRef, Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, TimeSplit, Usage, Score, Story } from "../shared/types.ts";
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
 export const RECENT_S = 24 * 3600;
@@ -57,54 +61,57 @@ export interface RunRef {
 /** A re-score's per-story results against the build after story `after`. */
 export interface Rescored { after: string; byStory: NonNullable<Story["byStory"]> }
 
+/** A record's time split: the page's, with the record's own check of it (accounting.py). "unchecked": the record
+ * has no accounting (a Claude Code run, or one from before the check existed). `version`: the accounting version
+ * that made the record; null when it doesn't say. */
+export interface AccountingCheck { status: "ok" | "problems" | "unchecked"; problems: string[]; version: number | null }
+export type RecordSplit = TimeSplit & { check: AccountingCheck };
+export type RecordUsage = Omit<Usage, "split"> & { split?: RecordSplit | null };
+/** A story as the record has it: the page's, plus its check and the harness faults recorded with it (drive.py's
+ * harness_faults, verbatim). */
+export type RecordStory = Omit<Story, "usage"> & { usage?: RecordUsage | null; harnessFaults?: unknown[] };
+
+/** A run marked invalid in its run.json (`"invalid": {"reason": …, "since": "2026-09-30"}`): its result can't stand (it
+ * saw the reference build, say). The page never shows it; the faults feed names it. */
+export interface Invalid {
+  reason: string;
+  /** The date it was marked, as written; "" when the mark gives none. */
+  since: string;
+}
+
+/** finalize.json as finalize.py writes it, verbatim: at least `rescore` ("done", "skipped", "failed" or "flagged"),
+ * with whatever else it recorded (reason, reason_kind, needs_person, attempts, history, guard, …). */
+export type RawFinalize = { rescore: string } & Record<string, unknown>;
+
 export interface RunRecord extends RunRef {
   host?: string;
   /** run.json's client ("pi", "claude"); absent in fixtures and records read before it was kept. */
   client?: string;
   /** Per re-scored version, the latest re-scored story's per-story results. */
   rescored?: Record<string, Rescored>;
+  /** Per re-scored version, what spoiled the re-score (rescore.json's harness_fault on its last result); absent: none. */
+  rescoreFaults?: Record<string, string>;
   packVersion: string;
   state: string;
   stateAt: string;
-  stories: Story[];
+  stories: RecordStory[];
   scores: Record<string, Score>;
-  /** run.json's "invalid" mark; absent in records read before it existed (and in fixtures): valid. */
+  /** run.json's "invalid" mark; absent in records read before it existed: valid. */
   invalid?: Invalid | null;
   /** interventions.md, parsed; absent: none. */
   interventions?: Intervention[];
-  /** finalize.json, parsed; absent or null: none. */
-  finalize?: Finalize | null;
+  /** finalize.json, verbatim; absent or null: none. */
+  finalize?: RawFinalize | null;
 }
 
 // ---------- what the record says about the run itself ----------
 
-const text = (x: unknown) => (typeof x === "string" ? x.trim() : "");
-
-/** A final re-score has been tried at least once when the harness counts its attempts. */
-const FIRST_ATTEMPT = 1;
-const attemptCount = (x: unknown) => (typeof x === "number" && Number.isInteger(x) && x >= FIRST_ATTEMPT ? x : null);
-
-/** finalize.json as finalize.py writes it: {"rescore": "skipped", "reason", "version", "pack_ref", "at"}, and, since the
- * harness retries a final re-score by itself, {"needs_person", "attempts", "last_attempt_at"}. Null for no record, or
- * one that doesn't say how the re-score ended: nothing is made of a record that can't be read. A record that doesn't
- * say whether a person is needed says nothing (null): only the harness's own `true` asks for one. */
-export function parseFinalize(raw: unknown): Finalize | null {
+/** finalize.json, kept whole: null for no record or one that doesn't say how the re-score ended (nothing is made of
+ * a record that can't be read). */
+export function parseFinalize(raw: unknown): RawFinalize | null {
   if (typeof raw !== "object" || raw === null) return null;
-  const o = raw as { rescore?: unknown; reason?: unknown; version?: unknown; pack_ref?: unknown; at?: unknown; needs_person?: unknown; attempts?: unknown; last_attempt_at?: unknown };
-  if (!FINAL_RESCORES.includes(o.rescore as FinalRescore)) return null;
-  return {
-    rescore: o.rescore as FinalRescore, reason: text(o.reason), version: text(o.version), packRef: text(o.pack_ref), at: text(o.at),
-    needsPerson: typeof o.needs_person === "boolean" ? o.needs_person : null, attempts: attemptCount(o.attempts), lastAttemptAt: text(o.last_attempt_at),
-  };
-}
-
-/** accounting.py's own version line: "VERSION = 3   # bump when the calculation changes". */
-const ACCOUNTING_VERSION_LINE = /^VERSION = (\d+)\b/m;
-
-/** The harness's current accounting version, from accounting.py's text; null when it can't be read. */
-export function parseAccountingVersion(source: string | undefined): number | null {
-  const m = ACCOUNTING_VERSION_LINE.exec(source ?? "");
-  return m ? Number(m[1]) : null;
+  const o = raw as Record<string, unknown>;
+  return typeof o.rescore === "string" && o.rescore ? (o as RawFinalize) : null;
 }
 
 const NO_REASON = "marked invalid with no reason given";
@@ -282,11 +289,25 @@ export function jobsByRun(byNode: Record<string, DbenchJob[]>): Map<string, JobR
       const key = jobKey(jobStack(j), packName(j.spec.pack), j.spec.run_id ?? "");
       out.set(key, [...(out.get(key) ?? []), {
         id: j.id, node, status: j.state.status ?? "", submittedAt: j.submitted_at ?? null, updatedAt: j.updated_at ?? null,
-        endedAt: jobEndedAt(j), reason: jobReason(j),
+        endedAt: jobEndedAt(j),
       }]);
     }
   }
   for (const js of out.values()) js.sort((a, b) => (a.submittedAt ?? 0) - (b.submittedAt ?? 0) || a.id.localeCompare(b.id));
+  return out;
+}
+
+/** Every dbench job of each run, whole and with its node, keyed as indexJobs keys them, oldest first: what the
+ * faults feed reads (server/faults.ts). */
+export function dbenchJobsByRun(byNode: Record<string, DbenchJob[]>): Map<string, NodeJob[]> {
+  const out = new Map<string, NodeJob[]>();
+  for (const [node, jobs] of Object.entries(byNode)) {
+    for (const j of jobs) {
+      const key = jobKey(jobStack(j), packName(j.spec.pack), j.spec.run_id ?? "");
+      out.set(key, [...(out.get(key) ?? []), { ...j, node }]);
+    }
+  }
+  for (const js of out.values()) js.sort((a, b) => (a.submitted_at ?? 0) - (b.submitted_at ?? 0) || a.id.localeCompare(b.id));
   return out;
 }
 
@@ -332,7 +353,6 @@ export function liveFromJob(job: DbenchJob, queue: QueuePlace | undefined): Live
   return {
     jobId: job.id,
     status: job.state.status ?? "",
-    attempt: job.state.attempt ?? null,
     currentStory: cur,
     runningStory: story ? String(story.id) : null,
     agentMinutes: story?.agent_minutes ?? null,
@@ -346,7 +366,6 @@ export function liveFromJob(job: DbenchJob, queue: QueuePlace | undefined): Live
     storiesInScope: stories.length || null,
     runStartedAt: job.state.started_at ?? null,
     totalAgentMinutes: stories.some((s) => s.agent_minutes != null) ? stories.reduce((t, s) => t + (s.agent_minutes ?? 0), 0) : null,
-    logTail: (prog.log_tail ?? []).slice(-3),
     queue: queue ?? null,
   };
 }
@@ -376,24 +395,21 @@ export interface RawUsage {
   } };
 }
 
-/** `currentVersion`: the harness's current accounting version, to say whether it made this record. */
-function splitOf(ts: RawUsage["time_split"], currentVersion: number | null): Usage["split"] {
+function splitOf(ts: RawUsage["time_split"]): RecordSplit | null {
   if (!ts || ts.wall_s == null) return null;
   const m = ts.model, other = ts.other_s ?? 0;
-  const version = ts.accounting?.version ?? null;
   return {
     wall: ts.wall_s, prefill: m?.prefill_s ?? 0, decode: m?.decode_s ?? 0, tools: ts.tools_s ?? 0, compaction: ts.compaction_s ?? 0,
     // Untimed model: "other" holds the model's time and the agent's own, which can't be told apart.
     other: m ? other : 0, modelUnsplit: m ? 0 : other,
     toolsByKind: ts.tools_by_kind ?? {},
     betweenSessions: ts.between_sessions_s ?? 0,
-    check: !ts.accounting ? { status: "unchecked", problems: [] }
-      : { status: ts.accounting.ok ? "ok" : "problems", problems: ts.accounting.problems ?? [], version,
-          current: version === null || currentVersion === null ? null : version === currentVersion },
+    check: !ts.accounting ? { status: "unchecked", problems: [], version: null }
+      : { status: ts.accounting.ok ? "ok" : "problems", problems: ts.accounting.problems ?? [], version: ts.accounting.version ?? null },
   };
 }
 
-function usageOf(raw: RawUsage, currentVersion: number | null): Usage | null {
+function usageOf(raw: RawUsage): RecordUsage | null {
   const a = raw.agent, m = raw.time_split?.model;
   if (!a && !m) return null;
   return {
@@ -405,14 +421,26 @@ function usageOf(raw: RawUsage, currentVersion: number | null): Usage | null {
     prefillTokens: m?.prefill_tokens ?? null, prefillSeconds: m?.prefill_s ?? null, prefillTokS: m?.prefill_tok_s ?? null,
     draftAcceptance: m?.draft_acceptance ?? null,
     compactions: a?.compactions ?? null, nudges: a?.nudges ?? null,
-    split: splitOf(raw.time_split, currentVersion),
+    split: splitOf(raw.time_split),
   };
+}
+
+/** A story as the page gets it: the record's, without its check and harness faults. A split that failed its check
+ * is not sent: the breakdown is not available, like one never recorded. The story's own totals (agent time, tokens,
+ * calls, held-out) stay. */
+export function publicStory(s: RecordStory): Story {
+  const { harnessFaults: _faults, usage, ...rest } = s;
+  if (!usage) return { ...rest, usage: usage ?? null };
+  const { split, ...u } = usage;
+  if (!split) return { ...rest, usage: { ...u, split: split ?? null } };
+  const { check, ...parts } = split;
+  return { ...rest, usage: { ...u, split: check.status === "problems" ? null : parts } };
 }
 
 /** A run's tokens and speeds over its recorded stories. Speeds are total tokens over total seconds, so a
  * long story counts for more than a short one. tokS (output tokens over story time) exists for every run;
  * the model-only decode and prefill rates only where the harness timed the model. */
-export function runUsage(stories: Story[]): RunUsage {
+export function runUsage(stories: Pick<Story, "usage">[]): RunUsage {
   const us = stories.map((s) => s.usage).filter((u): u is Usage => !!u);
   const sum = (f: (u: Usage) => number | null) => (us.some((u) => f(u) != null) ? us.reduce((t, u) => t + (f(u) ?? 0), 0) : null);
   const rate = (tok: (u: Usage) => number | null, sec: (u: Usage) => number | null) => {
@@ -452,9 +480,8 @@ function conversationOf(c: RawConversation | undefined | null): ConversationProf
 }
 
 export function storyEntry(
-  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null } & RawUsage,
-  accountingVersion: number | null = null,
-): Story {
+  id: string, raw: { title?: string; status?: string; accept?: RawAccept | null; conversation?: RawConversation | null; harness_faults?: unknown[] } & RawUsage,
+): RecordStory {
   const acc = raw.accept ?? {};
   const own = acc.by_story?.[/^\d+$/.test(id) ? id.padStart(2, "0") : id] ?? {};
   return {
@@ -466,8 +493,9 @@ export function storyEntry(
     ownPassed: own.passed ?? null,
     ownTotal: own.total ?? null,
     byStory: acc.by_story ? normaliseByStory(acc.by_story) : null,
-    usage: usageOf(raw, accountingVersion),
+    usage: usageOf(raw),
     conversation: conversationOf(raw.conversation),
+    ...(Array.isArray(raw.harness_faults) && raw.harness_faults.length ? { harnessFaults: raw.harness_faults } : {}),
   };
 }
 
@@ -485,45 +513,28 @@ export function mergeStories(recorded: Story[], live: DbenchStory[] | undefined)
   return [...recorded, ...extra];
 }
 
-// ---------- build -> score -> judge ----------
+// ---------- judge ----------
 
-export function stages(run: { state: string; rescores: string[]; hasBundle: boolean }, job: DbenchJob | null, suite: string): Stages {
+/** A run can be judged once it is finished, re-scored under the current suite, and has its workspace history
+ * (workspace.bundle, which the review page rebuilds each story from). */
+export function judgeReady(run: { state: string; rescores: string[]; hasBundle: boolean }, job: DbenchJob | null, suite: string): boolean {
   const status = job?.state.status;
-  let build: string;
-  if (status === "running") {
-    const prog = job!.progress ?? {};
-    const cur = prog.current_story;
-    const busy = (prog.stories ?? []).find((s) => s.status === "running")?.id;
-    if (cur) build = `running: story ${cur}`;
-    else if (busy) build = `running: story ${busy} (finishing)`; // agent done: gates, scoring, commit
-    else if (prog.stories?.length) build = "running: between stories";
-    else build = "running: starting";
-  } else if (status === "queued") build = "queued";
-  else if (status === "failed") build = `failed: ${job!.state.reason || "no reason given"}`;
-  else if (status === "cancelled") build = "cancelled";
-  else if (status === "done" && !run.state) build = "finished (not recorded)";
-  else build = run.state || "unknown";
-
   const finished = run.state === "finished" && status !== "running" && status !== "queued";
-  const scored = run.rescores.includes(suite);
-  const score = !finished ? "waiting for the build" : scored ? `scored with ${suite}` : `not scored with ${suite}`;
-  const judge = !scored || !finished ? "waiting for scoring" : run.hasBundle ? "ready" : "needs workspace.bundle";
-  return { build, score, judge };
+  return finished && run.rescores.includes(suite) && run.hasBundle;
 }
 
-/** One word for where a run is, and a note: the dbench job's state when there is a job, else the record's. */
+/** One word for where a run is, and where in its work it is: the dbench job's state when there is a job, else the
+ * record's. Never why a job failed: that is the faults feed's (server/faults.ts). */
 export function runStatus(run: { state: string }, job: DbenchJob | null): { status: RunStatus; note: string } {
   const st = job?.state.status;
-  const attempt = (job?.state.attempt ?? 1) > 1 ? `attempt ${job!.state.attempt}` : "";
-  const join = (...parts: string[]) => parts.filter(Boolean).join(" · ");
   if (st === "running") {
     const prog = job!.progress ?? {};
     const busy = (prog.stories ?? []).find((s) => s.status === "running")?.id;
     const phase = prog.current_story ? "" : busy ? `finishing story ${busy}` : prog.stories?.length ? "between stories" : "starting";
-    return { status: "running", note: join(phase, attempt) };
+    return { status: "running", note: phase };
   }
   if (st === "queued") return { status: "queued", note: "" };
-  if (st === "failed") return { status: "failed", note: job!.state.reason || "no reason given" };
+  if (st === "failed") return { status: "failed", note: "" };
   if (st === "cancelled") return { status: "cancelled", note: "" };
   const byRecord: Record<string, RunStatus> = { finished: "finished", failed: "failed", stopped: "stopped" };
   if (byRecord[run.state]) return { status: byRecord[run.state], note: "" };
@@ -540,7 +551,7 @@ export interface MergedRow extends Omit<RunRecord, "dir"> {
 
 const EMPTY_RECORD = {
   rescores: [] as string[], rescoreLast: {} as Record<string, string>, hasBundle: false, host: "", packVersion: "", state: "", stateAt: "",
-  stories: [] as Story[], scores: {} as Record<string, Score>,
+  stories: [] as RecordStory[], scores: {} as Record<string, Score>,
 };
 
 /** One row per run record, plus one per dbench job that has no record yet: queued and running jobs
@@ -564,28 +575,45 @@ export function mergeRows(records: RunRecord[], jobs: Map<string, NodeJob>, now:
   return rows;
 }
 
-/** Everything the page needs, per row. */
-export function buildRows(
+/** What the server knows of a run: the page's row, plus what the record and its jobs say that the page never
+ * shows (server/faults.ts reads it). */
+export interface FullRow extends Row {
+  record: {
+    invalid: Invalid | null;
+    finalize: RawFinalize | null;
+    /** The record's stories, with their checks and harness faults (the row's `stories` are the page's). */
+    stories: RecordStory[];
+    rescoreFaults: Record<string, string>;
+    hasBundle: boolean;
+  };
+  /** Every dbench job of the run, whole, oldest first. */
+  dbenchJobs: NodeJob[];
+}
+
+/** Everything known, per run: invalid runs included. */
+export function buildFullRows(
   records: RunRecord[], byNode: Record<string, DbenchJob[]>, suites: Record<string, string>, now: number,
   flowCounts: Record<string, Record<string, number>> = {},
-): Row[] {
+): FullRow[] {
   const queue = queuePositions(byNode);
   const allJobs = jobsByRun(byNode);
-  return assignMachines(mergeRows(records, indexJobs(byNode), now).map(({ job, ...r }) => {
+  const wholeJobs = dbenchJobsByRun(byNode);
+  return assignMachines(mergeRows(records, indexJobs(byNode), now).map(({ job, ...r }): Omit<FullRow, "machine"> => {
     const suite = suites[r.pack] ?? "";
-    const stories = job ? mergeStories(r.stories, job.progress?.stories) : r.stories;
+    const recorded = r.stories.map(publicStory);
+    const stories = job ? mergeStories(recorded, job.progress?.stories) : recorded;
+    const { invalid, finalize, rescoreFaults, hasBundle, rescored: _rescored, rescoreLast: _last, stories: _stories, ...plain } = r;
     return {
-      ...r,
+      ...plain,
       host: r.host ?? "",
-      machine: "",
       label: machineLabel(r.stack),
       client: r.client || job?.spec.client || "",
       node: job?.node ?? null,
       family: rowFamily(r, suite),
       suite,
       stories,
-      usage: runUsage(r.stories), // recorded stories only: a story dbench reports done has no time split yet
-      stages: stages(r, job, suite),
+      usage: runUsage(recorded), // recorded stories only: a story dbench reports done has no time split yet
+      judgeReady: judgeReady(r, job, suite),
       ...(({ status, note }) => ({ status, statusNote: note }))(runStatus(r, job)),
       storiesWorking: storiesWorking(
         stories,
@@ -595,11 +623,25 @@ export function buildRows(
       ),
       live: job ? liveFromJob(job, queue.get(job.id)) : null,
       jobs: allJobs.get(jobKey(r.stack, r.pack, r.runId)) ?? [],
-      invalid: r.invalid ?? null,
       interventions: r.interventions ?? [],
-      finalize: r.finalize ?? null,
+      record: { invalid: invalid ?? null, finalize: finalize ?? null, stories: r.stories, rescoreFaults: rescoreFaults ?? {}, hasBundle },
+      dbenchJobs: wholeJobs.get(jobKey(r.stack, r.pack, r.runId)) ?? [],
     };
   }));
+}
+
+/** The page's row: without what only the server keeps. */
+export function publicRow(f: FullRow): Row {
+  const { record: _record, dbenchJobs: _jobs, ...row } = f;
+  return row;
+}
+
+/** Everything the page needs, per run it shows: a run marked invalid is not among them. */
+export function buildRows(
+  records: RunRecord[], byNode: Record<string, DbenchJob[]>, suites: Record<string, string>, now: number,
+  flowCounts: Record<string, Record<string, number>> = {},
+): Row[] {
+  return buildFullRows(records, byNode, suites, now, flowCounts).filter((f) => !f.record.invalid).map(publicRow);
 }
 
 const UNKNOWN_MACHINE = "unknown machine";
@@ -622,11 +664,14 @@ export function machineLabel(stack: string): string {
   return `${shortStack(stack)} ${engine}`;
 }
 
-/** What each node is doing: its running job and the number queued, idle nodes included, by name. */
-export function machines(nodes: string[], rows: Row[]): Machine[] {
+/** What each node is doing: its running job and the number queued, idle nodes included, by name. Over every run
+ * the server knows: a node running or queuing a run the page doesn't show (one marked invalid) is busy, not idle,
+ * and that run is named to nobody. */
+export function machines(nodes: string[], rows: FullRow[]): Machine[] {
   return nodes.toSorted().map((node) => {
     const mine = rows.filter((r) => r.node === node);
-    const run = mine.find((r) => r.live?.status === "running");
+    const live = mine.find((r) => r.live?.status === "running");
+    const run = live && !live.record.invalid ? live : null;
     return {
       node,
       running: run
@@ -637,7 +682,8 @@ export function machines(nodes: string[], rows: Row[]): Machine[] {
             agentMinutes: run.live?.agentMinutes ?? null,
           }
         : null,
-      queued: mine.filter((r) => r.live?.status === "queued").length,
+      busy: Boolean(live) && !run,
+      queued: mine.filter((r) => r.live?.status === "queued" && !r.record.invalid).length,
     };
   });
 }
@@ -691,4 +737,10 @@ export function finalScore(rs: RawRescore | null, state: string, lastStory: stri
   if (!last || last.harness_fault || state !== "finished" || lastStory === undefined || String(last.story) !== String(Number(lastStory))) return null;
   return { passed: last.passed ?? null, total: last.total ?? null,
     flaky: (rs!.results ?? []).reduce((n, x) => n + (x.flaky ?? 0), 0), at: rs!.finished_at ?? "" };
+}
+
+/** What spoiled a re-score, as its last result recorded it (harness_fault); null for none. */
+export function rescoreFault(rs: RawRescore | null): string | null {
+  const fault = rs?.results?.at(-1)?.harness_fault;
+  return typeof fault === "string" && fault.trim() ? fault.trim() : null;
 }

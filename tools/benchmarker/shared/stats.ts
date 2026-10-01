@@ -10,14 +10,8 @@ export interface ComboStats {
   quality: number | null;
 }
 
-/** A run its record marks invalid (it saw the reference build, say): shown, but in no figure anywhere. Every figure
- * leaves it out through this one test. A row from an older server has no mark: valid. */
-export const isInvalid = (row: Pick<Row, "invalid">): boolean => Boolean(row.invalid);
-
-/** Live progress over the runs the filters show, running ones included: shown labelled "live", and never used to rank.
- * Invalid runs are left out. */
-export function comboStats(all: Row[]): ComboStats {
-  const rows = all.filter((r) => !isInvalid(r));
+/** Live progress over the runs the filters show, running ones included: shown labelled "live", and never used to rank. */
+export function comboStats(rows: Row[]): ComboStats {
   const secs = rows.flatMap((r) => r.stories.map((s) => s.usage?.agentSeconds).filter((x): x is number => x != null));
   const squares = rows.flatMap((r) => r.storiesWorking.squares).filter((q) => q.total);
   const total = squares.reduce((t, q) => t + (q.total ?? 0), 0);
@@ -49,28 +43,21 @@ export const INDISTINGUISHABLE_TESTS = 12;
 export const suiteFamily = (suite: string) => /^(.*?-v\d+)/.exec(suite)?.[1] ?? "";
 
 /** A run's score of record: its finished build re-scored under exactly its pack's current suite. No fallback to
- * another suite version, and none to live scores: a run without one is counted as unscored, never ranked. An invalid
- * run has none, however it was scored. */
+ * another suite version, and none to live scores: a run without one is pending, never ranked. */
 export function scoreOfRecord(row: Row): Score | null {
-  if (row.status !== "finished" || isInvalid(row)) return null;
+  if (row.status !== "finished") return null;
   const s = row.scores[row.suite];
   return s && s.passed !== null && s.total !== null ? s : null;
 }
 
-/** Where a run stands for the ranking: counted (of record), or why not. Invalid comes before any status. */
-export type Standing = "ofRecord" | "unscored" | "invalid" | Exclude<RunStatus, "finished">;
-export const NOT_COUNTED_ORDER: Exclude<Standing, "ofRecord">[] = ["running", "queued", "unscored", "invalid", "failed", "stopped", "cancelled", "unknown"];
+/** Where a run stands for the ranking: counted (of record), or why not: finished with its score pending, or not
+ * finished. */
+export type Standing = "ofRecord" | "pending" | Exclude<RunStatus, "finished">;
+export const NOT_COUNTED_ORDER: Exclude<Standing, "ofRecord">[] = ["running", "queued", "pending", "failed", "stopped", "cancelled", "unknown"];
 
 export function standingOf(row: Row): Standing {
-  if (isInvalid(row)) return "invalid";
   if (row.status !== "finished") return row.status;
-  return scoreOfRecord(row) ? "ofRecord" : "unscored";
-}
-
-/** Why a finished run has no score of record, in words: scored only under other suite versions, or not at all. */
-export function unscoredReason(row: Row): string {
-  const other = Object.entries(row.scores).filter(([v]) => v !== row.suite).map(([v, s]) => `${s.passed ?? "?"}/${s.total ?? "?"} under ${v}`);
-  return other.length ? `re-scored only under another suite version (${other.join(", ")}), not under ${row.suite}` : `not re-scored under ${row.suite} yet`;
+  return scoreOfRecord(row) ? "ofRecord" : "pending";
 }
 
 /** Median, lowest, highest and how many; null for none. An even count takes the mean of the middle two. */
@@ -113,8 +100,6 @@ export interface RankedCombination {
   ofRecord: Row[];
   /** Every other run, by why it isn't counted. */
   notCounted: Partial<Record<Exclude<Standing, "ofRecord">, number>>;
-  /** The runs marked invalid, whatever their status: shown with their reasons, counted in nothing. */
-  invalid: Row[];
   /** Score of record over those runs, with the pooled pass rate (sum passed over sum total). */
   score: (Spread & { total: number | null; pooled: number }) | null;
   /** Each a median over the runs of record of that run's own per-story figure. */
@@ -140,20 +125,17 @@ export function summarise(stack: string, rs: Row[]): RankedCombination {
   const scores = ofRecord.map((r) => scoreOfRecord(r)!);
   const s = spread(scores.map((x) => x.passed!));
   const total = scores.reduce((t, x) => t + x.total!, 0);
-  const invalid = rs.filter(isInvalid);
-  const finished = rs.filter((r) => r.status === "finished" && !isInvalid(r)).length;
-  const suite = rs[0]?.suite ?? "";
+  const finished = rs.filter((r) => r.status === "finished").length;
   return {
     pack: rs[0]?.pack ?? "", stack, label: rs[0]?.label ?? stack, machines: [...new Set(rs.map((r) => r.machine))].toSorted(),
-    byStatus, ofRecord, notCounted, invalid,
+    byStatus, ofRecord, notCounted,
     score: s ? { ...s, total: new Set(scores.map((x) => x.total)).size === 1 ? scores[0].total : null, pooled: scores.reduce((t, x) => t + x.passed!, 0) / total } : null,
     hoursPerStory: spreadOf(ofRecord, (r) => { const x = perStory(r, (u) => u.agentSeconds); return x === null ? null : x / SECONDS_PER_HOUR; }),
     outPerStory: spreadOf(ofRecord, (r) => perStory(r, (u) => u.outTokens)),
     callsPerStory: spreadOf(ofRecord, (r) => perStory(r, (u) => u.calls)),
     readPerStory: spreadOf(ofRecord, (r) => perStory(r, (u) => u.readTokens)),
     tokS: spreadOf(ofRecord, runTokS),
-    unranked: s ? null : finished ? `${finished} finished, none re-scored under ${suite}`
-      : invalid.length ? `no valid finished run: ${invalid.length} invalid` : "no finished run yet",
+    unranked: s ? null : finished ? `${finished} finished, score${finished === 1 ? "" : "s"} pending` : "no finished run yet",
   };
 }
 

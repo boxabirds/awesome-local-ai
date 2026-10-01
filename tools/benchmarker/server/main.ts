@@ -2,12 +2,16 @@
 //
 //   node server/main.ts [--repo PATH] [--port 7760] [--judge-url URL]
 //   node server/main.ts --port 7769 --fixture e2e/fixture.json      (tests: fixed data, no git, no dbench)
+//
+// GET /api/state is what the page shows; GET /api/faults is what it never shows: every internal-fault condition the
+// server knows of (server/faults.ts), for the monitor.
 import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { State } from "../shared/types.ts";
-import { buildRows, machines, webBase, type DbenchJob, type RunRecord } from "./domain.ts";
+import { buildFullRows, machines, publicRow, webBase, type DbenchJob, type RunRecord } from "./domain.ts";
+import { findFaults, type Fault } from "./faults.ts";
 import { BRANCH, git, loadFlowCounts, loadJobs, loadRuns } from "./sources.ts";
 import { fakeOps, realOps, type Ops } from "./ops.ts";
 
@@ -88,12 +92,27 @@ function every(ms: number, fn: () => Promise<void>) {
 
 function state(): State {
   const t = now();
-  const rows = buildRows(src.records, src.jobs, src.suites, t, src.flowCounts);
+  const full = buildFullRows(src.records, src.jobs, src.suites, t, src.flowCounts);
   return {
-    buildId: buildId(), now: t, fetchedAt: src.fetchedAt, fetchError: src.fetchError,
-    dbenchAt: src.dbenchAt, dbenchError: src.dbenchError, suites: src.suites, web: src.web,
-    judgeUrl: args["judge-url"]!, branch: BRANCH, rows, machines: machines(Object.keys(src.jobs), rows),
+    buildId: buildId(), now: t,
+    // The page says only how fresh its data is: the older of the two sources' reads, and whether the last reads worked.
+    updatedAt: Math.min(src.fetchedAt, src.dbenchAt), updating: !src.fetchError && !src.dbenchError,
+    suites: src.suites, web: src.web, judgeUrl: args["judge-url"]!, branch: BRANCH,
+    rows: full.filter((f) => !f.record.invalid).map(publicRow), machines: machines(Object.keys(src.jobs), full),
   };
+}
+
+/** When each fault was first listed by this server, by id: a monitor can tell a new one from one it has logged. */
+const firstSeen = new Map<string, string>();
+
+async function faults(): Promise<{ generatedAt: string; faults: Fault[] }> {
+  const t = now();
+  const full = buildFullRows(src.records, src.jobs, src.suites, t, src.flowCounts);
+  const reach = await ops.machines().then((ms) => ms.map((m) => ({ name: m.name, url: m.url, ok: m.ok, error: m.error })), () => null);
+  const generatedAt = new Date(t * 1000).toISOString();
+  const found = findFaults({ rows: full, machines: machines(Object.keys(src.jobs), full), reach, now: t, fetchError: src.fetchError, dbenchError: src.dbenchError });
+  for (const f of found) if (!firstSeen.has(f.id)) firstSeen.set(f.id, generatedAt);
+  return { generatedAt, faults: found.map((f) => ({ ...f, firstSeenAt: firstSeen.get(f.id) })) };
 }
 
 let ops: Ops;
@@ -160,11 +179,6 @@ async function machinesApi(req: import("node:http").IncomingMessage, res: import
     await refresh();
     return send(r.ok ? 200 : 400, r), true;
   }
-  if ((m = /^\/api\/jobs\/([^/]+)\/([^/]+)\/log$/.exec(path)) && req.method === "GET") {
-    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
-    res.end(await ops.log(decodeURIComponent(m[1]), decodeURIComponent(m[2])));
-    return true;
-  }
   send(404, { ok: false, message: "no such route" });
   return true;
 }
@@ -176,6 +190,11 @@ createServer(async (req, res) => {
   if (path === "/api/state") {
     res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
     res.end(JSON.stringify(state()));
+    return;
+  }
+  if (path === "/api/faults") {
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    res.end(JSON.stringify(await faults()));
     return;
   }
   const file = normalize(join(DIST, path === "/" ? "index.html" : path));

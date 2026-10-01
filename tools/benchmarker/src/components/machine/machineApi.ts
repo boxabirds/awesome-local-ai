@@ -30,7 +30,7 @@ export const refreshAll = () => Promise.all([mutate(MACHINES_KEY), mutate(STATE_
 export function useMachineList(): { machines: MachineInfo[] | undefined; reach: Reachability } {
   const { data } = useSWR<MachineInfo[]>(MACHINES_KEY, fetchJson, { refreshInterval: MACHINES_POLL_MS });
   const machines = Array.isArray(data) ? data : undefined;
-  const reach: Reachability = machines ? Object.fromEntries(machines.map((m) => [m.name, { ok: m.ok, error: m.error }])) : null;
+  const reach: Reachability = machines ? Object.fromEntries(machines.map((m) => [m.name, { ok: m.ok }])) : null;
   return { machines, reach };
 }
 

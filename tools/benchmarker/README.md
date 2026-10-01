@@ -21,6 +21,15 @@ Layout: `server/` reads git and dbench and serves `/api/state` plus the built pa
 turns records and jobs into rows (pure, unit-tested); `src/` is the page, one component per column;
 `shared/types.ts` is the state both sides agree on.
 
+## The faults feed: `GET /api/faults`
+
+The page presents results and never shows the app's or the harness's own faults. Everything the server knows
+of them goes to the monitor instead: `GET /api/faults` returns `{generatedAt, faults: [...]}`, one entry per
+condition (`accounting_failed`, `not_scored`, `run_invalid`, `job_failed`, `machine_unreachable`, … the full
+list is `FAULT_KINDS` in `server/faults.ts`), each with a stable `id`, the run or machine it is about, and the
+raw recorded facts in `detail`. The UI never reads it; a run marked invalid is not in `/api/state` at all, and a
+time split that failed its check is sent as none.
+
 ## Where the data comes from
 
 - **The repo's `origin/main`**, fetched every 60 seconds. The harness commits and pushes each run's
@@ -54,7 +63,7 @@ line): each one's hardware, installed combinations and dbench version, and its j
 queue in order, then the five latest ended). **Queue a run** takes a combination installed there, a pack,
 a run id and a number of runs. A running job can be **stopped** (after a confirmation: it throws away the
 story in progress); a queued one **removed**; a failed or cancelled one **restarted**, which queues the
-same run under a new job id so it resumes at its first unfinished story. **Log** shows the job's log.
+same run under a new job id so it resumes at its first unfinished story.
 **Add a machine** takes its Tailscale name: the benchmarker reads its token over SSH if it can, else asks
 you to paste it (with the command to print it), checks the node answers, then saves it (mode 600).
 
@@ -100,7 +109,7 @@ Every column heading explains itself on hover too.
 | Column | From |
 |---|---|
 | Run | model and engine, run id, spec version |
-| Status | one word from the dbench job, else the run record; below it the place in the node's queue, a failure's reason, "finishing story N" while a story is scored, or when the run ended |
+| Status | one word from the dbench job, else the run record; below it the place in the node's queue, "finishing story N" while a story is scored, or when the run ended |
 | Story | the running story out of the job's scope ("story 4 of 11") and its title (up to three lines); for other runs, how many stories were built |
 | Time | running: agent minutes on this story and how long the run has gone; otherwise agent time over its stories |
 | Activity | the running story's calls, output tokens and tasks, and the agent's latest action. Claude runs count calls and tokens only at the end of a story, so they show none mid-story rather than a false zero |

@@ -2,7 +2,8 @@
 // Everything here is mechanical: medians, the 10% divergence rule, and the mechanism label from the story's
 // conversation profile and usage against the same story's other runs. No LLM, nothing guessed.
 import type { ConversationProfile, Row, Story, TimeSplit, Usage } from "./types.ts";
-import { isInvalid, median } from "./stats.ts";
+import { median } from "./stats.ts";
+import { toolGist } from "./runView.ts";
 import type { TermId } from "./glossary.ts";
 
 const SECONDS_PER_MINUTE = 60;
@@ -95,9 +96,9 @@ const FLOAT_TOLERANCE = 1e-9;
 
 export interface StoryMedian { median: number; n: number }
 
-/** Per story, the median over the finished runs that have a value for it; invalid runs left out. */
+/** Per story, the median over the finished runs that have a value for it. */
 export function storyMedians(runs: Row[], ids: string[], metric: Metric): Map<string, StoryMedian | null> {
-  const finished = runs.filter((r) => r.status === "finished" && !isInvalid(r));
+  const finished = runs.filter((r) => r.status === "finished");
   return new Map(ids.map((id) => {
     const xs = finished.map((r) => cellOf(r, id, metric).value).filter((x): x is number => x !== null);
     const m = median(xs);
@@ -135,7 +136,7 @@ export const THINKING_RATIO = 2;
 export const MANY_CALLS_RATIO = 1.5;
 /** …with thinking per call within this factor of theirs (either way): more steps, not bigger ones. */
 export const NEAR_RATIO = 1.5;
-/** Hung command: one tool call of at least this long (abnormal on any machine; the harness's own "hung-command")… */
+/** Hung command: one tool call of at least this long (abnormal on any machine; the recorded "hung-command" signal)… */
 export const HUNG_COMMAND_SECONDS = 600;
 /** …or taking at least this share of the story's wall time. */
 export const HUNG_TOOL_SHARE = 0.4;
@@ -172,7 +173,7 @@ export function classifyMechanism(target: Story, others: Story[]): MechanismResu
     const wall = u?.split?.wall ?? u?.agentSeconds ?? null;
     const sh = wall ? c.longestTool.seconds / wall : null;
     if (c.longestTool.seconds >= HUNG_COMMAND_SECONDS || (sh !== null && sh >= HUNG_TOOL_SHARE)) {
-      fired.push({ label: "hung command", evidence: `one ${c.longestTool.name} call ran ${fmt(c.longestTool.seconds)} s${sh !== null ? ` (${pct(sh)} of the story)` : ""}: ${c.longestTool.gist}` });
+      fired.push({ label: "hung command", evidence: `one ${c.longestTool.name} call ran ${fmt(c.longestTool.seconds)} s${sh !== null ? ` (${pct(sh)} of the story)` : ""}: ${toolGist(c.longestTool.gist)}` });
     }
   }
 
@@ -212,16 +213,16 @@ export function classifyMechanism(target: Story, others: Story[]): MechanismResu
 
   const ordered = MECHANISM_PRECEDENCE.flatMap((m) => fired.filter((f) => f.label === m));
   if (ordered.length) return { label: ordered[0].label, fired: ordered, evidence: ordered[0].evidence };
-  if (!c) return { label: "not recorded", fired: [], evidence: "No conversation profile (recorded before the harness kept one), and nothing in its usage explains it." };
+  if (!c) return { label: "not recorded", fired: [], evidence: "No conversation profile for this story run, and nothing in its usage explains it." };
   if (!oc.length) return { label: "unexplained", fired: [], evidence: "No other run of this story has a conversation profile to compare with." };
   // The rules look only for more (time sinks, more thinking, more steps): say which didn't fire, never that the counts
   // were near the others', which a run far below them would contradict.
   return { label: "unexplained", fired: [], evidence: `None of the rules fired: no hung command or restart, and not at least ${THINKING_RATIO}× the thinking, ${MANY_CALLS_RATIO}× the model calls, a compaction-heavy story or slower generation, against the other runs.` };
 }
 
-/** The same story in the combination's other runs: what a story run is compared with. Invalid runs are no yardstick. */
+/** The same story in the combination's other runs: what a story run is compared with. */
 export function siblings(runs: Row[], run: Row, storyId: string): Story[] {
-  return runs.filter((r) => r !== run && !isInvalid(r)).map((r) => cellOf(r, storyId, DEFAULT_METRIC).story).filter((s): s is Story => !!s);
+  return runs.filter((r) => r !== run).map((r) => cellOf(r, storyId, DEFAULT_METRIC).story).filter((s): s is Story => !!s);
 }
 
 // ---------- the matrix ----------
@@ -230,8 +231,7 @@ export interface MatrixCell extends Cell { divergence: Divergence | null; mechan
 export interface MatrixRow { run: Row; cells: MatrixCell[] }
 export interface Matrix { stories: string[]; rows: MatrixRow[]; medians: Map<string, StoryMedian | null> }
 
-/** Runs × stories on one metric, each cell with its divergence from the story's median and, when flagged, its mechanism.
- * An invalid run keeps its row and values, but is never flagged: it is in no figure. */
+/** Runs × stories on one metric, each cell with its divergence from the story's median and, when flagged, its mechanism. */
 export function buildMatrix(runs: Row[], metric: Metric): Matrix {
   const stories = storyIds(runs);
   const medians = storyMedians(runs, stories, metric);
@@ -239,7 +239,7 @@ export function buildMatrix(runs: Row[], metric: Metric): Matrix {
     run,
     cells: stories.map((id): MatrixCell => {
       const cell = cellOf(run, id, metric);
-      const d = cell.state === "recorded" && !isInvalid(run) ? divergence(cell.value, medians.get(id) ?? null) : null;
+      const d = cell.state === "recorded" ? divergence(cell.value, medians.get(id) ?? null) : null;
       return { ...cell, divergence: d, mechanism: d && cell.story ? classifyMechanism(cell.story, siblings(runs, run, id)) : null };
     }),
   }));
@@ -248,10 +248,9 @@ export function buildMatrix(runs: Row[], metric: Metric): Matrix {
 
 export interface TallyLine { label: Mechanism; count: number }
 
-/** How many flagged story runs each mechanism explains, in precedence order, out of every story run with a value
- * (invalid runs' left out). */
+/** How many flagged story runs each mechanism explains, in precedence order, out of every story run with a value. */
 export function tally(m: Matrix): { lines: TallyLine[]; flagged: number; storyRuns: number } {
-  const cells = m.rows.filter((r) => !isInvalid(r.run)).flatMap((r) => r.cells).filter((c) => c.state === "recorded" && c.value !== null);
+  const cells = m.rows.flatMap((r) => r.cells).filter((c) => c.state === "recorded" && c.value !== null);
   const flagged = cells.filter((c) => c.mechanism);
   const order: Mechanism[] = [...MECHANISM_PRECEDENCE, "unexplained", "not recorded"];
   const lines = order.map((label) => ({ label, count: flagged.filter((c) => c.mechanism!.label === label).length })).filter((l) => l.count > 0);
@@ -279,8 +278,7 @@ export interface RunSplit {
   withoutSplit: number;
 }
 
-/** A run's time split summed over its recorded stories; null if none has one. Its accounting checks are
- * accountingView.ts's runCheckSummary. */
+/** A run's time split summed over its recorded stories; null if none has one. */
 export function runSplit(run: Row): RunSplit | null {
   const with_ = run.stories.filter((s) => s.usage?.split);
   if (!with_.length) return null;

@@ -4,7 +4,7 @@ import type { Row, State } from "../../shared/types.ts";
 import { NOT_COUNTED_ORDER, summarise } from "../../shared/stats.ts";
 import { buildMatrix, DEFAULT_METRIC, METRICS, type Metric } from "../../shared/combinationView.ts";
 import { qualityClass } from "../format.ts";
-import { Breadcrumb, MachineLink, RunLink } from "../components/EntityLinks.tsx";
+import { Breadcrumb, MachineLink } from "../components/EntityLinks.tsx";
 import { Term, termTip } from "../components/combination/Term.tsx";
 import { fmtCount, fmtHours, fmtTokens, SpreadText } from "../components/combination/Spread.tsx";
 import { metricLabel, MetricSwitch, RunMatrix } from "../components/combination/RunMatrix.tsx";
@@ -39,8 +39,8 @@ export function CombinationPage({ stack, runs, state, params }: { stack: string;
   const matrix = buildMatrix(runs, metric);
   const finished = c.byStatus.finished ?? 0;
   const counts = [
-    finished ? `${finished} finished (${c.ofRecord.length} of record${c.notCounted.unscored ? `, ${c.notCounted.unscored} unscored` : ""})` : "",
-    ...NOT_COUNTED_ORDER.filter((s) => s !== "unscored" && s !== "invalid" && c.notCounted[s]).map((s) => `${c.notCounted[s]} ${s}`),
+    finished ? `${finished} finished (${c.ofRecord.length} of record${c.notCounted.pending ? `, ${c.notCounted.pending} pending` : ""})` : "",
+    ...NOT_COUNTED_ORDER.filter((s) => s !== "pending" && c.notCounted[s]).map((s) => `${c.notCounted[s]} ${s}`),
   ].filter(Boolean);
   return (
     <div className="page combination-page" data-page="combination" data-stack={stack}>
@@ -63,9 +63,7 @@ export function CombinationPage({ stack, runs, state, params }: { stack: string;
           <Kpi term="outPerStory" s={c.outPerStory} fmt={fmtTokens} />
           <Kpi term="callsPerStory" s={c.callsPerStory} fmt={fmtCount} />
         </dl>
-        <p className="run-counts" data-counts><Term id="runsByStatus" />: {counts.join(" · ")}
-          {c.invalid.length ? <span data-standing="invalid"> · {c.invalid.length} <Term id="invalidRun">invalid</Term>, in no figure: {c.invalid.map((r, i) => (
-            <span key={r.runId}>{i ? ", " : ""}<RunLink pack={r.pack} stack={r.stack} runId={r.runId} invalid={r.invalid} /></span>))}</span> : null}</p>
+        <p className="run-counts" data-counts><Term id="runsByStatus" />: {counts.join(" · ")}</p>
       </header>
 
       <section className="combo-section" data-section="matrix">

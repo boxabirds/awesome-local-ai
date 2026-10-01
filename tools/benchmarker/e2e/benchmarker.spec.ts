@@ -43,7 +43,8 @@ test("when refreshes fail, the page greys out under a warning", async ({ page })
   await expect(page.locator("section").first()).toBeVisible();
   await page.route("**/api/state", (r) => r.abort());
   await page.clock.fastForward(25_000);
-  await expect(page.getByRole("alert")).toContainText(/Stale: the last successful update was \d+ s ago/);
+  await expect(page.getByRole("alert")).toHaveText(/^Not updated since \d\d:\d\d UTC\.$/);
+  await expect(page.getByRole("alert")).not.toContainText(/server|error|HTTP/i);
 });
 
 test("a page reloads itself when the server serves a newer build", async ({ page }) => {

@@ -1,4 +1,4 @@
-// What the Machines tab can do: list and add machines, and queue, stop, restart and read jobs. The real
+// What the Machines tab can do: list and add machines, and queue, stop and restart jobs. The real
 // ones go through the dbench command line (which holds the tokens and checks every name) and the node's
 // own API; tests use a fake over the fixture's jobs, so they never touch a real machine.
 import { execFile } from "node:child_process";
@@ -39,7 +39,6 @@ export interface Ops {
   submit(req: SubmitReq): Promise<Result>;
   cancel(node: string, id: string): Promise<Result>;
   restart(node: string, id: string): Promise<Result>;
-  log(node: string, id: string): Promise<string>;
 }
 
 const why = (e: unknown) => {
@@ -135,10 +134,6 @@ export function realOps(): Ops {
         return { ok: true, message: `queued ${again}: run ${req.runId} resumes at its first unfinished story`, ids: [again] };
       } catch (e) { return { ok: false, message: why(e) }; }
     },
-    async log(node, id) {
-      if (!NAME.test(node) || !NAME.test(id)) return "invalid machine or job";
-      try { return await dbench("logs", node, id); } catch (e) { return why(e); }
-    },
   };
 }
 
@@ -182,6 +177,5 @@ export function fakeOps(jobs: Record<string, DbenchJob[]>, info: Record<string, 
       jobs[node].push({ ...j, id: again, state: { status: "queued" }, submitted_at: now(), updated_at: now() });
       return { ok: true, message: `queued ${again}: run ${j.spec.run_id} resumes at its first unfinished story`, ids: [again] };
     },
-    async log(node, id) { return `[dbench] ${node} ${id}: fixture log\nstory 3 running\n`; },
   };
 }

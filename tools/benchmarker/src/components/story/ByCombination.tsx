@@ -9,7 +9,7 @@ import {
 } from "../../../shared/storyView.ts";
 import { heldOutState, type Divergence } from "../../../shared/combinationView.ts";
 import { interventionsOf, STATUS_ICON } from "../../../shared/runView.ts";
-import { InterventionMark, InvalidTag } from "../RunMarks.tsx";
+import { InterventionMark } from "../RunMarks.tsx";
 import { CombinationLink, MachineLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { StorySplitBar } from "../TimeBars.tsx";
 import { duration } from "../../format.ts";
@@ -61,7 +61,7 @@ function Cell({ e, m, g, cmp }: { e: Entry; m: StoryMeasure; g: Group; cmp: Comp
   } else if (a.kind === "building") {
     const live = m.key === "minutes" ? a.agentMinutes : m.key === "calls" ? a.calls : m.key === "outTokens" ? a.outputTokens : null;
     body = live !== null
-      ? <span className="live-n" tabIndex={0} data-tip={`Live: ${termName(m.term).toLowerCase()} so far on this story, from dbench. The record arrives when the story ends.${live === 0 && m.key !== "minutes" ? " Some clients (Claude) count calls and tokens only when a story ends, so 0 here can mean not counted yet." : ""}`}>{SHOW[m.key](live)}</span>
+      ? <span className="live-n" tabIndex={0} data-tip={`Live: ${termName(m.term).toLowerCase()} so far on this story. The record arrives when the story ends.${live === 0 && m.key !== "minutes" ? " Some clients (Claude) count calls and tokens only when a story ends, so 0 here can mean not counted yet." : ""}`}>{SHOW[m.key](live)}</span>
       : <Missing why="Being built now: this figure arrives with the story's record when it ends." />;
   } else {
     body = <Missing why="Built (its latest-build square says so), but the story's record hasn't arrived yet." />;
@@ -88,11 +88,10 @@ function RunCell({ e, storyId, cmp, onCompare }: { e: Entry; storyId: string; cm
   const r = e.run;
   return (
     <th scope="row" className="sp-run">
-      <span className="sp-run-line"><RunLink pack={r.pack} stack={r.stack} runId={r.runId} invalid={r.invalid} /> · <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId} invalid={r.invalid} /></span>
+      <span className="sp-run-line"><RunLink pack={r.pack} stack={r.stack} runId={r.runId} /> · <StoryRunLink pack={r.pack} stack={r.stack} runId={r.runId} story={storyId} /></span>
       <span className="sp-run-meta">
         <span className={`s-${r.status}`} data-tip={`${termName("runStatus")}: ${r.status}${r.statusNote ? ` (${r.statusNote})` : ""}`}>{STATUS_ICON[r.status]} {r.status}</span>
         {" · "}<MachineLink machine={r.machine} host={r.host} />
-        {r.invalid ? <> · <InvalidTag invalid={r.invalid} /></> : null}
         {interventionsOf(r, storyId).length ? <> <InterventionMark list={interventionsOf(r, storyId)} compact /></> : null}
         {e.attempt.kind === "building" ? <> · building <LiveTag /></> : null}
         {e.attempt.kind === "unrecorded" ? <> · <span className="small">no record yet</span></> : null}
@@ -105,9 +104,9 @@ function RunCell({ e, storyId, cmp, onCompare }: { e: Entry; storyId: string; cm
 function Bar({ e, scale }: { e: Entry; scale: number }) {
   const split = e.attempt.kind === "recorded" ? e.attempt.story.usage?.split ?? null : null;
   if (!split) {
-    const why = e.attempt.kind === "recorded" ? (e.attempt.story.usage ? "Recorded before the harness split the story's time." : "The story's record has no usage.")
-      : e.attempt.kind === "building" ? "Being built now: the split arrives with the story's record." : "The story's record hasn't arrived yet.";
-    return <span className="no-split"><Missing why={`No time split: ${why}`} /></span>;
+    const why = e.attempt.kind === "recorded" ? "No time breakdown for this story run."
+      : e.attempt.kind === "building" ? "Being built now: the breakdown arrives with the story's record." : "The story's record hasn't arrived yet.";
+    return <span className="no-split"><Missing why={why} /></span>;
   }
   return <span className="bar-track"><StorySplitBar split={split} usage={e.attempt.kind === "recorded" ? e.attempt.story.usage : null} scaleSeconds={scale} label={`${e.run.runId}: ${duration(split.wall)}`} /></span>;
 }
@@ -126,7 +125,7 @@ function SummaryRow({ g, storyId }: { g: Group; storyId: string }) {
   return (
     <tr className="sp-median" data-median={g.stack}>
       <th scope="row" colSpan={LEAD_COLS}>
-        <Term id="storyCombinationMedian" /> <span className="small">over {plural(g.finishedRecorded, "finished run")}{g.entries.some((e) => e.run.invalid) ? " (invalid left out)" : ""}</span>
+        <Term id="storyCombinationMedian" /> <span className="small">over {plural(g.finishedRecorded, "finished run")}</span>
       </th>
       {SUMMARISED.map((m) => {
         const s = g.summary[m.key as SummaryKey].spread;
@@ -156,8 +155,7 @@ function GroupRows({ g, storyId, scale, cmp, onCompare }: { g: Group; storyId: s
       </tr>
       {g.entries.length ? <SummaryRow g={g} storyId={storyId} /> : null}
       {g.entries.map((e) => (
-        <tr key={e.run.runId} className="sp-entry" data-run={e.run.runId} data-attempt={e.attempt.kind} data-comparison={cmp.kind === "ok" && cmp.entry === e ? "true" : undefined}
-          data-invalid={e.run.invalid ? "true" : undefined}>
+        <tr key={e.run.runId} className="sp-entry" data-run={e.run.runId} data-attempt={e.attempt.kind} data-comparison={cmp.kind === "ok" && cmp.entry === e ? "true" : undefined}>
           <RunCell e={e} storyId={storyId} cmp={cmp} onCompare={onCompare} />
           <td className="sp-bar">
             <Bar e={e} scale={scale} />
@@ -170,7 +168,7 @@ function GroupRows({ g, storyId, scale, cmp, onCompare }: { g: Group; storyId: s
           <td colSpan={COLS}>
             <Term id="storyNotBuilt" />:{" "}
             {g.notBuilt.map(({ run, why }, i) => (
-              <span key={run.runId} data-run={run.runId}>{i ? " · " : ""}<RunLink pack={run.pack} stack={run.stack} runId={run.runId} invalid={run.invalid} /> <span className={`small s-${run.status}`} tabIndex={0} data-tip={why}>{run.status}</span></span>
+              <span key={run.runId} data-run={run.runId}>{i ? " · " : ""}<RunLink pack={run.pack} stack={run.stack} runId={run.runId} /> <span className={`small s-${run.status}`} tabIndex={0} data-tip={why}>{run.status}</span></span>
             ))}
           </td>
         </tr>
@@ -188,7 +186,7 @@ export function ByCombination({ view, storyId, cmp, onCompare }: { view: StoryPa
       </div>
       {cmp.kind === "ok" ? (
         <p className="compare-note" data-compare="ok">
-          Numbers are percentages of <b><RunLink pack={cmp.entry.run.pack} stack={cmp.entry.run.stack} runId={cmp.entry.run.runId} label={cmp.entry.run.label} invalid={cmp.entry.run.invalid} /></b>'s (on <MachineLink machine={cmp.entry.run.machine} host={cmp.entry.run.host} />), shown in full on its row; where its number is 0 or missing, each run shows its own. Held-out stays a count. Medians are in their own units.{" "}
+          Numbers are percentages of <b><RunLink pack={cmp.entry.run.pack} stack={cmp.entry.run.stack} runId={cmp.entry.run.runId} label={cmp.entry.run.label} /></b>'s (on <MachineLink machine={cmp.entry.run.machine} host={cmp.entry.run.host} />), shown in full on its row; where its number is 0 or missing, each run shows its own. Held-out stays a count. Medians are in their own units.{" "}
           <button type="button" className="sp-btn" onClick={() => onCompare(undefined)}>Clear comparison</button>
         </p>
       ) : cmp.kind === "unusable" ? (
@@ -220,7 +218,6 @@ export function ByCombination({ view, storyId, cmp, onCompare }: { view: StoryPa
         <span className="flag above" aria-hidden="true">⚑</span> <Term id="divergence">more than 10% from the combination's median</Term> (filled above it, outlined below), with its mechanism on hover.
         {" "}<i className="sq q-ok" aria-hidden="true" /> held-out colours: all pass, some, none. <LiveTag /> figures are provisional.
         {view.groups.some((g) => g.entries.some((e) => e.run.interventions?.length)) ? <> <span className="intervened compact" aria-hidden="true">✱</span> <Term id="intervened">intervened</Term>: done by hand, still counted.</> : null}
-        {view.groups.some((g) => g.entries.some((e) => e.run.invalid)) ? <> <span className="invalid-run">struck through</span>: <Term id="invalidRun">invalid</Term>, in no figure.</> : null}
       </p>
     </section>
   );

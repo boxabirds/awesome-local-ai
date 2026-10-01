@@ -1,5 +1,5 @@
-// What can be done to one dbench job: stop a running one (after asking), remove a queued one, restart one that
-// failed, stopped or was cancelled, and read its log. Shared by the machines list and each machine's page.
+// What can be done to one job: stop a running one (after asking), remove a queued one, restart one that failed,
+// stopped or was cancelled. Shared by the machines list and each machine's page.
 import { useEffect, useRef, useState } from "react";
 import { change } from "../../api.ts";
 import { refreshAll, type OpResult } from "./machineApi.ts";
@@ -11,7 +11,6 @@ const jobUrl = (node: string, jobId: string) => `/api/jobs/${encodeURIComponent(
 
 export function JobOps({ node, jobId, status }: { node: string; jobId: string; status: string }) {
   const [confirm, setConfirm] = useState(false);
-  const [log, setLog] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
   const keep = useRef<HTMLButtonElement>(null);
   const stop = useRef<HTMLButtonElement>(null);
@@ -22,7 +21,6 @@ export function JobOps({ node, jobId, status }: { node: string; jobId: string; s
     setMsg(r.message); setConfirm(false); await refreshAll();
   };
   const cancelConfirm = () => { setConfirm(false); requestAnimationFrame(() => stop.current?.focus()); };
-  const showLog = async () => setLog(log === null ? await (await fetch(`${jobUrl(node, jobId)}/log`)).text() : null);
   return (
     <>
       {status === "running" && !confirm ? <button ref={stop} type="button" onClick={() => setConfirm(true)}>Stop</button> : null}
@@ -34,9 +32,7 @@ export function JobOps({ node, jobId, status }: { node: string; jobId: string; s
       ) : null}
       {status === "queued" ? <button type="button" onClick={() => act("cancel")}>Remove</button> : null}
       {RESTARTABLE.includes(status) ? <button type="button" onClick={() => act("restart")}>Restart</button> : null}
-      <button type="button" className="quiet" aria-expanded={log !== null} onClick={showLog}>{log === null ? "Log" : "Hide log"}</button>
       {msg ? <div className="small note" role="status">{msg}</div> : null}
-      {log !== null ? <pre className="log-view" tabIndex={0} aria-label={`Log of ${jobId}`}>{log}</pre> : null}
     </>
   );
 }

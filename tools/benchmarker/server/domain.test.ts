@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
-  mergeStories, stages, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, finalScore, runUsage, RECENT_S, type DbenchJob,
-  jobsByRun, buildRows, parseAccountingVersion, parseFinalize,
+  mergeStories, judgeReady, mergeRows, machines, assignMachines, runStatus, countTests, storiesWorking, finalScore, rescoreFault, runUsage, RECENT_S, type DbenchJob,
+  jobsByRun, jobReason, buildRows, buildFullRows, parseFinalize, publicStory, type FullRow, type RecordStory,
 } from "./domain.ts";
 import type { Row } from "../shared/types.ts";
 
@@ -166,25 +166,15 @@ describe("stories", () => {
   });
 });
 
-describe("stages", () => {
+describe("judgeReady", () => {
   const run = { state: "started", rescores: [] as string[], hasBundle: false };
-  it("say what a run is waiting for", () => {
-    const s = stages(run, job({ id: "j", state: { status: "running" }, progress: { current_story: "3" } }), "vidi-v2.0");
-    expect(s).toEqual({ build: "running: story 3", score: "waiting for the build", judge: "waiting for scoring" });
+  it("a run can be judged once finished, re-scored under the current suite, and with its workspace history", () => {
+    expect(judgeReady(run, job({ id: "j", state: { status: "running" }, progress: { current_story: "3" } }), "vidi-v2.0")).toBe(false);
     const done = { state: "finished", rescores: [] as string[], hasBundle: true };
-    expect(stages(done, null, "vidi-v2.0").score).toBe("not scored with vidi-v2.0");
-    expect(stages({ ...done, rescores: ["vidi-v2.0"] }, null, "vidi-v2.0").judge).toBe("ready");
-    expect(stages({ ...done, rescores: ["vidi-v2.0"], hasBundle: false }, null, "vidi-v2.0").judge).toBe("needs workspace.bundle");
-  });
-  it("between stories the build names the story being finished", () => {
-    const s = stages(run, job({ id: "j", state: { status: "running" }, progress: { current_story: null,
-      stories: [{ id: "1", status: "running" }, { id: "2", status: "pending" }] } }), "x");
-    expect(s.build).toBe("running: story 1 (finishing)");
-  });
-  it("failed, queued and finished-unrecorded jobs read plainly", () => {
-    expect(stages(run, job({ id: "j", state: { status: "failed", reason: "harness exited 1" } }), "x").build).toBe("failed: harness exited 1");
-    expect(stages({ ...run, state: "" }, job({ id: "j", state: { status: "queued" } }), "x").build).toBe("queued");
-    expect(stages({ ...run, state: "" }, job({ id: "j", state: { status: "done" } }), "x").build).toBe("finished (not recorded)");
+    expect(judgeReady(done, null, "vidi-v2.0")).toBe(false);
+    expect(judgeReady({ ...done, rescores: ["vidi-v2.0"] }, null, "vidi-v2.0")).toBe(true);
+    expect(judgeReady({ ...done, rescores: ["vidi-v2.0"], hasBundle: false }, null, "vidi-v2.0")).toBe(false);
+    expect(judgeReady({ ...done, rescores: ["vidi-v2.0"] }, job({ id: "j", state: { status: "queued" } }), "vidi-v2.0")).toBe(false);
   });
 });
 
@@ -209,7 +199,8 @@ describe("every job of a run", () => {
     });
     const jobs = [...by.values()][0];
     expect(jobs.map((j) => j.id)).toEqual(["v2-r1", "v2-r1-again1"]);
-    expect(jobs[0]).toEqual({ id: "v2-r1", node: "node-a", status: "cancelled", submittedAt: 100, updatedAt: 200, endedAt: 200, reason: "stopped by the operator" });
+    expect(jobs[0]).toEqual({ id: "v2-r1", node: "node-a", status: "cancelled", submittedAt: 100, updatedAt: 200, endedAt: 200 });
+    expect(jobs[0]).not.toHaveProperty("reason");   // a job's reason is the faults feed's, never the page's
   });
 
   // 1 Oct 2026: a job cancelled after its preflight failed showed "none given" (dbench kept no reason then).
@@ -226,7 +217,7 @@ describe("every job of a run", () => {
     "[dbench 2026-10-01T00:49:56Z] cancelled while queued by 100.86.117.127",
     "[dbench 2026-10-01T00:49:58Z] git pull --ff-only: ok",
   ];
-  const reasonOf = (j: Parameters<typeof job>[0]) => [...jobsByRun({ "node-a": [job(j)] }).values()][0][0].reason;
+  const reasonOf = (j: Parameters<typeof job>[0]) => jobReason(job(j));
 
   it("a cancel's reason is the one dbench kept with it", () => {
     expect(reasonOf({ id: "a", spec, state: { status: "cancelled" }, cancel_reason: "made room for a rerun",
@@ -318,10 +309,11 @@ describe("merging runs and jobs", () => {
 describe("machines", () => {
   const row = (stack: string, runId: string, node: string, status: string, story: string | null = null) =>
     ({ stack, runId, node, pack: "vidi", live: { status, currentStory: story, agentMinutes: 25 } }) as unknown as Row;
+  const full = (r: Row, invalid = false): FullRow => ({ ...r, record: { invalid: invalid ? { reason: "x", since: "" } : null, finalize: null, stories: [], rescoreFaults: {}, hasBundle: false }, dbenchJobs: [] });
 
   it("names the story being finished between stories, not \"starting\"", () => {
     const r = { stack: SWIFT, runId: "v2-r1", node: "node-a", pack: "vidi", live: { status: "running", currentStory: "", runningStory: "3", agentMinutes: 33 } } as unknown as Row;
-    expect(machines(["node-a"], [r])[0].running).toMatchObject({ story: "3", finishing: true });
+    expect(machines(["node-a"], [full(r)])[0].running).toMatchObject({ story: "3", finishing: true });
   });
 
   it("says what each node runs now and how many wait, and names idle nodes", () => {
@@ -331,10 +323,15 @@ describe("machines", () => {
       row("qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi", "v2-r1", "node-a", "queued"),
       row(SWIFT, "smoke-v2-01", "node-a", "done"),
     ];
-    expect(machines(["node-d", "node-a"], rows)).toEqual([
-      { node: "node-a", running: { stack: SWIFT, short: "3.8-swift-1.5/27b llamacpp", runId: "v2-r1", story: "3", finishing: false, agentMinutes: 25 }, queued: 2 },
-      { node: "node-d", running: null, queued: 0 },
+    expect(machines(["node-d", "node-a"], rows.map((r) => full(r)))).toEqual([
+      { node: "node-a", running: { stack: SWIFT, short: "3.8-swift-1.5/27b llamacpp", runId: "v2-r1", story: "3", finishing: false, agentMinutes: 25 }, busy: false, queued: 2 },
+      { node: "node-d", running: null, busy: false, queued: 0 },
     ]);
+  });
+
+  it("a node running or queuing a run marked invalid is busy, with the run named to nobody, and its queue counts only shown runs", () => {
+    const rows = [full(row(SWIFT, "v2-r8", "node-a", "running", "3"), true), full(row(SWIFT, "v2-r9", "node-a", "queued"), true), full(row(SWIFT, "v2-r2", "node-a", "queued"))];
+    expect(machines(["node-a"], rows)).toEqual([{ node: "node-a", running: null, busy: true, queued: 1 }]);
   });
 });
 
@@ -356,12 +353,12 @@ describe("runStatus", () => {
   const rec = (state: string) => ({ state });
   const running = (progress: DbenchJob["progress"], attempt = 1) => job({ id: "j", state: { status: "running", attempt }, progress });
 
-  it("one word per run, from the dbench job when there is one, else the record", () => {
+  it("one word per run, from the dbench job when there is one, else the record; never a failure's reason or an attempt count", () => {
     expect(runStatus(rec("started"), running({ current_story: "3" }))).toEqual({ status: "running", note: "" });
     expect(runStatus(rec("started"), running({ current_story: "", stories: [{ id: 3, status: "running" }] }))).toEqual({ status: "running", note: "finishing story 3" });
-    expect(runStatus(rec(""), running({}, 2))).toEqual({ status: "running", note: "starting · attempt 2" });
+    expect(runStatus(rec(""), running({}, 2))).toEqual({ status: "running", note: "starting" });
     expect(runStatus(rec(""), job({ id: "j", state: { status: "queued" } }))).toEqual({ status: "queued", note: "" });
-    expect(runStatus(rec(""), job({ id: "j", state: { status: "failed", reason: "exit 1" } }))).toEqual({ status: "failed", note: "exit 1" });
+    expect(runStatus(rec(""), job({ id: "j", state: { status: "failed", reason: "exit 1" } }))).toEqual({ status: "failed", note: "" });
     expect(runStatus(rec("stopped"), job({ id: "j", state: { status: "cancelled" } }))).toEqual({ status: "cancelled", note: "" });
     expect(runStatus(rec("finished"), job({ id: "j", state: { status: "done" } }))).toEqual({ status: "finished", note: "" });
     expect(runStatus(rec("finished"), null)).toEqual({ status: "finished", note: "" });
@@ -481,24 +478,52 @@ describe("tokens and speed", () => {
     expect(st.usage!.split).toMatchObject({ wall: 3528.9, betweenSessions: 180.1, other: 48.8 });
   });
 
-  it("says whether the split passed its checks, failed them (and why), or was recorded before there were checks", () => {
+  it("the record keeps the split's own check: passed, failed (with the problems and the accounting version), or unchecked", () => {
     const ts = (accounting?: object) => ({ agent: { seconds: 100, tokens: {} }, time_split: { wall_s: 100, tools_s: 0, compaction_s: 0, other_s: 100, model: null, accounting } });
-    expect(storyEntry("1", ts({ version: 3, ok: true, problems: [] }) as never).usage!.split!.check).toMatchObject({ status: "ok", problems: [] });
+    expect(storyEntry("1", ts({ version: 3, ok: true, problems: [] }) as never).usage!.split!.check).toEqual({ status: "ok", problems: [], version: 3 });
     expect(storyEntry("1", ts({ version: 3, ok: false, problems: ["tool call t1 never ended; counted to the agent's next step"] }) as never).usage!.split!.check)
-      .toMatchObject({ status: "problems", problems: ["tool call t1 never ended; counted to the agent's next step"] });
-    expect(storyEntry("1", ts() as never).usage!.split!.check).toEqual({ status: "unchecked", problems: [] });
+      .toEqual({ status: "problems", problems: ["tool call t1 never ended; counted to the agent's next step"], version: 3 });
+    expect(storyEntry("1", ts() as never).usage!.split!.check).toEqual({ status: "unchecked", problems: [], version: null });
+    expect(storyEntry("1", ts({ ok: false, problems: ["x"] }) as never).usage!.split!.check).toMatchObject({ version: null });
     expect(storyEntry("1", ts() as never).usage!.split!.betweenSessions).toBe(0);
   });
 
-  it("says which accounting version made the check, and whether that is the harness's current one", () => {
-    const ts = (accounting?: object) => ({ agent: { seconds: 100, tokens: {} }, time_split: { wall_s: 100, tools_s: 0, compaction_s: 0, other_s: 100, model: null, accounting } });
-    const check = (accounting: object, current?: number | null) => storyEntry("1", ts(accounting) as never, current).usage!.split!.check;
-    expect(check({ version: 3, ok: false, problems: ["x"] }, 3)).toEqual({ status: "problems", problems: ["x"], version: 3, current: true });
-    expect(check({ version: 2, ok: false, problems: ["x"] }, 3)).toMatchObject({ version: 2, current: false });
-    // Either not known: nothing is claimed.
-    expect(check({ version: 3, ok: true, problems: [] }, null)).toMatchObject({ version: 3, current: null });
-    expect(check({ version: 3, ok: true, problems: [] })).toMatchObject({ version: 3, current: null });
-    expect(check({ ok: false, problems: ["x"] }, 3)).toMatchObject({ version: null, current: null });
+  it("the record keeps a story's harness faults, verbatim; none when there are none", () => {
+    const faults = [{ step: "record", error: "git push failed" }];
+    expect(storyEntry("1", { agent: { seconds: 1, tokens: {} }, harness_faults: faults } as never).harnessFaults).toEqual(faults);
+    expect(storyEntry("1", { agent: { seconds: 1, tokens: {} }, harness_faults: [] } as never)).not.toHaveProperty("harnessFaults");
+    expect(storyEntry("1", { agent: { seconds: 1, tokens: {} } } as never)).not.toHaveProperty("harnessFaults");
+  });
+
+  describe("what the page gets of a story (publicStory): no check, no faults, and no breakdown that failed its check", () => {
+    const ts = (accounting?: object) => ({ agent: { seconds: 100, tokens: {} }, time_split: { wall_s: 100, tools_s: 40, compaction_s: 0, other_s: 60, model: null, accounting } });
+    it("a split that passed, or was never checked, is sent as it is, without the check", () => {
+      for (const acc of [{ version: 3, ok: true, problems: [] }, undefined]) {
+        const s = publicStory(storyEntry("1", ts(acc) as never));
+        expect(s.usage!.split).toMatchObject({ wall: 100, tools: 40 });
+        expect(s.usage!.split).not.toHaveProperty("check");
+      }
+    });
+    it("a split that failed its check is not sent: the breakdown is not available, the story's own totals are", () => {
+      const rec = storyEntry("1", { ...ts({ version: 3, ok: false, problems: ["parts sum to 90 s, not the wall's 100 s"] }), harness_faults: [{ step: "x" }] } as never);
+      const s = publicStory(rec);
+      expect(s.usage!.split).toBeNull();
+      expect(s.usage!.agentSeconds).toBe(100);
+      expect(s).not.toHaveProperty("harnessFaults");
+      expect(rec.usage!.split!.check.status).toBe("problems");   // the record still has it, for the faults feed
+    });
+    it("a story with no usage, or usage with no split, is unchanged", () => {
+      expect(publicStory({ id: "1", title: "", status: "", passed: null, total: null, ownPassed: null, ownTotal: null, usage: null } as RecordStory).usage).toBeNull();
+      expect(publicStory(storyEntry("1", { agent: { seconds: 1, tokens: {} } } as never)).usage!.split).toBeNull();
+    });
+    it("a run's totals and the page's rows leave a failed split out of every per-part figure", () => {
+      const rec = { pack: "vidi", stack: SWIFT, runId: "v2-r1", dir: "d", rescores: [], rescoreLast: {}, hasBundle: false, packVersion: "", state: "finished", stateAt: "", scores: {},
+        stories: [storyEntry("1", ts({ version: 3, ok: false, problems: ["x"] }) as never), storyEntry("2", ts({ version: 3, ok: true, problems: [] }) as never)] };
+      const [r] = buildRows([rec], {}, {}, 0);
+      expect(r.stories.map((s) => s.usage!.split?.wall ?? null)).toEqual([null, 100]);
+      expect(r.stories.map((s) => s.usage!.agentSeconds)).toEqual([100, 100]);
+      expect(buildFullRows([rec], {}, {}, 0)[0].record.stories[0].usage!.split!.check.status).toBe("problems");
+    });
   });
 
   it("keeps the conversation's profile, in the page's names; none recorded is null", () => {
@@ -539,50 +564,23 @@ describe("tokens and speed", () => {
   });
 });
 
-describe("the harness's current accounting version, from accounting.py", () => {
-  it("is the number its VERSION line gives", () => {
-    expect(parseAccountingVersion('import llama_log\n\nVERSION = 3                     # bump when the calculation changes\nMS_PER_S = 1000\n')).toBe(3);
-    expect(parseAccountingVersion("VERSION = 12\n")).toBe(12);
-  });
-  it("is not known without that line, or without the file", () => {
-    expect(parseAccountingVersion("ACCOUNTING_VERSION = 3\n  VERSION = 4\n")).toBeNull();
-    expect(parseAccountingVersion("VERSION = three\n")).toBeNull();
-    expect(parseAccountingVersion(undefined)).toBeNull();
-  });
-});
-
-describe("what a run's final re-score recorded (finalize.json)", () => {
+describe("what a run's final re-score recorded (finalize.json): kept whole on the server, never sent to the page", () => {
   const RAW = { version: "vidi-v2.0-pre2+28ace8b", pack_ref: "vidi-v2.0-pre2", at: "2026-10-01T08:25:57Z", bundle: "workspace.bundle",
-    rescore: "skipped", reason: "the suite checkout is at vidi-v2.0-pre2+28ace8b, not the pack's vidi-v2.0-pre2" };
-  const NOT_SAID = { needsPerson: null, attempts: null, lastAttemptAt: "" };
-  it("skipped, with its reason as written", () => {
-    expect(parseFinalize(RAW)).toEqual({ rescore: "skipped", reason: RAW.reason, version: RAW.version, packRef: "vidi-v2.0-pre2", at: RAW.at, ...NOT_SAID });
-  });
-  it("whether a person is needed, how often it was tried and when last, as the harness wrote them", () => {
-    expect(parseFinalize({ ...RAW, rescore: "failed", needs_person: true, attempts: 3, last_attempt_at: " 2026-10-01T12:00:00Z " }))
-      .toMatchObject({ needsPerson: true, attempts: 3, lastAttemptAt: "2026-10-01T12:00:00Z" });
-    expect(parseFinalize({ ...RAW, needs_person: false, attempts: 1 })).toMatchObject({ needsPerson: false, attempts: 1, lastAttemptAt: "" });
-  });
-  it("a record from before the harness wrote them says nothing: never taken as a person needed", () => {
-    expect(parseFinalize(RAW)).toMatchObject(NOT_SAID);
-  });
-  it("only a boolean says whether a person is needed, only a whole count of at least one is an attempt count", () => {
-    for (const needs_person of ["true", 1, null, "yes"]) expect(parseFinalize({ ...RAW, needs_person })!.needsPerson).toBeNull();
-    for (const attempts of ["3", 0, -1, 1.5, null, NaN]) expect(parseFinalize({ ...RAW, attempts })!.attempts).toBeNull();
-  });
-  it.each(["done", "failed", "flagged"])("%s", (rescore) => {
-    expect(parseFinalize({ ...RAW, rescore, reason: " why " })).toMatchObject({ rescore, reason: "why" });
-  });
-  it("missing fields are empty, never invented", () => {
-    expect(parseFinalize({ rescore: "failed" })).toEqual({ rescore: "failed", reason: "", version: "", packRef: "", at: "", ...NOT_SAID });
-  });
+    rescore: "skipped", reason: "the suite checkout is at vidi-v2.0-pre2+28ace8b, not the pack's vidi-v2.0-pre2", needs_person: true, attempts: 3, history: [{ at: "x" }] };
+  it("verbatim, whatever it says", () => expect(parseFinalize(RAW)).toEqual(RAW));
   it("no record, or one that doesn't say how the re-score ended: nothing", () => {
-    for (const raw of [undefined, null, "skipped", {}, { rescore: "pending" }, { reason: "x" }]) expect(parseFinalize(raw)).toBeNull();
+    for (const raw of [undefined, null, "skipped", {}, { reason: "x" }, { rescore: "" }, { rescore: 1 }]) expect(parseFinalize(raw)).toBeNull();
   });
-  it("a row carries its record's, or null", () => {
+  it("the full row carries its record's, or null; the page's row has none", () => {
     const rec = { pack: "vidi", stack: SWIFT, runId: "v2-r1", dir: "d", rescores: [], rescoreLast: {}, hasBundle: false, packVersion: "", state: "finished", stateAt: "", stories: [], scores: {} };
     const f = parseFinalize(RAW)!;
-    expect(buildRows([{ ...rec, finalize: f }], {}, {}, 0)[0].finalize).toEqual(f);
-    expect(buildRows([rec], {}, {}, 0)[0].finalize).toBeNull();
+    expect(buildFullRows([{ ...rec, finalize: f }], {}, {}, 0)[0].record.finalize).toEqual(f);
+    expect(buildFullRows([rec], {}, {}, 0)[0].record.finalize).toBeNull();
+    expect(buildRows([{ ...rec, finalize: f }], {}, {}, 0)[0]).not.toHaveProperty("finalize");
+  });
+  it("what spoiled a re-score is kept beside the scores", () => {
+    expect(rescoreFault({ results: [{ story: 12, harness_fault: " no browser " }] })).toBe("no browser");
+    expect(rescoreFault({ results: [{ story: 12, passed: 60, total: 75 }] })).toBeNull();
+    expect(rescoreFault(null)).toBeNull();
   });
 });

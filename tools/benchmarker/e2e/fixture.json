@@ -58,7 +58,8 @@
                 "status": "problems",
                 "problems": [
                   "tool call t9 never ended; counted to the agent's next step"
-                ]
+                ],
+                "version": null
               }
             }
           },
@@ -151,7 +152,8 @@
               "betweenSessions": 0,
               "check": {
                 "status": "unchecked",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           }
@@ -227,7 +229,8 @@
               },
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           }
@@ -290,7 +293,8 @@
               "betweenSessions": 0,
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           },
@@ -371,7 +375,8 @@
               },
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           },
@@ -476,7 +481,8 @@
               },
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           },
@@ -555,7 +561,8 @@
               },
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           },
@@ -658,7 +665,8 @@
               },
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           },
@@ -739,7 +747,8 @@
               },
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           },
@@ -802,11 +811,8 @@
         "rescore": "skipped",
         "reason": "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1",
         "version": "vidi-v2.0-pre1+28ace8b",
-        "packRef": "vidi-v2.0-pre1",
-        "at": "2026-09-27T09:00:00Z",
-        "needsPerson": null,
-        "attempts": null,
-        "lastAttemptAt": ""
+        "pack_ref": "vidi-v2.0-pre1",
+        "at": "2026-09-27T09:00:00Z"
       },
       "packVersion": "vidi-v2.0-pre0",
       "state": "finished",
@@ -851,7 +857,8 @@
               },
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           }
@@ -897,7 +904,8 @@
               },
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           },
@@ -998,7 +1006,8 @@
               "betweenSessions": 0,
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           },
@@ -1079,7 +1088,8 @@
               },
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           },
@@ -1178,7 +1188,8 @@
               "betweenSessions": 0,
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           },
@@ -1259,7 +1270,8 @@
               },
               "check": {
                 "status": "ok",
-                "problems": []
+                "problems": [],
+                "version": null
               }
             }
           },
@@ -1349,11 +1361,11 @@
         "rescore": "failed",
         "reason": "the app's build failed in the re-score (exit 1) but passed where the agent worked, on the same commit",
         "version": "vidi-v2.0-pre1",
-        "packRef": "vidi-v2.0-pre1",
+        "pack_ref": "vidi-v2.0-pre1",
         "at": "2026-09-28T09:00:00Z",
-        "needsPerson": true,
+        "needs_person": true,
         "attempts": 3,
-        "lastAttemptAt": "2026-09-29T07:30:00Z"
+        "last_attempt_at": "2026-09-29T07:30:00Z"
       },
       "packVersion": "vidi-v2.0-pre1",
       "state": "finished",
@@ -1374,11 +1386,11 @@
         "rescore": "skipped",
         "reason": "the suite checkout is at vidi-v2.0-pre1+28ace8b, not the pack's vidi-v2.0-pre1",
         "version": "vidi-v2.0-pre1+28ace8b",
-        "packRef": "vidi-v2.0-pre1",
+        "pack_ref": "vidi-v2.0-pre1",
         "at": "2026-09-29T09:00:00Z",
-        "needsPerson": false,
+        "needs_person": false,
         "attempts": 2,
-        "lastAttemptAt": "2026-09-29T12:00:00Z"
+        "last_attempt_at": "2026-09-29T12:00:00Z"
       },
       "packVersion": "vidi-v2.0-pre1",
       "state": "finished",

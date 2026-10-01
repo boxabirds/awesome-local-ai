@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { State } from "../../shared/types.ts";
 import { ago } from "../format.ts";
 import { useHeightVar } from "../useHeightVar.ts";
+import { utc } from "./run/bits.tsx";
 
 interface Props {
   state: State;
@@ -17,9 +18,14 @@ interface Props {
   children?: ReactNode;
 }
 
+/** How fresh the data is, and no more: "updated 30s ago", or, when it isn't being updated, since when. */
+export function freshness(state: Pick<State, "updatedAt" | "updating">, serverNow: number | null): string {
+  if (!state.updatedAt) return "not updated yet";
+  if (!state.updating) return `not updated since ${utc(state.updatedAt)}`;
+  return `updated ${ago(serverNow === null ? null : serverNow - state.updatedAt)}`;
+}
+
 export function Header({ state, serverNow, packs, pack, families, family, currentFamily, onPack, onFamily, children }: Props) {
-  const since = (t: number) => (t && serverNow !== null ? serverNow - t : null);
-  const errors = [state.fetchError ? `git: ${state.fetchError}` : "", state.dbenchError ? `dbench: ${state.dbenchError}` : ""].filter(Boolean);
   const bar = useHeightVar<HTMLElement>("--header-h");
   return (
     <header ref={bar}>
@@ -38,10 +44,9 @@ export function Header({ state, serverNow, packs, pack, families, family, curren
           ))}
         </select>
       </label>
-      <span className="meta" data-testid="meta">
-        repo fetched {ago(since(state.fetchedAt))} · dbench {ago(since(state.dbenchAt))} · suite {state.suites[pack] || "?"}
+      <span className="meta" data-testid="meta" data-updating={state.updating ? "true" : "false"}>
+        {freshness(state, serverNow)} · suite {state.suites[pack] || "?"}
       </span>
-      {errors.length > 0 ? <span className="err">{errors.join(" · ")}</span> : null}
       {children}
     </header>
   );

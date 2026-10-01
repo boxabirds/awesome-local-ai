@@ -1,8 +1,8 @@
 // Reading the two sources: the repo's fetched origin/main (git) and dbench.
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
-import type { Finalize, Intervention, Invalid, Score } from "../shared/types.ts";
-import { countTests, finalScore, findRuns, normaliseByStory, parseAccountingVersion, parseFinalize, parseInterventions, parseInvalid, type RawRescore, type RawUsage, storyEntry, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
+import type { Intervention, Score } from "../shared/types.ts";
+import { countTests, finalScore, findRuns, normaliseByStory, parseFinalize, parseInterventions, parseInvalid, rescoreFault, type Invalid, type RawFinalize, type RawRescore, type RawUsage, storyEntry, type DbenchJob, type Rescored, type RunRecord } from "./domain.ts";
 
 const run = promisify(execFile);
 export const REF = "origin/main";
@@ -91,13 +91,10 @@ export function runNotes(blobs: Map<string, string>, dir: string): { client: str
 /** Where a run's final re-score is recorded (finalize.py). */
 export const finalizePath = (dir: string) => `${dir}/finalize.json`;
 
-/** What the run's final re-score recorded; null when the record has none or it doesn't parse. */
-export const runFinalize = (blobs: Map<string, string>, dir: string): Finalize | null => parseFinalize(json<unknown>(blobs.get(finalizePath(dir))));
+/** What the run's final re-score recorded, whole; null when the record has none or it doesn't parse. */
+export const runFinalize = (blobs: Map<string, string>, dir: string): RawFinalize | null => parseFinalize(json<unknown>(blobs.get(finalizePath(dir))));
 
-/** The harness's accounting, whose VERSION says which calculation is current. */
-export const ACCOUNTING_PATH = "benchmarks/spec-bench/harness/accounting.py";
-
-type RawStory = { title?: string; status?: string; accept?: { passed?: number; total?: number } | null } & RawUsage;
+type RawStory = { title?: string; status?: string; accept?: { passed?: number; total?: number } | null; harness_faults?: unknown[] } & RawUsage;
 
 /** Every pushed run record, and each pack's current version (bench.json pack_ref). */
 export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; suites: Record<string, string> }> {
@@ -109,9 +106,8 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
     ...runNotePaths(r.dir), `${r.dir}/run-status.json`, `${r.dir}/metrics.json`, finalizePath(r.dir),
     ...r.rescores.map((v) => `${r.dir}/rescore/${v}/rescore.json`),
     ...Object.entries(r.rescoreLast).flatMap(([v, id]) => rescoreStoryPaths(r.dir, v, id)),
-  ]).concat(packs.map((p) => `benchmarks/${p}/bench.json`), ACCOUNTING_PATH);
+  ]).concat(packs.map((p) => `benchmarks/${p}/bench.json`));
   const blobs = await readBlobs(repo, wanted);
-  const accountingVersion = parseAccountingVersion(blobs.get(ACCOUNTING_PATH));
   const suites = Object.fromEntries(packs.map((p) => [p, json<{ pack_ref?: string }>(blobs.get(`benchmarks/${p}/bench.json`))?.pack_ref ?? ""]));
   const records = runs.map((r): RunRecord => {
     const meta = json<{ pack_version?: string; host?: string }>(blobs.get(`${r.dir}/run.json`)) ?? {};
@@ -122,18 +118,22 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
       ? raw.map((s, i) => [String(i + 1), s])
       : Object.entries(raw).toSorted((a, b) => Number(a[0]) - Number(b[0]));
     const scores: Record<string, Score> = {};
+    const rescoreFaults: Record<string, string> = {};
     const lastStory = pairs.at(-1)?.[0];
     for (const v of r.rescores) {
-      const score = finalScore(json<RawRescore>(blobs.get(`${r.dir}/rescore/${v}/rescore.json`)), status.state ?? "", lastStory);
+      const rs = json<RawRescore>(blobs.get(`${r.dir}/rescore/${v}/rescore.json`));
+      const score = finalScore(rs, status.state ?? "", lastStory);
       if (score) scores[v] = score;
+      const fault = rescoreFault(rs);
+      if (fault) rescoreFaults[v] = fault;
     }
     const rescored: Record<string, Rescored> = {};
     for (const [v, id] of Object.entries(r.rescoreLast)) {
       const acc = rescoredStory(blobs, r.dir, v, id);
       if (acc?.by_story) rescored[v] = { after: id, byStory: normaliseByStory(acc.by_story) };
     }
-    return { ...r, rescored, host: meta.host ?? "", packVersion: meta.pack_version ?? "", state: status.state ?? "", stateAt: status.at ?? "",
-      stories: pairs.map(([id, s]) => storyEntry(id, s, accountingVersion)), scores, ...runNotes(blobs, r.dir), finalize: runFinalize(blobs, r.dir) };
+    return { ...r, rescored, rescoreFaults, host: meta.host ?? "", packVersion: meta.pack_version ?? "", state: status.state ?? "", stateAt: status.at ?? "",
+      stories: pairs.map(([id, s]) => storyEntry(id, s)), scores, ...runNotes(blobs, r.dir), finalize: runFinalize(blobs, r.dir) };
   });
   return { records, suites };
 }

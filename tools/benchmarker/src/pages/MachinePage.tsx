@@ -39,7 +39,7 @@ function MachineBody({ machine, runs, state, serverNow, params }: MachinePagePro
     <div className="page machine-page" data-page="machine" data-machine={machine}>
       <Breadcrumb trail={[{ label: machine }]} />
       <MachineHeader machine={machine} info={info} listed={machines !== undefined} runs={runs} all={state.rows} />
-      <MachineNow machine={machine} all={state.rows} info={info} listed={machines !== undefined} isNode={isNode} now={now} />
+      <MachineNow machine={machine} all={state.rows} info={info} listed={machines !== undefined} isNode={isNode} node={(state.machines ?? []).find((m) => m.node === machine) ?? null} now={now} />
       <MachineHistory runs={runs} hidden={hidden} onHidden={chooseHidden} />
     </div>
   );
