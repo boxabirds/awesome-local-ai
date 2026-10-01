@@ -4,8 +4,13 @@
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { RECONNECT_MAX_BACKOFF_MS, CONNECTED_CONFIRMATION_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
+
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 export function connectBoard(
   doc: Y.Doc,
@@ -83,8 +88,17 @@ export function connectBoard(
     }
   };
 
+  // Listen for connection-close events to detect load_failed (close code 4500)
+  const onConnectionClose = (event: CloseEvent | null) => {
+    if (event && event.code === CLOSE_BOARD_LOAD_FAILED) {
+      setState('load_failed');
+    }
+    // Other close codes (1011, 1003, etc.) map to 'reconnecting' via the status event
+  };
+
   provider.on('status', onStatus);
   provider.on('sync', onSync);
+  (provider as any).on('connection-close', onConnectionClose);
 
   // Initial state
   onState('connecting');
@@ -97,6 +111,7 @@ export function connectBoard(
       }
       provider.off('status', onStatus);
       provider.off('sync', onSync);
+      provider.off('connection-close', onConnectionClose);
       provider.destroy();
     },
   };

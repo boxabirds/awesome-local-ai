@@ -17,9 +17,9 @@ export default defineConfig({
     { name: 'webkit', use: { browserName: 'webkit' } },
   ],
   webServer: {
-    command: 'npx vite build --mode test && npx wrangler dev --port 8787 --ip 127.0.0.1',
+    command: 'rm -rf /tmp/vidi6-e2e-persist && npx vite build --mode test && npx wrangler dev --port 8787 --ip 127.0.0.1 --persist-to "file:///tmp/vidi6-e2e-persist" --var TEST_HOOKS=1',
     url: 'http://localhost:8787',
     reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    timeout: 90_000,
   },
 });

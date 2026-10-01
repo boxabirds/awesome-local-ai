@@ -14,6 +14,7 @@ import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { newBoardId } from '../shared/board-id';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 
 // Test-only hook
 declare global {
@@ -83,14 +84,15 @@ function App(): ReactElement {
     }
   }, [notes, selection.selectedId, selection.editingId, selection]);
 
-  // Create sticky at a screen point
+  // Create sticky at a screen point (disabled when load_failed)
   const createStickyAtScreen = useCallback((screenPoint: Point) => {
+    if (!canEdit(connectionState)) return;
     const worldPoint = screenToWorld(cam.camera, screenPoint);
     const id = createSticky(doc, worldPoint);
     if (id) {
       selection.startEdit(id);
     }
-  }, [cam.camera, doc, selection]);
+  }, [cam.camera, doc, selection, connectionState]);
 
   // Create sticky at viewport centre (toolbar button)
   const createStickyAtCentre = useCallback(() => {
@@ -117,6 +119,8 @@ function App(): ReactElement {
         return;
       }
 
+      if (!canEdit(connectionState)) return;
+
       if (e.key === 'Enter' && selection.selectedId && !selection.editingId) {
         e.preventDefault();
         selection.startEdit(selection.selectedId);
@@ -130,7 +134,7 @@ function App(): ReactElement {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selection.selectedId, selection.editingId, selection, doc]);
+  }, [selection.selectedId, selection.editingId, selection, doc, connectionState]);
 
   return (
     <>
@@ -161,7 +165,7 @@ function App(): ReactElement {
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createStickyAtCentre} />
+      <Toolbar onCreateSticky={createStickyAtCentre} disabled={!canEdit(connectionState)} />
       <ZoomControls
         zoomPercent={cam.zoomPercent}
         canZoomIn={cam.canZoomIn}

@@ -27,6 +27,10 @@ export function ConnectionStatus(props: { state: ConnectionState }): ReactElemen
       text = 'Connected';
       color = '#4CAF50';
       break;
+    case 'load_failed':
+      text = 'This board couldn\'t be loaded. Retrying…';
+      color = '#D32F2F';
+      break;
     default:
       return null;
   }

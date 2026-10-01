@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky: () => void;
+  disabled?: boolean;
 }
 
 export function Toolbar(props: ToolbarProps): ReactElement {
@@ -26,18 +27,20 @@ export function Toolbar(props: ToolbarProps): ReactElement {
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
         data-testid="create-sticky-btn"
-        onClick={props.onCreateSticky}
+        onClick={props.disabled ? undefined : props.onCreateSticky}
+        disabled={props.disabled}
         style={{
           width: 40,
           height: 40,
           border: '1px solid #ccc',
           borderRadius: 8,
-          background: '#FFF59D',
-          cursor: 'pointer',
+          background: props.disabled ? '#e0e0e0' : '#FFF59D',
+          cursor: props.disabled ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 18,
+          opacity: props.disabled ? 0.5 : 1,
         }}
       >
         📝
