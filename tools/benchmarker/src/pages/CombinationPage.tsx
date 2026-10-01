@@ -23,7 +23,7 @@ function Kpi({ term, s, fmt }: { term: TermId; s: Spread | null; fmt: (n: number
   return (
     <div className="kpi" data-kpi={term}>
       <dt><Term id={term} /></dt>
-      <dd>{s ? <SpreadText s={s} fmt={fmt} big="num-l" /> : <span className="missing" tabIndex={0} data-tip="No finished run with a score of record recorded this.">—</span>}</dd>
+      <dd>{s ? <SpreadText s={s} fmt={fmt} big="num-l" /> : <span className="missing" tabIndex={0} data-tip="No finished run has a score.">—</span>}</dd>
     </div>
   );
 }
@@ -40,7 +40,7 @@ export function CombinationPage({ stack, runs, state, params }: { stack: string;
   const matrix = buildMatrix(runs, metric);
   const finished = c.byStatus.finished ?? 0;
   const counts = [
-    finished ? `${finished} finished (${c.ofRecord.length} of record${c.notCounted.pending ? `, ${c.notCounted.pending} pending` : ""})` : "",
+    finished ? `${finished} finished (${c.ofRecord.length} scored${c.notCounted.pending ? `, ${c.notCounted.pending} pending` : ""})` : "",
     ...NOT_COUNTED_ORDER.filter((s) => s !== "pending" && c.notCounted[s]).map((s) => `${c.notCounted[s]} ${s}`),
   ].filter(Boolean);
   return (
@@ -54,7 +54,7 @@ export function CombinationPage({ stack, runs, state, params }: { stack: string;
         </div>
         <dl className="headline">
           <div className="kpi primary" data-kpi="score">
-            <dt><Term id="scoreSummary">Score of record</Term></dt>
+            <dt><Term id="scoreSummary">Score</Term></dt>
             <dd>{c.score ? <>
               <SpreadText s={c.score} fmt={fmtCount} big={`num-xl ${qualityClass(c.score.total ? c.score.median / c.score.total : null)}`} showN />
               <span className="small">{c.score.total ? ` / ${c.score.total}` : ""} · <Term id="pooledPassRate">pooled</Term> {Math.round(c.score.pooled * PERCENT)}%</span>

@@ -42,10 +42,10 @@ export function StoryRunHeader({ run, st, storyId, title }: { run: Row; st: Stor
         <Stat term="storyStatus"><span data-fact="storyStatus"><StoryStatus st={st} /></span></Stat>
         {story ? <>
           <Stat term="storyHeldOut" sub="this story's own tests, after it">
-            <span data-fact="own">{fraction(story.ownPassed, story.ownTotal, "This story's own held-out result isn't in its record.")}</span>
+            <span data-fact="own">{fraction(story.ownPassed, story.ownTotal, "Not available.")}</span>
           </Stat>
-          <Stat term="cumulativeHeldOut" sub="every story's tests so far">
-            <span data-fact="cumulative">{fraction(story.passed, story.total, "The whole-suite figure arrives with the story's record.")}</span>
+          <Stat term="cumulativeHeldOut" sub="whole suite so far">
+            <span data-fact="cumulative">{fraction(story.passed, story.total, "Not available.")}</span>
           </Stat>
           <Stat term="agentTime"><span data-fact="agentTime">{secs !== null ? <span className="big-n">{duration(secs)}</span> : <Missing why="This story's record has no time." />}</span></Stat>
         </> : null}
@@ -59,8 +59,7 @@ export function NotRecorded({ run, st }: { run: Row; st: Exclude<StoryRunState, 
   if (st.kind === "inProgress") {
     return (
       <Section term="storyStatus" id="progress">
-        <p className="state-note">Being built now. These are live figures; the record, with where the time went and the conversation profile, arrives when the story ends.</p>
-        {/* The figures are styled as live, so none can pass for a record. */}
+        <p className="state-note">Being built now.</p>
         <div className="stats live-stats">
           <Stat term="agentTime">{st.agentMinutes !== null ? <span className="live-n">{duration(st.agentMinutes * MINUTE)}</span> : <Missing why="No agent time reported on this story yet." />}</Stat>
           <Stat term="calls">{st.calls !== null ? <span className="live-n">{full(st.calls)}</span> : <Missing why="No calls reported on this story yet." />}</Stat>

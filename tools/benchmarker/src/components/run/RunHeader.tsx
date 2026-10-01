@@ -8,7 +8,7 @@ import { CombinationLink, MachineLink } from "../EntityLinks.tsx";
 import { JudgeCell } from "../JudgeCell.tsx";
 import { LinksCell } from "../LinksCell.tsx";
 import { duration, ordinal, qualityClass } from "../../format.ts";
-import { Missing, RecordTag, Stat, Term, utc } from "./bits.tsx";
+import { Missing, Stat, Term, utc } from "./bits.tsx";
 
 export function StatusBadge({ run }: { run: Row }) {
   const v = statusView(run);
@@ -34,7 +34,7 @@ function LeadScore({ run, state }: { run: Row; state: State }) {
   if (lead.kind === "none") {
     return (
       <div className="lead-score" data-section="lead" data-lead="none">
-        <Stat term="scoreOfRecord" tag={<RecordTag />}>
+        <Stat term="scoreOfRecord">
           {r.kind === "none" && r.reason === "pending" ? <PendingScore /> : <span className="na" data-reason={r.kind === "none" ? r.reason : "pending"} data-tip={GLOSSARY.noScore.what}>—</span>}
         </Stat>
       </div>
@@ -44,7 +44,7 @@ function LeadScore({ run, state }: { run: Row; state: State }) {
   if (lead.kind === "live") {
     return (
       <div className="lead-score" data-section="lead" data-lead="live">
-        <Stat term="liveHeldOut" sub={<>so far, after {lead.stories} recorded {lead.stories === 1 ? "story" : "stories"}</>}>
+        <Stat term="liveHeldOut">
           <span className="lead-n live-n">{n}</span> <span className="lead-text">held-out tests pass</span>
         </Stat>
       </div>
@@ -54,11 +54,7 @@ function LeadScore({ run, state }: { run: Row; state: State }) {
   const link = state.web && run.dir && rec ? `${state.web}/blob/${state.branch}/${run.dir}/rescore/${rec.version}/per-story.md` : null;
   return (
     <div className="lead-score" data-section="lead" data-lead="record">
-      <Stat term="scoreOfRecord" tag={<RecordTag />} sub={rec ? <>
-        re-scored {rec.at ? utc(rec.at) : "(no time recorded)"} · suite <span className="mono">{rec.version}</span>
-        {rec.flaky ? ` · ${rec.flaky} flaky` : ""}
-        {rec.currentSuite ? null : <span className="warn" data-tip={GLOSSARY.suite.what}> · not the current suite ({run.suite})</span>}
-      </> : undefined}>
+      <Stat term="scoreOfRecord" sub={rec?.flaky ? `${rec.flaky} flaky` : undefined}>
         <span className="lead-n">{link ? <a className="record-link" href={link} target="_blank" rel="noopener" data-tip={`${lead.passed} of ${lead.total} held-out tests pass · per-story results`}>{n}</a> : n}</span>
         {" "}<span className="lead-text">held-out tests pass</span>
       </Stat>
@@ -70,12 +66,12 @@ function AgentTimeStat({ run }: { run: Row }) {
   const t = agentTime(run);
   return (
     <Stat term="agentTime" sub={<>
-      {t.recordedSeconds !== null ? <>over {t.recordedStories - t.untimedStories} recorded {t.recordedStories - t.untimedStories === 1 ? "story" : "stories"}</> : null}
+      {t.recordedSeconds !== null ? <>over {t.recordedStories - t.untimedStories} {t.recordedStories - t.untimedStories === 1 ? "story" : "stories"}</> : null}
       {t.untimedStories ? <> · {t.untimedStories} without a time</> : null}
-      {t.liveSeconds !== null ? <div className="live-line"><span className="live-n">{duration(t.liveSeconds)}</span> so far, the running story included</div> : null}
+      {t.liveSeconds !== null ? <div className="live-line"><span className="live-n">{duration(t.liveSeconds)}</span> including the running story</div> : null}
     </>}>
       {t.recordedSeconds !== null ? <span className="big-n">{duration(t.recordedSeconds)}</span>
-        : <Missing why={run.status === "queued" ? "Nothing recorded yet: the run is queued." : "No recorded story of this run has a time yet."} />}
+        : <Missing why={run.status === "queued" ? "Nothing yet: the run is queued." : "No story of this run has a time yet."} />}
     </Stat>
   );
 }

@@ -61,10 +61,10 @@ function Cell({ e, m, g, cmp }: { e: Entry; m: StoryMeasure; g: Group; cmp: Comp
   } else if (a.kind === "building") {
     const live = m.key === "minutes" ? a.agentMinutes : m.key === "calls" ? a.calls : m.key === "outTokens" ? a.outputTokens : null;
     body = live !== null
-      ? <span className="live-n" tabIndex={0} data-tip={`Live: ${termName(m.term).toLowerCase()} so far on this story. The record arrives when the story ends.${live === 0 && m.key !== "minutes" ? " Some clients (Claude) count calls and tokens only when a story ends, so 0 here can mean not counted yet." : ""}`}>{SHOW[m.key](live)}</span>
-      : <Missing why="Being built now: this figure arrives with the story's record when it ends." />;
+      ? <span className="live-n" tabIndex={0} data-tip={`${termName(m.term)}, so far on this story.`}>{SHOW[m.key](live)}</span>
+      : <Missing why="Being built now." />;
   } else {
-    body = <Missing why="Built (its latest-build square says so), but the story's record hasn't arrived yet." />;
+    body = <Missing why="Not available yet." />;
   }
   const d = m.summarised ? e.divergence[m.key as SummaryKey] : null;
   return (
@@ -75,13 +75,13 @@ function Cell({ e, m, g, cmp }: { e: Entry; m: StoryMeasure; g: Group; cmp: Comp
   );
 }
 
-/** Under the held-out result: the same story's tests against the run's latest build, live. */
+/** Under the held-out result: the same story's tests as the run stands. */
 function Latest({ e }: { e: Entry }) {
   const q = e.latest;
   const body = !q || !q.total
-    ? <Missing why={q?.state === "running" ? "Being built now: no build to test yet." : "No held-out result against the run's latest build."} />
+    ? <Missing why={q?.state === "running" ? "Being built now: no build to test yet." : "No held-out result."} />
     : <span className="live-n" tabIndex={0} data-tip={`${termTip("storyLatestBuild")} ${q.passed ?? 0} of ${q.total} pass.`}><i className={`sq q-${q.state}`} aria-hidden="true" />{q.passed ?? 0}/{q.total}</span>;
-  return <span className="latest" data-latest>latest {body}</span>;
+  return <span className="latest" data-latest>now {body}</span>;
 }
 
 function RunCell({ e, storyId, cmp, onCompare }: { e: Entry; storyId: string; cmp: Comparison; onCompare: (p: string | undefined) => void }) {
@@ -105,7 +105,7 @@ function Bar({ e, scale }: { e: Entry; scale: number }) {
   const split = e.attempt.kind === "recorded" ? e.attempt.story.usage?.split ?? null : null;
   if (!split) {
     const why = e.attempt.kind === "recorded" ? "No time breakdown for this story run."
-      : e.attempt.kind === "building" ? "Being built now: the breakdown arrives with the story's record." : "The story's record hasn't arrived yet.";
+      : e.attempt.kind === "building" ? "Being built now." : "Not available yet.";
     return <span className="no-split"><Missing why={why} /></span>;
   }
   return <span className="bar-track"><StorySplitBar split={split} usage={e.attempt.kind === "recorded" ? e.attempt.story.usage : null} scaleSeconds={scale} label={`${e.run.runId}: ${duration(split.wall)}`} /></span>;
@@ -205,7 +205,7 @@ export function ByCombination({ view, storyId, cmp, onCompare }: { view: StoryPa
                 {STORY_MEASURES.map((m) => (
                   <th key={m.key} scope="col" className="n" data-measure={m.key}>
                     <Term id={m.term} />
-                    {m.key === "heldOut" ? <span className="th-sub"><Term id="storyLatestBuild">and latest</Term></span> : null}
+                    {m.key === "heldOut" ? <span className="th-sub"><Term id="storyLatestBuild">and now</Term></span> : null}
                   </th>
                 ))}
               </tr>

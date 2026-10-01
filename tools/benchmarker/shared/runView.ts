@@ -57,17 +57,17 @@ const ENDED_EARLY: Partial<Record<RunStatus, string>> = {
 /** The one word a finished run's missing score is shown as. */
 export const PENDING = "pending";
 
-/** The run's score of record, or that it has none. A run that is running or queued again has none, whatever an
+/** The run's score, or that it has none. A run that is running or queued again has none, whatever an
  * earlier attempt was scored: its build is about to change. */
 export function scoreOfRecord(run: Pick<Row, "status" | "scores" | "suite">): RecordView {
   if (run.status === "running" || run.status === "queued") {
-    return { kind: "none", reason: "not-finished", why: `The run is ${run.status}: only a finished run has a score of record.` };
+    return { kind: "none", reason: "not-finished", why: "Not scored yet." };
   }
   const found = scoreOf(run as Row);
   const s = found?.[1];
   if (!found || s!.passed === null || s!.total === null) {
     if (run.status !== "finished") {
-      return { kind: "none", reason: "ended-early", why: `The run ${ENDED_EARLY[run.status] ?? run.status} before it finished, so it has no score of record.` };
+      return { kind: "none", reason: "ended-early", why: `No score: the run ${ENDED_EARLY[run.status] ?? run.status} before it finished.` };
     }
     return { kind: "none", reason: "pending", why: "Score pending." };
   }
@@ -108,7 +108,7 @@ const SQUARE_TERM: Record<StorySquare["state"], TermId> = { ok: "sqOk", part: "s
 /** A square's hover: "story 2: some of its held-out tests pass (9/10), against the latest build". */
 export function squareTip(q: StorySquare): string {
   const counts = q.total ? ` (${q.passed ?? 0}/${q.total})` : "";
-  return `story ${q.id}: ${GLOSSARY[SQUARE_TERM[q.state]].what}${counts}${q.total ? ", against the latest build" : ""}`;
+  return `story ${q.id}: ${GLOSSARY[SQUARE_TERM[q.state]].what}${counts}${q.total ? "" : ""}`;
 }
 
 // ---------- where the time went ----------
@@ -231,8 +231,7 @@ export function liveProgress(run: Pick<Row, "stories">): LiveStep[] {
   return run.stories.toSorted((a, b) => Number(a.id) - Number(b.id)).map((s) => ({ id: s.id, passed: s.passed, total: s.total }));
 }
 
-/** What the run page leads with: the score of record ("62/75"), a running run's live score so far over the stories
- * recorded, or nothing (a finished run whose score is pending: "—", and no more). */
+/** What the run page leads with: the score ("62/75"), a running run's score over the stories it has finished, or nothing (a finished run whose score is pending: "—", and no more). */
 export type LeadScore =
   | { kind: "record"; passed: number; total: number; version: string; currentSuite: boolean }
   | { kind: "live"; passed: number; total: number; stories: number }

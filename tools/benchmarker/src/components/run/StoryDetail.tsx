@@ -86,7 +86,7 @@ export function Conversation({ story }: { story: Story }) {
     );
   }
   return (
-    <Section term="conversation" id="conversation" aside={<span className="small">counted from the event log; no LLM</span>}>
+    <Section term="conversation" id="conversation">
       <div className="stats">
         <Stat term="modelCalls" sub={`${full(c.toolCalls)} tool calls`}>{full(c.calls)}</Stat>
         <Stat term="thinking" sub={c.thinkingMedian !== null ? `median ${full(c.thinkingMedian)} per call` : undefined}>

@@ -33,11 +33,6 @@ export function Section({ term, id, aside, children }: { term: TermId; id: strin
   );
 }
 
-/** Of record: the re-score of a finished run, the number to rank by. */
-export function RecordTag() {
-  return <span className="tag tag-record" data-tip={GLOSSARY.scoreOfRecord.what}>of record</span>;
-}
-
 /** One figure with its glossary label: a number, or Missing. */
 export function Stat({ term, children, sub, tag }: { term: TermId; children: ReactNode; sub?: ReactNode; tag?: ReactNode }) {
   return (

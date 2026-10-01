@@ -57,7 +57,7 @@ test.describe("overview: combinations ranked on finished runs of record", () => 
   test("runs not counted are in their own column, by why", async ({ page }) => {
     await expect(combos(page).locator(`tr[data-stack="${SWIFT}"] td.not-counted`)).toHaveText("1 running2 queued1 pending");
     await expect(combos(page).locator(`tr[data-stack="${OPUS}"] td.not-counted`)).toHaveText("1 running");
-    await expect(combos(page).getByRole("columnheader", { name: "Not counted" })).toHaveAttribute("data-tip", /pending \(finished, its score of record not in yet\)/);
+    await expect(combos(page).getByRole("columnheader", { name: "Not counted" })).toHaveAttribute("data-tip", /pending \(finished, no score yet\)/);
   });
 
   test("small n: a note says neighbours within 12 tests can't be told apart, and names them", async ({ page }) => {
@@ -120,7 +120,7 @@ test.describe("combination page", () => {
     await expect(page.locator('[data-kpi="hoursPerStory"] dd')).toHaveText("0.4 (0.2–0.8)");
     await expect(page.locator('[data-kpi="outPerStory"] dd')).toHaveText("71k (63k–118k)");
     await expect(page.locator('[data-kpi="callsPerStory"] dd')).toHaveText("150 (100–177)");
-    await expect(page.locator(".run-counts")).toHaveText("Runs: 4 finished (3 of record, 1 pending) · 1 running · 2 queued");
+    await expect(page.locator(".run-counts")).toHaveText("Runs: 4 finished (3 scored, 1 pending) · 1 running · 2 queued");
   });
 
   test("predictability: thinking spread and time spread beside the amounts, and the runs they are over", async ({ page }) => {
@@ -153,7 +153,7 @@ test.describe("combination page", () => {
     await expect(rowOf(page, "v2-r1").locator(".live")).toHaveText("1/2");
     await expect(rowOf(page, "v2-r1").locator(".of-record")).toHaveCount(0);
     await rowOf(page, "v2-r2").locator("td.m-score .missing").hover();
-    await expect(tip(page)).toContainText("the run is queued, and only a finished run is re-scored");
+    await expect(tip(page)).toContainText("Not scored yet");
   });
 
   test("matrix columns: one per story in the pack; not-built stories are empty", async ({ page }) => {
@@ -275,7 +275,7 @@ test.describe("combination page", () => {
     expect(await width("v2-r6")).toBeGreaterThan(await width("v2-r4"));
     await expect(bars.locator('[data-run="v2-r5"] .bar-total')).toHaveText("1h31m");
     await bars.locator('[data-run="v2-r6"] [data-seg="tools"]').hover();
-    await expect(tip(page)).toContainText("Tools 18 min (43%) over 2 recorded stories");
+    await expect(tip(page)).toContainText("Tools 18 min (43%) over 2 stories");
     await expect(bars.locator(".check-flag, .check-unchecked")).toHaveCount(0);
     await expect(bars).not.toContainText(/accounting|unchecked|⚠/i);
     await expect(bars.locator("figcaption")).toContainText("Between sessions");
@@ -352,7 +352,7 @@ test.describe("combination page: empty and absent states", () => {
     await open(page, GUFO);
     await expect(page.locator('[data-kpi="score"] dd')).toHaveText("not ranked: 1 finished, score pending");
     await expect(page.locator('[data-kpi="hoursPerStory"] .missing')).toHaveText("—");
-    await expect(page.locator(".run-counts")).toHaveText("Runs: 1 finished (0 of record, 1 pending)");
+    await expect(page.locator(".run-counts")).toHaveText("Runs: 1 finished (0 scored, 1 pending)");
     await expect(matrix(page).locator("td.m-cell .flag")).toHaveCount(0);
     await expect(page.locator('[data-section="tally"] [data-tally="none"]')).toHaveText("No story has 2 finished runs yet, so there is no median to differ from.");
     // gufo's only run is v1, so its page is v1's; mlx-serve has no v1 run, so it isn't offered to compare with.

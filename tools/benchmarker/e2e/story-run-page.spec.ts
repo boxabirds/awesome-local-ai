@@ -73,7 +73,7 @@ test.describe("header", () => {
   test("recorded by dbench before its record: its own result; the rest missing with why", async ({ page }) => {
     await open(page, SWIFT, "v2-r1", "2");
     await expect(section(page, "header").locator('[data-fact="own"]')).toHaveText("9/10");
-    await expect(section(page, "header").locator('[data-fact="cumulative"] .missing')).toHaveAttribute("data-tip", "The whole-suite figure arrives with the story's record.");
+    await expect(section(page, "header").locator('[data-fact="cumulative"] .missing')).toHaveAttribute("data-tip", "Not available.");
     await expect(section(page, "header").locator('[data-fact="agentTime"] .missing')).toHaveAttribute("data-tip", "This story's record has no time.");
   });
 });
@@ -218,7 +218,7 @@ test.describe("conversation profile", () => {
       await expect(stat(page, "conversation", term).locator(".stat-value"), term).toHaveText(value);
       if (sub) await expect(stat(page, "conversation", term).locator(".stat-sub"), term).toHaveText(sub);
     }
-    await expect(section(page, "conversation").locator(".rp-head")).toContainText("no LLM");
+    await expect(section(page, "conversation").locator(".rp-head")).not.toContainText(/no LLM|event log/);
   });
 
   test("tools by name, most used first", async ({ page }) => {

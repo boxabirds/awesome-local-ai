@@ -18,13 +18,13 @@ function Neighbour({ pack, s, rel, params }: { pack: string; s: StoryItem | null
 }
 
 function Tests({ tests }: { tests: TestCount[] }) {
-  if (!tests.length) return <Missing why="No run has recorded this story's held-out tests yet." />;
+  if (!tests.length) return <Missing why="No held-out tests for this story yet." />;
   const [main, ...rest] = tests;
   return (
     <>
       <span className="big-n" data-tests={main.total}>{main.total}</span>
       {rest.length ? (
-        <span className="small tests-differ" tabIndex={0} data-tip={`Runs counted a different number of tests: ${tests.map((t) => `${t.total} in ${t.runs} run${t.runs === 1 ? "" : "s"}`).join(", ")}. Runs scored under another suite version count another set of tests.`}>
+        <span className="small tests-differ" tabIndex={0} data-tip={`Runs counted a different number of tests: ${tests.map((t) => `${t.total} in ${t.runs} run${t.runs === 1 ? "" : "s"}`).join(", ")}.`}>
           {" "}in {main.runs} run{main.runs === 1 ? "" : "s"}; {rest.map((t) => `${t.total} in ${t.runs}`).join(", ")}
         </span>
       ) : null}

@@ -8,7 +8,7 @@ import { InterventionMark } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { qualityClass } from "../../format.ts";
 import { CombinationLink, RunLink } from "../EntityLinks.tsx";
-import { Missing, RecordTag, Term } from "../run/bits.tsx";
+import { Missing, Term } from "../run/bits.tsx";
 import { StatusBadge } from "../run/RunHeader.tsx";
 
 function Score({ run }: { run: Row }) {
@@ -17,7 +17,7 @@ function Score({ run }: { run: Row }) {
     // A finished run without one: pending, whatever it was scored under before. The rest: only that it isn't finished.
     if (run.status === "finished") return <span className="pending" data-tip={GLOSSARY.noScore.what}>{PENDING}</span>;
     const v = recordView(run);
-    return <Missing why={v.kind === "none" ? v.why : "No score of record."} />;
+    return <Missing why={v.kind === "none" ? v.why : "No score yet."} />;
   }
   return <span className="of-record" data-tip={GLOSSARY.scoreOfRecord.what}><strong className={qualityClass(s.passed! / s.total!)}>{s.passed}</strong><span className="of">/{s.total}</span></span>;
 }
@@ -26,7 +26,7 @@ function Stories({ run }: { run: Row }) {
   const { working, squares } = run.storiesWorking;
   if (!squares.length) return <Missing why="No stories in scope are known for this run yet." />;
   return (
-    <span className="mini-strip" data-tip={`${working} of ${squares.length} stories pass all their held-out tests against the latest build. ${squares.map(squareTip).join(" · ")}`}>
+    <span className="mini-strip" data-tip={`${working} of ${squares.length} stories pass all their held-out tests. ${squares.map(squareTip).join(" · ")}`}>
       <span className="strip" aria-hidden="true">{squares.map((q) => <span key={q.id} className={`cell q-${q.state}`} />)}</span>
       <span className="live-n">{working}/{squares.length}</span>
     </span>
@@ -79,7 +79,7 @@ export function MachineHistory({ runs, hidden, onHidden }: { runs: Row[]; hidden
                 <th scope="col"><Term id="historyRun" /></th>
                 <th scope="col"><Term id="runStatus" /></th>
                 <th scope="col"><Term id="storyStrip" /></th>
-                <th scope="col"><Term id="scoreOfRecord" /> <RecordTag /></th>
+                <th scope="col"><Term id="scoreOfRecord" /></th>
               </tr>
             </thead>
             {c.groups.map((g) => <Group key={`${g.pack}|${g.family}`} g={g} />)}

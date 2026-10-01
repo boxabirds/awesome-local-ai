@@ -67,7 +67,7 @@ function cellTip(c: MatrixCell, run: Row, metric: Metric, m: StoryMedian | null 
 function RunHead({ run }: { run: Row }) {
   const score = scoreOfRecord(run);
   const built = run.storiesWorking.squares.filter((q) => q.state !== "unbuilt" && q.state !== "running").length;
-  const why = `No score of record: the run is ${run.status}, and only a finished run is re-scored.`;
+  const why = "Not scored yet.";
   return (
     <>
       <th scope="row" className="m-run">
