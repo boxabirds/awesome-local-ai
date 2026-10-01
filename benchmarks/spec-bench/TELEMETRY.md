@@ -48,7 +48,21 @@ harness passed to the server launcher; a server without server-side effort, such
 it), `client_thinking` (the effort pi itself sends with each request, empty when it sends none),
 `known_good_from` (known-good mode's reference run, empty for a full run), `context_limit`, `output_limit`, `compact_at` (the client's compaction threshold), `metered`
 (whether the Python proxy was on), `host` (CPU, RAM, GPU), `harness_commit`, `harness_release`, `pack_version`,
-`started_at`, `identity`, `engine_settings`.
+`started_at`, `sandbox`, `identity`, `engine_settings`.
+
+`sandbox` is what the run's agent ran in ([`harness/sandbox.py`](harness/sandbox.py), [`tools/agent-sandbox`](../../tools/agent-sandbox/README.md)):
+`mode` (`enforced`: every agent session ran in agent-sandbox, deny by default; `permissive`: no sandbox at all,
+`SPEC_BENCH_SANDBOX=permissive`, which only the harness's own tests may use: such a run cannot record, and the
+publishing step refuses it), and for an enforced run `version` (agent-sandbox's), `platform` (`macos-aarch64`,
+`linux-x86_64`) and `policy_hash` (SHA-256 of the policy it enforces: the Seatbelt profile or the bubblewrap command
+line of an empty run, and the preset hosts), so that runs can be compared and a run that did not use it is told apart.
+The monitor's faults feed names such a run (`sandbox_not_enforced`); no page shows it. Records from before the agent ran in
+a sandbox (before 1 Oct 2026) have no `sandbox`: they ran with the whole machine visible and a list of paths hidden.
+What the agent sees in a sandboxed run: its own run directory at `/w` on Linux (a short neutral directory,
+`~/.w/<id>`, on macOS, which cannot remap a path), `spec/` read-only, a private `/tmp`, a home of its own, an environment
+that is an allow-list (`sandbox.ENV_ALLOWED`), the npm registry and Playwright's CDN (and Claude Code's API host) through an
+allow-listing proxy whose log is `<bench home>/egress/<id>.jsonl` (local only, never published), and a block of ports of its own
+(`AGENT_PORT_FIRST`, `AGENT_PORT_LAST`).
 
 `harness_commit` and `harness_release` name the harness code this start ran ([`harness/roots.py`](harness/roots.py)).
 A benchmark node runs the harness of the latest release: dbench materialises the newest `harness-vYYYY.MM.DD.n` tag
@@ -260,7 +274,7 @@ Sampled every 30 s (`CONDITION_POLL_S`).
 | `swap_start_gb`, `swap_max_gb`, `aborted_swap` | the swap guard stops the story if swap grows more than 4 GB |
 | `free_min_pct`, `aborted_memory` | the memory guard stops it below 8% free |
 | `containment` | Linux with a systemd user manager: the story's agent sessions ran in their own scopes (tools/agent-containment/PROPOSAL.md). `enabled`, `units`, `memory_max_gb` (the agent's limit: memory available at the session's start less a reserve), `memory_peak_gb`, `left_at_story_end` (processes killed with the scope) and `reaped`: each process killed during the story (`pid`, `comm`, `age_s`, `rss_gb`, `rule`: `interrupted` when the hang guard cut its tool call off, `memory pressure` for an orphan past the grace period while free memory was below 30%). `{"enabled": false}` on macOS |
-| `outside_workspace` | written at finalize by `harness/logscan.py` from the story's agent log, on the machine that ran it: whether the agent's own tool calls reached outside its workspace for anything that could give it answers (reference builds, other runs' workspaces or `/tmp` leftovers, the held-out suite, clones of this repo, this repo on GitHub). `version`, `ok` (true, false, or null with no readable log), `log` (file and format read), `truncated` (a clean verdict from a truncated log is weaker), `reaches` (`route`, `target`, `calls`, `example`). The run's summary goes in `finalize.json` and a reach is named in the record's message |
+| `outside_workspace` | written at finalize by `harness/logscan.py` from the story's agent log, on the machine that ran it: whether the agent's own tool calls reached outside its workspace for anything that could give it answers (reference builds, other runs' workspaces or `/tmp` leftovers, the held-out suite, clones of this repo, this repo on GitHub). `version`, `ok` (true, false, or null with no readable log), `log` (file and format read), `truncated` (a clean verdict from a truncated log is weaker), `reaches` (`route`, `target`, `calls`, `example`). In a sandboxed run (`run.json` `sandbox`) it finds nothing by construction: nothing it names exists for the agent, so it is a backstop, and a reach there is a fault in the sandbox. The run's summary goes in `finalize.json` and a reach is named in the record's message |
 | `engine_settings` | the engine settings of the server start this story ran under (`engine_settings.for_story`: run.json's `engine_settings`, stamped `server_started_at`); null when the run records none |
 | `harness_faults` | present only when a step of the harness's own bookkeeping failed for this story (`drive.derived`): each `step` ("time split", "conversation profile", "reply check", "summary", "record", …), `error` and `where` (file:line). The story was still scored, committed and recorded; the field that step fills is null or empty, each fault is also in the run's interventions, and `backfill_timing.py` can fill the time split and profile afterwards from the logs |
 | `memory_snapshot` | what held memory at the story's lowest point, once free memory fell below 20%: `t`, `free_pct`, `total_rss_gb`, `processes` (the 15 largest: `pid`, `rss_gb`, `command` with home paths and keys hidden) and `by_program` (totals per program: `program`, `count`, `rss_gb`). Null when memory never ran that low |
@@ -374,6 +388,7 @@ null, when the scan itself failed (the run is still scored).
 | lossless conversation log, every attempt counted, per-story `provenance` | runs started on the harness that adds them (30 Sep 2026) and later; earlier runs after `backfill_timing.py` (the log rebuild needs the machine's full logs) | as Strix Halo | as Strix Halo |
 | `agent.finished`, and `nudges` counting stop messages (the stop rule) | runs started on the harness that adds them (1 Oct 2026) and later | as Strix Halo | as Strix Halo |
 | read-only `spec/` in the sandbox, `PROGRESS.md`, `tasks_claimed`, `spec_changed_files`, `skipped_output`, `record.credentials_redacted` | runs started on the harness release that adds them (after 1 Oct 2026) and later | as Strix Halo | as Strix Halo (sandbox-exec) |
+| the agent in agent-sandbox (deny by default: `run.json` `sandbox`, the run at `/w`, an allow-listed environment and network, a private `/tmp`, process namespace and ports; the old permissive sandbox is gone), `egress/<id>.jsonl` | runs started on the harness release that adds it (1 Oct 2026) and later; earlier runs have no `sandbox` | as Strix Halo (bubblewrap) | as Strix Halo (Seatbelt; the run is in `~/.w/<id>`, not `/w`; the loopback ports of other runs are closed except the kernel-picked range, an accepted gap) |
 
 A server log without a start marker (before 0ef8480) can still be read by prepending a marker with
 the server's start time, which is the log file's creation time (`stat -c %W server.log`).
