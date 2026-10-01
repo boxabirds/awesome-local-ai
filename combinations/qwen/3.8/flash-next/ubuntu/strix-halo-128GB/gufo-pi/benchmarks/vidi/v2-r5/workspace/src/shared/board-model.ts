@@ -6,6 +6,8 @@ import type { TextSnapshot } from './objects/text';
 import type { ShapeSnap } from './objects/shape';
 import type { ConnectorSnap } from './objects/connector';
 import { detachConnectorsTo } from './objects/connector';
+import type { StrokeSnap } from './objects/stroke';
+import { strokeFromMap } from './objects/stroke';
 
 /**
  * Board document model: the Yjs schema and every mutation a user can perform on the board.
@@ -54,7 +56,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 }
 
 /** Union snapshot that includes all known object types. */
-export type CombinedSnapshot = StickySnapshot | TextSnapshot | ShapeSnap | ConnectorSnap;
+export type CombinedSnapshot = StickySnapshot | TextSnapshot | ShapeSnap | ConnectorSnap | StrokeSnap;
 
 const metaMap = (doc: Y.Doc): Y.Map<unknown> => doc.getMap(META_MAP);
 
@@ -442,6 +444,7 @@ export function allObjectsSnapshot(doc: Y.Doc): readonly CombinedSnapshot[] {
   for (const [id, map] of objectsMap(doc)) {
     const type = map.get('type');
     if (type === 'connector') continue; // Connectors don't have meaningful rects
+    if (type === 'stroke') continue; // Strokes don't participate in connector endpoint resolution
     const x = numberField(map, 'x');
     const y = numberField(map, 'y');
     const width = typeof map.get('width') === 'number' ? map.get('width') as number : STICKY_SIZE_WORLD;
@@ -522,6 +525,9 @@ export function allObjectsSnapshot(doc: Y.Doc): readonly CombinedSnapshot[] {
         from,
         to,
       } as ConnectorSnap);
+    } else if (type === 'stroke') {
+      const snap = strokeFromMap(id, map);
+      if (snap) items.push(snap);
     }
   }
   items.sort((a, b) => (a.z === b.z ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.z - b.z));

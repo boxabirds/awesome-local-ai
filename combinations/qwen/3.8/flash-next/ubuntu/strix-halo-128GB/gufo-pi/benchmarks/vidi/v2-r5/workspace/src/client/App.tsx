@@ -20,6 +20,7 @@ import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObjects, deleteObject, snapshot, objectBounds } from '../shared/board-model';
 import type { ConnectorSnap } from '../shared/objects/connector';
 import type { ShapeSnap } from '../shared/objects/shape';
+import type { StrokeSnap } from '../shared/objects/stroke';
 import { createText, setTextSize, setTextWidthFixed, setTextBox, getTextContent } from '../shared/objects/text';
 import { createShape, setShapeStyle } from '../shared/objects/shape';
 import { createConnector, setConnectorEndpoint } from '../shared/objects/connector';
@@ -30,8 +31,12 @@ import { TextObject } from './objects/TextObject';
 import { ShapeObject } from './objects/ShapeObject';
 import { ShapeToolbar } from './objects/ShapeToolbar';
 import { ConnectorObject } from './objects/ConnectorObject';
+import { StrokeObject } from './objects/StrokeObject';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { installTestHooks } from './canvas/testHooks';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
@@ -42,6 +47,7 @@ import './objects/registerSticky';
 import './objects/registerText';
 import './objects/registerShape';
 import './objects/registerConnector';
+import './objects/registerStroke';
 
 /** Extract the boardId from /b/:boardId. */
 function readBoardIdFromPath(): string | undefined {
@@ -70,6 +76,7 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
   const editable = connectionState === undefined || canEdit(connectionState);
   const { tool, setTool } = useTool(editable);
   const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
+  const penOptions = usePenOptions();
 
   // Undo controller: one per board doc, destroyed on board change/unmount (session-only)
   const undoRef = useRef<UndoController | null>(null);
@@ -319,12 +326,24 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
         textToolActive={tool === 'text'}
         onTextToolClick={handleTextToolClick}
         overlay={
-          <SelectionOverlay
-            ids={selection.ids}
-            snapshot={notes}
-            camera={camera}
-            onHandlePointerDown={handleHandlePointerDown}
-          />
+          <>
+            <SelectionOverlay
+              ids={selection.ids}
+              snapshot={notes}
+              camera={camera}
+              onHandlePointerDown={handleHandlePointerDown}
+            />
+            {tool === 'pen' && (
+              <PenTool
+                doc={doc}
+                camera={camera}
+                color={penOptions.color}
+                thickness={penOptions.thickness}
+                identityId="local"
+                onCommit={boundary}
+              />
+            )}
+          </>
         }
         bar={
           <SelectionBar
@@ -393,6 +412,18 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
               />
             );
           }
+          if (note.type === 'stroke') {
+            return (
+              <StrokeObject
+                key={note.id}
+                stroke={note as StrokeSnap}
+                selected={selection.ids.has(note.id)}
+                onSelect={selection.click}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+                canEdit={editable}
+              />
+            );
+          }
           return (
             <StickyNote
               key={note.id}
@@ -432,6 +463,16 @@ export function App({ doc: providedDoc, boardId: boardIdProp }: AppProps = {}) {
           hitTest={hitTestObject}
           createConnector={handleConnectorCreate}
         />
+      )}
+      {tool === 'pen' && (
+        <div style={{ position: 'fixed', top: 80, left: 60, zIndex: 20, display: 'flex', gap: 4, alignItems: 'center', background: '#fff', padding: 6, borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
+          <PenToolbar
+            color={penOptions.color}
+            thickness={penOptions.thickness}
+            onColor={penOptions.setColor}
+            onThickness={penOptions.setThickness}
+          />
+        </div>
       )}
       {selectedShape && tool === 'select' && (
         <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 20 }}>

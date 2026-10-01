@@ -110,6 +110,20 @@ export function Toolbar({ onCreateSticky, disabled, undo, tool, onToolChange }: 
               <path d="M13 3h4v4" fill="none" stroke="currentColor" strokeWidth="1.5" />
             </svg>
           </button>
+          <button
+            type="button"
+            className="board-toolbar-button"
+            data-testid="tool-pen-button"
+            aria-label="Pen (P)"
+            title="Pen (P)"
+            aria-pressed={tool === 'pen'}
+            onClick={() => onToolChange('pen')}
+            disabled={disabled}
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M3 17l1.5-4L14 3.5 16.5 6 7 15.5 3 17zm10.5-12L15 4l2 2-1.5 1.5-2-2.5z" />
+            </svg>
+          </button>
         </>
       )}
       {undo && <UndoButtons {...undo} />}

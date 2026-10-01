@@ -42,3 +42,44 @@
 
 ## Known limitations
 - 6 pre-existing e2e failures (TC-33/34/35 multi-select, TC-19/20 persistence, TC-35 sticky colour cycling) exist in the baseline before this story's changes and are not caused by story 8.
+
+---
+
+# Story 11 — Sketch freehand with a pen
+
+## Decisions
+
+### PenTool overlay placement
+- PenTool renders inside `BoardViewport`'s `overlay` prop (not as a sibling). This ensures wheel events bubble to the viewport's native wheel handler, allowing pan/zoom while pen is active.
+- PenTool uses `zIndex: 10001` to be above the `SelectionOverlay` (zIndex: 10000) which renders resize handles that would otherwise intercept pointer events.
+
+### StrokeObject hit-testing
+- The SVG container accepts pointer events (no `pointer-events: none`). The `onPointerDown` handler converts the click to world coordinates and checks distance to the polyline. Clicks further than `max(thickness/2, 6)` from the line are ignored.
+- Path coordinates are computed in SVG-relative space (world coordinate minus SVG offset). The SVG is expanded by `hitWidth/2` on each side to ensure the hit area is within the SVG viewport.
+
+### RDP simplification (`src/shared/geometry/simplify.ts`)
+- `simplify()` implements iterative Rabinovich–Peucker (RDP) using an explicit stack (avoids recursion depth issues with large point sets like 5000+ points).
+- Tolerance is `STROKE_SIMPLIFY_TOLERANCE_PX / zoom` so simplification is zoom-independent.
+- `smoothPath()` generates a quadratic Bézier path through midpoints: `M p0 Q p1 m01 Q p2 m12 ... L pn`.
+
+### Stroke data model (`src/shared/objects/stroke.ts`)
+- Points stored as a flat `number[]` array (`[x0, y0, x1, y1, ...]`) relative to the bounding box origin.
+- BBox includes stroke-width padding: `x = minX - thickness/2`, `width = (maxX - minX) + thickness`.
+- `baseWidth`/`baseHeight` track the original bbox dimensions for proportional resize.
+- `scaledPoints(s)` returns world-space points scaled by `width/baseWidth` and `height/baseHeight`.
+
+### Registry hit test (`src/client/objects/registerStroke.ts`)
+- Uses fixed tolerance `max(thickness/2, STROKE_HIT_TOLERANCE_PX)` (zoom-independent at registry level). The interface does not pass `zoom`; zoom-aware behavior is handled at the application layer.
+- Resize uses aspect-locking (scale both dimensions by the same factor).
+
+### Pen stays active
+- Unlike Shape/Connector tools which call `toolCreated()` (switching back to select), PenTool calls only `onCommit` (the undo boundary function). The pen tool remains active after drawing until the user presses Escape/V or another tool shortcut.
+
+### Configuration (`src/shared/config.ts`)
+- `PEN_COLORS`: 6 named colors (black, red, blue, green, orange, purple) with hex values.
+- `PEN_THICKNESS_WORLD`: thin=2, medium=4, thick=8 (world units).
+- `STROKE_SIMPLIFY_TOLERANCE_PX`: 2px.
+- `STROKE_MAX_POINTS`: 5000 (hard cap to prevent memory issues).
+- `STROKE_HIT_TOLERANCE_PX`: 6px (minimum hit area width for the line).
+- `STROKE_MIN_SIZE_WORLD`: 1px (minimum bbox dimension after resize).
+

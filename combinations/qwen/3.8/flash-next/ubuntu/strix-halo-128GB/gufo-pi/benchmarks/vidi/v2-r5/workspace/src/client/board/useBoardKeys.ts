@@ -22,7 +22,7 @@ export interface UseBoardKeysOptions {
   boundary?: () => void;
   /** Tool state for V/T/S/L/Escape shortcuts */
   tool?: string;
-  setTool?(t: 'select' | 'text' | 'shape' | 'connector'): void;
+  setTool?(t: 'select' | 'text' | 'shape' | 'connector' | 'pen'): void;
   /** Called when N is pressed: creates a sticky at view centre */
   onCreateSticky?(): void;
 }
@@ -122,6 +122,13 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
         if (setToolRef.current && canEditRef.current) {
           event.preventDefault();
           setToolRef.current('connector');
+        }
+        return;
+      }
+      if (keyLower === 'p' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (setToolRef.current && canEditRef.current) {
+          event.preventDefault();
+          setToolRef.current('pen');
         }
         return;
       }
