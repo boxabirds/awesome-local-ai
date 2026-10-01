@@ -4,9 +4,12 @@
 import type { ConversationProfile, Intervention, Invalid, JobRef, Row, RunStatus, Score, Story, StorySquare, TimeSplit, Usage } from "./types.ts";
 import { GLOSSARY, type TermId } from "./glossary.ts";
 import { isInvalid, scoreOf } from "./stats.ts";
+import { classifyMechanism, type MechanismResult } from "./combinationView.ts";
 
 /** A difference counts when it is more than this share of the number it is compared with (the plan's 10% rule). */
 export const DIFF_THRESHOLD = 0.1;
+/** Floating point puts all-pass against a median of 10 of 11 (exactly 10% more) at 0.10000000000000003. */
+const FLOAT_TOLERANCE = 1e-9;
 const SECONDS_PER_MINUTE = 60;
 const PERCENT = 100;
 
@@ -269,7 +272,7 @@ export function relDiff(value: number | null | undefined, base: number | null | 
 }
 
 /** More than the threshold away, either way. Exactly 10% is not more than 10%. */
-export const isOver = (rel: number | null, threshold = DIFF_THRESHOLD) => rel !== null && Math.abs(rel) > threshold;
+export const isOver = (rel: number | null, threshold = DIFF_THRESHOLD) => rel !== null && Math.abs(rel) > threshold + FLOAT_TOLERANCE;
 
 /** "+12%", "−8%", "±0%", "from 0"; "" for nothing to say. */
 export function signedPercent(rel: number | null): string {
@@ -384,12 +387,14 @@ export function divergence(value: number | null | undefined, others: (number | n
   return { value: value ?? null, median: m, n: xs.length, rel, flagged: isOver(rel) };
 }
 
-export type AgainstKey = "minutes" | "outTokens" | "calls" | "thinking" | "largestThinking";
+export type AgainstKey = "heldOut" | "minutes" | "outTokens" | "calls" | "thinking" | "largestThinking";
 
-/** What a story run is judged on against the combination's other runs. Thinking is judged only this way: a large
- * block is normal for some combinations (a median largest block of 30-39k characters), so its size means
- * something only against the same story in the same combination. */
+/** What a story run is judged on against the combination's other runs: its own held-out pass rate first (quality
+ * before cost), then what it cost. Thinking is judged only this way: a large block is normal for some combinations
+ * (a median largest block of 30-39k characters), so its size means something only against the same story in the
+ * same combination. */
 export const AGAINST_MEASURES: { key: AgainstKey; term: TermId; value: (s: Story) => number | null }[] = [
+  { key: "heldOut", term: "storyRunHeldOut", value: COMPARE_MEASURES.find((m) => m.key === "heldOut")!.value },
   ...COMPARE_MEASURES.filter((m): m is Measure & { key: AgainstKey } => m.key === "minutes" || m.key === "outTokens" || m.key === "calls"),
   { key: "thinking", term: "thinking", value: (s) => s.conversation?.thinkingChars ?? null },
   { key: "largestThinking", term: "largestThinking", value: (s) => s.conversation?.largestThinking?.chars ?? null },
@@ -398,9 +403,11 @@ export const AGAINST_MEASURES: { key: AgainstKey; term: TermId; value: (s: Story
 export interface AgainstEntry { run: Row; story: Story | null; isThis: boolean }
 
 /** The same story in every run of the combination (this one marked), on one time scale, with this story run's
- * divergence from the median of the others (invalid ones left out) on time, output tokens and calls. */
+ * divergence from the median of the others (invalid ones left out) on each measure; when any is flagged, the
+ * mechanism (the combination page's rules, against the same other runs); and the most typical other run. */
 export function againstCombination(run: Row, rows: Row[], id: string): {
   entries: AgainstEntry[]; scaleSeconds: number; flags: Record<AgainstKey, Divergence | null>;
+  mechanism: MechanismResult | null; typical: TypicalRun | null;
 } {
   const all = rows.filter((r) => r.pack === run.pack && r.stack === run.stack).toSorted(byRunId);
   const entries = all.map((r) => ({ run: r, story: r.stories.find((s) => s.id === id) ?? null, isThis: r.runId === run.runId }));
@@ -410,7 +417,164 @@ export function againstCombination(run: Row, rows: Row[], id: string): {
   const flags = Object.fromEntries(AGAINST_MEASURES.map(({ key, value }) =>
     [key, divergence(mine ? value(mine) : null, others.map((e) => value(e.story!)))])) as Record<AgainstKey, Divergence | null>;
   const scaleSeconds = Math.max(1, ...entries.map((e) => e.story?.usage?.split?.wall ?? 0));
-  return { entries, scaleSeconds, flags };
+  const flagged = AGAINST_MEASURES.some(({ key }) => flags[key]?.flagged);
+  const mechanism = mine && flagged ? classifyMechanism(mine, others.map((e) => e.story!)) : null;
+  return { entries, scaleSeconds, flags, mechanism, typical: typicalRun(entries) };
+}
+
+/** The mechanism rules look for what makes a figure higher, so they don't say why one is lower… */
+export const BELOW_CAVEAT = "The rules look only for what makes a figure higher (a hung command, a restart, more thinking, more steps, compaction, slower generation), so below the median the label says how the conversation compared, not why the figure is lower.";
+/** …and they read cost, not the build: they don't say why a held-out result differs. */
+export const HELD_OUT_CAVEAT = "The rules explain cost, not quality: the label says how the conversation compared, not why this held-out result differs.";
+
+const withStop = (s: string) => (s.endsWith(".") ? s : `${s}.`);
+
+/** A flag's hover in the against-the-combination table: how far from the median of how many runs, the mechanism
+ * and every rule that fired with its numbers (as the combination page's flag says them), and where the rules can't
+ * answer the question the flag raises, says so. */
+export function againstFlagTip(key: AgainstKey, d: Divergence, medianText: string, mech: MechanismResult | null): string {
+  const head = `${GLOSSARY.divergence.what} The median of the other ${d.n} ${d.n === 1 ? "run" : "runs"}: ${medianText}.`;
+  if (!mech) return head;
+  const why = mech.fired.length ? mech.fired.map((f) => `${f.label}: ${f.evidence}`).join(" · ") : mech.evidence;
+  const caveat = key === "heldOut" ? HELD_OUT_CAVEAT : d.rel !== null && d.rel < 0 ? BELOW_CAVEAT : "";
+  return [head, `Mechanism: ${mech.label}.`, withStop(why), caveat].filter(Boolean).join(" ");
+}
+
+// ---------- the most typical other run ----------
+
+export interface TypicalRun {
+  run: Row; story: Story;
+  /** How many of the measures it has a figure for (where the others have a median). */
+  measures: number;
+  /** The sum, over those, of its distance from the median as a share of the median. */
+  deviation: number;
+}
+
+/** The medoid of the other runs: among the valid other runs that recorded the story, the one with the most of the
+ * measures, then the smallest sum of relative deviations from each measure's median over them (the median row);
+ * a tie goes to the earlier run. Null when no valid other run recorded the story. */
+export function typicalRun(entries: AgainstEntry[]): TypicalRun | null {
+  const pool = entries.filter((e) => !e.isThis && e.story && !isInvalid(e.run)).toSorted((a, b) => byRunId(a.run, b.run));
+  const medians = AGAINST_MEASURES.map(({ value }) => median(pool.map((e) => value(e.story!)).filter((x): x is number => x != null)));
+  let best: TypicalRun | null = null;
+  for (const e of pool) {
+    let measures = 0, deviation = 0;
+    AGAINST_MEASURES.forEach(({ value }, i) => {
+      const v = value(e.story!), m = medians[i];
+      if (v === null || m === null) return;
+      measures += 1;
+      deviation += Math.abs(relDiff(v, m)!);
+    });
+    if (!best || measures > best.measures || (measures === best.measures && deviation < best.deviation - FLOAT_TOLERANCE)) {
+      best = { run: e.run, story: e.story!, measures, deviation };
+    }
+  }
+  return best;
+}
+
+// ---------- what differed: two story runs side by side ----------
+
+export type DifferGroup = "outcome" | "cost" | "time" | "conversation";
+export type DifferUnit = "passRate" | "seconds" | "tokens" | "count" | "chars" | "tokS" | "times";
+/** One story run's figure, or why it has none. */
+export interface DifferSide { value: number | null; why: string | null }
+export interface DifferRow {
+  key: string; group: DifferGroup; term: TermId;
+  /** A tool's or a kind's name, for the rows there is one of per tool or kind. */
+  label: string | null;
+  unit: DifferUnit;
+  /** Counted from the conversation profile: a story run without one has none of these. */
+  needsProfile: boolean;
+  a: DifferSide; b: DifferSide;
+  /** a over b; 1 when both are 0; null when either is missing or b alone is 0 (ratioWhy says which). */
+  ratio: number | null;
+  ratioWhy: string | null;
+  /** More than 10% apart, the 10% rule. */
+  differs: boolean;
+}
+export interface DifferedView { rows: DifferRow[]; profile: { a: boolean; b: boolean } }
+
+const WHY_NO_HELD_OUT = "Its own held-out tests weren't recorded.";
+const WHY_NO_USAGE = "No usage recorded for this story run.";
+const WHY_NOT_RECORDED = "Not recorded for this story run.";
+const WHY_NO_SPLIT = "No time split recorded for this story run.";
+const WHY_NO_KINDS = "Its tool time wasn't recorded by kind.";
+const WHY_NO_PROFILE = "No conversation profile for this story run.";
+const WHY_NOT_COUNTED = "The harness couldn't count this from the story run's event log.";
+const WHY_ONE_MISSING = "One of the two has no figure here, so there is no ratio.";
+const WHY_OTHER_ZERO = "The other run's figure is 0, so there is no ratio.";
+
+const side = (value: number | null | undefined, why: string): DifferSide => (value == null ? { value: null, why } : { value, why: null });
+const ofUsage = (f: (u: Usage) => number | null) => (s: Story) => (s.usage ? side(f(s.usage), WHY_NOT_RECORDED) : side(null, WHY_NO_USAGE));
+const ofSplit = (f: (t: TimeSplit) => number | null) => (s: Story) =>
+  !s.usage ? side(null, WHY_NO_USAGE) : !s.usage.split ? side(null, WHY_NO_SPLIT) : side(f(s.usage.split), WHY_NOT_RECORDED);
+const ofProfile = (f: (c: ConversationProfile) => number | null) => (s: Story) =>
+  (s.conversation ? side(f(s.conversation), WHY_NOT_COUNTED) : side(null, WHY_NO_PROFILE));
+const growth = (c: ConversationProfile) => (c.contextStart && c.contextEnd != null ? c.contextEnd / c.contextStart : null);
+
+interface DifferSpec { key: string; group: DifferGroup; term: TermId; unit: DifferUnit; get: (s: Story) => DifferSide }
+
+/** The rows in order; tools by kind follow "tools" and tools by name close the conversation (see whatDiffered). */
+const DIFFER_SPECS: DifferSpec[] = [
+  { key: "heldOut", group: "outcome", term: "storyRunHeldOut", unit: "passRate", get: (s) => side(AGAINST_MEASURES[0].value(s), WHY_NO_HELD_OUT) },
+  { key: "minutes", group: "cost", term: "agentTime", unit: "seconds", get: ofUsage((u) => u.agentSeconds) },
+  { key: "outTokens", group: "cost", term: "outTokens", unit: "tokens", get: ofUsage((u) => u.outTokens) },
+  { key: "readTokens", group: "cost", term: "inputTokens", unit: "tokens", get: ofUsage((u) => u.readTokens) },
+  { key: "calls", group: "cost", term: "calls", unit: "count", get: ofUsage((u) => u.calls) },
+  { key: "decodeTokS", group: "cost", term: "decodeTokS", unit: "tokS", get: ofUsage((u) => u.decodeTokS) },
+  { key: "compactions", group: "cost", term: "compactions", unit: "count", get: ofUsage((u) => u.compactions) },
+  { key: "nudges", group: "cost", term: "nudges", unit: "count", get: ofUsage((u) => u.nudges) },
+  { key: "tools", group: "time", term: "segTools", unit: "seconds", get: ofSplit((t) => t.tools) },
+  { key: "compaction", group: "time", term: "segCompaction", unit: "seconds", get: ofSplit((t) => t.compaction) },
+  { key: "betweenSessions", group: "time", term: "segBetweenSessions", unit: "seconds", get: ofSplit((t) => t.betweenSessions) },
+  { key: "modelCalls", group: "conversation", term: "modelCalls", unit: "count", get: ofProfile((c) => c.calls) },
+  { key: "thinking", group: "conversation", term: "thinking", unit: "chars", get: ofProfile((c) => c.thinkingChars) },
+  { key: "thinkingMedian", group: "conversation", term: "thinkingMedian", unit: "chars", get: ofProfile((c) => c.thinkingMedian) },
+  { key: "thinkingAfter", group: "conversation", term: "thinkingAfterLargest", unit: "chars", get: ofProfile((c) => c.thinkingMedianAfter) },
+  { key: "largestThinking", group: "conversation", term: "largestThinking", unit: "chars", get: ofProfile((c) => c.largestThinking?.chars ?? null) },
+  { key: "contextEnd", group: "conversation", term: "contextEnd", unit: "tokens", get: ofProfile((c) => c.contextEnd) },
+  { key: "contextGrowth", group: "conversation", term: "contextGrowthTimes", unit: "times", get: ofProfile(growth) },
+  { key: "contextJump", group: "conversation", term: "contextJump", unit: "tokens", get: ofProfile((c) => c.largestContextJump?.tokens ?? null) },
+  { key: "toolErrors", group: "conversation", term: "toolErrors", unit: "count", get: ofProfile((c) => c.toolErrors) },
+  { key: "longestTool", group: "conversation", term: "longestTool", unit: "seconds", get: ofProfile((c) => c.longestTool?.seconds ?? null) },
+];
+
+function ratioOf(a: number | null, b: number | null): { ratio: number | null; ratioWhy: string | null } {
+  if (a === null || b === null) return { ratio: null, ratioWhy: WHY_ONE_MISSING };
+  if (b === 0) return a === 0 ? { ratio: 1, ratioWhy: null } : { ratio: null, ratioWhy: WHY_OTHER_ZERO };
+  return { ratio: a / b, ratioWhy: null };
+}
+
+function rowOf(spec: Omit<DifferSpec, "get">, label: string | null, a: DifferSide, b: DifferSide): DifferRow {
+  return { ...spec, label, needsProfile: spec.group === "conversation", a, b, ...ratioOf(a.value, b.value), differs: isOver(relDiff(a.value, b.value)) };
+}
+
+/** Every name either side has in `pick`, the larger figure first, then by name. */
+function namesOf(a: Record<string, number> | undefined, b: Record<string, number> | undefined): string[] {
+  const big = (n: string) => Math.max(a?.[n] ?? 0, b?.[n] ?? 0);
+  return [...new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})])].toSorted((x, y) => big(y) - big(x) || x.localeCompare(y));
+}
+
+/** Two story runs of the same story, figure by figure: the outcome, the cost, where the time went (tools by kind
+ * among it), and the conversation (tool calls by tool among it), each with a over b and the 10% rule. A kind or a
+ * tool one run used and the other didn't is 0 for the other, not missing. Nothing here is judged: it is laid side by side. */
+export function whatDiffered(a: Story, b: Story): DifferedView {
+  const rows: DifferRow[] = [];
+  const kindSide = (s: Story, k: string): DifferSide =>
+    !s.usage ? side(null, WHY_NO_USAGE) : !s.usage.split ? side(null, WHY_NO_SPLIT) : !s.usage.split.toolsByKind ? side(null, WHY_NO_KINDS) : side(s.usage.split.toolsByKind[k] ?? 0, WHY_NOT_RECORDED);
+  const toolSide = (s: Story, n: string): DifferSide => (s.conversation ? side(s.conversation.toolsByName[n] ?? 0, WHY_NOT_COUNTED) : side(null, WHY_NO_PROFILE));
+  for (const spec of DIFFER_SPECS) {
+    rows.push(rowOf(spec, null, spec.get(a), spec.get(b)));
+    if (spec.key === "tools") {
+      for (const k of namesOf(a.usage?.split?.toolsByKind, b.usage?.split?.toolsByKind)) {
+        rows.push(rowOf({ key: `toolKind:${k}`, group: "time", term: "segTools", unit: "seconds" }, k, kindSide(a, k), kindSide(b, k)));
+      }
+    }
+  }
+  for (const n of namesOf(a.conversation?.toolsByName, b.conversation?.toolsByName)) {
+    rows.push(rowOf({ key: `tool:${n}`, group: "conversation", term: "toolsByName", unit: "count" }, n, toolSide(a, n), toolSide(b, n)));
+  }
+  return { rows, profile: { a: !!a.conversation, b: !!b.conversation } };
 }
 
 // ---------- the conversation ----------
@@ -505,3 +669,4 @@ export function interventionTip(list: Intervention[]): string {
   const more = groups.length - MAX_TIP_INTERVENTIONS;
   return [`Operator interventions (${list.length}):`, ...lines, ...(more > 0 ? [`… and ${more} more on the run page`] : [])].join("\n");
 }
+

@@ -8,7 +8,9 @@ import {
   runTimeBars, runTotals, scopeIds, scoreOfRecord, segmentTip, signedPercent, splitParts, squareTip, statusView,
   storyRunState, storyTitle, toolKinds, whyMissing, whyRunMissing,
   groupInterventions, interventionsOf, interventionTip, invalidTip, MAX_TIP_INTERVENTIONS,
+  againstFlagTip, typicalRun, whatDiffered, BELOW_CAVEAT, HELD_OUT_CAVEAT,
 } from "./runView.ts";
+import { classifyMechanism } from "./combinationView.ts";
 import { GLOSSARY } from "./glossary.ts";
 
 const SUITE = "vidi-v2.0-pre1";
@@ -485,6 +487,12 @@ describe("comparisons", () => {
 
     it("the threshold is the plan's 10%", () => expect(DIFF_THRESHOLD).toBe(0.1));
 
+    // A pass rate of 10/10 against a median of 10/11 is exactly 10% more, but floating point makes it 0.10000000000000003.
+    it("exactly 10% in floating point (all pass against 10 of 11) is not more than 10%", () => {
+      expect(isOver(relDiff(1, 10 / 11))).toBe(false);
+      expect(isOver(relDiff(110, 100))).toBe(false);
+    });
+
     it.each([[null, 100], [100, null], [null, null], [undefined, 100]])("missing (%s against %s): no difference, not flagged", (a, b) => {
       expect(relDiff(a, b)).toBeNull();
       expect(isOver(relDiff(a, b))).toBe(false);
@@ -653,7 +661,7 @@ describe("comparisons", () => {
 
       it("the only run with the story: nothing to compare with", () => {
         const { flags } = againstCombination(me, [me], "1");
-        expect(flags).toEqual({ minutes: null, outTokens: null, calls: null, thinking: null, largestThinking: null });
+        expect(flags).toEqual({ heldOut: null, minutes: null, outTokens: null, calls: null, thinking: null, largestThinking: null });
       });
 
       it("this run hasn't built the story: the others' median, no flag", () => {
@@ -769,5 +777,249 @@ describe("interventions", () => {
       expect(tip.split("\n").at(-1)).toBe("… and 3 more on the run page");
     });
     it("none: empty", () => expect(interventionTip([])).toBe(""));
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// The story against the combination's other runs: its quality beside its cost, why a flagged figure differs (the
+// combination page's mechanism, not a copy), the most typical other run, and the two conversations side by side.
+describe("a story run against the combination: quality, mechanism, the most typical run, what differed", () => {
+  const prof = (over: Partial<ConversationProfile> = {}): ConversationProfile => ({
+    calls: 100, toolCalls: 100, thinkingChars: 10000, textChars: 0, toolArgChars: 0, thinkingMedian: 100, thinkingMedianBefore: 80,
+    thinkingMedianAfter: 120, largestThinking: { chars: 4000, call: 10, atS: 300 }, contextStart: 2000, contextEnd: 80000,
+    largestContextJump: { tokens: 9000, call: 3 }, toolsByName: { bash: 50, read: 20 }, toolErrors: 3,
+    longestTool: { seconds: 10, name: "bash", gist: "npm test" }, signals: [], ...over,
+  });
+  /** Story 2 of a run: `secs` of agent time, ten output tokens a second, a tool call every ten seconds. */
+  const st = (secs: number, own: [number, number] | null = [10, 10], conversation: ConversationProfile | null = prof()) => story("2", {
+    ownPassed: own?.[0] ?? null, ownTotal: own?.[1] ?? null, conversation,
+    usage: usage({ agentSeconds: secs, outTokens: secs * 10, calls: secs / 10, split: split({ wall: secs }) }),
+  });
+  const run = (runId: string, s: Story | null, over: Partial<Row> = {}) => row({ runId, stories: s ? [s] : [], ...over });
+  const INVALID = { reason: "saw the reference build", since: "2026-09-30" };
+
+  describe("held-out: this story's own tests, first among the measures", () => {
+    const heldOut = AGAINST_MEASURES[0];
+    it("comes first, under the story run's held-out term", () => expect([heldOut.key, heldOut.term]).toEqual(["heldOut", "storyRunHeldOut"]));
+    it("is the pass rate of its own tests, not the cumulative suite", () => {
+      expect(heldOut.value(story("2", { ownPassed: 7, ownTotal: 10, passed: 15, total: 20 }))).toBe(0.7);
+    });
+    it.each([[null, null], [0, 0], [null, 10]])("own tests not recorded (%s/%s): missing, never 0", (p, t) => {
+      expect(heldOut.value(story("2", { ownPassed: p, ownTotal: t }))).toBe(t ? 0 : null);
+    });
+
+    const flagsFor = (mine: [number, number] | null, others: ([number, number] | null)[]) => {
+      const me = run("me", st(1000, mine));
+      return againstCombination(me, [me, ...others.map((o, i) => run(`o${i + 1}`, st(1000, o)))], "2").flags.heldOut;
+    };
+    it("more than 10% above the others' median: flagged", () => {
+      const d = flagsFor([10, 10], [[8, 10], [9, 10], [8, 10]])!;
+      expect(d).toMatchObject({ value: 1, median: 0.8, n: 3, flagged: true });
+      expect(d.rel).toBeCloseTo(0.25, 9);
+    });
+    it("more than 10% below: flagged, negative", () => {
+      const d = flagsFor([6, 10], [[9, 10], [9, 10]])!;
+      expect(d.flagged).toBe(true);
+      expect(d.rel).toBeCloseTo(-1 / 3, 9);
+    });
+    it("one test short of all of them (exactly 10%): not flagged", () => expect(flagsFor([9, 10], [[10, 10], [10, 10]])).toMatchObject({ flagged: false }));
+    it("pass rates, not counts: 10 of 12 against 5 of 6 is no difference", () => expect(flagsFor([10, 12], [[5, 6]])).toMatchObject({ rel: 0, flagged: false }));
+    it("a run without its result is left out of the median and of n", () => expect(flagsFor([9, 10], [[8, 10], null, [10, 10]])).toMatchObject({ median: 0.9, n: 2 }));
+    it("this story run without its result: the median, no difference", () => {
+      expect(flagsFor(null, [[8, 10]])).toEqual({ value: null, median: 0.8, n: 1, rel: null, flagged: false });
+    });
+    it("no other run has a result: no median", () => expect(flagsFor([9, 10], [null, null])).toBeNull());
+  });
+
+  describe("the mechanism behind a flag", () => {
+    const others = [run("o1", st(1000)), run("o2", st(1000))];
+    it("nothing flagged: no mechanism", () => {
+      const me = run("me", st(1000));
+      expect(againstCombination(me, [me, ...others], "2").mechanism).toBeNull();
+    });
+    it("flagged: the combination page's mechanism, against the same story in the other runs", () => {
+      const mine = st(3000, [10, 10], prof({ thinkingChars: 100000 }));
+      const me = run("me", mine);
+      const { mechanism } = againstCombination(me, [me, ...others], "2");
+      expect(mechanism).toEqual(classifyMechanism(mine, others.map((o) => o.stories[0])));
+      expect(mechanism!.label).toBe("verbose thinking");
+    });
+    it("an invalid run is no yardstick for the mechanism either", () => {
+      const mine = st(3000, [10, 10], prof({ thinkingChars: 100000 }));
+      const me = run("me", mine);
+      const bad = run("bad", st(3000, [10, 10], prof({ thinkingChars: 1000000 })), { invalid: INVALID });
+      expect(againstCombination(me, [me, bad, ...others], "2").mechanism).toEqual(classifyMechanism(mine, others.map((o) => o.stories[0])));
+    });
+    it("flagged on held-out alone: it carries one too", () => {
+      const me = run("me", st(1000, [5, 10]));
+      expect(againstCombination(me, [me, ...others], "2").mechanism).toMatchObject({ label: "unexplained", fired: [] });
+    });
+    it("this run hasn't recorded the story: no mechanism", () => {
+      const me = run("me", null);
+      expect(againstCombination(me, [me, ...others], "2").mechanism).toBeNull();
+    });
+  });
+
+  describe("the flag's hover", () => {
+    const d = { value: 4811, median: 1000, n: 2, rel: 3.811, flagged: true };
+    const fired = { label: "verbose thinking" as const, fired: [
+      { label: "verbose thinking" as const, evidence: "thinking per call 1,588 chars against 105 (15.1×)" },
+      { label: "slower generation" as const, evidence: "decode 41.7 tok/s against 99.0 (42%)" },
+    ], evidence: "thinking per call 1,588 chars against 105 (15.1×)" };
+    it("how far, the median of how many runs, the mechanism, and every rule that fired with its numbers", () => {
+      expect(againstFlagTip("minutes", d, "17 min", fired)).toBe(`${GLOSSARY.divergence.what} The median of the other 2 runs: 17 min. `
+        + "Mechanism: verbose thinking. verbose thinking: thinking per call 1,588 chars against 105 (15.1×) · slower generation: decode 41.7 tok/s against 99.0 (42%).");
+    });
+    it("one run: \"run\", not \"runs\"", () => expect(againstFlagTip("minutes", { ...d, n: 1 }, "17 min", fired)).toContain("The median of the other 1 run: 17 min."));
+    it("no rule fired: the mechanism's own words", () => {
+      const none = { label: "unexplained" as const, fired: [], evidence: "None of the rules fired." };
+      expect(againstFlagTip("calls", d, "118", none)).toMatch(/Mechanism: unexplained\. None of the rules fired\.$/);
+    });
+    it("below the median: says the rules look for what makes a figure higher", () => {
+      expect(againstFlagTip("minutes", { ...d, rel: -0.8 }, "17 min", fired)).toMatch(new RegExp(`${BELOW_CAVEAT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
+    });
+    it("held-out, either way: says the rules explain cost, not quality", () => {
+      expect(againstFlagTip("heldOut", { ...d, rel: 0.25 }, "80%", fired)).toMatch(/explain cost, not quality/);
+      expect(againstFlagTip("heldOut", { ...d, rel: -0.25 }, "80%", fired)).toContain(HELD_OUT_CAVEAT);
+      expect(againstFlagTip("heldOut", { ...d, rel: -0.25 }, "80%", fired)).not.toContain(BELOW_CAVEAT);
+    });
+    it("a cost figure above the median: no caveat", () => {
+      const tip = againstFlagTip("outTokens", d, "72k", fired);
+      expect(tip).not.toContain(BELOW_CAVEAT);
+      expect(tip).not.toContain(HELD_OUT_CAVEAT);
+    });
+  });
+
+  describe("the most typical other run: closest to the medians", () => {
+    const entries = (rows: Row[], me: Row) => againstCombination(me, [me, ...rows], "2");
+    const me = run("me", st(5000));
+    it("the smallest sum of relative deviations from the medians wins", () => {
+      // Medians: 1100 s, 11k tokens, 110 calls; held-out and thinking all equal. a is 9% off on three measures, b on none.
+      const t = entries([run("a", st(1000)), run("b", st(1100)), run("c", st(3000))], me).typical!;
+      expect(t.run.runId).toBe("b");
+      expect(t.deviation).toBeCloseTo(0, 9);
+      expect(t.measures).toBe(AGAINST_MEASURES.length);
+    });
+    it("is worked out from the same medians the table shows", () => {
+      const { typical, flags } = entries([run("a", st(1000)), run("c", st(3000))], me);
+      expect(flags.minutes!.median).toBe(2000);
+      expect(typical!.run.runId).toBe("a");                       // 50% off on three measures, against c's 50%: a tie
+      expect(typical!.deviation).toBeCloseTo(1.5, 9);
+    });
+    it("a tie: the earlier run (v2-r2 before v2-r10)", () => {
+      expect(entries([run("v2-r10", st(1000)), run("v2-r2", st(1000))], me).typical!.run.runId).toBe("v2-r2");
+    });
+    it("one other run: that one", () => expect(entries([run("a", st(9000))], me).typical!.run.runId).toBe("a"));
+    it("no other run recorded the story: none", () => {
+      expect(entries([run("a", null)], me).typical).toBeNull();
+      expect(againstCombination(me, [me], "2").typical).toBeNull();
+    });
+    it("an invalid run is never the typical one", () => {
+      expect(entries([run("bad", st(1100), { invalid: INVALID }), run("a", st(3000))], me).typical!.run.runId).toBe("a");
+      expect(entries([run("bad", st(1100), { invalid: INVALID })], me).typical).toBeNull();
+    });
+    it("a run with more of the measures beats one with fewer, however close", () => {
+      // b matches the medians exactly but has no conversation profile (no thinking figures); a has every figure.
+      const t = entries([run("a", st(1300)), run("b", st(1100, [10, 10], null)), run("c", st(1100))], me).typical!;
+      expect(t.run.runId).toBe("c");
+      const u = entries([run("a", st(1300)), run("b", st(1100, [10, 10], null))], me).typical!;
+      expect(u.run.runId).toBe("a");
+      expect(u.measures).toBe(AGAINST_MEASURES.length);
+    });
+    it("this run is never its own typical run", () => expect(entries([run("a", st(1000))], run("a2", st(1000))).typical!.run.runId).toBe("a"));
+  });
+
+  describe("what differed: the two story runs side by side", () => {
+    const a = st(2000, [9, 10], prof({ thinkingChars: 40000, thinkingMedian: 400, largestThinking: { chars: 16000, call: 4, atS: 60 }, contextEnd: 100000, toolErrors: 6, toolsByName: { bash: 80, write: 10 } }));
+    const b = st(1000, [10, 10]);
+    a.usage!.split!.toolsByKind = { e2e: 100, unit: 20 };
+    b.usage!.split!.toolsByKind = { e2e: 50, build: 5 };
+    const v = whatDiffered(a, b);
+    const r = (key: string) => v.rows.find((x) => x.key === key)!;
+
+    it("groups in order: the outcome, then cost, where the time went, the conversation", () => {
+      const groups = v.rows.map((x) => x.group).filter((g, i, all) => all.indexOf(g) === i);
+      expect(groups).toEqual(["outcome", "cost", "time", "conversation"]);
+      expect(v.rows[0].key).toBe("heldOut");
+    });
+    it("each row: both figures and this one over the other, marked where more than 10% apart", () => {
+      expect(r("minutes")).toMatchObject({ a: { value: 2000 }, b: { value: 1000 }, ratio: 2, differs: true });
+      expect(r("heldOut")).toMatchObject({ a: { value: 0.9 }, b: { value: 1 }, differs: false });
+      expect(r("heldOut").ratio).toBeCloseTo(0.9, 9);
+      expect(r("compactions")).toMatchObject({ ratio: 1, differs: false });
+    });
+    it("from the profile: model calls, thinking, per call, after the largest block, the largest block, context, failed commands", () => {
+      expect(r("modelCalls").a.value).toBe(100);
+      expect(r("thinking")).toMatchObject({ a: { value: 40000 }, b: { value: 10000 }, ratio: 4 });
+      expect(r("thinkingMedian")).toMatchObject({ a: { value: 400 }, b: { value: 100 } });
+      expect(r("thinkingAfter")).toMatchObject({ a: { value: 120 }, b: { value: 120 } });
+      expect(r("largestThinking")).toMatchObject({ a: { value: 16000 }, b: { value: 4000 } });
+      expect(r("contextEnd")).toMatchObject({ a: { value: 100000 }, b: { value: 80000 } });
+      expect(r("contextGrowth")).toMatchObject({ a: { value: 50 }, b: { value: 40 } });
+      expect(r("contextJump").a.value).toBe(9000);
+      expect(r("toolErrors")).toMatchObject({ a: { value: 6 }, b: { value: 3 }, ratio: 2 });
+      expect(r("longestTool").a.value).toBe(10);
+      expect(v.rows.filter((x) => x.group === "conversation").every((x) => x.needsProfile)).toBe(true);
+      expect(v.rows.filter((x) => x.group !== "conversation").some((x) => x.needsProfile)).toBe(false);
+    });
+    it("tools by kind: every kind either run used, the larger first; 0 where a run used none", () => {
+      const kinds = v.rows.filter((x) => x.key.startsWith("toolKind:"));
+      expect(kinds.map((x) => [x.label, x.a.value, x.b.value])).toEqual([["e2e", 100, 50], ["unit", 20, 0], ["build", 0, 5]]);
+      expect(kinds.every((x) => x.group === "time")).toBe(true);
+    });
+    it("tool calls by tool: likewise", () => {
+      expect(v.rows.filter((x) => x.key.startsWith("tool:")).map((x) => [x.label, x.a.value, x.b.value])).toEqual([["bash", 80, 50], ["read", 0, 20], ["write", 10, 0]]);
+    });
+    it("the other's figure is 0: no ratio, with why", () => {
+      const x = r("toolKind:unit");
+      expect(x.ratio).toBeNull();
+      expect(x.ratioWhy).toMatch(/is 0/);
+      expect(x.differs).toBe(true);
+    });
+    it("both 0: the same", () => expect(whatDiffered(st(1000), st(1000)).rows.find((x) => x.key === "nudges")).toMatchObject({ ratio: 1, differs: false }));
+    it("both have a profile", () => expect(v.profile).toEqual({ a: true, b: true }));
+
+    it("one has no profile: says which; its conversation figures missing with why; no ratio", () => {
+      const w = whatDiffered(a, st(1000, [10, 10], null));
+      expect(w.profile).toEqual({ a: true, b: false });
+      const t = w.rows.find((x) => x.key === "thinking")!;
+      expect(t).toMatchObject({ a: { value: 40000 }, b: { value: null, why: "No conversation profile for this story run." }, ratio: null });
+      expect(w.rows.filter((x) => x.key.startsWith("tool:")).map((x) => x.b.value)).toEqual([null, null]);
+    });
+    it("neither has a profile: no tool-by-tool rows", () => {
+      const w = whatDiffered(st(1000, [10, 10], null), st(1000, [10, 10], null));
+      expect(w.profile).toEqual({ a: false, b: false });
+      expect(w.rows.some((x) => x.key.startsWith("tool:"))).toBe(false);
+      expect(w.rows.some((x) => x.key === "thinking")).toBe(true);
+    });
+    it("a profile that couldn't count a figure: missing with why", () => {
+      const w = whatDiffered(st(1000, [10, 10], prof({ largestThinking: null, thinkingMedianAfter: null, contextStart: null })), b);
+      for (const k of ["largestThinking", "thinkingAfter", "contextGrowth"]) {
+        expect(w.rows.find((x) => x.key === k)!.a).toEqual({ value: null, why: "The harness couldn't count this from the story run's event log." });
+      }
+    });
+    it("no usage: its cost and time figures missing with why", () => {
+      const w = whatDiffered(story("2", { usage: null, conversation: prof() }), b);
+      expect(w.rows.find((x) => x.key === "minutes")!.a).toEqual({ value: null, why: "No usage recorded for this story run." });
+      expect(w.rows.find((x) => x.key === "compaction")!.a).toEqual({ value: null, why: "No usage recorded for this story run." });
+    });
+    it("no time split: its time figures missing with why", () => {
+      const w = whatDiffered(story("2", { usage: usage({ split: null }), conversation: prof() }), b);
+      expect(w.rows.find((x) => x.key === "tools")!.a).toEqual({ value: null, why: "No time split recorded for this story run." });
+      expect(w.rows.find((x) => x.key === "toolKind:e2e")!.a).toEqual({ value: null, why: "No time split recorded for this story run." });
+    });
+    it("a split without tools by kind: those missing with why", () => {
+      const w = whatDiffered(st(1000), b);
+      expect(w.rows.find((x) => x.key === "toolKind:e2e")!.a).toEqual({ value: null, why: "Its tool time wasn't recorded by kind." });
+    });
+    it("a figure the usage lacks: missing with why", () => {
+      const w = whatDiffered(story("2", { usage: usage({ decodeTokS: null }), conversation: prof() }), b);
+      expect(w.rows.find((x) => x.key === "decodeTokS")!.a).toEqual({ value: null, why: "Not recorded for this story run." });
+    });
+    it("held-out not recorded: missing with why, not 0", () => {
+      const w = whatDiffered(st(1000, null), b);
+      expect(w.rows[0].a).toEqual({ value: null, why: "Its own held-out tests weren't recorded." });
+      expect(w.rows[0].ratio).toBeNull();
+    });
   });
 });

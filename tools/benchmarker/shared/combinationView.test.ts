@@ -184,6 +184,15 @@ describe("mechanism: each rule on its own", () => {
     expect(r.evidence).toMatch(/None of the rules fired/);
   });
 
+  // The rules look only for what makes a story run cost more. One that thought a tenth as much fires none of them,
+  // and must not be told its thinking was near the others' (gufo v2-r2 story 2: 21k chars of thinking against 359k).
+  it("far below the others on every count: unexplained, without claiming it was near them", () => {
+    const r = classifyMechanism(story("1", { conversation: profile({ calls: CALLS / 2, thinkingChars: CALLS * THINK_PER_CALL / 10 }) }), others());
+    expect(r.label).toBe("unexplained");
+    expect(r.evidence).not.toMatch(/near/);
+    expect(r.evidence).toBe("None of the rules fired: no hung command or restart, and not at least 2× the thinking, 1.5× the model calls, a compaction-heavy story or slower generation, against the other runs.");
+  });
+
   it(`verbose thinking by thinking per call: at ${THINKING_RATIO}× the others' median, not just below`, () => {
     const at = classifyMechanism(story("1", { conversation: profile({ thinkingChars: CALLS * THINK_PER_CALL * THINKING_RATIO }) }), others());
     expect(at.label).toBe("verbose thinking");

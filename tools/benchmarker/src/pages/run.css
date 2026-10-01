@@ -130,13 +130,32 @@ table.rp-table { min-width: 0; width: 100%; table-layout: auto; font-size: 13px;
 .diff { font-size: 11px; color: var(--faint); }
 .diff.flagged { color: var(--part); font-weight: 700; }
 td[data-flagged="true"] { background: color-mix(in srgb, var(--part) 12%, transparent); }
-.against .bar-col { width: 38%; min-width: 200px; }
+.against .bar-col { width: 38%; min-width: 160px; }
+/* Seven columns of figures: their long names wrap rather than push the last one out of sight. */
+.against thead th.n { white-space: normal; vertical-align: bottom; }
+.against thead th.m-heldOut { white-space: nowrap; }
 .against .bar-track { display: flex; align-items: center; gap: 4px; }
 .against tr.is-this td { background: color-mix(in srgb, var(--run) 8%, transparent); }
 .against tr.is-this td:first-child { box-shadow: inset 3px 0 0 var(--run); }
 .against tr.is-this td[data-flagged="true"] { background: color-mix(in srgb, var(--part) 16%, transparent); }
 .this-mark { margin-left: 8px; font-size: 11px; font-weight: 700; color: var(--run); text-transform: uppercase; letter-spacing: .04em; }
 .median-row td { background: var(--panel-2); color: var(--muted); font-size: 12px; }
+/* The mechanism under a flag: what kind of difference, the rules and numbers on hover (the flag holds the focus). */
+.against .mech { font-size: 11px; color: var(--muted); white-space: nowrap; cursor: help; }
+
+/* what differed */
+.differ-key { margin: 0 0 8px; }
+.differ { max-width: 760px; }
+/* Row labels are labels, not headings: the table's th look (capitals, grey) is for the column heads and the groups. */
+.differ th[scope="row"] { font-size: 13px; font-weight: 500; text-align: left; white-space: normal; text-transform: none; letter-spacing: normal; color: var(--ink); background: none; }
+.differ th.sub { padding-left: 22px; }
+.differ .a { color: var(--ink); }
+.differ .b { color: var(--muted); }
+.differ .ratio { color: var(--faint); }
+.differ tr[data-differs="true"] .ratio { color: var(--ink); font-weight: 700; }
+.differ tbody tr:last-child > * { border-bottom: 0; }
+.differ .group-row th { background: var(--panel-2); text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.differ .no-profile { color: var(--muted); font-style: italic; vertical-align: top; background: var(--panel-2); max-width: 220px; white-space: normal; }
 
 /* conversation */
 .conv-lists { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 28px; margin-top: 18px; }
