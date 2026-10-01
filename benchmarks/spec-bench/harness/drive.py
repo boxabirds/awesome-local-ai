@@ -1338,8 +1338,14 @@ def conditions_ok(c: dict) -> bool:
     return c["ac"] and not c["low_power"] and c["thermal"] in THERMAL_OK
 
 
-def wait_for_conditions() -> dict:
-    """Pause (never skip) until the machine is fit to measure: AC power, no Low Power Mode, nominal thermals."""
+def wait_for_conditions(wait: bool = True) -> dict:
+    """Pause (never skip) until the machine is fit to measure: AC power, no Low Power Mode, nominal thermals.
+    wait=False (a cloud model: --no-condition-wait) returns the conditions as they are, at once: the model
+    doesn't run on this machine, so its run isn't held up for it (the Sonnet 5.5 reference sat for over an hour
+    before a story on a laptop in use, 1 Oct 2026). The story's conditions are recorded either way, and one
+    run under poor ones is marked degraded."""
+    if not wait:
+        return conditions()
     announced = False
     while not conditions_ok(c := conditions()):
         if not announced:
@@ -1779,6 +1785,8 @@ def main() -> None:
     ap.add_argument("--compact-at", type=int, help="tokens of context at which the agent compacts (pi only)")
     ap.add_argument("--client-thinking", choices=PI_THINKING_LEVELS,
                     help="reasoning effort the agent sends with each request, for servers that can't apply one (pi only)")
+    ap.add_argument("--no-condition-wait", action="store_true",
+                    help="don't wait for AC power and nominal thermals before each story (cloud models)")
     ap.add_argument("--only", help="comma list of story ids to run (smoke tests)")
     ap.add_argument("--from-run", type=Path,
                     help="known-good mode (diagnostic): run the one --only story on this finished run's code "
@@ -1896,7 +1904,7 @@ def main() -> None:
             skip = early
         else:
             print(f"[story {sid}] {title} — agent starting", flush=True)
-            rec = {"title": title, "conditions_start": wait_for_conditions(), "started": time.time(),
+            rec = {"title": title, "conditions_start": wait_for_conditions(wait=not a.no_condition_wait), "started": time.time(),
                    "engine_settings": engine_settings.for_story(run)}   # the settings of the server this story ran on
             # After a harness restart the story began earlier: its live clock counts the whole story, like its
             # call and token counts, and so does the record (record_attempts).

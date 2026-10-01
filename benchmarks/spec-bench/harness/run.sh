@@ -169,7 +169,10 @@ else
   echo "harness self-test WAIVED (SKIP_SELF_TEST=1)"
 fi
 
-if [[ "$(uname)" == Darwin ]]; then
+# A cloud model doesn't run on this machine: its run is never held up for the machine's power or temperature
+# (the conditions are still recorded with each story).
+NO_CONDITION_WAIT=""; [[ "$CLOUD" == 1 ]] && NO_CONDITION_WAIT=1
+if [[ "$(uname)" == Darwin && "$CLOUD" == 0 ]]; then
   echo "cooling to thermal nominal"
   python3 -c "
 import sys; sys.path.insert(0, '$CODE_ROOT/benchmarks/perf')
@@ -267,7 +270,8 @@ uv run --quiet drive.py --run-dir "$RUN_DIR" --base-url "$AGENT_URL" --client "$
   --model-id "$MODEL_ID" --pack "$PACK" ${SCOPE:+--scope "$SCOPE"} ${EPIC:+--epic "$EPIC"} \
   --context-limit "$CONTEXT_LIMIT" --output-limit "$OUTPUT_LIMIT" \
   ${ONLY:+--only "$ONLY"} ${RECORD:+--record} ${COMPACT_AT:+--compact-at "$COMPACT_AT"} \
-  ${CLIENT_THINKING:+--client-thinking "$CLIENT_THINKING"} ${FROM_RUN:+--from-run "$FROM_RUN"}
+  ${CLIENT_THINKING:+--client-thinking "$CLIENT_THINKING"} ${FROM_RUN:+--from-run "$FROM_RUN"} \
+  ${NO_CONDITION_WAIT:+--no-condition-wait}
 uv run --quiet report.py "$RUN_DIR"
 # The run's history as workspace.bundle, and its final build re-scored under the pack's suite (finalize.py),
 # so a finished run is scored and judgeable without anyone doing it by hand. Never fails the run.

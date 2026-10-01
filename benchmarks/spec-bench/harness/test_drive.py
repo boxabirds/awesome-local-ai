@@ -1333,3 +1333,34 @@ def test_sandbox_hides_the_file_share_that_held_a_clone_of_this_repo():
     # 25 Sep 2026: 27B canvas-pi-04 read the Opus reference build through a clone at ~/sambashare/tools on the RTX 4090 machine.
     from drive import SANDBOX_DENY
     assert Path.home() / "sambashare" in SANDBOX_DENY
+
+
+def test_a_cloud_model_run_never_waits_for_the_machine(monkeypatch):
+    """1 Oct 2026: the Sonnet 5.5 reference sat for over an hour before a story "waiting for nominal thermals" on
+    a laptop in use. The wait exists so a local model's speed is measured on a fit machine; a cloud model doesn't
+    run on this machine, and its run must not be held up. The conditions are still recorded (and a story under
+    poor ones is still marked degraded)."""
+    import drive
+    hot = {"ac": False, "low_power": True, "thermal": "heavy"}
+    monkeypatch.setattr(drive, "conditions", lambda: dict(hot))
+    slept = []
+    monkeypatch.setattr(drive.time, "sleep", lambda s: slept.append(s) or (_ for _ in ()).throw(AssertionError("waited")))
+    assert drive.wait_for_conditions(wait=False) == hot and slept == []
+
+
+def test_a_local_model_run_still_waits_until_the_machine_is_fit(monkeypatch):
+    import drive
+    seen = iter([{"ac": True, "low_power": False, "thermal": "heavy"}, {"ac": True, "low_power": False, "thermal": "nominal"}])
+    monkeypatch.setattr(drive, "conditions", lambda: next(seen))
+    slept = []
+    monkeypatch.setattr(drive.time, "sleep", slept.append)
+    assert drive.wait_for_conditions()["thermal"] == "nominal" and len(slept) == 1
+
+
+def test_run_sh_tells_a_cloud_run_not_to_wait_and_skips_its_own_cooling():
+    from pathlib import Path
+    sh = Path(__file__).with_name("run.sh").read_text()
+    assert '${NO_CONDITION_WAIT:+--no-condition-wait}' in sh
+    assert 'NO_CONDITION_WAIT=""; [[ "$CLOUD" == 1 ]] && NO_CONDITION_WAIT=1' in sh
+    cooling = sh[sh.index('echo "cooling to thermal nominal"') - 300:sh.index('echo "cooling to thermal nominal"')]
+    assert '"$CLOUD" == 0' in cooling
