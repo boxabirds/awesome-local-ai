@@ -12,7 +12,7 @@
   "guard": {
     "story": 12,
     "record": "75/75",
-    "live": "75/75",
+    "live": "0/75",
     "live_version": "vidi-v2.0-pre1+94b980f-dirty",
     "comparable": false,
     "threshold": 3,
@@ -35,7 +35,7 @@
   "migrated": {
     "at": "2026-10-01T16:57:38Z",
     "from": "rescore/vidi-v2.0-pre2/rescore.json",
-    "rescored_at": "2026-09-30T07:46:16Z",
+    "rescored_at": "2026-09-30T02:28:16Z",
     "note": "made from an existing re-score on 1 Oct 2026 by migrate_rescore_to_record.py (monitor entry A-030), not a fresh re-score: the run ended before finalize.json existed"
   },
   "built_under": {
@@ -43,24 +43,5 @@
     "pack_version": "vidi-v2.0-pre1+94b980f-dirty",
     "scored_under": "vidi-v2.0-pre2",
     "note": "built while the suite was at vidi-v2.0-pre1; its score of record is the final re-score under vidi-v2.0-pre2, by the owner's decision for this run"
-  },
-  "repair": {
-    "repaired": [
-      "1",
-      "2",
-      "3",
-      "4",
-      "5",
-      "7",
-      "8",
-      "9",
-      "10",
-      "11",
-      "12"
-    ],
-    "left": {},
-    "accounting_version": 4,
-    "harness_commit": "9244bc5a",
-    "at": "2026-10-01T15:03:29Z"
   }
 }
