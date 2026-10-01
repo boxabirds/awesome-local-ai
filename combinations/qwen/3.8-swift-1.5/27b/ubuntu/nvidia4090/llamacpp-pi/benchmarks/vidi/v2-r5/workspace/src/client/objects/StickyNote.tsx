@@ -10,6 +10,7 @@ import { STICKY_SIZE_WORLD, STICKY_COLORS, STICKY_FONT_MAX_PX } from '../../shar
 import { fitFontSize } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 import { _registerStickyComponent } from './registerSticky';
+import type { UndoController } from '../board/undo';
 
 export interface StickyNoteProps {
   note: StickySnapshot;
@@ -20,10 +21,12 @@ export interface StickyNoteProps {
   onPointerDown: (e: ReactPointerEvent, id: string) => void;
   onDblClick: (e: React.MouseEvent, id: string) => void;
   onEndEdit: (next: 'selected' | 'unselected') => void;
+  /** Per-client undo controller (story 8). */
+  undo?: UndoController;
 }
 
 export function StickyNote(props: StickyNoteProps): ReactElement {
-  const { note, doc, selected, editing, onPointerDown, onDblClick, onEndEdit } = props;
+  const { note, doc, selected, editing, onPointerDown, onDblClick, onEndEdit, undo } = props;
   const elRef = useRef<HTMLDivElement>(null);
   const [fontPx, setFontPx] = useState(STICKY_FONT_MAX_PX);
   const [overflow, setOverflow] = useState(false);
@@ -89,6 +92,7 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
           ytext={ytext}
           fontPx={fontPx}
           onEnd={onEndEdit}
+          undo={undo}
         />
       ) : (
         <div

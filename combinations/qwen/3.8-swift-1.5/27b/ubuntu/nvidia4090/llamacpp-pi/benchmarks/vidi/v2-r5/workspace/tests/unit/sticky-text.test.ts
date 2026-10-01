@@ -46,7 +46,7 @@ describe('sticky.text', () => {
       const handler = (event: Y.YTextEvent) => { deltas.push(...event.delta as TextDelta[]); };
       ytext.observe(handler);
 
-      applyTextDiff(ytext, 'abXc', 'test-origin');
+      applyTextDiff(ytext, 'abXc');
       ytext.unobserve(handler);
 
       // Should be a single insert of 'X' at position 2 (with retain before)
@@ -62,7 +62,7 @@ describe('sticky.text', () => {
       const handler = (event: Y.YTextEvent) => { deltas.push(...event.delta as TextDelta[]); };
       ytext.observe(handler);
 
-      applyTextDiff(ytext, 'acde', 'test-origin');
+      applyTextDiff(ytext, 'acde');
       ytext.unobserve(handler);
 
       // Single deletion of 1 char at position 1 (with retain before)
@@ -77,7 +77,7 @@ describe('sticky.text', () => {
       const handler = (event: Y.YTextEvent) => { deltas.push(...event.delta as TextDelta[]); };
       ytext.observe(handler);
 
-      applyTextDiff(ytext, 'hello earth', 'test-origin');
+      applyTextDiff(ytext, 'hello earth');
       ytext.unobserve(handler);
 
       expect(ytext.toString()).toBe('hello earth');
@@ -86,7 +86,7 @@ describe('sticky.text', () => {
     it('keeps emoji surrogate pairs intact', () => {
       const ytext = makeText('hello 🎉 world');
       
-      applyTextDiff(ytext, 'hello 🎉🎊 world', 'test-origin');
+      applyTextDiff(ytext, 'hello 🎉🎊 world');
       expect(ytext.toString()).toBe('hello 🎉🎊 world');
     });
 
@@ -97,7 +97,7 @@ describe('sticky.text', () => {
       const handler = (event: Y.YTextEvent) => { deltas.push(...event.delta as TextDelta[]); };
       ytext.observe(handler);
 
-      applyTextDiff(ytext, 'abc', 'test-origin');
+      applyTextDiff(ytext, 'abc');
       ytext.unobserve(handler);
 
       expect(deltas).toHaveLength(0);

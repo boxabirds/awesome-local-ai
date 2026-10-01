@@ -1,7 +1,7 @@
 // src/client/pages/BoardContent.tsx
 // The board UI from stories 1-7.
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import type { ReactElement } from 'react';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { ZoomControls } from '../canvas/ZoomControls';
@@ -17,6 +17,8 @@ import { useBoardKeys } from '../board/useBoardKeys';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
+import { createUndo } from '../board/undo';
+import { useUndo } from '../board/useUndo';
 import { StickyNote } from '../objects/StickyNote';
 import '../objects/registerSticky';
 import { createSticky, deleteObjects, objectBounds } from '../../shared/board-model';
@@ -31,6 +33,7 @@ declare global {
     __vidi6?: {
       setCamera: (cam: Camera) => void;
       connectionState?: string;
+      undo?: import('../board/undo').UndoController;
     };
   }
 }
@@ -47,6 +50,12 @@ export function BoardContent(props: { boardId: string }): ReactElement {
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const selection = useSelection(notes);
   const editable = canEdit(connectionState);
+
+  // Per-board undo controller (story 8): one per board doc, destroyed on
+  // board change/unmount. History is session-only (never persisted).
+  const undo = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => () => undo.destroy(), [undo]);
+  const undoState = useUndo(undo, editable);
 
   // Track viewport size
   useEffect(() => {
@@ -65,39 +74,45 @@ export function BoardContent(props: { boardId: string }): ReactElement {
           cam.setCamera(c);
         },
         connectionState,
+        undo,
       };
     }
     return () => {
       delete window.__vidi6;
     };
-  });
+  }, [undo, connectionState]);
 
   // Marquee selection
   const marquee = useMarquee(cam.camera, notes, (ids) => {
     selection.setMany(ids, true);
   });
 
-  // Transform gesture
+  // Transform gesture (story 8: gesture start/end close the capture window
+  // so a whole drag/resize is exactly one undo step)
   const gesture = useTransformGesture({
     doc,
     camera: cam.camera,
     selection,
     snapshot: notes,
     canEdit: editable,
+    onGestureStart: undo.boundary,
+    onGestureEnd: undo.boundary,
   });
 
   // Keyboard commands
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable });
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo });
 
   // Create sticky at a screen point (disabled when load_failed)
   const createStickyAtScreen = useCallback((screenPoint: Point) => {
     if (!canEdit(connectionState)) return;
     const worldPoint = screenToWorld(cam.camera, screenPoint);
+    undo.boundary();
     const id = createSticky(doc, worldPoint);
+    undo.boundary();
     if (id) {
       selection.startEdit(id);
     }
-  }, [cam.camera, doc, selection, connectionState]);
+  }, [cam.camera, doc, selection, connectionState, undo]);
 
   // Create sticky at viewport centre (toolbar button)
   const createStickyAtCentre = useCallback(() => {
@@ -142,12 +157,14 @@ export function BoardContent(props: { boardId: string }): ReactElement {
     };
   }
 
-  // Handle delete selection
+  // Handle delete selection (story 8: one undo step of any size)
   const handleDeleteSelection = useCallback(() => {
     if (!editable) return;
+    undo.boundary();
     deleteObjects(doc, [...selection.ids]);
+    undo.boundary();
     selection.clear();
-  }, [doc, selection, editable]);
+  }, [doc, selection, editable, undo]);
 
   return (
     <>
@@ -179,6 +196,7 @@ export function BoardContent(props: { boardId: string }): ReactElement {
             onPointerDown={gesture.onObjectPointerDown}
             onDblClick={handleNoteDblClick}
             onEndEdit={handleEndEdit}
+            undo={undo}
           />
         ))}
         {/* Marquee rectangle in world space */}
@@ -201,11 +219,12 @@ export function BoardContent(props: { boardId: string }): ReactElement {
             snapshot={notes}
             doc={doc}
             onDelete={handleDeleteSelection}
+            undo={undo}
           />
         </div>
       )}
 
-      <Toolbar onCreateSticky={createStickyAtCentre} disabled={!editable} />
+      <Toolbar onCreateSticky={createStickyAtCentre} disabled={!editable} undo={undoState} />
       <ZoomControls
         zoomPercent={cam.zoomPercent}
         canZoomIn={cam.canZoomIn}

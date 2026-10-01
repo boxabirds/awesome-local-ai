@@ -3,6 +3,7 @@
 
 import * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS, STICKY_COUNTER_THRESHOLD_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX } from '../../shared/config';
+import { LOCAL_ORIGIN } from '../../shared/board-model';
 
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
   if (next.length <= max) return next;
@@ -18,8 +19,11 @@ export function counterVisible(length: number): boolean {
  * Apply a minimal diff to a Y.Text: find common prefix and suffix,
  * then delete the middle of the old and insert the middle of the new.
  * Surrogate-pair safe.
+ *
+ * Changes are applied with LOCAL_ORIGIN (story 8) so that typing enters
+ * this tab's undo history and is never attributed to a remote peer.
  */
-export function applyTextDiff(ytext: Y.Text, next: string, _origin?: unknown): void {
+export function applyTextDiff(ytext: Y.Text, next: string): void {
   const current = ytext.toString();
   if (current === next) return;
 
@@ -41,12 +45,16 @@ export function applyTextDiff(ytext: Y.Text, next: string, _origin?: unknown): v
   const deleteLen = current.length - prefixLen - suffixLen;
   const insertStr = next.slice(prefixLen, next.length - suffixLen);
 
-  if (deleteLen > 0) {
-    ytext.delete(deleteStart, deleteLen);
-  }
-  if (insertStr.length > 0) {
-    ytext.insert(prefixLen, insertStr);
-  }
+  // Group the delete + insert in one LOCAL_ORIGIN transaction so the
+  // per-client UndoManager captures it as a local change.
+  ytext.doc!.transact(() => {
+    if (deleteLen > 0) {
+      ytext.delete(deleteStart, deleteLen);
+    }
+    if (insertStr.length > 0) {
+      ytext.insert(prefixLen, insertStr);
+    }
+  }, LOCAL_ORIGIN);
 }
 
 /**

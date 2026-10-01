@@ -7,16 +7,19 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { allObjectIds, moveObjects, deleteObjects } from '../../shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
 import type { UseSelectionResult } from './useSelection';
+import type { UndoController } from './undo';
 
 export interface UseBoardKeysOpts {
   doc: Y.Doc;
   selection: UseSelectionResult;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** Per-client undo controller (story 8): shortcuts + step boundaries. */
+  undo?: UndoController;
 }
 
 export function useBoardKeys(opts: UseBoardKeysOpts): void {
-  const { doc, selection, snapshot, canEdit } = opts;
+  const { doc, selection, snapshot, canEdit, undo } = opts;
 
   const handler = useCallback((e: KeyboardEvent) => {
     // Don't handle keys when focus is in an input/textarea/contenteditable
@@ -32,7 +35,27 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
     }
 
     // Don't handle other keys when editing text in a note
+    // (the editor handles Ctrl/Cmd+Z itself, avoiding a double undo)
     if (selection.editingId) return;
+
+    // Ctrl/Cmd+Z: undo (story 8)
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+      if (!canEdit || !undo) return;
+      e.preventDefault();
+      undo.undo();
+      return;
+    }
+
+    // Ctrl/Cmd+Shift+Z or Ctrl+Y: redo (story 8)
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      ((e.shiftKey && e.key.toLowerCase() === 'z') || (!e.shiftKey && e.key.toLowerCase() === 'y'))
+    ) {
+      if (!canEdit || !undo) return;
+      e.preventDefault();
+      undo.redo();
+      return;
+    }
 
     // Ctrl/Cmd+A: Select all
     if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
@@ -72,7 +95,9 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         }
       }
       if (positions.size > 0) {
+        undo?.boundary();
         moveObjects(doc, positions);
+        undo?.boundary();
       }
       return;
     }
@@ -81,7 +106,9 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
     if ((e.key === 'Delete' || e.key === 'Backspace') && selection.ids.size > 0) {
       if (!canEdit) return;
       e.preventDefault();
+      undo?.boundary();
       deleteObjects(doc, [...selection.ids]);
+      undo?.boundary();
       selection.clear();
       return;
     }
@@ -96,7 +123,7 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
       }
       return;
     }
-  }, [doc, selection, snapshot, canEdit]);
+  }, [doc, selection, snapshot, canEdit, undo]);
 
   useEffect(() => {
     window.addEventListener('keydown', handler);

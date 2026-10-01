@@ -1,9 +1,12 @@
 // src/client/board/Toolbar.tsx
 import type { ReactElement } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UseUndoResult } from './useUndo';
 
 export interface ToolbarProps {
   onCreateSticky: () => void;
   disabled?: boolean;
+  undo?: UseUndoResult;
 }
 
 export function Toolbar(props: ToolbarProps): ReactElement {
@@ -45,6 +48,7 @@ export function Toolbar(props: ToolbarProps): ReactElement {
       >
         📝
       </button>
+      {props.undo && <UndoButtons {...props.undo} />}
     </div>
   );
 }

@@ -7,16 +7,19 @@ import { NoteToolbar } from '../objects/NoteToolbar';
 import { setStickyColor, deleteObject } from '../../shared/board-model';
 import * as Y from 'yjs';
 import type { StickyColor } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 
 export interface SelectionBarProps {
   ids: ReadonlySet<string>;
   snapshot: readonly ObjectSnapshot[];
   doc: Y.Doc;
   onDelete: () => void;
+  /** Per-client undo controller (story 8): colour/delete are single steps. */
+  undo?: UndoController;
 }
 
 export function SelectionBar(props: SelectionBarProps): ReactElement | null {
-  const { ids, snapshot, doc, onDelete } = props;
+  const { ids, snapshot, doc, onDelete, undo } = props;
   const count = ids.size;
 
   if (count === 0) return null;
@@ -39,9 +42,15 @@ export function SelectionBar(props: SelectionBarProps): ReactElement | null {
         >
           <NoteToolbar
             color={sticky.color}
-            onColor={(c: StickyColor) => setStickyColor(doc, id, c)}
+            onColor={(c: StickyColor) => {
+              undo?.boundary();
+              setStickyColor(doc, id, c);
+              undo?.boundary();
+            }}
             onDelete={() => {
+              undo?.boundary();
               deleteObject(doc, id);
+              undo?.boundary();
               onDelete();
             }}
           />
