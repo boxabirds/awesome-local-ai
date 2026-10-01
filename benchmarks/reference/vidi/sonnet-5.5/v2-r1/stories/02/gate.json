@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 4.6,
+      "tail": "\nadded 138 packages, and audited 139 packages in 5s\n\n31 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 2.0,
+      "tail": "\n> vidi6@0.1.0 build\n> tsc --noEmit && vite build\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 67 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.38 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-DmkNK4bx.css    3.51 kB \u2502 gzip:  1.10 kB\ndist/client/assets/index-raewvKKI.js   298.64 kB \u2502 gzip: 92.94 kB\n\n\u001b[32m\u2713 built in 367ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 0.4,
+      "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 1.1,
+      "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r1/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 32\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 12\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 28\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m40 passed\u001b[39m\u001b[22m\u001b[90m (40)\u001b[39m\n\u001b[2m   Start at \u001b[22m 02:05:58\n\u001b[2m   Duration \u001b[22m 463ms\u001b[2m (transform 37%, worker 25%, import 22%, tests 16%)\u001b[22m\n\n",
+      "passed": 40,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 3.0,
+      "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.3 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__sonnet-5.5__v2-r1/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 252\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 248\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 437\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 695\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m\u2713\u001b[39m toolbars \u001b[2m(4)\u001b[22m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-27 pink swatch recolours and keeps the selection\u001b[33m 568\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 696\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m\u2713\u001b[39m StickyTextEditor \u001b[2m(8)\u001b[22m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-23 Enter on a selected note edits with the caret at the end\u001b[33m 554\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 788\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m\u2713\u001b[39m StickyNote interaction \u001b[2m(12)\u001b[22m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-18 click selects: outline attribute and note toolbar\u001b[33m 624\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m40 passed\u001b[39m\u001b[22m\u001b[90m (40)\u001b[39m\n\u001b[2m   Start at \u001b[22m 02:05:59\n\u001b[2m   Duration \u001b[22m 2.56s\u001b[2m (environment 58%, tests 25%, import 9%, transform 7%, worker 1%)\u001b[22m\n\n",
+      "passed": 40,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 8.3,
+      "tail": "\n> vidi6@0.1.0 test:e2e\n> vite build --mode test && playwright test --project=chromium\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 67 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.38 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-DmkNK4bx.css    3.51 kB \u2502 gzip:  1.10 kB\ndist/client/assets/index-BXsLIsAO.js   298.73 kB \u2502 gzip: 92.97 kB\n\n\u001b[32m\u2713 built in 104ms\u001b[39m\n\nRunning 12 tests using 2 workers\n\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\n  12 passed (7.3s)\n",
+      "passed": 12,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
