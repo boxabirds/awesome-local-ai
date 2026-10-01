@@ -4,7 +4,7 @@ A running list of things that looked wrong while the vidi benchmark ran on the f
 seen, what it turned out to be, and whether it needs someone. Kept by a monitor that only observes (it
 never touches jobs, nodes, run records or harness code).
 
-**Last updated:** 2026-10-01 11:32 UTC
+**Last updated:** 2026-10-01 11:40 UTC
 
 **Machines:** the RTX 4090 machine, the Strix Halo box, the M5 Max, the M2 MacBook Air.
 
@@ -47,7 +47,10 @@ deleted. Held-out tests are referred to by counts only. Times are UTC.
   M5 Max's checkout is detached 31 commits past the tag (6 private commits made on the detached HEAD by
   the older harness, not yet on the private main); it will be repaired when mlx v2-r2 ends, so that run
   will end without a score of record until then.
-- **Note 2026-10-01 11:28 (needs someone):** the re-score of gufo v2-r4 was attempted at about 11:25 and
+- **Note 2026-10-01 11:37:** done: gufo v2-r4 now has a score of record, 66/75 (`9f6a8307`; live was 65/75,
+  marked not comparable because the live suite version string differed). The failed attempt below was
+  rerun by the owner. Left to check: gufo v2-r5 and mlx v2-r2.
+- **Note 2026-10-01 11:28 (resolved 11:37):** the re-score of gufo v2-r4 was attempted at about 11:25 and
   failed: `finalize.json` now says `rescore: failed`, reason "[Errno 2] No such file or directory: 'uv'"
   (commit `a058bf53`). The job that ran it on the Strix Halo box doesn't have `uv` on its PATH (a unit's
   environment is not a login shell's). It also ran while v2-r5 was still on story 3, not after it ended.
