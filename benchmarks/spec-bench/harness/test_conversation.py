@@ -3,7 +3,7 @@
 MECE by what decides the answer, one section each:
   A. what the log holds      B. where events lie against the story's window    C. thinking and the largest block
   D. context growth          E. tool calls                                      F. signals and their thresholds
-  G. the shape of the result
+  G. the shape of the result                                                  H. the Claude client's log
 Run: uv run --with pytest pytest test_conversation.py
 """
 import json
@@ -204,6 +204,129 @@ def test_G1_keys_match_what_the_benchmarker_reads(tmp_path):
     p = prof(tmp_path, Log().call(T0 + 1, thinking="x"))
     assert set(p) == {"version", "calls", "tool_calls", "thinking_chars", "text_chars", "tool_arg_chars", "thinking_median",
                       "thinking_median_before", "thinking_median_after", "largest_thinking", "context_start", "context_end",
-                      "largest_context_jump", "tools_by_name", "tool_errors", "longest_tool", "signals"}
+                      "largest_context_jump", "tools_by_name", "tool_errors", "longest_tool", "signals",
+                      "thinking_visible", "thinking_estimated_tokens", "largest_thinking_estimated", "subagent_calls"}
     assert p["version"] == cv.VERSION
     json.dumps(p)
+
+
+def test_G2_pi_shows_its_thinking_and_has_no_estimates(tmp_path):
+    p = prof(tmp_path, Log().call(T0 + 1, thinking="xyz"))
+    assert p["thinking_visible"] is True and p["thinking_chars"] == 3
+    assert p["thinking_estimated_tokens"] is None and p["largest_thinking_estimated"] is None and p["subagent_calls"] == 0
+
+
+# ---------- H. the Claude client's log (stream-json: one event per content block, thinking text withheld) ----------
+
+class ClaudeLog:
+    """Claude Code's stream: each content block of a model message is its own "assistant" event under the
+    message's id; thinking blocks arrive empty (the text is withheld), and while the model thinks the client
+    streams running estimates of the thinking tokens (system/thinking_tokens), restarting with each message."""
+    def __init__(self):
+        self.events = []
+        self.n = 0
+
+    def call(self, at, thinking_est=(), text="", tools=(), fresh=2, cached=0, created=1000, parent=None):
+        """A model message whose blocks arrive at `at`; thinking_est: the running estimates streamed before it;
+        tools: (name, input) pairs. Returns the tool ids, for tool_result."""
+        self.n += 1
+        mid = f"msg_{self.n}"
+        for i, est in enumerate(thinking_est):
+            self.events.append({"_rx": at - len(thinking_est) + i, "type": "system", "subtype": "thinking_tokens",
+                                "estimated_tokens": est, "estimated_tokens_delta": est})
+        usage = {"input_tokens": fresh, "cache_read_input_tokens": cached, "cache_creation_input_tokens": created,
+                 "output_tokens": 8}
+        blocks = [{"type": "thinking", "thinking": "", "signature": "sig"}] + (
+            [{"type": "text", "text": text}] if text else [])
+        ids = []
+        for name, inp in tools:
+            ids.append(f"toolu_{self.n}_{len(ids)}")
+            blocks.append({"type": "tool_use", "id": ids[-1], "name": name, "input": inp})
+        for j, b in enumerate(blocks):
+            self.events.append({"_rx": at + j * 0.01, "type": "assistant", "parent_tool_use_id": parent,
+                                "message": {"id": mid, "role": "assistant", "content": [b], "usage": usage}})
+        return ids
+
+    def result(self, at, tool_id, error=False, parent=None):
+        self.events.append({"_rx": at, "type": "user", "parent_tool_use_id": parent, "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": tool_id, "content": "out", "is_error": error}]}})
+
+    write = Log.write
+
+
+def test_H1_a_model_message_is_one_call_however_many_blocks_it_streams_in(tmp_path):
+    log = ClaudeLog()
+    a, b = log.call(T0 + 10, text="Now the code.", tools=[("Bash", {"command": "ls"}), ("Read", {"file_path": "/x"})])
+    log.result(T0 + 11, a), log.result(T0 + 11, b)
+    log.call(T0 + 20, text="done")
+    p = prof(tmp_path, log)
+    assert p["calls"] == 2 and p["tool_calls"] == 2 and p["tools_by_name"] == {"Bash": 1, "Read": 1}
+    assert p["text_chars"] == len("Now the code.") + len("done")
+    assert p["tool_arg_chars"] == len(json.dumps({"command": "ls"})) + len(json.dumps({"file_path": "/x"}))
+
+
+def test_H2_withheld_thinking_is_not_visible_never_zero(tmp_path):
+    log = ClaudeLog()
+    log.call(T0 + 10, text="x")
+    p = prof(tmp_path, log)
+    assert p["thinking_visible"] is False
+    assert p["thinking_chars"] is None and p["thinking_median"] is None and p["largest_thinking"] is None
+    assert p["thinking_median_before"] is None and p["thinking_median_after"] is None
+
+
+def test_H3_each_call_takes_the_last_estimate_streamed_before_it(tmp_path):
+    log = ClaudeLog()
+    log.call(T0 + 100, thinking_est=(50, 400, 2200), text="a")       # 2200 for this call
+    log.call(T0 + 200, thinking_est=(50, 230), text="b")             # restarts: 230, not 2430
+    log.call(T0 + 300, text="c")                                     # no estimate: none counted
+    p = prof(tmp_path, log)
+    assert p["thinking_estimated_tokens"] == 2430
+    assert p["largest_thinking_estimated"] == {"tokens": 2200, "call": 1, "at_s": 100.0}
+
+
+def test_H4_no_estimates_at_all_is_none_not_zero(tmp_path):
+    log = ClaudeLog()
+    log.call(T0 + 10, text="a")
+    p = prof(tmp_path, log)
+    assert p["thinking_estimated_tokens"] is None and p["largest_thinking_estimated"] is None
+
+
+def test_H5_context_is_fresh_plus_cached_plus_newly_cached_input(tmp_path):
+    log = ClaudeLog()
+    log.call(T0 + 10, fresh=2, cached=100, created=900)
+    log.call(T0 + 20, fresh=3, cached=1000, created=5000)
+    p = prof(tmp_path, log)
+    assert p["context_start"] == 1002 and p["context_end"] == 6003
+    assert p["largest_context_jump"] == {"tokens": 5001, "call": 2}
+
+
+def test_H6_tool_time_runs_from_the_call_to_its_result_and_errors_are_counted(tmp_path):
+    log = ClaudeLog()
+    (quick,) = log.call(T0 + 10, tools=[("Bash", {"command": "ls"})])
+    log.result(T0 + 11, quick)
+    (slow,) = log.call(T0 + 20, tools=[("Bash", {"command": "npx playwright test"})])
+    log.result(T0 + 320, slow, error=True)
+    (never,) = log.call(T0 + 400, tools=[("Read", {"file_path": "/a"})])
+    p = prof(tmp_path, log, t_to=T0 + 450)
+    assert p["tool_errors"] == 1
+    assert p["longest_tool"] == {"seconds": 300.0, "name": "Bash", "gist": "npx playwright test"}
+
+
+def test_H7_a_subagent_s_messages_are_not_the_agent_s_calls(tmp_path):
+    log = ClaudeLog()
+    (task,) = log.call(T0 + 10, tools=[("Task", {"description": "look"})])
+    log.call(T0 + 20, text="sub", parent=task)
+    log.call(T0 + 30, text="sub", parent=task)
+    log.result(T0 + 40, task)
+    log.call(T0 + 50, text="main")
+    p = prof(tmp_path, log)
+    assert p["calls"] == 2 and p["subagent_calls"] == 2 and p["text_chars"] == len("main")
+
+
+def test_H8_only_messages_inside_the_window_count(tmp_path):
+    log = ClaudeLog()
+    log.call(T0 - 5, text="before")
+    log.call(T0 + 5, thinking_est=(50, 300), text="in")
+    log.call(T1 + 5, text="after")
+    p = prof(tmp_path, log)
+    assert p["calls"] == 1 and p["text_chars"] == 2 and p["thinking_estimated_tokens"] == 300
