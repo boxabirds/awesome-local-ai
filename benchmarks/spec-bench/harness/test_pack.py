@@ -93,8 +93,9 @@ def test_a_real_run_needs_its_run_dir_server_and_model(tmp_path):
 
 @pytest.mark.parametrize("sid", [1, 2])
 def test_vidi_renders_exactly_the_prompts_its_runs_recorded(sid):
-    """Moving the harness and making it pack-generic must not change a word vidi's agents see,
-    or earlier runs stop being comparable."""
+    """Moving the harness and making it pack-generic must not change a word of the pack's prompt that vidi's
+    agents see, or earlier runs stop being comparable. Since the stop rule (1 Oct 2026, test_stop_rule.py) the
+    harness adds one paragraph of its own after it, asking for the DONE line; nothing else differs."""
     import drive
     recorded = RECORDED_RUN / "stories" / f"{sid:02d}" / "prompt.md"
     if not recorded.exists():
@@ -103,7 +104,8 @@ def test_vidi_renders_exactly_the_prompts_its_runs_recorded(sid):
     scope = drive.PK.scope(scope="canvas")
     story = next(s for s in scope["stories"] if s["id"] == sid)
     processed = [{"id": i, "status": "DONE"} for i in range(1, sid)]
-    assert drive.render_prompt(story, drive.story_title(story), processed, scope) == recorded.read_text()
+    rendered = drive.render_prompt(story, drive.story_title(story), processed, scope)
+    assert rendered == f"{recorded.read_text().rstrip()}\n\n{drive.DONE_LINE_PROMPT_TMPL.format(n=sid)}\n"
 
 
 def test_vidi_defaults_to_its_canvas_scope():
