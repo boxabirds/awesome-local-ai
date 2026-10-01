@@ -16,10 +16,14 @@ export interface UseBoardKeysOpts {
   canEdit: boolean;
   /** Per-client undo controller (story 8): shortcuts + step boundaries. */
   undo?: UndoController;
+  /** Active tool (story 9). */
+  tool?: 'select' | 'text';
+  /** Create sticky at centre (for N key). */
+  onCreateStickyAtCentre?: () => void;
 }
 
 export function useBoardKeys(opts: UseBoardKeysOpts): void {
-  const { doc, selection, snapshot, canEdit, undo } = opts;
+  const { doc, selection, snapshot, canEdit, undo, tool, onCreateStickyAtCentre } = opts;
 
   const handler = useCallback((e: KeyboardEvent) => {
     // Don't handle keys when focus is in an input/textarea/contenteditable
@@ -113,17 +117,24 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
       return;
     }
 
-    // Enter: Start editing single selected sticky
+    // N: Create sticky at centre (story 9: documented shortcut)
+    if (e.key.toLowerCase() === 'n' && !e.ctrlKey && !e.metaKey && canEdit) {
+      e.preventDefault();
+      onCreateStickyAtCentre?.();
+      return;
+    }
+
+    // Enter: Start editing single selected sticky or text
     if (e.key === 'Enter' && selection.ids.size === 1) {
       const id = [...selection.ids][0];
       const obj = snapshot.find(o => o.id === id);
-      if (obj && obj.type === 'sticky') {
+      if (obj && (obj.type === 'sticky' || obj.type === 'text')) {
         e.preventDefault();
         selection.startEdit(id);
       }
       return;
     }
-  }, [doc, selection, snapshot, canEdit, undo]);
+  }, [doc, selection, snapshot, canEdit, undo, tool, onCreateStickyAtCentre]);
 
   useEffect(() => {
     window.addEventListener('keydown', handler);

@@ -1,12 +1,15 @@
 // src/client/board/SelectionBar.tsx
-// Shows "N selected" + Delete for multi-selection, or NoteToolbar for single sticky.
+// Shows "N selected" + Delete for multi-selection, NoteToolbar for single sticky,
+// or TextToolbar for single text object.
 
 import type { ReactElement } from 'react';
 import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 import { setStickyColor, deleteObject } from '../../shared/board-model';
+import { setTextSize } from '../../shared/objects/text';
 import * as Y from 'yjs';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
 import type { UndoController } from '../board/undo';
 
 export interface SelectionBarProps {
@@ -14,21 +17,25 @@ export interface SelectionBarProps {
   snapshot: readonly ObjectSnapshot[];
   doc: Y.Doc;
   onDelete: () => void;
-  /** Per-client undo controller (story 8): colour/delete are single steps. */
+  /** Per-client undo controller (story 8). */
   undo?: UndoController;
+  onRemeasure?: (id: string) => void;
 }
 
 export function SelectionBar(props: SelectionBarProps): ReactElement | null {
-  const { ids, snapshot, doc, onDelete, undo } = props;
+  const { ids, snapshot, doc, onDelete, undo, onRemeasure } = props;
   const count = ids.size;
 
   if (count === 0) return null;
 
-  // Exactly one sticky note → show NoteToolbar
+  // Exactly one object → show type-specific toolbar
   if (count === 1) {
     const id = [...ids][0];
     const obj = snapshot.find(o => o.id === id);
-    if (obj && obj.type === 'sticky') {
+    if (!obj) return null;
+
+    // Sticky note → NoteToolbar
+    if (obj.type === 'sticky') {
       const sticky = obj as StickySnapshot;
       return (
         <div
@@ -57,6 +64,39 @@ export function SelectionBar(props: SelectionBarProps): ReactElement | null {
         </div>
       );
     }
+
+    // Text object → TextToolbar
+    if (obj.type === 'text') {
+      const size = ((obj as any).size ?? 'M') as TextSize;
+      return (
+        <div
+          data-testid="selection-bar"
+          style={{
+            position: 'absolute',
+            top: -40,
+            left: '50%',
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <TextToolbar
+            size={size}
+            onSize={(s: TextSize) => {
+              undo?.boundary();
+              setTextSize(doc, id, s);
+              undo?.boundary();
+              onRemeasure?.(id);
+            }}
+            onDelete={() => {
+              undo?.boundary();
+              deleteObject(doc, id);
+              undo?.boundary();
+              onDelete();
+            }}
+          />
+        </div>
+      );
+    }
+
     return null;
   }
 

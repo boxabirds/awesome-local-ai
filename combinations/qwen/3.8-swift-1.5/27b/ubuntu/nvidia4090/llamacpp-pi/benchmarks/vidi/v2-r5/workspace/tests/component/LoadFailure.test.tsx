@@ -40,13 +40,13 @@ describe('persist.client_status: edit lock during load_failed (TC-23)', () => {
   });
 
   it('TC-23: Toolbar Sticky note button is disabled in load_failed state', () => {
-    const { getByTestId } = render(<Toolbar onCreateSticky={() => {}} disabled={true} />);
+    const { getByTestId } = render(<Toolbar onCreateSticky={() => {}} disabled={true} tool="select" setTool={() => {}} />);
     const btn = getByTestId('create-sticky-btn') as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
   });
 
   it('TC-23: Toolbar Sticky note button is enabled in connected state', () => {
-    const { getByTestId } = render(<Toolbar onCreateSticky={() => {}} disabled={false} />);
+    const { getByTestId } = render(<Toolbar onCreateSticky={() => {}} disabled={false} tool="select" setTool={() => {}} />);
     const btn = getByTestId('create-sticky-btn') as HTMLButtonElement;
     expect(btn.disabled).toBe(false);
   });

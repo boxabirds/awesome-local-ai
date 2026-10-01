@@ -2,12 +2,12 @@
 import { useRef, useSyncExternalStore, useCallback, useEffect, useState } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot } from '../../shared/board-model';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 export function useBoardDoc(boardId?: string) {
   const docRef = useRef<Y.Doc | null>(null);
-  const snapshotRef = useRef<readonly StickySnapshot[]>([]);
+  const snapshotRef = useRef<readonly ObjectSnapshot[]>([]);
   const versionRef = useRef(0);
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
 
@@ -52,4 +52,4 @@ export function useBoardDoc(boardId?: string) {
   return { doc, notes, connectionState };
 }
 
-export type { StickySnapshot, ConnectionState };
+export type { ObjectSnapshot, ConnectionState };

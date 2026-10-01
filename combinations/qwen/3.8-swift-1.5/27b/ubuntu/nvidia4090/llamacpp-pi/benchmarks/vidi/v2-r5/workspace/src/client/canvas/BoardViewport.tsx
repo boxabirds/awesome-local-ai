@@ -15,10 +15,13 @@ export interface BoardViewportProps {
   reset: () => void;
   onDblClickEmpty?: (screenPoint: Point) => void;
   onClickEmpty?: () => void;
+  onClickEmptyWithPoint?: (screenPoint: Point) => void;
   onMarqueeBegin?: (screenPoint: Point) => void;
   onMarqueeMove?: (screenPoint: Point) => void;
   onMarqueeEnd?: () => void;
   onMarqueeCancel?: () => void;
+  cursorStyle?: string;
+  textToolActive?: boolean;
   children?: ReactNode;
 }
 
@@ -26,7 +29,7 @@ const WHEEL_LINE_DELTA = 16;
 const WHEEL_PAGE_DELTA = 100;
 
 export function BoardViewport(props: BoardViewportProps): ReactElement {
-  const { camera, beginPan, panMove, endPan, wheel, zoomIn, zoomOut, reset, onDblClickEmpty, onClickEmpty, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel } = props;
+  const { camera, beginPan, panMove, endPan, wheel, zoomIn, zoomOut, reset, onDblClickEmpty, onClickEmpty, onClickEmptyWithPoint, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel, cursorStyle, textToolActive } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
   const isMarqueeRef = useRef(false);
@@ -42,6 +45,11 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const screenPoint: Point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
 
+    // Text tool active: don't pan or marquee on empty space
+    if (textToolActive) {
+      return;
+    }
+
     // Shift+drag on empty space → marquee
     if (e.shiftKey && onMarqueeBegin) {
       isMarqueeRef.current = true;
@@ -55,7 +63,7 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
     didPanRef.current = false;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     beginPan(screenPoint);
-  }, [beginPan, onMarqueeBegin]);
+  }, [beginPan, onMarqueeBegin, textToolActive]);
 
   const onPointerMove = useCallback((e: ReactPointerEvent) => {
     if (isMarqueeRef.current && onMarqueeMove) {
@@ -95,6 +103,18 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
       }
     }
   }, [endPan, onClickEmpty, onMarqueeEnd]);
+
+  // Click handler for text tool (creates text at click point)
+  const onClick = useCallback((e: React.MouseEvent) => {
+    if (!textToolActive) return;
+    const target = e.target as HTMLElement;
+    if (!target.classList.contains('board-viewport') && !target.classList.contains('board-grid')) {
+      return;
+    }
+    const rect = containerRef.current!.getBoundingClientRect();
+    const screenPoint: Point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    onClickEmptyWithPoint?.(screenPoint);
+  }, [textToolActive, onClickEmptyWithPoint]);
 
   const onPointerCancel = useCallback((e: ReactPointerEvent) => {
     if (isMarqueeRef.current) {
@@ -218,7 +238,7 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
         inset: 0,
         overflow: 'hidden',
         touchAction: 'none',
-        cursor: 'grab',
+        cursor: cursorStyle ?? 'grab',
         backgroundImage: `radial-gradient(circle, #ccc 1px, transparent 1px)`,
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${bgX}px ${bgY}px`,
@@ -228,6 +248,7 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onLostPointerCapture={onLostPointerCapture}
+      onClick={onClick}
       onDoubleClick={(e) => {
         const target = e.target as HTMLElement;
         if (target.classList.contains('board-viewport') || target.classList.contains('board-grid')) {

@@ -15,6 +15,15 @@ export interface ObjectSnapshot {
   x: number;
   y: number;
   z: number;
+  // Optional fields populated by specific types
+  color?: StickyColor;
+  text?: string;
+  createdAt?: number;
+  width?: number;
+  height?: number;
+  size?: string;
+  widthMode?: string;
+  createdBy?: string;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -95,8 +104,14 @@ export function createSticky(doc: Y.Doc, at: { x: number; y: number }, color?: S
 /**
  * Returns the bounding rect of an object in world units.
  * For sticky notes without explicit width/height, uses STICKY_SIZE_WORLD.
+ * For text objects, uses stored width/height.
  */
 export function objectBounds(obj: ObjectSnapshot): Rect {
+  if (obj.type === 'text') {
+    const width = (obj as any).width ?? 100;
+    const height = (obj as any).height ?? 30;
+    return { x: obj.x, y: obj.y, width, height };
+  }
   const width = (obj as StickySnapshot).width ?? STICKY_SIZE_WORLD;
   const height = (obj as StickySnapshot).height ?? STICKY_SIZE_WORLD;
   return { x: obj.x, y: obj.y, width, height };
@@ -316,29 +331,48 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   return obj.get('text') as Y.Text | undefined;
 }
 
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects = getObjects(doc);
-  const result: StickySnapshot[] = [];
+  const result: ObjectSnapshot[] = [];
 
   objects.forEach((obj, id) => {
     const type = obj.get('type') as string;
-    if (type !== 'sticky') return; // skip unknown types
-
-    const text = obj.get('text') as Y.Text | undefined;
-    const width = obj.get('width') as number | undefined;
-    const height = obj.get('height') as number | undefined;
-    result.push({
-      id,
-      type: 'sticky',
-      x: (obj.get('x') as number) ?? 0,
-      y: (obj.get('y') as number) ?? 0,
-      color: (obj.get('color') as StickyColor) ?? DEFAULT_STICKY_COLOR,
-      text: text ? text.toString() : '',
-      z: (obj.get('z') as number) ?? 0,
-      createdAt: (obj.get('createdAt') as number) ?? 0,
-      ...(width !== undefined ? { width } : {}),
-      ...(height !== undefined ? { height } : {}),
-    });
+    if (type === 'sticky') {
+      const text = obj.get('text') as Y.Text | undefined;
+      const width = obj.get('width') as number | undefined;
+      const height = obj.get('height') as number | undefined;
+      result.push({
+        id,
+        type: 'sticky',
+        x: (obj.get('x') as number) ?? 0,
+        y: (obj.get('y') as number) ?? 0,
+        color: (obj.get('color') as StickyColor) ?? DEFAULT_STICKY_COLOR,
+        text: text ? text.toString() : '',
+        z: (obj.get('z') as number) ?? 0,
+        createdAt: (obj.get('createdAt') as number) ?? 0,
+        ...(width !== undefined ? { width } : {}),
+        ...(height !== undefined ? { height } : {}),
+      } as any);
+    } else if (type === 'text') {
+      const text = obj.get('text') as Y.Text | undefined;
+      const width = obj.get('width') as number | undefined;
+      const height = obj.get('height') as number | undefined;
+      result.push({
+        id,
+        type: 'text',
+        x: (obj.get('x') as number) ?? 0,
+        y: (obj.get('y') as number) ?? 0,
+        text: text ? text.toString() : '',
+        z: (obj.get('z') as number) ?? 0,
+        createdAt: (obj.get('createdAt') as number) ?? 0,
+        createdBy: (obj.get('createdBy') as string) ?? '',
+        size: (obj.get('size') as string) ?? 'M',
+        widthMode: (obj.get('widthMode') as string) ?? 'auto',
+        ...(width !== undefined ? { width } : {}),
+        ...(height !== undefined ? { height } : {}),
+      } as any);
+    }
+    // skip unknown types
   });
 
   // Sort by (z, id) for stable ordering

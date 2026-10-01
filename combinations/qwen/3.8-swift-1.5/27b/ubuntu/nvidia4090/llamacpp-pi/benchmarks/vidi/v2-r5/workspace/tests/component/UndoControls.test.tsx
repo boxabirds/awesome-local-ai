@@ -85,7 +85,8 @@ describe('undo.controls (component, fake controller)', () => {
   // TC-18: empty stacks → Undo and Redo buttons disabled (boundary)
   it('TC-18: both buttons disabled when the stacks are empty', () => {
     render(
-      <Toolbar
+      <Toolbar tool="select" setTool={() => {}}
+        
         onCreateSticky={() => {}}
         disabled={false}
         undo={{ canUndo: false, canRedo: false, undo: () => {}, redo: () => {} }}
@@ -97,7 +98,8 @@ describe('undo.controls (component, fake controller)', () => {
 
   it('TC-18 (complement): buttons enabled when a stack has steps', () => {
     render(
-      <Toolbar
+      <Toolbar tool="select" setTool={() => {}}
+        
         onCreateSticky={() => {}}
         disabled={false}
         undo={{ canUndo: true, canRedo: true, undo: () => {}, redo: () => {} }}
@@ -148,7 +150,8 @@ describe('undo.controls (component, fake controller)', () => {
 
     // Buttons disabled (useUndo gates on canEdit → canUndo/canRedo false)
     render(
-      <Toolbar
+      <Toolbar tool="select" setTool={() => {}}
+        
         onCreateSticky={() => {}}
         disabled={true}
         undo={{ canUndo: false, canRedo: false, undo: () => {}, redo: () => {} }}

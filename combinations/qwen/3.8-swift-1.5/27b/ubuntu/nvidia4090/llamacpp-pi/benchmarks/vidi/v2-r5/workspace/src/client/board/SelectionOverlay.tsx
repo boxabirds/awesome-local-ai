@@ -47,6 +47,22 @@ export function SelectionOverlay(props: SelectionOverlayProps): ReactElement | n
   const bbox = unionRects(selectedRects);
   if (!bbox) return null;
 
+  // Determine if all selected objects are horizontal-only
+  let allHorizontal = true;
+  for (const id of ids) {
+    const obj = snapshot.find(o => o.id === id);
+    if (!obj) continue;
+    const spec = getObjectType(obj.type);
+    if (spec?.handles === 'horizontal') continue;
+    allHorizontal = false;
+    break;
+  }
+
+  // Filter handles: if all are horizontal, only show e and w
+  const visibleHandles = allHorizontal
+    ? HANDLE_POSITIONS.filter(h => h.handle === 'e' || h.handle === 'w')
+    : HANDLE_POSITIONS;
+
   // Convert to screen space
   const topLeft = worldToScreen(camera, { x: bbox.x, y: bbox.y });
   const w = bbox.width * camera.zoom;
@@ -72,7 +88,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): ReactElement | n
       />
 
       {/* Resize handles (only if any selected type is resizable) */}
-      {anyResizable && HANDLE_POSITIONS.map(({ handle, label, getPos }) => {
+      {anyResizable && visibleHandles.map(({ handle, label, getPos }) => {
         const pos = getPos(screenRect);
         return (
           <div
