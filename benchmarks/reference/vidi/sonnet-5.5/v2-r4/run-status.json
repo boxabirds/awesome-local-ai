@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness 2a09924f, client claude, model claude-sonnet-5-5",
-  "at": "2026-10-01T10:15:15Z",
+  "state": "finished",
+  "reason": "",
+  "at": "2026-10-01T11:47:30Z",
   "host": "Apple M2 16GB"
 }
