@@ -4,6 +4,8 @@ import {
   DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
   DEFAULT_TEXT_SIZE,
+  PEN_COLORS,
+  PEN_THICKNESS_WORLD,
   SHAPE_FILL_COLORS,
   SHAPE_KINDS,
   SHAPE_STROKE_COLORS,
@@ -11,7 +13,7 @@ import {
   STICKY_SIZE_WORLD,
   TEXT_SIZES,
 } from './config';
-import type { FillColor, ShapeKind, StickyColor, StrokeColor, TextSize } from './config';
+import type { FillColor, PenColor, PenThickness, ShapeKind, StickyColor, StrokeColor, TextSize } from './config';
 import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 import { connectableRects, detachConnectorsTo, shiftFreeEnds } from './objects/connector';
 import type { Endpoint } from './objects/connector';
@@ -33,7 +35,7 @@ export interface ObjectSnapshot {
   height?: number;
   z: number;
   createdAt: number;
-  color?: StickyColor;
+  color?: StickyColor | PenColor;
   text?: string;
   size?: TextSize;
   widthMode?: 'auto' | 'fixed';
@@ -44,6 +46,10 @@ export interface ObjectSnapshot {
   from?: Endpoint;
   to?: Endpoint;
   ends?: { from: Point; to: Point };
+  points?: readonly number[];
+  baseWidth?: number;
+  baseHeight?: number;
+  thickness?: PenThickness;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -52,7 +58,7 @@ export interface StickySnapshot extends ObjectSnapshot {
   text: string;
 }
 
-const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector']);
+const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector', 'stroke']);
 
 export function objectsOf(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects') as Y.Map<Y.Map<unknown>>;
@@ -273,6 +279,21 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       if (!from || !to) return;
       entry.from = from;
       entry.to = to;
+    }
+    if (type === 'stroke') {
+      const points = obj.get('points');
+      const baseWidth = obj.get('baseWidth');
+      const baseHeight = obj.get('baseHeight');
+      const color = obj.get('color');
+      const thickness = obj.get('thickness');
+      if (!Array.isArray(points) || typeof baseWidth !== 'number' || typeof baseHeight !== 'number') return;
+      if (typeof color !== 'string' || !(color in PEN_COLORS)) return;
+      if (typeof thickness !== 'string' || !(thickness in PEN_THICKNESS_WORLD)) return;
+      entry.points = points as number[];
+      entry.baseWidth = baseWidth;
+      entry.baseHeight = baseHeight;
+      entry.color = color as PenColor;
+      entry.thickness = thickness as PenThickness;
     }
     result.push(entry);
   });

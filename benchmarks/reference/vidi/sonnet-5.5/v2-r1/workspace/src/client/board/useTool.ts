@@ -4,7 +4,7 @@ import type { ToolId } from '../tools/useActiveTool';
 export type Tool = ToolId;
 
 /** The tools that exist in this build (the others are placeholders for later stories). */
-const AVAILABLE: ReadonlySet<Tool> = new Set<Tool>(['select', 'text', 'shape', 'connector']);
+const AVAILABLE: ReadonlySet<Tool> = new Set<Tool>(['select', 'text', 'shape', 'connector', 'pen']);
 
 /** The active board tool (per client, not persisted). Every tool but Select is unavailable, and reverts to Select, while the board cannot be edited. */
 export function useTool(canEdit: boolean): { tool: Tool; setTool(t: Tool): void } {

@@ -11,6 +11,9 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useSelection } from './board/useSelection';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { ShapeTool } from './tools/ShapeTool';
 import { useActiveTool } from './tools/useActiveTool';
 import { getLocalUserId } from './identity';
@@ -58,6 +61,7 @@ export function App({ boardId }: { boardId?: string } = {}) {
       setGesturing(false);
     },
   });
+  const pen = usePenOptions();
   const tool = useActiveTool({ canEdit: editable, onSelect: sel.select });
   // Stacking order (the snapshot is sorted by z): arrows resolve their ends from these.
   const rects = useMemo(() => connectableRects(objects), [objects]);
@@ -108,6 +112,8 @@ export function App({ boardId }: { boardId?: string } = {}) {
           <ShapeTool kind={tool.shapeKind} camera={camera} doc={doc} onCreated={tool.toolCreated} />
         ) : editable && tool.tool === 'connector' ? (
           <ConnectorTool camera={camera} snapshot={objects} doc={doc} onCreated={tool.toolCreated} />
+        ) : editable && tool.tool === 'pen' ? (
+          <PenTool camera={camera} color={pen.color} thickness={pen.thickness} doc={doc} identityId={getLocalUserId()} />
         ) : null
       }
       onPlaceText={placeText}
@@ -129,6 +135,9 @@ export function App({ boardId }: { boardId?: string } = {}) {
             shapeKind={tool.shapeKind}
             onShapeKind={tool.setShapeKind}
           />
+          {editable && tool.tool === 'pen' && (
+            <PenToolbar color={pen.color} thickness={pen.thickness} onColor={pen.setColor} onThickness={pen.setThickness} />
+          )}
           {sel.editingId === null && (
             <SelectionOverlay
               ids={sel.ids}

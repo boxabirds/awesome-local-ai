@@ -36,7 +36,7 @@ export function SelectionBar(props: {
     return (
       <div className="note-toolbar-anchor" style={style}>
         <NoteToolbar
-          color={only.color}
+          color={only.color as StickyColor}
           onColor={(c) => props.onColor?.(only.id, c)}
           onDelete={props.onDelete}
         />

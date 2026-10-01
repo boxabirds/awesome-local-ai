@@ -105,3 +105,14 @@
 - An existing story 7 unit test used the type `shape` as its "unknown type" example; it now uses `hologram`, since `shape` is a known type.
 - TC-27 delays Sam's outgoing socket traffic by 3 s (a proxied `routeWebSocket`), so Sam's delete reaches Dana after her arrow attached to the shape. Its latency line therefore reads OVER the budget on purpose (never asserted).
 - Only Chromium was run for e2e. Red-phase commits for the test-first tasks were skipped.
+
+# Notes — story 11
+
+- Layout follows story 10's: the Pen layer is a `toolLayer` (like Shape/Connector), so it owns the pointer and the wheel still reaches `BoardViewport`; `BoardViewport` itself needed no change. `pen` is added to the available tools in `board/useTool.ts`, and `P` is handled in `useBoardKeys`.
+- The pen toolbar is rendered from `App`'s overlay while the tool is pen (swatches `<colour> pen`, buttons Thin/Medium/Thick). The left toolbar button is `Pen (P)`.
+- `StrokeObject` takes the shared `ObjectProps`. A transparent hit path (width 2 x max(thickness/2, 6/zoom)) plus its own distance check lets clicks away from the line fall through to objects below; `registry.hitTest` uses the same `hitsStroke`.
+- `scaledPoints` returns world-space points (box origin added).
+- `ObjectSnapshot.color` is now `StickyColor | PenColor`; `SelectionBar` casts for stickies.
+- A split long stroke leaves no stray dot when the drag ends exactly on the split point.
+- Round cursor: a div sized thickness x zoom that follows the pointer inside the layer; the native cursor is hidden.
+- Only Chromium was run for e2e (firefox/webkit are not installed).

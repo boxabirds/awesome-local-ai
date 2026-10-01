@@ -2,12 +2,14 @@ import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds } from '../../shared/board-model';
 import type { ObjectSnapshot } from '../../shared/board-model';
-import { SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, STROKE_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import type { Point, Rect } from '../../shared/geometry';
 import type { ConnectorSnap } from '../../shared/objects/connector';
+import type { StrokeSnap } from '../../shared/objects/stroke';
 import { ConnectorObject, hitsConnector } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeObject, hitsStroke } from './StrokeObject';
 import { TextObject } from './TextObject';
 
 /** What the board hands to every object type's component; selection and transforms stay generic. */
@@ -90,4 +92,13 @@ registerObjectType('connector', {
   minSize: 0,
   editableText: false,
   hitTest: (obj, p, zoom = 1) => hitsConnector(obj as ConnectorSnap, p, zoom),
+});
+
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, p, zoom = 1) => hitsStroke(obj as StrokeSnap, p, zoom),
 });
