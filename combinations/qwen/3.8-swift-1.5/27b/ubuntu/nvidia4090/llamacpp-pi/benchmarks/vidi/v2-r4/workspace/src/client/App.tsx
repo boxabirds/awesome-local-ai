@@ -9,14 +9,33 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { newBoardId } from '../shared/board-id';
+
+function getBoardIdFromPath(): string | null {
+  const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]{22})$/);
+  return match ? match[1] : null;
+}
 
 export function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState({ width: 1280, height: 800 });
+
+  // Read board ID from URL, redirect if not present
+  const [boardId] = useState<string>(() => {
+    const id = getBoardIdFromPath();
+    if (!id) {
+      const newId = newBoardId();
+      window.history.replaceState(null, '', `/b/${newId}`);
+      return newId;
+    }
+    return id;
+  });
+
   const { camera, hasNavigated, beginPan, panMove, endPan, wheel, zoomStep, reset, setCamera } =
     useCamera(viewportSize);
-  const { doc, notes } = useBoardDoc();
+  const { doc, notes, connectionState } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   // ResizeObserver
@@ -39,6 +58,12 @@ export function App() {
   useEffect(() => {
     installTestHooks(setCamera);
   }, [setCamera]);
+
+  // Expose connection state for e2e tests
+  useEffect(() => {
+    (window as any).__vidi6 = (window as any).__vidi6 || {};
+    (window as any).__vidi6.connectionState = connectionState;
+  }, [connectionState]);
 
   // Create a sticky note at a world point
   const createStickyAt = useCallback(
@@ -72,10 +97,19 @@ export function App() {
     select(null);
   }, [select]);
 
+  // Clear selection/editing if the selected note was deleted by someone else
+  useEffect(() => {
+    if (selectedId && !notes.some((n) => n.id === selectedId)) {
+      select(null);
+    }
+    if (editingId && !notes.some((n) => n.id === editingId)) {
+      endEdit('unselected');
+    }
+  }, [notes, selectedId, editingId, select, endEdit]);
+
   // Keyboard handler for Enter and Delete/Backspace
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle keys when focus is in an input/textarea
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
@@ -97,6 +131,7 @@ export function App() {
 
   return (
     <div ref={containerRef} style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={camera}
         beginPan={beginPan}

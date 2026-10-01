@@ -15,4 +15,15 @@ export default defineWorkspace([
       include: ['tests/component/**/*.test.{ts,tsx}'],
     },
   },
+  {
+    test: {
+      name: 'integration',
+      environment: 'node',
+      include: ['tests/integration/**/*.test.{ts,tsx}'],
+      testTimeout: 30000,
+      hookTimeout: 120000,
+      fileParallelism: false,
+      globalSetup: ['tests/integration/global-setup.ts'],
+    },
+  },
 ]);
