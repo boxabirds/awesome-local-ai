@@ -53,3 +53,11 @@ Why: moving working code around keeps its untested assumptions and hides what wa
 Apply the principle of least privilege for all resource access. Deny by default and allow only what the task needs: files, network, processes, credentials, tokens and tool permissions alike. A list of things to hide is the wrong shape, because it only covers what someone has already thought of.
 
 Why: the agent sandbox allowed everything and denied a list of paths. Each leak in the week of 28 September 2026 was a path nobody had listed: a file share holding a clone of this repo, other runs' leftovers in `/tmp`, and `~/node_modules`, which gave a build a package it never declared and cost a run its score.
+
+## The app shows results, never its own faults
+
+The benchmarker (and anything else a person reads results in) presents benchmark results. It never shows its own or the harness's bugs, diagnoses, likely causes, remedies, shell commands or instructions to the reader, and it has no "needs you" list. Where a figure is unreliable or missing because of an internal fault, it shows as not available, the same as any other missing figure, with nothing about why. A run that an internal fault spoiled (marked invalid) does not appear in the app at all.
+
+Internal faults go where they are worked on: the monitor's log (`ops/anomaly-tracking.md`), tests, and fixes. The fix for a fault is to make the system repair itself or not fail, not to explain the fault better on screen.
+
+Why: on 1 October 2026 the dashboard listed skipped re-scores and failed time-accounting checks under "Needs you", with causes and commands to run on bench machines, and then explained them at greater length. The owner: "Apps don't share their bugs with users like this. Stop it. Everywhere."
