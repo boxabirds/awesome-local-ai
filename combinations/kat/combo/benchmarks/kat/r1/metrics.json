@@ -152,6 +152,17 @@
           "skipped": "no private checkout at /private/var/folders/b_/66g1274s7_xfw7x984g072s40000gn/T/pytest-of-julian/pytest-464/test_the_story_loop_with_the_r0/no-private-copy"
         },
         "commit": "7fa135ec"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 0
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -301,7 +312,27 @@
       "status": "DONE",
       "ended_by": "agent",
       "partial_base": [],
-      "tasks": []
+      "tasks": [],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "private": {
+          "skipped": "no private checkout at /private/var/folders/b_/66g1274s7_xfw7x984g072s40000gn/T/pytest-of-julian/pytest-464/test_the_story_loop_with_the_r0/no-private-copy"
+        },
+        "commit": "dc5d559c"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 0
+        },
+        "truncated": false,
+        "reaches": []
+      }
     }
   },
   "pack": "kat",
