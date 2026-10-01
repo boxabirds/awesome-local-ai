@@ -16,7 +16,7 @@ config, same 5 prompts, greedy (`temperature 0, top_k 1`), one run, on an RTX
 
 Full method, the spec-acceptance comparison, caveats (n=5, single run,
 throughput not quality), and the baseline-reconciliation note live in
-[`docs/20260921-swift-qwen38-27b-ab.md`](../../../../../../../docs/20260921-swift-qwen38-27b-ab.md).
+[`docs/20260921-swift-qwen38-27b-ab.md`](../../../../../../../../docs/20260921-swift-qwen38-27b-ab.md).
 
 Reproduce with:
 

@@ -1,0 +1,97 @@
+# The checks a harness release must pass: `dbench harness-release` runs every one of them, and tags
+# HEAD only if all pass. CI (.github/workflows/checks.yml) runs the same list with --check-only, so
+# the two can't disagree. To add a check, add it here and nowhere else.
+#
+# A check is a name, a working directory (relative to the repo root) and a command (run directly,
+# not through a shell). It fails when the command exits non-zero or can't be started, and also when:
+#   requires     a file named here (relative to dir) is absent: the check fails as "missing";
+#   no_skips_of  the output has a pytest `SKIPPED` line (the -rs report) naming one of these files:
+#                a skipped test proved nothing.
+# failure_marker: on failure, the output lines containing it are shown as well as the last lines.
+
+# What the checks read, as repo-relative globs. A release needs all of it committed, with nothing
+# untracked, and CI runs when any of it changes: each entry is also a `paths:` filter in
+# checks.yml (a dbench unit test holds the two together). Benchmark results (the rest of
+# combinations/**, and benchmarks/reference/**) are committed all day and are left out on purpose.
+paths = [
+  "benchmarks/spec-bench/**",
+  "benchmarks/vidi/**",
+  "benchmarks/todoodle/**",
+  "benchmarks/perf/**",
+  "tools/**",
+  "tests/**",
+  "lib/**",
+  ".github/**",
+  "*.sh",
+  "combinations/*/*/*/*/*/*/config.sh",
+  "combinations/*/*/*/*/*/*/profiles.tsv",
+  "combinations/*/*/*/*/*/*/help.txt",
+]
+
+# Every harness test, including the end-to-end self-tests of the story loop (test_pipeline.py), which
+# need node, npm and npx and skip themselves without them. Other tests may skip (macOS-only, a tool
+# that isn't installed); the self-test may not.
+[[check]]
+name = "harness unit suite"
+dir = "benchmarks/spec-bench/harness"
+command = [
+  "uv", "run", "--quiet",
+  "--with", "pytest", "--with", "hypothesis", "--with", "httpx",
+  "--with", "uvicorn", "--with", "starlette", "--with", "fastapi",
+  "pytest", "-q", "-rs", "-p", "no:cacheprovider",
+]
+no_skips_of = ["test_pipeline.py"]
+
+# Every recorded log, replayed through the harness's parsers.
+[[check]]
+name = "harness real-log replay"
+dir = "benchmarks/spec-bench/harness"
+command = [
+  "uv", "run", "--quiet",
+  "--with", "pytest", "--with", "hypothesis", "--with", "httpx",
+  "--with", "uvicorn", "--with", "starlette", "--with", "fastapi",
+  "pytest", "-q", "-rs", "-p", "no:cacheprovider", "test_replay_real_logs.py",
+]
+env = { REPLAY_ALL = "1" }
+requires = ["test_replay_real_logs.py"]
+no_skips_of = ["test_replay_real_logs.py"]
+
+[[check]]
+name = "dbench tests"
+dir = "tools/dbench"
+command = ["cargo", "test"]
+
+# The other Rust tools in the repo.
+[[check]]
+name = "vidi-gallery tests"
+dir = "tools/vidi-gallery"
+command = ["cargo", "test"]
+
+[[check]]
+name = "power-collector tests"
+dir = "tools/power-collector"
+command = ["cargo", "test"]
+
+[[check]]
+name = "dbench clippy"
+dir = "tools/dbench"
+command = ["cargo", "clippy", "--", "-D", "warnings"]
+
+[[check]]
+name = "benchmarker unit tests"
+dir = "tools/benchmarker"
+command = ["bun", "run", "test"]
+
+# Needs Playwright's chromium (bunx playwright install chromium).
+[[check]]
+name = "benchmarker end-to-end tests"
+dir = "tools/benchmarker"
+command = ["bun", "run", "test:e2e"]
+
+# Every tests/*-test.sh: by that directory's own rule they need no GPU, model or install (hardware
+# is faked or stubbed), so all of them run here.
+[[check]]
+name = "repo shell tests"
+dir = "."
+command = ["bash", "tests/run-tests.sh"]
+failure_marker = "FAIL"

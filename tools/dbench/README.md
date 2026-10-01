@@ -18,6 +18,7 @@ Design: `docs/20260924-distributed-bench-design.md` (§3 and §5). dbench is the
 cd tools/dbench
 cargo build --release                 # native: target/release/dbench
 cargo test                            # unit tests, plus end-to-end tests against the real binary
+cargo clippy -- -D warnings           # kept at zero warnings; both are checks of `dbench harness-release`
 ./build-linux.sh                      # Linux x86_64 glibc from a Mac, via zig (brew install zig;
                                       #   rustup target add x86_64-unknown-linux-gnu)
                                       # -> target/x86_64-unknown-linux-gnu/release/dbench
@@ -156,6 +157,7 @@ dbench release node-a                                       # queued jobs start 
 dbench skip-story node-a canvas-pi-02 --story 3 --reason "3h, no commit for 107 min"
                                                # end the running story as PARTIAL; the run goes on
 dbench --json status node-a canvas-pi-02       # --json: nodes, submit, status, events, cancel, skip-story
+dbench harness-release --check-only            # every check a harness release must pass; no tag (see below)
 ```
 
 ## Stories and tasks in `status`
@@ -181,6 +183,36 @@ This ends the running story's work. The harness stops the agent (no resume, no n
 - **Checks:** the node refuses (409) unless the job is running and `N` is the run's `current_story`. The error names the current story. The reason can't be empty.
 - **What it does:** dbench only writes `<run_dir>/control/skip-story.json` (`{story, reason, by, at}`, atomically). It records the request in the job's history and log, like a cancel. The harness checks for the file every few seconds and renames it to `skip-story-<N>.applied.json` once applied.
 - **Timing:** it takes effect within a few seconds. `dbench status` then shows the story as PARTIAL.
+
+## Releasing the harness: `harness-release`
+
+A harness release is a git tag, `harness-v<YYYY.MM.DD>.<n>` (UTC date; `n` counts that day's releases from 1), made only after every check has passed on the commit it names.
+
+```sh
+dbench harness-release               # run every check; if all pass, tag HEAD (annotated) and push the tag
+dbench harness-release --check-only  # run every check and report; tag nothing (this is what CI runs)
+dbench harness-release --dry-run     # show the checks and the tag a release would make; run nothing
+```
+
+It works on the git repository the current directory is in, or `--repo PATH`. This is not `dbench release <node>`, which ends a hold.
+
+- **The checks are one list:** `tools/dbench/checks.toml` in the repo, read when the command runs. Each check is a name, a working directory and a command. CI (`.github/workflows/checks.yml`) runs the same list with `--check-only`, so the two can't disagree. To add a check, add it there and nowhere else.
+- **What counts as a failure:**
+  - the command exits non-zero;
+  - the command can't be started (the program isn't installed);
+  - a file the check `requires` is absent, or its directory is (`missing`);
+  - the command exits 0 but its output reports a skip of a test file listed in the check's `no_skips_of` (a skipped test proved nothing). The harness suite may not skip `test_pipeline.py`, which needs node, npm and npx.
+- **Every check runs, even after one fails,** so one attempt shows everything that is wrong. Each gets a `PASS` or `FAIL` line with its time. For each failed check the last 40 lines of its output follow, and its full output is kept in the log directory (`--log-dir DIR`, or a temporary directory that is named on failure and removed when everything passes).
+- **A release is refused, with nothing tagged, when:**
+  - any check fails;
+  - HEAD isn't what `origin/main` points at. It fetches first (the branch and the tags), so both a commit that isn't pushed and a checkout that is behind are refused;
+  - a file under the checked paths (`paths` in `checks.toml`) has uncommitted changes, staged or not, or is untracked and not ignored. The checks would run with that file, and the tagged commit wouldn't have it. Files elsewhere, such as benchmark results, don't matter;
+  - HEAD moved, or a tracked file under the checked paths changed, while the checks ran;
+  - the tag can't be pushed. The local tag is then removed.
+- **`--check-only` doesn't look at git state:** no fetch, and a dirty tree or an unpushed commit is fine. It exits non-zero if any check fails.
+- **What the checks need installed:** uv, node with npm and npx, cargo with clippy, bun with the benchmarker's packages (`bun install` in `tools/benchmarker`), and Playwright's chromium (`bunx playwright install chromium` there).
+
+The machines don't run released tags yet: a job still runs whatever `git pull` brought in (see "Run the server").
 
 ## Not built yet (from the design)
 

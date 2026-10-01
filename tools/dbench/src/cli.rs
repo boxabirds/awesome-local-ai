@@ -124,6 +124,14 @@ pub enum Cmd {
     },
     /// Release a held node: its queued jobs start again.
     Release { node: String },
+    /// Release the harness: run every check, and only if all pass tag HEAD and push the tag.
+    ///
+    /// The checks are the list in tools/dbench/checks.toml of the repo. It refuses, tagging nothing, when
+    /// a check fails, can't run or skips; when files under the checked paths have uncommitted changes
+    /// or are untracked; or when HEAD isn't what origin/main points at (it fetches first).
+    /// (`dbench release <node>` is something else: it ends a hold.)
+    #[command(name = "harness-release")]
+    HarnessRelease(HarnessReleaseArgs),
     /// Cancel a job (SIGTERM, then SIGKILL, to its process group).
     Cancel {
         node: String,
@@ -149,6 +157,22 @@ pub enum Cmd {
         #[arg(long)]
         reason: String,
     },
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct HarnessReleaseArgs {
+    /// Checkout to check and tag. Default: the git repository the current directory is in.
+    #[arg(long)]
+    pub repo: Option<PathBuf>,
+    /// Run the checks and report; tag nothing, and don't look at git state (CI uses this).
+    #[arg(long, conflicts_with = "dry_run")]
+    pub check_only: bool,
+    /// Show the checks that would run and the tag that would be made; run nothing.
+    #[arg(long)]
+    pub dry_run: bool,
+    /// Where each check's full output is kept. Default: a temporary directory, removed when every check passes.
+    #[arg(long)]
+    pub log_dir: Option<PathBuf>,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug)]
@@ -335,5 +359,22 @@ fn parse_key_value(s: &str) -> Result<(String, String), String> {
     match s.split_once('=') {
         Some((k, v)) if !k.is_empty() => Ok((k.to_string(), v.to_string())),
         _ => Err(format!("expected KEY=VALUE, got {s:?}")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn harness_release_does_not_take_over_release_of_a_held_node() {
+        let cli = Cli::try_parse_from(["dbench", "release", "node-a"]).unwrap();
+        assert!(matches!(cli.cmd, Cmd::Release { node } if node == "node-a"));
+        let cli = Cli::try_parse_from(["dbench", "harness-release", "--check-only"]).unwrap();
+        assert!(matches!(cli.cmd, Cmd::HarnessRelease(a) if a.check_only && !a.dry_run));
+        // A forgotten node name must not start a release.
+        assert!(Cli::try_parse_from(["dbench", "release"]).is_err());
+        let both = ["dbench", "harness-release", "--check-only", "--dry-run"];
+        assert!(Cli::try_parse_from(both).is_err());
     }
 }

@@ -17,3 +17,6 @@ __pycache__/
 
 # The v1 held-out suite once published here (removed from history 30 Sep 2026); a local copy must never be re-added.
 benchmarks/vidi/acceptance/
+
+# coverage.py data from a local coverage run
+.coverage

@@ -24,7 +24,7 @@ def test_no_marker_is_fit(tmp_path):
     (6.4, 40.0, False),                                   # swap still where the guard stopped it
     (2.31 + mf.SWAP_RECOVERED_MARGIN_GB + 0.1, 40.0, False),
     (2.6, mf.FREE_RECOVERED_PCT - 1, False),              # swap back, memory still short
-    (2.6, mf.FREE_RECOVERED_PCT, True),                   # quintus at 06:40: 2.6 GB of swap, 28%... and 30% here
+    (2.6, mf.FREE_RECOVERED_PCT, True),                   # swap recovered, and just enough memory free
     (2.6, None, True),                                    # free memory unknown: swap decides
 ])
 def test_fit_again_once_swap_is_back_near_the_story_s_start_and_memory_is_free(tmp_path, swap, free, fit):
