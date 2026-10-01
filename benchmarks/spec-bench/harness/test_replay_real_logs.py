@@ -129,16 +129,7 @@ TIMELINE_KINDS = {"tool", "error", "compaction", "nudge"}
 SONNET_V2_R2 = "benchmarks/reference/vidi/sonnet-5.5/v2-r2"
 # (run, story) -> why its record is wrong, and the fields that are: {field: what the record holds}. The replay
 # checks each field still holds that and still isn't what the log gives; every other field must agree as usual.
-MLX_V2_R2 = "combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r2"
 STALE_RECORDS = {
-    (MLX_V2_R2, "4"): {
-        "why": "run.sh restarted the harness twice during its first attempt, before restarts were marked in the log; the "
-               "first time the agent's session was killed mid-turn and the next began 91.2 s later. Accounting version 3 "
-               "counted a wait as between sessions only after a session that ended, so those 91.2 s were other (and "
-               "agent time); version 4 counts the wait after a session that died too. The record also fails its clock "
-               "check (an earlier attempt's waits counted twice, fixed 1 Oct 2026). backfill_timing.py --recompute on "
-               "the machine that holds the full log corrects both",
-        "fields": {"time_split.between_sessions_s": 205.8, "time_split.other_s": 109.6}},
     (SONNET_V2_R2, "2"): {
         "why": "its earlier attempt was counted by a client that had already read the log (drive.last_session), so "
                "its model calls counted as none (clients.py, fixed 1 Oct 2026); and attempts.sum_splits summed output "

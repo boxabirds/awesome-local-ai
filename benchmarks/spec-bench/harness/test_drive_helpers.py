@@ -447,6 +447,24 @@ def test_a_known_good_workspace_keeps_only_main_at_the_base_with_a_read_only_spe
     assert mode(ws / "spec" / "stories") & stat.S_IWUSR
 
 
+OTHER_BRANCH = "side"       # the branch reference_run(tag_last=True) leaves beside main, at the same commit
+
+
+def test_a_known_good_workspace_is_on_main_whichever_branch_the_clone_took_for_head(tmp_path, monkeypatch):
+    """A bundle doesn't say which branch HEAD was on: where two branches end at HEAD's commit, git clone guesses
+    (init.defaultBranch first, then by name). A clone that guessed the other branch lost HEAD when that branch
+    was deleted, and `git rev-parse HEAD` exited 128 (on CI, whose git has no init.defaultBranch of main)."""
+    ref, stories = reference_run(tmp_path, tag_last=True)
+    for k, v in {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "init.defaultBranch", "GIT_CONFIG_VALUE_0": OTHER_BRANCH}.items():
+        monkeypatch.setenv(k, v)
+    ws = tmp_path / "work" / "run" / "workspace"
+    drive.setup_workspace_from(ws, drive.known_good_base(ref, 3), tmp_path / "ref-ws" / "spec")
+    assert git(ws, "rev-parse", "HEAD") == stories["2"]["commit"]
+    assert git(ws, "symbolic-ref", "HEAD") == "refs/heads/main"
+    assert git(ws, "for-each-ref", "--format=%(refname)") == "refs/heads/main"
+    assert git(ws, "status", "--porcelain") == ""
+
+
 def test_a_known_good_workspace_that_already_exists_is_not_rebuilt(tmp_path, monkeypatch):
     ws = tmp_path / "workspace"
     (ws / ".git").mkdir(parents=True)

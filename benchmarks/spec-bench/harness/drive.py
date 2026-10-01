@@ -766,6 +766,9 @@ def known_good_base(ref_run: Path, sid: int) -> dict:
             "processed": [{**p, "ended_by": KNOWN_GOOD_BY} for p in before]}
 
 
+WORKSPACE_BRANCH_REF = "refs/heads/main"     # the one branch a workspace has
+
+
 def setup_workspace_from(ws: Path, base: dict, spec: Path) -> None:
     """The workspace as the reference run left it at base["commit"], on main, with every later commit
     gone: the bundle holds the whole run, including how the story about to be built was done."""
@@ -773,10 +776,12 @@ def setup_workspace_from(ws: Path, base: dict, spec: Path) -> None:
         return
     ws.parent.mkdir(parents=True, exist_ok=True)
     sh(["git", "clone", "-q", "--no-checkout", str(base["bundle"]), str(ws)], ws.parent)
+    # A bundle doesn't say which branch HEAD was on, and git guesses among those at its commit: main, whatever it took.
+    sh(["git", "symbolic-ref", "HEAD", WORKSPACE_BRANCH_REF], ws)
     sh(["git", "reset", "-q", "--hard", base["commit"]], ws)
     sh(["git", "remote", "remove", "origin"], ws)
     for ref in sh(["git", "for-each-ref", "--format=%(refname)"], ws).split():
-        if ref != "refs/heads/main":
+        if ref != WORKSPACE_BRANCH_REF:
             sh(["git", "update-ref", "-d", ref], ws)
     sh(["git", "reflog", "expire", "--expire=now", "--all"], ws)
     sh(["git", "gc", "-q", "--prune=now"], ws)
