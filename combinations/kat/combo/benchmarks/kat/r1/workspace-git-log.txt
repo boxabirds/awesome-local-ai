@@ -1,0 +1,26 @@
+commit 921bda63dfe6ab965d3df3b790d6a2af5f3f74df
+vidi-agent  Thu Oct 1 10:24:02 2026 +0100
+
+    story 1
+
+
+ .gitignore                   |  2 ++
+ build.js                     |  3 +++
+ package-lock.json            | 22 ++++++++++++++++++++++
+ package.json                 | 11 +++++++++++
+ vendor/greetlib/index.js     |  1 +
+ vendor/greetlib/package.json |  1 +
+ 6 files changed, 40 insertions(+)
+commit 86fd82ee827ab4af23c598c064630780e57c6664
+vidi-agent  Thu Oct 1 10:23:58 2026 +0100
+
+    harness: empty repository with spec
+
+
+ README.md                       | 3 +++
+ spec/README.md                  | 1 +
+ spec/stories/001-greet/story.md | 1 +
+ spec/stories/001-greet/tasks.md | 1 +
+ spec/stories/002-peer/story.md  | 1 +
+ spec/stories/002-peer/tasks.md  | 1 +
+ 6 files changed, 8 insertions(+)
