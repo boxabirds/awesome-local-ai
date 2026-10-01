@@ -185,7 +185,9 @@
           "decode_s": 916.1,
           "decode_tokens": 46899,
           "decode_tok_s": 51.2,
-          "cached_tokens": 5654519
+          "cached_tokens": 5654519,
+          "draft_acceptance": 0.826,
+          "mean_accepted_len": null
         },
         "tools_s": 689.0,
         "tools_by_kind": {
@@ -569,7 +571,9 @@
           "decode_s": 4187.3,
           "decode_tokens": 174348,
           "decode_tok_s": 41.6,
-          "cached_tokens": 11577152
+          "cached_tokens": 11577152,
+          "draft_acceptance": 0.746,
+          "mean_accepted_len": null
         },
         "tools_s": 1033.8,
         "tools_by_kind": {
@@ -1156,7 +1160,9 @@
           "decode_s": 1415.9,
           "decode_tokens": 70642,
           "decode_tok_s": 49.9,
-          "cached_tokens": 11497094
+          "cached_tokens": 11497094,
+          "draft_acceptance": 0.817,
+          "mean_accepted_len": null
         },
         "tools_s": 635.0,
         "tools_by_kind": {
@@ -1752,7 +1758,9 @@
           "decode_s": 2789.3,
           "decode_tokens": 120713,
           "decode_tok_s": 43.3,
-          "cached_tokens": 13603586
+          "cached_tokens": 13603586,
+          "draft_acceptance": 0.763,
+          "mean_accepted_len": null
         },
         "tools_s": 783.1,
         "tools_by_kind": {
@@ -2427,7 +2435,9 @@
           "decode_s": 1465.7,
           "decode_tokens": 69766,
           "decode_tok_s": 47.6,
-          "cached_tokens": 15821539
+          "cached_tokens": 15821539,
+          "draft_acceptance": 0.808,
+          "mean_accepted_len": null
         },
         "tools_s": 589.5,
         "tools_by_kind": {
@@ -2969,7 +2979,9 @@
           "decode_s": 2222.9,
           "decode_tokens": 108469,
           "decode_tok_s": 48.8,
-          "cached_tokens": 14677064
+          "cached_tokens": 14677064,
+          "draft_acceptance": 0.813,
+          "mean_accepted_len": null
         },
         "tools_s": 381.6,
         "tools_by_kind": {
@@ -3577,7 +3589,9 @@
           "decode_s": 921.9,
           "decode_tokens": 45147,
           "decode_tok_s": 49.0,
-          "cached_tokens": 7741413
+          "cached_tokens": 7741413,
+          "draft_acceptance": 0.813,
+          "mean_accepted_len": null
         },
         "tools_s": 319.0,
         "tools_by_kind": {
@@ -3989,7 +4003,9 @@
           "decode_s": 1391.9,
           "decode_tokens": 70151,
           "decode_tok_s": 50.4,
-          "cached_tokens": 14087787
+          "cached_tokens": 14087787,
+          "draft_acceptance": 0.838,
+          "mean_accepted_len": null
         },
         "tools_s": 261.2,
         "tools_by_kind": {
@@ -4630,7 +4646,9 @@
           "decode_s": 1562.2,
           "decode_tokens": 79745,
           "decode_tok_s": 51.0,
-          "cached_tokens": 12298241
+          "cached_tokens": 12298241,
+          "draft_acceptance": 0.839,
+          "mean_accepted_len": null
         },
         "tools_s": 1326.4,
         "tools_by_kind": {
@@ -5205,7 +5223,9 @@
           "decode_s": 706.3,
           "decode_tokens": 36180,
           "decode_tok_s": 51.2,
-          "cached_tokens": 6885318
+          "cached_tokens": 6885318,
+          "draft_acceptance": 0.854,
+          "mean_accepted_len": null
         },
         "tools_s": 63.9,
         "tools_by_kind": {
@@ -5805,7 +5825,9 @@
           "decode_s": 1101.6,
           "decode_tokens": 55922,
           "decode_tok_s": 50.8,
-          "cached_tokens": 9666128
+          "cached_tokens": 9666128,
+          "draft_acceptance": 0.846,
+          "mean_accepted_len": null
         },
         "tools_s": 782.8,
         "tools_by_kind": {
