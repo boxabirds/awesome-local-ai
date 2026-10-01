@@ -1,7 +1,8 @@
 //! `dbench harness-release`: run every check, and only if all pass tag HEAD and push the tag.
 //!
 //! The checks are data: `tools/dbench/checks.toml` in the repo being released. CI runs the same
-//! list (`--check-only`), so the two can't disagree.
+//! list (`--check-only`), so the two can't disagree; `--verified-by-ci` (release_ci.rs) releases on
+//! CI's verdict instead of running them here.
 
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
@@ -294,7 +295,7 @@ fn print_failures(results: &[CheckResult]) {
     }
 }
 
-fn git(repo: &Path, args: &[&str]) -> Result<String> {
+pub(crate) fn git(repo: &Path, args: &[&str]) -> Result<String> {
     let out = Command::new("git")
         .arg("-C")
         .arg(repo)
@@ -312,6 +313,32 @@ fn git(repo: &Path, args: &[&str]) -> Result<String> {
     Ok(String::from_utf8_lossy(&out.stdout).trim_end().to_string())
 }
 
+/// Whether a git command that answers by its exit status (0 yes, 1 no) says yes.
+pub(crate) fn git_succeeds(repo: &Path, args: &[&str]) -> Result<bool> {
+    const NO: i32 = 1;
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .stdin(Stdio::null())
+        .output()
+        .context("running git")?;
+    match out.status.code() {
+        Some(0) => Ok(true),
+        Some(NO) => Ok(false),
+        _ => bail!(
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&out.stderr).trim()
+        ),
+    }
+}
+
+/// The checked paths as git pathspecs.
+pub(crate) fn glob_specs(paths: &[String]) -> Vec<String> {
+    paths.iter().map(|p| format!(":(glob){p}")).collect()
+}
+
 fn remote_main() -> String {
     format!("refs/remotes/{REMOTE}/{MAIN_BRANCH}")
 }
@@ -323,7 +350,7 @@ fn changes(repo: &Path, paths: &[String], untracked: bool) -> Result<String> {
     } else {
         "--untracked-files=no"
     };
-    let specs: Vec<String> = paths.iter().map(|p| format!(":(glob){p}")).collect();
+    let specs = glob_specs(paths);
     let mut args = vec!["status", "--porcelain", mode, "--"];
     args.extend(specs.iter().map(String::as_str));
     git(repo, &args)
@@ -331,7 +358,7 @@ fn changes(repo: &Path, paths: &[String], untracked: bool) -> Result<String> {
 
 /// What a release needs before any check runs: HEAD is what origin/main points at (fetched now),
 /// and everything under the checked paths is committed. Returns HEAD's commit.
-fn preflight(repo: &Path, paths: &[String]) -> Result<String> {
+pub(crate) fn preflight(repo: &Path, paths: &[String]) -> Result<String> {
     let refspec = format!("+refs/heads/{MAIN_BRANCH}:{}", remote_main());
     git(repo, &["fetch", "--quiet", "--tags", REMOTE, &refspec])?;
     let head = git(repo, &["rev-parse", "HEAD"])?;
@@ -355,24 +382,25 @@ fn preflight(repo: &Path, paths: &[String]) -> Result<String> {
     Ok(head)
 }
 
-/// After the checks: they must have run on the commit about to be tagged.
-fn still_the_same(repo: &Path, paths: &[String], head: &str) -> Result<()> {
+/// After the checks (or after CI was asked: `during` says which): the verdict must be on the
+/// commit about to be tagged.
+pub(crate) fn still_the_same(repo: &Path, paths: &[String], head: &str, during: &str) -> Result<()> {
     let now = git(repo, &["rev-parse", "HEAD"])?;
     if now != head {
         bail!(
-            "HEAD moved while the checks ran (from {head} to {now}): nothing tagged, run it again"
+            "HEAD moved while {during} (from {head} to {now}): nothing tagged, run it again"
         );
     }
     let dirty = changes(repo, paths, false)?;
     if !dirty.is_empty() {
         bail!(
-            "files under the checked paths changed while the checks ran: nothing tagged\n{dirty}"
+            "files under the checked paths changed while {during}: nothing tagged\n{dirty}"
         );
     }
     Ok(())
 }
 
-fn todays_next_tag(repo: &Path) -> Result<String> {
+pub(crate) fn todays_next_tag(repo: &Path) -> Result<String> {
     let pattern = format!("{TAG_PREFIX}*");
     let tags: Vec<String> = git(repo, &["tag", "--list", &pattern])?
         .lines()
@@ -381,10 +409,9 @@ fn todays_next_tag(repo: &Path) -> Result<String> {
     Ok(next_tag(&tags, utc_date(now_secs())))
 }
 
-/// An annotated tag on `head`, pushed; a tag that can't be pushed is removed again.
-fn tag_and_push(repo: &Path, head: &str, results: &[CheckResult]) -> Result<String> {
-    let tag = todays_next_tag(repo)?;
-    let mut message = format!("Harness release {tag}\n\nEvery check passed on {head}:\n");
+/// How a release whose checks ran here was verified, for its tag.
+fn local_verification(head: &str, results: &[CheckResult]) -> String {
+    let mut message = format!("Verified by the checks run locally: every check passed on {head}:\n");
     for r in results {
         message.push_str(&format!(
             "- {} ({})\n",
@@ -392,9 +419,17 @@ fn tag_and_push(repo: &Path, head: &str, results: &[CheckResult]) -> Result<Stri
             fmt_duration(r.elapsed.as_secs())
         ));
     }
+    message
+}
+
+/// An annotated tag on `commit`, pushed; a tag that can't be pushed is removed again. Its message
+/// says how the commit was `verified`.
+pub(crate) fn tag_and_push(repo: &Path, commit: &str, verified: &str) -> Result<String> {
+    let tag = todays_next_tag(repo)?;
+    let message = format!("Harness release {tag}\n\n{verified}");
     git(
         repo,
-        &["tag", "--annotate", "--message", &message, &tag, head],
+        &["tag", "--annotate", "--message", &message, &tag, commit],
     )?;
     let tag_ref = format!("refs/tags/{tag}");
     if let Err(e) = git(repo, &["push", "--quiet", REMOTE, &tag_ref]) {
@@ -458,6 +493,9 @@ fn dry_run(repo: &Path, list: &CheckList) -> Result<()> {
 pub fn run(args: &HarnessReleaseArgs) -> Result<()> {
     let repo = find_repo(&args.repo)?;
     let list = load_checks(&repo)?;
+    if args.verified_by_ci {
+        return crate::release_ci::run(&repo, &list, args);
+    }
     if args.dry_run {
         return dry_run(&repo, &list);
     }
@@ -500,8 +538,8 @@ pub fn run(args: &HarnessReleaseArgs) -> Result<()> {
             results.len()
         ),
         Some(head) => {
-            still_the_same(&repo, &list.paths, &head)?;
-            let tag = tag_and_push(&repo, &head, &results)?;
+            still_the_same(&repo, &list.paths, &head, "the checks ran")?;
+            let tag = tag_and_push(&repo, &head, &local_verification(&head, &results))?;
             println!(
                 "all {} checks passed: released {head} as {tag} (pushed to {REMOTE})",
                 results.len()
@@ -719,7 +757,7 @@ command = ["bash", "tests/run-tests.sh"]
     /// the workflow, on both triggers, and the workflow runs this command.
     #[test]
     fn the_ci_workflow_watches_every_checked_path() {
-        const WORKFLOW: &str = ".github/workflows/checks.yml";
+        const WORKFLOW: &str = crate::release_ci::WORKFLOW_FILE;
         const TRIGGERS: usize = 2; // push and pull_request
         let list =
             parse_checks(&std::fs::read_to_string(repo_root().join(CHECKS_FILE)).unwrap()).unwrap();
@@ -732,7 +770,8 @@ command = ["bash", "tests/run-tests.sh"]
                 "{WORKFLOW} should have the line {filter} under each trigger"
             );
         }
-        assert!(workflow.contains("harness-release --check-only"));
+        // Run, not mentioned in a comment: --verified-by-ci takes this workflow's success as the checks'.
+        assert!(crate::release_ci::workflow_runs_the_checks(&workflow));
     }
 
     /// One Rust version for local builds and for CI: the toolchain file names an exact release
