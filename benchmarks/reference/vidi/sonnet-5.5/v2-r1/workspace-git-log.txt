@@ -1,3 +1,40 @@
+commit a793c62363a7ec8109e5322bbee832989e5d6932
+vidi-agent  Thu Oct 1 02:57:22 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                            |  11 ++++
+ index.html                          |   1 +
+ src/client/Root.tsx                 |  16 +++++
+ src/client/api.ts                   |  26 ++++++++
+ src/client/main.tsx                 |  14 +----
+ src/client/pages/BoardPage.tsx      |  59 ++++++++++++++++++
+ src/client/pages/HomePage.tsx       |  11 ++++
+ src/client/pages/NewBoardButton.tsx |  41 ++++++++++++
+ src/client/pages/NotFoundPage.tsx   |  23 +++++++
+ src/client/pages/state.ts           |  37 +++++++++++
+ src/client/router.ts                |  32 ++++++++++
+ src/client/share/SharePanel.tsx     |  99 +++++++++++++++++++++++++++++
+ src/client/styles.css               |  86 +++++++++++++++++++++++++
+ src/shared/config.ts                |   4 ++
+ src/worker/board-room.ts            |  20 +++++-
+ src/worker/board-store.ts           |  31 +++++++++
+ src/worker/create-board.ts          |  16 +++++
+ src/worker/index.ts                 |  33 +++++++++-
+ src/worker/test-hooks.ts            |   5 +-
+ tests/component/SharePanel.test.tsx |  99 +++++++++++++++++++++++++++++
+ tests/component/pages.test.tsx      | 121 ++++++++++++++++++++++++++++++++++++
+ tests/e2e/broken-board.spec.ts      |   4 +-
+ tests/e2e/helpers/board.ts          |   9 +++
+ tests/e2e/helpers/participants.ts   |   5 +-
+ tests/e2e/persistence.spec.ts       |   9 ++-
+ tests/e2e/share.spec.ts             | 121 ++++++++++++++++++++++++++++++++++++
+ tests/integration/board-api.test.ts | 117 ++++++++++++++++++++++++++++++++++
+ tests/integration/worker.test.ts    |   6 +-
+ tests/integration/ws-client.ts      |   6 +-
+ tests/unit/create-board.test.ts     |  31 +++++++++
+ 30 files changed, 1062 insertions(+), 31 deletions(-)
 commit 99f2bbfcb70d39a54088fea97166fa9233d593d6
 vidi-agent  Thu Oct 1 02:35:23 2026 +0100
 
