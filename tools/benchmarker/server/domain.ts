@@ -459,23 +459,32 @@ export function runUsage(stories: Pick<Story, "usage">[]): RunUsage {
 
 /** metrics.json's per-story "conversation", as the harness writes it (conversation.py). */
 export interface RawConversation {
-  version?: number; calls?: number; tool_calls?: number; thinking_chars?: number; text_chars?: number; tool_arg_chars?: number;
-  thinking_median?: number; thinking_median_before?: number | null; thinking_median_after?: number | null;
+  version?: number; calls?: number; tool_calls?: number; thinking_chars?: number | null; text_chars?: number; tool_arg_chars?: number;
+  thinking_median?: number | null; thinking_median_before?: number | null; thinking_median_after?: number | null;
   largest_thinking?: { chars: number; call: number; at_s: number } | null; context_start?: number | null; context_end?: number | null;
   largest_context_jump?: { tokens: number; call: number } | null; tools_by_name?: Record<string, number>; tool_errors?: number;
   longest_tool?: { seconds: number; name: string; gist: string } | null; signals?: string[];
+  thinking_visible?: boolean; thinking_tokens?: number | null;
+  largest_thinking_estimated?: { tokens: number; call: number; at_s: number } | null;
+  thinking_estimated_median_before?: number | null; thinking_estimated_median_after?: number | null;
 }
 
 function conversationOf(c: RawConversation | undefined | null): ConversationProfile | null {
   if (!c || c.calls == null) return null;
   return {
-    calls: c.calls, toolCalls: c.tool_calls ?? 0, thinkingChars: c.thinking_chars ?? 0, textChars: c.text_chars ?? 0,
-    toolArgChars: c.tool_arg_chars ?? 0, thinkingMedian: c.thinking_median ?? 0,
+    calls: c.calls, toolCalls: c.tool_calls ?? 0, thinkingChars: c.thinking_chars ?? null, textChars: c.text_chars ?? 0,
+    toolArgChars: c.tool_arg_chars ?? 0, thinkingMedian: c.thinking_median ?? null,
     thinkingMedianBefore: c.thinking_median_before ?? null, thinkingMedianAfter: c.thinking_median_after ?? null,
     largestThinking: c.largest_thinking ? { chars: c.largest_thinking.chars, call: c.largest_thinking.call, atS: c.largest_thinking.at_s } : null,
     contextStart: c.context_start ?? null, contextEnd: c.context_end ?? null,
     largestContextJump: c.largest_context_jump ?? null, toolsByName: c.tools_by_name ?? {}, toolErrors: c.tool_errors ?? 0,
     longestTool: c.longest_tool ?? null, signals: c.signals ?? [],
+    // Profiles from before the field (version 1, pi) all showed their thinking.
+    thinkingVisible: c.thinking_visible ?? true, thinkingTokens: c.thinking_tokens ?? null,
+    thinkingEstimated: c.thinking_estimated_median_before !== undefined || c.largest_thinking_estimated ? {
+      medianBefore: c.thinking_estimated_median_before ?? null, medianAfter: c.thinking_estimated_median_after ?? null,
+      largest: c.largest_thinking_estimated ? { tokens: c.largest_thinking_estimated.tokens, call: c.largest_thinking_estimated.call, atS: c.largest_thinking_estimated.at_s } : null,
+    } : null,
   };
 }
 

@@ -328,9 +328,16 @@ test.describe("cost", () => {
     await expect(stat(page, "nudges")).toHaveText("0");
   });
 
-  test("a cloud model: no model speeds, with why", async ({ page }) => {
+  test("a cloud model: engine speeds and drafting are 'n/a' with why, in the totals and per story, never '—'", async ({ page }) => {
     await open(page, OPUS, "run-9");
-    await expect(section(page, "cost").locator('[data-stat="engineSpeed"] [data-fact="decode"] .missing')).toHaveAttribute("data-tip", /cloud model/);
+    for (const fact of ["decode", "prefill"]) {
+      const n = section(page, "cost").locator(`[data-stat="engineSpeed"] [data-fact="${fact}"] .na`);
+      await expect(n).toHaveText("n/a");
+      await expect(n).toHaveAttribute("data-tip", "Unavailable for this cloud model");
+    }
+    const recorded = section(page, "cost").locator('table.story-cost tr[data-story="1"]');
+    await expect(recorded.locator(".na")).toHaveCount(3);  // generation, reading, draft
+    await expect(recorded.locator(".missing")).toHaveCount(0);
   });
 
   test("nothing recorded: every total missing, with why", async ({ page }) => {

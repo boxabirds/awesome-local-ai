@@ -1,14 +1,14 @@
 // What the run cost: its totals, then one row per recorded story (what the old expanded row showed), each story
 // a link to its story run.
 import type { ReactNode } from "react";
-import type { Row, Story, Usage } from "../../../shared/types.ts";
-import { interventionsOf, runTotals, whyMissing, whyRunMissing } from "../../../shared/runView.ts";
+import type { Row, Usage } from "../../../shared/types.ts";
+import { interventionsOf, isCloud, runTotals, whyMissing, whyRunMissing } from "../../../shared/runView.ts";
 import { InterventionMark } from "../RunMarks.tsx";
 import type { TermId } from "../../../shared/glossary.ts";
 import { StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { duration } from "../../format.ts";
-import { Missing, Section, Stat, Term, full } from "./bits.tsx";
+import { Missing, NotApplicable, Section, Stat, Term, full } from "./bits.tsx";
 
 const SPEED_DECIMALS = 1;
 const PERCENT = 100;
@@ -17,11 +17,12 @@ export const speed = (n: number) => n.toFixed(SPEED_DECIMALS);
 export const pct = (frac: number) => `${Math.round(frac * PERCENT)}%`;
 
 /** The model's own speeds, on one small line under the cost: "engine speed: generation 31.2 tok/s · reading 980 tok/s". */
-export function EngineSpeed({ decode, prefill, whyDecode, whyPrefill }: { decode: number | null; prefill: number | null; whyDecode: string; whyPrefill: string }) {
+export function EngineSpeed({ decode, prefill, whyDecode, whyPrefill, cloud = false }: { decode: number | null; prefill: number | null; whyDecode: string; whyPrefill: string; cloud?: boolean }) {
+  const show = (v: number | null, why: string) => (cloud ? <NotApplicable /> : v === null ? <Missing why={why} /> : `${speed(v)} tok/s`);
   return (
     <p className="small engine-speed" data-stat="engineSpeed">
-      <Term id="engineSpeed" />: <Term id="decodeTokS">generation</Term> <span data-fact="decode">{decode === null ? <Missing why={whyDecode} /> : `${speed(decode)} tok/s`}</span>
-      {" · "}<Term id="prefillTokS">reading</Term> <span data-fact="prefill">{prefill === null ? <Missing why={whyPrefill} /> : `${speed(prefill)} tok/s`}</span>
+      <Term id="engineSpeed" />: <Term id="decodeTokS">generation</Term> <span data-fact="decode">{show(decode, whyDecode)}</span>
+      {" · "}<Term id="prefillTokS">reading</Term> <span data-fact="prefill">{show(prefill, whyPrefill)}</span>
     </p>
   );
 }
@@ -40,13 +41,13 @@ export function RunCost({ run }: { run: Row }) {
         <Stat term="compactions">{or(t.compactions, String, "counter")}</Stat>
         <Stat term="nudges">{or(t.nudges, String, "counter")}</Stat>
       </div>
-      <EngineSpeed decode={t.decodeTokS} prefill={t.prefillTokS} whyDecode={whyRunMissing(run, "model-speed")} whyPrefill={whyRunMissing(run, "model-speed")} />
+      <EngineSpeed decode={t.decodeTokS} prefill={t.prefillTokS} whyDecode={whyRunMissing(run, "model-speed")} whyPrefill={whyRunMissing(run, "model-speed")} cloud={isCloud(run)} />
       <StoryCostTable run={run} />
     </Section>
   );
 }
 
-type Col = { term: TermId; label?: string; cell: (u: Usage, s: Story) => ReactNode };
+type Col = { term: TermId; label?: string; cell: (u: Usage, cloud: boolean) => ReactNode };
 
 /** A usage figure, or Missing with why. */
 const num = (v: number | null | undefined, show: (n: number) => string, u: Usage, what: Parameters<typeof whyMissing>[1]) =>
@@ -59,9 +60,9 @@ const COLS: Col[] = [
   { term: "inputRead", cell: (u) => num(u.readTokens, short, u, "story") },
   { term: "cached", cell: (u) => (u.readTokens && u.cacheRead != null ? pct(u.cacheRead / u.readTokens) : <Missing why={whyMissing(u, "cached")} />) },
   { term: "tokS", cell: (u) => num(u.tokS, speed, u, "story") },
-  { term: "decodeTokS", label: "generation", cell: (u) => num(u.decodeTokS, speed, u, "decode") },
-  { term: "prefillTokS", label: "reading", cell: (u) => num(u.prefillTokS, speed, u, "prefill") },
-  { term: "draftAcceptance", label: "Draft", cell: (u) => num(u.draftAcceptance, pct, u, "draft") },
+  { term: "decodeTokS", label: "generation", cell: (u, cloud) => (cloud ? <NotApplicable /> : num(u.decodeTokS, speed, u, "decode")) },
+  { term: "prefillTokS", label: "reading", cell: (u, cloud) => (cloud ? <NotApplicable /> : num(u.prefillTokS, speed, u, "prefill")) },
+  { term: "draftAcceptance", label: "Draft", cell: (u, cloud) => (cloud ? <NotApplicable /> : num(u.draftAcceptance, pct, u, "draft")) },
 ];  // compactions and nudges per story are on each story run's page, and summed in the totals above
 
 function StoryCostTable({ run }: { run: Row }) {
@@ -84,7 +85,7 @@ function StoryCostTable({ run }: { run: Row }) {
                 <td className="story-cell"><StoryRunLink pack={run.pack} stack={run.stack} runId={run.runId} story={s.id}>{s.id}. {s.title || `story ${s.id}`}</StoryRunLink> <InterventionMark list={interventionsOf(run, s.id)} compact /></td>
                 <td>{q?.total ? <span className={`held q-text-${q.state}`}>{q.passed}/{q.total}</span> : <Missing why="No held-out result for this story against the latest build." />}</td>
                 {s.usage
-                  ? COLS.map((c) => <td key={c.term} className="n">{c.cell(s.usage!, s)}</td>)
+                  ? COLS.map((c) => <td key={c.term} className="n">{c.cell(s.usage!, isCloud(run))}</td>)
                   : <td colSpan={COLS.length} className="no-usage"><Missing why={whyMissing(null, "story")} /> no usage recorded for this story</td>}
               </tr>
             );
