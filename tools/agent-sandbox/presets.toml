@@ -1,0 +1,21 @@
+# Hosts a sandboxed command may reach through the allow-listing proxy, as named sets.
+#
+# Nothing here is allowed unless the caller asks for the set by name (`--preset npm`); with no
+# preset and no --allow-host the command has no route off the machine at all. A host stands for
+# itself and its subdomains, on port 443 only unless written host:port.
+#
+# Keep each set to what its tool cannot work without, and say why. github.com and its content
+# hosts are deliberately in no set: this repository is public there, with other runs' work and the
+# reference builds in it.
+
+[npm]
+why = "npm install: package metadata and tarballs."
+hosts = ["registry.npmjs.org"]
+
+[playwright]
+why = "`playwright install`: browser downloads, tried in this order by Playwright. Not needed when the harness provides the browser cache read-only."
+hosts = ["cdn.playwright.dev", "playwright.download.prss.microsoft.com"]
+
+[claude]
+why = "Claude Code: the model API it talks to. Telemetry and update hosts are left out on purpose."
+hosts = ["api.anthropic.com"]
