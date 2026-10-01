@@ -4,6 +4,7 @@ pub mod bwrap;
 pub mod cli;
 pub mod paths;
 pub mod policy;
+pub mod ports;
 pub mod presets;
 pub mod proxy;
 pub mod run;

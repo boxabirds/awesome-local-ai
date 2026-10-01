@@ -4,6 +4,7 @@
 mod common;
 
 use agent_sandbox::policy::Policy;
+use agent_sandbox::ports::{Loopback, PortRange};
 use agent_sandbox::seatbelt::{command, profile, quote, SANDBOX_EXEC};
 use common::TempDir;
 use std::ffi::OsString;
@@ -31,7 +32,7 @@ fn fixture() -> Fixture {
         Some(&home),
     )
     .unwrap();
-    let text = profile(&policy);
+    let text = profile(&policy, &Loopback::default());
     Fixture {
         t,
         own,
@@ -41,6 +42,19 @@ fn fixture() -> Fixture {
         text,
     }
 }
+
+const MODEL_PORT: u16 = 18010;
+const PROXY_PORT: u16 = 40123;
+const OWN_PORTS: PortRange = PortRange {
+    first: 18787,
+    last: 18790,
+};
+const EPHEMERAL: PortRange = agent_sandbox::ports::IANA_DYNAMIC_PORTS;
+const ANY_LOOPBACK_PORT: &str = "\"localhost:*\"";
+/// Each loop is written as four lines: define, if, the rule, the next step.
+const LOOP_LINES: usize = 4;
+/// Every line of a loop's definition names its variable; a call names two port numbers.
+const LOOP_VARIABLE: &str = "first";
 
 fn s(p: &Path) -> &str {
     p.to_str().unwrap()
@@ -157,24 +171,147 @@ fn ancestors_get_metadata_only_so_paths_resolve_but_nothing_beside_them_is_liste
     assert!(!f.text.contains("node_modules"));
 }
 
-#[test]
-fn the_network_is_loopback_only() {
-    let f = fixture();
-    let net: Vec<&str> = rules(&f.text)
+/// The profile for the fixture's policy with this loopback access.
+fn with_net(net: &Loopback) -> String {
+    let t = TempDir::new();
+    let own = t.dir("run");
+    profile(&Policy::new(&own, &[], None).unwrap(), net)
+}
+
+/// The lines that grant something on the network: `allow` rules and calls of the two loops
+/// (not the rule inside a loop's definition, which grants nothing until the loop is called).
+fn network_grants(text: &str) -> Vec<&str> {
+    rules(text)
         .into_iter()
-        .filter(|l| l.contains("network"))
-        .collect();
-    assert!(!net.is_empty());
-    for line in &net {
+        .filter(|l| !l.contains(LOOP_VARIABLE))
+        .filter(|l| {
+            (l.starts_with("(allow") && l.contains("network"))
+                || l.starts_with("(connect-to ")
+                || l.starts_with("(listen-on ")
+        })
+        .collect()
+}
+
+#[test]
+fn with_no_port_named_there_is_no_network_rule_at_all() {
+    let text = with_net(&Loopback::default());
+    assert!(network_grants(&text).is_empty(), "{text}");
+    for line in rules(&text) {
         assert!(
-            line.contains("\"localhost:*\""),
-            "a network rule that is not loopback: {line}"
+            !line.contains("network") && !line.contains("localhost:"),
+            "{line}"
         );
-        assert!(!line.contains("\"*:"), "{line}");
     }
-    assert!(net
-        .iter()
-        .any(|l| l.starts_with("(allow network-outbound (remote ip \"localhost:*\")")));
+}
+
+#[test]
+fn no_rule_ever_opens_every_loopback_port_to_connect_to() {
+    for net in [
+        Loopback::default(),
+        Loopback::new(&[MODEL_PORT], &[OWN_PORTS], None).unwrap(),
+        Loopback::new(&[MODEL_PORT], &[OWN_PORTS], Some(EPHEMERAL)).unwrap(),
+    ] {
+        let text = with_net(&net);
+        for line in rules(&text) {
+            assert!(
+                !(line.contains("network-outbound") && line.contains(ANY_LOOPBACK_PORT)),
+                "every loopback port is reachable: {line}"
+            );
+            assert!(!line.contains("\"*:"), "another machine: {line}");
+            assert!(
+                !line.contains("(remote ip") && !line.contains("(local ip"),
+                "TCP only, UDP stays closed: {line}"
+            );
+        }
+        assert!(!rules(&text).contains(&"(allow network*)"));
+    }
+}
+
+#[test]
+fn a_host_port_can_be_connected_to_and_nothing_more() {
+    let text = with_net(&Loopback::new(&[MODEL_PORT, PROXY_PORT], &[], None).unwrap());
+    assert_eq!(
+        network_grants(&text),
+        ["(connect-to 18010 18010)", "(connect-to 40123 40123)"],
+        "{text}"
+    );
+    assert!(
+        !text.contains("network-bind") && !text.contains("network-inbound"),
+        "nothing can be served: {text}"
+    );
+}
+
+#[test]
+fn agent_ports_can_be_served_on_and_connected_to() {
+    let text = with_net(&Loopback::new(&[MODEL_PORT], &[OWN_PORTS], None).unwrap());
+    assert_eq!(
+        network_grants(&text),
+        [
+            "(connect-to 18010 18010)",
+            "(listen-on 18787 18790)",
+            "(connect-to 18787 18790)"
+        ],
+        "{text}"
+    );
+    assert!(!text.contains(ANY_LOOPBACK_PORT), "{text}");
+}
+
+#[test]
+fn the_loops_name_one_tcp_loopback_port_at_a_time() {
+    let text = with_net(&Loopback::new(&[MODEL_PORT], &[OWN_PORTS], None).unwrap());
+    let r = rules(&text);
+    let body = |name: &str| {
+        let at = r
+            .iter()
+            .position(|l| l.starts_with(&format!("(define ({name} first last)")))
+            .unwrap_or_else(|| panic!("{name} is not defined: {text}"));
+        r[at..at + LOOP_LINES].join(" ")
+    };
+    let port = "(string-append \"localhost:\" (number->string first))";
+    assert!(
+        body("connect-to").contains(&format!("(allow network-outbound (remote tcp {port}))")),
+        "{text}"
+    );
+    assert!(
+        body("listen-on").contains(&format!(
+            "(allow network-bind network-inbound (local tcp {port}))"
+        )),
+        "{text}"
+    );
+    for name in ["connect-to", "listen-on"] {
+        assert!(body(name).contains(&format!("({name} (+ first 1) last)")));
+        assert!(body(name).contains("(if (<= first last)"));
+    }
+}
+
+#[test]
+fn ephemeral_ports_open_binding_and_only_that_range_to_connect_to() {
+    let text = with_net(&Loopback::new(&[MODEL_PORT], &[OWN_PORTS], Some(EPHEMERAL)).unwrap());
+    assert_eq!(
+        network_grants(&text),
+        [
+            "(connect-to 18010 18010)",
+            "(connect-to 18787 18790)",
+            "(allow network-bind network-inbound (local tcp \"localhost:*\"))",
+            "(connect-to 49152 65535)"
+        ],
+        "{text}"
+    );
+    let narrowed = with_net(
+        &Loopback::new(
+            &[],
+            &[],
+            Some(PortRange {
+                first: 61000,
+                last: 65535,
+            }),
+        )
+        .unwrap(),
+    );
+    assert!(
+        network_grants(&narrowed).contains(&"(connect-to 61000 65535)"),
+        "the machine's own range is used: {narrowed}"
+    );
 }
 
 #[test]
@@ -242,7 +379,7 @@ fn quote_escapes_what_would_end_or_change_a_string() {
 fn a_path_with_a_quote_in_it_cannot_break_out_of_its_rule() {
     let t = TempDir::new();
     let own = t.dir("run\")) (allow default) ((\"");
-    let text = profile(&Policy::new(&own, &[], None).unwrap());
+    let text = profile(&Policy::new(&own, &[], None).unwrap(), &Loopback::default());
     assert!(!rules(&text).contains(&"(allow default)"));
     assert!(text.contains("run\\\")) (allow default) ((\\\""));
 }
@@ -253,7 +390,10 @@ fn a_symlink_on_the_way_in_is_stat_only() {
     let own = t.dir("run");
     let real = t.dir("browsers-v1");
     std::os::unix::fs::symlink(&real, t.path().join("browsers")).unwrap();
-    let text = profile(&Policy::new(&own, &[t.path().join("browsers")], None).unwrap());
+    let text = profile(
+        &Policy::new(&own, &[t.path().join("browsers")], None).unwrap(),
+        &Loopback::default(),
+    );
     let link = format!("(literal \"{}\")", s(&t.path().join("browsers")));
     let naming: Vec<&str> = rules(&text)
         .into_iter()
@@ -270,10 +410,15 @@ fn the_command_is_sandbox_exec_with_the_profile_inline() {
     let t = TempDir::new();
     let own = t.dir("run");
     let policy = Policy::new(&own, &[], None).unwrap();
-    let argv = command(&policy, &[OsString::from("npm"), OsString::from("install")]);
+    let net = Loopback::new(&[MODEL_PORT], &[], None).unwrap();
+    let argv = command(
+        &policy,
+        &net,
+        &[OsString::from("npm"), OsString::from("install")],
+    );
     assert_eq!(argv[0], OsString::from(SANDBOX_EXEC));
     assert_eq!(argv[1], OsString::from("-p"));
-    assert_eq!(argv[2], OsString::from(profile(&policy)));
+    assert_eq!(argv[2], OsString::from(profile(&policy, &net)));
     assert_eq!(
         &argv[3..],
         [OsString::from("npm"), OsString::from("install")]

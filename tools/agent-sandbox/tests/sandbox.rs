@@ -11,9 +11,7 @@ mod common;
 use common::TempDir;
 use std::ffi::OsStr;
 use std::io::{BufRead, BufReader, Write};
-#[cfg(target_os = "linux")]
-use std::net::UdpSocket;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream, ToSocketAddrs, UdpSocket};
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -23,6 +21,13 @@ const BIN: &str = env!("CARGO_BIN_EXE_agent-sandbox");
 const SANDBOX_EXEC: &str = "/usr/bin/sandbox-exec";
 const BASH: &str = "/bin/bash";
 const ANY_PORT: u16 = 0;
+/// Where fixed_port() looks for free ports: below the range the kernel picks from for port 0
+/// (49152 and up), and away from the ports dev servers and the harness use by habit.
+const FIXED_PORT_BASE: u16 = 41_100;
+const FIXED_PORT_TRIES: u16 = 800;
+/// The kernel's range for a bind to port 0 unless a machine was reconfigured (IANA dynamic ports).
+#[cfg(target_os = "macos")]
+const EPHEMERAL_FROM: u16 = 49_152;
 const HTTPS_PORT: u16 = 443;
 /// Long enough for any single command here; the workload has its own.
 const DEADLINE: Duration = Duration::from_secs(60);
@@ -72,7 +77,7 @@ const step = (name, cmd, args) => {
 step('npm install', 'npm', ['install', '--no-audit', '--no-fund']);
 step('vite build', 'npm', ['run', 'build']);
 // Not detached: the server stays in the test's process group, which the test kills at the end.
-server = spawn('npx', ['wrangler', 'dev', '--port', port, '--ip', '127.0.0.1'], { stdio: 'ignore' });
+server = spawn('npx', ['wrangler', 'dev', '--port', port, '--inspector-port', process.argv[3], '--ip', '127.0.0.1'], { stdio: 'ignore' });
 let up = false;
 for (let i = 0; i < 90 && !up; i++) {
   try { up = (await (await fetch(`http://127.0.0.1:${port}/`)).text()).includes('preflight ok'); } catch {}
@@ -151,12 +156,17 @@ fn real_home() -> PathBuf {
     PathBuf::from(std::env::var_os("HOME").expect("HOME is set for the test run"))
 }
 
-fn free_port() -> u16 {
-    TcpListener::bind((Ipv4Addr::LOCALHOST, ANY_PORT))
-        .unwrap()
-        .local_addr()
-        .unwrap()
-        .port()
+/// A free loopback port that the kernel would not hand out for port 0, different on every call:
+/// what a harness gives a run for its dev server.
+fn fixed_port() -> u16 {
+    static NEXT: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
+    for _ in 0..FIXED_PORT_TRIES {
+        let port = FIXED_PORT_BASE + NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        if TcpListener::bind((Ipv4Addr::LOCALHOST, port)).is_ok() {
+            return port;
+        }
+    }
+    panic!("no free port in {FIXED_PORT_TRIES} tries from {FIXED_PORT_BASE}");
 }
 
 /// Playwright's browsers as the harness provides them, if this machine has any.
@@ -302,9 +312,13 @@ fn quoted(p: &Path) -> String {
     format!("'{}'", p.display())
 }
 
-/// A server on `addr` that answers each line with "pong".
+/// A server on `addr`, on a port the kernel picks, that answers each line with "pong".
 fn pong_server(addr: IpAddr) -> Option<SocketAddr> {
-    let listener = TcpListener::bind((addr, ANY_PORT)).ok()?;
+    pong_server_on(addr, ANY_PORT)
+}
+
+fn pong_server_on(addr: IpAddr, port: u16) -> Option<SocketAddr> {
+    let listener = TcpListener::bind((addr, port)).ok()?;
     let bound = listener.local_addr().ok()?;
     std::thread::spawn(move || {
         for conn in listener.incoming().flatten() {
@@ -863,18 +877,36 @@ fn a_server_on_the_hosts_loopback_is_reachable_when_its_port_is_named() {
     );
 }
 
+/// node: serve on `port` (0: any free port) and fetch from that server; prints what came back,
+/// or the error's code.
+fn serve_and_fetch_script(port: u16) -> String {
+    format!(
+        "const s = require('http').createServer((q, r) => r.end('own server'));\
+         s.on('error', (e) => {{ console.log(e.code); process.exit(1); }});\
+         s.listen({port}, '127.0.0.1', async () => {{\
+           try {{ const r = await fetch(`http://127.0.0.1:${{s.address().port}}/`); console.log(await r.text()); }}\
+           catch (e) {{ console.log('fetch failed', e.cause?.code); process.exitCode = 1; }}\
+           s.close(); }});"
+    )
+}
+
 #[test]
-fn the_command_can_serve_and_reach_its_own_loopback_ports() {
+fn the_command_can_serve_and_reach_a_port_given_to_it() {
     if skip(
-        "the_command_can_serve_and_reach_its_own_loopback_ports",
+        "the_command_can_serve_and_reach_a_port_given_to_it",
         &["node"],
     ) {
         return;
     }
     let bench = Bench::new();
-    let script = "const s = require('http').createServer((q, r) => r.end('own server')).listen(0, 'localhost', async () => {\
-        const r = await fetch(`http://localhost:${s.address().port}/`); console.log(await r.text()); s.close(); });";
-    let out = finish(bench.sandboxed(&[], &["node", "-e", script]), DEADLINE);
+    let port = fixed_port();
+    let out = finish(
+        bench.sandboxed(
+            &["--agent-ports", &format!("{port}-{}", port + 1)],
+            &["node", "-e", &serve_and_fetch_script(port)],
+        ),
+        DEADLINE,
+    );
     assert!(
         out.status.success() && stdout(&out) == "own server\n",
         "{}",
@@ -882,7 +914,65 @@ fn the_command_can_serve_and_reach_its_own_loopback_ports() {
     );
 }
 
-#[cfg(target_os = "linux")]
+#[test]
+fn with_ephemeral_ports_the_command_can_serve_on_a_port_the_kernel_picks() {
+    if skip(
+        "with_ephemeral_ports_the_command_can_serve_on_a_port_the_kernel_picks",
+        &["node"],
+    ) {
+        return;
+    }
+    let bench = Bench::new();
+    let out = finish(
+        bench.sandboxed(
+            &["--ephemeral-ports"],
+            &["node", "-e", &serve_and_fetch_script(ANY_PORT)],
+        ),
+        DEADLINE,
+    );
+    assert!(
+        out.status.success() && stdout(&out) == "own server\n",
+        "{}",
+        describe(&out)
+    );
+}
+
+/// macOS only: on Linux the sandbox's loopback is its own, so any port in it can be served on.
+#[cfg(target_os = "macos")]
+#[test]
+fn macos_a_port_that_was_not_given_cannot_be_served_on() {
+    if skip(
+        "macos_a_port_that_was_not_given_cannot_be_served_on",
+        &["node"],
+    ) {
+        return;
+    }
+    let bench = Bench::new();
+    let given = fixed_port();
+    let other = fixed_port();
+    for port in [other, ANY_PORT] {
+        let control = finish(
+            bench.unsandboxed(&["node", "-e", &serve_and_fetch_script(port)]),
+            DEADLINE,
+        );
+        assert_eq!(stdout(&control), "own server\n", "control: port {port}");
+        let out = finish(
+            bench.sandboxed(
+                &["--agent-ports", &given.to_string()],
+                &["node", "-e", &serve_and_fetch_script(port)],
+            ),
+            DEADLINE,
+        );
+        assert!(
+            !out.status.success() && stdout(&out) == "EPERM\n",
+            "port {port}: {}",
+            describe(&out)
+        );
+    }
+}
+
+/// The servers of other runs and of the harness: one on a port the kernel picked, one on a fixed
+/// port. Neither was named, so neither is reachable, whatever else was named.
 #[test]
 fn a_host_loopback_port_that_was_not_named_is_unreachable() {
     if skip(
@@ -892,26 +982,76 @@ fn a_host_loopback_port_that_was_not_named_is_unreachable() {
         return;
     }
     let bench = Bench::new();
-    let server = pong_server(IpAddr::V4(Ipv4Addr::LOCALHOST)).unwrap();
-    let control = bench.bash_outside(&ping_script(server));
-    assert_eq!(
-        stdout(&control),
-        "pong\n",
-        "control: reachable without the sandbox"
-    );
-    let out = bench.bash(&[], &ping_script(server));
+    let loopback = IpAddr::V4(Ipv4Addr::LOCALHOST);
+    let named = pong_server(loopback).unwrap();
+    let own = fixed_port();
+    let extra = [
+        "--host-port",
+        &named.port().to_string(),
+        "--agent-ports",
+        &own.to_string(),
+        "--preset",
+        "npm",
+    ];
+    for server in [
+        pong_server(loopback).unwrap(),
+        pong_server_on(loopback, fixed_port()).unwrap(),
+    ] {
+        let control = bench.bash_outside(&ping_script(server));
+        assert_eq!(
+            stdout(&control),
+            "pong\n",
+            "control: {server} is reachable without the sandbox"
+        );
+        for args in [&[][..], &extra[..]] {
+            let out = bench.bash(args, &ping_script(server));
+            assert!(
+                !out.status.success() && !stdout(&out).contains("pong"),
+                "{server} was reached with {args:?}: {}",
+                describe(&out)
+            );
+        }
+    }
+    let out = bench.bash(&extra, &ping_script(named));
+    assert_eq!(stdout(&out), "pong\n", "the named one: {}", describe(&out));
+}
+
+/// macOS only, and a gap stated plainly: Seatbelt cannot say "ports this sandbox bound", so
+/// --ephemeral-ports opens every port of the kernel's ephemeral range, including one another
+/// process listens on. Fixed ports (dev servers, the harness, databases) stay closed. On Linux
+/// the flag changes nothing: a_host_loopback_port_that_was_not_named_is_unreachable holds.
+#[cfg(target_os = "macos")]
+#[test]
+fn macos_ephemeral_ports_open_that_range_and_no_fixed_port() {
+    if skip(
+        "macos_ephemeral_ports_open_that_range_and_no_fixed_port",
+        &[],
+    ) {
+        return;
+    }
+    let bench = Bench::new();
+    let loopback = IpAddr::V4(Ipv4Addr::LOCALHOST);
+    let fixed = pong_server_on(loopback, fixed_port()).unwrap();
+    let out = bench.bash(&["--ephemeral-ports"], &ping_script(fixed));
     assert!(
         !out.status.success() && !stdout(&out).contains("pong"),
-        "{}",
+        "a fixed port was reached: {}",
+        describe(&out)
+    );
+    let ephemeral = pong_server(loopback).unwrap();
+    assert!(ephemeral.port() >= EPHEMERAL_FROM);
+    let out = bench.bash(&["--ephemeral-ports"], &ping_script(ephemeral));
+    assert_eq!(
+        stdout(&out),
+        "pong\n",
+        "the known gap has changed; update README.md: {}",
         describe(&out)
     );
 }
 
-/// Linux only: on macOS Seatbelt's one address filter, "localhost", also matches the machine's own
-/// other addresses (seen on this test: the LAN address was reached), so there a port of this
-/// machine is reachable whichever of its addresses is used. Addresses of other machines are
-/// covered by the next two tests on both platforms.
-#[cfg(target_os = "linux")]
+/// A server on another of this machine's addresses (the LAN or VPN one, where the harness's own
+/// services may listen). On macOS Seatbelt's "localhost" also matches those addresses, so what
+/// keeps it closed there is that its port was not named.
 #[test]
 fn another_address_of_this_machine_is_unreachable() {
     if skip("another_address_of_this_machine_is_unreachable", &[]) {
@@ -1147,8 +1287,17 @@ fn online_the_harness_workload_installs_builds_serves_and_loads_in_chromium() {
         }
         extra.extend(["--ro", cache.to_str().unwrap()]);
     }
-    let port = free_port().to_string();
-    let mut command = bench.sandboxed(&extra, &["node", "drive.mjs", &port]);
+    // The app's port and wrangler's inspector port are the run's own; workerd and miniflare also
+    // bind ports the kernel picks and connect to them, which needs --ephemeral-ports.
+    let (port, inspector) = (fixed_port().to_string(), fixed_port().to_string());
+    extra.extend([
+        "--agent-ports",
+        &port,
+        "--agent-ports",
+        &inspector,
+        "--ephemeral-ports",
+    ]);
+    let mut command = bench.sandboxed(&extra, &["node", "drive.mjs", &port, &inspector]);
     if cache.is_some() {
         command.env("PLAYWRIGHT_BROWSERS_PATH", &own_browsers);
     }

@@ -11,6 +11,7 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use crate::policy::Policy;
+use crate::ports::Loopback;
 
 pub const SANDBOX_EXEC: &str = "/usr/bin/sandbox-exec";
 
@@ -67,7 +68,14 @@ const ACCOUNT_LOOKUP_SERVICE: &str = "com.apple.system.opendirectoryd.libinfo";
 const CHROMIUM_RENDEZVOUS: &str = r"^org\.chromium\.Chromium\.MachPortRendezvousServer\.[0-9]+$";
 /// Chromium asks the power manager not to idle-sleep; it exits at start without this.
 const CHROMIUM_POWER_CLIENT: &str = "RootDomainUserClient";
-const LOOPBACK: &str = "localhost:*";
+/// Seatbelt's only host names are `*` and `localhost`; a port is one number or `*`. There are no
+/// port ranges and no addresses ("127.0.0.2:*" and "localhost:8000-8010" are refused when the
+/// profile is compiled), so a range is one rule per port.
+const LOOPBACK_PORT_PREFIX: &str = "localhost:";
+const ANY_LOOPBACK_PORT: &str = "localhost:*";
+/// SBPL is Scheme: these loops add one rule per port, so a wide range stays one line here.
+const CONNECT_TO: &str = "connect-to";
+const LISTEN_ON: &str = "listen-on";
 
 /// A path or name as an SBPL string literal.
 pub fn quote(s: &str) -> String {
@@ -104,7 +112,7 @@ fn subpaths<'a>(paths: impl IntoIterator<Item = &'a str>) -> String {
 }
 
 /// The whole profile. Comment lines (;) say why each group is there; `agent-sandbox print` shows it.
-pub fn profile(policy: &Policy) -> String {
+pub fn profile(policy: &Policy, net: &Loopback) -> String {
     let mut p = String::new();
     let own = q(&policy.own_dir);
     // Writing to a String cannot fail.
@@ -194,21 +202,7 @@ pub fn profile(policy: &Policy) -> String {
         quote(CHROMIUM_POWER_CLIENT)
     ));
 
-    rule("");
-    rule("; Network: loopback only (the model server, the allow-listing proxy, the command's own dev");
-    rule("; servers). Every other address is denied, in and out.");
-    rule(&format!(
-        "(allow network-outbound (remote ip {}))",
-        quote(LOOPBACK)
-    ));
-    rule(&format!(
-        "(allow network-inbound (local ip {}))",
-        quote(LOOPBACK)
-    ));
-    rule(&format!(
-        "(allow network-bind (local ip {}))",
-        quote(LOOPBACK)
-    ));
+    network(&mut rule, net);
 
     let meta: Vec<String> = policy
         .metadata_only()
@@ -248,17 +242,78 @@ pub fn profile(policy: &Policy) -> String {
     p
 }
 
+/// A loop that applies `allowance` to "localhost:<port>" for each port from `first` to `last`.
+fn port_loop(rule: &mut impl FnMut(&str), name: &str, allowance: &str) {
+    rule(&format!("(define ({name} first last)"));
+    rule("  (if (<= first last) (begin");
+    rule(&format!(
+        "    ({allowance} (string-append {} (number->string first))))",
+        quote(LOOPBACK_PORT_PREFIX)
+    ));
+    rule(&format!("    ({name} (+ first 1) last))))"));
+}
+
+/// The network: TCP to and from named loopback ports, and nothing else.
+fn network(rule: &mut impl FnMut(&str), net: &Loopback) {
+    rule("");
+    if net == &Loopback::default() {
+        rule("; Network: none. No loopback port was named and no host is allowed, so every connection,");
+        rule("; bind and listen is denied.");
+        return;
+    }
+    rule(
+        "; Network: TCP on loopback, port by port. Every other port and address is denied, in and",
+    );
+    rule("; out, and so is UDP. Seatbelt cannot name a range of ports or \"the ports this sandbox");
+    rule("; bound\", so each port gets a rule of its own, written by these loops.");
+    port_loop(rule, CONNECT_TO, "allow network-outbound (remote tcp");
+    let serves = !net.own.is_empty() && net.ephemeral.is_none();
+    if serves {
+        port_loop(
+            rule,
+            LISTEN_ON,
+            "allow network-bind network-inbound (local tcp",
+        );
+    }
+    if !net.reach.is_empty() {
+        rule("; Servers outside the sandbox (--host-port: the model server) and the allow-listing proxy:");
+        rule("; connect only.");
+        for range in &net.reach {
+            rule(&format!("({CONNECT_TO} {} {})", range.first, range.last));
+        }
+    }
+    if !net.own.is_empty() {
+        rule("; The command's own servers (--agent-ports): bind, listen and connect.");
+        for range in &net.own {
+            if serves {
+                rule(&format!("({LISTEN_ON} {} {})", range.first, range.last));
+            }
+            rule(&format!("({CONNECT_TO} {} {})", range.first, range.last));
+        }
+    }
+    if let Some(range) = &net.ephemeral {
+        rule("; --ephemeral-ports: a bind to port 0 (\"any free port\") is checked as port 0, which no rule");
+        rule("; can name, so binding and listening are open on all of loopback. Connecting is open to the");
+        rule("; range the kernel picks such ports from: the command's own, and any other process's there.");
+        rule(&format!(
+            "(allow network-bind network-inbound (local tcp {}))",
+            quote(ANY_LOOPBACK_PORT)
+        ));
+        rule(&format!("({CONNECT_TO} {} {})", range.first, range.last));
+    }
+}
+
 /// A regex literal's body: SBPL reads `#"..."` raw, so only a quote needs care, and none of ours has one.
 fn quote_regex(re: &str) -> String {
     format!("\"{re}\"")
 }
 
 /// The command line that runs `cmd` under the profile.
-pub fn command(policy: &Policy, cmd: &[OsString]) -> Vec<OsString> {
+pub fn command(policy: &Policy, net: &Loopback, cmd: &[OsString]) -> Vec<OsString> {
     let mut argv = vec![
         OsString::from(SANDBOX_EXEC),
         OsString::from("-p"),
-        OsString::from(profile(policy)),
+        OsString::from(profile(policy, net)),
     ];
     argv.extend(cmd.iter().cloned());
     argv

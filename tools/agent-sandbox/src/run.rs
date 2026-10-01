@@ -15,6 +15,7 @@ use crate::bwrap;
 use crate::cli::{HostArgs, InnerArgs, ProxyArgs, SandboxArgs};
 use crate::paths::within;
 use crate::policy::Policy;
+use crate::ports::{Loopback, PortRange, IANA_DYNAMIC_PORTS};
 use crate::proxy::{self, AllowList};
 use crate::toolchain::{self, Discovered};
 use crate::{bridge, presets, seatbelt};
@@ -40,6 +41,14 @@ const GIT: &str = "git";
 const GIT_STUB: &str = "/usr/bin/git";
 #[cfg(target_os = "macos")]
 const XCODE_SELECT: &str = "/usr/bin/xcode-select";
+#[cfg(target_os = "macos")]
+const SYSCTL_PORT_FIRST: &CStr = c"net.inet.ip.portrange.first";
+#[cfg(target_os = "macos")]
+const SYSCTL_PORT_LAST: &CStr = c"net.inet.ip.portrange.last";
+#[cfg(target_os = "macos")]
+const SYSCTL_PORT_HIFIRST: &CStr = c"net.inet.ip.portrange.hifirst";
+#[cfg(target_os = "macos")]
+const SYSCTL_PORT_HILAST: &CStr = c"net.inet.ip.portrange.hilast";
 /// Bridge sockets live under the host's real /tmp whatever TMPDIR says: a unix socket's path is
 /// limited to about a hundred bytes, and a run directory's path can be longer than that.
 #[cfg(target_os = "linux")]
@@ -186,6 +195,58 @@ fn plan(args: &SandboxArgs) -> Result<Plan> {
     })
 }
 
+/// The loopback ports the command gets: `ports` (--host-port and the proxy) to connect to,
+/// --agent-ports for its own servers, and with --ephemeral-ports the kernel's ephemeral range.
+/// Only Seatbelt needs it spelled out; it is checked on every platform so a bad value fails alike.
+fn loopback(args: &SandboxArgs, ports: &[u16]) -> Result<Loopback> {
+    let ephemeral = args.ephemeral_ports.then(ephemeral_range);
+    Loopback::new(ports, &args.agent_ports, ephemeral)
+}
+
+/// The ports the kernel picks from when a program binds to port 0. Both of macOS's ranges are
+/// read (a socket may ask for the "high" one), so a machine whose ranges were narrowed gets a
+/// narrower rule. The IANA range if they cannot be read.
+#[cfg(target_os = "macos")]
+fn ephemeral_range() -> PortRange {
+    let read = |name: &CStr| -> Option<u16> {
+        let mut value: libc::c_int = 0;
+        let mut size = std::mem::size_of::<libc::c_int>();
+        // SAFETY: `value` and `size` describe one c_int, which is what these sysctls hold.
+        let rc = unsafe {
+            libc::sysctlbyname(
+                name.as_ptr(),
+                (&mut value as *mut libc::c_int).cast(),
+                &mut size,
+                std::ptr::null_mut(),
+                0,
+            )
+        };
+        (rc == 0).then(|| u16::try_from(value).ok()).flatten()
+    };
+    let firsts = [SYSCTL_PORT_FIRST, SYSCTL_PORT_HIFIRST].map(read);
+    let lasts = [SYSCTL_PORT_LAST, SYSCTL_PORT_HILAST].map(read);
+    match (
+        firsts.into_iter().collect::<Option<Vec<u16>>>(),
+        lasts.into_iter().collect::<Option<Vec<u16>>>(),
+    ) {
+        (Some(firsts), Some(lasts)) => {
+            let first = firsts.into_iter().min().unwrap_or(IANA_DYNAMIC_PORTS.first);
+            let last = lasts.into_iter().max().unwrap_or(IANA_DYNAMIC_PORTS.last);
+            if first == 0 || first > last {
+                IANA_DYNAMIC_PORTS
+            } else {
+                PortRange { first, last }
+            }
+        }
+        _ => IANA_DYNAMIC_PORTS,
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn ephemeral_range() -> PortRange {
+    IANA_DYNAMIC_PORTS
+}
+
 /// What surrounds the sandboxed command on this platform, and the command line itself.
 struct Enforcer {
     argv: Vec<OsString>,
@@ -194,9 +255,9 @@ struct Enforcer {
 }
 
 #[cfg(target_os = "macos")]
-fn enforcer(args: &SandboxArgs, policy: &Policy, _ports: &[u16], _live: bool) -> Result<Enforcer> {
+fn enforcer(args: &SandboxArgs, policy: &Policy, ports: &[u16], _live: bool) -> Result<Enforcer> {
     Ok(Enforcer {
-        argv: seatbelt::command(policy, &args.command),
+        argv: seatbelt::command(policy, &loopback(args, ports)?, &args.command),
         scratch: None,
     })
 }
@@ -205,6 +266,7 @@ fn enforcer(args: &SandboxArgs, policy: &Policy, _ports: &[u16], _live: bool) ->
 fn enforcer(args: &SandboxArgs, policy: &Policy, ports: &[u16], live: bool) -> Result<Enforcer> {
     use crate::cli::LinuxNet;
     use std::os::unix::fs::DirBuilderExt;
+    loopback(args, ports)?;
     if args.linux_net == LinuxNet::Shared {
         eprintln!("agent-sandbox: --linux-net shared: the command is in the host's network; no address is denied");
         return Ok(Enforcer {
@@ -249,8 +311,9 @@ fn enforcer(
 pub fn print(args: &SandboxArgs) -> Result<String> {
     allow_list(&args.hosts)?;
     let plan = plan(args)?;
+    let net = loopback(args, &args.host_port)?;
     if cfg!(target_os = "macos") {
-        return Ok(seatbelt::profile(&plan.policy));
+        return Ok(seatbelt::profile(&plan.policy, &net));
     }
     let enforcer = enforcer(args, &plan.policy, &args.host_port, false)?;
     Ok(enforcer

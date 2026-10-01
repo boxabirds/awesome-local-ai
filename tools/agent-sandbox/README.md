@@ -4,13 +4,14 @@ Runs a benchmark's coding agent with the least access it needs. One policy, two 
 
 It replaces a policy of "allow everything, deny a list of paths". Every leak under that policy was a path nobody had listed: a file share with a clone of the repository, `/tmp` leftovers of other runs, a `node_modules` in the home directory that gave a build a package it never declared. A list of what is allowed has no such gaps: a path nobody thought of is closed.
 
-**Status: not wired into the harness.** Proven on macOS (below). The Linux side is built and unit-tested but has never run on a Linux kernel; see "Linux: what is not proven".
+**Status: not wired into the harness.** Proven on macOS (below). The Linux side is built and unit-tested but first ran on a Linux kernel in CI on 1 October 2026 (ubuntu, bubblewrap); see "Linux: what is not proven".
 
 ## Use
 
 ```sh
 agent-sandbox run --own-dir <dir> [--ro <path>]… [--preset <name>]… [--allow-host <host[:port]>]… \
-                  [--host-port <port>]… [--proxy-log <file>] -- <command…>
+                  [--host-port <port>]… [--agent-ports <port|first-last>]… [--ephemeral-ports] \
+                  [--proxy-log <file>] -- <command…>
 agent-sandbox print  <the same options> -- <command…>   # the Seatbelt profile, or the bwrap argv one per line
 agent-sandbox proxy  [--preset <name>]… [--allow <host[:port]>]… [--log <file>] [--port <n>]
 ```
@@ -24,8 +25,8 @@ agent-sandbox proxy  [--preset <name>]… [--allow <host[:port]>]… [--log <fil
 | **Write** | `--own-dir` and nothing else | the run's workspace, `tmp/` and `agent-home/` live in it |
 | **Read and execute** | the system's programs and libraries; each `--ro` path; the install of the command itself and of `node`, as found on `PATH` | the toolchain |
 | **Stat only** | the directories above those | tools resolve real paths by stat-ing every ancestor; nothing beside the allowed path can be listed or read |
-| **Network** | loopback; outbound only through the allow-listing proxy, to hosts named with `--preset` or `--allow-host` | the model server and the agent's own dev servers are on loopback; npm needs its registry |
-| **Everything else** | denied | the home directory, the repository, other runs, `/tmp`, the per-user temp directory, `node_modules` and `package.json` above the run, every other host |
+| **Network** | the loopback ports that were named: `--host-port` (connect), `--agent-ports` (serve and connect), the proxy; outbound only through the allow-listing proxy, to hosts named with `--preset` or `--allow-host` | the model server; the agent's own dev servers; npm needs its registry |
+| **Everything else** | denied | the home directory, the repository, other runs, `/tmp`, the per-user temp directory, `node_modules` and `package.json` above the run, every other host, every other loopback port (other runs' dev servers, the harness's services, databases) |
 
 Rules that hold on both platforms (tests/policy.rs):
 
@@ -46,7 +47,7 @@ Rules that hold on both platforms (tests/policy.rs):
 | Devices | read `/dev/null`, `zero`, `random`, `urandom`; write `/dev/null`; `/dev/fd` | no data in them; `/dev/stdout` and process substitution |
 | Services | `mach-lookup` of `com.apple.system.opendirectoryd.libinfo` only | account lookup; node's `os.userInfo()` throws without it |
 | Chromium | `mach-register` and `mach-lookup` of `org.chromium.Chromium.MachPortRendezvousServer.<pid>`; `iokit-open` of `RootDomainUserClient` | its processes find each other through that port; it crashes at start without either |
-| Network | `network-outbound (remote ip "localhost:*")`, inbound and bind on `localhost:*` | loopback only |
+| Network | `network-outbound (remote tcp "localhost:<port>")` per named port; `network-bind network-inbound (local tcp "localhost:<port>")` per `--agent-ports` port; nothing when no port is named | TCP on named loopback ports only; see "macOS: loopback, port by port" |
 | Ancestors | `file-read-metadata` on each directory above an allowed path | path resolution |
 | Toolchain | `file-read* process-exec` per `--ro` and discovered path | |
 | Own directory | `file-read* file-write*`, last | SBPL applies the last matching rule |
@@ -73,7 +74,7 @@ Deliberately closed, with what that buys:
 
 ### Network
 
-Deny by default. The sandboxed command reaches loopback and nothing else; `--preset` and `--allow-host` start an allow-listing proxy on loopback and set `HTTPS_PROXY`, `HTTP_PROXY` (and lower-case forms), `NO_PROXY=localhost,127.0.0.1` and `NODE_USE_ENV_PROXY=1` for the command.
+Deny by default. The sandboxed command reaches the loopback ports that were named and nothing else; `--preset` and `--allow-host` start an allow-listing proxy on loopback and set `HTTPS_PROXY`, `HTTP_PROXY` (and lower-case forms), `NO_PROXY=localhost,127.0.0.1` and `NODE_USE_ENV_PROXY=1` for the command.
 
 The proxy (src/proxy.rs) tunnels `CONNECT host:port` when the host is an allowed name or a subdomain of one, on port 443 unless the rule names another. Everything else gets 403: other hosts, look-alikes (`registry.npmjs.org.attacker.com`), other ports, addresses that were not listed exactly, and every request that is not CONNECT. Each request is logged as a JSON line (`t`, `request`, `allowed`), the same shape as the judge's proxy in `benchmarks/spec-bench/harness/egress_proxy.py`.
 
@@ -87,14 +88,60 @@ Presets are data: `presets.toml`. `npm` (registry.npmjs.org), `playwright` (its 
 | pasta or slirp4netns | a second tool to install and trust on every machine, and both give the sandbox a route to the whole network unless separately firewalled |
 | **A unix socket per allowed port** | chosen. Needs nothing but bubblewrap and this binary |
 
-How the bridge works (src/bridge.rs): for each `--host-port` and for the proxy's port, `run` listens on a unix socket in a private directory and connects each connection to `127.0.0.1:<port>` on the host. That directory is bound read-only into the sandbox, and bubblewrap's command is `agent-sandbox inner --forward <port>… -- <command>`: inside, it listens on the sandbox's own `127.0.0.1:<port>` and connects each connection to the socket. The command sees the same address and port as on the host. A host port that was not named has no socket, so other runs' dev servers and the harness's own services cannot be reached, which macOS cannot offer.
+How the bridge works (src/bridge.rs): for each `--host-port` and for the proxy's port, `run` listens on a unix socket in a private directory and connects each connection to `127.0.0.1:<port>` on the host. That directory is bound read-only into the sandbox, and bubblewrap's command is `agent-sandbox inner --forward <port>… -- <command>`: inside, it listens on the sandbox's own `127.0.0.1:<port>` and connects each connection to the socket. The command sees the same address and port as on the host. A host port that was not named has no socket, so other runs' dev servers and the harness's own services cannot be reached. Inside, the loopback is the sandbox's own: the command binds and connects to any port there, so `--agent-ports` and `--ephemeral-ports` are accepted and change nothing.
 
 This is the default on Linux (`--linux-net isolated`): if it does not work on a machine, the run fails at preflight instead of running with an open network.
 
-**macOS limits, stated plainly.** Seatbelt's only address filter besides "any" is `localhost`. So:
+### macOS: loopback, port by port
 
-- Every loopback port on the machine is reachable, including other runs' dev servers. `--host-port` changes nothing there.
-- `localhost` also matches the machine's other addresses (measured: a listener on the LAN address was reached). A port of this machine is reachable by any of its addresses. Other machines are not: a direct connection gets `Operation not permitted` (tests/sandbox.rs).
+macOS has one loopback for the whole machine, shared with other runs' dev servers, the harness's control server and whatever else listens there. The profile used to allow all of it (`(remote ip "localhost:*")`). Now the command may connect only to:
+
+| | Flag | Rules |
+|---|---|---|
+| servers outside the sandbox (the model server or meter proxy) | `--host-port <port>` | connect |
+| the allow-listing proxy | none: its port is added when it starts | connect |
+| its own servers | `--agent-ports <port>` or `<first>-<last>`, repeatable, 1024 ports at most | bind, listen, connect |
+| ports the kernel picks for it (bind to port 0) | `--ephemeral-ports` | bind and listen on any loopback port; connect to the kernel's ephemeral range |
+
+With none of these there is no network rule at all. UDP is closed in every case (the old rule allowed it to every loopback port).
+
+**What Seatbelt can express** (macOS 26.6, each line an experiment with `sandbox-exec`):
+
+| Tried | Result |
+|---|---|
+| `(remote ip "localhost:41001")`, `(remote tcp "localhost:41001")` | accepted; that port is reachable on 127.0.0.1 and ::1, the next port is refused (`Operation not permitted`) |
+| `(local tcp "localhost:41010")` for `network-bind` and `network-inbound` | accepted; bind needs `network-bind`, listen needs `network-inbound`, a connection to it needs `network-outbound` as well |
+| `"localhost:41000-41005"` | refused when the profile is compiled: `invalid port in network address`. There are no ranges |
+| `"127.0.0.1:41001"`, `"127.0.0.2:*"`, `"::1:41003"` | refused: `host must be * or localhost in network address`. There are no addresses |
+| `"localhost:0"` | refused: `invalid port`. And a bind to port 0 is checked as port 0, before the kernel picks (the log says `deny network-bind local:*:0`; with 8192 ephemeral ports allowed for bind, 40 of 40 binds to port 0 were refused). So only `"localhost:*"` allows it |
+| one rule per port, 1000 / 4000 / 8000 / 16384 ports | compiles in 0.04 s / 0.5 s / 2 s / 10 to 14 s: the time grows with the square of the count |
+| 8000 filters in a single rule; 16384 ports for two operations | `profile compilation failed`; `sandbox_apply: Invalid argument` after 22 s. The ephemeral range can be listed once, not twice |
+| `"localhost"` against the machine's other addresses | it matches them: a listener on the LAN address was reached with `localhost:*`, and a server inside could bind `0.0.0.0` and the LAN address |
+
+So a rule can say "this port", and nothing else: not a range, not an address, not "the ports this sandbox bound". SBPL is Scheme, so the profile writes each range with a loop (`connect-to`, `listen-on`) that adds one rule per port.
+
+**What the workload needed** (wrangler 4.145, vite 7.3, Playwright 1.63; sockets listed with `lsof` on the process tree, denials read from the system log):
+
+| Tool | Ports | With `--agent-ports` only |
+|---|---|---|
+| a node server on a named port; `vite preview`; `vite` dev with its HMR websocket (same port) | the one named | works |
+| Chromium under Playwright, `playwright test` with a `webServer` | none: Playwright drives Chromium over a pipe | works |
+| `node --inspect` | 9229 unless told otherwise | works when the port is in `--agent-ports`, else `operation not permitted` |
+| anything that listens on port 0 | one the kernel picks | `listen EPERM` |
+| `wrangler dev` | the app port and the inspector port, both settable (`--port`, `--inspector-port`), **and five the kernel picks**: two in node (miniflare's loopback servers, `listen(0)` hard-coded) and three in the second workerd, with workerd connecting to them | fails: `listen EPERM: operation not permitted 127.0.0.1`. With bind opened and connect still limited to the named ports it starts and then never answers (13,637 denials of `workerd network-outbound remote:*:<ephemeral port>` in one attempt) |
+
+No flag or variable pins wrangler's five ports, and the loader trick that could move a port-0 bind into a range (`DYLD_INSERT_LIBRARIES`) does not survive `/usr/bin/env` or `/bin/sh` (measured: the variable is gone in the child), which every `npx` and npm script passes through. So `wrangler dev` needs `--ephemeral-ports`.
+
+**What `--ephemeral-ports` costs, stated plainly.** It is not least privilege; it is the tightest rule Seatbelt can hold that still runs `wrangler dev`:
+
+- The command can connect to **every** port in the kernel's ephemeral range (49152 to 65535 here, read from `net.inet.ip.portrange.*` at start), its own or not. On a bench machine that includes other runs' miniflare and workerd internals. Fixed ports stay closed: other runs' dev servers on 8787, the harness's services, databases (tests/sandbox.rs pins both halves).
+- The command can bind and listen on any loopback port, since a bind to port 0 cannot be allowed any other way.
+- Starting takes about 10 s longer (16384 rules; measured 9.6 to 10.6 s against 0.4 s without), and each connection about 0.35 ms longer (0.11 ms to 0.46 ms). Narrowing the machine's ephemeral range (`sysctl net.inet.ip.portrange.first` and `hifirst`, as root) would shrink both the gap and the delay; that was not tried here.
+- wrangler picks its inspector port itself (9229, or the next free one) unless given `--inspector-port`, and fails to become ready when it cannot connect to it. Give it one from `--agent-ports`.
+
+**Inbound.** Nothing stops another process on the machine from connecting to the command's server: Seatbelt checks the command's bind and listen, not who connects (measured: a client outside the sandbox was served). Because `"localhost"` matches every address of the machine, the command can also bind `0.0.0.0` or the LAN address on a port it was given, and with `--ephemeral-ports` on any port; whether another machine can then reach it depends on the machine's firewall and was not tested from another machine. No held-out data is exposed this way, but it is a way in for an outside party.
+
+**What would close the gap.** Not a loopback alias per run: Seatbelt refuses any address in a rule (above), and `127.0.0.2` cannot even be bound without `ifconfig lo0 alias` as root (measured: `Can't assign requested address`). What Linux has is a network stack per sandbox, and macOS has no unprivileged equivalent. The options are to run the macOS agent inside a Linux VM and use the bubblewrap path there, or to get wrangler to stop using port 0. Neither was tried here.
 
 ## How the macOS allow-list was measured
 
@@ -104,7 +151,7 @@ On macOS 26.6, with node 24 from nvm, git from Xcode, and the browser cache the 
 2. Remove each rule in turn and rerun the whole workload. 22 were needed; 34 were not (among them every Apple service Chromium asked for: window server, pasteboard, launch services, tccd and six more).
 3. The 22 alone pass the workload but break ordinary shell use (`ls: command not found`, because `/bin` could not be stat-ed). So a second set of checks, everyday commands an agent runs, decided the rest: remove each remaining rule, rerun the checks, keep it only if one failed. That brought back `/bin`, `signal (target same-sandbox)`, `/dev/urandom`, `/private/var/select`, `/private/etc/hosts`, the account-lookup service, and added `/dev/fd`.
 
-Kept without a failing check, as judgement: `/dev/zero` and `/dev/random` (no data in them), `/private/etc/localtime` with its zone data (correct local time), `/private/etc/ssl` (curl prints a configuration error without `openssl.cnf`), `network-bind` on loopback.
+Kept without a failing check, as judgement: `/dev/zero` and `/dev/random` (no data in them), `/private/etc/localtime` with its zone data (correct local time), `/private/etc/ssl` (curl prints a configuration error without `openssl.cnf`).
 
 Found on the way:
 
@@ -123,20 +170,21 @@ cargo clippy --all-targets -- -D warnings        # kept at zero warnings
 | File | Tests | What |
 |---|---|---|
 | tests/policy.rs | 15 | path resolution, own_dir and `--ro` validation, missing paths, ancestors |
-| tests/seatbelt.rs | 12 | the profile text: deny default, own_dir last, loopback only, closed services, quoting |
+| tests/seatbelt.rs | 17 | the profile text: deny default, own_dir last, no network rule unless a port is named, one TCP loopback port per rule, closed services, quoting |
+| tests/ports.rs | 7 | `--agent-ports` values, merging ranges, the limit, the command line |
 | tests/bwrap.rs | 10 | the bwrap argv against a faked host layout: empty root, order of mounts, the bridge |
 | tests/proxy.rs | 18 | host matching, CONNECT parsing, 200/403/502 over real sockets, logging, the `proxy` command |
 | tests/bridge.rs | 4 | both halves of the bridge over real sockets, and `agent-sandbox inner` as bubblewrap would run it |
 | tests/presets.rs | 4 | presets.toml: contents, validity, github stays blocked |
 | tests/toolchain.rs | 9 | finding tools on `PATH`, install roots, the proxy environment, exit codes |
-| tests/sandbox.rs | 23 on macOS, 25 on Linux | the built binary under the real enforcer |
+| tests/sandbox.rs | 28 on macOS, 26 on Linux | the built binary under the real enforcer |
 
 tests/sandbox.rs builds a stand-in bench layout in a directory named `agent-sandbox-test-<pid>-<n>` under the home directory (removed afterwards) and checks, inside the sandbox:
 
 - unreadable: another run's file, a file in a stand-in repository, `package.json` and `node_modules` above the run (and node cannot `require` a package from there), a file written to `/tmp` and to the per-user temp directory from outside, the home directory's listing, `~/.ssh`, `~/.dbench` and other private directories. Each canary is first read without the sandbox, so the test cannot pass because the canary was missing.
 - unwritable: everything outside own_dir.
 - working: the workspace, `$TMPDIR`, `mktemp`, exit status, signals, everyday shell tools, git, node, a command reached through a symlink on `PATH`, output to a log file outside the run.
-- network: a host loopback port named with `--host-port` is reachable; a connection to another machine is refused by the sandbox itself; a host that is not allowed gets 403 from the proxy and is logged.
+- network: a host loopback port named with `--host-port` is reachable and the proxy is; a listener outside the sandbox on a port that was not named is not, on loopback or on the machine's other address, on a fixed port or one the kernel picked; the command serves on and reaches a port given with `--agent-ports`, and with `--ephemeral-ports` one the kernel picks; on macOS a port it was not given cannot be bound, and `--ephemeral-ports` opens the ephemeral range and no fixed port; a connection to another machine is refused by the sandbox itself; a host that is not allowed gets 403 from the proxy and is logged.
 - `online_*` (skipped with a reason when registry.npmjs.org cannot be reached): `npm install` through the proxy with only the `npm` preset; a direct connection to the registry is still refused; and the harness's preflight workload in one sandbox: `npm install`, `vite build`, `wrangler dev`, `playwright install`, Chromium loading the page. The Chromium step is skipped with a reason if the machine has no browser cache or not the revision the installed Playwright wants.
 
 A test skips only when the machine has no sandbox tool, lacks the program the test is about, or (for `online_*`) is offline, and prints `SKIP <test>: <reason>`.
@@ -169,6 +217,7 @@ agent-sandbox run --own-dir <own_dir> \
     --ro <the agents' browser cache> --ro <dbench's tools directory> \
     --preset npm [--preset claude] \
     --host-port <model server or meter proxy port> \
+    --agent-ports <the run's own ports> --ephemeral-ports \
     --proxy-log <run directory>/egress.jsonl \
     -- <cmd…>
 ```
@@ -176,6 +225,8 @@ agent-sandbox run --own-dir <own_dir> \
 `SANDBOX_DENY`, `outside_packages()`, `USER_TEMP_OPEN` and `hostenv.bwrap_wrap()` are then not needed: nothing they name is reachable.
 
 What must change with it, each seen while testing:
+
+- **Ports.** Give each run ports of its own for its dev servers and name them with `--agent-ports`: at least the app port and one for wrangler's inspector, plus the acceptance suite's (`ACCEPT_PORT` and the one after it). Tell the agent which they are; a server it starts on any other port fails with `EPERM` on macOS. `--ephemeral-ports` is needed wherever `wrangler dev` runs, and costs about 10 s at the start of each sandbox on macOS, so leave it off for commands that do not serve. `preflight.py` runs `wrangler dev --port 18899` with no `--inspector-port`: add one and name both ports. Two runs on one Mac that are given the same port can reach each other's server on it.
 
 - **npm's cache.** `agent_env` points `npm_config_cache` at the user's `~/.npm`, which the sandbox closes. Leave it unset (it then lives in the run's `agent-home/.npm`). A cache shared and writable between runs is a channel between them. Cost: each run downloads its packages again.
 - **Playwright's browsers.** Give each run a browsers directory of its own, inside own_dir, holding symlinks to the browser directories of the shared cache; point `PLAYWRIGHT_BROWSERS_PATH` at it and pass the shared cache with `--ro`. `playwright install` then takes its lock and writes its bookkeeping in the run's directory, finds every browser complete, and downloads nothing. Proven by the workload test.
