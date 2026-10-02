@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
 import {
@@ -35,8 +36,15 @@ export interface BoardViewportProps {
   onEndPan(): void;
   onZoomStep(dir: 'in' | 'out'): void;
   onReset(): void;
+  /** Double-click on empty board space at a screen point (relative to surface). */
+  onCreateStickyAt?(p: Point): void;
+  /** A press on empty board space that did not pan (a plain click). */
+  onEmptyClick?(): void;
   children?: ReactNode;
 }
+
+/** Screen movement at or beyond which a press is a pan, not an empty click. */
+const CLICK_MOVE_SLOP_PX = 3;
 
 /**
  * The full-window input surface and rendering of the infinite board: a dot grid
@@ -55,12 +63,16 @@ export const BoardViewport = forwardRef<HTMLDivElement, BoardViewportProps>(
       onEndPan,
       onZoomStep,
       onReset,
+      onCreateStickyAt,
+      onEmptyClick,
       children,
     },
     ref,
   ) {
     const surfaceRef = useRef<HTMLDivElement | null>(null);
     const [panning, setPanning] = useState(false);
+    const panStart = useRef<Point | null>(null);
+    const movedRef = useRef(false);
 
     const setSurface = useCallback(
       (node: HTMLDivElement | null) => {
@@ -91,18 +103,50 @@ export const BoardViewport = forwardRef<HTMLDivElement, BoardViewportProps>(
       if (e.button !== 0 && e.pointerType === 'mouse') return;
       e.currentTarget.setPointerCapture?.(e.pointerId);
       setPanning(true);
+      panStart.current = { x: e.clientX, y: e.clientY };
+      movedRef.current = false;
       onBeginPan(toLocal(e.clientX, e.clientY));
     };
 
     const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!panning) return;
+      const start = panStart.current;
+      if (start && !movedRef.current) {
+        if (
+          Math.hypot(e.clientX - start.x, e.clientY - start.y) >=
+          CLICK_MOVE_SLOP_PX
+        ) {
+          movedRef.current = true;
+        }
+      }
       onPanMove(toLocal(e.clientX, e.clientY));
     };
 
-    const stopPan = () => {
+    const stopPanning = () => {
       if (!panning) return;
       setPanning(false);
+      panStart.current = null;
+      const wasClick = !movedRef.current;
+      movedRef.current = false;
       onEndPan();
+      return wasClick;
+    };
+
+    const handlePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+      // A press on empty space that never panned is an empty click: deselect.
+      const wasClick = stopPanning();
+      if (wasClick && isBoardSurface(e.target)) onEmptyClick?.();
+    };
+
+    const handlePointerCancel = () => {
+      stopPanning();
+    };
+
+    const handleDoubleClick = (e: ReactMouseEvent<HTMLDivElement>) => {
+      // Only empty board space creates a note; a note's own dblclick edits and
+      // stops propagation (TC-35).
+      if (!isBoardSurface(e.target)) return;
+      onCreateStickyAt?.(toLocal(e.clientX, e.clientY));
     };
 
     // --- Wheel (non-passive so we can stop page scroll / page zoom) ---------
@@ -210,9 +254,10 @@ export const BoardViewport = forwardRef<HTMLDivElement, BoardViewportProps>(
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        onPointerUp={stopPan}
-        onPointerCancel={stopPan}
-        onLostPointerCapture={stopPan}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onLostPointerCapture={handlePointerCancel}
+        onDoubleClick={handleDoubleClick}
       >
         <div
           data-testid="world-layer"

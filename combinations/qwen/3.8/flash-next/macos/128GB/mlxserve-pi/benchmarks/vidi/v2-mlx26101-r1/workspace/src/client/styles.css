@@ -22,3 +22,79 @@ button:focus-visible {
 button:disabled {
   opacity: 0.45;
 }
+
+/* --- Sticky notes (story 2) ------------------------------------------------ */
+.sticky-note {
+  box-sizing: border-box;
+  border-radius: 2px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+  color: #1b1d23;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.sticky-note[data-selected='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: -1px;
+}
+
+.sticky-note:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -1px;
+}
+
+.sticky-text {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 12px;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: center;
+  line-height: 1.25;
+  font-family: inherit;
+}
+
+/* The editing textarea: transparent so the note colour shows through. */
+.sticky-editing {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  cursor: text;
+  user-select: text;
+}
+
+/* Fade hint at the bottom edge when text overflows at the smallest size. */
+.sticky-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.14) 100%
+  );
+}
+
+.sticky-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.7);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}

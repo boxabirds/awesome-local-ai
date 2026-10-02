@@ -7,6 +7,8 @@ import { cleanup } from '@testing-library/react';
 const g = globalThis as unknown as {
   PointerEvent?: unknown;
   ResizeObserver?: unknown;
+  requestAnimationFrame?: (cb: FrameRequestCallback) => number;
+  cancelAnimationFrame?: (id: number) => void;
 };
 
 // Pointer events: jsdom has no PointerEvent constructor, so reuse MouseEvent.
@@ -19,6 +21,15 @@ if (!Element.prototype.setPointerCapture) {
   Element.prototype.releasePointerCapture = () => {};
   Element.prototype.hasPointerCapture = () => false;
 }
+
+// Run animation-frame callbacks synchronously so a note drag applies its
+// rAF-throttled moveObject write within the same fireEvent, making drag tests
+// deterministic without fake-timer plumbing.
+g.requestAnimationFrame = (cb: FrameRequestCallback) => {
+  cb(0);
+  return 1;
+};
+g.cancelAnimationFrame = (_id: number) => {};
 
 // A ResizeObserver that reports a fixed laptop viewport synchronously on
 // observe, so useViewportSize has a deterministic size.

@@ -79,3 +79,44 @@ TC-24 "zoom over a dot" is verified by hovering the pointer over the origin
 marker (a distinctive, locatable grid feature) and asserting it stays under the
 pointer ±1px while `visualViewport.scale` stays 1; dots are a CSS background
 pattern with no individual element to track.
+
+---
+
+# Notes — story 2 (Capture ideas on sticky notes and rearrange them)
+
+## Board model / schema
+- `board-model.ts` stores one `Y.Map` "meta" and one `Y.Map` "objects"; a sticky
+  is `{ id, type:'sticky', x, y, z, color, text:Y.Text }`. `snapshot(doc)` returns
+  notes sorted by `(z, id)` so every client stacks them identically.
+- `setStickyColor` returns `true` even when the colour is unchanged, matching the
+  design's literal contract (`(doc,id,color) => boolean` = "the note exists").
+  `createSticky` returns `''` (falsy) on non-finite coordinates.
+
+## Stable DOM order vs. z-index (bug found by TC-39)
+`snapshot` sorts by `z`, so `bringToFront` would reorder the array and React would
+relocate the dragged note's DOM node, which fires `lostpointercapture` and aborts
+the drag mid-gesture. Fix: `App` renders notes in a DOM order that never changes
+(stable by `id`) and expresses stacking purely through CSS `zIndex: note.z`. A
+`bringToFront` now only changes a style number, so the note keeps its pointer
+capture while dragging. This preserves the CRDT-deterministic `snapshot` order
+(unit-tested) and the visual z-ordering.
+
+## Per-note toolbar hit area
+The `1/zoom` counter-scaled wrapper sets `pointer-events:none` so it never blocks
+the board; the `NoteToolbar` itself sets `pointer-events:auto` to stay clickable.
+`.sticky-note` no longer sets `overflow:hidden` (the `.sticky-text` box clips its
+own content), otherwise the toolbar that floats above the note's top edge would
+be clipped and unclickable.
+
+## Test-mode board-doc hook
+`App` also exposes `window.__vidi6Board` (the live `Y.Doc`) when
+`import.meta.env.MODE === 'test'`, so component tests can simulate model-level
+events (a note deleted by a remote user mid-drag / mid-edit, TC-37). Production
+builds contain no reference to it. Component tests additionally override
+`requestAnimationFrame` to fire synchronously so a drag's rAF-throttled
+`moveObject` write lands inside the same `fireEvent` (deterministic, no timers).
+
+## Browser coverage
+Same environment limitation as story 1: only Chromium can launch in this sandbox,
+so the default run is Chromium and Firefox/WebKit are opted in elsewhere
+(`E2E_BROWSERS=...`). No sticky test cases were removed or weakened.
