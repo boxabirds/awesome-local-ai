@@ -45,7 +45,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [MTPLX](mtplx.md) | blocked | M5 Max | memory admission deadlocks long agent sessions (507); recheck on 2.14 |
 | [BeeLlama.cpp](beellama.md) | candidate | RTX 4090 (Ubuntu) | llama.cpp fork: KV cache in fewer bits for the same context; MTP/DFlash speculation |
 | [TurboQuant](turboquant.md) | candidate | RTX 4090 (Ubuntu) | llama.cpp fork: turbo KV cache (no re-quant) and Config I TQ4_1S weights (re-quant; merge with Unsloth Dynamic 3.0 to test) |
-| [Strata](strata.md) | gated | RTX 4090 | Flash-Next (125B MoE) on one 4090 by offloading experts to RAM |
+| [Strata](strata.md) | gated | RTX 4090 | Flash-Next (125B MoE) on one 4090 by offloading experts to RAM; engine checks passed at 131k context, harness backend next |
 | [Flash-Next Coder](flash-next-coder.md) | candidate | RTX 4090 | ISTA-DASLab's Flash-Next with half the experts removed, for code; about 30 GB in memory; runs on Strata |
 | [gufo 0.5](gufo-0.5.md) | running | Strix Halo | pinned to 0.5.0; smoke passed; five recorded runs under way |
 | [mlx-serve 26.10.1](mlx-serve-26.10.1.md) | gated | M5 Max | one release ahead of the old pin; long sessions stay cached, a looping fix; smoke story next |
