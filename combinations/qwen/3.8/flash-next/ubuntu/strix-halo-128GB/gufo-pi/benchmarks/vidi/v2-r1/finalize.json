@@ -37,5 +37,24 @@
     "from": "rescore/vidi-v2.0-pre2/rescore.json",
     "rescored_at": "2026-09-30T10:28:29Z",
     "note": "made from an existing re-score on 1 Oct 2026 by migrate_rescore_to_record.py (monitor entry A-030), not a fresh re-score: the run ended before finalize.json existed"
+  },
+  "repair": {
+    "repaired": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ],
+    "left": {},
+    "accounting_version": 4,
+    "harness_commit": "071cf1e1",
+    "at": "2026-10-02T03:22:40Z"
   }
 }
