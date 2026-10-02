@@ -1,0 +1,16 @@
+/* Global layout: give the document a real viewport-filling layout.
+   Without this, the body has zero height (all app content is
+   position:fixed) and Chromium's hit-testing of trusted pointer events
+   becomes unreliable (events occasionally land with a null target, which
+   kills in-progress drags). */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  overscroll-behavior: none;
+}
