@@ -1,0 +1,22 @@
+{
+  "repair": {
+    "repaired": [
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12"
+    ],
+    "left": {
+      "1": "no time split; recomputed from the full log, still so",
+      "2": "no time split; recomputed from the full log, still so",
+      "3": "no time split; recomputed from the full log, still so",
+      "4": "no time split; recomputed from the full log, still so",
+      "5": "no time split; recomputed from the full log, still so"
+    },
+    "accounting_version": 4,
+    "harness_commit": "071cf1e1",
+    "at": "2026-10-02T04:37:08Z"
+  }
+}
