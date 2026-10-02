@@ -1,0 +1,17 @@
+# build outputs
+dist/
+.wrangler/
+
+# dependencies
+node_modules/
+
+# playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# misc
+*.log
+.DS_Store
+.tmp/
+.wrangler-dev.log

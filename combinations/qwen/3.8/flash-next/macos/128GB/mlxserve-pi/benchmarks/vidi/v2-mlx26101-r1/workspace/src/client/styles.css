@@ -1,0 +1,24 @@
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* Visible focus ring for keyboard users on the zoom controls. */
+button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.45;
+}
