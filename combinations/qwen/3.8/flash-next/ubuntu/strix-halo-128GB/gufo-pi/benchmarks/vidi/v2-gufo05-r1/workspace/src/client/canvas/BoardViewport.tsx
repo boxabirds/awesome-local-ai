@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 
 import {
+  DRAG_THRESHOLD_PX,
   GRID_SPACING_WORLD,
   WHEEL_LINE_DELTA_PX,
   WHEEL_PAGE_DELTA_PX,
@@ -102,14 +103,33 @@ function releasePointer(element: HTMLElement, pointerId: number): void {
   }
 }
 
-export function BoardViewport({ children }: { children?: ReactNode }) {
+export interface BoardViewportProps {
+  children?: ReactNode;
+  /**
+   * Double-click on empty board space (never on an object), with the point in
+   * screen coordinates relative to the viewport.
+   */
+  onEmptyDoubleClick?(point: { x: number; y: number }): void;
+  /**
+   * A press on empty board space that ended without panning: the board was
+   * clicked, not dragged.
+   */
+  onEmptyClick?(): void;
+}
+
+export function BoardViewport({ children, onEmptyDoubleClick, onEmptyClick }: BoardViewportProps) {
   const nav = useCameraContext();
   const viewportRef = useRef<HTMLDivElement | null>(null);
   /** Latest nav, so native listeners are attached once and never go stale. */
   const navRef = useRef(nav);
   navRef.current = nav;
+  /** Latest empty-click behaviour, for the same reason. */
+  const emptyClickRef = useRef(onEmptyClick);
+  emptyClickRef.current = onEmptyClick;
   /** Baseline of the current Safari pinch, so scale deltas compound correctly. */
   const gestureScaleRef = useRef(1);
+  /** Where the current press on empty space started, and whether it moved. */
+  const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   const localPoint = useCallback((clientX: number, clientY: number) => {
     const rect = viewportRef.current?.getBoundingClientRect();
@@ -121,13 +141,24 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
     if (event.button !== 0) return;
     // Only empty board space starts a pan; objects (story 2) stop propagation.
     if (event.target !== viewportRef.current) return;
+    const point = localPoint(event.clientX, event.clientY);
+    pressRef.current = { x: point.x, y: point.y, moved: false };
     capturePointer(event.currentTarget, event.pointerId);
-    nav.beginPan(localPoint(event.clientX, event.clientY));
+    nav.beginPan(point);
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!nav.isPanning) return;
-    nav.panMove(localPoint(event.clientX, event.clientY));
+    const point = localPoint(event.clientX, event.clientY);
+    const press = pressRef.current;
+    if (press && !press.moved) {
+      const distance = Math.hypot(point.x - press.x, point.y - press.y);
+      // Below the threshold the camera does not move, so a click on empty space
+      // never nudges the board (the same threshold notes use for their drags).
+      if (distance < DRAG_THRESHOLD_PX) return;
+      press.moved = true;
+    }
+    nav.panMove(point);
   };
 
   const handlePointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -135,6 +166,10 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
     releasePointer(event.currentTarget, event.pointerId);
     // The board stays where it was when the drag ended or was interrupted.
     nav.endPan();
+    const press = pressRef.current;
+    pressRef.current = null;
+    // A press on empty space that never became a pan deselects everything.
+    if (press && !press.moved) emptyClickRef.current?.();
   };
 
   // --- Wheel, trackpad and Safari gesture --------------------------------
@@ -257,6 +292,11 @@ export function BoardViewport({ children }: { children?: ReactNode }) {
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
       onLostPointerCapture={handlePointerEnd}
+      onDoubleClick={(event) => {
+        // Only empty board space: an object stops the event before it gets here.
+        if (event.target !== viewportRef.current) return;
+        onEmptyDoubleClick?.(localPoint(event.clientX, event.clientY));
+      }}
     >
       <div data-testid="world-layer" className="board-world" style={worldLayerStyle(camera)}>
         <div data-testid="origin-marker" className="board-origin" aria-hidden="true">

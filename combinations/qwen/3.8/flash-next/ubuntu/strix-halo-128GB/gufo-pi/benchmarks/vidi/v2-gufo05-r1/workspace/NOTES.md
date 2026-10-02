@@ -1,7 +1,8 @@
 # Notes
 
-Decisions and judgement calls made while implementing story 1. The spec (`spec/`) is
-read-only, so anything that needed interpreting is recorded here.
+Decisions and judgement calls made while implementing stories 1 and 2 (story 2's start
+below the `## Story 2` heading). The spec (`spec/`) is read-only, so anything that
+needed interpreting is recorded here.
 
 ## Toolchain
 
@@ -108,7 +109,132 @@ linker's cache and skips an engine with a printed reason:
 engine-specific (no Chromium-only APIs), so they should pass in Firefox and WebKit on a
 machine that can start those browsers — that has not been verified here.
 
+## Story 2: board model
+
+- **Test-first order**: tasks 1 and 3 (the unit tests) were written and seen red/green
+  before the code they test; task 2's model came after task 1's tests, task 4's
+  `StickyText` after task 3's tests. The component tests (task 7) were written after
+  the components of tasks 5–6, which is the one place where the task list's order was
+  not followed step by step — every behaviour listed there is nevertheless covered.
+- **`createSticky(doc, at)` takes the centre** of the new note (double-click point or
+  view centre) and stores the top-left, `at − STICKY_SIZE_WORLD / 2`, because
+  `StickyNote` renders at `(x, y)`. `moveObject` also takes the top-left.
+- **Non-finite coordinates are rejected**: `moveObject` returns `false` and writes
+  nothing; `createSticky` cannot fail partially, so it returns the empty string (and
+  `App` then does not select or edit anything). TC-39.
+- **`bringToFront` on the note that is already topmost returns `false` and emits no
+  update.** The design's drag test asks for exactly one update when a note below is
+  dragged, and the `z = maxZ + 1` rule is still what the function does; a note that is
+  already on top does not need a new slot.
+- **`snapshot` returns a frozen array sorted by `(z, id)`**, so the id breaks a tie
+  between equal `z` values and React's `key` order is stable. Text is copied into the
+  snapshot, which is what lets the fit logic re-run on a text change.
+- **`useBoardDoc` publishes `[doc, notes]`** as one memoised tuple: `useSyncExternalStore`
+  compares `getSnapshot()` by identity, and a component always needs the doc as well as
+  the notes, so both live in the same store. `observeDeep` fires *after* the transaction
+  has been applied, so reading the map inside the listener is safe.
+- `LOCAL_ORIGIN` is exported from `board-model` (the design places the origin constant
+  there) and used by the editor.
+
+## Story 2: notes, selection and creation
+
+- **Selection and editing live in `useSelection`** in `App`, never in the document, and
+  at most one note is ever selected or edited. Ending an edit takes `"selected"` or
+  `"unselected"` so the component that ends it (Escape versus a click outside) decides
+  what is left selected.
+- **`App` also clears the selection when the selected note disappears** from the
+  snapshot. Deleting a note from another tab would otherwise leave the outline,
+  the toolbar and the keyboard pointing at a note that is gone.
+- **`BoardViewport` stays object-agnostic**: it gained `onEmptyDoubleClick(point)` and
+  `onEmptyClick()` instead of importing sticky-note behaviour. Both fire only when the
+  event's target is the viewport itself, so an object that stops propagation is enough
+  to keep the gesture.
+- **A press on empty space shorter than `DRAG_THRESHOLD_PX` no longer moves the
+  camera** (it used to pan by the full jitter). That is what makes "click empty space to
+  deselect" leave the camera exactly where it was, and the notes use the same
+  threshold, so one number decides when a press became a drag. Story 1's tests still
+  pass with it.
+- **The note's toolbar clears the selection through `onEndEdit('unselected')`** after it
+  deletes the note, instead of adding a prop to the design's `StickyNote` signature.
+- **Tab reachability**: a note is `tabIndex={0}` and focusing it selects it, so Tab +
+  Enter edits a note without any pointer. `Enter`, `Delete` and `Backspace` are handled
+  once, on `window` in `App`, so a clicked note and a tabbed-to note behave identically.
+- **Long-press selects**: `contextmenu` on a note is prevented and selects it. A touch
+  long-press produces it in Chromium, and there is nothing else to do on a board with
+  no clipboard.
+- **Drag maths**: the delta is measured in client pixels and divided by the zoom, from
+  the note's position at pointer-down (not from its previous written position), so a
+  drag cannot accumulate rounding error, and `pointerup` writes the final position once
+  more so the note lands exactly under the pointer. `bringToFront` runs once, on the
+  transition into Dragging.
+
+## Story 2: text editing
+
+- The editor is an **uncontrolled textarea**: React re-renders would reset the value in
+  the middle of an IME composition. `onChange` (and `compositionend`) push the DOM value
+  through `clampToLimit` and `applyTextDiff`; when characters are dropped the caret is
+  restored to the end of what is really in the note.
+- **Fit is measured with `scrollHeight` against `clientHeight`** of the text element, so
+  CSS owns the box (12 world-unit padding, `overflow: hidden`, `white-space: pre-wrap`)
+  and JS only owns the font size. The size is world units, so the note's text scales
+  with the board — which is why zoom is deliberately not an input to the fit.
+- **The bottom fade** is a `sticky-note__fade` element rendered by whoever measured the
+  overflow: the note in display mode, the editor while typing (where `overflow` is true
+  only at the 10 px floor).
+- **A pointerdown outside the note** ends editing through a document-level capture
+  listener in the editor (it compares the closest `[data-sticky-note]` ancestor), because
+  clicking another note or a toolbar has to end editing too and the note itself keeps the
+  click.
+- jsdom specifics for the component tests: there is no layout (everything measures 0),
+  no pointer capture (the harness routes moves to the element that received the press,
+  like capture does) and React's value tracker swallows `element.value = …`, so the
+  harness writes through the prototype setter before firing `input`.
+- **`App` takes an optional `doc` prop** so a component test can inspect the very
+  document the board is editing.
+
 ## Out of scope
 
 Stories 6 and 13–17 (presence, offline device copies, sign-in, dashboard, comments,
 export) are not implemented and nothing was added for them.
+
+## Story 2 decisions
+
+- **`Enter` inside the editor writes a newline; `Escape` or a click outside ends editing**
+  (prd.md:48, design.md:424, tasks.md:86). The same key on a *selected note that is not
+  being edited* starts editing (prd.md:90). Because both readings of "Enter" are live on the
+  window, the window handler stands down whenever the focused element takes its own keys —
+  a text field, or a button or link. Without that, pressing Enter on the delete bin pressed
+  the bin *and* asked the board to start editing the note behind it.
+- **`createSticky(doc, at)` takes the *centre*.** The stored position is the top-left, as
+  `BoardObject` and the renderer need it, so the note is placed at `at - STICKY_SIZE_WORLD/2`
+  and the click point ends up in the middle of the note. The double-click handler passes the
+  raw world point without knowing the size.
+- **The press is followed on `window`, not on the note.** Bringing a note to the front moves
+  its DOM node to the end of the world layer, and the browser drops pointer capture when a
+  node is re-inserted — the drag died on the first move. Listening above the tree survives
+  the raise, and also survives the pointer leaving the note.
+- **The note does not clip; its text does.** `overflow: hidden` on `.sticky-note` also cut
+  off the toolbar, which floats above the note and is a child of it (the design puts the
+  toolbar inside the note, and counter-scales it by `1/zoom`). `.sticky-note__text` and the
+  textarea clip the text, which is the only thing that can overflow the note box.
+- **`useSelection` holds selection and editing**, as React state, never in the shared
+  document: they are per-user. `endEdit(next)` takes what the selection should be
+  afterwards — `'selected'` for Escape/Enter, `'unselected'` for a click outside and for the
+  delete bin — because the editor cannot know who is asking.
+- **`Enter`/`Delete` are handled once on `window`** (in `App`) rather than per note: a note
+  focused with Tab and a note clicked with the mouse then run exactly the same code, and the
+  handler steps aside whenever the keystroke belongs to a text field.
+- **Fit is measured with `scrollHeight > clientHeight`** on the element that holds the text,
+  at the padding the CSS gives it (12 world units), stepping down through
+  `STICKY_FONT_SIZES`. The CSS owns the geometry, the JS only picks the font size, so a
+  change to the padding cannot silently change what fits. The text is never truncated in the
+  document: only what is *shown* is clipped, and the fade marks it.
+- **The counter is scaled back by `1/zoom` inside the world layer**, so it stays readable at
+  any zoom without a second DOM. Same for the toolbar.
+- **Notes expose `data-note-x/-y/-z`, `data-color`, `data-text-length`, `data-selected`** for
+  the browser tests, in the same spirit as the camera attributes from story 1: the tests
+  compare what the document says with what the browser painted, instead of trusting either
+  one alone.
+- **The `App` accepts an optional `doc`**, so a component test can inspect the real document
+  while driving the real component tree; the production entry point passes nothing and gets
+  its own document.
