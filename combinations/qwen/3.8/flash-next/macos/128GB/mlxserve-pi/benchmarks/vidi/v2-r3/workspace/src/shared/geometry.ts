@@ -15,6 +15,16 @@ export interface Point {
   y: number;
 }
 
+/**
+ * A width and a height, in whatever units the code around it is in. It is a size
+ * rather than a place, which is why it is not a {@link Rect} with the place left
+ * out of it.
+ */
+export interface Size {
+  width: number;
+  height: number;
+}
+
 /** The 8 resize handles around a bounding box. */
 export type Handle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 
@@ -151,47 +161,40 @@ export function clampScale(
 ): Point {
   if (rects.length === 0) return { x: scale.x, y: scale.y };
 
-  let clampedX = scale.x;
-  let clampedY = scale.y;
+  // One scale is applied to both axes, so one number has to keep every object's
+  // width *and* height inside [minSize, maxSize]. Each object therefore
+  // contributes a floor — the smallest scale that leaves both its sides at or
+  // above its minimum — and a ceiling, the largest that leaves both at or below
+  // the maximum. The scale that satisfies everybody is the proposal pulled into
+  // the overlap of all those intervals: the largest floor and the smallest
+  // ceiling.
+  //
+  // The floor is the largest rather than the smallest because a scale below it
+  // puts somebody's box under its minimum. An aspect-locked object whose height
+  // is its short side is bounded by its height: taking the smaller floor would
+  // stop its width at the minimum and carry its height quietly underneath it,
+  // which is a minimum that was not kept.
+  let floor = 0;
+  let ceiling = Infinity;
 
   for (let i = 0; i < rects.length; i++) {
     const r = rects[i];
     const minSize = minSizes[i] ?? 0;
-
-    // Clamp against max size (growing)
-    if (clampedX > 1) {
-      const newW = r.width * clampedX;
-      if (newW > maxSize) {
-        clampedX = maxSize / r.width;
-      }
+    if (minSize > 0 && r.width > 0 && r.height > 0) {
+      floor = Math.max(floor, minSize / r.width, minSize / r.height);
     }
-    // Clamp against min size (shrinking)
-    if (clampedX < 1) {
-      const newW = r.width * clampedX;
-      if (newW < minSize) {
-        clampedX = minSize / r.width;
-      }
-    }
-    if (clampedY > 1) {
-      const newH = r.height * clampedY;
-      if (newH > maxSize) {
-        clampedY = maxSize / r.height;
-      }
-    }
-    if (clampedY < 1) {
-      const newH = r.height * clampedY;
-      if (newH < minSize) {
-        clampedY = minSize / r.height;
-      }
+    if (r.width > 0 && r.height > 0) {
+      ceiling = Math.min(ceiling, maxSize / r.width, maxSize / r.height);
     }
   }
 
-  // Use the most restrictive (smallest positive) scale for uniform scaling
-  // We want the scale closest to 1 that doesn't violate constraints
-  const finalX = Math.min(clampedX, clampedY);
-  const finalY = finalX;
+  // A proposal which asked for two different scales is one scale already, in the
+  // sense that a resize cannot have both: the more modest of the two is what is
+  // applied, and it is then pulled into the interval above.
+  const proposed = Math.min(scale.x, scale.y);
+  const applied = Math.min(Math.max(proposed, floor), ceiling);
 
-  return { x: finalX, y: finalY };
+  return { x: applied, y: applied };
 }
 
 /**

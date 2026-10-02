@@ -15,6 +15,11 @@ import { PenToolbar } from '../tools/PenToolbar';
 export interface ToolbarProps {
   /** Create a note at the centre of the visible board area and edit it. */
   onCreateSticky(): void;
+  /** Add pictures from this computer, through the system's own file dialogue
+   * (story 12). Like the Sticky note button it is an action and not a tool: it
+   * leaves the board in Select, because what it does is ask somebody to choose a
+   * file rather than change what the next drag means. */
+  onAddImages?(): void;
   /**
    * Which tool the board is in, and where a tool button puts it. Absent only when
    * a toolbar is rendered on its own, without a board behind it.
@@ -274,6 +279,31 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
             strokeLinejoin="round"
           />
           <path d="M15.5 11.5h-4v4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="toolbar-button toolbar-image-button"
+        data-testid="image-button"
+        aria-label="Image"
+        aria-disabled={props.disabled ? 'true' : undefined}
+        disabled={props.disabled === true}
+        title="Image – add a picture from this computer (I)"
+        onClick={() => {
+          props.onAddImages?.();
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+          <rect x="2.2" y="3.5" width="13.6" height="11" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <circle cx="6.4" cy="7.2" r="1.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <path
+            d="M3.4 13.2l3.7-3.9 2.6 2.6 2.3-2.1 2.6 2.9"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </button>
       {props.undo !== undefined ? <UndoButtons {...props.undo} /> : null}

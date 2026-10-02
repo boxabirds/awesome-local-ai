@@ -1302,3 +1302,202 @@ body,
    about it — where it is, how wide its line is, which colour — is a fact about this
    frame, so it is set where it is drawn and nothing here repeats it: a stylesheet
    that named the pen's colour would be a stylesheet that restyled a pen. */
+
+/* --- Story 12: pictures on the board ---------------------------------------
+   A picture is an object like any other, which the CSS says as little about as
+   possible: the box is positioned by the world layer's transform like every
+   other object's, and the only thing added here is how the states a picture can
+   be in look, and the two pieces of furniture the adding needs. */
+
+.image-object {
+  position: absolute;
+  box-sizing: border-box;
+  /* A picture is picked up with the pointer, like every other object on the board:
+     the world layer ignores the pointer and each object takes it back. */
+  pointer-events: auto;
+  cursor: grab;
+  user-select: none;
+  /* Not clipped. The picture itself never leaves its box (`object-fit: contain`,
+     sized to it), and the one thing that does need to hang over the edge of a small
+     picture is the sentence about its bytes and the buttons underneath the sentence:
+     a 40-pixel thumbnail is not a picture whose "Retry" should be out of reach. */
+  background: transparent;
+}
+
+/* A selected picture gets the same ring every other selected object gets, and
+   nothing else: the handles are drawn by the selection overlay, not here. */
+.image-object.is-selected {
+  box-shadow: var(--focus-ring);
+}
+
+.image-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The box was made from the picture's own ratio, so there is nothing to fit;
+     `contain` is the promise that a box which and a picture which disagree will
+     never be resolved by cutting the picture up. */
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* The shape the picture will have, painted before the picture does: the box the
+   file's ratio was turned into, so the placeholder is not a guess at it. */
+.image-placeholder {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(20, 20, 40, 0.05) 0 8px,
+    rgba(20, 20, 40, 0.11) 8px 16px
+  );
+}
+
+.image-uploading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #55556a;
+  font-size: 12px;
+}
+
+.image-uploading-text {
+  white-space: nowrap;
+}
+
+.image-progress {
+  width: 55%;
+  min-width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(20, 20, 40, 0.14);
+  overflow: hidden;
+}
+
+.image-progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  background: #4f8cff;
+  transition: width 120ms linear;
+}
+
+/* The three sentences about bytes that are not on this board. They are drawn over
+   the box the picture would have been in, because the box is the thing being
+   talked about. */
+.image-uploading,
+.image-status,
+.image-broken {
+  position: absolute;
+  /* Centred on the picture's box, and no smaller than a sentence and a button. A
+     picture keeps its own box — the place, the size, the shape the selection and the
+     resize act on are the object's, not this box's — and a person looking at a
+     thumbnail is still told what became of it, and can still press what they are
+     offered. At the picture's own size and above, this box is the picture's box. */
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: max(100%, 148px);
+  height: max(100%, 64px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px;
+  box-sizing: border-box;
+  background: rgba(250, 250, 250, 0.88);
+  color: #55556a;
+  font-size: 12px;
+  text-align: center;
+}
+
+.image-status-text,
+.image-broken-text {
+  margin: 0;
+}
+
+.image-retry {
+  font: inherit;
+  color: var(--board-ink);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.image-retry:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* The board while files are being dragged over it: the drop target said out loud.
+   It is not under the pointer, and it does not pretend to be. */
+.drop-highlight {
+  position: absolute;
+  inset: 12px;
+  z-index: 40;
+  border: 2px dashed #4f8cff;
+  border-radius: 10px;
+  background: rgba(79, 140, 255, 0.06);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 28px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.drop-highlight-label {
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #4f8cff;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+/* The file dialogue is opened by a click on a button and answered by an element
+   nobody sees. It is kept in the document rather than made on demand so that the
+   one honest way to ask for a file — the browser's own — is the only one used. */
+.image-file-input {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The refusals, at the bottom of the screen where they do not stand in front of
+   what they are about. */
+.toast-host {
+  position: absolute;
+  bottom: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.toast {
+  margin: 0;
+  max-width: min(80vw, 480px);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--board-ink);
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1.35;
+  box-shadow: var(--panel-shadow);
+}

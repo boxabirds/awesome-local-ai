@@ -448,3 +448,83 @@ export const STROKE_MIN_SIZE_WORLD = 4;
 export type ConnectorEndpoint =
   | { kind: 'attached'; objectId: string; fallback: Point }
   | { kind: 'free'; x: number; y: number };
+
+// --- Story 12: dropping images onto the board --------------------------------
+//
+// An image is two things: bytes in an object store, addressed by a key; and a
+// `type: 'image'` object on the board which carries that key once the bytes are
+// there (image.status_machine). Everything the board is prepared to accept is
+// written down here, in one place, so the client's refusal and the worker's
+// refusal cannot drift apart.
+
+/**
+ * Formats the board sniffs, uploads and paints (image.formats). Anything else —
+ * a PDF renamed `.png`, an SVG carrying a script — is refused by what its bytes
+ * say, not by what the file is called.
+ */
+export const IMAGE_ACCEPTED_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+] as const;
+
+export type ImageFormat = (typeof IMAGE_ACCEPTED_TYPES)[number];
+
+/** Largest image the board accepts, in bytes (image.max_size): 10 MB. */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Largest number of files one drop, paste or pick puts on the board (image.bulk). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/** Longest side of a freshly placed image, in board units (image.place_size). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** Smallest side of an image, in board units (image.resize). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** Gap between images laid out in a row, in board units (image.bulk). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/**
+ * An `uploading` object older than this shows "Image upload didn't finish"
+ * (image.unfinished): how long the board waits for a tab which might still be
+ * uploading before it says the upload did not finish.
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/**
+ * Assets are immutable — a key is a fresh id which never points anywhere else —
+ * so a browser may keep one for a year and never ask again.
+ */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/** Bytes read off the start of a file to work out what it really is (TC-01). */
+export const IMAGE_SNIFF_BYTES = 12;
+
+/**
+ * What the picture is called to somebody who cannot see it (TC-15). It is one
+ * word because it is one thing: the board has no idea what is in the file, and an
+ * alt text which guessed would be a caption written by the wrong person.
+ */
+export const IMAGE_ALT_TEXT = 'Image';
+
+/**
+ * The four sentences about where a picture's bytes are. They are here rather than
+ * in the component because the tests assert them and a message which drifted would
+ * be a message that stopped answering the question. `unfinished` is what the board
+ * says when the person who was uploading is no longer answering for the upload
+ * (image.unfinished); `unavailable` is what it says to everybody else about the
+ * same failed upload, and about a stored picture that will not load (image.unavailable).
+ */
+export const IMAGE_STATUS_TEXT: Readonly<Record<'uploading' | 'failed' | 'unfinished' | 'unavailable', string>> =
+  Object.freeze({
+    uploading: 'Uploading…',
+    failed: 'Upload failed',
+    unfinished: "Image upload didn't finish",
+    unavailable: 'Image unavailable',
+  });
+
+/** How often the shared clock moves, which is how often the board asks itself
+ *  whether an upload has outlived the patience it was given (image.unfinished). */
+export const IMAGE_CLOCK_TICK_MS = 30_000;

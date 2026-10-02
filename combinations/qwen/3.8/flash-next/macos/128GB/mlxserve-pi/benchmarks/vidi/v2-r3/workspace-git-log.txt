@@ -1,3 +1,46 @@
+commit ea2c6a2fbb2702b46ac9aeb130f1770bf6f2adb2
+vidi-agent  Fri Oct 2 11:30:45 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                               | 165 +++++++
+ src/client/board/Board.tsx             | 116 ++++-
+ src/client/board/Toolbar.tsx           |  30 ++
+ src/client/board/useTool.ts            |  55 ++-
+ src/client/canvas/BoardViewport.tsx    |  27 +-
+ src/client/images/DropHighlight.tsx    |  28 ++
+ src/client/images/uploadImage.ts       | 136 ++++++
+ src/client/images/useImageInsert.ts    | 449 +++++++++++++++++++
+ src/client/images/validateFiles.ts     |  99 +++++
+ src/client/objects/ImageObject.tsx     | 350 +++++++++++++++
+ src/client/objects/registry.tsx        |  26 ++
+ src/client/styles.css                  | 199 +++++++++
+ src/client/sync/identity.ts            |  34 ++
+ src/client/ui/Toast.tsx                | 118 +++++
+ src/client/ui/useNow.ts                |  65 +++
+ src/shared/board-model.ts              |  12 +-
+ src/shared/config.ts                   |  80 ++++
+ src/shared/geometry.ts                 |  67 +--
+ src/shared/image-format.ts             | 100 +++++
+ src/shared/objects/image.ts            | 345 +++++++++++++++
+ src/shared/routes.ts                   |  33 ++
+ src/worker/assets.ts                   | 187 ++++++++
+ src/worker/index.ts                    |  32 ++
+ tests/component/ImageInsert.test.tsx   | 762 +++++++++++++++++++++++++++++++++
+ tests/component/ImageObject.test.tsx   | 395 +++++++++++++++++
+ tests/e2e/helpers/images.ts            | 298 +++++++++++++
+ tests/e2e/images.spec.ts               | 494 +++++++++++++++++++++
+ tests/fixtures/tiny.gif                | Bin 0 -> 138 bytes
+ tests/fixtures/tiny.jpg                | Bin 0 -> 950 bytes
+ tests/fixtures/tiny.png                | Bin 0 -> 335 bytes
+ tests/fixtures/tiny.webp               | Bin 0 -> 258 bytes
+ tests/integration/image-assets.test.ts | 365 ++++++++++++++++
+ tests/unit/image-format.test.ts        | 174 ++++++++
+ tests/unit/image-model.test.ts         | 484 +++++++++++++++++++++
+ tests/unit/image-validate.test.ts      | 149 +++++++
+ wrangler.jsonc                         |  10 +-
+ 36 files changed, 5832 insertions(+), 52 deletions(-)
 commit 2fdcbca7746324e482b876faaafa01b7eb486a13
 vidi-agent  Fri Oct 2 08:56:44 2026 +0100
 

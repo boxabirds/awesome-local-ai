@@ -17,7 +17,7 @@ import type { ShapeKind } from '../../shared/config';
 export type BoardTool = 'select' | 'text' | 'shape' | 'connector' | 'pen';
 
 /** What a key press means to the board's tool state. */
-export type ToolKey = BoardTool | 'sticky' | 'exit' | null;
+export type ToolKey = BoardTool | 'sticky' | 'image' | 'exit' | null;
 
 /**
  * The key that selects a tool, as the design's "Key" column has it.
@@ -39,11 +39,15 @@ export const TOOL_SHORTCUTS: Readonly<Record<string, BoardTool>> = Object.freeze
  * 'n' is not a tool: it makes a sticky note, which is an action, so it is
  * reported to the board to carry out and leaves the tool where it was — except
  * that making a note is a creation, and a board that has just created something
- * is in Select again.
+ * is in Select again. 'i' is the same kind of thing (story 12): it asks for a file
+ * rather than changing what the next drag does, and the file dialogue is the board
+ * being in a different application for a moment, so the board is left in Select
+ * afterwards for the same reason a note leaves it there.
  */
 export function toolKey(key: string, modifiers?: { ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }): ToolKey {
   if (modifiers?.ctrlKey === true || modifiers?.metaKey === true || modifiers?.altKey === true) return null;
   if (key === 'n' || key === 'N') return 'sticky';
+  if (key === 'i' || key === 'I') return 'image';
   if (key === 'Escape') return 'exit';
   const tool = TOOL_SHORTCUTS[key.toLowerCase()];
   return tool ?? null;
@@ -57,11 +61,10 @@ export interface UseToolResult {
   shapeKind: ShapeKind;
   /** Choose a kind from the Shape menu. It does not leave the tool it is in. */
   setShapeKind(kind: ShapeKind): void;
-  /** V / T / S / L / P / N / Escape. Nothing else, and nothing at all while something
+  /** V / T / S / L / P / N / I / Escape. Nothing else, and nothing at all while something
    * has the keyboard for typing: a letter a person is typing is not a shortcut. */
   onKeyDown(e: KeyboardEvent): void;
-}
-/** Whether the keyboard belongs to something being typed into. */
+}/** Whether the keyboard belongs to something being typed into. */
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return (
@@ -80,7 +83,15 @@ function isTypingTarget(target: EventTarget | null): boolean {
  * Text tool to be in, so it is put back in Select and T does nothing at all until
  * the board can be written again.
  */
-export function useTool(canEdit = true, onCreateSticky?: () => void): UseToolResult {
+export function useTool(
+  canEdit = true,
+  onCreateSticky?: () => void,
+  onAddImages?: () => void,
+  /** Whether this page has an object open for writing text. A getter rather than a
+   * value, so the key handler always asks the board now and is not rebuilt on every
+   * keystroke. */
+  isWritingText: () => boolean = () => false,
+): UseToolResult {
   const [tool, setToolState] = useState<BoardTool>('select');
   const [shapeKind, setShapeKindState] = useState<ShapeKind>('rect');
   const can = canEdit !== false;
@@ -105,9 +116,25 @@ export function useTool(canEdit = true, onCreateSticky?: () => void): UseToolRes
       // and so do its Delete, Backspace and Enter, untouched.
       if (isTypingTarget(e.target)) return;
       if (!can) return;
+      // A letter typed while an object is open for writing is a letter, even in the
+      // moment before the caret has landed in the editor that the click just opened.
+      // 'i' is the one key that has to ask: it takes the person out of the page into an
+      // operating system dialogue and eats the letter besides, and a text object's box is
+      // left sitting there with nothing in it. N is left exactly as story 8 has it — it
+      // makes a note, which is a thing on the board and not a dialogue, and story 8's own
+      // test asks for it out of the Text tool. The keys that only change a tool neither
+      // eat the letter nor interrupt anybody.
+      if (key === 'image' && isWritingText()) return;
       if (key === 'sticky') {
         setToolState('select');
         onCreateSticky?.();
+        return;
+      }
+      if (key === 'image') {
+        // The same shape of action as 'n': ask for something, and be back in Select
+        // while the operating system does whatever it does next.
+        setToolState('select');
+        onAddImages?.();
         return;
       }
       if (key === 'exit') {
@@ -119,7 +146,7 @@ export function useTool(canEdit = true, onCreateSticky?: () => void): UseToolRes
       }
       setToolState(key);
     },
-    [can, onCreateSticky],
+    [can, onCreateSticky, onAddImages, isWritingText],
   );
 
   return { tool, setTool, shapeKind, setShapeKind, onKeyDown };
@@ -130,9 +157,19 @@ export function useTool(canEdit = true, onCreateSticky?: () => void): UseToolRes
  * not be disturbed by anything else on the page: an object's own editor stops the
  * key event it handles, and the sticky editor keeps its Ctrl+Z, Delete and Escape
  * behaviour exactly as story 8 left it.
+ *
+ * `isWritingText` is asked at the key press. It is there for the two keys that take
+ * something away from the person typing — N and I, which both make something appear
+ * and both swallow the letter they were given — and for the moment when the letter
+ * is on its way to an editor that has opened but not been written into yet.
  */
-export function useToolKeys(canEdit: boolean, onCreateSticky?: () => void): ReturnType<typeof useTool> {
-  const result = useTool(canEdit, onCreateSticky);
+export function useToolKeys(
+  canEdit: boolean,
+  onCreateSticky?: () => void,
+  onAddImages?: () => void,
+  isWritingText?: () => boolean,
+): ReturnType<typeof useTool> {
+  const result = useTool(canEdit, onCreateSticky, onAddImages, isWritingText);
   const handler = useRef(result.onKeyDown);
   handler.current = result.onKeyDown;
 

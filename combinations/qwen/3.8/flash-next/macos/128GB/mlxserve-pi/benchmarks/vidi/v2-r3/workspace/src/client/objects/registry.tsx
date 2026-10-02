@@ -11,6 +11,7 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import type { Point, Rect } from '../../shared/geometry';
 import {
+  IMAGE_MIN_SIZE_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   STROKE_MIN_SIZE_WORLD,
@@ -198,4 +199,29 @@ registerObjectType('stroke', {
   // underneath, which is the point of a box that is only where a drawing happens to be.
   hitTest: (obj, worldPoint, zoom) =>
     obj.type === 'stroke' && strokeHitTest(obj, worldPoint, zoom ?? 1),
+});
+
+// --- Register images (story 12) ----------------------------------------------
+
+function ImagePlaceholder(): React.ReactElement {
+  return <div data-image-placeholder={true} /> as React.ReactElement;
+}
+
+registerObjectType('image', {
+  Component: ImagePlaceholder,
+  resizable: true,
+  // A picture keeps the proportions of the picture: dragging a corner makes it
+  // bigger, and dragging one out of proportion would stretch a face. The ratio is
+  // the file's own, which is why the same rule holds before the bytes have arrived
+  // and after they have not.
+  aspectLocked: true,
+  // Sixteen board units is the smallest picture there may be, in either direction,
+  // and the clamp is shared with every other type rather than being a rule about
+  // pictures — which is what makes a tall thumbnail and a wide banner obey the same
+  // floor by the same argument.
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  // A picture is a rectangle of pixels: the box is the picture, so the box is what
+  // a click is answered in.
+  hitTest: inBounds,
 });

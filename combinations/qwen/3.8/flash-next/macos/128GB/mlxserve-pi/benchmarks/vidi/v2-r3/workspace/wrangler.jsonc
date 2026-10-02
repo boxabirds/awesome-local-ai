@@ -18,5 +18,13 @@
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
   },
-  "migrations": [{ "tag": "v3", "new_sqlite_classes": ["BoardRoom"] }]
+  "migrations": [{ "tag": "v3", "new_sqlite_classes": ["BoardRoom"] }],
+  // Story 12: where an image's bytes are kept. A board's document holds the key
+  // and nothing else, so the log which *is* the board stays the size of the
+  // things people arranged rather than the size of the photographs they dropped.
+  // Local development and the integration project get their own copy of the
+  // bucket from this file, which is why no test has to be told a bucket exists.
+  "r2_buckets": [
+    { "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }
+  ]
 }

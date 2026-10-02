@@ -21,6 +21,11 @@ import { TextObject } from '../objects/TextObject';
 import { ShapeObject } from '../objects/ShapeObject';
 import { ConnectorObject } from '../objects/ConnectorObject';
 import { StrokeObject } from '../objects/StrokeObject';
+import { ImageObject } from '../objects/ImageObject';
+import { DropHighlight } from '../images/DropHighlight';
+import { useImageInsert, IMAGE_PICKER_ACCEPT } from '../images/useImageInsert';
+import { Toast } from '../ui/Toast';
+import { VISITOR_ID } from '../sync/identity';
 import { useShapeTool } from '../tools/useShapeTool';
 import { useConnectorTool } from '../tools/useConnectorTool';
 import { usePenTool } from '../tools/usePenTool';
@@ -87,6 +92,19 @@ export function Board(props: BoardProps = {}): JSX.Element {
 
   const editable = canEdit(connection);
 
+  // The picture flow (story 12): the three ways a file arrives, the placeholder it
+  // leaves on the board, and the upload that turns it into a picture. It is given
+  // the camera and the board's size because where a dropped picture goes is decided
+  // by where it was dropped, and a pasted one by what this person is looking at.
+  const images = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    viewport,
+    connection,
+    identityId: VISITOR_ID,
+  });
+
   // This person's own undo history, for as long as this board is open: created
   // with its document and thrown away with it, so a reload begins empty again.
   const undoController = useUndoController(doc);
@@ -102,10 +120,22 @@ export function Board(props: BoardProps = {}): JSX.Element {
   // the keys it has always had: 'v', 't' and 'n' typed into a text object are
   // letters, not shortcuts. N creates a sticky note, which is what it did before
   // there were any tools, and the callback is called at the key press rather than
-  // passed in, because the board is not wired up yet at this line.
-  const { tool, setTool, shapeKind, setShapeKind } = useToolKeys(editable, () => {
-    createStickyAtViewportCentre();
-  });
+  // passed in, because the board is not wired up yet at this line. I asks for a
+  // picture, and does the same thing the Image button does. Both of them are asked
+  // whether the page is in the middle of writing text first, and stand down when it
+  // is — see useToolKeys.
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+  const { tool, setTool, shapeKind, setShapeKind } = useToolKeys(
+    editable,
+    () => {
+      createStickyAtViewportCentre();
+    },
+    () => {
+      images.openPicker();
+    },
+    () => selectionRef.current.editingId !== null,
+  );
 
   // A test build lets the test take this board's link down.
   useEffect(() => {
@@ -208,9 +238,8 @@ export function Board(props: BoardProps = {}): JSX.Element {
   });
 
   // Enter key to edit the single selected sticky.
-  // Use a ref so the keydown handler always sees the latest selection.
-  const selectionRef = useRef(selection);
-  selectionRef.current = selection;
+  // The selection is read through the ref above, so the keydown handler installed
+  // here once always sees the latest one.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const sel = selectionRef.current;
@@ -326,6 +355,21 @@ export function Board(props: BoardProps = {}): JSX.Element {
     undoController.boundary();
   };
 
+  /** Remove is the Delete key's delete, from a button: one step of this person's
+   * own history, the same object gone out of the document, and the selection left
+   * holding whatever else was in it. It is offered for a picture whose bytes never
+   * arrived because it is the only thing still worth doing about one. */
+  const removeImage = (id: string): void => {
+    if (!editable) return;
+    undoController.boundary();
+    deleteObjects(doc, [id]);
+    undoController.boundary();
+    selection.setMany(
+      [...selection.ids].filter((selected) => selected !== id),
+      false,
+    );
+  };
+
   return (
     <div className="app">
       <BoardViewport
@@ -354,6 +398,13 @@ export function Board(props: BoardProps = {}): JSX.Element {
         onMarqueeMove={(p) => marquee.move(p)}
         onMarqueeEnd={() => marquee.end()}
         onMarqueeCancel={() => marquee.cancel()}
+        // Files dragged over and dropped on the board. The highlight, the refusal
+        // and the picture are all the insert flow's business; this is the part of
+        // it which knows where the board is on the screen.
+        onFilesDragEnter={images.onDragEnter}
+        onFilesDragOver={images.onDragOver}
+        onFilesDragLeave={images.onDragLeave}
+        onFilesDrop={images.onDrop}
         cursor={
           !editable
             ? 'default'
@@ -412,7 +463,29 @@ export function Board(props: BoardProps = {}): JSX.Element {
             // line rather than by that box, and with nothing in it to type.
             return <StrokeObject key={object.id} obj={object} {...common} />;
           }
-          return <StickyNote key={object.id} note={object} {...common} />;
+          if (object.type === 'image') {
+            // A picture is selected, dragged, resized and deleted by the same
+            // machinery as all of those; what it has that they have not is a state
+            // about where its bytes are, and about whether the upload of this one is
+            // happening in this tab rather than in somebody else's.
+            return (
+              <ImageObject
+                key={object.id}
+                object={object}
+                {...common}
+                progress={images.progress.get(object.id)}
+                canRetry={images.canRetry(object.id)}
+                onRetry={(id: string) => {
+                  images.retry(id);
+                }}
+                onRemove={(id: string) => {
+                  removeImage(id);
+                }}
+              />
+            );
+          }
+          if (object.type === 'sticky') return <StickyNote key={object.id} note={object} {...common} />;
+          return null;
         })}
       </BoardViewport>
       <MarqueeRect rect={marquee.rect} camera={camera} />
@@ -452,6 +525,9 @@ export function Board(props: BoardProps = {}): JSX.Element {
       />
       <Toolbar
         onCreateSticky={createStickyAtViewportCentre}
+        onAddImages={() => {
+          images.openPicker();
+        }}
         tool={tool}
         onSelectTool={setTool}
         shapeKind={shapeKind}
@@ -500,6 +576,30 @@ export function Board(props: BoardProps = {}): JSX.Element {
       />
       <NavigationHint visible={!cam.hasNavigated} />
       <ConnectionStatus state={connection} />
+      {/* The board while files are being dragged over it, and the file dialogue the
+          Image button and the I key open. The input is the operating system's and
+          not the board's: it is where a file comes from, and it says nothing about
+          the board to anybody. */}
+      <DropHighlight dragging={images.dragging} />
+      <input
+        ref={images.fileInputRef}
+        type="file"
+        accept={IMAGE_PICKER_ACCEPT}
+        multiple
+        tabIndex={-1}
+        aria-hidden="true"
+        className="image-file-input"
+        data-testid="image-file-input"
+        onChange={(e) => {
+          const picked = e.currentTarget.files === null ? [] : Array.from(e.currentTarget.files);
+          // Answered and cleared at once, so choosing the same file twice is two
+          // additions rather than a silence the second time.
+          e.currentTarget.value = '';
+          images.onPickedFiles(picked);
+        }}
+      />
+      {/* The refusals, in words nobody has to dig out of a console. */}
+      <Toast />
     </div>
   );
 }

@@ -54,3 +54,36 @@ export function boardIdFromPath(pathname: string): string | null {
 export function boardIdForPath(pathname: string, makeId: () => string = newBoardId): string {
   return boardIdFromPath(pathname) ?? makeId();
 }
+
+// --- Story 12: where an image's bytes go, and where they come from ------------
+//
+// An image is the first thing on the board that does not live in the document, so
+// it is the first thing with two addresses of its own: one to put bytes at, one to
+// read them back from. Both are here rather than in the one file that uses them
+// because the client uploads and the Worker serves, and the address either side
+// writes down has to be the address the other side listens on.
+
+/** The path segment under a board where its images are uploaded. */
+export const BOARD_ASSETS_SUFFIX = '/assets';
+
+/** The path prefix an image's bytes are served from. */
+export const ASSETS_PATH_PREFIX = '/api/assets';
+
+/**
+ * Where the bytes of a file dropped on board `boardId` are uploaded:
+ * `POST /api/boards/<boardId>/assets`. The board's id is in the address, so the
+ * Worker can check the board exists before it stores anything, and one board's
+ * bytes cannot be filed under another's name.
+ */
+export function boardAssetsPath(boardId: string): string {
+  return `${BOARDS_PATH}/${boardId}${BOARD_ASSETS_SUFFIX}`;
+}
+
+/**
+ * Where the bytes stored under an asset key are read back from, with each half of
+ * the key escaped so that a key can only ever name the one asset it is (TC-16).
+ */
+export function assetPath(assetKey: string): string {
+  const parts = assetKey.split('/').map((part) => encodeURIComponent(part));
+  return `${ASSETS_PATH_PREFIX}/${parts.join('/')}`;
+}

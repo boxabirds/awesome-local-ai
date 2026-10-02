@@ -61,6 +61,7 @@ import {
   type ConnectorSnapshot,
 } from './objects/connector';
 import { readStroke, type StrokeSnapshot } from './objects/stroke';
+import { readImage, type ImageSnap } from './objects/image';
 
 /**
  * What the board knows about one text object. The reading of it lives here, next
@@ -89,6 +90,10 @@ export type { ShapeSnapshot, ConnectorSnapshot };
  *  other object's do, and its name belongs to the board's vocabulary. */
 export type { StrokeSnapshot };
 
+/** Story 12 added the picture, and its reads live in `objects/image` for the same
+ *  reason: an object's meaning belongs next to the object. */
+export type { ImageSnap };
+
 /** Immutable read view of one sticky note object. */
 export interface StickySnapshot {
   id: string;
@@ -115,7 +120,8 @@ export type ObjectSnapshot =
   | TextSnapshot
   | ShapeSnapshot
   | ConnectorSnapshot
-  | StrokeSnapshot;
+  | StrokeSnapshot
+  | ImageSnap;
 
 /** The `objects` map: id -> per-object Y.Map. Renderer skips unknown types. */
 export function getObjects(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
@@ -374,6 +380,10 @@ export function readObject(
   // cannot be drawn is not on the board at all — there would be nothing to see and
   // nothing to click — which is the one thing `readStroke` decides for itself.
   if (type === 'stroke') return readStroke(map, id);
+  // Story 12: an image. What its box is and which bytes it points at is the one
+  // thing `readImage` decides for itself; a placeholder with no key is still an
+  // object the board can show, move and delete.
+  if (type === 'image') return readImage(map, id);
   return null;
 }
 

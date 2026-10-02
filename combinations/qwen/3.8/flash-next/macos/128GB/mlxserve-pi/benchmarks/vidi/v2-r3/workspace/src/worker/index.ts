@@ -20,6 +20,7 @@ import {
 import { BOARDS_PATH, ROOM_PATH_PREFIX } from '../shared/routes';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
+import { assetKeyOf, assetsBoardOf, handleServe, handleUpload } from './assets';
 import { handleTestHook } from './test-hooks';
 
 export interface Env {
@@ -34,6 +35,14 @@ export interface Env {
    * sets it, so those routes are not there at all in a production build.
    */
   TEST_HOOKS?: string | number | boolean;
+  /**
+   * Story 12: where image bytes live. Not the SQLite of story 5 — a hundred photos
+   * are not going into a document; they go to a store which is good at keeping
+   * large things and handing them out again. The document keeps only the key, which
+   * is why a board's log stays small enough to replay (design: assets are blobs, a
+   * board is a log).
+   */
+  ASSETS_BUCKET: R2Bucket;
 }
 
 /** 426 Upgrade Required: the address is a board, but this is not a WebSocket. */
@@ -91,6 +100,29 @@ export default {
         return jsonError(created.reason, 500);
       }
       return jsonBody({ id: created.id }, 201);
+    }
+
+    // Story 12: images. Both asset routes are settled before the board path below,
+    // because `/api/boards/<id>/assets` sits *under* that path: left to the branch
+    // after it, it would be read as "the board called `<id>/assets`" and answered
+    // 404 for a board whose name contains a slash.
+    const assetsBoard = assetsBoardOf(pathname);
+    if (assetsBoard !== null) {
+      if (request.method !== 'POST') {
+        return jsonError('method_not_allowed', METHOD_NOT_ALLOWED);
+      }
+      return handleUpload(request, env, assetsBoard);
+    }
+    // Reading an image's bytes is the one thing on this board that anybody may do
+    // without saying who they are: an asset is seen by whoever can see the board
+    // that points at it, and a browser sending an `<img>` src says nothing about
+    // who it is on behalf of.
+    const assetKey = assetKeyOf(pathname);
+    if (assetKey !== null) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return jsonError('method_not_allowed', METHOD_NOT_ALLOWED);
+      }
+      return handleServe(env, assetKey);
     }
 
     if (pathname.startsWith(`${BOARDS_PATH}/`)) {

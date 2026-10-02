@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent as ReactDragEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT } from '../../shared/config';
 import type { Camera, Point, Size } from './camera';
 import type { WheelInput } from './useCamera';
@@ -50,6 +58,19 @@ export interface BoardViewportProps {
    * pans nor marquees: a tool that also moved the board would be two tools.
    */
   onTextToolClick?(p: Point): void;
+  /**
+   * Files dragged over and dropped on the board surface (story 12), forwarded
+   * with nothing taken out of the event: the board decides what a drag carrying
+   * files means, whether to accept it, and what to do with what was dropped.
+   *
+   * These are on the surface and not on the page, because a file dropped on the
+   * toolbar was not dropped on the board: the toolbar is beside this element
+   * rather than inside it, and so a drag that ends there never reaches it.
+   */
+  onFilesDragEnter?(e: ReactDragEvent<HTMLDivElement>): void;
+  onFilesDragOver?(e: ReactDragEvent<HTMLDivElement>): void;
+  onFilesDragLeave?(e: ReactDragEvent<HTMLDivElement>): void;
+  onFilesDrop?(e: ReactDragEvent<HTMLDivElement>): void;
 }
 
 function mod(value: number, m: number): number {
@@ -311,6 +332,10 @@ export function BoardViewport(props: BoardViewportProps) {
         if (!isBoardSurface(e)) return;
         props.onEmptyDblClick(relative(e.clientX, e.clientY));
       }}
+      onDragEnter={props.onFilesDragEnter}
+      onDragOver={props.onFilesDragOver}
+      onDragLeave={props.onFilesDragLeave}
+      onDrop={props.onFilesDrop}
     >
       <div
         className="world-layer"

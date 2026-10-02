@@ -760,3 +760,168 @@ a move.
   sandbox); TC-17's assertions are the ones that pass in the other two engines.
 - `npm run typecheck` (both projects), `npm run build`, `npm run build:test` all pass.
   There is no lint script in this repository and no `eslint.config.js`.
+
+# Story 12 — Drop images onto the board
+
+The picture is one more object type and the design is right that that is all it is:
+selection, moving, resizing with the shape kept, deleting, undo and the remote-update
+path are the ones already there, and the new code is a schema, a placement function, an
+upload, three ways in and one component that says what a picture whose bytes have not
+arrived yet is. Nine things are recorded below: three decisions the design left to the
+implementer, three places where following its letter closely would have produced
+something wrong, a function from story 7 that was wrong in a way nothing had been able to
+see, a mistake of this story's own that only a real browser could see, and one keystroke
+that had to be told the difference between a shortcut and a letter.
+
+## An image's box is written before its bytes exist, and the upload is not an undo step
+
+`createImagePlaceholders` writes `status: 'uploading'` objects in one transaction with
+`LOCAL_ORIGIN`, so a drop is one undo step and undoing it takes the picture off the board
+for everybody. What happens to those bytes afterwards is *not* an undo step: marking a
+picture ready, failed or retried goes in with `UPLOAD_ORIGIN`, a symbol of its own.
+`LOCAL_ORIGIN` would have made every finished upload a step in the uploader's history —
+Ctrl+Z after a photo would remove the photo, which is not what anybody means by undo —
+and `undefined` (a remote change) would have put it in *everybody's* history. A change
+that is this tab's and nobody's to undo needs a third kind of origin, and that is what
+the symbol is. `src/shared/objects/image.ts` names it and says why next to it.
+
+## The status a picture shows is not the status it stores
+
+`displayStatus(object, isMine, now)` is a function rather than a field, because three of
+the six things on the screen are facts about *this tab* (am I the one holding the file?)
+or about *now* (`unfinished`: still `uploading` after `IMAGE_UPLOAD_STALE_MS`, which is
+what a browser tab that was closed mid-upload leaves behind). A document that stored the
+display state would store a lie the moment somebody else's screen disagreed. The single
+`canRetry` prop on `ImageObject` is the whole of the difference between the two viewers:
+the tab with the file gets "Upload failed" with Retry and Remove, and every other screen
+— including the uploader's own tab after a reload, which has lost the `File` along with
+everything else — gets "Image unavailable" or "Image upload didn't finish" with Remove
+alone. Handing a Retry button to a tab that has no file would be a button that cannot
+do the thing it says.
+
+## The rule for the refusal boxes: everyone may take it away, only the owner may try again
+
+Every box that says a picture is not there offers Remove, including a `ready` object
+whose bytes have gone missing from the bucket and a failure made by somebody else. The
+reason is that taking a thing off the board never depends on having that thing: it is a
+change to the document, and a person who is looking at a broken picture is entitled to
+tidy it up whether or not their computer ever had it. Retry is the opposite case: it
+fetches bytes out of this tab's memory. That split is why the two buttons are not one
+button and why the e2e asserts that the person who did not drop the picture is shown a
+Remove and no Retry.
+
+## A picture's box is not clipped, and takes the pointer back
+
+`.image-object` is `pointer-events: auto` like every other object — the world layer
+ignores the pointer and each object type opts back in — and it deliberately does *not*
+have `overflow: hidden`. The picture itself cannot leave its box (`object-fit: contain`,
+sized to it), and the one thing that has to hang over the edge of a small picture is the
+sentence about its bytes and the buttons under that sentence: a 40-pixel thumbnail whose
+"Retry" is cut off is a failure the person cannot act on. So `.image-uploading`,
+`.image-status` and `.image-broken` are centred on the picture's box with
+`width: max(100%, 148px)`, which is the picture's own box at the picture's size and
+larger only when the box is too small to hold a sentence. Nothing about the object's box
+moves: it stays what the selection and the resize handles act on.
+
+## `clampScale` was wrong, and the resize floor could not be tested until it was fixed
+
+A resize keeps one object's shape, so one number has to keep both of its sides inside
+`[minSize, maxSize]`: every object contributes a floor (the smallest scale that leaves
+*both* its sides at or above the minimum, which is the *larger* of the two per-axis
+floors) and a ceiling (the largest that leaves both at or below the maximum, the smaller
+of the two). The old code clamped a width-derived scale and a height-derived scale
+separately and then took `Math.min(clampedX, clampedY)` for both axes — which is the
+*tighter* of the two ceilings, correct when growing, and the *smaller* of the two floors,
+which is not a floor at all. A 40x30 picture with a 16-unit minimum has floors of
+16/40 = 0.4 and 16/30 = 0.53; the smaller won, so the picture could be dragged down to
+16x12 — its width exactly at the minimum and its height four units under it, a minimum
+the PRD names in words ("SHALL NOT make either side smaller than 16 board units") that
+nothing was checking. The shape was never the problem; the floor was. It is now a
+floor/ceiling interval intersection over both axes of every object in the resize, so an
+image's aspect lock and `IMAGE_MIN_SIZE_WORLD` hold at the same time. E2E drags a 40x30
+picture's corner far past the floor and reads back a box with both sides at or above the
+minimum and the ratio still 4:3, and `image-model.test.ts` pins the interval itself —
+story 7's three tests of this function all use squares, where the two floors are the same
+number and the mistake has nowhere to show.
+
+## The class list was run together, and only a browser could see it
+
+`ImageObject` built its `className` with `['image-object', `image-object-${status}`,
+' is-mine', …].join('')` — the leading spaces on the later names made it *look*
+considered. It produced `image-objectimage-object-failed`, which matches no rule: in a
+real browser a picture was `position: static`, so every picture was laid out in the flow
+at the world origin wearing its inline width and height, `pointer-events` inherited
+`none` from the world layer so it could not be clicked, and its buttons were outside the
+hit box. Every component test passed, because jsdom loads no stylesheet: a class
+attribute is a string to it, and a run-together class measures nothing and fails nothing.
+It came out as a story 6 test (`text.spec.ts` TC-30) failing under webkit, which is how
+worthless a green component suite can be made visible. The join is now `join(' ')` over
+filtered names, and `ImageObject.test.tsx` asserts the names are *separate* class names —
+the cheapest possible guard for the one class of mistake that this tier cannot otherwise
+see.
+
+## The letter 'i', and the moment before the caret lands
+
+'i' opens the file dialogue, which is the sharpest thing a stray keystroke can do: it
+takes the person out of the page and eats the letter besides. `isTypingTarget(e.target)`
+already covers the case where the caret is in an editor. It does not cover the moment
+between a click that opens a text object and the caret arriving in it, when the letters
+of the word a person is typing arrive at the window. Measured on webkit with
+`--repeat-each=12`: the story 6 test that has five people type "Heading n" — a word with
+both 'i' and 'n' in it — failed 2 of 12 runs *before this story existed*, and 2 of 12
+with the 'i' binding and no guard, and the instrumented version showed a real file
+dialogue opening in the failing page. `useTool` now asks `isWritingText()` (the board's
+`selection.editingId`, read at the key press) before honouring 'i', and with that
+12 of 12 pass. 'n' is left exactly as story 8 specifies it, including its own test that
+asks for N out of the Text tool; the same guard is one line away in `useTool` if a later
+story wants to take the sharper question up.
+
+## Refusals that say the same thing are said once
+
+The toast store keys on the text, so dropping a PDF and an SVG — refused by the same
+sentence naming the four formats — leaves one toast on the screen, not two. That is the
+behaviour a person wants and it cost an e2e assertion written as "two refusals"; the
+test now asserts the count stays at one and that neither file left an object behind,
+which is the thing the story is actually about.
+
+## A progress bar that is honest about being about bytes
+
+`fetch` reports no upload progress, so `uploadImage` uses `XMLHttpRequest` for that and
+nothing else. The fraction is the browser's count of bytes sent, which reaches 1 well
+before the board has stored the picture; the picture's *state* stays the object's
+`status`, and the bar is only ever painted as a percentage of the upload. Progress
+arrives as `onProgress` into a ref and is read by the component, so a fast connection
+does not re-render React per packet.
+
+## Verification (story 12)
+
+- `npm run test:unit` — 407 tests, of which `tests/unit/image-format.test.ts` is TC-01 and
+  TC-02 (sniffing the four formats out of bytes, the key pattern, a key's board id),
+  `image-model.test.ts` is TC-03…TC-07 (placement sizes, rows, the status machine, the
+  stale upload, malformed objects, and the resize interval an aspect-locked picture needs)
+  and `image-validate.test.ts` is TC-08 and TC-09 (type, size, count, order of the three
+  refusals). 76 of them are new.
+- `npm run test:component` — 297 tests, of which `ImageInsert.test.tsx` is TC-17…TC-19 and
+  TC-24 plus the offline and 'i'-key cases (34) and `ImageObject.test.tsx` is TC-21…TC-24
+  with the two viewers, the reload and the class names (19).
+- `npm run test:integration` — 121 tests, of which `image-assets.test.ts` is TC-10…TC-16
+  (27): upload and round trip against the real R2 binding from `wrangler.jsonc`, the type
+  asked of the bytes and never of the filename, 413 by declaration *and* by measurement,
+  415 for a PDF and an SVG, 404 for an unknown or malformed board id and for a key with a
+  way out of it, the serve headers, and a bucket that throws answered as 500 rather than
+  as a bad file.
+- `npm run test:e2e` — 142 tests pass across chromium, webkit and persistence.
+  `tests/e2e/images.spec.ts` is TC-25…TC-28 in six tests: four formats dropped and
+  painted on both screens with one address per picture, the board reloaded keeping its
+  pictures and not asking for an upload it lost, a corner drag that keeps the ratio and
+  stops at the smallest box (with undo), an upload that fails and comes back when its
+  button is pressed, both doors refused while the room is down, and a file that is not one
+  of the four formats refused with the formats named.
+- Two pre-existing flakes were measured rather than assumed, because both showed up while
+  this story's work was in the tree and neither is caused by it: `undo.spec.ts` TC-22
+  failed 2 of 4 chromium runs **at HEAD with this story stashed** (1 of 4 with it), and
+  `text.spec.ts` TC-30 failed 2 of 12 webkit runs at HEAD. Firefox is not run here, for
+  the reason stories 3, 10 and 11 record (`sandbox_init()` refuses with "Operation not
+  permitted" in this sandbox).
+- `npm run typecheck` (both projects), `npm run build`, `npm run build:test` all pass.
+  There is no lint script in this repository and no `eslint.config.js`.
