@@ -1,7 +1,7 @@
 # mlx-serve 26.10.1 (engine update)
 
-**Status:** pin moved (2 Oct 2026); smoke story and the recorded series are next. The owner approved five recorded
-runs once the smoke story is clean.
+**Status:** running (2 Oct 2026): five recorded runs, `v2-mlx26101-r1` to `-r5`, on the M5 Max; the first started at
+23:20 BST.
 **Kind:** an engine version bump, not a new stack. Every mlx-serve run changes at once.
 **Machine:** the M5 Max (128 GB). Combination `qwen/3.8/flash-next/macos/128GB/mlxserve-pi`.
 
@@ -32,13 +32,17 @@ From the release notes, the parts that bear on a long agent session with Flash N
 1. **Pin the release asset.** Done: `MLXSERVE_VERSION="26.10.1"` and the sha256 GitHub publishes for
    `mlx-serve-bin-macos-arm64.tar.gz` (`e53056e4…3873`). `tests/mlxserve-test.sh`: the pin check was changed first
    and seen to fail, then 103 of 103 pass.
-2. **Install on the M5 Max and read the version the binary reports.**
-3. **One smoke story, unrecorded:** a partial rerun of one story from a finished run, as for gufo 0.5.
-4. **The recorded series:** five runs, named for the version, never pooled with the 26.9.6 runs.
+2. **Install on the M5 Max and read the version the binary reports.** Done: sha256 verified, the installer reports
+   26.10.1.
+3. **The recorded series:** five runs, named for the version, never pooled with the 26.9.6 runs. Queued and running.
+
+An unrecorded story (story 2 from `v2-r3`) was started first as a "smoke" check and cancelled by the owner after an
+hour: a story is not a smoke run (CLAUDE.md, "A smoke run takes ten minutes or less"). While it ran it made 92 tool
+calls and one compaction with no error, 7 of 8 tasks committed, the server holding 48.5 GB.
 
 ## Confounds
 
 The cache changes can move time and token figures on their own, so a 26.10.1 run is not directly comparable with the
 26.9.6 `v2-r*` runs. The client stays pi 0.87.1 so only the engine changes.
 
-**Last checked:** 2 Oct 2026. **Recheck when:** the smoke story ends.
+**Last checked:** 2 Oct 2026. **Recheck when:** the first run ends.

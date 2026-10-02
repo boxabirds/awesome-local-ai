@@ -48,7 +48,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [Strata](strata.md) | gated | RTX 4090 | Flash-Next (125B MoE) on one 4090 by offloading experts to RAM; engine checks passed at 131k context, harness backend next |
 | [Flash-Next Coder](flash-next-coder.md) | candidate | RTX 4090 | ISTA-DASLab's Flash-Next with half the experts removed, for code; about 30 GB in memory; runs on Strata |
 | [gufo 0.5](gufo-0.5.md) | running | Strix Halo | pinned to 0.5.0; smoke passed; five recorded runs under way |
-| [mlx-serve 26.10.1](mlx-serve-26.10.1.md) | gated | M5 Max | one release ahead of the old pin; long sessions stay cached, a looping fix; smoke story next |
+| [mlx-serve 26.10.1](mlx-serve-26.10.1.md) | running | M5 Max | one release ahead of the old pin; long sessions stay cached, a looping fix; five recorded runs under way |
 | [Prompt lookup (n-gram speculation)](ngram-speculation.md) | parked | RTX 4090 (Ubuntu) | engine setting; test on the dense 27B; eliminated for sparse MoE |
 | [llama.cpp Vulkan on Strix Halo](llamacpp-vulkan-strix-halo.md) | parked | Strix Halo | dropped from v2: prompt reading 4-7x slower than gufo |
 | [llama.cpp Metal on the M5 Max](llamacpp-metal-m5-max.md) | parked | M5 Max | paused after canvas-metal-01 story 1 |
