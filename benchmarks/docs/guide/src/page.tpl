@@ -91,7 +91,7 @@
 </section>
 
 <section id="safeguarding" aria-labelledby="safeguarding-h">
-  <h2 id="safeguarding-h" data-toc="What the agent can and can't touch">What the agent can and can't touch</h2>
+  <h2 id="safeguarding-h" data-toc="Safeguarding">Safeguarding: stopping agent jailbreaks</h2>
   <!--@safeguarding-->
 </section>
 
