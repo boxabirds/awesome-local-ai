@@ -184,5 +184,8 @@ The scripts are in [scripts/](scripts/), standard library only.
 2. `detect_core.py`, `detect_performance.py`, `detect_behaviour.py` and `detect_security.py`, each given the database,
    print every table. Two runs give identical output.
 
-The database itself is not in the repo: it holds complete conversations, including the credentials one story
-printed.
+The database itself is not in this repo: it holds complete conversations, including the credentials one story
+printed. It is expensive to build, so it is kept, compressed, in the private repo at
+`analysis/insights-db/conv_full.db.zst`, with its schema (`SCHEMA.md`), the brief, the build scripts, the detectors
+as they were run and their printed output. To use it: `zstd -d conv_full.db.zst -o conv_full.db`, then run a detector
+on it. Rebuild it (step 1) only when new runs are to be added.

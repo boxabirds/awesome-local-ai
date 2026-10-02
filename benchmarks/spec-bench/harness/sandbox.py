@@ -1,7 +1,7 @@
 """The agent's world: every agent run goes through tools/agent-sandbox (deny by default), never around it.
 
 Until 1 Oct 2026 the agent ran with the whole machine visible and a list of paths hidden, with the owner's whole
-environment and an open network. Every leak (benchmarks/insights/findings-security.md) was a path, a variable or a
+environment and an open network. Every leak (benchmarks/docs/insights/findings-security.md) was a path, a variable or a
 host nobody had listed. Now nothing exists for the agent unless it is named here:
 
   files       the run's own directory only (workspace, tmp, home, the client's config), shown at /w on Linux and at a
