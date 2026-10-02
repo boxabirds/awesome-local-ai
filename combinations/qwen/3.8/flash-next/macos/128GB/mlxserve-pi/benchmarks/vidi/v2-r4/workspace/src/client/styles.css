@@ -1,0 +1,128 @@
+:root {
+  --vidi6-board-background: #f7f8fa;
+  --vidi6-grid-dot: #c3c8d1;
+  --vidi6-origin: rgba(47, 111, 235, 0.65);
+  --vidi6-text: #1f2430;
+  --vidi6-panel: #ffffff;
+  --vidi6-panel-border: #d5d9e0;
+  --vidi6-panel-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+  --vidi6-accent: #2f6feb;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--vidi6-text);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  /* Board gestures must never scroll or zoom the page itself. */
+  overscroll-behavior: none;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* --- board ----------------------------------------------------------------- */
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/*
+ * World layer: positioned purely by a CSS transform,
+ * `scale(zoom) translate(-camera.x px, -camera.y px)`, with children placed in
+ * world coordinates. It has zero size and visible overflow so empty board space
+ * always belongs to the viewport surface underneath it.
+ */
+.board-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* Crosshair marking the board's starting point (world 0,0). */
+.origin-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  transform-origin: 0 0;
+  background:
+    linear-gradient(var(--vidi6-origin), var(--vidi6-origin)) center center / 100% 1px no-repeat,
+    linear-gradient(var(--vidi6-origin), var(--vidi6-origin)) center center / 1px 100% no-repeat;
+}
+
+/* --- floating chrome ------------------------------------------------------- */
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--vidi6-panel);
+  border: 1px solid var(--vidi6-panel-border);
+  border-radius: 8px;
+  box-shadow: var(--vidi6-panel-shadow);
+}
+
+.zoom-button,
+.reset-view {
+  font: inherit;
+  color: inherit;
+  background: var(--vidi6-panel);
+  border: 1px solid var(--vidi6-panel-border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  min-width: 28px;
+  cursor: pointer;
+}
+
+.reset-view {
+  min-width: 0;
+  margin-left: 4px;
+}
+
+.zoom-button:disabled,
+.reset-view:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.zoom-percent {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  padding: 0 4px;
+  text-align: center;
+}
+
+.navigation-hint {
+  padding: 6px 12px;
+  background: var(--vidi6-panel);
+  border: 1px solid var(--vidi6-panel-border);
+  border-radius: 8px;
+  box-shadow: var(--vidi6-panel-shadow);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.zoom-button:focus-visible,
+.reset-view:focus-visible {
+  outline: 2px solid var(--vidi6-accent);
+  outline-offset: 1px;
+}
