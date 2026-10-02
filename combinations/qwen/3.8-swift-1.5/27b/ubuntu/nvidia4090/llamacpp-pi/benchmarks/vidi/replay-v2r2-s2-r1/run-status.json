@@ -1,0 +1,6 @@
+{
+  "state": "failed",
+  "reason": "exit 1: bwrap: Unknown option --argv0 preflight failed; not starting the run",
+  "at": "2026-10-02T06:25:26Z",
+  "host": "13th Gen Intel(R) Core(TM) i9-13900F 62GB, NVIDIA GeForce RTX 4090 24564 MiB"
+}
