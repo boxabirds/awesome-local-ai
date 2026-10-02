@@ -1117,6 +1117,13 @@ fn another_address_of_this_machine_is_unreachable() {
         eprintln!("SKIP another_address_of_this_machine_is_unreachable: this machine has no address other than loopback");
         return;
     };
+    // The machine must be able to reach its own address at all: some networks (a Wi-Fi that isolates
+    // its clients, a VM bridge that claimed the address) drop it, and then nothing is being tested.
+    // 2 Oct 2026: the control below hung for its whole deadline on such a network and failed a release.
+    if TcpStream::connect_timeout(&server, ONLINE_TIMEOUT).is_err() {
+        eprintln!("SKIP another_address_of_this_machine_is_unreachable: this machine cannot reach its own address {} even outside a sandbox", server.ip());
+        return;
+    }
     let bench = Bench::new();
     let control = bench.bash_outside(&ping_script(server));
     assert_eq!(
