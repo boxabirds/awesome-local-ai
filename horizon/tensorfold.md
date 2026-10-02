@@ -1,6 +1,10 @@
 # TensorFold
 
-**Status:** unblocked upstream, not yet by us (1 Oct 2026): the long-context defect has a named fix in 0.3.6.3, confirmed by its reporter. Our own long-context check (below) still has to pass before any run.
+**Status:** blocked on us (2 Oct 2026): checks 1 and 2 ran for real on the M5 Max. Check 1 passes, but only to 32k
+tokens — short of our ~131k sessions — capped by the memory budget's own keep-prompt limit, not by the long-context
+defect this note was originally about (that part looks fixed). Check 2 fails past the same ceiling. Two documented
+lures to raise the ceiling were tried and neither worked: one did nothing, the other made it worse. See "What we
+found running the checks for real" below before trying a third.
 **Machine:** the M5 Max (128 GB, MLX). Compared with mlx-serve on the same model.
 
 ## What it is
@@ -133,7 +137,43 @@ and the root `install-qwen-3.8-flash-next-macos-128GB-tensorfold-pi.sh`, both in
 Tests, all against fakes with no network: `uv run --no-project --with pytest python -m pytest tools/tensorfold-check/tests`,
 `bash tools/tensorfold-check/tests/driver-test.sh` and `bash tests/tensorfold-test.sh`.
 
-**Last checked:** 1 Oct 2026 (releases to 0.6.0, issue 71 and its comments). **Next:** our long-context check on the M5 Max when it is free between mlx-serve runs (needs the owner's go-ahead).
+## What we found running the checks for real (2 Oct 2026)
+
+Ran `tools/tensorfold-check/run-checks.sh` on the M5 Max for real, three times, each with the Mac free (held via
+`dbench hold`) and the server stopped cleanly afterward each time. Evidence:
+`~/.local/share/awesome-local-ai/tensorfold-check/runs/20261002T181207Z/` (89.6 GiB),
+`.../20261002T182252Z/` (89.6 GiB + `--ple-on-ssd`), `.../20261002T182829Z/` (110 GiB + `--ple-on-ssd`).
+
+1. **At the 89.6 GiB default: check 1 passes, capped at 32k.** All 9 turns up to 32,033 prompt tokens reused the
+   previous prompt cleanly (worst re-read: 5 tokens, well inside the rule). The long-context cache-retention
+   defect this note tracks (issue 71) does not reproduce in the range tested. But the check stops there because
+   the budget's own keep-prompt limit is 48,128, and the check (by its own rule) never grows past
+   `keep-prompt − 16,384`. Never reaches an out-of-memory condition, so never reaches the 100-125k range issue 71
+   was actually about.
+2. **Check 2 fails, but from the window, not from TensorFold mishandling a tool call.** Turn 12's recorded request
+   needs 40,463 prompt + 8,192 reply = 48,655 tokens, 527 over the 48,128-token ceiling. The request is rejected
+   before TensorFold gets to parse it. Not a finding about tool-call correctness either way.
+3. **`TENSORFOLD_PLE_ON_SSD=1` (leaving the 29.8 GiB of n-gram tables on SSD instead of resident) made no measured
+   difference at 89.6 GiB.** Identical 48,128 keep-prompt limit, identical check 2 failure at turn 12, byte for
+   byte. TensorFold's own recipe doc says this machine class (128 GiB) already host-maps the n-gram tables by
+   default, which would explain the flag being a no-op here — not independently confirmed beyond that.
+4. **Raising `TENSORFOLD_MEMORY_LIMIT_GB` to 110 (TensorFold's own worked example for a 128 GiB Mac) made it
+   worse.** Keep-prompt limit fell to 10,240 — under a quarter of the 89.6 GiB figure. This is the opposite of
+   what TensorFold's documented memory model implies (more budget should mean more room, not less). Not
+   explained. One unverified guess (not confirmed, don't treat as fact): the host-mapping decision for the n-gram
+   tables is threshold-based on the *budget*, and a higher budget could flip something about that choice in a way
+   that costs more resident memory than it gains — this was not checked against TensorFold's source or logs
+   before time ran out on this round. Reverted; `config.sh` is back at 89.6 GiB (TensorFold's own default).
+
+**Open question, not yet investigated:** why keep-prompt moves the *wrong direction* with more memory budget.
+Worth raising as a TensorFold issue (with the three run folders above as evidence) before trying a fourth
+configuration ourselves — this behaviour contradicts their own documentation, so it may be a bug worth them
+knowing about rather than something to keep guessing at on our side.
+
+**Last checked:** 2 Oct 2026 (three real runs on the M5 Max). **Next:** either an upstream TensorFold issue about
+the inverted budget relationship, or a maintainer answer on `docs/recipes/qwen3.8-flash-next.md`'s memory model,
+before trying another configuration. Check 3 (and any real comparison run) stays blocked until checks 1 and 2
+both pass in the 100k+ range.
 
 Sources: [TensorFold](https://github.com/ashhart/TensorFold) ·
 [API fields](https://github.com/ashhart/TensorFold/blob/main/docs/api.md) ·
