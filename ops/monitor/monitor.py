@@ -167,7 +167,7 @@ def node_detections(status: dict, nodes: dict, prev: dict, now: float) -> tuple[
             rec["idle_since"] = since
             if not queued:
                 dets.append(det("machine_idle", f"machine_idle:{name}:{int(since)}", "nothing running, nothing queued"
-                                + (" (held)" if held else ""), machine=name, urgent=True))
+                                + (" (held)" if held else ""), machine=name))
             elif now - since >= QUEUE_NOT_STARTING_S:
                 dets.append(det("queue_not_starting", f"queue_not_starting:{name}:{int(since)}",
                                 f"{len(queued)} queued, nothing running for {int((now - since) / 60)} min"

@@ -91,7 +91,8 @@ def test_an_idle_machine_with_an_empty_queue_is_detected_once():
     dets, st = _nodes_state(status, nodes)
     assert "machine_idle" in kinds(dets)
     idle = next(d for d in dets if d["kind"] == "machine_idle")
-    assert idle["machine"] == "node-c" and idle["urgent"]
+    # logged for triage, never a notification: an idle machine is not an emergency (owner, 2 Oct 2026)
+    assert idle["machine"] == "node-c" and not idle["urgent"]
     dets2, _ = _nodes_state(status, nodes, st, NOW + 10 * MIN)
     assert "machine_idle" not in kinds(dets2)
 
