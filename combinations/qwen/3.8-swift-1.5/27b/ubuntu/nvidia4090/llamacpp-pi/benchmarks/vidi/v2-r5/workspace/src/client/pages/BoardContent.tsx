@@ -37,6 +37,12 @@ import { ConnectorObject } from '../objects/ConnectorObject';
 import '../objects/registerConnector';
 import { StrokeObject } from '../objects/StrokeObject';
 import '../objects/registerStroke';
+import { ImageObject } from '../objects/ImageObject';
+import '../objects/registerImage';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { ToastContainer, useToast } from '../ui/Toast';
+import type { ImageSnap } from '../../shared/objects/image';
 import { createSticky, deleteObjects, objectBounds } from '../../shared/board-model';
 import { createText, deleteIfEmpty, setTextBox } from '../../shared/objects/text';
 import { createShape, setShapeStyle } from '../../shared/objects/shape';
@@ -87,6 +93,28 @@ export function BoardContent(props: { boardId: string }): ReactElement {
 
   // Pen options (story 11)
   const penOptions = usePenOptions();
+
+  // Image insert (story 12)
+  const { message: toastMessage, show: showToast, dismiss: dismissToast } = useToast();
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera: cam.camera,
+    connection: connectionState,
+    identityId: 'local',
+    viewportWidth: viewport.width,
+    viewportHeight: viewport.height,
+    showToast,
+  });
+
+  // Clock tick for unfinished image detection (30s interval)
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const hasUploading = notes.some(n => n.type === 'image' && (n as any).status === 'uploading');
+    if (!hasUploading) return;
+    const interval = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(interval);
+  }, [notes]);
 
   // Track viewport size
   useEffect(() => {
@@ -366,6 +394,10 @@ export function BoardContent(props: { boardId: string }): ReactElement {
         onMarqueeCancel={marquee.cancel}
         cursorStyle={cursorStyle}
         textToolActive={tool === 'text'}
+        onDragOver={imageInsert.onDragOver}
+        onDragEnter={imageInsert.onDragEnter}
+        onDragLeave={imageInsert.onDragLeave}
+        onDrop={imageInsert.onDrop}
       >
         <svg
           style={{
@@ -426,7 +458,7 @@ export function BoardContent(props: { boardId: string }): ReactElement {
           })}
         </svg>
 
-        {/* HTML objects (sticky notes, text) */}
+        {/* HTML objects (sticky notes, text, images) */}
         {notes.map((note) => {
           if (note.type === 'text') {
             return (
@@ -457,6 +489,25 @@ export function BoardContent(props: { boardId: string }): ReactElement {
                 onDblClick={handleNoteDblClick}
                 onEndEdit={handleEndEdit}
                 undo={undo}
+              />
+            );
+          }
+          if (note.type === 'image') {
+            const img = note as unknown as ImageSnap;
+            return (
+              <ImageObject
+                key={note.id}
+                image={img}
+                isUploader={img.uploaderId === 'local'}
+                progress={imageInsert.progress.get(note.id)}
+                canRetry={imageInsert.canRetry(note.id)}
+                now={now}
+                onRetry={() => imageInsert.retry(note.id)}
+                onRemove={() => {
+                  undo.boundary();
+                  deleteObjects(doc, [note.id]);
+                  undo.boundary();
+                }}
               />
             );
           }
@@ -552,6 +603,7 @@ export function BoardContent(props: { boardId: string }): ReactElement {
 
       <Toolbar
         onCreateSticky={createStickyAtCentre}
+        onOpenImagePicker={imageInsert.openPicker}
         disabled={!editable}
         undo={undoState}
         tool={tool}
@@ -568,6 +620,12 @@ export function BoardContent(props: { boardId: string }): ReactElement {
         onReset={cam.reset}
       />
       <NavigationHint visible={!cam.hasNavigated && notes.length === 0} />
+
+      {/* Drop highlight (story 12) */}
+      {imageInsert.dragActive && <DropHighlight />}
+
+      {/* Toast (story 12) */}
+      <ToastContainer message={toastMessage} onDismiss={dismissToast} />
     </>
   );
 }

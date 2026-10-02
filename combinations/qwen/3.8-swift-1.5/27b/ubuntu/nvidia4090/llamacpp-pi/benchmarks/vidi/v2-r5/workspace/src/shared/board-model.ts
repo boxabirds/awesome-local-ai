@@ -126,6 +126,11 @@ export function objectBounds(obj: ObjectSnapshot): Rect {
     const height = (obj as any).height ?? 0;
     return { x: obj.x, y: obj.y, width, height };
   }
+  if (obj.type === 'image') {
+    const width = (obj as any).width ?? 100;
+    const height = (obj as any).height ?? 100;
+    return { x: obj.x, y: obj.y, width, height };
+  }
   const width = (obj as StickySnapshot).width ?? STICKY_SIZE_WORLD;
   const height = (obj as StickySnapshot).height ?? STICKY_SIZE_WORLD;
   return { x: obj.x, y: obj.y, width, height };
@@ -437,6 +442,23 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         z: (obj.get('z') as number) ?? 0,
         createdAt: (obj.get('createdAt') as number) ?? 0,
         createdBy: (obj.get('createdBy') as string) ?? '',
+      } as any);
+    } else if (type === 'image') {
+      result.push({
+        id,
+        type: 'image',
+        x: (obj.get('x') as number) ?? 0,
+        y: (obj.get('y') as number) ?? 0,
+        width: (obj.get('width') as number) ?? 0,
+        height: (obj.get('height') as number) ?? 0,
+        assetKey: (obj.get('assetKey') as string | null) ?? null,
+        contentType: (obj.get('contentType') as string) ?? 'image/png',
+        naturalWidth: (obj.get('naturalWidth') as number) ?? 0,
+        naturalHeight: (obj.get('naturalHeight') as number) ?? 0,
+        status: (obj.get('status') as string) ?? 'uploading',
+        uploadStartedAt: (obj.get('uploadStartedAt') as number) ?? 0,
+        uploaderId: (obj.get('uploaderId') as string) ?? '',
+        z: (obj.get('z') as number) ?? 0,
       } as any);
     }
     // skip unknown types

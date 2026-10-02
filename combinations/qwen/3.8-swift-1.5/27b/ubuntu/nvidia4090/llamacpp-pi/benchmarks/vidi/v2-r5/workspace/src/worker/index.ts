@@ -5,6 +5,7 @@
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { handleTestHooks } from './test-hooks';
+import { handleUpload, handleServe } from './assets';
 import { isValidBoardId } from '../shared/board-id';
 
 export interface Env {
@@ -15,6 +16,11 @@ export interface Env {
       initialize(): Promise<'created' | 'exists'>;
       exists(): Promise<boolean>;
     };
+  };
+  ASSETS_BUCKET: {
+    put(key: string, value: ReadableStream | ArrayBuffer | Uint8Array, options?: { httpMetadata?: { contentType?: string } }): Promise<void>;
+    get(key: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer>; httpMetadata?: { contentType?: string } } | null>;
+    list(opts?: { prefix?: string }): Promise<{ objects: { key: string }[] }>;
   };
   ASSETS: Fetcher;
   TEST_HOOKS?: string;
@@ -86,6 +92,22 @@ export default {
           headers: { 'content-type': 'application/json' },
         });
       }
+    }
+
+    // POST /api/boards/:id/assets → upload image asset
+    const assetsUploadMatch = url.pathname.match(/^\/api\/boards\/([^/]+)\/assets$/);
+    if (assetsUploadMatch && req.method === 'POST') {
+      const boardId = assetsUploadMatch[1];
+      const result = await handleUpload(req, env as any, boardId);
+      return result;
+    }
+
+    // GET /api/assets/:boardId/:assetId → serve image asset
+    const assetsServeMatch = url.pathname.match(/^\/api\/assets\/([^/]+)\/([^/]+)$/);
+    if (assetsServeMatch && req.method === 'GET') {
+      const key = `${assetsServeMatch[1]}/${assetsServeMatch[2]}`;
+      const result = await handleServe(env as any, key);
+      return result;
     }
 
     // Route /api/rooms/:boardId to the BoardRoom Durable Object

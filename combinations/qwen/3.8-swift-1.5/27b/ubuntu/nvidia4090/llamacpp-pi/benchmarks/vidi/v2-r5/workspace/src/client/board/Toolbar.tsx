@@ -8,6 +8,7 @@ import type { ShapeKind } from '../../shared/config';
 
 export interface ToolbarProps {
   onCreateSticky: () => void;
+  onOpenImagePicker?: () => void;
   disabled?: boolean;
   undo?: UseUndoResult;
   tool: ToolId;
@@ -17,7 +18,7 @@ export interface ToolbarProps {
 }
 
 export function Toolbar(props: ToolbarProps): ReactElement {
-  const { disabled, undo, tool, setTool, shapeKind, setShapeKind } = props;
+  const { disabled, undo, tool, setTool, shapeKind, setShapeKind, onOpenImagePicker } = props;
   const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
 
   return (
@@ -230,6 +231,30 @@ export function Toolbar(props: ToolbarProps): ReactElement {
         }}
       >
         ✏️
+      </button>
+
+      {/* Image tool button (story 12) */}
+      <button
+        aria-label="Image (I)"
+        title="Image – I"
+        data-testid="image-tool-btn"
+        onClick={disabled ? undefined : () => onOpenImagePicker?.()}
+        disabled={disabled}
+        style={{
+          width: 40,
+          height: 40,
+          border: '1px solid #ccc',
+          borderRadius: 8,
+          background: '#f5f5f5',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 18,
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        🖼️
       </button>
 
       {undo && <UndoButtons {...undo} />}

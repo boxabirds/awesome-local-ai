@@ -22,6 +22,10 @@ export interface BoardViewportProps {
   onMarqueeCancel?: () => void;
   cursorStyle?: string;
   textToolActive?: boolean;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragEnter?: (e: React.DragEvent) => void;
+  onDragLeave?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
   children?: ReactNode;
 }
 
@@ -29,7 +33,7 @@ const WHEEL_LINE_DELTA = 16;
 const WHEEL_PAGE_DELTA = 100;
 
 export function BoardViewport(props: BoardViewportProps): ReactElement {
-  const { camera, beginPan, panMove, endPan, wheel, zoomIn, zoomOut, reset, onDblClickEmpty, onClickEmpty, onClickEmptyWithPoint, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel, cursorStyle, textToolActive } = props;
+  const { camera, beginPan, panMove, endPan, wheel, zoomIn, zoomOut, reset, onDblClickEmpty, onClickEmpty, onClickEmptyWithPoint, onMarqueeBegin, onMarqueeMove, onMarqueeEnd, onMarqueeCancel, cursorStyle, textToolActive, onDragOver, onDragEnter, onDragLeave, onDrop } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
   const isMarqueeRef = useRef(false);
@@ -249,6 +253,10 @@ export function BoardViewport(props: BoardViewportProps): ReactElement {
       onPointerCancel={onPointerCancel}
       onLostPointerCapture={onLostPointerCapture}
       onClick={onClick}
+      onDragOver={onDragOver}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       onDoubleClick={(e) => {
         const target = e.target as HTMLElement;
         if (target.classList.contains('board-viewport') || target.classList.contains('board-grid')) {

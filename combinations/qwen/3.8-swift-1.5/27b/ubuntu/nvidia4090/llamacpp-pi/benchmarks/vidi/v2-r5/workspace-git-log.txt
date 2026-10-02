@@ -1,3 +1,39 @@
+commit d9d2b6af18b1f51aeabd916554e1b557781a6fd2
+vidi-agent  Fri Oct 2 01:39:06 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ src/client/board/Toolbar.tsx          |  27 ++-
+ src/client/canvas/BoardViewport.tsx   |  10 +-
+ src/client/images/DropHighlight.tsx   |  22 +++
+ src/client/images/uploadImage.ts      |  58 +++++++
+ src/client/images/useImageInsert.ts   | 307 ++++++++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts    |  55 ++++++
+ src/client/objects/ImageObject.tsx    | 261 +++++++++++++++++++++++++++++
+ src/client/objects/registerImage.ts   |  28 ++++
+ src/client/pages/BoardContent.tsx     |  60 ++++++-
+ src/client/ui/Toast.tsx               |  74 ++++++++
+ src/shared/board-model.ts             |  22 +++
+ src/shared/config.ts                  |  11 ++
+ src/shared/image-format.ts            |  55 ++++++
+ src/shared/objects/image.ts           | 195 +++++++++++++++++++++
+ src/worker/assets.ts                  | 149 +++++++++++++++++
+ src/worker/index.ts                   |  22 +++
+ tests/component/image-insert.test.tsx | 224 +++++++++++++++++++++++++
+ tests/e2e/image-workflows.spec.ts     | 118 +++++++++++++
+ tests/fixtures/images/corrupt.png     | Bin 0 -> 10 bytes
+ tests/fixtures/images/evil.svg        |   1 +
+ tests/fixtures/images/fake.png        |   7 +
+ tests/fixtures/images/small.gif       | Bin 0 -> 43 bytes
+ tests/fixtures/images/small.png       | Bin 0 -> 70 bytes
+ tests/fixtures/images/small.webp      | Bin 0 -> 44 bytes
+ tests/integration/assets.test.ts      | 213 +++++++++++++++++++++++
+ tests/unit/image-format.test.ts       |  76 +++++++++
+ tests/unit/image-model.test.ts        | 190 +++++++++++++++++++++
+ tests/unit/validate-files.test.ts     |  51 ++++++
+ wrangler.jsonc                        |   6 +
+ 29 files changed, 2239 insertions(+), 3 deletions(-)
 commit d9871f2be4ebd024888794090304cf42889f12b4
 vidi-agent  Fri Oct 2 00:58:43 2026 +0100
 
