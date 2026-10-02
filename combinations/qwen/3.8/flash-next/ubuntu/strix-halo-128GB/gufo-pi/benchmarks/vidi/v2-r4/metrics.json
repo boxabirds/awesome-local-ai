@@ -254,26 +254,31 @@
           "bash": 49.2,
           "build": 16.0,
           "unit": 10.7,
-          "read": 0.1
+          "read": 0.1,
+          "edit": 0.0,
+          "write": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 7.8,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 98,
         "tool_calls": 107,
+        "thinking_visible": true,
         "thinking_chars": 135944,
-        "text_chars": 2419,
-        "tool_arg_chars": 135601,
         "thinking_median": 284,
         "thinking_median_before": 231,
         "thinking_median_after": 404,
@@ -282,6 +287,11 @@
           "call": 35,
           "at_s": 783.5
         },
+        "text_chars": 2419,
+        "tool_arg_chars": 135601,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2049,
         "context_end": 111658,
         "largest_context_jump": {
@@ -300,7 +310,8 @@
           "name": "bash",
           "gist": "timeout 600 npx playwright test --project=chromium 2>&1 | tail -60"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
       },
       "loc": {
         "files": 17,
@@ -717,26 +728,31 @@
           "unit": 30.9,
           "build": 14.6,
           "bash": 0.6,
-          "edit": 0.1
+          "edit": 0.1,
+          "write": 0.0,
+          "read": 0.0
         },
         "compaction_s": 101.2,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 10.7,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 150,
         "tool_calls": 157,
+        "thinking_visible": true,
         "thinking_chars": 188366,
-        "text_chars": 3098,
-        "tool_arg_chars": 211129,
         "thinking_median": 427,
         "thinking_median_before": 225,
         "thinking_median_after": 629,
@@ -745,6 +761,11 @@
           "call": 96,
           "at_s": 2216.4
         },
+        "text_chars": 3098,
+        "tool_arg_chars": 210689,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2063,
         "context_end": 97999,
         "largest_context_jump": {
@@ -761,9 +782,10 @@
         "longest_tool": {
           "seconds": 35.7,
           "name": "bash",
-          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r4/works"
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r4/workspace\npython"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
       },
       "loc": {
         "files": 33,
@@ -1441,26 +1463,30 @@
           "e2e": 72.0,
           "build": 26.3,
           "edit": 0.1,
-          "write": 0.1
+          "write": 0.1,
+          "read": 0.0
         },
         "compaction_s": 90.0,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 25.3,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 247,
         "tool_calls": 246,
+        "thinking_visible": true,
         "thinking_chars": 91353,
-        "text_chars": 5047,
-        "tool_arg_chars": 190386,
         "thinking_median": 100,
         "thinking_median_before": 104,
         "thinking_median_after": 88,
@@ -1469,6 +1495,11 @@
           "call": 128,
           "at_s": 893.4
         },
+        "text_chars": 5047,
+        "tool_arg_chars": 190342,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2076,
         "context_end": 94932,
         "largest_context_jump": {
@@ -1487,7 +1518,8 @@
           "name": "bash",
           "gist": "npm run build 2>&1 | tail -5 && npx vitest run --config vitest.integration.config.ts 2>&1 | tail -30"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
       },
       "loc": {
         "files": 48,
@@ -2023,26 +2055,30 @@
           "bash": 104.5,
           "build": 52.2,
           "edit": 0.1,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0
         },
         "compaction_s": 209.3,
         "compactions": 2,
         "between_sessions_s": 2.1,
         "other_s": 36.5,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 301,
         "tool_calls": 312,
+        "thinking_visible": true,
         "thinking_chars": 198672,
-        "text_chars": 13446,
-        "tool_arg_chars": 285871,
         "thinking_median": 138,
         "thinking_median_before": 117,
         "thinking_median_after": 139,
@@ -2051,6 +2087,11 @@
           "call": 55,
           "at_s": 1096.4
         },
+        "text_chars": 13446,
+        "tool_arg_chars": 285541,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2073,
         "context_end": 107277,
         "largest_context_jump": {
@@ -2067,9 +2108,10 @@
         "longest_tool": {
           "seconds": 300.1,
           "name": "bash",
-          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r4/works"
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r4/workspace\n\nlsof "
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
       },
       "loc": {
         "files": 57,
@@ -2648,26 +2690,31 @@
           "e2e": 207.2,
           "build": 25.7,
           "bash": 5.5,
-          "edit": 0.1
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 78.7,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 10.8,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 136,
         "tool_calls": 154,
+        "thinking_visible": true,
         "thinking_chars": 58592,
-        "text_chars": 4518,
-        "tool_arg_chars": 147661,
         "thinking_median": 108,
         "thinking_median_before": 107,
         "thinking_median_after": 108,
@@ -2676,6 +2723,11 @@
           "call": 102,
           "at_s": 1207.2
         },
+        "text_chars": 4518,
+        "tool_arg_chars": 147661,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2180,
         "context_end": 45663,
         "largest_context_jump": {
@@ -2694,7 +2746,8 @@
           "name": "bash",
           "gist": "cd $(pwd) && npm run build 2>&1 | grep -E \"(\u2713|error)\" && npm run typecheck 2>&1 && echo \"=== Unit ===\" && npm run test:u"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
       },
       "loc": {
         "files": 69,
@@ -3185,26 +3238,31 @@
           "e2e": 90.5,
           "build": 26.5,
           "bash": 0.2,
-          "edit": 0.1
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 70.1,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 8.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 116,
         "tool_calls": 134,
+        "thinking_visible": true,
         "thinking_chars": 45765,
-        "text_chars": 4681,
-        "tool_arg_chars": 164947,
         "thinking_median": 108,
         "thinking_median_before": 112,
         "thinking_median_after": 97,
@@ -3213,6 +3271,11 @@
           "call": 96,
           "at_s": 1425.2
         },
+        "text_chars": 4681,
+        "tool_arg_chars": 164947,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2200,
         "context_end": 68301,
         "largest_context_jump": {
@@ -3231,7 +3294,8 @@
           "name": "bash",
           "gist": "npm run test:e2e 2>&1 | tail -80"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
       },
       "loc": {
         "files": 83,
@@ -3799,26 +3863,30 @@
           "build": 20.3,
           "bash": 0.3,
           "edit": 0.1,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0
         },
         "compaction_s": 89.7,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 12.5,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 150,
         "tool_calls": 158,
+        "thinking_visible": true,
         "thinking_chars": 102995,
-        "text_chars": 4369,
-        "tool_arg_chars": 197354,
         "thinking_median": 92,
         "thinking_median_before": 92,
         "thinking_median_after": 92,
@@ -3827,6 +3895,11 @@
           "call": 118,
           "at_s": 1894.3
         },
+        "text_chars": 4369,
+        "tool_arg_chars": 196562,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2222,
         "context_end": 72705,
         "largest_context_jump": {
@@ -3843,9 +3916,10 @@
         "longest_tool": {
           "seconds": 33.2,
           "name": "bash",
-          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r4/works"
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r4/workspace && npm"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
       },
       "loc": {
         "files": 92,
@@ -4316,26 +4390,31 @@
           "build": 34.1,
           "bash": 0.5,
           "edit": 0.1,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0,
+          "e2e": 0.0
         },
         "compaction_s": 103.4,
         "compactions": 1,
         "between_sessions_s": 0.3,
         "other_s": 22.6,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 204,
         "tool_calls": 221,
+        "thinking_visible": true,
         "thinking_chars": 47721,
-        "text_chars": 8492,
-        "tool_arg_chars": 192417,
         "thinking_median": 109,
         "thinking_median_before": 102,
         "thinking_median_after": 126,
@@ -4344,6 +4423,11 @@
           "call": 107,
           "at_s": 1069.3
         },
+        "text_chars": 8492,
+        "tool_arg_chars": 191317,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2190,
         "context_end": 83427,
         "largest_context_jump": {
@@ -4360,9 +4444,10 @@
         "longest_tool": {
           "seconds": 31.3,
           "name": "bash",
-          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r4/works"
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__v2-r4/workspace && npx"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
       },
       "loc": {
         "files": 107,
@@ -4871,26 +4956,30 @@
           "build": 11.5,
           "bash": 0.5,
           "edit": 0.1,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0
         },
         "compaction_s": 53.6,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 11.4,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 151,
         "tool_calls": 162,
+        "thinking_visible": true,
         "thinking_chars": 74186,
-        "text_chars": 3471,
-        "tool_arg_chars": 202027,
         "thinking_median": 93,
         "thinking_median_before": 103,
         "thinking_median_after": 87,
@@ -4899,6 +4988,11 @@
           "call": 99,
           "at_s": 1396.0
         },
+        "text_chars": 3471,
+        "tool_arg_chars": 202005,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2224,
         "context_end": 95525,
         "largest_context_jump": {
@@ -4917,7 +5011,8 @@
           "name": "bash",
           "gist": "npm run test:integration 2>&1 | tail -10"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
       },
       "loc": {
         "files": 122,
@@ -5418,26 +5513,30 @@
           "build": 27.5,
           "bash": 0.3,
           "edit": 0.1,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0
         },
         "compaction_s": 79.4,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 14.1,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 152,
         "tool_calls": 151,
+        "thinking_visible": true,
         "thinking_chars": 61543,
-        "text_chars": 5277,
-        "tool_arg_chars": 108572,
         "thinking_median": 100,
         "thinking_median_before": 101,
         "thinking_median_after": 96,
@@ -5446,6 +5545,11 @@
           "call": 98,
           "at_s": 799.8
         },
+        "text_chars": 5277,
+        "tool_arg_chars": 108462,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2202,
         "context_end": 40543,
         "largest_context_jump": {
@@ -5464,7 +5568,8 @@
           "name": "bash",
           "gist": "npx playwright test --grep-invert @nightly --reporter=list 2>&1 | tail -60"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
       },
       "loc": {
         "files": 133,
@@ -5968,26 +6073,30 @@
           "build": 22.8,
           "bash": 0.5,
           "edit": 0.1,
-          "read": 0.1
+          "read": 0.1,
+          "write": 0.0
         },
         "compaction_s": 77.0,
         "compactions": 1,
         "between_sessions_s": 0.0,
         "other_s": 16.0,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
-        }
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        },
+        "backfilled": true
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 167,
         "tool_calls": 184,
+        "thinking_visible": true,
         "thinking_chars": 55301,
-        "text_chars": 3875,
-        "tool_arg_chars": 151736,
         "thinking_median": 96,
         "thinking_median_before": 89,
         "thinking_median_after": 123,
@@ -5996,6 +6105,11 @@
           "call": 128,
           "at_s": 1435.8
         },
+        "text_chars": 3875,
+        "tool_arg_chars": 151736,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2200,
         "context_end": 62033,
         "largest_context_jump": {
@@ -6014,7 +6128,8 @@
           "name": "bash",
           "gist": "cd \"$(pwd)\" && npm run build 2>&1 | tail -3 && echo \"--- BUILD OK ---\" && npm run typecheck 2>&1 | tail -3 && echo \"--- "
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
       },
       "loc": {
         "files": 158,
