@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type Ref,
@@ -42,6 +43,18 @@ export interface BoardViewportProps {
   rootRef?: Ref<HTMLDivElement>;
   /** Board objects (story 2 onwards) render here, in world coordinates. */
   children?: ReactNode;
+  /**
+   * Called with the viewport coordinate when a double-click on board space has
+   * nothing under it. Optional: with no handler the viewport behaves exactly as
+   * the camera tests created it (`sticky.create_dbclick`).
+   */
+  onEmptyDoubleClick?: (screenPoint: Point) => void;
+  /**
+   * Called with the viewport coordinate of a primary-button press on board
+   * space, before any panning starts. The board uses it to drop the selection,
+   * so clicking empty space never leaves a board object selected.
+   */
+  onEmptyPointerDown?: (screenPoint: Point) => void;
 }
 
 /**
@@ -55,12 +68,23 @@ export interface BoardViewportProps {
  * preventDefaults over the board, Safari gesture events are cancelled, and
  * Ctrl/Cmd + `=`, `-`, `0` are cancelled on window keydown.
  */
-export function BoardViewport({ camera, controls, rootRef, children }: BoardViewportProps) {
+export function BoardViewport({
+  camera,
+  controls,
+  rootRef,
+  children,
+  onEmptyDoubleClick,
+  onEmptyPointerDown,
+}: BoardViewportProps) {
   const elRef = useRef<HTMLDivElement | null>(null);
   // Listeners are attached once; they read the newest controls through a ref so
   // a re-render never re-attaches (and never drops a gesture mid-gesture).
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
+  // So are the board handlers: adding one later never re-subscribes an in-flight
+  // gesture.
+  const handlersRef = useRef({ onEmptyDoubleClick, onEmptyPointerDown });
+  handlersRef.current = { onEmptyDoubleClick, onEmptyPointerDown };
 
   const [panning, setPanning] = useState(false);
   const panningRef = useRef(false);
@@ -88,11 +112,15 @@ export function BoardViewport({ camera, controls, rootRef, children }: BoardView
   const beginDrag = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       if (event.button !== 0) return;
-      const el = elRef.current;
-      if (!el || panningRef.current) return;
       // Only the bare board (viewport or grid) starts a pan; board objects
       // handle their own pointerdown and stop propagation.
       if ((event.target as HTMLElement).dataset.boardSurface !== 'true') return;
+      // Board space was pressed, whether or not a pan follows: the board drops
+      // its selection here, so a press on empty space is never also a way of
+      // keeping a note selected.
+      handlersRef.current.onEmptyPointerDown?.(localPoint(event.clientX, event.clientY));
+      const el = elRef.current;
+      if (!el || panningRef.current) return;
       if (typeof el.setPointerCapture === 'function') el.setPointerCapture(event.pointerId);
       panningRef.current = true;
       setPanning(true);
@@ -117,6 +145,20 @@ export function BoardViewport({ camera, controls, rootRef, children }: BoardView
     controlsRef.current.endPan();
     setPanning(false);
   }, []);
+
+  /**
+   * A double-click on board space has nothing under it, because board objects
+   * stop the event. The board's use of it is given to `onEmptyDoubleClick`; the
+   * default text selection that a double-click would make is not wanted here.
+   */
+  const handleDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if ((event.target as HTMLElement).dataset.boardSurface !== 'true') return;
+      event.preventDefault();
+      handlersRef.current.onEmptyDoubleClick?.(localPoint(event.clientX, event.clientY));
+    },
+    [localPoint],
+  );
 
   // --- Pan by scrolling, zoom around the pointer (wheel, pinch) --------------
 
@@ -232,7 +274,10 @@ export function BoardViewport({ camera, controls, rootRef, children }: BoardView
   const worldStyle: CSSProperties = {
     transform: `scale(${camera.zoom}) translate(${-camera.x}px, ${-camera.y}px)`,
     transformOrigin: '0 0',
-  };
+    // Notes counter-scale their own toolbars with this, so a toolbar stays the
+    // same size on screen at any zoom.
+    '--vidi6-zoom': `${camera.zoom}`,
+  } as CSSProperties;
 
   // The crosshair is counter-scaled, so it stays the same size on screen and its
   // centre sits exactly on the board's starting point (world 0,0).
@@ -256,6 +301,7 @@ export function BoardViewport({ camera, controls, rootRef, children }: BoardView
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       onLostPointerCapture={endDrag}
+      onDoubleClick={handleDoubleClick}
     >
       <div className="board-world" data-testid="world-layer" data-board-surface="true" style={worldStyle}>
         <div className="origin-marker" data-testid="origin-marker" aria-hidden="true" style={markerStyle} />

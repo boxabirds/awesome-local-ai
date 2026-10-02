@@ -126,3 +126,187 @@ body,
   outline: 2px solid var(--vidi6-accent);
   outline-offset: 1px;
 }
+
+/* --- sticky notes ---------------------------------------------------------- */
+
+/*
+ * A note is placed in world coordinates inside the world layer, so it is panned
+ * and zoomed with the board. Its own box is always STICKY_SIZE_WORLD wide, the
+ * colour fill carries the soft shadow and the selection is an accent ring.
+ */
+.sticky-note {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18);
+  color: var(--vidi6-text);
+  cursor: grab;
+  /* Notes are dragged, never scrolled by the browser. */
+  touch-action: none;
+  outline: none;
+}
+
+.sticky-note[data-selected='true'] {
+  box-shadow:
+    0 0 0 3px var(--vidi6-accent),
+    0 6px 16px rgba(15, 23, 42, 0.18);
+}
+
+.sticky-note[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+/*
+ * The text box of a note, in world units, in both states: the display element
+ * and the editor's textarea share it so text does not jump when editing starts.
+ * The font size is set on this element by the fit search, in world units, so it
+ * scales with the board like everything else.
+ */
+.sticky-text,
+.sticky-textarea {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: none;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  line-height: 1.25;
+  text-align: center;
+  white-space: pre-wrap;
+  /* A long word breaks instead of being cut off at the note edge. */
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.sticky-text {
+  cursor: inherit;
+}
+
+.sticky-textarea {
+  resize: none;
+  cursor: text;
+  caret-color: var(--vidi6-accent);
+}
+
+/* Text that does not fit is clipped, with a fade at the note's bottom edge. */
+.sticky-fade {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  height: 28px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--sticky-fill, #fff7ae));
+}
+
+/* Character counter, shown when the text is long or hit its limit. */
+.sticky-counter {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.72);
+  color: rgba(31, 36, 48, 0.65);
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/*
+ * The note's toolbar sits above the note and is counter-scaled by its anchor, so
+ * it stays the same size on screen whatever the zoom.
+ */
+.note-toolbar-anchor {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  transform-origin: 0 100%;
+}
+
+.note-toolbar,
+.board-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--vidi6-panel);
+  border: 1px solid var(--vidi6-panel-border);
+  border-radius: 8px;
+  box-shadow: var(--vidi6-panel-shadow);
+}
+
+.note-toolbar {
+  transform-origin: 0 100%;
+}
+
+.sticky-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.sticky-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--vidi6-accent);
+  outline-offset: 1px;
+}
+
+.sticky-delete {
+  font: inherit;
+  line-height: 1;
+  padding: 2px 6px;
+  background: var(--vidi6-panel);
+  border: 1px solid var(--vidi6-panel-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.sticky-swatch:focus-visible,
+.sticky-delete:focus-visible,
+.board-toolbar-button:focus-visible {
+  outline: 2px solid var(--vidi6-accent);
+  outline-offset: 1px;
+}
+
+/* --- board toolbar --------------------------------------------------------- */
+
+/*
+ * Bottom-left, over the board. The world layer holds the notes and forms its own
+ * stacking context, so a positive z-index keeps the tool above every note.
+ */
+.board-toolbar {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 1;
+}
+
+.board-toolbar-button {
+  font: inherit;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: var(--vidi6-panel);
+  color: inherit;
+  border: 1px solid var(--vidi6-panel-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.board-toolbar-icon {
+  font-size: 16px;
+  line-height: 1;
+}

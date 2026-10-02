@@ -162,3 +162,84 @@ window listener (TC-30).
 - npm requires `npm approve-scripts` for `esbuild` and `workerd` postinstall
   scripts (recorded in `package.json` under `allowScripts`); without it
   `wrangler`/`vite` do not work.
+
+## Story 2 decisions (tasks 3-6)
+
+- `fitFontSize(el, boxPx)` returns `{ fontPx, overflow }` and takes the box as a
+  number, because both callers know it: the display box is
+  `STICKY_SIZE_WORLD - 2 * 12`. It reads only `el.scrollHeight` after assigning
+  `el.style.fontSize`, so it measures in whatever space the element lives in
+  (world units here). Binary search, largest fitting size, ties to the larger
+  size; if even the smallest size does not fit it returns the smallest and says
+  `overflow: true`.
+- The text box is block layout, not flexbox, and `fitFontSize` measures that box
+  itself. A centred flex container hides overflow above the content box from
+  `scrollHeight`, which would have made the overflow detection wrong; so text is
+  centred horizontally and starts at the top. The display element and the
+  editor's textarea share the `.sticky-text` box, so text does not move when
+  editing starts or ends.
+- The note is the positioned element (world x/y, width/height, fill, z-index);
+  the text and the fade are placed inside it. Dragging writes world x/y through
+  `moveObject` and the world layer's transform does the rest, which is what keeps
+  the grabbed point under the pointer at any zoom: the press remembers note
+  position and pointer position, and the delta is divided by the zoom.
+- Dragging is rAF-coalesced exactly like camera panning in story 1: pointermove
+  stores the newest position, one `moveObject` per frame, and pointerup/cancel
+  applies the last position itself, then cancels the frame.
+- The character counter and the fit are derived from the same render as the text:
+  the counter length is the editor's own DOM value (clamped before it is
+  counted), and `overflow` comes from the measurement effect, so the counter, the
+  font size and the fade always agree.
+- The note's toolbar is counter-scaled by a wrapper the note owns
+  (`.note-toolbar-anchor`, `scale(1 / zoom)`, origin bottom-left), so
+  `NoteToolbar` keeps the exact props the design gives it and still does not grow
+  with the board.
+- `useSelection` holds selected and editing ids in one object, so selecting can
+  never leave an editor open. `endEdit` ignores a call when no editor is open,
+  which is what a blur after Escape looks like.
+- A swatch or bin click is for the toolbar: `pointerdown` and `dblclick` stop
+  there, so the board never clears the selection or starts editing.
+
+## Story 2 decisions (tasks 7-8)
+
+- **A press is tracked on `window`, not on the note element.** This was found by
+  the e2e tests and no jsdom test could show it: beginning a drag calls
+  `bringToFront`, which changes the note's place in the painted order, and React
+  therefore re-inserts the note's DOM node in its parent. Chromium releases
+  pointer capture when a node is re-inserted, so `lostpointercapture` fires in
+  the middle of the first move. Ending the drag there (which the design's
+  "pointercancel/lostpointercapture → Selected" line suggests) left the note one
+  coalesced step from where it started and every later pointermove was ignored.
+  So `onLostPointerCapture` is not a handler at all; `pointercancel` still ends
+  the drag (TC-21). The move and release listeners are `pointermove`, `pointerup`
+  and `pointercancel` on `window` in the capture phase, added on press and
+  removed in `stopDrag`, which the unmount cleanup also calls. That keeps
+  tracking when the pointer moves faster than the note it carries — a real case,
+  because the position update waits for its frame — and their identity never
+  changes (both hand the event to `trackRef`, written during render, so the
+  newest note, document and callback are used).
+- Both the display box and the editor's textarea carry `data-sticky-text-box`, so
+  the font fit measures whichever one is showing text, and so an e2e test can ask
+  for the computed font size of a note that is not being edited.
+- `tests/e2e/helpers/notes.ts` reads a note off the screen (`data-x`, `data-y`,
+  `data-z`, `data-color`, `data-selected`, `data-dragging`, `data-overflow`, and
+  the text from the textarea while editing or the display box otherwise), and
+  converts between board units and screen pixels with the camera the board
+  reports, so a screen delta of (dx, dy) at zoom z is asserted to be a board
+  delta of (dx / z, dy / z). `noteAtPoint` uses `document.elementFromPoint`: what
+  a user would hit at an overlap is the stacking order itself, which is how
+  TC-32 checks the dragged note came to the front.
+- `fittedFontSize` waits for the computed font size to stop changing before
+  asserting on it, because the fit runs in a layout effect after a
+  ResizeObserver notification, which is a frame or two after the text is written.
+- "Click empty board space" points in the e2e tests are chosen per zoom: the zoom
+  controls are in the bottom right, the Sticky note tool in the bottom left, and
+  a click meant to deselect has to land on the board itself. (An early version of
+  these tests clicked "Reset view" while believing it clicked empty board, which
+  reset the camera and made a drag move the board instead of a note.)
+- Creating a second note takes the selection with it: the first note goes back to
+  being just a note, since one note is selected at a time.
+- firefox and webkit cannot be launched on this machine (probed at config time by
+  `playwright.config.ts`, which prints and skips with that reason). The story's
+  e2e cases therefore run in chromium here; they use no browser-specific API —
+  mouse clicks and moves, ordinary keys, computed styles — as story 1's do.
