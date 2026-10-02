@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness 9617ebb9 (harness-v2026.10.02.3), client pi, model mlxserve-flash-next-mixed-4-8bit",
-  "at": "2026-10-02T11:24:17Z",
+  "state": "failed",
+  "reason": "exit 75: [story 4] stopped by the swap guard: swap 1.24 -> 12.29 GB, free memory at least 19.0%. Not checkpointed; the run resumes once the machine has recovered (machine_fit.py).",
+  "at": "2026-10-02T18:02:01Z",
   "host": "Apple M5 Max 128GB"
 }
