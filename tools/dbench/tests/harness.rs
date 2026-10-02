@@ -411,6 +411,24 @@ fn run_dir(env: &Env, id: &str) -> PathBuf {
         .join(id)
 }
 
+/// The first attempt is under way AND the server has saved that to disk. The harness creates
+/// `attempt1` as soon as it starts, a moment before the server writes the job as running (its pid
+/// is only known after the spawn); a server stopped in that moment leaves a job on disk that still
+/// says queued, and the next server starts it afresh. A test that stops or replaces the server
+/// waits for both.
+async fn wait_first_attempt_saved(env: &Env, id: &str) {
+    let started = run_dir(env, id).join("attempt1");
+    let file = env.home.join(format!("jobs/{id}.json"));
+    wait_until("the first attempt, saved as running", || {
+        started.exists()
+            && std::fs::read(&file)
+                .ok()
+                .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
+                .is_some_and(|j| j["state"]["status"] == "running")
+    })
+    .await;
+}
+
 fn release_dir(env: &Env, tag: &str) -> PathBuf {
     env.home.join(RELEASES_DIR).join(tag)
 }
@@ -594,8 +612,7 @@ async fn a_restarted_job_keeps_the_release_it_started_on() {
     let first = release(&env, TAG_1, "v1", GATED);
     let srv = start(&env, &[]);
     srv.submit("r1", false).await;
-    let started = run_dir(&env, "r1").join("attempt1");
-    wait_until("the first attempt", || started.exists()).await;
+    wait_first_attempt_saved(&env, "r1").await;
 
     // A newer release arrives while the job runs; then its first attempt fails and it restarts.
     release(&env, TAG_2, "v2", "");
@@ -628,8 +645,7 @@ async fn a_restarted_job_whose_release_is_gone_fails_instead_of_changing_harness
     release(&env, TAG_1, "v1", GATED);
     let srv = start(&env, &[]);
     srv.submit("r1", false).await;
-    let started = run_dir(&env, "r1").join("attempt1");
-    wait_until("the first attempt", || started.exists()).await;
+    wait_first_attempt_saved(&env, "r1").await;
 
     // The release is withdrawn everywhere (tag deleted) and its directory is gone; a newer one exists.
     release(&env, TAG_2, "v2", "");
@@ -684,8 +700,7 @@ async fn a_job_started_before_releases_keeps_the_checkouts_harness_when_it_resta
     push_main(&env, "before-releases", GATED);
     let old = start(&env, &["--allow-unreleased"]);
     old.submit("r1", false).await;
-    let started = run_dir(&env, "r1").join("attempt1");
-    wait_until("the first attempt", || started.exists()).await;
+    wait_first_attempt_saved(&env, "r1").await;
     drop(old); // the harness runs on, to be adopted
 
     // As the old version stored it: no harness on record.
@@ -771,8 +786,7 @@ async fn old_release_directories_are_pruned_but_never_the_one_a_job_runs_from() 
     release(&env, TAG_1, "v1", GATED);
     let srv = start(&env, &[]);
     srv.submit("r1", false).await;
-    let started = run_dir(&env, "r1").join("attempt1");
-    wait_until("the first attempt", || started.exists()).await;
+    wait_first_attempt_saved(&env, "r1").await;
 
     // While it runs, more recent releases than its own pile up (more than are kept), and a
     // half-made one is left behind.
