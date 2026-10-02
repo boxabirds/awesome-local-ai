@@ -110,6 +110,7 @@ ARGS=(serve "$MODEL" --host 127.0.0.1 --port "$PORT" --name "$MODEL_ALIAS"
 ARGS+=(${SAMPLING_THINKING})
 [[ "$CTX" == fit ]] || ARGS+=(--context "$CTX")
 [[ "$D_DRAFTS" == 1 ]] || ARGS+=(--no-drafts)
+[[ "${TENSORFOLD_PLE_ON_SSD:-0}" == 1 ]] && ARGS+=(--ple-on-ssd)
 
 export TENSORFOLD_MEMORY_LIMIT_GB="${TENSORFOLD_MEMORY_LIMIT_GB}" TENSORFOLD_NO_LIVE=1 TENSORFOLD_NO_UPDATE_CHECK=1
 echo "${SERVER_CMD}: PROFILE=${PROFILE} ctx=${CTX} drafts=${D_DRAFTS} id=${MODEL_ALIAS} -> http://127.0.0.1:${PORT}/v1" >&2
