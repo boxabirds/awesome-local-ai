@@ -606,6 +606,28 @@
         },
         "heldout_floor": 0.0,
         "heldout_ok": true
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "private": {
+          "copied": 41,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "2433e8e8"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 188
+        },
+        "truncated": false,
+        "reaches": []
       }
     }
   },
