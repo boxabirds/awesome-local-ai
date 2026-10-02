@@ -19,9 +19,9 @@ const OTHER_COMBINATION: &str = "test/combo/other";
 const SIGTERM_EXIT: i32 = 128 + libc::SIGTERM;
 const SIGKILL_EXIT: i32 = 128 + libc::SIGKILL;
 
-/// A finished run to start a known-good job from, as a job names it: relative to the repo.
+/// A finished run to start a partial rerun from, as a job names it: relative to the repo.
 const REFERENCE_RUN: &str = "combinations/test/combo/fake/benchmarks/fakepack/v2-r3";
-/// What the harness's known-good mode reads from that run (drive.py known_good_base).
+/// What the harness's a partial rerun reads from that run (drive.py known_good_base).
 const BUNDLE_FILE: &str = "workspace.bundle";
 const METRICS_FILE: &str = "metrics.json";
 const KNOWN_GOOD_STORY: u32 = 2;
@@ -57,7 +57,7 @@ RUN_DIR="$PWD/combinations/$COMBINATION/benchmarks/$(basename "$(dirname "$(dirn
 mkdir -p "$RUN_DIR"
 echo "path-head: ${PATH%%:*}"
 echo "args: $INSTALL_ID $RUN_ID $SCOPE $CLIENT $RECORD"
-if [[ -n "$FROM_RUN" ]]; then echo "known-good: only=$ONLY from-run=$FROM_RUN"; fi
+if [[ -n "$FROM_RUN" ]]; then echo "partial rerun: only=$ONLY from-run=$FROM_RUN"; fi
 if [[ -n "$FROM_STORY" ]]; then echo "continuing: from-story=$FROM_STORY only=[$ONLY] from-run=$FROM_RUN"; fi
 "#;
 
@@ -1278,7 +1278,7 @@ async fn a_known_good_job_names_its_reference_run_to_the_harness_and_keeps_it_ac
     a.wait_status("kg-1", "done").await;
     let log = a.log("kg-1").await;
     let want = format!(
-        "known-good: only={KNOWN_GOOD_STORY} from-run={}",
+        "partial rerun: only={KNOWN_GOOD_STORY} from-run={}",
         env.repo.join(REFERENCE_RUN).display()
     );
     assert!(log.contains(&want), "want {want:?} in {log}");
@@ -1302,14 +1302,14 @@ async fn a_known_good_job_names_its_reference_run_to_the_harness_and_keeps_it_ac
     assert_eq!(code, 400, "{v}");
     assert!(v["error"].as_str().unwrap_or_default().contains("stories"), "{v}");
 
-    // How many stories a known-good run may have is the harness's to say, not dbench's.
+    // How many stories a partial rerun may have is the harness's to say, not dbench's.
     let mut several = known_good_spec("kg-2", REFERENCE_RUN);
     several["stories"] = json!([KNOWN_GOOD_STORY, KNOWN_GOOD_STORY + 1]);
     assert_eq!(a.submit("kg-2", &several).await.0, 201);
     a.wait_status("kg-2", "done").await;
     let log = a.log("kg-2").await;
     assert!(
-        log.contains(&format!("known-good: only={KNOWN_GOOD_STORY},{}", KNOWN_GOOD_STORY + 1)),
+        log.contains(&format!("partial rerun: only={KNOWN_GOOD_STORY},{}", KNOWN_GOOD_STORY + 1)),
         "{log}"
     );
 

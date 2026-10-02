@@ -221,7 +221,7 @@ def test_G3_outside_run_records_only_titles_count_not_the_anchor_mark():
 # ---------- H. what the publishing gate needed (heldout.py, drive.record_story) ----------
 
 @pytest.mark.parametrize("rel", [
-    f"{RUN}/base/screenshots/b.png",                                     # a known-good run's base scoring
+    f"{RUN}/base/screenshots/b.png",                                     # a partial rerun's base scoring
     f"{RUN}/base/artifacts/x/error-context.md",
     f"{RUN}/superseded/story-02-early-stop/artifacts/x/error-context.md",   # a superseded attempt's scoring
     f"{RUN}/rescore-spoiled/v-20260930T000000/stories/02/scoring-2/accept-report.json",

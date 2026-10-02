@@ -112,7 +112,7 @@ All of it is in [assets/guide-data.js](assets/guide-data.js), found by id. These
 - **Stack under test**: `combination`, `model`, `engine`, `machine`, `client`, `settings`, `install`, `reference`
 - **A run**: `run`, `workspace`, `story-run`, `attempt`, `session`, `conversation`, `compaction`, `stop-message`, `intervention`, `progress-file`, `time-split`
 - **Scoring**: `gate`, `accept`, `rescore`, `finalize`, `score-record`, `invalid-run`, `not-comparable`
-- **Operate**: `job`, `dbench`, `node-server`, `hold`, `harness`, `harness-release`, `provenance`, `known-good`
+- **Operate**: `job`, `dbench`, `node-server`, `hold`, `harness`, `harness-release`, `provenance`, `partial-rerun`
 - **Safeguards**: `sandbox`, `containment`, `machine-guard`, `credential-scan`, `private-repo`
 - **Show and watch**: `record`, `benchmarker`, `gallery`, `monitor`, `anomaly-log`, `insights`, `horizon`
 
@@ -157,5 +157,5 @@ All of it is in [assets/guide-data.js](assets/guide-data.js), found by id. These
 | D. After the run | [finalize.py](../../spec-bench/harness/finalize.py), [rescore.py](../../spec-bench/harness/rescore.py), [EVALUATION-POLICY.md](../../spec-bench/EVALUATION-POLICY.md), [publicise.py](../../spec-bench/harness/publicise.py), [credentials.py](../../spec-bench/harness/credentials.py) |
 | E. A number reaches the benchmarker | [tools/benchmarker/README.md](../../../tools/benchmarker/README.md), `server/domain.ts`, `server/faults.ts` |
 | F. A harness release | [tools/dbench/README.md](../../../tools/dbench/README.md) (releasing), [checks.toml](../../../tools/dbench/checks.toml) |
-| G. Rerun from known-good code | [spec-bench README](../../spec-bench/README.md), the gufo analysis, `drive.py` (`known_good_base`) |
+| G. A partial rerun | [spec-bench README](../../spec-bench/README.md), the gufo analysis, `drive.py` (`known_good_base`) |
 | H. The monitor | [ops/monitor/README.md](../../../ops/monitor/README.md), [triage-prompt.md](../../../ops/monitor/triage-prompt.md) |

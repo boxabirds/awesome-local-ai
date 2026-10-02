@@ -227,7 +227,7 @@ def test_per_story_table_leads_the_summary(tmp_path):
 
 
 def test_known_good_run_measures_regressions_against_its_base(tmp_path):
-    """A known-good run scores the held-out suite on its base before the agent starts, so the one
+    """A partial rerun scores the held-out suite on its base before the agent starts, so the one
     story it runs still shows what it broke and repaired."""
     a1, a2 = ("story-01.spec.ts", "a1"), ("story-01.spec.ts", "a2")
     c1 = ("story-03.spec.ts", "c1")
@@ -247,7 +247,7 @@ def test_known_good_summary_says_it_is_diagnostic(tmp_path):
         "from_run": "benchmarks/reference/vidi/opus-5.5/run-3", "commit": "abc1234def", "story": 7,
         "spec_updated": True}}))
     text = report.summary(tmp_path)
-    assert "Known-good mode (diagnostic)" in text
+    assert "Partial rerun (diagnostic)" in text
     assert "opus-5.5/run-3" in text and "abc1234" in text
     assert "not comparable with full runs" in text
     assert "spec was brought up to this pack's version" in text
@@ -260,7 +260,7 @@ def test_known_good_continuation_summary_says_which_stories_it_ran(tmp_path):
         "from_run": "combinations/some/stack/benchmarks/vidi/v2-r1", "commit": "abc1234def", "story": 10,
         "spec_updated": False, "continues": True}}))
     text = report.summary(tmp_path)
-    assert "**Known-good mode (diagnostic).** Story 10 and every later story of the scope, built on" in text
+    assert "**Partial rerun (diagnostic).** Story 10 and every later story of the scope, built on" in text
     assert "It measures those stories, with no earlier mistakes carried in; not comparable with full runs." in text
     assert "Story 10 only" not in text and "spec was brought up" not in text
 

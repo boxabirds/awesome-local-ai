@@ -29,7 +29,7 @@ The held-out suite is the pack's acceptance tests, kept in the private repo and 
    - **cumulative**: every held-out test for the stories built so far.
 
    The cumulative score is how usable the finished app is. The per-story parts show why, so that a single early bug doesn't hide what the rest of the run did.
-7. **Known-good mode is diagnostic.** Running one story from a known-good base (another run's code at the end of the previous story) measures that story on its own, with no earlier mistakes carried in. Its results are labelled as such and never combined with full runs.
+7. **A partial rerun is diagnostic.** Running one story from a base (another run's code at the end of the previous story) measures that story on its own, with no earlier mistakes carried in. Its results are labelled as such and never combined with full runs.
 
 ## Setting up held-out tests
 

@@ -100,7 +100,7 @@ def test_attempts_build_from_the_real_records(tmp_path, monkeypatch):
 
 
 def test_review_leaves_out_known_good_runs(tmp_path):
-    """EVALUATION-POLICY rule 7: known-good runs are diagnostic and never mixed with full runs."""
+    """EVALUATION-POLICY rule 7: partial reruns are diagnostic and never mixed with full runs."""
     runs = tmp_path / "combinations" / "some" / "stack" / "benchmarks" / "vidi"
     for name, extra in (("full-01", {}), ("kg-3", {"known_good": {"from_run": "x", "commit": "c", "story": 3}})):
         (runs / name).mkdir(parents=True)

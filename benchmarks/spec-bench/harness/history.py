@@ -105,7 +105,7 @@ def source_files(commits: list[dict]) -> list[tuple[str, int]]:
     return total.most_common()
 
 
-BASE_DIR = "base"   # a known-good run's held-out results on its base, before the agent starts
+BASE_DIR = "base"   # a partial rerun's held-out results on its base, before the agent starts
 
 
 def _tests(run: Path, sid: str) -> dict[tuple, dict]:

@@ -64,7 +64,7 @@ def run_dirs(repo: Path) -> list[Path]:
 
 
 def _known_good(run: Path) -> bool:
-    """A known-good run (EVALUATION-POLICY rule 7) is diagnostic: never reviewed beside full runs."""
+    """A partial rerun (EVALUATION-POLICY rule 7) is diagnostic: never reviewed beside full runs."""
     try:
         return bool(json.loads((run / "metrics.json").read_text()).get("known_good"))
     except (OSError, json.JSONDecodeError):

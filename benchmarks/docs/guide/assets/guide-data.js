@@ -421,13 +421,13 @@ GUIDE_DATA.entities = [
     example: "gufo `v2-r1` was scored under suite `vidi-v2.0-pre1`, then `pre2`, and could not say which stories were scored by which until provenance existed.",
   },
   {
-    id: "known-good", name: "Known-good rerun", group: "operate", row: 7,
-    short: "One story, or the rest of a run, replayed from another run's code.",
+    id: "partial-rerun", name: "Partial rerun", group: "operate", row: 7,
+    short: "One story, or the rest of a run, rerun from another run's code.",
     what: "A diagnostic: one story (`--only N`), or story N and every later one (`--from-story N`), run on another finished run's code as it was when the story before ended. The held-out suite is run on that base first, so regressions still count. It measures a stack on a story without earlier mistakes carried in, in the time of a story instead of a run. Labelled diagnostic; never mixed with full runs.",
     rel: [["re-runs", "story-run"], ["starts from", "run"]],
-    repo: [["benchmarks/spec-bench/README.md", "spec-bench README: known-good mode"], ["benchmarks/spec-bench/EVALUATION-POLICY.md", "EVALUATION-POLICY.md: rule 7"]],
+    repo: [["benchmarks/spec-bench/README.md", "spec-bench README: partial reruns"], ["benchmarks/spec-bench/EVALUATION-POLICY.md", "EVALUATION-POLICY.md: rule 7"]],
     example: "`dbench submit … --from-run <run> --stories 2 --repeat 5`: story 2 on that run's story-1 code, five separate runs.",
-    status: { state: "built", note: "`--only N` is in release 1 and `--from-story N` is on main only. One known-good run has been recorded; the gufo analysis proposes replaying story 2 five times and says it awaits a decision." },
+    status: { state: "built", note: "`--only N` is in release 1 and `--from-story N` is on main only. One partial rerun has been recorded; the gufo analysis proposes rerunning story 2 five times and says it awaits a decision." },
     insights: ["variance-spread"],
   },
 
@@ -557,10 +557,10 @@ GUIDE_DATA.problems = [
     example: [
       "Story 2 of the four gufo v2 runs took 80, 18, 97 and 52 minutes, with 20/20, 19/20, 19/20 and 19/20 held-out tests passing afterwards. The same eleven stories took between 7.4 and 11.1 hours per run.",
     ],
-    control: "Three runs per stack. The benchmarker shows run totals, the median with the lowest and highest, and a thinking spread and time spread once a stack has three finished runs; {e:not-comparable|not-comparable story runs} are left out of story-by-story comparisons; a {e:known-good|known-good rerun} replays one story from the same code.",
+    control: "Three runs per stack. The benchmarker shows run totals, the median with the lowest and highest, and a thinking spread and time spread once a stack has three finished runs; {e:not-comparable|not-comparable story runs} are left out of story-by-story comparisons; a {e:partial-rerun|partial rerun} replays one story from the same code.",
     insights: ["variance-spread"],
-    entities: ["run", "story-run", "not-comparable", "known-good", "benchmarker"],
-    flows: ["replay", "number"],
+    entities: ["run", "story-run", "not-comparable", "partial-rerun", "benchmarker"],
+    flows: ["partial-rerun", "number"],
   },
   {
     id: "noise", n: 2, title: "The harness adds noise of its own: the 'continue' nudge",
@@ -627,10 +627,10 @@ GUIDE_DATA.problems = [
     example: [
       "Qwen agents blame failures on earlier work: in 89 of 315 Qwen stories an agent says a failure is pre-existing or flaky and never runs a baseline of the earlier code. And an agent told to carry on after saying done built the next two stories inside story 10, so stories 11 and 12 started from code that was already there.",
     ],
-    control: "Per-story new work, regressions and repairs; PARTIAL stories get a verdict (green, amber, red) and later tests built on them are counted apart; {e:not-comparable|not-comparable} marking; a {e:known-good|known-good rerun} starts a story from a clean base.",
+    control: "Per-story new work, regressions and repairs; PARTIAL stories get a verdict (green, amber, red) and later tests built on them are counted apart; {e:not-comparable|not-comparable} marking; a {e:partial-rerun|partial rerun} starts a story from a clean base.",
     insights: ["inherited-failures"],
-    entities: ["story", "story-run", "known-good", "not-comparable"],
-    flows: ["replay"],
+    entities: ["story", "story-run", "partial-rerun", "not-comparable"],
+    flows: ["partial-rerun"],
   },
   {
     id: "selfreport", n: 7, title: "'Done' does not mean done",
@@ -1388,7 +1388,7 @@ GUIDE_DATA.flows = [
     ],
     status: {
       built: ["Queue, one job at a time per node; hold and release; restarts, recovery after a reboot; the unfit-machine wait; skip-story; the newest-release rule and `harness-release`."],
-      "in-progress": ["Known-good jobs need the dbench built on 1 October on the node (the repo does not record which nodes have it), and `--from-story` also needs a harness release newer than release 1: `--only N --from-run` is in release 1, `--from-story` is on main only.", "The dbench README's last sentence under 'Releasing the harness' says nodes do not run released tags yet. The code and the 1 October run records say they do, and this guide follows the code."],
+      "in-progress": ["Partial-rerun jobs need the dbench built on 1 October on the node (the repo does not record which nodes have it), and `--from-story` also needs a harness release newer than release 1: `--only N --from-run` is in release 1, `--from-story` is on main only.", "The dbench README's last sentence under 'Releasing the harness' says nodes do not run released tags yet. The code and the 1 October run records say they do, and this guide follows the code."],
       planned: ["Listed as 'not built yet' in the dbench README, among others: a conditions gate with a `blocked` state, a memory guard in dbench itself, an offline push retry (`unpushed_commits`), previews, a `rescore` command, binary self-update (`PUT /v1/binary`), `deploy`, `doctor`, follow for events."],
     },
     caption: "A job passes through the node's queue, picks up the newest harness release, and its exit code decides what happens next.",
@@ -1898,7 +1898,7 @@ GUIDE_DATA.flows = [
       },
       {
         title: "Try the candidate on a bench machine", nodes: ["ch", "ci"], edges: ["ch>ci"],
-        text: ["Before a release, the candidate is run on an idle Linux bench machine, from a copy and not from a tag: the sandbox's own tests under bubblewrap, the sandbox proof (`prove-sandbox.sh`), the whole preflight, and one replayed story, unrecorded so nothing is published from unreleased code. A machine that is running a benchmark is never used: the work would disturb its timings.", "This step exists because tests alone were not enough. The first release with the new sandbox passed every check and then failed at the preflight of its first real job; on 2 October 2026 a candidate tried this way found that fault and a second one before any tag was made. A hosted CI workflow ran the checks on every push for one day (1 October 2026) and was removed: it did not have a bench machine's setup, so it could not find either fault."],
+        text: ["Before a release, the candidate is run on an idle Linux bench machine, from a copy and not from a tag: the sandbox's own tests under bubblewrap, the sandbox proof (`prove-sandbox.sh`), the whole preflight, and one partial rerun of a story, unrecorded so nothing is published from unreleased code. A machine that is running a benchmark is never used: the work would disturb its timings.", "This step exists because tests alone were not enough. The first release with the new sandbox passed every check and then failed at the preflight of its first real job; on 2 October 2026 a candidate tried this way found that fault and a second one before any tag was made. A hosted CI workflow ran the checks on every push for one day (1 October 2026) and was removed: it did not have a bench machine's setup, so it could not find either fault."],
         cmd: "benchmarks/spec-bench/harness/prove-sandbox.sh\n(cd benchmarks/spec-bench/harness && uv run preflight.py --client pi)",
         where: [["benchmarks/spec-bench/harness/prove-sandbox.sh", "harness/prove-sandbox.sh"], ["benchmarks/spec-bench/harness/preflight.py", "harness/preflight.py"]],
         state: "in-progress", stateNote: "Done by hand on 2 October 2026; not yet one command.",
@@ -1937,25 +1937,25 @@ GUIDE_DATA.flows = [
     ],
   },
 
-  // -------------------------------------------------------------------------------------------------- G: known-good rerun
+  // -------------------------------------------------------------------------------------------------- G: partial rerun
   {
-    id: "replay", letter: "G", short: "Rerun a story from known-good code", title: "Running a story again from a finished run's code",
+    id: "partial-rerun", letter: "G", short: "A partial rerun of a story", title: "Running a story again from a finished run's code",
     intro: [
-      "A story in a full run starts from whatever the same run built before it, so a story's numbers mix the model's own variation with its earlier mistakes. Known-good mode removes the second part: it runs a story, or the rest of the scope, on another run's code as it stood when the story before ended.",
+      "A story in a full run starts from whatever the same run built before it, so a story's numbers mix the model's own variation with its earlier mistakes. A partial rerun removes the second part: it runs a story, or the rest of the scope, on another run's code as it stood when the story before ended.",
     ],
     status: {
       built: ["One story on another run's code (`--only N --from-run`) in harness release 1, with a recorded example (one run on the mlx-serve combination)."],
-      "in-progress": ["On main, not in release 1: `--from-story N` (story N and every later story), and queueing known-good jobs with dbench (`--from-run`, `--from-story`), which needs the dbench built on 1 October."],
-      planned: ["Replaying story 2 five times from one commit, to measure the model's own variation, has been proposed in the gufo analysis and awaits a decision."],
+      "in-progress": ["On main, not in release 1: `--from-story N` (story N and every later story), and queueing partial-rerun jobs with dbench (`--from-run`, `--from-story`), which needs the dbench built on 1 October."],
+      planned: ["Rerunning story 2 five times from one commit, to measure the model's own variation, has been proposed in the gufo analysis and awaits a decision."],
     },
     caption: "The reference run supplies only the base; everything after it is a new sample.",
     diagram: {
       w: 520, h: 700,
-      desc: "A finished run's workspace bundle and commits are the source. dbench submit names the run and story. run.sh in known-good mode rebuilds a workspace from that run's history up to the story before N, scores the base with the held-out suite, then runs story N through the normal loop and, with --from-story, the later stories. The record carries a known_good field and is labelled diagnostic, never mixed with full runs.",
+      desc: "A finished run's workspace bundle and commits are the source. dbench submit names the run and story. run.sh, run as a partial rerun, rebuilds a workspace from that run's history up to the story before N, scores the base with the held-out suite, then runs story N through the normal loop and, with --from-story, the later stories. The record carries a known_good field and is labelled diagnostic, never mixed with full runs.",
       nodes: [
         { id: "fr", label: "A finished run\nworkspace.bundle + commits", kind: "store", x: 260, y: 34, w: 250 },
         { id: "sub", label: "dbench submit\n--from-run … --stories N\nor --from-story N", x: 260, y: 118, w: 250 },
-        { id: "rs", label: "run.sh in known-good mode\n--only N or --from-story N", x: 260, y: 210, w: 260 },
+        { id: "rs", label: "run.sh: a partial rerun\n--only N or --from-story N", x: 260, y: 210, w: 260 },
         { id: "ws", label: "Workspace rebuilt:\nreference history up to story N-1", kind: "store", x: 260, y: 298, w: 280 },
         { id: "base", label: "Score the base\nbase/accept-summary.json", kind: "gate", x: 260, y: 386, w: 230 },
         { id: "sn", label: "Story N\nnormal loop", x: 140, y: 474, w: 150 },
@@ -1972,7 +1972,7 @@ GUIDE_DATA.flows = [
       {
         title: "Pick a finished run and a story", nodes: ["fr"], edges: [],
         text: ["A finished run that has its `workspace.bundle` (its whole workspace history) and the commit each story ended on can supply any story's exact starting point; `drive.py` refuses a run without a bundle. The reference run must have been built from the same spec."],
-        where: [["benchmarks/spec-bench/README.md", "spec-bench README: known-good mode"], ["combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/analysis/README.md", "gufo analysis: what can be run again"]],
+        where: [["benchmarks/spec-bench/README.md", "spec-bench README: partial reruns"], ["combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/analysis/README.md", "gufo analysis: what can be run again"]],
         state: "built",
       },
       {
@@ -1983,7 +1983,7 @@ GUIDE_DATA.flows = [
         state: "built",
       },
       {
-        title: "run.sh in known-good mode", nodes: ["sub", "rs"], edges: ["sub>rs"],
+        title: "run.sh runs the partial rerun", nodes: ["sub", "rs"], edges: ["sub>rs"],
         text: ["`run.sh <install-id> --only N --from-run <run>` runs story N alone. {g:from-story|`--from-story N`} with `--from-run <run>` runs story N and every later story of the scope, each built on the one before in this new run. The reference run supplies only the base, so it need not have run the later stories. A restart resumes at the first unfinished story, like any run. `--from-story` is on main only."],
         where: [["benchmarks/spec-bench/harness/run.sh", "harness/run.sh"], ["benchmarks/spec-bench/harness/drive.py", "drive.py (known_good_base)"]],
         state: "built",
@@ -2009,7 +2009,7 @@ GUIDE_DATA.flows = [
       },
       {
         title: "Record it, labelled", nodes: ["sn", "later", "rec", "lab"], edges: ["sn>rec", "later>rec", "rec>lab"],
-        text: ["The record says which kind it was (`known_good` in `metrics.json`, with `continues` true for the `--from-story` form), and the summary is labelled diagnostic. Known-good results are never combined with full runs (EVALUATION-POLICY rule 7). The benchmarker marks a story run that is not the same work as other runs' as not comparable."],
+        text: ["The record says which kind it was (`known_good` in `metrics.json`, with `continues` true for the `--from-story` form), and the summary is labelled diagnostic. Partial reruns' results are never combined with full runs (EVALUATION-POLICY rule 7). The benchmarker marks a story run that is not the same work as other runs' as not comparable."],
         where: [["benchmarks/spec-bench/EVALUATION-POLICY.md", "EVALUATION-POLICY.md"], ["combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/kg-07-01/summary.md", "an example: kg-07-01"]],
         state: "built",
       },
@@ -2260,7 +2260,7 @@ GUIDE_DATA.glossary = [
   { id: "agent-sandbox", term: "agent-sandbox", def: "A Rust tool that runs a command with the least access it needs: write only to its own directory, network only to named ports and hosts. Every agent runs in it on main since 1 October 2026; harness release 1 does not use it.", entity: "sandbox", auto: ["agent-sandbox"], see: ["sandbox"] },
   { id: "anomaly-log", term: "Anomaly log", def: "`ops/anomaly-tracking.md`: the fault log. Each internal fault becomes a numbered entry (A-001…) in one of six buckets and stays open until fixed or explained.", entity: "anomaly-log", auto: ["anomaly log"], see: ["bucket", "monitor"] },
   { id: "attempt", term: "Attempt", def: "One harness process working on a story. A harness restart mid-story starts a new attempt in the same agent session; the story's totals are summed over attempts.", entity: "attempt", see: ["session"] },
-  { id: "base", term: "Base (known-good)", def: "The code a known-good rerun starts from: another run's workspace as it was when the story before ended. Its held-out result is measured first so regressions and repairs count.", see: ["known-good"] },
+  { id: "base", term: "Base (of a partial rerun)", def: "The code a partial rerun starts from: another run's workspace as it was when the story before ended. Its held-out result is measured first so regressions and repairs count.", see: ["partial-rerun"] },
   { id: "benchmarker", term: "Benchmarker", def: "The results page in `tools/benchmarker`. It shows results only, never faults; a run marked invalid is not in it.", entity: "benchmarker", auto: ["benchmarker"] },
   { id: "blinded-grading", term: "Blinded grading", def: "An independent grader compares two builds' code without knowing which setup made which: the builds are labelled A and B in random order, names are scrubbed, and the key is kept outside the package.", auto: ["blinded grader", "blinded grading"], see: ["judge"] },
   { id: "bucket", term: "Bucket", def: "The class of an anomaly-log entry: internal bug, genuine LLM behaviour, stuck job, broken pipeline, environment, or unexplained.", see: ["anomaly-log"] },
@@ -2284,7 +2284,7 @@ GUIDE_DATA.glossary = [
   { id: "epic", term: "Epic", def: "A group of related stories in a spec, with 'Depends on' lines that fix the build order.", entity: "scope", see: ["scope"] },
   { id: "finalize", term: "Finalize", def: "The end-of-run step that bundles the workspace, repairs stale records, re-scores the final build and writes `finalize.json`.", entity: "finalize", auto: ["finalize.py"], see: ["score-record", "sweep"] },
   { id: "flaky", term: "Flaky test", def: "A held-out test whose result changed between the three scorings. Counted both ways: failed first and passed first.", see: ["rescore"] },
-  { id: "from-story", term: "Known-good options (--only, --from-story)", def: "Known-good options: `--only N` runs one story on another run's code; `--from-story N` runs story N and every later story, each on the one before.", entity: "known-good", see: ["known-good"] },
+  { id: "from-story", term: "Partial-rerun options (--only, --from-story)", def: "Partial-rerun options: `--only N` runs one story on another run's code; `--from-story N` runs story N and every later story, each on the one before.", entity: "partial-rerun", see: ["partial-rerun"] },
   { id: "gate", term: "Gate", def: "The agent's own checks (`build`, `typecheck`, `test:*`) run by the harness after each story. Green means the agent's tests passed, not that the spec is met.", entity: "gate" },
   { id: "gufo", term: "gufo", def: "A single-model inference engine for the Strix Halo chip, run from a container image. One of the engines compared.", entity: "engine", auto: ["gufo"] },
   { id: "guard", term: "Live-versus-record guard", def: "The check in finalize that compares a re-score with the run's live score of the same code: more than 3 tests apart, a different number of tests, or one shared error behind all failures is flagged and not recorded.", entity: "score-record", see: ["score-record"] },
@@ -2297,7 +2297,7 @@ GUIDE_DATA.glossary = [
   { id: "invalid-run", term: "Invalid run", def: "A run marked `invalid` in `run.json` because its result cannot stand. It is skipped by the re-score sweep and not shown in the benchmarker.", entity: "invalid-run", auto: ["invalid run", "invalid runs"] },
   { id: "job", term: "Job", def: "One dbench execution of a run, waiting in a node's queue: queued, running, done, failed or cancelled.", entity: "job" },
   { id: "judge", term: "Judging", def: "A person watching a recording of each held-out test and marking whether the scored pass or fail was right. It validates the scoring. (A blinded AI grader, below, compares code quality instead.)", entity: "judgement", see: ["blinded-grading", "build-score-judge"] },
-  { id: "known-good", term: "Known-good rerun", def: "A diagnostic that runs a story, or the rest of a scope, on another finished run's code. Labelled diagnostic and never mixed with full runs.", entity: "known-good", auto: ["known-good"] },
+  { id: "partial-rerun", term: "Partial rerun", def: "A diagnostic that runs a story, or the rest of a scope, on another finished run's code. Labelled diagnostic and never mixed with full runs.", entity: "partial-rerun", auto: ["partial-rerun"] },
   { id: "live-score", term: "Live score", def: "The held-out result taken in the agent's own workspace right after a story. It shows a run's course; it is not the score of record.", entity: "accept", auto: ["live score", "live scores"], see: ["score-record"] },
   { id: "llamacpp", term: "llama.cpp", def: "An open-source inference engine with CUDA, Vulkan and Metal back ends. Several combinations use it, some on a fork or an unmerged pull request for the MTP head.", entity: "engine", auto: ["llama.cpp"] },
   { id: "machine", term: "Machine", def: "The hardware a combination was measured on, named by hardware: the RTX 4090 machine, the Strix Halo box, the M5 Max. In dbench, a machine running `dbench serve` is a node.", entity: "machine", see: ["node"] },
@@ -2373,16 +2373,16 @@ GUIDE_DATA.ledger = [
   { state: "in-progress", item: "Read-only spec and PROGRESS.md", detail: "On main; not in release 1. The agent's own progress goes in `PROGRESS.md`, because agents edited the Status column of `tasks.md` in 13 recorded runs." },
   { state: "in-progress", item: "Credential scan before publishing", detail: "On main; not in release 1. Nodes that run release 1 publish records without the scan." },
   { state: "in-progress", item: "The re-score sweep and the tag-exact suite", detail: "On main, not in release 1: repair of stale records, the sweep (`finalize_pending.py`) with its 5 attempts and `needs_person`, the suite taken exactly at the pack's tag (`tagsuite.py`), bun installs, and marking a story run not comparable (`mark_not_comparable.py`, manual). In release 1 the final re-score runs only when the private suite checkout is exactly at the pack's tag, and otherwise the run is recorded unscored." },
-  { state: "in-progress", item: "Known-good continuation", detail: "`--from-story N` and queueing known-good jobs with dbench (`--from-run`, `--from-story`) are on main and not in release 1; `--only N --from-run` is in release 1. They also need the dbench built on 1 October on the node, and the repo does not record which nodes have that binary." },
+  { state: "in-progress", item: "Partial rerun to the end of the scope", detail: "`--from-story N` and queueing partial-rerun jobs with dbench (`--from-run`, `--from-story`) are on main and not in release 1; `--only N --from-run` is in release 1. They also need the dbench built on 1 October on the node, and the repo does not record which nodes have that binary." },
   { state: "in-progress", item: "Harness release 2", detail: "`harness-v2026.10.01.1` is the only release. Everything above waits for the next one, which carries `tools/agent-sandbox` as source for the node to build. The nodes run release 1 until it is cut." },
-  { state: "planned", item: "Replaying one story five times", detail: "Proposal D of the gufo analysis, to measure the model's own variation from one commit (story 2 took 18 to 97 minutes). The analysis says it awaits a decision." },
+  { state: "planned", item: "Rerunning one story five times", detail: "Proposal D of the gufo analysis, to measure the model's own variation from one commit (story 2 took 18 to 97 minutes). The analysis says it awaits a decision." },
   { state: "planned", item: "Showing unscored runs on the page", detail: "EVALUATION-POLICY.md still lists it as 'to do', so that unscored runs are not silently left out of every mean. The benchmarker's glossary already counts pending runs apart on a combination row under 'Not counted'; whether that satisfies the policy line is not stated." },
   { state: "planned", item: "dbench features from its design", detail: "A conditions gate with a `blocked` state, a memory guard in dbench, an offline push retry, previews, a `rescore` command, binary self-update, `deploy`, `doctor`, follow for events (the dbench README's 'Not built yet', among others)." },
   { state: "planned", item: "WebKit's system libraries on the Linux machines", detail: "With the network closed, an agent that needs them can no longer download them. Installing them once needs the owner's approval and is not done (findings: security, part B)." },
   { state: "planned", item: "Judging for every pack", detail: "The review page is Vidi only; the root README says it is 'to be generalised to every pack'." },
   { state: "planned", item: "TensorFold", detail: "Its upstream defect is fixed, but our own long-context cache-retention check on the M5 Max has not passed; no runs until it does." },
   { state: "idea", item: "Multi-session benchmarks", detail: "Several agents on one server, or several agents on one codebase. 'Ideas only; nothing here is built or scheduled' (`benchmarks/docs/20260928-multi-session-benchmarks.md`)." },
-  { state: "built", item: "In harness release 1 and in use", detail: "The harness's story loop with its guards, the gate and live held-out scoring, the time accounting, the final re-score with its guard, publishing with the held-out filter and the machine-name check; dbench with its queue, holds, releases and restarts; the benchmarker with its entity pages; the monitor and the anomaly log; the insights analysis; the one-story known-good rerun." },
+  { state: "built", item: "In harness release 1 and in use", detail: "The harness's story loop with its guards, the gate and live held-out scoring, the time accounting, the final re-score with its guard, publishing with the held-out filter and the machine-name check; dbench with its queue, holds, releases and restarts; the benchmarker with its entity pages; the monitor and the anomaly log; the insights analysis; the one-story partial rerun." },
   { state: "built", item: "Where the repo's documents disagree with its code (this guide describes the code)", detail: "The dbench README's last sentence under 'Releasing the harness' says nodes do not run released tags yet, but `harness.rs` selects the newest release for every job and run records show `harness-v2026.10.01.1`. The benchmarker plan (`plans/20260930-benchmarker-information-architecture.md`) says 'nothing here is built yet', but the entity pages exist in `tools/benchmarker/src/pages`." },
 ];
 

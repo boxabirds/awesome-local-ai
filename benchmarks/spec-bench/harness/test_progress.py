@@ -303,7 +303,7 @@ def test_baselines_find_every_reference_run_and_ignore_void_scores(tmp_path):
 
 
 def test_baselines_leave_out_known_good_runs(tmp_path):
-    """EVALUATION-POLICY rule 7: a known-good run started from someone else's code, so its story
+    """EVALUATION-POLICY rule 7: a partial rerun started from someone else's code, so its story
     says nothing about what a stack does in a full run."""
     runs = tmp_path / "combinations" / "some" / "stack" / "benchmarks" / "vidi"
     story = {"3": {"finished": 1, "accept": {"by_story": {"03": {"passed": 7, "total": 7}}}}}

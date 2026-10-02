@@ -12,7 +12,7 @@ use crate::ids::{valid_id, valid_pack, valid_run_dir};
 pub const SPEC_BENCH_ENTRY: &str = "benchmarks/spec-bench/harness/run.sh";
 /// Path of a pack's own entry point, relative to the pack directory.
 pub const PACK_ENTRY: &str = "harness/run.sh";
-/// What known-good mode reads from the run it starts from (drive.py known_good_base): the run's
+/// What a partial rerun reads from the run it starts from (drive.py known_good_base): the run's
 /// whole workspace history, and its record, which names the commit each story ended on.
 pub const REFERENCE_BUNDLE: &str = "workspace.bundle";
 pub const REFERENCE_METRICS: &str = "metrics.json";
@@ -104,7 +104,7 @@ pub struct JobSpec {
     /// job's identity: the same id with a different server_env is a conflict.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub server_env: BTreeMap<String, String>,
-    /// Known-good mode: a finished run to start from, as a run directory relative to the repo
+    /// A partial rerun: a finished run to start from, as a run directory relative to the repo
     /// (e.g. `combinations/…/benchmarks/vidi/v2-r1`). The harness runs `stories` on that run's code
     /// as it was when the story before ended (`--from-run`). Part of the job's identity.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -207,7 +207,7 @@ pub fn resolve_entry(repo: &Path, pack: &str) -> Option<Entry> {
     })
 }
 
-/// Why a reference run can't be started from, or None when it has what known-good mode reads.
+/// Why a reference run can't be started from, or None when it has what a partial rerun reads.
 /// `from_run` is relative to `results_root`, the node's checkout: a finished run is a result, and a
 /// harness release's own directory holds none.
 pub fn reference_run_problem(results_root: &Path, from_run: &str) -> Option<String> {
@@ -490,7 +490,7 @@ mod tests {
                 "--record"
             ]
         );
-        // Several stories pass through as given: how many a known-good run takes is the harness's rule.
+        // Several stories pass through as given: how many a partial rerun takes is the harness's rule.
         let mut several = known_good();
         several.stories = Some(vec![10, 11, 12]);
         let got = args_of(&generic, &several);

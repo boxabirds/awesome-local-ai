@@ -262,7 +262,7 @@ share of stops that end in a verified commit, against 15%.
 ## What can be run again
 
 Every finished v2 run on the local stacks keeps its whole workspace history (`workspace.bundle`) and the commit each
-story ended on. The harness can already rebuild any story's exact starting point from those: its known-good mode
+story ended on. The harness can already rebuild any story's exact starting point from those: its partial rerun
 (`run.sh … --only N --from-run <run>`) runs one story on a finished run's code as it was when the story before
 ended. So:
 
@@ -270,9 +270,9 @@ ended. So:
 |---|---|
 | Can any one story of a finished run be run again from where it started? | Yes, for all nine finished v2 runs on the local stacks. |
 | Will it give the same result? | No. It is a new sample: temperature 1.0, no fixed seed. It shows how the story goes from the same start, not the same story again. |
-| Can a run be repaired by replacing one story? | No. The stories after it were built on the code the original story left. A replayed story leaves different code. |
-| Can a run be continued from story N to the end? | Not yet. Known-good mode runs exactly one story. `v2-r1` would need stories 10, 11 and 12 in a chain. |
-| Can it be queued like a normal run? | Yes, once the bench machines have the dbench built on 1 October (`dbench submit … --stories N --from-run <run>`, with `--repeat` for several replays). |
+| Can a run be repaired by replacing one story? | No. The stories after it were built on the code the original story left. A rerun story leaves different code. |
+| Can a run be continued from story N to the end? | Not yet. A partial rerun runs exactly one story. `v2-r1` would need stories 10, 11 and 12 in a chain. |
+| Can it be queued like a normal run? | Yes, once the bench machines have the dbench built on 1 October (`dbench submit … --stories N --from-run <run>`, with `--repeat` for several partial reruns). |
 
 The three v2 story runs the nudge kept going for more than five minutes after "done":
 
@@ -282,7 +282,7 @@ The three v2 story runs the nudge kept going for more than five minutes after "d
 | mlx-serve | `v2-r2` | 4 | 200 min | 41 min | no rerun needed: count the story to its first "done". |
 | gufo | `v2-r4` | 4 | 57 min | 35 min | no rerun needed: count the story to its first "done". |
 
-Known-good mode is also what proposal D needs: story 2 five times from one run's story-1 commit.
+A partial rerun is also what proposal D needs: story 2 five times from one run's story-1 commit.
 
 ## Thinking spread as a headline figure
 
@@ -335,7 +335,7 @@ A, B, E and F are approved (1 October 2026): B and E are live, A and F are being
 **D. Measure the model's own variation directly**
 - **Problem:** in a full run each story starts from that run's own earlier code, so story-level variation mixes the
   model's randomness with what it built before.
-- **Recommended solution:** replay one story five times from the same commit. Story 2 is the candidate (18 to 97
+- **Recommended solution:** rerun one story five times from the same commit. Story 2 is the candidate (18 to 97
   minutes here). Optionally repeat with a fixed seed, to see how much is sampling.
 - **Proposed actions:** about five story runs on the Strix Halo box.
 
@@ -346,9 +346,9 @@ A, B, E and F are approved (1 October 2026): B and E are live, A and F are being
 - **Proposed actions:** the harness or benchmarker computes both from the records; a change to the pages.
 
 **F. Running stories again**
-- **Problem:** known-good mode runs one story and can't be queued, so `v2-r1` can't be continued from story 10 and
+- **Problem:** a partial rerun runs one story and can't be queued, so `v2-r1` can't be continued from story 10 and
   proposal D has to be run by hand.
-- **Recommended solution:** let the job queue submit a known-good story, and let known-good mode continue to the end
+- **Recommended solution:** let the job queue submit a partial rerun of a story, and let a partial rerun continue to the end
   of the scope when asked.
 - **Proposed actions:** tests first, then the two changes; then D.
 

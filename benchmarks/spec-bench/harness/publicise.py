@@ -35,7 +35,7 @@ SUMMARY_DETAIL = "summary-detail.md"
 PUBLISH_REFUSED = "publish-refused.json"
 PRIVATE_FILES = {"accept.json", "accept-report.json", "accept-final.json", HELDOUT_DETAIL, SUMMARY_DETAIL,
                  PUBLISH_REFUSED}
-# A scoring's artefacts. In a run record they are private wherever they are: under stories/NN/, and also a known-good
+# A scoring's artefacts. In a run record they are private wherever they are: under stories/NN/, and also a partial rerun's
 # run's base/ and a superseded attempt's superseded/<name>/, which hold the same pages and screenshots.
 PRIVATE_DIRS = {"artifacts", "screenshots", "pre-suite-fix"}
 RUN_RECORDS = (("combinations",), ("benchmarks", "reference"))
