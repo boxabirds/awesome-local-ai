@@ -1,0 +1,20 @@
+import { test } from '@playwright/test';
+import { createNoteClosed, getSelectedIds, marqueeSelect, noteBox, getBoard } from './helpers/board';
+test('diag attach/detach', async ({ page }) => {
+  page.on('console', m => { const t=m.text(); if(/ATTACH|DETACH|GESTUREMOVE/.test(t)) console.log('PAGE:', t); });
+  const res = await page.request.post('/api/boards');
+  const { id } = await res.json();
+  await page.goto(`/b/${id}`);
+  await page.waitForSelector('[data-testid="board-viewport"]');
+  const n1 = await createNoteClosed(page, 250, 250);
+  const n2 = await createNoteClosed(page, 250, 450);
+  console.log('--- marquee ---');
+  await marqueeSelect(page, 120, 120, 380, 780);
+  console.log('--- drag ---');
+  const box = await noteBox(page, n1.id);
+  await page.mouse.move(box.cx, box.cy);
+  await page.mouse.down();
+  await page.mouse.move(box.cx + 60, box.cy + 60, { steps: 10 });
+  await page.mouse.up();
+  console.log('FINAL n1', (await getBoard(page)).find(n=>n.id===n1.id)!.x);
+});
