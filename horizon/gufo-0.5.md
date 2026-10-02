@@ -1,9 +1,8 @@
 # gufo 0.5 (engine update)
 
-**Status:** prepared, smoke test not yet run (2 Oct 2026). Checks 1-3 are done: the image's version string was
-read on tritus (with the owner's approval, while a recorded run was going) and `config.sh` and `lib/gufo.sh` are
-updated and tested. What's left is the unrecorded smoke story (check 4), which waits until tritus is idle: a
-machine running a benchmark is never used for anything else. The version-string check had failed under amd64
+**Status:** smoke test passed (2 Oct 2026); the full recorded series has not been started. Checks 1-4 are done.
+The unrecorded smoke story (v2-r5 story 2, job `gufo-0.5-smoke`) ran clean on 0.5.0: `toolcall_text_resumes` 0 where
+v2-r5 had 3, acceptance 10/10 (v2-r5: 8/10), no errors or stalls. The version-string check had failed under amd64
 emulation on a Mac (twice, no output, ~30 min each); on tritus it completed, including the image pull, inside a 9-minute limit.
 **Kind:** an engine version bump, not a new stack. Every gufo run would change at once.
 
@@ -66,7 +65,26 @@ other machine runs gufo.
    (`--no-record` is required — dbench records and pushes by default. Flags checked against
    `tools/dbench/src/cli.rs`'s `Submit` variant.) Success: `toolcall_text_resumes` is 0 for story 2 in the
    resulting `metrics.json`, where v2-r5's own run had it at 3.
-5. Only after a clean smoke test, a full recorded series.
+   **Result (2 Oct 2026):**
+
+   | | v2-r5 story 2 (old pin) | smoke (0.5.0) |
+   |---|---|---|
+   | `toolcall_text_resumes` | 3 | 0 |
+   | Acceptance | 8/10 | 10/10 |
+   | Agent time | 42 min | 84 min |
+   | Tool calls | 119 | 224 |
+   | Compactions | 1 | 2 |
+
+   One run, so it is not proof the fix holds. Things it does not settle:
+   - 204 of 216 server requests logged `snapshot action=skipped reason=byte_capacity` (cache retained ~16.8 GB of
+     an 18.3 GB cap), with prompt reuse still ~96% in the requests sampled. Watch this on longer stories; it bears
+     on `docs/20260928-gufo-long-session-investigation.md`.
+   - Twice the time and calls of v2-r5: one run cannot separate engine speed from agent variation.
+   - One stop-message nudge, which v2-r5 did not have.
+
+   Submitting needs a `nodes.toml` for the client (none exists on tritus; the smoke used a scratch copy), and the
+   node was held, so it had to be released for the job to start.
+5. Next: a full recorded series, flagged as a new engine version. Not started.
 
 ## Confounds
 
@@ -74,5 +92,5 @@ The cache-behaviour fixes (#358, #362, #369) can move timing and thinking-spread
 same way a pi client bump does (see [pi 0.99](pi-0.99.md)) — a post-upgrade run isn't directly comparable to
 the pre-upgrade `v2-r*`/`replay-*` runs already recorded without flagging the engine version changed.
 
-**Last checked:** 2 Oct 2026. **Recheck when:** tritus goes idle (then: run `tests/gufo-test.sh` for real, check
-the installed manifest, submit the smoke job, and only after a clean result a full recorded series).
+**Last checked:** 2 Oct 2026. **Recheck when:** the full recorded series is submitted (flag the engine version;
+watch the cache-skip warning at longer contexts).
