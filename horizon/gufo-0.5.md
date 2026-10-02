@@ -85,7 +85,7 @@ other machine runs gufo.
    Submitting needs a `nodes.toml` for the client (none exists on tritus; the smoke used a scratch copy), and the
    node was held, so it had to be released for the job to start.
 5. The full recorded series: five runs, `v2-gufo05-r1` to `v2-gufo05-r5` (jobs `vidi-v2-gufo05-r1` to `-r5`), queued on
-   the Strix Halo box on 2 Oct 2026; the first started at 21:35 BST. The run name carries the engine version.
+   the Strix Halo box on 2 Oct 2026; the first started at 21:27 BST. The run name carries the engine version.
 
 ## Confounds
 
