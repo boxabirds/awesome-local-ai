@@ -4,7 +4,7 @@
 mod common;
 
 use agent_sandbox::bwrap::{
-    command, socket_name, HostFs, Kind, Net, BWRAP, INNER_ARGV0, INNER_ENV, INNER_EXE, INNER_SOCKETS,
+    command, socket_name, HostFs, Kind, Net, BWRAP, INNER_ENV, INNER_EXE, INNER_SOCKETS,
     SANDBOX_HOSTNAME,
 };
 use agent_sandbox::policy::Policy;
@@ -140,6 +140,24 @@ fn it_isolates_processes_ipc_and_hostname_and_dies_with_its_parent() {
     assert!(has(&argv, &["--dev", "/dev"]));
 }
 
+/// 2 Oct 2026, Ubuntu 22.04 (bubblewrap 0.6.1): "Can't make symlink at /bin: File exists". A tool named
+/// through /bin (`/bin/bash`) puts the /bin link on the policy's list of links as well, and the system
+/// paths had already recreated it. Newer bubblewraps accept an identical second symlink; this one does not.
+#[test]
+fn a_root_symlink_is_made_once_though_a_tool_was_named_through_it() {
+    let mut f = fixture();
+    f.policy.links.push(agent_sandbox::policy::Link {
+        at: PathBuf::from("/bin"),
+        target: PathBuf::from("usr/bin"),
+    });
+    let argv = build(&f, &Net::Shared, &["true"]);
+    let made = argv
+        .windows(3)
+        .filter(|w| w[0] == "--symlink" && w[2] == "/bin")
+        .count();
+    assert_eq!(made, 1, "{argv:?}");
+}
+
 #[test]
 fn system_directories_are_read_only_and_root_symlinks_are_recreated() {
     let f = fixture();
@@ -272,12 +290,13 @@ fn an_isolated_network_starts_the_bridge_program_as_the_first_process_and_lists_
             "--setenv",
             INNER_ENV,
             "1",
-            "--argv0",
-            INNER_ARGV0,
             "--",
             INNER_EXE
         ]
     );
+    // 2 Oct 2026: `--argv0` (bubblewrap 0.9 and later) stopped every job on a machine with Ubuntu 22.04's
+    // bubblewrap 0.6.1 ("Unknown option --argv0"). The first process names itself instead (run.rs).
+    assert!(!argv.iter().any(|a| a == "--argv0"), "an option older bubblewraps do not have");
     // Neither bwrap's mounts nor the command's arguments are left on any command line inside.
     assert!(!argv.iter().any(|a| a == "npm" || a == "--a-secret-prompt"));
 }

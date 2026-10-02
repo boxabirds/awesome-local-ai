@@ -8,6 +8,8 @@ It replaces a policy of "allow everything, deny a list of paths". Every leak und
 
 **Scope (2 October 2026): the filesystem and the network.** The sandbox protects what the agent can read and write and what it can reach. Hiding processes from the agent is not a goal of its own and is not part of the proof. The private process list on Linux stays because it closes a file leak: without it, the environment of every process of the same user, the harness's keys included, is readable under `/proc`. The operating system's own directories are shown whole and read-only; everything that is the user's is absent unless the run is given it.
 
+**What it needs.** macOS: nothing beyond the system (`sandbox-exec`). Linux: bubblewrap 0.6.1 or newer (what Ubuntu 22.04 ships; `sudo apt install bubblewrap`). The sandbox uses no bubblewrap option newer than that, and a unit test holds it to it: on 2 October 2026 an option from 0.9 (`--argv0`) stopped every job on a machine with 0.6.1. Building it needs Rust 1.77 or newer. The harness's machine setup (`setup-node.sh`) checks these versions, and node's, and offers the install or upgrade.
+
 ## Use
 
 ```sh

@@ -1562,10 +1562,23 @@ fn linux_shows_the_run_at_a_short_path_and_nothing_of_where_it_really_is() {
     let text = stdout(&out);
     assert!(text.starts_with("/w/workspace\n"), "{}", describe(&out));
     let root: Vec<&str> = text.lines().skip(1).take_while(|l| *l != "the requirements").collect();
-    for host in ["home", "Users", "mnt", "media", "srv", "root"] {
+    for host in ["Users", "mnt", "media", "srv", "root"] {
         assert!(!root.contains(&host), "/ shows {host}: {root:?}");
     }
     assert!(root.contains(&"w"), "{root:?}");
+    // /home may be there: a tool installed under the home (node from nvm) is shown read-only at its own
+    // path, with empty directories on the way to it. 2 Oct 2026: on a machine set up that way this test
+    // called that a leak. What must not be there is anything else of the home, the run's real place first.
+    let real = bench.own.to_str().unwrap();
+    let home = std::env::var("HOME").unwrap();
+    let seen = bench.bash(&extra, &format!("ls -A {home} 2>/dev/null; test -e {real} && echo REAL-PLACE-SEEN; true"));
+    let seen = stdout(&seen);
+    let run_folder = bench.own.strip_prefix(&home).ok().and_then(|p| p.components().next());
+    assert!(!seen.contains("REAL-PLACE-SEEN"), "the run's real path exists inside: {seen}");
+    if let Some(folder) = run_folder {
+        let folder = folder.as_os_str().to_str().unwrap();
+        assert!(!seen.lines().any(|l| l == folder), "the home lists the run's folder {folder}: {seen}");
+    }
     // The file is 0444, so the mode refuses first; the mount behind it refuses a chmod (next test's attempts, and here).
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("Read-only file system") || stderr.contains("Permission denied"), "{}", describe(&out));

@@ -14,8 +14,10 @@ use crate::policy::Policy;
 pub const BWRAP: &str = "bwrap";
 /// What the sandbox sees as the machine's name, in place of the real one (--unshare-uts).
 pub const SANDBOX_HOSTNAME: &str = "agent-sandbox";
-/// Where this program and the bridge's sockets appear inside an isolated-network sandbox.
-pub const INNER_EXE: &str = "/run/agent-sandbox/bin/agent-sandbox";
+/// Where this program and the bridge's sockets appear inside an isolated-network sandbox. The program
+/// is shown under the name `init`, so its command line reads as a first process's and not as a
+/// sandbox's: bubblewrap's `--argv0` would do the same but only exists from 0.9, and Ubuntu 22.04 has 0.6.1.
+pub const INNER_EXE: &str = "/run/init";
 pub const INNER_SOCKETS: &str = "/run/agent-sandbox/sockets";
 pub const INNER_SUBCOMMAND: &str = "inner";
 /// The first process in an isolated-network sandbox is this program run as `init`: bwrap's own
@@ -23,7 +25,6 @@ pub const INNER_SUBCOMMAND: &str = "inner";
 /// there to be listed by `ps`. The variable tells it to act as that process; it reads what to run
 /// from COMMAND_FILE in the sockets directory and which ports to open from the sockets themselves.
 pub const INNER_ENV: &str = "AGENT_SANDBOX_INNER";
-pub const INNER_ARGV0: &str = "init";
 pub const COMMAND_FILE: &str = "command";
 
 /// The command as the file the first process reads: each argument ended by a NUL.
@@ -151,7 +152,10 @@ pub fn command(policy: &Policy, fs: &dyn HostFs, net: &Net, cmd: &[OsString]) ->
     for ro in &policy.read_only {
         push(&mut argv, &[&"--ro-bind", &ro.path, &ro.path]);
     }
-    for link in policy.links.iter().filter(|l| !policy.readable(&l.at)) {
+    // A link the system paths above already made (a tool named through /bin) is not made twice:
+    // bubblewrap before 0.8 refuses a symlink where one exists, identical or not.
+    let made = |at: &Path| SYSTEM_PATHS.iter().any(|p| Path::new(p) == at && fs.kind(at) != Kind::Missing);
+    for link in policy.links.iter().filter(|l| !policy.readable(&l.at) && !made(&l.at)) {
         push(&mut argv, &[&"--symlink", &link.target, &link.at]);
     }
     if let Net::Isolated {
@@ -179,7 +183,8 @@ pub fn command(policy: &Policy, fs: &dyn HostFs, net: &Net, cmd: &[OsString]) ->
     // is closed: only own_dir, its tmp (as /tmp and /var/tmp) and /dev/shm can be written.
     push(&mut argv, &[&"--remount-ro", &"/"]);
     if matches!(net, Net::Isolated { .. }) {
-        // The program below is the sandbox's first process (no bwrap left behind it), named `init`;
+        // The program below is the sandbox's first process (no bwrap left behind it); it names itself
+        // `init` (run.rs). Only options that Ubuntu 22.04's bubblewrap (0.6.1) has: `--argv0` is newer.
         // the command is in the sockets directory, not on a command line.
         push(
             &mut argv,
@@ -188,8 +193,6 @@ pub fn command(policy: &Policy, fs: &dyn HostFs, net: &Net, cmd: &[OsString]) ->
                 &"--setenv",
                 &INNER_ENV,
                 &"1",
-                &"--argv0",
-                &INNER_ARGV0,
                 &"--",
                 &INNER_EXE,
             ],
