@@ -1,3 +1,56 @@
+commit 55abd3b060df8e4f01926522a54094c0dda9b9d0
+vidi-agent  Fri Oct 2 02:04:23 2026 +0100
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ NOTES.md                                |  96 +++++++++
+ src/client/board/Board.tsx              |  35 +++-
+ src/client/board/Toolbar.tsx            |  10 +-
+ src/client/board/UndoButtons.tsx        |  85 ++++++++
+ src/client/board/useBoardKeys.ts        |  41 +++-
+ src/client/board/useTransformGesture.ts |  13 +-
+ src/client/board/useUndo.ts             | 116 +++++++++++
+ src/client/objects/StickyNote.tsx       |  13 ++
+ src/client/objects/StickyTextEditor.tsx |  33 ++++
+ src/client/styles.css                   |  11 ++
+ tests/component/UndoBoundaries.test.tsx |  23 +++
+ tests/component/UndoControls.test.tsx   |  18 +-
+ tests/e2e/undo.spec.ts                  | 331 ++++++++++++++++++++++++++++++++
+ 13 files changed, 814 insertions(+), 11 deletions(-)
+commit 4890b26d66dcf872aa795fe688b2bfbb96658f08
+vidi-agent  Fri Oct 2 01:28:11 2026 +0100
+
+    story 8: failing component tests for undo boundaries and undo controls (TC-14 to TC-21)
+
+
+ tests/component/UndoBoundaries.test.tsx | 373 ++++++++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   | 423 ++++++++++++++++++++++++++++++++
+ 2 files changed, 796 insertions(+)
+commit 398fbf36d8ce6f7be4a7e9a4dedf020ac90e64a5
+vidi-agent  Fri Oct 2 01:18:16 2026 +0100
+
+    story 8: createUndo over the objects map, green per-person undo and typing-burst unit tests (TC-01 to TC-13)
+
+
+ src/client/board/undo.ts           | 119 +++++++++++++++++++++++---
+ tests/unit/helpers/peer.ts         |  11 ++-
+ tests/unit/undo-boundaries.test.ts | 170 ++++++++++++++++++++++++-------------
+ tests/unit/undo-history.test.ts    | 117 ++++++++++++++++---------
+ 4 files changed, 306 insertions(+), 111 deletions(-)
+commit b837abf87230786e724b3b77138161208d7f7976
+vidi-agent  Fri Oct 2 00:57:09 2026 +0100
+
+    story 8: failing undo history and typing-burst unit tests with a simulated remote peer (TC-01 to TC-13)
+
+
+ .gitignore                         |   2 +
+ src/client/board/undo.ts           |  50 ++++
+ src/shared/config.ts               |  18 ++
+ tests/unit/helpers/peer.ts         |  79 ++++++
+ tests/unit/undo-boundaries.test.ts | 133 ++++++++++
+ tests/unit/undo-history.test.ts    | 514 +++++++++++++++++++++++++++++++++++++
+ 6 files changed, 796 insertions(+)
 commit 572759fc48e0f5742b0d6e6bc8ae122b1be0edfa
 vidi-agent  Fri Oct 2 00:35:07 2026 +0100
 
