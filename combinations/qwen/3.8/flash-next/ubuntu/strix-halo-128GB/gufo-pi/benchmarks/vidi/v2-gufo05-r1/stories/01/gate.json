@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 4.7,
+      "tail": "\nadded 157 packages, and audited 158 packages in 4s\n\n36 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: '@asamuzakjp/css-color@7.1.3',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: '@asamuzakjp/dom-selector@9.2.3',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: 'jsdom@30.1.1',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: 'w3c-xmlserializer@6.0.0',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.7,
+      "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v8.3.2 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 24 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.38 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-DEV7vK2e.css    2.29 kB \u2502 gzip:  0.94 kB\ndist/client/assets/index-BuNAHAV8.js   227.84 kB \u2502 gzip: 71.36 kB\n\n\u001b[32m\u2713 built in 108ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.3,
+      "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.w/39d398dbcd/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m30 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 50\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m30 passed\u001b[39m\u001b[22m\u001b[90m (30)\u001b[39m\n\u001b[2m   Start at \u001b[22m 21:23:38\n\u001b[2m   Duration \u001b[22m 227ms\u001b[2m (transform 38ms, setup 0ms, import 52ms, tests 50ms, environment 0ms)\u001b[22m\n\n",
+      "passed": 30,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 3.7,
+      "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.w/39d398dbcd/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 145\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 494\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2567\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m33 passed\u001b[39m\u001b[22m\u001b[90m (33)\u001b[39m\n\u001b[2m   Start at \u001b[22m 21:23:39\n\u001b[2m   Duration \u001b[22m 3.17s\u001b[2m (transform 120ms, setup 248ms, import 181ms, tests 3.21s, environment 970ms)\u001b[22m\n\n",
+      "passed": 33,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 4.8,
+      "tail": "[WebServer] [wrangler:info] GET / 200 OK (22ms)\n[WebServer] [wrangler:info] GET / 200 OK (22ms)\n[WebServer] [wrangler:info] GET / 200 OK (27ms)\n[WebServer] [wrangler:info] GET / 200 OK (6ms)\n[WebServer] [wrangler:info] GET / 200 OK (6ms)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index-5Eo0YRvn.js 200 OK (9ms)\n[WebServer] [wrangler:info] GET /assets/index-DEV7vK2e.css 200 OK (8ms)\n[WebServer] [wrangler:info] GET /assets/index-5Eo0YRvn.js 200 OK (9ms)\n[WebServer] [wrangler:info] GET /assets/index-5Eo0YRvn.js 200 OK (9ms)\n[WebServer] [wrangler:info] GET /assets/index-5Eo0YRvn.js 200 OK (14ms)\n[WebServer] [wrangler:info] GET /assets/index-5Eo0YRvn.js 200 OK (14ms)\n[WebServer] [wrangler:info] GET /assets/index-DEV7vK2e.css 200 OK (19ms)\n[WebServer] [wrangler:info] GET /assets/index-5Eo0YRvn.js 200 OK (19ms)\n[WebServer] [wrangler:info] GET /assets/index-DEV7vK2e.css 200 OK (19ms)\n[WebServer] [wrangler:info] GET /assets/index-DEV7vK2e.css 200 OK (31ms)\n[WebServer] [wrangler:info] GET /assets/index-DEV7vK2e.css 200 OK (26ms)\n[WebServer] [wrangler:info] GET /assets/index-DEV7vK2e.css 200 OK (27ms)\n[WebServer] [wrangler:info] GET / 200 OK (22ms)\n[WebServer] [wrangler:info] GET / 200 OK (10ms)\n[WebServer] [wrangler:info] GET /assets/index-5Eo0YRvn.js 200 OK (6ms)\n[WebServer] [wrangler:info] GET /assets/index-DEV7vK2e.css 200 OK (9ms)\n[WebServer] [wrangler:info] GET / 200 OK (7ms)\n[WebServer] [wrangler:info] GET /assets/index-5Eo0YRvn.js 200 OK (4ms)\n[WebServer] [wrangler:info] GET /assets/index-DEV7vK2e.css 200 OK (4ms)\n[WebServer] [wrangler:info] GET /assets/index-5Eo0YRvn.js 200 OK (4ms)\n[WebServer] [wrangler:info] GET /assets/index-DEV7vK2e.css 200 OK (10ms)\n  \u2713  11 [chromium] \u203a tests/e2e/navigation.spec.ts:287:3 \u203a board gestures do not zoom the page (zoom.no_page_zoom) \u203a the board owns the wheel: the page never scrolls (226ms)\n  \u2713  13 [chromium] \u203a tests/e2e/navigation.spec.ts:161:3 \u203a workflow 2: limits and recovery \u203a TC-26 Reset view returns to 100% with the starting point centred (226ms)\n  \u2713   7 [chromium] \u203a tests/e2e/navigation.spec.ts:116:3 \u203a workflow 1: first visit navigation \u203a scrolling moves the board in the scroll direction (377ms)\n  \u2713  10 [chromium] \u203a tests/e2e/navigation.spec.ts:297:3 \u203a zoom label (zoom.indicator) \u203a the label matches the camera zoom after every action (357ms)\n  \u2713   9 [chromium] \u203a tests/e2e/navigation.spec.ts:77:3 \u203a workflow 1: first visit navigation \u203a TC-23 a 200 x 100 drag moves the board exactly 200 x 100 pixels (372ms)\n  \u2713   1 [chromium] \u203a tests/e2e/navigation.spec.ts:199:3 \u203a workflow 3: far travel \u203a TC-27 a million units out, panning is still exact and the grid still even (483ms)\n  \u2713  14 [chromium] \u203a tests/e2e/navigation.spec.ts:226:3 \u203a workflow 3: far travel \u203a reset still works from the far edge of the tested extent (312ms)\n  \u2713   6 [chromium] \u203a tests/e2e/navigation.spec.ts:90:3 \u203a workflow 1: first visit navigation \u203a TC-24 Ctrl + scroll keeps the point under the pointer and never zooms the page (406ms)\n  \u2713   5 [chromium] \u203a tests/e2e/navigation.spec.ts:263:3 \u203a board gestures do not zoom the page (zoom.no_page_zoom) \u203a TC-31 page zoom is untouched by every board zoom gesture (490ms)\n  \u2713   2 [chromium] \u203a tests/e2e/navigation.spec.ts:180:3 \u203a workflow 2: limits and recovery \u203a Ctrl/Cmd + 0 resets the view too (577ms)\n  \u2713  12 [chromium] \u203a tests/e2e/navigation.spec.ts:59:3 \u203a workflow 1: first visit navigation \u203a TC-28 shows the navigation hint and removes it after the first drag (515ms)\n  \u2713   3 [chromium] \u203a tests/e2e/navigation.spec.ts:242:3 \u203a window resize (navigation.resize) \u203a resizing leaves content anchored to the top-left of the board (634ms)\n  \u2713   4 [chromium] \u203a tests/e2e/navigation.spec.ts:135:3 \u203a workflow 2: limits and recovery \u203a TC-25 zooming in with the button stops at 400% and disables + (648ms)\n  \u2713   8 [chromium] \u203a tests/e2e/navigation.spec.ts:151:3 \u203a workflow 2: limits and recovery \u203a the zoom label tracks the limits at both ends (746ms)\n\n  14 passed (3.4s)\n",
+      "passed": 14,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
