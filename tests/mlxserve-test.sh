@@ -171,7 +171,7 @@ assert_ok "opts out of automatic selection"       grep -qE '^AUTO_SELECT=0$' "$C
 assert_ok "backend is mlxserve"                   grep -qE '^BACKEND="mlxserve"' "$CFG"
 assert_ok "revision is a full commit"             grep -qE '^MODEL_REVISION="[0-9a-f]{40}"' "$CFG"
 assert_ok "release tarball pinned by sha256"      grep -qE '^MLXSERVE_TARBALL_SHA256="[0-9a-f]{64}"' "$CFG"
-assert_ok "mlx-serve pin is 26.9.6"              grep -qE '^MLXSERVE_VERSION="26\.9\.6"' "$CFG"
+assert_ok "mlx-serve pin is 26.10.1"             grep -qE '^MLXSERVE_VERSION="26\.10\.1"' "$CFG"
 assert_eq "a hash for all 103 LFS files" 103 "$(bash -c ". '$CFG'; printf '%s\n' \"\$MODEL_SHA256\" | grep -cE '^[0-9a-f]{64}  '")"
 assert_ok "...including the n-gram table"        grep -qE '^[0-9a-f]{64}  ngram_table\.bin$' "$CFG"
 assert_ok "effort: only what mlx-serve does"      grep -qE '^REASONING_EFFORTS="default low"$' "$CFG"

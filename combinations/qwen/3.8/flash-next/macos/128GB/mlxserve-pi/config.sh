@@ -54,9 +54,15 @@ MIN_DEVICE_MEM_MIB=92000
 # (about half the context in long sessions; `chat_template_kwargs: {"preserve_thinking": true}`
 # restores the old behaviour), and a long prompt that does not fit now evicts other cached chats
 # instead of failing.
-MLXSERVE_VERSION="26.9.6"
+#
+# Moved to v26.10.1 (2026-10-01) on 2 Oct 2026 (horizon/mlx-serve-26.10.1.md): its release notes say long agent
+# sessions stay cached instead of being re-read every turn, Flash Next is about 12% faster past 32k tokens, and a
+# long-standing cause of agents looping (lookup drafting repeating itself) is fixed. Runs on it are named for the
+# version and never pooled with the 26.9.6 runs. The launcher passes --mtp or --no-mtp itself, so the release's
+# change of the MTP default does not reach it.
+MLXSERVE_VERSION="26.10.1"
 # The sha256 GitHub publishes for the release asset mlx-serve-bin-macos-arm64.tar.gz.
-MLXSERVE_TARBALL_SHA256="bb4ec3f6ee250745a1d04ef685d3f15b734b560f482a65d0e8bacb512e78bacf"
+MLXSERVE_TARBALL_SHA256="e53056e481364ff72188fafea8b3eb0aeb0b5b7cebcd6e6e7d26bf1ce4223873"
 # Free RAM mlx-serve leaves out of every memory plan. Its default on a 128 GB
 # Mac is 8 GB (an eighth of RAM, capped at 8). 16 is this repo's choice after
 # the 24 Sep 2026 kernel panic, not a measured optimum.
