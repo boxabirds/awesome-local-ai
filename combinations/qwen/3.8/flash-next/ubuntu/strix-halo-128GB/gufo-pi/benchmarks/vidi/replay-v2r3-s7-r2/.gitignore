@@ -1,0 +1,32 @@
+# Written by benchmarks/spec-bench/harness/drive.py. Raw agent logs are kept compacted
+# (agent-events.compact.jsonl.gz); machine-local bookkeeping stays out of git.
+stories/*/agent-events.jsonl
+current_story
+work_dir.txt
+progress.json
+control/
+# Held-out detail (publicise.py): kept on this machine and in the private repo, never in this one.
+AUDIT.md
+accept-final.json
+accept-report.json
+accept.json
+audit.jsonl
+heldout-detail.json
+publish-refused.json
+summary-detail.md
+artifacts/
+pre-suite-fix/
+screenshots/
+scoring-[0-9]*/
+!/workspace/**/AUDIT.md
+!/workspace/**/accept-final.json
+!/workspace/**/accept-report.json
+!/workspace/**/accept.json
+!/workspace/**/audit.jsonl
+!/workspace/**/heldout-detail.json
+!/workspace/**/publish-refused.json
+!/workspace/**/summary-detail.md
+!/workspace/**/artifacts/
+!/workspace/**/pre-suite-fix/
+!/workspace/**/screenshots/
+!/workspace/**/scoring-[0-9]*/
