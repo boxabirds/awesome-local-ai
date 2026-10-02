@@ -1,0 +1,6 @@
+{
+  "state": "failed",
+  "reason": "exit 1: PREFLIGHT FAILED: Chromium did not load the page in the sandbox: STEP OK: npm install preflight failed; not starting the run",
+  "at": "2026-10-02T09:51:32Z",
+  "host": "13th Gen Intel(R) Core(TM) i9-13900F 62GB, NVIDIA GeForce RTX 4090 24564 MiB"
+}
