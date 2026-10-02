@@ -48,6 +48,22 @@ def test_the_checks_are_the_ones_the_owner_asked_for(results):
     names = " | ".join(c.name for c in results)
     for phrase in ("names no run", "cannot read the repository", "cannot read another run's directory", "cannot read a file share",
                    "real home directory", "cannot change spec/", "allow-list", "canary key", "model server",
-                   "raw address is refused", "not listed is refused", "survives the agent's pkill", "`ps` shows nothing",
+                   "raw address is refused", "not listed is refused", "process outside cannot be read",
                    "its own port", "no sudo"):
         assert phrase in names, phrase
+
+
+def test_a_real_chromium_runs_in_the_sandbox_and_the_agent_cannot_change_the_shared_browsers():
+    """The story's own startup path: Playwright's Chromium launched in the sandbox, loading a page from a server of
+    the run's own; and the agent's `playwright install` leaves the shared browsers as they were. Skipped, with the
+    reason, where the machine has no browser installed for the agents or no network (the harness's own CI has neither)."""
+    scratch = Path.home() / f"{ps.TEMP_PREFIX}{uuid.uuid4().hex[:ps.TEMP_TAG_CHARS]}"
+    scratch.mkdir()
+    try:
+        observed = ps.observe_browser(scratch)
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+    if isinstance(observed, str):
+        pytest.skip(observed)
+    bad = [f"{c.name}: {c.detail.strip()[:300]}" for c in ps.browser_checks(observed) if not c.ok]
+    assert not bad, "\n".join(bad)

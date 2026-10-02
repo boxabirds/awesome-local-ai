@@ -338,6 +338,24 @@ fn name_lookups_and_the_per_user_temp_directory_stay_closed() {
 }
 
 #[test]
+fn the_system_s_own_directories_are_read_whole_and_the_user_s_are_not() {
+    let f = fixture();
+    for tree in ["/usr", "/bin", "/sbin", "/System", "/private/etc"] {
+        assert!(
+            f.text.lines().any(|l| l.starts_with("(allow file-read*") && l.contains(&format!("(subpath \"{tree}\")"))),
+            "{tree} is read as a whole"
+        );
+    }
+    assert!(!f.text.contains("(subpath \"/private/etc/"), "no part of /etc is listed on its own");
+    for user_owned in ["/Users", "/Library", "/Applications", "/opt", "/Volumes", "/private/var/folders"] {
+        assert!(
+            !f.text.contains(&format!("(subpath \"{user_owned}\")")),
+            "{user_owned} stays closed"
+        );
+    }
+}
+
+#[test]
 fn other_processes_cannot_be_signalled_or_inspected() {
     let f = fixture();
     let r = rules(&f.text);

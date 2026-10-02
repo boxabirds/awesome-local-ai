@@ -49,29 +49,14 @@ pub fn port_of_socket(name: &str) -> Option<u16> {
     name.strip_suffix(".sock")?.parse().ok()
 }
 
-/// The system: programs and libraries. On a merged-/usr distribution /bin, /sbin and /lib* are
-/// symlinks into /usr and are recreated as such; otherwise they are bound.
+/// The system's own directories, whole and read-only: programs and libraries, the machine's configuration
+/// (/etc) and the kernel's view of the hardware (/sys). Nothing of the user's lives in any of them, so none
+/// is listed file by file: a tool that reads a system file nobody thought of (cgroup limits, os-release)
+/// works, and what the sandbox hides is what is the user's: the home, /tmp, /var, /run and mounted disks.
+/// On a merged-/usr distribution /bin, /sbin and /lib* are symlinks into /usr and are recreated as such.
+/// Name resolution stays off whatever /etc says: an isolated network has no route to a resolver.
 const SYSTEM_PATHS: &[&str] = &[
-    "/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/libx32",
-];
-/// The parts of /etc the workload reads, never the whole of it: the dynamic linker's cache and
-/// search path, account and service-name lookup, `localhost`, CA certificates, the time zone,
-/// Debian's alternatives links (many /usr/bin tools are links through them), and font
-/// configuration for Chromium. /etc/resolv.conf is left out: there is no DNS in the sandbox.
-const ETC_PATHS: &[&str] = &[
-    "/etc/ld.so.cache",
-    "/etc/ld.so.conf",
-    "/etc/ld.so.conf.d",
-    "/etc/passwd",
-    "/etc/group",
-    "/etc/nsswitch.conf",
-    "/etc/hosts",
-    "/etc/ssl",
-    "/etc/ca-certificates",
-    "/etc/pki",
-    "/etc/localtime",
-    "/etc/alternatives",
-    "/etc/fonts",
+    "/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/libx32", "/etc", "/sys",
 ];
 /// The shared temp directories, replaced by the run's own.
 const SHARED_TMP: &[&str] = &["/tmp", "/var/tmp"];
@@ -159,7 +144,7 @@ pub fn command(policy: &Policy, fs: &dyn HostFs, net: &Net, cmd: &[OsString]) ->
         push(&mut argv, &[&"--unshare-net"]);
     }
     push(&mut argv, &[&"--tmpfs", &"/"]);
-    for path in SYSTEM_PATHS.iter().chain(ETC_PATHS) {
+    for path in SYSTEM_PATHS {
         expose(&mut argv, fs, Path::new(path));
     }
     push(&mut argv, &[&"--proc", &"/proc", &"--dev", &"/dev"]);

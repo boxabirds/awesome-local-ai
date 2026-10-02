@@ -22,17 +22,8 @@ struct FakeFs(HashMap<PathBuf, Kind>);
 impl FakeFs {
     fn merged_usr() -> FakeFs {
         let mut m = HashMap::new();
-        for d in ["/usr", "/etc/ssl", "/etc/alternatives", "/etc/fonts"] {
+        for d in ["/usr", "/etc", "/sys"] {
             m.insert(PathBuf::from(d), Kind::Dir);
-        }
-        for f in [
-            "/etc/hosts",
-            "/etc/passwd",
-            "/etc/group",
-            "/etc/nsswitch.conf",
-            "/etc/ld.so.cache",
-        ] {
-            m.insert(PathBuf::from(f), Kind::File);
         }
         for (link, target) in [
             ("/bin", "usr/bin"),
@@ -42,10 +33,6 @@ impl FakeFs {
         ] {
             m.insert(PathBuf::from(link), Kind::Symlink(PathBuf::from(target)));
         }
-        m.insert(
-            PathBuf::from("/etc/localtime"),
-            Kind::Symlink(PathBuf::from("/usr/share/zoneinfo/Etc/UTC")),
-        );
         FakeFs(m)
     }
 }
@@ -160,20 +147,17 @@ fn system_directories_are_read_only_and_root_symlinks_are_recreated() {
     assert!(has(&argv, &["--ro-bind", "/usr", "/usr"]));
     assert!(has(&argv, &["--symlink", "usr/bin", "/bin"]));
     assert!(has(&argv, &["--symlink", "usr/lib64", "/lib64"]));
-    assert!(has(&argv, &["--ro-bind", "/etc/ssl", "/etc/ssl"]));
-    assert!(has(&argv, &["--ro-bind", "/etc/hosts", "/etc/hosts"]));
-    assert!(has(
-        &argv,
-        &["--symlink", "/usr/share/zoneinfo/Etc/UTC", "/etc/localtime"]
-    ));
-    assert!(!argv.iter().any(|a| a == "/etc"), "never the whole of /etc");
+    // The system's own configuration and the kernel's view of the hardware: whole, read-only. Nothing of the
+    // user's is in either, and a tool that reads a file nobody listed (cgroup limits, os-release) still works.
+    assert!(has(&argv, &["--ro-bind", "/etc", "/etc"]));
+    assert!(has(&argv, &["--ro-bind", "/sys", "/sys"]));
+    assert!(
+        !argv.iter().any(|a| a.starts_with("/etc/")),
+        "no part of /etc is listed on its own"
+    );
     assert!(
         !argv.iter().any(|a| a == "/lib32"),
         "a path this host lacks is not bound"
-    );
-    assert!(
-        !argv.iter().any(|a| a == "/etc/resolv.conf"),
-        "no name resolution: outbound goes through the proxy"
     );
     assert!(!argv.iter().any(|a| a == "/home"
         || a == "/root"
