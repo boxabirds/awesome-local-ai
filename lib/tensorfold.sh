@@ -65,7 +65,7 @@ backend_manifest_extra() {
   echo
   echo "# tensorfold backend (lib/tensorfold.sh)"
   for v in TENSORFOLD_BIN_REL TENSORFOLD_VERSION TENSORFOLD_COMMIT TENSORFOLD_MEMORY_LIMIT_GB TENSORFOLD_PARALLEL \
-           OUTPUT_LIMIT; do
+           TENSORFOLD_PLE_ON_SSD OUTPUT_LIMIT; do
     printf '%s=%q\n' "$v" "${!v:-}"
   done
 }
@@ -221,6 +221,10 @@ tensorfold_serve_argv() {
   a+=(${SAMPLING_THINKING})
   [[ "$ctx" == fit ]] || a+=(--context "$ctx")
   [[ "$drafts" == 1 ]] || a+=(--no-drafts)
+  # Leaves the 29.8 GiB of n-gram tables on SSD instead of resident, trading them for more budget the context can
+  # use. TensorFold's own measurement at this Mac's budget (89.6 GiB): peak 85.6 GiB (was 89.6 resident), decode
+  # 0.91-1.03x, prefill 0.84-0.91x (docs/recipes/qwen3.8-flash-next.md). Does not raise the memory ceiling.
+  [[ "${TENSORFOLD_PLE_ON_SSD:-0}" == 1 ]] && a+=(--ple-on-ssd)
   printf '%s\n' "${a[@]}"
 }
 

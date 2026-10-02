@@ -194,6 +194,9 @@ assert_ok "no persistent snapshots: nothing carries over between runs" pair "$AR
 assert_ok "no update check"               has "$ARGV_FIT" --no-update-check
 assert_fails "fit: no --context, so TensorFold sizes the window to keep prompts" has "$ARGV_FIT" --context
 assert_fails "drafts on: no --no-drafts" has "$ARGV_FIT" --no-drafts
+assert_ok "this combination's config leaves n-gram tables on SSD (TENSORFOLD_PLE_ON_SSD=1)" has "$ARGV_FIT" --ple-on-ssd
+ARGV_NO_PLE="$(bash -c ". '$REPO_ROOT/lib/common.sh'; . '$CFG'; . '$REPO_ROOT/lib/tensorfold.sh'; TENSORFOLD_PLE_ON_SSD=0; tensorfold_serve_argv /m/pack 18950 bench fit 1")"
+assert_fails "TENSORFOLD_PLE_ON_SSD=0 leaves --ple-on-ssd out" has "$ARGV_NO_PLE" --ple-on-ssd
 ARGV_150="$(argv_of /m/pack 18950 bench 150000 0)"
 assert_ok "an explicit window is passed as --context" pair "$ARGV_150" --context 150000
 assert_ok "drafts off is --no-drafts"     has "$ARGV_150" --no-drafts

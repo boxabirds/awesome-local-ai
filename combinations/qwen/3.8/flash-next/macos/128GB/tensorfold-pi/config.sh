@@ -47,6 +47,13 @@ TENSORFOLD_PYTHON="3.12"
 TENSORFOLD_MEMORY_LIMIT_GB=89.6
 # One request at a time, as mlx-serve is run (--max-concurrent 1).
 TENSORFOLD_PARALLEL=1
+# Check 1 (2 Oct 2026) passed cleanly but only to 32k tokens: the 89.6 GiB budget's own keep-prompt limit (48,128)
+# capped it well short of our ~131k sessions, before any out-of-memory condition could occur. Not the panic this
+# budget guards against (that was MTPLX, 24 Sep, confounded by a since-removed leak, docs/20260924-mtplx-memory-
+# report.md) — this is TensorFold's own documented lever for exactly this shortfall: leaving the 29.8 GiB of
+# n-gram tables on SSD instead of resident, which TensorFold measured at *lower* peak memory than the resident
+# default (85.6 GiB against the same 89.6 GiB budget), not higher. Does not raise TENSORFOLD_MEMORY_LIMIT_GB.
+TENSORFOLD_PLE_ON_SSD=1
 
 # ---- weights --------------------------------------------------------------
 # Not the mlx-serve combination's weights. That pack (ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit @ 7eaef0fa)
