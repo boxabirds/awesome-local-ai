@@ -614,3 +614,149 @@ pair together and TC-26 asserts the other.
   records (`sandbox_init()` refuses in this sandbox); the assertions are the ones
   that pass in the other two engines.
 - `npm run typecheck`, `npm run build`, `npm run build:test` all pass.
+
+# Story 11 — Sketch freehand with a pen
+
+The stroke model, the RDP simplifier, the Pen tool and the stroke component are as
+the design draws them: local points during a drag and one transaction at the end,
+`getCoalescedEvents()` read when the browser offers it, a screen-space preview that
+never reaches the document, a smoothed quadratic path shared by the preview and the
+saved drawing, `scaledPoints` for a hit test and a resize that keep a drawing's pen,
+and one undo step per drawing. Eight things came out differently from the design's
+letter, and all eight are recorded here with their reasons.
+
+## Whether a press is a dot is measured by the road travelled, not the distance home
+
+The design says a stroke whose "movement is below `DRAG_THRESHOLD_PX`" is a dot, and
+the first implementation read `hypot(last.x - first.x, last.y - first.y)` — the
+straight line from where the pen went down to where it came up. That is the whole of a
+circle's diameter and none of its circumference: a person who draws a ring round
+something brings the pen back almost to where it started, and a tool that measured the
+straight line home drew every circle as a dot. `Stroke` now carries `travel`, the
+running sum of the distances between successive pointer samples, and the dot test is
+`travel < DRAG_THRESHOLD_PX`. A closed loop of four hundred points is a loop; a press
+that never moved is still a dot, because a pen that did not move has no road to have
+travelled. `tests/component/PenTool.test.tsx` keeps the regression test that draws a
+closing square and expects the drawing to be a square and not a point.
+
+## The pen is chosen when the pointer goes down, and the preview is drawn with that pen
+
+The design reads the colour and thickness when a stroke is finished. What is on the
+screen while the stroke is in flight is drawn with the pen chosen at the moment the
+pointer went down, and it is that same pen that is saved — a swatch pressed halfway
+across a drag belongs to the next line, the way a pen with a swappable refill belongs
+to the next line rather than this one. The reason the preview is the load-bearing part
+of this: `PenPreview` is handed `previewPen` from the hook and not the live
+`pen.color`, because a preview that recoloured halfway across the board would be a
+preview that lied about the stroke it was promising. E2E TC-18 draws a black stroke
+and a red one and expects the watcher to see two different pens on the board, not one
+board that changed colour.
+
+## A drawing's colour is an attribute on the painted path, never a CSS rule
+
+`.stroke-line` deliberately declares neither `stroke` nor `stroke-width`. A CSS rule
+that named them would be a rule that repaints every drawing on the board the moment a
+person picks a different colour from the toolbar — a colour chosen for the next stroke
+would silently recolour the ones already saved. The pen each drawing was drawn with is
+stored on the drawing (`data-color`, `data-thickness`) and painted from it. Selection
+is likewise not a restyling: a selected drawing is given `filter: drop-shadow(...)` so
+the highlight goes over the drawing rather than into it.
+
+## The drawing does not offer its box to the pointer; it offers its line, at a distance
+
+`stroke.object` is asked to hit-test with `distanceToPolyline(scaledPoints(s), p) <=
+max(thickness/2, STROKE_HIT_TOLERANCE_PX / zoom)` so that a click inside a drawing's
+bounding box but away from its line falls through to whatever the drawing is drawn
+over — and the component that makes that true on the screen is two paths, not one. The
+painted path is `pointer-events: none`; a second, invisible path paints the same line
+at `STROKE_HIT_TOLERANCE_PX * 2 / zoom` with `pointer-events: stroke`; the wrapper is
+`pointer-events: none`. So a click in the middle of a ring drawn round a sticky note
+misses both the ring and its own box and lands on the note, which is what E2E TC-20
+and component TC-16 assert. The corridor at a low zoom is wider than the box it is
+drawn in, which is why `StrokeObject` adds an `OVERFLOW` of 8 board units to the
+wrapper and shifts the `viewBox` by the same — a corridor clipped to the box would be
+a corridor that stops working when the board is zoomed out. E2E measures both the
+painted corridor and the painted line through the path's own `getScreenCTM()` and
+expects the corridor to hold at twelve screen pixels at 100 % and at 200 % while the
+line doubles: this is the story 9 lesson, drawn with a pen.
+
+## The tool owns its drag on the window, so the viewport never had to be told about the pen
+
+The design asks for a `BoardViewport` change to route a pen `pointerdown` away from
+panning and object drags. The tool does it the way the other two drawing tools already
+do the same thing — a window listener in the capturing phase that calls
+`stopPropagation()` on every event it is acting on — and `BoardViewport.tsx` is
+unchanged. This is also the whole of the two navigation rules at once: the board never
+pans under a pen drag and no note under the pointer moves, because the viewport and the
+note never see the press. And because a wheel and a pinch are not pointer events,
+scroll-to-pan and Ctrl/Cmd-scroll-to-zoom go on working with the pen in hand exactly as
+story 1 left them, which TC-19 checks by panning the board with the Pen tool active and
+reading the camera back. A press that begins on a toolbar or in a box being typed into
+is not a stroke: the press on a colour swatch that chose a colour would otherwise draw
+a dot in that colour on the board first, and TC-17 asserts that choosing a pen leaves
+the drawing count alone.
+
+## Leaving the pen by choice drops the stroke; having the pointer taken away keeps it
+
+Two endings that the design puts together and that behave apart. `pointerup` and
+`lostpointercapture` both finish the stroke and save it — a pointer taken to another
+window mid-line is not a person who asked to lose what they had drawn. `pointercancel`
+finishes it too. But leaving the tool — Escape, V, another shortcut, a click on the
+toolbar — is the cleanup of the effect that armed the listeners, and that drops the
+points in flight and draws nothing: a stroke left half-drawn is a stroke that was not
+finished, and the pen does not finish things by accident. TC-13 (component) presses
+Escape mid-drag and asserts, as the negative, that nothing was created.
+
+## The point limit is met by finishing a drawing and beginning the next, not by stopping
+
+At `STROKE_MAX_POINTS` the tool does not stop recording; it simplifies and saves the
+part it has, then restarts the points from that part's last point, so a stroke of a
+hundred thousand points is a run of drawings whose ends meet on the board with no gap.
+TC-12 (component) feeds `STROKE_MAX_POINTS + 10` moves and expects two committed
+drawings whose shared point is the same point.
+
+## A drawing is stored in a box padded by its own pen, and its points are read back in board units
+
+`scaledPoints` returns board coordinates — a saved point put back through the box the
+drawing has been resized into — so the design's `hitTest(obj, worldPoint, zoom)` works
+on it directly, and the resize handles of story 7 honour it by scaling the box and
+nothing else. The box is padded by `thickness / 2` on each side so a single-point dot
+has a box of its pen's diameter and not a box of nothing. The `L` at the end of
+`smoothPath` is straight rather than a curve so that a drawing finishes exactly where
+the pointer came up; it also makes the number of coordinates in a path `4n - 4`, which
+is what the unit tests count.
+
+## The e2e helpers read the drawing's own report of itself, and a `d` measured in the page
+
+A drawing's box is read from `data-box-*` (board units, the way an arrow reports its
+two ends), and a point on its line from `getPointAtLength` on the painted path, because
+the middle of a drawing's box is the middle of nothing and clicking it would be a test
+that clicked where the drawing is not. The point used to be taken with
+`getScreenCTM().transformPoint(...)`, which is not dependable across every engine this
+suite runs in; the six numbers of the matrix are applied by hand instead. Two gestures
+needed care to be the gestures they claim to be: the preview is sampled by the page
+once per `requestAnimationFrame` while the pointer moves — a test that polled from node
+would be measuring how fast a socket is — and the "drag the body to move it" gesture
+grabs the line a quarter of the way along it and asserts it is clear of every resize
+handle first, because the middle of a nearly-straight drawing is where the top and
+bottom handles are, and a test that grabbed a handle resized the drawing and called it
+a move.
+
+## Verification (story 11)
+
+- `npm run test:unit` — 331 tests, of which `tests/unit/stroke.test.ts` is
+  TC-01…TC-08 (simplify, split, smooth path, `createStroke`, `scaledPoints`, the
+  hit-test distance, the box, the malformed input).
+- `npm run test:component` — 244 tests, of which `PenTool.test.tsx` is TC-09…TC-14
+  with the undo and remote-stroke cases and the closed-loop regression, and
+  `StrokeObject.test.tsx` is TC-15, TC-16 and TC-21 with the corridor width, the
+  registry contract and shift+click.
+- `npm run test:integration` — 94 tests, unchanged: this story writes no server code,
+  and the sync path it rides on is proven in story 3.
+- `npm run test:e2e` — `freehand-sketching.spec.ts` is TC-17…TC-20. The story's five
+  tests pass in chromium and in webkit; the whole chromium suite (62 tests) passes and
+  the persistence suite still passes. Firefox is not run here for the reason stories 3
+  and 10 record (`sandbox_init()` refuses with "Operation not permitted" in this
+  sandbox); TC-17's assertions are the ones that pass in the other two engines.
+- `npm run typecheck` (both projects), `npm run build`, `npm run build:test` all pass.
+  There is no lint script in this repository and no `eslint.config.js`.

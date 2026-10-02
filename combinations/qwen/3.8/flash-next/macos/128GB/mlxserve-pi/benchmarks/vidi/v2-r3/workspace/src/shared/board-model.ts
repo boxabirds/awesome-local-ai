@@ -60,6 +60,7 @@ import {
   type ConnectorContext,
   type ConnectorSnapshot,
 } from './objects/connector';
+import { readStroke, type StrokeSnapshot } from './objects/stroke';
 
 /**
  * What the board knows about one text object. The reading of it lives here, next
@@ -84,6 +85,10 @@ const OBJECTS_MAP = 'objects';
  */
 export type { ShapeSnapshot, ConnectorSnapshot };
 
+/** Story 11 added the pen stroke; the reads of it live in `objects/stroke`, as every
+ *  other object's do, and its name belongs to the board's vocabulary. */
+export type { StrokeSnapshot };
+
 /** Immutable read view of one sticky note object. */
 export interface StickySnapshot {
   id: string;
@@ -105,7 +110,12 @@ export interface StickySnapshot {
  * object kinds the board knows. Story 9 added the text object to it, and every
  * group operation below works on the shared fields, which is the point.
  */
-export type ObjectSnapshot = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot;
+export type ObjectSnapshot =
+  | StickySnapshot
+  | TextSnapshot
+  | ShapeSnapshot
+  | ConnectorSnapshot
+  | StrokeSnapshot;
 
 /** The `objects` map: id -> per-object Y.Map. Renderer skips unknown types. */
 export function getObjects(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
@@ -360,6 +370,10 @@ export function readObject(
       ...(typeof createdBy === 'string' && createdBy !== '' ? { createdBy } : {}),
     });
   }
+  // Story 11: a pen stroke. Its points are the whole of it, and a stroke whose points
+  // cannot be drawn is not on the board at all — there would be nothing to see and
+  // nothing to click — which is the one thing `readStroke` decides for itself.
+  if (type === 'stroke') return readStroke(map, id);
   return null;
 }
 

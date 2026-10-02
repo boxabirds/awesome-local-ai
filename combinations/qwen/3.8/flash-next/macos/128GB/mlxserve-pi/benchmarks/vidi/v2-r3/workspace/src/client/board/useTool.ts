@@ -5,12 +5,16 @@
 // the camera is, not what is selected, not what is being edited — so leaving it
 // is one assignment whatever else happens to be going on. The board stays in
 // Select mode after anything the Text tool creates, so there is no "back to
-// Select" step for a key to perform and no stale mode to reset.
+// Select" step for a key to perform and no stale mode to reset — except for the
+// Pen tool, which is left where it is after every stroke, because a pen that was
+// put away after each line would be a pen that had to be picked up again to finish
+// a drawing. That is the tool's own behaviour, not this state's: this only says
+// which tool the board is in, and the board says what happens next.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ShapeKind } from '../../shared/config';
 
 /** The tools a key or the toolbar can put the board in. */
-export type BoardTool = 'select' | 'text' | 'shape' | 'connector';
+export type BoardTool = 'select' | 'text' | 'shape' | 'connector' | 'pen';
 
 /** What a key press means to the board's tool state. */
 export type ToolKey = BoardTool | 'sticky' | 'exit' | null;
@@ -26,6 +30,7 @@ export const TOOL_SHORTCUTS: Readonly<Record<string, BoardTool>> = Object.freeze
   t: 'text',
   s: 'shape',
   l: 'connector',
+  p: 'pen',
 });
 
 /**
@@ -52,7 +57,7 @@ export interface UseToolResult {
   shapeKind: ShapeKind;
   /** Choose a kind from the Shape menu. It does not leave the tool it is in. */
   setShapeKind(kind: ShapeKind): void;
-  /** V / T / S / L / N / Escape. Nothing else, and nothing at all while something
+  /** V / T / S / L / P / N / Escape. Nothing else, and nothing at all while something
    * has the keyboard for typing: a letter a person is typing is not a shortcut. */
   onKeyDown(e: KeyboardEvent): void;
 }

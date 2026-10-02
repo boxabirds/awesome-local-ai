@@ -20,10 +20,14 @@ import { StickyNote } from '../objects/StickyNote';
 import { TextObject } from '../objects/TextObject';
 import { ShapeObject } from '../objects/ShapeObject';
 import { ConnectorObject } from '../objects/ConnectorObject';
+import { StrokeObject } from '../objects/StrokeObject';
 import { useShapeTool } from '../tools/useShapeTool';
 import { useConnectorTool } from '../tools/useConnectorTool';
+import { usePenTool } from '../tools/usePenTool';
+import { usePenOptions } from '../tools/usePenOptions';
 import { useConnectorEndDrag } from '../tools/useConnectorEndDrag';
 import { ShapePreview } from '../tools/ShapeTool';
+import { PenPreview } from '../tools/PenTool';
 import { ConnectorOverlay } from '../tools/ConnectorTool';
 import type { ShapeKind } from '../../shared/config';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -265,6 +269,28 @@ export function Board(props: BoardProps = {}): JSX.Element {
     onCreated: created,
   });
 
+  // Which pen the next stroke is drawn with: this person's, for this page, written
+  // nowhere and never sent to anybody. Choosing a colour or a width restyles no stroke
+  // that is already on the board, because a stroke keeps the pen it was drawn with in
+  // its own record.
+  const pen = usePenOptions();
+
+  // The Pen tool owns its drag on the window, in the capturing phase, like the other
+  // two drawing tools — which is also the whole of why a pen drag neither pans the
+  // board nor moves the note it starts on. It is the one tool that is *not* handed
+  // `created`: a finished stroke leaves the board in the Pen tool, because the next
+  // thing a person holding a pen does is draw the next line, and a pen that put itself
+  // away after every stroke would be a pen that had to be found again.
+  const penTool = usePenTool({
+    doc,
+    camera,
+    active: tool === 'pen' && editable,
+    canEdit: editable,
+    color: pen.color,
+    thickness: pen.thickness,
+    undo: undoController,
+  });
+
   // The two ends of a selected arrow can be dragged to another shape, or loose
   // into the air; the handles are the selection's, the gesture is this.
   const endDrag = useConnectorEndDrag({
@@ -333,7 +359,7 @@ export function Board(props: BoardProps = {}): JSX.Element {
             ? 'default'
             : tool === 'text'
               ? 'text'
-              : tool === 'shape' || tool === 'connector'
+              : tool === 'shape' || tool === 'connector' || tool === 'pen'
                 ? 'crosshair'
                 : 'default'
         }
@@ -381,11 +407,26 @@ export function Board(props: BoardProps = {}): JSX.Element {
             // nothing to type into, so the editor's half of `common` goes unused.
             return <ConnectorObject key={object.id} obj={object} {...common} />;
           }
+          if (object.type === 'stroke') {
+            // A drawing is the third of those: painted into a box, selected by its
+            // line rather than by that box, and with nothing in it to type.
+            return <StrokeObject key={object.id} obj={object} {...common} />;
+          }
           return <StickyNote key={object.id} note={object} {...common} />;
         })}
       </BoardViewport>
       <MarqueeRect rect={marquee.rect} camera={camera} />
       <ShapePreview rect={shapeTool.preview} />
+      <PenPreview
+        points={penTool.preview}
+        // The pen the stroke is being drawn with, which is the one that was in hand
+        // when the pointer went down: the line on the screen is the line that will be
+        // saved, and a preview that recoloured halfway across a drag was a preview
+        // that lied about the stroke it was promising.
+        color={penTool.previewPen?.color ?? pen.color}
+        thickness={penTool.previewPen?.thickness ?? pen.thickness}
+        camera={camera}
+      />
       <ConnectorOverlay
         target={attachTarget}
         drag={connectorTool.drag ?? endDrag.drag}
@@ -415,6 +456,10 @@ export function Board(props: BoardProps = {}): JSX.Element {
         onSelectTool={setTool}
         shapeKind={shapeKind}
         onSelectShapeKind={setShapeKind}
+        penColor={pen.color}
+        penThickness={pen.thickness}
+        onSelectPenColor={pen.setColor}
+        onSelectPenThickness={pen.setThickness}
         disabled={!editable}
         undo={undo}
       />

@@ -356,6 +356,91 @@ export const CONNECTOR_DOT_RADIUS_PX = 4;
  */
 export type ConnectorSide = 'top' | 'right' | 'bottom' | 'left';
 
+// --- Story 11: sketching freehand with a pen --------------------------------
+//
+// A stroke stores its colour and thickness as palette *keys*, exactly as a sticky
+// note stores its colour and a shape stores its fill, so changing a number below
+// leaves a document written before the change readable.
+
+/** The six pen colours. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+export type PenColor = keyof typeof PEN_COLORS;
+
+/** The three pen thicknesses, in board units, so a stroke scales with the board. */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** A new stroke is drawn in black at the middle thickness. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/** Names the pen toolbar's swatches use: "Black pen", "Purple pen". */
+export const PEN_COLOR_LABELS: Record<PenColor, string> = {
+  black: 'Black',
+  blue: 'Blue',
+  red: 'Red',
+  green: 'Green',
+  orange: 'Orange',
+  purple: 'Purple',
+};
+
+/** Names the pen toolbar's thickness buttons use: "Thin", "Thick". */
+export const PEN_THICKNESS_LABELS: Record<PenThickness, string> = {
+  thin: 'Thin',
+  medium: 'Medium',
+  thick: 'Thick',
+};
+
+/** Is this value one of the pen colours the board draws? */
+export function isPenColor(value: unknown): value is PenColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_COLORS, value);
+}
+
+/** Is this value one of the pen thicknesses the board draws? */
+export function isPenThickness(value: unknown): value is PenThickness {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_THICKNESS_WORLD, value);
+}
+
+/**
+ * How far a finished stroke may deviate from the path the pointer actually took,
+ * in *screen* pixels at the zoom it was drawn at: the simplification tolerance is
+ * this divided by the zoom, so the line keeps its fidelity at 50 % and at 200 %
+ * alike (smoothing_stays_faithful).
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * How many recorded points one stroke may hold. A drag that reaches it commits
+ * what it has as a stroke and carries on as a new one starting at the same last
+ * point, so the two join with no gap (pen.long_stroke).
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/**
+ * How close to a stroke's line a click has to be to select it (pen.select), in
+ * *screen* pixels: divided by the zoom to get board units, so a stroke is as easy
+ * to pick up at 50 % as at 200 %. A stroke thicker than twice this is picked by
+ * its own thickness instead, because its line is already wider than the corridor.
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/**
+ * The smallest a stroke may be resized to, in board units. It is small on purpose:
+ * a stroke is a drawing rather than a box, and the box around a short underline is
+ * barely wider than the line in it.
+ */
+export const STROKE_MIN_SIZE_WORLD = 4;
+
 /**
  * One end of a connector: stuck to an object (with the point to draw to if that
  * object stops existing), or a free point in board space.

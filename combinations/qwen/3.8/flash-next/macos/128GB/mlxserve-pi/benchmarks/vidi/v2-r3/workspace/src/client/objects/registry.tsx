@@ -13,9 +13,11 @@ import type { Point, Rect } from '../../shared/geometry';
 import {
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import { connectorHitTest } from '../../shared/objects/connector';
+import { strokeHitTest } from '../../shared/objects/stroke';
 
 /** Props that every object-type component receives. */
 export interface ObjectProps {
@@ -170,4 +172,30 @@ registerObjectType('connector', {
   // the only way it stays as easy to catch at 10 % as at 400 %.
   hitTest: (obj, worldPoint, zoom) =>
     obj.type === 'connector' && connectorHitTest(obj, worldPoint, zoom ?? 1),
+});
+
+// --- Register pen strokes (story 11) ---------------------------------------
+
+function StrokePlaceholder(): React.ReactElement {
+  return <div data-stroke-placeholder={true} /> as React.ReactElement;
+}
+
+registerObjectType('stroke', {
+  Component: StrokePlaceholder,
+  resizable: true,
+  // A drawing keeps the proportions it was drawn with: an underline dragged at a
+  // corner is the same underline bigger, and one dragged out of proportion is a
+  // drawing squashed by whoever was holding the handle.
+  aspectLocked: true,
+  // A stroke is a drawing rather than a box, so its box is allowed to be as small
+  // as the line inside it.
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  // A stroke is picked by its line and not by the box around it, measured in screen
+  // pixels: the corridor a click is answered in is `STROKE_HIT_TOLERANCE_PX` wide at
+  // every zoom, or half the pen's own thickness where the line is fatter than that.
+  // A click inside the box and away from the line falls through to whatever is
+  // underneath, which is the point of a box that is only where a drawing happens to be.
+  hitTest: (obj, worldPoint, zoom) =>
+    obj.type === 'stroke' && strokeHitTest(obj, worldPoint, zoom ?? 1),
 });

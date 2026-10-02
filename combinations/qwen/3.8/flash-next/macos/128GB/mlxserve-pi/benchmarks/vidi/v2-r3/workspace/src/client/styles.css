@@ -1176,3 +1176,129 @@ body,
   outline: none;
   box-shadow: var(--focus-ring);
 }
+
+/* --- A freehand drawing (story 11) -----------------------------------------
+   The box under a drawing is where the drawing happens to be, and nothing more:
+   an underline's box covers the whole sentence above it, and a loop's box covers
+   everything inside the loop. So the wrapper and the painted line let the pointer
+   through, and only the wide transparent corridor drawn along the line answers it
+   — the same corridor the model measures a click against, which is the one way the
+   place a stroke can be clicked and the place the board says a stroke is stay the
+   same place at every zoom. */
+.stroke-object {
+  position: absolute;
+  pointer-events: none;
+  outline: none;
+}
+
+.stroke-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* The width is set where it is drawn, in board units worked out from the zoom: a
+   corridor of screen pixels cannot be a constant number of board units. */
+.stroke-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: stroke;
+  cursor: default;
+}
+
+/* The colour and the width are attributes of the drawing itself, set where it is
+   painted, and are deliberately NOT declared here: a rule that named them would
+   repaint every stroke on the board the colour somebody last chose. What a selected
+   stroke is given is a mark of its own, around the drawing, which is why the
+   selection of a drawing never becomes a change to it. */
+.stroke-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.stroke-object.is-selected .stroke-line {
+  filter: drop-shadow(0 0 2px rgba(79, 140, 255, 0.9));
+}
+
+/* The pen's own choices, in the board toolbar under the Pen button: six colours,
+   three widths. They are the same size as the shape's swatches, because they are
+   the same kind of choice, and they are indented under their tool for the same
+   reason the shape kinds are — they say what the next drag is drawn with. */
+.pen-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 2px 0 2px 8px;
+  margin-left: 10px;
+  border-left: 2px solid rgba(20, 20, 40, 0.1);
+}
+
+.pen-swatch {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(20, 20, 40, 0.28);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.pen-color-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.pen-thickness-swatch {
+  width: 24px;
+  height: 14px;
+}
+
+.pen-thickness-bar {
+  display: block;
+  width: 16px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.pen-toolbar-sep {
+  align-self: stretch;
+  height: 1px;
+  background: rgba(20, 20, 40, 0.14);
+}
+
+.pen-swatch:hover {
+  transform: scale(1.12);
+}
+
+.pen-swatch[aria-pressed='true'] {
+  outline: 2px solid #4f8cff;
+  outline-offset: 1px;
+}
+
+.pen-swatch:focus-visible {
+  outline: 2px solid #4f8cff;
+  outline-offset: 1px;
+}
+
+.pen-swatch:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The stroke in flight is drawn over the board in screen pixels, like the marquee
+   and the arrow in flight: it is a drag being described rather than a thing on the
+   board, it is nobody else's to see, and it takes no pointer of its own. Everything
+   about it — where it is, how wide its line is, which colour — is a fact about this
+   frame, so it is set where it is drawn and nothing here repeats it: a stylesheet
+   that named the pen's colour would be a stylesheet that restyled a pen. */

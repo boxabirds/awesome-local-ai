@@ -1,7 +1,16 @@
 import type { JSX, PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { UndoButtons, type UndoButtonsProps } from './UndoButtons';
 import type { BoardTool } from './useTool';
-import { SHAPE_KINDS, SHAPE_KIND_LABELS, type ShapeKind } from '../../shared/config';
+import {
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
+  SHAPE_KINDS,
+  SHAPE_KIND_LABELS,
+  type PenColor,
+  type PenThickness,
+  type ShapeKind,
+} from '../../shared/config';
+import { PenToolbar } from '../tools/PenToolbar';
 
 export interface ToolbarProps {
   /** Create a note at the centre of the visible board area and edit it. */
@@ -23,6 +32,21 @@ export interface ToolbarProps {
    * the menu arms the tool it belongs to rather than waiting for a second press.
    */
   onSelectShapeKind?(kind: ShapeKind): void;
+  /**
+   * The pen the Pen tool will draw the next stroke with. Like the shape kind it is
+   * a state of the tool and not of the board — nothing is written when it changes,
+   * and nothing already drawn is restyled by it — but unlike the kind it is held by
+   * the Pen tool's own options rather than by the board, because a colour and a
+   * width go together as one pen.
+   */
+  penColor?: PenColor;
+  penThickness?: PenThickness;
+  /** Choose a pen from the Pen toolbar. Choosing one is also asking for it, so the
+   * swatch arms the tool it belongs to rather than waiting for a second press.
+   * It changes the next stroke and no other.
+   */
+  onSelectPenColor?(color: PenColor): void;
+  onSelectPenThickness?(thickness: PenThickness): void;
   /** False only while the board cannot be edited (a board that failed to
    * load): the Sticky note button is disabled, so a click creates nothing, and so
    * is the Text tool button, because a tool whose only act is to create something
@@ -37,8 +61,9 @@ export interface ToolbarProps {
 
 /**
  * The left-side board toolbar: Select and Text tool buttons, the Shape tool and
- * its three kinds, the Connector tool, the Sticky note button, and under them the
- * Undo and Redo buttons of this person's own history (stories 8 and 10).
+ * its three kinds, the Connector tool, the Pen tool and its pens, the Sticky note
+ * button, and under them the Undo and Redo buttons of this person's own history
+ * (stories 8 and 10).
  *
  * The tool buttons change what the next pointer does on the board and nothing else
  * — not the camera, not the selection, not what is being edited — and the active
@@ -49,7 +74,10 @@ export interface ToolbarProps {
  *
  * The Shape menu is the one place on this toolbar where a button chooses a thing
  * rather than a mode: the three kinds share one tool and one drag, and which of
- * them the drag makes is the only thing the menu remembers.
+ * them the drag makes is the only thing the menu remembers. The Pen toolbar is the
+ * same shape of thing — six colours and three widths, one drag whichever of them is
+ * pressed — except that what it remembers is kept for this page only, and a stroke
+ * keeps the pen it was drawn with for as long as it is on the board.
  *
  * Its accessible name and tooltip are exactly what story 2 left them: the letter
  * of its shortcut belongs in the keyboard, not in the name a person listening to
@@ -188,6 +216,43 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           />
         </svg>
       </button>
+      <button
+        type="button"
+        className="toolbar-button toolbar-pen-button"
+        data-testid="pen-tool-button"
+        aria-label="Pen (P)"
+        title="Pen – sketch freehand on the board (P)"
+        aria-disabled={props.disabled ? 'true' : undefined}
+        disabled={props.disabled === true}
+        aria-pressed={props.tool === undefined ? undefined : tool === 'pen'}
+        onClick={() => {
+          select('pen');
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+          <path
+            d="M2.5 15.5l1-3.2 8-8 2.2 2.2-8 8z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path d="M12.6 3.1l1.8-1.8 2.1 2.1-1.8 1.8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <PenToolbar
+        color={props.penColor ?? DEFAULT_PEN_COLOR}
+        thickness={props.penThickness ?? DEFAULT_PEN_THICKNESS}
+        onColor={(color) => {
+          props.onSelectPenColor?.(color);
+          select('pen');
+        }}
+        onThickness={(thickness) => {
+          props.onSelectPenThickness?.(thickness);
+          select('pen');
+        }}
+        disabled={props.disabled === true}
+      />
       <button
         type="button"
         className="toolbar-button toolbar-sticky-note-button"
