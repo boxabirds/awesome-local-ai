@@ -1,0 +1,395 @@
+commit 98dc232274edd8fd31cf868689d58b185b2cee78
+agent  Fri Oct 2 14:44:42 2026 +0000
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                 |  68 ++++++
+ PROGRESS.md                              |  20 +-
+ playwright.config.ts                     |  13 +-
+ src/client/App.tsx                       | 124 ++++++++---
+ src/client/board/SelectionBar.tsx        |  50 ++++-
+ src/client/board/SelectionOverlay.tsx    |  16 +-
+ src/client/board/Toolbar.tsx             |  81 ++++++-
+ src/client/board/useBoardDoc.ts          |  10 +-
+ src/client/board/useBoardKeys.ts         |  10 +
+ src/client/board/useTool.ts              |  56 +++++
+ src/client/board/useTransformGesture.ts  |  51 ++++-
+ src/client/canvas/BoardViewport.tsx      |  37 ++-
+ src/client/canvas/testHooks.ts           |   9 +-
+ src/client/identity.ts                   |  35 +++
+ src/client/objects/StickyNote.tsx        |   1 +
+ src/client/objects/StickyText.ts         |  73 +-----
+ src/client/objects/StickyTextEditor.tsx  | 251 ++++-----------------
+ src/client/objects/TextEditor.tsx        | 254 +++++++++++++++++++++
+ src/client/objects/TextObject.tsx        | 157 +++++++++++++
+ src/client/objects/TextToolbar.tsx       | 114 ++++++++++
+ src/client/objects/registry.tsx          |  55 ++++-
+ src/client/objects/textLayout.ts         | 220 ++++++++++++++++++
+ src/client/objects/useTextBoxSync.ts     |  61 +++++
+ src/shared/board-model.ts                |  25 ++-
+ src/shared/config.ts                     |  15 ++
+ src/shared/objects/text.ts               | 227 +++++++++++++++++++
+ src/shared/text-edit.ts                  |  74 ++++++
+ tests/component/TextBoxSync.test.tsx     | 183 +++++++++++++++
+ tests/component/TextObject.test.tsx      | 371 +++++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx            | 210 +++++++++++++++++
+ tests/component/Toolbars.test.tsx        |   8 +-
+ tests/component/harness/BoardHarness.tsx | 130 ++++++++---
+ tests/e2e/broken-board.spec.ts           |   2 +-
+ tests/e2e/helpers/board.ts               |  12 +
+ tests/e2e/live-collaboration.spec.ts     |   8 +-
+ tests/e2e/multi-selection.spec.ts        |   8 +-
+ tests/e2e/persistence.spec.ts            |   2 +-
+ tests/e2e/sticky-notes.spec.ts           |   2 +-
+ tests/e2e/text.spec.ts                   | 369 ++++++++++++++++++++++++++++++
+ tests/e2e/undo.spec.ts                   |   8 +-
+ tests/unit/text-layout.test.ts           | 155 +++++++++++++
+ tests/unit/text-model.test.ts            | 195 ++++++++++++++++
+ tests/unit/undo-boundaries.test.ts       |  28 ++-
+ 43 files changed, 3395 insertions(+), 403 deletions(-)
+commit 18bb307ae99e17bcce0832b01071234557f47251
+vidi-agent  Fri Oct 2 13:34:05 2026 +0000
+
+    harness: PROGRESS.md for story 9
+
+
+ PROGRESS.md | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+commit 5c2da1c42b2383bebf35f0b7909747bcd5552fe8
+vidi-agent  Wed Sep 30 21:19:51 2026 +0000
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ NOTES.md                                 | 127 +++----------
+ src/client/App.tsx                       |  38 +++-
+ src/client/board/Toolbar.tsx             |   5 +-
+ src/client/board/UndoButtons.tsx         |  87 +++++++++
+ src/client/board/undo.ts                 | 116 ++++++++++++
+ src/client/board/useBoardKeys.ts         |  30 ++-
+ src/client/board/useUndo.ts              |  42 +++++
+ src/client/objects/StickyNote.tsx        |  13 +-
+ src/client/objects/StickyTextEditor.tsx  |  46 ++++-
+ src/shared/config.ts                     |   4 +
+ tests/component/UndoBoundaries.test.tsx  | 192 +++++++++++++++++++
+ tests/component/UndoControls.test.tsx    | 163 ++++++++++++++++
+ tests/component/harness/BoardHarness.tsx |  26 ++-
+ tests/e2e/undo.spec.ts                   | 305 ++++++++++++++++++++++++++++++
+ tests/unit/peer.ts                       |  77 ++++++++
+ tests/unit/undo-boundaries.test.ts       |  98 ++++++++++
+ tests/unit/undo-history.test.ts          | 315 +++++++++++++++++++++++++++++++
+ 17 files changed, 1569 insertions(+), 115 deletions(-)
+commit 92033884e3bcb696681609d9d29eb355e7092264
+vidi-agent  Wed Sep 30 20:51:49 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ src/client/App.tsx                            | 146 +++++---
+ src/client/board/Marquee.tsx                  | 111 ++++++
+ src/client/board/SelectionBar.tsx             |  72 ++++
+ src/client/board/SelectionOverlay.tsx         | 133 ++++++++
+ src/client/board/useBoardKeys.ts              |  87 +++++
+ src/client/board/useSelection.ts              | 139 ++++++--
+ src/client/board/useTransformGesture.ts       | 298 +++++++++++++++++
+ src/client/canvas/BoardViewport.tsx           |  56 +++-
+ src/client/canvas/testHooks.ts                |   2 +
+ src/client/objects/StickyNote.tsx             | 150 +--------
+ src/client/objects/registry.tsx               |  55 +++
+ src/shared/board-model.ts                     | 186 +++++++++++
+ src/shared/config.ts                          |   7 +
+ src/shared/geometry.ts                        | 177 ++++++++++
+ tests/component/SelectionInteraction.test.tsx | 334 ++++++++++++++++++
+ tests/component/harness/BoardHarness.tsx      | 140 ++++++--
+ tests/e2e/helpers/board.ts                    |  33 ++
+ tests/e2e/multi-selection.spec.ts             | 465 ++++++++++++++++++++++++++
+ tests/unit/board-model-group.test.ts          | 256 ++++++++++++++
+ tests/unit/geometry.test.ts                   | 151 +++++++++
+ tests/unit/registry.test.ts                   |  60 ++++
+ tests/unit/selection-reducer.test.ts          |  85 +++++
+ 22 files changed, 2901 insertions(+), 242 deletions(-)
+commit 57193bc06b3dc80eba6645aceab4705ecd7a2d6b
+vidi-agent  Wed Sep 30 20:00:48 2026 +0000
+
+    feat(share): Story 5 — Share a board with others using a link
+
+
+ index.html                                       |   1 +
+ playwright.config.ts                             |   2 +-
+ src/client/App.tsx                               |  34 +---
+ src/client/api.ts                                |  28 +++
+ src/client/main.tsx                              |  14 +-
+ src/client/pages/BoardPage.tsx                   | 100 ++++++++++
+ src/client/pages/HomePage.tsx                    |  43 ++++
+ src/client/pages/NotFoundPage.tsx                |  44 +++++
+ src/client/pages/state.ts                        |  38 ++++
+ src/client/router.ts                             |  30 +++
+ src/client/share/SharePanel.tsx                  | 179 +++++++++++++++++
+ src/client/sync/connectBoard.ts                  |  24 +++
+ src/shared/config.ts                             |   5 +
+ src/worker/board-room.ts                         |  75 ++++++-
+ src/worker/board-store.ts                        |  47 +++++
+ src/worker/create-board.ts                       |  25 +++
+ src/worker/index.ts                              |  53 ++++-
+ src/worker/test-hooks.ts                         |   6 +
+ tests/component/share-pages.test.tsx             | 179 +++++++++++++++++
+ tests/component/share-panel.test.tsx             | 182 +++++++++++++++++
+ tests/e2e/broken-board.spec.ts                   |   9 +-
+ tests/e2e/live-collaboration.spec.ts             |  37 ++--
+ tests/e2e/navigation.spec.ts                     |  21 +-
+ tests/e2e/persistence.spec.ts                    |  18 +-
+ tests/e2e/share-workflows.spec.ts                | 237 +++++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts                   |   4 +-
+ tests/integration-do/board-api.test.ts           |  83 ++++++++
+ tests/integration/board-api.test.ts              | 137 +++++++++++++
+ tests/integration/board-room-persistence.test.ts |  37 +++-
+ tests/integration/board-room.test.ts             |  41 +++-
+ tests/integration/worker.test.ts                 |  46 +++--
+ tests/unit/create-board.test.ts                  |  49 +++++
+ wrangler.jsonc                                   |   2 +-
+ 33 files changed, 1739 insertions(+), 91 deletions(-)
+commit 354ff74d6e4a989d9d6f547551e4b7cece1f8f38
+vidi-agent  Wed Sep 30 19:18:07 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ package.json                                     |   2 +-
+ playwright.config.ts                             |  11 +
+ src/client/App.tsx                               |  32 +-
+ src/client/board/Toolbar.tsx                     |   8 +-
+ src/client/canvas/testHooks.ts                   |   2 +
+ src/client/objects/StickyNote.tsx                |  16 +-
+ src/client/sync/ConnectionStatus.tsx             |  27 +-
+ src/client/sync/connectBoard.ts                  |  62 ++-
+ src/shared/config.ts                             |   9 +
+ src/shared/protocol.ts                           |   2 +
+ src/worker/board-room.ts                         | 327 +++++++++++++--
+ src/worker/board-store-pure.ts                   |  52 +++
+ src/worker/board-store.ts                        | 192 +++++++++
+ src/worker/index.ts                              |  12 +
+ src/worker/room-state.ts                         |  63 +++
+ src/worker/test-hooks.ts                         |  92 +++++
+ tests/component/LoadFailure.test.tsx             | 176 ++++++++
+ tests/component/harness/BoardHarness.tsx         |  13 +-
+ tests/e2e/broken-board.spec.ts                   | 134 +++++++
+ tests/e2e/helpers/wrangler-process.ts            | 131 ++++++
+ tests/e2e/persistence.spec.ts                    | 205 ++++++++++
+ tests/fixtures/boards.ts                         | 126 ++++++
+ tests/integration-do/board-store.test.ts         | 490 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts | 228 +++++++++++
+ tests/integration/global-setup.ts                |  14 +-
+ tests/integration/ws-client.ts                   |  17 +-
+ tests/unit/board-store-chunks.test.ts            |  62 +++
+ tests/unit/room-state.test.ts                    | 150 +++++++
+ tsconfig.json                                    |   2 +-
+ vitest.workspace.ts                              |  14 +
+ 30 files changed, 2603 insertions(+), 68 deletions(-)
+commit d000303923f85f0419b3e070905496a82c40b360
+vidi-agent  Wed Sep 30 18:11:06 2026 +0000
+
+    harness: snapshot after story 3 (uncommitted agent work)
+
+
+ package-lock.json                         | 1396 ++++++++++++++++++++++++++++-
+ package.json                              |    8 +-
+ src/client/App.tsx                        |   38 +-
+ src/client/board/useBoardDoc.ts           |   27 +-
+ src/client/canvas/testHooks.ts            |    6 +-
+ src/client/sync/ConnectionStatus.tsx      |   48 +
+ src/client/sync/connectBoard.ts           |   96 ++
+ src/shared/board-id.ts                    |   20 +
+ src/shared/config.ts                      |    8 +
+ src/shared/protocol.ts                    |   99 ++
+ src/worker/board-room.ts                  |  137 +++
+ src/worker/env.d.ts                       |    1 +
+ src/worker/index.ts                       |   37 +
+ tests/component/ConnectionStatus.test.tsx |   65 ++
+ tests/component/harness/BoardHarness.tsx  |    2 +-
+ tests/e2e/live-collaboration.spec.ts      |  362 ++++++++
+ tests/integration/board-room.test.ts      |  246 +++++
+ tests/integration/global-setup.ts         |   60 ++
+ tests/integration/worker.test.ts          |  116 +++
+ tests/integration/ws-client.ts            |  188 ++++
+ tests/unit/board-id.test.ts               |   44 +
+ tests/unit/protocol.test.ts               |   72 ++
+ tsconfig.json                             |    3 +-
+ tsconfig.worker.json                      |   18 +
+ vitest.workspace.ts                       |   15 +
+ wrangler.jsonc                            |   21 +-
+ 26 files changed, 3118 insertions(+), 15 deletions(-)
+commit 3fafab21c4e3cebfd2f1c07fcc79b868eb16be1a
+vidi-agent  Wed Sep 30 17:26:21 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  76 +++++++
+ src/client/App.tsx                        | 112 +++++++++--
+ src/client/board/Toolbar.tsx              |  62 ++++++
+ src/client/board/useSelection.ts          |  37 ++++
+ src/client/canvas/BoardViewport.tsx       |  48 ++++-
+ src/client/canvas/testHooks.ts            |   8 +-
+ src/client/objects/NoteToolbar.tsx        |  90 +++++++++
+ src/client/objects/StickyNote.tsx         | 318 ++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          |  23 ++-
+ src/client/objects/StickyTextEditor.tsx   | 177 +++++++++++++++++
+ tests/component/StickyNote.test.tsx       | 279 ++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 224 +++++++++++++++++++++
+ tests/component/Toolbars.test.tsx         | 217 ++++++++++++++++++++
+ tests/component/harness/BoardHarness.tsx  | 121 ++++++++++++
+ tests/component/pointerUtils.ts           |  45 +++++
+ tests/e2e/helpers/board.ts                | 136 +++++++++++++
+ tests/e2e/sticky-notes.spec.ts            | 221 +++++++++++++++++++++
+ 17 files changed, 2157 insertions(+), 37 deletions(-)
+commit 21e69b96f82d6a5b6d48bf2c938020acade3e9f6
+vidi-agent  Wed Sep 30 16:07:28 2026 +0000
+
+    story 2: sticky text logic (clamp, minimal Y.Text diff, counter, font fit) with unit tests
+
+
+ src/client/objects/StickyText.ts | 113 ++++++++++++++++++++
+ tests/unit/sticky-text.test.ts   | 215 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 328 insertions(+)
+commit 69f0925c39d102b574bbb7923584dc75381183c1
+vidi-agent  Wed Sep 30 16:00:49 2026 +0000
+
+    story 2: Yjs board model and useBoardDoc snapshot hook
+
+
+ src/client/board/useBoardDoc.ts |  54 +++++++++++++
+ src/shared/board-model.ts       | 174 +++++++++++++++++++++++++++++++++++++---
+ tests/unit/board-model.test.ts  |  12 ++-
+ 3 files changed, 229 insertions(+), 11 deletions(-)
+commit e50f7a6d9fdede26ed869331768e87a5e48564d7
+vidi-agent  Wed Sep 30 15:57:17 2026 +0000
+
+    story 2: board model unit tests (TC-01..TC-12, TC-39) with stubs
+
+
+ package-lock.json              |  48 +++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  54 +++++++
+ src/shared/config.ts           |  28 ++++
+ tests/fixtures/texts.ts        |  60 +++++++
+ tests/unit/board-model.test.ts | 354 +++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 545 insertions(+), 2 deletions(-)
+commit 34e0d04e2b765b4dd5727528870c8cd7df9a18b3
+vidi-agent  Wed Sep 30 15:51:37 2026 +0000
+
+    story 1: Pan and zoom around an infinite board
+
+
+ .gitignore                              |    5 +
+ NOTES.md                                |   25 +
+ index.html                              |   21 +
+ package-lock.json                       | 5461 +++++++++++++++++++++++++++++++
+ package.json                            |   33 +
+ playwright.config.ts                    |   24 +
+ src/client/App.tsx                      |   93 +
+ src/client/canvas/BoardViewport.tsx     |  216 ++
+ src/client/canvas/NavigationHint.tsx    |   29 +
+ src/client/canvas/ZoomControls.tsx      |   73 +
+ src/client/canvas/camera.ts             |  117 +
+ src/client/canvas/testHooks.ts          |   15 +
+ src/client/canvas/useCamera.ts          |  122 +
+ src/client/main.tsx                     |    9 +
+ src/shared/config.ts                    |    6 +
+ src/vite-env.d.ts                       |    1 +
+ tests/component/BoardViewport.test.tsx  |  260 ++
+ tests/component/NavigationHint.test.tsx |   52 +
+ tests/component/TestApp.tsx             |   80 +
+ tests/component/ZoomControls.test.tsx   |  105 +
+ tests/component/setup.ts                |   23 +
+ tests/e2e/helpers/board.ts              |   18 +
+ tests/e2e/navigation.spec.ts            |  183 ++
+ tests/unit/camera.test.ts               |  209 ++
+ tsconfig.json                           |   19 +
+ vite.config.ts                          |   10 +
+ vitest.config.ts                        |   10 +
+ vitest.workspace.ts                     |   23 +
+ wrangler.jsonc                          |    8 +
+ 29 files changed, 7250 insertions(+)
+commit 8b2c2bb82043b3679e45ebdc1531c516c2ed32cb
+vidi-agent  Wed Sep 30 15:23:38 2026 +0000
+
+    harness: empty repository with spec
+
+
+ README.md                                          |   3 +
+ spec/README.md                                     |  21 +
+ spec/epics/boards-sharing.md                       |  17 +
+ spec/epics/canvas.md                               |  19 +
+ spec/epics/realtime-collab.md                      |  16 +
+ .../design.md                                      | 365 +++++++++++++
+ .../prd.md                                         | 160 ++++++
+ .../story.md                                       |  41 ++
+ .../tasks.md                                       | 157 ++++++
+ .../design.md                                      | 457 ++++++++++++++++
+ .../prd.md                                         | 168 ++++++
+ .../story.md                                       |  42 ++
+ .../tasks.md                                       | 171 ++++++
+ .../comments.md                                    |   8 +
+ .../design.md                                      | 413 +++++++++++++++
+ .../prd.md                                         | 158 ++++++
+ .../story.md                                       |  41 ++
+ .../tasks.md                                       | 171 ++++++
+ .../design.md                                      | 428 +++++++++++++++
+ .../prd.md                                         | 132 +++++
+ .../story.md                                       |  38 ++
+ .../tasks.md                                       | 169 ++++++
+ .../design.md                                      | 395 ++++++++++++++
+ .../prd.md                                         | 134 +++++
+ .../story.md                                       |  39 ++
+ .../tasks.md                                       | 133 +++++
+ .../comments.md                                    |   8 +
+ .../design.md                                      | 453 ++++++++++++++++
+ .../prd.md                                         | 162 ++++++
+ .../story.md                                       |  44 ++
+ .../tasks.md                                       | 191 +++++++
+ .../design.md                                      | 517 ++++++++++++++++++
+ .../prd.md                                         | 183 +++++++
+ .../story.md                                       |  48 ++
+ .../tasks.md                                       | 218 ++++++++
+ .../design.md                                      | 338 ++++++++++++
+ .../prd.md                                         | 139 +++++
+ .../story.md                                       |  41 ++
+ .../tasks.md                                       | 133 +++++
+ .../design.md                                      | 417 +++++++++++++++
+ .../prd.md                                         | 157 ++++++
+ .../story.md                                       |  43 ++
+ .../tasks.md                                       | 169 ++++++
+ .../design.md                                      | 465 ++++++++++++++++
+ .../prd.md                                         | 173 ++++++
+ .../story.md                                       |  46 ++
+ .../tasks.md                                       | 161 ++++++
+ .../011-sketch-freehand-with-a-pen/design.md       | 337 ++++++++++++
+ spec/stories/011-sketch-freehand-with-a-pen/prd.md | 147 ++++++
+ .../011-sketch-freehand-with-a-pen/story.md        |  41 ++
+ .../011-sketch-freehand-with-a-pen/tasks.md        | 118 +++++
+ .../012-drop-images-onto-the-board/design.md       | 497 +++++++++++++++++
+ spec/stories/012-drop-images-onto-the-board/prd.md | 176 +++++++
+ .../012-drop-images-onto-the-board/story.md        |  45 ++
+ .../012-drop-images-onto-the-board/tasks.md        | 169 ++++++
+ .../design.md                                      | 553 +++++++++++++++++++
+ .../prd.md                                         | 165 ++++++
+ .../story.md                                       |  45 ++
+ .../tasks.md                                       | 240 +++++++++
+ .../design.md                                      | 585 +++++++++++++++++++++
+ .../prd.md                                         | 185 +++++++
+ .../story.md                                       |  47 ++
+ .../tasks.md                                       | 225 ++++++++
+ .../design.md                                      | 494 +++++++++++++++++
+ .../prd.md                                         | 174 ++++++
+ .../story.md                                       |  45 ++
+ .../tasks.md                                       | 177 +++++++
+ .../design.md                                      | 571 ++++++++++++++++++++
+ .../prd.md                                         | 212 ++++++++
+ .../story.md                                       |  51 ++
+ .../tasks.md                                       | 209 ++++++++
+ .../design.md                                      | 485 +++++++++++++++++
+ .../017-export-a-board-as-an-image-or-pdf/prd.md   | 189 +++++++
+ .../017-export-a-board-as-an-image-or-pdf/story.md |  50 ++
+ .../017-export-a-board-as-an-image-or-pdf/tasks.md | 206 ++++++++
+ 75 files changed, 14440 insertions(+)
