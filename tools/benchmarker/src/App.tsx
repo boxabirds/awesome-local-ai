@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import type { Row } from "../shared/types.ts";
-import { isComplete, RUN_FILTERS, visibleRuns, type RunFilter } from "../shared/stats.ts";
+import { RUN_FILTERS, visibleRuns, type RunFilter } from "../shared/stats.ts";
 import { Header } from "./components/Header.tsx";
 import { FilteredOut, RunFilterSwitch } from "./components/RunFilter.tsx";
 import { SetupTab } from "./components/SetupTab.tsx";
@@ -105,8 +105,6 @@ export function App() {
   const current = /^(.*?-v\d+)/.exec(data.suites[pack] ?? "")?.[1] ?? "";
   const family = pickFamily(families, current, choice.family);
   const inFamily = inPack.filter((r) => family === ALL || r.family === family);
-  // The switch's own counts are over the pack and version chosen, before the switch is applied.
-  const counts: Record<RunFilter, number> = { all: inFamily.length, complete: inFamily.filter(isComplete).length };
   const chooseFilter = (next: RunFilter) => {
     setFilter(next);
     saveFilter(next);
@@ -138,7 +136,7 @@ export function App() {
             ? <button key={t} type="button" role="tab" aria-selected={route.page === "story"} onClick={() => { location.hash = storyHref(pack, firstStory(inFamily)); }}>{name}</button>
             : <button key={t} type="button" role="tab" aria-selected={route.page === "overview" && tab === t} onClick={() => chooseTab(t as Tab)}>{name}</button>)}
         </div>
-        <RunFilterSwitch filter={filter} counts={counts} onChange={chooseFilter} />
+        <RunFilterSwitch filter={filter} onChange={chooseFilter} />
       </Header>
       <StaleBanner stale={stale} age={age} />
       <main>

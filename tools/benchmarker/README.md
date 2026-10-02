@@ -83,7 +83,7 @@ story and the comparison are remembered in the browser.
 ## Filters
 
 Pack and version at the top, and one switch on every page and tab: **All runs** | **Complete runs**,
-each with its count for the pack and version chosen. All runs is the default; the choice is remembered
+with no counts on it (a total for the whole pack says nothing about the page it sits on). All runs is the default; the choice is remembered
 in the browser and is not in the address.
 
 A run is **complete** when it finished, every story in its scope has a record, and it has its score of
@@ -96,8 +96,8 @@ The switch applies to every page's runs: the Combinations table, a combination's
 what a run or story run is compared with, and a machine's history. When it hides everything a page
 would show, the page says so in one line with **Show all**, which sets the switch back to All runs.
 
-It never hides what machines are doing now (the running job, the queue, recently ended jobs), its own
-counts, or the pack and version pickers.
+It never hides what machines are doing now (the running job, the queue, recently ended jobs), or the
+pack and version pickers.
 
 ## Combinations
 

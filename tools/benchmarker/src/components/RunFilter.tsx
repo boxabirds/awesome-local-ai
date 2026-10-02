@@ -4,18 +4,16 @@ const NAMES: Record<RunFilter, string> = { all: "All runs", complete: "Complete 
 
 interface Props {
   filter: RunFilter;
-  /** How many runs each setting shows, for the pack and version chosen: counted before the switch is applied. */
-  counts: Record<RunFilter, number>;
   onChange(filter: RunFilter): void;
 }
 
 /** The one switch for the whole app: every run, or only complete ones. On every page and tab. */
-export function RunFilterSwitch({ filter, counts, onChange }: Props) {
+export function RunFilterSwitch({ filter, onChange }: Props) {
   return (
     <div className="run-filter" role="group" aria-label="Which runs">
       {(Object.keys(NAMES) as RunFilter[]).map((f) => (
         <button key={f} type="button" className="chip" data-filter={f} aria-pressed={filter === f} onClick={() => onChange(f)}>
-          {NAMES[f]} {counts[f]}
+          {NAMES[f]}
         </button>
       ))}
     </div>

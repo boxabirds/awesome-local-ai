@@ -34,8 +34,8 @@ One function, `isComplete(row)`, in `shared/stats.ts`, with a unit test per clau
 
 ## 3. The control
 
-- A two-way switch in the header, on every page and every tab: **All runs** | **Complete runs**, each with its
-  count for the pack and version family chosen in the header.
+- A two-way switch in the header, on every page and every tab: **All runs** | **Complete runs**. No counts on it
+  (removed 2 Oct 2026 by the owner: a pack-wide total has no bearing on the page it sits on).
 - Default: **All runs**. The choice is remembered in the browser for next time (the app's existing mechanism,
   `localStorage`, next to the remembered tab and pack; no cookie is needed because nothing is sent to the server).
 - It is not in the address. A link opens with whatever the reader last chose.
@@ -84,7 +84,6 @@ partial rerun of one story), the page says so in one italic line with the way ou
 
 - **What machines are doing now.** The running job, the queue and the recently ended list on the Machines tab and
   the machine page are about operations, not results. Hiding running runs there would empty them.
-- **The switch's own counts**, which are computed before filtering.
 - **The pack and version-family pickers**, which keep listing every pack and family that has runs.
 
 ## 8. Tests

@@ -10,7 +10,6 @@ const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
 const QWEN_27B = "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi";
 const MLX = "qwen/3.8/flash-next/macos/128GB/mlxserve-pi";
 const OPUS = "reference/opus-5.5";
-const ALL_RUNS = 15;
 const COMPLETE_RUNS = 4;
 const enc = encodeURIComponent;
 const combinationHref = (stack: string) => `/#/vidi/c/${enc(stack)}`;
@@ -47,10 +46,10 @@ test.beforeEach(async ({ request }) => {
   await request.post("/api/test/reset");
 });
 
-test("the switch is on every page and tab, with each setting's count; All runs at first", async ({ page }) => {
+test("the switch is on every page and tab, two plain labels with no counts; All runs at first", async ({ page }) => {
   await completeRuns(page);
   await open(page);
-  await expect(filter(page).getByRole("button")).toHaveText([`All runs ${ALL_RUNS}`, `Complete runs ${COMPLETE_RUNS}`]);
+  await expect(filter(page).getByRole("button")).toHaveText(["All runs", "Complete runs"]);
   await expect(all(page)).toHaveAttribute("aria-pressed", "true");
   await expect(complete(page)).toHaveAttribute("aria-pressed", "false");
   for (const tab of ["Machines", "Setup", "Stories"]) {
@@ -180,7 +179,6 @@ test("a machine whose runs are all hidden says so in its history, and keeps its 
 
 test("with no complete run at all, the overview says so in place of the table, and Show all restores it", async ({ page }) => {
   await open(page);  // the fixture as it is: no run covers its scope
-  await expect(complete(page)).toHaveText("Complete runs 0");
   await complete(page).click();
   await expect(combos(page)).toHaveCount(0);
   await expect(page.locator('[data-section="now"]')).toBeVisible();
