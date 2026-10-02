@@ -1,4 +1,5 @@
 import type { JSX, PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { UndoButtons, type UndoButtonsProps } from './UndoButtons';
 
 export interface ToolbarProps {
   /** Create a note at the centre of the visible board area and edit it. */
@@ -7,12 +8,18 @@ export interface ToolbarProps {
    * load): the Sticky note button is disabled, so a click creates nothing.
    */
   disabled?: boolean;
+  /** This person's own undo history, as the two buttons need it. Absent only
+   * when a toolbar is rendered on its own, without a board behind it.
+   */
+  undo?: UndoButtonsProps;
 }
 
 /**
  * The left-side board toolbar. Its Sticky note button always works, whatever
  * the board is empty or panned far away (the app turns the click into a world
- * point at the centre of the visible area).
+ * point at the centre of the visible area), and under it sit the Undo and Redo
+ * buttons of this person's own history (story 8), which are disabled whenever
+ * there is nothing of theirs to undo or redo.
  *
  * Pointer events are stopped here so a click on a tool never reaches the
  * viewport, which would read it as a click on empty board space and clear the
@@ -57,6 +64,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           <path d="M15.5 11.5h-4v4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
         </svg>
       </button>
+      {props.undo !== undefined ? <UndoButtons {...props.undo} /> : null}
     </aside>
   );
 }

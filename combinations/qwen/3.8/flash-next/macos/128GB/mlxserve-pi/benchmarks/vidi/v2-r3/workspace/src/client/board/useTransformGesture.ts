@@ -20,7 +20,13 @@ export interface TransformGestureOptions {
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** The gesture is about to write its first change (once the drag passes the
+   * threshold, and never for a click). Story 8 opens an undo step here.
+   */
   onGestureStart?(): void;
+  /** The gesture wrote something and is over (released or cancelled — both end
+   * it the same way, so a cancelled drag is exactly one undo step).
+   */
   onGestureEnd?(): void;
 }
 
@@ -281,11 +287,16 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
       gesture.moved = true;
       const o = optsRef.current;
+      // The gesture's own undo window is opened before the first thing the
+      // gesture writes — including bringing the note to the front, which is part
+      // of this drag and not a step of its own. Everything this drag then writes
+      // falls inside the one capture window, so one press of Undo returns the
+      // whole drag (story 8).
+      if (o.onGestureStart) o.onGestureStart();
       // Bring to front on move start
       if (gesture.type === 'move' && o.canEdit) {
         bringObjectsToFront(o.doc, [...gesture.startRects.keys()]);
       }
-      if (o.onGestureStart) o.onGestureStart();
     }
 
     pendingRef.current = { x: e.clientX, y: e.clientY };

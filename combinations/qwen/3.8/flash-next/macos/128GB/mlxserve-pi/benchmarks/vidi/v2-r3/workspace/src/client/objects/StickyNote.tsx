@@ -27,6 +27,7 @@ import type { EndEditNext } from '../board/useSelection';
 import { NoteToolbar } from './NoteToolbar';
 import { fitFontSize } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
+import type { UndoController } from '../board/undo';
 
 export interface StickyNoteProps {
   /** The note as stored in the document: position, colour and text. */
@@ -48,6 +49,10 @@ export interface StickyNoteProps {
   onGesturePointerMove?(e: ReactPointerEvent<HTMLDivElement>): void;
   onGesturePointerUp?(e: ReactPointerEvent<HTMLDivElement>): void;
   onGesturePointerCancel?(e: ReactPointerEvent<HTMLDivElement>): void;
+  /** This person's own undo history, handed to the text editor: the edit opens
+   * and closes a step in it, and Ctrl+Z inside the note belongs to it.
+   */
+  undo?: UndoController;
 }
 
 /**
@@ -163,12 +168,19 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
 
   const onColor = (color: StickyColor) => {
     if (propsRef.current.canEdit === false) return;
+    // One colour is one step of mine. It never joins the drag that ran into it,
+    // and the next colour is a step of its own, however soon it follows.
+    propsRef.current.undo?.boundary();
     setStickyColor(doc, note.id, color);
+    propsRef.current.undo?.boundary();
   };
 
   const onDelete = () => {
     if (propsRef.current.canEdit === false) return;
+    // The same for throwing the note away: one press of the button, one step.
+    propsRef.current.undo?.boundary();
     deleteObject(doc, note.id);
+    propsRef.current.undo?.boundary();
   };
 
   const ytext = getStickyText(doc, note.id);
@@ -218,6 +230,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
         <StickyTextEditor
           ytext={ytext}
           fontPx={fit.fontPx}
+          undo={props.undo}
           onEnd={(next) => {
             propsRef.current.onEndEdit(next);
           }}

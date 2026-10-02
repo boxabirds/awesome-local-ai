@@ -373,6 +373,17 @@ body,
   box-shadow: var(--focus-ring);
 }
 
+/* Story 8: an Undo or Redo button with nothing of mine in it is greyed out, so
+   the two of them say what the history holds without anyone having to try them. */
+.toolbar-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.toolbar-button:disabled:hover {
+  background: transparent;
+}
+
 /* Story 4: a board that could not be loaded is the one thing the badge says in
    red. It is the same badge as "Reconnecting…", in the same place, and only the
    colour and the words change — there is no second indicator to miss. */

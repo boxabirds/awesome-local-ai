@@ -7,6 +7,7 @@ import { ZoomControls } from '../canvas/ZoomControls';
 import { useCamera } from '../canvas/useCamera';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Point, type Size } from '../canvas/camera';
 import { useBoardDoc } from './useBoardDoc';
+import { useUndo, useUndoController } from './useUndo';
 import { useSelection } from './useSelection';
 import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -67,6 +68,11 @@ export function Board(props: BoardProps = {}): JSX.Element {
 
   const editable = canEdit(connection);
 
+  // This person's own undo history, for as long as this board is open: created
+  // with its document and thrown away with it, so a reload begins empty again.
+  const undoController = useUndoController(doc);
+  const undo = useUndo(undoController, editable);
+
   // A test build lets the test take this board's link down.
   useEffect(() => {
     setOutageHandler((ms: number) => emulateOutage(ms));
@@ -99,11 +105,14 @@ export function Board(props: BoardProps = {}): JSX.Element {
       });
     });
   }, [doc]);
-
   /** Create a note centred on a world point and start typing straight away. */
   const createAt = (world: Point): void => {
     if (!editable) return;
+    // Its own undo step, on both sides: neither the action before it nor the
+    // first drag of the new note is merged into the act of creating it.
+    undoController.boundary();
     const id = createSticky(doc, world);
+    undoController.boundary();
     if (id !== '') selection.startEdit(id);
   };
 
@@ -124,21 +133,31 @@ export function Board(props: BoardProps = {}): JSX.Element {
 
   const marquee = useMarquee(camera, marqueeSelect, marqueeObjectsInRect);
 
-  // Transform gesture (group move + resize handles)
+  // Transform gesture (group move + resize handles). Both ends of a gesture
+  // close an undo step, so the whole drag — every frame of it, and the
+  // bring-to-front that came with it — is one thing to undo, and a gesture that
+  // was cancelled is still exactly one.
   const gesture = useTransformGesture({
     doc,
     camera,
     selection,
     snapshot: notes,
     canEdit: editable,
+    onGestureStart: () => {
+      undoController.boundary();
+    },
+    onGestureEnd: () => {
+      undoController.boundary();
+    },
   });
 
-  // Board-wide keyboard commands (select all, clear, nudge, delete)
+  // Board-wide keyboard commands (select all, clear, nudge, delete, undo, redo)
   useBoardKeys({
     doc,
     selection,
     snapshot: notes,
     canEdit: editable,
+    undo: undoController,
   });
 
   // Enter key to edit the single selected sticky.
@@ -214,6 +233,7 @@ export function Board(props: BoardProps = {}): JSX.Element {
             onGesturePointerMove={(e) => gesture.onPointerMove(e)}
             onGesturePointerUp={(e) => gesture.onPointerUp(e)}
             onGesturePointerCancel={(e) => gesture.onPointerCancel(e)}
+            undo={undoController}
           />
         ))}
       </BoardViewport>
@@ -224,12 +244,19 @@ export function Board(props: BoardProps = {}): JSX.Element {
         camera={camera}
         onHandlePointerDown={(e, h) => gesture.onHandlePointerDown(e, h)}
       />
-      <Toolbar onCreateSticky={createAtViewportCentre} disabled={!editable} />
+      <Toolbar
+        onCreateSticky={createAtViewportCentre}
+        disabled={!editable}
+        undo={undo}
+      />
       <SelectionBar
         ids={selection.ids}
         onDelete={() => {
           if (!editable) return;
+          // One step of mine, closed on both sides of it.
+          undoController.boundary();
           deleteObjects(doc, [...selection.ids]);
+          undoController.boundary();
           selection.clear();
         }}
       />

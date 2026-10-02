@@ -13,3 +13,5 @@ test-results
 
 # scratch logs and temp from local runs
 .tmp/
+
+.probe/

@@ -349,3 +349,99 @@ story 1 and story 2 also verified in chromium and webkit only. Whoever runs this
 next should run `npm run test:firefox` outside the sandbox for those two cases; the
 assertions are the same ones that pass in the other two engines, including the
 `expectNoProblems` guard that would catch a browser objecting to the outage.
+
+---
+
+# Story 8 — undo and redo my own changes, nobody else's
+
+Everything the design asked for is there: `createUndo(doc, opts)` over
+`Y.UndoManager` in `src/client/board/undo.ts`, the React binding in
+`useUndo.ts`, the two buttons in `UndoButtons.tsx` in the left `Toolbar`, the
+shortcuts in `useBoardKeys`, gesture and edit boundaries through story 7's
+`onGestureStart`/`onGestureEnd` and `StickyTextEditor`, and the two named
+settings in `src/shared/config.ts`. TC-01 to TC-21 and e2e TC-22 to TC-24 pass;
+`npm run build` builds.
+
+Three things turned out differently from the design's letter. Each is a
+deviation I made on purpose, and each is recorded here with its reason.
+
+**The controller is created in `Board.tsx`, not `App.tsx`.** The design names
+`App.tsx` as the tab that makes the controller, but in this codebase `App.tsx`
+is only the router — it renders `HomePage`, `BoardPage` and `NotFoundPage` and
+never sees a `Y.Doc`. The document is made by `useBoardDoc`, one board deeper,
+and `Board.tsx` is where it, the selection state and the edit lock all come
+together. `useUndoController(doc)` in `Board.tsx` is therefore the one owner,
+and it is still exactly one controller per tab per board.
+
+**A controller's lifetime is held in a `Holder`, because of StrictMode.** The
+first attempt was the obvious `useMemo` / ref + cleanup pattern. It is wrong:
+React's development StrictMode mounts the tree, unmounts it, and mounts it
+*again*, and in React 19 that second mount re-runs neither `useState`
+initialisers nor — in the ref pattern — anything that recreates the controller.
+The result was a mounted board holding a controller whose `destroy()` had
+already run, whose `manager.destroy()` had thrown its stacks away, and which
+therefore had no history at all: the first `Ctrl+Z` did nothing. The holder is
+a state cell with an `alive` flag: cleanup flips the flag and destroys; the
+re-mounting effect sees a dead holder, makes a fresh controller and forces one
+render to say so. In a production build there is no double mount, the effect's
+`if` never fires, and the controller is destroyed exactly once. `undo.session_only`
+is what makes this correct at all: a controller is not meant to survive its mount.
+
+**`UNDO_CAPTURE_TIMEOUT_MS` cannot be measured with fake timers.** TC-12 and
+TC-13 are "vi fake timers, keystroke gaps below/above UNDO_CAPTURE_TIMEOUT_MS".
+That is not testable that way, and not for want of trying: `yjs` does not call
+`Date.now()` at the moment it measures a pause — it calls `lib0/time`'s
+`getUnixTime`, and `lib0` defines it as `export const getUnixTime = Date.now`,
+capturing the function once at module load. `vi.useFakeTimers()` and
+`vi.setSystemTime()` replace the method on `Date`, so `Date.now()` moves while
+`getUnixTime()` does not — every transaction looks instantaneous to the capture
+window, which therefore never ends. Both tests use real waits instead, and the
+threshold is still tested to the millisecond, via `captureTimeoutMs: 200`:
+220 ms of quiet makes two steps, 380 ms of typing in 60 ms gaps makes one.
+TC-13's two sides are also two *notes*, because two pieces of text written into
+one `Y.Text` are merged by yjs's own structural rules (`undoType`s merge) no
+matter how far apart in time they are — the boundary is what separates them, and
+that belongs to `undo.boundaries`, not to the capture timeout.
+
+Two things worth knowing about `Y.UndoManager` itself, learned by reading it in
+`node_modules/yjs/dist/yjs.cjs` and by probes:
+
+- **A step with nothing to undo is consumed silently** — and, depending on how
+  far the deleted struct has been garbage-collected, it may be *kept* instead.
+  `popStackItem` walks `trans.items`, skipping anything another client has
+  deleted; when nothing is left it returns `null`, and when the leftovers are
+  structs whose `fromDiff` is zero it breaks and leaves the item on the stack.
+  Either way nothing is applied and nothing throws, which is what `undo.safe`
+  needs; but it means "one press of Undo ⇒ exactly one step off the stack" is
+  not a promise yjs gives. So e2e TC-23 asserts what the PRD asks and not more:
+  the undo of a move of a note a colleague has deleted gives no error, invents
+  no note, and the *next* undo works. It does not assert the button's disabled
+  state, which is not in the PRD and which is exactly the part yjs may answer
+  either way. The unit tests (TC-07) test the same safety in the deterministic
+  case, where the stack really is empty afterwards.
+
+- **`manager.destroy()` does not unsubscribe the manager from the document.**
+  It drops its stacks, its observers and its capture timeout, but the
+  `transaciton` event handler it added to `doc` stays. `UndoController.destroy()`
+  calls `doc.off('transaction', manager.skippedHandler)` itself, so a board that
+  is closed, reloaded or exchanged leaves no observer behind. `manager.skippedEdit`
+  (the method reference React never sees) is kept as `skippedHandler` for that
+  purpose — and it is also the reason `useUndo`'s actions must not be treated as
+  no-ops: `undo()` calls `manager.undo()` directly rather than going through an
+  editor-style `skipNextHandlerCall`, which would leave the controller silently
+  ignoring the next local write in some other component.
+
+One more thing that only showed up in the browser: **`UndoManager` trims nothing
+by itself**, so `UNDO_MAX_STEPS` is enforced by the controller (TC-09, TC-10 —
+undo stack only, redo stack untouched), and **a chain of model-level `createSticky`
+calls inside one capture window is one step**: the design's own "create is one
+step" boundary comes from `boundary()` around the model call and from
+`selection.startEdit` opening an edit session (which calls `boundary()` again),
+so the e2e creates notes through the UI and the component tests, which call the
+model directly, expect one merged step for two creates.
+
+Finally, `NoteToolbar`'s colour and delete got their own `boundary()` pair — the
+design names them, and without them three swatches clicked one after another are
+a single undo step instead of three. The extra component test ("every colour
+chosen in a row is a step of its own") is what caught that: it fails when the
+boundaries are taken back out.

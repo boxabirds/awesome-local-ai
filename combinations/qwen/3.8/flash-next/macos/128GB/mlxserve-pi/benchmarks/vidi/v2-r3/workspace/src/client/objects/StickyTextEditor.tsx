@@ -13,6 +13,7 @@ import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { applyTextDelta, clampToLimit, counterVisible } from './StickyText';
 import type { EndEditNext } from '../board/useSelection';
+import type { UndoController } from '../board/undo';
 
 export interface StickyTextEditorProps {
   /** The note's shared text; every input event is written to it directly. */
@@ -21,6 +22,13 @@ export interface StickyTextEditorProps {
   fontPx: number;
   /** Escape -> 'selected'; a pointerdown outside the note -> 'unselected'. */
   onEnd(next: EndEditNext): void;
+  /**
+   * This person's own undo history. The editor opens and closes a step in it —
+   * one edit session is one step, wherever it happens to fall — and takes
+   * Ctrl/Cmd+Z for itself, so the undo it performs is the board's and not the
+   * browser's. Absent only when the editor is rendered without a board.
+   */
+  undo?: UndoController;
 }
 
 /** Is `node` inside the same sticky note as `inside`? */
@@ -130,6 +138,9 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
 
   // Edit start: value from the document, focus, caret at the end of the text.
   useEffect(() => {
+    // Where this edit begins, in my own history: whatever I did before it stays
+    // a step of its own, and the typing that follows is this one.
+    propsRef.current.undo?.boundary();
     const el = textareaRef.current;
     if (el === null) return;
     const initial = clampToLimit(propsRef.current.ytext.toString());
@@ -147,6 +158,9 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
   const end = useCallback((next: EndEditNext) => {
     if (endedRef.current) return;
     endedRef.current = true;
+    // And where it ends. What is typed after this is another step, even if no
+    // time has passed at all.
+    propsRef.current.undo?.boundary();
     propsRef.current.onEnd(next);
   }, []);
 
@@ -186,6 +200,25 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     // While an IME composition is open the textarea owns every key: Escape
     // cancels the composition, it does not finish editing.
     if (e.nativeEvent.isComposing || composingRef.current) return;
+
+    // Ctrl/Cmd+Z inside the note is the board's undo, not the textarea's: the
+    // browser's own undo of a textarea changes its value without ever reaching
+    // the shared text, and would then be flushed up as a change of mine. Redo is
+    // taken for the same reason. The event does not carry on to the board,
+    // which would undo a second thing underneath the typing.
+    const undo = propsRef.current.undo;
+    if (undo !== undefined && (e.ctrlKey || e.metaKey) && !e.altKey) {
+      const key = e.key.toLowerCase();
+      if (key === 'z' || key === 'y') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (key === 'z' && e.shiftKey) undo.redo();
+        else if (key === 'z') undo.undo();
+        else undo.redo();
+        return;
+      }
+    }
+
     if (e.key === 'Escape') {
       // Escape finishes editing and keeps the note selected. Enter is left to
       // the textarea so it inserts a new line; Delete/Backspace edit text.

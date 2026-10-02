@@ -162,3 +162,21 @@ export const NUDGE_STEP_WORLD = 1;
 
 /** Large nudge step: Shift+Arrow moves this many world units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// --- Story 8: undo and redo ------------------------------------------------
+
+/**
+ * Typing pause that ends an undo step (undo.typing): consecutive local text
+ * changes made less than this many milliseconds apart are one undo step, so one
+ * press of Undo reverses a burst of typing rather than one keystroke. A pause of
+ * exactly this long starts a new step (the boundary values are tested at
+ * UNDO_CAPTURE_TIMEOUT_MS - 1 and exactly UNDO_CAPTURE_TIMEOUT_MS).
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/**
+ * How many of a person's own undo steps a board keeps (undo.limit). When a new
+ * step is added while the history holds this many, the oldest one is discarded.
+ * A generous history is what makes experimenting safe.
+ */
+export const UNDO_MAX_STEPS = 200;
