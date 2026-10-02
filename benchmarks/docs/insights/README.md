@@ -182,7 +182,9 @@ The scripts are in [scripts/](scripts/), standard library only.
    (`agent-events.jsonl`) are kept on the machine that ran each run; the published logs in this repo are lossless
    only for runs recorded since 30 September 2026.
 2. `detect_core.py`, `detect_performance.py`, `detect_behaviour.py` and `detect_security.py`, each given the database,
-   print every table. Two runs give identical output.
+   print every table. Two runs give identical output. `detect_time.py` (where story time goes, by kind of call) and
+   `detect_reads.py` (how many look calls a bulk read could merge) print the tables behind the time analysis; they are
+   not yet part of the findings documents.
 
 The database itself is not in this repo: it holds complete conversations, including the credentials one story
 printed. It is expensive to build, so it is kept, compressed, in the private repo at

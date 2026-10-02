@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { State } from "../../shared/types.ts";
 import { ago } from "../format.ts";
 import { useHeightVar } from "../useHeightVar.ts";
+import { SearchBox } from "./SearchBox.tsx";
 import { utc } from "./run/bits.tsx";
 
 interface Props {
@@ -47,6 +48,7 @@ export function Header({ state, serverNow, packs, pack, families, family, curren
       <span className="meta" data-testid="meta" data-updating={state.updating ? "true" : "false"}>
         {freshness(state, serverNow)} · suite {state.suites[pack] || "?"}
       </span>
+      <SearchBox state={state} />
       {children}
     </header>
   );

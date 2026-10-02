@@ -498,7 +498,7 @@ GUIDE_DATA.entities = [
   {
     id: "benchmarker", name: "Benchmarker", group: "watch", row: 1,
     short: "The results page.",
-    what: "The results page: a React app with a small Node server (`tools/benchmarker`, bun, Node 24 or later). It reads `origin/main` every 60 s and dbench every 10 s and shows overview, combination, run, story run, story and machine pages. It presents results only. It never shows its own or the harness's faults; a run marked invalid is not in it, and a figure that is unreliable shows as not available with no reason.",
+    what: "The results page: a React app with a small Node server (`tools/benchmarker`, bun, Node 24 or later). It reads `origin/main` every 60 s and dbench every 10 s and shows overview, combination, run, story run, story and machine pages. A search in the header (press `/`) finds any combination, run, story or machine, live as you type, grouped by that same information architecture and ranked inside each group. It presents results only. It never shows its own or the harness's faults; a run marked invalid is not in it, and a figure that is unreliable shows as not available with no reason.",
     rel: [["reads", "record"], ["reads status from", "dbench"], ["exposes faults to", "monitor"]],
     repo: [["tools/benchmarker/README.md", "tools/benchmarker/README.md"], ["tools/benchmarker/shared/glossary.ts", "one definition per measure"], ["plans/20260930-benchmarker-information-architecture.md", "the page plan"]],
     example: "Its combination row shows the median, lowest and highest score of finished runs, and n.",
@@ -1246,12 +1246,12 @@ GUIDE_DATA.components = [
   {
     id: "benchmarker", name: "Benchmarker", lang: "TypeScript (React app, Node server; bun)",
     status: { state: "built" },
-    what: "The results page. A small server reads `origin/main` and dbench and turns records and jobs into rows (`server/domain.ts`, pure and unit-tested); the React page shows overview, combination, run, story-run, story and machine pages. One glossary file (`shared/glossary.ts`) defines every measure, so a number means the same thing wherever it appears. It also queues, stops and restarts jobs through the `dbench` command line.",
+    what: "The results page. A small server reads `origin/main` and dbench and turns records and jobs into rows (`server/domain.ts`, pure and unit-tested); the React page shows overview, combination, run, story-run, story and machine pages. One glossary file (`shared/glossary.ts`) defines every measure, so a number means the same thing wherever it appears. A header search (`shared/search.ts`, press `/`) indexes every combination, run, story and machine and groups results the same way. It also queues, stops and restarts jobs through the `dbench` command line.",
     why: "One place to see where each run is and how each combination did, built on one matrix: every number is a story-run fact, or an aggregate of them.",
     inputs: "`origin/main` (every 60 s), `dbench status --json` (every 10 s).",
     outputs: "`/api/state` for the page; `/api/faults` for the monitor.",
     fails: "If it cannot refresh for 20 seconds it greys out under a red bar saying how old the data is. It never shows its own or the harness's faults: they go to `/api/faults`.",
-    repo: [["tools/benchmarker/README.md", "tools/benchmarker/README.md"], ["tools/benchmarker/server/domain.ts", "server/domain.ts"], ["tools/benchmarker/shared/glossary.ts", "shared/glossary.ts"], ["plans/20260930-benchmarker-information-architecture.md", "page plan"]],
+    repo: [["tools/benchmarker/README.md", "tools/benchmarker/README.md"], ["tools/benchmarker/server/domain.ts", "server/domain.ts"], ["tools/benchmarker/shared/glossary.ts", "shared/glossary.ts"], ["tools/benchmarker/shared/search.ts", "shared/search.ts"], ["plans/20260930-benchmarker-information-architecture.md", "page plan"]],
     entities: ["benchmarker"],
     insights: ["thinking-spread"],
   },
