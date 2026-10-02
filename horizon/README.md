@@ -51,6 +51,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [llama.cpp Vulkan on Strix Halo](llamacpp-vulkan-strix-halo.md) | parked | Strix Halo | dropped from v2: prompt reading 4-7x slower than gufo |
 | [llama.cpp Metal on the M5 Max](llamacpp-metal-m5-max.md) | parked | M5 Max | paused after canvas-metal-01 story 1 |
 | [Fable 5.1 reference](fable-5.1-reference.md) | parked | this Mac | a second frontier reference next to Opus 5.5; after the Opus v2 runs |
-| [pi 0.99](pi-0.99.md) | parked | every machine | client update released the day v2 started; v2 pins pi 0.87.1 |
+| [pi 1.0](pi-1.0.md) | candidate | every machine | client update, 0.87.1 to 1.0.0; no landmine release; fixes a llama.cpp tool-call bug |
+| [pi 0.99](pi-0.99.md) | parked | every machine | superseded by pi 1.0; kept as why v2 pinned 0.87.1 |
 | [DeepSeek V4.1](deepseek-v4.1.md) | eliminated | none | about 750B parameters in total; V4.1-Flash size not checked |
 | Swift 1.5 Qwen3.8-27B (llama.cpp) | adopted | RTX 4090 | [combination](../combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/README.md) |
