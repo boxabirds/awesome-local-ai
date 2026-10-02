@@ -201,7 +201,7 @@ ARGV_150="$(argv_of /m/pack 18950 bench 150000 0)"
 assert_ok "an explicit window is passed as --context" pair "$ARGV_150" --context 150000
 assert_ok "drafts off is --no-drafts"     has "$ARGV_150" --no-drafts
 ENV_LINES="$(bash -c ". '$REPO_ROOT/lib/common.sh'; . '$CFG'; . '$REPO_ROOT/lib/tensorfold.sh'; tensorfold_serve_env")"
-assert_ok "memory budget: TensorFold's own default, 70% of RAM" has "$ENV_LINES" TENSORFOLD_MEMORY_LIMIT_GB=89.6
+assert_ok "memory budget: raised from TensorFold's 70%-of-RAM default to its own 128 GiB Mac example" has "$ENV_LINES" TENSORFOLD_MEMORY_LIMIT_GB=110
 assert_ok "no live terminal line in logs" has "$ENV_LINES" TENSORFOLD_NO_LIVE=1
 
 # ---- the launcher, end to end against stubs --------------------------------------------------------------
