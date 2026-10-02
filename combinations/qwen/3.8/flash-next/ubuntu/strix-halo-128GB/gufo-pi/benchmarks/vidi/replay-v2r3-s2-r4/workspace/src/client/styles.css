@@ -1,0 +1,182 @@
+/* Story 2: sticky notes and toolbars. */
+
+.sticky-note {
+  box-sizing: border-box;
+  font-size: 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  border-radius: 2px;
+  color: #1f1f1f;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: default;
+}
+
+.sticky-note--selected {
+  outline: 2px solid #1a73e8;
+  outline-offset: 0;
+}
+
+/* Rendered text. Fixed to the note's box; anything that no longer fits is
+   clipped, never shown (sticky.text_overflow). */
+.sticky-note-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+/* Hidden element used only to measure how large the font can be. */
+.sticky-note-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.25;
+}
+
+/* Bottom fade shown when the text no longer fits at the minimum font size. */
+.sticky-note-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  pointer-events: none;
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.9) 100%
+  );
+}
+
+.sticky-note-editor {
+  position: absolute;
+  inset: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: center;
+  line-height: 1.25;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  caret-color: #1a73e8;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.sticky-note-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Floating toolbar above the selected note: positioned in board units and
+   scaled by 1/zoom so it keeps the same size at every zoom level. */
+.note-toolbar-anchor {
+  position: absolute;
+  left: 0;
+  transform-origin: top left;
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+.note-toolbar-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.note-toolbar-swatch[aria-pressed='true'] {
+  border: 2px solid #1a73e8;
+}
+
+.note-toolbar-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #b3261e;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+}
+
+.note-toolbar-delete:hover {
+  background: rgba(179, 38, 30, 0.1);
+}
+
+/* Left-side vertical board toolbar. */
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+  z-index: 10;
+}
+
+.board-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  background: #f3f3f3;
+  cursor: pointer;
+  padding: 0;
+}
+
+.board-toolbar-button:hover {
+  background: #e6e6e6;
+}
