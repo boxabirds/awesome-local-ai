@@ -23,7 +23,7 @@ cargo clippy -- -D warnings           # kept at zero warnings; both are checks o
                                       # -> target/x86_64-unknown-linux-gnu/release/dbench
 ```
 
-The Rust version is pinned in `rust-toolchain.toml` (an exact release, with clippy and the Linux target): rustup installs it the first time cargo runs here, and CI reads the same file, so a new stable release can't fail a commit that passed before. To move to a newer Rust, change `channel` there and run the checks.
+The Rust version is pinned in `rust-toolchain.toml` (an exact release, with clippy and the Linux target): rustup installs it the first time cargo runs here, so a new stable release can't fail a commit that passed before. To move to a newer Rust, change `channel` there and run the checks.
 
 On a Linux box, `cargo build --release` works natively. TLS is rustls, so there's no OpenSSL.
 
@@ -217,16 +217,13 @@ A harness release is a git tag, `harness-v<YYYY.MM.DD>.<n>` (UTC date; `n` count
 
 ```sh
 dbench harness-release               # run every check; if all pass, tag HEAD (annotated) and push the tag
-dbench harness-release --check-only  # run every check and report; tag nothing (this is what CI runs)
+dbench harness-release --check-only  # run every check and report; tag nothing
 dbench harness-release --dry-run     # show the checks and the tag a release would make; run nothing
-dbench harness-release --verified-by-ci            # run no check here: tag the commit CI's run of the checks passed for
-dbench harness-release --verified-by-ci --wait     # the same, waiting while that run hasn't ended
-dbench harness-release --verified-by-ci --dry-run  # ask GitHub (read-only) and say what would be tagged, or why nothing would
 ```
 
 It works on the git repository the current directory is in, or `--repo PATH`. This is not `dbench release <node>`, which ends a hold.
 
-- **The checks are one list:** `tools/dbench/checks.toml` in the repo, read when the command runs. The same file says what a node runs from a release (`harness`, plain paths that must be under the checked `paths`). Each check is a name, a working directory and a command. CI (`.github/workflows/checks.yml`) runs the same list with `--check-only`, so the two can't disagree. To add a check, add it there and nowhere else.
+- **The checks are one list:** `tools/dbench/checks.toml` in the repo, read when the command runs. The same file says what a node runs from a release (`harness`, plain paths that must be under the checked `paths`). Each check is a name, a working directory and a command. To add a check, add it there and nowhere else.
 - **What counts as a failure:**
   - the command exits non-zero;
   - the command can't be started (the program isn't installed);
@@ -239,18 +236,6 @@ It works on the git repository the current directory is in, or `--repo PATH`. Th
   - a file under the checked paths (`paths` in `checks.toml`) has uncommitted changes, staged or not, or is untracked and not ignored. The checks would run with that file, and the tagged commit wouldn't have it. Files elsewhere, such as benchmark results, don't matter;
   - HEAD moved, or a tracked file under the checked paths changed, while the checks ran;
   - the tag can't be pushed. The local tag is then removed.
-- **`--verified-by-ci` releases on CI's verdict, running no check here.** The checks take minutes of CPU and a browser, which disturbs a benchmark running on the same machine, and CI has already run the same list for the same commit. Every git precondition above still holds (fetch, HEAD is `origin/main`, nothing uncommitted or untracked under the checked paths, HEAD unchanged at the end); only "run the checks" is replaced, by "a push run of `.github/workflows/checks.yml` concluded `success` for this commit".
-  - **How it asks:** one `gh run list --workflow checks.yml --event push` (the GitHub CLI with your existing sign-in; it only reads). The repository is origin's when that is a GitHub URL; otherwise `gh` works it out from the checkout.
-  - **Which commit is tagged:** the commit of the successful run, which must be HEAD or an ancestor of HEAD with nothing different under the checked paths, in `checks.toml` or in the workflow (`git diff --quiet <commit> HEAD -- …`). Results-only commits start no CI run (the workflow's `paths:` filters), so HEAD often has none while the last code change does; what CI checked is then byte-for-byte what HEAD has, and that earlier commit is tagged, not HEAD. The output and the tag say so. Nodes run the newest `harness-v*` tag merged into `origin/main`, so a tag a few results commits back is the same release.
-  - **Which runs count:** push runs only (a pull request's run checks a merge, not the commit it is listed under), among the workflow's newest 50. A success counts even if another run of the same checked files was cancelled or failed (a run that was started again).
-  - **It refuses, tagging nothing, when:**
-    - there is no run for HEAD or for an earlier commit with the same checked files. If the last successful run is older than a change to a checked file, it says so. Either run the checks here (`dbench harness-release`) or push a change under the checked paths and release once its run has passed;
-    - the run hasn't ended. `--wait` asks again every `--poll-secs` (30) until it has, and gives up after `--wait-timeout-secs` (3600; the workflow's own limit is 45 minutes). HEAD must not move in the meantime, so on a machine that commits results, release once the run has ended instead of waiting;
-    - the run ended in anything but `success` (`failure`, `cancelled`, `timed_out`, …): the conclusion and the run's URL are shown;
-    - `gh` isn't installed, fails or isn't signed in (`gh auth status`), or answers with something that isn't a run list;
-    - the workflow in HEAD doesn't run `harness-release --check-only` (a mention in a comment doesn't count), or is absent: its success would say nothing about the check list.
-  - **The tag says how it was verified:** "Verified by CI", with the run's id and URL and the commit it checked, or "Verified by the checks run locally" with each check and its time.
-  - **With `--dry-run`** it asks GitHub (read-only) and prints the commit and tag a release would make, or exits non-zero with the reason it would refuse. It doesn't fetch or look at the working tree, and it doesn't wait (`--wait` is refused with it). `--verified-by-ci` can't be combined with `--check-only`.
 - **`--check-only` doesn't look at git state:** no fetch, and a dirty tree or an unpushed commit is fine. It exits non-zero if any check fails.
 - **What the checks need installed:** uv, node with npm and npx, rustup (cargo and clippy come from `rust-toolchain.toml`), bun with the benchmarker's packages (`bun install` in `tools/benchmarker`), and Playwright's chromium (`bunx playwright install chromium` there). On Linux, bubblewrap (`bwrap`) too: the harness tests that run the agent's sandbox skip without it, and in CI, which sets `SPEC_BENCH_REQUIRE_SANDBOX`, fail without it.
 

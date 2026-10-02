@@ -1,9 +1,8 @@
-# The one place the Rust version is set, for local builds and for CI alike.
+# The one place the Rust version is set.
 #
 # rustup reads this file for every cargo command run in tools/dbench and installs the toolchain on
-# first use. CI (.github/workflows/checks.yml) reads `channel` from here and uses it for every Rust
-# check, the other crates under tools/ included, so a new stable release (with new clippy lints)
-# can't turn a passing commit red. To move to a newer Rust: change `channel`, run the checks, commit.
+# first use, so a new stable release (with new clippy lints) can't fail a commit that passed before.
+# To move to a newer Rust: change `channel`, run the checks, commit.
 [toolchain]
 channel = "1.98.0"
 profile = "minimal"

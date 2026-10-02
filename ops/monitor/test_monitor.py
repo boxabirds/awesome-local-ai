@@ -222,18 +222,6 @@ def test_commits_by_another_author_or_under_a_fixture_path_are_urgent():
     assert monitor.commit_detections("aaaaaaa1|The Owner|x\nops/anomaly-tracking.md\n", "The Owner") == []
 
 
-# ---- CI -------------------------------------------------------------------------------------------------------------
-
-def test_ci_red_is_detected_once_per_commit():
-    runs = [{"databaseId": 9, "status": "in_progress", "conclusion": "", "displayTitle": "new", "headSha": "c" * 40},
-            {"databaseId": 8, "status": "completed", "conclusion": "cancelled", "displayTitle": "mid", "headSha": "b" * 40},
-            {"databaseId": 7, "status": "completed", "conclusion": "failure", "displayTitle": "old", "headSha": "a" * 40}]
-    dets = monitor.ci_detections(runs)
-    assert kinds(dets) == ["ci_failed"] and dets[0]["id"] == "ci_failed:aaaaaaaa"
-    runs[2]["conclusion"] = "success"
-    assert monitor.ci_detections(runs) == []
-
-
 # ---- only what is new is logged -------------------------------------------------------------------------------------
 
 def test_new_only_keeps_first_sightings():

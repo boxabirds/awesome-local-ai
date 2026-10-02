@@ -1,6 +1,6 @@
 # The checks a harness release must pass: `dbench harness-release` runs every one of them, and tags
-# HEAD only if all pass. CI (.github/workflows/checks.yml) runs the same list with --check-only, so
-# the two can't disagree. To add a check, add it here and nowhere else.
+# HEAD only if all pass; with --check-only it runs the same list and tags nothing. To add a check, add
+# it here and nowhere else.
 #
 # A check is a name, a working directory (relative to the repo root) and a command (run directly,
 # not through a shell). It fails when the command exits non-zero or can't be started, and also when:
@@ -10,8 +10,7 @@
 # failure_marker: on failure, the output lines containing it are shown as well as the last lines.
 
 # What the checks read, as repo-relative globs. A release needs all of it committed, with nothing
-# untracked, and CI runs when any of it changes: each entry is also a `paths:` filter in
-# checks.yml (a dbench unit test holds the two together). Benchmark results (the rest of
+# untracked. Benchmark results (the rest of
 # combinations/**, and benchmarks/reference/**) are committed all day and are left out on purpose.
 paths = [
   "benchmarks/spec-bench/**",
@@ -21,7 +20,6 @@ paths = [
   "tools/**",
   "tests/**",
   "lib/**",
-  ".github/**",
   "*.sh",
   "combinations/*/*/*/*/*/*/config.sh",
   "combinations/*/*/*/*/*/*/profiles.tsv",

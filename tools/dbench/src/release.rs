@@ -1,8 +1,7 @@
 //! `dbench harness-release`: run every check, and only if all pass tag HEAD and push the tag.
 //!
-//! The checks are data: `tools/dbench/checks.toml` in the repo being released. CI runs the same
-//! list (`--check-only`), so the two can't disagree; `--verified-by-ci` (release_ci.rs) releases on
-//! CI's verdict instead of running them here.
+//! The checks are data: `tools/dbench/checks.toml` in the repo being released. `--check-only` runs
+//! the same list and tags nothing.
 
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
@@ -31,9 +30,8 @@ const LOG_DIR_PREFIX: &str = "dbench-harness-release-";
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct CheckList {
-    /// What the checks read, as repo-relative globs (`tools/**`, `*.sh`): a release needs it all committed,
-    /// and CI runs when any of it changes. The same strings are git `:(glob)` pathspecs and the workflow's
-    /// `paths:` filters.
+    /// What the checks read, as repo-relative globs (`tools/**`, `*.sh`): a release needs it all committed
+    /// before it is tagged. The strings are git `:(glob)` pathspecs.
     pub paths: Vec<String>,
     /// What a benchmark node runs: the repo-relative paths (directories or files, no globs) that
     /// `dbench serve` takes from a release tag to make the release's directory (harness.rs). Each must
@@ -313,27 +311,6 @@ pub(crate) fn git(repo: &Path, args: &[&str]) -> Result<String> {
     Ok(String::from_utf8_lossy(&out.stdout).trim_end().to_string())
 }
 
-/// Whether a git command that answers by its exit status (0 yes, 1 no) says yes.
-pub(crate) fn git_succeeds(repo: &Path, args: &[&str]) -> Result<bool> {
-    const NO: i32 = 1;
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(args)
-        .stdin(Stdio::null())
-        .output()
-        .context("running git")?;
-    match out.status.code() {
-        Some(0) => Ok(true),
-        Some(NO) => Ok(false),
-        _ => bail!(
-            "git {} failed: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&out.stderr).trim()
-        ),
-    }
-}
-
 /// The checked paths as git pathspecs.
 pub(crate) fn glob_specs(paths: &[String]) -> Vec<String> {
     paths.iter().map(|p| format!(":(glob){p}")).collect()
@@ -382,7 +359,7 @@ pub(crate) fn preflight(repo: &Path, paths: &[String]) -> Result<String> {
     Ok(head)
 }
 
-/// After the checks (or after CI was asked: `during` says which): the verdict must be on the
+/// After the checks (`during` says what ran meanwhile): the verdict must be on the
 /// commit about to be tagged.
 pub(crate) fn still_the_same(repo: &Path, paths: &[String], head: &str, during: &str) -> Result<()> {
     let now = git(repo, &["rev-parse", "HEAD"])?;
@@ -493,13 +470,10 @@ fn dry_run(repo: &Path, list: &CheckList) -> Result<()> {
 pub fn run(args: &HarnessReleaseArgs) -> Result<()> {
     let repo = find_repo(&args.repo)?;
     let list = load_checks(&repo)?;
-    if args.verified_by_ci {
-        return crate::release_ci::run(&repo, &list, args);
-    }
     if args.dry_run {
         return dry_run(&repo, &list);
     }
-    // A release names a commit; a check-only run (CI) checks whatever is checked out.
+    // A release names a commit; a check-only run checks whatever is checked out.
     let head = if args.check_only {
         None
     } else {
@@ -734,11 +708,6 @@ command = ["bash", "tests/run-tests.sh"]
             .map(|w| w[1].as_str())
             .collect();
         assert!(with.contains(&"pytest-cov"), "{with:?}");
-        let workflow =
-            std::fs::read_to_string(repo_root().join(crate::release_ci::WORKFLOW_FILE)).unwrap();
-        for by_hand in ["pip install", "uv pip", "uv tool install"] {
-            assert!(!workflow.contains(by_hand), "the workflow installs a Python package itself ({by_hand})");
-        }
         let replay = list
             .checks
             .iter()
@@ -776,33 +745,10 @@ command = ["bash", "tests/run-tests.sh"]
         assert!(err(&with("\"srcs\"")).contains("not under the checked paths"));
     }
 
-    /// CI must run whenever a checked path changes: every entry of `paths` is a `paths:` filter of
-    /// the workflow, on both triggers, and the workflow runs this command.
-    #[test]
-    fn the_ci_workflow_watches_every_checked_path() {
-        const WORKFLOW: &str = crate::release_ci::WORKFLOW_FILE;
-        const TRIGGERS: usize = 2; // push and pull_request
-        let list =
-            parse_checks(&std::fs::read_to_string(repo_root().join(CHECKS_FILE)).unwrap()).unwrap();
-        let workflow = std::fs::read_to_string(repo_root().join(WORKFLOW)).unwrap();
-        for p in &list.paths {
-            let filter = format!("- \"{p}\"");
-            let n = workflow.lines().filter(|l| l.trim() == filter).count();
-            assert_eq!(
-                n, TRIGGERS,
-                "{WORKFLOW} should have the line {filter} under each trigger"
-            );
-        }
-        // Run, not mentioned in a comment: --verified-by-ci takes this workflow's success as the checks'.
-        assert!(crate::release_ci::workflow_runs_the_checks(&workflow));
-    }
-
-    /// One Rust version for local builds and for CI: the toolchain file names an exact release
-    /// (a channel like "stable" moves, and brings new clippy lints with it), and the workflow
-    /// takes its version from that file instead of naming one itself.
+    /// One Rust version for every build: the toolchain file names an exact release (a channel like
+    /// "stable" moves, and brings new clippy lints with it).
     #[test]
     fn the_rust_version_is_pinned_in_one_place() {
-        const WORKFLOW: &str = ".github/workflows/checks.yml";
         const TOOLCHAIN_FILE: &str = "tools/dbench/rust-toolchain.toml";
         const VERSION_PARTS: usize = 3; // major.minor.patch; "1.98" would follow its patch releases
         let text = std::fs::read_to_string(repo_root().join(TOOLCHAIN_FILE)).unwrap();
@@ -815,19 +761,6 @@ command = ["bash", "tests/run-tests.sh"]
                     .iter()
                     .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit())),
             "{TOOLCHAIN_FILE}: channel {channel:?} is not an exact version"
-        );
-        // The workflow reads the version with sed, from a line of exactly this shape.
-        let line = format!("channel = \"{channel}\"");
-        assert!(
-            text.lines().any(|l| l == line),
-            "{TOOLCHAIN_FILE} should have the line {line}"
-        );
-        let workflow = std::fs::read_to_string(repo_root().join(WORKFLOW)).unwrap();
-        assert!(workflow.contains(&format!("RUST_TOOLCHAIN_FILE: {TOOLCHAIN_FILE}")));
-        assert!(workflow.contains("echo \"RUSTUP_TOOLCHAIN=$channel\" >> \"$GITHUB_ENV\""));
-        assert!(
-            !workflow.contains("rust-toolchain@"),
-            "{WORKFLOW} installs a toolchain of its own choosing"
         );
     }
 }

@@ -156,6 +156,6 @@ All of it is in [assets/guide-data.js](assets/guide-data.js), found by id. These
 | C. One story's loop | [drive.py](../../spec-bench/harness/drive.py) (`main`, `run_story_agent`, `story_finished`, the constants near the top), [CONTROL.md](../../spec-bench/harness/CONTROL.md) |
 | D. After the run | [finalize.py](../../spec-bench/harness/finalize.py), [rescore.py](../../spec-bench/harness/rescore.py), [EVALUATION-POLICY.md](../../spec-bench/EVALUATION-POLICY.md), [publicise.py](../../spec-bench/harness/publicise.py), [credentials.py](../../spec-bench/harness/credentials.py) |
 | E. A number reaches the benchmarker | [tools/benchmarker/README.md](../../../tools/benchmarker/README.md), `server/domain.ts`, `server/faults.ts` |
-| F. A harness release | [tools/dbench/README.md](../../../tools/dbench/README.md) (releasing), [checks.toml](../../../tools/dbench/checks.toml), [checks.yml](../../../.github/workflows/checks.yml) |
+| F. A harness release | [tools/dbench/README.md](../../../tools/dbench/README.md) (releasing), [checks.toml](../../../tools/dbench/checks.toml) |
 | G. Rerun from known-good code | [spec-bench README](../../spec-bench/README.md), the gufo analysis, `drive.py` (`known_good_base`) |
 | H. The monitor | [ops/monitor/README.md](../../../ops/monitor/README.md), [triage-prompt.md](../../../ops/monitor/triage-prompt.md) |

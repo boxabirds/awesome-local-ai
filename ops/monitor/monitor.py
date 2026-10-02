@@ -2,7 +2,7 @@
 """The monitor's detector: one cheap, read-only pass over the benchmark's own signals. No LLM.
 
 Each tick it reads the benchmarker's fault feed and state (127.0.0.1:7760), `dbench` status across the nodes, the
-records that changed on origin/main, CI on main, and (for a Mac that serves a model) the server's memory. Whatever
+records that changed on origin/main, and (for a Mac that serves a model) the server's memory. Whatever
 is new since the last tick is appended to ops/monitor-log.jsonl, one JSON object per line; ops/monitor-status.json
 is rewritten every tick; the owner gets one macOS notification per change of state. Judging a detection (which
 bucket, what to fix) is not done here: triage.py hands the new lines to Claude and ops/anomaly-tracking.md gets the
@@ -356,7 +356,7 @@ def record_detections(run_dir: str, metrics: dict, finalize: dict | None, run_st
     return dets
 
 
-# ---- commits on main, CI --------------------------------------------------------------------------------------------
+# ---- commits on main ------------------------------------------------------------------------------------------------
 
 def commit_detections(log: str, owner: str) -> list[dict]:
     """`git log --format=%h|%an|%s --name-only` of the new commits: another author's, or a test's fixture paths."""
@@ -373,16 +373,6 @@ def commit_detections(log: str, owner: str) -> list[dict]:
             if d["id"] not in {x["id"] for x in dets}:
                 dets.append(d)
     return dets
-
-
-def ci_detections(runs: list[dict]) -> list[dict]:
-    """The latest completed, not cancelled, run on main: red is a detection, once per commit."""
-    done = [r for r in runs if r.get("status") == "completed" and r.get("conclusion") != "cancelled"]
-    if done and done[0].get("conclusion") != "success":
-        r = done[0]
-        return [det("ci_failed", f"ci_failed:{str(r.get('headSha'))[:8]}",
-                    f"{r.get('conclusion')}: {str(r.get('displayTitle'))[:160]} (run {r.get('databaseId')})")]
-    return []
 
 
 # ---- the status the owner reads -------------------------------------------------------------------------------------
@@ -558,12 +548,6 @@ def tick(now: float, dry_run: bool = False) -> dict:
     except Exception as e:                       # noqa: BLE001 — any failure to read the feed is the detection
         dets.append(det("benchmarker_unreachable", f"benchmarker_unreachable:{int(now // 3600)}", str(e)[:200]))
     collect_repo(st, dets)
-    rc, out, err = sh(["gh", "run", "list", "--branch", "main", "--limit", "8", "--json",
-                       "status,conclusion,displayTitle,headSha,databaseId"], 60)
-    try:
-        dets += ci_detections(json.loads(out))
-    except ValueError:
-        dets.append(det("ci_unreadable", f"ci_unreadable:{int(now // 86400)}", (err or out)[:200]))
     seen = st.setdefault("seen", {})
     fresh = new_only(dets, seen, now)
     if first:                                    # the first tick is the baseline: what is already open is not news
