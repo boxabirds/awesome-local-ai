@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -287,3 +288,20 @@ def test_the_run_s_identity_is_the_builds_and_says_the_mode(source, monkeypatch)
     monkeypatch.setattr(sandbox.subprocess, "run", lambda cmd, **kw: SimpleNamespace(returncode=1, stdout="", stderr="boom"))
     with pytest.raises(sandbox.SandboxUnavailable, match="identity failed: boom"):
         sandbox.build_identity()
+
+
+def test_each_program_is_the_one_the_harness_would_run_though_another_copy_sits_beside_node(tmp_path):
+    """2 Oct 2026: on a machine with an older client installed beside node (npm -g) and the current one in the job
+    runner's tools, the agent's PATH put node's directory first, so the agent ran the older client, which refused the
+    command line ("Unknown option: --") and every story ended with no model call. Whatever the harness's PATH finds
+    for a program, the agent's PATH must find too."""
+    node, client = tmp_path / "node" / "bin", tmp_path / "runner-tools" / "bin"
+    for d, names in ((node, ("node", "npm", "npx", "pi")), (client, ("pi",))):
+        d.mkdir(parents=True)
+        for name in names:
+            (d / name).write_text("#!/bin/sh\n")
+            (d / name).chmod(0o755)
+    harness_path = os.pathsep.join((str(client), str(node)))
+    agent = sandbox.agent_path("pi", harness_path)
+    for program in ("pi", "node", "npm", "npx"):
+        assert shutil.which(program, path=agent) == shutil.which(program, path=harness_path), program

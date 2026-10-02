@@ -256,11 +256,11 @@ def world_for(run: str, base_url: str | None, presets: tuple[str, ...], egress_l
 def agent_path(program: str, harness_path: str | None = None) -> str:
     """The agent's PATH: the directories of the programs it needs (node and the client) and the system's. Nothing else
     of the harness's PATH, which names the owner's home and every tool they have installed."""
-    found = []
-    for name in (*TOOL_PROGRAMS, program):
-        p = shutil.which(name, path=harness_path if harness_path is not None else os.environ.get("PATH"))
-        if p:
-            found.append(str(Path(p).parent))
+    path = harness_path if harness_path is not None else os.environ.get("PATH") or ""
+    needed = {str(Path(p).parent) for p in (shutil.which(name, path=path) for name in (*TOOL_PROGRAMS, program)) if p}
+    # In the harness's own order, so each program is the copy the harness would run: a directory that holds node may
+    # hold another, older client too, and must not come before the client's own.
+    found = [d for d in dict.fromkeys(path.split(os.pathsep)) if d in needed]
     tools = Path.home() / DBENCH_TOOLS / "bin"
     dirs = [*found, *([str(tools)] if tools.is_dir() else []), *(d for d in SYSTEM_PATH if Path(d).is_dir())]
     return os.pathsep.join(dict.fromkeys(dirs))
