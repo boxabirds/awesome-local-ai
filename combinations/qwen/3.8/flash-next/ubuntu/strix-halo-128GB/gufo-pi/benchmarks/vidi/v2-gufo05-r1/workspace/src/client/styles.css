@@ -1,0 +1,177 @@
+:root {
+  --board-bg: #fafafa;
+  /* Dot grid colour as an rgb triplet; the alpha comes from the zoom level. */
+  --board-dot: 71 85 105;
+  --panel-bg: #ffffff;
+  --panel-border: #d5d8dd;
+  --panel-shadow: 0 1px 4px rgba(18, 20, 24, 0.14);
+  --text: #1b1e23;
+  --text-muted: #5b6068;
+  --focus-ring: #2f6fed;
+  --origin-marker: #2f6fed;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--board-bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+}
+
+/* Board ------------------------------------------------------------------- */
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--board-bg);
+  cursor: grab;
+  /* The board owns every gesture on its surface: no browser scroll or pinch. */
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+.board-viewport--panning {
+  cursor: grabbing;
+}
+
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.board-origin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+.board-origin__mark {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 17px;
+  height: 17px;
+  transform-origin: 50% 50%;
+}
+
+.board-origin__mark::before,
+.board-origin__mark::after {
+  content: '';
+  position: absolute;
+  background: var(--origin-marker);
+  opacity: 0.55;
+}
+
+.board-origin__mark::before {
+  top: 0;
+  left: 8px;
+  width: 1px;
+  height: 17px;
+}
+
+.board-origin__mark::after {
+  top: 8px;
+  left: 0;
+  width: 17px;
+  height: 1px;
+}
+
+/* Zoom controls ------------------------------------------------------------ */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+}
+
+.zoom-controls__button {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.zoom-controls__button:hover:not(:disabled) {
+  background: #f0f2f5;
+}
+
+.zoom-controls__button:disabled {
+  color: #a8adb5;
+  cursor: default;
+}
+
+.zoom-controls__button--reset {
+  border-left: 1px solid var(--panel-border);
+  border-radius: 0 6px 6px 0;
+}
+
+.zoom-controls__value {
+  min-width: 48px;
+  padding: 0 4px;
+  text-align: center;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.zoom-controls__button:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* Navigation hint ---------------------------------------------------------- */
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  background: rgba(27, 30, 35, 0.85);
+  color: #f6f7f9;
+  border-radius: 999px;
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}

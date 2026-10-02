@@ -1,0 +1,7 @@
+node_modules
+dist
+.wrangler
+.wrangler/dev.vars.json
+playwright-report
+test-results
+playwright/.cache
