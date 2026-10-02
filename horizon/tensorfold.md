@@ -3,8 +3,8 @@
 **Status:** blocked on us (2 Oct 2026): checks 1 and 2 ran for real on the M5 Max. Check 1 passes, but only to 32k
 tokens — short of our ~131k sessions — capped by the memory budget's own keep-prompt limit, not by the long-context
 defect this note was originally about (that part looks fixed). Check 2 fails past the same ceiling. Two documented
-lures to raise the ceiling were tried and neither worked: one did nothing, the other made it worse. See "What we
-found running the checks for real" below before trying a third.
+levers to raise the ceiling were tried and neither worked, and a budget sweep that evening restarted the Mac. See
+"What we found running the checks for real" below; nothing above 89.6 GiB runs here without the owner's say.
 **Machine:** the M5 Max (128 GB, MLX). Compared with mlx-serve on the same model.
 
 ## What it is
@@ -158,21 +158,40 @@ Ran `tools/tensorfold-check/run-checks.sh` on the M5 Max for real, three times, 
    byte. TensorFold's own recipe doc says this machine class (128 GiB) already host-maps the n-gram tables by
    default, which would explain the flag being a no-op here — not independently confirmed beyond that.
 4. **Raising `TENSORFOLD_MEMORY_LIMIT_GB` to 110 (TensorFold's own worked example for a 128 GiB Mac) made it
-   worse.** Keep-prompt limit fell to 10,240 — under a quarter of the 89.6 GiB figure. This is the opposite of
-   what TensorFold's documented memory model implies (more budget should mean more room, not less). Not
-   explained. One unverified guess (not confirmed, don't treat as fact): the host-mapping decision for the n-gram
-   tables is threshold-based on the *budget*, and a higher budget could flip something about that choice in a way
-   that costs more resident memory than it gains — this was not checked against TensorFold's source or logs
-   before time ran out on this round. Reverted; `config.sh` is back at 89.6 GiB (TensorFold's own default).
+   worse.** Keep-prompt limit fell to 10,240, under a quarter of the 89.6 GiB figure. The request was clamped to
+   107.5 GiB, the ceiling TensorFold reports for this Mac. Reverted; `config.sh` is back at 89.6 GiB.
 
-**Open question, not yet investigated:** why keep-prompt moves the *wrong direction* with more memory budget.
-Worth raising as a TensorFold issue (with the three run folders above as evidence) before trying a fourth
-configuration ourselves — this behaviour contradicts their own documentation, so it may be a bug worth them
-knowing about rather than something to keep guessing at on our side.
+### Why more budget gave a smaller window (read from the 0.6.0 source and the startup logs, evening of 2 Oct)
 
-**Last checked:** 2 Oct 2026 (three real runs on the M5 Max). **Next:** either an upstream TensorFold issue about
-the inverted budget relationship, or a maintainer answer on `docs/recipes/qwen3.8-flash-next.md`'s memory model,
-before trying another configuration. Check 3 (and any real comparison run) stays blocked until checks 1 and 2
+- The earlier guess here (n-gram tables becoming resident) was wrong: both budgets log "75.6 GiB resident, 29.8 GiB
+  file-backed" and "77.2 GiB of weights kept resident".
+- What changes is the prompt chunk. At 89.6 GiB the server logs "prompt chunks of up to 2,048 tokens"; at 107.5 GiB,
+  "up to 8,192". `engine/prefill_step.py choose()` takes the largest chunk for which weights, the chunk's working
+  memory and 131,072 tokens of cache fit the budget, counting one copy of the cache. The keep-prompt window
+  (`server/prompt_memory.py largest_window(resumable=True)`) counts two copies plus the chunk's measured working
+  memory, so the larger chunk passes the first test and then leaves little for the second.
+- Probes at 107.5 GiB, startup only: `--prefill-pass 1` gives a 34,816-token keep-prompt window (10,240 without);
+  an explicit `--context 163840` is refused: "the most one request can use is 18,176 tokens".
+- `--prefill-pass 1` at 89.6 GiB changes nothing (48,128).
+- 0.6.0 has no option to pin the chunk size; Flash-Next's choices are fixed in
+  `families/qwen4_exp/__init__.py engine_settings()`.
+- Estimate, not a measurement: with 2,048-token chunks, 9.4 GiB beside the weights keeps 48k tokens, so the 27 GiB
+  free at about 105 GiB would keep roughly 130-140k.
+
+### The M5 Max restarted during a budget sweep (2 Oct 2026, about 19:45 BST)
+
+To find the largest budget that still uses 2,048-token chunks, TensorFold was started in turn at 94, 98, 102 and
+105 GiB (startup only, no requests, machine held and otherwise idle). The Mac restarted during the sweep. The sweep's
+output was in `/tmp` and was lost, so the budget that did it is not known, and no panic report was found in
+`/Library/Logs/DiagnosticReports`. The earlier starts at 107.5 GiB had completed without trouble (memory free fell
+to 18% while loading). With 77 GiB of weights resident, every route to a 128k window runs this Mac near its limit.
+
+**Do not start TensorFold above 89.6 GiB on this Mac again without the owner's say.** Routes left: ask the
+maintainer how a 128 GB Mac is meant to reach 128k with Flash-Next (the chunk choice above is the thing to show
+them); `--ssd-experts`, which frees tens of GiB at 0.31-0.39x decode speed by TensorFold's own figures; or park it.
+
+**Last checked:** 2 Oct 2026 (three real runs, eight startup probes and one crash on the M5 Max). **Next:** the
+owner's choice among the routes above. Check 3 (and any real comparison run) stays blocked until checks 1 and 2
 both pass in the 100k+ range.
 
 Sources: [TensorFold](https://github.com/ashhart/TensorFold) ·
