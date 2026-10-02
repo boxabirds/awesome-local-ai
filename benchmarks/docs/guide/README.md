@@ -1,8 +1,9 @@
 # The benchmark guide
 
 An interactive guide to how the benchmark works: the problems it solves, the entities and how they relate, the
-components, nine key flows as step-through illustrations, and the operational insights from
-[benchmarks/docs/insights/](../insights/README.md) attached to the things they illustrate.
+components, a plain-English walkthrough of what confines the agent and why, nine key flows as step-through
+illustrations, and the operational insights from [benchmarks/docs/insights/](../insights/README.md) attached to
+the things they illustrate.
 
 **Open [index.html](index.html) from disk.** It needs no server and no network: no CDN, no web font, no remote
 image. It works at phone and desktop width, in light and dark colour schemes, from the keyboard, with JavaScript off
@@ -52,6 +53,7 @@ root and the build makes it relative (or give a full `https://` address). An unk
 | `problems` | The eleven problems, each with a concrete `example`, a `control`, and the insight panels and entities it names. | Section "The question, and why it is hard". |
 | `insights` | One "in practice" panel each: `body`, `numbers`, an optional `chart` and `quotes`, a `use`, and `sources`. | An expandable panel everywhere it is named. |
 | `components` | Each tool: what, why, inputs, outputs, how it fails, language, repo links, status. | Section "Components". |
+| `safeguarding` | A plain-English walkthrough of the sandbox: `intro`, a `bigPicture` diagram, a `mechanisms` comparison table (macOS vs Linux), a `dynamic` stepper (`diagram` + `steps`, same shape as a flow), `notSolved`. Technical terms are introduced with `{g:term\|text}` at first use, not after. | Section "What the agent can and can't touch". |
 | `flows` | Nine flows: `diagram` (nodes at x,y, edges, optional via points) and `steps` that name the nodes and edges they light up, with commands and repo links. | The steppers. |
 | `findings` | The findings of the insights README by theme and combination. | The explorer table. |
 | `glossary` | Every term. `auto` lists phrases linked automatically (first use in each paragraph). | The glossary, the hover text and the dotted links. |

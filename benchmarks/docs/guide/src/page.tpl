@@ -90,6 +90,11 @@
   <div class="components wide"><!--@components--></div>
 </section>
 
+<section id="safeguarding" aria-labelledby="safeguarding-h">
+  <h2 id="safeguarding-h" data-toc="What the agent can and can't touch">What the agent can and can't touch</h2>
+  <!--@safeguarding-->
+</section>
+
 <section id="flows" aria-labelledby="flows-h">
   <h2 id="flows-h" data-toc="Key flows">Key flows, step by step</h2>
   <p>Nine flows. Each has a picture and a stepper: use <strong>Next</strong> and <strong>Previous</strong>, the numbered buttons, or the left and right arrow keys. The step you are on lights up its part of the picture and shows the real file or command. Each flow starts by saying what is built and what is not.</p>

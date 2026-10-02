@@ -2257,10 +2257,114 @@ GUIDE_DATA.findings = [
 // Glossary. `auto` lists phrases that are linked automatically (first occurrence in each paragraph); other uses are
 // linked with {g:id} where the guide wants them. `entity` links to the entity page.
 // =====================================================================================================================
+// ------------------------------------------------------------------------------------------------- Safeguarding
+// A plain-English walkthrough of what confines the agent and why, separate from the Components and Key flows
+// sections: the problem, the big picture, then two zoom-ins (the same policy on two operating systems; what
+// happens, step by step, when the agent tries something it shouldn't). Every example in it is one the sandbox's
+// own proof (prove_sandbox.py) actually tests, or a defect found in a published run's own files.
+GUIDE_DATA.safeguarding = {
+  intro: [
+    "A coding agent is set a task and left to work for up to a couple of hours, unsupervised. Twice already in this project's own runs, an agent's own account of its work was wrong: one build's notes say an end-to-end test “could not be executed in this sandbox environment due to browser display limitations” — the real cause, found afterwards, was a bug in the agent's own code, nothing to do with the sandbox. The system cannot tell, while a story is running, whether an agent's account of itself is right.",
+    "So it doesn't try to. **Instead of checking whether the agent is being honest, the sandbox restricts what it can physically do** — read, write, or reach on the network — to exactly its own task, regardless of what it says or intends. What the agent claims about itself stops being a safety question at all; it becomes a quality question, which is {e:judgement|a person's and a grader's job}, not the sandbox's.",
+  ],
+  bigPicture: {
+    diagram: {
+      w: 600, h: 440,
+      desc: "The agent sits inside the sandbox boundary with its own run directory. Four things outside the boundary: this repository and other runs' code, the person's own files, any network address not on the allow-list, and other processes — each reached by a dashed, refused line.",
+      zones: [{ x: 20, y: 110, w: 260, h: 220, label: "Inside the sandbox" }],
+      nodes: [
+        { id: "agent", label: "The coding agent", kind: "actor", x: 150, y: 190, w: 200 },
+        { id: "owndir", label: "Its own run directory\nread and write", kind: "store", x: 150, y: 290, w: 220 },
+        { id: "repo", label: "This repository,\nand other runs' code", x: 470, y: 60, w: 240 },
+        { id: "home", label: "The person's own files", x: 470, y: 160, w: 240 },
+        { id: "net", label: "Any address not on\nthe network allow-list", x: 470, y: 260, w: 240 },
+        { id: "proc", label: "Other processes\nrunning on the machine", x: 470, y: 360, w: 240 },
+      ],
+      edges: [
+        { from: "agent", to: "owndir" },
+        { from: "agent", to: "repo", dashed: true, label: "refused" },
+        { from: "agent", to: "home", dashed: true, label: "refused" },
+        { from: "agent", to: "net", dashed: true, label: "refused" },
+        { from: "agent", to: "proc", dashed: true, label: "refused" },
+      ],
+    },
+    caption: "One guard among several: {e:sandbox|the sandbox} confines what the agent can touch. {e:containment|Containment} limits what it can use; {e:credential-scan|the credential scan} and {e:private-repo|the private repo} limit what gets published.",
+  },
+  mechanisms: {
+    rows: [
+      ["Mechanism", "{g:seatbelt|Seatbelt} (`sandbox-exec`), a profile of allow and deny rules", "{g:bubblewrap|bubblewrap}, a new, almost-empty root with only named paths put back"],
+      ["Enforced by", "the kernel, checking every file and network call against the profile", "{g:namespace|kernel namespaces}, set up once before the agent's command starts"],
+      ["What it can't do here", "remap a path to a different name inside; confine a port the kernel picks for it (accepted, and said so in the sandbox's own README)", "—"],
+      ["Closes a leak of its own", "—", "a private process list, so the agent can't read another process's environment {g:proc-environ|through /proc} — kept for that reason alone, not to hide processes as a goal in itself"],
+    ],
+    windows: "No bench machine runs native Windows today (one dual-boots Ubuntu and Windows, but benchmarks run under Ubuntu there). Not covered yet — said plainly, not left to be assumed.",
+  },
+  dynamic: {
+    diagram: {
+      w: 600, h: 520,
+      desc: "The agent at the top, six things it might try below it, each reached by a dashed line. One attempt highlights at a time as the steps are read.",
+      nodes: [
+        { id: "agent", label: "The agent, mid-story", kind: "actor", x: 300, y: 50, w: 240 },
+        { id: "repo", label: "Read this repository", x: 150, y: 170, w: 220 },
+        { id: "otherrun", label: "Read another run's\ndirectory", x: 450, y: 170, w: 220 },
+        { id: "home", label: "List or write the\nreal home directory", x: 150, y: 280, w: 220 },
+        { id: "spec", label: "Write to the spec", x: 450, y: 280, w: 220 },
+        { id: "host", label: "Reach a host not on\nthe network allow-list", x: 150, y: 390, w: 220 },
+        { id: "proc", label: "Read another process's\nenvironment (Linux)", x: 450, y: 390, w: 220 },
+      ],
+      edges: [
+        { from: "agent", to: "repo", dashed: true, label: "refused" },
+        { from: "agent", to: "otherrun", dashed: true, label: "refused" },
+        { from: "agent", to: "home", dashed: true, label: "refused" },
+        { from: "agent", to: "spec", dashed: true, label: "refused" },
+        { from: "agent", to: "host", dashed: true, label: "refused" },
+        { from: "agent", to: "proc", dashed: true, label: "refused" },
+      ],
+    },
+    steps: [
+      {
+        title: "It looks at this repository", nodes: ["agent", "repo"], edges: ["agent>repo"],
+        text: ["The run's own code is all it's shown. The rest of this repository — every other combination's work, the harness's own source — isn't visible, the same as if it didn't exist on the machine at all."],
+      },
+      {
+        title: "It looks at another run's directory", nodes: ["agent", "otherrun"], edges: ["agent>otherrun"],
+        text: ["Every run gets its own directory. One run reading another's was a real leak under the sandbox's first design (a results checkout left visible by accident); it's one of the things the sandbox's own proof checks on every machine before a release."],
+      },
+      {
+        title: "It looks at, or writes to, the real home directory", nodes: ["agent", "home"], edges: ["agent>home"],
+        text: ["Not the agent's own small working folder — the person's actual home directory, with their other projects, their keys, their browser's saved logins. Listing it is refused; so is creating a file in it."],
+      },
+      {
+        title: "It changes the specification", nodes: ["agent", "spec"], edges: ["agent>spec"],
+        text: ["The task it was given is shown to it read-only, mounted that way rather than merely asked nicely. An agent that edited its own brief mid-task — loosening a requirement it was struggling with — would otherwise be marking its own work."],
+      },
+      {
+        title: "It tries to reach a host that isn't on the list", nodes: ["agent", "host"], edges: ["agent>host"],
+        text: ["The network is closed by default. A handful of hosts are reachable — the model it's talking to, the package registry, nothing else — and a raw numeric address is refused the same way a named one outside the list is, whether asked for directly or through the one proxy that is allowed."],
+      },
+      {
+        title: "It reads another process's environment", nodes: ["agent", "proc"], edges: ["agent>proc"],
+        text: ["On Linux, {g:proc-environ|a process's environment variables are a file other processes can normally read}. The harness's own keys live in its environment. This is the one process-related rule the sandbox keeps — not to hide processes as a goal of its own, but because, without it, this file alone would undo everything else."],
+      },
+    ],
+  },
+  notSolved: [
+    "Whether the code is any good, or whether the agent's account of its own work is true — that's what {e:judgement|a person watching a recording}, and separately {e:heldout|the held-out suite}, are for.",
+    "The agent wasting its own time, or refusing to finish — the {g:stop-message|stop rule} handles that, not the sandbox.",
+    "A vulnerability in the kernel itself: the sandbox's own README says so plainly. It is a namespace and a profile, not a second operating system.",
+    "Windows: not yet covered (above).",
+  ],
+};
+
 GUIDE_DATA.glossary = [
+  { id: "seatbelt", term: "Seatbelt", def: "Apple's own sandboxing system, built into macOS. A program runs under a profile, a list of rules each allowing or denying one kind of action (read this file, connect to this address); the kernel checks every rule itself, for every file and network call the program makes.", entity: "sandbox" },
+  { id: "bubblewrap", term: "bubblewrap", def: "A small Linux program (`bwrap`) that starts a command with an almost-empty filesystem and gives it back only the exact files and directories it's told to: everything else simply isn't there, not merely blocked.", entity: "sandbox" },
+  { id: "namespace", term: "Kernel namespace", def: "A Linux kernel feature that gives one process its own private version of something the whole machine normally shares, such as its list of running processes or its network, as if it were the only thing on the machine. bubblewrap sets up a fresh one before the agent's command starts.", entity: "sandbox" },
+  { id: "proc-environ", term: "A process's environment, under /proc", def: "On Linux, a running process's environment variables (which can include keys) sit in a file the kernel exposes at `/proc/<its process id>/environ`, normally readable by any process of the same user. The sandbox's private process list on Linux exists to close this, and for no other reason.", entity: "sandbox" },
+
   { id: "accept", term: "Accept result", def: "The held-out suite's result for the workspace after a story, over every story built so far. Also called the live score. Reported as new work, regressions, repairs and cumulative; n/a, not 0/0, when a pack has no suite.", entity: "accept", see: ["live-score", "score-record"] },
   { id: "agent", term: "Agent", def: "A language model driving a coding client: it reads the prompt, then uses tools to read, edit and write files and run commands until it believes the story is done.", see: ["client"] },
-  { id: "agent-sandbox", term: "agent-sandbox", def: "A Rust tool that runs a command with the least access it needs: write only to its own directory, network only to named ports and hosts. Every agent runs in it on main since 1 October 2026; harness release 1 does not use it.", entity: "sandbox", auto: ["agent-sandbox"], see: ["sandbox"] },
+  { id: "agent-sandbox", term: "agent-sandbox", def: "A Rust tool that runs a command with the least access it needs: write only to its own directory, network only to named ports and hosts. Every agent runs in it, on every machine.", entity: "sandbox", auto: ["agent-sandbox"], see: ["sandbox"] },
   { id: "anomaly-log", term: "Anomaly log", def: "`ops/anomaly-tracking.md`: the fault log. Each internal fault becomes a numbered entry (A-001…) in one of six buckets and stays open until fixed or explained.", entity: "anomaly-log", auto: ["anomaly log"], see: ["bucket", "monitor"] },
   { id: "attempt", term: "Attempt", def: "One harness process working on a story. A harness restart mid-story starts a new attempt in the same agent session; the story's totals are summed over attempts.", entity: "attempt", see: ["session"] },
   { id: "base", term: "Base (of a partial rerun)", def: "The code a partial rerun starts from: another run's workspace as it was when the story before ended. Its held-out result is measured first so regressions and repairs count.", see: ["partial-rerun"] },
@@ -2336,7 +2440,7 @@ GUIDE_DATA.glossary = [
   { id: "rescore", term: "Re-score", def: "Testing each story's recorded code again with the held-out suite at the pack's tag, from a clean install, three times.", entity: "rescore", auto: ["re-score", "re-scored", "re-scoring", "re-scores"] },
   { id: "run", term: "Run", def: "One combination's attempt to build a scope of a pack, recorded in `combinations/<combination>/benchmarks/<pack>/<run-id>/`. The same run id resumes.", entity: "run" },
   { id: "run-id", term: "Run id", def: "The name of a run's folder, such as `v2-r5`. Running again with the same id resumes at the first unfinished story.", entity: "run" },
-  { id: "sandbox", term: "Sandbox", def: "What confines the agent. Release 1: macOS `sandbox-exec` or Linux bubblewrap with a deny list. On main: agent-sandbox, which denies everything the run was not given.", entity: "sandbox", auto: ["sandbox"], see: ["agent-sandbox"] },
+  { id: "sandbox", term: "Sandbox", def: "What confines the agent on every machine: `agent-sandbox`, one policy enforced by macOS `sandbox-exec` or Linux bubblewrap, denying everything the run was not given.", entity: "sandbox", auto: ["sandbox"], see: ["agent-sandbox"] },
   { id: "scope", term: "Scope", def: "A named list of stories a run builds (`scope/<name>.json`). Vidi's `canvas` scope has 11 stories.", entity: "scope" },
   { id: "score-record", term: "Score of record", def: "A run's final commit re-scored after the run on a clean install: the number to rank by, such as 68/75.", entity: "score-record", auto: ["score of record"], see: ["live-score", "guard"] },
   { id: "session", term: "Session", def: "The client's conversation with the model within an attempt. The harness resumes sessions by id after errors and for the stop message.", entity: "session" },
