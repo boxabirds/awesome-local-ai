@@ -569,7 +569,7 @@ test.describe("what differed", () => {
   test("every other run that recorded the story can be chosen", async ({ page }) => {
     await open(page, SWIFT, "v2-r5", "2");
     const values = await pick(page).locator("option").evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value));
-    expect(values.toSorted()).toEqual(["v2-r1", "v2-r4", "v2-r6", "v2-r7"]);
+    expect(values.toSorted()).toEqual(["v2-r1", "v2-r4", "v2-r6", "v2-r7", "v2-r9"]);
   });
 
   test("the other run has no conversation profile: says so plainly in its column", async ({ page }) => {

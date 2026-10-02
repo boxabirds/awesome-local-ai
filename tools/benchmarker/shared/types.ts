@@ -206,6 +206,10 @@ export interface Row {
   scores: Record<string, Score>;
   /** Whether the run can be judged: finished, scored under the current suite, with its workspace history. */
   judgeReady: boolean;
+  /** metrics.json's "known_good": a partial rerun, built on another run's code from part-way through, with only
+   * part of the scope. Diagnostic — never counted in a ranking or a spread with full runs (EVALUATION-POLICY
+   * rule 7), whatever its own score says. */
+  knownGood: boolean;
   live: Live | null;
   /** Every execution of this run, oldest first. */
   jobs: JobRef[];

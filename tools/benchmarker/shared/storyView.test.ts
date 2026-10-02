@@ -38,7 +38,7 @@ const mins = (m: number, o: Partial<Usage> = {}) => usage({ agentSeconds: m * MI
 let seq = 0;
 interface RunOpts {
   status?: RunStatus; runId?: string; stack?: string; label?: string; machine?: string;
-  squares?: StorySquare[]; live?: Partial<Live> | null; scope?: number; pack?: string; family?: string;
+  squares?: StorySquare[]; live?: Partial<Live> | null; scope?: number; pack?: string; family?: string; knownGood?: boolean;
 }
 function run(stories: Story[], o: RunOpts = {}): Row {
   const status = o.status ?? "finished";
@@ -48,7 +48,7 @@ function run(stories: Story[], o: RunOpts = {}): Row {
     machine: o.machine ?? "m1", host: "Host 1", statusNote: "", stateAt: "",
     storiesWorking: { working: 0, scope: o.scope ?? squares.length, squares },
     live: o.live === undefined ? null : o.live === null ? null : ({ status, currentStory: null, runningStory: null, storyTitle: null, agentMinutes: null, calls: null, outputTokens: null, ...o.live } as Live),
-    usage: { tokS: null }, jobs: [], interventions: [],
+    usage: { tokS: null }, jobs: [], interventions: [], knownGood: o.knownGood ?? false,
   } as unknown as Row;
 }
 const sq = (id: string, state: StorySquare["state"], passed: number | null = null, total: number | null = null): StorySquare => ({ id, state, passed, total });
@@ -205,6 +205,11 @@ describe("combinationSummary", () => {
   it("finished runs that didn't record the story are left out", () => {
     const s = combinationSummary([run([story("1", { usage: mins(10) })]), run([story("2")])], "1");
     expect(s.minutes.spread?.n).toBe(1);
+  });
+  it("a partial rerun (knownGood) is left out too, even though it's finished and recorded the story", () => {
+    const rs = [run([story("1", { usage: mins(10) })]), run([story("1", { usage: mins(14) })]), run([story("1", { usage: mins(900) })], { knownGood: true })];
+    const s = combinationSummary(rs, "1");
+    expect(s.minutes.spread).toEqual({ median: 12, min: 10, max: 14, n: 2 });
   });
   it("the median is the combination page's median for the same story, on every measure", () => {
     const rs = [run([story("1", { usage: mins(10, { calls: 5, outTokens: 1 }), own: [1, 2] })]), run([story("1", { usage: mins(13, { calls: 9, outTokens: 3 }), own: [2, 2] })]),
@@ -532,6 +537,13 @@ describe("a story run marked not comparable: the story page and the verdicts are
   it("storyPage: a combination whose only run of the story is not comparable has no entry and no median", () => {
     const g = storyPage([run([odd(500)], A)], "2").groups[0];
     expect([g.entries.length, g.finishedRecorded, g.summary.minutes.spread]).toEqual([0, 0, null]);
+  });
+  it("storyPage: a partial rerun (knownGood) is still an entry, but doesn't count among the finished runs that recorded the story", () => {
+    const rs = [run([plain(10)], { ...A, runId: "r1" }), run([plain(20)], { ...A, runId: "r2" }), run([plain(900)], { ...A, runId: "r3", knownGood: true })];
+    const g = storyPage(rs, "2").groups[0];
+    expect(g.entries.map((e) => e.run.runId)).toEqual(["r1", "r2", "r3"]);
+    expect(g.finishedRecorded).toBe(2);
+    expect(g.summary.minutes.spread).toEqual({ median: 15, min: 10, max: 20, n: 2 });
   });
   it("acrossVerdicts: a combination's median and n leave it out, in this run's combination and in another", () => {
     const mine = run([plain(16)], { ...A, runId: "v2-r1" });

@@ -11,7 +11,7 @@ import { RunLink, StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { Missing, Term, termName, termTip } from "./Term.tsx";
 import { InterventionMark } from "../RunMarks.tsx";
-import { interventionsOf, PENDING } from "../../../shared/runView.ts";
+import { interventionsOf, PENDING, scoreOfRecord as recordView } from "../../../shared/runView.ts";
 
 const PERCENT = 100;
 const SECONDS_PER_MINUTE = 60;
@@ -68,6 +68,8 @@ function RunHead({ run }: { run: Row }) {
   const score = scoreOfRecord(run);
   const built = run.storiesWorking.squares.filter((q) => q.state !== "unbuilt" && q.state !== "running").length;
   const why = "Not scored yet.";
+  // A partial rerun that finished never gets a score of record, by design: not "pending" (which implies one is coming).
+  const rec = !score && run.status === "finished" ? recordView(run) : null;
   return (
     <>
       <th scope="row" className="m-run">
@@ -77,6 +79,7 @@ function RunHead({ run }: { run: Row }) {
       </th>
       <td className="m-score">
         {score ? <b className="of-record" data-tip={termTip("scoreOfRecord")}>{score.passed}<span className="small">/{score.total}</span></b>
+          : rec?.kind === "none" && rec.reason === "partial-rerun" ? <Missing why={rec.why} />
           : run.status === "finished" ? <span className="pending" data-tip={termTip("noScore")}>{PENDING}</span>
           : built ? <span className="live" tabIndex={0} data-tip={`${run.storiesWorking.working} of ${built} built stories pass all their held-out tests. ${why}`}>{run.storiesWorking.working}/{built}</span>
           : <Missing why={why} />}

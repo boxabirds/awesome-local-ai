@@ -107,9 +107,10 @@ export function comparedValue(run: Row, storyId: string, metric: Metric): number
   return c.story && !isCompared(c.story) ? null : c.value;
 }
 
-/** Per story, the median over the finished runs that have a value for it (and are compared: see isCompared). */
+/** Per story, the median over the finished runs that have a value for it (and are compared: see isCompared). A
+ * partial rerun (knownGood) is diagnostic, never pooled with full runs (EVALUATION-POLICY rule 7). */
 export function storyMedians(runs: Row[], ids: string[], metric: Metric): Map<string, StoryMedian | null> {
-  const finished = runs.filter((r) => r.status === "finished");
+  const finished = runs.filter((r) => r.status === "finished" && !r.knownGood);
   return new Map(ids.map((id) => {
     const xs = finished.map((r) => comparedValue(r, id, metric)).filter((x): x is number => x !== null);
     const m = median(xs);
@@ -231,9 +232,10 @@ export function classifyMechanism(target: Story, others: Story[]): MechanismResu
   return { label: "unexplained", fired: [], evidence: `None of the rules fired: no hung command or restart, and not at least ${THINKING_RATIO}× the thinking, ${MANY_CALLS_RATIO}× the model calls, a compaction-heavy story or slower generation, against the other runs.` };
 }
 
-/** The same story in the combination's other runs: what a story run is compared with. */
+/** The same story in the combination's other runs: what a story run is compared with. A partial rerun (knownGood)
+ * is diagnostic, never pooled with full runs (EVALUATION-POLICY rule 7). */
 export function siblings(runs: Row[], run: Row, storyId: string): Story[] {
-  return runs.filter((r) => r !== run).map((r) => cellOf(r, storyId, DEFAULT_METRIC).story).filter((s): s is Story => !!s && isCompared(s));
+  return runs.filter((r) => r !== run && !r.knownGood).map((r) => cellOf(r, storyId, DEFAULT_METRIC).story).filter((s): s is Story => !!s && isCompared(s));
 }
 
 // ---------- the matrix ----------

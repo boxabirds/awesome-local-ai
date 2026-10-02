@@ -40,8 +40,8 @@ export function CombinationPage({ stack, runs, state, params }: { stack: string;
   const matrix = buildMatrix(runs, metric);
   const finished = c.byStatus.finished ?? 0;
   const counts = [
-    finished ? `${finished} finished (${c.ofRecord.length} scored${c.notCounted.pending ? `, ${c.notCounted.pending} pending` : ""})` : "",
-    ...NOT_COUNTED_ORDER.filter((s) => s !== "pending" && c.notCounted[s]).map((s) => `${c.notCounted[s]} ${s}`),
+    finished ? `${finished} finished (${c.ofRecord.length} scored${c.notCounted.pending ? `, ${c.notCounted.pending} pending` : ""}${c.notCounted["partial rerun"] ? `, ${c.notCounted["partial rerun"]} partial rerun` : ""})` : "",
+    ...NOT_COUNTED_ORDER.filter((s) => s !== "pending" && s !== "partial rerun" && c.notCounted[s]).map((s) => `${c.notCounted[s]} ${s}`),
   ].filter(Boolean);
   return (
     <div className="page combination-page" data-page="combination" data-stack={stack}>

@@ -103,7 +103,9 @@ function runFaults(r: FullRow): Fault[] {
     const last = r.dbenchJobs.at(-1);
     out.push(ofRun(r, "run_ended_early", { status: r.status, record_state: r.state, ended_at: endedAt(r), last_job: last ? jobDetail(last) : null }));
   }
-  if (r.status === "finished" && !invalid) {
+  // A partial rerun (knownGood) is diagnostic by design: it never gets a full-suite score or a workspace bundle,
+  // so neither absence is a fault to chase.
+  if (r.status === "finished" && !invalid && !r.knownGood) {
     if (!scored(r)) {
       out.push(ofRun(r, "not_scored", { suite: r.suite, rescores: r.rescores, rescore_faults: rescoreFaults, has_bundle: hasBundle, finalize: finalize ?? "no finalize record" }));
     }

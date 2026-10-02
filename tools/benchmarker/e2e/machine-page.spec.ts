@@ -313,9 +313,9 @@ test.describe("history", () => {
     await expect(swift.locator("h3 a.combination-link")).toHaveAttribute("href", `#/vidi/c/${enc(SWIFT)}`);
     expect(await swift.locator("tbody").evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.group))).toEqual(["vidi|vidi-v2", "vidi|vidi-v1"]);
     await expect(swift.locator(".version-label")).toHaveText(["vidi · vidi-v2", "vidi · vidi-v1"]);
-    await expect(swift.locator('tbody[data-group="vidi|vidi-v2"] .group-head')).toContainText("vidi-v2.0-pre1, vidi-v2.0-pre0 · 7 runs");
+    await expect(swift.locator('tbody[data-group="vidi|vidi-v2"] .group-head')).toContainText("vidi-v2.0-pre1, vidi-v2.0-pre0 · 8 runs");
     expect(await swift.locator('tbody[data-group="vidi|vidi-v2"] tr[data-run]').evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run)))
-      .toEqual(["v2-r1", "v2-r2", "v2-r3", "v2-r5", "v2-r6", "v2-r4", "v2-r7"]);
+      .toEqual(["v2-r1", "v2-r2", "v2-r3", "v2-r9", "v2-r5", "v2-r6", "v2-r4", "v2-r7"]);   // v2-r9 (a partial rerun) is finished most recently
     expect(await swift.locator('tbody[data-group="vidi|vidi-v1"] tr[data-run]').evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run))).toEqual(["canvas-s-01"]);
   });
 
@@ -354,10 +354,10 @@ test.describe("history", () => {
   test("the status filter: a toggle per status with counts; its choice is in the address and survives a reload", async ({ page }) => {
     await open(page, "node-a");
     const f = history(page).getByRole("group", { name: "Status" });
-    await expect(f.getByRole("button")).toHaveText(["running 1", "queued 3", "finished 5", "cancelled 1"]);
+    await expect(f.getByRole("button")).toHaveText(["running 1", "queued 3", "finished 6", "cancelled 1"]);
     await f.getByRole("button", { name: "cancelled 1" }).click();
     await expect(history(page).locator(`[data-stack="${QWEN_27B}"] tr[data-run="v2-r2"]`)).toHaveCount(0);
-    await expect(history(page).locator(".mp-head")).toContainText("9 of 10 runs");
+    await expect(history(page).locator(".mp-head")).toContainText("10 of 11 runs");
     await expect(page).toHaveURL(/#\/m\/node-a\?hide=cancelled$/);
     await page.reload();
     await expect(history(page).getByRole("group", { name: "Status" }).getByRole("button", { name: "cancelled 1" })).toHaveAttribute("aria-pressed", "false");

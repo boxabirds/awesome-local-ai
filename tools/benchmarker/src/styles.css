@@ -179,7 +179,7 @@ a.story-run-link { font-size: 11px; color: var(--muted); margin-left: 4px; }
 table.combos td .spread .range { display: block; font-size: 11px; }
 table.combos td.score .spread .range { display: inline; }
 table.combos td .amount { display: block; font-size: 11px; white-space: nowrap; }
-.not-counted-list > span { display: block; white-space: nowrap; }
+.not-counted-list > span { display: block; }
 .unranked { font-size: 12px; color: var(--muted); font-style: italic; }
 .missing, .na { color: var(--faint); cursor: help; }
 .small-n-note { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
@@ -196,3 +196,22 @@ table.combos td .amount { display: block; font-size: 11px; white-space: nowrap; 
   border: 1.5px dashed var(--muted); border-radius: 10px; padding: 0 6px; line-height: 16px; vertical-align: 1px; }
 .intervened.compact { padding: 0 3px; border-radius: 8px; font-size: 10px; line-height: 14px; }
 .intervention-list { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+
+/* Search (Header.tsx / SearchBox.tsx): every combination, run, story and machine, grouped by section, press / to
+   focus, same interaction as the benchmark guide's own search. */
+.search-box { position: relative; flex: 1 1 200px; max-width: 360px; min-width: 0; }
+.search-box input { width: 100%; font: inherit; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
+.search-box input:focus-visible { outline: 2px solid var(--run); outline-offset: 1px; }
+.search-results { position: absolute; left: 0; right: 0; top: calc(100% + 4px); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.18); max-height: 70vh; overflow: auto; z-index: 10; }
+.search-results ul { list-style: none; margin: 0; padding: 4px; }
+.search-results li { margin: 0; }
+.search-group + .search-group { border-top: 1px solid var(--line); margin-top: 2px; padding-top: 2px; }
+.search-section { margin: 0; padding: 6px 10px 2px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.search-results a { display: block; padding: 6px 10px; text-decoration: none; color: var(--ink); border-radius: 6px; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.search-results a[aria-selected="true"], .search-results a:hover { background: var(--panel-2); }
+.search-results .r-title { font-weight: 600; display: block; overflow-wrap: anywhere; }
+.search-results .r-sub { font-size: 12px; color: var(--muted); display: block; overflow-wrap: anywhere; }
+.search-results mark { background: var(--chip); color: inherit; border-radius: 2px; font-weight: 700; }
+.search-empty { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 13px; }

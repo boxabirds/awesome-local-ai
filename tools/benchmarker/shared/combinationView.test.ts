@@ -42,13 +42,13 @@ function story(id: string, o: { usage?: Usage | null; conversation?: Conversatio
   return { id, title: `Story ${id}`, status: "DONE", passed: null, total: null, ownPassed, ownTotal, usage: o.usage === undefined ? usage() : o.usage, conversation: o.conversation === undefined ? profile() : o.conversation };
 }
 let seq = 0;
-function run(stories: Story[], o: { status?: RunStatus; runId?: string; scope?: string[]; current?: string | null; running?: string | null; tokS?: number | null } = {}): Row {
+function run(stories: Story[], o: { status?: RunStatus; runId?: string; scope?: string[]; current?: string | null; running?: string | null; tokS?: number | null; knownGood?: boolean } = {}): Row {
   const status = o.status ?? "finished";
   return {
     pack: "p", stack: "s", runId: o.runId ?? `r${++seq}`, status, suite: "v2", scores: {}, stories,
     storiesWorking: { working: 0, scope: 0, squares: (o.scope ?? stories.map((s) => s.id)).map((id) => ({ id, state: "unbuilt", passed: null, total: null })) },
     live: status === "running" || status === "queued" ? { status, currentStory: o.current ?? null, runningStory: o.running ?? null } : null,
-    usage: { tokS: o.tokS ?? null }, interventions: [],
+    usage: { tokS: o.tokS ?? null }, interventions: [], knownGood: o.knownGood ?? false,
   } as unknown as Row;
 }
 /** Three ordinary siblings of story 1. */
@@ -143,6 +143,10 @@ describe("storyMedians: over finished runs only", () => {
     const m = storyMedians([run([mins(600)]), run([mins(6000)], { status: "running" }), run([story("1", { usage: null })])], ["1", "2"], "minutes");
     expect(m.get("1")).toEqual({ median: 10, n: 1 });
     expect(m.get("2")).toBeNull();
+  });
+  it("a partial rerun (knownGood) doesn't count either, even though it's finished", () => {
+    const m = storyMedians([run([mins(600)]), run([mins(1200)]), run([mins(60000)], { knownGood: true })], ["1"], "minutes");
+    expect(m.get("1")).toEqual({ median: 15, n: 2 });
   });
 });
 
@@ -415,6 +419,10 @@ describe("a story run marked not comparable: left out of the story's median, its
   });
   it("siblings: not among the story's other runs, so no mechanism is judged against it", () => {
     const a = run([mins(600)]), b = run([odd(60000)]), c = run([mins(700)]);
+    expect(siblings([a, b, c], a, "1")).toEqual([c.stories[0]]);
+  });
+  it("siblings: a partial rerun (knownGood) isn't one either, even though it's finished and comparable", () => {
+    const a = run([mins(600)]), b = run([mins(60000)], { knownGood: true }), c = run([mins(700)]);
     expect(siblings([a, b, c], a, "1")).toEqual([c.stories[0]]);
   });
   it("buildMatrix: its cell keeps its value and is never flagged; the others are flagged against a median without it", () => {

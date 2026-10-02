@@ -93,6 +93,11 @@ describe("the faults feed over the fixture", () => {
     expect(ofKind(fs, "no_workspace_bundle").map((f) => f.run)).toEqual(["canvas-gufo-r3"]);
   });
 
+  it("a partial rerun (knownGood) is never flagged unscored or bundleless: by design it has neither, not a failed publish", () => {
+    expect(about(fs, "not_scored", "v2-r9")).toBeUndefined();
+    expect(about(fs, "no_workspace_bundle", "v2-r9")).toBeUndefined();
+  });
+
   it("a re-score the guard flagged, and a live score that disagrees with the record: listed with both numbers", () => {
     const flagged = feed({ change: (f) => { f.records.find((r) => r.runId === "v2-r5")!.finalize = { rescore: "flagged", reason: "guard", guard: { flagged: true } }; } });
     expect(about(flagged, "rescore_flagged", "v2-r5")!.detail).toMatchObject({ finalize: { rescore: "flagged" } });

@@ -431,6 +431,104 @@
     {
       "pack": "vidi",
       "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
+      "runId": "v2-r9",
+      "client": "pi",
+      "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r9",
+      "rescores": [],
+      "hasBundle": false,
+      "packVersion": "vidi-v2.0-pre1",
+      "state": "finished",
+      "stateAt": "2026-10-01T09:00:00Z",
+      "knownGood": true,
+      "stories": [
+        {
+          "id": "2",
+          "title": "Sticky notes",
+          "status": "DONE",
+          "passed": 20,
+          "total": 20,
+          "ownPassed": 14,
+          "ownTotal": 14,
+          "usage": {
+            "outTokens": 900000,
+            "inTokens": 500000,
+            "cacheRead": 4500000,
+            "readTokens": 5000000,
+            "calls": 900,
+            "agentSeconds": 60000,
+            "tokS": 15.0,
+            "decodeTokens": 900000,
+            "decodeSeconds": 60000,
+            "decodeTokS": 15.0,
+            "prefillTokens": 45000,
+            "prefillSeconds": null,
+            "prefillTokS": 750.0,
+            "draftAcceptance": null,
+            "compactions": 9,
+            "nudges": 0,
+            "split": {
+              "wall": 60000,
+              "prefill": 222,
+              "decode": 59000,
+              "tools": 700,
+              "compaction": 70,
+              "other": 8,
+              "modelUnsplit": 0,
+              "betweenSessions": 0,
+              "toolsByKind": {
+                "unit": 700
+              },
+              "check": {
+                "status": "ok",
+                "problems": [],
+                "version": null
+              }
+            }
+          },
+          "conversation": {
+            "calls": 900,
+            "toolCalls": 900,
+            "thinkingChars": 900000,
+            "textChars": 4889,
+            "toolArgChars": 279940,
+            "thinkingMedian": 1000,
+            "thinkingMedianBefore": 80,
+            "thinkingMedianAfter": 464,
+            "largestThinking": {
+              "chars": 64543,
+              "call": 14,
+              "atS": 480
+            },
+            "contextStart": 9000,
+            "contextEnd": 120000,
+            "largestContextJump": {
+              "tokens": 16607,
+              "call": 15
+            },
+            "toolsByName": {
+              "bash": 115,
+              "edit": 40,
+              "read": 21,
+              "write": 28
+            },
+            "toolErrors": 5,
+            "longestTool": {
+              "seconds": 61.7,
+              "name": "bash",
+              "gist": "npm run test:unit"
+            },
+            "signals": [
+              "long-thinking-block"
+            ]
+          }
+        }
+      ],
+      "scores": {},
+      "host": "Intel Core i9 + RTX 4090 64GB"
+    },
+    {
+      "pack": "vidi",
+      "stack": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi",
       "runId": "v2-r4",
       "client": "pi",
       "dir": "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r4",

@@ -2,9 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 import { GLOSSARY } from "../shared/glossary.ts";
 import type { State } from "../shared/types.ts";
 
-// The ranking on the overview and the combination page, from the fixture. Swift 1.5 has four finished runs:
-// v2-r4 68, v2-r5 63, v2-r6 58 (scores of record under vidi-v2.0-pre1) and v2-r7 (re-scored only under pre0, so
-// pending); v2-r1 running on story 3, v2-r2 and v2-r3 queued. Story 2 of v2-r5 thought verbosely; story 1 of
+// The ranking on the overview and the combination page, from the fixture. Swift 1.5 has five finished runs:
+// v2-r4 68, v2-r5 63, v2-r6 58 (scores of record under vidi-v2.0-pre1), v2-r7 (re-scored only under pre0, so
+// pending), and v2-r9 (a partial rerun of story 2 only, knownGood: true — diagnostic, never pooled with the
+// others); v2-r1 running on story 3, v2-r2 and v2-r3 queued. Story 2 of v2-r5 thought verbosely; story 1 of
 // v2-r6 hung on a dev server; story 2 of v2-r6 took many small steps; story 1 of v2-r7 has no conversation profile.
 // MECE by section: the overview's ranking, then the page's header, matrix cells, links, metric switch, flags,
 // keyboard, time bars, tally, related, and the empty and absent states.
@@ -55,7 +56,7 @@ test.describe("overview: combinations ranked on finished runs of record", () => 
   });
 
   test("runs not counted are in their own column, by why", async ({ page }) => {
-    await expect(combos(page).locator(`tr[data-stack="${SWIFT}"] td.not-counted`)).toHaveText("1 running2 queued1 pending");
+    await expect(combos(page).locator(`tr[data-stack="${SWIFT}"] td.not-counted`)).toHaveText("1 running2 queued1 pending1 partial rerun");
     await expect(combos(page).locator(`tr[data-stack="${OPUS}"] td.not-counted`)).toHaveText("1 running");
     await expect(combos(page).getByRole("columnheader", { name: "Not counted" })).toHaveAttribute("data-tip", /pending \(finished, no score yet\)/);
   });
@@ -120,7 +121,7 @@ test.describe("combination page", () => {
     await expect(page.locator('[data-kpi="hoursPerStory"] dd')).toHaveText("0.4 (0.2–0.8)");
     await expect(page.locator('[data-kpi="outPerStory"] dd')).toHaveText("71k (63k–118k)");
     await expect(page.locator('[data-kpi="callsPerStory"] dd')).toHaveText("150 (100–177)");
-    await expect(page.locator(".run-counts")).toHaveText("Runs: 4 finished (3 scored, 1 pending) · 1 running · 2 queued");
+    await expect(page.locator(".run-counts")).toHaveText("Runs: 5 finished (3 scored, 1 pending, 1 partial rerun) · 1 running · 2 queued");
   });
 
   test("predictability: thinking spread and time spread beside the amounts, and the runs they are over", async ({ page }) => {
@@ -142,7 +143,7 @@ test.describe("combination page", () => {
 
   test("matrix rows: finished first, then running and queued; each with its link, status and score of record", async ({ page }) => {
     const runs = await matrix(page).locator("tbody tr").evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).dataset.run));
-    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r1", "v2-r2", "v2-r3"]);
+    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r9", "v2-r1", "v2-r2", "v2-r3"]);
     await expect(rowOf(page, "v2-r5").locator("a.run-link")).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r5`);
     await expect(rowOf(page, "v2-r5").locator(".m-status")).toHaveText("✓ finished");
     await expect(rowOf(page, "v2-r5").locator(".of-record")).toHaveText("63/75");
@@ -185,7 +186,7 @@ test.describe("combination page", () => {
 
   test("every cell that has a story run links to it", async ({ page }) => {
     const links = matrix(page).locator("td.m-cell a.story-run-link");
-    await expect(links).toHaveCount(11);   // 4 finished × 2 stories, and the running run's 1, 2 and 3
+    await expect(links).toHaveCount(12);   // 4 finished × 2 stories, the partial rerun's story 2, and the running run's 1, 2 and 3
     for (const a of await links.all()) {
       const td = a.locator("xpath=ancestor::td[1]");
       const run = await a.locator("xpath=ancestor::tr[1]").getAttribute("data-run");
@@ -225,7 +226,7 @@ test.describe("combination page", () => {
   test("flags: on each cell more than 10% from its story's median, with the mechanism and its numbers on hover", async ({ page }) => {
     const flagged = await matrix(page).locator("td.m-cell .flag").evaluateAll((fs) =>
       fs.map((f) => `${f.closest("tr")!.dataset.run}/${f.closest("td")!.dataset.story}: ${(f as HTMLElement).dataset.mechanism}`));
-    expect(flagged).toEqual(["v2-r5/2: verbose thinking", "v2-r6/1: hung command"]);
+    expect(flagged).toEqual(["v2-r5/2: verbose thinking", "v2-r6/1: hung command", "v2-r9/2: verbose thinking"]);
     await cell(page, "v2-r5", "2").locator(".flag").hover();
     await expect(tip(page)).toContainText("+363% above the story's median minutes (17m over 4 finished runs). Mechanism: verbose thinking.");
     await expect(tip(page)).toContainText("largest thinking block 64,543 chars against 4,100 (15.7×)");
@@ -249,7 +250,7 @@ test.describe("combination page", () => {
     await expect(link("v2-r4", "2")).toBeFocused();
     await page.keyboard.press("ArrowDown");
     await expect(link("v2-r5", "2")).toBeFocused();
-    for (const run of ["v2-r6", "v2-r7", "v2-r1"]) { await page.keyboard.press("ArrowDown"); await expect(link(run, "2")).toBeFocused(); }
+    for (const run of ["v2-r6", "v2-r7", "v2-r9", "v2-r1"]) { await page.keyboard.press("ArrowDown"); await expect(link(run, "2")).toBeFocused(); }
     await page.keyboard.press("ArrowDown");                                                   // the queued runs have nothing: stays
     await expect(link("v2-r1", "2")).toBeFocused();
     await page.keyboard.press("ArrowRight");
@@ -269,7 +270,7 @@ test.describe("combination page", () => {
   test("where the time went: one bar per run with a breakdown, on one scale, the same segments; no accounting mark", async ({ page }) => {
     const bars = page.getByRole("figure", { name: "Where the time went, per run" });
     const runs = await bars.locator(".bar-row").evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.run));
-    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7"]);            // queued runs have none; v2-r1's one breakdown isn't available
+    expect(runs).toEqual(["v2-r4", "v2-r5", "v2-r6", "v2-r7", "v2-r9"]);   // queued runs have none; v2-r1's one breakdown isn't available
     const width = (run: string) => bars.locator(`[data-run="${run}"] .bar`).evaluate((el) => el.getBoundingClientRect().width);
     expect(await width("v2-r5")).toBeGreaterThan(await width("v2-r6"));                       // 91 min against 43
     expect(await width("v2-r6")).toBeGreaterThan(await width("v2-r4"));
@@ -291,10 +292,10 @@ test.describe("combination page", () => {
 
   test("the mechanism tally follows the metric shown", async ({ page }) => {
     const tally = page.locator('[data-section="tally"]');
-    await expect(tally.locator(".tally-line")).toHaveText(["hung command1 of 9 story runs", "verbose thinking1 of 9 story runs"]);
-    await expect(tally).toContainText("2 of 9 story runs flagged on minutes");
+    await expect(tally.locator(".tally-line")).toHaveText(["hung command1 of 10 story runs", "verbose thinking2 of 10 story runs"]);
+    await expect(tally).toContainText("3 of 10 story runs flagged on minutes");
     await show(page, "tool calls");
-    await expect(tally.locator(".tally-line")).toHaveText(["verbose thinking1 of 9 story runs", "many small steps1 of 9 story runs", "unexplained2 of 9 story runs"]);
+    await expect(tally.locator(".tally-line")).toHaveText(["verbose thinking2 of 10 story runs", "many small steps1 of 10 story runs", "unexplained2 of 10 story runs"]);
     await tally.getByText("many small steps").hover();
     await expect(tip(page)).toContainText("At least 1.5× the other runs' model calls");
   });

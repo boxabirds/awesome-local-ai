@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { finalizePath, rescoreStoryPaths, rescoredStory, runFinalize, runNotes, runNotePaths } from "./sources.ts";
+import { finalizePath, isKnownGood, rescoreStoryPaths, rescoredStory, runFinalize, runNotes, runNotePaths } from "./sources.ts";
 
 // A re-scored story's counts: since 30 Sep 2026 a record has only the public summary (accept-summary.json);
 // the full result (accept.json) is private. Older records have only the full result.
@@ -8,6 +8,18 @@ const V = "vidi-v2.0-pre2";
 const SUMMARY = `${DIR}/rescore/${V}/stories/12/accept-summary.json`;
 const FULL = `${DIR}/rescore/${V}/stories/12/accept.json`;
 const counts = (passed: number) => JSON.stringify({ passed, total: 75, by_story: { "12": { passed, total: 5 } } });
+
+describe("a partial rerun (metrics.json's known_good)", () => {
+  it("present and an object: known good", () => {
+    expect(isKnownGood({ known_good: { from_run: "x", story: 2 } })).toBe(true);
+  });
+  it("absent, null, or not an object: a full run", () => {
+    expect(isKnownGood({})).toBe(false);
+    expect(isKnownGood({ known_good: null })).toBe(false);
+    expect(isKnownGood({ known_good: false })).toBe(false);
+    expect(isKnownGood(null)).toBe(false);
+  });
+});
 
 describe("a re-scored story's counts", () => {
   it("are looked for in the public summary first, then the full result", () => {
