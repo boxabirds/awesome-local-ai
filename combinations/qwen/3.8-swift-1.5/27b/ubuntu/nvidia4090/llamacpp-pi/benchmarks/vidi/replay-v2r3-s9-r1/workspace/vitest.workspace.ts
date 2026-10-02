@@ -1,0 +1,53 @@
+import { defineWorkspace } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+
+export default defineWorkspace([
+  {
+    test: {
+      name: 'unit',
+      environment: 'node',
+      include: ['tests/unit/**/*.test.ts'],
+      server: { deps: { inline: ['yjs', 'lib0'] } },
+    },
+  },
+  {
+    plugins: [react()],
+    test: {
+      name: 'component',
+      environment: 'jsdom',
+      include: ['tests/component/**/*.test.tsx'],
+    },
+  },
+  {
+    test: {
+      name: 'integration',
+      include: ['tests/integration/**/*.test.ts'],
+      pool: '@cloudflare/vitest-pool-workers',
+      poolOptions: {
+        workers: {
+          // Storage is shared across tests in a file (unique board ids keep
+          // tests independent). isolatedStorage: true crashes on pop because
+          // workerd's internal DO sqlite storage leaves -shm/-wal sidecars
+          // the pool's file bookkeeping does not recognise.
+          isolatedStorage: false,
+          main: './src/worker/index.ts',
+          wrangler: { configPath: './wrangler.jsonc' },
+          miniflare: {
+            compatibilityDate: '2025-01-01',
+            durableObjects: {
+              BOARD_ROOM: { className: 'BoardRoom', useSQLite: true },
+            },
+            assets: {
+              directory: './dist/client',
+            },
+          },
+        },
+      },
+      server: {
+        deps: {
+          external: [/cloudflare:test/, /cloudflare:workers/],
+        },
+      },
+    },
+  },
+]);
