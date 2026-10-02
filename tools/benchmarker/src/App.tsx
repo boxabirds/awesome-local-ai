@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { RUN_STATUSES, type Row, type RunStatus } from "../shared/types.ts";
+import { useState, type ReactNode } from "react";
+import type { Row } from "../shared/types.ts";
+import { isComplete, RUN_FILTERS, visibleRuns, type RunFilter } from "../shared/stats.ts";
 import { Header } from "./components/Header.tsx";
-import { StatusFilter } from "./components/StatusFilter.tsx";
+import { FilteredOut, RunFilterSwitch } from "./components/RunFilter.tsx";
 import { SetupTab } from "./components/SetupTab.tsx";
 import { Tooltip } from "./components/Tooltip.tsx";
 import { StaleBanner } from "./components/StaleBanner.tsx";
@@ -19,25 +20,25 @@ import { MachinePage } from "./pages/MachinePage.tsx";
 
 const SAVED_KEY = "benchmarker:v2"; // versioned: selections saved by older builds are ignored
 const ALL = "all";
-const HIDDEN_KEY = "benchmarker:hidden-statuses:v1";
+const FILTER_KEY = "benchmarker:run-filter:v1";
 type Tab = "runs" | "machines" | "setup";
 const TAB_KEY = "benchmarker:tab:v1";
 const TABS: [Tab | "stories", string][] = [["runs", "Runs"], ["stories", "Stories"], ["machines", "Machines"], ["setup", "Setup"]];
 const loadTab = (): Tab => { try { const t = localStorage.getItem(TAB_KEY); return t === "machines" || t === "setup" ? t : "runs"; } catch { return "runs"; } };
-const HIDDEN_AT_FIRST: RunStatus[] = ["cancelled"];
+const FILTER_AT_FIRST: RunFilter = "all";
 
-function loadHidden(): Set<RunStatus> {
+function loadFilter(): RunFilter {
   try {
-    const saved = localStorage.getItem(HIDDEN_KEY);
-    return new Set(saved === null ? HIDDEN_AT_FIRST : (JSON.parse(saved) as RunStatus[]));
+    const saved = localStorage.getItem(FILTER_KEY);
+    return RUN_FILTERS.find((f) => f === saved) ?? FILTER_AT_FIRST;
   } catch {
-    return new Set(HIDDEN_AT_FIRST);
+    return FILTER_AT_FIRST;
   }
 }
 
-function saveHidden(hidden: Set<RunStatus>) {
+function saveFilter(filter: RunFilter) {
   try {
-    localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hidden]));
+    localStorage.setItem(FILTER_KEY, filter);
   } catch {
     // private window or blocked storage: the choice just isn't remembered
   }
@@ -81,7 +82,7 @@ export function App() {
   const { data, error, age, stale, serverNow } = useBenchState();
   const route = useRoute();
   const [choice, setChoice] = useState<Partial<Selection>>(loadSaved);
-  const [hidden, setHidden] = useState<Set<RunStatus>>(loadHidden);
+  const [filter, setFilter] = useState<RunFilter>(loadFilter);
   const [tab, setTab] = useState<Tab>(loadTab);
   const chooseTab = (t: Tab) => {
     setTab(t);
@@ -104,11 +105,13 @@ export function App() {
   const current = /^(.*?-v\d+)/.exec(data.suites[pack] ?? "")?.[1] ?? "";
   const family = pickFamily(families, current, choice.family);
   const inFamily = inPack.filter((r) => family === ALL || r.family === family);
-  const counts = RUN_STATUSES.map((st) => [st, inFamily.filter((r) => r.status === st).length] as [RunStatus, number]).filter(([, n]) => n > 0);
-  const chooseHidden = (next: Set<RunStatus>) => {
-    setHidden(next);
-    saveHidden(next);
+  // The switch's own counts are over the pack and version chosen, before the switch is applied.
+  const counts: Record<RunFilter, number> = { all: inFamily.length, complete: inFamily.filter(isComplete).length };
+  const chooseFilter = (next: RunFilter) => {
+    setFilter(next);
+    saveFilter(next);
   };
+  const filteredOut = <FilteredOut onShowAll={() => chooseFilter("all")} />;
 
   const choose = (next: Selection) => {
     setChoice(next);
@@ -135,14 +138,14 @@ export function App() {
             ? <button key={t} type="button" role="tab" aria-selected={route.page === "story"} onClick={() => { location.hash = storyHref(pack, firstStory(inFamily)); }}>{name}</button>
             : <button key={t} type="button" role="tab" aria-selected={route.page === "overview" && tab === t} onClick={() => chooseTab(t as Tab)}>{name}</button>)}
         </div>
-        {tab !== "runs" || route.page !== "overview" ? null : <StatusFilter counts={counts} hidden={hidden} onChange={chooseHidden} />}
+        <RunFilterSwitch filter={filter} counts={counts} onChange={chooseFilter} />
       </Header>
       <StaleBanner stale={stale} age={age} />
       <main>
-        {route.page !== "overview" ? <EntityPage route={route} state={data} serverNow={serverNow} family={family} /> : <>
+        {route.page !== "overview" ? <EntityPage route={route} state={data} serverNow={serverNow} family={family} filter={filter} filteredOut={filteredOut} /> : <>
         {tab === "machines" ? <MachinesIndex state={data} serverNow={serverNow} />
           : tab === "setup" ? <SetupTab />
-          : <OverviewPage state={data} serverNow={serverNow} rows={inFamily} hidden={hidden} />}
+          : <OverviewPage state={data} serverNow={serverNow} rows={visibleRuns(inFamily, filter)} filteredOut={inFamily.length ? filteredOut : undefined} />}
         </>}
       </main>
     </div>
@@ -159,29 +162,36 @@ function firstStory(runs: Row[]): string {
 /** A page of its own for one entity, found in the whole state (not only what the overview's filters show). */
 type BenchState = NonNullable<ReturnType<typeof useBenchState>["data"]>;
 
-/** The state as a page sees it: only runs it can be compared with, of the same pack and version family. A v1 run
- * was built against another spec and scored by another suite: its stories aren't the same stories. */
-const comparable = (state: BenchState, pack: string, family: string): BenchState =>
-  ({ ...state, rows: state.rows.filter((r) => r.pack === pack && r.family === family) });
+/** The state as a page sees it: only runs it can be compared with, of the same pack and version family, and of
+ * those only the ones the header's switch shows. A v1 run was built against another spec and scored by another
+ * suite: its stories aren't the same stories. This is the one place the switch is applied to the entity pages. */
+const comparable = (state: BenchState, pack: string, family: string, filter: RunFilter): BenchState =>
+  ({ ...state, rows: visibleRuns(state.rows.filter((r) => r.pack === pack && r.family === family), filter) });
 
 /** The newest version family among these runs ("vidi-v2" over "vidi-v1"). */
 const newestFamily = (runs: Row[]) => runs.map((r) => r.family).toSorted((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0] ?? "";
 
-function EntityPage({ route, state, serverNow, family }: { route: Exclude<ReturnType<typeof useRoute>, { page: "overview" }>; state: BenchState; serverNow: number | null; family: string }) {
+/** A page whose content the switch hides entirely: the one line that says so, with the way out. */
+const Hidden = ({ note }: { note: ReactNode }) => <div className="page" data-page="filteredOut">{note}</div>;
+
+function EntityPage({ route, state, serverNow, family, filter, filteredOut }: { route: Exclude<ReturnType<typeof useRoute>, { page: "overview" }>; state: BenchState; serverNow: number | null; family: string; filter: RunFilter; filteredOut: ReactNode }) {
   switch (route.page) {
     case "combination": {
       const all = state.rows.filter((r) => r.pack === route.pack && r.stack === route.stack);
       if (!all.length) return <NotFound what={`combination ${route.stack}`} />;
       // The family chosen in the header when this combination has runs in it; else (or with "all") its newest.
       const fam = family !== ALL && all.some((r) => r.family === family) ? family : newestFamily(all);
-      const scoped = comparable(state, route.pack, fam);
-      return <CombinationPage stack={route.stack} runs={scoped.rows.filter((r) => r.stack === route.stack)} state={scoped} serverNow={serverNow} params={route.params} />;
+      const scoped = comparable(state, route.pack, fam, filter);
+      const runs = scoped.rows.filter((r) => r.stack === route.stack);
+      if (!runs.length) return <Hidden note={filteredOut} />;
+      return <CombinationPage stack={route.stack} runs={runs} state={scoped} serverNow={serverNow} params={route.params} />;
     }
     case "run":
     case "storyRun": {
       const run = state.rows.find((r) => r.pack === route.pack && r.stack === route.stack && r.runId === route.runId);
       if (!run) return <NotFound what={`run ${route.runId} of ${route.stack}`} />;
-      const scoped = comparable(state, run.pack, run.family);
+      const scoped = comparable(state, run.pack, run.family, filter);
+      if (!scoped.rows.includes(run)) return <Hidden note={filteredOut} />;
       if (route.page === "run") return <RunPage run={run} state={scoped} serverNow={serverNow} params={route.params} />;
       const story = run.stories.find((s) => s.id === route.story) ?? null;
       return <StoryRunPage run={run} story={story} storyId={route.story} state={scoped} serverNow={serverNow} params={route.params} />;
@@ -190,14 +200,17 @@ function EntityPage({ route, state, serverNow, family }: { route: Exclude<Return
       const all = state.rows.filter((r) => r.pack === route.pack);
       if (!all.length) return <NotFound what={`pack ${route.pack}`} />;
       const fam = family !== ALL && all.some((r) => r.family === family) ? family : newestFamily(all);
-      const scoped = comparable(state, route.pack, fam);
+      const scoped = comparable(state, route.pack, fam, filter);
+      if (!scoped.rows.length) return <Hidden note={filteredOut} />;
       return <StoryPage pack={route.pack} story={route.story} runs={scoped.rows} state={scoped} serverNow={serverNow} params={route.params} />;
     }
     case "machine": {
       // A machine runs every pack and version: its page shows all of them, each labelled.
       const runs = state.rows.filter((r) => r.machine === route.machine);
       const known = runs.length > 0 || (state.machines ?? []).some((m) => m.node === route.machine);
-      return known ? <MachinePage machine={route.machine} runs={runs} state={state} serverNow={serverNow} params={route.params} /> : <NotFound what={`machine ${route.machine}`} />;
+      // The history follows the switch; what the machine is doing now (from the whole state) never does.
+      const shown = visibleRuns(runs, filter);
+      return known ? <MachinePage machine={route.machine} runs={runs} history={shown} filteredOut={filteredOut} state={state} serverNow={serverNow} /> : <NotFound what={`machine ${route.machine}`} />;
     }
     case "notFound":
       return <NotFound what={`page at "${route.path}"`} />;

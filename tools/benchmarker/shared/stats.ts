@@ -61,6 +61,23 @@ export function standingOf(row: Row): Standing {
   return scoreOfRecord(row) ? "ofRecord" : "pending";
 }
 
+// ---------- complete runs: the header's "All runs | Complete runs" switch ----------
+
+/** A complete run: it finished, every story in its scope has a record, and it has its score of record. A complete
+ * run with a terrible score is still complete. A partial rerun of single stories never is: it has no full run to
+ * be complete as. This is the only place that decides it. */
+export function isComplete(row: Row): boolean {
+  if (row.status !== "finished" || row.knownGood) return false;
+  const recorded = new Set(row.stories.map((s) => s.id));
+  if (!row.storiesWorking.squares.every((q) => recorded.has(q.id))) return false;
+  return scoreOfRecord(row) !== null;
+}
+
+/** What the header's switch shows: every run, or only complete ones. */
+export type RunFilter = "all" | "complete";
+export const RUN_FILTERS: RunFilter[] = ["all", "complete"];
+export const visibleRuns = (rows: Row[], filter: RunFilter): Row[] => (filter === "complete" ? rows.filter(isComplete) : rows);
+
 /** Median, lowest, highest and how many; null for none. An even count takes the mean of the middle two. */
 export interface Spread { median: number; min: number; max: number; n: number }
 

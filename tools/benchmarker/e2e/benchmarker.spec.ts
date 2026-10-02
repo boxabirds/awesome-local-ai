@@ -14,21 +14,6 @@ test.beforeEach(async ({ page, request }) => {
   await expect(page.locator("section").first()).toBeVisible();
 });
 
-test("the status filter: counts per status, cancelled hidden at first, one click to see only running; it narrows the combinations", async ({ page }) => {
-  const filter = page.getByRole("group", { name: "Status" });
-  const combos = page.getByRole("table", { name: "Combinations" });
-  await expect(filter.getByRole("button", { name: /^running 3$/ })).toHaveAttribute("aria-pressed", "true");
-  await expect(filter.getByRole("button", { name: /^cancelled 1$/ })).toHaveAttribute("aria-pressed", "false");
-  await expect(combos.locator(`tr[data-stack="${QWEN_27B}"]`)).toBeVisible();
-  await filter.getByRole("button", { name: "only running" }).click();
-  await expect(combos.locator(`tr[data-stack="${QWEN_27B}"]`)).toHaveCount(0);   // 27B has only queued and cancelled runs
-  await expect(combos.locator(`tr[data-stack="${SWIFT}"]`)).toBeVisible();
-  await page.reload(); // the choice is remembered
-  await expect(filter.getByRole("button", { name: /^queued/ })).toHaveAttribute("aria-pressed", "false");
-  await filter.getByRole("button", { name: "all" }).click();
-  await expect(combos.locator(`tr[data-stack="${QWEN_27B}"]`)).toBeVisible();
-});
-
 test("the version filter opens on the current version and can show all", async ({ page }) => {
   await expect(page.getByLabel("Version")).toHaveValue("vidi-v2");
   const gufo = page.getByRole("table", { name: "Combinations" }).locator("tr[data-stack*='gufo-pi']");

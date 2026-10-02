@@ -15,7 +15,7 @@ interface Props {
   currentFamily: string;
   onPack(pack: string): void;
   onFamily(family: string): void;
-  /** The status filter, on its own line. */
+  /** The tabs and the runs switch. */
   children?: ReactNode;
 }
 

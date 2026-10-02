@@ -6,7 +6,7 @@ import { GLOSSARY } from "../shared/glossary.ts";
 // The machine page (plan 4.6), section by section: the header (reachable, unreachable, not a node), Now (the
 // running job and its live activity, the queue in its order, jobs ended in the last day, idle, waiting), the
 // operations against the fixture server's fake dbench (Stop with confirmation, Remove, Restart, Queue a run,
-// Remove machine), History (grouped by combination, then pack and version, with its filter in the address), every
+// Remove machine), History (grouped by combination, then pack and version), every
 // link landing on its entity, keyboard, and 1000 px. Then the machines list, which replaces the Machines tab.
 // States the fixture lacks are made by changing what /api/state or /api/machines returns, for that test only.
 
@@ -351,34 +351,9 @@ test.describe("history", () => {
     await expect(history(page).locator(`[data-stack="${SWIFT}"] tr[data-run="v2-r6"] .h-score .pending`)).toHaveText("pending");
   });
 
-  test("the status filter: a toggle per status with counts; its choice is in the address and survives a reload", async ({ page }) => {
-    await open(page, "node-a");
-    const f = history(page).getByRole("group", { name: "Status" });
-    await expect(f.getByRole("button")).toHaveText(["running 1", "queued 3", "finished 6", "cancelled 1"]);
-    await f.getByRole("button", { name: "cancelled 1" }).click();
-    await expect(history(page).locator(`[data-stack="${QWEN_27B}"] tr[data-run="v2-r2"]`)).toHaveCount(0);
-    await expect(history(page).locator(".mp-head")).toContainText("10 of 11 runs");
-    await expect(page).toHaveURL(/#\/m\/node-a\?hide=cancelled$/);
-    await page.reload();
-    await expect(history(page).getByRole("group", { name: "Status" }).getByRole("button", { name: "cancelled 1" })).toHaveAttribute("aria-pressed", "false");
-    await expect(history(page).locator(`[data-stack="${QWEN_27B}"] tr[data-run="v2-r2"]`)).toHaveCount(0);
-    await history(page).getByRole("button", { name: "all" }).click();
-    await expect(history(page).locator(`[data-stack="${QWEN_27B}"] tr[data-run="v2-r2"]`)).toHaveCount(1);
-    await expect(page).toHaveURL(/#\/m\/node-a$/);
-  });
-
-  test("everything filtered out, or no runs at all, says so", async ({ page }) => {
-    await open(page, "node-a", "?hide=running,queued,finished,cancelled");
-    await expect(history(page)).toContainText("No runs with the statuses chosen.");
+  test("no runs at all says so", async ({ page }) => {
     await open(page, "node-d");
     await expect(history(page)).toContainText("No runs on this machine yet.");
-  });
-
-  test("another machine's page starts from its own address, not the last one's filter", async ({ page }) => {
-    await open(page, "node-a", "?hide=finished");
-    await page.goto(`/#/m/node-b`);
-    await expect(history(page).locator('tr[data-run="v2-r1"]')).toHaveCount(1);
-    await expect(history(page).getByRole("group", { name: "Status" }).getByRole("button", { name: /^running/ })).toHaveAttribute("aria-pressed", "true");
   });
 
   test("the history heading and columns explain themselves", async ({ page }) => {
