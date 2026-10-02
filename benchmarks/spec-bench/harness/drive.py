@@ -881,7 +881,7 @@ def _spec_hash(root: Path) -> str:
 def link_agent_browsers(work: Path, home: Path, view: Path, real_home: Path) -> None:
     """The agents' browsers, shared by every run and read-only, shown in a browsers directory of the run's own: one
     link to each browser of the shared cache, so `playwright install` takes its lock and writes its bookkeeping in
-    the run's directory, finds every browser complete and downloads nothing (a read-only cache made it hang). Also
+    the run's directory (never linked from the cache: `.links` there is the machine's), finds every browser complete and downloads nothing (a read-only cache made it hang). Also
     linked from where Playwright looks by default in the agent's home, so an agent that checks
     `~/Library/Caches/ms-playwright` (or `~/.cache/ms-playwright`) finds them instead of searching the disk. The links
     are written as the agent sees them (view), which on Linux is not where the run is."""
@@ -889,6 +889,8 @@ def link_agent_browsers(work: Path, home: Path, view: Path, real_home: Path) -> 
     browsers = work / sandbox.BROWSERS_DIR
     browsers.mkdir(parents=True, exist_ok=True)
     for entry in shared.iterdir() if shared.is_dir() else ():
+        if entry.name.startswith("."):          # Playwright's bookkeeping (`.links`): the run's own, never the read-only cache's
+            continue
         link = browsers / entry.name
         if not link.is_symlink() and not link.exists():
             link.symlink_to(entry)
