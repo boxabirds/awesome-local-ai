@@ -52,11 +52,12 @@ export function scoreOfRecord(row: Row): Score | null {
 
 /** Where a run stands for the ranking: counted (of record), or why not: finished with its score pending, or not
  * finished. */
-export type Standing = "ofRecord" | "pending" | Exclude<RunStatus, "finished">;
-export const NOT_COUNTED_ORDER: Exclude<Standing, "ofRecord">[] = ["running", "queued", "pending", "failed", "stopped", "cancelled", "unknown"];
+export type Standing = "ofRecord" | "pending" | "partial rerun" | Exclude<RunStatus, "finished">;
+export const NOT_COUNTED_ORDER: Exclude<Standing, "ofRecord">[] = ["running", "queued", "pending", "partial rerun", "failed", "stopped", "cancelled", "unknown"];
 
 export function standingOf(row: Row): Standing {
   if (row.status !== "finished") return row.status;
+  if (row.knownGood) return "partial rerun";
   return scoreOfRecord(row) ? "ofRecord" : "pending";
 }
 
@@ -125,7 +126,9 @@ export function summarise(stack: string, rs: Row[]): RankedCombination {
   const scores = ofRecord.map((r) => scoreOfRecord(r)!);
   const s = spread(scores.map((x) => x.passed!));
   const total = scores.reduce((t, x) => t + x.total!, 0);
-  const finished = rs.filter((r) => r.status === "finished").length;
+  // A partial rerun that finished isn't "a finished run with its score pending": it has no full-run score to wait
+  // for. Counted here as a full run only, so the message below never claims one exists when it doesn't.
+  const finished = rs.filter((r) => r.status === "finished" && !r.knownGood).length;
   return {
     pack: rs[0]?.pack ?? "", stack, label: rs[0]?.label ?? stack, machines: [...new Set(rs.map((r) => r.machine))].toSorted(),
     byStatus, ofRecord, notCounted,

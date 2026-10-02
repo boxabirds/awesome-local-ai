@@ -35,11 +35,12 @@ const OLD_SUITE = "p-v1.9";
 interface RunOpts { status?: RunStatus; score?: number | null; scores?: Record<string, number>; secs?: (number | null)[]; out?: number[]; calls?: number[]; read?: number[]; machine?: string }
 let seq = 0;
 /** A run of stack `stack`: finished and scored `score`/75 under the current suite unless told otherwise. */
-const run = (stack: string, o: RunOpts = {}): Row => {
+interface RunOptsExt extends RunOpts { knownGood?: boolean }
+const run = (stack: string, o: RunOptsExt = {}): Row => {
   const secs = o.secs ?? [3600];
   const scores = o.scores ?? (o.score === undefined ? { [SUITE]: 60 } : o.score === null ? {} : { [SUITE]: o.score });
   return {
-    pack: "p", stack, label: stack, runId: `r${++seq}`, machine: o.machine ?? "m1", status: o.status ?? "finished", suite: SUITE,
+    pack: "p", stack, label: stack, runId: `r${++seq}`, machine: o.machine ?? "m1", status: o.status ?? "finished", suite: SUITE, knownGood: o.knownGood ?? false,
     scores: Object.fromEntries(Object.entries(scores).map(([v, p]) => [v, { passed: p, total: 75, flaky: 0, at: "" }])),
     stories: secs.map((s, i) => ({ id: String(i + 1), usage: { agentSeconds: s, outTokens: o.out?.[i] ?? null, calls: o.calls?.[i] ?? null, readTokens: o.read?.[i] ?? null } as Usage })),
     storiesWorking: { squares: [] }, usage: { tokS: null }, interventions: [],
@@ -74,6 +75,27 @@ describe("standing: counted, or why not", () => {
     expect(standingOf(run("a", { scores: { [OLD_SUITE]: 70 } }))).toBe("pending");
   });
   it("any other status: that status", () => expect(standingOf(run("a", { status: "running" }))).toBe("running"));
+});
+
+describe("a partial rerun is never counted as a full run", () => {
+  it("finished and scored, but known-good: not of record, whatever its own score", () => {
+    expect(standingOf(run("a", { knownGood: true, score: 74 }))).toBe("partial rerun");
+  });
+  it("ranking: excluded from n, the median and the pooled rate", () => {
+    const rs = [run("a", { score: 60 }), run("a", { score: 70 }), run("a", { knownGood: true, score: 100, scores: { [SUITE]: 100 } })];
+    const sum = summarise("a", rs);
+    expect(sum.score?.n).toBe(2);
+    expect(sum.score?.median).toBe(65);
+  });
+  it("a combination with only known-good runs is unranked, not scored on them", () => {
+    const sum = summarise("a", [run("a", { knownGood: true, score: 74 })]);
+    expect(sum.score).toBeNull();
+    expect(sum.unranked).toMatch(/no finished run/);
+  });
+  it("counted in byStatus (it's still a finished run) but not in notCounted (it has its own reason, not a status)", () => {
+    const sum = summarise("a", [run("a", { knownGood: true, score: 74 })]);
+    expect(sum.byStatus.finished).toBe(1);
+  });
 });
 
 describe("per-run rates", () => {

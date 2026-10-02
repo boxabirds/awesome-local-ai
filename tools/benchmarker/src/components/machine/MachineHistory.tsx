@@ -14,7 +14,9 @@ import { StatusBadge } from "../run/RunHeader.tsx";
 function Score({ run }: { run: Row }) {
   const s = scoreOfRecord(run);
   if (!s) {
-    // A finished run without one: pending, whatever it was scored under before. The rest: only that it isn't finished.
+    // A finished run without one: pending, whatever it was scored under before — unless it's a partial rerun,
+    // which by design never gets one. The rest: only that it isn't finished.
+    if (run.knownGood) return <Missing why="A partial rerun: diagnostic, not scored against the full suite." />;
     if (run.status === "finished") return <span className="pending" data-tip={GLOSSARY.noScore.what}>{PENDING}</span>;
     const v = recordView(run);
     return <Missing why={v.kind === "none" ? v.why : "No score yet."} />;

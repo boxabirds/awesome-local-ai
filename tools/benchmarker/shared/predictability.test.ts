@@ -11,13 +11,13 @@ const DIGITS = 6;
 /** One story run: agent seconds, and its thinking as the log gives it. `profile: false` is a record with no
  * conversation profile; `withheld` is a cloud model's (thinking counted in tokens, no characters). */
 interface StoryOpts { secs?: number | null; chars?: number | null; tokens?: number | null; withheld?: boolean; profile?: false }
-interface RunOpts { status?: RunStatus; dir?: string | null; family?: string }
+interface RunOpts { status?: RunStatus; dir?: string | null; family?: string; knownGood?: boolean }
 
 let seq = 0;
 const run = (stories: Record<string, StoryOpts>, o: RunOpts = {}): Row => {
   const runId = `r${++seq}`;
   return {
-    pack: "p", stack: "s", runId, dir: o.dir === undefined ? `runs/${runId}` : o.dir, status: o.status ?? "finished", family: o.family ?? FAMILY,
+    pack: "p", stack: "s", runId, dir: o.dir === undefined ? `runs/${runId}` : o.dir, status: o.status ?? "finished", family: o.family ?? FAMILY, knownGood: o.knownGood ?? false,
     stories: Object.entries(stories).map(([id, s]) => ({
       id,
       usage: s.secs === undefined ? null : { agentSeconds: s.secs },
@@ -47,6 +47,13 @@ describe("the runs that count", () => {
   it("the least to quote a spread from is three", () => {
     expect(MIN_RUNS_FOR_SPREAD).toBe(3);
     expect(GLOSSARY.spreadTooFewRuns.what).toBe("Needs three finished runs");
+  });
+
+  it("not a partial rerun: mixed with full runs, one covering a different single story than another breaks every figure (real bug, 2 Oct 2026)", () => {
+    const full = run({ 1: { secs: 60 }, 2: { secs: 60 } });
+    const partialOfStory1 = run({ 1: { secs: 90 } }, { knownGood: true });
+    const partialOfStory2 = run({ 2: { secs: 90 } }, { knownGood: true });
+    expect(countedRuns([full, partialOfStory1, partialOfStory2])).toEqual([full]);
   });
 });
 

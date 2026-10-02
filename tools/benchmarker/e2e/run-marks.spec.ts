@@ -76,13 +76,13 @@ test.describe("invalid: not in the app at all", () => {
     const row = page.getByRole("table", { name: "Combinations" }).locator(`tr[data-stack="${SWIFT}"]`);
     await expect(row.locator("td.score")).toContainText("63 (58–68) n=3");
     await expect(row.locator("td.pooled")).toHaveText("84%");
-    await expect(row.locator("td.not-counted")).toHaveText("1 running2 queued1 pending");
+    await expect(row.locator("td.not-counted")).toHaveText("1 running2 queued1 pending1 partial rerun");
     await expect(page.locator("main")).not.toContainText(/invalid|v2-r8/i);
   });
 
   test("combination page: not in the counts, the matrix, the time bars, the tally or the related runs", async ({ page }) => {
     await page.goto(`/#/vidi/c/${enc(SWIFT)}`);
-    await expect(page.locator(".run-counts")).toHaveText("Runs: 4 finished (3 scored, 1 pending) · 1 running · 2 queued");
+    await expect(page.locator(".run-counts")).toHaveText("Runs: 5 finished (3 scored, 1 pending, 1 partial rerun) · 1 running · 2 queued");
     await expect(mRow(page, "v2-r8")).toHaveCount(0);
     await expect(page.getByRole("figure", { name: "Where the time went, per run" }).locator('[data-run="v2-r8"]')).toHaveCount(0);
     await expect(matrix(page).locator('tfoot td[data-story="1"]')).toHaveText("12m");   // the median of the other finished runs

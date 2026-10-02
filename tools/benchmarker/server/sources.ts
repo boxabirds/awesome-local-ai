@@ -95,6 +95,10 @@ export const finalizePath = (dir: string) => `${dir}/finalize.json`;
 /** What the run's final re-score recorded, whole; null when the record has none or it doesn't parse. */
 export const runFinalize = (blobs: Map<string, string>, dir: string): RawFinalize | null => parseFinalize(json<unknown>(blobs.get(finalizePath(dir))));
 
+/** metrics.json's "known_good": present (an object naming the reference run) only for a partial rerun. */
+export const isKnownGood = (metrics: { known_good?: unknown } | null): boolean =>
+  typeof metrics?.known_good === "object" && metrics.known_good !== null;
+
 type RawStory = { title?: string; status?: string; accept?: { passed?: number; total?: number } | null; harness_faults?: unknown[]; skipped_output?: unknown; record?: { credentials_redacted?: unknown } | null; not_comparable?: unknown } & RawUsage;
 
 /** Every pushed run record, and each pack's current version (bench.json pack_ref). */
@@ -113,7 +117,8 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
   const records = runs.map((r): RunRecord => {
     const meta = json<{ pack_version?: string; host?: string }>(blobs.get(`${r.dir}/run.json`)) ?? {};
     const status = json<{ state?: string; at?: string }>(blobs.get(`${r.dir}/run-status.json`)) ?? {};
-    const raw = json<{ stories?: Record<string, RawStory> | RawStory[] }>(blobs.get(`${r.dir}/metrics.json`))?.stories ?? {};
+    const metrics = json<{ stories?: Record<string, RawStory> | RawStory[]; known_good?: unknown }>(blobs.get(`${r.dir}/metrics.json`));
+    const raw = metrics?.stories ?? {};
     // metrics.json keys stories by id ("1", "2", …); older records list them in order
     const pairs: [string, RawStory][] = Array.isArray(raw)
       ? raw.map((s, i) => [String(i + 1), s])
@@ -134,7 +139,7 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
       if (acc?.by_story) rescored[v] = { after: id, byStory: normaliseByStory(acc.by_story) };
     }
     return { ...r, rescored, rescoreFaults, host: meta.host ?? "", packVersion: meta.pack_version ?? "", state: status.state ?? "", stateAt: status.at ?? "",
-      stories: pairs.map(([id, s]) => storyEntry(id, s)), scores, ...runNotes(blobs, r.dir), finalize: runFinalize(blobs, r.dir) };
+      stories: pairs.map(([id, s]) => storyEntry(id, s)), scores, ...runNotes(blobs, r.dir), finalize: runFinalize(blobs, r.dir), knownGood: isKnownGood(metrics) };
   });
   return { records, suites };
 }

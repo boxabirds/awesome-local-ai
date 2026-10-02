@@ -48,7 +48,7 @@ export function statusView(run: Pick<Row, "status" | "statusNote" | "live" | "st
  * is re-scored; nothing about why it hasn't been), or that the run isn't finished. */
 export type RecordView =
   | { kind: "scored"; passed: number; total: number; version: string; at: string; flaky: number; currentSuite: boolean }
-  | { kind: "none"; reason: "not-finished" | "ended-early" | "pending"; why: string };
+  | { kind: "none"; reason: "not-finished" | "ended-early" | "pending" | "partial-rerun"; why: string };
 
 const ENDED_EARLY: Partial<Record<RunStatus, string>> = {
   failed: "failed", stopped: "stopped", cancelled: "was cancelled", unknown: "is in an unknown state",
@@ -59,7 +59,7 @@ export const PENDING = "pending";
 
 /** The run's score, or that it has none. A run that is running or queued again has none, whatever an
  * earlier attempt was scored: its build is about to change. */
-export function scoreOfRecord(run: Pick<Row, "status" | "scores" | "suite">): RecordView {
+export function scoreOfRecord(run: Pick<Row, "status" | "scores" | "suite" | "knownGood">): RecordView {
   if (run.status === "running" || run.status === "queued") {
     return { kind: "none", reason: "not-finished", why: "Not scored yet." };
   }
@@ -69,6 +69,7 @@ export function scoreOfRecord(run: Pick<Row, "status" | "scores" | "suite">): Re
     if (run.status !== "finished") {
       return { kind: "none", reason: "ended-early", why: `No score: the run ${ENDED_EARLY[run.status] ?? run.status} before it finished.` };
     }
+    if (run.knownGood) return { kind: "none", reason: "partial-rerun", why: "A partial rerun: diagnostic, not scored against the full suite." };
     return { kind: "none", reason: "pending", why: "Score pending." };
   }
   const [version, score]: [string, Score] = found;
@@ -467,7 +468,9 @@ export function againstCombination(run: Row, rows: Row[], id: string): {
   const entries = all.map((r) => ({ run: r, story: r.stories.find((s) => s.id === id) ?? null, isThis: r.runId === run.runId }))
     .filter((e) => e.isThis || !e.story || isCompared(e.story));
   const mine = entries.find((e) => e.isThis)?.story ?? null;
-  const others = entries.filter((e) => !e.isThis && e.story);
+  // A partial rerun (knownGood) is listed like any other run but never pooled into the median or the mechanism
+  // (EVALUATION-POLICY rule 7): it's diagnostic, not a full run to compare against.
+  const others = entries.filter((e) => !e.isThis && e.story && !e.run.knownGood);
   const judged = !mine || isCompared(mine);
   const flags = Object.fromEntries(AGAINST_MEASURES.map(({ key, value }) =>
     [key, judged ? divergence(mine ? value(mine) : null, others.map((e) => value(e.story!))) : null])) as Record<AgainstKey, Divergence | null>;

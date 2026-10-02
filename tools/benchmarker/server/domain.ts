@@ -130,6 +130,8 @@ export interface RunRecord extends RunRef {
   interventions?: Intervention[];
   /** finalize.json, verbatim; absent or null: none. */
   finalize?: RawFinalize | null;
+  /** metrics.json's "known_good": a partial rerun, built on another run's code. */
+  knownGood: boolean;
 }
 
 // ---------- what the record says about the run itself ----------
@@ -613,7 +615,7 @@ export interface MergedRow extends Omit<RunRecord, "dir"> {
 
 const EMPTY_RECORD = {
   rescores: [] as string[], rescoreLast: {} as Record<string, string>, hasBundle: false, host: "", packVersion: "", state: "", stateAt: "",
-  stories: [] as RecordStory[], scores: {} as Record<string, Score>,
+  stories: [] as RecordStory[], scores: {} as Record<string, Score>, knownGood: false,
 };
 
 /** One row per run record, plus one per dbench job that has no record yet: queued and running jobs

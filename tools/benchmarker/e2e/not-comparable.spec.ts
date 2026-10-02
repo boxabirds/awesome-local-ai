@@ -62,10 +62,10 @@ test.describe("pages that would have compared it: the other runs are compared wi
   test("another run's story-run page: not in the Against table or its median, not offered to set beside, not in the verdicts", async ({ page }) => {
     await page.goto(storyRunHref("v2-r4", MARKED_STORY));
     const against = page.locator('[data-section="against"]');
-    await expect(against.locator("tbody tr[data-run]")).toHaveCount(6);                    // seven runs, less the marked one
+    await expect(against.locator("tbody tr[data-run]")).toHaveCount(7);                    // eight runs, less the marked one
     await expect(against.locator(`tr[data-run="${MARKED_RUN}"]`)).toHaveCount(0);
     await expect(against.locator("tr.median-row")).toHaveAttribute("data-others", "3");   // v2-r1 (running, story 2 done), v2-r6 and v2-r7
-    await expect(page.locator('[data-section="differed"] select option')).toHaveText([/^v2-r1/, /^v2-r6/, /^v2-r7/]);
+    await expect(page.locator('[data-section="differed"] select option')).toHaveText([/^v2-r1/, /^v2-r6/, /^v2-r7/, /^v2-r9/]);
     await expect(page.locator('[data-section="across"] tr[data-this="true"] .runs-n')).toHaveText("2 other runs");
     await expect(page.locator("body")).not.toContainText(SAYS_SO);
   });

@@ -37,7 +37,9 @@ const newestFirst = (a: string, b: string) => b.localeCompare(a, undefined, { nu
  * has such a run. Runs of another spec version built other stories, so they are never set against these. (The pages
  * pass one family's runs already; a run marked invalid never reaches the page at all.) */
 export function countedRuns(runs: Row[]): Row[] {
-  const done = runs.filter((r) => r.status === "finished" && r.dir !== null);
+  // A partial rerun covers one story, or a handful: mixed in with full runs, "the story every run has a value
+  // for" becomes empty the moment two partial reruns cover different stories, and every figure goes blank.
+  const done = runs.filter((r) => r.status === "finished" && r.dir !== null && !r.knownGood);
   const family = done.map((r) => r.family).toSorted(newestFirst)[0];
   return done.filter((r) => r.family === family);
 }

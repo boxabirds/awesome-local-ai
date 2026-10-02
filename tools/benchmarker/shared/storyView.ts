@@ -144,7 +144,7 @@ export interface Summary { spread: Spread | null; /** For the divergence rule: t
  * story: the combination page's storyMedians, with the range. Missing values are left out; zeros count. A story run
  * that isn't compared (isCompared) is left out like a missing value. */
 export function combinationSummary(runs: Row[], id: string): Record<SummaryKey, Summary> {
-  const finished = runs.filter((r) => r.status === "finished");
+  const finished = runs.filter((r) => r.status === "finished" && !r.knownGood);
   const one = (metric: Metric): Summary => {
     const xs = finished.map((r) => comparedValue(r, String(Number(id)), metric)).filter((x): x is number => x !== null);
     const s = spread(xs);
@@ -167,9 +167,10 @@ export interface Group {
   notBuilt: { run: Row; why: string }[];
 }
 
-/** How many finished runs recorded the story and are compared on it: what a combination's medians are over. */
+/** How many finished runs recorded the story and are compared on it: what a combination's medians are over. A
+ * partial rerun (knownGood) is diagnostic, never pooled with full runs (EVALUATION-POLICY rule 7). */
 const finishedWith = (runs: Row[], id: string) =>
-  runs.filter((r) => r.status === "finished" && r.stories.some((s) => sameStory(s.id, id) && isCompared(s))).length;
+  runs.filter((r) => r.status === "finished" && !r.knownGood && r.stories.some((s) => sameStory(s.id, id) && isCompared(s))).length;
 
 const NO_FLAGS: Record<SummaryKey, Divergence | null> = { minutes: null, outTokens: null, calls: null, heldOut: null };
 

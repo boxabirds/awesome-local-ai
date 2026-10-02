@@ -74,8 +74,8 @@ test.describe("header", () => {
     await open(page, "2");
     const f = section(page, "header").locator('[data-fact="tests"]');
     await expect(f.locator(".big-n")).toHaveText("14");
-    await expect(f.locator(".tests-differ")).toHaveText("in 4 runs; 10 in 2");
-    await expect(f.locator(".tests-differ")).toHaveAttribute("data-tip", /14 in 4 runs, 10 in 2 runs\.$/);
+    await expect(f.locator(".tests-differ")).toHaveText("in 5 runs; 10 in 2");
+    await expect(f.locator(".tests-differ")).toHaveAttribute("data-tip", /14 in 5 runs, 10 in 2 runs\.$/);
   });
 
   test("held-out tests not recorded by any run: — with why", async ({ page }) => {
@@ -87,7 +87,7 @@ test.describe("header", () => {
 
   test("how many story runs, in how many combinations, and how many runs haven't built it", async ({ page }) => {
     await open(page, "2");
-    await expect(section(page, "header").locator('[data-fact="runs"]')).toContainText("7 in 2 combinations · 7 runs not built");
+    await expect(section(page, "header").locator('[data-fact="runs"]')).toContainText("8 in 2 combinations · 7 runs not built");
   });
 
   test("previous and next: the first story has no previous", async ({ page }) => {
@@ -281,7 +281,7 @@ test.describe("by combination", () => {
   test("runs that haven't built it: each a link, with its status, and why on hover", async ({ page }) => {
     await open(page, "1");
     const nb = group(page, SWIFT).locator("tr.sp-not-built");
-    await expect(nb).toContainText("Not built: v2-r2 queued · v2-r3 queued");
+    await expect(nb).toContainText("Not built: v2-r9 finished · v2-r2 queued · v2-r3 queued");
     await expect(nb.locator('[data-run="v2-r2"] a.run-link')).toHaveAttribute("href", `#/vidi/r/${enc(SWIFT)}/v2-r2`);
     await expect(nb.locator('[data-run="v2-r2"] .small[data-tip]')).toHaveAttribute("data-tip", "The run is queued: no story is built yet.");
     await expect(group(page, Q27).locator("tr.sp-not-built")).toContainText("v2-r2 cancelled");

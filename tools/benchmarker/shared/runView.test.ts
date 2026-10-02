@@ -46,7 +46,7 @@ const row = (over: Partial<Row> = {}): Row => ({
   packVersion: SUITE, family: "vidi-v2", suite: SUITE, state: "finished", stateAt: "2026-09-30T15:28:00Z", status: "finished",
   storiesWorking: { working: 0, scope: 3, squares: squares(["ok", "ok", "unbuilt"]) },
   usage: { outTokens: 2000, inTokens: 200, readTokens: 2000, calls: 20, tokS: 1.7, decodeTokS: 2.25, prefillTokS: 1.7 },
-  statusNote: "", stories: [story("1"), story("2")], rescores: [], scores: {}, judgeReady: false, live: null, jobs: [], interventions: [], ...over,
+  statusNote: "", stories: [story("1"), story("2")], rescores: [], scores: {}, judgeReady: false, live: null, jobs: [], interventions: [], knownGood: false, ...over,
 });
 
 const ALL_STATUSES: RunStatus[] = ["running", "queued", "finished", "failed", "stopped", "cancelled", "unknown"];
@@ -102,6 +102,10 @@ describe("run state", () => {
 
     it("finished without one: pending, and nothing about why", () => {
       expect(scoreOfRecord(row())).toEqual({ kind: "none", reason: "pending", why: "Score pending." });
+    });
+
+    it("a partial rerun (knownGood): never pending — it never gets a score of record, by design", () => {
+      expect(scoreOfRecord(row({ knownGood: true }))).toEqual({ kind: "none", reason: "partial-rerun", why: "A partial rerun: diagnostic, not scored against the full suite." });
     });
 
     it.each(["running", "queued"] as RunStatus[])("%s: not finished, even with a score from an earlier attempt", (status) => {
@@ -766,6 +770,11 @@ describe("the median row against the combination: how many other runs it is over
     expect(others).toBe(2);
     expect(flags.heldOut).toMatchObject({ n: 2 });
     expect(flags.minutes).toMatchObject({ n: 1, median: 1000 });
+  });
+  it("a partial rerun (knownGood) isn't one of the others, even though it recorded the story and is comparable", () => {
+    const { others, entries } = againstCombination(me, [me, at("1", "a", 1000), at("1", "c", 60000, { knownGood: true })], "1");
+    expect(others).toBe(1);
+    expect(entries.map((e) => e.run.runId)).toEqual(["a", "c", "me"]);   // still listed, just not pooled
   });
 });
 
