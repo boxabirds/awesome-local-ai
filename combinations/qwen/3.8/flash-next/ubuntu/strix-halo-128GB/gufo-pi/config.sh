@@ -40,13 +40,17 @@ MIN_OS_RESERVE_MIB=6144
 MIN_KERNEL_VERSION="6.18.4"
 
 # ---- engine --------------------------------------------------------------
-# Pinned by digest. Its binary reports b722a61: the merge of gufo#284 (Qwen tool
-# arguments keep their whitespace, Python literals accepted), which the eval
-# plan (docs/20260926-gufo-vs-llamacpp-eval-plan.md) requires, because every
-# agent step is a tool call. Checked 27 Sep 2026: `gufo --version` in the image
-# and GitHub (b722a615df87 is PR #284's merge commit, 26 Sep 20:16Z).
-GUFO_IMAGE="ghcr.io/gufo-org/toolboxes/gufo-runtime@sha256:51f3cae01632174f2f53e402beb817231b703e96dad822b4300e694bd8a388d5"
-GUFO_VERSION="b722a61"
+# Pinned by digest. Its binary reports "gufo version 0.5.0 (23cacbb)", read on
+# the Strix Halo box on 2 Oct 2026; GUFO_VERSION is the release number (lib/gufo.sh
+# reads it from that line). 0.5.0 keeps tool-call schemas and historical calls
+# (the fix for a raw-newline tool call ending a story, our gufo issue 304), which
+# the eval plan (docs/20260926-gufo-vs-llamacpp-eval-plan.md) needs because every
+# agent step is a tool call. Runs recorded up to v2-r5 and replay-v2r3-* used the
+# development build b722a61 (image sha256:51f3cae0...), the merge of gufo#284.
+# Not comparable with 0.5.0 runs without noting the engine change: 0.5.0 also
+# changes cache reuse.
+GUFO_IMAGE="ghcr.io/gufo-org/toolboxes/gufo-runtime@sha256:371a731c5286d698c77daa2507300588e24dc063c7c665895331001410dc06b4"
+GUFO_VERSION="0.5.0"
 GUFO_CONTAINER_MODEL_DIR="/models"
 GUFO_CONTAINER_PORT=8080
 GUFO_BASE_ARGS=""

@@ -58,9 +58,30 @@ assert_ok "the generic smoke request names the model (gufo answers 400 missing_m
   grep -qF '"model":"qwen3.8-flash-next-gufo"' <<< "$(smoke_extra)"
 
 echo
+echo "image version check: the pin must match what the image's binary prints"
+# Formats seen: a development build prints "gufo version <hash>"; a release prints
+# "gufo version <release> (<hash>)" (0.5.0, read on the Strix Halo box, 2 Oct 2026).
+# podman is called as `podman run ...`: the stub ignores its arguments and prints $LINE
+version_check() {
+  local line="$1" pin="$2"
+  # err() exits, so the check runs in its own subshell and its exit status decides
+  local read
+  read="$( podman() { printf '%s\n' "$line"; }; GUFO_IMAGE=img GUFO_VERSION="$pin"
+           _gufo_require_version >/dev/null 2>&1 && echo "$GUFO_IMAGE_VERSION" )" || read=FAIL
+  echo "$read"
+}
+assert_eq "release line: the release number is the version"  "0.5.0"   "$(version_check 'gufo version 0.5.0 (23cacbb)' 0.5.0)"
+assert_eq "release line: a pin of the bare hash does not match" "FAIL"  "$(version_check 'gufo version 0.5.0 (23cacbb)' 23cacbb)"
+assert_eq "release line: a pin with the parentheses does not match" "FAIL" "$(version_check 'gufo version 0.5.0 (23cacbb)' '(23cacbb)')"
+assert_eq "release line: a different release is refused"     "FAIL"    "$(version_check 'gufo version 0.5.0 (23cacbb)' 0.4.0)"
+assert_eq "development line: the hash is still the version"  "b722a61" "$(version_check 'gufo version b722a61' b722a61)"
+assert_eq "development line: a different hash is refused"    "FAIL"    "$(version_check 'gufo version b722a61' 23cacbb)"
+
+echo
 echo "combination config"
 assert_ok "image pinned by digest"          grep -qE '^GUFO_IMAGE="[^"]+@sha256:[0-9a-f]{64}"' "$CFG"
-assert_ok "engine version named"            grep -qE '^GUFO_VERSION="[0-9a-f]{7,}"' "$CFG"
+assert_ok "engine version named (a release number or a commit hash)" \
+  grep -qE '^GUFO_VERSION="([0-9]+\.[0-9]+\.[0-9]+|[0-9a-f]{7,})"' "$CFG"
 assert_ok "revision is a full commit"       grep -qE '^MODEL_REVISION="[0-9a-f]{40}"' "$CFG"
 assert_ok "opts out of automatic selection" grep -qE '^AUTO_SELECT=0$' "$CFG"
 assert_ok "no host GPU runtime is built"    grep -qE '^GPU_API="none"' "$CFG"
