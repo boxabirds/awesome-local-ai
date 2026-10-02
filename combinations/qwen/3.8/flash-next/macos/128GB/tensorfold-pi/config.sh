@@ -40,24 +40,25 @@ TENSORFOLD_COMMIT="c4646171139ee8a3c38103eaa1699dad226ec12b"
 # pyproject.toml: requires-python >= 3.11. A uv-managed CPython, so the Mac's own Python is not involved.
 TENSORFOLD_PYTHON="3.12"
 # The process memory budget (TENSORFOLD_MEMORY_LIMIT_GB, GiB, read as a float). Not mlx-serve's 16 GiB OS reserve
-# (112 here): TensorFold's own default is 70% of RAM (89.6 here), which this combination started from (2 Oct
-# 2026). At 89.6 GiB, check 1 (long-context cache retention) passed cleanly but only to 32k tokens — the budget's
-# own keep-prompt limit (48,128) capped it well short of our ~131k sessions, before any out-of-memory condition
-# occurred. TENSORFOLD_PLE_ON_SSD=1 (below) was tried first as the lower-risk lever and made no measured
-# difference on this machine (identical 48,128 limit, identical check 2 failure at turn 12) — TensorFold's own
-# recipe doc says this machine class already host-maps the n-gram tables by default, so the flag was redundant
-# here. Raised to 110 (2 Oct 2026): TensorFold's own worked example for a 128 GiB Mac
-# (docs/recipes/qwen3.8-flash-next.md: "TENSORFOLD_MEMORY_LIMIT_GB=110 gives a 128 GiB M4 Max a 110 GiB process
-# budget and 107 GiB for MLX"), not a value we chose unguided. The panic this budget used to guard against (24 Sep
-# 2026) was MTPLX, a different engine, confounded by a ~10 GiB leak since removed
-# (docs/20260924-mtplx-memory-report.md) — its peak was 97.2 GiB, under this new budget. TensorFold refuses to
-# load, naming the budget it needs, when the model doesn't fit; its startup line says where the budget landed.
-TENSORFOLD_MEMORY_LIMIT_GB=110
+# (112 here): TensorFold's own default is 70% of RAM (89.6 here). Left at the default after a measured attempt to
+# raise it made things worse, not better (2 Oct 2026; see horizon/tensorfold.md for the full record):
+#   - At 89.6 GiB: check 1 passed to 32k tokens; keep-prompt limit 48,128 (still short of our ~131k sessions, but
+#     via the window ceiling, not an out-of-memory failure).
+#   - TENSORFOLD_PLE_ON_SSD=1 (below) at the same 89.6 GiB: no measured difference (identical 48,128 limit,
+#     identical check 2 failure). TensorFold's own recipe doc says this machine class already host-maps the
+#     n-gram tables by default, so the flag was redundant here. Left on: harmless either way per that doc.
+#   - Raised to 110 (TensorFold's own worked example for a 128 GiB Mac, docs/recipes/qwen3.8-flash-next.md): the
+#     keep-prompt limit *fell* to 10,240 — worse than the 89.6 GiB default, the opposite of what raising the
+#     budget should do by TensorFold's own documented model. Not explained; not a result to build on. Reverted.
+# The 24 Sep 2026 panic this budget used to guard against was MTPLX, a different engine, confounded by a ~10 GiB
+# leak since removed (docs/20260924-mtplx-memory-report.md) — not evidence against TensorFold specifically.
+# TensorFold refuses to load, naming the budget it needs, when the model doesn't fit; its startup line says where
+# the budget landed.
+TENSORFOLD_MEMORY_LIMIT_GB=89.6
 # One request at a time, as mlx-serve is run (--max-concurrent 1).
 TENSORFOLD_PARALLEL=1
-# Tried 2 Oct 2026 as the lower-risk lever before raising the memory budget above: no measured effect on this
-# machine (see that comment). Left on: harmless (TensorFold's own recipe doc: peak memory measured lower with it
-# than without, never higher), and it may matter again if TENSORFOLD_MEMORY_LIMIT_GB changes.
+# See the TENSORFOLD_MEMORY_LIMIT_GB comment above: tried 2 Oct 2026, no measured effect at 89.6 GiB. Left on:
+# harmless per TensorFold's own recipe doc (peak memory measured lower with it than without, never higher).
 TENSORFOLD_PLE_ON_SSD=1
 
 # ---- weights --------------------------------------------------------------
