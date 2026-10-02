@@ -80,6 +80,59 @@
     update();
   })();
 
+  // ------------------------------------------------------------------ contents panel: collapse and resize
+  (function initTocPanel() {
+    var MIN_W = 180, MAX_W = 420, DEFAULT_W = 250, STEP = 20;
+    var tools = $("#toc-tools"), collapseBtn = $("#toc-collapse"), resizer = $("#toc-resize");
+    if (!tools || !collapseBtn || !resizer) return;
+    tools.hidden = false;
+    resizer.hidden = false;
+
+    function currentWidth() {
+      var v = parseInt(getComputedStyle(root).getPropertyValue("--toc-w"), 10);
+      return isNaN(v) ? DEFAULT_W : v;
+    }
+    function applyWidth(w) {
+      w = Math.max(MIN_W, Math.min(MAX_W, w));
+      root.style.setProperty("--toc-w", w + "px");
+      resizer.setAttribute("aria-valuenow", String(w));
+      store("toc-width", String(w));
+      return w;
+    }
+    function setCollapsed(on) {
+      root.classList.toggle("toc-collapsed", on);
+      collapseBtn.setAttribute("aria-expanded", String(!on));
+      collapseBtn.innerHTML = on ? "&#9658;" : "&#9668;";
+      collapseBtn.title = on ? "Show contents" : "Collapse contents";
+      store("toc-collapsed", on ? "1" : "");
+    }
+
+    resizer.setAttribute("aria-valuemin", String(MIN_W));
+    resizer.setAttribute("aria-valuemax", String(MAX_W));
+    var savedW = parseInt(store("toc-width") || "", 10);
+    applyWidth(isNaN(savedW) ? DEFAULT_W : savedW);
+    setCollapsed(store("toc-collapsed") === "1");
+
+    on(collapseBtn, "click", function () { setCollapsed(!root.classList.contains("toc-collapsed")); });
+
+    var dragging = false, startX = 0, startW = DEFAULT_W;
+    on(resizer, "pointerdown", function (e) {
+      if (root.classList.contains("toc-collapsed")) return;
+      dragging = true; startX = e.clientX; startW = currentWidth();
+      if (resizer.setPointerCapture) resizer.setPointerCapture(e.pointerId);
+    });
+    on(resizer, "pointermove", function (e) { if (dragging) applyWidth(startW + (e.clientX - startX)); });
+    on(resizer, "pointerup", function () { dragging = false; });
+    on(resizer, "pointercancel", function () { dragging = false; });
+    on(resizer, "keydown", function (e) {
+      if (root.classList.contains("toc-collapsed")) return;
+      if (e.key === "ArrowLeft") { applyWidth(currentWidth() - STEP); e.preventDefault(); }
+      else if (e.key === "ArrowRight") { applyWidth(currentWidth() + STEP); e.preventDefault(); }
+      else if (e.key === "Home") { applyWidth(MIN_W); e.preventDefault(); }
+      else if (e.key === "End") { applyWidth(MAX_W); e.preventDefault(); }
+    });
+  })();
+
   // ------------------------------------------------------------------ insight panels and hash targets
   function openAncestors(el) {
     for (var p = el; p; p = p.parentElement) if (p.tagName === "DETAILS") p.open = true;

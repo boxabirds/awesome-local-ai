@@ -184,6 +184,8 @@ button[aria-pressed="true"], button[aria-selected="true"] { background: var(--ac
 
 /* ---- layout ---- */
 .layout { max-width: 1400px; margin: 0 auto; display: block; padding: 0 var(--gutter); }
+.toc-tools { display: none; }
+.toc-resize { display: none; }
 .toc-wrap { margin: 12px 0; }
 .toc-wrap > details { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .toc-wrap summary { padding: 10px 14px; cursor: pointer; font-weight: 600; }
@@ -197,13 +199,34 @@ button[aria-pressed="true"], button[aria-selected="true"] { background: var(--ac
 .toc ol ol a[aria-current="location"] { color: var(--accent-text); }
 main { min-width: 0; padding-bottom: 80px; }
 @media (min-width: 1100px) {
-  .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 32px; }
+  .layout {
+    display: grid; grid-template-columns: var(--toc-w, 250px) minmax(0, 1fr); gap: 32px; position: relative;
+  }
+  /* .toc-col is the actual grid item (column 1); .toc-tools and the nav stack inside it, so adding the toolbar
+     never shifts the nav into the content column (grid auto-placement fills column 2 next, for any item that
+     isn't given its own column, so this had to be one item, not two). Left to stretch (the grid default) to the
+     row's full height, same as main: the nav's own position:sticky needs that height to have room to float in —
+     shrinking this wrapper to its content (align-self: start) leaves sticky nowhere to go. */
+  .toc-col { min-width: 0; }
   /* The contents list stays in view and scrolls on its own. The script keeps the current heading visible by moving this
      list's scrollTop, never scrollIntoView, which also moves the page and fought the reader's scrolling. */
-  .toc-wrap { position: sticky; top: 70px; align-self: start; max-height: calc(100vh - 86px); overflow: auto; margin: 16px 0; }
+  .toc-wrap { position: sticky; top: 70px; max-height: calc(100vh - 86px); overflow: auto; margin: 16px 0; }
   .toc-wrap > details { border: 0; background: none; }
   .toc-wrap summary { display: none; }
   .toc-wrap > details:not([open]) > ol { display: block; }
+  /* The toggle sits above the panel; collapsed, the panel and the handle disappear and the column narrows to a rail
+     just wide enough for the icon, so a reader can get the width back with one click or Enter. */
+  .toc-tools { display: flex; justify-content: flex-end; margin: 0 0 2px; position: sticky; top: 70px; }
+  .toc-collapse-btn { width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; line-height: 1; }
+  .toc-resize {
+    display: block; position: absolute; top: 0; bottom: 0; left: calc(var(--toc-w, 250px) + 16px); width: 11px;
+    margin-left: -5px; cursor: col-resize; z-index: 2; border-radius: 6px;
+  }
+  .toc-resize:hover, .toc-resize:focus-visible { background: var(--accent-bg); }
+  .toc-resize:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .toc-collapsed .layout { grid-template-columns: 36px minmax(0, 1fr); }
+  .toc-collapsed .toc-tools { justify-content: center; }
+  .toc-collapsed .toc-wrap, .toc-collapsed .toc-resize { display: none; }
 }
 main > section { padding: 28px 0 8px; border-top: 1px solid var(--line); }
 main > section:first-of-type { border-top: 0; }
@@ -457,7 +480,7 @@ footer.site-footer { border-top: 1px solid var(--line); padding: 20px var(--gutt
 @media print {
   :root { color-scheme: light; }
   body { background: #fff; color: #000; font-size: 10.5pt; }
-  .site-header, .toc-wrap, .skip, .step-controls, .map-controls, .entity-picker, .filters, .search, .theme-btn, .tip { display: none !important; }
+  .site-header, .toc-wrap, .toc-tools, .toc-resize, .skip, .step-controls, .map-controls, .entity-picker, .filters, .search, .theme-btn, .tip { display: none !important; }
   .layout { display: block; padding: 0; }
   details > summary { list-style: none; }
   details:not([open]) > *:not(summary) { display: block !important; }
