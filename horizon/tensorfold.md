@@ -190,6 +190,25 @@ to 18% while loading). With 77 GiB of weights resident, every route to a 128k wi
 maintainer how a 128 GB Mac is meant to reach 128k with Flash-Next (the chunk choice above is the thing to show
 them); `--ssd-experts`, which frees tens of GiB at 0.31-0.39x decode speed by TensorFold's own figures; or park it.
 
+## 0.6.2 with TensorFold's own oQ4 checkpoint (2 Oct 2026, evening)
+
+The pin moved to TensorFold 0.6.2 and `TensorFold/Qwen3.8-Flash-Next-MLX-oQ4-MTP` (every file sha256-verified), and
+the checks ran once at the default 89.6 GiB budget. Nothing that matters changed:
+
+| | 0.6.0, Vontra 4bit | 0.6.2, oQ4 |
+|---|---|---|
+| Weights kept resident | 77.2 GiB | 77.3 GiB |
+| Prompt chunk | 2,048 | 2,048 |
+| Keep-prompt context window | 48,128 | 47,104 |
+| Check 1 (cache reuse, to 32,033 tokens) | pass, worst re-read 5 tokens | pass, worst re-read 5 tokens |
+| Check 2 (pi's tool calls) | fails past the ceiling | fails at turn 11: HTTP 400, "needs about 86.7 GiB of the 86.6 GiB MLX may use" |
+
+Loaded in 41.0 s; first reply 77.7 tok/s. The run's folder on the M5 Max is `tensorfold-check/runs/20261002T205205Z`.
+The reports of this version and checkpoint working well that prompted the re-test were on a 256 GB machine. The
+required minimum here is 128k tokens of context; on 128 GB this gives 36% of that. Not tested on 0.6.2: any budget
+above 89.6 GiB (the owner's say is needed), so whether a larger budget still shrinks the window is not known for
+this version. The draft issue in `issues/external/` describes 0.6.0 and has not been re-measured.
+
 **Last checked:** 2 Oct 2026 (three real runs, eight startup probes and one crash on the M5 Max). **Next:** the
 owner's choice among the routes above. Check 3 (and any real comparison run) stays blocked until checks 1 and 2
 both pass in the 100k+ range.
