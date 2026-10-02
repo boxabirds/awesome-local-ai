@@ -22,7 +22,11 @@ PRIVATE_REPO_NAME="awesome-local-ai-bench-private"
 PRIVATE_REPO_URL="git@github.com:boxabirds/$PRIVATE_REPO_NAME.git"
 PACK="benchmarks/vidi"
 PACK_REF=""
-MIN_NODE_MAJOR=20
+# The oldest versions the harness is known to work with. bubblewrap: what Ubuntu 22.04 ships, which the sandbox's
+# tests pass on; the sandbox uses no option newer than that (tools/agent-sandbox/tests/bwrap.rs holds it to it).
+MIN_NODE=20
+MIN_BWRAP=0.6.1
+MIN_CARGO=1.77
 STACK=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -43,19 +47,40 @@ need() {  # need <command> <how to install>
   if command -v "$1" >/dev/null; then ok "$1 ($(command -v "$1"))"; else bad "$1 -- install: $2"; fi
 }
 
+# need_version <command> <minimum> <how to install or upgrade> [<command to offer>]: the command must exist and be
+# at least that version. With a command to offer, and on a terminal, it asks whether to run it there and then
+# (a sudo command asks for the password itself); otherwise it prints how.
+need_version() {
+  local cmd="$1" min="$2" fix="$3" offer="${4:-}" have=""
+  if command -v "$cmd" >/dev/null; then
+    have="$("$cmd" --version 2>/dev/null | head -1)"
+    if "$HARNESS/version-at-least.sh" "$have" "$min"; then ok "$cmd $have (needs $min or newer)"; return; fi
+  fi
+  if [[ -n "$offer" && -t 0 && -t 1 ]]; then
+    read -r -p "  $cmd ${have:+is $have; }needs $min or newer. Run now: $offer ? [y/N] " answer
+    if [[ "$answer" == [yY]* ]] && bash -c "$offer" && command -v "$cmd" >/dev/null \
+        && "$HARNESS/version-at-least.sh" "$("$cmd" --version 2>/dev/null | head -1)" "$min"; then
+      ok "$cmd $("$cmd" --version 2>/dev/null | head -1)"; return
+    fi
+  fi
+  bad "$cmd >= $min${have:+ (have $have)} -- install or upgrade: $fix"
+}
+
 echo "tools"
 need git "xcode-select --install   (or: brew install git)"
 need uv "brew install uv   (or: curl -LsSf https://astral.sh/uv/install.sh | sh)"
 need rsync "brew install rsync"
-if command -v node >/dev/null; then
-  major="$(node --version | sed -E 's/^v([0-9]+).*/\1/')"
-  if (( major >= MIN_NODE_MAJOR )); then ok "node $(node --version)"; else bad "node >= $MIN_NODE_MAJOR (have $(node --version)) -- brew install node"; fi
+if [[ "$(uname)" == Darwin ]]; then
+  need_version node "$MIN_NODE" "brew install node" "brew install node"
+  need sandbox-exec "part of macOS"
 else
-  bad "node >= $MIN_NODE_MAJOR -- brew install node"
+  need_version node "$MIN_NODE" "nvm install $MIN_NODE   (and put it first on PATH: the system's own node is often older)"
+  need_version bwrap "$MIN_BWRAP" "sudo apt install bubblewrap" "sudo apt install -y bubblewrap"
 fi
-if [[ "$(uname)" == Darwin ]]; then need sandbox-exec "part of macOS"; else need bwrap "sudo apt install bubblewrap"; fi
 # The agent's sandbox (tools/agent-sandbox) is built once per change of its source, on the node, from the harness release.
-if command -v cargo >/dev/null || [[ -x "$HOME/.cargo/bin/cargo" ]]; then ok "cargo (builds the agent's sandbox)"; else bad "cargo -- install: curl https://sh.rustup.rs -sSf | sh   (Rust 1.77 or newer; the agent's sandbox is built from source once per change)"; fi
+command -v cargo >/dev/null || PATH="$PATH:$HOME/.cargo/bin"
+need_version cargo "$MIN_CARGO" "curl https://sh.rustup.rs -sSf | sh   (or, with rustup: rustup update stable)" \
+  "$(command -v rustup >/dev/null && echo "rustup update stable")"
 # Tools the pack's builds need beyond node (bench.json "tools", e.g. bun for a bun workspace).
 for tool in $(python3 -c 'import json, sys; print(" ".join(json.load(open(sys.argv[1])).get("tools", [])))' \
                 "$REPO_ROOT/$PACK/bench.json" 2>/dev/null); do
