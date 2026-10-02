@@ -402,6 +402,47 @@ ${steps}
   }).join("\n");
 }
 
+// ---- safeguarding: the big-picture walkthrough ---------------------------------------------------------------
+function renderSafeguarding() {
+  const sg = D.safeguarding;
+  const big = { id: "sg-big", title: "The big picture", diagram: sg.bigPicture.diagram };
+  const dyn = { id: "sg-dyn", title: "What happens, step by step", diagram: sg.dynamic.diagram };
+  const nodeIds = new Set(sg.dynamic.diagram.nodes.map((n) => n.id));
+  const edgeIds = new Set(sg.dynamic.diagram.edges.map((e) => `${e.from}>${e.to}`));
+  const steps = sg.dynamic.steps.map((s, i) => {
+    for (const n of s.nodes || []) if (!nodeIds.has(n)) fail(`safeguarding step ${i + 1}: unknown node ${n}`);
+    for (const e of s.edges || []) if (!edgeIds.has(e)) fail(`safeguarding step ${i + 1}: unknown edge ${e}`);
+    return `<li class="step" id="sg-dyn-s${i + 1}" data-step="${i + 1}" data-nodes="${(s.nodes || []).join(" ")}" data-edges="${(s.edges || []).join(" ")}">
+<h4><span class="s-n">Step ${i + 1}</span> ${inline(s.title)}</h4>
+${paras(s.text)}
+</li>`;
+  }).join("\n");
+  const rows = sg.mechanisms.rows.map(([label, mac, linux]) =>
+    `<tr><th scope="row">${inline(label)}</th><td>${inline(mac)}</td><td>${inline(linux)}</td></tr>`).join("\n");
+  return `
+<p class="lede">${paras(sg.intro)}</p>
+<figure class="diagram wide"><figcaption class="sg-cap-top">${inline(sg.bigPicture.caption)}</figcaption>${renderDiagram(big)}</figure>
+
+<h3 id="sg-mech-h" data-toc="One policy, two mechanisms">One policy, two mechanisms</h3>
+<table class="sg-mech">
+<thead><tr><th scope="col"></th><th scope="col">macOS</th><th scope="col">Linux</th></tr></thead>
+<tbody>${rows}</tbody>
+</table>
+<p>${inline(sg.mechanisms.windows)}</p>
+
+<h3 id="sg-dyn-h" data-toc="What happens, step by step">What happens, step by step</h3>
+<div class="stepper" data-stepper data-steps="${sg.dynamic.steps.length}">
+<figure class="diagram">${renderDiagram(dyn)}<figcaption>Each attempt below is one the sandbox's own proof actually tests.</figcaption></figure>
+<div class="step-pane"><ol class="steps">
+${steps}
+</ol></div>
+</div>
+
+<h3 id="sg-not-h" data-toc="What this does not solve">What this does not solve</h3>
+<ul>${li(sg.notSolved)}</ul>
+`;
+}
+
 // ---- findings explorer --------------------------------------------------------------------------------------
 function renderFindings() {
   const rows = D.findings.map((f) => `<tr data-theme="${f.theme}" data-combos="${f.combos.join(" ")}" data-search data-title="${esc(f.title)}">
@@ -506,6 +547,7 @@ function build() {
     "map-shell": renderMapShell(),
     "entity-cards": renderEntityCards(),
     components: renderComponents(),
+    safeguarding: renderSafeguarding(),
     flows: renderFlows(),
     findings: renderFindings(),
     glossary: renderGlossary(),
