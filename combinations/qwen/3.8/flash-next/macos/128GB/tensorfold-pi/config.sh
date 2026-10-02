@@ -16,7 +16,7 @@
 # ---- identity -------------------------------------------------------------
 INSTALL_ID="tensorfold-qwen38-flash-next"
 DISPLAY_NAME="Qwen3.8-Flash-Next (TensorFold)"
-MODEL_DISPLAY_NAME="Qwen3.8-Flash-Next MLX 4-bit with MTP head (Vontra)"
+MODEL_DISPLAY_NAME="Qwen3.8-Flash-Next MLX oQ4 with MTP head (TensorFold)"
 ROOT_ENV_VAR="TENSORFOLD_FLASH_NEXT_ROOT"
 
 # Never the automatic pick: unmeasured, and blocked until its acceptance checks pass.
@@ -33,10 +33,12 @@ SYSTEM_PACKAGES=()
 MIN_DEVICE_MEM_MIB=92000
 
 # ---- backend --------------------------------------------------------------
-# 0.6.0 (30 Sep 2026) is the latest release. The long-context fix (issue 71) is in 0.3.6.3; 0.4.0 added Flash-Next's
+# 0.6.2 (2 Oct 2026) is the latest release; this combination was first written against 0.6.0 (30 Sep), and the
+# notes below that cite 0.6.0 were read from that source. 0.6.1 widened Flash Next's fitted window on Macs after a
+# short request; 0.6.2 speeds Flash Next on Macs at 64k-128k (release notes). The long-context fix (issue 71) is in 0.3.6.3; 0.4.0 added Flash-Next's
 # mixed and 2-8-bit checkpoints on Macs. Pinned by the commit its tag points at (git ls-remote / the GitHub API).
-TENSORFOLD_VERSION="0.6.0"
-TENSORFOLD_COMMIT="c4646171139ee8a3c38103eaa1699dad226ec12b"
+TENSORFOLD_VERSION="0.6.2"
+TENSORFOLD_COMMIT="56e2e3ec55bc0ae1d7d5158c4fa2c79a3567ab21"
 # pyproject.toml: requires-python >= 3.11. A uv-managed CPython, so the Mac's own Python is not involved.
 TENSORFOLD_PYTHON="3.12"
 # The process memory budget (TENSORFOLD_MEMORY_LIMIT_GB, GiB, read as a float). Not mlx-serve's 16 GiB OS reserve
@@ -69,41 +71,44 @@ TENSORFOLD_PLE_ON_SSD=1
 # mlx-serve's own layout; TensorFold 0.6.0 reads n-gram tables only as ...ngram_embedding.shard_N tensors inside the
 # safetensors (families/qwen4_exp/host_table.py from_checkpoint) and has no reader for that file. So the comparison
 # with mlx-serve is NOT same-weights: uniform 4-bit (group 32) here against mixed 4/8-bit there.
-MODEL_REPO="Vontra/Qwen3.8-Flash-Next-MLX-4bit-MTP"
-MODEL_REVISION="dadefa8066e3be900a0d148d0f5a2f4eb1cf6534"
-# From the Hugging Face file list at MODEL_REVISION: 22 shards (113,209,682,735 B) and small files. About 29.8 GiB
+# TensorFold's own conversion (published 1 Oct 2026), mixed precision (oQ4) from the official BF16 weights with the
+# MTP block kept. Until 2 Oct 2026 this was Vontra/Qwen3.8-Flash-Next-MLX-4bit-MTP @ dadefa80, uniform 4-bit: the
+# checks run that day (horizon/tensorfold.md) used that one.
+MODEL_REPO="TensorFold/Qwen3.8-Flash-Next-MLX-oQ4-MTP"
+MODEL_REVISION="069090c38f60e654c08ac6cb8cd83fce1affbdbc"
+# From the Hugging Face file list at MODEL_REVISION: 35 files, 113,348,684,986 B in all, 22 of them shards. About 29.8 GiB
 # of it is n-gram tables, which TensorFold keeps in file mappings, not wired memory.
-MODEL_APPROX_SIZE="113.2 GB (105.5 GiB)"
-MODEL_DISK_KB=110579149
+MODEL_APPROX_SIZE="113.3 GB (105.6 GiB)"
+MODEL_DISK_KB=110692075
 # The Hugging Face LFS sha256 of every large file at MODEL_REVISION.
 MODEL_SHA256="
-308f20b7e35a3e525f36eca0df286f6d1043cfeb621e7bbcf372a834c99cd66d  model-00001-of-00022.safetensors
-8af1a616f2f39dbfe6ee92e959afb2414623fcb299aff1ced55984bfe810d608  model-00002-of-00022.safetensors
-519a0472252ac9a51af020686f462aa6be82ce655f948fd5f054d70949de17a6  model-00003-of-00022.safetensors
-b1ad7e951969eb8dc4e92762dc2e50bd47353c95990ae207db5da393d441400f  model-00004-of-00022.safetensors
-9ca797304c563bb65f2356b67d444511b11744bc5b5c8ec8345ae7d97d3e251c  model-00005-of-00022.safetensors
-8aab4c1dce7d8a0af645426b66d1caf30245d422d4c6b7029583959d675a1827  model-00006-of-00022.safetensors
-7908da37b2e3fa7f0de8b9734dad0759be7dc445716f3acd59c20c4842638db9  model-00007-of-00022.safetensors
-85beff20f250bfe63e95f12c0460512aab92bcde8f7408fe9c20e3de0321bc1d  model-00008-of-00022.safetensors
-f7c03ae640e9bf0f7813ef2b2980afa83a883c02b3988e814e9921055fc08a28  model-00009-of-00022.safetensors
-6897f52227533e720b243d6aef24c1293ad1eb02a1bb2ec6a6e4dc48d56d0c8f  model-00010-of-00022.safetensors
-905d27f9db887284289a043f9638020258c5f90d52122cdce2e7aef941a431f2  model-00011-of-00022.safetensors
-c4d2bb76fa4613f7386ddaa7045608c320f9736623211a814aa28fb370530dec  model-00012-of-00022.safetensors
-1f20a5e1f2256b2fb6a78fef52f9e66daa970f4318ab1be3abb32a1effedbbf3  model-00013-of-00022.safetensors
-860d12691792df5f08c9dfe245dc356773741f1edcc1fd430672ef06ac387635  model-00014-of-00022.safetensors
-259fb7577b8248f6dcbe6a932fe5d2f1c8869eda761ef3394fe6ad06065f216c  model-00015-of-00022.safetensors
-e931785f9ff4e0a567bf8c06df37639be46b4dae156e0f8b39b9d32a03d75792  model-00016-of-00022.safetensors
-4f4610dc4a862bf9d93d70cfd0ec037e8e7943a734794d34eb5c0d748b74747a  model-00017-of-00022.safetensors
-afdb4828920186600f9d61537d1465979fb36692f4eddb8c5a961a6b72964b77  model-00018-of-00022.safetensors
-869d34c6e8f7db79bd4e54b9833d5b0db45eefac860c9bd64fbd312bf862a667  model-00019-of-00022.safetensors
-5ca2f994fec1aa06fefef6646b9f072cf70f7f73aa8dab4c7c1a9a424afb4a52  model-00020-of-00022.safetensors
-58def6762f29cc798437e5649a56ee75d053faca69138a2454dbdb34bb8a37c3  model-00021-of-00022.safetensors
-30a3c82b573d813a1d2349f1c05c308c0d415f3ca1bb67caa0bfaad8a6afa7a3  model-00022-of-00022.safetensors
+d417144635b37be24467586d06749611d3de81003663205c83db0b1c94a5c903  model-00001-of-00022.safetensors
+4acddf6f8bb11a26ddaca9b9ae917567ae32013f779e96567410169bbac9a113  model-00002-of-00022.safetensors
+51921c66850802fca6c09109b8d6a7b224296ac537a8d8cd9086c55ef0932434  model-00003-of-00022.safetensors
+4da779ebbaaef604fb5e11353d925d2a98641ed9ba3056b46b845f50f2056d8e  model-00004-of-00022.safetensors
+b2afbaf8179aceab3537f211e7261656f7834176b24e8f723958e6de8f3767a1  model-00005-of-00022.safetensors
+d760f4cec3a9b4b37ac2b6735722f6733a4879a1d0105b6ef8080a1772746d56  model-00006-of-00022.safetensors
+94ca752bed363970fe9b934936c058729319d233943445e468b5f174ae818249  model-00007-of-00022.safetensors
+2fb4369163af02fdef86880e8c221e93f04a6043edf0c78c4fc0112a9586ad80  model-00008-of-00022.safetensors
+0af6ef5ed6f06baa7df38f566d023feb87b7c094460b585e9f2373005820edac  model-00009-of-00022.safetensors
+6bc4d643b2e8118582c6dda92d5639644826f31a034df36e1a47af143700d6f4  model-00010-of-00022.safetensors
+9b23288c7d6f98d8f3611333dc8f7151ee708d6c033cae5e97a69ff5c2d72eea  model-00011-of-00022.safetensors
+96955e1b7f825c4bb369903acdae863519ede270042b9f16160b6af7f0e7a445  model-00012-of-00022.safetensors
+24a48199cc9ce36ff966f32f9cd5f8d5825c12c0b4b2676c3daeb2c7b5fccc5c  model-00013-of-00022.safetensors
+9f1b204e1cb093c2f178322ecc0df7db20fe282a5b827856caae4d0a884f1aa2  model-00014-of-00022.safetensors
+1d43d193cd68e4a615fc9373f3a5e811ee8870ed8c9e62ca83f49457c731149b  model-00015-of-00022.safetensors
+ab2d9b143caaa58476558aa10f05e261d4038cdee771216ab1f4e957b1ffbe3c  model-00016-of-00022.safetensors
+10650475107c1ef15de5881f35a559f801a1ca3bf92ec6df1e7258bf75ec97ea  model-00017-of-00022.safetensors
+dd8b2547ac04e15b0f232a9be2f3a7778dc39e6767a3e64e2c5f523e7972e5d2  model-00018-of-00022.safetensors
+163655acdc2ac24bbb6d9dd830895310f8795965f78f13a26c1671743f5fe9f2  model-00019-of-00022.safetensors
+6ddb7c20db486887b2396eb29a8163946f86ade6e1d16fe0fb7e904eac39eee9  model-00020-of-00022.safetensors
+824ef152cbbdf30d1a9f87e3beee03660cc3320a62a9c5cac7abe22657d16463  model-00021-of-00022.safetensors
+acca79b029b521fdab2c40dba168e77799a126e219b46c92937566f7878b198c  model-00022-of-00022.safetensors
 0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3  tokenizer.json
 "
 
 # ---- serving --------------------------------------------------------------
-MODEL_ALIAS_DEFAULT="tensorfold-flash-next-4bit"   # the id at /v1/models (--name)
+MODEL_ALIAS_DEFAULT="tensorfold-flash-next-oq4"   # the id at /v1/models (--name)
 DEFAULT_PROFILE="agent"
 DEFAULT_PORT=8012                         # clear of the MTPLX sibling's 8010 and mlx-serve's 8011
 

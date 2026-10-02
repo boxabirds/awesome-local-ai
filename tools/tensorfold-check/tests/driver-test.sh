@@ -30,7 +30,7 @@ printf '#!/bin/sh\ncase "${1:-}" in -s) echo Darwin;; -m) echo arm64;; *) echo D
 # a fake tensorfold: --version, and `serve` runs the fake server with TensorFold's startup lines
 cat > "$WORK/bin/tensorfold" <<STUB
 #!/usr/bin/env bash
-[[ "\${1:-}" == --version ]] && { echo "tensorfold 0.6.0"; exit 0; }
+[[ "\${1:-}" == --version ]] && { echo "tensorfold 0.6.2"; exit 0; }
 printf '%s\n' "\$@" > "$WORK/tensorfold.argv"
 env | grep '^TENSORFOLD_' | sort > "$WORK/tensorfold.env"
 port=""; prev=""
@@ -57,7 +57,7 @@ drive() { # env... -- [driver args]; output in $WORK/out
       TENSORFOLD_BIN="$WORK/bin/tensorfold" TENSORFOLD_MODEL_STORE="$STORE" TFC_RUNS_ROOT="$WORK/runs" TFC_PYTHON="$REAL_PY" \
       UV_CACHE_DIR="$WORK/uv-cache" UV_PYTHON_DOWNLOADS=never "$@" >"${DRIVE_OUT:-$WORK/out}" 2>&1
 }
-printf '#!/usr/bin/env bash\n[[ "${1:-}" == --version ]] && { echo "tensorfold 0.6.0"; exit 0; }\necho "tensorfold: this checkpoint is refused"; exit 1\n' > "$WORK/bin/tensorfold-dies"
+printf '#!/usr/bin/env bash\n[[ "${1:-}" == --version ]] && { echo "tensorfold 0.6.2"; exit 0; }\necho "tensorfold: this checkpoint is refused"; exit 1\n' > "$WORK/bin/tensorfold-dies"
 chmod +x "$WORK/bin/tensorfold-dies"
 runs() { ls "$WORK/runs" 2>/dev/null | grep -c . || true; }
 
