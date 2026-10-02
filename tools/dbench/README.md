@@ -239,7 +239,6 @@ It works on the git repository the current directory is in, or `--repo PATH`. Th
 - **`--check-only` doesn't look at git state:** no fetch, and a dirty tree or an unpushed commit is fine. It exits non-zero if any check fails.
 - **What the checks need installed:** uv, node with npm and npx, rustup (cargo and clippy come from `rust-toolchain.toml`), bun with the benchmarker's packages (`bun install` in `tools/benchmarker`), and Playwright's chromium (`bunx playwright install chromium` there). On Linux, bubblewrap (`bwrap`) too: the harness tests that run the agent's sandbox skip without it, and in CI, which sets `SPEC_BENCH_REQUIRE_SANDBOX`, fail without it.
 
-The machines don't run released tags yet: a job still runs whatever `git pull` brought in (see "Run the server").
 
 ## Not built yet (from the design)
 

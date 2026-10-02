@@ -99,7 +99,7 @@ GUIDE_DATA.entities = [
     rel: [["is given for", "story"]],
     repo: [["benchmarks/vidi/prompts/story.md.tmpl", "vidi prompt template"], ["benchmarks/spec-bench/prompts/story.md.tmpl", "generic prompt template"], ["benchmarks/spec-bench/harness/drive.py", "harness/drive.py (render_prompt)"]],
     example: "Rule 2 of the Vidi template: 'Write the tests the design lists (unit, component, integration, e2e) and make them pass. Do not delete or weaken tests to make them pass.'",
-    status: { state: "in-progress", note: "The DONE-line and read-only paragraph is on main; harness release 1, which the machines run today, does not have it." },
+    status: { state: "built", note: "Live on every machine: the DONE line and the read-only paragraph, since harness-v2026.10.01.2." },
     insights: ["invented-constraints"],
   },
   {
@@ -204,7 +204,7 @@ GUIDE_DATA.entities = [
     rel: [["holds", "progress-file"]],
     repo: [["benchmarks/spec-bench/harness/drive.py", "harness/drive.py (setup_workspace)"]],
     example: "Before the short path, agents mistyped the long workspace path in 594 tool calls across 51 stories.",
-    status: { state: "in-progress", note: "The short neutral path, the read-only spec and `PROGRESS.md` are on main, not in release 1." },
+    status: { state: "built", note: "Live on every machine since harness-v2026.10.01.2." },
     insights: ["mistyped-path"],
   },
   {
@@ -257,7 +257,7 @@ GUIDE_DATA.entities = [
     rel: [["is judged by", "story-run"]],
     repo: [["benchmarks/spec-bench/harness/drive.py", "harness/drive.py (STOP_MESSAGE_TMPL)"], ["benchmarks/spec-bench/harness/test_stop_rule.py", "harness/test_stop_rule.py"], ["combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/analysis/README.md", "gufo analysis: the nudge, examined"]],
     example: "The measure of whether it works is the share of stops that end in a verified commit, against the 15% the old nudge achieved.",
-    status: { state: "in-progress", note: "On main since 1 October 2026; not in harness release 1. No run has used it yet." },
+    status: { state: "built", note: "Live on every machine since harness-v2026.10.01.2." },
     insights: ["nudge-continue"],
   },
   {
@@ -276,7 +276,7 @@ GUIDE_DATA.entities = [
     rel: [["is compared with", "task"]],
     repo: [["benchmarks/spec-bench/harness/progress_file.py", "harness/progress_file.py"]],
     example: "What ends a story is the verified DONE line, not this file.",
-    status: { state: "in-progress", note: "On main since 1 October 2026; not in harness release 1." },
+    status: { state: "built", note: "Live on every machine since harness-v2026.10.01.2." },
     insights: ["spec-writes"],
   },
   {
@@ -314,7 +314,7 @@ GUIDE_DATA.entities = [
     rel: [["re-tests", "story-run"]],
     repo: [["benchmarks/spec-bench/harness/rescore.py", "harness/rescore.py"], ["benchmarks/spec-bench/harness/tagsuite.py", "harness/tagsuite.py"], ["benchmarks/spec-bench/TELEMETRY.md", "TELEMETRY.md: re-scores"]],
     example: "A re-score ran under a Node too old for Playwright and recorded 0/0 on 30 September 2026; the scoring environment is now recorded with every result.",
-    status: { state: "in-progress", note: "Taking the suite exactly at the pack's tag (`tagsuite.py`) and bun installs are on main, not in release 1." },
+    status: { state: "built", note: "Live on every machine since harness-v2026.10.01.2." },
   },
   {
     id: "finalize", name: "Finalize", group: "score", row: 3,
@@ -323,7 +323,7 @@ GUIDE_DATA.entities = [
     rel: [["runs", "rescore"], ["writes", "score-record"]],
     repo: [["benchmarks/spec-bench/harness/finalize.py", "harness/finalize.py"], ["benchmarks/spec-bench/harness/finalize_pending.py", "harness/finalize_pending.py"]],
     example: "`v2-r5` of the gufo combination: `finalize.json` says score 68/75, rescore done, attempts 1 of 5, needs_person false.",
-    status: { state: "in-progress", note: "On main, not in release 1: record repair, the sweep, `needs_person` and the 5-attempt cap, and the suite taken exactly at the pack's tag. Release 1 bundles, and re-scores only when the private suite checkout is at the tag." },
+    status: { state: "built", note: "Live on every machine since harness-v2026.10.01.2. Release 1 (harness-v2026.10.01.1) re-scored only when the private suite checkout happened to be exactly at the pack's tag." },
   },
   {
     id: "score-record", name: "Score of record", group: "score", row: 4,
@@ -358,7 +358,7 @@ GUIDE_DATA.entities = [
     rel: [["marks", "story-run"]],
     repo: [["benchmarks/spec-bench/harness/mark_not_comparable.py", "harness/mark_not_comparable.py"]],
     example: "gufo `v2-r1` stories 10 to 12: story 10 includes the work of 11 and 12, so compared with other runs it looked 7.6 times slower.",
-    status: { state: "in-progress", note: "Marking is a manual script (`mark_not_comparable.py`) on main, not in release 1." },
+    status: { state: "built", note: "Marking is a manual script (`mark_not_comparable.py`), live on every machine since harness-v2026.10.01.2." },
     insights: ["variance-spread"],
   },
 
@@ -410,7 +410,7 @@ GUIDE_DATA.entities = [
     rel: [["pins", "harness"], ["stamps", "provenance"]],
     repo: [["tools/dbench/checks.toml", "tools/dbench/checks.toml"], ["tools/dbench/README.md", "dbench README: releasing the harness"]],
     example: "`harness-v2026.10.01.1` is the only release so far.",
-    status: { state: "in-progress", note: "Release 1 does not contain what has landed on main since: the stop rule, the read-only spec, every agent in agent-sandbox, the credential scan, the re-score sweep, `--from-story`, among others. They wait for release 2, which has not been cut." },
+    status: { state: "built", note: "Live on every machine since harness-v2026.10.01.2: the stop rule, the read-only spec, every agent in agent-sandbox, the credential scan, the re-score sweep, `--from-story`, among others." },
   },
   {
     id: "provenance", name: "Provenance", group: "operate", row: 6,
@@ -427,7 +427,7 @@ GUIDE_DATA.entities = [
     rel: [["re-runs", "story-run"], ["starts from", "run"]],
     repo: [["benchmarks/spec-bench/README.md", "spec-bench README: partial reruns"], ["benchmarks/spec-bench/EVALUATION-POLICY.md", "EVALUATION-POLICY.md: rule 7"]],
     example: "`dbench submit … --from-run <run> --stories 2 --repeat 5`: story 2 on that run's story-1 code, five separate runs.",
-    status: { state: "built", note: "`--only N` is in release 1 and `--from-story N` is on main only. One partial rerun has been recorded; the gufo analysis proposes rerunning story 2 five times and says it awaits a decision." },
+    status: { state: "built", note: "`--only N` is in release 1; `--from-story N` has been live since harness-v2026.10.01.2. Several partial reruns have been recorded, including replicated sets to measure the model's own variation, as the gufo analysis proposed." },
     insights: ["variance-spread"],
   },
 
@@ -474,7 +474,7 @@ GUIDE_DATA.entities = [
     rel: [["cleans", "record"]],
     repo: [["benchmarks/spec-bench/harness/credentials.py", "harness/credentials.py"], ["benchmarks/spec-bench/harness/test_credentials.py", "harness/test_credentials.py"]],
     example: "An agent ran `env | grep -i -E \"PI_|WORK|CWD\"`; the pattern also matches every `…API_KEY`.",
-    status: { state: "in-progress", note: "On main since 1 October 2026; not in harness release 1." },
+    status: { state: "built", note: "Live on every machine since harness-v2026.10.01.2." },
     insights: ["credentials"],
   },
   {
@@ -588,7 +588,7 @@ GUIDE_DATA.problems = [
     example: [
       "One story mistyped its workspace path, and the write tool created a second tree beside the real one. The agent concluded its work had been wiped and searched the machine, found a file share holding a clone of the benchmark repo, and copied a source file from the reference build. That run was marked invalid.",
     ],
-    control: "Least privilege, in two stages. Harness release 1, which the machines run today, uses a deny-list {e:sandbox|sandbox} (macOS `sandbox-exec`, Linux bubblewrap) with a private temp directory per run. On main since 1 October 2026, not yet released, every agent session runs in `agent-sandbox`, which denies everything it is not given: its own directory at a short path, a read-only spec, a private temp directory and home, an allow-listed environment, a closed network but for the package registry and the model, its own block of ports and a private process list. A log scan (`logscan.py`) still checks every finished story for reaches outside its workspace.",
+    control: "Least privilege. Every agent session runs in `agent-sandbox` (macOS `sandbox-exec`, Linux bubblewrap, one policy, live since harness-v2026.10.01.2), which denies everything it is not given: its own directory at a short path, the operating system's own directories and the toolchain read-only, a read-only spec, a private temp directory and home, an allow-listed environment, a closed network but for the package registry and the model, its own block of ports, and on Linux a private process list (kept to close a /proc leak, not to hide processes as a goal of its own). Release 1 (harness-v2026.10.01.1) used an earlier deny-list design, the machine open with a list of paths hidden. A log scan (`logscan.py`) still checks every finished story for reaches outside its workspace.",
     insights: ["reference-build", "shared-tmp", "sudo-libs"],
     entities: ["sandbox", "containment", "invalid-run", "workspace"],
     flows: ["story"],
@@ -1141,7 +1141,7 @@ GUIDE_DATA.insights = [
       "39 environment dumps in 33 stories, all filtered through `grep`; one filter let 11 provider keys through.",
       "A process listing printed a session token in 2 stories.",
     ],
-        use: "Give the agent an allow-listed environment, and scan what is published for credentials. Both are done on main (1 October 2026) and neither is in release 1.",
+        use: "Give the agent an allow-listed environment, and scan what is published for credentials. Both live on every machine since harness-v2026.10.01.2.",
     sources: [INS_README, INS_SEC],
   },
 ];
@@ -1203,7 +1203,7 @@ GUIDE_DATA.components = [
     inputs: "A run directory staged for commit.",
     outputs: "A commit of exactly that run's public files, pushed; the held-out detail in the private repo.",
     fails: "If any check finds a problem nothing is committed, and `publish-refused.json` says why. A failed push is reported, never fatal: the story stays committed locally and the next story's push carries it.",
-    status: { state: "in-progress", label: "In progress", note: "The credential scan is on main, not in release 1." },
+    status: { state: "built", note: "Live on every machine since harness-v2026.10.01.2." },
     repo: [["benchmarks/spec-bench/harness/publicise.py", "publicise.py"], ["benchmarks/spec-bench/harness/heldout.py", "heldout.py"], ["benchmarks/spec-bench/harness/credentials.py", "credentials.py"], ["tests/privacy-test.sh", "tests/privacy-test.sh"]],
     entities: ["record", "private-repo", "credential-scan"],
     insights: ["credentials"],
@@ -1222,7 +1222,7 @@ GUIDE_DATA.components = [
   },
   {
     id: "agent-sandbox", name: "agent-sandbox", lang: "Rust",
-    status: { state: "in-progress", label: "Wired in on main", note: "Every agent runs in it on main since 1 October 2026; harness release 1 does not." },
+    status: { state: "built", label: "Every machine, every release since 10.01.2", note: "Release 1 (harness-v2026.10.01.1) did not have it; every release since does." },
     what: "A least-privilege sandbox for the agent: one policy, two enforcers (Seatbelt on macOS, bubblewrap on Linux). Everything is denied unless named: write only to the agent's own directory (shown at `/w` on Linux, with `spec/` read-only by mount), read only the operating system's own directories (whole, never listed file by file) and the toolchain, with nothing of the user's visible, an environment that is exactly an allow-list, network only to named loopback ports and, through an allow-listing proxy, to named hosts (the package registry, Playwright's CDN, and Claude Code's API host), a private process list on Linux. The harness starts every session through `sandbox.launch`; a node builds the tool with cargo from the release's own source, once per change.",
     why: "It replaces 'allow everything and deny a list of paths', where every leak was a path nobody had listed.",
     inputs: "`--own-dir`, `--own-ro`, `--keep-env`, `--ro` paths, presets, allowed hosts and ports, then the command.",
@@ -1390,8 +1390,7 @@ GUIDE_DATA.flows = [
       "A run takes hours and a machine can reboot, get hot or run out of memory in the middle. {g:dbench|dbench} exists so that nobody has to watch: you give a node a named job, and it queues it, runs the harness, restarts it when that makes sense, and stops when it does not.",
     ],
     status: {
-      built: ["Queue, one job at a time per node; hold and release; restarts, recovery after a reboot; the unfit-machine wait; skip-story; the newest-release rule and `harness-release`."],
-      "in-progress": ["Partial-rerun jobs need the dbench built on 1 October on the node (the repo does not record which nodes have it), and `--from-story` also needs a harness release newer than release 1: `--only N --from-run` is in release 1, `--from-story` is on main only.", "The dbench README's last sentence under 'Releasing the harness' says nodes do not run released tags yet. The code and the 1 October run records say they do, and this guide follows the code."],
+      built: ["Queue, one job at a time per node; hold and release; restarts, recovery after a reboot; the unfit-machine wait; skip-story; the newest-release rule and `harness-release`; partial-rerun jobs (`--from-run`, `--from-story`), queued the same way as any other."],
       planned: ["Listed as 'not built yet' in the dbench README, among others: a conditions gate with a `blocked` state, a memory guard in dbench itself, an offline push retry (`unpushed_commits`), previews, a `rescore` command, binary self-update (`PUT /v1/binary`), `deploy`, `doctor`, follow for events."],
     },
     caption: "A job passes through the node's queue, picks up the newest harness release, and its exit code decides what happens next.",
@@ -1497,8 +1496,7 @@ GUIDE_DATA.flows = [
       "`run.sh` is the harness's front door. Before the agent writes a line it proves that the machine, the toolchain, the sandbox and the harness itself work, because every earlier failure that was found mid-story cost an hour or more.",
     ],
     status: {
-      built: ["Machine fit, the suite's tools, the self-test, starting the engine, `run.json`, the story loop, report and finalize all run in harness release 1."],
-      "in-progress": ["On main, not in release 1: `run.sh` asks agent-sandbox for its identity first (building it with cargo from the release's source if this machine has not seen that source), the preflight runs its workload in the same sandbox as a session, and `run.json` records the sandbox (mode, version, platform, policy hash). Release 1 still tests and runs the old deny-list sandbox.", "On main, not in release 1: the sweep of earlier unscored runs (step 6, and again at the end)."],
+      built: ["Machine fit, the suite's tools, the self-test, starting the engine, `run.json`, the story loop, report and finalize. `run.sh` asks agent-sandbox for its identity first (building it with cargo from the release's source if this machine has not seen that source), the preflight runs its workload in the same sandbox as a session, and `run.json` records the sandbox (mode, version, platform, policy hash); the sweep of earlier unscored runs (step 6, and again at the end). All live since harness-v2026.10.01.2; release 1 (harness-v2026.10.01.1) tested and ran the old deny-list sandbox and had no sweep."],
     },
     caption: "The gates before a run starts, then the story loop, then the end of the run.",
     diagram: {
@@ -1546,7 +1544,7 @@ GUIDE_DATA.flows = [
         title: "Sandbox preflight", nodes: ["tools", "pre"], edges: ["tools>pre"],
         text: ["`preflight.py` builds a tiny Vite, Wrangler and Playwright project inside the exact sandbox and environment the agent will get, and checks `npm install`, `vite build`, `wrangler dev` serving over HTTP and Chromium loading the page. It installs no browser: job start launches the suite's browser and the agents' shared one, and installs only one that does not launch (`ensure-browser.sh`), so a machine that has them installs nothing. It also checks that the sandbox keeps the repository, the held-out suite, the home directory and the owner's environment closed.", "On main, before this, `run.sh` asks agent-sandbox for its identity (`sandbox.py identity`). The Rust tool is built once per change of its source on that machine, so a node that cannot build it stops with the reason instead of failing mid-story. A run with `SPEC_BENCH_SANDBOX=permissive` (for the harness's own tests) refuses to record."],
         where: [["benchmarks/spec-bench/harness/preflight.py", "harness/preflight.py"]],
-        state: "in-progress", stateLabel: "Changed on main", stateNote: "Release 1 runs the same workload in the old deny-list sandbox; the agent-sandbox version is on main only.",
+        state: "built", stateNote: "Live since harness-v2026.10.01.2; release 1 (harness-v2026.10.01.1) ran the same workload in the old deny-list sandbox.",
         insights: ["reference-build"],
       },
       {
@@ -1559,7 +1557,7 @@ GUIDE_DATA.flows = [
         title: "Sweep earlier runs that have no score", nodes: ["self", "sweep"], edges: ["self>sweep"],
         text: ["While the machine is free (the self-test has passed and no model server is up), `finalize_pending.py` re-scores earlier runs on this machine that ended without a score of record, most recent first, at most 3 runs and 900 s per sweep, and never while another run is active. It cannot fail or stop this run."],
         where: [["benchmarks/spec-bench/harness/finalize_pending.py", "harness/finalize_pending.py"]],
-        state: "in-progress", stateNote: "On main, not in release 1.",
+        state: "built", stateNote: "Live since harness-v2026.10.01.2.",
       },
       {
         title: "Cool down, start the engine, write run.json", nodes: ["sweep", "eng"], edges: ["sweep>eng"],
@@ -1589,8 +1587,7 @@ GUIDE_DATA.flows = [
       "This is the heart of the harness: what happens between 'story 4 starts' and 'story 4 is recorded'. The agent's own work is only the middle; the harness spends as much effort deciding when it is finished and checking what it left.",
     ],
     status: {
-      built: ["The loop, the guards, the gate, the held-out score, the time accounting and the record, as in harness release 1."],
-      "in-progress": ["On main since 1 October 2026 and not in harness release 1, which the machines run today: the stop rule and the DONE line; the read-only spec with `PROGRESS.md`; every agent session in `agent-sandbox` (its own directory at a short path, an allow-listed environment, a closed network but for the package registry and the model, its own block of ports, a private process list on Linux); and the credential scan. No run has used the stop rule yet, so whether it works is not known."],
+      built: ["The loop, the guards, the gate, the held-out score, the time accounting and the record. The stop rule and the DONE line; the read-only spec with `PROGRESS.md`; every agent session in `agent-sandbox` (its own directory at a short path, an allow-listed environment, a closed network but for the package registry and the model, its own block of ports, a private process list on Linux); and the credential scan. All live since harness-v2026.10.01.2; release 1 (harness-v2026.10.01.1) had the older nudge instead of the stop rule."],
     },
     caption: "The agent works inside the sandbox; the harness watches, then judges, checks and records.",
     diagram: {
@@ -1629,21 +1626,21 @@ GUIDE_DATA.flows = [
         title: "Render the prompt", nodes: ["prompt"], edges: [],
         text: ["The pack's template (or the generic one) is filled in with the story's number, title and folder, the stories already implemented, and a scope note. If an earlier story ended PARTIAL, the prompt names it and its unverified tasks, and says to fill a gap only if this story needs it, to that story's design, recorded in `NOTES.md`, never with stubs.", "Then the harness adds its own last paragraph: how to say the story is finished (a line `STORY n DONE <commit hash>`), and that `spec/` is read-only with progress tracked in `PROGRESS.md`. On main the prompt also names the block of ports the agent may serve on. It is saved as `stories/NN/prompt.md`."],
         where: [["benchmarks/vidi/prompts/story.md.tmpl", "vidi prompt template"], ["benchmarks/spec-bench/harness/drive.py", "drive.py (render_prompt)"]],
-        state: "in-progress", stateNote: "The harness paragraph is on main; release 1 asks only for a commit.",
+        state: "built", stateNote: "Live since harness-v2026.10.01.2; release 1 asked only for a commit.",
         insights: ["invented-constraints"],
       },
       {
         title: "Prepare the workspace and start the watchers", nodes: ["prompt", "ws", "watch"], edges: [],
         text: ["The {g:workspace|workspace} is one git repository kept through the whole run; for a new story the harness records its base commit and writes `PROGRESS.md` with every task at `todo`. The spec inside it is made read-only (the sandbox refuses writes to it).", "Watchers start: conditions every 30 s (AC power, thermals, swap, free memory, GPU); progress about once a minute (`progress.json`, which dbench reads); the skip-story file every few seconds; a guard that interrupts a tool call silent for 10 minutes; and on Linux a cgroup for the agent's processes. For local models the harness first waits for AC power and nominal thermals."],
         where: [["benchmarks/spec-bench/harness/progress_file.py", "harness/progress_file.py"], ["benchmarks/spec-bench/harness/CONTROL.md", "CONTROL.md"], ["benchmarks/spec-bench/harness/containment.py", "harness/containment.py"]],
-        state: "in-progress", stateNote: "The read-only spec and `PROGRESS.md` are on main, not in release 1.",
+        state: "built", stateNote: "Live on every machine since harness-v2026.10.01.2.",
         insights: ["spec-writes"],
       },
       {
         title: "Run the agent in the sandbox", nodes: ["ws", "agent", "engine"], edges: ["ws>agent", "agent>engine"],
         text: ["Every session starts through one function (`drive.launch_agent`, then `sandbox.launch`), so there is no way to start an agent outside the sandbox. On main the client (pi by default, or Claude Code) runs headless inside `agent-sandbox`: its own run directory (the workspace, a private `tmp/` and `agent-home/`) shown at `/w` on Linux and at a short neutral directory on macOS; `spec/` read-only by mount; an environment that is exactly an allow-list; the npm registry, Playwright's CDN (and Claude Code's API host) through an allow-listing proxy; the model server's port; a block of ports of its own; and on Linux a private process list. For a local stack it talks to the model engine on port 18010. Every event it streams is stamped with its arrival time into `agent-events.jsonl`.", "In release 1 the same session runs in the old deny-list sandbox: the machine visible with a list of paths hidden, the owner's environment, an open network and a long workspace name."],
         where: [["tools/agent-sandbox/README.md", "agent-sandbox: how the harness uses it"], ["benchmarks/spec-bench/harness/sandbox.py", "harness/sandbox.py"], ["benchmarks/spec-bench/harness/clients.py", "harness/clients.py"]],
-        state: "in-progress", stateNote: "Every agent in agent-sandbox: on main since 1 October 2026, not in release 1.",
+        state: "built", stateNote: "Live on every machine since harness-v2026.10.01.2.",
         insights: ["cd-prefix", "mistyped-path"],
       },
       {
@@ -1657,7 +1654,7 @@ GUIDE_DATA.flows = [
         title: "The agent stops: is the story finished?", nodes: ["agent", "stop"], edges: ["agent>stop"],
         text: ["The agent stopping does not mean it is done. The harness reads its last reply. The story is finished only if that reply has `STORY <id> DONE <hash>` on a line of its own, the hash is the start of the workspace's HEAD, and nothing in the workspace is uncommitted. Anything else, including a workspace git cannot read, is not finished.", "If the last reply carried a tool call written as plain text (an engine could not parse it), the harness continues the session with the same message, whose first case tells the agent to make the call again, up to 3 times. These are counted as engine-fault resumes, apart from the one stop message."],
         where: [["benchmarks/spec-bench/harness/drive.py", "drive.py (story_finished)"], ["benchmarks/spec-bench/harness/test_stop_rule.py", "test_stop_rule.py"]],
-        state: "in-progress", stateNote: "On main since 1 October 2026; not in release 1, which accepts any commit and nudges up to 5 times.",
+        state: "built", stateNote: "Live on every machine since harness-v2026.10.01.2; release 1 (harness-v2026.10.01.1) accepted any commit and nudged up to 5 times.",
         insights: ["done-after-failing", "engine-endings"],
       },
       {
@@ -1697,8 +1694,7 @@ GUIDE_DATA.flows = [
       "A run's live scores come from the agent's own workspace during the run. The number that ranks it comes afterwards, from the committed code on a clean install, and is checked against the live score before it is believed.",
     ],
     status: {
-      built: ["In harness release 1: the report, the workspace bundle, the re-score with its three scorings and `npm ci` fallback, the live-versus-record guard and the set-aside, `finalize.json`, the publishing filter."],
-      "in-progress": ["On main, not in release 1: repair of stale records; the suite taken exactly at the pack's tag (`tagsuite.py`); bun installs; the sweep with its 5 attempts and `needs_person`; marking a story run not comparable (`mark_not_comparable.py`, a manual step); the credential scan. In release 1 the re-score runs only when the private suite checkout is exactly at the pack's tag, and otherwise the run is recorded unscored."],
+      built: ["The report, the workspace bundle, the re-score with its three scorings and `npm ci` fallback (exactly at the pack's tag, `tagsuite.py`, with bun installs), the live-versus-record guard and the set-aside, `finalize.json`, the publishing filter (with the credential scan), repair of stale records, the sweep with its 5 attempts and `needs_person`, and marking a story run not comparable (`mark_not_comparable.py`, a manual step). Release 1 (harness-v2026.10.01.1) re-scored only when the private suite checkout happened to be exactly at the pack's tag; every release since checks that itself."],
       planned: ["Showing unscored runs on the page, instead of leaving them out of every mean, is 'still to do' in EVALUATION-POLICY.md."],
     },
     caption: "Finalize re-scores the final build; a guard decides whether the result may be recorded; publishing filters what leaves the machine.",
@@ -1739,13 +1735,13 @@ GUIDE_DATA.flows = [
         title: "Bundle the workspace and repair stale records", nodes: ["end", "fz"], edges: ["end>fz"],
         text: ["`finalize.py` saves the workspace's whole history as a {g:bundle|`workspace.bundle`}, from which every story's code can be rebuilt. Before recording, it repairs records: a story whose time accounting was made by an older version, failed its check, or has no time split or conversation profile is recomputed from the machine's full logs (`backfill_timing.py`)."],
         where: [["benchmarks/spec-bench/harness/finalize.py", "harness/finalize.py"], ["benchmarks/spec-bench/harness/backfill_timing.py", "harness/backfill_timing.py"]],
-        state: "in-progress", stateNote: "The bundle is in release 1; the repair of stale records is on main only.",
+        state: "built", stateNote: "The bundle is in release 1; the repair of stale records has been live since harness-v2026.10.01.2.",
       },
       {
         title: "Re-score the final build", nodes: ["fz", "resc"], edges: ["fz>resc"],
         text: ["The suite is taken exactly as the pack's tag has it, from the private repo's git objects, whatever state the private checkout is in (`tagsuite.py`). The final commit is checked out in its own worktree (detached, no branch), installed from its own lockfile (`npm ci`, with one stated fallback `--legacy-peer-deps`; `bun install --frozen-lockfile` for bun), built, and scored. A checkpoint that cannot be installed, whose build fails where the live build passed, or that the machine spoiled is a harness fault: no score.", "The scoring environment (Node, npm, Playwright and Chromium, OS, workers, install command) is recorded with the result."],
         where: [["benchmarks/spec-bench/harness/rescore.py", "harness/rescore.py"], ["benchmarks/spec-bench/harness/tagsuite.py", "harness/tagsuite.py"], ["benchmarks/spec-bench/harness/scoring_env.py", "harness/scoring_env.py"]],
-        state: "in-progress", stateNote: "The tag-exact suite and bun installs are on main only; release 1 needs the private checkout exactly at the tag.",
+        state: "built", stateNote: "Live since harness-v2026.10.01.2; release 1 needed the private checkout exactly at the tag.",
       },
       {
         title: "Three scorings, majority", nodes: ["resc"], edges: [],
@@ -1764,20 +1760,20 @@ GUIDE_DATA.flows = [
         title: "Score of record, or set aside", nodes: ["guard", "rec", "aside", "sweep"], edges: ["guard>rec", "guard>aside", "aside>sweep", "sweep>resc"],
         text: ["A pass becomes the score of record in `finalize.json`, for example `\"score\": \"68/75\"`, with the suite version, the guard's figures and whether a person is needed. A flagged or spoiled re-score is set aside in `rescore-spoiled/` with its reason; the run is recorded as {g:unscored|unscored}, with its live score in the commit message.", "`finalize.json` says whether trying again can help. The sweep (`finalize_pending.py`) retries what can change, at the start and end of every run on the machine, up to 5 attempts; after that, or for something that will not change, `needs_person` is true."],
         where: [["benchmarks/spec-bench/TELEMETRY.md", "TELEMETRY.md: finalize.json"], ["benchmarks/spec-bench/harness/finalize_pending.py", "harness/finalize_pending.py"]],
-        state: "in-progress", stateNote: "The sweep, `needs_person` and the 5-attempt cap are on main only.",
+        state: "built", stateNote: "Live on every machine since harness-v2026.10.01.2.",
       },
       {
         title: "Runs that do not count", nodes: ["sweep", "inv"], edges: ["sweep>inv"],
         text: ["A run whose result cannot stand is an {g:invalid-run|invalid run}, marked `invalid` in `run.json` with a reason. The sweep skips it and the benchmarker leaves it out entirely. A story run that is not the same work as other runs' (one that built the next two stories inside itself) can be marked not comparable by a person (`mark_not_comparable.py`, on main): it is left out of story-by-story comparisons, while its own figures, its run's total and its score stand."],
         where: [["benchmarks/spec-bench/harness/mark_not_comparable.py", "harness/mark_not_comparable.py"], ["tools/benchmarker/server/domain.ts", "benchmarker server/domain.ts"]],
-        state: "in-progress", stateNote: "Marking a story run not comparable is on main only.",
+        state: "built", stateNote: "Live on every machine since harness-v2026.10.01.2.",
         insights: ["reference-build"],
       },
       {
         title: "Publish: filter, scan, commit, push", nodes: ["rec", "pub", "pubrec", "priv"], edges: ["rec>pub", "pub>pubrec", "pub>priv"],
         text: ["`record_story` stages exactly the run's directory. Held-out results get a counts-only summary beside them and are git-ignored; their detail is copied to the private repo. A credential found in a staged file is replaced by a marker (the credential scanner). Then a check refuses the commit if any staged file, or the commit message, holds a held-out test title or a local machine name. The commit is built in an index of its own, so nothing else staged in the checkout goes with it, and is pushed; if the remote moved, the harness replays its commits onto it with git plumbing, never an autostash.", "`tests/privacy-test.sh` checks the tracked files for home paths, credentials and machine names."],
         where: [["benchmarks/spec-bench/harness/drive.py", "drive.py (record_story)"], ["benchmarks/spec-bench/harness/publicise.py", "harness/publicise.py"], ["benchmarks/spec-bench/harness/credentials.py", "harness/credentials.py"], ["tests/privacy-test.sh", "tests/privacy-test.sh"]],
-        state: "in-progress", stateNote: "The credential scan is on main, not in release 1.",
+        state: "built", stateNote: "Live on every machine since harness-v2026.10.01.2.",
         insights: ["credentials"],
       },
     ],
@@ -1869,8 +1865,7 @@ GUIDE_DATA.flows = [
       "A push to main used to reach the next job within minutes, untested. Now a node runs the harness of the newest release, a tag made only when every check passes. Main can move on without touching a node that is running.",
     ],
     status: {
-      built: ["`dbench harness-release`, the checks list, the node's release handling, provenance in every record. `harness-v2026.10.01.1` is the only release so far."],
-      "in-progress": ["Release 2 has not been cut. On main since release 1 (1 October 2026), among other things: the stop rule; the read-only spec with `PROGRESS.md`; every agent in `agent-sandbox`, whose source the release now carries and the node builds once per change; the credential scan; skipping non-event output lines; the sweep and automatic score of record; `--from-story`. No node runs any of it until a release carries it."],
+      built: ["`dbench harness-release`, the checks list, the node's release handling, provenance in every record. `harness-v2026.10.01.1` was the first release, with the old deny-list sandbox; `harness-v2026.10.01.2` carried `tools/agent-sandbox` as source for the node to build, with the stop rule, the read-only spec with `PROGRESS.md`, the credential scan, skipping non-event output lines, the sweep and automatic score of record, and `--from-story`. Every machine runs a release at or beyond `.01.2` today."],
     },
     caption: "A change is tried on a bench machine, checked, tagged, then copied read-only onto the node that runs the next job.",
     diagram: {
@@ -1935,7 +1930,7 @@ GUIDE_DATA.flows = [
         title: "The record says which harness ran", nodes: ["job", "rec"], edges: ["job>rec"],
         text: ["`run.json` records `harness_commit` and `harness_release`, and each story's provenance repeats them with the pack version it was scored under. So any result can be traced to the harness that produced it, and to a release that passed its checks."],
         where: [["benchmarks/spec-bench/harness/provenance.py", "harness/provenance.py"]],
-        state: "in-progress", stateNote: "Release 1 is the only one so far; release 2 (with the 1 October changes) is not cut.",
+        state: "built", stateNote: "Harness-v2026.10.01.1 was the first release; every machine runs a release at or beyond .01.2 today.",
       },
     ],
   },
@@ -1947,8 +1942,7 @@ GUIDE_DATA.flows = [
       "A story in a full run starts from whatever the same run built before it, so a story's numbers mix the model's own variation with its earlier mistakes. A partial rerun removes the second part: it runs a story, or the rest of the scope, on another run's code as it stood when the story before ended.",
     ],
     status: {
-      built: ["One story on another run's code (`--only N --from-run`) in harness release 1, with a recorded example (one run on the mlx-serve combination)."],
-      "in-progress": ["On main, not in release 1: `--from-story N` (story N and every later story), and queueing partial-rerun jobs with dbench (`--from-run`, `--from-story`), which needs the dbench built on 1 October."],
+      built: ["One story on another run's code (`--only N --from-run`), and `--from-story N` (story N and every later story); queued with dbench (`--from-run`, `--from-story`) like any other job. Recorded examples on three machines, including replicated sets of partial reruns to measure the model's own variation."],
       planned: ["Rerunning story 2 five times from one commit, to measure the model's own variation, has been proposed in the gufo analysis and awaits a decision."],
     },
     caption: "The reference run supplies only the base; everything after it is a new sample.",
@@ -2476,12 +2470,12 @@ GUIDE_DATA.glossary = [
 // =====================================================================================================================
 GUIDE_DATA.ledger = [
   { state: "built", item: "Every agent in agent-sandbox", detail: "Every agent session, for both clients, on every machine, runs in `agent-sandbox`, deny by default (its own directory at a short path, `spec/` read-only by mount, the system's own directories shown whole and read-only, an allow-listed environment, a closed network but for the package registry and the model, its own ports, a private process list on Linux kept to close a `/proc` leak). The old permissive sandbox is gone from the agent's execution, and `run.json` records which sandbox a run had. Not enforced, and said so in its README: on macOS a run that serves on kernel-picked ports can connect to every port in the kernel's ephemeral range (accepted by the owner), and the run is not at `/w`." },
-  { state: "in-progress", item: "The stop rule", detail: "On main since 1 October 2026: one fixed message, once per story, and a story ends only on a verified `STORY n DONE <hash>` line. Harness release 1 does not contain it: release 1 sends a reworded 'Continue…' nudge (with a reminder to commit) up to five times, and accepts any commit since the story began. No run has used the new rule yet, so whether it works is not known; the measure is the share of stops that end in a verified commit, against 15% for the old nudge." },
-  { state: "in-progress", item: "Read-only spec and PROGRESS.md", detail: "On main; not in release 1. The agent's own progress goes in `PROGRESS.md`, because agents edited the Status column of `tasks.md` in 13 recorded runs." },
-  { state: "in-progress", item: "Credential scan before publishing", detail: "On main; not in release 1. Nodes that run release 1 publish records without the scan." },
-  { state: "in-progress", item: "The re-score sweep and the tag-exact suite", detail: "On main, not in release 1: repair of stale records, the sweep (`finalize_pending.py`) with its 5 attempts and `needs_person`, the suite taken exactly at the pack's tag (`tagsuite.py`), bun installs, and marking a story run not comparable (`mark_not_comparable.py`, manual). In release 1 the final re-score runs only when the private suite checkout is exactly at the pack's tag, and otherwise the run is recorded unscored." },
-  { state: "in-progress", item: "Partial rerun to the end of the scope", detail: "`--from-story N` and queueing partial-rerun jobs with dbench (`--from-run`, `--from-story`) are on main and not in release 1; `--only N --from-run` is in release 1. They also need the dbench built on 1 October on the node, and the repo does not record which nodes have that binary." },
-  { state: "in-progress", item: "Harness release 2", detail: "`harness-v2026.10.01.1` is the only release. Everything above waits for the next one, which carries `tools/agent-sandbox` as source for the node to build. The nodes run release 1 until it is cut." },
+  { state: "built", item: "The stop rule", detail: "One fixed message, once per story, and a story ends only on a verified `STORY n DONE <hash>` line, live since harness-v2026.10.01.2. Release 1 (harness-v2026.10.01.1) sent a reworded 'Continue…' nudge (with a reminder to commit) up to five times, and accepted any commit since the story began; its measured share of stops ending in a verified commit was 15%, the baseline the new rule is judged against." },
+  { state: "built", item: "Read-only spec and PROGRESS.md", detail: "Live on every machine since harness-v2026.10.01.2. The agent's own progress goes in `PROGRESS.md`, because agents edited the Status column of `tasks.md` in 13 recorded runs." },
+  { state: "built", item: "Credential scan before publishing", detail: "Live on every machine since harness-v2026.10.01.2; release 1 (harness-v2026.10.01.1) published records without it." },
+  { state: "built", item: "The re-score sweep and the tag-exact suite", detail: "Live on every machine since harness-v2026.10.01.2: repair of stale records, the sweep (`finalize_pending.py`) with its 5 attempts and `needs_person`, the suite taken exactly at the pack's tag (`tagsuite.py`), bun installs, and marking a story run not comparable (`mark_not_comparable.py`, manual). Release 1 (harness-v2026.10.01.1) re-scored only when the private suite checkout happened to be exactly at the pack's tag." },
+  { state: "built", item: "Partial rerun to the end of the scope", detail: "`--only N --from-run` is in release 1; `--from-story N` and queueing partial-rerun jobs with dbench (`--from-run`, `--from-story`) have been live since harness-v2026.10.01.2, and every machine used in this benchmark has the dbench that supports them." },
+  { state: "built", item: "Harness releases since 1.1", detail: "`harness-v2026.10.01.1` was the first release, with the old deny-list sandbox. `harness-v2026.10.01.2` carried `tools/agent-sandbox` as source for the node to build, with the stop rule, read-only spec, credential scan and the rest listed above; every release since (`.02.1`, `.02.2`) has built on it." },
   { state: "planned", item: "Rerunning one story five times", detail: "Proposal D of the gufo analysis, to measure the model's own variation from one commit (story 2 took 18 to 97 minutes). The analysis says it awaits a decision." },
   { state: "planned", item: "Showing unscored runs on the page", detail: "EVALUATION-POLICY.md still lists it as 'to do', so that unscored runs are not silently left out of every mean. The benchmarker's glossary already counts pending runs apart on a combination row under 'Not counted'; whether that satisfies the policy line is not stated." },
   { state: "planned", item: "dbench features from its design", detail: "A conditions gate with a `blocked` state, a memory guard in dbench, an offline push retry, previews, a `rescore` command, binary self-update, `deploy`, `doctor`, follow for events (the dbench README's 'Not built yet', among others)." },
