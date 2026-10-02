@@ -565,6 +565,30 @@
           "14": "todo",
           "15": "todo"
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/replay-v2r3-s7-r4/server.log"
+        ],
+        "private": {
+          "copied": 41,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "0cd6fd00"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 408
+        },
+        "truncated": false,
+        "reaches": []
       }
     }
   },
