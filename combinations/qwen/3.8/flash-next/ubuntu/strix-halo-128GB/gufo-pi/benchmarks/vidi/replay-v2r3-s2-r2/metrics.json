@@ -496,6 +496,28 @@
           "7": "done",
           "8": "done"
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "private": {
+          "copied": 19,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "16487db1"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 185
+        },
+        "truncated": false,
+        "reaches": []
       }
     }
   },
