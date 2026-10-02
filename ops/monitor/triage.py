@@ -48,7 +48,7 @@ ALLOWED_TOOLS = ",".join([
     "Bash(git fetch -q origin main)", "Bash(git show *)", "Bash(git log *)", "Bash(git diff *)",
     "Bash(dbench status*)", "Bash(dbench --json status*)", "Bash(dbench nodes*)", "Bash(dbench logs *)",
     "Bash(dbench events *)", "Bash(curl -s localhost:7760/api/*)", "Bash(curl -s 127.0.0.1:7760/api/*)",
-    "Bash(gh run list *)", "Bash(gh run view *)", "Bash(date*)",
+    "Bash(date*)",
 ])
 
 

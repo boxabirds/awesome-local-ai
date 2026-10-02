@@ -174,28 +174,12 @@ pub struct HarnessReleaseArgs {
     /// Checkout to check and tag. Default: the git repository the current directory is in.
     #[arg(long)]
     pub repo: Option<PathBuf>,
-    /// Run the checks and report; tag nothing, and don't look at git state (CI uses this).
+    /// Run the checks and report; tag nothing, and don't look at git state.
     #[arg(long, conflicts_with = "dry_run")]
     pub check_only: bool,
     /// Show the checks that would run and the tag that would be made; run nothing.
-    /// With --verified-by-ci: ask GitHub (read-only) and say what would be tagged, or why nothing would.
     #[arg(long)]
     pub dry_run: bool,
-    /// Run no check here: release on CI's verdict. Tags the commit for which the checks workflow's
-    /// push run concluded success (asked through `gh`, read-only): HEAD, or the newest earlier commit
-    /// with identical checked files (results-only commits start no run). Refuses when there is no
-    /// such run, when it hasn't ended (see --wait) or didn't succeed. Git preconditions are unchanged.
-    #[arg(long, conflicts_with = "check_only")]
-    pub verified_by_ci: bool,
-    /// With --verified-by-ci: while the CI run hasn't ended, keep asking until it has.
-    #[arg(long, requires = "verified_by_ci", conflicts_with = "dry_run")]
-    pub wait: bool,
-    /// With --wait: give up, tagging nothing, after this many seconds.
-    #[arg(long, requires = "wait", default_value_t = crate::release_ci::DEFAULT_WAIT_TIMEOUT_SECS)]
-    pub wait_timeout_secs: u64,
-    /// With --wait: seconds between two questions to GitHub.
-    #[arg(long, requires = "wait", default_value_t = crate::release_ci::DEFAULT_POLL_SECS)]
-    pub poll_secs: u64,
     /// Where each check's full output is kept. Default: a temporary directory, removed when every check passes.
     #[arg(long)]
     pub log_dir: Option<PathBuf>,
@@ -433,36 +417,5 @@ mod tests {
         assert!(Cli::try_parse_from(["dbench", "release"]).is_err());
         let both = ["dbench", "harness-release", "--check-only", "--dry-run"];
         assert!(Cli::try_parse_from(both).is_err());
-    }
-
-    #[test]
-    fn a_release_on_cis_verdict_parses_with_its_waiting_flags() {
-        use crate::release_ci::{DEFAULT_POLL_SECS, DEFAULT_WAIT_TIMEOUT_SECS};
-        let parse = |flags: &[&str]| {
-            Cli::try_parse_from(["dbench", "harness-release"].iter().chain(flags))
-                .map(|cli| match cli.cmd {
-                    Cmd::HarnessRelease(a) => a,
-                    _ => unreachable!(),
-                })
-        };
-        let plain = parse(&[]).unwrap();
-        assert!(!plain.verified_by_ci && !plain.wait);
-        let ci = parse(&["--verified-by-ci"]).unwrap();
-        assert!(ci.verified_by_ci && !ci.wait);
-        assert_eq!((ci.wait_timeout_secs, ci.poll_secs), (DEFAULT_WAIT_TIMEOUT_SECS, DEFAULT_POLL_SECS));
-        let waiting = parse(&["--verified-by-ci", "--wait", "--wait-timeout-secs", "90", "--poll-secs", "5"]).unwrap();
-        assert!(waiting.wait);
-        assert_eq!((waiting.wait_timeout_secs, waiting.poll_secs), (90, 5));
-        assert!(parse(&["--verified-by-ci", "--dry-run"]).unwrap().dry_run);
-        // CI's verdict is instead of running the checks; waiting is only for it, and a dry run doesn't wait.
-        for bad in [
-            &["--verified-by-ci", "--check-only"][..],
-            &["--wait"],
-            &["--verified-by-ci", "--wait-timeout-secs", "90"],
-            &["--verified-by-ci", "--poll-secs", "5"],
-            &["--verified-by-ci", "--dry-run", "--wait"],
-        ] {
-            assert!(parse(bad).is_err(), "{bad:?}");
-        }
     }
 }

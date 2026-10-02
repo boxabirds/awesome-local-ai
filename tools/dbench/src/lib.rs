@@ -18,7 +18,6 @@ pub mod node;
 pub mod progress;
 pub mod recovery;
 pub mod release;
-pub mod release_ci;
 pub mod runner;
 pub mod server;
 pub mod service_unit;

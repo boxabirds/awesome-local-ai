@@ -267,8 +267,8 @@ test that would reproduce it. Details under the entries.
   meanwhile (a check-then-use race). No later code commit has run CI yet, so main shows red.
 - **Bucket:** internal bug (a flaky test) — **confidence medium-high** (the commit can't affect it; the race is
   in the helper as written).
-- **Status:** open. Not blocking runs (the harness import check passes at every commit), but a red main
-  hides real failures and could block a release (`--verified-by-ci`).
+- **Status:** the race in the test helper is still open (it can fail `dbench harness-release` too). The CI
+  part is closed: the hosted workflow was removed on 2 October 2026 at the owner's decision.
 
 ### A-037 — CI red on main: harness unit suite and real-log replay
 - **First seen:** 2026-10-01 18:07 BST · **Last seen:** 2026-10-01 18:20 BST
@@ -278,7 +278,8 @@ test that would reproduce it. Details under the entries.
   Unit suite: a `git rev-parse HEAD` run by a test under its scratch identity exits 128.
 - **Bucket:** internal bug — **confidence medium** (the failing lines were read; neither was reproduced
   locally). Either the repaired record and the replay's recount now disagree, or a new reader does.
-- **Status:** open; a red main also blocks a release made with `--verified-by-ci`.
+- **Status:** closed as a CI matter: the hosted workflow was removed on 2 October 2026 at the owner's decision.
+  Releases run the same checks themselves (`dbench harness-release`).
 
 ### A-012 — Every held-out test fails for several stories in a row (Swift 1.5, v2-r4 stories 2–4)
 - **First seen:** 2026-09-29 (v2-r1) · **Last seen:** 2026-10-01 08:41 (v2-r4 story 4)

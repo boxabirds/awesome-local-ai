@@ -216,12 +216,6 @@ What only a Linux machine can show, and tests/sandbox.rs is written to show it t
 - that the bridge carries the model server's port and the proxy into the namespace (`a_server_on_the_hosts_loopback_is_reachable_when_its_port_is_named`, the `online_*` tests);
 - that a host loopback port that was not named, and another address of the machine, are unreachable (two Linux-only tests).
 
-To run it in CI, three changes outside this crate are needed (not made here):
-
-1. `.github/workflows/checks.yml`: install bubblewrap (`sudo apt-get install -y bubblewrap`) and, on Ubuntu 24.04 runners, allow unprivileged user namespaces (`sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`); without that bwrap fails with "setting up uid map: Permission denied" and the tests fail, as they should.
-2. `tools/dbench/checks.toml`: two checks in `tools/agent-sandbox`, `cargo test` and `cargo clippy --all-targets -- -D warnings`.
-3. `Swatinem/rust-cache`: add `tools/agent-sandbox` to `workspaces`.
-
 ## How the harness uses it
 
 Every agent session (`drive.run_agent`, the preflight, the story loop's restarts, both clients) starts through one function,
