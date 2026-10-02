@@ -1,6 +1,8 @@
 # pi 0.99 (client update)
 
-**Status:** parked (29 Sep 2026): released the day the v2 series started; v2 is pinned to pi 0.87.1.
+**Status:** parked (2 Oct 2026), superseded by [pi 1.0](pi-1.0.md): 0.99 was never adopted, and pi has since
+moved to 1.0.0. Kept here as the historical record of why v2 pinned 0.87.1 instead; what would bring it back
+is nothing — see pi 1.0 instead.
 **Kind:** a client variation, not a new stack. Every machine would change at once.
 
 ## What it is
