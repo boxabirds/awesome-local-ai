@@ -9,7 +9,7 @@
  */
 const GUIDE_DATA = {};
 
-GUIDE_DATA.meta = { asOf: "1 October 2026" };
+GUIDE_DATA.meta = { asOf: "2 October 2026" };
 
 GUIDE_DATA.mapDesc = "Seven columns of boxes, one box per entity, grouped as Define, Stack under test, A run, Scoring, Operate, Safeguards, and Show and watch. Lines between boxes are relationships. Select a box to see what it is and what it relates to.";
 
@@ -344,6 +344,14 @@ GUIDE_DATA.entities = [
     insights: ["reference-build"],
   },
   {
+    id: "judgement", name: "Judgement", group: "score", row: 7,
+    short: "A person's verdict on one held-out test, given before the automated result is shown.",
+    what: "A person's verdict on one held-out test of one build's story: pass, fail or skip, given from a recording of the test and before the automated result is shown, so the result cannot anchor it. The gallery turns it into agree or disagree with the automated result and saves it, with any note, in the private repo's `analysis/story-reviews.csv`. It validates the scoring: where people and the suite disagree, the suite is too strict or too lenient. See {f:judge|flow I}.",
+    rel: [["is given in", "gallery"], ["checks", "accept"]],
+    repo: [["tools/vidi-gallery/README.md", "vidi-gallery README: story review"]],
+    example: "A build's line on the review page sums its tests: '3 agree · 1 disagree · 1 to review'.",
+  },
+  {
     id: "not-comparable", name: "Not-comparable story run", mapLabel: "Not comparable", group: "score", row: 6,
     short: "A story run left out of story-by-story comparisons.",
     what: "A story run marked as not the same work as that story in other runs, so story-by-story comparisons (medians, spreads, marks) leave it out. Its own figures, its run's total and its score stand.",
@@ -430,7 +438,7 @@ GUIDE_DATA.entities = [
     what: "What the agent can see and touch. Harness release 1, which the machines run today, uses a deny list: macOS `sandbox-exec` or Linux bubblewrap, with the machine open and a list of paths hidden. On main since 1 October 2026, and not yet in a release, every agent session runs in `agent-sandbox`, a Rust tool that denies everything it is not given; the old permissive path is gone from the agent's execution. A run's `run.json` records the sandbox it ran in (mode, version, platform and a hash of the policy); a run whose agent had no sandbox cannot be published, and the monitor can name it (`sandbox_not_enforced`).",
     contains: [
       "**Release 1 (a deny list):** everything not listed is open: the rest of the home directory, the network, the owner's whole environment, and other processes in a process listing. Hidden: this repo and the results checkout, the private repo with the held-out suite, the bench home (other runs, keys, reference builds), the user's own agent configuration and `~/.dbench` (except its tools), a file share that once held a clone of this repo, the shared temp directories, the held-out suite's browser cache",
-      "**On main (deny by default):** its own run directory (workspace, a private `tmp/` and `agent-home/`) shown at `/w` on Linux and at a short neutral directory on macOS; `spec/` read-only by mount; the toolchain read-only; an environment that is exactly an allow-list; the npm registry, Playwright's CDN and (Claude Code only) its API host through an allow-listing proxy, plus the model server's port; a block of 16 ports of its own; a private process list on Linux; no privileges",
+      "**On main (deny by default):** its own run directory (workspace, a private `tmp/` and `agent-home/`) shown at `/w` on Linux and at a short neutral directory on macOS; `spec/` read-only by mount; the operating system's own directories and the toolchain read-only, with everything that is the user's (the home directory, shared temp directories, mounted disks) not there at all; an environment that is exactly an allow-list; the npm registry, Playwright's CDN and (Claude Code only) its API host through an allow-listing proxy, plus the model server's port; a block of 16 ports of its own; a private process list on Linux; no privileges",
       "**Not enforced, and said so:** on macOS a run that serves on kernel-picked ports (`wrangler dev`) can connect to every port in the kernel's ephemeral range (the owner accepted this on 1 October 2026); on macOS the run is not at `/w`; the sandbox itself has no seccomp filter and no resource limits (containment has the memory limit)",
     ],
     rel: [["confines", "session"]],
@@ -1212,7 +1220,7 @@ GUIDE_DATA.components = [
   {
     id: "agent-sandbox", name: "agent-sandbox", lang: "Rust",
     status: { state: "in-progress", label: "Wired in on main", note: "Every agent runs in it on main since 1 October 2026; harness release 1 does not." },
-    what: "A least-privilege sandbox for the agent: one policy, two enforcers (Seatbelt on macOS, bubblewrap on Linux). Everything is denied unless named: write only to the agent's own directory (shown at `/w` on Linux, with `spec/` read-only by mount), read only the toolchain, an environment that is exactly an allow-list, network only to named loopback ports and, through an allow-listing proxy, to named hosts (the package registry, Playwright's CDN, and Claude Code's API host), a private process list on Linux. The harness starts every session through `sandbox.launch`; a node builds the tool with cargo from the release's own source, once per change.",
+    what: "A least-privilege sandbox for the agent: one policy, two enforcers (Seatbelt on macOS, bubblewrap on Linux). Everything is denied unless named: write only to the agent's own directory (shown at `/w` on Linux, with `spec/` read-only by mount), read only the operating system's own directories (whole, never listed file by file) and the toolchain, with nothing of the user's visible, an environment that is exactly an allow-list, network only to named loopback ports and, through an allow-listing proxy, to named hosts (the package registry, Playwright's CDN, and Claude Code's API host), a private process list on Linux. The harness starts every session through `sandbox.launch`; a node builds the tool with cargo from the release's own source, once per change.",
     why: "It replaces 'allow everything and deny a list of paths', where every leak was a path nobody had listed.",
     inputs: "`--own-dir`, `--own-ro`, `--keep-env`, `--ro` paths, presets, allowed hosts and ports, then the command.",
     outputs: "The command's exit status; a log of every proxy request (local only, never published); `agent-sandbox identity`, which is recorded in `run.json`.",
@@ -1533,7 +1541,7 @@ GUIDE_DATA.flows = [
       },
       {
         title: "Sandbox preflight", nodes: ["tools", "pre"], edges: ["tools>pre"],
-        text: ["`preflight.py` builds a tiny Vite, Wrangler and Playwright project inside the exact sandbox and environment the agent will get, and checks `npm install`, `vite build`, `wrangler dev` serving over HTTP and Chromium loading the page. It also checks that the sandbox keeps the repository, the held-out suite, the home directory and the owner's environment closed.", "On main, before this, `run.sh` asks agent-sandbox for its identity (`sandbox.py identity`). The Rust tool is built once per change of its source on that machine, so a node that cannot build it stops with the reason instead of failing mid-story. A run with `SPEC_BENCH_SANDBOX=permissive` (for the harness's own tests) refuses to record."],
+        text: ["`preflight.py` builds a tiny Vite, Wrangler and Playwright project inside the exact sandbox and environment the agent will get, and checks `npm install`, `vite build`, `wrangler dev` serving over HTTP and Chromium loading the page. It installs no browser: job start launches the suite's browser and the agents' shared one, and installs only one that does not launch (`ensure-browser.sh`), so a machine that has them installs nothing. It also checks that the sandbox keeps the repository, the held-out suite, the home directory and the owner's environment closed.", "On main, before this, `run.sh` asks agent-sandbox for its identity (`sandbox.py identity`). The Rust tool is built once per change of its source on that machine, so a node that cannot build it stops with the reason instead of failing mid-story. A run with `SPEC_BENCH_SANDBOX=permissive` (for the harness's own tests) refuses to record."],
         where: [["benchmarks/spec-bench/harness/preflight.py", "harness/preflight.py"]],
         state: "in-progress", stateLabel: "Changed on main", stateNote: "Release 1 runs the same workload in the old deny-list sandbox; the agent-sandbox version is on main only.",
         insights: ["reference-build"],
@@ -2080,6 +2088,89 @@ GUIDE_DATA.flows = [
       },
     ],
   },
+  // -------------------------------------------------------------------------------------------------- I: judging
+  {
+    id: "judge", letter: "I", short: "Judging a run", title: "Judging: a person checks the scoring, and a blinded grader compares the code",
+    intro: [
+      "Scoring is automatic: the held-out suite passes or fails each test. Judging asks whether those verdicts were right, and what tests cannot say. There are two kinds. A person watches a recording of each held-out test and gives a verdict before seeing the automated one. Separately, a blinded AI grader reads two builds' code and scores them against a rubric without knowing which setup made which.",
+    ],
+    status: {
+      built: ["The story-by-story review in the gallery, with blind verdicts saved to the private repo.", "The blinded grader (`judge.py`), on macOS only."],
+    },
+    caption: "Neither kind of judging changes a score: one checks the scoring, the other describes the code.",
+    diagram: {
+      w: 540, h: 700,
+      desc: "A finished, scored run with a workspace bundle feeds two tracks. On the left, the gallery prepares each story's commit, records a walkthrough of each held-out test, and shows them on the review page, where a person gives a blind verdict; the gallery turns it into agree or disagree with the automated result and saves it in the private repo. On the right, a grading package holds two builds as A and B, a judge model grades them in a sandbox against a rubric, and the gradings and key are kept in the private repo. The gallery shows both beside the score.",
+      nodes: [
+        { id: "fr", label: "A finished, scored run\nwith workspace.bundle", kind: "store", x: 270, y: 34, w: 250 },
+        { id: "prep", label: "Gallery prepares\neach story's commit", x: 150, y: 122, w: 230 },
+        { id: "rec", label: "Record a walkthrough\nof each held-out test", x: 150, y: 210, w: 230 },
+        { id: "rev", label: "Review page\nstories in journey order", x: 150, y: 298, w: 230 },
+        { id: "ver", label: "A person's verdict, blind\npass / fail / skip", kind: "gate", x: 150, y: 386, w: 230 },
+        { id: "cmp", label: "Agree or disagree\nwith the automated result", x: 150, y: 474, w: 230 },
+        { id: "csv", label: "story-reviews.csv\nprivate repo", kind: "store", x: 150, y: 562, w: 230 },
+        { id: "pkg", label: "Grading package\nA and B, names scrubbed", x: 410, y: 122, w: 220 },
+        { id: "jm", label: "Judge model\nin a sandbox, by rubric", kind: "guard", x: 410, y: 210, w: 220 },
+        { id: "gr", label: "Gradings and key\nprivate repo", kind: "store", x: 410, y: 298, w: 220 },
+        { id: "gal", label: "Gallery\nscore, judging and cost per run", x: 270, y: 650, w: 280 },
+      ],
+      edges: [
+        { from: "fr", to: "prep" }, { from: "prep", to: "rec" }, { from: "rec", to: "rev" }, { from: "rev", to: "ver" }, { from: "ver", to: "cmp" }, { from: "cmp", to: "csv" },
+        { from: "fr", to: "pkg" }, { from: "pkg", to: "jm" }, { from: "jm", to: "gr" }, { from: "csv", to: "gal" }, { from: "gr", to: "gal" },
+      ],
+    },
+    steps: [
+      {
+        title: "Which runs can be judged", nodes: ["fr"], edges: [],
+        text: ["Only a run that finished every story with a valid score and has its `workspace.bundle` is reviewed: the builds are checked out from the bundle. The review takes one spec version family at a time, because builds made from different specs cannot be judged against one story's spec. Every minute the {e:gallery|gallery} adds runs that have since become reviewable, so a new run needs no restart."],
+        where: [["tools/vidi-gallery/README.md", "vidi-gallery README: story review"]],
+        state: "built",
+      },
+      {
+        title: "Prepare and record every build", nodes: ["fr", "prep", "rec"], edges: ["fr>prep", "prep>rec"],
+        text: ["At startup, in the background, each story's commit of each build is checked out, installed and built, and then a walkthrough of each of the story's held-out tests is recorded from the test's Playwright trace. The recordings are kept in the private repo. A row on the page says queued, then ready."],
+        cmd: "cd tools/vidi-gallery && cargo run --release   # then open http://127.0.0.1:7800/review",
+        where: [["tools/vidi-gallery/README.md", "vidi-gallery README"]],
+        state: "built",
+      },
+      {
+        title: "Review story by story", nodes: ["rec", "rev"], edges: ["rec>rev"],
+        text: ["The review page walks the stories in the order a user would meet them. For each story it shows what the user must be able to do (the PRD's summary, its golden path, its named requirements and its must-nots), then one row per finished build and, within it, one row per held-out test. Picking a test opens a player: every person's screen side by side, a seek bar with a tick per check, and the test's steps.", "The benchmarker's Judge link opens the same page for one run. Builds are labelled by combination and run unless the gallery is started with `--blind`, which shows them as Build A, Build B and so on."],
+        where: [["tools/vidi-gallery/README.md", "vidi-gallery README: story review"]],
+        state: "built",
+      },
+      {
+        title: "Give a verdict before seeing the result", nodes: ["rev", "ver"], edges: ["rev>ver"],
+        text: ["The {e:judgement|verdict} is per test: pass or fail as the person sees it, or skip. The automated result is hidden until the person has given their own, everywhere it could show: the row, the player, the ticks, the steps and the trace viewer link, and in what the server sends the page. A skip or a note alone keeps it hidden, and clearing a verdict hides it again."],
+        where: [["tools/vidi-gallery/README.md", "vidi-gallery README: the verdict is per path, given blind"]],
+        state: "built",
+      },
+      {
+        title: "Agree or disagree, saved privately", nodes: ["ver", "cmp", "csv"], edges: ["ver>cmp", "cmp>csv"],
+        text: ["The server turns the person's pass or fail into agree or disagree with the automated result (passed is a pass; failed, timed out, interrupted and skipped are not), saves that, and only then shows the automated result beside it. Verdicts are saved with any note to the private repo's `analysis/story-reviews.csv`, one row per story, build and test. A build's line sums its tests."],
+        where: [["tools/vidi-gallery/README.md", "vidi-gallery README: story review"]],
+        state: "built",
+      },
+      {
+        title: "The blinded grader: a package of A and B", nodes: ["fr", "pkg"], edges: ["fr>pkg"],
+        text: ["`judge.py` compares two finished runs. It builds a package holding the spec, each build's final workspace, and its held-out and gate results and screenshots per story, with the builds labelled A and B in random order and names scrubbed. The key that says which is which is never in the package."],
+        where: [["benchmarks/spec-bench/harness/judge.py", "harness/judge.py"], ["benchmarks/spec-bench/harness/grading_package.py", "harness/grading_package.py"]],
+        state: "built",
+      },
+      {
+        title: "A judge model grades by rubric", nodes: ["pkg", "jm"], edges: ["pkg>jm"],
+        text: ["The judge runs inside an allow-list sandbox whose only network route is an allow-listing proxy. The rubric asks for what numbers cannot capture: a score from 1 to 5 on spec adherence, architecture against the design, test quality, code quality and product quality, each with one sentence of evidence and a file path, then the three most serious defects of each build and an overall choice. Where a held-out test failed, the judge is asked whether the feature is missing or is implemented but reached another way.", "macOS only. A judge transcript that read outside its package is flagged."],
+        where: [["benchmarks/spec-bench/harness/judge.md", "harness/judge.md: the rubric"]],
+        state: "built",
+      },
+      {
+        title: "Keep the gradings, show them with the score", nodes: ["jm", "gr", "csv", "gal"], edges: ["jm>gr", "gr>gal", "csv>gal"],
+        text: ["Gradings and the key are kept in the {e:private-repo|private repo}. The gallery's main page shows each run's held-out score, its judging and its cost together, and lists independent judges' results at the bottom; they show build names only on a machine that holds the package's key."],
+        where: [["tools/vidi-gallery/README.md", "vidi-gallery README: what it shows"]],
+        state: "built",
+      },
+    ],
+  },
 ];
 
 // =====================================================================================================================
@@ -2204,7 +2295,7 @@ GUIDE_DATA.glossary = [
   { id: "intervention", term: "Intervention", def: "Anything the harness or an operator does to a story that the agent did not ask for: the stop message, a resume after an engine fault, a killed hung tool, a story ended at its cap, an operator skip.", entity: "intervention" },
   { id: "invalid-run", term: "Invalid run", def: "A run marked `invalid` in `run.json` because its result cannot stand. It is skipped by the re-score sweep and not shown in the benchmarker.", entity: "invalid-run", auto: ["invalid run", "invalid runs"] },
   { id: "job", term: "Job", def: "One dbench execution of a run, waiting in a node's queue: queued, running, done, failed or cancelled.", entity: "job" },
-  { id: "judge", term: "Judging", def: "A person watching a recording of each held-out test and marking whether the scored pass or fail was right. It validates the scoring. (A blinded AI grader, below, compares code quality instead.)", entity: "gallery", see: ["blinded-grading", "build-score-judge"] },
+  { id: "judge", term: "Judging", def: "A person watching a recording of each held-out test and marking whether the scored pass or fail was right. It validates the scoring. (A blinded AI grader, below, compares code quality instead.)", entity: "judgement", see: ["blinded-grading", "build-score-judge"] },
   { id: "known-good", term: "Known-good rerun", def: "A diagnostic that runs a story, or the rest of a scope, on another finished run's code. Labelled diagnostic and never mixed with full runs.", entity: "known-good", auto: ["known-good"] },
   { id: "live-score", term: "Live score", def: "The held-out result taken in the agent's own workspace right after a story. It shows a run's course; it is not the score of record.", entity: "accept", auto: ["live score", "live scores"], see: ["score-record"] },
   { id: "llamacpp", term: "llama.cpp", def: "An open-source inference engine with CUDA, Vulkan and Metal back ends. Several combinations use it, some on a fork or an unmerged pull request for the MTP head.", entity: "engine", auto: ["llama.cpp"] },

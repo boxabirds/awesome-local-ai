@@ -47,6 +47,7 @@
     <li><strong>{g:pack|Define}</strong><p>A pack: a public {g:spec|spec} of stories, and a private suite of {g:heldout|held-out tests} that the agent never sees.</p></li>
     <li><strong>Run</strong><p>The {g:harness|harness} drives a coding {g:agent|agent} through the stories one at a time, on one {g:combination|combination} of model, engine, machine and client, inside a {g:sandbox|sandbox}.</p></li>
     <li><strong>Score</strong><p>After the run the final build is {g:rescore|re-scored} from committed code on a clean install. That is the {g:score-record|score of record}.</p></li>
+    <li><strong>{g:judge|Judge}</strong><p>A person watches a recording of each held-out test and says, before seeing the automated result, whether it passed: that checks the scoring. A blinded grader compares two builds' code.</p></li>
     <li><strong>Show and watch</strong><p>Each story's {g:record|record} is pushed to this repo. A results page shows it, a {g:monitor|monitor} watches for faults, and an analysis reads every conversation.</p></li>
   </ol>
 
@@ -85,7 +86,7 @@
 
 <section id="flows" aria-labelledby="flows-h">
   <h2 id="flows-h" data-toc="Key flows">Key flows, step by step</h2>
-  <p>Eight flows. Each has a picture and a stepper: use <strong>Next</strong> and <strong>Previous</strong>, the numbered buttons, or the left and right arrow keys. The step you are on lights up its part of the picture and shows the real file or command. Each flow starts by saying what is built and what is not.</p>
+  <p>Nine flows. Each has a picture and a stepper: use <strong>Next</strong> and <strong>Previous</strong>, the numbered buttons, or the left and right arrow keys. The step you are on lights up its part of the picture and shows the real file or command. Each flow starts by saying what is built and what is not.</p>
   <!--@flows-->
 </section>
 
