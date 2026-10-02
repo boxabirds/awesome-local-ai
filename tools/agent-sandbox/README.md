@@ -6,6 +6,8 @@ It replaces a policy of "allow everything, deny a list of paths". Every leak und
 
 **Status: the harness runs every agent in it** (1 October 2026): both clients (pi, Claude Code), every machine, no way round it ("How the harness uses it"). The permissive sandbox that preceded it (the whole machine visible and writable, a list of paths hidden) is gone from the agent's execution. Proven on macOS (below) and on Linux, in CI (Ubuntu, bubblewrap) and on an aarch64 Ubuntu 24.04 VM ("Linux: where it was proven").
 
+**Scope (2 October 2026): the filesystem and the network.** The sandbox protects what the agent can read and write and what it can reach. Hiding processes from the agent is not a goal of its own and is not part of the proof. The private process list on Linux stays because it closes a file leak: without it, the environment of every process of the same user, the harness's keys included, is readable under `/proc`. The operating system's own directories are shown whole and read-only; everything that is the user's is absent unless the run is given it.
+
 ## Use
 
 ```sh
@@ -53,7 +55,7 @@ Rules that hold on both platforms (tests/policy.rs):
 |---|---|---|
 | Processes | `process-fork`; `process-exec` only in `/usr`, `/bin`, `/System`, the toolchain and own_dir; `signal (target same-sandbox)`; `(deny process-info* (target others))` | children and tools must run; signals stay inside; without the explicit deny, `lsof` listed every process of the user and the paths of its open files |
 | Kernel facts | `sysctl-read` | node aborts at start without it. Allowed as a whole: read-only kernel values, no file contents. A list of names measured on one macOS release would break on the next |
-| System files | read: `/` itself, `/usr`, `/bin`, `/System`, `/private/var/select`, `/private/etc/hosts`, `/private/etc/ssl`, `/private/etc/localtime`, `/private/var/db/timezone` | dyld and system libraries; `sh`; `localhost`; CA certificates; local time |
+| System | read, whole: `/usr`, `/bin`, `/sbin`, `/System`, `/private/etc`; and `/` itself, `/private/var/select`, `/private/var/db/timezone` | the operating system's own directories, never listed file by file: nothing of the user's is in them. dyld and system libraries; `sh`; `localhost`; CA certificates; local time |
 | Devices | read `/dev/null`, `zero`, `random`, `urandom`; write `/dev/null`; `/dev/fd` | no data in them; `/dev/stdout` and process substitution |
 | Services | `mach-lookup` of `com.apple.system.opendirectoryd.libinfo` only | account lookup; node's `os.userInfo()` throws without it |
 | Chromium | `mach-register` and `mach-lookup` of `org.chromium.Chromium.MachPortRendezvousServer.<pid>`; `iokit-open` of `RootDomainUserClient` | its processes find each other through that port; it crashes at start without either |
@@ -67,7 +69,7 @@ Deliberately closed, with what that buys:
 - **`com.apple.bsd.dirhelper`**: with it denied, `mktemp` and `confstr` cannot find the per-user temp directory and fall back to `TMPDIR`, which is inside own_dir. No rule for the shared temp directory is needed at all.
 - **The name resolver (mDNSResponder)**: no DNS from inside. The proxy resolves names, so DNS is not a way out either.
 - **`/usr/bin/git`'s stub**: it finds the real git through xcrun, which needs the per-user temp directory, Xcode's licence state and more. Instead the developer directory's `usr` is allowed read-only and its `bin` is put on `PATH` just ahead of `/usr/bin`, so the real `git` (and `python3`) run directly and nothing the caller had ahead of `/usr/bin` is shadowed.
-- **`/Library`, `/Applications`, `/opt`, `/sbin`**, the user's `Library`: not needed by the workload. A Homebrew-installed tool needs `--ro /opt/homebrew`.
+- **`/Library`, `/Applications`, `/opt`**, the user's `Library`: other software's data lives there, and the workload does not need them. A Homebrew-installed tool needs `--ro /opt/homebrew`.
 
 ### Linux (bubblewrap)
 
@@ -77,8 +79,7 @@ Deliberately closed, with what that buys:
 | Namespaces | `--unshare-pid --unshare-ipc --unshare-uts --hostname agent-sandbox --new-session --die-with-parent`, and `--unshare-net` | only its own processes are visible; the machine's name is not; the sandbox dies with its parent |
 | Privileges | `--cap-drop ALL`; bubblewrap sets no-new-privs | `sudo` and setuid programs gain nothing (`sudo: The "no new privileges" flag is set`) |
 | First process | `--as-pid-1` with the bridge program started as `init`, the command read from the sockets directory | no `bwrap`, no mount list, no launcher in `ps`: pid 1 is `init`, pid 2 is the command (`ps -eo args` was, before, the sandbox's own configuration with every hidden path). It reaps orphans and passes the command's status on. |
-| System | `--ro-bind` of `/usr`; `/bin`, `/sbin`, `/lib*` recreated as symlinks or bound | programs and libraries |
-| `/etc` | only: `ld.so.cache`, `ld.so.conf(.d)`, `passwd`, `group`, `nsswitch.conf`, `hosts`, `ssl`, `ca-certificates`, `pki`, `localtime`, `alternatives`, `fonts` | linker, account lookup, `localhost`, CA certificates, time zone, Debian's tool links, Chromium's fonts. No `resolv.conf`: there is no DNS |
+| System | `--ro-bind` of `/usr`, `/etc` and `/sys`, whole; `/bin`, `/sbin`, `/lib*` recreated as symlinks or bound | the operating system's own directories, never listed file by file: programs and libraries, the machine's configuration, the kernel's view of the hardware (cgroup limits, CPU topology). Nothing of the user's is in them. What is hidden is what is the user's: the home, `/tmp`, `/var`, `/run`, mounted disks |
 | Kernel | `--proc /proc --dev /dev` | a private `/proc` and a minimal `/dev` |
 | Toolchain | `--ro-bind` per `--ro` and discovered path; `--symlink` for links on the way | |
 | Temp | `--bind <own>/tmp /tmp` and `/var/tmp` | a hard-coded `/tmp` path works, privately |
@@ -211,7 +212,7 @@ Nothing in this crate has run on Linux. What exists:
 
 What only a Linux machine can show, and tests/sandbox.rs is written to show it there:
 
-- that the argv is accepted by bubblewrap and the listed parts of `/etc` are enough for node, npm, git and Chromium (Chromium may want `/sys`, which is not bound);
+- that the argv is accepted by bubblewrap and `/usr`, `/etc` and `/sys` are enough for node, npm, git and Chromium;
 - that the bridge carries the model server's port and the proxy into the namespace (`a_server_on_the_hosts_loopback_is_reachable_when_its_port_is_named`, the `online_*` tests);
 - that a host loopback port that was not named, and another address of the machine, are unreachable (two Linux-only tests).
 
@@ -244,7 +245,7 @@ agent-sandbox run --own-dir <the run's directory> --workdir workspace --keep-env
 | the network | the npm registry, Playwright's two CDN hosts and (Claude Code only) `api.anthropic.com`, through the allow-listing proxy; the model server's loopback port on the host (a model server that is not on the loopback is refused at start); nothing else, not other ports, other hosts, raw addresses or DNS |
 | its own servers | a block of 16 ports chosen by the run's name (`AGENT_PORT_FIRST`, `AGENT_PORT_LAST`, which the story prompt names); on Linux its loopback is its own anyway |
 | npm | its cache is in its own home: a cache shared and writable between runs is a channel between them. Each run downloads its packages again |
-| Playwright | the shared browsers are read-only; the run's `browsers/` directory holds a link to each, so `playwright install` finds them complete and downloads nothing, and the agent cannot write libraries into the shared cache (a revision it lacks comes from the CDN into its own directory) |
+| Playwright | the shared browsers are read-only; the run's `browsers/` directory holds a link to each (never to the cache's own `.links` bookkeeping, which Playwright writes in the run's directory), so `playwright install` finds them complete and downloads nothing, and the agent cannot write libraries into the shared cache (a revision it lacks comes from the CDN into its own directory) |
 | processes | Linux: a private pid namespace and `/proc`; macOS: no listing, no signal to anything outside |
 | privileges | none: no `sudo`, no setuid, no capabilities |
 

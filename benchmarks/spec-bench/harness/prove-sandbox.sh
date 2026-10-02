@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # prove-sandbox.sh -- prove the agent's world on THIS machine: from inside the sandbox, the way a story starts the agent,
 # try every forbidden thing (read a path outside, read a canary key, write the spec, reach an unlisted host or a raw
-# address, signal a process outside, list processes, read or write the home directory, write the machine's /tmp, read
+# address, read another process's environment through /proc, read or write the home directory, write the machine's /tmp, read
 # another run's directory) and every permitted thing (write the workspace, the npm registry, the model endpoint, a test
 # server on the run's port), and print PASS or FAIL for each. Exit status 1 if any FAIL.
 #

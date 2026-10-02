@@ -34,6 +34,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 import drive
+import hostenv
+import packdir
+import preflight
 import sandbox
 from clients import PiClient
 
@@ -49,7 +52,6 @@ UNLISTED_HOST = "https://example.com/"
 RAW_IP = "https://1.1.1.1/"
 CURL_SECONDS = 20
 SPEC_TEXT = "the requirements\n"
-SANDBOX_WORDS = ("agent-sandbox", "bwrap", "sandbox-exec", "drive.py", "pytest", "harness")
 FIXED_PORT_BASE = 41_300       # away from the kernels' ephemeral ranges and the harness's own ports
 FIXED_PORT_TRIES = 400
 ONLINE_TIMEOUT_S = 5
@@ -89,12 +91,6 @@ def serve(port: int, reply: str) -> HTTPServer:
     return server
 
 
-def _not_its_own(marker: str) -> str:
-    """The marker as a pattern that does not match its own text (`CANARY_PROC_[a]bc`): pkill -f in a pid namespace would
-    otherwise find the probe's own shell, whose command line holds the script."""
-    return f"{marker[:-1]}[{marker[-1]}]"
-
-
 def online() -> bool:
     try:
         socket.create_connection(("registry.npmjs.org", 443), timeout=ONLINE_TIMEOUT_S).close()
@@ -127,6 +123,7 @@ say env_names "$(env | cut -d= -f1 | sort | tr '\n' ' ')"
 say env_text "$(env)"
 say canary_env "$(printenv @CANARY_KEY@ || echo absent)"
 say canary_proc_environ "$(tr '\0' '\n' < /proc/self/environ 2>/dev/null | grep -c @CANARY_KEY@; true)"
+say canary_outside_environ "$(cat /proc/@CANARY_PID@/environ 2>/dev/null | tr '\0' '\n' | grep -c @CANARY_KEY@; true)"
 say ls_root "$(ls / 2>&1)"
 say ls_home "$(ls "$HOME" 2>&1)"
 say ls_real_home "$(ls @REAL_HOME@ 2>&1 | head -c 300)"
@@ -150,11 +147,6 @@ say create_in_spec "$(echo x > spec/new.md 2>&1; echo "rc=$?")"
 say write_progress "$(echo done > PROGRESS.md 2>&1; echo "rc=$?")"
 say sudo "$(sudo -n true 2>&1; echo "rc=$?")"
 say no_new_privs "$(grep NoNewPrivs /proc/self/status 2>/dev/null || echo n/a)"
-say pkill_canary "$(pkill -f @CANARY_RE@ 2>&1; echo "rc=$?")"
-say kill_canary "$(kill -9 @CANARY_PID@ 2>&1; echo "rc=$?")"
-say pgrep_canary "$(pgrep -f @CANARY_RE@ 2>&1 | head -c 100; echo "rc=$?")"
-say ps_text "$(ps -eo pid,comm 2>&1 | head -c 40000)"
-say ps_pid1 "$(ps -o args= -p 1 2>&1 | head -c 300)"
 say model_server "$(curl -s -m 5 http://127.0.0.1:@MODEL_PORT@/ 2>&1; echo " rc=$?")"
 say other_runs_server "$(curl -s -m 5 http://127.0.0.1:@OTHER_PORT@/ 2>&1; echo " rc=$?")"
 say npm_registry "$(curl -sS -m @CURL_SECONDS@ -o /dev/null -w '%{http_code}' @NPM_REGISTRY@ 2>&1; echo " rc=$?")"
@@ -176,7 +168,13 @@ s.on('error', (e) => { console.log('ERROR ' + e.code); process.exit(0); });
 """
 
 
-GROUPS = ("probe", "filesystem", "environment", "network", "processes and ports", "privileges")
+GROUPS = ("probe", "filesystem", "environment", "network", "ports", "privileges")
+BROWSER_GROUP = "browser"      # its own probe: a project to install and a real Chromium (observe_browser)
+BROWSER_PAGE_TEXT = "browser-page-ok"
+BROWSER_PROJECT = "browser-probe"
+BROWSER_SCRIPT = "browser-probe.mjs"
+BROWSER_INSTALL_SECONDS = 600
+SHARED_BROWSER_PREFIX = "chromium"
 
 
 @dataclass
@@ -215,8 +213,7 @@ def observe(scratch: Path, with_network: bool | None = None) -> Observed:
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(SECRET)
         assert f.read_text() == SECRET          # readable from outside: a refusal below is the sandbox's
-    marker = f"CANARY_PROC_{uuid.uuid4().hex[:TEMP_TAG_CHARS]}"
-    o.canary = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)", marker])      # its command line holds the marker
+    o.canary = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])      # its environment holds the canary key
     taken: set[int] = set()
     o.model_port = free_fixed_port(taken)
     taken.add(o.model_port)
@@ -229,7 +226,7 @@ def observe(scratch: Path, with_network: bool | None = None) -> Observed:
     for name, value in {
         "CANARY_KEY": CANARY_KEY, "REAL_HOME": str(Path.home()), "REPO_FILE": o.repo_file,
         "OTHER_RUN_FILE": o.other_run_file, "SHARE_FILE": o.share_file, "DBENCH_FILE": o.dbench_file,
-        "HOST_TMP_FILE": o.host_tmp_file, "CANARY_RE": _not_its_own(marker), "CANARY_PID": o.canary.pid,
+        "HOST_TMP_FILE": o.host_tmp_file, "CANARY_PID": o.canary.pid,
         "MODEL_PORT": o.model_port, "OTHER_PORT": o.other_port, "FOREIGN_PORT": o.foreign_port,
         "CURL_SECONDS": CURL_SECONDS, "NPM_REGISTRY": NPM_REGISTRY, "PLAYWRIGHT_CDN": PLAYWRIGHT_CDN,
         "UNLISTED_HOST": UNLISTED_HOST, "RAW_IP": RAW_IP, "PORT_FIRST": sandbox.PORT_FIRST_ENV,
@@ -249,7 +246,6 @@ def observe(scratch: Path, with_network: bool | None = None) -> Observed:
         name, sep, value = line.partition(": ")
         if sep and name.isidentifier():
             o.out[name] = value
-    o.canary_alive = o.canary.poll() is None
     o.own_file_written = (ws / "mine.txt").exists()
     o.real_home_marker = Path.home() / "written-by-the-agent"
     o.spec_after = (ws / "spec" / "tasks.md").read_text()
@@ -315,6 +311,9 @@ def checks(o: Observed) -> list[Check]:
     add("the canary key is not in `env`", CANARY_KEY not in names and CANARY_VALUE not in out.get("env_text", CANARY_VALUE), "in env")
     add("the canary key is not in `printenv` or /proc/self/environ",
         out.get("canary_env", "").strip() == "absent" and out.get("canary_proc_environ", "").strip() in ("0", ""), "found")
+    # Not process isolation for its own sake: a process's environment is a file under /proc, and the harness's holds keys.
+    add("the environment of a process outside cannot be read through /proc",
+        out.get("canary_outside_environ", "").strip() in ("0", ""), "read")
     add("no variable names the run or the benchmark", not _no(ENV_WORDS, out.get("env_text", "")), f"contains {_no(ENV_WORDS, out.get('env_text', ''))!r}")
     group[0] = "network"
     add("the model server on the host's loopback is reachable", MODEL_REPLY in out.get("model_server", ""), out.get("model_server", ""))
@@ -326,14 +325,7 @@ def checks(o: Observed) -> list[Check]:
     add("Playwright's CDN is reachable", out.get("playwright_cdn", "").strip()[:1] in ("2", "3", "4"), out.get("playwright_cdn", ""), skip=not o.online)
     add("a host that is not listed is refused", "rc=0" not in out.get("unlisted_host", "rc=0")
         and not out.get("unlisted_host", "").strip().startswith("200"), out.get("unlisted_host", ""), skip=not o.online)
-    group[0] = "processes and ports"
-    add("a process outside survives the agent's pkill and kill", o.canary_alive, "it was killed")
-    add("a process outside cannot be found or signalled", str(o.canary.pid) not in out.get("pgrep_canary", str(o.canary.pid))
-        and "rc=0" not in out.get("kill_canary", "rc=0"), f"{out.get('pgrep_canary')} {out.get('kill_canary')}")
-    ps = out.get("ps_text", "x")
-    add("`ps` shows nothing of the sandbox, the job runner or the harness", not _no((*(w.lower() for w in SANDBOX_WORDS), RUN_NAME.lower(), "bench"), ps), ps)
-    if not mac:
-        add("process 1 is `init` and nothing is behind its name", out.get("ps_pid1", "").strip() == "init", out.get("ps_pid1", ""))
+    group[0] = "ports"
     add("it can serve on its own port", out.get("own_port", "").strip().endswith("served"), out.get("own_port", ""))     # node may warn first
     if mac:
         add("on macOS it cannot serve on a port it was not given", "EPERM" in out.get("foreign_port", ""), out.get("foreign_port", ""))
@@ -358,10 +350,103 @@ def main() -> int:
             print(f"{'PASS' if c.ok else 'FAIL'}  {c.group}: {c.name}" + (f": {c.detail.strip()[:300]}" if not c.ok else ""))
             failed += not c.ok
         cleanup(o)
+        browser = observe_browser(scratch)
+        for c in browser_checks(browser):
+            reason = f" ({c.detail})" if c.skipped else ""
+            print(f"SKIP  {c.group}: {c.name}{reason}" if c.skipped else
+                  f"{'PASS' if c.ok else 'FAIL'}  {c.group}: {c.name}" + (f": {c.detail.strip()[:300]}" if not c.ok else ""))
+            failed += not c.ok and not c.skipped
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     print(f"{'FAILED' if failed else 'all passed'}{f': {failed} check(s)' if failed else ''}")
     return 1 if failed else 0
+
+
+
+# A real Playwright Chromium, in the agent's world, loading a page from a server of its own on the loopback: what a
+# story's end-to-end tests do, and what the preflight's browser step does. Then the agent's own `playwright install`.
+BROWSER_PAGE_SCRIPT = """
+import http from 'node:http';
+import { chromium } from '@playwright/test';
+const port = Number(process.env.@PORT_FIRST@);
+const server = http.createServer((q, r) => { r.setHeader('content-type', 'text/html'); r.end('<h1 id=ok>@TEXT@</h1>'); });
+await new Promise((ok) => server.listen(port, '127.0.0.1', ok));
+try {
+  const b = await chromium.launch(); const p = await b.newPage();
+  await p.goto(`http://127.0.0.1:${port}/`);
+  console.log('page: ' + await p.textContent('#ok')); await b.close();
+} catch (e) { console.log('launch failed: ' + String(e.message).split('\\n')[0]); }
+server.close();
+"""
+BROWSER_PROBE = r"""
+say() { printf '%s: %s\n' "$1" "$(printf '%s' "$2" | tr '\n' ' ')"; }
+mkdir -p @PROJECT@ && cd @PROJECT@ || exit 1
+echo '{"private": true, "type": "module"}' > package.json
+say npm_install "$(npm install --no-audit --no-fund --silent @playwright/test@@VERSION@ 2>&1 | tail -c 300; echo " rc=$?")"
+say browser "$(node @SCRIPT@ 2>&1 | tail -c 400)"
+say agent_install "$(timeout @INSTALL_SECONDS@ npx playwright install chromium 2>&1 | tail -c 300; echo " rc=$?")"
+say agent_write_shared "$(touch @SHARED@/written-by-the-agent 2>&1 && echo WROTE; touch @SHARED@/chromium-1/libevil.so 2>&1 && echo WROTE)"
+"""
+
+
+def shared_browsers() -> Path:
+    return hostenv.agent_playwright_cache(Path.home())
+
+
+def observe_browser(scratch: Path) -> dict | str:
+    """The browser probe's output, or the reason it cannot run here (no browser installed for the agents, no network
+    for the install of Playwright's package): such a machine is skipped, and says why. Never installs a browser: that is
+    the machine's setup (setup-node.sh), as the machine's user, outside the sandbox."""
+    shared = shared_browsers()
+    if not any(shared.glob(f"{SHARED_BROWSER_PREFIX}*")):
+        return f"no Chromium is installed for the agents in {shared} (the machine's setup installs it)"
+    if not online():
+        return "offline: the probe installs Playwright's package from the npm registry"
+    work = scratch / "w" / drive.work_id(RUN_NAME + "-browser")
+    ws = work / drive.WORKSPACE_DIR
+    ws.mkdir(parents=True)
+    page = BROWSER_PAGE_SCRIPT.replace("@PORT_FIRST@", sandbox.PORT_FIRST_ENV).replace("@TEXT@", BROWSER_PAGE_TEXT)
+    (ws / BROWSER_PROJECT).mkdir()
+    (ws / BROWSER_PROJECT / BROWSER_SCRIPT).write_text(page)
+    version = preflight.playwright_version(packdir.part(drive.PACK, "acceptance"))
+    script = BROWSER_PROBE
+    for name, value in {"PROJECT": BROWSER_PROJECT, "VERSION": version, "SCRIPT": BROWSER_SCRIPT, "SHARED": shared,
+                        "INSTALL_SECONDS": BROWSER_INSTALL_SECONDS}.items():
+        script = script.replace(f"@{name}@", str(value))
+    view = sandbox.view_root(work)
+    old_world = drive.WORLD
+    drive.WORLD = sandbox.World(run=work.name)
+    events = scratch / "browser-events.jsonl"
+    before = sorted(p.name for p in shared.iterdir())
+    try:
+        drive.run_agent(Probe(work, script, view), ws, drive.agent_env(work, view), "model", "prompt", events)
+    finally:
+        drive.WORLD = old_world
+    out = {}
+    for line in events.read_text().splitlines():
+        name, sep, value = line.partition(": ")
+        if sep and name.isidentifier():
+            out[name] = value
+    out["shared_untouched"] = "yes" if sorted(p.name for p in shared.iterdir()) == before else "no"
+    return out
+
+
+def browser_checks(o: dict | str) -> list[Check]:
+    if isinstance(o, str):
+        return [Check(name, True, o, skipped=True, group=BROWSER_GROUP) for name in (
+            "Chromium launches in the sandbox and loads a page from a local server",
+            "the agent's own `playwright install` cannot change the shared browsers")]
+    launched = o.get("browser", "").strip().endswith(f"page: {BROWSER_PAGE_TEXT}")
+    install = o.get("agent_install", "")
+    return [
+        Check("Chromium launches in the sandbox and loads a page from a local server", launched,
+              f"{o.get('npm_install', '')} | {o.get('browser', 'no output')}", group=BROWSER_GROUP),
+        # Refused (EROFS/EPERM) or a no-op that downloads nothing: either way the shared cache is as it was, and the agent
+        # could not write into it by any path.
+        Check("the agent's own `playwright install` cannot change the shared browsers",
+              o.get("shared_untouched") == "yes" and "WROTE" not in o.get("agent_write_shared", "WROTE"),
+              f"{install} | {o.get('agent_write_shared')} | untouched: {o.get('shared_untouched')}", group=BROWSER_GROUP),
+    ]
 
 
 if __name__ == "__main__":

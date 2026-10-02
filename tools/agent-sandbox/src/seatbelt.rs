@@ -15,28 +15,18 @@ use crate::ports::Loopback;
 
 pub const SANDBOX_EXEC: &str = "/usr/bin/sandbox-exec";
 
-/// System trees every program is loaded from: the dynamic linker's shared cache and frameworks
-/// (/System), the libraries and standard tools (/usr), the shells and core utilities (/bin).
-/// Read and execute; none holds anything of the user's. /sbin and /Library are not needed.
-const SYSTEM_TREES: &[&str] = &["/usr", "/bin", "/System"];
+/// The system's own directories, whole: the dynamic linker's shared cache and frameworks (/System), the
+/// libraries and standard tools (/usr), the shells and core utilities (/bin, /sbin), and the machine's
+/// configuration (/private/etc: hosts, CA certificates, the time zone link). Read and execute; none holds
+/// anything of the user's, so none is listed file by file. /Library, /Applications and /opt stay closed:
+/// other software's data lives there.
+const SYSTEM_TREES: &[&str] = &["/usr", "/bin", "/sbin", "/System", "/private/etc"];
 
-/// Single system files and small trees, read-only, each with the failure seen without it.
+/// Single system files and small trees outside those, read-only, each with the failure seen without it.
 const SYSTEM_FILES: &[(&str, &str)] = &[
     (
         "/private/var/select",
         "/bin/sh reads its `sh` link to pick the shell; without it every sh prints an error",
-    ),
-    (
-        "/private/etc/hosts",
-        "`localhost` resolves from here; the resolver service (mDNSResponder) stays denied",
-    ),
-    (
-        "/private/etc/ssl",
-        "the public CA bundle and openssl.cnf, for curl, git and workerd",
-    ),
-    (
-        "/private/etc/localtime",
-        "the local time zone, for dates in commits and logs",
     ),
     (
         "/private/var/db/timezone",
@@ -56,7 +46,6 @@ const ROOT: &str = "/";
 const ROOT_LINKS: &[&str] = &[
     "/etc",
     "/private",
-    "/private/etc",
     "/private/var",
     "/private/var/db",
 ];
