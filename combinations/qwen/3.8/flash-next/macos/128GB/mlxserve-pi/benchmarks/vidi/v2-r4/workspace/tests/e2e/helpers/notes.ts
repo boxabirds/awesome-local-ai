@@ -74,6 +74,16 @@ export const counter = (page: Page, index = 0) =>
 export const editor = (page: Page, index = 0) =>
   notes(page).nth(index).getByTestId('sticky-textarea');
 
+/**
+ * The editor of one particular note. On a board with several notes, "the note
+ * that is open for typing" is not the same thing as "the first note on the
+ * screen", and a test that confuses them waits for the wrong element.
+ */
+export const noteEditor = (page: Page, id: string) =>
+  page.locator(
+    `[data-testid="sticky-note"][data-note-id="${id}"] [data-testid="sticky-textarea"]`,
+  );
+
 /** Double-click empty board space; the note appears there and is ready to type in. */
 export async function createNote(page: Page, at: Point): Promise<NoteState> {
   const before = await noteIds(page);

@@ -310,3 +310,36 @@ body,
   font-size: 16px;
   line-height: 1;
 }
+
+/* --- story 3: connection status ------------------------------------------ */
+
+/* Fixed and taken out of the flex flow like story 1's hint; centred top. */
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  padding: 6px 14px;
+  border: 1px solid var(--vidi6-panel-border);
+  border-radius: 999px;
+  background: var(--vidi6-panel);
+  box-shadow: var(--vidi6-panel-shadow);
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Amber: the connection is lost, edits are still being taken. */
+.connection-status--reconnecting {
+  background: #ffcc80;
+  border-color: #fb8c00;
+  color: #4e2600;
+}
+
+/* Green: the connection came back. */
+.connection-status--confirmed {
+  background: #c5e1a5;
+  border-color: #558b2f;
+  color: #1b3a10;
+}

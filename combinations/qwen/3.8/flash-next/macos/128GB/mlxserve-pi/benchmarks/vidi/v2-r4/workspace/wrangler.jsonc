@@ -1,11 +1,24 @@
 {
-  // Static-assets-only Worker for now: `wrangler dev` serves the built client
-  // from dist/client. The Worker `main` entry point arrives in story 3.
+  // The Worker front door (src/worker/index.ts) in front of the built client.
+  // Every request goes to the Worker first, because `/api/rooms/<boardId>` is a
+  // board connection and not a file; the Worker answers everything else from the
+  // assets, where a path that is not a file is the board page
+  // (`not_found_handling: single-page-application`).
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-01",
+  "compatibility_date": "2026-08-22",
+  "main": "src/worker/index.ts",
   "assets": {
     "directory": "./dist/client",
-    "not_found_handling": "single-page-application"
-  }
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  // One BoardRoom object per board address. SQLite-backed from the start, so
+  // that keeping boards between visits (story 4) needs no class migration.
+  "durable_objects": {
+    "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }],
+  "observability": { "enabled": true }
 }

@@ -243,3 +243,148 @@ window listener (TC-30).
   `playwright.config.ts`, which prints and skips with that reason). The story's
   e2e cases therefore run in chromium here; they use no browser-specific API —
   mouse clicks and moves, ordinary keys, computed styles — as story 1's do.
+
+## Story 3 decisions (tasks 1-6: the room)
+
+- **`src/worker/board-room.ts` does not hibernate.** `server.hibernate()` is what
+  lets a Durable Object hold thousands of idle sockets; it also throws away the
+  instance's state, including the `Y.Doc` the room merges into. With five people
+  and a document to hold, the room is a plain non-hibernating object:
+  `server.accept(client)` and the sockets live as long as the instance does.
+- **`server.binaryType = 'arraybuffer'` before `accept()`.** A Durable Object
+  socket defaults to `binaryType: 'blob'` in workerd, and a `Blob` cannot be read
+  byte by byte without going async — every frame then looks like it "does not
+  start with its type byte", and the room closes it with 1003. This cost a whole
+  debugging cycle; it is written as a comment at the accept site.
+- **The room asks back.** When a client's `SyncStep1` arrives, the room answers
+  with a `SyncStep2` *and* sends its own `SyncStep1`. A room that has lost its
+  document (evicted, restarted, first instantiation) is then rebuilt by whichever
+  client resyncs, instead of staying empty and showing an empty board to whoever
+  joins next. TC-18 checks exactly that with `evictDurableObject`.
+- **`evictDurableObject(stub, { webSockets: 'close' })` is the restart**, not a
+  test hook. It tears the instance down, discards the in-memory document and
+  closes the sockets, which is what a real eviction does; nothing in production
+  code exists only for the tests. All client sockets have to be closed before
+  evicting, or the eviction waits for them.
+- **DO RPC, not `runInDurableObject`.** `runInDurableObject(stub, cb)` may run the
+  callback on a *different* instance than the one holding the live sockets, so it
+  sees an empty room. The tests call the room through `stub.…()` (RPC) and read
+  what the room itself reports.
+- **The room is deliberately stateless about people.** No per-person record, no
+  awareness of who is who: an update comes in from one socket, is applied and is
+  relayed to the others. That is why capacity is one apply plus one send per
+  socket (design "Capacity" note) and why 5 people cost the same as 2.
+- **Malformed frames are answered, not silently dropped**: an unknown type byte
+  closes the socket with 1003 after a `CloseFrame`-shaped log line in the room's
+  own console; TC-31 asserts a bad frame from one client does not disturb the
+  others.
+
+## Story 3 decisions (task 4: the client's side of the connection)
+
+- **`connectBoard` is `y-websocket` with two settings**: `maxBackoffTime:
+  RECONNECT_MAX_BACKOFF_MS` (10 s, the design's ceiling for a reconnect) and
+  `disableBc: true` — the browser-cast channel would let two tabs of the same
+  browser agree without the room, which would make the multi-tab tests test
+  nothing.
+- **`trackConnectionState` is separate from `connectBoard`** so the badge's state
+  machine is testable with a fake provider (TC-19 to TC-21) instead of needing a
+  server. It listens to the provider's `status` and `synced` events; note the real
+  event is called `synced` (`y-websocket` emits `synced`, the design's helper
+  sketch says `sync`).
+- **The badge shows 'Connected' for `CONNECTED_CONFIRMATION_MS` and then hides
+  itself**, rather than being shown on every sync: a board that says "Connected"
+  every time a change arrives is noise. `connected` therefore renders nothing.
+- **Every client renews its own awareness every `AWARENESS_RENEWAL_MS` (15 s).**
+  A `y-websocket` *server* renews awareness on that cadence; this room only
+  relays, so a client that sends nothing at all is heard from by nobody — and a
+  client that is not heard from for 30 s is dropped by its own provider's
+  `messageReconnectTimeout`. TC-29 (45 s of nothing) is what proves the renewal
+  works: without it the connection dies at 30 s and the badge says Reconnecting.
+- **`useBoardDoc({ boardId, doc })`**: passing a `doc` connects nothing, which is
+  what every story-2 component test does; passing a `boardId` (the `/b/:boardId`
+  route) attaches the provider and destroys it on unmount. The board is editable
+  in every connection state, so the badge never disables the board.
+
+## Story 3 decisions (task 5-6: the tests around the room)
+
+- **`tests/integration/ws-client.ts` speaks the real protocol** with `lib0`
+  encoders — a client that constructs its own `SyncStep1` from a real `Y.Doc`,
+  reads frames, and can send rubbish on purpose. `lib0`'s `readVarUint` throws on
+  a truncated frame, which is how "the room understood my frame" is told apart
+  from "it read past the end of it".
+- The integration project runs in workerd through
+  `@cloudflare/vitest-pool-workers`, which needs **`vitest@^4.1`**: with vitest 5
+  the pool's proxy worker fails at import time (`SyntaxError: Unexpected
+  identifier 'file'`). The pool also pins its own miniflare/workerd
+  (1.20260815), whose newest accepted `compatibility_date` is 2026-08-22 — that
+  is the date in `wrangler.jsonc`, and the reason it is not "today".
+- `wrangler.jsonc` sets `assets.run_worker_first: true`. Without it the
+  `not_found_handling: single-page-application` from story 1 answers
+  `/api/rooms/…` with `index.html`, and a WebSocket upgrade never reaches the
+  worker.
+- `tests/integration/worker-env.d.ts` augments `Cloudflare.Env` with this
+  project's `Env`. The root `env.d.ts` is not in `tsconfig.json`'s `include`, so
+  augmenting there is invisible to the integration project.
+- **Random operations, seeded** (`tests/integration/random-ops.ts`) for TC-12 and
+  TC-30: a fixed seed means a failure can be reproduced, and "the three docs are
+  identical" is the convergence assertion, not "the text I expected".
+
+## Story 3 decisions (task 7-8: what a person sees)
+
+- **An open note now shows what arrives from the room.** Story 2's editor was
+  uncontrolled and one-way: typing went into the `Y.Text`, nothing came back. At
+  the CRDT level two people in one note merged correctly, but the textarea on
+  either screen only ever showed its own typist's words — which is not "seeing
+  other people's edits". `StickyTextEditor` now observes the `Y.Text` and copies
+  the shared text in, carrying the caret over the change with `mapCaret`.
+- **`mapCaret(caret, before, after)`** (in `StickyText.ts`, next to
+  `applyTextDiff`, which it is the other half of) compares the two texts, finds
+  the changed run, and maps the caret: before the change it does not move, after
+  it travels by the change's size, inside it it goes to the front of the change,
+  and it never lands past the end. A caret sitting exactly where text was
+  inserted stays with the text that was there — when somebody appends to a note
+  you are typing in, your caret stays at the end of *your* words rather than
+  jumping in front of theirs, which is what the component tests assert.
+- **The mirror, not the DOM, is what an incoming change is compared against.**
+  `mirrorRef` holds the shared text as this textarea is showing it. If the DOM
+  value differs from it, something typed here has not been written yet, and the
+  incoming change is left to the input handler to reconcile — copying over a
+  not-yet-written keystroke would drop it, and `applyTextDiff` cannot do a
+  three-way merge. IME composition is skipped for the same reason.
+- **`data-testid="connection-status"`** on the badge, and `window.__vidi6.connectionState`
+  in the test build, so an e2e test can read the connection the way the person
+  sees it. The badge is `role="status"`; the zoom readout is another
+  `role="status"`, so tests select by test id, never by role, on this screen.
+- **`noteEditor(page, id)`** exists because "the note open for typing" is not "the
+  first note on the screen": on a board with 25 notes, the helper that used
+  `notes(page).first()` waited for the wrong element and timed out.
+- **A test board is laid out so a test can never point at the wrong note.** In
+  TC-26 and TC-30 the notes sit 400 world units apart at zoom 0.25 (50 px on
+  screen, gaps of 50 px) and a move is 25 screen px = 100 world units, so a moved
+  note touches nothing. The first version used half-cell shoves, notes overlapped,
+  a drag grabbed the neighbour and a double-click landed on a note instead of the
+  board — which looked like a collaboration bug and was a fixture.
+- **`context.setOffline(true)` does not break an established socket at once** —
+  the browser keeps the connection it already has and only fails new ones. The
+  board notices the loss when its provider stops hearing anything (30 s,
+  `messageReconnectTimeout`), which is the product's real behaviour. TC-27
+  therefore waits up to `CATCH_UP_TEST_OUTAGE_MS + 15 s` for the 'Reconnecting…'
+  line, and the wait appears in its latency report as a 30 s sample: the notice
+  of a dead line is slow on purpose, and the 30 s absence is what makes the
+  catch-up meaningful.
+- **The two long checks are their own Playwright project** (`nightly`,
+  `*.nightly.spec.ts`, `npm run test:e2e:nightly`), excluded from
+  `npm run test:e2e` by `testIgnore`. They are ordinary assertions against the
+  same build and the same room — 45 s of quiet, and 60 s of five people editing —
+  which is what `IDLE_STABILITY_MS` and `IDLE_CAP_SOAK_MS` are for. Both say what
+  they are doing while they wait (`[idle]` and `[soak]` lines), so a run that is
+  being patient cannot be mistaken for a run that is stuck.
+- **Latency is measured in the other person's browser and logged, never asserted**
+  (`LatencyLog` in `helpers/participants.ts`): every `expectEventually` records how
+  long it waited, and each test prints p50/p95/max against
+  `LIVE_UPDATE_LATENCY_BUDGET_MS`. A recent run: TC-22 p50 2 ms, TC-26 203 changes
+  p50 2 ms / p95 7 ms / max 15 ms, TC-30 883 changes p50 3 ms / p95 7 ms / max
+  21 ms, 0 over budget.
+- **`session.leave(name)`** closes one person's browser for real, which is how
+  TC-29 checks that the others let go of a person who goes away instead of trying
+  to bring them back.

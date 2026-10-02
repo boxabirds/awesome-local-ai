@@ -11,6 +11,7 @@ import {
   applyTextDiff,
   clampToLimit,
   counterVisible,
+  mapCaret,
 } from '../../src/client/objects/StickyText';
 import { LOCAL_ORIGIN } from '../../src/shared/board-model';
 import {
@@ -222,5 +223,39 @@ describe('sticky.text — counter threshold (TC-17)', () => {
       if (counterVisible(length)) visible.push(length);
     }
     expect(visible).toEqual(Array.from({ length: 51 }, (_, i) => 950 + i));
+  });
+});
+
+/**
+ * Story 3: an open editor has to show what somebody else typed. The caret is
+ * mapped over the change rather than thrown away, so the person typing is not
+ * sent to the start of the note by a stranger's keystroke.
+ */
+describe('sticky.text — caret across a concurrent edit', () => {
+  it('stays put when the text in front of it has not changed', () => {
+    expect(mapCaret(2, 'abcdef', 'abcXYZdef')).toBe(2);
+  });
+
+  it('stays with its own text when words are added behind it', () => {
+    // Two people appending to one note: the caret belongs to the text typed here.
+    expect(mapCaret(5, 'alex ', 'alex was here ')).toBe(5);
+  });
+
+  it('moves back when text behind it was deleted', () => {
+    expect(mapCaret(9, 'abcdefdef', 'abcdef')).toBe(6);
+  });
+
+  it('goes to the start of the change when it was inside it', () => {
+    expect(mapCaret(4, 'abcdef', 'abXYf')).toBe(2);
+  });
+
+  it('is unmoved by a change that is not a change', () => {
+    expect(mapCaret(3, 'abc', 'abc')).toBe(3);
+  });
+
+  it('never leaves the text, however much it shrank', () => {
+    const caret = mapCaret(8, 'abcdefgh', 'a');
+    expect(caret).toBeGreaterThanOrEqual(0);
+    expect(caret).toBeLessThanOrEqual(1);
   });
 });

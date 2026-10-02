@@ -1,12 +1,15 @@
 import { useEffect, useRef } from 'react';
 
 import type { Camera } from './camera';
+import type { ConnectionState } from '../sync/connectBoard';
 
 /** Test-only API installed on the window in the `test` build mode. */
 export interface Vidi6TestApi {
   setCamera(camera: Camera): void;
   setCamera(x: number, y: number, zoom: number): void;
   getCamera(): Camera;
+  /** The connection state the badge is showing, while the board is mounted. */
+  connectionState?: ConnectionState;
 }
 
 declare global {
@@ -49,4 +52,26 @@ export function useTestCameraHook(access: CameraAccess): void {
       delete window.__vidi6;
     };
   }, []);
+}
+
+/**
+ * Keeps `window.__vidi6.connectionState` pointing at the state the badge is
+ * showing, so an E2E test can watch the connection itself and not only the
+ * pixels (TC-29 asserts it never leaves `connected` while idle).
+ *
+ * `useTestCameraHook` is installed first by `App`, so the object is normally
+ * there already; `??=` covers a board mounted without it. Only this field is
+ * removed on unmount, so the camera hook keeps its own.
+ */
+export function useTestConnectionHook(state: ConnectionState): void {
+  useEffect(() => {
+    if (import.meta.env.MODE !== 'test') return;
+
+    const api = (window.__vidi6 ??= {} as Vidi6TestApi);
+    api.connectionState = state;
+
+    return () => {
+      delete api.connectionState;
+    };
+  }, [state]);
 }

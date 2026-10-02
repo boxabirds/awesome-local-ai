@@ -79,6 +79,39 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
 }
 
 /**
+ * Where the caret of an open editor goes when the text it sits in changes from
+ * `before` to `after` — the other half of {@link applyTextDiff}, which is what
+ * lets somebody else's typing into the same note be shown here.
+ *
+ * A caret in front of the change does not move; a caret behind it travels by
+ * however much the text grew or shrank; a caret inside the changed run goes to
+ * the front of it. Nothing ever lands past the end of the text.
+ */
+export function mapCaret(caret: number, before: string, after: string): number {
+  if (before === after) return Math.min(caret, after.length);
+
+  const shorter = Math.min(before.length, after.length);
+  let start = 0;
+  while (start < shorter && before.charCodeAt(start) === after.charCodeAt(start)) {
+    start += 1;
+  }
+  let endBefore = before.length;
+  let endAfter = after.length;
+  while (
+    endBefore > start &&
+    endAfter > start &&
+    before.charCodeAt(endBefore - 1) === after.charCodeAt(endAfter - 1)
+  ) {
+    endBefore -= 1;
+    endAfter -= 1;
+  }
+
+  if (caret <= start) return Math.min(caret, after.length);
+  if (caret >= endBefore) return Math.min(caret + (endAfter - endBefore), after.length);
+  return start;
+}
+
+/**
  * Largest integer font size, in the range `[STICKY_FONT_MIN_PX,
  * STICKY_FONT_MAX_PX]`, at which the element's content fits in `box` pixels.
  *

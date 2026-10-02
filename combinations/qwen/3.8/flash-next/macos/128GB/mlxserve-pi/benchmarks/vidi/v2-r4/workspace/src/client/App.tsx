@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 
+import { StickyNote } from './objects/StickyNote';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
@@ -8,9 +9,10 @@ import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
 import { useCamera, useElementSize } from './canvas/useCamera';
-import { useTestCameraHook } from './canvas/testHooks';
+import { useTestCameraHook, useTestConnectionHook } from './canvas/testHooks';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Point } from './canvas/camera';
-import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { newBoardId } from '../shared/board-id';
 import { createSticky, deleteObject } from '../shared/board-model';
 
 /** Focus in a text field means keys belong to that field, not to the board. */
@@ -24,8 +26,26 @@ function isField(target: EventTarget | null): boolean {
 }
 
 export interface AppProps {
-  /** Board document to render. Defaults to a fresh local one (story 3 passes a shared one). */
+  /** Board document to render. Defaults to a fresh local one (tests pass one). */
   doc?: Y.Doc;
+  /** Board to join instead of the one in the address (tests). */
+  boardId?: string;
+}
+
+/**
+ * The board this tab is on: `/b/<boardId>`.
+ *
+ * Any other address — the root of the site in particular — becomes a new board:
+ * a board id is generated and the address is rewritten without a reload. Story 5
+ * replaces this with a board the server creates.
+ */
+function boardIdFromLocation(): string {
+  const route = /^\/b\/([^/?#]+)/.exec(window.location.pathname);
+  if (route !== null) return route[1];
+
+  const id = newBoardId();
+  window.history.replaceState({}, '', `/b/${id}`);
+  return id;
 }
 
 /**
@@ -39,8 +59,11 @@ export interface AppProps {
  * else. Selection and editing are local state (`useSelection`) and never reach
  * the shared document.
  */
-export function App({ doc: providedDoc }: AppProps = {}) {
-  const { doc, notes } = useBoardDoc(providedDoc);
+export function App({ doc: providedDoc, boardId: providedBoardId }: AppProps = {}) {
+  // Read once: the address of a mounted tab does not change under it, and a
+  // generated board id must not be regenerated on every render.
+  const [boardId] = useState(() => providedBoardId ?? boardIdFromLocation());
+  const { doc, notes, connectionState } = useBoardDoc({ boardId, doc: providedDoc });
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -49,6 +72,7 @@ export function App({ doc: providedDoc }: AppProps = {}) {
   const { camera } = controller;
 
   useTestCameraHook(controller);
+  useTestConnectionHook(connectionState);
 
   /**
    * Puts a sticky note on the board at a viewport coordinate and opens it for
@@ -137,6 +161,7 @@ export function App({ doc: providedDoc }: AppProps = {}) {
         onReset={controller.reset}
       />
       <NavigationHint visible={!controller.hasNavigated} />
+      <ConnectionStatus state={connectionState} />
     </div>
   );
 }

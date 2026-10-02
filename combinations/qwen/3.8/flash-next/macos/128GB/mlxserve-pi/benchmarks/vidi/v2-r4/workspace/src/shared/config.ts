@@ -42,3 +42,35 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS;
 /** Colour of a newly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/* --- story 3: live collaboration ------------------------------------------- */
+
+/**
+ * Simultaneous editors the board is designed and tested for. This is a soft
+ * target: it drives the tests and the design, and is never enforced — a person
+ * who joins a board that already has this many people is not turned away.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** How long a change may take to appear on every other screen (live.propagate). */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Longest wait before a reconnect attempt (y-websocket `maxBackoffTime`). */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** How long the green "Connected" badge stays up after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** Outage length used by the "edits catch up" verification (live.catch_up). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/**
+ * Functional wait used by every e2e test in every story: the model, the browsers
+ * and the server share one machine, so tests wait this long for an outcome and
+ * *log* the measured latency against LIVE_UPDATE_LATENCY_BUDGET_MS instead of
+ * failing on it.
+ */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+/**
+ * How long a board is left entirely alone in the nightly idle check (TC-29). It
+ * has to be longer than the 30 seconds a quiet connection is given up for, or the
+ * check proves nothing about a board nobody is touching.
+ */
+export const IDLE_STABILITY_MS = 45_000;
+/** How long the nightly full-capacity soak keeps on editing (TC-30). */
+export const IDLE_CAP_SOAK_MS = 60_000;

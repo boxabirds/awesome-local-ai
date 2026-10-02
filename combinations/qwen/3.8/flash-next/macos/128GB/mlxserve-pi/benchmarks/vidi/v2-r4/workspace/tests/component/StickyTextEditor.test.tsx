@@ -245,5 +245,105 @@ describe('sticky.text — editing', () => {
 
     expect(snapshot(doc)[0].text).toBe('');
     expect(editor()).not.toBeNull(); // still editing an empty note
+    // Story 3: cleared from the document means cleared on the screen too.
+    expect(area().value).toBe('');
+  });
+});
+
+/**
+ * Story 3: an edit that arrives from the room goes into the note while it is open
+ * for typing here. Waiting for the edit to end would be a board that shows the
+ * last state of a note rather than what people are doing.
+ */
+describe('sticky.text — typing that arrives from the room', () => {
+  /** Somebody else's keystrokes, arriving with the room as their origin. */
+  function arrivingFromRoom(change: () => void): void {
+    act(() => {
+      doc.transact(change, 'from-the-room');
+    });
+    flushFrame();
+  }
+
+  const caret = (): [number, number] => {
+    const el = area();
+    return [el.selectionStart, el.selectionEnd];
+  };
+
+  /** A keystroke at the caret, which is where a person's next character goes. */
+  function typeMore(text: string): void {
+    const el = area();
+    const next = el.value.slice(0, el.selectionEnd) + text + el.value.slice(el.selectionStart);
+    fireEvent.input(el, { target: { value: next } });
+    flushFrame();
+  }
+
+  it('shows words that arrive in front of the ones typed here', () => {
+    renderBoard();
+    startEditing();
+    type('I am ');
+
+    arrivingFromRoom(() => getStickyText(doc, id)?.insert(0, 'they said '));
+
+    expect(area().value).toBe('they said I am ');
+    // The caret stays behind the text typed here, not at the start of the note.
+    expect(caret()).toEqual([15, 15]);
+  });
+
+  it('shows words that arrive behind the ones typed here and leaves the caret with them', () => {
+    renderBoard();
+    startEditing();
+    type('alex ');
+
+    arrivingFromRoom(() => getStickyText(doc, id)?.insert(5, 'was here '));
+
+    expect(area().value).toBe('alex was here ');
+    // The caret stays at the end of the text typed here rather than jumping over
+    // the words that arrived behind it.
+    expect(caret()).toEqual([5, 5]);
+  });
+
+  it('shows a deletion somebody else made while keeping the place in the text', () => {
+    renderBoard();
+    startEditing();
+    type('a bad idea');
+
+    arrivingFromRoom(() => getStickyText(doc, id)?.delete(2, 4));
+
+    expect(area().value).toBe('a idea');
+    expect(caret()).toEqual([6, 6]);
+  });
+
+  it('never drops what is typed here because something arrived', () => {
+    renderBoard();
+    startEditing();
+    type('here is ');
+
+    // The other person's words arrive, and then this person's next keystroke.
+    arrivingFromRoom(() => getStickyText(doc, id)?.insert(0, 'theirs, '));
+    typeMore('mine');
+
+    expect(area().value).toBe('theirs, here is mine');
+    expect(getStickyText(doc, id)?.toString()).toBe(area().value);
+  });
+
+  it('does not move the caret when the change is somewhere the caret is not', () => {
+    renderBoard();
+    startEditing();
+    type('keep me here');
+
+    arrivingFromRoom(() => getStickyText(doc, id)?.insert(0, 'front '));
+
+    expect(area().value).toBe('front keep me here');
+    expect(caret()).toEqual([18, 18]);
+  });
+
+  it('an edit of the note that came from this very textarea is not pulled back over itself', () => {
+    renderBoard();
+    startEditing();
+    type('typing');
+
+    // What is shown is what the document holds, and the caret is where the typing is.
+    expect(area().value).toBe('typing');
+    expect(caret()).toEqual([6, 6]);
   });
 });

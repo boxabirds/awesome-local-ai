@@ -79,8 +79,29 @@ export default defineConfig({
     stderr: 'pipe',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: VIEWPORT } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: VIEWPORT } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: VIEWPORT } },
+    {
+      name: 'chromium',
+      testIgnore: /\.nightly\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'], viewport: VIEWPORT },
+    },
+    {
+      name: 'firefox',
+      testIgnore: /\.nightly\.spec\.ts$/,
+      use: { ...devices['Desktop Firefox'], viewport: VIEWPORT },
+    },
+    {
+      name: 'webkit',
+      testIgnore: /\.nightly\.spec\.ts$/,
+      use: { ...devices['Desktop Safari'], viewport: VIEWPORT },
+    },
+    // TC-29 and TC-30: the long ones. `npm run test:e2e:nightly` runs this project
+    // and `npm run test:e2e` runs the three above, which ignore these files. One
+    // browser only: a nightly is a soak, and it is the board being soaked, not the
+    // browser engines.
+    {
+      name: 'nightly',
+      testMatch: /\.nightly\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'], viewport: VIEWPORT },
+    },
   ],
 });
