@@ -1,6 +1,7 @@
 # TensorFold
 
-**Status:** blocked on us (2 Oct 2026): checks 1 and 2 ran for real on the M5 Max. Check 1 passes, but only to 32k
+**Status:** parked by the owner (2 Oct 2026, evening): on 128 GB it gives a 47k-token window against the 128k
+minimum, on 0.6.0 and on 0.6.2 alike. Nothing further runs until that changes upstream. Before parking: checks 1 and 2 ran for real on the M5 Max. Check 1 passes, but only to 32k
 tokens — short of our ~131k sessions — capped by the memory budget's own keep-prompt limit, not by the long-context
 defect this note was originally about (that part looks fixed). Check 2 fails past the same ceiling. Two documented
 levers to raise the ceiling were tried and neither worked, and a budget sweep that evening restarted the Mac. See
