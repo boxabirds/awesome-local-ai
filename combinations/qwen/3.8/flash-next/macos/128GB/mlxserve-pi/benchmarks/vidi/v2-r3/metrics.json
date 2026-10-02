@@ -10812,6 +10812,1979 @@
           "found": 6,
           "total": 6
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/benchmarks/vidi/v2-r3/server.log"
+        ],
+        "private": {
+          "copied": 20,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "cfa20fff"
+      }
+    },
+    "10": {
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790913467.502825,
+      "engine_settings": {
+        "server_started_at": "2026-10-01T15:20:14Z",
+        "engine": "mlx-serve",
+        "engine_version": "mlx-serve 26.9.6",
+        "thinking_mode": {
+          "value": "on",
+          "source": "model config",
+          "evidence": "generation_config.json default_chat_template_kwargs.enable_thinking=true"
+        },
+        "thinking_budget": {
+          "value": 32768,
+          "source": "command line",
+          "evidence": "--reasoning-budget 32768"
+        },
+        "context_size": {
+          "value": 131072,
+          "source": "command line",
+          "evidence": "--ctx-size 131072"
+        },
+        "kv_cache_type": {
+          "value": "off",
+          "source": "command line",
+          "evidence": "--kv-quant off"
+        },
+        "speculative": {
+          "value": {
+            "method": "mtp"
+          },
+          "source": "command line",
+          "evidence": "--mtp (draft depth is mlx-serve's own)"
+        },
+        "temperature": {
+          "value": 1.0,
+          "source": "command line",
+          "evidence": "--temp 1.0"
+        },
+        "top_p": {
+          "value": 0.95,
+          "source": "command line",
+          "evidence": "--top-p 0.95"
+        },
+        "top_k": {
+          "value": 20,
+          "source": "command line",
+          "evidence": "--top-k 20"
+        },
+        "min_p": {
+          "value": "not set",
+          "source": "not set",
+          "evidence": "no --min-p on the command line: mlx-serve's own default applies"
+        },
+        "quantisation": {
+          "value": "mixed-4-8bit",
+          "source": "model file name",
+          "evidence": "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+        },
+        "reasoning_effort": {
+          "requested": "low",
+          "engine": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "mlx-serve has no server-side reasoning-effort setting (lib/runtime/server-mlxserve.sh)"
+          },
+          "client": {
+            "value": "not set",
+            "source": "not set",
+            "evidence": "pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "effective": {
+            "value": "unknown",
+            "source": "unknown",
+            "evidence": "neither the engine's command line nor the client sets an effort: mlx-serve renders a request that names no effort by its template's rule; lib/runtime/server-mlxserve.sh reads that as 'low' on Qwen3.8 (chat.zig), unverified here. Engine: mlx-serve has no server-side reasoning-effort setting (lib/runtime/server-mlxserve.sh). Client: pi runs without --thinking and sends no reasoning effort (clients.py)"
+          },
+          "matches_request": null
+        },
+        "gaps": [
+          "reasoning effort: 'low' requested, neither the engine nor the client applies one"
+        ]
+      },
+      "agent": {
+        "seconds": 8722.8,
+        "steps": 433,
+        "tool_calls": 485,
+        "compactions": 8,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 1031949,
+          "output": 329585,
+          "reasoning": 0,
+          "cache_read": 28431996,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 1,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a0fac2-d4ea-7399-b42a-2cf84710913c",
+          "01a0fac2-d4ea-7399-b42a-2cf84710913c"
+        ]
+      },
+      "agent_finished": 1790922190.9843369,
+      "conditions": {
+        "samples": 286,
+        "degraded": false,
+        "throttled_share": 0.86,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790913588.9215539
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790913619.304203
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790913649.665385
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790913680.080898
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790913710.580394
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790913740.981353
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790913771.450315
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790913801.9179451
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790913832.269061
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790913862.831519
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790913893.3525279
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790913923.703688
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790913954.111896
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790913984.646153
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914015.116323
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914045.6244411
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914076.161449
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914106.706757
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914137.243226
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914167.7943602
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914198.2409441
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914228.79511
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914259.322432
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914289.862964
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914320.239421
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914350.644192
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914380.9949179
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914411.468031
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914441.911734
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914472.2421381
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914502.670466
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914533.035688
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914563.4036028
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914593.884543
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914624.42309
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914654.958739
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914685.433745
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914715.7435699
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914746.141651
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914776.5638201
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914807.0468092
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914837.524086
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914867.9977741
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914898.45781
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914928.925004
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914959.332406
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790914989.773416
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915020.163737
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915050.6423821
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915080.952555
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915111.3023648
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915141.68634
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915172.069932
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915202.555413
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915233.0633862
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915263.612577
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915294.0751529
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915324.5444322
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915354.97724
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915385.406145
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915415.820877
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915446.3302348
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915476.809301
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915507.2681012
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915537.685
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915568.019999
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915598.386385
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915628.724658
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915659.067585
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915689.520355
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915719.859118
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915750.340432
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915780.737598
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915811.20981
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915841.597706
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915871.976773
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915902.348429
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915932.886249
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915963.354988
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790915993.822915
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916024.2641358
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916054.6763341
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916085.0159879
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916115.3711371
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916145.7577548
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916176.220244
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916206.632479
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916237.0434382
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916267.390919
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916297.742378
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916328.156684
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916358.49631
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916388.973979
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916419.3225222
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916449.6694772
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916480.140794
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916510.489449
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916540.969543
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916571.318252
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916601.6482718
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916632.084952
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916662.5644941
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916693.032752
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916723.5158741
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916753.86242
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916784.286137
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916814.751373
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916845.20452
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916875.693797
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916906.0288022
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916936.413753
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916966.884733
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790916997.267206
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917027.8294778
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917058.2747872
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917088.816685
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917119.140764
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917149.61896
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917180.0973032
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917210.415123
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917240.788615
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917271.2121549
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917301.610508
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917332.0049798
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917362.3505542
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917392.836589
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917423.3094
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917453.776454
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917484.168471
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917514.497926
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917544.904005
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917575.280128
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917605.756684
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917636.2235992
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917666.775525
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917697.170259
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917727.669389
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917758.078641
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917788.490401
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917818.940747
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917849.4474602
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917879.93065
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917910.344307
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917940.831159
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790917971.1605928
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918001.644484
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918032.167598
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918062.598071
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918093.073237
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918123.558058
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918154.080718
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918184.548579
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918215.0422132
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918245.5045261
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918275.86287
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918306.3093371
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918336.791316
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918367.250915
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918397.597179
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918428.0725079
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918458.4928231
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918488.973922
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918519.43042
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918549.8926542
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918580.249734
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918610.8197591
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918641.292093
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918671.756553
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918702.1421828
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918732.645847
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918763.085096
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918793.561253
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918823.9621382
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918854.3890078
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918884.918838
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918915.460982
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918946.021097
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790918976.58308
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919007.106677
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919037.5931761
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919068.0385122
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919098.487199
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919129.047198
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919159.593811
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919190.1587489
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919220.600381
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919251.014121
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919281.4604979
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919311.8557749
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919342.399812
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919372.864286
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919403.305583
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919433.638141
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919464.093741
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919494.522232
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919525.116243
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919555.661431
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919586.122071
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919616.6040142
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919646.9491682
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919677.3782048
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919707.8493068
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919738.248717
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919768.699339
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790919799.3011851
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790919830.6600032
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790920013.182695
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790920043.701854
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790920074.145484
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790920104.585848
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790920561.072803
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790920591.5925288
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790920622.1098702
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790920652.525253
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790920682.9543061
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790920956.658599
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790920987.0889971
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921017.492896
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921047.931542
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921078.458049
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921108.801343
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921139.339045
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921169.786884
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921200.329824
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921230.829296
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921261.280076
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921291.752429
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921322.19999
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921352.584378
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921383.070553
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921413.5192928
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921443.8348968
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921474.2072582
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921504.6493282
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921535.027034
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921565.519535
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921595.904004
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921626.266407
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790921656.76405
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790921687.158298
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790921808.8358989
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790921839.23589
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790922113.12324
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790922143.4969878
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790922173.9940412
+          }
+        ],
+        "swap_start_gb": 1.52,
+        "swap_max_gb": 1.52,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 21.0,
+        "memory_snapshot": null,
+        "server_footprint_max_gb": 92.0,
+        "server_footprint_peak_gb": 96.0,
+        "gpu": null
+      },
+      "containment": {
+        "enabled": false
+      },
+      "agent_commits": 1,
+      "provenance": {
+        "harness_commit": "9418861b",
+        "harness_dirty": false,
+        "harness_release": null,
+        "pack_version": "vidi-v2.0-pre2+88a5c4002",
+        "source": "drive"
+      },
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 3.8,
+            "tail": "\nadded 215 packages, and audited 216 packages in 4s\n\n40 packages are looking for funding\n  run `npm fund` for details\n\n9 vulnerabilities (1 low, 4 moderate, 4 high)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn allow-scripts 6 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.27.3 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.2 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   sharp@0.34.5 (install: node install/check.js || npm run build)\nnpm warn allow-scripts   workerd@1.20260310.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.27.3 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 130 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.78 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.47 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-BeCblIqY.css  \u001b[39m\u001b[1m\u001b[2m 15.14 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   3.16 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-DKDUetci.js   \u001b[39m\u001b[1m\u001b[2m403.63 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 124.21 kB\u001b[22m\n\u001b[32m\u2713 built in 471ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.8,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 3.6,
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/geometry.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-layout.test.ts \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/selection-reducer.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 30\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model-group.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 19\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/shape-model.test.ts \u001b[2m(\u001b[22m\u001b[2m26 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 18\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/connector-model.test.ts \u001b[2m(\u001b[22m\u001b[2m32 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 26\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-model.test.ts \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 20\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m30 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 21\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 203\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-history.test.ts \u001b[2m(\u001b[22m\u001b[2m26 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 248\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/router.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1251\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-01: chunkBytes splits, joinChunks puts back\u001b[2m > \u001b[22mround-trips byte-identically at every boundary \u001b[33m 913\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-boundaries.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2796\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-12: typing without a pause is one undo step\u001b[2m > \u001b[22mgroups a burst of keystrokes and undoes the whole burst at once \u001b[33m 389\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-12: typing without a pause is one undo step\u001b[2m > \u001b[22mgroups a burst of any length, and one press of Undo ends it \u001b[33m 398\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-12: typing without a pause is one undo step\u001b[2m > \u001b[22mgroups keystrokes spread over more than one setting, as long as none of the pauses reaches it \u001b[33m 853\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-13: a pause of UNDO_CAPTURE_TIMEOUT_MS or more ends the burst\u001b[2m > \u001b[22msplits two bursts a whole setting apart at the product default \u001b[33m 655\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m298 passed\u001b[39m\u001b[22m\u001b[90m (298)\u001b[39m\n\u001b[2m   Start at \u001b[22m 07:23:18\n\u001b[2m   Duration \u001b[22m 3.12s\u001b[2m (transform 919ms, setup 0ms, collect 2.00s, tests 4.67s, environment 2ms, prepare 803ms)\u001b[22m\n\n",
+            "passed": 298,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 6.2,
+            "tail": "ne press of Undo\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/UndoControls.test.tsx\u001b[2m > \u001b[22m\u001b[2mTC-18: the buttons say what the history holds\u001b[2m > \u001b[22m\u001b[2mdisables both buttons while there is nothing of mine to undo or redo\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/Toolbars.test.tsx\u001b[2m > \u001b[22m\u001b[2mthe note toolbar colour swatches\u001b[2m > \u001b[22m\u001b[2mTC-27 recolours the note with the pink swatch and keeps it selected\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/selection.test.tsx\u001b[2m > \u001b[22m\u001b[2mTC-16 remote delete prunes selection\u001b[2m > \u001b[22m\u001b[2mall selected ids deleted remotely \u2192 selection empty, bar hidden\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/StickyTextEditor.concurrent.test.tsx\u001b[2m > \u001b[22m\u001b[2ma change that arrives while the note is open\u001b[2m > \u001b[22m\u001b[2mappears in the editor, in the document, and nowhere else\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/App-load-failed.test.tsx\u001b[2m > \u001b[22m\u001b[2mTC-23: a board that could not be loaded is not edited\u001b[2m > \u001b[22m\u001b[2mshows the load-failure message once the room closes it with 4500\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/StickyNote.test.tsx\u001b[2m > \u001b[22m\u001b[2mselecting a sticky note\u001b[2m > \u001b[22m\u001b[2mTC-18 selects a note with a short press and keeps the board still\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/StickyTextEditor.test.tsx\u001b[2m > \u001b[22m\u001b[2mstarting to edit a note\u001b[2m > \u001b[22m\u001b[2mTC-23 opens the note on Enter with the text loaded and the caret at the end\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardViewport.test.tsx\u001b[2m > \u001b[22m\u001b[2mpan by dragging (viewport.input)\u001b[2m > \u001b[22m\u001b[2mTC-13 drags the board exactly with the pointer and returns to idle\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/TextObject.test.tsx\u001b[2m > \u001b[22m\u001b[2mtyping into a text object\u001b[2m > \u001b[22m\u001b[2mTC-19 writes the letters into the document and shows them\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/CheckoutFlow.test.tsx\u001b[2m > \u001b[22m\u001b[2ma board of shapes and arrows, rendered\u001b[2m > \u001b[22m\u001b[2mTC-23a: draws four labelled shapes and the four arrows of the flow\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/BoardPage.test.tsx\u001b[2m > \u001b[22m\u001b[2mTC-20: a bad address is not-found, and a malformed one never asks\u001b[2m > \u001b[22m\u001b[2mmounts the live board when the service says it exists\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/NavigationHint.test.tsx\u001b[2m > \u001b[22m\u001b[2mnavigation hint (nav.hint_display)\u001b[2m > \u001b[22m\u001b[2mTC-22 hides on the first camera change and stays hidden\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n\u001b[90mstderr\u001b[2m | tests/component/router.test.tsx\u001b[2m > \u001b[22m\u001b[2mTC-19: the three routes\u001b[2m > \u001b[22m\u001b[2ma board address asks the service and shows the board\n\u001b[22m\u001b[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 12.8,
+            "tail": "closes both sockets, never shows the change, and a reconnect saves it\n\u001b[22m\u001b[39mvidi6: storage write failed, board reset for its clients to resend Error: injected storage write failure\n    at BoardStore.store.append (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/tests/integration/helpers/ws-client.ts:562:15)\n    at onDocUpdate (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/src/worker/board-room.ts:239:18)\n    at Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/lib0/observable.js:82:90\n    at Array.forEach (<anonymous>)\n    at Doc.emit (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/lib0/observable.js:82:77)\n    at cleanupTransactions (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/yjs/dist/yjs.mjs:3355:15)\n    at transact (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/yjs/dist/yjs.mjs:3431:9)\n    at readUpdateV2 (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/yjs/dist/yjs.mjs:1652:3)\n    at applyUpdateV2 (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/yjs/dist/yjs.mjs:1747:3)\n    at Module.applyUpdate (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/yjs/dist/yjs.mjs:1761:58)\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mTC-17: a garbage update is refused and never reaches storage\u001b[2m > \u001b[22m\u001b[2man update that is not a Yjs update closes its socket and adds no log row\n\u001b[22m\u001b[39mCaught error while handling a Yjs update Error: Unexpected end of array\n    at Module.create (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/lib0/error.js:12:28)\n    at Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/lib0/decoding.js:40:41\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mTC-26: a read that fails is a load failure, never an empty board\u001b[2m > \u001b[22m\u001b[2man unreadable snapshot read returns sql-error and closes newcomers with 4500\n\u001b[22m\u001b[39mvidi6: board could not be loaded (sql-error): injected storage read failure\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2mTC-15: malformed traffic costs one socket, not the board\u001b[2m > \u001b[22m\u001b[2mTC-15 'an update that is not a Yjs update' closes its sender only\n\u001b[22m\u001b[39mCaught error while handling a Yjs update Error: Unexpected end of array\n    at Module.create (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/lib0/error.js:12:28)\n    at Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/lib0/decoding.js:40:41\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2mTC-15: malformed traffic costs one socket, not the board\u001b[2m > \u001b[22m\u001b[2mTC-15 a person who sends four bad things in a row is gone after the first\n\u001b[22m\u001b[39mCaught error while handling a Yjs update Error: Unexpected end of array\n    at Module.create (Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/lib0/error.js:12:28)\n    at Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/node_modules/lib0/decoding.js:40:41\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 83.4,
+            "tail": "aj\u2019s own note is gone from both screens [board] 1ms\n  latency  leaving nothing at all on Raj\u2019s screen [board] 1ms\n\nundo changes measured in this test\n  18 changes: p50 1ms, p95 50ms, max 50ms (budget 1000ms, reported and not asserted)\n\u00b7\u00b7  latency  the move is on Raj\u2019s screen [board] 1ms\n  latency  the note is gone for Raj [board] 1ms\n  latency  the note is gone for Mia too [board] 2ms\n  latency  nothing appeared on Mia\u2019s screen [board] 1ms\n  latency  the board after an undo with nothing to undo [Mia/Raj] 2ms\n  latency  her next move is on Raj\u2019s screen [board] 1ms\n  latency  and back where it was on Raj\u2019s screen [board] 1ms\n\nundo changes measured in this test\n  7 changes: p50 1ms, p95 2ms, max 2ms (budget 1000ms, reported and not asserted)\n\u00b7  latency  the board, on every screen [Person0/Person1/Person2/Person3/Person4] 3ms\n  latency  every move, on every screen [Person0/Person1/Person2/Person3/Person4] 7ms\n  latency  every edit of every note, on every screen [Person0/Person1/Person2/Person3/Person4] 5ms\n\u00b7  latency  the boards agree again after everyone undid their typing [Person0/Person1/Person2/Person3/Person4] 4ms\n  latency  the boards agree again after everyone undid their moves [Person0/Person1/Person2/Person3/Person4] 3ms\n  latency  the boards agree again after everyone redid their moves [Person0/Person1/Person2/Person3/Person4] 5ms\n\nundo changes measured in this test\n  6 changes: p50 5ms, p95 7ms, max 7ms (budget 1000ms, reported and not asserted)\n\u00b7\u00b7\u00b7  outage   Alex\u2019s board: the board came back after 30055ms\n  latency  the board both people were working on [Alex/Sam] 2ms\n\nchanges measured in this test\n  2 changes: p50 11ms, p95 11ms, max 11ms (budget 1000ms, reported and not asserted)\n\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7TC-21 (e2e cold open): first note visible 3989ms, all 2000 painted 4004ms after navigation\n\u00b7  outage   Dana\u2019s board, mid-drag: the board came back after 30037ms\n  latency  the shape is gone from Dana\u2019s screen as well [board] 3ms\n  latency  the arrow is drawn as stranded [board] 1ms\n  latency  the arrow that outran a delete [Dana/Sam] 1ms\n\nstory 10 changes measured in this test\n  5 changes: p50 2ms, p95 3ms, max 3ms (budget 1000ms, reported and not asserted)\n\u00b7\u00b7\n\n  1) [webkit] \u203a tests/e2e/selection.spec.ts:270:3 \u203a multi-selection collaboration \u203a TC-32: marquee selects only fully-inside notes \n\n    Error: expect(locator).toHaveAttribute(expected) failed\n\n    Locator:  locator('[data-note-id=\"0d7ecabc-9d8d-4e4f-9f70-5c9a1c27b04f\"]')\n    Expected: \"true\"\n    Received: \"false\"\n    Timeout:  5000ms\n\n    Call log:\n      - Expect \"toHaveAttribute\" locator('[data-note-id=\"0d7ecabc-9d8d-4e4f-9f70-5c9a1c27b04f\"]') with timeout 5000ms\n      - waiting for locator('[data-note-id=\"0d7ecabc-9d8d-4e4f-9f70-5c9a1c27b04f\"]')\n        14 \u00d7 locator resolved to <div role=\"group\" tabindex=\"0\" class=\"sticky-note\" data-selected=\"false\" data-overflow=\"false\" data-state=\"unselected\" aria-label=\"Sticky note\" data-testid=\"sticky-note\" data-note-id=\"0d7ecabc-9d8d-4e4f-9f70-5c9a1c27b04f\">\u2026</div>\n           - unexpected value \"false\"\n\n\n      300 |\n      301 |     // Only A should be selected\n    > 302 |     await expect(me.page.locator(`[data-note-id=\"${idA}\"]`)).toHaveAttribute('data-selected', 'true');\n          |                                                              ^\n      303 |     // B and C should not be (assuming the marquee doesn't cover them fully)\n      304 |     // Note: with seedNotes stride=260 and size=200, notes are 60 apart.\n      305 |     // The marquee around A (width=200+5+10=215) should fully contain A\n        at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace/tests/e2e/selection.spec.ts:302:62\n\n    Error Context: test-results/selection-multi-selection--f4fe2-cts-only-fully-inside-notes-webkit/error-context.md\n\n  1 failed\n    [webkit] \u203a tests/e2e/selection.spec.ts:270:3 \u203a multi-selection collaboration \u203a TC-32: marquee selects only fully-inside notes \n  119 passed (1.4m)\n",
+            "passed": 119,
+            "failed": 1
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 62,
+        "total": 65,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          },
+          "03": {
+            "passed": 5,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5
+          },
+          "07": {
+            "passed": 8,
+            "total": 8
+          },
+          "08": {
+            "passed": 7,
+            "total": 7
+          },
+          "09": {
+            "passed": 5,
+            "total": 6
+          },
+          "10": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        "setup_fallbacks": {
+          "tests": 0,
+          "by_owner": {}
+        },
+        "harness_fault": null
+      },
+      "commit": "808b941aa7e9bd56bbf1c41c8b46dc4eae7682e9",
+      "requests": {},
+      "time_split": {
+        "wall_s": 8723.5,
+        "model": {
+          "source": "client-stream",
+          "requests": 433,
+          "prefill_s": 1002.8,
+          "prefill_tokens": 1031949,
+          "prefill_tok_s": 1029.1,
+          "decode_s": 5682.4,
+          "decode_tokens": 329585,
+          "decode_tok_s": 58.0,
+          "cached_tokens": 28431996,
+          "draft_acceptance": 0.693,
+          "mean_accepted_len": 3.15
+        },
+        "tools_s": 1063.8,
+        "tools_by_kind": {
+          "e2e": 900.4,
+          "unit": 141.8,
+          "build": 19.9,
+          "bash": 1.4,
+          "edit": 0.1,
+          "read": 0.1,
+          "write": 0.0
+        },
+        "compaction_s": 958.2,
+        "compactions": 8,
+        "between_sessions_s": 0.4,
+        "other_s": 15.9,
+        "suspended_s": 0.0,
+        "accounting": {
+          "version": 4,
+          "ok": true,
+          "problems": [],
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
+        }
+      },
+      "conversation": {
+        "version": 3,
+        "calls": 433,
+        "tool_calls": 485,
+        "thinking_visible": true,
+        "thinking_chars": 565441,
+        "thinking_median": 383,
+        "thinking_median_before": 166,
+        "thinking_median_after": 421,
+        "largest_thinking": {
+          "chars": 51300,
+          "call": 39,
+          "at_s": 801.1
+        },
+        "text_chars": 4961,
+        "tool_arg_chars": 589093,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
+        "context_start": 2134,
+        "context_end": 74638,
+        "largest_context_jump": {
+          "tokens": 17270,
+          "call": 40
+        },
+        "tools_by_name": {
+          "bash": 212,
+          "read": 150,
+          "edit": 95,
+          "write": 28
+        },
+        "tool_errors": 19,
+        "longest_tool": {
+          "seconds": 173.5,
+          "name": "bash",
+          "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-pi__benchmarks__vidi__v2-r3/workspace &&"
+        },
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "loc": {
+        "files": 140,
+        "lines": 30107
+      },
+      "finished": 1790922410.8716211,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 7,
+          "title": "Write shape model unit tests first (TC-01 to TC-06)",
+          "type": "test:unit",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06"
+          ],
+          "status": "verified",
+          "found": 6,
+          "total": 6
+        },
+        {
+          "n": 8,
+          "title": "Implement shape model: create by drag/click/Shift, style validation, label Y.Text",
+          "type": "implementation",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Write connector model and geometry unit tests first (TC-07 to TC-14, TC-29)",
+          "type": "test:unit",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-29"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 10,
+          "title": "Implement connector model, geometry and detach-on-delete in board-model",
+          "type": "implementation",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Implement active tool hook with shortcuts and return-to-Select",
+          "type": "implementation",
+          "implements": [
+            "tools.active_tool"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Implement Shape tool, ShapeObject with centred label, and ShapeToolbar",
+          "type": "implementation",
+          "implements": [
+            "shape.ui"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 13,
+          "title": "Implement Connector tool with hover dots, ConnectorObject with arrowhead and re-attach handles",
+          "type": "implementation",
+          "implements": [
+            "connector.ui"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 14,
+          "title": "Component tests for shape tool/object/toolbar, connector tool/object and active tool (TC-15 to TC-22, TC-28)",
+          "type": "test:ui-component",
+          "implements": [
+            "shape.ui",
+            "connector.ui",
+            "tools.active_tool"
+          ],
+          "tcs": [
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-28"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 15,
+          "title": "E2E: draw a flow, collaborative rearrange, delete race (TC-23 to TC-27)",
+          "type": "test:e2e",
+          "implements": [
+            "shape.ui",
+            "connector.ui"
+          ],
+          "tcs": [
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27"
+          ],
+          "status": "committed",
+          "found": 5,
+          "total": 5
+        }
       ]
     }
   },
@@ -15295,6 +17268,540 @@
           "accept": {
             "passed": 5,
             "total": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790913467.502825,
+      "ended_at": 1790922190.9843369,
+      "agent_minutes": 145.4,
+      "calls": 433,
+      "output_tokens": 329585,
+      "compactions": 8,
+      "last_commit_at": 1790922177.0,
+      "accept": {
+        "passed": 8,
+        "total": 8
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 7,
+          "title": "Write shape model unit tests first (TC-01 to TC-06)",
+          "type": "test:unit",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06"
+          ],
+          "status": "verified",
+          "found": 6,
+          "total": 6
+        },
+        {
+          "n": 8,
+          "title": "Implement shape model: create by drag/click/Shift, style validation, label Y.Text",
+          "type": "implementation",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Write connector model and geometry unit tests first (TC-07 to TC-14, TC-29)",
+          "type": "test:unit",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-29"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 10,
+          "title": "Implement connector model, geometry and detach-on-delete in board-model",
+          "type": "implementation",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Implement active tool hook with shortcuts and return-to-Select",
+          "type": "implementation",
+          "implements": [
+            "tools.active_tool"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Implement Shape tool, ShapeObject with centred label, and ShapeToolbar",
+          "type": "implementation",
+          "implements": [
+            "shape.ui"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 13,
+          "title": "Implement Connector tool with hover dots, ConnectorObject with arrowhead and re-attach handles",
+          "type": "implementation",
+          "implements": [
+            "connector.ui"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 14,
+          "title": "Component tests for shape tool/object/toolbar, connector tool/object and active tool (TC-15 to TC-22, TC-28)",
+          "type": "test:ui-component",
+          "implements": [
+            "shape.ui",
+            "connector.ui",
+            "tools.active_tool"
+          ],
+          "tcs": [
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-28"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 15,
+          "title": "E2E: draw a flow, collaborative rearrange, delete race (TC-23 to TC-27)",
+          "type": "test:e2e",
+          "implements": [
+            "shape.ui",
+            "connector.ui"
+          ],
+          "tcs": [
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27"
+          ],
+          "status": "committed",
+          "found": 5,
+          "total": 5
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 22.5,
+          "calls": 69,
+          "output_tokens": 130294,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 28.5,
+          "calls": 68,
+          "output_tokens": 119648,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 17.5,
+          "calls": 62,
+          "output_tokens": 104833,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 21.4,
+          "calls": 130,
+          "output_tokens": 84472,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 86.6,
+          "calls": 303,
+          "output_tokens": 272385,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-04",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 80.1,
+          "calls": 283,
+          "output_tokens": 263416,
+          "accept": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 107.5,
+          "calls": 274,
+          "output_tokens": 252095,
+          "accept": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi canvas-mlx-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 119.3,
+          "calls": 330,
+          "output_tokens": 301048,
+          "accept": {
+            "passed": 0,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 127.8,
+          "calls": 363,
+          "output_tokens": 319002,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi v2-r2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 214.5,
+          "calls": 652,
+          "output_tokens": 442794,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 67.0,
+          "calls": 253,
+          "output_tokens": 132825,
+          "accept": {
+            "passed": 4,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 25.0,
+          "calls": 160,
+          "output_tokens": 74807,
+          "accept": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 105.7,
+          "calls": 296,
+          "output_tokens": 213837,
+          "accept": {
+            "passed": 5,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 42.1,
+          "calls": 228,
+          "output_tokens": 88130,
+          "accept": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 47.5,
+          "calls": 215,
+          "output_tokens": 102958,
+          "accept": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 72.1,
+          "calls": 240,
+          "output_tokens": 150851,
+          "accept": {
+            "passed": 7,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r1",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 203.7,
+          "calls": 672,
+          "output_tokens": 291135,
+          "accept": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 26.8,
+          "calls": 138,
+          "output_tokens": 67012,
+          "accept": {
+            "passed": 2,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 52.5,
+          "calls": 192,
+          "output_tokens": 79745,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 33.8,
+          "calls": 151,
+          "output_tokens": 83824,
+          "accept": {
+            "passed": 8,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi v2-r5",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 38.9,
+          "calls": 136,
+          "output_tokens": 74636,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 239.0,
+          "calls": 373,
+          "output_tokens": 227738,
+          "accept": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 99.5,
+          "calls": 384,
+          "output_tokens": 216195,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 54.8,
+          "calls": 211,
+          "output_tokens": 192449,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 105.5,
+          "calls": 251,
+          "output_tokens": 157860,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 23.7,
+          "calls": 131,
+          "output_tokens": 103814,
+          "accept": {
+            "passed": 3,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 14.3,
+          "calls": 91,
+          "output_tokens": 65551,
+          "accept": {
+            "passed": 4,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 22.0,
+          "calls": 134,
+          "output_tokens": 75118,
+          "accept": {
+            "passed": 3,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi v2-r4",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 15.1,
+          "calls": 91,
+          "output_tokens": 66339,
+          "accept": {
+            "passed": 2,
+            "total": 8
           }
         }
       ]
