@@ -1,0 +1,142 @@
+:root {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --grid-dot-color: #c9c9c9;
+  --origin-marker-color: #9a9a9a;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #fff;
+}
+
+.app-root {
+  position: fixed;
+  inset: 0;
+}
+
+/* Board input surface: dot grid moves with pan and zoom. */
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+/* World layer: positioned with a CSS transform in world coordinates.
+   It never intercepts pointer events so the viewport receives drags on
+   empty space; future objects opt back in with pointer-events: auto. */
+.world-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+/* Small crosshair at world (0,0): the board's starting point. */
+.origin-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  pointer-events: none;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: '';
+  position: absolute;
+  background: var(--origin-marker-color);
+}
+
+.origin-marker::before {
+  left: 5px;
+  top: 0;
+  width: 2px;
+  height: 12px;
+}
+
+.origin-marker::after {
+  left: 0;
+  top: 5px;
+  width: 12px;
+  height: 2px;
+}
+
+/* Zoom controls, fixed bottom right. */
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 12%);
+  font-size: 14px;
+}
+
+.zoom-controls__button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.zoom-controls__button:disabled {
+  color: #b0b0b0;
+  cursor: default;
+}
+
+.zoom-controls__label {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoom-controls__reset {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.zoom-controls button:focus-visible {
+  outline: 2px solid #4a90d9;
+  outline-offset: 1px;
+}
+
+/* First-use navigation hint, bottom centre. */
+.navigation-hint {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgb(33 33 33 / 80%);
+  color: #fff;
+  font-size: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+}

@@ -1,0 +1,11 @@
+{
+  // Worker config. `assets.directory` points at the Vite build output so
+  // `wrangler dev` serves the client as static assets from day one.
+  // The Worker entry point (`main`) arrives in story 3.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "dist/client"
+  }
+}
