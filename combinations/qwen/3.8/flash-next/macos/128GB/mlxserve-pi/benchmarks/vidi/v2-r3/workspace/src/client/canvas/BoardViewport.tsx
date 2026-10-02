@@ -37,10 +37,11 @@ export interface BoardViewportProps {
   onMarqueeCancel?(): void;
   /**
    * The pointer the board shows over its own surface. 'text' is the Text tool
-   * saying what a click here will become, which is the only thing the tool is
-   * allowed to change about the board's appearance.
+   * saying what a click here will become, and 'crosshair' is the Shape and
+   * Connector tools saying that a drag here will draw something — which is the
+   * only thing a tool is allowed to change about the board's appearance.
    */
-  cursor?: 'default' | 'text';
+  cursor?: 'default' | 'text' | 'crosshair';
   /**
    * While the Text tool is active, a press and release in the same spot places
    * text there — on empty board or on top of whatever object is already there,
@@ -289,10 +290,10 @@ export function BoardViewport(props: BoardViewportProps) {
   return (
     <div
       ref={surfaceRef}
-      className={`board-viewport${panning ? ' is-panning' : ''}${props.cursor === 'text' ? ' is-text-tool' : ''}`}
+      className={`board-viewport${panning ? ' is-panning' : ''}${props.cursor === 'text' ? ' is-text-tool' : ''}${props.cursor === 'crosshair' ? ' is-draw-tool' : ''}`}
       data-testid="board-viewport"
       data-state={panning ? 'panning' : 'idle'}
-      data-cursor={props.cursor === 'text' ? 'text' : undefined}
+      data-cursor={props.cursor === 'text' || props.cursor === 'crosshair' ? props.cursor : undefined}
       style={{
         backgroundImage: 'radial-gradient(circle, rgba(20, 20, 30, 0.22) 1px, transparent 1.5px)',
         backgroundSize: `${spacing}px ${spacing}px`,

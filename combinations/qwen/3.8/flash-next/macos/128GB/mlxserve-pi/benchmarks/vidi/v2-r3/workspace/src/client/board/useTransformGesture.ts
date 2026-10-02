@@ -9,6 +9,7 @@ import {
   objectBounds,
 } from '../../shared/board-model';
 import { clampTextWidth, setTextWidthFixed } from '../../shared/objects/text';
+import { setConnectorFreeEnds } from '../../shared/objects/connector';
 import { createCanvasMeasurer, type Measurer } from '../objects/textLayout';
 import { remeasureTextBox } from '../objects/useTextBoxSync';
 import type { SelectionApi } from './useSelection';
@@ -67,6 +68,11 @@ interface GestureState {
   texts?: Set<string>;
   /** Which of them have a width of their own, rather than one the text decided. */
   fixed?: Set<string>;
+  /** Where the arrow ends were when the drag took hold, by id: an arrow is dragged
+   * by its free ends, and a drag says where the pointer has got to, so the ends are
+   * written where they have got to rather than by however much they have gone.
+   * Attached ends are not in it, because they are not the arrow's to move. */
+  ends?: Map<string, { from: Point; to: Point }>;
   /** Whether threshold has been crossed. */
   moved: boolean;
   /** The element that has pointer capture. */
@@ -110,6 +116,16 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         positions.set(id, { x: rect.x + dx, y: rect.y + dy });
       }
       moveObjects(o.doc, positions);
+      // An arrow in the same drag goes with it, at the only resolution at which an
+      // arrow can be asked to move: where its free ends are. Both counts are one
+      // transaction each, inside the one undo window this drag opened.
+      if (gesture.ends !== undefined && gesture.ends.size > 0) {
+        const moved = new Map<string, { from: Point; to: Point }>();
+        for (const [id, ends] of gesture.ends) {
+          moved.set(id, { from: { x: ends.from.x + dx, y: ends.from.y + dy }, to: { x: ends.to.x + dx, y: ends.to.y + dy } });
+        }
+        setConnectorFreeEnds(o.doc, moved);
+      }
     } else if (gesture.type === 'resize' && gesture.boundingBox && gesture.handle) {
       // Resize the bounding box
       const delta = { x: dx, y: dy };
@@ -246,10 +262,14 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
 
     // Record start rects of all objects to move
     const startRects = new Map<string, Rect>();
+    const ends = new Map<string, { from: Point; to: Point }>();
     for (const oid of idsToMove) {
       const obj = o.snapshot.find((s) => s.id === oid);
       if (obj === undefined) continue;
       startRects.set(oid, objectBounds(obj));
+      // An arrow's ends, as they are drawn right now: the drag below moves the free
+      // ones by this drag's distance and leaves the fastened ones to their shapes.
+      if (obj.type === 'connector') ends.set(oid, { from: obj.resolved.from, to: obj.resolved.to });
     }
 
     gestureRef.current = {
@@ -258,6 +278,7 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       startX: e.clientX,
       startY: e.clientY,
       startRects,
+      ends,
       moved: false,
       element: e.currentTarget as Element,
     };

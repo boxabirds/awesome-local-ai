@@ -18,6 +18,14 @@ import { Toolbar } from './Toolbar';
 import { useToolKeys } from './useTool';
 import { StickyNote } from '../objects/StickyNote';
 import { TextObject } from '../objects/TextObject';
+import { ShapeObject } from '../objects/ShapeObject';
+import { ConnectorObject } from '../objects/ConnectorObject';
+import { useShapeTool } from '../tools/useShapeTool';
+import { useConnectorTool } from '../tools/useConnectorTool';
+import { useConnectorEndDrag } from '../tools/useConnectorEndDrag';
+import { ShapePreview } from '../tools/ShapeTool';
+import { ConnectorOverlay } from '../tools/ConnectorTool';
+import type { ShapeKind } from '../../shared/config';
 import type { ConnectionState } from '../sync/connectBoard';
 import { createSticky, deleteObjects, objectsInRect, type ObjectSnapshot } from '../../shared/board-model';
 import { createText, setTextSize, setTextWidthAuto, setTextWidthFixed } from '../../shared/objects/text';
@@ -28,6 +36,7 @@ import type { Rect } from '../../shared/geometry';
 import { reportConnectionState, setOutageHandler, setSeedNotesHandler } from '../canvas/testHooks';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { WebsocketProvider } from 'y-websocket';
+import { worldToScreen } from '../canvas/camera';
 
 export interface BoardProps {
   /**
@@ -90,7 +99,7 @@ export function Board(props: BoardProps = {}): JSX.Element {
   // letters, not shortcuts. N creates a sticky note, which is what it did before
   // there were any tools, and the callback is called at the key press rather than
   // passed in, because the board is not wired up yet at this line.
-  const { tool, setTool } = useToolKeys(editable, () => {
+  const { tool, setTool, shapeKind, setShapeKind } = useToolKeys(editable, () => {
     createStickyAtViewportCentre();
   });
 
@@ -198,7 +207,6 @@ export function Board(props: BoardProps = {}): JSX.Element {
   // Use a ref so the keydown handler always sees the latest selection.
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
-
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const sel = selectionRef.current;
@@ -221,8 +229,65 @@ export function Board(props: BoardProps = {}): JSX.Element {
 
   // The object the text toolbar is for: the selection's only member, when that
   // one object is a text object. Everything else about the selection is generic.
+  /** What the board does with a thing it has just drawn: the new shape or arrow
+   * is the one thing selected, and the board is back in Select, because a tool
+   * that stayed armed after every drawing would be a tool a person has to
+   * remember to leave before they could move what they made. */
+  const created = useCallback(
+    (id: string) => {
+      setTool('select');
+      selection.setMany([id], false);
+    },
+    [selection, setTool],
+  );
+
+  // The Shape tool and the Connector tool own their own drag, on the window and
+  // in the capturing phase, and are switched on by the tool the board is in. They
+  // are given the camera they were drawn with and the objects that are there now,
+  // and they are handed nothing else to write with but the model.
+  const shapeTool = useShapeTool({
+    doc,
+    camera,
+    active: tool === 'shape' && editable,
+    canEdit: editable,
+    kind: shapeKind,
+    undo: undoController,
+    onCreated: created,
+  });
+
+  const connectorTool = useConnectorTool({
+    doc,
+    camera,
+    objects,
+    active: tool === 'connector' && editable,
+    canEdit: editable,
+    undo: undoController,
+    onCreated: created,
+  });
+
+  // The two ends of a selected arrow can be dragged to another shape, or loose
+  // into the air; the handles are the selection's, the gesture is this.
+  const endDrag = useConnectorEndDrag({
+    doc,
+    camera,
+    objects,
+    canEdit: editable,
+    undo: undoController,
+  });
+
+  /** The one object selected, which is what a floating toolbar belongs to. */
   const onlySelected = selection.ids.size === 1 ? objects.find((o) => selection.ids.has(o.id)) : undefined;
   const onlyText = onlySelected !== undefined && onlySelected.type === 'text' ? onlySelected : undefined;
+  /** The shape the arrow being drawn would touch: the one whose four sides are
+   * being offered as the place it would fasten to — whether the arrow is being
+   * drawn for the first time or one of its ends is being moved. */
+  const hoverId = connectorTool.hoverId ?? (connectorTool.drag === null ? endDrag.drag?.targetId ?? null : null);
+  const attachTarget = hoverId === null ? null : objects.find((o) => o.id === hoverId) ?? null;
+  /** The one arrow the selection holds, whose two ends are the only handles it has. */
+  const onlyConnector = onlySelected !== undefined && onlySelected.type === 'connector' ? onlySelected : null;
+
+  /** Board units to the pixels a preview is drawn in. */
+  const toScreen = (point: Point): Point => worldToScreen(camera, point);
 
   /** One press of the text toolbar is one step of mine, and it takes the box the
    * new size or width needs with it: one Undo returns the text, its size and its
@@ -263,7 +328,15 @@ export function Board(props: BoardProps = {}): JSX.Element {
         onMarqueeMove={(p) => marquee.move(p)}
         onMarqueeEnd={() => marquee.end()}
         onMarqueeCancel={() => marquee.cancel()}
-        cursor={tool === 'text' && editable ? 'text' : 'default'}
+        cursor={
+          !editable
+            ? 'default'
+            : tool === 'text'
+              ? 'text'
+              : tool === 'shape' || tool === 'connector'
+                ? 'crosshair'
+                : 'default'
+        }
       >
         {rendered.map((object) => {
           // The two kinds of object are selected, edited, dragged and undone the
@@ -300,14 +373,24 @@ export function Board(props: BoardProps = {}): JSX.Element {
             },
             undo: undoController,
           };
-          return object.type === 'text' ? (
-            <TextObject key={object.id} obj={object} {...common} />
-          ) : (
-            <StickyNote key={object.id} note={object} {...common} />
-          );
+          if (object.type === 'text') return <TextObject key={object.id} obj={object} {...common} />;
+          if (object.type === 'shape') return <ShapeObject key={object.id} obj={object} {...common} />;
+          if (object.type === 'connector') {
+            // An arrow is drawn between two points rather than painted into a box,
+            // and it is selected, dragged and deleted like anything else; it has
+            // nothing to type into, so the editor's half of `common` goes unused.
+            return <ConnectorObject key={object.id} obj={object} {...common} />;
+          }
+          return <StickyNote key={object.id} note={object} {...common} />;
         })}
       </BoardViewport>
       <MarqueeRect rect={marquee.rect} camera={camera} />
+      <ShapePreview rect={shapeTool.preview} />
+      <ConnectorOverlay
+        target={attachTarget}
+        drag={connectorTool.drag ?? endDrag.drag}
+        worldToScreen={toScreen}
+      />
       <SelectionOverlay
         ids={selection.ids}
         snapshot={objects}
@@ -316,11 +399,22 @@ export function Board(props: BoardProps = {}): JSX.Element {
         onHandlePointerMove={(e) => gesture.onPointerMove(e)}
         onHandlePointerUp={(e) => gesture.onPointerUp(e)}
         onHandlePointerCancel={(e) => gesture.onPointerCancel(e)}
+        connectorEnds={
+          onlyConnector === null
+            ? null
+            : { id: onlyConnector.id, from: onlyConnector.resolved.from, to: onlyConnector.resolved.to }
+        }
+        onEndPointerDown={(e, id, end) => endDrag.onEndPointerDown(e, id, end)}
+        onEndPointerMove={(e) => endDrag.onEndPointerMove(e)}
+        onEndPointerUp={(e) => endDrag.onEndPointerUp(e)}
+        onEndPointerCancel={(e) => endDrag.onEndPointerCancel(e)}
       />
       <Toolbar
         onCreateSticky={createStickyAtViewportCentre}
         tool={tool}
         onSelectTool={setTool}
+        shapeKind={shapeKind}
+        onSelectShapeKind={setShapeKind}
         disabled={!editable}
         undo={undo}
       />

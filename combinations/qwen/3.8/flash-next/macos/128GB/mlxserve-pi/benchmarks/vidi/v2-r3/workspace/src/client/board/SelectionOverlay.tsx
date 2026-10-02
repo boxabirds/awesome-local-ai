@@ -2,9 +2,10 @@ import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import type { Camera } from '../canvas/camera';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
-import type { Rect, Handle } from '../../shared/geometry';
+import type { Point, Rect, Handle } from '../../shared/geometry';
 import { unionRects } from '../../shared/geometry';
 import { HANDLE_SIZE_PX } from '../../shared/config';
+import type { ConnectorEnd } from '../../shared/objects/connector';
 import { getObjectType, handlesOf } from '../objects/registry';
 
 export interface SelectionOverlayProps {
@@ -25,6 +26,18 @@ export interface SelectionOverlayProps {
   onHandlePointerMove?(e: ReactPointerEvent): void;
   onHandlePointerUp?(e: ReactPointerEvent): void;
   onHandlePointerCancel?(e: ReactPointerEvent): void;
+  /**
+   * The two ends of the one arrow the selection holds, in board units, or nothing
+   * when the selection is not a single arrow. An arrow is not resized — it has no
+   * box of its own, only two ends — so these take the place of the eight handles
+   * rather than being added to them.
+   */
+  connectorEnds?: { id: string; from: Point; to: Point } | null;
+  /** One end being dragged to another shape, or out into the air. */
+  onEndPointerDown?(e: ReactPointerEvent, id: string, end: ConnectorEnd): void;
+  onEndPointerMove?(e: ReactPointerEvent): void;
+  onEndPointerUp?(e: ReactPointerEvent): void;
+  onEndPointerCancel?(e: ReactPointerEvent): void;
 }
 
 const HANDLES: readonly { handle: Handle; label: string; cursor: string }[] = [
@@ -147,6 +160,48 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
           />
         );
       })}
+      {/* The two ends of a selected arrow, which are the only part of it a person
+          can hold: an arrow has no box to scale, and an end is the whole of what
+          it can be asked to become. */}
+      {props.connectorEnds === null || props.connectorEnds === undefined
+        ? null
+        : (['from', 'to'] as const).map((end) => {
+            const at = props.connectorEnds!;
+            const point = worldToScreen(camera, end === 'from' ? at.from : at.to);
+            return (
+              <div
+                key={end}
+                className={`connector-end-handle connector-end-handle-${end}`}
+                data-testid={`connector-end-${end}`}
+                data-end={end}
+                aria-label={`Move ${end === 'from' ? 'start' : 'arrowhead'} of connector`}
+                style={
+                  {
+                    position: 'fixed',
+                    left: `${point.x - half}px`,
+                    top: `${point.y - half}px`,
+                    width: `${HANDLE_SIZE_PX}px`,
+                    height: `${HANDLE_SIZE_PX}px`,
+                    '--handle-size': `${HANDLE_SIZE_PX}px`,
+                  } as React.CSSProperties
+                }
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  props.onEndPointerDown?.(e, at.id, end);
+                }}
+                onPointerMove={forward(props.onEndPointerMove)}
+                onPointerUp={forward(props.onEndPointerUp)}
+                onPointerCancel={forward(props.onEndPointerCancel)}
+                onLostPointerCapture={forward(props.onEndPointerUp)}
+              />
+            );
+          })}
     </div>
   );
+}
+
+/** Board units to the screen they are drawn on, which is what the marquee and the
+ *  selection overlay both do themselves rather than being handed. */
+function worldToScreen(camera: Camera, point: Point): Point {
+  return { x: (point.x - camera.x) * camera.zoom, y: (point.y - camera.y) * camera.zoom };
 }

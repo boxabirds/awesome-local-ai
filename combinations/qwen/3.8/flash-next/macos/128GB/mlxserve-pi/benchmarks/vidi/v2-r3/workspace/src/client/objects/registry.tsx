@@ -10,7 +10,12 @@ import type * as React from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import type { Point, Rect } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
+import { connectorHitTest } from '../../shared/objects/connector';
 
 /** Props that every object-type component receives. */
 export interface ObjectProps {
@@ -46,8 +51,13 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Whether double-click opens a text editor. */
   editableText: boolean;
-  /** Hit-test: is `worldPoint` within this object's bounds? */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Hit-test: is `worldPoint` within this object's bounds? `zoom` is the zoom
+   * the point was taken at, for a type whose tolerance is stated in screen
+   * pixels — an arrow is as easy to click at 10 % as at 400 %. Types that only
+   * look at a box ignore it.
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -123,4 +133,41 @@ registerObjectType('text', {
   minSize: TEXT_MIN_WIDTH_WORLD,
   editableText: true,
   hitTest: inBounds,
+});
+
+// --- Register shapes (story 10) ---------------------------------------------
+
+function ShapePlaceholder(): React.ReactElement {
+  return <div data-shape-placeholder={true} /> as React.ReactElement;
+}
+
+registerObjectType('shape', {
+  Component: ShapePlaceholder,
+  resizable: true,
+  // A shape keeps no proportion: a rectangle drawn 40 wide and 400 tall is the
+  // rectangle somebody drew, and the diamond and the ellipse stretch with it.
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: inBounds,
+});
+
+// --- Register connectors (story 10) ------------------------------------------
+
+function ConnectorPlaceholder(): React.ReactElement {
+  return <div data-connector-placeholder={true} /> as React.ReactElement;
+}
+
+registerObjectType('connector', {
+  Component: ConnectorPlaceholder,
+  // An arrow has no box to drag: it is stretched by moving one of its ends, and
+  // the overlay draws handles for those instead of the eight corner ones.
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  // A line is thin: the click is measured against it in screen pixels, which is
+  // the only way it stays as easy to catch at 10 % as at 400 %.
+  hitTest: (obj, worldPoint, zoom) =>
+    obj.type === 'connector' && connectorHitTest(obj, worldPoint, zoom ?? 1),
 });

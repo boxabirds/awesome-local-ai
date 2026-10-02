@@ -445,3 +445,172 @@ design names them, and without them three swatches clicked one after another are
 a single undo step instead of three. The extra component test ("every colour
 chosen in a row is a step of its own") is what caught that: it fails when the
 boundaries are taken back out.
+
+---
+
+# Story 10 — Draw shapes and connect them with arrows that follow when moved
+
+The document model, the geometry, the two tools and the two components are as the
+design draws them: attached endpoints that store no side, sides recomputed from
+live rectangles on every read, `detachConnectorsTo` inside `deleteObjects`' own
+transaction, and a Connector tool whose dots and highlight are DOM. Six things
+came out differently from the design's letter, and all six are recorded here with
+their reasons.
+
+## The fallback beside a fastened end is the side the end is drawn on, not the side the pointer was nearest
+
+The design says an attached end "is drawn at the midpoint of the side of its
+object nearest the other end … that anchor is also stored as `fallback`", and the
+first implementation stored instead the anchor of the side nearest *the point the
+pointer was released at*. Those are the same anchor when the arrow is drawn but
+not when the arrow is long: the release point is on the far shape, and the side of
+that shape nearest a pointer standing at its top-left can be a side the other end,
+across the board, does not face. The end was drawn on one side and buried with the
+anchor of another, so the moment the shape went away — `connector.target_deleted`,
+the race the fallback exists for — the end jumped to where it had been stored.
+E2E TC-27 measures exactly that jump: 90 board units between where Dana's arrow was
+drawn and where the same arrow landed after Sam's delete arrived. `endOf` now takes
+the aim of the other end (the middle of the object it is fastened to, or the point
+it is free at) and stores `sideAnchor(rect, nearestSide(rect, aim))`, which is the
+same expression `resolveConnectorEnds` draws with: an end orphaned by a delete is
+left exactly where it was last drawn, and both screens agree on where that was
+without being told.
+
+## `detachConnectorsTo` releases the side the arrow is touching, not the side it was stored with
+
+Same rule, on the delete side. An end says "A" with a fallback from the day it was
+drawn; if B has since been dragged under A, the end is drawn on A's bottom face
+while its stored fallback names the right one. Releasing at the stored fallback
+would move the arrow at the moment of the delete. The release point is
+`endpointAnchor(end, rects, aimOf(other, rects))` — where it is drawn, computed
+while the object is still in the transaction to be deleted, and only ends whose
+object is in the deleted set are touched at all (`detachConnectorsTo` returns the
+arrow ids it freed, which is what `deleteObjects` keeps for the undo bookkeeping).
+`tests/unit/connector-model.test.ts` ("releases the side the arrow was actually
+touching") moves B below A first, deletes A, and expects the end at A's bottom
+anchor — it fails against the stored-fallback version.
+
+## An arrow is dragged by where its free ends are, not by how far it has gone
+
+`moveObjects` takes nothing of a connector any more: an arrow has no position of
+its own to add a drag's distance to — its stored box is the box its ends happen to
+draw, and an attached end belongs to somebody else's shape. The first attempt let a
+drag of the arrow translate its free ends by *the delta since the drag began*, on
+every frame; because the box the frame was measured against is never rewritten (a
+connector's box is derived on read), the deltas accumulated instead of converging,
+and a 60-pixel drag at 50 % ended 540 board units away — 4.5 times the pointer's
+travel, at both 50 % and 200 %, found by E2E TC-28 and not by any component test,
+because the component tests each drag once. The model's answer is
+`setConnectorFreeEnds(doc, positions)`: the drag says where the free ends have got
+to, in board units, and writing the same points again moves nothing (a frame that
+changes nothing writes no transaction and costs no undo step — tested to the
+document-update count). Attached ends in the same call are refused: dragging an
+arrow does not drag the shapes it joins. The arrow-key nudge (`useBoardKeys`) and
+the group drag (`useTransformGesture`) both carry an `ends` map of resolved ends
+beside their positions map, so an arrow selected with shapes still follows its own
+rule; one `boundary()` on each side keeps each press or drag one undo step.
+
+## The world layer is `pointer-events: none`, so every object has to opt back in
+
+`.shape-object` was missing `pointer-events: auto`. In jsdom that is invisible —
+component tests dispatch events at nodes directly — and in Chromium and WebKit it
+means the shape is not there as far as the mouse is concerned: the first E2E run
+could draw a shape, could not click it, and reported it as a selection bug. Every
+object element in the world layer must set it; `.sticky-note` and `.text-object`
+already did, and the story 10 stylesheet carries it for `.shape-object` and
+`.connector-object` (the connector's SVG spans the bbox, so the hit test decides
+what is a hit rather than the element's outline).
+
+## The race is forced with the product's own outage, not with a route delay
+
+The design's test seam says "Timing of concurrent delete: Playwright route delay on
+Sam's socket traffic". A route delay can hold up messages that have not been sent
+yet; it cannot hold up frames already handed to an open WebSocket, and the whole
+race is a few milliseconds wide — far too narrow to land a delete inside by waiting.
+TC-27 overlaps the operations the way the product is specified to behave when it
+cannot see the room: Dana loses the board through `__vidi6.emulateOutage`, and while
+it is lost nothing Dana does can reach the room and nothing the room does can reach
+Dana — an operation overlapping a delete, held open for as long as anybody wants to
+look. TC-27 then waits through both halves: release-first (the arrow is created
+attached to a shape Dana still sees), and the arrival of Sam's delete (the end stops
+being attached to something that no longer exists, on both screens, at the same
+point). A 4-second outage does not do it — the socket reconnects before the badge
+ever says 'Reconnecting…'; the test uses the product-scaled `CATCH_UP_TEST_OUTAGE_MS`
+that story 4's catch-up tests already use.
+
+## Test seams on the connector element, and what each uniquely says
+
+`ConnectorObject` carries `data-from-x/y/kind`, `data-to-x/y/kind` and
+`data-detached`. The kinds are the **drawn** kind, not the stored one:
+`endIsAttached(end, ids)` says whether an end is stuck to a shape the board has,
+which is what a screen shows. A locally deleted shape leaves `data-detached='false'`
+and `kind='free'` — `deleteObjects` freed that end inside its own transaction — and
+only an end that arrives stored-attached to a missing id (a remote delete, the
+race) says `data-detached='true'` while drawing as a point in the air. That
+combination is the only state that looks stranded, which is why TC-27 asserts the
+pair together and TC-26 asserts the other.
+
+## Smaller deviations, each with its reason
+
+- `endOf` is exported from `useConnectorTool.ts` and shared with
+  `useConnectorEndDrag.ts`, so a re-attached end gets the same fallback rule as an
+  end drawn in the first place; the same-shape drag and the too-short drag are
+  rejected in the tool as well as in the model, because they are statements about
+  the drag, and the tool must not leave its undo window open to find out.
+- `useActiveTool.ts` is a thin re-export of story 9's `useTool` extended with
+  `'shape' | 'connector'`, `TOOL_SHORTCUTS` (`S`, `L`) and `shapeKind`, exactly as
+  the design's "created here if no earlier story has added it" branch allows. The
+  design's full `ToolId` (`pen`, `image`, `comment`) is not added: those stories are
+  out of scope here, and a union that names tools no code can activate only makes
+  the switch in `Board.tsx` non-exhaustive-looking for nothing.
+- `hitTest` in the registry grew an optional third argument, `zoom`: the design's
+  connector entry needs `distanceToPolyline ≤ 6 px / zoom`, and story 7's signature
+  passed only the world point. Optional, so every existing entry is unchanged.
+- The label is an HTML `div` centred over the SVG, not a `<foreignObject>`: a
+  textarea inside `foreignObject` loses caret placement under Safari at zoom ≠ 1,
+  and the plain overlay reuses story 9's `TextEditor` verbatim — which took three
+  optional props (`maxChars`, `objectSelector`, `testId`) so that the 500-character
+  clamp and the test seam could come without touching how text objects behave.
+- The arrowhead is a `<polygon>` computed from the line's direction rather than an
+  SVG `<marker>`: markers scale with `stroke-width` in ways that change the head's
+  size with the zoom, and `CONNECTOR_ARROWHEAD_SIZE_WORLD` is meant to be a size in
+  board units.
+- `setConnectorEndpoint` validates the `end` argument itself (`'from' | 'to'`), so a
+  wrong end answers `false` and writes nothing rather than writing a key no read
+  looks at.
+- `CONNECTOR_MIN_LENGTH_WORLD` is compared against the length of the **resolved**
+  ends (the design says "resolved length"), which is why TC-09's 7.9/8 boundary is
+  tested against shapes whose anchors are 300 apart minus two side insets.
+
+## Test seams
+
+- `tests/fixtures/checkout-flow.ts` builds the design's fixture with real model
+  calls: rect, diamond, ellipse, rect — four labelled shapes, three attached
+  connectors, one free-ended. `tests/component/CheckoutFlow.test.tsx` drags one
+  shape and asserts every arrow lands on the side its shape now faces, and deletes
+  one and asserts the arrow stays at the former anchor as a free end.
+- E2E asserts sides through an `arrowSides(page, id, leftId, rightId)` helper that
+  answers `'right|left'`/`'attached|free'`-style strings, so a side regression names
+  the side that went wrong. Component tests read the camera back from the world
+  layer's transform string (jsdom has no computed transform) and change zoom with
+  the same `__vidi6.setCamera` hook the product builds in test mode.
+- `tests/e2e/helpers/shapes.ts` keeps the geometry assertions in board or screen
+  space (`drawShape`, `drawArrow`, `arrowState`, `shapeCentre`, `sideFacing`,
+  `expectArrowEndAt`), all of them polling, because a remote move is on the wall
+  clock and not on the event loop.
+
+## Verification (story 10)
+
+- `npm run test:unit` — 298 tests, of which `tests/unit/shape-model.test.ts` is
+  TC-01…TC-06 and `tests/unit/connector-model.test.ts` is TC-07…TC-14, TC-29 and
+  the `setConnectorFreeEnds` drag rule.
+- `npm run test:component` — 205 tests, of which `ShapeAndConnector.test.tsx` is
+  TC-15…TC-22 and TC-28 and `CheckoutFlow.test.tsx` is the fixture's follow/delete.
+- `npm run test:integration` — 94 tests, unchanged: this story writes no server
+  code, and the sync path it rides on is proven in story 3.
+- `npm run test:e2e` — `shapes-and-connectors.spec.ts` is TC-23…TC-28; the whole
+  chromium suite (58 tests) passes, TC-27 also passes in webkit, and the
+  persistence suite still passes. Firefox is not run here for the reason story 3
+  records (`sandbox_init()` refuses in this sandbox); the assertions are the ones
+  that pass in the other two engines.
+- `npm run typecheck`, `npm run build`, `npm run build:test` all pass.

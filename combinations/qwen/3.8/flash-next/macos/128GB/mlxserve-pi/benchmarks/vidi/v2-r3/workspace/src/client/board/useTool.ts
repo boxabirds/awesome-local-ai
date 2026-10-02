@@ -7,12 +7,26 @@
 // Select mode after anything the Text tool creates, so there is no "back to
 // Select" step for a key to perform and no stale mode to reset.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ShapeKind } from '../../shared/config';
 
 /** The tools a key or the toolbar can put the board in. */
-export type BoardTool = 'select' | 'text';
+export type BoardTool = 'select' | 'text' | 'shape' | 'connector';
 
 /** What a key press means to the board's tool state. */
 export type ToolKey = BoardTool | 'sticky' | 'exit' | null;
+
+/**
+ * The key that selects a tool, as the design's "Key" column has it.
+ *
+ * 'n' is not in it: it makes a sticky note, which is an action rather than a
+ * tool, so it stays a key of its own that the board carries out.
+ */
+export const TOOL_SHORTCUTS: Readonly<Record<string, BoardTool>> = Object.freeze({
+  v: 'select',
+  t: 'text',
+  s: 'shape',
+  l: 'connector',
+});
 
 /**
  * The key that selects a tool, or null for every other key.
@@ -24,19 +38,22 @@ export type ToolKey = BoardTool | 'sticky' | 'exit' | null;
  */
 export function toolKey(key: string, modifiers?: { ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }): ToolKey {
   if (modifiers?.ctrlKey === true || modifiers?.metaKey === true || modifiers?.altKey === true) return null;
-  if (key === 'v' || key === 'V') return 'select';
-  if (key === 't' || key === 'T') return 'text';
   if (key === 'n' || key === 'N') return 'sticky';
   if (key === 'Escape') return 'exit';
-  return null;
+  const tool = TOOL_SHORTCUTS[key.toLowerCase()];
+  return tool ?? null;
 }
 
 export interface UseToolResult {
   tool: BoardTool;
   /** Put the board in a tool, leaving whatever was being edited alone. */
   setTool(next: BoardTool): void;
-  /** V / T / N / Escape. Nothing else, and nothing at all while something has
-   * the keyboard for typing: a letter a person is typing is not a shortcut. */
+  /** The kind the Shape tool will draw next, remembered between drawings. */
+  shapeKind: ShapeKind;
+  /** Choose a kind from the Shape menu. It does not leave the tool it is in. */
+  setShapeKind(kind: ShapeKind): void;
+  /** V / T / S / L / N / Escape. Nothing else, and nothing at all while something
+   * has the keyboard for typing: a letter a person is typing is not a shortcut. */
   onKeyDown(e: KeyboardEvent): void;
 }
 /** Whether the keyboard belongs to something being typed into. */
@@ -60,10 +77,15 @@ function isTypingTarget(target: EventTarget | null): boolean {
  */
 export function useTool(canEdit = true, onCreateSticky?: () => void): UseToolResult {
   const [tool, setToolState] = useState<BoardTool>('select');
+  const [shapeKind, setShapeKindState] = useState<ShapeKind>('rect');
   const can = canEdit !== false;
 
   const setTool = useCallback((next: BoardTool) => {
     setToolState(next);
+  }, []);
+
+  const setShapeKind = useCallback((kind: ShapeKind) => {
+    setShapeKindState(kind);
   }, []);
 
   useEffect(() => {
@@ -95,7 +117,7 @@ export function useTool(canEdit = true, onCreateSticky?: () => void): UseToolRes
     [can, onCreateSticky],
   );
 
-  return { tool, setTool, onKeyDown };
+  return { tool, setTool, shapeKind, setShapeKind, onKeyDown };
 }
 
 /**

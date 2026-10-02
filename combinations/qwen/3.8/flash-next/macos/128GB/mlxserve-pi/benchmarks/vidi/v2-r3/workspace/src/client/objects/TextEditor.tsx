@@ -52,11 +52,25 @@ export interface TextEditorProps {
    * browser's.
    */
   undo?: UndoController;
+  /**
+   * How many characters this kind of object may hold. A sticky note and a free
+   * text have one limit and a shape's label has another, and both are the
+   * setting of the object being edited rather than of this editor; it defaults
+   * to the free text's, so story 9's callers are unchanged.
+   */
+  maxChars?: number;
+  /**
+   * Selector for the element this editor is laid over, which is what an outside
+   * click is measured against. Defaults to a free text object's.
+   */
+  objectSelector?: string;
+  /** The editor's `data-testid`, so a test can tell two kinds of editor apart. */
+  testId?: string;
 }
 
-/** Is `node` inside the same text object as `inside`? */
-function sameObject(inside: HTMLElement, node: EventTarget | null): boolean {
-  const object = inside.closest<HTMLElement>('[data-text-id]');
+/** Is `node` inside the same object as `inside`? */
+function sameObject(inside: HTMLElement, node: EventTarget | null, selector: string): boolean {
+  const object = inside.closest<HTMLElement>(selector);
   if (object === null || node === null || !(node instanceof Element)) return false;
   return object.contains(node);
 }
@@ -66,6 +80,10 @@ export function TextEditor(props: TextEditorProps): JSX.Element {
   const propsRef = useRef(props);
   const composingRef = useRef(false);
   const endedRef = useRef(false);
+  /** The limit of the object being edited, which is not this editor's business. */
+  const limit = useCallback(() => propsRef.current.maxChars ?? TEXT_MAX_CHARS, []);
+  /** The element the editor is laid over, for the outside click. */
+  const selector = useCallback(() => propsRef.current.objectSelector ?? '[data-text-id]', []);
   // The text this document last agreed with the room: the base every local edit
   // is measured against. Only an update from elsewhere moves it, plus the refresh
   // after a local write, which by then matches the document.
@@ -79,11 +97,11 @@ export function TextEditor(props: TextEditorProps): JSX.Element {
     propsRef.current = props;
   });
 
-  /** Write the textarea's current value into the document (clamped to 5,000). */
+  /** Write the textarea's current value into the document (clamped to the limit). */
   const flush = useCallback(() => {
     const el = textareaRef.current;
     if (el === null || composingRef.current) return;
-    const clamped = clampToLimit(el.value, TEXT_MAX_CHARS);
+    const clamped = clampToLimit(el.value, limit());
     if (clamped !== el.value) {
       // The characters past the limit are dropped, and the caret goes back to
       // the end of the text that was kept.
@@ -102,7 +120,7 @@ export function TextEditor(props: TextEditorProps): JSX.Element {
     // The box grows from the text this write just made, in the same transaction
     // window as the typing, so one Undo returns the text and its box together.
     current.remeasure();
-  }, []);
+  }, [limit]);
 
   /**
    * Show a text that came from elsewhere, keeping the caret the same distance
@@ -131,7 +149,7 @@ export function TextEditor(props: TextEditorProps): JSX.Element {
       // A write this browser made is already in the textarea; applying it again
       // would move a caret that has since moved on.
       if (transaction.origin === LOCAL_ORIGIN) return;
-      const next = clampToLimit(ytext.toString(), TEXT_MAX_CHARS);
+      const next = clampToLimit(ytext.toString(), limit());
       if (composingRef.current) {
         // Not in the middle of an IME session: remembered, and applied the
         // moment the composition closes.
@@ -144,7 +162,7 @@ export function TextEditor(props: TextEditorProps): JSX.Element {
     return () => {
       ytext.unobserve(observer);
     };
-  }, []);
+  }, [limit]);
 
   // Edit start: the box measured from the text that is already there, the value
   // taken from the document, focus, and the caret at the end of the text.
@@ -159,7 +177,7 @@ export function TextEditor(props: TextEditorProps): JSX.Element {
     const current = propsRef.current;
     const el = textareaRef.current;
     if (el === null) return;
-    const initial = clampToLimit(current.ytext.toString(), TEXT_MAX_CHARS);
+    const initial = clampToLimit(current.ytext.toString(), limit());
     baseRef.current = initial;
     el.value = initial;
     setLength(initial.length);
@@ -183,14 +201,14 @@ export function TextEditor(props: TextEditorProps): JSX.Element {
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
       const el = textareaRef.current;
-      if (el === null || sameObject(el, e.target)) return;
+      if (el === null || sameObject(el, e.target, selector())) return;
       end('unselected');
     };
     // Capture phase: the object and its toolbar stop propagation, but this
     // still sees every pointerdown made outside them.
     window.addEventListener('pointerdown', onPointerDown, true);
     return () => window.removeEventListener('pointerdown', onPointerDown, true);
-  }, [end]);
+  }, [end, selector]);
 
   const onInput = (_e: FormEvent<HTMLTextAreaElement>) => {
     flush();
@@ -207,7 +225,7 @@ export function TextEditor(props: TextEditorProps): JSX.Element {
       // The change that arrived during the composition goes up against the
       // document, which is the text the next keystroke is a change to.
       waitingRef.current = false;
-      showRemote(clampToLimit(propsRef.current.ytext.toString(), TEXT_MAX_CHARS));
+      showRemote(clampToLimit(propsRef.current.ytext.toString(), limit()));
     }
   };
 
@@ -248,8 +266,8 @@ export function TextEditor(props: TextEditorProps): JSX.Element {
   return (
     <textarea
       ref={textareaRef}
-      className={`text-editor${length > TEXT_MAX_CHARS * 0.9 ? ' is-near-limit' : ''}`}
-      data-testid="text-editor"
+      className={`text-editor${length > limit() * 0.9 ? ' is-near-limit' : ''}`}
+      data-testid={props.testId ?? 'text-editor'}
       data-text-length={length}
       aria-label="Text"
       defaultValue=""

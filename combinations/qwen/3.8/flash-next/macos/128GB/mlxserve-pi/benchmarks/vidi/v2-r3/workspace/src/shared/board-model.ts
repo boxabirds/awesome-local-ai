@@ -35,6 +35,31 @@ import {
 import type { Point, Rect } from './geometry';
 import { rectContains } from './geometry';
 import type { TextSnapshot } from './objects/text';
+import {
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
+  type ShapeFillColor,
+  type ShapeKind,
+  type ShapeStrokeColor,
+} from './config';
+import {
+  isShapeFillColor,
+  isShapeKind,
+  isShapeStrokeColor,
+  shapeLabel,
+  type ShapeSnapshot,
+} from './objects/shape';
+import {
+  connectorContext,
+  connectorBBoxOf,
+  connectorIsDetached,
+  detachConnectorsTo,
+  endIsAttached,
+  readEndpoint,
+  resolveConnectorEnds,
+  type ConnectorContext,
+  type ConnectorSnapshot,
+} from './objects/connector';
 
 /**
  * What the board knows about one text object. The reading of it lives here, next
@@ -51,6 +76,13 @@ export const SCHEMA_VERSION = 1;
 
 const META_MAP = 'meta';
 const OBJECTS_MAP = 'objects';
+
+/**
+ * A shape, and a connector with its ends resolved against the board as it is
+ * now. Both types are declared next to the reads that build them; the board's
+ * vocabulary holds them, because this is where the board's objects are.
+ */
+export type { ShapeSnapshot, ConnectorSnapshot };
 
 /** Immutable read view of one sticky note object. */
 export interface StickySnapshot {
@@ -73,7 +105,7 @@ export interface StickySnapshot {
  * object kinds the board knows. Story 9 added the text object to it, and every
  * group operation below works on the shared fields, which is the point.
  */
-export type ObjectSnapshot = StickySnapshot | TextSnapshot;
+export type ObjectSnapshot = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot;
 
 /** The `objects` map: id -> per-object Y.Map. Renderer skips unknown types. */
 export function getObjects(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
@@ -229,7 +261,11 @@ export function isTextSize(value: unknown): value is TextSize {
  * modules never import each other at runtime: this side takes only the text
  * object's *types*.
  */
-export function readObject(map: Y.Map<unknown> | undefined, id: string): ObjectSnapshot | null {
+export function readObject(
+  map: Y.Map<unknown> | undefined,
+  id: string,
+  context?: ConnectorContext,
+): ObjectSnapshot | null {
   if (map === undefined || !(map instanceof Y.Map)) return null;
   const type = map.get('type');
   const x = map.get('x');
@@ -239,6 +275,7 @@ export function readObject(map: Y.Map<unknown> | undefined, id: string): ObjectS
   const width = map.get('width');
   const height = map.get('height');
   const text = map.get('text');
+  const createdBy = map.get('createdBy');
   if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(z)) return null;
   const shared = {
     id,
@@ -271,7 +308,71 @@ export function readObject(map: Y.Map<unknown> | undefined, id: string): ObjectS
       height: Math.max(0, shared.height ?? 0),
     });
   }
+  // Story 10: a shape. The kind and both colour names are validated on the way
+  // in, so a document written by something else is drawn with the defaults
+  // rather than thrown away or thrown at. A shape always has a box.
+  if (type === 'shape') {
+    if (!(isFiniteNumber(width) && isFiniteNumber(height))) return null;
+    const rawKind = map.get('kind');
+    const rawFill = map.get('fill');
+    const rawStroke = map.get('stroke');
+    return Object.freeze({
+      ...shared,
+      type: 'shape' as const,
+      width,
+      height,
+      kind: isShapeKind(rawKind) ? (rawKind as ShapeKind) : ('rect' as ShapeKind),
+      fill: isShapeFillColor(rawFill) ? (rawFill as ShapeFillColor) : (DEFAULT_SHAPE_FILL as ShapeFillColor),
+      stroke: isShapeStrokeColor(rawStroke)
+        ? (rawStroke as ShapeStrokeColor)
+        : (DEFAULT_SHAPE_STROKE as ShapeStrokeColor),
+      label: shapeLabel(map),
+      ...(typeof createdBy === 'string' && createdBy !== '' ? { createdBy } : {}),
+    });
+  }
+  // Story 10: a connector. Everything about where it goes is in its two ends, so
+  // this is the one object whose snapshot is worked out rather than copied: the
+  // ends are resolved against the board as it stands, and the box is the box of
+  // the two points they land on. An arrow whose object is gone is a drawn object,
+  // not a broken one, and says so with `detached`.
+  if (type === 'connector') {
+    const from = readEndpoint(map.get('from'));
+    const to = readEndpoint(map.get('to'));
+    if (from === null || to === null) return null;
+    const ends = connectorContextOf(map, context);
+    const resolved = resolveConnectorEnds({ from, to }, ends.rects);
+    const box = connectorBBoxOf(resolved);
+    return Object.freeze({
+      ...shared,
+      type: 'connector' as const,
+      from,
+      to,
+      resolved,
+      attached: {
+        from: endIsAttached(from, ends.ids),
+        to: endIsAttached(to, ends.ids),
+      },
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+      detached: connectorIsDetached({ from, to }, ends.ids),
+      ...(typeof createdBy === 'string' && createdBy !== '' ? { createdBy } : {}),
+    });
+  }
   return null;
+}
+
+/**
+ * The boxes and ids a connector needs to be read against. `snapshotAll` passes
+ * one it gathered for the whole board, so a hundred connectors cost one walk of
+ * the objects; a lone `readObject` call gathers its own.
+ */
+function connectorContextOf(map: Y.Map<unknown>, provided?: ConnectorContext): ConnectorContext {
+  if (provided !== undefined) return provided;
+  const doc: Y.Doc | null = map.doc;
+  if (doc === null || doc === undefined) return { rects: new Map(), ids: new Set() };
+  return connectorContext(doc);
 }
 
 /**
@@ -320,10 +421,11 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
  * works on, so a text object is selectable, movable, deletable and marqueeable
  * without any of those operations changing.
  */
-export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
+export function snapshotAll(doc: Y.Doc, context?: ConnectorContext): readonly ObjectSnapshot[] {
   const objects: ObjectSnapshot[] = [];
+  const rects = context ?? connectorContext(doc);
   getObjects(doc).forEach((map, id) => {
-    const obj = readObject(map, id);
+    const obj = readObject(map, id, rects);
     if (obj !== null) objects.push(obj);
   });
   objects.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -382,12 +484,24 @@ export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): 
     for (const [id, pt] of positions) {
       const map = objects.get(id);
       if (map === undefined) continue;
+      // Story 10: an arrow is not in this list. An arrow has no corner of its own
+      // to be moved to — the box it is drawn in belongs to its ends, and a fastened
+      // end belongs to somebody else's shape — so the position asked for here means
+      // nothing for one, and the drag that moves an arrow says where its free ends
+      // are instead (`setConnectorFreeEnds`). Moving the shapes an arrow joins is
+      // how an arrow is moved about a board anyway.
+      if (map.get('type') === 'connector') continue;
       map.set('x', pt.x);
       map.set('y', pt.y);
       count++;
     }
   }, LOCAL_ORIGIN);
   return count;
+}
+
+/** A stored number, or what to answer when it is not one. */
+function numberOr(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
 /**
@@ -406,6 +520,10 @@ export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): num
     for (const [id, r] of rects) {
       const map = objects.get(id);
       if (map === undefined) continue;
+      // A connector is stretched by moving its ends, never by a box handle, so a
+      // resize of one is nothing at all — which is also the answer if an overlay
+      // ever draws handles it should not.
+      if (map.get('type') === 'connector') continue;
       map.set('x', r.x);
       map.set('y', r.y);
       map.set('width', r.width);
@@ -467,13 +585,19 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
   const objects = getObjects(doc);
+  const deleted = ids.filter((id) => objects.has(id));
+  if (deleted.length === 0) return 0;
   let count = 0;
   doc.transact(() => {
-    for (const id of ids) {
-      if (objects.has(id)) {
-        objects.delete(id);
-        count++;
-      }
+    // Story 10: an arrow that pointed at one of these objects does not go with
+    // it — its end is turned into a free one at the point its target was last
+    // drawn at. Doing that here, inside the same transaction as the deletion,
+    // is what makes the arrow and the deletion one update and one undo step:
+    // Undo brings the object back *and* re-attaches the arrow to it.
+    detachConnectorsTo(doc, deleted);
+    for (const id of deleted) {
+      objects.delete(id);
+      count++;
     }
   }, LOCAL_ORIGIN);
   return count;

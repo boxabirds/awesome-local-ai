@@ -839,3 +839,340 @@ body,
   outline: none;
   box-shadow: var(--focus-ring);
 }
+
+/* ===========================================================================
+   Story 10: shapes, and the arrows between them
+   =========================================================================== */
+
+/* A tool that draws rather than clicks says so with the pointer it shows: a
+   crosshair is a drag with two ends, and an arrow is drawn between two points. */
+.board-viewport.is-draw-tool {
+  cursor: crosshair;
+}
+
+/* A tool button that is the tool the board is in is lit, so the state a test
+   reads out of aria-pressed is a state a person can see as well. */
+.toolbar-button[aria-pressed='true'] {
+  background: rgba(79, 140, 255, 0.16);
+  color: #2f6bdd;
+}
+
+/* The three kinds share the Shape tool, so the menu under it is a column of
+   smaller buttons: the tool is the button above, the kind is a choice within it,
+   and the difference in size is the difference in what they are. */
+.toolbar-shape-kinds {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0 2px 8px;
+  border-left: 2px solid rgba(20, 20, 40, 0.1);
+  margin-left: 10px;
+}
+
+.toolbar-kind-button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.72;
+}
+
+.toolbar-kind-button:hover {
+  background: rgba(20, 20, 40, 0.07);
+}
+
+.toolbar-kind-button[aria-pressed='true'] {
+  background: rgba(79, 140, 255, 0.16);
+  color: #2f6bdd;
+  opacity: 1;
+}
+
+.toolbar-kind-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.toolbar-kind-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* --- A shape ---------------------------------------------------------------
+   The box is the shape's, and it is placed in board units: the world layer's one
+   transform is what scales it, so there is nothing here to keep in step with the
+   camera. */
+.shape-object {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: default;
+  user-select: none;
+  outline: none;
+  /* The world layer lets the pointer through, so every object has to take it
+     back: a shape that did not would be a shape nobody can click, drag, or
+     double-click into — invisible to the pointer, and only a browser would
+     notice, because a browser is the only place where where a click lands is
+     decided by what is painted. */
+  pointer-events: auto;
+}
+
+.shape-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  overflow: visible;
+}
+
+/* The label is laid out in the box the shape has, which is the only way it wraps
+   when the words are too long for one line and unwraps when a handle makes the
+   box wider. It is centred in both directions, and it does not answer the
+   pointer: a press anywhere in the shape is a press on the shape. */
+.shape-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  color: #1f2933;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  pointer-events: none;
+}
+
+.shape-object.is-editing .shape-label {
+  visibility: hidden;
+}
+
+.shape-object[data-selected='true'] .shape-svg,
+.shape-object:focus-visible .shape-svg {
+  filter: drop-shadow(0 0 0.14em rgba(79, 140, 255, 0.9));
+}
+
+.shape-object[data-state='dragging'] {
+  opacity: 0.9;
+}
+
+/* The shape's own toolbar, scaled by 1/zoom the way a note's is: a swatch is a
+   thing to click with a mouse at any zoom, and a board unit is not. */
+.shape-toolbar {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  transform: scale(var(--shape-inv-zoom, 1));
+  transform-origin: 0 100%;
+  white-space: nowrap;
+}
+
+.shape-toolbar-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 2px;
+  background: var(--panel-border);
+}
+
+.shape-swatch {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid rgba(20, 20, 40, 0.28);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* The no-fill swatch is a swatch with nothing in it, which is why it is drawn
+   with a line through the middle of it rather than as an empty circle: an empty
+   circle is what a swatch that failed to paint looks like. */
+.shape-fill-swatch-none {
+  background-image: linear-gradient(to top right, transparent 45%, #e53935 45%, #e53935 55%, transparent 55%);
+}
+
+.shape-swatch:hover {
+  transform: scale(1.12);
+}
+
+.shape-swatch[aria-pressed='true'] {
+  outline: 2px solid #4f8cff;
+  outline-offset: 1px;
+}
+
+.shape-swatch:focus-visible {
+  outline: 2px solid #4f8cff;
+  outline-offset: 1px;
+}
+
+/* The shape being drawn, in screen space like the marquee: it is a drag, and a
+   drag is measured in pixels. Nothing of the shape is guessed at here — not its
+   colour, not its label, not whether it will be an ellipse — because none of it
+   is decided until the pointer is let go. */
+.shape-preview {
+  border: 1px dashed #4f8cff;
+  background: rgba(79, 140, 255, 0.08);
+  box-sizing: border-box;
+  z-index: 9999;
+}
+
+/* The shape's label editor is the sticky note's and the text object's editor, in
+   the shape's box instead of its own: the same textarea, the same keys, the same
+   count of characters, sized to the box the shape is drawn in and centred in it,
+   because the label is centred and typing into it should not move it. */
+.shape-object .text-editor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  text-align: center;
+  resize: none;
+  outline: none;
+  color: #1f2933;
+}
+
+/* --- An arrow between two shapes -------------------------------------------
+   The box under an arrow is where the arrow happens to be, and nothing more: the
+   wrapper lets the pointer through, and only the wide transparent stroke drawn
+   along the line answers it, so the place a person can click an arrow is the
+   corridor the model says an arrow is clickably wide. */
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+  outline: none;
+}
+
+.connector-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  overflow: visible;
+}
+
+/* The width is set where it is drawn, in world units worked out from the zoom:
+   a corridor of screen pixels cannot be a constant number of board units. */
+.connector-hit {
+  fill: none;
+  stroke: transparent;
+  pointer-events: stroke;
+  cursor: default;
+}
+
+.connector-line {
+  fill: none;
+  stroke: #263238;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.connector-head {
+  fill: #263238;
+  stroke: none;
+  pointer-events: none;
+}
+
+/* An arrow whose shape has gone is still an arrow, and still has to be seen to be
+   deleted: dashed for "attached to nothing", in the colour of a thing that is not
+   quite right, and not removed by anybody's rendering. */
+.connector-object.is-detached .connector-line {
+  stroke: #b0a44a;
+  stroke-dasharray: 6 5;
+}
+
+.connector-object.is-detached .connector-head {
+  fill: #b0a44a;
+}
+
+.connector-object.is-selected .connector-line {
+  stroke: #4f8cff;
+  stroke-width: 3;
+}
+
+.connector-object.is-selected .connector-head {
+  fill: #4f8cff;
+}
+
+/* The attach points and the arrow in flight, drawn over the board in screen
+   pixels: dots the size of the pointer that has to land on them at 10 % as much
+   as at 400 %. */
+.connector-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+}
+
+.attach-dot {
+  position: fixed;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #4f8cff;
+}
+
+.attach-dot.is-lit {
+  background: #4f8cff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.3);
+}
+
+.connector-preview-svg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.connector-preview-svg line {
+  fill: none;
+  stroke: #4f8cff;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+
+/* The two ends of a selected arrow, which is what it has instead of handles: an
+   arrow has no box to scale, only two places it is fastened. They are the size a
+   pointer has to catch at any zoom, like every other handle on this board. */
+.connector-end-handle {
+  position: absolute;
+  width: var(--handle-size, 8px);
+  height: var(--handle-size, 8px);
+  background: #fff;
+  border: 1.5px solid #4f8cff;
+  border-radius: 50%;
+  box-sizing: border-box;
+  pointer-events: auto;
+  z-index: 10000;
+  cursor: grab;
+}
+
+.connector-end-handle-from {
+  background: #dcebff;
+}
+
+.connector-end-handle-to {
+  background: #ffe6d5;
+}
+
+.connector-end-handle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

@@ -1,4 +1,5 @@
 // Shared product settings. Stories 2-5 add their own settings to this file.
+import type { Point } from './geometry';
 
 /** Minimum zoom level (screen pixels per world unit). Shown as 10%. */
 export const ZOOM_MIN = 0.1;
@@ -231,3 +232,134 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * A generous history is what makes experimenting safe.
  */
 export const UNDO_MAX_STEPS = 200;
+
+// --- Story 10: shapes and the arrows between them ---------------------------
+//
+// A shape stores its colours as palette *keys*, exactly as a sticky note stores
+// its colour, so changing a palette below leaves documents written before the
+// change readable (and readable as the default colour when a key is gone).
+
+/** The three shape kinds the board draws. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** Is this value one of the shape kinds the board draws? */
+export function isShapeKind(value: unknown): value is ShapeKind {
+  return typeof value === 'string' && (SHAPE_KINDS as readonly string[]).includes(value);
+}
+
+/** Names the Shape menu and a screen reader use for the kinds. */
+export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+
+/**
+ * The size of a shape made by a click, or by a drag too small to be a shape
+ * (shape.create_click): a square, centred on the point.
+ */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/**
+ * A drag this narrow in either direction is a click and not a shape
+ * (shape.create_click). A drag of exactly this size is kept as drawn — the
+ * boundary is tested on both sides of it.
+ */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** A shape's label holds this many characters; further input is ignored. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** Outline width of a shape, in board units, so it scales with the shape. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** Font size of a shape's label, in board units. */
+export const SHAPE_LABEL_FONT_PX_WORLD = 16;
+
+/** A shape's label is laid out in lines this multiple of its font size. */
+export const SHAPE_LABEL_LINE_HEIGHT = 1.3;
+
+/** The fill colours of a shape, `none` being the no-fill swatch. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+
+export type ShapeFillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** The outline colours of a shape. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+
+export type ShapeStrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** A new shape is a white box with a dark outline (shape.create_drag). */
+export const DEFAULT_SHAPE_FILL: ShapeFillColor = 'white';
+
+export const DEFAULT_SHAPE_STROKE: ShapeStrokeColor = 'dark';
+
+/** Swatch accessible names: "White fill", "No fill", "Dark outline". */
+export const SHAPE_COLOR_LABELS: Record<ShapeFillColor | ShapeStrokeColor, string> = {
+  none: 'No fill',
+  white: 'White',
+  blue: 'Blue',
+  green: 'Green',
+  yellow: 'Yellow',
+  pink: 'Pink',
+  grey: 'Grey',
+  dark: 'Dark',
+  orange: 'Orange',
+  red: 'Red',
+};
+
+/**
+ * The shortest arrow worth creating (connector.no_accidental): a drag shorter
+ * than this, measured in board units between the two ends, is a mis-click and
+ * creates nothing.
+ */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/**
+ * How close to an arrow's line a click has to be to select it
+ * (connector.select), in *screen* pixels: divided by the zoom to get board
+ * units, so picking an arrow is equally fine at 50 % and at 200 %.
+ */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** Width of an arrow's line, in board units, so it scales with the board. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** Length of the two sides of an arrow's head, in board units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** Radius of a connection dot, in *screen* pixels (connector.hover_points). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+/**
+ * The side of an object a connector ends at. The middle of a side is on the
+ * outline of a rectangle, of an ellipse and of a diamond alike, which is why an
+ * anchor is a side rather than a point, and why it can be recomputed whenever
+ * the object under it moves.
+ */
+export type ConnectorSide = 'top' | 'right' | 'bottom' | 'left';
+
+/**
+ * One end of a connector: stuck to an object (with the point to draw to if that
+ * object stops existing), or a free point in board space.
+ */
+export type ConnectorEndpoint =
+  | { kind: 'attached'; objectId: string; fallback: Point }
+  | { kind: 'free'; x: number; y: number };

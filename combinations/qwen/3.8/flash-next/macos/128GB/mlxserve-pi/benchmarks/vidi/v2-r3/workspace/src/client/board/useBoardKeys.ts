@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { deleteObjects, moveObjects, objectBounds, allObjectIds } from '../../shared/board-model';
+import type { Point } from '../../shared/geometry';
+import { setConnectorFreeEnds } from '../../shared/objects/connector';
 import type { SelectionApi } from './useSelection';
 import type { UndoController } from './undo';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
@@ -103,16 +105,24 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
 
         // Build absolute positions: current position + delta
         const positions = new Map<string, { x: number; y: number }>();
+        const ends = new Map<string, { from: Point; to: Point }>();
         for (const id of selection.ids) {
           const obj = snapshot.find((s) => s.id === id);
           if (obj === undefined) continue;
           positions.set(id, { x: obj.x + dx, y: obj.y + dy });
+          // An arrow has no position of its own to add a step to; its free ends are
+          // nudged, and the fastened ones follow the shapes they are on, which is
+          // what a step of the arrow keys means for an arrow.
+          if (obj.type === 'connector') {
+            ends.set(id, { from: { x: obj.resolved.from.x + dx, y: obj.resolved.from.y + dy }, to: { x: obj.resolved.to.x + dx, y: obj.resolved.to.y + dy } });
+          }
         }
         // One arrow press is one step: the window is closed on both sides of it,
         // so it never merges into a drag that happened to precede it or into the
         // next press.
         undo.boundary();
         moveObjects(doc, positions);
+        if (ends.size > 0) setConnectorFreeEnds(doc, ends);
         undo.boundary();
         return;
       }
