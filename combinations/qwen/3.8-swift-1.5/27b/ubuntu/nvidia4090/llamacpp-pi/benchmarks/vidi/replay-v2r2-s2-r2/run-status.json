@@ -1,6 +1,6 @@
 {
-  "state": "failed",
-  "reason": "exit 1: [story 2] agent made no model calls (exit 1); see ~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/replay-v2r2-s2-r2/stories/02/agent-events.jsonl. Not checkpointed.",
-  "at": "2026-10-02T07:13:06Z",
+  "state": "started",
+  "reason": "harness ae0be8e6 (harness-v2026.10.02.2), client pi, model qwen3.8-swift-1.5-27b",
+  "at": "2026-10-02T07:14:38Z",
   "host": "13th Gen Intel(R) Core(TM) i9-13900F 62GB, NVIDIA GeForce RTX 4090 24564 MiB"
 }
