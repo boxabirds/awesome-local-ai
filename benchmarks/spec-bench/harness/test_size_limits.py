@@ -66,7 +66,7 @@ def test_documentation_under_benchmarks_is_not_a_benchmark_record(tmp_path):
     published; the flat limit for records turned the privacy test red. Records under benchmarks/<anything else> keep it."""
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     _sized(tmp_path / "benchmarks/docs/guide/index.html", 615 * KB)
-    _sized(tmp_path / "benchmarks/insights/findings.md", 615 * KB)
+    _sized(tmp_path / "benchmarks/docs/insights/findings.md", 615 * KB)
     _sized(tmp_path / "benchmarks/other-pack/summary.md", 600 * KB)
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     out = subprocess.run([sys.executable, str(HERE / "publicise.py"), "over-limit", str(tmp_path)],

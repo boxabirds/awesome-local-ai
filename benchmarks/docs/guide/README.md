@@ -2,7 +2,7 @@
 
 An interactive guide to how the benchmark works: the problems it solves, the entities and how they relate, the
 components, nine key flows as step-through illustrations, and the operational insights from
-[benchmarks/insights/](../../insights/README.md) attached to the things they illustrate.
+[benchmarks/docs/insights/](../insights/README.md) attached to the things they illustrate.
 
 **Open [index.html](index.html) from disk.** It needs no server and no network: no CDN, no web font, no remote
 image. It works at phone and desktop width, in light and dark colour schemes, from the keyboard, with JavaScript off

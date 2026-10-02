@@ -528,9 +528,9 @@ GUIDE_DATA.entities = [
   {
     id: "insights", name: "Insights analysis", group: "watch", row: 5,
     short: "What every recorded conversation shows.",
-    what: "`benchmarks/insights/`: what every recorded conversation shows, as of 1 October 2026: 436 story conversations in 52 runs, read from complete logs. Each finding is a detector run over all of them and reported per combination. The scripts are in the repo; the database is not, because it holds complete conversations, including credentials one story printed.",
+    what: "`benchmarks/docs/insights/`: what every recorded conversation shows, as of 1 October 2026: 436 story conversations in 52 runs, read from complete logs. Each finding is a detector run over all of them and reported per combination. The scripts are in the repo; the database is not, because it holds complete conversations, including credentials one story printed.",
     rel: [["reads", "conversation"]],
-    repo: [["benchmarks/insights/README.md", "insights README"], ["benchmarks/insights/findings-performance.md", "findings: performance"], ["benchmarks/insights/findings-behaviour.md", "findings: behaviour"], ["benchmarks/insights/findings-security.md", "findings: security"]],
+    repo: [["benchmarks/docs/insights/README.md", "insights README"], ["benchmarks/docs/insights/findings-performance.md", "findings: performance"], ["benchmarks/docs/insights/findings-behaviour.md", "findings: behaviour"], ["benchmarks/docs/insights/findings-security.md", "findings: security"]],
     example: "Section 'What the analysis found' below lists its findings by theme.",
   },
   {
@@ -705,14 +705,14 @@ GUIDE_DATA.problems = [
 ];
 
 // =====================================================================================================================
-// Insights: measured examples from benchmarks/insights (and, where marked, the gufo analysis and the policy).
+// Insights: measured examples from benchmarks/docs/insights (and, where marked, the gufo analysis and the policy).
 // Every number is copied from the cited source. Every quote is verbatim from it. The test checks both.
 // =====================================================================================================================
-const INS_README = ["benchmarks/insights/README.md", "insights README"];
-const INS_BEHAV = ["benchmarks/insights/findings-behaviour.md", "findings: behaviour"];
-const INS_PERF = ["benchmarks/insights/findings-performance.md", "findings: performance"];
-const INS_SEC = ["benchmarks/insights/findings-security.md", "findings: security"];
-const INS_CORE = ["benchmarks/insights/core-tables.md", "core tables"];
+const INS_README = ["benchmarks/docs/insights/README.md", "insights README"];
+const INS_BEHAV = ["benchmarks/docs/insights/findings-behaviour.md", "findings: behaviour"];
+const INS_PERF = ["benchmarks/docs/insights/findings-performance.md", "findings: performance"];
+const INS_SEC = ["benchmarks/docs/insights/findings-security.md", "findings: security"];
+const INS_CORE = ["benchmarks/docs/insights/core-tables.md", "core tables"];
 const GUFO_ANALYSIS = ["combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/analysis/README.md", "gufo analysis (four runs)"];
 const POLICY = ["benchmarks/spec-bench/EVALUATION-POLICY.md", "EVALUATION-POLICY.md"];
 
@@ -1313,9 +1313,9 @@ GUIDE_DATA.components = [
     what: "`build_full.py` builds a database from the complete conversation logs; `detect_core.py`, `detect_performance.py`, `detect_behaviour.py` and `detect_security.py` print every table, deterministically.",
     why: "So the analysis can be reproduced rather than taken on trust: each finding is a query run over every conversation.",
     inputs: "The complete logs (`agent-events.jsonl`), which are kept on the machine that ran each run.",
-    outputs: "The tables and findings in `benchmarks/insights/`.",
+    outputs: "The tables and findings in `benchmarks/docs/insights/`.",
     fails: "The database is not in the repo, because it holds complete conversations, including credentials one story printed. The published logs are lossless only for runs recorded since 30 September 2026.",
-    repo: [["benchmarks/insights/README.md", "benchmarks/insights/README.md"], ["benchmarks/insights/scripts/build_full.py", "build_full.py"]],
+    repo: [["benchmarks/docs/insights/README.md", "benchmarks/docs/insights/README.md"], ["benchmarks/docs/insights/scripts/build_full.py", "build_full.py"]],
     entities: ["insights", "conversation"],
   },
   {
@@ -2174,14 +2174,14 @@ GUIDE_DATA.flows = [
 ];
 
 // =====================================================================================================================
-// Findings explorer: the findings of benchmarks/insights/README.md by theme, with the combinations each applies to.
+// Findings explorer: the findings of benchmarks/docs/insights/README.md by theme, with the combinations each applies to.
 // `combos` uses the keys of GUIDE_DATA.combos, or "all". Numbers are copied from the source.
 // =====================================================================================================================
 const QWEN7 = ["gufo", "mlx", "mtplx", "fnllama", "q27", "swift", "swift15"];
-const SRC_README = ["benchmarks/insights/README.md", "insights README"];
-const SRC_PERF = ["benchmarks/insights/findings-performance.md", "findings: performance"];
-const SRC_BEHAV = ["benchmarks/insights/findings-behaviour.md", "findings: behaviour"];
-const SRC_SEC = ["benchmarks/insights/findings-security.md", "findings: security"];
+const SRC_README = ["benchmarks/docs/insights/README.md", "insights README"];
+const SRC_PERF = ["benchmarks/docs/insights/findings-performance.md", "findings: performance"];
+const SRC_BEHAV = ["benchmarks/docs/insights/findings-behaviour.md", "findings: behaviour"];
+const SRC_SEC = ["benchmarks/docs/insights/findings-security.md", "findings: security"];
 
 GUIDE_DATA.findings = [
   // ---- the shape of a story

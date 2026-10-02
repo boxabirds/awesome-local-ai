@@ -245,7 +245,7 @@ def size_limit(rel: str) -> int:
 
 TRACKED_RECORDS = ("combinations/**/benchmarks/*", "benchmarks/*")
 # Documentation that lives under benchmarks/ but is written by people, not published by a run: no record limit.
-DOCUMENTATION_FOLDERS = ("benchmarks/docs/", "benchmarks/insights/")
+DOCUMENTATION_FOLDERS = ("benchmarks/docs/",)
 
 
 def over_limit(repo: Path) -> list[tuple[str, int, int]]:
