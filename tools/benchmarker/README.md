@@ -82,10 +82,22 @@ story and the comparison are remembered in the browser.
 
 ## Filters
 
-Pack and version at the top, and a toggle per status with its count: running, queued, finished,
-failed, stopped, cancelled. Cancelled runs are hidden at first; **only running** and **all** are one
-click. The choice is remembered in the browser. A machine with nothing under the filter is left out,
-unless it is idle.
+Pack and version at the top, and one switch on every page and tab: **All runs** | **Complete runs**,
+each with its count for the pack and version chosen. All runs is the default; the choice is remembered
+in the browser and is not in the address.
+
+A run is **complete** when it finished, every story in its scope has a record, and it has its score of
+record (its finished build re-scored under the pack's current suite). A complete run with a low score
+is still complete. Everything else is hidden under Complete runs: running, queued, failed, stopped,
+cancelled and unknown runs, finished runs waiting for their score or missing a story's record, and
+partial reruns. One function decides it: `isComplete` in `shared/stats.ts`.
+
+The switch applies to every page's runs: the Combinations table, a combination's runs, a story's runs,
+what a run or story run is compared with, and a machine's history. When it hides everything a page
+would show, the page says so in one line with **Show all**, which sets the switch back to All runs.
+
+It never hides what machines are doing now (the running job, the queue, recently ended jobs), its own
+counts, or the pack and version pickers.
 
 ## Combinations
 

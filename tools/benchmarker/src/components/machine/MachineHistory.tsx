@@ -1,6 +1,7 @@
 // Every run on the machine, by combination, then by pack and spec version (v1 and v2 apart, each labelled):
 // each run a link, with its status, its stories against its latest build and its score of record.
-import type { Row, RunStatus } from "../../../shared/types.ts";
+import type { ReactNode } from "react";
+import type { Row } from "../../../shared/types.ts";
 import { machineHistory, type VersionGroup } from "../../../shared/overviewView.ts";
 import { scoreOfRecord } from "../../../shared/stats.ts";
 import { interventionsOf, PENDING, scoreOfRecord as recordView, squareTip } from "../../../shared/runView.ts";
@@ -59,19 +60,17 @@ function Group({ g }: { g: VersionGroup }) {
   );
 }
 
-export function MachineHistory({ runs, hidden, onHidden }: { runs: Row[]; hidden: Set<RunStatus>; onHidden: (h: Set<RunStatus>) => void }) {
-  const shown = runs.filter((r) => !hidden.has(r.status));
-  const combos = machineHistory(shown);
-  const counts = [...new Set(runs.map((r) => r.status))].map((s) => [s, runs.filter((r) => r.status === s).length] as [RunStatus, number]);
+/** `runs`: the machine's runs that the header's runs switch shows. `filteredOut`: given when the switch hides some
+ * of the machine's runs; shown in place of the list when it hides them all. */
+export function MachineHistory({ runs, filteredOut }: { runs: Row[]; filteredOut?: ReactNode }) {
+  const combos = machineHistory(runs);
   return (
     <section className="mp-section" data-section="history" aria-labelledby="h-mp-history">
       <div className="mp-head">
         <h2 id="h-mp-history"><Term id="history" /></h2>
-        <span className="small">{shown.length} of {runs.length} run{runs.length === 1 ? "" : "s"}</span>
-        {runs.length ? <HistoryFilter counts={counts} hidden={hidden} onChange={onHidden} /> : null}
+        <span className="small">{runs.length} run{runs.length === 1 ? "" : "s"}</span>
       </div>
-      {runs.length === 0 ? <p className="mp-empty">No runs on this machine yet.</p>
-        : combos.length === 0 ? <p className="mp-empty">No runs with the statuses chosen.</p> : combos.map((c) => (
+      {runs.length === 0 ? (filteredOut ?? <p className="mp-empty">No runs on this machine yet.</p>) : combos.map((c) => (
         <div key={c.stack} className="history-combo" data-stack={c.stack}>
           <h3><CombinationLink pack={c.groups[0].pack} stack={c.stack} label={c.label} /></h3>
           <table className="history" aria-label={`Runs of ${c.label}`}>
@@ -89,20 +88,5 @@ export function MachineHistory({ runs, hidden, onHidden }: { runs: Row[]; hidden
         </div>
       ))}
     </section>
-  );
-}
-
-const STATUS_ORDER: RunStatus[] = ["running", "queued", "finished", "failed", "stopped", "cancelled", "unknown"];
-
-/** A toggle per status present on the machine, with its count; all shown at first. */
-function HistoryFilter({ counts, hidden, onChange }: { counts: [RunStatus, number][]; hidden: Set<RunStatus>; onChange: (h: Set<RunStatus>) => void }) {
-  const toggle = (s: RunStatus) => { const n = new Set(hidden); if (n.has(s)) n.delete(s); else n.add(s); onChange(n); };
-  return (
-    <div className="history-filter" role="group" aria-label="Status">
-      {counts.toSorted((a, b) => STATUS_ORDER.indexOf(a[0]) - STATUS_ORDER.indexOf(b[0])).map(([s, n]) => (
-        <button key={s} type="button" className={`chip s-${s}`} aria-pressed={!hidden.has(s)} onClick={() => toggle(s)}>{s} {n}</button>
-      ))}
-      {hidden.size ? <button type="button" className="chip link" onClick={() => onChange(new Set())}>all</button> : null}
-    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closeCalls, comboStats, compareRanked, indistinguishable, INDISTINGUISHABLE_TESTS, median, NOT_COUNTED_ORDER, perStory, rankCombinations, runTokS, scoreOfRecord, SMALL_N, spread, standingOf, summarise } from "./stats.ts";
+import { closeCalls, comboStats, compareRanked, indistinguishable, INDISTINGUISHABLE_TESTS, isComplete, median, NOT_COUNTED_ORDER, perStory, rankCombinations, runTokS, scoreOfRecord, SMALL_N, spread, standingOf, summarise, visibleRuns } from "./stats.ts";
 import type { Row, RunStatus, Usage } from "./types.ts";
 
 const row = (stories: { secs?: number }[], squares: [number | null, number | null, string][]) => ({
@@ -203,5 +203,58 @@ describe("small n: when two combinations can't be told apart", () => {
   it("close calls are neighbours in the ranking", () => {
     const ranked = rankCombinations([run("a", { score: 74 }), run("b", { score: 63 }), run("c", { score: 40 })]);
     expect(closeCalls(ranked).map(([x, y]) => `${x.stack}~${y.stack}`)).toEqual(["a~b"]);
+  });
+});
+
+// ---------- complete runs: the one rule behind the header's switch ----------
+
+describe("a complete run", () => {
+  const SCOPE = ["1", "2", "3"];
+  interface CompleteOpts extends RunOptsExt { recorded?: string[] }
+  /** A run whose scope is three stories; all three recorded unless told otherwise. */
+  const scoped = (o: CompleteOpts = {}): Row => {
+    const r = run("s", o);
+    const recorded = o.recorded ?? SCOPE;
+    return {
+      ...r,
+      stories: recorded.map((id) => ({ id, usage: null })),
+      storiesWorking: { working: 0, scope: SCOPE.length, squares: SCOPE.map((id) => ({ id, state: "ok", passed: 1, total: 1 })) },
+    } as unknown as Row;
+  };
+
+  it("finished, every story in scope recorded, scored under the current suite: complete", () => {
+    expect(isComplete(scoped())).toBe(true);
+  });
+
+  it("a low score is still complete: a model that broke its build is a result", () => {
+    expect(isComplete(scoped({ score: 0 }))).toBe(true);
+  });
+
+  it.each(["running", "queued", "failed", "stopped", "cancelled", "unknown"] as RunStatus[])("a %s run is not complete", (status) => {
+    expect(isComplete(scoped({ status }))).toBe(false);
+  });
+
+  it("finished without its final score: not complete", () => {
+    expect(isComplete(scoped({ score: null }))).toBe(false);
+  });
+
+  it("finished and scored only under an older suite: not complete", () => {
+    expect(isComplete(scoped({ scores: { [OLD_SUITE]: 60 } }))).toBe(false);
+  });
+
+  it("finished but missing a story's record: not complete", () => {
+    expect(isComplete(scoped({ recorded: ["1", "3"] }))).toBe(false);
+  });
+
+  it("a partial rerun of one story is not complete, even with that story recorded and a score", () => {
+    const r = scoped({ knownGood: true, recorded: ["2"] });
+    const oneStory = { ...r, storiesWorking: { working: 1, scope: 1, squares: [{ id: "2", state: "ok", passed: 1, total: 1 }] } } as unknown as Row;
+    expect(isComplete(oneStory)).toBe(false);
+  });
+
+  it("the switch: All runs keeps every run, Complete runs keeps only complete ones, in order", () => {
+    const a = scoped(), b = scoped({ status: "cancelled" }), c = scoped({ score: null }), d = scoped({ score: 3 });
+    expect(visibleRuns([a, b, c, d], "all")).toEqual([a, b, c, d]);
+    expect(visibleRuns([a, b, c, d], "complete")).toEqual([a, d]);
   });
 });

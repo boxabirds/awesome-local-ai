@@ -71,7 +71,6 @@
   .queue-form label { grid-template-columns: 96px minmax(0, 1fr); }
 
   /* ---------- history ---------- */
-  .history-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
   .history-combo { padding: 12px 14px 4px; }
   .history-combo + .history-combo { border-top: 1px solid var(--line); }
   .history-combo h3 { font-size: 14px; text-transform: none; letter-spacing: 0; color: var(--ink); margin: 0 0 6px; }

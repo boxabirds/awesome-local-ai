@@ -129,11 +129,12 @@ test.describe("no Needs you: not a panel, a heading, a quiet line, a count or a 
     await expect(overview(page)).not.toContainText("✓");
   });
 
-  test("the header's version and status choices filter the Combinations table only", async ({ page }) => {
+  test("the header's version and runs choices filter the Combinations table only", async ({ page }) => {
     await patchState(page);
     await open(page);
-    await page.getByRole("group", { name: "Status" }).getByRole("button", { name: /^finished/ }).click();
-    await expect(page.getByRole("table", { name: "Combinations" }).locator(`tr[data-stack="${OPUS}"]`)).toContainText("not ranked");
+    await page.getByRole("group", { name: "Which runs" }).getByRole("button", { name: /^Complete runs/ }).click();
+    await expect(page.getByRole("table", { name: "Combinations" })).toHaveCount(0);  // the fixture has no complete run
+    await expect(now(page).locator("tbody tr")).toHaveCount(4);
     await page.getByLabel("Version").selectOption("vidi-v1");
     await expectNoPanel(page);
     await expect(now(page).locator("tbody tr")).toHaveCount(4);
@@ -311,13 +312,6 @@ test.describe("the Combinations table", () => {
     await expect(page.locator('[data-page="combination"]')).toBeVisible();
   });
 
-  test("with no run for the choices, says so instead of an empty table", async ({ page }) => {
-    await patchState(page);
-    await open(page);
-    await page.getByRole("group", { name: "Status" }).getByRole("button", { name: "only running" }).click();
-    await page.getByRole("group", { name: "Status" }).getByRole("button", { name: /^running/ }).click();
-    await expect(overview(page).locator('[data-section="combinations"]')).toContainText("No runs for this pack, version and status.");
-  });
 });
 
 // ---------------------------------------------------------------------------------------------------------------
