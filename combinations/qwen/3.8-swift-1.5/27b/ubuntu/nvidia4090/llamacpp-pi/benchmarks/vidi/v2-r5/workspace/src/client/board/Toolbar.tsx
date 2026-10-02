@@ -207,6 +207,31 @@ export function Toolbar(props: ToolbarProps): ReactElement {
         →
       </button>
 
+      {/* Pen tool button (story 11) */}
+      <button
+        aria-label="Pen (P)"
+        title="Pen – P"
+        data-testid="pen-tool-btn"
+        aria-pressed={tool === 'pen'}
+        onClick={disabled ? undefined : () => setTool('pen')}
+        disabled={disabled}
+        style={{
+          width: 40,
+          height: 40,
+          border: '1px solid #ccc',
+          borderRadius: 8,
+          background: tool === 'pen' ? '#BBDEFB' : '#f5f5f5',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 18,
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        ✏️
+      </button>
+
       {undo && <UndoButtons {...undo} />}
     </div>
   );

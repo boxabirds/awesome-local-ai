@@ -17,7 +17,7 @@ export interface ObjectSnapshot {
   y: number;
   z: number;
   // Optional fields populated by specific types
-  color?: StickyColor;
+  color?: string;
   text?: string;
   createdAt?: number;
   width?: number;
@@ -120,6 +120,11 @@ export function objectBounds(obj: ObjectSnapshot): Rect {
   }
   if (obj.type === 'connector') {
     return { x: obj.x, y: obj.y, width: 0, height: 0 };
+  }
+  if (obj.type === 'stroke') {
+    const width = (obj as any).width ?? 0;
+    const height = (obj as any).height ?? 0;
+    return { x: obj.x, y: obj.y, width, height };
   }
   const width = (obj as StickySnapshot).width ?? STICKY_SIZE_WORLD;
   const height = (obj as StickySnapshot).height ?? STICKY_SIZE_WORLD;
@@ -412,6 +417,23 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         height: 0,
         from: from ?? { kind: 'free', x: 0, y: 0 },
         to: to ?? { kind: 'free', x: 0, y: 0 },
+        z: (obj.get('z') as number) ?? 0,
+        createdAt: (obj.get('createdAt') as number) ?? 0,
+        createdBy: (obj.get('createdBy') as string) ?? '',
+      } as any);
+    } else if (type === 'stroke') {
+      result.push({
+        id,
+        type: 'stroke',
+        x: (obj.get('x') as number) ?? 0,
+        y: (obj.get('y') as number) ?? 0,
+        width: (obj.get('width') as number) ?? 0,
+        height: (obj.get('height') as number) ?? 0,
+        points: (obj.get('points') as number[]) ?? [],
+        baseWidth: (obj.get('baseWidth') as number) ?? 0,
+        baseHeight: (obj.get('baseHeight') as number) ?? 0,
+        color: (obj.get('color') as string) ?? 'black',
+        thickness: (obj.get('thickness') as string) ?? 'medium',
         z: (obj.get('z') as number) ?? 0,
         createdAt: (obj.get('createdAt') as number) ?? 0,
         createdBy: (obj.get('createdBy') as string) ?? '',

@@ -107,3 +107,42 @@
 - `tests/unit/board-model-group.test.ts` (TC-08 uses unknown-type instead of shape)
 - `tests/component/LoadFailure.test.tsx` (Toolbar props)
 - `tests/component/UndoControls.test.tsx` (Toolbar props)
+
+## Story 11: Sketch freehand with a pen
+
+### Decisions
+
+1. **RDP simplification in shared layer**: `simplify(points, tolerancePx, zoom)` in `src/shared/geometry/simplify.ts` implements the Ramer–Douglas–Peucker algorithm. Applied in the PenTool component at commit time. Tolerance is `STROKE_SIMPLIFY_TOLERANCE_PX / zoom` world units (0.5px screen tolerance). `splitPoints(points, limit)` splits at the limit with shared join points between parts.
+
+2. **Stroke data model**: `createStroke(doc, opts, clientId)` in `src/shared/objects/stroke.ts`. `strokePoints` is a Y.Array of flat numbers `[x0, y0, x1, y1, ...]`. `scaledPoints(stroke, scale)` returns `Point[]` with each point multiplied by scale (for resize). Bbox computed from points ± half the pen thickness in world units.
+
+3. **Hit test**: Line-segment distance test against all segments of the polyline. Tolerance: `max(thicknessWorld/2, STROKE_HIT_TOLERANCE_PX / zoom)` world units. This ensures constant screen-px tolerance regardless of zoom. `ObjectSpec.hitTest` signature extended with optional `zoom` parameter (defaults to 1).
+
+4. **Resize (aspect-locked)**: `resize` in registerStroke computes a uniform scale factor from the bounding box width change. All points scaled by the factor; bbox updates accordingly. Aspect ratio is preserved by construction.
+
+5. **PenTool component**: Fixed-position full-viewport overlay (zIndex 500) like ShapeTool. Wheel events forwarded to the board viewport's pan handler via a prop. Coalesced pointer events used when available. Single click (down + up without move) commits a 2-point dot. `pointercancel` commits the stroke with points so far (never loses work). Tool stays active after stroke commit (does NOT call `toolCreated`).
+
+6. **ObjectSnapshot.color type**: Changed from `StickyColor` to `string` to accommodate `PenColor` (broader palette). No runtime impact; type-level change only.
+
+7. **E2E tests**: Written per design.md TC-17 to TC-20. Use `createBoard()` helper that navigates to `/`, clicks "New board", waits for URL change. Note: e2e tests require a working `wrangler dev` Durable Object environment.
+
+### Files added
+- `src/shared/geometry/simplify.ts` (new: RDP simplify, splitPoints, smoothPath)
+- `src/shared/objects/stroke.ts` (new: stroke model)
+- `src/client/tools/usePenOptions.ts` (new: pen options hook)
+- `src/client/tools/PenToolbar.tsx` (new: pen colour/thickness toolbar)
+- `src/client/tools/PenTool.tsx` (new: pen drawing tool)
+- `src/client/objects/StrokeObject.tsx` (new: stroke SVG renderer)
+- `src/client/objects/registerStroke.ts` (new: registry entry)
+- `tests/fixtures/pen-paths.ts` (new: test path fixtures)
+- `tests/unit/stroke.test.ts` (new: TC-01 to TC-08)
+- `tests/component/PenTool.test.tsx` (new: TC-09 to TC-14)
+- `tests/component/StrokeObject.test.tsx` (new: TC-15, TC-16, TC-21)
+- `tests/e2e/pen.spec.ts` (new: TC-17 to TC-20)
+
+### Files modified
+- `src/shared/config.ts` (PEN_*, STROKE_* constants)
+- `src/shared/board-model.ts` (snapshot handles stroke, objectBounds, ObjectSnapshot.color → string)
+- `src/client/objects/registry.tsx` (hitTest zoom param)
+- `src/client/board/Toolbar.tsx` (Pen button)
+- `src/client/pages/BoardContent.tsx` (PenTool integration, wheel forwarding)

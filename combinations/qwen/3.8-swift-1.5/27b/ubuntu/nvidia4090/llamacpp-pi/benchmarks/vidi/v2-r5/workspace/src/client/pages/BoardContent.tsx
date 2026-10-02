@@ -18,6 +18,9 @@ import { useBoardKeys } from '../board/useBoardKeys';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
@@ -32,10 +35,14 @@ import { ShapeObject } from '../objects/ShapeObject';
 import '../objects/registerShape';
 import { ConnectorObject } from '../objects/ConnectorObject';
 import '../objects/registerConnector';
+import { StrokeObject } from '../objects/StrokeObject';
+import '../objects/registerStroke';
 import { createSticky, deleteObjects, objectBounds } from '../../shared/board-model';
 import { createText, deleteIfEmpty, setTextBox } from '../../shared/objects/text';
 import { createShape, setShapeStyle } from '../../shared/objects/shape';
 import { createConnector, setConnectorEndpoint } from '../../shared/objects/connector';
+import { createStroke } from '../../shared/objects/stroke';
+import type { Point as WorldPoint } from '../../shared/geometry';
 import { TEXT_SIZES, TEXT_LINE_HEIGHT, TEXT_MAX_AUTO_WIDTH_WORLD } from '../../shared/config';
 import { unionRects } from '../../shared/geometry';
 import { worldToScreen } from '../canvas/camera';
@@ -77,6 +84,9 @@ export function BoardContent(props: { boardId: string }): ReactElement {
       selection.setMany([id], false);
     },
   });
+
+  // Pen options (story 11)
+  const penOptions = usePenOptions();
 
   // Track viewport size
   useEffect(() => {
@@ -168,6 +178,15 @@ export function BoardContent(props: { boardId: string }): ReactElement {
     undo.boundary();
     return id;
   }, [doc, connectionState, undo]);
+
+  // Create stroke (for PenTool)
+  const createStrokeAt = useCallback((points: WorldPoint[]) => {
+    if (!canEdit(connectionState)) return null;
+    undo.boundary();
+    const id = createStroke(doc, { points, color: penOptions.color, thickness: penOptions.thickness }, 'local');
+    undo.boundary();
+    return id;
+  }, [doc, penOptions.color, penOptions.thickness, connectionState, undo]);
 
   // Re-attach connector endpoint
   const setConnectorEnd = useCallback((id: string, end: 'from' | 'to', ep: any) => {
@@ -324,7 +343,7 @@ export function BoardContent(props: { boardId: string }): ReactElement {
   }, [notes]);
 
   // Cursor style based on active tool
-  const cursorStyle = tool === 'text' ? 'text' : tool === 'shape' || tool === 'connector' ? 'crosshair' : 'grab';
+  const cursorStyle = tool === 'text' ? 'text' : tool === 'shape' || tool === 'connector' ? 'crosshair' : tool === 'pen' ? 'none' : 'grab';
 
   return (
     <>
@@ -390,6 +409,16 @@ export function BoardContent(props: { boardId: string }): ReactElement {
                   onPointerDown={gesture.onObjectPointerDown}
                   setEndpoint={setConnectorEnd}
                   hitTestObject={hitTestObject}
+                />
+              );
+            }
+            if (note.type === 'stroke') {
+              return (
+                <StrokeObject
+                  key={note.id}
+                  stroke={note as any}
+                  selected={selection.ids.has(note.id)}
+                  onPointerDown={gesture.onObjectPointerDown}
                 />
               );
             }
@@ -497,6 +526,27 @@ export function BoardContent(props: { boardId: string }): ReactElement {
           snapshot={notes}
           onCreated={(id) => toolCreated(id)}
           create={createConnectorAt}
+        />
+      )}
+
+      {/* Pen tool overlay (story 11) */}
+      {tool === 'pen' && editable && (
+        <PenTool
+          camera={cam.camera}
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          create={createStrokeAt}
+          wheel={cam.wheel}
+        />
+      )}
+
+      {/* Pen toolbar (story 11) */}
+      {tool === 'pen' && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
         />
       )}
 
