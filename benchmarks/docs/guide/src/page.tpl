@@ -28,12 +28,18 @@
 </header>
 
 <div class="layout">
+<div class="toc-col">
+<div class="toc-tools" id="toc-tools" hidden>
+  <button id="toc-collapse" type="button" class="toc-collapse-btn" aria-expanded="true" aria-controls="toc" title="Collapse contents">&#9668;</button>
+</div>
 <nav class="toc-wrap toc" id="toc" aria-label="Contents">
   <details open>
     <summary>Contents</summary>
     <!--@toc-->
   </details>
 </nav>
+</div>
+<div class="toc-resize" id="toc-resize" hidden tabindex="0" role="separator" aria-orientation="vertical" aria-label="Resize the contents panel" aria-controls="toc"></div>
 
 <main id="main">
 
