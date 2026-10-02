@@ -67,3 +67,11 @@ Why: on 1 October 2026 the dashboard listed skipped re-scores and failed time-ac
 `benchmarks/docs/guide/index.html` is the interactive guide to how the benchmark system works: its concepts, entities and their relationships, components, key flows and the operational insights that illustrate them. Whenever you make a major change to the benchmark system, update the guide in the same piece of work, and update the insights it embeds when a new analysis is added. Major means: a new or removed entity, component or flow; a change to how a run, a story, a stop or finish rule, scoring, a sandbox boundary, a release or the benchmarker's presentation works; a new combination kind; a change to what is measured or reported. The guide's own `README.md` lists where each entity, flow and insight lives and what to check. Say in the final report what you changed in the guide, or that nothing needed changing and why.
 
 Why: on 1 October 2026 the system's rules changed several times in a day (what ends a story, what the agent can see, how a score is made, what the app shows) while the only documentation was the code and a long conversation. A guide that is not updated with the system is wrong the first time someone relies on it.
+
+## A smoke run takes ten minutes or less
+
+A smoke run is a check that finishes in ten minutes or less: the engine starts, answers a request, returns a tool call, reuses a prompt. Anything longer is not a smoke run and must not be called one or run as one. A benchmark story is never a smoke run, recorded or not: a story takes as long as the stories of a normal run.
+
+For an engine or client version change, the check before a series is the short one (the installer's own smoke test, or a few requests against the server). Then queue the series and watch its first story; a problem shows there as soon as it would in a separate story, and the machine's time is not spent twice.
+
+Why: on 2 October 2026 an unrecorded "smoke" story for mlx-serve 26.10.1 ran for an hour on the M5 Max before the five-run series it was holding up. The owner had not asked for it: "it's not necessary to do a smoke run when it takes as long as a normal run! that's not smoke!"
