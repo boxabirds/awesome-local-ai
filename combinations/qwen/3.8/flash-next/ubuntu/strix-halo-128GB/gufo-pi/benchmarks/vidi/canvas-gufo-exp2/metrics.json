@@ -143,7 +143,9 @@
           "decode_s": 1802.3,
           "decode_tokens": 78887,
           "decode_tok_s": 43.8,
-          "cached_tokens": 5240411
+          "cached_tokens": 5240411,
+          "draft_acceptance": 0.76,
+          "mean_accepted_len": null
         },
         "tools_s": 136.6,
         "tools_by_kind": {
@@ -151,17 +153,22 @@
           "bash": 41.3,
           "unit": 9.8,
           "build": 5.4,
-          "edit": 0.1
+          "edit": 0.1,
+          "write": 0.0,
+          "read": 0.0
         },
         "compaction_s": 0.0,
         "compactions": 0,
         "between_sessions_s": 0.0,
         "other_s": 6.7,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -305,12 +312,11 @@
         "commit": "359b4a93"
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 95,
         "tool_calls": 100,
+        "thinking_visible": true,
         "thinking_chars": 153276,
-        "text_chars": 427,
-        "tool_arg_chars": 120184,
         "thinking_median": 256,
         "thinking_median_before": 244,
         "thinking_median_after": 300,
@@ -319,6 +325,11 @@
           "call": 18,
           "at_s": 413.6
         },
+        "text_chars": 427,
+        "tool_arg_chars": 120184,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2051,
         "context_end": 104697,
         "largest_context_jump": {
@@ -337,7 +348,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-exp2/works"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37a2d921",
+        "pack_version": "vidi-v1.1",
+        "run_started_at": "2026-09-28T01:13:10Z",
+        "source": "run-history"
       }
     },
     "2": {
@@ -490,7 +508,9 @@
           "decode_s": 4745.3,
           "decode_tokens": 195295,
           "decode_tok_s": 41.2,
-          "cached_tokens": 12584982
+          "cached_tokens": 12584982,
+          "draft_acceptance": 0.736,
+          "mean_accepted_len": null
         },
         "tools_s": 303.1,
         "tools_by_kind": {
@@ -498,17 +518,22 @@
           "unit": 82.0,
           "build": 2.9,
           "bash": 0.4,
-          "edit": 0.1
+          "edit": 0.1,
+          "read": 0.0,
+          "write": 0.0
         },
         "compaction_s": 345.8,
         "compactions": 2,
         "between_sessions_s": 0.7,
         "other_s": 13.8,
+        "suspended_s": 0.0,
         "accounting": {
-          "version": 3,
+          "version": 4,
           "ok": true,
           "problems": [],
-          "abandoned_calls": 0
+          "abandoned_calls": 0,
+          "interrupted_tools": [],
+          "interrupted_compactions": 0
         },
         "backfilled": true
       },
@@ -671,12 +696,11 @@
         "commit": "83d3e886"
       },
       "conversation": {
-        "version": 1,
+        "version": 4,
         "calls": 184,
         "tool_calls": 195,
+        "thinking_visible": true,
         "thinking_chars": 419864,
-        "text_chars": 4804,
-        "tool_arg_chars": 265681,
         "thinking_median": 490,
         "thinking_median_before": 131,
         "thinking_median_after": 508,
@@ -685,6 +709,11 @@
           "call": 13,
           "at_s": 951.9
         },
+        "text_chars": 4804,
+        "tool_arg_chars": 265681,
+        "thinking_tokens": null,
+        "thinking_estimated_tokens": null,
+        "largest_thinking_estimated": null,
         "context_start": 2065,
         "context_end": 79594,
         "largest_context_jump": {
@@ -703,7 +732,14 @@
           "name": "bash",
           "gist": "cd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-exp2/works"
         },
-        "signals": []
+        "signals": [],
+        "subagent_calls": 0
+      },
+      "provenance": {
+        "harness_commit": "37a2d921",
+        "pack_version": "vidi-v1.1",
+        "run_started_at": "2026-09-28T01:13:10Z",
+        "source": "run-history"
       }
     }
   },
