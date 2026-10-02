@@ -788,6 +788,37 @@ fn everyday_shell_tools_work() {
     );
 }
 
+/// 2 Oct 2026: with its output in a regular file (a job's log, a release check's log) the sandbox
+/// carries the command's output through a pipe, and it waited for that pipe to close. A process the
+/// command left running keeps it open, so the sandbox outlived its command by as long as that
+/// process ran: a release's checks hung for five minutes on the test below this one.
+#[test]
+fn the_sandbox_ends_with_its_command_though_a_process_it_left_behind_still_holds_the_output() {
+    if skip("the_sandbox_ends_with_its_command_though_a_process_it_left_behind_still_holds_the_output", &[]) {
+        return;
+    }
+    let bench = Bench::new();
+    let log = bench.workspace.join("output.log");
+    let mut command = bench.sandboxed(&[], &[BASH, "-c", "sleep 120 & echo said"]);
+    command
+        .process_group(0)
+        .stdout(std::fs::File::create(&log).unwrap())
+        .stderr(std::fs::File::create(bench.workspace.join("errors.log")).unwrap());
+    let started = Instant::now();
+    let mut child = command.spawn().unwrap();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let pid = child.id() as libc::pid_t;
+    std::thread::spawn(move || {
+        let _ = tx.send(child.wait());
+    });
+    let status = rx.recv_timeout(REFUSAL_DEADLINE);
+    // SAFETY: sweeps only the process group this test created.
+    unsafe { libc::kill(-pid, libc::SIGKILL) };
+    assert!(status.is_ok(), "the sandbox was still running {:?} after its command ended", started.elapsed());
+    assert!(status.unwrap().unwrap().success());
+    assert_eq!(std::fs::read_to_string(&log).unwrap(), "said\n", "what the command wrote is all there");
+}
+
 #[test]
 fn terminating_the_sandbox_ends_its_command() {
     if skip("terminating_the_sandbox_ends_its_command", &[]) {

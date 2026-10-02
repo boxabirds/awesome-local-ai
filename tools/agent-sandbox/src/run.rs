@@ -34,6 +34,8 @@ const NODE: &str = "node";
 /// Where macOS keeps its stubs for developer tools; the real ones go just ahead of it on PATH.
 const SYSTEM_BIN: &str = "/usr/bin";
 const PASSWD_BUF_BYTES: usize = 16_384;
+/// How long, after the command has ended, its remaining output is waited for.
+const RELAY_DRAIN: Duration = Duration::from_millis(500);
 const RELAY_BUFFER_BYTES: usize = 65_536;
 #[cfg(target_os = "macos")]
 const GIT: &str = "git";
@@ -471,10 +473,12 @@ fn is_regular_file(fd: libc::c_int) -> bool {
     unsafe { libc::fstat(fd, &mut st) == 0 && (st.st_mode & libc::S_IFMT) == libc::S_IFREG }
 }
 
+/// Copies `from` to `to` on a thread of its own until `from` ends. The receiver hears when it has.
 fn relay(
     mut from: impl Read + Send + 'static,
     mut to: impl Write + Send + 'static,
-) -> std::thread::JoinHandle<()> {
+) -> std::sync::mpsc::Receiver<()> {
+    let (done, finished) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let mut buf = vec![0u8; RELAY_BUFFER_BYTES];
         while let Ok(n) = from.read(&mut buf) {
@@ -483,7 +487,9 @@ fn relay(
             }
             let _ = to.flush();
         }
-    })
+        let _ = done.send(());
+    });
+    finished
 }
 
 /// Run the command to its end, passing on SIGTERM, SIGINT and SIGHUP.
@@ -526,8 +532,12 @@ fn spawn_and_wait(mut command: Command) -> std::io::Result<ExitStatus> {
         child.stderr.take().map(|err| relay(err, std::io::stderr())),
     ];
     let status = wait_forwarding(&mut child);
+    // What the command wrote before it ended is already in the pipe and is copied at once. The pipe
+    // itself closes only when every process holding it has ended, and a process the command left
+    // running (a dev server, a `sleep &`) holds it: the sandbox ends with its command, not with that.
+    let until = std::time::Instant::now() + RELAY_DRAIN;
     for output in outputs.into_iter().flatten() {
-        let _ = output.join();
+        let _ = output.recv_timeout(until.saturating_duration_since(std::time::Instant::now()));
     }
     status
 }
