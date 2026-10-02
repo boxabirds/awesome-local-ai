@@ -662,3 +662,180 @@ body,
   pointer-events: none;
   z-index: 9998;
 }
+
+/* ── Free text (story 9) ──────────────────────────────────────────────── */
+
+/* The Text tool is a promise about the next click on the board, and the pointer
+   is the only thing about the board that changes to say so. */
+.board-viewport.is-text-tool {
+  cursor: text;
+}
+
+.text-object {
+  position: absolute;
+  box-sizing: border-box;
+  /* The world layer ignores the pointer, so that a drag of empty board is a pan;
+     every object has to take the pointer back for itself, or it cannot be
+     clicked, dragged or opened at all. A sticky note does the same; jsdom does no
+     hit-testing, so only a browser can tell that this line is missing. */
+  pointer-events: auto;
+  /* Free text has no surface of its own: no background, no border, no padding.
+     The words are the object; the selection outline is the only box it gets, and
+     the box's size is the layout's, never a decoration's. */
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--board-ink);
+  white-space: pre-wrap;
+  /* A word longer than any box is broken inside it rather than allowed to widen
+     the box or hang out of it. */
+  overflow-wrap: anywhere;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  z-index: 0;
+}
+
+.text-object[role='group']:focus {
+  outline: none;
+}
+
+.text-object[data-selected='true']:not(.is-editing) .text-display {
+  outline: 2px solid #4f8cff;
+  outline-offset: 3px;
+}
+
+.text-display {
+  margin: 0;
+}
+
+/* The editor is laid out identically to the text it replaces — same font, same
+   size, same line height, same wrapping — so the caret lands where the words
+   already are and the text does not jump when a person starts editing it. */
+.text-editor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--board-ink);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+  z-index: 1;
+}
+
+.text-editor.is-near-limit {
+  caret-color: #b3261e;
+}
+
+/* The text toolbar is not a child of the object, so it does not scale with zoom
+   or move with the object: it belongs to the selection, and it is where every
+   other selection control is. */
+.selection-bar-text {
+  padding: 4px 6px;
+}
+
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.text-size-button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--board-ink);
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.text-size-button:hover {
+  background: rgba(20, 20, 40, 0.07);
+}
+
+.text-size-button[aria-pressed='true'] {
+  background: rgba(79, 140, 255, 0.16);
+  border-color: #4f8cff;
+}
+
+.text-size-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* The size buttons are the same letters as the sizes they choose, at the sizes
+   they choose — the button for XL is set larger than the one for S. */
+.text-size-button-S { font-size: 11px; }
+.text-size-button-M { font-size: 13px; }
+.text-size-button-L { font-size: 16px; }
+.text-size-button-XL { font-size: 20px; }
+
+.text-width-mode-button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--board-ink);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.text-width-mode-button[aria-pressed='true'] {
+  background: rgba(79, 140, 255, 0.16);
+  border-color: #4f8cff;
+}
+
+.text-width-mode-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.text-delete-button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #b3261e;
+  cursor: pointer;
+}
+
+.text-delete-button:hover {
+  background: rgba(179, 38, 30, 0.12);
+}
+
+.text-delete-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

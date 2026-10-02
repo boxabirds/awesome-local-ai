@@ -11,15 +11,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import type { WebsocketProvider } from 'y-websocket';
-import { createSticky, deleteObject, moveObject, setStickyColor, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { createSticky, deleteObject, moveObject, setStickyColor, snapshotAll, type ObjectSnapshot } from '../../shared/board-model';
 import type { StickyColor } from '../../shared/config';
 import { connectBoard, type BoardConnection, type ConnectionState } from '../sync/connectBoard';
 
 export interface BoardDoc {
   /** The one document this board is built from. */
   doc: Y.Doc;
-  /** The notes to draw, in the order the model gives them. */
-  notes: readonly StickySnapshot[];
+  /** The objects to draw, in the order the model gives them. */
+  objects: readonly ObjectSnapshot[];
   /** False until the document has been read once. */
   ready: boolean;
   /** Where the connection to this board's room is. */
@@ -53,7 +53,7 @@ export function useBoardDoc(
   // once and cannot change underneath it: arriving at a different address is
   // a different document and a fresh mount of this component.
   const [doc] = useState(() => new Y.Doc());
-  const [notes, setNotes] = useState<readonly StickySnapshot[]>([]);
+  const [objects, setObjects] = useState<readonly ObjectSnapshot[]>([]);
   const [ready, setReady] = useState(false);
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   const providerReady = useRef(onProvider);
@@ -64,7 +64,7 @@ export function useBoardDoc(
     // a change that arrives is drawn in the task it arrives in, without a timer
     // and without a batch waiting for one.
     const scheduled = (): void => {
-      setNotes(snapshot(doc));
+      setObjects(snapshotAll(doc));
       setReady(true);
     };
 
@@ -105,5 +105,5 @@ export function useBoardDoc(
 
   const emulateOutage = useCallback((ms: number) => board.current?.emulateOutage(ms), []);
 
-  return { doc, notes, ready, connection, addNote, moveNote, setColor, deleteNote, emulateOutage };
+  return { doc, objects, ready, connection, addNote, moveNote, setColor, deleteNote, emulateOutage };
 }

@@ -8,6 +8,9 @@ import {
   bringObjectsToFront,
   objectBounds,
 } from '../../shared/board-model';
+import { clampTextWidth, setTextWidthFixed } from '../../shared/objects/text';
+import { createCanvasMeasurer, type Measurer } from '../objects/textLayout';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
 import type { SelectionApi } from './useSelection';
 import type { Rect, Handle } from '../../shared/geometry';
 import { unionRects, resizeRect, clampScale, scaleWithin } from '../../shared/geometry';
@@ -60,6 +63,10 @@ interface GestureState {
   aspectLocked?: boolean;
   /** Per-object min sizes. */
   minSizes?: Map<string, number>;
+  /** Which of the objects being resized are free text, by id. */
+  texts?: Set<string>;
+  /** Which of them have a width of their own, rather than one the text decided. */
+  fixed?: Set<string>;
   /** Whether threshold has been crossed. */
   moved: boolean;
   /** The element that has pointer capture. */
@@ -81,6 +88,10 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
   const pendingRef = useRef<{ x: number; y: number } | null>(null);
   const optsRef = useRef(opts);
   optsRef.current = opts;
+  // One measurer for the board, for the times a resize changes a text object's
+  // width and so the number of lines its text needs.
+  const measureRef = useRef<Measurer | null>(null);
+  if (measureRef.current === null) measureRef.current = createCanvasMeasurer();
 
   const applyMove = useCallback(() => {
     const gesture = gestureRef.current;
@@ -141,11 +152,48 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       }
 
       // Scale each object within the box
+      const only = gesture.startRects.size === 1 ? [...gesture.startRects.keys()][0] : undefined;
+      if (only !== undefined && gesture.texts?.has(only) === true) {
+        // One text object on its own: a side handle decides how wide its box is,
+        // and its height is however many lines the text needs inside that width.
+        // There is no other resize for it — the overlay gives a text object two
+        // handles and no more, because its height is its text's business — so it
+        // does not take the group's uniform scale, which would scale its letters
+        // instead of its line length. The width is the pointer's distance, and
+        // the model's clamp, and nothing else.
+        if (gesture.handle !== 'w' && gesture.handle !== 'e') return;
+        const start = gesture.startRects.get(only);
+        if (start === undefined) return;
+        const width = clampTextWidth(
+          gesture.handle === 'e' ? start.width + dx : start.width - dx,
+        );
+        setTextWidthFixed(o.doc, only, width);
+        remeasureTextBox(o.doc, only, measureRef.current as Measurer);
+        if (gesture.handle === 'w') {
+          // A left handle travels with the width it gives: the edge the person is
+          // not holding, the right one, is the edge that stays where it was.
+          moveObjects(o.doc, new Map([[only, { x: start.x + start.width - width, y: start.y }]]));
+        }
+        return;
+      }
+
       const newRects = new Map<string, Rect>();
       for (const [id, startRect] of gesture.startRects) {
-        newRects.set(id, scaleWithin(startRect, gesture.boundingBox, scaledBox));
+        const scaled = scaleWithin(startRect, gesture.boundingBox, scaledBox);
+        if (gesture.texts?.has(id) !== true || gesture.fixed?.has(id) === true) {
+          newRects.set(id, scaled);
+          continue;
+        }
+        // A text object whose width the text decided keeps that width: inside a
+        // group, only its place belongs to the group. Its font never scales — no
+        // text object's font does — so scaling the box repositions it and nothing
+        // else. When the drag is over its lines are counted again.
+        newRects.set(id, { x: scaled.x, y: scaled.y, width: startRect.width, height: startRect.height });
       }
       resizeObjects(o.doc, newRects);
+      if (gesture.fixed !== undefined) {
+        for (const id of gesture.fixed) remeasureTextBox(o.doc, id, measureRef.current as Measurer);
+      }
     }
   }, []);
 
@@ -232,6 +280,8 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     let anyAspectLocked = false;
     const startRects = new Map<string, Rect>();
     const minSizes = new Map<string, number>();
+    const texts = new Set<string>();
+    const fixed = new Set<string>();
 
     for (const id of o.selection.ids) {
       const obj = o.snapshot.find((s) => s.id === id);
@@ -242,6 +292,10 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       if (spec.aspectLocked) anyAspectLocked = true;
       startRects.set(id, objectBounds(obj));
       minSizes.set(id, spec.minSize);
+      if (obj.type === 'text') {
+        texts.add(id);
+        if (obj.widthMode === 'fixed') fixed.add(id);
+      }
     }
 
     if (!anyResizable) return;
@@ -262,6 +316,8 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       handle,
       aspectLocked,
       minSizes,
+      texts,
+      fixed,
       moved: false,
       element: e.currentTarget as Element,
     };

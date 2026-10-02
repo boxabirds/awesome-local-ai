@@ -56,6 +56,57 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 /** Colour of a freshly created sticky note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+// --- Story 9: free text objects --------------------------------------------
+//
+// A size is stored as its key and never as a pixel number, so changing these
+// numbers leaves documents written before the change readable.
+
+/** The four text sizes: the stored key mapped to its world font size. */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** The size a new text object starts at. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/**
+ * How a text object decides its width: the text decides it, and the box grows to
+ * its longest line until it has to wrap; or a person decided it, by dragging a
+ * side handle or pressing the width button, and the height follows the number of
+ * lines the words need inside it.
+ */
+export type TextWidthMode = 'auto' | 'fixed';
+
+/** Display names used for the size buttons' accessible labels (e.g. "Large text"). */
+export const TEXT_SIZE_LABELS: Record<TextSize, string> = {
+  S: 'Small',
+  M: 'Medium',
+  L: 'Large',
+  XL: 'Extra large',
+};
+
+/** Line boxes are this multiple of the font size, in the layout and in CSS alike. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** The font the layout measures with, which is the font the text is drawn in. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/** A text object holds this many characters; further input is ignored. */
+export const TEXT_MAX_CHARS = 5000;
+
+/** An auto-width box grows to this and then wraps (world units). */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** The narrowest box a text object may have, in auto or in fixed mode (world units). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/**
+ * An auto-width box is grown this much wider than its longest line, so that the
+ * words in it are not pressed against its selection outline. The box is never
+ * wider than TEXT_MAX_AUTO_WIDTH_WORLD.
+ */
+export const TEXT_BOX_PAD_WORLD = 4;
+
 // --- Story 3: live collaboration -------------------------------------------
 
 /**

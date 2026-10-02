@@ -22,9 +22,26 @@
 //         height?: number        // explicit height (story 7)
 //       }
 import * as Y from 'yjs';
-import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
+import {
+  DEFAULT_STICKY_COLOR,
+  DEFAULT_TEXT_SIZE,
+  STICKY_COLORS,
+  STICKY_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+  TEXT_SIZES,
+  type StickyColor,
+  type TextSize,
+} from './config';
 import type { Point, Rect } from './geometry';
 import { rectContains } from './geometry';
+import type { TextSnapshot } from './objects/text';
+
+/**
+ * What the board knows about one text object. The reading of it lives here, next
+ * to the reading of every other object, so this type is part of the board's
+ * vocabulary too; the writes that belong to text alone live in `objects/text`.
+ */
+export type { TextSnapshot };
 
 /** Transaction origin of local user edits (story 8 undo, story 3 echo guard). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
@@ -51,15 +68,23 @@ export interface StickySnapshot {
   height?: number;
 }
 
-/** Generic snapshot for any object type (used by group ops). */
-export type ObjectSnapshot = StickySnapshot;
+/**
+ * Generic snapshot for any object type (used by group ops): the union of the
+ * object kinds the board knows. Story 9 added the text object to it, and every
+ * group operation below works on the shared fields, which is the point.
+ */
+export type ObjectSnapshot = StickySnapshot | TextSnapshot;
 
 /** The `objects` map: id -> per-object Y.Map. Renderer skips unknown types. */
 export function getObjects(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap<Y.Map<unknown>>(OBJECTS_MAP);
 }
 
-function isFiniteNumber(value: unknown): value is number {
+/**
+ * Finite numbers only: a document written by something other than this app can
+ * hold anything in a numeric field, and nothing downstream may be handed NaN.
+ */
+export function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
@@ -72,7 +97,7 @@ function isStickyColor(value: unknown): value is StickyColor {
  * target browsers, Node >= 19); the fallback keeps non-browser hosts (test
  * environments without a Web Crypto global) working.
  */
-function newId(): string {
+export function newId(): string {
   const c: Crypto | undefined = typeof crypto === 'undefined' ? undefined : crypto;
   if (c !== undefined && typeof c.randomUUID === 'function') return c.randomUUID();
   const hex = (n: number) =>
@@ -87,7 +112,7 @@ export function initDoc(doc: Y.Doc): void {
 }
 
 /** Highest z currently in the document (0 for an empty document). */
-function maxZ(objects: Y.Map<Y.Map<unknown>>): number {
+export function maxZ(objects: Y.Map<Y.Map<unknown>>): number {
   let max = 0;
   objects.forEach((map) => {
     const z = map.get('z');
@@ -188,6 +213,68 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 }
 
 /**
+ * The keys of TEXT_SIZES, which is all a document may legally hold for a text
+ * object's size. Exported for the text object's own setters.
+ */
+export function isTextSize(value: unknown): value is TextSize {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, value);
+}
+
+/**
+ * Snapshot one object map by its id, whatever kind it is, or null for a kind
+ * this board does not know (forward compatibility).
+ *
+ * Exported for `shared/objects/text.ts`, the only other place that has to read
+ * a text object back. The reading lives here rather than there so that the two
+ * modules never import each other at runtime: this side takes only the text
+ * object's *types*.
+ */
+export function readObject(map: Y.Map<unknown> | undefined, id: string): ObjectSnapshot | null {
+  if (map === undefined || !(map instanceof Y.Map)) return null;
+  const type = map.get('type');
+  const x = map.get('x');
+  const y = map.get('y');
+  const z = map.get('z');
+  const createdAt = map.get('createdAt');
+  const width = map.get('width');
+  const height = map.get('height');
+  const text = map.get('text');
+  if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(z)) return null;
+  const shared = {
+    id,
+    x,
+    y,
+    z,
+    createdAt: isFiniteNumber(createdAt) ? createdAt : 0,
+    ...(isFiniteNumber(width) ? { width } : {}),
+    ...(isFiniteNumber(height) ? { height } : {}),
+  };
+  if (type === 'sticky') {
+    return Object.freeze({
+      ...shared,
+      type: 'sticky' as const,
+      color: isStickyColor(map.get('color')) ? map.get('color') as StickyColor : DEFAULT_STICKY_COLOR,
+      text: text instanceof Y.Text ? text.toString() : '',
+    });
+  }
+  if (type === 'text') {
+    const size = map.get('size');
+    return Object.freeze({
+      ...shared,
+      type: 'text' as const,
+      text: text instanceof Y.Text ? text.toString() : '',
+      size: isTextSize(size) ? size : DEFAULT_TEXT_SIZE,
+      widthMode: map.get('widthMode') === 'fixed' ? ('fixed' as const) : ('auto' as const),
+      // A text object always has a box; a document that lost one keeps it on the
+      // board at the narrowest legal width instead of dropping the text.
+      width: Math.max(TEXT_MIN_WIDTH_WORLD, shared.width ?? TEXT_MIN_WIDTH_WORLD),
+      height: Math.max(0, shared.height ?? 0),
+    });
+  }
+  return null;
+}
+
+/**
  * Immutable, render-ready view of the board: notes sorted by (z, id) — the id
  * tie-break keeps stacking identical on every client once story 3 syncs —
  * with objects of unknown `type` skipped (forward compatibility for the
@@ -226,6 +313,22 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
 }
 
 // --- Story 7: group operations -----------------------------------------------
+
+/**
+ * Every object the board can draw, of any known kind, sorted by (z, id) like
+ * `snapshot` sorts its notes. This is what the board renders and what selection
+ * works on, so a text object is selectable, movable, deletable and marqueeable
+ * without any of those operations changing.
+ */
+export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const objects: ObjectSnapshot[] = [];
+  getObjects(doc).forEach((map, id) => {
+    const obj = readObject(map, id);
+    if (obj !== null) objects.push(obj);
+  });
+  objects.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return objects;
+}
 
 /**
  * Compute the bounding rect of an object. For stickies without explicit

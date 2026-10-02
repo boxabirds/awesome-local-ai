@@ -1,3 +1,102 @@
+commit aa6da26dfcfbaff3d53e71fb6e81caec584c9358
+vidi-agent  Fri Oct 2 04:43:50 2026 +0100
+
+    story 9: e2e text workflows in a real browser (TC-26 to TC-31)
+
+
+ tests/e2e/helpers/texts.ts | 238 ++++++++++++++++++++++++
+ tests/e2e/text.spec.ts     | 452 +++++++++++++++++++++++++++++++++++++++++++++
+ tests/fixtures/texts.ts    |   8 +
+ 3 files changed, 698 insertions(+)
+commit 466e27bd70c12778a00595a625d95e5720a8288b
+vidi-agent  Fri Oct 2 04:43:38 2026 +0100
+
+    story 9: component tests for one text object from its first letter to its last (TC-19 to TC-25)
+
+
+ tests/component/TextObject.test.tsx | 489 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 489 insertions(+)
+commit d32be5c7077f3d9a49d0c4af9e7db22d52439a5b
+vidi-agent  Fri Oct 2 04:43:19 2026 +0100
+
+    story 9: text objects on the board, with two side handles and no others
+
+
+ src/client/board/Board.tsx              | 179 +++++++++++++++------
+ src/client/board/SelectionBar.tsx       |  55 ++++++-
+ src/client/board/SelectionOverlay.tsx   |  39 ++++-
+ src/client/board/useBoardDoc.ts         |  12 +-
+ src/client/board/useTransformGesture.ts |  58 ++++++-
+ src/client/canvas/BoardViewport.tsx     |  46 +++++-
+ src/client/objects/TextEditor.tsx       | 265 ++++++++++++++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 240 +++++++++++++++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  97 ++++++++++++
+ src/client/objects/registry.tsx         |  66 ++++++--
+ src/client/styles.css                   | 177 +++++++++++++++++++++
+ 11 files changed, 1160 insertions(+), 74 deletions(-)
+commit 1254c844948fa224b0ef940e5e203f0bd2fe8d7b
+vidi-agent  Fri Oct 2 04:43:01 2026 +0100
+
+    story 9: failing component tests for tool mode and placing text (TC-14 to TC-18)
+
+
+ tests/component/Tool.test.tsx | 318 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 318 insertions(+)
+commit a26f794d6e955732dcbce4995f052af6f40428ef
+vidi-agent  Fri Oct 2 04:42:56 2026 +0100
+
+    story 9: Select and Text tool modes with V, T, N and Escape shortcuts
+
+
+ src/client/board/Toolbar.tsx |  82 ++++++++++++++++++++++++++---
+ src/client/board/useTool.ts  | 119 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 195 insertions(+), 6 deletions(-)
+commit 73c89eeaba5e93f1310aed5b93a4b74fa769c914
+vidi-agent  Fri Oct 2 04:42:38 2026 +0100
+
+    story 9: failing component tests for box sync and the local-change rule (TC-12, TC-13)
+
+
+ tests/component/TextBoxSync.test.tsx | 197 +++++++++++++++++++++++++++++++++++
+ tests/component/helpers.tsx          | 156 ++++++++++++++++++++++++++-
+ 2 files changed, 352 insertions(+), 1 deletion(-)
+commit bc9ed3831ea2213fb1918aad97b732dcc2e1cede
+vidi-agent  Fri Oct 2 04:42:17 2026 +0100
+
+    story 9: text layout and local-only box sync (TC-07 to TC-11, TC-32)
+
+
+ src/client/objects/textLayout.ts     | 184 +++++++++++++++++++++++++++++++++++
+ src/client/objects/useTextBoxSync.ts |  61 ++++++++++++
+ 2 files changed, 245 insertions(+)
+commit ec28d09757bf48e3a9e5c3c9d7a6fb4e98a584a3
+vidi-agent  Fri Oct 2 04:42:08 2026 +0100
+
+    story 9: failing text layout unit tests with a fake measurer (TC-07 to TC-11, TC-32)
+
+
+ tests/unit/text-layout.test.ts | 196 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 196 insertions(+)
+commit 8d7527f7493e856160bd2f022e446021cf6af917
+vidi-agent  Fri Oct 2 04:42:04 2026 +0100
+
+    story 9: text object model and shared text-edit helpers (TC-01 to TC-06)
+
+
+ src/client/objects/StickyText.ts | 140 +++---------------------
+ src/shared/board-model.ts        | 115 ++++++++++++++++++--
+ src/shared/config.ts             |  51 +++++++++
+ src/shared/objects/text.ts       | 227 +++++++++++++++++++++++++++++++++++++++
+ src/shared/text-edit.ts          | 156 +++++++++++++++++++++++++++
+ 5 files changed, 559 insertions(+), 130 deletions(-)
+commit e75ba72500b1aecae9f3b73166190d0934c9a466
+vidi-agent  Fri Oct 2 04:41:57 2026 +0100
+
+    story 9: failing text object model unit tests (TC-01 to TC-06)
+
+
+ tests/unit/text-model.test.ts | 399 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 399 insertions(+)
 commit 55abd3b060df8e4f01926522a54094c0dda9b9d0
 vidi-agent  Fri Oct 2 02:04:23 2026 +0100
 

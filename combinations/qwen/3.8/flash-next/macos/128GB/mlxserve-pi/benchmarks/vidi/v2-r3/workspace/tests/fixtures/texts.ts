@@ -35,3 +35,11 @@ export const LONG_NOTE_1000 = PROSE.slice(0, STICKY_TEXT_MAX_CHARS);
 
 /** 1,200 characters: what a too-long paste is cut down from (sticky.text_limit). */
 export const PASTE_1200 = `${LONG_NOTE_1000} ${PROSE.slice(STICKY_TEXT_MAX_CHARS - 200)}`.slice(0, 1200);
+
+/**
+ * 300 characters of prose, cut at a word boundary: long enough that it cannot be
+ * one line of text at any size, which is what the long-annotation case is about
+ * (text.free_width). Shorter than the sticky note's paragraph, because free text
+ * is what somebody writes in a moment, not an essay.
+ */
+export const ANNOTATION_300 = PROSE.slice(0, 300).replace(/\s\S*$/, '');

@@ -5,7 +5,7 @@ import { objectBounds } from '../../shared/board-model';
 import type { Rect, Handle } from '../../shared/geometry';
 import { unionRects } from '../../shared/geometry';
 import { HANDLE_SIZE_PX } from '../../shared/config';
-import { getObjectType } from '../objects/registry';
+import { getObjectType, handlesOf } from '../objects/registry';
 
 export interface SelectionOverlayProps {
   /** The set of selected object ids. */
@@ -16,6 +16,15 @@ export interface SelectionOverlayProps {
   camera: Camera;
   /** Called when a resize handle is pressed. */
   onHandlePointerDown(e: ReactPointerEvent, handle: Handle): void;
+  /**
+   * The rest of the drag. The handle is the element that keeps the pointer once
+   * it has been pressed, so every move and the release come to it and have to be
+   * handed on — a handle that only ever hears its own pointerdown is a handle
+   * that can be pressed and never dragged.
+   */
+  onHandlePointerMove?(e: ReactPointerEvent): void;
+  onHandlePointerUp?(e: ReactPointerEvent): void;
+  onHandlePointerCancel?(e: ReactPointerEvent): void;
 }
 
 const HANDLES: readonly { handle: Handle; label: string; cursor: string }[] = [
@@ -30,25 +39,42 @@ const HANDLES: readonly { handle: Handle; label: string; cursor: string }[] = [
 ];
 
 /**
- * Renders the bounding box and 8 resize handles around the current selection.
+ * Renders the bounding box and resize handles around the current selection.
  * Handles are positioned in screen space (fixed overlay) and sized HANDLE_SIZE_PX.
  * Hidden when no selected type is resizable.
+ *
+ * A selection whose every resizable object is one whose *height* somebody else
+ * decides — a text object's height is the number of lines its text needs — gets
+ * the two side handles and nothing else: dragging a top or bottom corner of a
+ * heading would ask it to be shorter than its own words. The moment a sticky note
+ * is in the selection, all eight handles come back, because the group as a whole
+ * has a height that can be scaled.
  */
 export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | null {
   const { ids, snapshot, camera, onHandlePointerDown } = props;
+  const forward = (fn: ((e: ReactPointerEvent) => void) | undefined) => (e: ReactPointerEvent) => {
+    // The overlay is above the board, not part of it: a drag of a handle is a
+    // resize and never a pan, a marquee or a click on empty space.
+    e.stopPropagation();
+    fn?.(e);
+  };
 
   if (ids.size === 0) return null;
 
   // Get rects of all selected objects
   const rects: Rect[] = [];
   let anyResizable = false;
+  let everyHeightIsDerived = true;
 
   for (const id of ids) {
     const obj = snapshot.find((s) => s.id === id);
     if (obj === undefined) continue;
     rects.push(objectBounds(obj));
     const spec = getObjectType(obj.type);
-    if (spec !== undefined && spec.resizable) anyResizable = true;
+    if (spec !== undefined && spec.resizable) {
+      anyResizable = true;
+      if (handlesOf(obj.type) !== 'horizontal') everyHeightIsDerived = false;
+    }
   }
 
   if (rects.length === 0) return null;
@@ -63,6 +89,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
   const screenHeight = boundingBox.height * camera.zoom;
 
   const half = HANDLE_SIZE_PX / 2;
+  const visible = everyHeightIsDerived ? HANDLES.filter((h) => h.handle === 'w' || h.handle === 'e') : HANDLES;
 
   // Handle positions (as fractions of the bounding box)
   const positions: Record<Handle, { left: number; top: number }> = {
@@ -91,7 +118,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
         }}
       />
       {/* Resize handles (only when resizable) */}
-      {anyResizable && HANDLES.map(({ handle, label, cursor }) => {
+      {anyResizable && visible.map(({ handle, label, cursor }) => {
         const pos = positions[handle];
         return (
           <div
@@ -113,6 +140,10 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
               e.stopPropagation();
               onHandlePointerDown(e, handle);
             }}
+            onPointerMove={forward(props.onHandlePointerMove)}
+            onPointerUp={forward(props.onHandlePointerUp)}
+            onPointerCancel={forward(props.onHandlePointerCancel)}
+            onLostPointerCapture={forward(props.onHandlePointerUp)}
           />
         );
       })}

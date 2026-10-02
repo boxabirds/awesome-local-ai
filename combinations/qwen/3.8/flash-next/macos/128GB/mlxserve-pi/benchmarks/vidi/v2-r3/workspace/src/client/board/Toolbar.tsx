@@ -1,11 +1,22 @@
 import type { JSX, PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { UndoButtons, type UndoButtonsProps } from './UndoButtons';
+import type { BoardTool } from './useTool';
 
 export interface ToolbarProps {
   /** Create a note at the centre of the visible board area and edit it. */
   onCreateSticky(): void;
+  /**
+   * Which tool the board is in, and where a tool button puts it. Absent only when
+   * a toolbar is rendered on its own, without a board behind it.
+   */
+  tool?: BoardTool;
+  /** The board is left in Select by whatever it creates, so the only way out of
+   * the Text tool is into the Select one: these two buttons are the tool. */
+  onSelectTool?(tool: BoardTool): void;
   /** False only while the board cannot be edited (a board that failed to
-   * load): the Sticky note button is disabled, so a click creates nothing.
+   * load): the Sticky note button is disabled, so a click creates nothing, and so
+   * is the Text tool button, because a tool whose only act is to create something
+   * has nothing to offer. Selecting is left alone: seeing a board is not editing.
    */
   disabled?: boolean;
   /** This person's own undo history, as the two buttons need it. Absent only
@@ -15,11 +26,20 @@ export interface ToolbarProps {
 }
 
 /**
- * The left-side board toolbar. Its Sticky note button always works, whatever
- * the board is empty or panned far away (the app turns the click into a world
- * point at the centre of the visible area), and under it sit the Undo and Redo
- * buttons of this person's own history (story 8), which are disabled whenever
- * there is nothing of theirs to undo or redo.
+ * The left-side board toolbar: Select and Text tool buttons, the Sticky note
+ * button, and under them the Undo and Redo buttons of this person's own history
+ * (story 8).
+ *
+ * The two tool buttons change what the next click on empty board space becomes
+ * and nothing else — not the camera, not the selection, not what is being edited
+ * — and the active one is highlighted, which is the whole of the tool's interface
+ * (`aria-pressed` is also how a test reads the state back). The Sticky note button
+ * is not a tool: it makes a note where the board is centred, whatever tool the
+ * board is in, and leaves the board back in Select.
+ *
+ * Its accessible name and tooltip are exactly what story 2 left them: the letter
+ * of its shortcut belongs in the keyboard, not in the name a person listening to
+ * the toolbar hears twice.
  *
  * Pointer events are stopped here so a click on a tool never reaches the
  * viewport, which would read it as a click on empty board space and clear the
@@ -28,6 +48,11 @@ export interface ToolbarProps {
 export function Toolbar(props: ToolbarProps): JSX.Element {
   const stop = (e: ReactPointerEvent<HTMLElement> | ReactMouseEvent<HTMLElement>) => {
     e.stopPropagation();
+  };
+  const tool = props.tool ?? 'select';
+
+  const select = (next: BoardTool) => {
+    props.onSelectTool?.(next);
   };
 
   return (
@@ -41,6 +66,51 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
       onPointerMove={stop}
       onDoubleClick={stop}
     >
+      <button
+        type="button"
+        className="toolbar-button toolbar-select-button"
+        data-testid="select-tool-button"
+        aria-label="Select (V)"
+        title="Select – move and resize what is already here (V)"
+        aria-pressed={props.tool === undefined ? undefined : tool === 'select'}
+        onClick={() => {
+          select('select');
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+          <path
+            d="M4 2.5l9.5 6.2-4.3.9 2.2 4.4-1.7.9-2.2-4.4-3.5 2.6z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="toolbar-button toolbar-text-button"
+        data-testid="text-tool-button"
+        aria-label="Text (T)"
+        title="Text – write anywhere (T)"
+        aria-disabled={props.disabled ? 'true' : undefined}
+        disabled={props.disabled === true}
+        aria-pressed={props.tool === undefined ? undefined : tool === 'text'}
+        onClick={() => {
+          select('text');
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+          <path
+            d="M3.5 5V3.5h11V5M9 3.5v11M6.5 14.5h5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
       <button
         type="button"
         className="toolbar-button toolbar-sticky-note-button"

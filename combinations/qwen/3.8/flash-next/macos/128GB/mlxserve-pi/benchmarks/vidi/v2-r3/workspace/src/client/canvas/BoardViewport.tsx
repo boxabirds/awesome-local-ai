@@ -35,6 +35,20 @@ export interface BoardViewportProps {
   onMarqueeMove?(p: Point): void;
   onMarqueeEnd?(): void;
   onMarqueeCancel?(): void;
+  /**
+   * The pointer the board shows over its own surface. 'text' is the Text tool
+   * saying what a click here will become, which is the only thing the tool is
+   * allowed to change about the board's appearance.
+   */
+  cursor?: 'default' | 'text';
+  /**
+   * While the Text tool is active, a press and release in the same spot places
+   * text there — on empty board or on top of whatever object is already there,
+   * because the tool is about where the words go, not about what is under them.
+   * A drag is not a placement, and while the tool is active the board neither
+   * pans nor marquees: a tool that also moved the board would be two tools.
+   */
+  onTextToolClick?(p: Point): void;
 }
 
 function mod(value: number, m: number): number {
@@ -63,6 +77,7 @@ export function BoardViewport(props: BoardViewportProps) {
   const pointerIdRef = useRef<number | null>(null);
   const downPointRef = useRef<Point | null>(null);
   const marqueeModeRef = useRef(false);
+  const placingRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
   const propsRef = useRef(props);
 
   useEffect(() => {
@@ -175,6 +190,9 @@ export function BoardViewport(props: BoardViewportProps) {
     if (!e.isPrimary) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (!isBoardSurface(e)) return;
+    // The Text tool is deciding what this press means, so the board itself is
+    // not going anywhere: no pan, no marquee, until the tool has been answered.
+    if (propsRef.current.cursor === 'text') return;
     pointerIdRef.current = e.pointerId;
     downPointRef.current = relative(e.clientX, e.clientY);
     const el = surfaceRef.current;
@@ -195,6 +213,29 @@ export function BoardViewport(props: BoardViewportProps) {
       setPanning(true);
       props.onBeginPan({ x: e.clientX, y: e.clientY });
     }
+  };
+
+  /**
+   * The Text tool's click is watched in the capturing phase, on the way *in*: an
+   * object under the pointer takes the pointer for itself and stops the event
+   * reaching the board, and the tool still has to know where it was pointed. This
+   * is the one handler on the surface that is allowed to hear a click on an
+   * object, and it hears nothing but this.
+   */
+  const onPlacePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (propsRef.current.cursor !== 'text' || !e.isPrimary) {
+      placingRef.current = null;
+      return;
+    }
+    placingRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+  };
+
+  const onPlacePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const down = placingRef.current;
+    placingRef.current = null;
+    if (down === null || down.pointerId !== e.pointerId) return;
+    if (Math.hypot(e.clientX - down.x, e.clientY - down.y) >= DRAG_THRESHOLD_PX) return;
+    propsRef.current.onTextToolClick?.(relative(e.clientX, e.clientY));
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -248,15 +289,18 @@ export function BoardViewport(props: BoardViewportProps) {
   return (
     <div
       ref={surfaceRef}
-      className={`board-viewport${panning ? ' is-panning' : ''}`}
+      className={`board-viewport${panning ? ' is-panning' : ''}${props.cursor === 'text' ? ' is-text-tool' : ''}`}
       data-testid="board-viewport"
       data-state={panning ? 'panning' : 'idle'}
+      data-cursor={props.cursor === 'text' ? 'text' : undefined}
       style={{
         backgroundImage: 'radial-gradient(circle, rgba(20, 20, 30, 0.22) 1px, transparent 1.5px)',
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px`,
       }}
       onPointerDown={onPointerDown}
+      onPointerDownCapture={onPlacePointerDown}
+      onPointerUpCapture={onPlacePointerUp}
       onPointerMove={onPointerMove}
       onPointerUp={(e) => endDrag(e.pointerId, relative(e.clientX, e.clientY), false)}
       onPointerCancel={(e) => endDrag(e.pointerId, null, true)}

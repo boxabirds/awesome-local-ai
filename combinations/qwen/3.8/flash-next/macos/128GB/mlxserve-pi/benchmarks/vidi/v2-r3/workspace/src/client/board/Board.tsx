@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { newBoardId } from '../../shared/board-id';
 import { BoardViewport } from '../canvas/BoardViewport';
@@ -15,9 +15,15 @@ import { useMarquee, MarqueeRect } from './Marquee';
 import { useTransformGesture } from './useTransformGesture';
 import { useBoardKeys } from './useBoardKeys';
 import { Toolbar } from './Toolbar';
+import { useToolKeys } from './useTool';
 import { StickyNote } from '../objects/StickyNote';
+import { TextObject } from '../objects/TextObject';
 import type { ConnectionState } from '../sync/connectBoard';
-import { createSticky, deleteObjects, objectsInRect } from '../../shared/board-model';
+import { createSticky, deleteObjects, objectsInRect, type ObjectSnapshot } from '../../shared/board-model';
+import { createText, setTextSize, setTextWidthAuto, setTextWidthFixed } from '../../shared/objects/text';
+import { createCanvasMeasurer, type Measurer } from '../objects/textLayout';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
+import type { TextSize, TextWidthMode } from '../../shared/config';
 import type { Rect } from '../../shared/geometry';
 import { reportConnectionState, setOutageHandler, setSeedNotesHandler } from '../canvas/testHooks';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -63,8 +69,8 @@ export function Board(props: BoardProps = {}): JSX.Element {
   const { camera } = cam;
   const [boardId] = useState(() => props.boardId ?? newBoardId());
 
-  const { doc, notes, connection, emulateOutage } = useBoardDoc(boardId, props.onProviderReady);
-  const selection = useSelection(notes);
+  const { doc, objects, connection, emulateOutage } = useBoardDoc(boardId, props.onProviderReady);
+  const selection = useSelection(objects);
 
   const editable = canEdit(connection);
 
@@ -72,6 +78,21 @@ export function Board(props: BoardProps = {}): JSX.Element {
   // with its document and thrown away with it, so a reload begins empty again.
   const undoController = useUndoController(doc);
   const undo = useUndo(undoController, editable);
+
+  // The measurer the board writes a text object's box back with, once for this
+  // board: the box is stored, so whoever changed the text measures it.
+  const textMeasureRef = useRef<Measurer | null>(null);
+  if (textMeasureRef.current === null) textMeasureRef.current = createCanvasMeasurer();
+  const textMeasure = textMeasureRef.current;
+
+  // The tool keys are a listener of their own, so an object's own editor keeps
+  // the keys it has always had: 'v', 't' and 'n' typed into a text object are
+  // letters, not shortcuts. N creates a sticky note, which is what it did before
+  // there were any tools, and the callback is called at the key press rather than
+  // passed in, because the board is not wired up yet at this line.
+  const { tool, setTool } = useToolKeys(editable, () => {
+    createStickyAtViewportCentre();
+  });
 
   // A test build lets the test take this board's link down.
   useEffect(() => {
@@ -83,10 +104,10 @@ export function Board(props: BoardProps = {}): JSX.Element {
     reportConnectionState(connection);
   }, [connection]);
 
-  // The board renders notes in stable order (by id) so CSS z-index does the
-  // stacking. Reordering keyed children would move the dragged note's DOM node
+  // The board renders objects in stable order (by id) so CSS z-index does the
+  // stacking. Reordering keyed children would move the dragged object's DOM node
   // out of the document, which drops pointer capture and kills the drag.
-  const rendered = useMemo(() => [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)), [notes]);
+  const rendered = useMemo(() => [...objects].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)), [objects]);
 
   const { onDocReady } = props;
   useEffect(() => {
@@ -105,19 +126,32 @@ export function Board(props: BoardProps = {}): JSX.Element {
       });
     });
   }, [doc]);
-  /** Create a note centred on a world point and start typing straight away. */
-  const createAt = (world: Point): void => {
+  /** Create something at a world point and start typing straight away. What it
+   * is comes from the tool the board is in unless the caller says: a sticky note
+   * in Select, a text object in the Text tool — and the board is back in Select
+   * afterwards, because a tool that stayed on would be a tool the person has to
+   * remember to leave. */
+  const createAt = (world: Point, kind?: 'sticky' | 'text'): void => {
     if (!editable) return;
+    const making = kind ?? (tool === 'text' ? 'text' : 'sticky');
     // Its own undo step, on both sides: neither the action before it nor the
-    // first drag of the new note is merged into the act of creating it.
+    // first drag of the new object is merged into the act of creating it.
     undoController.boundary();
-    const id = createSticky(doc, world);
+    const id = making === 'text' ? createText(doc, world) : createSticky(doc, world);
     undoController.boundary();
-    if (id !== '') selection.startEdit(id);
+    if (making === 'text') {
+      setTool('select');
+      // The empty object shows the box it was measured into, which is also what
+      // its first line of text will be laid out in.
+      if (id !== null && id !== '') remeasureTextBox(doc, id, textMeasure);
+    }
+    if (id !== null && id !== '') selection.startEdit(id);
   };
 
-  const createAtViewportCentre = (): void => {
-    createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }));
+  /** N: a sticky note at the centre of what is on screen, whatever tool the board
+   * is in — the key says what to make, not what tool to be in. */
+  const createStickyAtViewportCentre = (): void => {
+    createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }), 'sticky');
   };
 
   // Marquee selection
@@ -128,8 +162,8 @@ export function Board(props: BoardProps = {}): JSX.Element {
   }, [selection]);
 
   const marqueeObjectsInRect = useCallback((rect: Rect): string[] => {
-    return objectsInRect(notes, rect);
-  }, [notes]);
+    return objectsInRect(objects, rect);
+  }, [objects]);
 
   const marquee = useMarquee(camera, marqueeSelect, marqueeObjectsInRect);
 
@@ -141,7 +175,7 @@ export function Board(props: BoardProps = {}): JSX.Element {
     doc,
     camera,
     selection,
-    snapshot: notes,
+    snapshot: objects,
     canEdit: editable,
     onGestureStart: () => {
       undoController.boundary();
@@ -155,7 +189,7 @@ export function Board(props: BoardProps = {}): JSX.Element {
   useBoardKeys({
     doc,
     selection,
-    snapshot: notes,
+    snapshot: objects,
     canEdit: editable,
     undo: undoController,
   });
@@ -185,6 +219,22 @@ export function Board(props: BoardProps = {}): JSX.Element {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // The object the text toolbar is for: the selection's only member, when that
+  // one object is a text object. Everything else about the selection is generic.
+  const onlySelected = selection.ids.size === 1 ? objects.find((o) => selection.ids.has(o.id)) : undefined;
+  const onlyText = onlySelected !== undefined && onlySelected.type === 'text' ? onlySelected : undefined;
+
+  /** One press of the text toolbar is one step of mine, and it takes the box the
+   * new size or width needs with it: one Undo returns the text, its size and its
+   * lines together. */
+  const editText = (write: () => void): void => {
+    if (!editable || onlyText === undefined) return;
+    undoController.boundary();
+    write();
+    remeasureTextBox(doc, onlyText.id, textMeasure);
+    undoController.boundary();
+  };
+
   return (
     <div className="app">
       <BoardViewport
@@ -200,6 +250,12 @@ export function Board(props: BoardProps = {}): JSX.Element {
         onEmptyDblClick={(point) => {
           createAt(screenToWorld(camera, point));
         }}
+        onTextToolClick={(point) => {
+          // The Text tool's one job: this point becomes a text object, and the
+          // board is back in Select afterwards (createAt says which of the two it
+          // makes, from the tool it was called in).
+          createAt(screenToWorld(camera, point));
+        }}
         onEmptyClick={() => {
           selection.clear();
         }}
@@ -207,50 +263,85 @@ export function Board(props: BoardProps = {}): JSX.Element {
         onMarqueeMove={(p) => marquee.move(p)}
         onMarqueeEnd={() => marquee.end()}
         onMarqueeCancel={() => marquee.cancel()}
+        cursor={tool === 'text' && editable ? 'text' : 'default'}
       >
-        {rendered.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={camera.zoom}
-            selected={selection.ids.has(note.id)}
-            editing={note.id === selection.editingId}
-            canEdit={editable}
-            onSelect={(id) => {
+        {rendered.map((object) => {
+          // The two kinds of object are selected, edited, dragged and undone the
+          // same way; only the component and the name of its prop differ.
+          const common = {
+            doc,
+            zoom: camera.zoom,
+            selected: selection.ids.has(object.id),
+            editing: object.id === selection.editingId,
+            canEdit: editable,
+            onSelect: (id: string) => {
               selection.click(id);
-            }}
-            onToggle={(id) => {
+            },
+            onToggle: (id: string) => {
               selection.toggle(id);
-            }}
-            onStartEdit={(id) => {
+            },
+            onStartEdit: (id: string) => {
               selection.startEdit(id);
-            }}
-            onEndEdit={(next) => {
+            },
+            onEndEdit: (next: 'selected' | 'unselected') => {
               selection.endEdit(next);
-            }}
-            onGesturePointerDown={(e, id) => gesture.onObjectPointerDown(e, id)}
-            onGesturePointerMove={(e) => gesture.onPointerMove(e)}
-            onGesturePointerUp={(e) => gesture.onPointerUp(e)}
-            onGesturePointerCancel={(e) => gesture.onPointerCancel(e)}
-            undo={undoController}
-          />
-        ))}
+            },
+            onGesturePointerDown: (e: ReactPointerEvent<HTMLDivElement>, id: string) => {
+              gesture.onObjectPointerDown(e, id);
+            },
+            onGesturePointerMove: (e: ReactPointerEvent<HTMLDivElement>) => {
+              gesture.onPointerMove(e);
+            },
+            onGesturePointerUp: (e: ReactPointerEvent<HTMLDivElement>) => {
+              gesture.onPointerUp(e);
+            },
+            onGesturePointerCancel: (e: ReactPointerEvent<HTMLDivElement>) => {
+              gesture.onPointerCancel(e);
+            },
+            undo: undoController,
+          };
+          return object.type === 'text' ? (
+            <TextObject key={object.id} obj={object} {...common} />
+          ) : (
+            <StickyNote key={object.id} note={object} {...common} />
+          );
+        })}
       </BoardViewport>
       <MarqueeRect rect={marquee.rect} camera={camera} />
       <SelectionOverlay
         ids={selection.ids}
-        snapshot={notes}
+        snapshot={objects}
         camera={camera}
         onHandlePointerDown={(e, h) => gesture.onHandlePointerDown(e, h)}
+        onHandlePointerMove={(e) => gesture.onPointerMove(e)}
+        onHandlePointerUp={(e) => gesture.onPointerUp(e)}
+        onHandlePointerCancel={(e) => gesture.onPointerCancel(e)}
       />
       <Toolbar
-        onCreateSticky={createAtViewportCentre}
+        onCreateSticky={createStickyAtViewportCentre}
+        tool={tool}
+        onSelectTool={setTool}
         disabled={!editable}
         undo={undo}
       />
       <SelectionBar
         ids={selection.ids}
+        snapshot={objects}
+        onTextSize={(size: TextSize) => {
+          editText(() => {
+            if (onlyText !== undefined) setTextSize(doc, onlyText.id, size);
+          });
+        }}
+        onTextMode={(mode: TextWidthMode) => {
+          editText(() => {
+            if (onlyText === undefined) return;
+            // 'Fixed' keeps the width the text has earned and takes over the
+            // height; 'auto' hands the width back to the text, and the
+            // measurement that follows decides it again.
+            if (mode === 'fixed') setTextWidthFixed(doc, onlyText.id, onlyText.width);
+            else setTextWidthAuto(doc, onlyText.id);
+          });
+        }}
         onDelete={() => {
           if (!editable) return;
           // One step of mine, closed on both sides of it.
