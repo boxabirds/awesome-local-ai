@@ -99,9 +99,12 @@ if [[ ${#problems[@]} -eq 0 && ! -d "$ACC/tests" ]]; then
   ok "none for $PACK (acceptance is reported n/a)"
 elif [[ ${#problems[@]} -eq 0 ]]; then
   echo "held-out suite dependencies"
-  if (cd "$ACC" && npm ci --no-audit --no-fund --silent && npx playwright install chromium >/dev/null); then ok "installed in $ACC"
-  else bad "npm ci / playwright install in $ACC"; fi
-  if out="$("$HARNESS/check-browser.sh" "$ACC")"; then ok "$out"
+  if (cd "$ACC" && npm ci --no-audit --no-fund --silent); then ok "installed in $ACC"
+  else bad "npm ci in $ACC"; fi
+  AGENT_BROWSERS="$(cd "$HARNESS" && python3 -c 'import hostenv, pathlib; print(hostenv.agent_playwright_cache(pathlib.Path.home()))')"
+  if out="$("$HARNESS/ensure-browser.sh" "$ACC" "$AGENT_BROWSERS")"; then ok "agents' browser: ${out##*$'\n'}"
+  else bad "agents' browser: $out"; fi
+  if out="$("$HARNESS/ensure-browser.sh" "$ACC")"; then ok "${out##*$'\n'}"
   else
     bad "$out"
     libs="$([[ "$(uname)" == Linux ]] && missing_browser_libs)"
