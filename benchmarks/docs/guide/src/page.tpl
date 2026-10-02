@@ -125,7 +125,7 @@
         <li><strong>A spread is not a verdict.</strong> A low {g:spread|thinking spread} is not good on its own: the same model on mlx-serve thinks at length every time. Read it beside the amount, and only once there are three finished runs.</li>
         <li><strong>A live score is not the score.</strong> It comes from the agent's own workspace right after a story.</li>
         <li><strong>Tokens per second is not quality.</strong> Neither is a green gate nor the agent saying it is done.</li>
-        <li><strong>A {g:known-good|known-good rerun}</strong> is a diagnostic and is never mixed with full runs; a {g:not-comparable|not-comparable} story run is left out of story-by-story comparisons.</li>
+        <li><strong>A {g:partial-rerun|partial rerun}</strong> is a diagnostic and is never mixed with full runs; a {g:not-comparable|not-comparable} story run is left out of story-by-story comparisons.</li>
         <li>A <strong>missing figure</strong> is shown as not available. The page never says why.</li>
       </ul>
     </div>

@@ -1,7 +1,7 @@
 """drive.py's helpers, pinned branch by branch before the story loop is rebuilt (CLAUDE.md, "Refactor DELETE FIRST").
 
 Each test says what a helper returns, writes or calls for one kind of input: shell calls, the sandbox profile, log
-compaction and publishing, the workspace and the known-good base, event-log readers, server statistics, the
+compaction and publishing, the workspace and the partial rerun's base, event-log readers, server statistics, the
 machine's conditions (both platforms, whichever one the tests run on), the fault-isolating wrapper, and the time
 split over a story's attempts. Nothing here starts an agent, reads the machine's power or memory, or touches a
 repository outside tmp_path: commands the helpers would run are faked where the answer depends on the machine.
@@ -280,7 +280,7 @@ def test_publishing_names_the_files_still_over_their_limit_but_never_the_ignored
     assert drive.make_publishable(run) == [str(run / "big.md")]
 
 
-# ---------- the workspace, and the known-good base ----------
+# ---------- the workspace, and the partial rerun's base ----------
 
 def make_spec(root: Path) -> Path:
     spec = root / "spec"
@@ -350,8 +350,8 @@ def test_known_good_base_takes_the_stories_before_from_a_record_without_a_proces
 
 @pytest.mark.parametrize("sid, bundle, message", [
     (2, False, "has no workspace.bundle"),
-    (9, True, "known-good: the reference run never processed story 9"),
-    (1, True, "known-good: story 1 is the reference run's first; run it from empty instead"),
+    (9, True, "partial rerun: the reference run never processed story 9"),
+    (1, True, "partial rerun: story 1 is the reference run's first; run it from empty instead"),
 ])
 def test_known_good_base_stops_when_there_is_no_base_to_build_on(tmp_path, sid, bundle, message):
     ref, _ = reference_run(tmp_path)
@@ -361,7 +361,7 @@ def test_known_good_base_stops_when_there_is_no_base_to_build_on(tmp_path, sid, 
         drive.known_good_base(ref, sid)
     assert message in str(e.value)
     if not bundle:
-        assert str(e.value) == f"known-good: {ref} has no workspace.bundle"
+        assert str(e.value) == f"partial rerun: {ref} has no workspace.bundle"
 
 
 def test_a_known_good_workspace_keeps_only_main_at_the_base_with_a_read_only_spec(tmp_path):
@@ -489,7 +489,7 @@ def test_a_known_good_workspace_gets_this_pack_s_spec_in_a_harness_commit_when_i
     assert base["spec_updated"] is True
     assert sorted(p.name for p in (ws / "spec").iterdir()) == ["prd.md"] and (ws / "spec" / "prd.md").read_text() == "the new spec"
     assert mode(ws / "spec" / "prd.md") == 0o444
-    assert git(ws, "log", "-1", "--format=%an %s") == "vidi-agent harness: spec updated to this pack's version (known-good base)"
+    assert git(ws, "log", "-1", "--format=%an %s") == "vidi-agent harness: spec updated to this pack's version (partial rerun's base)"
     assert git(ws, "rev-parse", "HEAD~1") == stories["2"]["commit"] and git(ws, "status", "--porcelain") == ""
 
 
@@ -530,8 +530,8 @@ def test_a_failed_install_of_the_base_s_dependencies_stops_the_run_with_npm_s_er
     with pytest.raises(SystemExit) as e:
         drive.install_base_deps(tmp_path)
     message = str(e.value)
-    assert message.startswith("known-good: npm ci failed in the base: x") and message.endswith("npm ERR! ERESOLVE")
-    assert len(message) == len("known-good: npm ci failed in the base: ") + 2000
+    assert message.startswith("partial rerun: npm ci failed in the base: x") and message.endswith("npm ERR! ERESOLVE")
+    assert len(message) == len("partial rerun: npm ci failed in the base: ") + 2000
 
 
 # ---------- the agent's home ----------

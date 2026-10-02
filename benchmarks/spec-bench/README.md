@@ -19,7 +19,7 @@ names a pack (`dbench submit … --pack benchmarks/<name>`).
 
 [EVALUATION-POLICY.md](EVALUATION-POLICY.md): what held-out tests may check, when a failure counts against the agent, and what every run reports. A pack meets it before it's used.
 
-## Known-good mode: one story on its own
+## A partial rerun: one story on its own
 
 ```sh
 benchmarks/spec-bench/harness/run.sh <install-id> --only 7 --from-run benchmarks/reference/vidi/opus-5.5/run-3 --run-id kg-07-01

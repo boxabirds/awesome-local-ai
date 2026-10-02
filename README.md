@@ -318,7 +318,7 @@ story if memory runs short, makes the agent's processes the kernel's first choic
 and on Linux runs the agent in its own cgroup so that nothing it starts can outlive it: a cut-off
 tool call loses what it started, and each story ends with the scope emptied
 ([tools/agent-containment/](tools/agent-containment/PROPOSAL.md)). One story can also be run on
-its own from another run's code ("known-good mode"), as a separately labelled diagnostic.
+its own from another run's code (a "partial rerun"), as a separately labelled diagnostic.
 
 ---
 

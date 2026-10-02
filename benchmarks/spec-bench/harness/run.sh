@@ -14,7 +14,7 @@
 # Re-running with the same --run-id resumes at the first unfinished story.
 # BENCH_CONTEXT=<tokens> overrides the context (server and agent together); CLIENT_THINKING=<level>
 # makes pi send a reasoning effort (for servers that can't apply one).
-# Known-good mode (diagnostic, not comparable with full runs): --only N --from-run <finished run dir>
+# A partial rerun (diagnostic, not comparable with full runs): --only N --from-run <finished run dir>
 # runs story N alone on that run's code as it was when the story before ended; --from-story N --from-run <dir>
 # runs story N and every later story of the scope, each built on the one before in this run.
 set -euo pipefail

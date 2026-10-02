@@ -31,13 +31,13 @@ SHORT_SHA = 7
 
 
 def known_good_note(m: dict) -> list[str]:
-    """EVALUATION-POLICY rule 7: a known-good run is never to be read as a full run."""
+    """EVALUATION-POLICY rule 7: a partial rerun is never to be read as a full run."""
     kg = m.get("known_good")
     if not kg:
         return []
     which, measures = ((f"Story {kg['story']} and every later story of the scope", "those stories")
                        if kg.get("continues") else (f"Story {kg['story']} only", "that story on its own"))
-    return [f"**Known-good mode (diagnostic).** {which}, built on `{kg['from_run']}` at commit "
+    return [f"**Partial rerun (diagnostic).** {which}, built on `{kg['from_run']}` at commit "
             f"`{kg['commit'][:SHORT_SHA]}` (its code when the story before ended). It measures {measures}, "
             "with no earlier mistakes carried in; not comparable with full runs."
             + (" The reference was built from an older spec, so the base's spec was brought up to this pack's version."

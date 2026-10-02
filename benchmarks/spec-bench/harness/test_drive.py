@@ -170,7 +170,7 @@ def test_the_sandbox_lets_the_agent_read_the_spec_and_write_the_rest_of_its_work
 
 @pytest.mark.needs_sandbox
 def test_the_harness_outside_the_sandbox_can_still_write_the_spec(tmp_path: Path):
-    """The restore after a story (drive.restore_spec) and the known-good spec update are the harness's own writes."""
+    """The restore after a story (drive.restore_spec) and the partial rerun's spec update are the harness's own writes."""
     own = tmp_path / "run"
     ws = spec_workspace(own)
     assert agent_run(["true"], own).returncode == 0          # a sandbox was made, and has ended
@@ -1145,7 +1145,7 @@ def _reference_run(tmp_path, spec_text="the spec"):
 
 
 def test_known_good_base_is_the_reference_runs_code_at_the_end_of_the_previous_story(tmp_path):
-    """EVALUATION-POLICY rule 7: known-good mode runs one story on another run's code as it was
+    """EVALUATION-POLICY rule 7: a partial rerun runs one story on another run's code as it was
     when the previous story ended, with the earlier stories counted as processed."""
     from drive import known_good_base
     ref, stories = _reference_run(tmp_path)

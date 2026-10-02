@@ -33,7 +33,7 @@ stack).
 | `workspace.bundle` | yes | the workspace's whole git history, from which every story's code is re-scored and reviewed |
 | `rescore/<version>/rescore.json`, `per-story.md`, `stories/NN/accept-summary.json` | yes | a re-score under suite `<version>` (`rescore.py`; below); its `stories/NN/accept.json` and `scoring-N/` are held-out detail, private like the live ones |
 | `rescore-spoiled/<version>-<UTC time>/` | yes (its detail private, as above) | a re-score that was not recorded: the machine spoiled it, the live-vs-record guard flagged it, or the run went on after it (it scored an earlier checkpoint); `set-aside.json` says why (`reason`, `at`). The next finalize, or the sweep, re-scores |
-| `base/accept-summary.json` | yes, known-good runs only | the held-out suite's counts on the base before the agent starts, so the story's regressions and repairs are measured |
+| `base/accept-summary.json` | yes, partial reruns only | the held-out suite's counts on the base before the agent starts, so the story's regressions and repairs are measured |
 | `server.log` | no (`*.log` is ignored) | the model server's own log, appended across restarts, each start after a `=== server start <epoch> ===` marker |
 | `requests.jsonl` | yes, if present | per-request figures from the Python metering proxy; only with `run.sh --meter` (off by default; it adds a hop) |
 
@@ -46,7 +46,7 @@ pull records and failure reasons in `~/.dbench/jobs/` on the node (`dbench statu
 `mtplx_memory_limit_bytes` (MTPLX only), `client`, `client_version`, `reasoning_effort` (what the
 harness passed to the server launcher; a server without server-side effort, such as mlx-serve, ignores
 it), `client_thinking` (the effort pi itself sends with each request, empty when it sends none),
-`known_good_from` (known-good mode's reference run, empty for a full run), `context_limit`, `output_limit`, `compact_at` (the client's compaction threshold), `metered`
+`known_good_from` (a partial rerun's reference run, empty for a full run), `context_limit`, `output_limit`, `compact_at` (the client's compaction threshold), `metered`
 (whether the Python proxy was on), `host` (CPU, RAM, GPU), `harness_commit`, `harness_release`, `pack_version`,
 `started_at`, `sandbox`, `identity`, `engine_settings`.
 
@@ -115,13 +115,13 @@ gives a story the settings of the start it ran under, stamped `server_started_at
 ## Per run: `metrics.json` top level
 
 `processed` (the stories processed so far, in order, each with its `status` and `ended_by`), and for a
-known-good run (EVALUATION-POLICY rule 7) `known_good`: `from_run` (the reference run), `commit` (its
+partial rerun (EVALUATION-POLICY rule 7) `known_good`: `from_run` (the reference run), `commit` (its
 code when the story before ended, the workspace's starting point), `story` (the story run, or the first of
 them), `continues` (false: that one story, `--only N`; true: that story and every later story of the scope, each
 built on the one before in this run, `--from-story N`; absent in records before 1 Oct 2026, all of one story) and
 `spec_updated` (the reference predates this pack's spec, so the base got the current spec in a harness
 commit). A
-known-good run's earlier stories are in `processed` with `ended_by` "known-good base"; progress
+partial rerun's earlier stories are in `processed` with `ended_by` "known-good base"; progress
 baselines and the review tool leave these runs out.
 
 ## Per story: `metrics.json` → `stories[]`

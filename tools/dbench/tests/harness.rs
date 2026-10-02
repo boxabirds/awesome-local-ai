@@ -826,7 +826,7 @@ async fn old_release_directories_are_pruned_but_never_the_one_a_job_runs_from() 
     assert!(present.contains(&TAG_2.to_string()), "{present:?}");
 }
 
-/// What the harness's known-good mode reads from a reference run (drive.py known_good_base).
+/// What the harness's a partial rerun reads from a reference run (drive.py known_good_base).
 const REFERENCE_FILES: [&str; 2] = ["workspace.bundle", "metrics.json"];
 const KNOWN_GOOD_STORY: u32 = 2;
 

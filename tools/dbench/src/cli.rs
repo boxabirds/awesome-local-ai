@@ -76,7 +76,7 @@ pub enum Cmd {
         /// Only these stories, e.g. 1,2,3.
         #[arg(long, value_delimiter = ',')]
         stories: Option<Vec<u32>>,
-        /// Known-good mode: run --stories on a finished run's code as it was when the story before
+        /// A partial rerun: run --stories on a finished run's code as it was when the story before
         /// ended. A run directory relative to the repo, e.g. combinations/…/benchmarks/vidi/v2-r1;
         /// the node needs its workspace.bundle and metrics.json. The result is diagnostic.
         #[arg(long)]

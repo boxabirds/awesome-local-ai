@@ -9,7 +9,7 @@ end-to-end test with a real build and a held-out suite.
 
 By what main does: the arguments it refuses; the dry run; an ordinary run and its records; a run started again;
 a story the operator ended (before a restart, while it ran, too late); a story continued after a harness restart;
-the guards and the stops; what the agent left behind (uncommitted work, a changed spec); known-good mode; --record.
+the guards and the stops; what the agent left behind (uncommitted work, a changed spec); a partial rerun; --record.
 """
 from __future__ import annotations
 
@@ -665,7 +665,7 @@ def test_a_known_good_run_restores_the_spec_its_base_was_given_not_the_reference
     m = whole.metrics()
     assert m["known_good"]["spec_updated"] is True
     assert git(whole.ws, "log", "-1", "--format=%s", m["known_good"]["spec_commit"]) == (
-        "harness: spec updated to this pack's version (known-good base)")
+        "harness: spec updated to this pack's version (partial rerun's base)")
     assert m["stories"]["3"]["spec_changed_files"] == ["spec/README.md"]
     assert (whole.ws / "spec" / "README.md").read_text() == "# covpack, revised\n"
 
@@ -1054,7 +1054,7 @@ def test_a_restarted_story_with_no_record_of_where_it_began_begins_at_the_worksp
     assert (loop.run / "stories" / "01" / "base-commit").read_text() == git(loop.ws, "rev-parse", "HEAD~1")
 
 
-# ======================= known-good mode =======================
+# ======================= a partial rerun =======================
 
 def reference_run(loop: Loop, root: Path, ran: tuple[int, ...] = (1, 2, 3)) -> tuple[Path, dict]:
     """A finished run of the same pack: its bundle (one commit per story it ran) and its metrics."""
@@ -1098,12 +1098,12 @@ def test_a_known_good_run_builds_one_story_on_another_run_s_code_and_scores_the_
     assert base["skipped"] is True and (whole.run / drive.history.BASE_DIR / "accept-summary.json").exists()
     assert whole.strays == [whole.ws] * 3                                    # after the base's scoring, the agent, the gate
     out = capsys.readouterr().out
-    assert "[known-good] scoring the base (stories [1, 2])\n" in out
+    assert "[partial rerun] scoring the base (stories [1, 2])\n" in out
     assert whole.agent_runs()[0]["prompt"].splitlines()[:2] == [
         "STORY 3: Third", "Stories already implemented in this repository, in order: 1, 2."]
     # Started again: the base is not scored twice, its record is kept, and the story is not run again.
     whole.main("--from-run", str(ref), "--only", "3")
-    assert "[known-good]" not in capsys.readouterr().out and len(whole.agent_runs()) == 1
+    assert "[partial rerun]" not in capsys.readouterr().out and len(whole.agent_runs()) == 1
     assert whole.metrics()["known_good"] == m["known_good"] and len(whole.strays) == 3
 
 
@@ -1119,7 +1119,7 @@ def test_a_dry_run_in_known_good_mode_names_the_base_and_prompts_with_its_storie
     ref, stories = reference_run(whole, tmp_path)
     whole.bare("--dry-run", "--from-run", str(ref), "--only", "3")
     out = capsys.readouterr().out
-    assert f"known-good base: {ref.resolve()} at {stories['2']['commit'][:12]}, processed [1, 2]\n" in out
+    assert f"partial rerun's base: {ref.resolve()} at {stories['2']['commit'][:12]}, processed [1, 2]\n" in out
     assert out.endswith(prompt(3, "Stories already implemented in this repository, in order: 1, 2.", note="") + "\n")
     assert not whole.run.exists()
 
@@ -1149,7 +1149,7 @@ def test_a_known_good_continuation_runs_the_story_and_every_later_one_each_built
     assert runs[0]["prompt"] == prompt(2, "Stories already implemented in this repository, in order: 1.", note="")
     assert runs[1]["prompt"] == prompt(3, "Stories already implemented in this repository, in order: 1, 2.", note="")
     out = capsys.readouterr().out
-    assert out.count("[known-good] scoring the base (stories [1])\n") == 1               # the base is scored once
+    assert out.count("[partial rerun] scoring the base (stories [1])\n") == 1               # the base is scored once
     doc = json.loads((whole.run / "progress.json").read_text())
     assert [(s["id"], s["status"]) for s in doc["stories"]] == [(2, drive.DONE), (3, drive.DONE)]   # the stories it ran
 
@@ -1171,7 +1171,7 @@ def test_a_known_good_continuation_survives_a_harness_restart_between_its_storie
     assert m["stories"]["2"] == first["stories"]["2"]                        # story 2 was not run again
     assert [p["id"] for p in m["processed"]] == [1, 2, 3] and m["processed"][0] == base_entry(1)
     assert [r["story"] for r in whole.agent_runs()] == [2, 3, 3]             # 3: the start that failed, then the one that ran
-    assert "[known-good]" not in capsys.readouterr().out                     # the base was not scored again
+    assert "[partial rerun]" not in capsys.readouterr().out                     # the base was not scored again
     # Story 3 began twice and has one PROGRESS.md commit: the second start found the file as the first wrote it.
     assert git(whole.ws, "log", "--format=%s").split("\n")[:4] == [
         "story 3: work", "harness: PROGRESS.md for story 3", "story 2: work", "harness: PROGRESS.md for story 2"]
@@ -1199,7 +1199,7 @@ def test_a_dry_run_of_a_known_good_continuation_names_the_base_and_the_stories_i
     whole.bare("--dry-run", "--from-run", str(ref), "--from-story", "2")
     out = capsys.readouterr().out
     assert "scope all: stories [2, 3]\n" in out
-    assert f"known-good base: {ref.resolve()} at {stories['1']['commit'][:12]}, processed [1]\n" in out
+    assert f"partial rerun's base: {ref.resolve()} at {stories['1']['commit'][:12]}, processed [1]\n" in out
     assert out.endswith(prompt(2, "Stories already implemented in this repository, in order: 1.", note="") + "\n")
     assert not whole.run.exists()
 
