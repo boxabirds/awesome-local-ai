@@ -1,15 +1,25 @@
 > **Draft**, not filed. For https://github.com/ashhart/TensorFold/issues (no issue template there). Evidence: the
 > startup logs of 2 Oct 2026 on the M5 Max, kept in the run folders named in `horizon/tensorfold.md`.
 
-**Title:** Flash Next on a 128 GB Mac: raising TENSORFOLD_MEMORY_LIMIT_GB shrinks the keep-prompt window (48,128 at 89.6 GiB, 10,240 at 107.5 GiB), because the larger budget selects 8,192-token prompt chunks
+**Title:** Flash Next on a 128 GB Mac: giving the server more memory makes its context window smaller (48,128 tokens by default, 10,240 with the memory limit raised)
 
 ## Summary
 
-On a 128 GB M5 Max, `Vontra/Qwen3.8-Flash-Next-MLX-4bit-MTP` gets a 48,128-token fitted context window at the
-default 89.6 GiB budget. Raising the budget to the ceiling the server itself suggests (107.5 GiB) lowers the window
-to 10,240 tokens. The only startup line that differs is the prompt chunk: 2,048 tokens at 89.6 GiB, 8,192 at
-107.5 GiB. We need about 131k tokens of context that keeps its prompt between turns (a coding agent's session) and
-found no setting on this machine that gives it.
+**What we are trying to do.** Run a coding agent against Flash Next on a 128 GB Mac. The agent's conversations grow
+to about 131,000 tokens, and each turn needs to reuse the previous turn's prompt instead of reading it all again.
+
+**What happens by default.** TensorFold starts with a context window of 48,128 tokens, well short of what we need.
+Its startup message says the memory limit can be raised with `TENSORFOLD_MEMORY_LIMIT_GB`.
+
+**What happens when we raise it.** With the limit at the maximum the server offers (107.5 GiB, up from 89.6), the
+context window drops to 10,240 tokens. More memory gives a smaller window.
+
+**What we think is going on.** With more memory, the server chooses to read prompts in larger pieces (8,192 tokens at
+a time, up from 2,048). Reading in larger pieces needs more working memory, and that takes more than the extra
+memory we gave it. Details are under "What we think causes it".
+
+**What we are asking.** Is this intended, and how should a 128 GB Mac be set up to get a context window of about
+131,000 tokens with Flash Next? We found no setting that does it.
 
 ## Environment
 
