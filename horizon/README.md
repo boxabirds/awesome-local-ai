@@ -46,6 +46,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [BeeLlama.cpp](beellama.md) | candidate | RTX 4090 (Ubuntu) | llama.cpp fork: KV cache in fewer bits for the same context; MTP/DFlash speculation |
 | [TurboQuant](turboquant.md) | candidate | RTX 4090 (Ubuntu) | llama.cpp fork: turbo KV cache (no re-quant) and Config I TQ4_1S weights (re-quant; merge with Unsloth Dynamic 3.0 to test) |
 | [Strata](strata.md) | gated | RTX 4090 | Flash-Next (125B MoE) on one 4090 by offloading experts to RAM |
+| [gufo 0.5](gufo-0.5.md) | gated | Strix Halo | five releases ahead of the pin; fixes our issue 304; waiting for tritus to go idle |
 | [Prompt lookup (n-gram speculation)](ngram-speculation.md) | parked | RTX 4090 (Ubuntu) | engine setting; test on the dense 27B; eliminated for sparse MoE |
 | [llama.cpp Vulkan on Strix Halo](llamacpp-vulkan-strix-halo.md) | parked | Strix Halo | dropped from v2: prompt reading 4-7x slower than gufo |
 | [llama.cpp Metal on the M5 Max](llamacpp-metal-m5-max.md) | parked | M5 Max | paused after canvas-metal-01 story 1 |
