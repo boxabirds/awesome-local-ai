@@ -45,9 +45,22 @@ other machine runs gufo.
    `GUFO_IMAGE` to the digest above, `GUFO_VERSION` to the string step 2 gave. Let `_gufo_require_version()`
    itself confirm the pin is self-consistent before anything else runs.
 4. **One smoke story, unrecorded.** Per the release-candidate process already used for harness changes: one
-   partial rerun of a story, unrecorded so nothing publishes from an unverified pin. Pick one that
-   previously hit issue 304's pattern (a tool call whose output had raw newlines) if one is identifiable
-   from the record, to directly confirm the fix landed rather than just that gufo starts.
+   partial rerun of a story, unrecorded so nothing publishes from an unverified pin. Use a story that
+   actually hit issue 304's pattern, to directly confirm the fix landed rather than just that gufo starts —
+   `analysis/story-runs.csv`'s `toolcall_text_resumes` column (capped at 3) shows it maxed out on three:
+   v2-r5 story 2, v2-r5 story 5, and v2-r1 story 5. **v2-r5 story 2** is the one to use: earliest of the
+   three (cheapest run), and the same signature also showed up (uncapped) on v2-r1 story 2, so it isn't a
+   one-off.
+
+   ```
+   dbench submit tritus --id gufo-0.5-smoke --combination qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi \
+     --pack benchmarks/vidi --from-run combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/v2-r5 \
+     --stories 2 --run-id gufo-0-5-smoke --client pi --no-record
+   ```
+
+   (`--no-record` is required — dbench records and pushes by default. Flags checked against
+   `tools/dbench/src/cli.rs`'s `Submit` variant.) Success: `toolcall_text_resumes` is 0 for story 2 in the
+   resulting `metrics.json`, where v2-r5's own run had it at 3.
 5. Only after a clean smoke test, a full recorded series.
 
 ## Confounds
