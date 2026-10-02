@@ -1,0 +1,6 @@
+{
+  "state": "started",
+  "reason": "harness 9617ebb9 (harness-v2026.10.02.3), client pi, model qwen3.8-swift-1.5-27b",
+  "at": "2026-10-02T18:11:58Z",
+  "host": "13th Gen Intel(R) Core(TM) i9-13900F 62GB, NVIDIA GeForce RTX 4090 24564 MiB"
+}
