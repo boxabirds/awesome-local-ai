@@ -49,7 +49,9 @@ TENSORFOLD_PYTHON="3.12"
 #     n-gram tables by default, so the flag was redundant here. Left on: harmless either way per that doc.
 #   - Raised to 110 (TensorFold's own worked example for a 128 GiB Mac, docs/recipes/qwen3.8-flash-next.md): the
 #     keep-prompt limit *fell* to 10,240 — worse than the 89.6 GiB default, the opposite of what raising the
-#     budget should do by TensorFold's own documented model. Not explained; not a result to build on. Reverted.
+#     budget should do. Cause, read from the 0.6.0 source: at that budget it picks 8,192-token prompt chunks (2,048
+#     at 89.6), whose working memory takes the gain. Reverted. A later sweep of budgets between 94 and 105 GiB
+#     restarted this Mac: nothing above 89.6 runs here without the owner's say (horizon/tensorfold.md).
 # The 24 Sep 2026 panic this budget used to guard against was MTPLX, a different engine, confounded by a ~10 GiB
 # leak since removed (docs/20260924-mtplx-memory-report.md) — not evidence against TensorFold specifically.
 # TensorFold refuses to load, naming the budget it needs, when the model doesn't fit; its startup line says where
