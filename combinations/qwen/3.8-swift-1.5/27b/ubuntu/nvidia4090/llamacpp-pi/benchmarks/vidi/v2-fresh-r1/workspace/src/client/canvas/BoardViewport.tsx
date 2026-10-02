@@ -29,7 +29,11 @@ function mod(a: number, n: number): number {
   return ((a % n) + n) % n;
 }
 
-export function BoardViewport(props: { children?: ReactNode }) {
+export function BoardViewport(props: {
+  children?: ReactNode;
+  onDblClickEmpty?: (screenPoint: { x: number; y: number }) => void;
+  onClickEmpty?: () => void;
+}) {
   const api = useCameraContext();
   const { camera, isPanning, beginPan, panMove, endPan } = api;
   const wheelCb = api.wheel;
@@ -120,6 +124,19 @@ export function BoardViewport(props: { children?: ReactNode }) {
     beginPan({ x: e.clientX, y: e.clientY });
   };
 
+  // Double-click on empty space → create sticky note
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    props.onDblClickEmpty?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  // Click on empty space (pointerup without drag) → clear selection
+  const onClickEmpty = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    props.onClickEmpty?.();
+  };
+
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     panMove({ x: e.clientX, y: e.clientY });
   };
@@ -146,6 +163,8 @@ export function BoardViewport(props: { children?: ReactNode }) {
       onPointerUp={endPan}
       onPointerCancel={endPan}
       onLostPointerCapture={endPan}
+      onDoubleClick={onDoubleClick}
+      onClick={onClickEmpty}
     >
       <div
         data-testid="world-layer"
