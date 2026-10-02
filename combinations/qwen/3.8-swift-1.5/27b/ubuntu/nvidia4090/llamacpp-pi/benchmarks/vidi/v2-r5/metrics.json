@@ -455,6 +455,17 @@
           "pushed": true
         },
         "commit": "c21a8f64"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 110
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "2": {
@@ -937,6 +948,17 @@
           "pushed": true
         },
         "commit": "8ab4ebc6"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 130
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "3": {
@@ -1428,6 +1450,17 @@
           "pushed": true
         },
         "commit": "d07293a6"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 193
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "4": {
@@ -1923,6 +1956,17 @@
           "pushed": true
         },
         "commit": "d2c4fffb"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 217
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "5": {
@@ -2397,6 +2441,17 @@
         "commit": "f8280b23",
         "unpushed": true,
         "error": "the remote changed the same files as our commits: the story is committed locally and unpushed, and a later record pushes it once the remote no longer conflicts"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 120
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "7": {
@@ -2950,6 +3005,17 @@
         "commit": "cadcff56",
         "unpushed": true,
         "error": "the remote changed the same files as our commits: the story is committed locally and unpushed, and a later record pushes it once the remote no longer conflicts"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 118
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "8": {
@@ -3441,6 +3507,17 @@
         "commit": "06ea624a",
         "unpushed": true,
         "error": "the remote changed the same files as our commits: the story is committed locally and unpushed, and a later record pushes it once the remote no longer conflicts"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 266
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "9": {
@@ -3970,6 +4047,17 @@
         "commit": "1ecec48d",
         "unpushed": true,
         "error": "the remote changed the same files as our commits: the story is committed locally and unpushed, and a later record pushes it once the remote no longer conflicts"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 118
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "10": {
@@ -4488,6 +4576,17 @@
         "commit": "ec656cb5",
         "unpushed": true,
         "error": "the remote changed the same files as our commits: the story is committed locally and unpushed, and a later record pushes it once the remote no longer conflicts"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 140
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "11": {
@@ -4964,6 +5063,17 @@
         "commit": "c4984864",
         "unpushed": true,
         "error": "the remote changed the same files as our commits: the story is committed locally and unpushed, and a later record pushes it once the remote no longer conflicts"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 118
+        },
+        "truncated": false,
+        "reaches": []
       }
     },
     "12": {
@@ -5474,7 +5584,33 @@
           "found": 4,
           "total": 4
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": false,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r5/server.log"
+        ],
+        "private": {
+          "copied": 165,
+          "committed": true,
+          "pushed": true
+        },
+        "commit": "e961a20a",
+        "unpushed": true,
+        "error": "the remote changed the same files as our commits: the story is committed locally and unpushed, and a later record pushes it once the remote no longer conflicts"
+      },
+      "outside_workspace": {
+        "version": 1,
+        "ok": true,
+        "log": {
+          "file": "agent-events.jsonl",
+          "format": "pi",
+          "calls": 97
+        },
+        "truncated": false,
+        "reaches": []
+      }
     }
   },
   "pack": "vidi",
