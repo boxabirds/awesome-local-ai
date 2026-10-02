@@ -137,7 +137,13 @@ _gufo_require_version() {
   local out
   out="$(podman run --rm --entrypoint gufo "$GUFO_IMAGE" --version 2>&1 | head -1)" \
     || err "The gufo image would not run (podman run ... gufo --version): ${out}"
-  GUFO_IMAGE_VERSION="${out##* }"
+  # A release prints "gufo version 0.5.0 (23cacbb)": its version is the release number.
+  # A development build prints "gufo version b722a61": its version is the last token.
+  if [[ "$out" =~ [[:space:]]([0-9]+\.[0-9]+\.[0-9]+)[[:space:]]\([0-9a-f]+\)$ ]]; then
+    GUFO_IMAGE_VERSION="${BASH_REMATCH[1]}"
+  else
+    GUFO_IMAGE_VERSION="${out##* }"
+  fi
   [[ "$GUFO_IMAGE_VERSION" == "$GUFO_VERSION" ]] || err \
     "The pinned image reports '${out}', not gufo ${GUFO_VERSION}.
        GUFO_IMAGE and GUFO_VERSION in config.sh must name the same build."

@@ -1,8 +1,10 @@
 # gufo 0.5 (engine update)
 
-**Status:** gated (2 Oct 2026): tritus is mid-series on the gufo partial-rerun work this upgrade was raised
-during, and a machine running a benchmark is never used for anything else. The version-string check below also
-failed under amd64 emulation on a Mac (twice, no output, ~30 min each) — it needs tritus's own hardware.
+**Status:** prepared, smoke test not yet run (2 Oct 2026). Checks 1-3 are done: the image's version string was
+read on tritus (with the owner's approval, while a recorded run was going) and `config.sh` and `lib/gufo.sh` are
+updated and tested. What's left is the unrecorded smoke story (check 4), which waits until tritus is idle: a
+machine running a benchmark is never used for anything else. The version-string check had failed under amd64
+emulation on a Mac (twice, no output, ~30 min each); on tritus it completed, including the image pull, inside a 9-minute limit.
 **Kind:** an engine version bump, not a new stack. Every gufo run would change at once.
 
 ## What it is
@@ -34,16 +36,19 @@ other machine runs gufo.
 1. **Resolve the image.** Done: `ghcr.io/gufo-org/toolboxes/gufo-runtime@sha256:371a731c5286d698c77daa2507300588e24dc063c7c665895331001410dc06b4`
    is the `0.5.0` tag (confirmed against `gufo-org/toolboxes/.github/workflows/publish_release.yml`: tagged
    by bare version, no `v`, linux/amd64 only).
-2. **Read the real version string, on tritus.** `lib/gufo.sh`'s `_gufo_require_version()` compares
-   `GUFO_VERSION` against the last whitespace-separated token of `podman run --rm --entrypoint gufo
-   "$GUFO_IMAGE" --version`. Run that directly first (`podman run --rm --entrypoint gufo
-   ghcr.io/gufo-org/toolboxes/gufo-runtime@sha256:371a731c52…d4e60 --version`) and take the token after the
-   last space — don't guess the format from `src/cli/main.cpp`'s `"gufo version " <release> " (" <revision>
-   ")"`; two attempts to run this same image under amd64 emulation on a Mac hung with no output, so it has
-   to be read on real hardware.
-3. **Update `config.sh`.** `combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/config.sh`:
-   `GUFO_IMAGE` to the digest above, `GUFO_VERSION` to the string step 2 gave. Let `_gufo_require_version()`
-   itself confirm the pin is self-consistent before anything else runs.
+2. **Read the real version string, on tritus.** Done, 2 Oct 2026: the image prints
+   `gufo version 0.5.0 (23cacbb)`. The old `_gufo_require_version()` took the last token, which here is
+   `(23cacbb)` with the parentheses, so it could not have matched a sensible pin. It now takes the release number
+   from `gufo version X (hash)` and keeps the last-token rule for development builds (`gufo version b722a61`).
+   The owner chose to pin the release number, `0.5.0`. Tested first: six checks in `tests/gufo-test.sh`, two of
+   which failed before the fix. Recorded runs store the image's whole `--version` line, so 0.5.0 runs read
+   `gufo version 0.5.0 (23cacbb)` and earlier ones `gufo version b722a61`.
+3. **Update `config.sh`.** Done in the working tree (not yet pushed to the clone the benchmark node uses):
+   `GUFO_IMAGE` is the 0.5.0 digest and `GUFO_VERSION` is `0.5.0`. On a machine with no benchmark running, run
+   `tests/gufo-test.sh` unmodified: while one is, 25 launcher checks fail on the "another model server is
+   running" guard (the same 25 fail without these changes). With that guard bypassed in a scratch copy, only the
+   guard's own five tests fail. Still to check: whether the installed server manifest keeps the old image digest
+   until the installer is re-run.
 4. **One smoke story, unrecorded.** Per the release-candidate process already used for harness changes: one
    partial rerun of a story, unrecorded so nothing publishes from an unverified pin. Use a story that
    actually hit issue 304's pattern, to directly confirm the fix landed rather than just that gufo starts —
@@ -69,4 +74,5 @@ The cache-behaviour fixes (#358, #362, #369) can move timing and thinking-spread
 same way a pi client bump does (see [pi 0.99](pi-0.99.md)) — a post-upgrade run isn't directly comparable to
 the pre-upgrade `v2-r*`/`replay-*` runs already recorded without flagging the engine version changed.
 
-**Last checked:** 2 Oct 2026. **Recheck when:** tritus goes idle.
+**Last checked:** 2 Oct 2026. **Recheck when:** tritus goes idle (then: run `tests/gufo-test.sh` for real, check
+the installed manifest, submit the smoke job, and only after a clean result a full recorded series).
