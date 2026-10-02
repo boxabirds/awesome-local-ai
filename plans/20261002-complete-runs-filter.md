@@ -1,6 +1,8 @@
 # Benchmarker: one "Complete runs / All runs" switch for the whole app
 
-Status: **plan for review**. Nothing here is built yet.
+Status: **built and live** (2 October 2026). The per-page view tests of section 8 are end-to-end tests in
+`e2e/run-filter.spec.ts`: the switch is applied in one place (`App`), through `visibleRuns` in `shared/stats.ts`, which
+has its own unit tests.
 Scope: `tools/benchmarker`. Decided by the owner on 2 October 2026: the definition of *complete* (section 2), the
 default (All runs, remembered), and that this replaces the status filters the app has today.
 
