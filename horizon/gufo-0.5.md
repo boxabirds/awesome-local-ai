@@ -1,6 +1,6 @@
 # gufo 0.5 (engine update)
 
-**Status:** smoke test passed (2 Oct 2026); the full recorded series has not been started. Checks 1-4 are done.
+**Status:** smoke test passed (2 Oct 2026); the full recorded series of five runs (`v2-gufo05-r1` to `-r5`) is running. Checks 1-4 are done.
 The unrecorded smoke story (v2-r5 story 2, job `gufo-0.5-smoke`) ran clean on 0.5.0: `toolcall_text_resumes` 0 where
 v2-r5 had 3, acceptance 10/10 (v2-r5: 8/10), no errors or stalls. The version-string check had failed under amd64
 emulation on a Mac (twice, no output, ~30 min each); on tritus it completed, including the image pull, inside a 9-minute limit.
@@ -84,7 +84,8 @@ other machine runs gufo.
 
    Submitting needs a `nodes.toml` for the client (none exists on tritus; the smoke used a scratch copy), and the
    node was held, so it had to be released for the job to start.
-5. Next: a full recorded series, flagged as a new engine version. Not started.
+5. The full recorded series: five runs, `v2-gufo05-r1` to `v2-gufo05-r5` (jobs `vidi-v2-gufo05-r1` to `-r5`), queued on
+   the Strix Halo box on 2 Oct 2026; the first started at 21:35 BST. The run name carries the engine version.
 
 ## Confounds
 
