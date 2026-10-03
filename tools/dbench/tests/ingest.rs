@@ -640,3 +640,93 @@ fn a_reference_models_rows_already_in_the_warehouse_are_purged_from_every_table(
     let again = db.purge_reference().unwrap();
     assert_eq!(again, 0); // idempotent
 }
+
+// ---- an archived run: superseded, kept out of the lake and the databases (owner, 4 Oct 2026) ----
+
+#[test]
+fn an_archived_run_is_found_by_its_marker_and_is_never_a_candidate_even_while_the_lake_holds_it() {
+    use dbench::ingest::inputs::{candidates, lake_runs, Published, TreeSource, ARCHIVED_MARKER};
+    use std::collections::BTreeSet;
+    let root = std::env::temp_dir().join(format!("dbench-ingest-archived-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let kept = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/v2-r1";
+    let gone = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/canvas-01";
+    let reference = "benchmarks/reference/vidi/opus-5.5/run-2";
+    for dir in [kept, gone] {
+        std::fs::create_dir_all(root.join(dir).join("stories/01")).unwrap();
+        std::fs::write(root.join(dir).join("stories/01/agent-events.compact.jsonl.gz"), b"").unwrap();
+    }
+    std::fs::create_dir_all(root.join(reference)).unwrap();
+    for dir in [gone, reference] {
+        std::fs::write(root.join(dir).join(ARCHIVED_MARKER), r#"{"archived_at": "2026-10-04"}"#).unwrap();
+    }
+    // The lake still holds raw files of the archived run, pulled before it was archived.
+    let lake_dir = root.join("store/node-x").join(gone);
+    std::fs::create_dir_all(lake_dir.join("stories/02")).unwrap();
+    std::fs::write(lake_dir.join("stories/02/agent-events.jsonl"), "{}\n").unwrap();
+    std::fs::write(lake_dir.join("collection.json"), r#"{"node": "node-x", "complete": true, "collected_at": 1.0, "files": {"stories/02/agent-events.jsonl": {"bytes": 3}}}"#).unwrap();
+
+    let src = TreeSource { root: root.clone() };
+    assert_eq!(src.archived().unwrap(), BTreeSet::from([gone.to_string(), reference.to_string()]));
+    let lake = lake_runs(&root.join("store")).unwrap();
+    assert!(lake.contains_key(gone), "the fixture's lake must hold the archived run");
+    assert_eq!(candidates(&src, &lake).unwrap(), BTreeSet::from([format!("{kept}/stories/01")]));
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
+fn the_published_git_tree_names_its_archived_runs_reference_ones_included() {
+    use dbench::ingest::inputs::{GitSource, Published, ARCHIVED_MARKER};
+    use std::collections::BTreeSet;
+    let repo = std::env::temp_dir().join(format!("dbench-ingest-archived-git-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&repo);
+    let gone = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/canvas-01";
+    let reference = "benchmarks/reference/vidi/opus-5.5/run-2";
+    let kept = "combinations/q/w/v/os/m/llamacpp-pi/benchmarks/vidi/v2-r1";
+    for dir in [gone, reference] {
+        std::fs::create_dir_all(repo.join(dir)).unwrap();
+        std::fs::write(repo.join(dir).join(ARCHIVED_MARKER), "{}").unwrap();
+    }
+    std::fs::create_dir_all(repo.join(kept)).unwrap();
+    std::fs::write(repo.join(kept).join("run.json"), "{}").unwrap();
+    let git = |args: &[&str]| assert!(std::process::Command::new("git").arg("-C").arg(&repo).args(args).output().unwrap().status.success(), "git {args:?}");
+    git(&["init", "-q"]);
+    git(&["add", "-A"]);
+    git(&["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "fixture"]);
+    let src = GitSource::new(&repo, "HEAD");
+    assert_eq!(src.archived().unwrap(), BTreeSet::from([gone.to_string(), reference.to_string()]));
+    std::fs::remove_dir_all(&repo).unwrap();
+}
+
+#[test]
+fn an_archived_runs_rows_already_in_the_warehouse_are_purged_from_every_table_by_its_exact_run_id() {
+    use dbench::ingest::db::Db;
+    use rusqlite::params;
+    use std::collections::BTreeSet;
+    let mut db = Db::open_memory().unwrap();
+    // "run" is archived; "run-1" only shares its prefix and stays.
+    for run_id in ["combinations/q/run", "combinations/q/run-1"] {
+        let c = &db.conn;
+        c.execute("insert or ignore into runs(id) values (?1)", params![run_id]).unwrap();
+        c.execute("insert into stories(rel, run_id, stack, run, story) values (?1, ?2, 'q/w/v/os/m/llamacpp-pi', 'r', 1)", params![format!("{run_id}/stories/01"), run_id]).unwrap();
+        let sk = c.last_insert_rowid();
+        c.execute("insert into calls(sk, idx) values (?1, 0)", params![sk]).unwrap();
+        c.execute("insert into tools(sk, idx) values (?1, 0)", params![sk]).unwrap();
+        c.execute("insert into msgs(sk, idx) values (?1, 0)", params![sk]).unwrap();
+        c.execute("insert into compactions(sk) values (?1)", params![sk]).unwrap();
+        c.execute("insert into collection(sk) values (?1)", params![sk]).unwrap();
+        c.execute("insert into events(sk, ord, t_ms, kind) values (?1, 0, 1, 'call')", params![sk]).unwrap();
+        c.execute("insert into requests(run_id, source, idx, sk) values (?1, 'engine-log', 0, ?2)", params![run_id, sk]).unwrap();
+        c.execute("insert into conditions(run_id, at, sk) values (?1, 1.0, ?2)", params![run_id, sk]).unwrap();
+    }
+    let archived = BTreeSet::from(["combinations/q/run".to_string()]);
+    assert_eq!(db.purge_runs(&archived).unwrap(), 1);
+    let c = &db.conn;
+    for table in ["runs", "stories", "calls", "tools", "msgs", "compactions", "collection", "events", "requests", "conditions"] {
+        let n: i64 = c.query_row(&format!("select count(*) from {table}"), [], |r| r.get(0)).unwrap();
+        assert_eq!(n, 1, "{table}");
+    }
+    let left: String = c.query_row("select run_id from stories", [], |r| r.get(0)).unwrap();
+    assert_eq!(left, "combinations/q/run-1");
+    assert_eq!(db.purge_runs(&archived).unwrap(), 0); // idempotent
+}

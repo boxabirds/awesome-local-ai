@@ -195,10 +195,14 @@ const RESCORE_RE = /^rescore\/([^/]+)\/rescore\.json$/;
 // A re-scored story's result: its public summary, or (records from before 30 Sep 2026) the full result.
 const RESCORE_STORY_RE = /^rescore\/([^/]+)\/stories\/(\d+)\/accept(?:-summary)?\.json$/;
 
+/** A run directory holding this is archived (owner, 4 Oct 2026): superseded, and not shown, whatever else is there. */
+export const ARCHIVED_MARKER = "archived.json";
+
 /** Runs are directories holding a run.json, under combinations/<stack>/benchmarks/<pack>/<run>/ or
- * benchmarks/reference/<pack>/<stack>/<run>/; also notes each run's re-scores and bundle. */
+ * benchmarks/reference/<pack>/<stack>/<run>/, and no archived marker; also notes each run's re-scores and bundle. */
 export function findRuns(paths: string[]): RunRef[] {
   const runs = new Map<string, RunRef>();
+  const archived = new Set<string>();
   const extras = new Map<string, { rescores: string[]; hasBundle: boolean; rescoreLast: Record<string, string> }>();
   for (const p of paths) {
     const g = RUN_RE.exec(p)?.groups;
@@ -208,7 +212,9 @@ export function findRuns(paths: string[]): RunRef[] {
     const key = [pack, stack, g.run].join("\u0000");
     const e = extras.get(key) ?? { rescores: [], hasBundle: false, rescoreLast: {} };
     extras.set(key, e);
-    if (g.rest === "run.json") {
+    if (g.rest === ARCHIVED_MARKER) {
+      archived.add(key);
+    } else if (g.rest === "run.json") {
       runs.set(key, { pack, stack, runId: g.run, dir: p.slice(0, p.length - g.rest.length - 1), rescores: [], hasBundle: false, rescoreLast: {} });
     } else if (g.rest === "workspace.bundle") {
       e.hasBundle = true;
@@ -219,7 +225,7 @@ export function findRuns(paths: string[]): RunRef[] {
       if (rs && Number(rs[2]) > Number(e.rescoreLast[rs[1]] ?? 0)) e.rescoreLast[rs[1]] = String(Number(rs[2]));
     }
   }
-  return [...runs.entries()].map(([key, run]) => {
+  return [...runs.entries()].filter(([key]) => !archived.has(key)).map(([key, run]) => {
     const e = extras.get(key)!;
     return { ...run, rescores: [...e.rescores].sort(), hasBundle: e.hasBundle, rescoreLast: e.rescoreLast };
   });

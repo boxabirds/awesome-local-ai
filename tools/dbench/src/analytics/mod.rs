@@ -32,6 +32,28 @@ fn purge_references(store: &Store) -> Result<()> {
     Ok(())
 }
 
+/// Remove what was computed for a story run the warehouse no longer holds (an archived run's, say): the analytics file
+/// follows the warehouse, and never outlives what it was computed from.
+fn purge_orphans(wh: &Connection, store: &Store) -> Result<usize> {
+    let held: HashSet<String> = wh.prepare("select rel from stories where rel is not null")?.query_map([], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?;
+    let mut gone = std::collections::BTreeSet::new();
+    for t in REL_TABLES {
+        let mut q = store.conn.prepare(&format!("select distinct rel from {t}"))?;
+        for rel in q.query_map([], |r| r.get::<_, String>(0))? {
+            let rel = rel?;
+            if !held.contains(&rel) {
+                gone.insert(rel);
+            }
+        }
+    }
+    for rel in &gone {
+        for t in REL_TABLES {
+            store.conn.execute(&format!("delete from {t} where rel = ?1"), params![rel])?;
+        }
+    }
+    Ok(gone.len())
+}
+
 /// A block's `max_prev_sim` looks back over this many earlier thinking blocks of the story run.
 pub const PREV_WINDOW: usize = 10;
 
@@ -119,6 +141,7 @@ pub fn run_on(wh: &Connection, store: &mut Store, sel: &Selection, now: f64) -> 
     let started = std::time::Instant::now();
     let mut summary = Summary::default();
     purge_references(store)?;
+    purge_orphans(wh, store)?;
     let mut q = wh.prepare("select sk, rel, run_id, stack, run, story from stories where rel is not null and coalesce(stack, '') not like ?1 order by sk")?;
     type Row = (i64, String, Option<String>, Option<String>, Option<String>, Option<i64>);
     let stories: Vec<Row> = q.query_map(params![format!("{REFERENCE_STACK_PREFIX}%")], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?.collect::<std::result::Result<_, _>>()?;
