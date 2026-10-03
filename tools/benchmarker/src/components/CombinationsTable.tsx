@@ -18,7 +18,7 @@ const COLUMNS: { term: TermId; cls: string; value: (c: RankedCombination, p: Pre
   { term: "combination", cls: "combo", value: (c) => c.label },
   { term: "comboMachines", cls: "machines", value: (c) => c.machines.join(", ") },
   { term: "scoreSummary", cls: RANK, value: (c) => c.score?.median ?? null },
-  { term: "pooledPassRate", cls: "pooled", value: (c) => c.score?.pooled ?? null },
+  { term: "meanScore", cls: "mean", value: (c) => c.score?.mean ?? null },
   { term: "hoursPerStory", cls: "hours", value: (c) => c.hoursPerStory?.median ?? null },
   { term: "outPerStory", cls: "out", value: (c) => c.outPerStory?.median ?? null },
   { term: "callsPerStory", cls: "calls", value: (c) => c.callsPerStory?.median ?? null },
@@ -49,7 +49,7 @@ function cell(c: RankedCombination, cls: string, p: Predictability) {
           <SpreadText s={c.score} fmt={fmtCount} big={`num-xl ${qualityClass(c.score.total ? c.score.median / c.score.total : null)}`} showN />
         </span>
       : <span className="unranked" data-tip={termTip("unranked")}>not ranked: {c.unranked}</span>;
-    case "pooled": return c.score ? <span className="num">{Math.round(c.score.pooled * PERCENT)}%</span> : <span className="missing" data-tip={`No ${NONE}.`}>—</span>;
+    case "mean": return c.score ? <span className="num">{Math.round(c.score.mean * PERCENT)}%</span> : <span className="missing" data-tip={`No ${NONE}.`}>—</span>;
     case "hours": return spreadCell(c.hoursPerStory, fmtHours);
     case "out": return spreadCell(c.outPerStory, fmtTokens);
     case "calls": return spreadCell(c.callsPerStory, fmtCount);
