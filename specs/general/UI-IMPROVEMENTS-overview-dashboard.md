@@ -40,13 +40,13 @@ in the log. Examples, with the live data where there is some:
 | Observation (shown) | Source in the state |
 |---|---|
 | gruntus: idle, nothing queued | machine record |
-| quintus: 9 queued, about 70 h of work (median of this stack's runs: 6h20m to 10h23m) | queue and finished runs |
+| quintus: 9 queued, about N h of work (N from the median wall time of this stack's finished runs, n shown) | queue and finished runs |
 | tritus: no activity for 25 min | the harness's last report |
 | gruntus, run v2-fresh-r2, story 3 took 2h06m: 3.8 times the median of 33 min for that story across 6 runs of this stack | story timings |
 | mlx-serve series: 3 of 5 done, median 69, range 66 to 72 | finished runs |
 | a series has finished | run states |
 | Swift 1.5 and gufo medians are within 12 tests with n of 5 or fewer: too close to call | the existing small-n rule |
-| Compaction share of story time on quintus is 14% against 6% elsewhere | story time splits |
+| Compaction takes a larger share of story time on one stack than on the others (measured per story, both shares shown) | story time splits |
 
 | Never shown (a bug or its diagnosis) | Where it goes |
 |---|---|
@@ -123,8 +123,8 @@ each job's submitted and ended times (already in `Row.jobs`).
 ## Medium Priority Enhancements
 
 ### Issue: The queue length is a count, not a duration
-**Recommendation**: For each machine, "9 queued · about 70 h": the sum, over its queued jobs, of the median wall time of
-the finished runs of that stack (measured, with n shown on hover: "median of 3 mlx-serve runs, 6h20m to 10h23m"). Where
+**Recommendation**: For each machine, "9 queued · about N h": the sum, over its queued jobs, of the median wall time of
+the finished runs of that stack (measured, with n and the range shown on hover: "median of 3 finished runs of this stack"). Where
 a stack has no finished run, say "no estimate yet" and draw nothing. No guessed figure, per the project's rule.
 **Impact**: Tells the owner when a machine will run dry before it does, which is when a new job is needed.
 
@@ -153,7 +153,7 @@ On the dashboard the pack and version choices can sit in the ranking band's own 
  Swift 1.5 27B llama.cpp                        mlx-serve 26.10.1          gufo 0.5.0
  run 2 of 5  ■□□□□                               run 1 of 5  ■□□□□          run 1 of 5  ■□□□□
  stories ■■■■■■■▢▫▫▫▫  story 9, 49 min          ■■■■■■■■■■■▢ story 12      ■■■■■■■■▢▫▫▫ story 9
- 3 queued · about 24 h                          9 queued · about 70 h      4 queued · about 33 h
+ 3 queued · about N h                           9 queued · about N h       4 queued · about N h
  24 h ▁▇▇▇▇▇▇▇▇▇▇▇▇▇                             24 h ▇▇▇▇▇▇▇▇▇▇▇▇▇▇        24 h ▇▇▇▇▇▇▇▇▇▇▇▇▇▇
  ------------------------------------------------------------------------------------------
  SERIES                                         SCORE OF RECORD (0 to 75), median and range, one dot per run
@@ -164,7 +164,7 @@ On the dashboard the pack and version choices can sit in the ranking band's own 
  ------------------------------------------------------------------------------------------
  Detail: Combinations (collapsed)     Now (the current table, as is)
 ```
-(The figures here are only a sketch of the shapes, not data.)
+(A sketch of the shapes only: the bars, scores and "N" are placeholders, not data.)
 
 ## Positive Observations
 
