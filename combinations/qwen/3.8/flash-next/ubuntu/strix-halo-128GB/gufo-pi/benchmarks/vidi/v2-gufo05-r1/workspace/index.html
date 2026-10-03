@@ -3,6 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      A board's address is its only access control, so it must not leak. This is the
+      privacy constraint from the sharing story: nothing a person opens from a board
+      page is told the address they came from.
+    -->
+    <meta name="referrer" content="no-referrer" />
     <title>vidi6</title>
   </head>
   <body>

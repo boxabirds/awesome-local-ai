@@ -14,6 +14,7 @@ import {
   dragBoard,
   gridSpacingPixels,
   originMarkerPosition,
+  openFreshBoard,
   pinchAt,
   readCamera,
   readZoomLabel,
@@ -57,7 +58,7 @@ async function stepZoomInBrowser(page: Page, direction: 'in' | 'out'): Promise<s
 test.describe('workflow 1: first visit navigation', () => {
   // TC-28
   test('TC-28 shows the navigation hint and removes it after the first drag', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     const hint = page.locator(NAVIGATION_HINT);
     await expect(hint).toBeVisible();
     await expect(hint).toHaveText(
@@ -75,7 +76,7 @@ test.describe('workflow 1: first visit navigation', () => {
 
   // TC-23
   test('TC-23 a 200 x 100 drag moves the board exactly 200 x 100 pixels', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await page.waitForSelector(BOARD_VIEWPORT);
     const before = await originMarkerPosition(page);
 
@@ -90,7 +91,7 @@ test.describe('workflow 1: first visit navigation', () => {
   test('TC-24 Ctrl + scroll keeps the point under the pointer and never zooms the page', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await page.waitForSelector(BOARD_VIEWPORT);
     const scaleBefore = await page.evaluate(() => window.visualViewport?.scale ?? 1);
 
@@ -114,7 +115,7 @@ test.describe('workflow 1: first visit navigation', () => {
 
   // pan.scroll
   test('scrolling moves the board in the scroll direction', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await page.waitForSelector(BOARD_VIEWPORT);
     const before = await originMarkerPosition(page);
 
@@ -133,7 +134,7 @@ test.describe('workflow 1: first visit navigation', () => {
 test.describe('workflow 2: limits and recovery', () => {
   // TC-25
   test('TC-25 zooming in with the button stops at 400% and disables +', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await expectZoomLabel(page, '100');
     const labels = await stepZoomInBrowser(page, 'in');
 
@@ -149,7 +150,7 @@ test.describe('workflow 2: limits and recovery', () => {
 
   // TC-19 / TC-20 in a real browser
   test('the zoom label tracks the limits at both ends', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     const labels = await stepZoomInBrowser(page, 'out');
     expect(await readZoomLabel(page)).toBe(`${Math.round(ZOOM_MIN * 100)}%`);
     expect(await page.getByRole('button', { name: 'Zoom out' }).isDisabled()).toBe(true);
@@ -159,7 +160,7 @@ test.describe('workflow 2: limits and recovery', () => {
 
   // TC-26
   test('TC-26 Reset view returns to 100% with the starting point centred', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await setCamera(page, {
       x: UNBOUNDED_PAN_TESTED_EXTENT,
       y: -UNBOUNDED_PAN_TESTED_EXTENT,
@@ -178,7 +179,7 @@ test.describe('workflow 2: limits and recovery', () => {
   });
 
   test('Ctrl/Cmd + 0 resets the view too', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await dragBoard(page, BOARD_POINT, { x: 300, y: 200 });
     await pinchAt(page, BOARD_POINT, -240);
     const zoomed = await readCamera(page);
@@ -199,7 +200,7 @@ test.describe('workflow 3: far travel', () => {
   test('TC-27 a million units out, panning is still exact and the grid still even', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await setCamera(page, {
       x: UNBOUNDED_PAN_TESTED_EXTENT,
       y: UNBOUNDED_PAN_TESTED_EXTENT,
@@ -224,7 +225,7 @@ test.describe('workflow 3: far travel', () => {
   });
 
   test('reset still works from the far edge of the tested extent', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await setCamera(page, {
       x: -UNBOUNDED_PAN_TESTED_EXTENT,
       y: UNBOUNDED_PAN_TESTED_EXTENT,
@@ -240,7 +241,7 @@ test.describe('workflow 3: far travel', () => {
 
 test.describe('window resize (navigation.resize)', () => {
   test('resizing leaves content anchored to the top-left of the board', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await dragBoard(page, BOARD_POINT, { x: 120, y: 60 });
     const before = await originMarkerPosition(page);
 
@@ -261,7 +262,7 @@ test.describe('window resize (navigation.resize)', () => {
 test.describe('board gestures do not zoom the page (zoom.no_page_zoom)', () => {
   // TC-31
   test('TC-31 page zoom is untouched by every board zoom gesture', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await page.waitForSelector(BOARD_VIEWPORT);
     const dprBefore = await page.evaluate(() => window.devicePixelRatio);
     const scaleBefore = await page.evaluate(() => window.visualViewport?.scale ?? 1);
@@ -285,7 +286,7 @@ test.describe('board gestures do not zoom the page (zoom.no_page_zoom)', () => {
   });
 
   test('the board owns the wheel: the page never scrolls', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await scrollBoard(page, { x: 0, y: 400 });
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     const camera = await readCamera(page);
@@ -295,7 +296,7 @@ test.describe('board gestures do not zoom the page (zoom.no_page_zoom)', () => {
 
 test.describe('zoom label (zoom.indicator)', () => {
   test('the label matches the camera zoom after every action', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await page.getByRole('button', { name: 'Zoom in' }).click();
     await expectZoomLabel(page, '125');
     await page.getByRole('button', { name: 'Zoom out' }).click();

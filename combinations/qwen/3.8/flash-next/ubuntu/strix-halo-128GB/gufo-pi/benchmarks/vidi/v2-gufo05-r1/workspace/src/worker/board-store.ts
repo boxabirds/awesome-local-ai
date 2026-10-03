@@ -39,6 +39,22 @@ export const LOAD_ORIGIN: unique symbol = Symbol('vidi6.load');
 /** Keys of `storage_meta`. */
 const SCHEMA_VERSION_KEY = 'storage_schema_version';
 const SNAPSHOT_THROUGH_SEQ_KEY = 'snapshot_through_seq';
+/**
+ * When this board was created, written once by `BoardRoom.initialize()`.
+ *
+ * Its presence is what makes an address a board: story 5's existence rule reads this
+ * row (or, for a board that predates that feature, any saved content at all) and
+ * nothing else, so a link somebody made up leaves no trace in storage.
+ */
+const CREATED_AT_KEY = 'created_at';
+
+/** The tables a board's storage is made of, as `migrate()` creates them. */
+const TABLE_NAMES = [
+  'storage_meta',
+  'updates',
+  'snapshot_chunks',
+  'quarantined_updates',
+] as const;
 
 const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -100,6 +116,8 @@ export class BoardStore {
   private logBytes = 0;
   /** Whether this instance has read the board. Until then its counters say nothing. */
   private hasLoaded = false;
+  /** Whether this instance has made sure the tables exist (they may already have them). */
+  private tablesEnsured = false;
 
   constructor(private readonly storage: DurableObjectStorage) {}
 
@@ -112,13 +130,78 @@ export class BoardStore {
       SCHEMA_VERSION_KEY,
       String(STORAGE_SCHEMA_VERSION),
     );
+    this.tablesEnsured = true;
+  }
+
+  /**
+   * Whether this address names a board, without writing anything.
+   *
+   * Two ways to be a board (prd `share.legacy_boards`): `created_at` is set, or there
+   * is saved content — a log row or a snapshot chunk — from before `created_at` existed.
+   * An address nobody created has no tables at all, and this must not create them: a
+   * probe of a made-up link is supposed to leave nothing behind (`share.not_found`).
+   */
+  existsReadOnly(): boolean {
+    const present = this.existingTables();
+    if (present.size === 0) return false;
+    if (present.has('storage_meta') && this.metaNumber(CREATED_AT_KEY, 0) > 0) return true;
+    if (present.has('updates') && this.hasRows('updates')) return true;
+    if (present.has('snapshot_chunks') && this.hasRows('snapshot_chunks')) return true;
+    return false;
+  }
+
+  /**
+   * Mark this board as created, keeping the first timestamp if one is already there.
+   *
+   * Returns whether the row was written, so `initialize()` can tell a fresh board from
+   * one that already existed without a second query.
+   */
+  markCreated(at: number = Date.now()): boolean {
+    this.ensureTables();
+    if (this.metaNumber(CREATED_AT_KEY, 0) > 0) return false;
+    this.storage.sql.exec(
+      `INSERT INTO storage_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING`,
+      CREATED_AT_KEY,
+      String(at),
+    );
+    return true;
+  }
+
+  /** The tables this storage has, of the ones a board uses. Reads `sqlite_master` only. */
+  private existingTables(): Set<string> {
+    const placeholders = TABLE_NAMES.map(() => '?').join(', ');
+    const rows = this.storage.sql
+      .exec(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`,
+        ...TABLE_NAMES,
+      )
+      .toArray() as { name: string }[];
+    return new Set(rows.map((row) => row.name));
+  }
+
+  private hasRows(table: (typeof TABLE_NAMES)[number]): boolean {
+    const row = this.storage.sql.exec(`SELECT EXISTS(SELECT 1 FROM ${table}) AS any`).one() as {
+      any: number | boolean;
+    };
+    return row.any === 1 || row.any === true;
+  }
+
+  /** Create the tables if this instance has not made sure of them already. */
+  private ensureTables(): void {
+    if (this.tablesEnsured) return;
+    this.migrate();
   }
 
   /**
    * Store one update. Throws whatever SQLite throws — the room is the one that knows
    * what a board it cannot write to is for, and it must not broadcast first.
+   *
+   * The tables are made here if nothing has made them yet: writing is the one moment
+   * a board is known to need storage, and reading must not create it (see
+   * `existsReadOnly`).
    */
   append(update: Uint8Array): void {
+    this.ensureTables();
     const bytes = update.byteLength;
     this.storage.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', toBinding(update), bytes);
     this.logRows += 1;
@@ -135,6 +218,16 @@ export class BoardStore {
    * snapshot has to be repaired or retried, not quietly thrown away.
    */
   load(doc: Y.Doc): LoadResult {
+    // A board with no tables has never been written to, which is an empty board rather
+    // than an error — and reading it must not create them, because this is the path a
+    // made-up link takes (`share.not_found`) and it is supposed to leave nothing behind.
+    if (this.existingTables().size === 0) {
+      this.hasLoaded = true;
+      this.logRows = 0;
+      this.logBytes = 0;
+      return { ok: true, quarantined: 0 };
+    }
+    this.tablesEnsured = true;
     let snapshot: Uint8Array | null;
     let throughSeq: number;
     let rows: UpdateRow[];
@@ -228,6 +321,7 @@ export class BoardStore {
 
   private measuredLogSize(): [number, number] {
     if (this.hasLoaded) return [this.logRows, this.logBytes];
+    if (this.existingTables().size === 0) return [0, 0];
     const row = this.storage.sql
       .exec('SELECT COUNT(*) AS count, COALESCE(SUM(bytes), 0) AS total FROM updates')
       .one() as { count: number; total: number };

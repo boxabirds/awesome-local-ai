@@ -1,7 +1,61 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 import { GRID_SPACING_WORLD } from '../../../src/shared/config';
+import { BOARD_ID_PATTERN } from '../../../src/shared/board-id';
 import type { Camera } from '../../../src/client/canvas/camera';
+
+/**
+ * Boards, from the outside.
+ *
+ * Since the sharing story a board address is not something a test can invent: it comes
+ * from `POST /api/boards`, or from pressing the home page's button. Both are here, and
+ * which one a test uses is a choice about what the test is doing — a test about sharing
+ * presses the button, because that is the thing a person does; a test about boards wants
+ * a board and gets one without involving the home page.
+ */
+
+/**
+ * What a board id looks like, unwrapped.
+ *
+ * `BOARD_ID_PATTERN` is anchored, which is right when a whole string is being tested and
+ * wrong when an id sits inside a longer pattern for a URL or a field value: anchoring it
+ * again matches nothing. Stripping the anchors keeps one definition of the shape.
+ */
+export const BOARD_ID = BOARD_ID_PATTERN.source.replace(/^\^/, '').replace(/\$$/, '');
+
+/** Create a board through the API and hand back the id the server gave it. */
+export async function createBoard(request: APIRequestContext): Promise<string> {
+  const response = await request.post('/api/boards');
+  expect(response.status(), 'POST /api/boards did not create a board').toBe(201);
+  const body = (await response.json()) as { id?: string };
+  expect(body.id ?? '').toMatch(BOARD_ID_PATTERN);
+  return body.id as string;
+}
+
+/** Whether the Worker calls this address a board. */
+export async function checkBoard(request: APIRequestContext, boardId: string): Promise<number> {
+  return (await request.get(`/api/boards/${boardId}`)).status();
+}
+
+/** The board id in a URL of the form `…/b/<id>`. */
+export function boardIdFromUrl(url: string): string {
+  return new URL(url).pathname.slice('/b/'.length);
+}
+
+/**
+ * Arrive at a brand new board the only way a person can: home page, "New board", and
+ * whatever address the server answers with. Returns that id.
+ */
+export async function openFreshBoard(page: Page): Promise<string> {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'New board' }).click();
+  await expect(page).toHaveURL(BOARD_ID_PATTERN_URL);
+  await expect(page.getByTestId('board-viewport')).toBeVisible();
+  return boardIdFromUrl(page.url());
+}
+
+/** A board address, with the id checked against the pattern rather than by eye. */
+const BOARD_ID_PATTERN_URL = new RegExp(`^https?://[^/]+/b/${BOARD_ID}$`);
 
 export const ORIGIN_MARKER = '[data-testid="origin-marker"]';
 export const BOARD_VIEWPORT = '[data-testid="board-viewport"]';

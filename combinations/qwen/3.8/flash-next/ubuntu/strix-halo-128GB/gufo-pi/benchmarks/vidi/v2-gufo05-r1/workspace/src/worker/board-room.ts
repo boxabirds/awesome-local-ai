@@ -52,6 +52,7 @@ import { BoardStore, LOAD_ORIGIN, shouldCompact, type LoadResult } from './board
 import type { Env } from './index';
 import {
   corruptSnapshot,
+  decodeLegacyUpdates,
   parseTestHook,
   repairSnapshot,
   testHooksEnabled,
@@ -150,9 +151,9 @@ export class BoardRoom extends DurableObject<Env> {
     const doc = new Y.Doc();
     let result: LoadResult;
     try {
-      // The tables belong to this object alone, so creating them is part of reading
-      // the board rather than a step that has to have happened earlier.
-      this.store.migrate();
+      // Reading makes nothing. The tables arrive with `initialize()` (a board somebody
+      // created) or with the first `append()` (a board that is being written to), so an
+      // address that was never created can be looked at without leaving a trace.
       result = this.store.load(doc);
     } catch (error) {
       // `load()` reports its own failures; this is for the ones it cannot foresee.
@@ -213,11 +214,43 @@ export class BoardRoom extends DurableObject<Env> {
     return this.state;
   }
 
+  // --- existence (story 5) -------------------------------------------------
+
+  /**
+   * Make this address a board: create the tables and write `created_at`.
+   *
+   * `POST /api/boards` is the only caller that ever gets a fresh id, and this is the
+   * only place in the room that writes. It answers `exists` when the address is already
+   * a board — a `created_at` from a second call, or content from before that marker
+   * existed — and never re-initialises one: the first timestamp stays (TC-15).
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    if (this.store.existsReadOnly()) return 'exists';
+    this.store.markCreated();
+    return 'created';
+  }
+
+  /**
+   * Whether this address names a board. Reads only: the answer to a made-up link must
+   * not be a new board, a table or a row (`share.not_found`).
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   // --- connections -------------------------------------------------------
 
   async fetch(request: Request): Promise<Response> {
     const hook = parseTestHook(new URL(request.url).pathname);
-    if (hook !== null) return this.handleTestHook(hook);
+    if (hook !== null) return this.handleTestHook(hook, request);
+
+    // An address that is not a board is not served, and connecting is no longer a way
+    // to make one: before story 5 a socket to any 22 characters opened an empty board,
+    // which is exactly the mistyped-link accident the PRD says must not happen.
+    if (!this.store.existsReadOnly()) {
+      return new Response('no such board', { status: 404 });
+    }
 
     // The only thing this object serves over HTTP is an upgrade request.
     if (!(request.headers.get('upgrade') ?? '').toLowerCase().includes('websocket')) {
@@ -476,14 +509,40 @@ export class BoardRoom extends DurableObject<Env> {
   // --- test hooks --------------------------------------------------------
 
   /**
-   * `/__test/boards/:boardId/corrupt-snapshot` and `…/repair-snapshot`, live only
-   * when `TEST_HOOKS=1`. Both damage or undo damage to the *stored* snapshot and then
-   * discard the board in memory, so the next handshake is a real read of whatever the
-   * storage now holds. See `src/worker/test-hooks.ts`.
+   * `/__test/boards/:boardId/corrupt-snapshot`, `…/repair-snapshot` and
+   * `…/seed-legacy`, live only when `TEST_HOOKS=1`. The first two damage or undo damage
+   * to the *stored* snapshot; the third writes updates at an address without ever
+   * marking it created, which is the only way to make what the sharing story calls a
+   * legacy board. All three discard the board in memory afterwards, so the next
+   * handshake is a real read of whatever the storage now holds. See
+   * `src/worker/test-hooks.ts`.
    */
-  private async handleTestHook(hook: TestHook): Promise<Response> {
+  private async handleTestHook(hook: TestHook, request: Request): Promise<Response> {
     if (!testHooksEnabled(this.env)) {
       return new Response('test hooks are disabled', { status: 404 });
+    }
+    if (hook.action === 'seed-legacy') {
+      // Content, and no `created_at` to point at it: the tables, plus the updates a real
+      // client made. From here on that board exists for the same reason any other does —
+      // `BoardStore.existsReadOnly` says a board with saved content is a board.
+      let updates: Uint8Array[];
+      try {
+        updates = decodeLegacyUpdates(await request.json());
+      } catch (error) {
+        return Response.json({ seeded: 0, reason: describeError(error) }, { status: 400 });
+      }
+      this.store.migrate();
+      let bytes = 0;
+      for (const update of updates) {
+        this.store.append(update);
+        bytes += update.byteLength;
+      }
+      // The document in memory predates the seeding, so it is dropped rather than kept
+      // as a board that does not know what was just written.
+      this.discardBoard();
+      const result = { seeded: updates.length, bytes };
+      console.error(JSON.stringify({ event: 'test-board-seeded-legacy', ...result }));
+      return Response.json(result);
     }
     if (hook.action === 'corrupt-snapshot') {
       const doc = await this.board();

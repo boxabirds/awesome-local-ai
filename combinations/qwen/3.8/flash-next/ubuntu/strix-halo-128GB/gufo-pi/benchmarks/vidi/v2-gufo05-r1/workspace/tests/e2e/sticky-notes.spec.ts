@@ -16,7 +16,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { STICKY_SIZE_WORLD, STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
-import { readCamera, withinTolerance } from './helpers/board';
+import { openFreshBoard, readCamera, withinTolerance } from './helpers/board';
 import { PROSE_LIMIT, PROSE_PASTE, RETRO_NOTE } from '../fixtures/texts';
 import {
   centreView,
@@ -57,7 +57,7 @@ function pointInNote(
 
 test.describe('workflow 1: brainstorm a note, move it, recolour it, delete it', () => {
   test('TC-30 creates a note on a double-click and takes the typing', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
 
     await doubleClickBoard(page, BOARD_POINT);
     await typeText(page, 'Hello');
@@ -75,7 +75,7 @@ test.describe('workflow 1: brainstorm a note, move it, recolour it, delete it', 
   });
 
   test('Enter inside a note breaks a line and the note shows both lines', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await doubleClickBoard(page, BOARD_POINT);
     await typeText(page, 'one');
     await page.keyboard.press('Enter');
@@ -103,7 +103,7 @@ test.describe('workflow 1: brainstorm a note, move it, recolour it, delete it', 
   });
 
   test('TC-31 drags a note at 50 % zoom without moving the board', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await doubleClickBoard(page, BOARD_POINT);
     await page.keyboard.press('Escape');
 
@@ -133,7 +133,7 @@ test.describe('workflow 1: brainstorm a note, move it, recolour it, delete it', 
   });
 
   test('TC-32 drags one note over another at 200 % zoom and draws it on top', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await centreView(page, { x: 0, y: 0 }, 2);
 
     // Two overlapping notes; the second is created above the first.
@@ -173,7 +173,7 @@ test.describe('workflow 1: brainstorm a note, move it, recolour it, delete it', 
   });
 
   test('recolours the selected note and deletes it with the bin', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await doubleClickBoard(page, BOARD_POINT);
     await typeText(page, 'Keep or drop');
     await page.keyboard.press('Escape');
@@ -197,7 +197,7 @@ test.describe('workflow 2: creating while far from the origin', () => {
   test('TC-34 the toolbar puts a note in the middle of what the user is looking at', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await centreView(page, { x: 40_000, y: -25_000 }, 1);
     const camera = await readCamera(page);
 
@@ -239,7 +239,7 @@ test.describe('keyboard only', () => {
   }
 
   test('a note can be created, edited, moved and deleted without the mouse', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
 
     // The toolbar button creates a note and the caret is already in it.
     await page.getByRole('button', { name: 'Sticky note' }).click();
@@ -278,7 +278,7 @@ test.describe('keyboard only', () => {
   });
 
   test('Delete removes the focused note', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await doubleClickBoard(page, BOARD_POINT);
     await page.keyboard.press('Escape');
 
@@ -290,7 +290,7 @@ test.describe('keyboard only', () => {
 
 test.describe('workflow 3: long text', () => {
   test('TC-33 text shrinks to fit, then clips with the fade at the limit', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await doubleClickBoard(page, BOARD_POINT);
 
     // A short note is written at the largest size.
@@ -334,7 +334,7 @@ test.describe('workflow 3: long text', () => {
   test('a 1,200 character paste into an empty note keeps exactly the first 1,000', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await doubleClickBoard(page, BOARD_POINT);
 
     await pasteText(page, PROSE_PASTE);
@@ -349,7 +349,7 @@ test.describe('workflow 3: long text', () => {
   });
 
   test('a medium note is written between the two ends of the size range', async ({ page }) => {
-    await page.goto('/');
+    await openFreshBoard(page);
     await doubleClickBoard(page, BOARD_POINT);
 
     await pasteText(page, RETRO_NOTE);

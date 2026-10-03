@@ -17,9 +17,8 @@
  */
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
-import { newBoardId } from '../../../src/shared/board-id';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
-import { setCamera } from './board';
+import { createBoard, setCamera } from './board';
 
 export const NOTE_SELECTOR = '[data-testid="sticky-note"]';
 export const EDITOR_SELECTOR = '[data-testid="sticky-note-editor"]';
@@ -166,10 +165,17 @@ export function describeBoard(notes: readonly BoardNote[]): string {
     .join('\n');
 }
 
-/** Open `count` isolated people on one brand new board and wait for them to sync. */
+/**
+ * Open `count` isolated people on one brand new board and wait for them to sync.
+ *
+ * The board is created before anybody is pointed at it. Since the sharing story that is
+ * not a convenience but a requirement: an address nobody created is not a board, and its
+ * room refuses the socket, so a test that invented an id would find its participants
+ * looking at "Board not found".
+ */
 export async function openBoard(browser: Browser, count: number): Promise<BoardSession> {
   resetLatencySamples();
-  const boardId = newBoardId();
+  const boardId = await createBoardIn(browser);
   const participants: Participant[] = [];
   for (let index = 0; index < count; index += 1) {
     const name = PARTICIPANT_NAMES[index] ?? `Person${String(index + 1)}`;
@@ -189,6 +195,22 @@ export async function openBoard(browser: Browser, count: number): Promise<BoardS
   };
 }
 
+/** A board, made by the API in a context that is closed again straight away. */
+async function createBoardIn(browser: Browser): Promise<string> {
+  const context = await browser.newContext();
+  try {
+    return await createBoard(context.request);
+  } finally {
+    await context.close();
+  }
+}
+
+/**
+ * Point one more person at a board that already exists.
+ *
+ * `boardId` must name a board: the page will open, but the room will refuse the socket
+ * and `waitForConnection` will report the failure rather than wait forever.
+ */
 export async function openParticipant(browser: Browser, name: string, boardId: string): Promise<Participant> {
   const context = await browser.newContext();
   const page = await context.newPage();

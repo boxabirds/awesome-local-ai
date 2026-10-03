@@ -9,10 +9,10 @@
  * Two things are deliberately not in React state and not in the document:
  * selection/editing (local only, see `useSelection`) and the camera (story 1).
  */
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, type JSX } from 'react';
 import type * as Y from 'yjs';
 
-import { isValidBoardId, newBoardId } from '../shared/board-id';
+import { isValidBoardId } from '../shared/board-id';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -31,6 +31,10 @@ import {
 } from './canvas/camera';
 import { useWindowSize } from './canvas/useCamera';
 import { StickyNote } from './objects/StickyNote';
+import { useRoute } from './router';
+import { BoardPage } from './pages/BoardPage';
+import { HomePage } from './pages/HomePage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 /**
  * Whether the focused thing takes the key for itself: a field you type into,
@@ -74,6 +78,24 @@ export function boardIdFromPath(pathname: string): string | null {
   if (!match) return null;
   const candidate = match[1];
   return candidate !== undefined && isValidBoardId(candidate) ? candidate : null;
+}
+
+/**
+ * What this address shows: the home page, a board, or the page for an address that is
+ * not one.
+ *
+ * Three pages and no router library (`src/client/router.ts`). The board is `App` below —
+ * the component stories 1 to 4 built and tested — reached through `BoardPage`, which asks
+ * the Worker whether the address is a board before it mounts and adds the Share button
+ * that makes the address worth sending to somebody. Until story 5 this file opened a
+ * board at whatever address it was given, which is the thing the sharing story undoes:
+ * an address used to *make* a board, and now only the home page's button does.
+ */
+export function AppRoot(): JSX.Element {
+  const route = useRoute();
+  if (route.name === 'home') return <HomePage />;
+  if (route.name === 'board') return <BoardPage id={route.id} />;
+  return <NotFoundPage />;
 }
 
 function BoardLayout({ doc, boardId }: AppProps) {
@@ -190,7 +212,4 @@ export function App({ doc, boardId }: AppProps = {}) {
   );
 }
 
-/** The address of a board nobody has opened yet; story 5 gives it a Share button. */
-export function newBoardPath(): string {
-  return `/b/${newBoardId()}`;
-}
+

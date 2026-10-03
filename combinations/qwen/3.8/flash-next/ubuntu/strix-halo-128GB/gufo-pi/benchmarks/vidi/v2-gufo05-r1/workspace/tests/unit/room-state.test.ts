@@ -111,14 +111,19 @@ describe('nextRoomState (TC-27)', () => {
 
   it('never leaves load-failed for a ready room by accident', () => {
     // The three states a room can be watched in are ready, load-failed and
-    // storage-failed; nothing but a real load moves it into `ready`.
+    // storage-failed, and nothing at all moves a room into `ready` except the load
+    // itself. The one way out of `load-failed` is the edge the diagram draws — a retry
+    // after LOAD_RETRY_MIN_INTERVAL_MS — and it lands in `loading`, not in `ready`.
+    // (Reading this as "no event but `loaded` changes anything" contradicts that edge,
+    // because the `retry-load` event below carries an interval that is open.)
     for (const event of EVENTS) {
-      if (event.type === 'loaded') continue;
-      expect(nextRoomState('load-failed', event), event.type).toBe('load-failed');
+      const expected = EDGES[key('load-failed', event)] ?? 'load-failed';
+      expect(nextRoomState('load-failed', event), event.type).toBe(expected);
+      expect(expected, event.type).not.toBe('ready');
     }
     for (const event of EVENTS) {
-      if (event.type === 'loaded' || event.type === 'woken') continue;
-      expect(nextRoomState('loading', event), event.type).toBe('loading');
+      const expected = EDGES[key('loading', event)] ?? 'loading';
+      expect(nextRoomState('loading', event), event.type).toBe(expected);
     }
   });
 });

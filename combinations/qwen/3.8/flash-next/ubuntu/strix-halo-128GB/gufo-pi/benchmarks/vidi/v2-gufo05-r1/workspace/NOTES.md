@@ -408,3 +408,129 @@ Consequences written into the tests:
 fresh `BoardStore` reported "nothing to compact" about a board with 500 rows. Now an instance
 that has not run `load()` measures with `COUNT(*)`/`SUM(bytes)` once; the loaded instance keeps
 the in-memory numbers, so an append still costs no query.
+
+## Story 5 — sharing a board
+
+### An address that cannot name a board, and one that names none, are one fact
+
+`GET /api/boards/<id>` answers 404 both for an id that cannot be a board id and for one that
+is well formed with no board behind it. Story 3's room route (`/api/rooms/<id>`) answered a
+malformed id with 400; it answers 404 now, for the same reason: from outside, both arrive at
+the same place for a person — the address they typed or pasted has no board behind it — and a
+404 gives a stranger no extra information about which of the two it was.
+
+The client's existence check goes one step further and answers *not found* without making a
+request when the id cannot be a board id. A typo then costs no round trip, and — the part that
+matters — it cannot be mistaken for "the service is not answering", which is the one answer
+the page is allowed to keep retrying.
+
+### The check is a loop the page owns, and the answers it gets carry the board's name
+
+`BoardPageState.checking` carries a `boardId`, and `nextBoardPageState` takes the board id
+as well as the answer, so a `ready` state cannot name a board other than the one that was
+asked about — the state machine is self-contained, and a stale answer about some other
+board cannot open a document the viewer has no business opening. The two-parameter version
+in the design contract is otherwise unchanged.
+
+The waits are `BOARD_CHECK_RETRY_BASE_MS` (1s) doubling per failed check up to
+`RECONNECT_MAX_BACKOFF_MS` (10s) — the same ladder the WebSocket reconnect already uses, so
+"the service is quiet" behaves like one thing in this app rather than two. There is no
+attempt cap and no slide into *Board not found*: only the server's own 404, or an address that
+cannot name a board, ends the wait. A minute of outage leaves the person on "Couldn't reach
+vidi6. Retrying…", which is true, and on the board the moment the service returns (TC-20,
+TC-28).
+
+### Who creates a board, and when
+
+`BoardRoom.initialize()` is the only thing that makes an address a board: it creates the
+room's tables and writes `created_at`, and it answers `created` or `exists`, which is why it
+is idempotent by construction rather than by luck. It is called from exactly one place in the
+product — `POST /api/boards`, over Durable Object RPC — and the 201 that carries the new id
+*is* the proof the board exists. A 500 there is a board that was not made, and the home page
+says so (TC-09).
+
+Because creation is the only entrance, connecting is no longer one: a socket to an address
+that is not a board is refused with 404 by the room itself (`exists()` asks the storage, and
+storage is the record). That is the change story 3's tests had to absorb — every room test now
+initialises its board before opening a socket, which is also what the browser does before it
+has a socket to open. "Is this board there?" therefore has one author and one answer, and a
+page that reloads mid-check or opens the same link in two tabs is asking a question the room
+is always in a position to answer truthfully.
+
+### Legacy boards: a log with updates and no creation row is a board
+
+Story 5 is the first story to ask "does this board exist?" at all, and the answer cannot be
+only "there is a `created_at`" — a board whose updates were saved before that marker existed
+is still somebody's board. `BoardStore.existsReadOnly()` therefore says *yes* if `created_at`
+is set **or** there is saved content: an update row or a snapshot chunk. It reads, and it
+never writes; a page checking an address must not be the thing that changes it.
+
+Making a legacy board in a test needs a hook, because no product path can: `POST
+/__test/boards/<id>/seed-legacy` writes real updates (produced by the same model the app uses,
+base64 in the request body, decoded by `decodeLegacyUpdates`) with no creation marker anywhere.
+It exists only when the runtime is started with `TEST_HOOKS:1`, which is why
+`playwright.config.ts`'s `webServer` now passes `--var TEST_HOOKS:1` — the TC-31 board cannot
+be conjured any other way.
+
+### The Share panel is one control
+
+`SharePanel` renders its own **Share** button and owns its open/close state: the button and
+the panel are two faces of one action, and splitting them across files would only move the
+question "is it open?" somewhere further away. Opening moves focus to the link (already
+selected, so a person can type over it or copy it as-is); closing returns it to the Share
+button — keyboard or mouse, same path. `boardLink()` lives next to it and `boardPath()` in
+`router.ts`, with the route parsing that defines what a board address *is*.
+
+Home navigates with `navigate()` (push), not a replace: pressing **New board** is going
+somewhere, not exchanging one address for another, so Back returns to Home and forward lands
+on the board again (TC-16's navigation, and the same path TC-27 uses from *Board not found*).
+The story 4 test that relied on `/` showing a board still passes because `App` takes the board
+from the address bar unless a `boardId` prop was handed to it.
+
+`<meta name="referrer" content="no-referrer">` went into `index.html`: the address *is* the
+access control, so nothing a person opens from a board page is told where the link came from
+(TC-32). It is `no-referrer` rather than `same-origin` because the board id travels in the
+path, and a same-origin policy would still hand it to anything embedded cross-origin.
+
+### Where the harness, not the product, was wrong
+
+- **Spies on a Durable Object class**: mocking `BoardRoom.prototype.initialize` to reject
+  leaves an unhandled rejection behind — `vitest-pool-workers` hands you a callable-thenable
+  wrapper, and the rejection arrives on a path no test awaits. The injection is done on the
+  namespace instead (`vi.spyOn(env.BOARD_ROOM, 'get')`), which is where the failure a test
+  wants to simulate actually happens: "the room could not be reached".
+- **A log line that arrives after the test file closed**: `EnvironmentTeardownError:
+  Closing rpc while "onUserConsoleLog" was pending`. Every test had passed; the *file* was
+  reported failed, and occasionally the runner wedged instead. Rooms log as they work, so
+  both files that talk to real rooms now pause briefly in `afterAll` to give lines already
+  in flight somewhere to arrive. Eleven consecutive clean runs afterwards, zero before.
+- **A moment of agreement is not convergence** (the capacity test in
+  `tests/integration/board-room.test.ts`, exposed by story 5's changed timings): the capacity test waited until every client's board equalled client 0's
+  and then asserted — with updates still travelling, an assertion taken a beat later saw two
+  boards that had moved apart. `waitForSettledBoards()` requires the boards to agree and then
+  to *keep* agreeing through a quiet period. Genuine divergence still fails it, with the seed
+  printed.
+- `BOARD_ID` (the id pattern with its anchors removed) is exported from
+  `tests/e2e/helpers/board.ts` so a spec can build a URL pattern without producing `$$` and
+  matching nothing.
+
+### Browsers
+
+Chromium only, as in stories 1–4: the Firefox and WebKit binaries are installed but this host
+is missing their system libraries, and there is no root (`sudo` is blocked by a
+no-new-privileges flag), so `playwright.config.ts` skips those projects with a printed reason.
+This costs the run nothing the design asked for: the design's own not-covered list puts real
+Safari and Firefox clipboard behaviour out of scope and has the e2e suite force the fallback
+path deterministically instead (TC-29 stubs `writeText` to reject, TC-24 covers a clipboard
+that is absent altogether).
+
+### What was tested where
+
+TC numbers are design.md's table, not tasks.md's (the two differ for this story; the design
+is authoritative). As implemented: unit `create-board.test.ts` TC-04; integration
+`board-api.test.ts` TC-05 to TC-10, TC-12, TC-14, TC-15, TC-32; ui-component `pages.test.tsx`
+TC-16, TC-17, TC-19 to TC-21 and `SharePanel.test.tsx` TC-22 to TC-25; e2e `share.spec.ts`
+TC-26 to TC-29 and TC-31. **TC-30 does not exist** — the design's table goes TC-29 → TC-31, and
+the many-people claim is story 3's nightly TC-26. TC-17 is written as the two runs the design
+names (a 500 and a network failure) via `describe.each`: both arrive at the page as
+`{kind:'failed'}`, which is the point — the page does not distinguish them and must not.

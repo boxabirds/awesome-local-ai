@@ -7,14 +7,14 @@
  * and the rooms behind it are real Durable Objects.
  */
 import { env, runInDurableObject, SELF } from 'cloudflare:test';
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import type * as Y from 'yjs';
 
 import { isValidBoardId, newBoardId } from '../../src/shared/board-id';
 import { createSticky } from '../../src/shared/board-model';
 import { MAX_CONCURRENT_EDITORS, STICKY_SIZE_WORLD } from '../../src/shared/config';
 
-import { connectRoom, type RoomClient } from './helpers/room-client';
+import { connectRoom, initializeRoom, type RoomClient } from './helpers/room-client';
 
 /** A `BoardRoom`'s innards, for the assertions that need to look inside. */
 interface RoomInspection {
@@ -26,11 +26,11 @@ async function inspect(boardId: string): Promise<RoomInspection> {
   const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
   return runInDurableObject(stub, (room) => {
     const target = room as unknown as {
-      sockets: Set<WebSocket>;
+      ctx: { getWebSockets: () => WebSocket[] };
       ydoc: Y.Doc | null;
     };
     return {
-      sockets: target.sockets.size,
+      sockets: target.ctx.getWebSockets().length,
       notes: [...target.ydoc!.getMap('objects').keys()],
     };
   });
@@ -47,6 +47,7 @@ async function upgrade(boardId: string, upgradeHeader = true): Promise<Response>
 describe('worker entry (TC-04 to TC-06)', () => {
   it('answers an upgrade for a valid board with a WebSocket', async () => {
     const boardId = newBoardId();
+    await initializeRoom(boardId);
     const response = await upgrade(boardId);
     expect(response.status).toBe(101);
     const socket = response.webSocket;
@@ -57,13 +58,15 @@ describe('worker entry (TC-04 to TC-06)', () => {
     }
   });
 
-  it('refuses an invalid board id with 400 and never opens a room (TC-04)', async () => {
+  it('refuses an invalid board id with 404 and never opens a room (TC-04)', async () => {
     const spy = vi.spyOn(env.BOARD_ROOM, 'idFromName');
     // Each of these stays inside `/api/rooms/` once the URL is normalised, so a
-    // 400 here can only come from the id check and not from the route not matching.
+    // 404 here can only come from the id check and not from the route not matching.
+    // (Story 5 made this a 404 rather than story 3's 400: to somebody holding a wrong
+    // link, an address that cannot name a board and one that names none are one fact.)
     for (const bad of ['bad!id', 'short', '', '++++++++++++++++++++++']) {
       const response = await upgrade(bad);
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(404);
       expect(isValidBoardId(bad)).toBe(false);
     }
     expect(spy).not.toHaveBeenCalled();
@@ -71,7 +74,9 @@ describe('worker entry (TC-04 to TC-06)', () => {
   });
 
   it('answers a valid board id without an upgrade header with 426 (TC-05)', async () => {
-    const response = await upgrade(newBoardId(), false);
+    const boardId = newBoardId();
+    await initializeRoom(boardId);
+    const response = await upgrade(boardId, false);
     expect(response.status).toBe(426);
   });
 
@@ -142,6 +147,14 @@ describe('capacity and isolation (TC-13, TC-17)', () => {
       sam.destroy();
     }
   });
+});
+
+afterAll(async () => {
+  // The rooms in this file log as they work, and a log line written just as the last test
+  // returns is still on its way to the test runner when the environment closes. Vitest reads
+  // that as a failure of the file, so a run whose tests all passed goes red — with nothing
+  // in the product wrong. Give the lines already in flight somewhere to arrive.
+  await sleep(250);
 });
 
 function sleep(ms: number): Promise<void> {

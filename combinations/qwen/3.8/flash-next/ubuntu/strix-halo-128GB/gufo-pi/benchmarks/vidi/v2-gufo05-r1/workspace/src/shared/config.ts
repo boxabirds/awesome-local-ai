@@ -137,6 +137,25 @@ export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
 /** A room in `load-failed` retries loading at most this often. */
 export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
 
+/* Sharing (story 5) ----------------------------------------------------------*/
+
+/**
+ * How long creating a board may take, from the click on New board to the empty board
+ * on screen (prd `share.create`). E2E reports the measurement against it rather than
+ * failing on it, as with every other wall-clock budget here.
+ */
+export const CREATE_BUDGET_MS = 2000;
+
+/** How long the Share panel's "Link copied" confirmation stays up. */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * The first wait before re-checking whether a board exists; each failed check doubles
+ * it, up to `RECONNECT_MAX_BACKOFF_MS`, which is the cap the WebSocket connection
+ * already uses for the same kind of "the service is not answering" wait.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
 /** The board size the PRD tests (prd §Large boards open quickly). */
 export const PERSIST_TESTED_NOTES = 2000;
 

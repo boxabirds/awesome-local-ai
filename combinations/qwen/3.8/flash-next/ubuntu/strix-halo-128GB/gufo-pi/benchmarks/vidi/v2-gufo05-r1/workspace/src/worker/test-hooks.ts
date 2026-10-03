@@ -1,5 +1,6 @@
 /**
- * Two endpoints that exist only so a test can break a board on purpose.
+ * Endpoints that exist only so a test can break a board on purpose, or build one a
+ * product endpoint would never build (a board with content and no creation marker).
  *
  * Story 4's promise is about a board that failed to load, and the only honest way to
  * test it is to make one fail. The endpoints are compiled into the Worker but dead
@@ -31,7 +32,7 @@ const BACKUP_TABLE = 'test_snapshot_backup';
  */
 const DAMAGE = "X'ffffffffff7f'";
 
-export type TestHookAction = 'corrupt-snapshot' | 'repair-snapshot';
+export type TestHookAction = 'corrupt-snapshot' | 'repair-snapshot' | 'seed-legacy';
 
 export interface TestHook {
   board: string;
@@ -43,9 +44,10 @@ export function testHooksEnabled(env: { TEST_HOOKS?: string }): boolean {
 }
 
 /**
- * `/__test/boards/<boardId>/corrupt-snapshot` and `…/repair-snapshot`, or `null` for
- * any other path. The board id is read but not checked: the object handling the
- * request *is* the board, so the id can only ever name the one it already is.
+ * `/__test/boards/<boardId>/corrupt-snapshot`, `…/repair-snapshot` or
+ * `…/seed-legacy`, or `null` for any other path. The board id is read but not checked:
+ * the object handling the request *is* the board, so the id can only ever name the one
+ * it already is.
  */
 export function parseTestHook(pathname: string): TestHook | null {
   if (!pathname.startsWith('/__test/boards/')) return null;
@@ -53,8 +55,32 @@ export function parseTestHook(pathname: string): TestHook | null {
   const separator = rest.lastIndexOf('/');
   if (separator <= 0 || separator === rest.length - 1) return null;
   const action = rest.slice(separator + 1);
-  if (action !== 'corrupt-snapshot' && action !== 'repair-snapshot') return null;
+  if (action !== 'corrupt-snapshot' && action !== 'repair-snapshot' && action !== 'seed-legacy') {
+    return null;
+  }
   return { board: decodeURIComponent(rest.slice(0, separator)), action };
+}
+
+/**
+ * Decode the base64 updates a `seed-legacy` request carries.
+ *
+ * The bytes come from `tests/fixtures/boards.ts`, running in the test's own Node
+ * process, so what lands in storage is exactly what the app would have written — which
+ * is the point of a legacy board: content saved at an address, from before that address
+ * had a `created_at` row to point at.
+ */
+export function decodeLegacyUpdates(body: unknown): Uint8Array[] {
+  const updates = (body as { updates?: unknown })?.updates;
+  if (!Array.isArray(updates)) {
+    throw new TypeError('expected { updates: string[] } of base64 update bodies');
+  }
+  return updates.map((update) => {
+    if (typeof update !== 'string') throw new TypeError('each update must be a base64 string');
+    const binary = atob(update);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return bytes;
+  });
 }
 
 export interface SnapshotDamage {

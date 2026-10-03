@@ -94,7 +94,12 @@ export default defineConfig({
   },
   projects,
   webServer: {
-    command: `npx wrangler dev --config wrangler.jsonc --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT}`,
+    // `TEST_HOOKS=1` is what makes the `/__test/boards/...` endpoints exist, and this is
+    // the only place it is turned on: a dev server this suite starts and throws away.
+    // The board it lets a test build that no product path can — content saved at an
+    // address with no creation marker, i.e. a board from before links existed — is what
+    // one of the sharing tests needs.
+    command: `npx wrangler dev --config wrangler.jsonc --ip 127.0.0.1 --port ${PORT} --inspector-port ${INSPECTOR_PORT} --var TEST_HOOKS:1`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

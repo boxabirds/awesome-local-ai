@@ -64,14 +64,33 @@ export function roomStub(boardId: string): DurableObjectStub {
 }
 
 /**
+ * Make an address a board, the way `POST /api/boards` does.
+ *
+ * Story 5 made existence a precondition of connecting: a socket can no longer bring a
+ * board into being. So a test that wants a room asks for a board first, exactly as the
+ * home page does, and the room it then reaches is a board for the same reason.
+ */
+export async function initializeRoom(boardId: string): Promise<'created' | 'exists'> {
+  const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)) as unknown as {
+    initialize(): Promise<'created' | 'exists'>;
+  };
+  return stub.initialize();
+}
+
+/**
  * Open a socket to `boardId`'s room and hand back the frame endpoint.
  *
  * `doc` is optional on purpose: the same document can be connected, disconnected
  * and connected again, which is what a person reloading a page does, and what the
  * restart and catch-up tests need. What a new client counts fresh is the frames,
  * not the board.
+ *
+ * The board is created first (see `initializeRoom`): since story 5 a room refuses a
+ * socket to an address that is not a board, and these tests are about what a room
+ * relays, not about whether its address exists.
  */
 export async function connectRoom(boardId: string, doc?: Y.Doc): Promise<RoomClient> {
+  await initializeRoom(boardId);
   const response = await roomStub(boardId).fetch(
     new Request(`https://board.test/api/rooms/${boardId}`, {
       headers: { Upgrade: 'websocket' },

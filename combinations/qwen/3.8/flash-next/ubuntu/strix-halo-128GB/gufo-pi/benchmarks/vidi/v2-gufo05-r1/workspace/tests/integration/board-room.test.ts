@@ -114,8 +114,12 @@ beforeAll(() => {
   vi.spyOn(console, 'error').mockImplementation(collect(error));
 });
 
-afterAll(() => {
+afterAll(async () => {
   vi.restoreAllMocks();
+  // The same pause as the other files: this one writes more log lines than any test can
+  // finish reading, and a line still in flight when the environment closes is reported as a
+  // failing file even though every test in it passed.
+  await sleep(250);
 });
 
 /** The console lines written while `run` ran, newest last. */
@@ -338,6 +342,38 @@ describe('concurrent edits converge (TC-09, TC-10, TC-11)', () => {
   });
 });
 
+/**
+ * Wait until the clients of a board hold the same board, and go on holding it.
+ *
+ * Agreement at one instant is not convergence. An update can still be on its way, so two
+ * boards can match and then move apart again when the next one lands, and a comparison taken
+ * at that moment reports a divergence that was never there. The boards therefore have to
+ * agree and then keep agreeing through a quiet period — which is what "the board settled"
+ * means, and is the same thing a person watching a board stop flickering is waiting for.
+ */
+async function waitForSettledBoards(
+  editors: readonly RoomClient[],
+  quietMs = 500,
+  timeoutMs = 20_000,
+): Promise<void> {
+  const boardsOf = () => editors.map((editor) => editor.board().join('\n'));
+  const summary = (boards: readonly string[]) =>
+    boards.map((board, index) => `client ${String(index)}: ${board.split('\n').length} notes`).join('; ');
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const boards = boardsOf();
+    if (boards.every((board) => board === boards[0])) {
+      const settled = boards[0];
+      await sleep(quietMs);
+      if (boardsOf().every((board) => board === settled)) return;
+    }
+    if (Date.now() > deadline) {
+      throw new Error(`boards did not settle: ${summary(boardsOf())}`);
+    }
+    await sleep(50);
+  }
+}
+
 describe('capacity and late arrivals (TC-12, TC-14)', () => {
   it('holds the design capacity of editors over a long random session (TC-12)', async () => {
     // A failing run is reproducible from the seed it printed; `SEED=12345 npm run
@@ -364,15 +400,11 @@ describe('capacity and late arrivals (TC-12, TC-14)', () => {
       // Wait for the boards themselves to agree. Note counts agreeing is a weaker
       // condition, and an edit that adds one note and deletes another passes it while
       // the two boards still hold different things.
-      await Promise.all(
-        editors.map(async (editor, index) => {
-          await editor.waitFor(
-            () => editor.board().join('\n') === editors[0]!.board().join('\n'),
-            `client ${String(index)} to hold the same board as client 0`,
-            15_000,
-          );
-        }),
-      );
+      // And the wait has to be for a board that has *settled*, not for a moment of
+      // agreement: an update still on its way can pull two boards apart again after they
+      // matched, and the assertion below would then report a divergence that is only the
+      // test having looked too early.
+      await waitForSettledBoards(editors);
       const reference = editors[0]!.board().join('\n');
       for (const [index, editor] of editors.entries()) {
         expect(editor.board().join('\n'), `client ${String(index)} diverged (seed ${String(seed)})`).toBe(
@@ -727,7 +759,10 @@ describe('hibernation and wake (TC-13, TC-14)', () => {
       expect(awake.state).toBe('ready');
       expect(awake.notes).toHaveLength(2);
       // The change that woke it is stored too, not merely relayed: one more row than
-      // there was before the object went away, for the one note that was written.
+      // there was before the object went away, for the one note that was written. The wait
+      // is for the write, not for the note: `sam` saw a note `alex`'s own document already
+      // had, so the row is the thing still in flight.
+      await waitForLogShape(boardId, (shape) => shape.rows >= rowsBefore + 1, 'the wake-up write to land');
       expect((await logShape(boardId)).rows).toBe(rowsBefore + 1);
     } finally {
       alex.destroyCompletely();
@@ -761,6 +796,10 @@ describe('hibernation and wake (TC-13, TC-14)', () => {
       // And the board is live: this socket can write.
       const third = createSticky(doc, { x: 480, y: 0 });
       await back.waitForNotes(3);
+      // `back` wrote the note, so its own document had it at once: what is still on its way
+      // is the row. Waiting for the log is waiting for the fact this line is about.
+      await waitForLogShape(boardId, (shape) => shape.rows >= 3, 'the reconnected write to land');
+      // Exactly three, not merely three: nothing was written twice on the way back.
       expect((await logShape(boardId)).rows).toBe(3);
       expect(back.notes().map((note) => note.id)).toEqual([first, second, third]);
     } finally {

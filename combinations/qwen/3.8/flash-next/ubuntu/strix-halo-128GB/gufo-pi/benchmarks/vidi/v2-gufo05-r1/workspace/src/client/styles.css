@@ -390,3 +390,185 @@ button:focus-visible {
   border-color: #86c695;
   color: #1c5c2c;
 }
+
+/* Home, board and not-found pages ----------------------------------------- */
+
+/*
+ * A page rather than an overlay: these are the states in which there is no board to put
+ * underneath. `overflow: auto` because the not-found page has to be readable on a phone
+ * held in one hand, and the body itself does not scroll.
+ */
+.page {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--board-bg);
+  overflow: auto;
+}
+
+.page__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 420px;
+  text-align: center;
+}
+
+.page__title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.page__tagline {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+/* The sentence shown while the address is being checked, or while the service is
+   being reached. `role="status"`, so it is the page that speaks rather than a
+   change of layout somebody has to notice. */
+.page__notice {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.page__button {
+  padding: 8px 18px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.page__button--primary {
+  background: var(--focus-ring);
+  border-color: var(--focus-ring);
+  color: #ffffff;
+}
+
+.page__button--primary:hover:not(:disabled) {
+  background: #2559c9;
+}
+
+/* The waiting state has to look unreachable, because it is: a second press does
+   nothing, and a button that still looked pressable would say otherwise. */
+.page__button:disabled {
+  background: #c3cdd9;
+  border-color: #c3cdd9;
+  color: #f2f4f7;
+  cursor: default;
+}
+
+.page__error {
+  margin: 0;
+  color: #a3271f;
+  font-size: 13px;
+}
+
+.page__link {
+  color: var(--focus-ring);
+}
+
+/* Share panel ------------------------------------------------------------- */
+
+/* Top-right, above the board: the one control on a board that is about the board as a
+   thing you can send, rather than about what is on it. */
+.share {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.share__button {
+  padding: 6px 14px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  box-shadow: var(--panel-shadow);
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.share__button:hover {
+  background: #f0f2f5;
+}
+
+.share__panel {
+  width: min(380px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: var(--panel-shadow);
+}
+
+.share__note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.share__row {
+  display: flex;
+  gap: 8px;
+}
+
+/* Read-only, but selectable: the value is the whole point, and the body turns
+   selection off for the board's sake. */
+.share__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 8px;
+  background: #f6f7f9;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.share__copy {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  background: var(--focus-ring);
+  border: 1px solid var(--focus-ring);
+  border-radius: 6px;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.share__copy:hover {
+  background: #2559c9;
+}
+
+.share__hint {
+  margin: 0;
+  color: #7a4c05;
+  font-size: 12px;
+}
