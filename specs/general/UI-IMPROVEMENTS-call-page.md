@@ -4,6 +4,15 @@ Review of one call page (Swift 1.5, v2-fresh-r2, story 1, call 5: 104,291 charac
 3 October 2026, from the owner's report that its output tokens, input tokens and tool calls "are not there", and the
 owner's design for the fix. Checked on the live page by structure and position only (no thinking text read).
 
+## Status (3 October 2026, evening, after the owner's review of the built page)
+
+Three corrections to the build: the items are in the call's own order, Input, Thinking, Tool calls, Output; the chevron is
+the conversation page's twisty size (20 px), not a text glyph; and Output and Input carry the call's content, not an
+explanation of the page. Output: the model's text (or "none: the model only called tools") and the tool calls it issued
+with their arguments; the token split is one small line, the explanation is the figure's hover. Input: what was new to
+the call, the tool results the call before returned (a tool named once, its kind only where it says more), or the
+story's opening message for the first call.
+
 ## Summary
 
 Every figure is on the page, and none of it can be reached. The four figures sit in a row above a thinking box that is

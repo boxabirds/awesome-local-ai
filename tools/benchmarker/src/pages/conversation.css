@@ -107,7 +107,7 @@ tr[data-jumped="true"] td { background: var(--chip); }
 .cc-head { display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 9px 12px; border: 0; background: var(--panel); color: var(--ink); font: inherit; text-align: left; cursor: pointer; border-radius: 8px; }
 .cc-head:disabled { cursor: default; color: var(--muted); }
 .cc-head:not(:disabled):hover, .cc-head:focus-visible { background: var(--bg); }
-.cc-chevron { width: 1em; color: var(--muted); }
+.cc-chevron { width: 26px; font-size: 20px; line-height: 1; color: var(--muted); align-self: center; }   /* the conversation page's twisty size */
 .cc-label { font-weight: 650; min-width: 6.5em; }
 .cc-figure { font-variant-numeric: tabular-nums; color: var(--ink); }
 .cc[data-open="true"] > .cc-head { position: sticky; top: var(--pinned-h); z-index: 2; border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; box-shadow: 0 1px 0 var(--line); }
