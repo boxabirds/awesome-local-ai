@@ -12,7 +12,7 @@ import { duration } from "../../format.ts";
 import { RunLink, StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
 import { Missing, Term, termName, termTip } from "./Term.tsx";
-import { InterventionMark } from "../RunMarks.tsx";
+import { InterventionMark, interventionHref } from "../RunMarks.tsx";
 import { interventionsOf, PENDING, scoreOfRecord as recordView } from "../../../shared/runView.ts";
 
 const PERCENT = 100;
@@ -77,7 +77,7 @@ function RunHead({ run }: { run: Row }) {
       <th scope="row" className="m-run">
         <RunLink pack={run.pack} stack={run.stack} runId={run.runId} />
         <span className={`m-status s-${run.status}`} data-tip={`${termName("runStatus")}: ${run.status}${run.statusNote ? ` (${run.statusNote})` : ""}`}>{STATUS_ICON[run.status] ?? "?"} {run.status}</span>
-        <InterventionMark list={interventionsOf(run)} compact />
+        <InterventionMark list={interventionsOf(run)} compact to={interventionHref(run)} />
       </th>
       <td className="m-score">
         {score ? <b className="of-record" data-tip={termTip("scoreOfRecord")}>{score.passed}<span className="small">/{score.total}</span></b>
