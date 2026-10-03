@@ -119,3 +119,53 @@ export function timeline(events: ConversationEvent[], range: { fromMs: number; t
 
 /** A cut text, shown: the whole, or head … tail. */
 export const cutText = (c: CutText | undefined | null): string => (c?.text !== undefined ? c.text : c ? `${c.head ?? ""} … ${c.tail ?? ""}` : "");
+
+// ---------- searching the conversation's text ----------
+
+const cutToText = (c: unknown): string => {
+  if (!c || typeof c !== "object") return "";
+  const v = c as CutText;
+  return v.text !== undefined ? v.text : `${v.head ?? ""}\n…\n${v.tail ?? ""}`;
+};
+
+/** The text an event carries, as the page shows it: a call's thinking and text, a tool's argument and result, a message. */
+export function eventText(e: ConversationEvent): string {
+  switch (e.kind) {
+    case "call": return [cutToText(e.thinking), cutToText(e.textBody)].filter(Boolean).join("\n");
+    case "tool_start": return String(e.arg ?? "");
+    case "tool_end": return cutToText(e.result);
+    case "msg": return cutToText(e.textBody);
+    default: return "";
+  }
+}
+
+/** Whether the event's text holds the query (case-insensitive); an empty query matches everything. */
+export function matchesQuery(e: ConversationEvent, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  return q === "" || eventText(e).toLowerCase().includes(q);
+}
+
+/** The text split into runs, the ones that are the query marked, for highlighting. */
+export function splitHighlights(text: string, query: string): { text: string; hit: boolean }[] {
+  const q = query.trim();
+  if (!q) return [{ text, hit: false }];
+  const lower = text.toLowerCase();
+  const needle = q.toLowerCase();
+  const out: { text: string; hit: boolean }[] = [];
+  let i = 0;
+  for (;;) {
+    const j = lower.indexOf(needle, i);
+    if (j < 0) break;
+    if (j > i) out.push({ text: text.slice(i, j), hit: false });
+    out.push({ text: text.slice(j, j + needle.length), hit: true });
+    i = j + needle.length;
+  }
+  if (i < text.length) out.push({ text: text.slice(i), hit: false });
+  return out.length ? out : [{ text, hit: false }];
+}
+
+/** A cell shows this many lines before it is folded behind a + button. */
+export const CLAMP_LINES = 5;
+/** A text this long is folded whatever its line count (a cell is about this wide in characters, times the lines). */
+export const CLAMP_CHARS = 400;
+export const needsClamp = (text: string) => text.split("\n").length > CLAMP_LINES || text.length > CLAMP_CHARS;

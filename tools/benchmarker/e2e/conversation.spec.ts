@@ -49,7 +49,7 @@ test.describe("A. the conversation page", () => {
     await expect(tools.nth(1)).toHaveAttribute("data-error", "true");
     await expect(tools.nth(1)).toContainText("9 passed, 1 failed");
     await expect(tools.nth(2)).toHaveAttribute("data-open", "true");
-    await expect(tools.nth(2).locator(".missing")).toHaveCount(2);
+    await expect(tools.nth(2).locator(".missing")).toHaveCount(3);   // seconds, outcome, result
     // Compactions, waits, messages.
     await expect(p.locator('[data-section="compactions"] li')).toContainText("context · 3 s · summary 1,200 chars");
     await expect(p.locator('[data-section="sessions"] li')).toContainText("waited 2 s");
@@ -206,5 +206,69 @@ test.describe("C. the API as the page sees it", () => {
     ]);
     const noDir = s.rows.filter((r: { dir: string | null }) => r.dir === null);
     for (const r of noDir) for (const st of r.stories) expect([st.storyRunId, st.hasConversation]).toEqual([null, false]);
+  });
+});
+
+test.describe("D. layout: pinned heads, compact numbers, search, folded cells", () => {
+  test("the section heading and the column heads stay pinned; numbers take their digits' width, the text the rest", async ({ page }) => {
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    const p = page$(page);
+    await expect(p).toHaveAttribute("data-backfilled", "true");
+    await expect(p.locator('[data-section="calls"] .rp-head')).toHaveCSS("position", "sticky");
+    await expect(p.locator("table.calls thead th").first()).toHaveCSS("position", "sticky");
+    const widths = await p.locator("table.calls tbody tr").first().locator("td").evaluateAll((tds) => tds.map((td) => ({ cls: td.className, w: td.getBoundingClientRect().width })));
+    const said = widths.find((w) => w.cls.includes("said"))!;
+    for (const w of widths.filter((x) => x.cls.includes("n"))) expect(w.w, w.cls).toBeLessThan(160);
+    expect(said.w, JSON.stringify(widths)).toBeGreaterThan(Math.max(...widths.filter((x) => !x.cls.includes("said")).map((x) => x.w)) * 2);
+    // Scrolled deep into the calls, the heading is still in view.
+    await page.locator("table.calls tbody tr").last().scrollIntoViewIfNeeded();
+    await expect(p.locator('[data-section="calls"] .rp-head')).toBeInViewport();
+  });
+
+  test("searching as you type narrows the calls, tools and messages to what holds the text, and marks it", async ({ page }) => {
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    const p = page$(page);
+    await expect(p).toHaveAttribute("data-backfilled", "true");
+    const box = p.getByRole("searchbox", { name: "Search the conversation" });
+    // "harness" is in two calls' thinking and one call's text: all three are shown, each with the hit marked (a call
+    // found through its thinking shows that thinking in Said).
+    await box.fill("harness");
+    await expect(p.locator('[data-fact="matches"]')).toHaveText("3 matching events");
+    await expect(p.locator("table.calls tbody tr")).toHaveCount(3);
+    for (const i of [0, 1, 2]) await expect(p.locator("table.calls tbody tr").nth(i).locator("mark").first()).toHaveText(/harness/i);
+    await expect(p.locator('[data-section="calls"] [data-fact="count"]')).toHaveText("3 of 4");
+    await box.fill("everything is complete");
+    await expect(p.locator("table.calls tbody tr")).toHaveCount(1);
+    // The tool whose result holds "attempt 2" is found through its result; the argument column is searched too.
+    await box.fill("attempt 2");
+    await expect(p.locator("table.tools tbody tr")).toHaveCount(2);
+    await expect(p.locator("table.tools tbody tr mark").first()).toHaveText("attempt 2");
+    await box.fill("npm test");
+    await expect(p.locator("table.tools tbody tr")).toHaveCount(1);
+    await box.fill("Implement story");
+    await expect(p.locator('[data-section="messages"] li mark')).toHaveText("Implement story");
+    await expect(p.locator("table.calls tbody tr")).toHaveCount(0);
+    await box.fill("");
+    await expect(p.locator("table.calls tbody tr")).toHaveCount(4);
+    await expect(p.locator('[data-section="calls"] [data-fact="count"]')).toHaveText("4");
+  });
+
+  test("a cell shows five lines, and + shows the whole of it", async ({ page }) => {
+    await page.goto(conv(SWIFT, "v2-r5", "2"));
+    const p = page$(page);
+    await expect(p).toHaveAttribute("data-backfilled", "true");
+    const cell = p.locator('table.calls tbody tr[data-call="3"] .clamp-cell');
+    await expect(cell.locator(".clamp")).toHaveAttribute("data-folded", "true");
+    const folded = await cell.locator(".clamp").evaluate((e) => e.getBoundingClientRect().height);
+    await cell.getByRole("button", { name: "Show all" }).click();
+    await expect(cell.locator(".clamp")).toHaveAttribute("data-expanded", "true");
+    const whole = await cell.locator(".clamp").evaluate((e) => e.getBoundingClientRect().height);
+    expect(whole).toBeGreaterThan(folded);
+    await expect(cell.locator(".clamp")).toContainText("Committed.");
+    await cell.getByRole("button", { name: "Show less" }).click();
+    await expect(cell.locator(".clamp")).toHaveAttribute("data-folded", "true");
+    // A short cell has no button; a long tool result is folded in the tools table.
+    await expect(p.locator('table.calls tbody tr[data-call="0"] .clamp-more')).toHaveCount(0);
+    await expect(p.locator('table.tools tbody tr[data-tool="0"] .clamp[data-folded="true"]')).toHaveCount(1);
   });
 });
