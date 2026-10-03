@@ -1,0 +1,57 @@
+{
+  "pack_version": "vidi-v2.0-pre2",
+  "suite_commit": "e100d47daa13",
+  "harness_commit": "9617ebb9",
+  "host": "AMD RYZEN AI MAX+ 395 w/ Radeon 8060S 122GB, bd:00.0 Display controller: Advanced Micro Devices, Inc. [AMD/ATI] Strix Halo [Radeon Graphics / Radeon 8050S Graphics / Radeon 8060S Graphics] (rev c1)",
+  "held_out_workers": 11,
+  "host_limits": {
+    "cores": 32,
+    "memory_gb": 122.2,
+    "free_gb": 16.8
+  },
+  "finished_at": "2026-10-03T20:03:43Z",
+  "environment": {
+    "node": "v22.22.1",
+    "npm": "9.2.0",
+    "playwright": "1.58.2",
+    "chromium": "145.0.7632.6 (r1208)",
+    "os": "Ubuntu 26.04.1 LTS",
+    "arch": "x86_64",
+    "workers": 11
+  },
+  "passing_sample": {
+    "fraction": 0.2,
+    "min": 5
+  },
+  "results": [
+    {
+      "story": 12,
+      "passed": 64,
+      "total": 75,
+      "fallbacks": 0,
+      "scores": [
+        64,
+        64,
+        64
+      ],
+      "flaky": 0,
+      "flaky_failing": 0,
+      "flaky_passing": 0,
+      "passing_sampled": 13,
+      "harness_fault": null,
+      "build_exit": 0,
+      "environment": {
+        "node": "v22.22.1",
+        "npm": "9.2.0",
+        "playwright": "1.58.2",
+        "chromium": "145.0.7632.6 (r1208)",
+        "os": "Ubuntu 26.04.1 LTS",
+        "arch": "x86_64",
+        "workers": 11,
+        "install_command": "npm ci --no-audit --no-fund"
+      },
+      "seconds": 202,
+      "commit": "7a1a1eb04c66d0ed8b52eda69832d37c8d065415"
+    }
+  ]
+}
