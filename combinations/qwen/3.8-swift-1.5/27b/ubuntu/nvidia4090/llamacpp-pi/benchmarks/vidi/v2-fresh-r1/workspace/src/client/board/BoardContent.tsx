@@ -17,6 +17,9 @@ import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
+import { UndoButtons } from '../board/UndoButtons';
+import { useUndo } from '../board/useUndo';
+import { createUndo, type UndoController } from '../board/undo';
 import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import {
@@ -40,10 +43,20 @@ export function BoardContent({ boardId }: { boardId: string }) {
   // Editing is disabled when the board failed to load on the server side.
   const canEdit = connectionState !== 'load_failed';
 
+  // Undo controller (story 8): one per board doc, destroyed on board change.
+  const undoRef = useRef<UndoController | null>(null);
+  useEffect(() => {
+    undoRef.current = createUndo(doc);
+    return () => { undoRef.current?.destroy(); undoRef.current = null; };
+  }, [doc]);
+  const undoController = undoRef.current;
+  const undoApi = useUndo(undoController, canEdit);
+  const boundary = useCallback(() => { undoRef.current?.boundary(); }, []);
+
   // Shared transform gesture (move/resize) + marquee + keyboard shortcuts.
-  const gesture = useTransformGesture({ doc, camera, selection, snapshot: objects, canEdit });
+  const gesture = useTransformGesture({ doc, camera, selection, snapshot: objects, canEdit, onGestureStart: boundary, onGestureEnd: boundary });
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit });
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit, onBoundary: boundary, onUndo: undoApi.undo, onRedo: undoApi.redo });
 
   // Test-only `window.__vidi6` hook (test mode only, see testHooks.ts).
   useEffect(() => {
@@ -55,13 +68,15 @@ export function BoardContent({ boardId }: { boardId: string }) {
     (screenPoint: { x: number; y: number }) => {
       if (!canEdit) return;
       const world = screenToWorld(camera, screenPoint);
+      boundary();
       const id = createSticky(doc, world);
+      boundary();
       if (id) {
         // Just created: not in the rendered snapshot yet, so skip validation.
         selection.startEditFresh(id);
       }
     },
-    [camera, doc, selection, canEdit],
+    [camera, doc, selection, canEdit, boundary],
   );
 
   // Create a sticky note at the centre of the viewport (toolbar button)
@@ -69,11 +84,13 @@ export function BoardContent({ boardId }: { boardId: string }) {
     if (!canEdit) return;
     const centre = { x: size.width / 2, y: size.height / 2 };
     const world = screenToWorld(camera, centre);
+    boundary();
     const id = createSticky(doc, world);
+    boundary();
     if (id) {
       selection.startEdit(id);
     }
-  }, [camera, doc, selection, size, canEdit]);
+  }, [camera, doc, selection, size, canEdit, boundary]);
 
   // Clear selection on empty board click
   const handleClickEmpty = useCallback(() => {
@@ -95,16 +112,20 @@ export function BoardContent({ boardId }: { boardId: string }) {
   // Delete the current selection (SelectionBar / Delete key).
   const handleDeleteSelection = useCallback(() => {
     if (!canEdit || selection.ids.size === 0) return;
+    boundary();
     deleteObjects(doc, [...selection.ids]);
+    boundary();
     selection.clear();
-  }, [canEdit, doc, selection]);
+  }, [canEdit, doc, selection, boundary]);
 
   const handleStickyColor = useCallback(
     (id: string, color: StickyColor) => {
       if (!canEdit) return;
+      boundary();
       setStickyColor(doc, id, color);
+      boundary();
     },
-    [canEdit, doc],
+    [canEdit, doc, boundary],
   );
 
   return (
@@ -130,6 +151,9 @@ export function BoardContent({ boardId }: { boardId: string }) {
                 onObjectPointerDown={gesture.onObjectPointerDown}
                 onObjectDoubleClick={handleObjectDoubleClick}
                 onEndEdit={selection.endEdit}
+                onBoundary={boundary}
+                onUndo={undoApi.undo}
+                onRedo={undoApi.redo}
               />
             );
           })}
@@ -148,7 +172,14 @@ export function BoardContent({ boardId }: { boardId: string }) {
           onDelete={handleDeleteSelection}
           onStickyColor={handleStickyColor}
         />
-        <Toolbar onCreateSticky={handleCreateSticky} disabled={!canEdit} />
+        <Toolbar
+          onCreateSticky={handleCreateSticky}
+          disabled={!canEdit}
+          canUndo={undoApi.canUndo}
+          canRedo={undoApi.canRedo}
+          onUndo={undoApi.undo}
+          onRedo={undoApi.redo}
+        />
         <ConnectionStatus state={connectionState} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}

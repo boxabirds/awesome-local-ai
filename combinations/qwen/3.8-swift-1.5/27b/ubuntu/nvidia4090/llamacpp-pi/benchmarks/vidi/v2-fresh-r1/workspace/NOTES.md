@@ -310,3 +310,63 @@ Decisions and environment facts worth remembering for later stories.
   `tests/integration/board-room-persistence.test.ts`: Pre-existing type issues
   with the `DurableObjectStorage` type not being exported from
   `cloudflare:workers`.
+
+---
+
+# Story 8 — Notes
+
+## Design decisions
+
+- **`Y.UndoManager` with `trackedOrigins`**: The per-user undo isolation is
+  achieved by Yjs's built-in `trackedOrigins` option. The local user's origin
+  is `LOCAL_ORIGIN` (a module-level `Symbol`). Remote changes (from peers)
+  have different origins and are never captured in the local undo stack.
+
+- **`boundary()` = `stopCapturing()`**: The Yjs UndoManager's `stopCapturing()`
+  method finalizes the current capture step and resets the internal `lastChange`
+  timer. Calling it before and after a logical operation ensures each operation
+  is a separate undo step regardless of timing.
+
+- **Capture timeout grouping**: Yjs automatically merges transactions that occur
+  within `captureTimeout` ms (default 500ms) into a single undo step. This is
+  what groups rapid keystrokes into one "typing" step. The `boundary()` calls
+  at gesture/editor boundaries ensure that separate logical operations are not
+  merged.
+
+- **Undo/redo shortcuts work regardless of selection**: The Ctrl+Z /
+  Ctrl+Shift+Z handlers in `useBoardKeys` are placed BEFORE the
+  `selection.ids.size === 0` guard, so undo/redo works even when nothing is
+  selected.
+
+- **Board-level shortcuts inert during text editing**: The `useBoardKeys` hook
+  returns early when `selection.editingId !== null` or when the event target is
+  a TEXTAREA/INPUT. The `StickyTextEditor` handles its own Ctrl+Z/Ctrl+Shift+Z
+  (intercepted undo/redo that operates on the same UndoController).
+
+- **`vi.hoisted` + dynamic import for time mocking**: Yjs's `lib0/time` module
+  captures `Date.now` at module load time (`export const getUnixTime = Date.now`).
+  To mock time in unit tests, `Date.now` must be patched BEFORE `lib0/time` is
+  loaded. `vi.hoisted()` runs before all imports, and dynamic `await import()`
+  ensures the module is loaded after the patch.
+
+- **Yjs `popStackItem` skip behaviour**: When `undo()` is called and the most
+  recent stack item cannot be applied (e.g., the object was remotely deleted),
+  Yjs skips it and tries the next item. This means a no-op undo can consume
+  multiple stack items. The TC-07 test verifies no-throw and no-recreation
+  without asserting which specific steps were consumed.
+
+- **Controller lifecycle**: The `UndoController` is created in `BoardContent.tsx`
+  via `useEffect` (one per board doc) and destroyed on cleanup. It's stored in
+  a `useRef` to avoid re-creation on re-renders. The `useUndo` hook subscribes
+  to `onChange` events for reactive `canUndo`/`canRedo` state.
+
+## Test coverage
+
+- **Unit** (`undo-history.test.ts`): TC-01 to TC-11 (per-user isolation,
+  undo/redo mechanics, remote change handling, maxSteps trimming).
+- **Unit** (`undo-boundaries.test.ts`): TC-12, TC-13 (capture timeout
+  grouping with mocked `Date.now`).
+- **Component** (`undo.test.tsx`): TC-14 to TC-21 (gesture boundaries,
+  typing boundaries, shortcuts, buttons, edit lock, editor focus guard).
+- **E2E** (`undo-redo.spec.ts`): TC-22 to TC-24 (multi-browser peer
+  isolation, repeated undo, toolbar buttons).

@@ -26,6 +26,11 @@ interface BoardKeysOptions {
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** Called before and after mutating operations (undo boundary). */
+  onBoundary?: () => void;
+  /** Undo/redo callbacks (story 8). */
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 export function useBoardKeys(opts: BoardKeysOptions): void {
@@ -61,6 +66,26 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       }
 
       if (!canEdit) return;
+
+      // Undo: Ctrl/Cmd+Z (works regardless of selection).
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        optsRef.current.onUndo?.();
+        return;
+      }
+
+      // Redo: Ctrl/Cmd+Shift+Z or Ctrl+Y (works regardless of selection).
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        optsRef.current.onRedo?.();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        optsRef.current.onRedo?.();
+        return;
+      }
+
       if (selection.ids.size === 0) return;
 
       const ids = [...selection.ids];
@@ -87,14 +112,18 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         for (const o of snapshot) {
           if (selection.ids.has(o.id)) positions.set(o.id, { x: o.x + dx, y: o.y + dy });
         }
+        optsRef.current.onBoundary?.();
         moveObjects(doc, positions);
+        optsRef.current.onBoundary?.();
         return;
       }
 
       // Delete / Backspace.
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
+        optsRef.current.onBoundary?.();
         deleteObjects(doc, ids);
+        optsRef.current.onBoundary?.();
         selection.clear();
       }
     };

@@ -19,6 +19,9 @@ export function StickyNote({
   onObjectPointerDown,
   onObjectDoubleClick,
   onEndEdit,
+  onBoundary,
+  onUndo,
+  onRedo,
 }: ObjectProps) {
   const [fontPx, setFontPx] = useState(24);
   const [overflow, setOverflow] = useState(false);
@@ -131,7 +134,7 @@ export function StickyNote({
 
       {/* Text editor (editing mode) */}
       {editing && ytext && (
-        <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} />
+        <StickyTextEditor ytext={ytext} fontPx={fontPx} onEnd={onEndEdit} onBoundary={onBoundary} onUndo={onUndo} onRedo={onRedo} />
       )}
     </div>
   );

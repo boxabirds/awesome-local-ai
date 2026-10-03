@@ -10,21 +10,29 @@ interface StickyTextEditorProps {
   fontPx: number;
   /** End editing. The selection is kept (story 7: Escape → back to selected). */
   onEnd: () => void;
+  /** Undo boundary callback (story 8): called on mount and on end. */
+  onBoundary?: () => void;
+  /** Undo the last typing step (story 8). */
+  onUndo?: () => void;
+  /** Redo the last undone typing step (story 8). */
+  onRedo?: () => void;
 }
 
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
+export function StickyTextEditor({ ytext, fontPx, onEnd, onBoundary, onUndo, onRedo }: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
 
-  // On mount: set value from Y.Text, focus, caret at end
+  // On mount: boundary + set value from Y.Text, focus, caret at end
   useEffect(() => {
+    onBoundary?.();
     const el = ref.current;
     if (!el) return;
     el.value = ytext.toString();
     el.focus();
     const len = el.value.length;
     el.setSelectionRange(len, len);
-  }, [ytext]);
+    return () => { onBoundary?.(); };
+  }, [ytext]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Merge remote Y.Text changes into the textarea. Local input is synced to
   // ytext synchronously in handleInput, so a value mismatch here means a
@@ -91,10 +99,28 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       if (e.key === 'Escape') {
         e.preventDefault();
         onEnd();
+        return;
+      }
+      // Undo: Ctrl/Cmd+Z (intercept so browser native undo doesn't diverge from Y.Text)
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        onUndo?.();
+        return;
+      }
+      // Redo: Ctrl/Cmd+Shift+Z or Ctrl+Y
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        onRedo?.();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        onRedo?.();
+        return;
       }
       // Enter inserts a newline (default textarea behaviour) — no special handling needed
     },
-    [onEnd],
+    [onEnd, onUndo, onRedo],
   );
 
   const handleCompositionStart = useCallback(() => {

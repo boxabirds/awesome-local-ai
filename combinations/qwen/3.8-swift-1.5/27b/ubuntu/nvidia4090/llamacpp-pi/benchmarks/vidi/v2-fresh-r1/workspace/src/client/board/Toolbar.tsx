@@ -1,13 +1,18 @@
-// Left-side vertical toolbar with the Sticky note button.
+// Left-side vertical toolbar with the Sticky note button and Undo/Redo.
 
 import { useCallback, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { UndoButtons } from './UndoButtons';
 
 interface ToolbarProps {
   onCreateSticky: () => void;
   disabled?: boolean;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
-export function Toolbar({ onCreateSticky, disabled }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled, canUndo, canRedo, onUndo, onRedo }: ToolbarProps) {
   const stopPointer = useCallback((e: ReactPointerEvent) => {
     e.stopPropagation();
   }, []);
@@ -60,6 +65,12 @@ export function Toolbar({ onCreateSticky, disabled }: ToolbarProps) {
       >
         📝
       </button>
+      <UndoButtons
+        canUndo={canUndo ?? false}
+        canRedo={canRedo ?? false}
+        undo={onUndo ?? (() => {})}
+        redo={onRedo ?? (() => {})}
+      />
     </div>
   );
 }

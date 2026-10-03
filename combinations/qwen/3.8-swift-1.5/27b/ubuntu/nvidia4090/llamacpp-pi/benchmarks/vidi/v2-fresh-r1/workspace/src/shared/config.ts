@@ -97,3 +97,10 @@ export const MAX_OBJECT_SIZE_WORLD = 20_000;
 export const NUDGE_STEP_WORLD = 1;
 /** Shift+arrow nudge in world units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// --- Story 8: Undo and redo ---
+
+/** Typing pause that ends a burst (500 ms). */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/** Maximum undo/redo steps per user (200). */
+export const UNDO_MAX_STEPS = 200;

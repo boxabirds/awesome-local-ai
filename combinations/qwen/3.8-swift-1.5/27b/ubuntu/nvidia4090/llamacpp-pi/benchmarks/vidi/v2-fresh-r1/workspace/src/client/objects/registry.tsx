@@ -26,6 +26,12 @@ export interface ObjectProps {
   onObjectDoubleClick: (id: string) => void;
   /** End text editing (Escape / click outside). Selection state is kept. */
   onEndEdit: () => void;
+  /** Undo boundary callback (story 8). */
+  onBoundary?: () => void;
+  /** Undo callback for text editor (story 8). */
+  onUndo?: () => void;
+  /** Redo callback for text editor (story 8). */
+  onRedo?: () => void;
 }
 
 export interface ObjectTypeSpec {
