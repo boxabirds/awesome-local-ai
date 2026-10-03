@@ -122,6 +122,8 @@ export interface Story {
   /** This story's own held-out tests. */
   ownPassed: number | null;
   ownTotal: number | null;
+  /** Set (true) when the story is in a stretch of three or more stories in a row of its run that pass none (shared/collapse.ts). */
+  collapsed?: boolean;
   /** Every story's own tests against the build after this story, keyed "1", "2", …; null if not recorded. */
   byStory?: Record<string, { passed: number | null; total: number | null }> | null;
   usage?: Usage | null;

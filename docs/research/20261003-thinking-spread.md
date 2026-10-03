@@ -207,11 +207,18 @@ and K and V caches at `q4_0`. Swift and gufo set no thinking budget; mlx-serve s
 and gufo and the first of mlx-serve have no recorded engine settings. (An earlier version of this section said effort
 was applied nowhere; that was a misreading of a nested record.)
 
-**The prize for shorter, as-effective paths is large.** Per story, the runs that reach its best own held-out pass rate:
-40% (Swift), 47% (gufo) and 52% (mlx-serve) of them thought no more than the story's median. Among them, the longest
+**The prize for shorter, as-effective paths is large.** Per story, the runs that reach its best own held-out pass rate,
+leaving out collapsed stretches (three or more stories in a row that pass none; 14 Swift and 4 gufo story runs): 34%
+(Swift), 54% (gufo) and 52% (mlx-serve) of them thought no more than the story's median. Among them, the longest
 thought a median 5.3 times (Swift), 5.6 times (gufo) and 1.6 times (mlx-serve) as much as the shortest. If each had
-thought as little as the shortest, their thinking would fall 52%, 62% and 22%. Caveats: the yardstick is a story's own
+thought as little as the shortest, their thinking would fall 52%, 63% and 22%. Caveats: the yardstick is a story's own
 tests, "best" is the best of four to eight runs, and many stories are at the ceiling.
+
+**Collapsed runs are marked (the owner's rule, 3 October 2026).** A story run passes none when it has own held-out tests
+and none passed; a stretch of three or more such stories in a row, in the run's own order of stories, is a collapse, and
+each story in it carries `collapsed` in the app's data (`shared/collapse.ts`, the one definition). On the records so
+far it marks Swift 1.5 v2-r1 (stories 3 to 5, 7, 8), v2-r4 (2 to 4) and v2-r5 (7 to 12), and gufo v2-r1 (5, 7 to 9). The
+analyses leave a collapsed stretch out of "efficient"; the app does not show the mark yet.
 
 **What this says about the owner's two questions.** (a) The recorded runtime explains little: configurations are the
 same across runs except for engine builds, and the two big outliers are one run on a new engine build and one broken

@@ -4,6 +4,7 @@
 // invalid mark, finalize.json, each story's accounting check and harness faults, each job's reason), and the page's
 // (Row), which carries none of that: invalid runs are left out, a split that failed its check is sent as none, and a
 // job's failure reason stays here. server/faults.ts reads the full shape for GET /api/faults.
+import { collapsedStoryIds } from "../shared/collapse.ts";
 import type { ConversationProfile, Intervention, JobRef, Live, Machine, QueuePlace, Row, RunStatus, RunUsage, StoriesWorking, StorySquare, TimeSplit, Usage, Score, Story } from "../shared/types.ts";
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
@@ -669,7 +670,9 @@ export function buildFullRows(
   return assignMachines(mergeRows(records, indexJobs(byNode), now).map(({ job, ...r }): Omit<FullRow, "machine"> => {
     const suite = suites[r.pack] ?? "";
     const recorded = r.stories.map(publicStory);
-    const stories = job ? mergeStories(recorded, job.progress?.stories) : recorded;
+    const merged = job ? mergeStories(recorded, job.progress?.stories) : recorded;
+    const collapsed = collapsedStoryIds(merged);
+    const stories = merged.map((st) => (collapsed.has(st.id) ? { ...st, collapsed: true } : st));
     const { invalid, sandbox, finalize, rescoreFaults, hasBundle, rescored: _rescored, rescoreLast: _last, stories: _stories, ...plain } = r;
     return {
       ...plain,
