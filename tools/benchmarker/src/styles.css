@@ -199,6 +199,8 @@ table.combos td .amount { display: block; font-size: 11px; white-space: nowrap; 
 .pending { font-size: 12px; color: var(--muted); font-style: italic; cursor: help; }
 .intervened { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--ink); white-space: nowrap;
   border: 1.5px dashed var(--muted); border-radius: 10px; padding: 0 6px; line-height: 16px; vertical-align: 1px; }
+.intervened-link { text-decoration: none; cursor: pointer; }
+.intervened-link:hover, .intervened-link:focus-visible { border-style: solid; background: var(--panel); }
 .intervened.compact { padding: 0 3px; border-radius: 8px; font-size: 10px; line-height: 14px; }
 .intervention-list { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 

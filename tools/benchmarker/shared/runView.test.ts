@@ -1135,3 +1135,25 @@ describe("a story run marked not comparable", () => {
     });
   });
 });
+
+
+describe("where an intervened mark leads", () => {
+  const run = { interventions: [
+    { at: 3, story: "3", text: "a" }, { at: 1, story: "2", text: "b" }, { at: 2, story: null, text: "c" }, { at: 4, story: "2", text: "d" },
+  ] };
+  it("a story's mark leads to that story", async () => {
+    const { interventionStory } = await import("./runView.ts");
+    expect(interventionStory(run, "3")).toBe("3");
+    expect(interventionStory(run, "03")).toBe("03");
+  });
+  it("a story with none leads nowhere", async () => {
+    const { interventionStory } = await import("./runView.ts");
+    expect(interventionStory(run, "5")).toBeNull();
+  });
+  it("the run's mark leads to its first story with an intervention, by story number; one about the run alone leads nowhere", async () => {
+    const { interventionStory } = await import("./runView.ts");
+    expect(interventionStory(run)).toBe("2");
+    expect(interventionStory({ interventions: [{ at: 1, story: null, text: "x" }] })).toBeNull();
+    expect(interventionStory({ interventions: [] })).toBeNull();
+  });
+});

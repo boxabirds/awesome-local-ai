@@ -11,7 +11,7 @@ import { heldOutState, type Divergence } from "../../../shared/combinationView.t
 import { groupRuns } from "../../../shared/runGroups.ts";
 import { RunSectionRows } from "../RunGroupHead.tsx";
 import { interventionsOf, STATUS_ICON } from "../../../shared/runView.ts";
-import { InterventionMark } from "../RunMarks.tsx";
+import { InterventionMark, interventionHref } from "../RunMarks.tsx";
 import { CombinationLink, MachineLink, RunLink, StoryRunLink } from "../EntityLinks.tsx";
 import { StorySplitBar } from "../TimeBars.tsx";
 import { duration } from "../../format.ts";
@@ -94,7 +94,7 @@ function RunCell({ e, storyId, cmp, onCompare }: { e: Entry; storyId: string; cm
       <span className="sp-run-meta">
         <span className={`s-${r.status}`} data-tip={`${termName("runStatus")}: ${r.status}${r.statusNote ? ` (${r.statusNote})` : ""}`}>{STATUS_ICON[r.status]} {r.status}</span>
         {" · "}<MachineLink machine={r.machine} host={r.host} />
-        {interventionsOf(r, storyId).length ? <> <InterventionMark list={interventionsOf(r, storyId)} compact /></> : null}
+        {interventionsOf(r, storyId).length ? <> <InterventionMark list={interventionsOf(r, storyId)} compact to={interventionHref(r, storyId)} /></> : null}
         {e.attempt.kind === "building" ? <> · building</> : null}
         {e.attempt.kind === "unrecorded" ? <> · <span className="small">no record yet</span></> : null}
       </span>

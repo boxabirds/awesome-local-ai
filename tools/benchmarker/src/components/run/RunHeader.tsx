@@ -2,7 +2,7 @@
 // and the ways out to judging and the record.
 import type { Row, State } from "../../../shared/types.ts";
 import { agentTime, interventionsOf, leadScore, PENDING, scoreOfRecord, statusView } from "../../../shared/runView.ts";
-import { InterventionMark } from "../RunMarks.tsx";
+import { InterventionMark, interventionHref } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { CombinationLink, MachineLink } from "../EntityLinks.tsx";
 import { JudgeCell } from "../JudgeCell.tsx";
@@ -86,7 +86,7 @@ export function RunHeader({ run, state }: { run: Row; state: State }) {
         <div><dt><Term id="machine" /></dt><dd data-fact="machine"><MachineLink machine={run.machine} host={run.host} /></dd></div>
         <div><dt><Term id="packVersion" /></dt><dd data-fact="packVersion" className="mono">{run.packVersion || <Missing why="The record doesn't name its pack version (a run with no record yet)." />}</dd></div>
         <div><dt><Term id="suite" /></dt><dd data-fact="suite" className="mono">{run.suite}</dd></div>
-        <div><dt><Term id="runStatus" /></dt><dd data-fact="status"><StatusBadge run={run} /> <InterventionMark list={interventionsOf(run)} /></dd></div>
+        <div><dt><Term id="runStatus" /></dt><dd data-fact="status"><StatusBadge run={run} /> <InterventionMark list={interventionsOf(run)} to={interventionHref(run)} /></dd></div>
       </dl>
       <div className="outcome">
         <AgentTimeStat run={run} />

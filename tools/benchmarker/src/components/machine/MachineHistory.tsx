@@ -5,7 +5,7 @@ import type { Row } from "../../../shared/types.ts";
 import { machineHistory, type VersionGroup } from "../../../shared/overviewView.ts";
 import { scoreOfRecord } from "../../../shared/stats.ts";
 import { interventionsOf, PENDING, scoreOfRecord as recordView, squareTip } from "../../../shared/runView.ts";
-import { InterventionMark } from "../RunMarks.tsx";
+import { InterventionMark, interventionHref } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { qualityClass } from "../../format.ts";
 import { CombinationLink, RunLink } from "../EntityLinks.tsx";
@@ -57,7 +57,7 @@ function Group({ g }: { g: VersionGroup }) {
         <RunSectionRows key={s.group.id} group={s.group} count={s.items.length} colSpan={HISTORY_COLUMNS} headed={sections.length > 1}>
           {s.items.map((r) => (
             <tr key={r.runId} data-run={r.runId} data-status={r.status}>
-              <th scope="row" className="h-run"><RunLink pack={r.pack} stack={r.stack} runId={r.runId} /> <InterventionMark list={interventionsOf(r)} /></th>
+              <th scope="row" className="h-run"><RunLink pack={r.pack} stack={r.stack} runId={r.runId} /> <InterventionMark list={interventionsOf(r)} to={interventionHref(r)} /></th>
               <td><StatusBadge run={r} /></td>
               <td><Stories run={r} /></td>
               <td className="h-score"><Score run={r} /></td>

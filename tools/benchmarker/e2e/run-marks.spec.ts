@@ -142,6 +142,35 @@ test.describe("invalid: not in the app at all", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
+test.describe("intervened: the mark leads to the story's conversation, filtered to its interventions", () => {
+  test("a story's mark, on the run page, the story run page and the story page, goes to that story's conversation", async ({ page }) => {
+    await intervened(page);
+    await page.goto(`/#/vidi/r/${encodeURIComponent(SWIFT)}/v2-r5`);
+    const row = page.locator('[data-page="run"] [data-section="stories"] tr', { has: page.locator(".intervened") });
+    await expect(row).toHaveCount(2);
+    // Story 2 has a conversation: its interventions are told there. Story 1 has none in the warehouse: its story run page.
+    await expect(row.nth(0).locator("a.intervened")).toHaveAttribute("href", /\/s\/1$/);
+    await expect(row.nth(1).locator("a.intervened")).toHaveAttribute("href", /\/s\/2\/conversation\?kind=intervention$/);
+    await row.nth(1).locator("a.intervened").click();
+    await expect(page.locator('[data-page="conversation"]')).toBeVisible();
+    await expect(page).toHaveURL(/\/s\/2\/conversation\?kind=intervention$/);
+  });
+
+  test("the run's mark goes to its first story with an intervention (its conversation when it has one); the machine's history and the matrix's row mark the same", async ({ page }) => {
+    await intervened(page);
+    await page.goto(`/#/vidi/r/${encodeURIComponent(SWIFT)}/v2-r5`);
+    await expect(page.locator('[data-page="run"] [data-fact="status"] a.intervened')).toHaveAttribute("href", /\/s\/1$/);
+    await page.goto("/#/m/node-a");
+    await expect(page.locator('[data-page="machine"] tr[data-run="v2-r5"] a.intervened')).toHaveAttribute("href", /\/s\/1$/);
+  });
+
+  test("a matrix cell's mark is inside the cell's own link: not a second link", async ({ page }) => {
+    await intervened(page);
+    await page.goto(`/#/vidi/c/${encodeURIComponent(SWIFT)}`);
+    await expect(mCell(page, "v2-r5", "1").locator(".intervened")).not.toHaveAttribute("href", /.*/);
+  });
+});
+
 test.describe("intervened: marked, and still counted", () => {
   test("run page: a marker by the status, every intervention on hover (repeats once, with how many times), in the page's words", async ({ page }) => {
     await intervened(page);

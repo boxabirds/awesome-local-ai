@@ -709,6 +709,14 @@ export function interventionsOf(run: Partial<Pick<Row, "interventions">>, story?
   return story === undefined ? all : all.filter((i) => i.story !== null && Number(i.story) === Number(story));
 }
 
+/** The story an intervened mark leads to: the story's own, or for the run's mark its first story (by number) with an
+ * intervention. Null when none is about a story (one about the run alone belongs to no conversation). */
+export function interventionStory(run: Partial<Pick<Row, "interventions">>, story?: string): string | null {
+  if (story !== undefined) return interventionsOf(run, story).length ? story : null;
+  const ids = (run.interventions ?? []).flatMap((i) => (i.story === null ? [] : [i.story]));
+  return ids.length ? ids.reduce((a, b) => (Number(b) < Number(a) ? b : a)) : null;
+}
+
 /** What an intervention did to the run, in the page's own words. interventions.md is free text, and much of it is
  * about the harness, a machine or a decision rather than the run; the page says only what it can name: the kinds
  * below, each a condition the run's numbers are read with. Any other line is an intervention and no more. */
