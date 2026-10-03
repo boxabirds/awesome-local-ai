@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { GLOSSARY } from "../shared/glossary.ts";
 import type { Intervention, State } from "../shared/types.ts";
 
 // What a run's record says about the run itself, on every page that names it. The fixture's v2-r8 (Swift 1.5) is
@@ -142,6 +143,35 @@ test.describe("invalid: not in the app at all", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
+test.describe("collapsed: a stretch of stories in a row that pass none is marked, as a fact", () => {
+  const collapse = (page: Page, ids: string[]) => patchState(page, (s) => { for (const st of rowOf(s, "v2-r5").stories) if (ids.includes(st.id)) st.collapsed = true; });
+
+  test("each story of the stretch carries the mark, with what it means on hover; the others do not", async ({ page }) => {
+    await collapse(page, ["2"]);
+    await page.goto(runUrl("v2-r5"));
+    const rows = page.locator('[data-page="run"] [data-section="stories"] tr.rp-bar-row');
+    await expect(rows.locator(".collapsed-mark")).toHaveCount(1);
+    const m = page.locator('[data-page="run"] [data-section="stories"] tr[data-story="2"] .collapsed-mark');
+    await expect(m).toHaveText("collapsed");
+    await expect(m).toHaveAttribute("data-tip", GLOSSARY.collapsed.what);
+    await expect(page.locator('[data-page="run"] [data-section="stories"] tr[data-story="1"] .collapsed-mark')).toHaveCount(0);
+  });
+
+  test("the story run page says it on the story's line", async ({ page }) => {
+    await collapse(page, ["2"]);
+    await page.goto(storyRunUrl("v2-r5", "2"));
+    await expect(page.locator('[data-page="storyRun"] .collapsed-mark')).toHaveText("collapsed");
+    await page.goto(storyRunUrl("v2-r5", "1"));
+    await expect(page.locator('[data-page="storyRun"] .collapsed-mark')).toHaveCount(0);
+  });
+
+  test("only a fact: no cause, no fault word, no instruction", async ({ page }) => {
+    await collapse(page, ["2"]);
+    await page.goto(runUrl("v2-r5"));
+    await expect(page.locator('.collapsed-mark').first()).toHaveAttribute("data-tip", /^(?!.*(error|fault|bug|retry|re-run|fix|because|caused)).*$/is);
+  });
+});
+
 test.describe("intervened: the mark leads to the story's conversation, filtered to its interventions", () => {
   test("a story's mark, on the run page, the story run page and the story page, goes to that story's conversation", async ({ page }) => {
     await intervened(page);
