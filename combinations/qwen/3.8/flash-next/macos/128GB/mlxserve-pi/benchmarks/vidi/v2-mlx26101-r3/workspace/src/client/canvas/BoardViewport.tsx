@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties, JSX, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import type {
+  CSSProperties,
+  JSX,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+} from 'react';
 import {
+  DRAG_THRESHOLD_PX,
   GRID_DOT_RADIUS_PX,
   GRID_SPACING_WORLD,
   WHEEL_DELTA_MODE_LINE,
@@ -21,6 +28,13 @@ export interface BoardViewportProps {
   input: CameraInputHandlers;
   /** Reports the measured size of the board area. */
   onViewportResize?(size: Size): void;
+  /**
+   * Double-click on empty board space - never on a note or a toolbar - with the point
+   * relative to the top-left of the board area. This is where sticky notes are born.
+   */
+  onEmptyDoubleClick?(point: Point): void;
+  /** A press on empty board space that did not turn into a pan: clears the selection. */
+  onEmptyClick?(): void;
 }
 
 /** Safari's non-standard pinch gesture event (carries a `scale` and pointer position). */
@@ -42,10 +56,17 @@ export function BoardViewport({
   viewport,
   input,
   onViewportResize,
+  onEmptyDoubleClick,
+  onEmptyClick,
 }: BoardViewportProps): JSX.Element {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [panning, setPanning] = useState(false);
   const panningRef = useRef(false);
+  const pointerIdRef = useRef<number | null>(null);
+  // Where the current press went down, and whether it travelled far enough to be a pan.
+  // A press that stayed put is a click on the board, which deselects.
+  const pressOriginRef = useRef<Point | null>(null);
+  const movedRef = useRef(false);
   const inputRef = useRef(input);
   const viewportRef = useRef(viewport);
   const cameraRef = useRef(camera);
@@ -56,6 +77,14 @@ export function BoardViewport({
     inputRef.current = input;
     viewportRef.current = viewport;
     cameraRef.current = camera;
+  });
+
+  // The two callbacks above are optional; refs keep the handlers above stable.
+  const emptyDoubleClickRef = useRef(onEmptyDoubleClick);
+  const emptyClickRef = useRef(onEmptyClick);
+  useEffect(() => {
+    emptyDoubleClickRef.current = onEmptyDoubleClick;
+    emptyClickRef.current = onEmptyClick;
   });
 
   // Measure the board area; the camera's x/y are not changed by a resize.
@@ -160,30 +189,65 @@ export function BoardViewport({
     }
     capturePointer(element, event.pointerId);
     panningRef.current = true;
+    pointerIdRef.current = event.pointerId;
+    pressOriginRef.current = boardPoint(element, event.clientX, event.clientY);
+    movedRef.current = false;
     setPanning(true);
     inputRef.current.beginPan(boardPoint(element, event.clientX, event.clientY));
   };
 
   const movePan = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (!panningRef.current) {
+    if (!panningRef.current || event.pointerId !== pointerIdRef.current) {
       return;
     }
     const element = surfaceRef.current;
     if (element === null) {
       return;
     }
-    inputRef.current.panMove(boardPoint(element, event.clientX, event.clientY));
+    const point = boardPoint(element, event.clientX, event.clientY);
+    const origin = pressOriginRef.current;
+    if (
+      origin !== null &&
+      Math.hypot(point.x - origin.x, point.y - origin.y) >= DRAG_THRESHOLD_PX
+    ) {
+      movedRef.current = true;
+    }
+    inputRef.current.panMove(point);
   };
 
-  const stopPan = (event: ReactPointerEvent<HTMLDivElement>): void => {
+  /**
+   * `up` is the pointer being lifted, `cancel` the drag being interrupted (or the pointer
+   * capture being released after the pointer went up). Only a press on empty board space
+   * that never travelled counts as a click on the board, which clears the selection.
+   */
+  const stopPan = (event: ReactPointerEvent<HTMLDivElement>, reason: 'up' | 'cancel'): void => {
+    // A press on a note is stopped by the note, so no pan was started: without this guard
+    // every click on a note would also deselect it.
+    if (!panningRef.current || event.pointerId !== pointerIdRef.current) {
+      return;
+    }
     const element = surfaceRef.current;
     if (element === null) {
       return;
     }
     releasePointer(element, event.pointerId);
     panningRef.current = false;
+    pointerIdRef.current = null;
+    pressOriginRef.current = null;
     setPanning(false);
     inputRef.current.endPan();
+    if (reason === 'up' && !movedRef.current) {
+      emptyClickRef.current?.();
+    }
+  };
+
+  /** Add an object where the board was double-clicked (notes stop the event themselves). */
+  const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    const element = surfaceRef.current;
+    if (element === null || !isBoardSurface(element, event.target)) {
+      return;
+    }
+    emptyDoubleClickRef.current?.(boardPoint(element, event.clientX, event.clientY));
   };
 
   const spacing = GRID_SPACING_WORLD * camera.zoom;
@@ -206,9 +270,16 @@ export function BoardViewport({
       data-panning={panning ? 'true' : 'false'}
       onPointerDown={startPan}
       onPointerMove={movePan}
-      onPointerUp={stopPan}
-      onPointerCancel={stopPan}
-      onLostPointerCapture={stopPan}
+      onPointerUp={(event) => {
+        stopPan(event, 'up');
+      }}
+      onPointerCancel={(event) => {
+        stopPan(event, 'cancel');
+      }}
+      onLostPointerCapture={(event) => {
+        stopPan(event, 'cancel');
+      }}
+      onDoubleClick={handleDoubleClick}
     >
       <div
         className="board-grid"

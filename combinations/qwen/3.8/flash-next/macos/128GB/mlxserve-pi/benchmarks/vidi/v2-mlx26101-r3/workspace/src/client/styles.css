@@ -180,3 +180,188 @@ a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Toolbar (left) ------------------------------------------------------- */
+
+.toolbar {
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.toolbar button {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.toolbar button:hover {
+  background: #eef1f5;
+}
+
+.toolbar__label {
+  font-size: 13px;
+}
+
+/* Sticky notes --------------------------------------------------------- */
+
+.sticky-note {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+  color: #333a45;
+  cursor: grab;
+  touch-action: none;
+}
+
+.sticky-note[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.sticky-note[data-selected='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The face of the note: the text box inside the padding, clipped to the note. */
+.sticky-note__clip {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  /* Keep in sync with STICKY_PADDING_WORLD. */
+  padding: 12px;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.sticky-note__text {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.sticky-note__editor {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font-family: inherit;
+  line-height: 1.3;
+  text-align: center;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  cursor: text;
+  /* Text editing is the one place inside the board where selecting is allowed. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* A note whose text is too long for it shows the cut, not the overflow. */
+.sticky-note__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 32px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.85));
+  pointer-events: none;
+}
+
+.sticky-note__counter {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  font-size: 11px;
+  line-height: 1.2;
+  color: rgba(31, 41, 55, 0.55);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* Toolbar above a selected note ---------------------------------------- */
+
+/* A zero-size anchor at the top-middle of the note, so the toolbar inside it can be
+   centred on that point and scaled about it. */
+.sticky-note__toolbar-anchor {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 0;
+  height: 0;
+}
+
+.note-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  /* Counter-scale: the note's size follows the camera, this toolbar's does not. */
+  transform-origin: 50% 100%;
+  transform: translateX(-50%) scale(var(--inv-zoom, 1));
+}
+
+.note-toolbar__swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.note-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.note-toolbar__delete {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.note-toolbar__delete:hover {
+  color: #b42318;
+  background: #eef1f5;
+}
