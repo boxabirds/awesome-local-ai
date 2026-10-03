@@ -1,0 +1,24 @@
+# The Rust tools built on the host, as one workspace: one target directory, one lock file, one build of each
+# dependency they share (docs/20261003-rust-build-times.md). Not members, on purpose: agent-sandbox, because the
+# harness release copies tools/agent-sandbox alone to a bench node and builds it there with --locked, and a workspace
+# member without its root has no lock file; power-collector, because its `tapo` enables reqwest's aws-lc-rs TLS
+# backend, and a workspace build would then compile dbench's TLS a second time with it (and aws-lc's cmake build).
+[workspace]
+resolver = "2"
+members = ["dbench", "vidi-gallery"]
+exclude = ["agent-sandbox", "power-collector"]
+
+# Profiles live here, not in the members (cargo ignores a member's). `release` is for every build on this machine:
+# no link-time optimisation and incremental codegen, so a one-line change rebuilds in seconds instead of re-optimising
+# the whole program. `dist` is for a binary that goes to a bench node: fully optimised, stripped.
+[profile.release]
+lto = "off"
+codegen-units = 16
+incremental = true
+
+[profile.dist]
+inherits = "release"
+lto = "thin"
+codegen-units = 1
+incremental = false
+strip = true
