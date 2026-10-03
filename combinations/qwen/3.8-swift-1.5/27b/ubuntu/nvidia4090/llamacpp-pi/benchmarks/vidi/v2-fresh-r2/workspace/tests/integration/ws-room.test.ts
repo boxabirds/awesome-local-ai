@@ -11,6 +11,7 @@ import {
   deleteObject,
   getStickyText,
   snapshot,
+  initDoc,
 } from '../../src/shared/board-model';
 import { CLOSE_UNSUPPORTED_DATA } from '../../src/shared/protocol';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
@@ -164,9 +165,15 @@ describe('BoardRoom live relay (integration)', () => {
     for (let i = 0; i < clients.length; i++) {
       await applyRandomOps(clients[i].doc, 200, seed + i);
     }
-    const first = snapStr(clients[0].doc);
-    await poll(() => clients.every((c) => snapStr(c.doc) === first), 30_000);
-    expect(clients.every((c) => snapStr(c.doc) === first)).toBe(true);
+    // Poll until all clients converge to the same state. The reference state
+    // is re-read each iteration because clients may still be receiving
+    // broadcasts when the ops loop completes (persistence adds latency).
+    await poll(() => {
+      const first = snapStr(clients[0].doc);
+      return clients.every((c) => snapStr(c.doc) === first);
+    }, 30_000);
+    const finalSnap = snapStr(clients[0].doc);
+    expect(clients.every((c) => snapStr(c.doc) === finalSnap)).toBe(true);
     closeAll(...clients);
   }, 120_000);
 
@@ -295,6 +302,112 @@ describe('BoardRoom live relay (integration)', () => {
     await b.waitForSync();
     expect(snapStr(b.doc)).toBe(content);
     closeAll(a2, b);
+  }, 30_000);
+
+  it('TC-14b: state persists after all clients leave; new client sees converged state', async () => {
+    const boardId = newBoardId();
+    const [a, b] = await twoClients(boardId);
+    for (let i = 0; i < 10; i++) createSticky(a.doc, { x: i, y: 0 });
+    for (let i = 0; i < 10; i++) createSticky(b.doc, { x: i, y: 100 });
+    await poll(() => snapStr(a.doc) === snapStr(b.doc) && snapshot(a.doc).length === 20);
+    const converged = snapStr(a.doc);
+
+    // All clients leave.
+    closeAll(a, b);
+    await new Promise((r) => setTimeout(r, 100));
+
+    // A new client connects and sees the full converged state.
+    const c = new RoomClient(boardId);
+    await c.connect();
+    await c.waitForSync();
+    expect(snapStr(c.doc)).toBe(converged);
+    expect(snapshot(c.doc)).toHaveLength(20);
+    c.close();
+  }, 30_000);
+
+  it('TC-15b: 2000-note board persists; new client loads full state and ops persist', async () => {
+    const { generateLargeBoard } = await import('../fixtures/boards');
+    const doc = new Y.Doc();
+    initDoc(doc);
+    generateLargeBoard(doc);
+    const noteCount = snapshot(doc).length;
+    expect(noteCount).toBe(2000);
+
+    const boardId = newBoardId();
+    const a = new RoomClient(boardId);
+    Y.applyUpdate(a.doc, Y.encodeStateAsUpdate(doc));
+    await a.connect();
+    await a.waitForSync();
+    expect(snapshot(a.doc)).toHaveLength(2000);
+
+    // All clients leave.
+    a.close();
+    await new Promise((r) => setTimeout(r, 100));
+
+    // A new client connects and sees all 2000 notes.
+    const b = new RoomClient(boardId);
+    await b.connect();
+    await b.waitForSync();
+    expect(snapshot(b.doc)).toHaveLength(2000);
+
+    // A new op persists.
+    const id = createSticky(b.doc, { x: 999, y: 999 });
+    b.close();
+    await new Promise((r) => setTimeout(r, 100));
+
+    const c = new RoomClient(boardId);
+    await c.connect();
+    await c.waitForSync();
+    expect(snapshot(c.doc)).toHaveLength(2001);
+    expect(snapshot(c.doc).some((n) => n.id === id)).toBe(true);
+    c.close();
+  }, 60_000);
+
+  it('TC-18b: awareness is relayed but NOT persisted across reload', async () => {
+    const boardId = newBoardId();
+    const [a, b] = await twoClients(boardId);
+    const payload = new Uint8Array([1, 2, 3, 4, 5]);
+    a.sendAwareness(payload);
+    await poll(() => b.awarenessCount >= 1);
+    expect(bytesEqual(b.lastAwareness(), payload)).toBe(true);
+
+    // All clients leave.
+    closeAll(a, b);
+    await new Promise((r) => setTimeout(r, 100));
+
+    // A new client connects: awareness should NOT come back.
+    const c = new RoomClient(boardId);
+    await c.connect();
+    await c.waitForSync();
+    await new Promise((r) => setTimeout(r, 200));
+    expect(c.awarenessCount).toBe(0);
+    c.close();
+  }, 30_000);
+
+  it('TC-26: restart persistence — updates from before "restart" are present', async () => {
+    const boardId = newBoardId();
+    const a = new RoomClient(boardId);
+    await a.connect();
+    await a.waitForSync();
+    const ids: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      ids.push(createSticky(a.doc, { x: i, y: i }));
+    }
+    await poll(() => snapshot(a.doc).length === 5);
+    const beforeClose = snapStr(a.doc);
+    a.close();
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Simulate "restart": a new client connects to the same board.
+    const b = new RoomClient(boardId);
+    await b.connect();
+    await b.waitForSync();
+    expect(snapStr(b.doc)).toBe(beforeClose);
+    expect(snapshot(b.doc)).toHaveLength(5);
+    for (const id of ids) {
+      expect(snapshot(b.doc).some((n) => n.id === id)).toBe(true);
+    }
+    b.close();
   }, 30_000);
 
   it('TC-31: an abruptly closed socket does not break the room; later sockets receive', async () => {

@@ -14,17 +14,20 @@ const TEXT = {
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
   confirmed: 'Connected',
+  'load-failed': 'This board failed to load',
 } as const;
 
 const BACKGROUND = {
   connecting: '#5f6368',
   reconnecting: '#f9ab00', // amber
   confirmed: '#1e8e3e', // green
+  'load-failed': '#d93025', // red
 } as const;
 
 export function ConnectionStatus(props: { state: ConnectionState }): JSX.Element | null {
   const { state } = props;
   if (state === 'connected') return null;
+  const isLoadFailed = state === 'load-failed';
   return (
     <div
       role="status"

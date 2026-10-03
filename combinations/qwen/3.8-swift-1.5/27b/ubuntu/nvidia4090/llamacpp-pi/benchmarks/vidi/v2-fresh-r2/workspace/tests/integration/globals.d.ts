@@ -14,9 +14,23 @@ declare module 'cloudflare:test' {
   export const env: {
     BOARD_ROOM: {
       idFromName(name: string): string;
-      get(id: string): { fetch(req: Request): Promise<Response> };
+      get(id: string): DurableObjectStub;
     };
   };
+  export function runInDurableObject<T>(
+    stub: DurableObjectStub,
+    callback: (instance: any) => T | Promise<T>,
+  ): Promise<T>;
+  export function evictDurableObject(
+    stub: DurableObjectStub,
+    options?: { deleteState?: boolean },
+  ): Promise<void>;
+}
+
+interface DurableObjectStub {
+  id: string;
+  name: string;
+  fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
 }
 
 interface Response {

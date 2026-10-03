@@ -1,19 +1,13 @@
 /**
- * BoardRoom Durable Object: one in-memory Y.Doc per board, relaying Yjs sync
- * and awareness messages between the board's WebSockets.
+ * BoardRoom Durable Object: persistent, hibernating board room.
  *
- * - Non-hibernating WebSockets on purpose: the doc exists only in memory in
- *   this story (persistence arrives in story 4, which switches to the
- *   hibernation API).
- * - On accept the room sends its own SyncStep1 so a client reconnecting after
- *   a restart repopulates the room with a SyncStep2.
- * - Document updates are broadcast to every other socket (no echo to the
- *   sender). A send that throws drops that socket.
- * - Awareness bytes are relayed verbatim to ALL sockets including the sender,
- *   which keeps idle y-websocket clients alive (their idle timeout closes a
- *   silent connection).
- * - String frames, undecodable bytes, unknown types and invalid Yjs updates
- *   close only the offending socket with CLOSE_UNSUPPORTED_DATA.
+ * - Loads the Y.Doc from SQLite storage on construct (inside blockConcurrencyWhile).
+ * - Uses the hibernation WebSocket API (ctx.acceptWebSocket, ctx.getWebSockets).
+ * - Stores every update before broadcasting (write-before-broadcast).
+ * - LoadFailed rooms close new connections with CLOSE_BOARD_LOAD_FAILED (4500).
+ * - Storage failures close all sockets with CLOSE_STORAGE_FAILURE (1011) and discard the doc.
+ * - Invalid updates close only the offending socket with CLOSE_UNSUPPORTED_DATA (1003).
+ * - Compacts the update log when thresholds are reached.
  */
 
 import { DurableObject } from 'cloudflare:workers';
@@ -26,69 +20,146 @@ import {
   MESSAGE_SYNC,
   MESSAGE_AWARENESS,
   CLOSE_UNSUPPORTED_DATA,
+  CLOSE_BOARD_LOAD_FAILED,
+  CLOSE_STORAGE_FAILURE,
 } from '../shared/protocol';
+import { BoardStore, LOAD_ORIGIN } from './board-store';
+import { initDoc } from '../shared/board-model';
+import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config';
 
 export class BoardRoom extends DurableObject {
   private doc: Y.Doc | null = null;
-  private sockets = new Set<WebSocket>();
+  private store: BoardStore;
+  private state: 'loading' | 'ready' | 'load-failed' | 'storage-failed' = 'loading';
+  private lastLoadFailedAt = 0;
+
+  constructor(ctx: DurableObjectState, env: unknown) {
+    super(ctx, env);
+    this.store = new BoardStore(ctx.storage);
+
+    ctx.blockConcurrencyWhile(async () => {
+      this.loadDoc();
+    });
+  }
+
+  /**
+   * Load the document from storage. Sets state to 'ready' or 'load-failed'.
+   */
+  private loadDoc(): void {
+    try {
+      this.store.migrate();
+      const doc = new Y.Doc();
+      initDoc(doc);
+      const result = this.store.load(doc);
+      if (result.ok) {
+        doc.on('update', (update: Uint8Array, origin: unknown) => {
+          this.broadcastUpdate(update, origin);
+        });
+        this.doc = doc;
+        this.state = 'ready';
+      } else {
+        this.doc = null;
+        this.state = 'load-failed';
+        this.lastLoadFailedAt = Date.now();
+        console.error(
+          JSON.stringify({
+            event: 'load-failed',
+            reason: result.reason,
+            error: result.error,
+          }),
+        );
+      }
+    } catch (e) {
+      this.doc = null;
+      this.state = 'load-failed';
+      this.lastLoadFailedAt = Date.now();
+      console.error(
+        JSON.stringify({
+          event: 'load-failed',
+          reason: 'sql-error',
+          error: String(e),
+        }),
+      );
+    }
+  }
 
   fetch(req: Request): Promise<Response> {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
-    server.accept();
-    const ws = server;
 
-    this.sockets.add(ws);
-    const doc = this.ensureDoc();
+    // If the room is in load-failed state, check if we should retry
+    if (this.state === 'load-failed') {
+      const elapsed = Date.now() - this.lastLoadFailedAt;
+      if (elapsed >= LOAD_RETRY_MIN_INTERVAL_MS) {
+        // Retry loading
+        this.loadDoc();
+        if (this.state === 'load-failed') {
+          // Still failing: accept then close
+          this.ctx.acceptWebSocket(server);
+          server.close(CLOSE_BOARD_LOAD_FAILED, 'board load failed');
+          return Promise.resolve(new Response(null, { status: 101, webSocket: client }));
+        }
+      } else {
+        // Too soon to retry: accept then close
+        this.ctx.acceptWebSocket(server);
+        server.close(CLOSE_BOARD_LOAD_FAILED, 'board load failed');
+        return Promise.resolve(new Response(null, { status: 101, webSocket: client }));
+      }
+    }
 
-    // Announce the room's state so the newcomer (and a room that just
-    // restarted) can converge: the client answers with what it has.
+    // If the room is in storage-failed state, try to reload
+    if (this.state === 'storage-failed') {
+      this.state = 'loading';
+      this.loadDoc();
+      if (this.state !== 'ready') {
+        this.ctx.acceptWebSocket(server);
+        server.close(CLOSE_BOARD_LOAD_FAILED, 'board load failed');
+        return Promise.resolve(new Response(null, { status: 101, webSocket: client }));
+      }
+    }
+
+    // Accept the WebSocket (hibernation API)
+    this.ctx.acceptWebSocket(server);
+
+    const doc = this.doc;
+    if (!doc) {
+      server.close(CLOSE_BOARD_LOAD_FAILED, 'no doc');
+      return Promise.resolve(new Response(null, { status: 101, webSocket: client }));
+    }
+
+    // Send SyncStep1 to the newcomer
     const encoder = encoding.createEncoder();
     encoding.writeVarUint(encoder, MESSAGE_SYNC);
     syncProtocol.writeSyncStep1(encoder, doc);
-    ws.send(encoding.toUint8Array(encoder));
-
-    ws.binaryType = 'arraybuffer';
-    ws.onmessage = (event) => this.onMessage(ws, event.data as ArrayBuffer);
-    ws.onclose = () => {
-      this.sockets.delete(ws);
-      // Complete the close handshake: workerd does not echo a close frame for
-      // us, so a client that initiates the close would otherwise sit in
-      // CLOSING forever (its `close` event never fires). Responding lets the
-      // client's socket reach CLOSED and fire `close` (which y-websocket uses
-      // to detect the disconnect and queue updates).
-      try {
-        ws.close();
-      } catch {
-        // Already closed.
-      }
-    };
-    ws.onerror = () => this.sockets.delete(ws);
+    server.send(encoding.toUint8Array(encoder));
 
     return Promise.resolve(new Response(null, { status: 101, webSocket: client }));
   }
 
-  /** Lazily create the in-memory doc (and its broadcast hook) on first accept. */
-  private ensureDoc(): Y.Doc {
-    if (this.doc === null) {
-      this.doc = new Y.Doc();
-      this.doc.on('update', (update: Uint8Array, origin: unknown) => {
-        this.broadcastUpdate(update, origin);
-      });
+  webSocketMessage(ws: WebSocket, msg: ArrayBuffer | string): void {
+    // Check state first
+    if (this.state === 'load-failed') {
+      ws.close(CLOSE_BOARD_LOAD_FAILED, 'board load failed');
+      return;
     }
-    return this.doc;
-  }
+    if (this.state === 'storage-failed') {
+      ws.close(CLOSE_STORAGE_FAILURE, 'storage failure');
+      return;
+    }
 
-  private onMessage(ws: WebSocket, data: ArrayBuffer): void {
-    const doc = this.ensureDoc();
-    const decoded = decodeMessage(data);
+    const doc = this.doc;
+    if (!doc) {
+      ws.close(CLOSE_BOARD_LOAD_FAILED, 'no doc');
+      return;
+    }
+
+    const decoded = decodeMessage(msg);
 
     if (decoded.kind === 'invalid') {
       ws.close(CLOSE_UNSUPPORTED_DATA, 'unsupported data');
       return;
     }
     if (decoded.kind === 'query-awareness') {
-      // No stored awareness in this story: ignore.
       return;
     }
     if (decoded.kind === 'awareness') {
@@ -96,13 +167,11 @@ export class BoardRoom extends DurableObject {
       return;
     }
 
-    // Sync message: apply to the room doc, reply with what the sender lacks.
+    // Sync message
     const decoder = decoding.createDecoder(decoded.payload);
     const reply = encoding.createEncoder();
     encoding.writeVarUint(reply, MESSAGE_SYNC);
     try {
-      // Newer y-protocols swallow Yjs update errors by default; rethrow so an
-      // invalid update closes the offending socket.
       syncProtocol.readSyncMessage(decoder, reply, doc, ws, (error) => {
         throw error;
       });
@@ -110,29 +179,68 @@ export class BoardRoom extends DurableObject {
       ws.close(CLOSE_UNSUPPORTED_DATA, 'unsupported data');
       return;
     }
-    // The leading type varuint is 1 byte; only send a non-empty reply.
     if (encoding.length(reply) > 1) {
       ws.send(encoding.toUint8Array(reply));
     }
   }
 
-  /** Broadcast a document update to every socket except its origin (no echo). */
+  webSocketClose(ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): void {
+    // The hibernation API handles socket cleanup automatically.
+  }
+
+  webSocketError(ws: WebSocket, _err: unknown): void {
+    // No action needed; the socket will be closed.
+  }
+
+  /**
+   * Broadcast a document update to every socket except its origin.
+   * Called from the doc's 'update' event handler.
+   */
   private broadcastUpdate(update: Uint8Array, origin: unknown): void {
+    // Skip updates from load
+    if (origin === LOAD_ORIGIN) return;
+
+    // Store before broadcast
+    try {
+      this.store.append(update);
+    } catch (e) {
+      // Storage failure: close all sockets, discard doc
+      this.state = 'storage-failed';
+      this.doc = null;
+      console.error(
+        JSON.stringify({
+          event: 'storage-failed',
+          error: String(e),
+        }),
+      );
+      for (const socket of this.ctx.getWebSockets()) {
+        try {
+          socket.close(CLOSE_STORAGE_FAILURE, 'storage failure');
+        } catch {
+          // Already closed
+        }
+      }
+      return;
+    }
+
+    // Broadcast to all sockets except origin
     const encoder = encoding.createEncoder();
     encoding.writeVarUint(encoder, MESSAGE_SYNC);
     syncProtocol.writeUpdate(encoder, update);
     const frame = encoding.toUint8Array(encoder);
-    for (const socket of this.sockets) {
+    for (const socket of this.ctx.getWebSockets()) {
       if (socket === origin) continue;
-      if (socket.readyState !== WebSocket.OPEN) {
-        this.sockets.delete(socket);
-        continue;
-      }
+      if (socket.readyState !== WebSocket.OPEN) continue;
       try {
         socket.send(frame);
       } catch {
-        this.sockets.delete(socket);
+        // Socket is broken
       }
+    }
+
+    // Compact if needed
+    if (this.doc) {
+      this.store.compactIfNeeded(this.doc);
     }
   }
 
@@ -142,15 +250,12 @@ export class BoardRoom extends DurableObject {
     encoding.writeVarUint(encoder, MESSAGE_AWARENESS);
     encoding.writeVarUint8Array(encoder, payload);
     const frame = encoding.toUint8Array(encoder);
-    for (const socket of this.sockets) {
-      if (socket.readyState !== WebSocket.OPEN) {
-        this.sockets.delete(socket);
-        continue;
-      }
+    for (const socket of this.ctx.getWebSockets()) {
+      if (socket.readyState !== WebSocket.OPEN) continue;
       try {
         socket.send(frame);
       } catch {
-        this.sockets.delete(socket);
+        // Socket is broken
       }
     }
   }

@@ -20,11 +20,28 @@ declare global {
        */
       disconnect?: () => void;
       connectionDebug?: () => { wsReadyState: number | null; wsconnected?: boolean; wsconnecting?: boolean };
+      /**
+       * Seed the board with N sticky notes (test only). Returns the number of
+       * notes now on the board.
+       */
+      seedNotes?: (count: number) => number;
+      /** Get the current note count on the board. */
+      noteCount?: () => number;
+      /** Force the load-failed state (test only). */
+      forceLoadFailed?: () => void;
+      /** Force recovery from load-failed state (test only). */
+      forceRecovered?: () => void;
+      /** Directly set the connection state (test only). */
+      setConnState?: (s: string) => void;
     };
   }
 }
 
-export function registerTestHooks(setCamera: (cam: Camera) => void): void {
+export function registerTestHooks(
+  setCamera: (cam: Camera) => void,
+  seedNotes?: (count: number) => number,
+  noteCount?: () => number,
+): void {
   if (import.meta.env.MODE !== 'test') return;
   const existing = window.__vidi6;
   window.__vidi6 = {
@@ -37,6 +54,8 @@ export function registerTestHooks(setCamera: (cam: Camera) => void): void {
       hook.connectionState = state;
       hook.connectionStateLog.push(state);
     },
+    seedNotes,
+    noteCount,
   };
 }
 
@@ -55,5 +74,24 @@ export function setDisconnectHook(
   if (hook) {
     hook.disconnect = fn;
     hook.connectionDebug = debug;
+  }
+}
+
+/** Wire the board's seedNotes and noteCount into the test hook (test builds). */
+export function setBoardHooks(
+  seedNotes: ((count: number) => number) | undefined,
+  noteCount: (() => number) | undefined,
+  forceLoadFailed?: () => void,
+  forceRecovered?: () => void,
+  setConnState?: (s: string) => void,
+): void {
+  if (import.meta.env.MODE !== 'test') return;
+  const hook = window.__vidi6;
+  if (hook) {
+    hook.seedNotes = seedNotes;
+    hook.noteCount = noteCount;
+    hook.forceLoadFailed = forceLoadFailed;
+    hook.forceRecovered = forceRecovered;
+    hook.setConnState = setConnState;
   }
 }

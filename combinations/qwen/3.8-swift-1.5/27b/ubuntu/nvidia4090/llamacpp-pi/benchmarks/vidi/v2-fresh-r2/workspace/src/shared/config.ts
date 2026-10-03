@@ -71,3 +71,21 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS;
 /** Default colour for new sticky notes. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/**
+ * Story 4: persistence settings.
+ */
+/** Compact when this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** Or when log bytes reach this. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/** Keeps every snapshot chunk row well under the platform per-row size limit. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** LoadFailed room retries load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** PRD persist.large_board: tested board size. */
+export const PERSIST_TESTED_NOTES = 2000;
+/** PRD persist.large_board: open-time target. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Storage schema version. */
+export const STORAGE_SCHEMA_VERSION = 1;

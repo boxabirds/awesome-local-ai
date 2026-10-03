@@ -54,6 +54,7 @@ export function App(): JSX.Element {
   const boardId = useRef<string>(resolveBoardId()).current;
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const isLoadFailed = connectionState === 'load-failed';
 
   // Publish the mapped connection state to the test hook (test builds only).
   useEffect(() => {
@@ -68,28 +69,31 @@ export function App(): JSX.Element {
     }
   }, [notes, selectedId, select]);
 
-  // Create a sticky note at a screen point
+  // Create a sticky note at a screen point (disabled when load failed)
   const handleCreateAtScreenPoint = useCallback(
     (screenPoint: { x: number; y: number }) => {
+      if (isLoadFailed) return;
       const worldPoint = screenToWorld(controls.camera, screenPoint);
       const id = createSticky(doc, worldPoint);
       startEdit(id);
     },
-    [doc, controls.camera, startEdit],
+    [doc, controls.camera, startEdit, isLoadFailed],
   );
 
   // Create from toolbar button (centre of viewport)
   const handleCreateSticky = useCallback(() => {
+    if (isLoadFailed) return;
     const centre = { x: size.width / 2, y: size.height / 2 };
     handleCreateAtScreenPoint(centre);
-  }, [size, handleCreateAtScreenPoint]);
+  }, [size, handleCreateAtScreenPoint, isLoadFailed]);
 
   // Double-click on empty board space
   const handleDblClickEmpty = useCallback(
     (point: { x: number; y: number }) => {
+      if (isLoadFailed) return;
       handleCreateAtScreenPoint(point);
     },
-    [handleCreateAtScreenPoint],
+    [handleCreateAtScreenPoint, isLoadFailed],
   );
 
   // Click on empty board space → clear selection
@@ -106,6 +110,7 @@ export function App(): JSX.Element {
         return;
       }
 
+      if (isLoadFailed) return;
       if (e.key === 'Enter' && selectedId && !editingId) {
         e.preventDefault();
         startEdit(selectedId);
@@ -117,7 +122,7 @@ export function App(): JSX.Element {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedId, editingId, doc, select, startEdit]);
+  }, [selectedId, editingId, doc, select, startEdit, isLoadFailed]);
 
   return (
     <div ref={shellRef} style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>

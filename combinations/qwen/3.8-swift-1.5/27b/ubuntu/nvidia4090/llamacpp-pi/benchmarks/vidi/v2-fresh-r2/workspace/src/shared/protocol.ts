@@ -16,6 +16,10 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code for unsupported/malformed data. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/** Close code: the board's stored state could not be loaded. */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/** Close code: the room's storage write failed; the room resets. */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 /**
  * Result of decoding a WebSocket frame.

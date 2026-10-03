@@ -12,7 +12,8 @@ import * as Y from 'yjs';
 import { initDoc, snapshot } from '../../shared/board-model';
 import type { StickySnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
-import { setDisconnectHook } from '../canvas/testHooks';
+import { setDisconnectHook, setBoardHooks } from '../canvas/testHooks';
+import { createSticky, snapshot as boardSnapshot } from '../../shared/board-model';
 
 export interface BoardDoc {
   doc: Y.Doc;
@@ -30,14 +31,35 @@ export function useBoardDoc(boardId: string): BoardDoc {
   const doc = docRef.current;
 
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  const connectionRef = useRef<ReturnType<typeof connectBoard> | null>(null);
   useEffect(() => {
     const connection = connectBoard(doc, boardId, setConnectionState);
+    connectionRef.current = connection;
     setDisconnectHook(() => connection.disconnect(), () => connection.debug());
     return () => {
       setDisconnectHook(undefined);
       connection.destroy();
+      connectionRef.current = null;
     };
   }, [doc, boardId]);
+
+  useEffect(() => {
+    setBoardHooks(
+      (count: number) => {
+        for (let i = 0; i < count; i++) {
+          createSticky(doc, { x: (i % 20) * 220, y: Math.floor(i / 20) * 230 });
+        }
+        return boardSnapshot(doc).length;
+      },
+      () => boardSnapshot(doc).length,
+      () => connectionRef.current?.forceLoadFailed(),
+      () => connectionRef.current?.forceRecovered(),
+      (s: string) => setConnectionState(s as ConnectionState),
+    );
+    return () => {
+      setBoardHooks(undefined, undefined);
+    };
+  }, [doc]);
 
   // Cached snapshot that is updated on changes
   const cacheRef = useRef<{ version: number; notes: readonly StickySnapshot[] }>({
