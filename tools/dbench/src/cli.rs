@@ -170,6 +170,8 @@ pub enum Cmd {
     /// and its full log, server log and conditions from the lake (`--store`, what `dbench collect` pulled),
     /// and writes conversations.db (`--db`). By default only stories whose inputs changed are redone.
     Ingest(IngestArgs),
+    /// Compute the thinking analytics (layers 0 and 1) from the conversation database into analytics.db.
+    Analyse(AnalyseArgs),
     #[command(name = "skip-story")]
     SkipStory {
         node: String,
@@ -261,6 +263,25 @@ pub struct IngestArgs {
     /// Print the schema and exit.
     #[arg(long)]
     pub schema: bool,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct AnalyseArgs {
+    /// The conversation database to read (never written).
+    #[arg(long)]
+    pub db: PathBuf,
+    /// The analytics database to write.
+    #[arg(long)]
+    pub out: PathBuf,
+    /// Build a fresh analytics database beside --out and rename it over the old one.
+    #[arg(long)]
+    pub rebuild: bool,
+    /// Recompute every story run, changed or not, in place.
+    #[arg(long, conflicts_with = "rebuild")]
+    pub all: bool,
+    /// Only this story run (`<run dir>/stories/NN`) or every story of this run dir; repeatable.
+    #[arg(long = "only")]
+    pub only: Vec<String>,
 }
 
 #[derive(Args, Debug, Clone)]

@@ -6,6 +6,7 @@
 //! exists), with arguments built from validated names. It never runs a shell string
 //! it was sent.
 
+pub mod analytics;
 pub mod cli;
 pub mod client;
 pub mod collect;

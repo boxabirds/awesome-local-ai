@@ -365,6 +365,14 @@ pub async fn pass(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bool, now: 
             if summary.ingested > 0 || summary.requests > 0 {
                 eprintln!("dbench collect: ingested {} story runs, {} requests placed ({:.1} s)", summary.ingested, summary.requests, summary.seconds);
             }
+            // The analytics layer is derived from the warehouse; its failure never stops collection.
+            let warehouse = cfg.db.clone();
+            let ingested = summary.ingested;
+            match tokio::task::spawn_blocking(move || crate::analytics::after_ingest(&warehouse, ingested, now as f64)).await {
+                Ok(Some(line)) => eprintln!("dbench collect: {line}"),
+                Ok(None) => {}
+                Err(e) => eprintln!("dbench collect: analytics: {e}"),
+            }
         }
     }
     Ok(summaries)
