@@ -188,3 +188,23 @@ export const LINK_COPIED_MS = 2000;
  * same ceiling the live connection backs off to).
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Undo / redo settings (story 8) -----------------------------------------
+// How much of a person's own work a single board tab can step back through, and
+// how a burst of typing collapses into one undoable step. History lives only in
+// this tab's memory: it is never persisted, shared or seen by anyone else.
+
+/**
+ * Typing pause that ends an undo step. Consecutive edits to a note's text that
+ * arrive less than this apart collapse into one undoable step; a pause of this
+ * length or longer starts a new step (undo.typing). Also the Yjs capture window
+ * a drag's per-frame writes fall inside, so one gesture is one undo step
+ * (undo.steps).
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/**
+ * The most undo steps a person's history keeps. Adding a step beyond this drops
+ * the oldest one (undo.limit). Generous enough that experimentation feels safe.
+ */
+export const UNDO_MAX_STEPS = 200;

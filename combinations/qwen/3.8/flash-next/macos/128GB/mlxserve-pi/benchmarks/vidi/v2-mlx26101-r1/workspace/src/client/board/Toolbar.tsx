@@ -1,4 +1,6 @@
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import { UndoButtons } from './UndoButtons';
+import { useUndo, useUndoController } from './useUndo';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
@@ -14,6 +16,10 @@ export interface ToolbarProps {
  * stories add more tools here. Clicking it creates a note at the centre of the
  * visible board area and starts editing. Pointer events are stopped so a click
  * here never pans the board or clears the selection.
+ *
+ * The undo / redo pair sits below the tools (story 8). They read the board's undo
+ * controller from context and are disabled together with the rest of the rail — a
+ * board that is loading or failed to load has `disabled`, and so nothing to undo.
  */
 export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
   const stop = (e: ReactPointerEvent) => e.stopPropagation();
@@ -21,6 +27,7 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
     if (disabled) return;
     onCreateSticky();
   };
+  const undo = useUndo(useUndoController(), !disabled);
   return (
     <div
       className="toolbar"
@@ -64,6 +71,7 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
       >
         {'\u{1F4DD}'}
       </button>
+      <UndoButtons {...undo} />
     </div>
   );
 }

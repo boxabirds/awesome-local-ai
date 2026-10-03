@@ -15,3 +15,6 @@ playwright/.cache/
 .DS_Store
 .tmp/
 .wrangler-dev.log
+
+# scratch
+.scratch/

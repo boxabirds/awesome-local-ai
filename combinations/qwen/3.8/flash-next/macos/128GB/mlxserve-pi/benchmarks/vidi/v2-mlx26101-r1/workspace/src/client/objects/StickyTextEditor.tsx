@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import type * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
+import { useUndoController } from '../board/useUndo';
 import {
   applyTextDelta,
   caretAfterRemoteEdit,
@@ -37,6 +38,8 @@ function noteAncestor(el: Element | null): Element | null {
 export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
+  // This tab's undo controller (may be absent, e.g. a board that failed to load).
+  const undo = useUndoController();
   /** What this box last wrote to (or read from) the shared text. */
   const baseRef = useRef<string>(ytext.toString());
   // A pending value written to the DOM directly but not yet committed (only used
@@ -99,6 +102,10 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     const end = el.value.length;
     el.setSelectionRange(end, end);
     remeasure();
+    // Opening a note ends any in-progress capture so this note's typing is its own
+    // undo step, never merged with a prior move or another note's edit
+    // (undo.boundaries: boundary at edit start).
+    undo?.boundary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ytext]);
 
@@ -140,6 +147,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       const target = e.target as Element | null;
       if (note && target && note.contains(target)) return; // inside: keep editing
       commit();
+      undo?.boundary(); // the edit we just left is one undo step
       onEnd('unselected');
     };
     document.addEventListener('pointerdown', onPointerDown, true);
@@ -148,10 +156,29 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   }, [onEnd]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Ctrl/Cmd+Z (and Ctrl/Cmd+Shift+Z, Ctrl+Y) undo/redo *this tab's* work while the
+    // caret is in the note, instead of the browser's own textarea history (undo.typing
+    // error path). The inverse arrives with a non-local origin, so the `onRemote`
+    // observer below re-adopts the undone text into the box automatically.
+    const mod = e.metaKey || e.ctrlKey;
+    if (undo && mod && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.shiftKey) undo.redo();
+      else undo.undo();
+      return;
+    }
+    if (undo && e.ctrlKey && !e.metaKey && (e.key === 'y' || e.key === 'Y')) {
+      e.preventDefault();
+      e.stopPropagation();
+      undo.redo();
+      return;
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
       commit();
+      undo?.boundary(); // leaving the edit closes this note's typing step
       onEnd('selected');
     }
     // Enter inserts a newline (default textarea behaviour); Delete/Backspace edit

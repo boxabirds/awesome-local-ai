@@ -17,6 +17,7 @@ import {
 } from '../../shared/board-model';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { SelectionApi } from './useSelection';
+import type { UndoController } from './undo';
 
 export interface BoardKeyOptions {
   doc: Y.Doc;
@@ -25,6 +26,13 @@ export interface BoardKeyOptions {
   canEdit: boolean;
   /** Begin editing the sole selected object (a single object only). */
   onCreate?: () => void;
+  /**
+   * This tab's undo controller (story 8). When present, Ctrl/Cmd+Z undoes and
+   * Ctrl/Cmd+Shift+Z or Ctrl+Y redoes — but only once the guards above have passed
+   * (focus on the board, not editing a note, board editable), so it never fires
+   * while a text field owns the keyboard or on a read-only board (undo.shortcuts).
+   */
+  undo?: UndoController;
 }
 
 /** True when focus is in a field that owns the keyboard. */
@@ -63,7 +71,7 @@ export function useBoardKeys(opts: BoardKeyOptions): void {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit } = live.current;
+      const { doc, selection, snapshot, canEdit, undo } = live.current;
 
       // While an editor has focus it owns the keyboard (text fields keep their own
       // Ctrl+A / arrows / Backspace), so nothing here runs.
@@ -71,6 +79,23 @@ export function useBoardKeys(opts: BoardKeyOptions): void {
       if (!canEdit) return;
 
       const mod = e.metaKey || e.ctrlKey;
+
+      // Undo / redo (story 8). The guards above already returned for a text field
+      // or a note being edited, so here the board surface owns the keyboard. Taking
+      // the chord with preventDefault also suppresses the browser's own field undo
+      // (PRD: "not the browser's own"). Shift turns undo into redo; Ctrl+Y is the
+      // Windows/Linux redo (undo.shortcuts).
+      if (undo && mod && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) undo.redo();
+        else undo.undo();
+        return;
+      }
+      if (undo && e.ctrlKey && !e.metaKey && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        undo.redo();
+        return;
+      }
 
       // Cmd/Ctrl+A selects every object (empty board → empty set, no error).
       if (mod && (e.key === 'a' || e.key === 'A')) {

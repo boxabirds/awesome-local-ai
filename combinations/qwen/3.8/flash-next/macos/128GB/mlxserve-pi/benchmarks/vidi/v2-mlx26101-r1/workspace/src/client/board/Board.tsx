@@ -31,6 +31,7 @@ import { useTransformGesture } from './useTransformGesture';
 import { useMarquee, MarqueeRect } from './Marquee';
 import { useBoardKeys } from './useBoardKeys';
 import { SelectionOverlay } from './SelectionOverlay';
+import { useBoardUndoController, UndoControllerContext } from './useUndo';
 import { SelectionBar } from './SelectionBar';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit } from '../sync/connectBoard';
@@ -90,9 +91,15 @@ export function Board({ boardId }: BoardProps) {
   // Editing is locked only while the board could not be loaded (`load_failed`).
   const editAllowed = canEdit(connectionState);
 
+  // This tab's personal undo/redo history (story 8). A stable facade whose manager
+  // lives for the mount; undo reverses only LOCAL_ORIGIN work (undo.own) and never a
+  // colleague's. Gesture and creation boundaries below make one gesture = one step.
+  const undo = useBoardUndoController(doc);
+
   // The generic transform gesture (group move + resize) and the marquee, both read
   // the live selection / snapshot through refs, so their handler identities are
-  // stable and BoardViewport's effects never re-subscribe mid-gesture.
+  // stable and BoardViewport's effects never re-subscribe mid-gesture. A drag opens
+  // and closes an undo boundary so the whole gesture is exactly one undo step.
   const snapshot = notes as readonly ObjectSnapshot[];
   const gesture = useTransformGesture({
     doc,
@@ -100,6 +107,8 @@ export function Board({ boardId }: BoardProps) {
     selection,
     snapshot,
     canEdit: editAllowed,
+    onGestureStart: undo.boundary,
+    onGestureEnd: undo.boundary,
   });
   const marquee = useMarquee({
     camera,
@@ -107,7 +116,7 @@ export function Board({ boardId }: BoardProps) {
     selection,
     canEdit: editAllowed,
   });
-  useBoardKeys({ doc, selection, snapshot, canEdit: editAllowed });
+  useBoardKeys({ doc, selection, snapshot, canEdit: editAllowed, undo });
 
   // Render objects in a DOM order that never changes (stable by id) and express
   // stacking purely through CSS z-index (obj.z): reordering the DOM on bring-to-
@@ -148,11 +157,12 @@ export function Board({ boardId }: BoardProps) {
   const createAtScreen = useCallback(
     (p: Point) => {
       if (!editAllowed) return;
+      undo.boundary(); // each created note is its own undo step
       const world = screenToWorld(camera, p);
       const id = createSticky(doc, world);
       if (id) startEdit(id);
     },
-    [camera, doc, startEdit, editAllowed],
+    [camera, doc, startEdit, editAllowed, undo],
   );
 
   /** Toolbar button: create a note at the centre of the visible board area. */
@@ -165,25 +175,28 @@ export function Board({ boardId }: BoardProps) {
   const onColor = useCallback(
     (id: string, color: string) => {
       if (!editAllowed) return;
+      undo.boundary(); // a colour change is its own step
       setStickyColor(doc, id, color);
     },
-    [doc, editAllowed],
+    [doc, editAllowed, undo],
   );
 
   const onDeleteObject = useCallback(
     (id: string) => {
       if (!editAllowed) return;
+      undo.boundary();
       deleteObjects(doc, [id]); // selection prunes the gone id automatically
     },
-    [doc, editAllowed],
+    [doc, editAllowed, undo],
   );
 
   // The selection bar / keyboard delete the whole selection at once.
   const onDeleteSelection = useCallback(() => {
     if (!editAllowed) return;
+    undo.boundary();
     deleteObjects(doc, allObjectIds(snapshot).filter((id) => ids.has(id)));
     clear();
-  }, [doc, snapshot, ids, clear, editAllowed]);
+  }, [doc, snapshot, ids, clear, editAllowed, undo]);
 
   // The object's own text editor ending: keep it selected, or deselect entirely.
   const onEndEdit = useCallback(
@@ -195,6 +208,7 @@ export function Board({ boardId }: BoardProps) {
   );
 
   return (
+    <UndoControllerContext.Provider value={undo}>
     <div className="vidi6-app">
       <BoardViewport
         ref={surfaceRef}
@@ -261,5 +275,6 @@ export function Board({ boardId }: BoardProps) {
       />
       <NavigationHint visible={!cam.hasNavigated} />
     </div>
+    </UndoControllerContext.Provider>
   );
 }
