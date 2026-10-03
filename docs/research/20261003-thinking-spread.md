@@ -165,3 +165,54 @@ order of how directly the data points at them:
    credible.
 3. Decide with the owner which experiments from (d) get bench time; layer 3's replay of one high-spread story is the
    cheapest causal test.
+
+## 7. Findings, 3 October evening: runtime bias and the size of the prize
+
+Scripts: `benchmarks/docs/insights/thinking/{runtime_bias,run_traits,efficiency}.py`. Qwen stacks only; the reference
+models are excluded. Complete thinking text only. Small samples throughout (4 to 8 runs per stack).
+
+**The spread is carried by a few runs, not spread evenly.** Verbosity index per run (mean over its stories of log
+thinking minus the story's median run; +0.69 is twice a typical run):
+
+- gufo: `v2-gufo05-r1` is +1.30 (3.7 times a typical run): 1.5 times the calls and 2.4 times the characters per call. Its
+  other runs are between +0.22 and -0.46. It is above the story's median in 9 of 9 stories and **escalates along the
+  run**: +0.22 in story 1, +1.3 by story 3, +2.26 in story 9 (9.6 times). It is the only gufo run on engine build 0.5.0
+  (the other recorded builds are b722a61; settings of the first three gufo runs were not recorded); same sampling
+  settings, thinking mode on, no budget. It is also the only one on harness release 10.02.3, but Swift's runs on that
+  release are ordinary, so the engine build is the leading candidate. One run: not yet an effect.
+- Swift 1.5: `v2-r5` is -0.89 (0.4 times a typical run), below the median in 9 of 10 stories and also escalating (-0.22
+  in story 1, -2.56 in story 9). Its record differs from `v2-r4`'s only in the harness release field. Its own held-out
+  results are 6/6 and 7/10, then **0 of every story but one**: it broke early and stayed broken, so its short thinking
+  is a failed run and not a thrifty one. 21 of Swift's 79 story runs pass no held-out test (4 of 63 in gufo, 0 of 26 in
+  mlx-serve).
+- mlx-serve: every run is within -0.13 to +0.11 on six stories, across two engine versions (26.9.6, 26.10.1). Its
+  recorded thinking budget is 32,768; Swift and gufo record none.
+
+**Runs carry state from story to story.** Stories build on one workspace. In gufo a run's early stories (1 to 4) predict
+its late ones (7 to 12) at a rank correlation of +0.94 over six runs (+0.90 without the outlier); Swift shows none and
+mlx-serve none (4 to 7 runs). The escalation of both outliers fits a drift that compounds. This is path dependence in
+the harness's design (stories share the code), not bias added by it, but it means "run to run" variation is partly
+"first stories to last stories" variation.
+
+**What makes a call think more** (log change within a story run, 95% interval over story runs; Swift, gufo, mlx-serve):
+after a call whose tests had failures, +117%, +201%, +83% (all intervals above zero); after a tool error, -23%, -28%,
+-57%; the first call of a story run is -56% to -84%; the first call after a compaction +10% (not clear), +35%, +31%;
+the last third of the story +10% to +12%; context in its top third against its bottom third +9%, +15%, +24%. Most of the
+extra thinking is the response to failing tests. Compaction and context size are small effects.
+
+**Settings that are not what the config says.** Every stack requests reasoning effort `low`; the recorded gap in
+mlx-serve says neither the engine nor the client applies it, and Swift and gufo record no reasoning effort at all.
+Swift's llama.cpp records thinking mode "unknown" (the chat template's default) and K and V caches at `q4_0`. The first
+three runs of Swift and gufo and the first of mlx-serve have no recorded engine settings.
+
+**The prize for shorter, as-effective paths is large.** Per story, the runs that reach its best own held-out pass rate:
+40% (Swift), 47% (gufo) and 52% (mlx-serve) of them thought no more than the story's median. Among them, the longest
+thought a median 5.3 times (Swift), 5.6 times (gufo) and 1.6 times (mlx-serve) as much as the shortest. If each had
+thought as little as the shortest, their thinking would fall 52%, 62% and 22%. Caveats: the yardstick is a story's own
+tests, "best" is the best of four to eight runs, and many stories are at the ceiling.
+
+**What this says about the owner's two questions.** (a) The recorded runtime explains little: configurations are the
+same across runs except for engine builds, and the two big outliers are one run on a new engine build and one broken
+run. Unrecorded settings and the shared workspace are the exposed flanks. (b) Shorter paths that are as effective
+exist in every stack and every story; what separates them is mostly how much is thought after test failures. The next
+step is to compare the thinking after failures between efficient and inefficient runs.
