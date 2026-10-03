@@ -123,6 +123,9 @@ table.combos th { cursor: pointer; }
 table.combos td.combo .stack-label { font-size: 13px; color: var(--ink); font-weight: 600; }
 .tooltip { position: fixed; z-index: 20; background: var(--ink); color: var(--bg); font-size: 12px; line-height: 1.45; padding: 7px 10px; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.35); pointer-events: none; white-space: pre-line; font-weight: 400; text-transform: none; letter-spacing: 0; }
 [data-tip] { cursor: help; }
+/* The ? is for something that only explains itself. Anything that goes somewhere or does something shows the hand,
+   hover or not, and so does a term or hover inside it. */
+a[href], button, [role="button"], [role="tab"], a[href] [data-tip], a[href] .term, button [data-tip], button .term, [role="button"] [data-tip] { cursor: pointer; }
 
 /* Emphasis: headline numbers are large, bold and coloured by how good they are; the rest steps down. */
 .num-xl { font-size: 20px; font-weight: 750; letter-spacing: -.01em; line-height: 1.1; }

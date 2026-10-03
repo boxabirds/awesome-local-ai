@@ -159,3 +159,28 @@ test.describe("from a time bar", () => {
     await expect(page.locator('.run-time-bars [data-run="v2-r5"] a.seg-link').first()).toHaveAttribute("href", /\/v2-r5\?at=time$/);
   });
 });
+
+// The pointer says what a thing does: a hand over anything that goes somewhere or does something, the ? over
+// something that only explains itself on hover. A link with a hover is still a link.
+test("the cursor: a hand over every link and button, even with a hover; the ? only over a hover that is nothing else", async ({ page }) => {
+  await page.goto(`/#/vidi/r/${enc(SWIFT)}/v2-r5/s/2`);
+  await expect(page$(page, "storyRun")).toBeVisible();
+  const cursor = (sel: string) => page.locator(sel).first().evaluate((e) => getComputedStyle(e).cursor);
+  expect(await cursor('nav.breadcrumb a.combination-link[data-tip]')).toBe("pointer");
+  expect(await cursor('nav.breadcrumb a.run-link[data-tip]')).toBe("pointer");
+  expect(await cursor('[data-section="header"] a.machine-link')).toBe("pointer");
+  expect(await cursor('[role="tab"]')).toBe("pointer");
+  expect(await cursor('.rp-header .stat .term')).toBe("help");
+  await page.goto("/#/vidi/s/2");
+  await expect(page$(page, "story")).toBeVisible();
+  // A link wrapping a term is a link.
+  expect(await cursor(".story-nav-head a")).toBe("pointer");
+  expect(await cursor(".story-nav-head a .term")).toBe("pointer");
+  // No link or button shows the ? on any page kind.
+  for (const href of ["/#/", "/#/machines", `/#/vidi/c/${enc(SWIFT)}`, `/#/vidi/r/${enc(SWIFT)}/v2-r5`, "/#/machines/node-a", `/#/vidi/r/${enc(SWIFT)}/v2-r5/s/2/conversation`]) {
+    await page.goto(href);
+    await expect(page.locator("[data-page], table.combos").first()).toBeVisible();
+    const bad = await page.locator("a[href], button, [role=\"button\"]").evaluateAll((els) => els.filter((e) => getComputedStyle(e).cursor === "help").map((e) => e.outerHTML.slice(0, 120)));
+    expect(bad, href).toEqual([]);
+  }
+});
