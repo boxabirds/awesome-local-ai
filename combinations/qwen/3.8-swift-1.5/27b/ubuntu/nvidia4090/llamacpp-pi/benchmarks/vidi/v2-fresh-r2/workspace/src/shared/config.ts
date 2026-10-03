@@ -91,6 +91,20 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 export const STORAGE_SCHEMA_VERSION = 1;
 
 /**
+ * Story 7: multi-selection, group move/resize, nudge.
+ */
+/** Screen-space size of a bounding-box resize handle (px at any zoom). */
+export const HANDLE_SIZE_PX = 8;
+/** Minimum size in board units for a sticky note (resize lower bound). */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Maximum size in board units for any object type (resize upper bound). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** Arrow-key nudge step in board units. */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift+arrow nudge step in board units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
+/**
  * Story 5: share a board with others using a link.
  */
 /** PRD share.create: click-to-board budget (logged in e2e, not asserted). */

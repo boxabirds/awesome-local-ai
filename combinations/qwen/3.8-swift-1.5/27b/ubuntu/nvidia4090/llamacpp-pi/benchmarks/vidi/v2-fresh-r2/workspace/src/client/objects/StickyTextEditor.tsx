@@ -11,21 +11,26 @@ import {
   counterVisible,
   fitFontSize,
 } from './StickyText';
-import { STICKY_TEXT_MAX_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX, STICKY_SIZE_WORLD } from '../../shared/config';
+import { STICKY_TEXT_MAX_CHARS, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 
 interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
+  /** Text box width in world units (note width minus padding). */
+  boxWidth?: number;
+  /** Text box height in world units (note height minus padding). */
+  boxHeight?: number;
   onEnd(next: 'selected' | 'unselected'): void;
 }
 
 /** Padding inside the note for text (world units). */
 const PADDING = 16;
-/** The box height available for text (note size minus padding). */
-const TEXT_BOX = STICKY_SIZE_WORLD - PADDING * 2;
 
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
+export function StickyTextEditor({ ytext, fontPx, boxWidth, boxHeight, onEnd }: StickyTextEditorProps): JSX.Element {
+  // Story 7: the note may be resized; the text box follows its size.
+  const textBox = boxWidth ?? 168;
+  const textBoxHeight = boxHeight ?? 168;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const [showCounter, setShowCounter] = useState(false);
@@ -42,7 +47,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     setShowCounter(counterVisible(text.length));
 
     // Fit font on mount
-    const { overflow: ovf } = fitFontSize(ta, TEXT_BOX);
+    const { overflow: ovf } = fitFontSize(ta, textBoxHeight);
     setOverflow(ovf);
   }, [ytext]);
 
@@ -79,7 +84,7 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     applyTextDiff(ytext, value, LOCAL_ORIGIN);
 
     // Re-fit font
-    const { overflow: ovf } = fitFontSize(ta, TEXT_BOX);
+    const { overflow: ovf } = fitFontSize(ta, textBoxHeight);
     setOverflow(ovf);
   }, [ytext]);
 

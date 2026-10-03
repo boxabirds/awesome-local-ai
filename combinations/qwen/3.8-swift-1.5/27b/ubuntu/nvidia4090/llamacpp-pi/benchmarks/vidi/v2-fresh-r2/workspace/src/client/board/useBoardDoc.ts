@@ -9,19 +9,23 @@
 
 import { useSyncExternalStore, useEffect, useRef, useState, useCallback } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot } from '../../shared/board-model';
-import type { StickySnapshot } from '../../shared/board-model';
-import { connectBoard, type ConnectionState } from '../sync/connectBoard';
+import { initDoc, objects, snapshot } from '../../shared/board-model';
+import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState, type ConnectBoardDeps } from '../sync/connectBoard';
 import { setDisconnectHook, setBoardHooks } from '../canvas/testHooks';
 import { createSticky, snapshot as boardSnapshot } from '../../shared/board-model';
+import { insertRawObject } from '../../shared/board-model';
 
 export interface BoardDoc {
   doc: Y.Doc;
+  /** Every object on the board (all types), sorted by (z, id). */
+  objects: readonly ObjectSnapshot[];
+  /** Sticky notes only (story 2 compatibility). */
   notes: readonly StickySnapshot[];
   connectionState: ConnectionState;
 }
 
-export function useBoardDoc(boardId: string): BoardDoc {
+export function useBoardDoc(boardId: string, deps: ConnectBoardDeps = {}): BoardDoc {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     const doc = new Y.Doc();
@@ -33,7 +37,7 @@ export function useBoardDoc(boardId: string): BoardDoc {
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const connectionRef = useRef<ReturnType<typeof connectBoard> | null>(null);
   useEffect(() => {
-    const connection = connectBoard(doc, boardId, setConnectionState);
+    const connection = connectBoard(doc, boardId, setConnectionState, deps);
     connectionRef.current = connection;
     setDisconnectHook(() => connection.disconnect(), () => connection.debug());
     return () => {
@@ -55,16 +59,22 @@ export function useBoardDoc(boardId: string): BoardDoc {
       () => connectionRef.current?.forceLoadFailed(),
       () => connectionRef.current?.forceRecovered(),
       (s: string) => setConnectionState(s as ConnectionState),
+      (x: number, y: number) => createSticky(doc, { x, y }),
+      (x: number, y: number, width: number, height: number) =>
+        insertRawObject(doc, 'testbox', { x, y }, { width, height }),
     );
+    if (import.meta.env.MODE === 'test' && window.__vidi6) {
+      window.__vidi6.getDoc = () => doc;
+    }
     return () => {
       setBoardHooks(undefined, undefined);
     };
   }, [doc]);
 
-  // Cached snapshot that is updated on changes
-  const cacheRef = useRef<{ version: number; notes: readonly StickySnapshot[] }>({
+  // Cached snapshot that is updated on changes (all types, story 7).
+  const cacheRef = useRef<{ version: number; objects: readonly ObjectSnapshot[] }>({
     version: 0,
-    notes: snapshot(doc),
+    objects: objects(doc),
   });
 
   const subscribe = useCallback(
@@ -72,7 +82,7 @@ export function useBoardDoc(boardId: string): BoardDoc {
       const handler = () => {
         cacheRef.current = {
           version: cacheRef.current.version + 1,
-          notes: snapshot(doc),
+          objects: objects(doc),
         };
         onStoreChange();
       };
@@ -87,9 +97,12 @@ export function useBoardDoc(boardId: string): BoardDoc {
     [doc],
   );
 
-  const getSnapshot = useCallback(() => cacheRef.current.notes, []);
+  const getSnapshot = useCallback(() => cacheRef.current.objects, []);
 
-  const notes = useSyncExternalStore(subscribe, getSnapshot);
+  const allObjects = useSyncExternalStore(subscribe, getSnapshot);
 
-  return { doc, notes, connectionState };
+  // Sticky-only view for story 2 compatibility.
+  const notes = allObjects.filter((o): o is StickySnapshot => o.type === 'sticky');
+
+  return { doc, objects: allObjects, notes, connectionState };
 }

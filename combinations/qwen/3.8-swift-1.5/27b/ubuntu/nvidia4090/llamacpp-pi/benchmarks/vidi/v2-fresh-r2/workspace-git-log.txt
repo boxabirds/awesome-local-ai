@@ -1,3 +1,63 @@
+commit 04592a3d9cfb5a315a5877506d63f5ca067aac33
+agent  Sat Oct 3 13:24:03 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ PROGRESS.md                             |  36 ++-
+ playwright.config.ts                    |   3 +
+ src/client/board/Marquee.tsx            | 124 ++++++++++
+ src/client/board/SelectionBar.tsx       |  92 +++++++
+ src/client/board/SelectionOverlay.tsx   | 143 +++++++++++
+ src/client/board/useBoardDoc.ts         |  37 ++-
+ src/client/board/useBoardKeys.ts        | 107 +++++++++
+ src/client/board/useSelection.ts        | 154 ++++++++++--
+ src/client/board/useTransformGesture.ts | 290 ++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  75 +++++-
+ src/client/canvas/testHooks.ts          |  16 ++
+ src/client/pages/BoardPage.tsx          | 165 +++++++++----
+ src/shared/board-model.ts               |  38 +++
+ src/shared/geometry.ts                  |  16 ++
+ tests/component/StickyNote.test.tsx     | 166 +++++--------
+ tests/component/harness.tsx             | 104 ++++++++
+ tests/component/multi-select.test.tsx   | 411 ++++++++++++++++++++++++++++++++
+ tests/e2e/multi-select.spec.ts          | 290 ++++++++++++++++++++++
+ tests/fixtures/testbox.tsx              |  22 +-
+ tests/unit/board-model-group.test.ts    | 184 ++++++++++++++
+ tests/unit/geometry.test.ts             | 132 ++++++++++
+ tests/unit/registry.test.ts             |  69 ++++++
+ tests/unit/selection-reducer.test.ts    |  87 +++++++
+ 23 files changed, 2525 insertions(+), 236 deletions(-)
+commit 469e3c94a31c3656ba7522af3ad3fe247ca4a622
+agent  Sat Oct 3 12:26:35 2026 +0100
+
+    story 7: object type registry with sticky spec and testbox fixture
+
+
+ src/client/objects/StickyNote.tsx       | 162 ++++++--------------------------
+ src/client/objects/StickyTextEditor.tsx |  17 ++--
+ src/client/objects/registry.tsx         |  81 ++++++++++++++++
+ tests/fixtures/testbox.tsx              |  84 +++++++++++++++++
+ 4 files changed, 207 insertions(+), 137 deletions(-)
+commit 7efdaacafc1f797c12ce8a979066a181fb3a7192
+agent  Sat Oct 3 12:26:35 2026 +0100
+
+    story 7: pure geometry and generic group operations in board-model
+
+
+ src/shared/board-model.ts  | 283 ++++++++++++++++++++++++++++++++++++++-------
+ src/shared/config.ts       |  14 +++
+ src/shared/geometry.ts     | 168 +++++++++++++++++++++++++++
+ src/shared/object-types.ts |  21 ++++
+ 4 files changed, 441 insertions(+), 45 deletions(-)
+commit bb785a31a150757f8d2983f08321185f7f7de621
+vidi-agent  Sat Oct 3 12:11:53 2026 +0100
+
+    harness: PROGRESS.md for story 7
+
+
+ PROGRESS.md | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
 commit 4cbe84dfbfa16b03f656070b2d610df22d74acc8
 agent  Sat Oct 3 12:08:20 2026 +0100
 

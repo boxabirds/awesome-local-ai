@@ -14,6 +14,9 @@ export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 30_000,
   expect: { timeout: 5_000 },
+  // Cap parallelism: the suite drives one workerd + Durable Objects, and the
+  // default (cores/2 per project) oversubscribes it on big machines.
+  workers: 4,
   use: {
     baseURL: 'http://127.0.0.1:25504',
     viewport: { width: 1280, height: 800 },

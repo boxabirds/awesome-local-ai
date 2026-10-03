@@ -27,6 +27,17 @@ declare global {
       seedNotes?: (count: number) => number;
       /** Get the current note count on the board. */
       noteCount?: () => number;
+      /** Insert a sticky note centred on a world point (test only). Returns the id. */
+      insertSticky?: (x: number, y: number) => string;
+      /** Insert a testbox (registered in test builds) at a top-left (test only). */
+      insertTestBox?: (x: number, y: number, width: number, height: number) => string;
+      /**
+       * Transform-gesture lifecycle log (test only): 'start'/'end' entries,
+       * one pair per completed drag (sel.transform onGestureStart/End).
+       */
+      gestureLog?: string[];
+      /** The board's Y.Doc (test only): simulates remote writes. */
+      getDoc?: () => import('yjs').Doc;
       /** Force the load-failed state (test only). */
       forceLoadFailed?: () => void;
       /** Force recovery from load-failed state (test only). */
@@ -56,6 +67,7 @@ export function registerTestHooks(
     },
     seedNotes,
     noteCount,
+    gestureLog: existing?.gestureLog ?? [],
   };
 }
 
@@ -84,6 +96,8 @@ export function setBoardHooks(
   forceLoadFailed?: () => void,
   forceRecovered?: () => void,
   setConnState?: (s: string) => void,
+  insertSticky?: (x: number, y: number) => string,
+  insertTestBox?: (x: number, y: number, width: number, height: number) => string,
 ): void {
   if (import.meta.env.MODE !== 'test') return;
   const hook = window.__vidi6;
@@ -93,5 +107,7 @@ export function setBoardHooks(
     hook.forceLoadFailed = forceLoadFailed;
     hook.forceRecovered = forceRecovered;
     hook.setConnState = setConnState;
+    hook.insertSticky = insertSticky;
+    hook.insertTestBox = insertTestBox;
   }
 }

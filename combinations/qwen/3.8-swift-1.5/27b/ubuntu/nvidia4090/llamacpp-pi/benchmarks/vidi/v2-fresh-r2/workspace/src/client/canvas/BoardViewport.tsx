@@ -7,6 +7,7 @@ import {
   WHEEL_ZOOM_SENSITIVITY,
 } from '../../shared/config';
 import type { CameraControls } from './useCamera';
+import type { Marquee } from '../board/Marquee';
 
 /** DOM WheelEvent deltaMode values (pixels = 0, lines = 1, pages = 2). */
 const DELTA_MODE_LINE = 1;
@@ -22,6 +23,11 @@ export interface BoardViewportProps {
   onDblClickEmpty?(point: { x: number; y: number }): void;
   /** Called when the user clicks empty board space (without dragging). */
   onClickEmpty?(): void;
+  /**
+   * The marquee (story 7, sel.marquee). Shift+pointerdown on empty space
+   * drives begin/move/end; pointercancel and Escape drive cancel.
+   */
+  marquee?: Marquee;
 }
 
 /** Positive modulo: result in [0, modulus). */
@@ -41,11 +47,23 @@ function mod(value: number, modulus: number): number {
  *   the same zoom path.
  * - Keyboard: Ctrl/Cmd + = / - / 0 step zoom and reset.
  */
-export function BoardViewport({ children, controls, onDblClickEmpty, onClickEmpty }: BoardViewportProps): JSX.Element {
+export function BoardViewport({
+  children,
+  controls,
+  onDblClickEmpty,
+  onClickEmpty,
+  marquee,
+}: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const panningRef = useRef(false);
   const [panning, setPanning] = useState(false);
   const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset } = controls;
+
+  // Marquee (story 7): a Shift-drag on empty space selects by containment.
+  const marqueeRef = useRef(marquee);
+  marqueeRef.current = marquee;
+  // Suppress the click that follows a drag (pan or marquee).
+  const suppressClickRef = useRef(false);
 
   const setPanningState = (value: boolean) => {
     panningRef.current = value;
@@ -62,8 +80,15 @@ export function BoardViewport({ children, controls, onDblClickEmpty, onClickEmpt
     // Drag starts only on empty board space (the viewport/grid itself), so
     // later object stories can stop propagation on their own elements.
     if (e.target !== viewportRef.current) return;
-    setPanningState(true);
     viewportRef.current?.setPointerCapture?.(e.pointerId);
+
+    // Shift-drag on empty space → marquee (story 7), not a pan.
+    if (e.shiftKey && marqueeRef.current) {
+      marqueeRef.current.begin(localPoint(e.clientX, e.clientY));
+      return;
+    }
+
+    setPanningState(true);
     beginPan(localPoint(e.clientX, e.clientY));
   };
 
@@ -75,19 +100,46 @@ export function BoardViewport({ children, controls, onDblClickEmpty, onClickEmpt
 
   const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target !== viewportRef.current) return;
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     onClickEmpty?.();
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!panningRef.current) return;
-    panMove(localPoint(e.clientX, e.clientY));
+    if (panningRef.current) {
+      panMove(localPoint(e.clientX, e.clientY));
+      return;
+    }
+    if (marqueeRef.current?.rect) {
+      marqueeRef.current.move(localPoint(e.clientX, e.clientY));
+    }
   };
 
-  const finishPan = () => {
-    if (!panningRef.current) return;
-    setPanningState(false);
-    endPan();
+  const finishPan = (cancelled: boolean) => {
+    if (panningRef.current) {
+      setPanningState(false);
+      endPan();
+      suppressClickRef.current = true;
+    }
+    if (marqueeRef.current?.rect) {
+      suppressClickRef.current = true;
+      if (cancelled) marqueeRef.current.cancel();
+      else marqueeRef.current.end();
+    }
   };
+
+  // Escape cancels an in-progress marquee (sel.marquee).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && marqueeRef.current?.rect) {
+        marqueeRef.current.cancel();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Wheel: must be non-passive so preventDefault can stop page scroll/zoom.
   useEffect(() => {
@@ -174,6 +226,7 @@ export function BoardViewport({ children, controls, onDblClickEmpty, onClickEmpt
   const gridOffsetX = mod(-camera.x * camera.zoom, spacingPx);
   const gridOffsetY = mod(-camera.y * camera.zoom, spacingPx);
 
+
   return (
     <div
       ref={viewportRef}
@@ -181,9 +234,9 @@ export function BoardViewport({ children, controls, onDblClickEmpty, onClickEmpt
       data-mode={panning ? 'panning' : 'idle'}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={finishPan}
-      onPointerCancel={finishPan}
-      onLostPointerCapture={finishPan}
+      onPointerUp={() => finishPan(false)}
+      onPointerCancel={() => finishPan(true)}
+      onLostPointerCapture={() => finishPan(true)}
       onDoubleClick={onDoubleClick}
       onClick={onClick}
       style={{
