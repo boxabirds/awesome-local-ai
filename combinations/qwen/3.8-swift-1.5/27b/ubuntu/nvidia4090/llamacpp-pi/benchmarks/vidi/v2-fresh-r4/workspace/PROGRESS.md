@@ -1,15 +1,11 @@
-# Story 1: Pan and zoom around an infinite board
+# Story 2 Progress
 
-Your progress on this story's tasks. Keep the Status column up to date as you work.
-
-| # | Task | Status |
-|---|---|---|
-| 1 | Scaffold project and write camera maths unit tests first (TC-01 to TC-12) | done |
-| 2 | Implement camera maths to pass unit tests | done |
-| 3 | Implement board viewport: drag, wheel, pinch and keyboard navigation with dot grid | done |
-| 4 | Implement zoom controls (−, percentage, +, Reset view) | done |
-| 5 | Implement first-use navigation hint | done |
-| 6 | Component tests for viewport input, zoom controls and hint | done |
-| 7 | E2E navigation tests in Chromium, Firefox and WebKit | done |
-
-Statuses: todo, doing, done, blocked (blocked = cannot be done on this machine; say why in NOTES.md).
+## Tasks
+- [x] Task 1: Write board model unit tests first (TC-01 to TC-12, TC-39)
+- [x] Task 2: Implement Yjs board model and useBoardDoc snapshot hook
+- [x] Task 3: Write sticky text logic unit tests first (TC-13 to TC-17)
+- [x] Task 4: Implement sticky text editing
+- [x] Task 5: Implement sticky note interaction
+- [x] Task 6: Implement toolbars
+- [x] Task 7: Component tests
+- [x] Task 8: E2E tests

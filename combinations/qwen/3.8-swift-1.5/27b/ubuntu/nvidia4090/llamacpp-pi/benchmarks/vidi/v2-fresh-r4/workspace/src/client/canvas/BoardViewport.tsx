@@ -22,6 +22,10 @@ const GESTURE_START_SCALE = 1;
 export interface BoardViewportProps extends CameraApi {
   /** Rendered in world coordinates inside the world layer. */
   children?: ReactNode;
+  /** Called when the user double-clicks empty board space. */
+  onDblClickEmpty?(screenX: number, screenY: number): void;
+  /** Called when the user clicks empty board space (no drag). */
+  onClickEmpty?(): void;
 }
 
 /** a mod b with a non-negative result. */
@@ -35,10 +39,11 @@ function positiveMod(value: number, modulus: number): number {
  * transformed world layer.
  */
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
-  const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset, children } = props;
+  const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset, children, onDblClickEmpty, onClickEmpty } = props;
   const viewportRef = useRef<HTMLDivElement>(null);
   const gestureScaleRef = useRef(GESTURE_START_SCALE);
   const [panning, setPanning] = useState(false);
+  const wasPanningRef = useRef(false);
 
   const toViewportPoint = useCallback((clientX: number, clientY: number): Point => {
     const rect = viewportRef.current?.getBoundingClientRect();
@@ -60,6 +65,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       } catch {
         // Pointer capture unsupported (e.g. jsdom): drag still works.
       }
+      wasPanningRef.current = false;
       setPanning(true);
       beginPan(toViewportPoint(e.clientX, e.clientY));
     },
@@ -69,6 +75,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   const onPointerMove = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!panning) return;
+      wasPanningRef.current = true;
       panMove(toViewportPoint(e.clientX, e.clientY));
     },
     [panning, panMove, toViewportPoint],
@@ -87,8 +94,29 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         viewport.releasePointerCapture(e.pointerId);
       }
       endPan();
+      // If we didn't actually pan (no movement), treat as a click on empty space
+      if (!wasPanningRef.current && onClickEmpty) {
+        onClickEmpty();
+      }
+      wasPanningRef.current = false;
     },
-    [panning, endPan],
+    [panning, endPan, onClickEmpty],
+  );
+
+  // --- Double-click on empty space → create note ---
+  const onDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const viewport = viewportRef.current;
+      if (!viewport) return;
+      // Only trigger on empty board areas (viewport, grid, or world container)
+      const target = e.target as HTMLElement;
+      if (target === viewport || target.classList.contains('board-grid') || target.classList.contains('board-world')) {
+        if (onDblClickEmpty) {
+          onDblClickEmpty(e.clientX, e.clientY);
+        }
+      }
+    },
+    [onDblClickEmpty],
   );
 
   // --- Wheel: pan, or zoom when Ctrl/Cmd is held (pan.scroll, zoom.pointer) ---
@@ -186,6 +214,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       onPointerUp={onEndPan}
       onPointerCancel={onEndPan}
       onLostPointerCapture={onEndPan}
+      onDoubleClick={onDoubleClick}
     >
       <div
         className="board-grid"

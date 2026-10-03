@@ -47,6 +47,7 @@ body {
 .board-grid {
   position: absolute;
   inset: 0;
+  pointer-events: none;
 }
 
 .board-world {
@@ -143,4 +144,193 @@ body {
   border-radius: 999px;
   pointer-events: none;
   white-space: nowrap;
+}
+
+/* --- Story 2: Sticky notes --- */
+
+.sticky-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  overflow: hidden;
+}
+
+.sticky-note:active {
+  cursor: grabbing;
+}
+
+.sticky-note--selected {
+  outline: 3px solid var(--vidi6-focus-ring);
+  outline-offset: 1px;
+}
+
+.sticky-note--overflow::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: linear-gradient(to bottom, transparent, rgb(0 0 0 / 15%));
+  pointer-events: none;
+}
+
+.sticky-text-display {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  text-align: center;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sticky-text-editor {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.sticky-textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  resize: none;
+  text-align: center;
+  font-family: inherit;
+  line-height: 1.3;
+  padding: 0;
+  outline: none;
+  overflow: hidden;
+}
+
+.sticky-char-counter {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 10px;
+  color: rgb(0 0 0 / 50%);
+  pointer-events: none;
+}
+
+/* Note toolbar (floating above selected note) */
+.note-toolbar {
+  position: absolute;
+  top: -44px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--vidi6-control-bg);
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+  z-index: 1000;
+  white-space: nowrap;
+}
+
+.note-toolbar-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.note-toolbar-swatch--active {
+  border-color: var(--vidi6-ink);
+}
+
+.note-toolbar-swatch:focus-visible {
+  outline: 2px solid var(--vidi6-focus-ring);
+  outline-offset: 1px;
+}
+
+.note-toolbar-delete {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 4px;
+  background: var(--vidi6-control-bg);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.note-toolbar-delete:hover {
+  background: #ffe0e0;
+}
+
+.note-toolbar-delete:focus-visible {
+  outline: 2px solid var(--vidi6-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Left toolbar */
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--vidi6-control-bg);
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+  z-index: 100;
+}
+
+.board-toolbar-sticky {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid var(--vidi6-control-border);
+  border-radius: 8px;
+  background: var(--vidi6-control-bg);
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--vidi6-ink);
+}
+
+.board-toolbar-sticky:hover {
+  background: #f0f2f5;
+}
+
+.board-toolbar-sticky:focus-visible {
+  outline: 2px solid var(--vidi6-focus-ring);
+  outline-offset: 1px;
+}
+
+.board-toolbar-sticky-icon {
+  font-size: 18px;
+}
+
+.board-toolbar-sticky-label {
+  font-size: 10px;
 }
