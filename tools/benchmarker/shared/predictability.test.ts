@@ -10,7 +10,7 @@ const DIGITS = 6;
 
 /** One story run: agent seconds, and its thinking as the log gives it. `profile: false` is a record with no
  * conversation profile; `withheld` is a cloud model's (thinking counted in tokens, no characters). */
-interface StoryOpts { secs?: number | null; chars?: number | null; tokens?: number | null; withheld?: boolean; profile?: false }
+interface StoryOpts { secs?: number | null; chars?: number | null; tokens?: number | null; withheld?: boolean; profile?: false; collapsed?: boolean }
 interface RunOpts { status?: RunStatus; dir?: string | null; family?: string; knownGood?: boolean }
 
 let seq = 0;
@@ -20,6 +20,7 @@ const run = (stories: Record<string, StoryOpts>, o: RunOpts = {}): Row => {
     pack: "p", stack: "s", runId, dir: o.dir === undefined ? `runs/${runId}` : o.dir, status: o.status ?? "finished", family: o.family ?? FAMILY, knownGood: o.knownGood ?? false,
     stories: Object.entries(stories).map(([id, s]) => ({
       id,
+      ...(s.collapsed ? { collapsed: true } : {}),
       usage: s.secs === undefined ? null : { agentSeconds: s.secs },
       conversation: s.profile === false ? null : { thinkingVisible: !s.withheld, thinkingChars: s.withheld ? null : s.chars ?? null, thinkingTokens: s.tokens ?? null },
     })),
@@ -199,5 +200,43 @@ describe("a story run marked not comparable", () => {
     expect(p.thinkingSpread).toBeCloseTo(CV_100_200_300, DIGITS);
     expect(p.thinkingPerStory).toBe(200);
     expect(p.minutesPerStory).toBeCloseTo(200 / MIN, DIGITS);
+  });
+});
+
+describe("a collapsed story run (a stretch of stories in a row that pass none) is not counted as a thrifty one", () => {
+  const thin = (chars: number, secs: number, collapsed = false): StoryOpts => ({ chars, secs, collapsed });
+
+  it("is left out of its story's spread, which is stated from the runs that remain", () => {
+    const runs = [run({ 1: thin(100, 600) }), run({ 1: thin(200, 600) }), run({ 1: thin(300, 600) }), run({ 1: thin(5, 30, true) })];
+    const p = predictability(runs);
+    expect(p.thinkingSpread).toBeCloseTo(CV_100_200_300, DIGITS);
+    expect(p.thinkingPerStory).toBe(200);                       // the median over the three that remain, not the four
+    expect(p.minutesPerStory).toBe(10);
+  });
+
+  it("takes the story out when fewer than three runs remain for it", () => {
+    const runs = [run({ 1: thin(100, 600) }), run({ 1: thin(200, 600) }), run({ 1: thin(5, 30, true) }), run({ 1: thin(5, 30, true) })];
+    expect(predictability(runs).thinkingSpread).toBeNull();
+  });
+
+  it("does not rescue a story a run has no value for: that still takes it out", () => {
+    const runs = [run({ 1: thin(100, 600) }), run({ 1: thin(200, 600) }), run({ 1: thin(300, 600) }), run({ 1: { secs: 60, profile: false } })];
+    expect(predictability(runs).thinkingSpread).toBeNull();
+  });
+
+  it("each story is judged on its own: a run collapsed in one story still counts in the others", () => {
+    const runs = [
+      run({ 1: thin(100, 600), 2: thin(100, 600) }), run({ 1: thin(200, 600), 2: thin(200, 600) }),
+      run({ 1: thin(300, 600), 2: thin(300, 600) }), run({ 1: thin(5, 30, true), 2: thin(150, 600) }),
+    ];
+    const p = predictability(runs);
+    // story 1 from the three, story 2 from the four: the median of the two variations.
+    expect(p.thinkingSpread).not.toBeNull();
+    expect(p.thinkingPerStory).toBe(200);                       // the median of 100 200 300 and 100 150 200 300 together
+  });
+
+  it("time spread leaves them out too", () => {
+    const runs = [run({ 1: thin(1, 60) }), run({ 1: thin(1, 120) }), run({ 1: thin(1, 180) }), run({ 1: thin(1, 5, true) })];
+    expect(predictability(runs).timeSpread).toBeCloseTo(CV_100_200_300, DIGITS);
   });
 });

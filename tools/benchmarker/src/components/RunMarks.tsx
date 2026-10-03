@@ -47,3 +47,10 @@ export function InterventionList({ list }: { list: Intervention[] }) {
     </ol>
   );
 }
+
+/** "collapsed" on a story run in a stretch of three or more in a row that pass none (shared/collapse.ts). A fact with what it
+ * means on hover; nothing for any other story run. */
+export function CollapsedMark({ story }: { story: Pick<Story, "collapsed"> | undefined }) {
+  if (!story?.collapsed) return null;
+  return <span className="collapsed-mark" data-tip={GLOSSARY.collapsed.what} tabIndex={0}>{GLOSSARY.collapsed.name}</span>;
+}

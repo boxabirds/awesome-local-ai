@@ -1,7 +1,7 @@
 // The story run page's header, what's known of a story run that isn't recorded, and the ways around it.
 import type { Row, RunStatus, State } from "../../../shared/types.ts";
 import { interventionsOf, neighbours, otherRuns, storyRunState, type StoryRunState } from "../../../shared/runView.ts";
-import { InterventionMark, interventionHref } from "../RunMarks.tsx";
+import { CollapsedMark, InterventionMark, interventionHref } from "../RunMarks.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { CombinationLink, MachineLink, RunLink, StoryLink, StoryRunLink } from "../EntityLinks.tsx";
 import { short } from "../UsageCells.tsx";
@@ -48,7 +48,7 @@ export function StoryRunHeader({ run, st, storyId, title }: { run: Row; st: Stor
       <div className="of-run">
         <RunLink pack={run.pack} stack={run.stack} runId={run.runId} /> <span className="small">on <MachineLink machine={run.machine} host={run.host} /></span>
         {runStateShown(run) ? <> <StatusBadge run={run} /></> : null}
-        {" "}<InterventionMark list={interventionsOf(run, storyId)} to={interventionHref(run, storyId)} />
+        {" "}<CollapsedMark story={story ?? undefined} />{" "}<InterventionMark list={interventionsOf(run, storyId)} to={interventionHref(run, storyId)} />
       </div>
       {story?.notComparable ? <p className="not-compared" data-fact="notCompared"><Term id="notCompared" />: {story.notComparable}</p> : null}
       <div className="outcome">
@@ -82,7 +82,7 @@ export function StoryRunLine({ run, st, storyId, title }: { run: Row; st: StoryR
         {story ? <>{sep}<span data-fact="own" data-tip={GLOSSARY.storyHeldOut.what}>{fraction(story.ownPassed, story.ownTotal, "Not available.")}</span></> : null}
         {story ? <>{sep}<span data-fact="agentTime" data-tip={GLOSSARY.agentTime.what}>{secs !== null ? duration(secs) : <Missing why="This story's record has no time." />}</span></> : null}
         {runStateShown(run) ? <>{sep}<StatusBadge run={run} /> <span className="srl-on">on <MachineLink machine={run.machine} host={run.host} /></span></> : null}
-        {" "}<InterventionMark list={interventionsOf(run, storyId)} to={interventionHref(run, storyId)} />
+        {" "}<CollapsedMark story={story ?? undefined} />{" "}<InterventionMark list={interventionsOf(run, storyId)} to={interventionHref(run, storyId)} />
       </span>
     </div>
   );

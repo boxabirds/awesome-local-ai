@@ -77,10 +77,17 @@ function variation(xs: number[]): number | null {
  * over their story runs. A story run that isn't compared (isCompared) has no value here, so its story is left out
  * like one missing from a run. */
 function measure(runs: Row[], value: (s: Story) => number | null): { spread: number | null; amount: number | null } {
-  const byRun = runs.map((r) => new Map(r.stories.map((s) => [storyKey(s), isCompared(s) ? value(s) : null])));
+  // A story run in a collapsed stretch (shared/collapse.ts) is a broken run's, and its short thinking or time would read
+  // as thrifty: it is skipped (undefined), so its story is stated from the runs that remain, and out when fewer than
+  // MIN_RUNS_FOR_SPREAD do. A value that is missing (null) still takes the whole story out, as before.
+  const byRun = runs.map((r) => new Map(r.stories.map((s): [string, number | null | undefined] => [storyKey(s), s.collapsed ? undefined : isCompared(s) ? value(s) : null])));
   const ids = [...new Set(byRun.flatMap((m) => [...m.keys()]))];
-  const perStory = ids.map((id) => byRun.map((m) => m.get(id) ?? null)).filter((xs): xs is number[] => xs.every((x) => x !== null));
-  const spread = runs.length >= MIN_RUNS_FOR_SPREAD ? median(perStory.map(variation).filter((v): v is number => v !== null)) : null;
+  const perStory = ids
+    .map((id) => byRun.map((m) => (m.has(id) ? m.get(id) : null)))
+    .filter((xs) => xs.every((x) => x !== null))
+    .map((xs) => xs.filter((x): x is number => x !== undefined))
+    .filter((xs) => xs.length >= MIN_RUNS_FOR_SPREAD || xs.length === runs.length);
+  const spread = runs.length >= MIN_RUNS_FOR_SPREAD ? median(perStory.filter((xs) => xs.length >= MIN_RUNS_FOR_SPREAD).map(variation).filter((v): v is number => v !== null)) : null;
   return { spread, amount: median(perStory.flat()) };
 }
 

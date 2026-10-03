@@ -6,7 +6,7 @@ import type { Row, Usage } from "../../../shared/types.ts";
 import { isCloud, runTimeBars, runTotals, interventionsOf, storyResults, storyTitle, whyMissing, whyRunMissing, type StoryResult } from "../../../shared/runView.ts";
 import { conversationHref, storyRunHref } from "../../../shared/routes.ts";
 import { StoryLink, StoryRunLink } from "../EntityLinks.tsx";
-import { InterventionMark, interventionHref } from "../RunMarks.tsx";
+import { CollapsedMark, InterventionMark, interventionHref } from "../RunMarks.tsx";
 import { short } from "../UsageCells.tsx";
 import { GLOSSARY } from "../../../shared/glossary.ts";
 import { duration, qualityClass } from "../../format.ts";
@@ -97,6 +97,7 @@ export function RunStories({ run, rows }: { run: Row; rows: Row[] }) {
                     <td className="held-cell">{r.state === "result" ? <span className={`held ${qualityClass(r.passed / r.total)}`}>{r.passed}/{r.total}</span> : null}</td>
                     <td className="rp-bar-label">
                       <StoryRunLink pack={run.pack} stack={run.stack} runId={run.runId} story={r.id}>{r.id}. {title || `story ${r.id}`}</StoryRunLink>{" "}
+                      <CollapsedMark story={s} />{" "}
                       <InterventionMark list={interventionsOf(run, r.id)} compact to={interventionHref(run, r.id)} />
                     </td>
                     <td className="bar-cell">

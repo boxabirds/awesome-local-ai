@@ -99,6 +99,7 @@ export const GLOSSARY = {
   segTools: { name: "Tools", what: "the agent waiting on its own tool calls: its test runs, builds, file reads and edits, and any other command" },
   segBetweenSessions: { name: "Between sessions", what: "waiting to start the agent's next session after one ended: a pause before resuming an agent whose session ended in an error, and a message to one that stopped before the story was finished" },
   segOther: { name: "Other", what: "the agent's own overhead between steps" },
+  collapsed: { name: "collapsed", what: "No held-out test passes in this story or in the stories next to it: three or more in a row. Its time and thinking are left out of the spread and per-story figures, so a run in that state does not read as a thrifty one." },
   intervened: { name: "intervened", what: "Something was done to this run by hand or by a watchdog: a frozen machine restarted, a silent tool call killed, a story ended at its cap. The run stays in every figure; this marks it so its numbers are read with that in mind. The hover lists each one." },
   interventions: { name: "Interventions", what: "What was done to the run by hand or by a watchdog, oldest first, and in which story. Repeated lines are shown once, with how many times." },
   notCompared: { name: "Not compared with other runs", what: "This story run is left out of every story-by-story comparison: medians, spreads, marks and verdicts, here and on the pages that set story runs side by side. Its own figures stand, and so do its run's total and score." },
