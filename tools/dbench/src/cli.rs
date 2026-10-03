@@ -268,6 +268,9 @@ pub struct ServerConfig {
     /// Where harness releases are materialised, one directory per tag (harness.rs).
     pub releases_dir: PathBuf,
     pub share_dir: PathBuf,
+    /// The harness's home (`$VIDI_BENCH_HOME`, default `~/.vidi-bench`): where it keeps the egress logs
+    /// that `/v1/runs/file` serves (collect.rs).
+    pub bench_home: PathBuf,
     pub path_prepend: Vec<PathBuf>,
     pub max_restarts: u32,
     pub pull: bool,
@@ -300,6 +303,12 @@ impl ServeArgs {
                     .share_dir
                     .clone()
                     .unwrap_or_else(|| user_home.join(DEFAULT_SHARE_DIR)),
+            )?,
+            bench_home: absolute(
+                &std::env::var_os(crate::collect::BENCH_HOME_ENV).map_or_else(
+                    || user_home.join(crate::collect::DEFAULT_BENCH_HOME),
+                    PathBuf::from,
+                ),
             )?,
             path_prepend: self
                 .path_prepend
