@@ -1,10 +1,9 @@
 // One model call of a story run's conversation, in full: its thinking, its text, each tool it called with its
 // arguments and result whole. The call before and after are a step away.
 import type { Row, State, Story } from "../../shared/types.ts";
-import { callHref, conversationHref } from "../../shared/routes.ts";
+import { callHref, conversationHref, withParams, type Route } from "../../shared/routes.ts";
 import { storyRunState, storyTitle } from "../../shared/runView.ts";
-import { GLOSSARY } from "../../shared/glossary.ts";
-import { Breadcrumb, CombinationLink, RunLink, StoryRunLink } from "../components/EntityLinks.tsx";
+import { Breadcrumb } from "../components/EntityLinks.tsx";
 import { StoryRunHeader } from "../components/run/StoryRunParts.tsx";
 import { Missing, NotApplicable, Section, Stat, full } from "../components/run/bits.tsx";
 import { Clamped } from "../components/conversation/text.tsx";
@@ -19,7 +18,7 @@ interface CallInFull { idx: number; think: number; text: string; nTools: number;
 const JSON_INDENT = 2;
 const Quoted = ({ text }: { text: string }) => <Clamped text={text} block />;
 
-export function CallPage({ run, story, storyId, call, state }: { run: Row; story: Story | null; storyId: string; call: string; state: State }) {
+export function CallPage({ route, run, story, storyId, call, state }: { route: Route; run: Row; story: Story | null; storyId: string; call: string; state: State }) {
   const st = storyRunState(run, storyId);
   const title = storyTitle(run, state.rows, storyId);
   const id = story?.storyRunId ?? null;
@@ -28,16 +27,10 @@ export function CallPage({ run, story, storyId, call, state }: { run: Row; story
   const c = useInFull<CallInFull>(available ? id : null, `/calls/${idx}`);
   const conv = useConversation(available ? id : null);
   const calls = conv.summary ? conv.summary.counts.calls : null;
-  const crumbs = [
-    { label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> },
-    { label: <RunLink pack={run.pack} stack={run.stack} runId={run.runId} /> },
-    { label: <StoryRunLink pack={run.pack} stack={run.stack} runId={run.runId} story={storyId} /> },
-    { label: GLOSSARY.conversationPage.name, href: conversationHref(run.pack, run.stack, run.runId, storyId) },
-    { label: `call ${idx + 1}` },
-  ];
+  const crumbs = <Breadcrumb route={route} names={{ combination: run.label }} />;
   const nav = (
     <nav className="call-nav" aria-label="Calls">
-      <a className="back" href={conversationHref(run.pack, run.stack, run.runId, storyId)}>← Back to the conversation</a>
+      <a className="back" href={withParams(conversationHref(run.pack, run.stack, run.runId, storyId), { call: String(idx) })}>← Back to the conversation</a>
       <span className="call-of" data-fact="call-of">Call {idx + 1}{calls !== null ? ` of ${full(calls)}` : ""}</span>
       {idx > 0 ? <a href={callHref(run.pack, run.stack, run.runId, storyId, idx - 1)} rel="prev">← call {idx}</a> : <span className="faint">← first call</span>}
       {calls !== null && idx + 1 < calls ? <a href={callHref(run.pack, run.stack, run.runId, storyId, idx + 1)} rel="next">call {idx + 2} →</a> : <span className="faint">last call →</span>}
@@ -46,7 +39,7 @@ export function CallPage({ run, story, storyId, call, state }: { run: Row; story
   if (c === false || !story) {
     return (
       <div className="page call-page run-page" data-page="call" data-available="false">
-        <Breadcrumb trail={crumbs} />
+        {crumbs}
         <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
         <Section term="modelCall" id="call"><p className="rp-empty" data-empty="call"><Missing why={NOT_AVAILABLE} /> {NOT_AVAILABLE}</p>{nav}</Section>
       </div>
@@ -55,7 +48,7 @@ export function CallPage({ run, story, storyId, call, state }: { run: Row; story
   const withheld = conv.summary ? conv.summary.fmt === "claude" : false;
   return (
     <div className="page call-page run-page" data-page="call" data-available="true" data-call={idx}>
-      <Breadcrumb trail={crumbs} />
+      {crumbs}
       <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
       <Section term="modelCall" id="call" aside={nav}>
         {c === null ? <p className="rp-empty small">Loading…</p> : <>

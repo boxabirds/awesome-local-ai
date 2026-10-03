@@ -2,14 +2,14 @@
 // comparison) in the address. The story shown is marked as the current page.
 import type { StoryItem } from "../../../shared/storyView.ts";
 import { sameStory } from "../../../shared/storyView.ts";
-import { storyHref, withParams } from "../../../shared/routes.ts";
+import { storiesHref, storyHref, withParams } from "../../../shared/routes.ts";
 import { StoryLink } from "../EntityLinks.tsx";
 import { KeepState, Term, termName } from "./parts.tsx";
 
 export function StoryList({ pack, stories, current, params }: { pack: string; stories: StoryItem[]; current: string; params: Record<string, string | undefined> }) {
   return (
     <nav className="story-nav" aria-label={termName("storyList")}>
-      <div className="story-nav-head"><Term id="storyList" /></div>
+      <div className="story-nav-head"><a href={storiesHref(pack)}><Term id="storyList" /></a></div>
       <ol>
         {stories.map((s) => {
           const here = sameStory(s.id, current);

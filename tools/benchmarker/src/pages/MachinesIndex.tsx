@@ -3,7 +3,8 @@
 import type { State } from "../../shared/types.ts";
 import { nowLines } from "../../shared/overviewView.ts";
 import { GLOSSARY } from "../../shared/glossary.ts";
-import { MachineLink } from "../components/EntityLinks.tsx";
+import type { Route } from "../../shared/routes.ts";
+import { Breadcrumb, MachineLink } from "../components/EntityLinks.tsx";
 import { Missing } from "../components/run/bits.tsx";
 import { hardware, hardwareShort, useMachineList } from "../components/machine/machineApi.ts";
 import { NowSummary, QueueCount } from "../components/machine/NowSummary.tsx";
@@ -11,13 +12,14 @@ import { AddMachine } from "../components/machine/AddMachine.tsx";
 import "./machine.css";
 
 /** `state` and `serverNow` as the overview gets them (App.tsx). The page reads /api/machines itself. */
-export interface MachinesIndexProps { state: State; serverNow: number | null }
+export interface MachinesIndexProps { route: Route; state: State; serverNow: number | null }
 
-export function MachinesIndex({ state, serverNow }: MachinesIndexProps) {
+export function MachinesIndex({ route, state, serverNow }: MachinesIndexProps) {
   const { machines, reach } = useMachineList();
   const lines = nowLines(state.machines ?? [], state.rows, reach, serverNow ?? state.now);
   return (
     <div className="machines-index" data-page="machines">
+      <Breadcrumb route={route} />
       <section className="mi-list" aria-labelledby="h-machines">
         <h2 id="h-machines"><span className="term" data-tip={GLOSSARY.machinesList.what}>{GLOSSARY.machinesList.name}</span><span className="small">{lines.length} · each links to its page: hardware, installs, jobs and history</span></h2>
         {lines.length === 0 ? <p className="empty-note">{machines ? "No machines yet." : "Loading the machines…"}</p> : (

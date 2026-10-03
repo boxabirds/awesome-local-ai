@@ -1,14 +1,18 @@
 // A story run's conversation: an overview that navigates it (what kinds to show, what text, what span of time),
-// over one list of its turns in time order. The story's status plays no part: the page backfills the span and then
+// over one list of its turns in time order. Those three choices live in the address (?kind=call,tool&q=…&span=a-b,
+// replaced not pushed, like the other pages' choices), so Back from a call and a shared link find them made; ?call=N
+// is the call page's way back to its row. The story's status plays no part: the page backfills the span and then
 // follows along after its latest cursor. Verbatim agent text is marked data-quoted="agent": a result, never the
 // app's own words.
 import { useEffect, useRef, useState } from "react";
 import type { Row, State, Story } from "../../shared/types.ts";
-import { clock, cutText, kindsFromParam, nearestTurn, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
-import { callHref } from "../../shared/routes.ts";
+import { clock, cutText, kindsFromParam, kindsToParam, nearestTurn, spanFromParam, spanToParam, strip, turnShown, turns, TURN_KINDS, type ConversationEvent, type CutText, type ToolTurn, type Turn, type TurnKind } from "../../shared/conversation.ts";
+import { callHref, type Route } from "../../shared/routes.ts";
 import { storyRunState, storyTitle } from "../../shared/runView.ts";
 import { GLOSSARY } from "../../shared/glossary.ts";
-import { Breadcrumb, CombinationLink, RunLink, StoryRunLink } from "../components/EntityLinks.tsx";
+import { Breadcrumb } from "../components/EntityLinks.tsx";
+import { useAddressParam } from "../components/story/useAddressParam.ts";
+import { restoreScroll } from "../router.ts";
 import { StoryRunHeader } from "../components/run/StoryRunParts.tsx";
 import { Missing, Section, Term, full, utc } from "../components/run/bits.tsx";
 import { Clamped } from "../components/conversation/text.tsx";
@@ -33,27 +37,45 @@ const callRowId = (idx: number) => `call-${idx}`;
 const isNum = (v: unknown): v is number => typeof v === "number";
 const n = (v: unknown) => (isNum(v) ? full(v) : "");
 
-export function ConversationPage({ run, story, storyId, state, params }: { run: Row; story: Story | null; storyId: string; state: State; params?: Record<string, string> }) {
+export function ConversationPage({ route, run, story, storyId, state, params }: { route: Route; run: Row; story: Story | null; storyId: string; state: State; params?: Record<string, string> }) {
   const st = storyRunState(run, storyId);
   const title = storyTitle(run, state.rows, storyId);
   const id = story?.storyRunId ?? null;
   const conv = useConversation(id && story?.hasConversation ? id : null);
-  const [kinds, setKinds] = useState<Set<TurnKind>>(() => kindsFromParam(params?.kind));
-  const [query, setQuery] = useState("");
-  const [range, setRange] = useState<[number, number] | null>(null);
+  const [kindParam, setKindParam] = useAddressParam(params, "kind");
+  const [queryParam, setQueryParam] = useAddressParam(params, "q");
+  const [spanParam, setSpanParam] = useAddressParam(params, "span");
+  const kinds = kindsFromParam(kindParam);
+  const setKinds = (next: Set<TurnKind>) => setKindParam(kindsToParam(next));
+  const query = queryParam ?? "";
+  const setQuery = (q: string) => setQueryParam(q || undefined);
   const [jumped, setJumped] = useState<number | null>(null);
+  /** The call the address asks for (?call=N, the call page's way back), jumped to once its row is there. */
+  const askedCall = params?.call !== undefined && /^\d+$/.test(params.call) ? Number(params.call) : null;
+  const [jumpedToAsked, setJumpedToAsked] = useState<number | null>(null);
+  /** Scroll the turn's row into the middle of the window and mark it. */
+  const jumpTo = (turn: number) => {
+    setJumped(turn);
+    const t = turns(conv.events)[turn];
+    const el = t?.callIdx !== null && t?.callIdx !== undefined ? document.getElementById(callRowId(t.callIdx)) : document.getElementById(`turn-${turn}`);
+    el?.scrollIntoView({ block: "center" });
+  };
   // The one header is pinned; the column heads pin under it, so its height is kept in a variable for them.
   const head = useHeightVar<HTMLDivElement>("--conv-head-h");
-  const crumbs = [
-    { label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> },
-    { label: <RunLink pack={run.pack} stack={run.stack} runId={run.runId} /> },
-    { label: <StoryRunLink pack={run.pack} stack={run.stack} runId={run.runId} story={storyId} /> },
-    { label: GLOSSARY.conversationPage.name },
-  ];
+  const crumbs = <Breadcrumb route={route} names={{ combination: run.label }} />;
+  // The row the address asks for (?call=N), once the backfill has brought it; a position being restored (Back)
+  // comes first. Before any early return: a hook's place in the order is fixed.
+  const askedTurn = conv.backfilled && askedCall !== null && jumpedToAsked !== askedCall ? turns(conv.events).findIndex((t) => t.callIdx === askedCall) : -1;
+  useEffect(() => {
+    if (askedTurn < 0 || askedCall === null) return;
+    setJumpedToAsked(askedCall);
+    restoreScroll();
+    jumpTo(askedTurn);
+  }, [askedTurn, askedCall]);
   if (conv.summary === false || !story) {
     return (
       <div className="page conversation-page run-page" data-page="conversation" data-available="false">
-        <Breadcrumb trail={crumbs} />
+        {crumbs}
         <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
         <Section term="conversationPage" id="conversation">
           <p className="rp-empty" data-empty="conversation"><Missing why={NOT_AVAILABLE} /> {NOT_AVAILABLE}</p>
@@ -65,22 +87,18 @@ export function ConversationPage({ run, story, storyId, state, params }: { run: 
   const from = s?.range.fromMs ?? 0;
   const toMs = s ? Math.max(s.range.toMs, ...conv.events.map((e) => e.tMs + 1)) : from + 1;
   const all = turns(conv.events);
+  const range = spanFromParam(spanParam, from);
+  const setRange = (r: [number, number] | null) => setSpanParam(spanToParam(r, from));
   const filter = { kinds, query, range };
   const shown = all.map((t, i) => [t, i] as const).filter(([t]) => turnShown(t, filter));
   const count = (k: TurnKind) => all.filter((t) => (k === "tool" ? t.kind === "tool" || t.tools.length > 0 : t.kind === k)).reduce((a, t) => a + (k === "tool" ? (t.kind === "tool" ? 1 : t.tools.length) : 1), 0);
-  const toggle = (k: TurnKind) => setKinds((prev) => { const next = new Set(prev); if (next.has(k)) next.delete(k); else next.add(k); return next; });
+  const toggle = (k: TurnKind) => { const next = new Set(kinds); if (next.has(k)) next.delete(k); else next.add(k); setKinds(next); };
   const everyKind = kinds.size === TURN_KINDS.length;
   const link = (call: number) => callHref(run.pack, run.stack, run.runId, storyId, call);
-  const jumpTo = (turn: number) => {
-    setJumped(turn);
-    const t = all[turn];
-    const el = t?.callIdx !== null && t?.callIdx !== undefined ? document.getElementById(callRowId(t.callIdx)) : document.getElementById(`turn-${turn}`);
-    el?.scrollIntoView({ block: "center" });
-  };
   const withheld = s?.fmt === "claude";
   return (
     <div className="page conversation-page run-page" data-page="conversation" data-available="true" data-backfilled={conv.backfilled ? "true" : "false"} data-polls={conv.polls}>
-      <Breadcrumb trail={crumbs} />
+      {crumbs}
       <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
       <section className="rp-section conv-section" id="sec-all" data-section="all" aria-labelledby="h-all">
         <div className="rp-head conv-head" ref={head}>

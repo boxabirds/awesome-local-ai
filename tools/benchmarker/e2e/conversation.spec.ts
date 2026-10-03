@@ -171,7 +171,7 @@ test.describe("B. the call page", () => {
     expect((await thinking.textContent())!.length).toBeGreaterThan(4000);
     await expect(p.locator('[data-block="tool"][data-tool="1"]')).toContainText("failed");
     await expect(p.locator('[data-block="tool"][data-tool="1"] pre').nth(1)).toContainText("1 failed, 9 passed");
-    await expect(p.getByRole("link", { name: "← Back to the conversation" })).toHaveAttribute("href", new RegExp("/s/2/conversation$"));
+    await expect(p.getByRole("link", { name: "← Back to the conversation" })).toHaveAttribute("href", new RegExp("/s/2/conversation\\?call=1$"));
     await expect(p.locator('[data-fact="call-of"]')).toHaveText("Call 2 of 4");
     await expect(p.getByRole("link", { name: "← call 1" })).toHaveAttribute("href", new RegExp("/conversation/c/0$"));
     await expect(p.getByRole("link", { name: "call 3 →" })).toHaveAttribute("href", new RegExp("/conversation/c/2$"));

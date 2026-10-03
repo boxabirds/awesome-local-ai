@@ -647,7 +647,7 @@ test.describe("links and keyboard", () => {
         continue;
       }
       if (route.page === "conversation" || route.page === "call") {
-        await expect(page.locator(`[data-page="${route.page}"] .breadcrumb a.story-run-link`), href).toHaveText(`story ${Number(route.story)}`);
+        await expect(page.locator(`[data-page="${route.page}"] .breadcrumb a.story-run-link`), href).toHaveText(`Story ${Number(route.story)}`);
         continue;
       }
       throw new Error(`${href} names no page`);

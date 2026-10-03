@@ -1,7 +1,7 @@
 // The one way an entity is named on the page: a link to its own page, the same text everywhere. Combination names
 // are short labels with the full id on hover. A run is always shown with its combination unless the context has it.
 import { useEffect, useState, type ReactNode } from "react";
-import { combinationHref, machineHref, overviewHref, runHref, storyHref, storyRunHref } from "../../shared/routes.ts";
+import { combinationHref, machineHref, runHref, storyHref, storyRunHref, titleFor, trailFor, type Route, type TrailNames } from "../../shared/routes.ts";
 import { useHeightVar } from "../useHeightVar.ts";
 
 export function CombinationLink({ pack, stack, label }: { pack: string; stack: string; label: string }) {
@@ -32,8 +32,6 @@ export function StoryRunLink({ pack, stack, runId, story, children }: { pack: st
   return <a className="entity story-run-link" href={storyRunHref(pack, stack, runId, story)}>{children ?? `story ${Number(story)}`}</a>;
 }
 
-export interface Crumb { label: ReactNode; href?: string }
-
 /** Whether the window has scrolled at all: the page is then passing under what is pinned to its top. */
 function useScrolled(): boolean {
   const [scrolled, setScrolled] = useState(false);
@@ -46,18 +44,22 @@ function useScrolled(): boolean {
   return scrolled;
 }
 
-/** Where this page sits: Overview › combination › run › story. The last crumb is the page itself. It stays pinned
- * under the app's top bar while the page scrolls (styles.css), with a line under it once the page is beneath it. */
-export function Breadcrumb({ trail }: { trail: Crumb[] }) {
-  const all: Crumb[] = [{ label: "Overview", href: overviewHref() }, ...trail];
+/** Where this page sits (routes.ts `trailFor`): Overview › … › the page itself, the last crumb, which has no link.
+ * It stays pinned under the app's top bar while the page scrolls (styles.css), with a line under it once the page is
+ * beneath it. The window's title is the same trail, nearest first. */
+export function Breadcrumb({ route, names = {} }: { route: Route; names?: TrailNames }) {
+  const all = trailFor(route, names);
   const nav = useHeightVar<HTMLElement>("--crumb-h");
   const stuck = useScrolled();
+  const title = titleFor(all);
+  useEffect(() => { document.title = title; }, [title]);
+  if (!all.length) return null;
   return (
     <nav ref={nav} className="breadcrumb" aria-label="Breadcrumb" data-stuck={stuck ? "true" : undefined}>
       {all.map((c, i) => (
         <span key={i}>
           {i > 0 ? <span className="sep" aria-hidden="true"> › </span> : null}
-          {c.href && i < all.length - 1 ? <a href={c.href}>{c.label}</a> : <span aria-current={i === all.length - 1 ? "page" : undefined}>{c.label}</span>}
+          {c.href ? <a className={c.cls ? `entity ${c.cls}` : undefined} href={c.href} data-tip={c.tip}>{c.label}</a> : <span aria-current={i === all.length - 1 ? "page" : undefined}>{c.label}</span>}
         </span>
       ))}
     </nav>

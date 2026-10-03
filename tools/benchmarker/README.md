@@ -84,6 +84,26 @@ http://127.0.0.1:7761); the server never reads the database itself.
   where the reader starts, `e2e/links.spec.ts` the bars, `e2e/no-faults.spec.ts` the sweep over the new pages
   (quoted agent text is checked apart, and must be the only place a fault word appears).
 
+## Addresses and the way around
+
+Every screen has an address in the hash, so it can be bookmarked, shared and gone back to. The four tabs are
+links to the four sections: `#/` is the runs overview (always: nothing is remembered about which tab was open
+last), `#/<pack>/stories` the pack's stories, `#/machines` the machines list and `#/setup` the setup page. The
+entities sit under them: `#/<pack>/c/<stack>`, `…/r/<stack>/<run>`, `…/s/<n>`, `…/s/<n>/conversation`,
+`…/conversation/c/<idx>`; `#/<pack>/s/<n>` for a story; `#/machines/<name>` for a machine (the older
+`#/m/<name>` still opens it). The tab of the section a page is in is the selected one on every page.
+
+The breadcrumb is the address spelled out, one shape per section: Overview › combination › run › Story N ›
+Conversation › Call N; Overview › Stories › Story N; Overview › Machines › name. Every crumb but the last is a
+link to that level. The window's title is the same trail, nearest first.
+
+A link followed starts at the top of its page; Back and Forward return to the position the reader left (the
+app keeps it per history entry, so a page that loads its data after render is restored once it is tall
+enough). A page's own choices (the combination page's metric, the story and run pages' comparison, the
+conversation page's kinds, search text and span: `?kind=call,tool&q=…&span=<from>-<to>` in milliseconds from
+the story's start) are written into the address by replacement, so Back leaves the page and coming back finds
+the choices still made.
+
 ## Machines and Setup
 
 **Machines** lists the dbench nodes in `~/.config/dbench/nodes.toml` (shared with the `dbench` command

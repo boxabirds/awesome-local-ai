@@ -73,3 +73,31 @@ describe("searching the conversation", () => {
     expect(needsClamp("x".repeat(401))).toBe(true);
   });
 });
+
+// The page's choices in its address (?kind=call,tool&q=…&span=a-b): what is left out and what is read back.
+describe("the conversation page's choices in the address", () => {
+  it("kinds: every kind is no parameter; a subset is the ids in the chips' order; an unknown id is ignored, and only unknown ids is every kind", async () => {
+    const { kindsFromParam, kindsToParam, TURN_KINDS } = await import("./conversation.ts");
+    const all = new Set(TURN_KINDS.map((k) => k.id));
+    expect(kindsToParam(all)).toBeUndefined();
+    expect(kindsToParam(new Set(["tool", "call"]))).toBe("call,tool");
+    expect([...kindsFromParam("call,tool")]).toEqual(["call", "tool"]);
+    expect([...kindsFromParam("tool")]).toEqual(["tool"]);
+    expect([...kindsFromParam("tool,nonsense")]).toEqual(["tool"]);
+    expect(kindsFromParam("nonsense")).toEqual(all);
+    expect(kindsFromParam(undefined)).toEqual(all);
+    expect(kindsFromParam(kindsToParam(new Set(["msg", "wait"])))).toEqual(new Set(["wait", "msg"]));
+  });
+  it("span: whole milliseconds from the story's start, a-b with a < b; anything else is no span", async () => {
+    const { spanFromParam, spanToParam } = await import("./conversation.ts");
+    const FROM = 1_790_000_000_000;
+    expect(spanToParam(null, FROM)).toBeUndefined();
+    expect(spanToParam([FROM + 1200.4, FROM + 3000.6], FROM)).toBe("1200-3001");
+    expect(spanFromParam("1200-3001", FROM)).toEqual([FROM + 1200, FROM + 3001]);
+    expect(spanFromParam(undefined, FROM)).toBeNull();
+    expect(spanFromParam("3001-1200", FROM)).toBeNull();
+    expect(spanFromParam("5-5", FROM)).toBeNull();
+    expect(spanFromParam("a-b", FROM)).toBeNull();
+    expect(spanFromParam("1200", FROM)).toBeNull();
+  });
+});

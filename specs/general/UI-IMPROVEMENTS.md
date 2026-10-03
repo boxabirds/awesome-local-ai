@@ -5,6 +5,17 @@ Part 2 is the conversation page (3 October 2026, afternoon; its Critical and mos
 
 ## Part 1: navigation across the site (3 October 2026)
 
+### Status (3 October 2026, the same evening)
+
+Built: the four section addresses (`#/`, `#/<pack>/stories`, `#/machines`, `#/setup`; machine pages under
+`#/machines/<name>` with `#/m/<name>` kept), tabs as links selected by the page's section, the remembered tab
+gone, one `trailFor` building every breadcrumb (sentence case, Stories and Machines levels), the window's title
+from the trail, scroll restored on Back and Forward with a link starting at the top, the conversation page's
+kinds, search and span in its address, the call page's way back landing on its row, Remove machine leaving for
+the machines list, and a stories index page. Not done: the search box's Enter still assigns the hash (its rows
+are links already); the not-found page still says "Back to the overview".
+
+
 Reviewed at 1148 px wide against the live app, by walking these paths and reading the address, the breadcrumb,
 the tab bar, the scroll position and `history.length` after each step: overview › Machines › a machine › Back;
 Runs › a combination › its run › a time bar › Back; run › story run › conversation › a call › Back › Back;

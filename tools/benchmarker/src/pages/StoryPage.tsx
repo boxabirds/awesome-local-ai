@@ -2,6 +2,7 @@
 // combination's median and range with its runs beneath; where the time went, on one scale. One story run can be the
 // comparison (?compare=<combination>|<run>), kept in the address and carried to the other stories.
 import type { Row, State } from "../../shared/types.ts";
+import type { Route } from "../../shared/routes.ts";
 import { comparisonOf, heldOutTests, sameStory, storyList, storyNeighbours, storyPage } from "../../shared/storyView.ts";
 import { Breadcrumb } from "../components/EntityLinks.tsx";
 import { useAddressParam } from "../components/story/useAddressParam.ts";
@@ -11,7 +12,7 @@ import { ByCombination } from "../components/story/ByCombination.tsx";
 import { StoryTime } from "../components/story/StoryTime.tsx";
 import "./story.css";
 
-export function StoryPage({ pack, story, runs, params }: { pack: string; story: string; runs: Row[]; state: State; serverNow: number | null; params: Record<string, string> }) {
+export function StoryPage({ route, pack, story, runs, params }: { route: Route; pack: string; story: string; runs: Row[]; state: State; serverNow: number | null; params: Record<string, string> }) {
   const [compare, setCompare] = useAddressParam(params, "compare");
   const list = storyList(runs);
   const item = list.find((s) => sameStory(s.id, story)) ?? null;
@@ -21,7 +22,7 @@ export function StoryPage({ pack, story, runs, params }: { pack: string; story: 
   const state = { compare };
   return (
     <div className="page story-page" data-page="story" data-story={story}>
-      <Breadcrumb trail={[{ label: `${pack} story ${story}` }]} />
+      <Breadcrumb route={route} />
       <div className="sp-layout">
         <StoryList pack={pack} stories={list} current={story} params={state} />
         <div className="sp-main">

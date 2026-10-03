@@ -68,8 +68,8 @@ test.describe("header", () => {
     await expect(fact(page, "os")).toHaveText("linux");
     await expect(fact(page, "dbench")).toHaveText("0.1.0+30085de1");
     await expect(fact(page, "reach")).toHaveText("✓ reachable http://node-a:7717");
-    await expect(mp(page).locator(".breadcrumb")).toHaveText("Overview › node-a");
-    await expect(mp(page).locator(".breadcrumb a")).toHaveAttribute("href", "#/");
+    await expect(mp(page).locator(".breadcrumb")).toHaveText("Overview › Machines › node-a");
+    await expect(mp(page).locator(".breadcrumb a").first()).toHaveAttribute("href", "#/");
   });
 
   test("installs: each a link to its combination's page", async ({ page }) => {
@@ -298,7 +298,7 @@ test.describe("operations, against the fake dbench", () => {
     await expect(header(page).getByRole("button", { name: "Remove machine…" })).toBeVisible();
     await header(page).getByRole("button", { name: "Remove machine…" }).click();
     await header(page).getByRole("button", { name: "Remove", exact: true }).click();
-    await expect(page).toHaveURL(/#\/$/);
+    await expect(page).toHaveURL(/#\/machines$/);
     const machines = await (await page.request.get("/api/machines")).json() as { name: string }[];
     expect(machines.map((m) => m.name)).not.toContain("node-a");
   });

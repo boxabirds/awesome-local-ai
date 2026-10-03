@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Row } from "../shared/types.ts";
 import { RUN_FILTERS, visibleRuns, type RunFilter } from "../shared/stats.ts";
 import { Header } from "./components/Header.tsx";
@@ -8,7 +8,7 @@ import { Tooltip } from "./components/Tooltip.tsx";
 import { StaleBanner } from "./components/StaleBanner.tsx";
 import { useBenchState } from "./useBenchState.ts";
 import { useRoute } from "./router.ts";
-import { overviewHref, storyHref } from "../shared/routes.ts";
+import { machinesHref, overviewHref, sectionOf, setupHref, storiesHref, type Section } from "../shared/routes.ts";
 import { OverviewPage } from "./pages/OverviewPage.tsx";
 import { MachinesIndex } from "./pages/MachinesIndex.tsx";
 import { RunPage } from "./pages/RunPage.tsx";
@@ -18,15 +18,15 @@ import { CallPage } from "./pages/CallPage.tsx";
 import { CombinationPage } from "./pages/CombinationPage.tsx";
 import { NotFound } from "./pages/NotFound.tsx";
 import { StoryPage } from "./pages/StoryPage.tsx";
+import { StoriesPage } from "./pages/StoriesPage.tsx";
 import { MachinePage } from "./pages/MachinePage.tsx";
 
 const SAVED_KEY = "benchmarker:v2"; // versioned: selections saved by older builds are ignored
 const ALL = "all";
 const FILTER_KEY = "benchmarker:run-filter:v1";
-type Tab = "runs" | "machines" | "setup";
-const TAB_KEY = "benchmarker:tab:v1";
-const TABS: [Tab | "stories", string][] = [["runs", "Runs"], ["stories", "Stories"], ["machines", "Machines"], ["setup", "Setup"]];
-const loadTab = (): Tab => { try { const t = localStorage.getItem(TAB_KEY); return t === "machines" || t === "setup" ? t : "runs"; } catch { return "runs"; } };
+/** The four sections, each a tab: a link to the section's address (routes.ts), selected on every page inside it. */
+const TABS: [Section, string][] = [["runs", "Runs"], ["stories", "Stories"], ["machines", "Machines"], ["setup", "Setup"]];
+const APP_NAME = "Benchmarker";
 const FILTER_AT_FIRST: RunFilter = "all";
 
 function loadFilter(): RunFilter {
@@ -85,12 +85,9 @@ export function App() {
   const route = useRoute();
   const [choice, setChoice] = useState<Partial<Selection>>(loadSaved);
   const [filter, setFilter] = useState<RunFilter>(loadFilter);
-  const [tab, setTab] = useState<Tab>(loadTab);
-  const chooseTab = (t: Tab) => {
-    setTab(t);
-    if (route.page !== "overview") location.hash = overviewHref();  // the tabs are the overview's
-    try { localStorage.setItem(TAB_KEY, t); } catch { /* not remembered */ }
-  };
+  const section = sectionOf(route);
+  // The overview has no breadcrumb to set the title; every other page's does.
+  useEffect(() => { if (route.page === "overview") document.title = APP_NAME; }, [route.page]);
 
   if (!data) {
     return (
@@ -133,30 +130,29 @@ export function App() {
         onFamily={(f) => choose({ pack, family: f })}
       >
         <div className="tabs" role="tablist" aria-label="Sections">
-          {TABS.map(([t, name]) => t === "stories"
-            // Stories are pages of their own: the tab opens the pack's first one, whose side list goes to the rest.
-            ? <button key={t} type="button" role="tab" aria-selected={route.page === "story"} onClick={() => { location.hash = storyHref(pack, firstStory(inFamily)); }}>{name}</button>
-            : <button key={t} type="button" role="tab" aria-selected={route.page === "overview" && tab === t} onClick={() => chooseTab(t as Tab)}>{name}</button>)}
+          {TABS.map(([t, name]) => <a key={t} role="tab" aria-selected={section === t} href={sectionHref(t, pack)}>{name}</a>)}
         </div>
         <RunFilterSwitch filter={filter} onChange={chooseFilter} />
       </Header>
       <StaleBanner stale={stale} age={age} />
       <main>
-        {route.page !== "overview" ? <EntityPage route={route} state={data} serverNow={serverNow} family={family} filter={filter} filteredOut={filteredOut} /> : <>
-        {tab === "machines" ? <MachinesIndex state={data} serverNow={serverNow} />
-          : tab === "setup" ? <SetupTab />
-          : <OverviewPage state={data} serverNow={serverNow} rows={visibleRuns(inFamily, filter)} filteredOut={inFamily.length ? filteredOut : undefined} />}
-        </>}
+        {route.page === "overview" ? <OverviewPage state={data} serverNow={serverNow} rows={visibleRuns(inFamily, filter)} filteredOut={inFamily.length ? filteredOut : undefined} />
+          : route.page === "machines" ? <MachinesIndex route={route} state={data} serverNow={serverNow} />
+          : route.page === "setup" ? <SetupTab route={route} />
+          : <EntityPage route={route} state={data} serverNow={serverNow} family={family} filter={filter} filteredOut={filteredOut} />}
       </main>
     </div>
   );
 }
 
-/** The first story any of these runs has, for the Stories tab to open. */
-const FIRST_STORY = 1;
-function firstStory(runs: Row[]): string {
-  const ids = runs.flatMap((r) => r.storiesWorking.squares.map((q) => Number(q.id))).filter(Number.isFinite);
-  return String(ids.length ? Math.min(...ids) : FIRST_STORY);
+/** A section's address; the stories' is per pack, the one chosen in the header. */
+function sectionHref(section: Section, pack: string): string {
+  switch (section) {
+    case "runs": return overviewHref();
+    case "stories": return storiesHref(pack);
+    case "machines": return machinesHref();
+    case "setup": return setupHref();
+  }
 }
 
 /** A page of its own for one entity, found in the whole state (not only what the overview's filters show). */
@@ -174,7 +170,7 @@ const newestFamily = (runs: Row[]) => runs.map((r) => r.family).toSorted((a, b) 
 /** A page whose content the switch hides entirely: the one line that says so, with the way out. */
 const Hidden = ({ note }: { note: ReactNode }) => <div className="page" data-page="filteredOut">{note}</div>;
 
-function EntityPage({ route, state, serverNow, family, filter, filteredOut }: { route: Exclude<ReturnType<typeof useRoute>, { page: "overview" }>; state: BenchState; serverNow: number | null; family: string; filter: RunFilter; filteredOut: ReactNode }) {
+function EntityPage({ route, state, serverNow, family, filter, filteredOut }: { route: Exclude<ReturnType<typeof useRoute>, { page: "overview" | "machines" | "setup" }>; state: BenchState; serverNow: number | null; family: string; filter: RunFilter; filteredOut: ReactNode }) {
   switch (route.page) {
     case "combination": {
       const all = state.rows.filter((r) => r.pack === route.pack && r.stack === route.stack);
@@ -184,7 +180,7 @@ function EntityPage({ route, state, serverNow, family, filter, filteredOut }: { 
       const scoped = comparable(state, route.pack, fam, filter);
       const runs = scoped.rows.filter((r) => r.stack === route.stack);
       if (!runs.length) return <Hidden note={filteredOut} />;
-      return <CombinationPage stack={route.stack} runs={runs} state={scoped} serverNow={serverNow} params={route.params} />;
+      return <CombinationPage route={route} stack={route.stack} runs={runs} state={scoped} serverNow={serverNow} params={route.params} />;
     }
     case "run":
     case "storyRun":
@@ -194,19 +190,21 @@ function EntityPage({ route, state, serverNow, family, filter, filteredOut }: { 
       if (!run) return <NotFound what={`run ${route.runId} of ${route.stack}`} />;
       const scoped = comparable(state, run.pack, run.family, filter);
       if (!scoped.rows.includes(run)) return <Hidden note={filteredOut} />;
-      if (route.page === "run") return <RunPage run={run} state={scoped} serverNow={serverNow} params={route.params} />;
+      if (route.page === "run") return <RunPage route={route} run={run} state={scoped} serverNow={serverNow} params={route.params} />;
       const story = run.stories.find((s) => s.id === route.story) ?? null;
-      if (route.page === "conversation") return <ConversationPage run={run} story={story} storyId={route.story} state={scoped} params={route.params} />;
-      if (route.page === "call") return <CallPage run={run} story={story} storyId={route.story} call={route.call} state={scoped} />;
-      return <StoryRunPage run={run} story={story} storyId={route.story} state={scoped} serverNow={serverNow} params={route.params} />;
+      if (route.page === "conversation") return <ConversationPage route={route} run={run} story={story} storyId={route.story} state={scoped} params={route.params} />;
+      if (route.page === "call") return <CallPage route={route} run={run} story={story} storyId={route.story} call={route.call} state={scoped} />;
+      return <StoryRunPage route={route} run={run} story={story} storyId={route.story} state={scoped} serverNow={serverNow} params={route.params} />;
     }
+    case "stories":
     case "story": {
       const all = state.rows.filter((r) => r.pack === route.pack);
       if (!all.length) return <NotFound what={`pack ${route.pack}`} />;
       const fam = family !== ALL && all.some((r) => r.family === family) ? family : newestFamily(all);
       const scoped = comparable(state, route.pack, fam, filter);
       if (!scoped.rows.length) return <Hidden note={filteredOut} />;
-      return <StoryPage pack={route.pack} story={route.story} runs={scoped.rows} state={scoped} serverNow={serverNow} params={route.params} />;
+      if (route.page === "stories") return <StoriesPage route={route} pack={route.pack} runs={scoped.rows} />;
+      return <StoryPage route={route} pack={route.pack} story={route.story} runs={scoped.rows} state={scoped} serverNow={serverNow} params={route.params} />;
     }
     case "machine": {
       // A machine runs every pack and version: its page shows all of them, each labelled.
@@ -214,7 +212,7 @@ function EntityPage({ route, state, serverNow, family, filter, filteredOut }: { 
       const known = runs.length > 0 || (state.machines ?? []).some((m) => m.node === route.machine);
       // The history follows the switch; what the machine is doing now (from the whole state) never does.
       const shown = visibleRuns(runs, filter);
-      return known ? <MachinePage machine={route.machine} runs={runs} history={shown} filteredOut={filteredOut} state={state} serverNow={serverNow} /> : <NotFound what={`machine ${route.machine}`} />;
+      return known ? <MachinePage route={route} machine={route.machine} runs={runs} history={shown} filteredOut={filteredOut} state={state} serverNow={serverNow} /> : <NotFound what={`machine ${route.machine}`} />;
     }
     case "notFound":
       return <NotFound what={`page at "${route.path}"`} />;
