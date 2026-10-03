@@ -16,6 +16,8 @@ declare module 'cloudflare:test' {
       idFromName(name: string): string;
       get(id: string): DurableObjectStub;
     };
+    /** Story 12: image assets (R2). */
+    ASSETS_BUCKET: R2BucketLike;
   };
   export function runInDurableObject<T>(
     stub: DurableObjectStub,
@@ -31,6 +33,23 @@ interface DurableObjectStub {
   id: string;
   name: string;
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
+}
+
+interface R2BucketLike {
+  put(
+    key: string,
+    value: ReadableStream | ArrayBuffer | Uint8Array | string,
+    options?: { httpMetadata?: { contentType?: string } },
+  ): Promise<unknown>;
+  get(
+    key: string,
+    options?: unknown,
+  ): Promise<{
+    body: ReadableStream;
+    httpMetadata?: { contentType?: string };
+  } | null>;
+  list(options?: unknown): Promise<unknown>;
+  delete(keys: string | string[]): Promise<void>;
 }
 
 interface Response {

@@ -14,13 +14,14 @@ import * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { markObjectTypeRegistered } from '../../shared/object-types';
 import type { Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, IMAGE_MIN_SIZE_WORLD } from '../../shared/config';
 import type { Camera } from '../canvas/camera';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
+import { ImageObjectHost } from './ImageObject';
 import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import type { UndoController } from '../board/undo';
@@ -140,6 +141,17 @@ registerObjectType('connector', {
   resizable: false,
   aspectLocked: false,
   minSize: 0,
+  editableText: false,
+  hitTest: boundsHitTest,
+});
+
+// The image type (story 12): resizable with aspect lock (the box is always
+// the image's aspect ratio), no editable text, bounding-box hit test.
+registerObjectType('image', {
+  Component: ImageObjectHost,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
   editableText: false,
   hitTest: boundsHitTest,
 });

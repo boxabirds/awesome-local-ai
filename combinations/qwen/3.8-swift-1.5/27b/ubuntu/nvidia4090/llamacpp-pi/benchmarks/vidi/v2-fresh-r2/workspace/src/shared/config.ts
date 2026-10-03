@@ -201,3 +201,26 @@ export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
 export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+/**
+ * Story 12: drop images onto the board.
+ */
+/** Accepted raster image content types (no SVG/PDF/video/HEIC). */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+export type ImageAcceptedType = (typeof IMAGE_ACCEPTED_TYPES)[number];
+/** Maximum image size in bytes (10 MB). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** Maximum number of images added in one action. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/** Longest side (board units) of an added image; larger is scaled down. */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** Minimum side (board units) of an image on resize. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** Gap (board units) between images placed in a row. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/** An upload uploading for longer than this is shown as unfinished. */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/** Cache-Control max-age (seconds) for served assets (immutable). */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** Number of leading bytes used for magic-byte type sniffing. */
+export const IMAGE_SNIFF_BYTES = 12;

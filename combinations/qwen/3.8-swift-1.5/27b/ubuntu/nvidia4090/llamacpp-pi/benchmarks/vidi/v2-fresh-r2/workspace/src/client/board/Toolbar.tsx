@@ -24,6 +24,8 @@ interface ToolbarProps {
   setTool(tool: ToolId): void;
   canEdit: boolean;
   onCreateSticky(): void;
+  /** Story 12: open the image picker (I shortcut). */
+  onCreateImage?(): void;
   undo: UseUndoResult;
   shapeKind: ShapeKind;
   setShapeKind(kind: ShapeKind): void;
@@ -34,6 +36,7 @@ export function Toolbar({
   setTool,
   canEdit,
   onCreateSticky,
+  onCreateImage,
   undo,
   shapeKind,
   setShapeKind,
@@ -202,6 +205,17 @@ export function Toolbar({
         style={toolButtonStyle(tool === 'pen', canEdit)}
       >
         Pen
+      </button>
+      <button
+        type="button"
+        data-testid="image-btn"
+        aria-label="Image (I)"
+        title="Image (I) – or drag, drop or paste images onto the board"
+        disabled={!canEdit}
+        onClick={() => onCreateImage?.()}
+        style={toolButtonStyle(false, canEdit)}
+      >
+        Image
       </button>
       <div style={{ width: 1, background: '#d0d0d0', margin: '4px 2px' }} />
       <button

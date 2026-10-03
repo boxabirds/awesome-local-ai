@@ -57,6 +57,41 @@ export function SelectionBar({ count, single, anchor, onColor, onTextSize, onSha
             onSize={onTextSize}
             onDelete={onDelete}
           />
+        ) : single.type === 'image' ? (
+          // A single image shows only a Delete button (no colour swatches).
+          <div
+            data-testid="image-selection-bar"
+            onPointerDown={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute',
+              top: -44,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              padding: '4px 8px',
+              backgroundColor: 'white',
+              borderRadius: 6,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            }}
+          >
+            <button
+              data-testid="delete-image-btn"
+              aria-label="Delete image"
+              onClick={onDelete}
+              style={{
+                border: 'none',
+                backgroundColor: '#fce8e6',
+                color: '#c5221f',
+                borderRadius: 6,
+                padding: '4px 10px',
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              Delete
+            </button>
+          </div>
         ) : single.type === 'shape' ? (
           <ShapeToolbar
             fill={(single as unknown as { fill: ShapeFillColor }).fill}

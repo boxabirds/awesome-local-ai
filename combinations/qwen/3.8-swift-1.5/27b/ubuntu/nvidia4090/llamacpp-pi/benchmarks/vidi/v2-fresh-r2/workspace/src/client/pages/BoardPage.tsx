@@ -60,6 +60,11 @@ import { checkBoard } from '../api';
 import { SharePanel } from '../share/SharePanel';
 import { NotFoundPage } from './NotFoundPage';
 import { nextBoardPageState, type BoardPageState } from './state';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { Toast } from '../ui/Toast';
+import { ImageContext } from '../objects/ImageObject';
+import type { ImageSnap } from '../../shared/objects/image';
 
 const INITIAL_SIZE: Size = { width: 0, height: 0 };
 
@@ -176,6 +181,44 @@ export function BoardView({
   const tool = useTool({ canEdit, selection });
   const penOptions = usePenOptions();
 
+  // Story 12: image insert (drop, paste, picker) + progress + toasts.
+  const identityId = sessionIdentity();
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera: controls.camera,
+    connection: connectionState,
+    identityId,
+  });
+  // A 30-second clock so `unfinished` uploads surface while any is uploading.
+  const [imageNow, setImageNow] = useState(Date.now());
+  useEffect(() => {
+    const hasUploading = objects.some(
+      (o) => o.type === 'image' && (o as unknown as ImageSnap).status === 'uploading',
+    );
+    if (!hasUploading) return;
+    const timer = window.setInterval(() => setImageNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, [objects]);
+  // Window-level paste (image.insert): inserts only when the board has focus.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => imageInsert.onPaste(e);
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [imageInsert.onPaste]);
+
+  const imageContextValue = useMemo(
+    () => ({
+      progress: imageInsert.progress,
+      identityId,
+      now: imageNow,
+      canRetry: imageInsert.canRetry,
+      retry: imageInsert.retry,
+      remove: (id: string) => deleteObjects(doc, [id]),
+    }),
+    [imageInsert.progress, imageInsert.canRetry, imageInsert.retry, identityId, imageNow, doc],
+  );
+
   // Story 8: per-user undo controller (one per board doc, destroyed on unmount).
   const undoRef = useRef<ReturnType<typeof createUndo> | null>(null);
   if (undoRef.current === null) {
@@ -217,6 +260,7 @@ export function BoardView({
     undo: undoController,
     tool: { setTool: tool.setTool },
     onCreateStickyCenter: () => handleCreateStickyRef.current?.(),
+    onCreateImage: () => imageInsert.openPicker(),
   });
 
   // Marquee (story 7): Shift+drag on empty space selects by containment.
@@ -435,7 +479,15 @@ export function BoardView({
   }, [singleSelected, controls.camera]);
 
   return (
-    <div ref={shellRef} style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
+    <ImageContext.Provider value={imageContextValue}>
+    <div
+      ref={shellRef}
+      style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}
+      onDragOver={imageInsert.onDragOver}
+      onDragEnter={imageInsert.onDragEnter}
+      onDragLeave={imageInsert.onDragLeave}
+      onDrop={imageInsert.onDrop}
+    >
       <BoardViewport
         controls={controls}
         onDblClickEmpty={handleDblClickEmpty}
@@ -547,6 +599,7 @@ export function BoardView({
         setTool={tool.setTool}
         canEdit={canEdit}
         onCreateSticky={handleCreateSticky}
+        onCreateImage={() => imageInsert.openPicker()}
         undo={undoState}
         shapeKind={tool.shapeKind}
         setShapeKind={tool.setShapeKind}
@@ -562,6 +615,9 @@ export function BoardView({
       <NavigationHint visible={!controls.hasNavigated} />
       <ConnectionStatus state={connectionState} />
       <SharePanel boardId={boardId} />
+      <DropHighlight active={imageInsert.dragActive} />
+      <Toast items={imageInsert.toasts} />
     </div>
+    </ImageContext.Provider>
   );
 }

@@ -36,6 +36,8 @@ export function useBoardKeys(opts: {
   tool?: { setTool: (tool: ToolId) => void };
   /** N shortcut: create a sticky at the view centre (story 9). */
   onCreateStickyCenter?: () => void;
+  /** I shortcut: open the image picker (story 12). */
+  onCreateImage?: () => void;
 }): void {
   const { doc, selection, startEdit } = opts;
 
@@ -53,6 +55,8 @@ export function useBoardKeys(opts: {
   setToolRef.current = opts.tool?.setTool;
   const onCreateStickyCenterRef = useRef(opts.onCreateStickyCenter);
   onCreateStickyCenterRef.current = opts.onCreateStickyCenter;
+  const onCreateImageRef = useRef(opts.onCreateImage);
+  onCreateImageRef.current = opts.onCreateImage;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -131,6 +135,12 @@ export function useBoardKeys(opts: {
           if (!canEditRef.current) return;
           e.preventDefault();
           setToolRef.current?.('pen');
+          return;
+        }
+        if (key === 'i') {
+          if (!canEditRef.current) return;
+          e.preventDefault();
+          onCreateImageRef.current?.();
           return;
         }
       }

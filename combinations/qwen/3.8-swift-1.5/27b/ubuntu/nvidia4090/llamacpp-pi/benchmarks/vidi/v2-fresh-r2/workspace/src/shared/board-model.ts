@@ -253,6 +253,29 @@ export function objects(doc: Y.Doc): readonly ObjectSnapshot[] {
       (entry as { points?: number[]; baseWidth?: number; baseHeight?: number; color?: string; thickness?: string }).thickness =
         (obj.get('thickness') as string) ?? 'medium';
     }
+    if (type === 'image') {
+      (entry as {
+        assetKey?: string | null;
+        contentType?: string;
+        naturalWidth?: number;
+        naturalHeight?: number;
+        status?: 'uploading' | 'ready' | 'failed';
+        uploadStartedAt?: number;
+        uploaderId?: string;
+      }).assetKey = (obj.get('assetKey') as string | null) ?? null;
+      (entry as { contentType?: string }).contentType =
+        (obj.get('contentType') as string) ?? 'image/png';
+      (entry as { naturalWidth?: number }).naturalWidth =
+        (obj.get('naturalWidth') as number) ?? 0;
+      (entry as { naturalHeight?: number }).naturalHeight =
+        (obj.get('naturalHeight') as number) ?? 0;
+      (entry as { status?: 'uploading' | 'ready' | 'failed' }).status =
+        (obj.get('status') as 'uploading' | 'ready' | 'failed') ?? 'uploading';
+      (entry as { uploadStartedAt?: number }).uploadStartedAt =
+        (obj.get('uploadStartedAt') as number) ?? 0;
+      (entry as { uploaderId?: string }).uploaderId =
+        (obj.get('uploaderId') as string) ?? '';
+    }
     result.push(entry);
   });
 

@@ -17,10 +17,13 @@ import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
 import { handleTestHook } from './test-hooks';
+import { handleUpload, handleServe } from './assets';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** Story 12: image assets (R2). */
+  ASSETS_BUCKET: R2Bucket;
   /** '1' enables the /__test routes (set via wrangler.jsonc vars for tests). */
   TEST_HOOKS?: string;
 }
@@ -28,6 +31,22 @@ export interface Env {
 const ROOM_PATH = /^\/api\/rooms\/([^/]+)\/?$/;
 const BOARDS_PATH = /^\/api\/boards\/?$/;
 const BOARD_PATH = /^\/api\/boards\/([^/]+)\/?$/;
+const BOARD_ASSETS_PATH = /^\/api\/boards\/([^/]+)\/assets\/?$/;
+const ASSET_PATH = /^\/api\/assets\/([^/]+)\/([^/]+)\/?$/;
+const ASSET_PREFIX = /^\/api\/assets\//;
+
+/**
+ * The request path WITHOUT URL dot-segment normalisation, so a `..` in an
+ * asset path is not silently resolved away (it must 404, not fall through to
+ * the SPA). Strips the scheme+host from the raw URL.
+ */
+function rawPath(url: string): string {
+  const idx = url.indexOf('://');
+  if (idx === -1) return url;
+  const rest = url.slice(idx + 3);
+  const slash = rest.indexOf('/');
+  return slash === -1 ? '' : rest.slice(slash);
+}
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -72,6 +91,28 @@ export default {
       const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
       const exists = await stub.exists();
       return exists ? json({ id: boardId }, 200) : json({ error: 'not_found' }, 404);
+    }
+
+    // Story 12: upload an image asset to a board (POST /api/boards/:id/assets).
+    const boardAssetsMatch = rawPath(req.url).match(BOARD_ASSETS_PATH);
+    if (boardAssetsMatch) {
+      if (req.method === 'POST') {
+        return handleUpload(req, env, boardAssetsMatch[1]);
+      }
+      return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    // Story 12: serve a stored image asset (GET /api/assets/:boardId/:assetId).
+    // Matched on the raw path so `..` is handled here (404), never the SPA.
+    if (ASSET_PREFIX.test(rawPath(req.url))) {
+      if (req.method !== 'GET') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const assetMatch = rawPath(req.url).match(ASSET_PATH);
+      if (!assetMatch) {
+        return json({ error: 'not_found' }, 404);
+      }
+      return handleServe(env, `${assetMatch[1]}/${assetMatch[2]}`);
     }
 
     // WebSocket rooms.
