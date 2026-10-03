@@ -17,11 +17,16 @@ export async function zoomLabelText(page: Page): Promise<string> {
 
 /**
  * Jump the camera directly via the test-only hook (test builds only).
- * Waits a beat so the re-render lands before assertions.
+ * Waits for the hook to be available, then jumps and waits for re-render.
  */
 interface CameraJump { x: number; y: number; zoom: number }
 
 export async function setCamera(page: Page, cam: CameraJump): Promise<void> {
+  // Wait for the test hook to be registered (useEffect runs after render)
+  await page.waitForFunction(() => {
+    return !!(window as { __vidi6?: unknown }).__vidi6;
+  }, { timeout: 10_000 });
+
   await page.evaluate(async (c) => {
     const hook = (window as { __vidi6?: { setCamera(c: CameraJump): void } }).__vidi6;
     if (!hook) throw new Error('window.__vidi6 test hook missing (not a test build?)');

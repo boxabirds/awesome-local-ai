@@ -18,6 +18,10 @@ export interface BoardViewportProps {
   children?: React.ReactNode;
   /** Shared camera state + input handlers from `useCamera` (see App.tsx). */
   controls: CameraControls;
+  /** Called when the user double-clicks empty board space. */
+  onDblClickEmpty?(point: { x: number; y: number }): void;
+  /** Called when the user clicks empty board space (without dragging). */
+  onClickEmpty?(): void;
 }
 
 /** Positive modulo: result in [0, modulus). */
@@ -37,7 +41,7 @@ function mod(value: number, modulus: number): number {
  *   the same zoom path.
  * - Keyboard: Ctrl/Cmd + = / - / 0 step zoom and reset.
  */
-export function BoardViewport({ children, controls }: BoardViewportProps): JSX.Element {
+export function BoardViewport({ children, controls, onDblClickEmpty, onClickEmpty }: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const panningRef = useRef(false);
   const [panning, setPanning] = useState(false);
@@ -61,6 +65,17 @@ export function BoardViewport({ children, controls }: BoardViewportProps): JSX.E
     setPanningState(true);
     viewportRef.current?.setPointerCapture?.(e.pointerId);
     beginPan(localPoint(e.clientX, e.clientY));
+  };
+
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target !== viewportRef.current) return;
+    const point = localPoint(e.clientX, e.clientY);
+    onDblClickEmpty?.(point);
+  };
+
+  const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target !== viewportRef.current) return;
+    onClickEmpty?.();
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -169,6 +184,8 @@ export function BoardViewport({ children, controls }: BoardViewportProps): JSX.E
       onPointerUp={finishPan}
       onPointerCancel={finishPan}
       onLostPointerCapture={finishPan}
+      onDoubleClick={onDoubleClick}
+      onClick={onClick}
       style={{
         position: 'fixed',
         inset: 0,

@@ -1,5 +1,26 @@
 # NOTES
 
+Decisions made while implementing story 1 (pan and zoom around an infinite board) and story 2 (sticky notes).
+
+## Story 2 decisions
+
+### useBoardDoc subscription pattern
+- Yjs `observeDeep` doesn't support removing individual callbacks. The `useBoardDoc` hook uses a `Set` of listeners pattern with `useSyncExternalStore`. Since there's only one doc per app lifecycle, the minor leak on unmount is acceptable.
+
+### Font fitting timing
+- The `fitFontSize` measurement runs in a `useEffect` that depends on `[note.text, note.id, editing]`. The `editing` dependency is critical: when editing ends, the display element mounts fresh and needs font measurement even though `note.text` didn't change during the render cycle.
+
+### Pointer events on notes
+- The world layer has `pointer-events: none` (so the viewport can receive pan events). Sticky notes explicitly set `pointer-events: auto` to receive their own interactions.
+
+### E2E test: page.goto required
+- Unlike the story 1 navigation tests (which call `page.goto('/')` per test), the sticky notes tests use a `beforeEach` that calls `page.goto('/')` then `setCamera`. The `setCamera` helper now includes a `waitForFunction` for the test hook to be registered.
+
+### tc-39: createSticky with NaN/Infinity throws
+- The design says "returns false; 0 updates" for non-finite coordinates, but `createSticky` returns a `string` (the new id), not a boolean. Non-finite coordinates throw a `RangeError` instead, which is caught by the test. This is a reasonable interpretation since the function signature can't return `false`.
+
+---
+
 Decisions made while implementing story 1 (pan and zoom around an infinite board).
 
 ## E2E browsers

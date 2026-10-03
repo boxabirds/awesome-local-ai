@@ -14,6 +14,14 @@ if (!('ResizeObserver' in globalThis)) {
   Object.assign(globalThis, { ResizeObserver: ResizeObserverStub });
 }
 
+// jsdom has no pointer capture API
+if (!Element.prototype.setPointerCapture) {
+  Element.prototype.setPointerCapture = () => {};
+}
+if (!Element.prototype.releasePointerCapture) {
+  Element.prototype.releasePointerCapture = () => {};
+}
+
 afterEach(() => {
   cleanup();
 });
