@@ -1,3 +1,52 @@
+commit 4cbe84dfbfa16b03f656070b2d610df22d74acc8
+agent  Sat Oct 3 12:08:20 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                |  86 ++++++++++++
+ PROGRESS.md                             |  10 +-
+ index.html                              |   1 +
+ src/client/App.tsx                      | 181 ++++--------------------
+ src/client/api.ts                       |  37 +++++
+ src/client/pages/BoardPage.tsx          | 237 ++++++++++++++++++++++++++++++++
+ src/client/pages/HomePage.tsx           |  58 ++++++++
+ src/client/pages/NotFoundPage.tsx       |  60 ++++++++
+ src/client/pages/state.ts               |  79 +++++++++++
+ src/client/router.ts                    |  58 ++++++++
+ src/client/share/SharePanel.tsx         | 199 +++++++++++++++++++++++++++
+ src/shared/config.ts                    |  10 ++
+ src/worker/board-room.ts                |  58 +++++++-
+ src/worker/board-store.ts               |  95 +++++++++++++
+ src/worker/create-board.ts              |  37 +++++
+ src/worker/index.ts                     |  71 ++++++++--
+ src/worker/test-hooks.ts                |  60 ++++++++
+ tests/component/BoardViewport.test.tsx  |  22 +--
+ tests/component/NavigationHint.test.tsx |   8 +-
+ tests/component/SharePanel.test.tsx     | 145 +++++++++++++++++++
+ tests/component/pages.test.tsx          | 144 +++++++++++++++++++
+ tests/e2e/broken-board.spec.ts          |   4 +-
+ tests/e2e/helpers/board.ts              |  31 ++++-
+ tests/e2e/helpers/participants.ts       |  12 +-
+ tests/e2e/navigation.spec.ts            |  16 +--
+ tests/e2e/persistence.spec.ts           |   4 +-
+ tests/e2e/share.spec.ts                 | 149 ++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts          |   4 +-
+ tests/integration/board-api.test.ts     | 162 ++++++++++++++++++++++
+ tests/integration/helpers/ws-client.ts  |  10 ++
+ tests/integration/worker.test.ts        |   8 +-
+ tests/integration/ws-room.test.ts       |  43 +++---
+ tests/unit/create-board.test.ts         |  36 +++++
+ wrangler.jsonc                          |   5 +-
+ 34 files changed, 1911 insertions(+), 229 deletions(-)
+commit 96fbe2b42d731d8c8ffc628cdb7cbad4c99d744b
+vidi-agent  Sat Oct 3 11:33:03 2026 +0100
+
+    harness: PROGRESS.md for story 5
+
+
+ PROGRESS.md | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
 commit b7794af460d88fb711c5818f02ff1613ed093269
 agent  Sat Oct 3 11:29:43 2026 +0100
 
