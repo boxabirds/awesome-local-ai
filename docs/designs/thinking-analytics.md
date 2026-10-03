@@ -136,3 +136,23 @@ recomputes, a rebuild equals an incremental run. Parity: the real backfill again
   CLI, DuckDB's attach) cannot open once the collector has closed it. It is now a rollback-journal file, with a test
   that opens it read-only after a pass. The collector was restarted on the fixed binary (`launchctl kickstart` of
   `com.awesome-local-ai.dbench-collect`; the previous binary is kept in the session's scratchpad).
+
+## The labelling check tool (`dbench label`)
+
+For layer 2 (a labelled taxonomy of thinking, from the research plan): a model pre-labels a sample and the owner, who
+is the expert, validates it. `dbench label --items items.jsonl --labels labels.json --decisions decisions.jsonl` serves
+one page on `127.0.0.1:7763`.
+
+- **Items** are JSON lines: `id`, `text`, the model's `label` and optionally `reason`, `context` (what came before),
+  `blind`, `meta`. **Labels** are a JSON array of `{id, name, definition}`; an item whose label is not in the set is
+  refused at start.
+- **Blind items.** The model's label and reason are withheld by the server, not the page, until the person has decided
+  that item; so agreement on them is not anchored by seeing the answer. Items not blind are accepted or corrected with
+  one key. The summary gives agreement and Cohen's kappa for all, blind and shown items apart, and a table of the
+  model's label against the person's. A validation sample should mix both, and the blind agreement is the one to quote.
+- **Decisions** are appended to a file, never rewritten; the last for an item wins, and a restart picks up where it
+  ended. Keys: 1 to 9 and 0 choose a label, Enter accepts the model's, arrows move.
+- Tests: `tests/label.rs` (the page, the state with a blind label withheld, decisions appended and read back, refusals,
+  malformed files) and unit tests of agreement and kappa. Checked in a browser on a private port.
+- **Not built yet:** the taxonomy, the sample and the model's pre-labels. The taxonomy is the owner's to set (a first
+  proposal is in the research document); the tool takes whatever label set it is given.
