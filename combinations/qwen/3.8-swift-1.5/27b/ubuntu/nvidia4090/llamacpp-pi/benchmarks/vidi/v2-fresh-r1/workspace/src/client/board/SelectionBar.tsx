@@ -8,7 +8,8 @@ import { unionRects } from '../../shared/geometry';
 import { worldToScreen, type Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
-import { DEFAULT_TEXT_SIZE, type StickyColor, type TextSize } from '../../shared/config';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
+import { DEFAULT_TEXT_SIZE, type StickyColor, type TextSize, type FillColor, type StrokeColor } from '../../shared/config';
 
 const BAR_GAP_PX = 8;
 
@@ -20,8 +21,12 @@ export function SelectionBar(props: {
   onStickyColor: (id: string, color: StickyColor) => void;
   /** Change the size of a text object (story 9). */
   onTextSize?: (id: string, size: TextSize) => void;
+  /** Change the fill of a shape (story 10). */
+  onShapeFill?: (id: string, fill: FillColor) => void;
+  /** Change the stroke of a shape (story 10). */
+  onShapeStroke?: (id: string, stroke: StrokeColor) => void;
 }): React.ReactElement | null {
-  const { ids, snapshot, camera, onDelete, onStickyColor, onTextSize } = props;
+  const { ids, snapshot, camera, onDelete, onStickyColor, onTextSize, onShapeFill, onShapeStroke } = props;
   if (ids.size === 0) return null;
 
   const selected = snapshot.filter((o) => ids.has(o.id));
@@ -75,6 +80,31 @@ export function SelectionBar(props: {
         <TextToolbar
           size={size}
           onSize={(s) => onTextSize?.(obj.id, s)}
+          onDelete={onDelete}
+        />
+      </div>
+    );
+  }
+
+  // Exactly one shape → the shape toolbar (story 10).
+  if (ids.size === 1 && selected[0].type === 'shape') {
+    const obj = selected[0] as ObjectSnapshot & { fill: string; stroke: string };
+    return (
+      <div
+        data-testid="selection-bar"
+        style={{
+          position: 'absolute',
+          left: cx,
+          top: anchorTop,
+          pointerEvents: 'auto',
+          zIndex: 30,
+        }}
+      >
+        <ShapeToolbar
+          fill={(obj.fill ?? 'white') as FillColor}
+          stroke={(obj.stroke ?? 'dark') as StrokeColor}
+          onFill={(c) => onShapeFill?.(obj.id, c)}
+          onStroke={(c) => onShapeStroke?.(obj.id, c)}
           onDelete={onDelete}
         />
       </div>

@@ -1,8 +1,9 @@
 // Left-side vertical toolbar with the Sticky note button and Undo/Redo.
 
-import { useCallback, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { UndoButtons } from './UndoButtons';
 import type { Tool } from './useTool';
+import { SHAPE_KINDS, type ShapeKind } from '../../shared/config';
 
 interface ToolbarProps {
   onCreateSticky: () => void;
@@ -11,10 +12,14 @@ interface ToolbarProps {
   canRedo?: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
-  /** Active tool (story 9). */
+  /** Active tool (story 9+). */
   tool?: Tool;
-  /** Switch the active tool (story 9). */
+  /** Switch the active tool (story 9+). */
   onToolChange?: (t: Tool) => void;
+  /** Current shape kind (story 10). */
+  shapeKind?: ShapeKind;
+  /** Change the shape kind (story 10). */
+  onShapeKindChange?: (k: ShapeKind) => void;
 }
 
 export function Toolbar({
@@ -26,7 +31,10 @@ export function Toolbar({
   onRedo,
   tool = 'select',
   onToolChange,
+  shapeKind = 'rect',
+  onShapeKindChange,
 }: ToolbarProps) {
+  const [showShapeMenu, setShowShapeMenu] = useState(false);
   const stopPointer = useCallback((e: ReactPointerEvent) => {
     e.stopPropagation();
   }, []);
@@ -101,6 +109,81 @@ export function Toolbar({
         }}
       >
         📝
+      </button>
+      {/* Shape tool button with kind menu (story 10) */}
+      <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          aria-label="Shape (S)"
+          aria-pressed={tool === 'shape'}
+          data-testid="shape-tool-btn"
+          title="Shape – S"
+          onClick={() => {
+            onToolChange?.('shape');
+            setShowShapeMenu(!showShapeMenu);
+          }}
+          disabled={disabled}
+          style={toolButtonStyle(tool === 'shape')}
+        >
+          ▭
+        </button>
+        {showShapeMenu && tool === 'shape' && (
+          <div
+            data-testid="shape-kind-menu"
+            style={{
+              position: 'absolute',
+              left: '48px',
+              top: '0',
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              padding: '4px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+              zIndex: 200,
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {SHAPE_KINDS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                aria-label={`${k} shape`}
+                data-testid={`shape-kind-${k}`}
+                onClick={() => {
+                  onShapeKindChange?.(k);
+                  setShowShapeMenu(false);
+                }}
+                style={{
+                  padding: '6px 12px',
+                  border: 'none',
+                  borderRadius: '4px',
+                  backgroundColor: shapeKind === k ? '#E3F2FD' : 'transparent',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  textAlign: 'left',
+                  textTransform: 'capitalize',
+                }}
+              >
+                {k === 'rect' ? 'Rectangle' : k === 'ellipse' ? 'Ellipse' : 'Diamond'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* Connector tool button (story 10) */}
+      <button
+        type="button"
+        aria-label="Connector (L)"
+        aria-pressed={tool === 'connector'}
+        data-testid="connector-tool-btn"
+        title="Connector – L"
+        onClick={() => onToolChange?.('connector')}
+        disabled={disabled}
+        style={toolButtonStyle(tool === 'connector')}
+      >
+        →
       </button>
       <UndoButtons
         canUndo={canUndo ?? false}

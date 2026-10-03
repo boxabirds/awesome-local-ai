@@ -370,3 +370,52 @@ Decisions and environment facts worth remembering for later stories.
   typing boundaries, shortcuts, buttons, edit lock, editor focus guard).
 - **E2E** (`undo-redo.spec.ts`): TC-22 to TC-24 (multi-browser peer
   isolation, repeated undo, toolbar buttons).
+
+---
+
+# Story 10 — Notes
+
+## Design decisions
+
+- **ShapeTool/ConnectorTool rendered as fixed-position overlays**: The tools
+  are rendered outside the `BoardViewport` (which applies a CSS transform to
+  the world-layer). Using `position: fixed; inset: 0` ensures they cover the
+  full viewport and receive pointer events correctly. Screen-to-world
+  conversion is done via `screenToWorld(camera, { x: e.clientX, y: e.clientY })`.
+
+- **Shape creation threshold**: A drag less than 20 world units in either
+  dimension is treated as a "click" (creates default-size shape at click
+  point). This matches the spec's "click to place at default size" behaviour.
+
+- **Connector endpoints stored as Y.Map in doc**: `from` and `to` are Y.Map
+  objects with `kind`, `objectId`/`x`/`y`, and `fallback` (itself a Y.Map for
+  attached endpoints). This allows collaborative updates to endpoints without
+  replacing the entire connector object.
+
+- **`detachConnectorsTo` in `deleteObjects`**: When an object is deleted, all
+  connectors referencing it are updated to use their fallback position as a
+  free endpoint. This preserves the connector (with a free end) rather than
+  deleting it.
+
+- **Shape label max 80 chars**: `SHAPE_LABEL_MAX_CHARS = 80` in config. The
+  label is stored in a Y.Text and truncated on input.
+
+- **Shape style validation**: `setShapeStyle` validates fill/stroke against
+  the allowed palettes (`SHAPE_FILL_COLORS`, `SHAPE_STROKE_COLORS`). Invalid
+  values are silently ignored (returns false).
+
+- **Connector hit tolerance**: `CONNECTOR_HIT_TOLERANCE_PX = 8` — used for
+  selecting connectors by clicking near the polyline.
+
+- **Arrowhead rendering**: The arrowhead is rendered as an SVG polygon at the
+  `to` endpoint, oriented along the polyline direction. Size is
+  `CONNECTOR_ARROWHEAD_SIZE_WORLD = 12` world units.
+
+- **Selection after tool creation via `queueMicrotask`**: The `onToolCreated`
+  callback defers selection to a microtask because `setMany` validates against
+  the current snapshot, and the newly created object isn't in the snapshot yet
+  during the same synchronous event handler.
+
+- **TC-12 updated to use 'unknown-type'**: The test's intent is forward
+  compatibility (unknown types are skipped), but 'shape' is no longer unknown
+  after story 10. Changed to 'unknown-type' to preserve test intent.

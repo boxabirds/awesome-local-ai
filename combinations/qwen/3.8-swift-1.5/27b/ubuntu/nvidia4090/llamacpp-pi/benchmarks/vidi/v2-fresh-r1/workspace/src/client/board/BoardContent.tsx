@@ -14,6 +14,11 @@ import { useSelection } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
 import { useTool } from '../board/useTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { createShape } from '../../shared/objects/shape';
+import { createConnector } from '../../shared/objects/connector';
+import { CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
@@ -29,7 +34,8 @@ import {
   setStickyColor,
 } from '../../shared/board-model';
 import { createText, deleteIfEmpty, isEmptyText, setTextSize } from '../../shared/objects/text';
-import type { StickyColor, TextSize } from '../../shared/config';
+import { setShapeStyle } from '../../shared/objects/shape';
+import type { StickyColor, TextSize, FillColor, StrokeColor } from '../../shared/config';
 import { screenToWorld } from '../canvas/camera';
 
 export function BoardContent({ boardId }: { boardId: string }) {
@@ -45,8 +51,8 @@ export function BoardContent({ boardId }: { boardId: string }) {
   // Editing is disabled when the board failed to load on the server side.
   const canEdit = connectionState !== 'load_failed';
 
-  // Active tool (story 9): select (default) or text.
-  const { tool, setTool } = useTool(canEdit);
+  // Active tool (story 9+): select (default), text, shape, connector.
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated, onToolCreated } = useTool(canEdit);
 
   // Undo controller (story 8): one per board doc, destroyed on board change.
   const undoRef = useRef<UndoController | null>(null);
@@ -133,6 +139,17 @@ export function BoardContent({ boardId }: { boardId: string }) {
     [camera, doc, selection, canEdit, boundary, setTool],
   );
 
+  // Register the selection callback for toolCreated (story 10).
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+  useEffect(() => {
+    onToolCreated((id: string) => {
+      queueMicrotask(() => {
+        selectionRef.current.setMany([id], false);
+      });
+    });
+  }, [onToolCreated]);
+
   // Clear selection on empty board click
   const handleClickEmpty = useCallback(() => {
     selection.clear();
@@ -195,6 +212,27 @@ export function BoardContent({ boardId }: { boardId: string }) {
     [canEdit, doc, boundary],
   );
 
+  // Change the style of a shape (ShapeToolbar, story 10).
+  const handleShapeFill = useCallback(
+    (id: string, fill: FillColor) => {
+      if (!canEdit) return;
+      boundary();
+      setShapeStyle(doc, id, { fill });
+      boundary();
+    },
+    [canEdit, doc, boundary],
+  );
+
+  const handleShapeStroke = useCallback(
+    (id: string, stroke: StrokeColor) => {
+      if (!canEdit) return;
+      boundary();
+      setShapeStyle(doc, id, { stroke });
+      boundary();
+    },
+    [canEdit, doc, boundary],
+  );
+
   return (
     <CameraContext.Provider value={cameraApi}>
       <div ref={rootRef} className="app-root" data-testid="app-root">
@@ -228,6 +266,24 @@ export function BoardContent({ boardId }: { boardId: string }) {
           })}
           <MarqueeRect rect={marquee.rect} />
         </BoardViewport>
+        {tool === 'shape' && canEdit && (
+          <ShapeTool
+            kind={shapeKind}
+            camera={camera}
+            doc={doc}
+            onCreated={toolCreated}
+            onBoundary={boundary}
+          />
+        )}
+        {tool === 'connector' && canEdit && (
+          <ConnectorTool
+            camera={camera}
+            snapshot={objects}
+            doc={doc}
+            onCreated={toolCreated}
+            onBoundary={boundary}
+          />
+        )}
         <SelectionOverlay
           ids={selection.ids}
           snapshot={objects}
@@ -241,6 +297,8 @@ export function BoardContent({ boardId }: { boardId: string }) {
           onDelete={handleDeleteSelection}
           onStickyColor={handleStickyColor}
           onTextSize={handleTextSize}
+          onShapeFill={handleShapeFill}
+          onShapeStroke={handleShapeStroke}
         />
         <Toolbar
           onCreateSticky={handleCreateSticky}
@@ -251,6 +309,8 @@ export function BoardContent({ boardId }: { boardId: string }) {
           onRedo={undoApi.redo}
           tool={tool}
           onToolChange={setTool}
+          shapeKind={shapeKind}
+          onShapeKindChange={setShapeKind}
         />
         <ConnectionStatus state={connectionState} />
         <ZoomControls

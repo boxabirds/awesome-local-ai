@@ -2,7 +2,7 @@
 // viewport + marquee + registry-rendered objects + selection overlay +
 // selection bar + transform gesture + board keyboard shortcuts.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { BoardViewport, CameraContext } from '../../src/client/canvas/BoardViewport';
 import { useCamera } from '../../src/client/canvas/useCamera';
@@ -22,10 +22,15 @@ import { useBoardKeys } from '../../src/client/board/useBoardKeys';
 import { useTool } from '../../src/client/board/useTool';
 import { Toolbar } from '../../src/client/board/Toolbar';
 import { createText, deleteIfEmpty, isEmptyText, setTextSize } from '../../src/shared/objects/text';
+import { createShape, setShapeStyle } from '../../src/shared/objects/shape';
+import { createConnector } from '../../src/shared/objects/connector';
 import { useMarquee, MarqueeRect } from '../../src/client/board/Marquee';
 import { SelectionOverlay } from '../../src/client/board/SelectionOverlay';
 import { SelectionBar } from '../../src/client/board/SelectionBar';
 import { getObjectType } from '../../src/client/objects/registry';
+import { ShapeTool } from '../../src/client/tools/ShapeTool';
+import { ConnectorTool } from '../../src/client/tools/ConnectorTool';
+import type { ShapeKind, FillColor, StrokeColor } from '../../src/shared/config';
 
 /** Viewport size used by the harness (default laptop). */
 export const HARNESS_SIZE: Size = { width: 1280, height: 800 };
@@ -77,7 +82,18 @@ export function BoardHarness(props: {
     onGestureEnd,
   });
   const marquee = useMarquee(api.camera, objects, (ids) => selection.setMany(ids, true));
-  const { tool, setTool } = useTool(canEdit);
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated, onToolCreated } = useTool(canEdit);
+
+  // Register selection callback for toolCreated (deferred to allow snapshot update)
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+  useEffect(() => {
+    onToolCreated((id: string) => {
+      queueMicrotask(() => {
+        selectionRef.current.setMany([id], false);
+      });
+    });
+  }, [onToolCreated]);
 
   const handleCreateSticky = () => {
     if (!canEdit) return;
@@ -141,6 +157,14 @@ export function BoardHarness(props: {
     setTextSize(doc, id, size);
   };
 
+  const handleShapeFill = (id: string, fill: FillColor) => {
+    setShapeStyle(doc, id, { fill });
+  };
+
+  const handleShapeStroke = (id: string, stroke: StrokeColor) => {
+    setShapeStyle(doc, id, { stroke });
+  };
+
   const handleObjectDoubleClick = (id: string) => {
     const obj = objects.find((o) => o.id === id);
     if (obj && getObjectType(obj.type)?.editableText) selection.startEdit(id);
@@ -176,6 +200,22 @@ export function BoardHarness(props: {
           })}
           <MarqueeRect rect={marquee.rect} />
         </BoardViewport>
+        {tool === 'shape' && canEdit && (
+          <ShapeTool
+            kind={shapeKind}
+            camera={api.camera}
+            doc={doc}
+            onCreated={toolCreated}
+          />
+        )}
+        {tool === 'connector' && canEdit && (
+          <ConnectorTool
+            camera={api.camera}
+            snapshot={objects}
+            doc={doc}
+            onCreated={toolCreated}
+          />
+        )}
         <SelectionOverlay
           ids={selection.ids}
           snapshot={objects}
@@ -189,6 +229,8 @@ export function BoardHarness(props: {
           onDelete={handleDeleteSelection}
           onStickyColor={(id, c: StickyColor) => setStickyColor(doc, id, c)}
           onTextSize={handleTextSize}
+          onShapeFill={handleShapeFill}
+          onShapeStroke={handleShapeStroke}
         />
         {withToolbar && (
           <Toolbar
@@ -196,6 +238,8 @@ export function BoardHarness(props: {
             disabled={!canEdit}
             tool={tool}
             onToolChange={setTool}
+            shapeKind={shapeKind}
+            onShapeKindChange={setShapeKind}
           />
         )}
         <div data-testid="tool" data-value={tool} />

@@ -10,9 +10,13 @@ import type {
 import * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { rectContains, type Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
 
 /** Props every object component receives from the board renderer. */
 export interface ObjectProps {
@@ -98,4 +102,33 @@ registerObjectType('text', {
   editableText: true,
   handles: 'horizontal',
   hitTest: rectHitTest,
+});
+
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: rectHitTest,
+});
+
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest: (obj: ObjectSnapshot, p: Point) => {
+    // Connector hit test: distance to the line <= tolerance
+    const conn = obj as ObjectSnapshot & { from: { kind: string; objectId?: string; fallback?: Point; x?: number; y?: number }; to: { kind: string; objectId?: string; fallback?: Point; x?: number; y?: number } };
+    if (!conn.from || !conn.to) return false;
+    // Simple point check for now (full resolution needs rects map)
+    const fx = conn.from.kind === 'free' ? conn.from.x! : conn.from.fallback?.x ?? obj.x;
+    const fy = conn.from.kind === 'free' ? conn.from.y! : conn.from.fallback?.y ?? obj.y;
+    const tx = conn.to.kind === 'free' ? conn.to.x! : conn.to.fallback?.x ?? obj.x + (obj.width ?? 0);
+    const ty = conn.to.kind === 'free' ? conn.to.y! : conn.to.fallback?.y ?? obj.y;
+    const dist = distanceToPolyline([{ x: fx, y: fy }, { x: tx, y: ty }], p);
+    return dist <= CONNECTOR_HIT_TOLERANCE_PX;
+  },
 });

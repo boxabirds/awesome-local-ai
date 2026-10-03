@@ -9,6 +9,7 @@ import {
   type StickyColor,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+import { detachConnectorsTo } from './objects/connector';
 
 /** Origin marker for local edits (used by story 8 undo and story 3 echo suppression). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('LOCAL_ORIGIN');
@@ -62,7 +63,7 @@ function isFiniteNum(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n);
 }
 
-function getObjects(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
+export function getObjects(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects');
 }
 
@@ -221,6 +222,8 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = ids.filter((id) => objects.has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Detach connectors to deleted objects before removing them (story 10).
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
@@ -278,6 +281,26 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 }
 
 /**
+ * Read a connector endpoint from a Y.Map stored in the doc.
+ */
+function readEndpoint(map: Y.Map<unknown> | undefined): { kind: string; objectId?: string; fallback?: { x: number; y: number }; x?: number; y?: number } | undefined {
+  if (!map) return undefined;
+  const kind = map.get('kind') as string;
+  if (kind === 'free') {
+    return { kind: 'free', x: map.get('x') as number, y: map.get('y') as number };
+  }
+  if (kind === 'attached') {
+    const fb = map.get('fallback') as Y.Map<unknown> | undefined;
+    return {
+      kind: 'attached',
+      objectId: map.get('objectId') as string,
+      fallback: fb ? { x: fb.get('x') as number, y: fb.get('y') as number } : undefined,
+    };
+  }
+  return undefined;
+}
+
+/**
  * Return an immutable snapshot of all known objects, sorted by (z, id).
  * Unknown object types are skipped (forward compatibility).
  */
@@ -302,6 +325,51 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         size: (obj.get('size') as string) ?? 'M',
         widthMode: (obj.get('widthMode') as 'auto' | 'fixed') ?? 'auto',
       });
+      return;
+    }
+    if (type === 'shape') {
+      const label = obj.get('label');
+      result.push({
+        id,
+        type: 'shape',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        width: obj.get('width') as number | undefined,
+        height: obj.get('height') as number | undefined,
+        kind: obj.get('kind') as string,
+        fill: obj.get('fill') as string,
+        stroke: obj.get('stroke') as string,
+        label: label instanceof Y.Text ? label.toString() : '',
+      } as ObjectSnapshot);
+      return;
+    }
+    if (type === 'connector') {
+      // Read endpoints from Y.Map storage
+      const fromMap = obj.get('from') as Y.Map<unknown> | undefined;
+      const toMap = obj.get('to') as Y.Map<unknown> | undefined;
+      const from = readEndpoint(fromMap);
+      const to = readEndpoint(toMap);
+      let fx = 0, fy = 0, tx = 0, ty = 0;
+      if (from?.kind === 'free') { fx = from.x!; fy = from.y!; }
+      else if (from?.kind === 'attached' && from.fallback) { fx = from.fallback.x; fy = from.fallback.y; }
+      if (to?.kind === 'free') { tx = to.x!; ty = to.y!; }
+      else if (to?.kind === 'attached' && to.fallback) { tx = to.fallback.x; ty = to.fallback.y; }
+      const minX = Math.min(fx, tx);
+      const minY = Math.min(fy, ty);
+      result.push({
+        id,
+        type: 'connector',
+        x: minX,
+        y: minY,
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        width: Math.abs(tx - fx),
+        height: Math.abs(ty - fy),
+        from: from as any,
+        to: to as any,
+      } as ObjectSnapshot);
       return;
     }
     if (type !== 'sticky') return; // other types included as they are introduced

@@ -1,28 +1,53 @@
-// Active tool state (story 9): 'select' (default) or 'text'.
-// Stories 10-12 extend the union. The Text tool is only available when the
-// board is editable; when editing becomes unavailable an active Text tool
-// reverts to Select.
+// Active tool state (story 9+): 'select' (default), 'text', 'shape', 'connector'.
+// The Text/Shape/Connector tools are only available when the board is editable;
+// when editing becomes unavailable an active non-select tool reverts to Select.
 
 import { useCallback, useEffect, useState } from 'react';
+import type { ShapeKind } from '../../shared/config';
 
-export type Tool = 'select' | 'text';
+export type Tool = 'select' | 'text' | 'shape' | 'connector';
 
-export function useTool(canEdit: boolean): { tool: Tool; setTool(t: Tool): void } {
+export function useTool(canEdit: boolean): {
+  tool: Tool;
+  shapeKind: ShapeKind;
+  setTool(t: Tool): void;
+  setShapeKind(k: ShapeKind): void;
+  toolCreated(id: string): void;
+  onToolCreated: (select: (id: string) => void) => void;
+} {
   const [tool, setToolState] = useState<Tool>('select');
+  const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
+  const [selectRef, setSelectRef] = useState<((id: string) => void) | null>(null);
 
   // Revert to Select when editing becomes unavailable.
   useEffect(() => {
-    if (!canEdit && tool === 'text') setToolState('select');
+    if (!canEdit && tool !== 'select') setToolState('select');
   }, [canEdit, tool]);
 
   const setTool = useCallback(
     (t: Tool): void => {
-      // The Text tool requires an editable board.
-      if (t === 'text' && !canEdit) return;
+      if (t !== 'select' && !canEdit) return;
       setToolState(t);
     },
     [canEdit],
   );
 
-  return { tool, setTool };
+  /** Called by tools after creating an object: selects it and returns to Select. */
+  const toolCreated = useCallback(
+    (id: string): void => {
+      selectRef?.(id);
+      setToolState('select');
+    },
+    [selectRef],
+  );
+
+  /** Register the selection callback (called by BoardContent). */
+  const onToolCreated = useCallback(
+    (select: (id: string) => void): void => {
+      setSelectRef(select);
+    },
+    [],
+  );
+
+  return { tool, shapeKind, setTool, setShapeKind, toolCreated, onToolCreated };
 }

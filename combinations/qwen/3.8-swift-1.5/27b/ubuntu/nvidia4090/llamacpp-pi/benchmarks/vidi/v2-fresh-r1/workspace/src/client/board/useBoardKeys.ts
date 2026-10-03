@@ -73,7 +73,7 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
 
-      // Tool shortcuts (story 9): single keys, no modifiers.
+      // Tool shortcuts (story 9+): single keys, no modifiers.
       if (!e.ctrlKey && !e.metaKey && !e.altKey) {
         if (e.key === 'v' || e.key === 'V') {
           optsRef.current.setTool('select');
@@ -81,6 +81,14 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         }
         if (e.key === 't' || e.key === 'T') {
           optsRef.current.setTool('text'); // no-op when !canEdit
+          return;
+        }
+        if (e.key === 's' || e.key === 'S') {
+          optsRef.current.setTool('shape'); // no-op when !canEdit
+          return;
+        }
+        if (e.key === 'l' || e.key === 'L') {
+          optsRef.current.setTool('connector'); // no-op when !canEdit
           return;
         }
         if (e.key === 'n' || e.key === 'N') {

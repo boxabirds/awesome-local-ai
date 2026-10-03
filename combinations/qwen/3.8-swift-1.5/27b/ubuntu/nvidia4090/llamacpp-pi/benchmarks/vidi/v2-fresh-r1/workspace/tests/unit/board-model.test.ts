@@ -225,10 +225,10 @@ describe('board.model', () => {
     doc.transact(() => {
       const objects = doc.getMap('objects');
       const fake = new Y.Map();
-      fake.set('type', 'shape');
+      fake.set('type', 'unknown-type');
       fake.set('x', 0);
       fake.set('y', 0);
-      objects.set('fake-shape-id', fake);
+      objects.set('fake-unknown-id', fake);
     });
 
     const snap = snapshot(doc);
