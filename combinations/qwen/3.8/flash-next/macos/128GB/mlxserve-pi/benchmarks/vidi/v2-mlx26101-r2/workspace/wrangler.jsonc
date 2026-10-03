@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_als"],
+  // Story 1 serves the client as static assets only; Worker code (`main`)
+  // arrives with story 3 (real-time collaboration).
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application"
+  }
+}

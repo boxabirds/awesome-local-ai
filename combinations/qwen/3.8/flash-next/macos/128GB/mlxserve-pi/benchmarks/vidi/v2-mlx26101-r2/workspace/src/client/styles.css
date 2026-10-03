@@ -1,0 +1,182 @@
+:root {
+  --board-background: #fafafa;
+  --board-dot: #6b7280;
+  --board-cursor: grab;
+  --board-cursor-panning: grabbing;
+  --origin-marker: #e0562f;
+  --ui-background: #ffffff;
+  --ui-border: #d4d7dc;
+  --ui-text: #1f2328;
+  --ui-muted: #5d6570;
+  --ui-accent: #2f6feb;
+  color: var(--ui-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  overflow: hidden;
+}
+
+.app {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+/* ------------------------------------------------------------------ board */
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--board-background);
+  /* The dot grid is a CSS background: background-size and background-position
+     are set from the camera, so the grid appears attached to the board. */
+  background-image: radial-gradient(circle, var(--board-dot) 1.5px, transparent 2.5px);
+  background-repeat: repeat;
+  cursor: var(--board-cursor);
+  user-select: none;
+  -webkit-user-select: none;
+  /* The board owns pinch/zoom gestures over the board area. */
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+.board-viewport[data-panning='true'] {
+  cursor: var(--board-cursor-panning);
+}
+
+/* World layer: objects are positioned in world units inside this layer. */
+.board-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+/* The board's starting point: a small crosshair at world (0, 0). It is drawn
+   counter-scaled so it stays a constant size on screen. */
+.origin-marker-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.origin-marker {
+  position: absolute;
+  left: -11px;
+  top: -11px;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: '';
+  position: absolute;
+  background: var(--origin-marker);
+  opacity: 0.85;
+}
+
+.origin-marker::before {
+  left: 10px;
+  top: 0;
+  width: 2px;
+  height: 22px;
+}
+
+.origin-marker::after {
+  left: 0;
+  top: 10px;
+  width: 22px;
+  height: 2px;
+}
+
+/* ------------------------------------------------------------ page chrome */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--ui-background);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+}
+
+.zoom-controls button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 8px;
+  min-width: 30px;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #f0f2f5;
+}
+
+.zoom-controls button:disabled {
+  color: var(--ui-muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+}
+
+.zoom-percent {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-text);
+}
+
+.zoom-reset {
+  margin-left: 4px;
+}
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  background: var(--ui-background);
+  color: var(--ui-muted);
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  pointer-events: none;
+  white-space: nowrap;
+}
