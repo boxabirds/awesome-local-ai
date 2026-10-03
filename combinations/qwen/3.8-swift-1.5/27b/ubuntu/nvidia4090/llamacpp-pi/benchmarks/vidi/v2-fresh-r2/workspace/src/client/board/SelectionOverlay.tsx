@@ -65,24 +65,27 @@ export function SelectionOverlay({
   const handleSize = HANDLE_SIZE_PX / zoom;
   const halfHandle = handleSize / 2;
 
-  // A single text object shows only the left/right (e/w) handles — its
-  // height always follows the content (story 9, text.fixed_width).
-  const singleHorizontal =
-    ids.size === 1 &&
-    selected.length === 1 &&
-    getObjectType(selected[0].type)?.handles === 'horizontal';
+  // Single-object handles: a text object shows only the left/right (e/w)
+  // handles (its height follows the content, story 9); a freely resizable
+  // type (story 10 shapes: resizable, not aspect-locked) shows all eight.
+  // Aspect-locked singles (stickies) show none.
+  const singleSpec =
+    ids.size === 1 && selected.length === 1 ? getObjectType(selected[0].type) : undefined;
+  const singleHorizontal = singleSpec?.handles === 'horizontal';
+  const singleFree = !!singleSpec && singleSpec.resizable && !singleSpec.aspectLocked;
   const handleDefs: Array<{ h: Handle; cx: number; cy: number; cursor: string }> = singleHorizontal
     ? HANDLE_DEFS.filter((d) => d.h === 'e' || d.h === 'w')
     : HANDLE_DEFS;
-  const showHandles = box && (singleHorizontal || (ids.size > 1 && resizable));
+  const showHandles = box && (singleHorizontal || singleFree || (ids.size > 1 && resizable));
 
   return (
     <div
       data-testid="selection-overlay"
       style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}
     >
-      {/* Per-object thin outlines. */}
-      {selected.map((o) => {
+      {/* Per-object thin outlines (connectors draw their own endpoint
+          dots when selected — no box outline, story 10). */}
+      {selected.filter((o) => o.type !== 'connector').map((o) => {
         const b = objectBounds(o);
         return (
           <div

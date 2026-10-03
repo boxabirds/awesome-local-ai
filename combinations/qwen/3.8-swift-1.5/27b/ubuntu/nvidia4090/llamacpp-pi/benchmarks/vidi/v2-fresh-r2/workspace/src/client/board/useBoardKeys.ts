@@ -23,7 +23,7 @@ import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
 import { getObjectType } from '../objects/registry';
 import type { Selection } from './useSelection';
 import type { UndoController } from './undo';
-import type { Tool } from './useTool';
+import type { ToolId } from './useTool';
 
 export function useBoardKeys(opts: {
   doc: YDoc;
@@ -33,7 +33,7 @@ export function useBoardKeys(opts: {
   startEdit: (id: string) => void;
   undo?: UndoController;
   /** Board tool (story 9): V/T/Escape drive it. */
-  tool?: { setTool: (tool: Tool) => void };
+  tool?: { setTool: (tool: ToolId) => void };
   /** N shortcut: create a sticky at the view centre (story 9). */
   onCreateStickyCenter?: () => void;
 }): void {
@@ -113,6 +113,18 @@ export function useBoardKeys(opts: {
           if (!canEditRef.current) return;
           e.preventDefault();
           onCreateStickyCenterRef.current?.();
+          return;
+        }
+        if (key === 's') {
+          if (!canEditRef.current) return;
+          e.preventDefault();
+          setToolRef.current?.('shape');
+          return;
+        }
+        if (key === 'l') {
+          if (!canEditRef.current) return;
+          e.preventDefault();
+          setToolRef.current?.('connector');
           return;
         }
       }

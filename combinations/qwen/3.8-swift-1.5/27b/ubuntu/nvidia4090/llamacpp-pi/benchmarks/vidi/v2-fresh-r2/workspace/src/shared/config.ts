@@ -140,3 +140,50 @@ export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Maximum number of undo steps per user. */
 export const UNDO_MAX_STEPS = 200;
+
+/**
+ * Story 10: shapes and connectors.
+ */
+/** The shape kinds users can draw. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+/** Standard size (world units, square) for a shape dropped by clicking. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** Minimum drag size (world units); smaller drags create a standard shape. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Maximum characters in a shape label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Shape outline thickness in world units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** Shape fill swatches (shape.fill: 6 named colours). */
+export const SHAPE_FILL_COLORS = {
+  white: '#FFFFFF',
+  yellow: '#FFF9C4',
+  green: '#C8E6C9',
+  blue: '#BBDEFB',
+  pink: '#F8BBD0',
+  orange: '#FFE0B2',
+} as const;
+export type ShapeFillColor = keyof typeof SHAPE_FILL_COLORS;
+/** Shape outline swatches (shape.stroke: 4 named colours). */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  black: '#000000',
+  blue: '#1E88E5',
+  red: '#E53935',
+} as const;
+export type ShapeStrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+/** Default fill for new shapes. */
+export const DEFAULT_SHAPE_FILL: ShapeFillColor = 'white';
+/** Default outline for new shapes. */
+export const DEFAULT_SHAPE_STROKE: ShapeStrokeColor = 'dark';
+/** Minimum pointer travel (world units) before a connector drag creates an arrow. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** Click tolerance (screen px) for selecting an arrow's line. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Connector line thickness in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Arrowhead size in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius (screen px) of the connector tool's side dots. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;

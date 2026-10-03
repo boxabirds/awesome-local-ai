@@ -1,3 +1,123 @@
+commit e8349540fb3be32fa6711e47541625f050dbda8e
+agent  Sat Oct 3 15:44:28 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md    | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ PROGRESS.md |  7 +++++++
+ 2 files changed, 68 insertions(+)
+commit 3b174506417555c1aadb1715105ed79def49f693
+agent  Sat Oct 3 15:35:51 2026 +0100
+
+    story 10 (task 15): e2e tests for shapes and connectors (TC-23 to TC-27)
+
+
+ PROGRESS.md                           |   4 +-
+ src/client/board/SelectionOverlay.tsx |  16 +-
+ tests/e2e/shapes-connectors.spec.ts   | 327 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 338 insertions(+), 9 deletions(-)
+commit 7cc00a529e71c679a811a093565fdb985f67be8c
+agent  Sat Oct 3 15:31:37 2026 +0100
+
+    story 10 (task 14): component tests for shapes and connectors (TC-17 to TC-22)
+
+
+ src/client/objects/ConnectorObject.tsx     |   2 +-
+ src/client/tools/ConnectorTool.tsx         |   2 +-
+ src/client/tools/ShapeTool.tsx             |   2 +-
+ tests/component/shapes-connectors.test.tsx | 376 +++++++++++++++++++++++++++++
+ tests/unit/board-model-group.test.ts       |   3 +-
+ tests/unit/registry.test.ts                |   3 +-
+ 6 files changed, 383 insertions(+), 5 deletions(-)
+commit c660a8d20fecad5ae9fbcc558202ee3701a4436f
+agent  Sat Oct 3 15:23:42 2026 +0100
+
+    story 10 (task 13): connector tool hover dots, ConnectorObject arrowhead + re-attach handles
+
+
+ PROGRESS.md                        |  2 +-
+ src/client/tools/ConnectorTool.tsx | 32 ++++++++++++++++++++++----------
+ 2 files changed, 23 insertions(+), 11 deletions(-)
+commit 4762e8c0a391b52bf2441c93af47a996b3e0692b
+agent  Sat Oct 3 15:23:17 2026 +0100
+
+    story 10 (task 12): shape tool, ShapeObject with centred label, ShapeToolbar
+
+
+ PROGRESS.md                            |   4 +-
+ src/client/board/SelectionBar.tsx      |  18 ++-
+ src/client/board/SelectionOverlay.tsx  |   5 +-
+ src/client/canvas/BoardViewport.tsx    |   9 +-
+ src/client/objects/ConnectorObject.tsx | 258 +++++++++++++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx     | 176 ++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx    | 115 +++++++++++++++
+ src/client/objects/TextEditor.tsx      |   8 +
+ src/client/objects/registry.tsx        |  35 ++++-
+ src/client/pages/BoardPage.tsx         |  78 +++++++++-
+ src/client/tools/ConnectorTool.tsx     | 164 +++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx         | 119 +++++++++++++++
+ src/shared/config.ts                   |  15 +-
+ tests/component/tool-hooks.test.tsx    |  12 +-
+ 14 files changed, 990 insertions(+), 26 deletions(-)
+commit 5c014b1122cc9fd206798d7c9196dd4f7a41a668
+agent  Sat Oct 3 15:15:59 2026 +0100
+
+    story 10 (task 11): active tool hook (S/L shortcuts, kind state, return-to-select) + toolbar buttons
+
+
+ src/client/board/Toolbar.tsx        | 164 +++++++++++++++++++++++++++++-------
+ src/client/board/useBoardKeys.ts    |  16 +++-
+ src/client/board/useSelection.ts    |  14 ++-
+ src/client/board/useTool.ts         |  73 ++++++++++++----
+ src/client/pages/BoardPage.tsx      |   6 +-
+ tests/component/Toolbars.test.tsx   |  96 +++++++++++++++++++++
+ tests/component/tool-hooks.test.tsx | 141 +++++++++++++++++++++++++++++++
+ 7 files changed, 459 insertions(+), 51 deletions(-)
+commit 99b654d945f258d872eb55a4f29decafc936b95f
+agent  Sat Oct 3 15:12:18 2026 +0100
+
+    story 10 (tasks 8,10): shape + connector models, geometry, detach-on-delete
+
+
+ PROGRESS.md                               |   4 +-
+ src/shared/board-model.ts                 |  82 +++++++++++++++++++++++
+ src/shared/geometry/connector-geometry.ts |   4 +-
+ src/shared/objects/connector.ts           | 107 ++++++++++++++++++++++++++++--
+ src/shared/objects/shape.ts               |  81 +++++++++++++++++++++-
+ tests/unit/connector-model.test.ts        |   4 +-
+ 6 files changed, 266 insertions(+), 16 deletions(-)
+commit 530f64de39fe94d959f2990450cf06daf5b52609
+agent  Sat Oct 3 15:09:23 2026 +0100
+
+    story 10 (task 9): connector model + geometry unit tests (TC-07..TC-14, TC-29)
+
+
+ PROGRESS.md                               |   2 +-
+ src/shared/geometry/connector-geometry.ts |  95 ++++++++
+ src/shared/geometry/polyline.ts           |  37 +++
+ src/shared/objects/connector.ts           | 151 ++++++++++++
+ tests/unit/connector-model.test.ts        | 391 ++++++++++++++++++++++++++++++
+ 5 files changed, 675 insertions(+), 1 deletion(-)
+commit e39174a87b991c161f1fe9d041ed8a4e56771528
+agent  Sat Oct 3 15:06:22 2026 +0100
+
+    story 10 (task 7): shape model unit tests (TC-01..TC-06)
+
+
+ PROGRESS.md                    |   2 +-
+ src/shared/config.ts           |  50 ++++++++
+ src/shared/objects/shape.ts    |  93 +++++++++++++++
+ tests/unit/shape-model.test.ts | 256 +++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 400 insertions(+), 1 deletion(-)
+commit 49027683463e4dea1092619a99f1595fc5855738
+vidi-agent  Sat Oct 3 15:00:20 2026 +0100
+
+    harness: PROGRESS.md for story 10
+
+
+ PROGRESS.md | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
 commit 57e8ba4e1de14948a6d64594b6fcff411625b17d
 agent  Sat Oct 3 14:56:00 2026 +0100
 

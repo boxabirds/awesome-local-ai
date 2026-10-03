@@ -9,11 +9,12 @@
  */
 
 import type { JSX } from 'react';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, ShapeFillColor, ShapeStrokeColor } from '../../shared/config';
 import type { TextSize } from '../../shared/config';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 
 interface SelectionBarProps {
   /** Number of selected objects. */
@@ -28,13 +29,18 @@ interface SelectionBarProps {
   anchor?: { x: number; y: number };
   onColor(c: StickyColor): void;
   onTextSize(s: TextSize): void;
+  onShapeFill(c: ShapeFillColor): void;
+  onShapeStroke(c: ShapeStrokeColor): void;
   onDelete(): void;
 }
 
-export function SelectionBar({ count, single, anchor, onColor, onTextSize, onDelete }: SelectionBarProps): JSX.Element | null {
+export function SelectionBar({ count, single, anchor, onColor, onTextSize, onShapeFill, onShapeStroke, onDelete }: SelectionBarProps): JSX.Element | null {
   if (count === 0) return null;
 
   if (count === 1 && single) {
+    // A single connector shows its endpoint dots (drawn by the object
+    // itself) — no per-type toolbar.
+    if (single.type === 'connector') return null;
     return (
       <div
         style={{
@@ -49,6 +55,14 @@ export function SelectionBar({ count, single, anchor, onColor, onTextSize, onDel
           <TextToolbar
             size={(single as unknown as { size: TextSize }).size}
             onSize={onTextSize}
+            onDelete={onDelete}
+          />
+        ) : single.type === 'shape' ? (
+          <ShapeToolbar
+            fill={(single as unknown as { fill: ShapeFillColor }).fill}
+            stroke={(single as unknown as { stroke: ShapeStrokeColor }).stroke}
+            onFill={onShapeFill}
+            onStroke={onShapeStroke}
             onDelete={onDelete}
           />
         ) : (

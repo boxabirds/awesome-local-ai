@@ -14,9 +14,12 @@ import * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { markObjectTypeRegistered } from '../../shared/object-types';
 import type { Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+import type { Camera } from '../canvas/camera';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
 import type { UndoController } from '../board/undo';
 
 /** Props every board object component receives (generic, per-type agnostic). */
@@ -37,6 +40,13 @@ export interface ObjectProps {
   onEndEdit(next: 'selected' | 'unselected'): void;
   /** Undo controller for boundary() and Ctrl+Z (story 8). */
   undo?: UndoController;
+  /**
+   * All objects (story 10): connectors resolve their endpoints and hit-test
+   * re-attach targets against the live bounds of every object.
+   */
+  objects?: readonly ObjectSnapshot[];
+  /** Current camera (story 10): screen→world for connector re-attach drags. */
+  camera?: Camera;
 }
 
 /** The only per-type knobs (sel.all_types). */
@@ -105,5 +115,28 @@ registerObjectType('text', {
   minSize: TEXT_MIN_WIDTH_WORLD,
   editableText: true,
   handles: 'horizontal',
+  hitTest: boundsHitTest,
+});
+
+// The shape type (story 10): freely resizable (no aspect lock), editable
+// label. Selection outline and handles come from the generic overlay.
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: boundsHitTest,
+});
+
+// The connector type (story 10): not resizable as a box (it has no box —
+// the ends are dragged, connector.re_attach). Selection is the tolerance
+// hit test on the empty-board click (connector.hit).
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
   hitTest: boundsHitTest,
 });

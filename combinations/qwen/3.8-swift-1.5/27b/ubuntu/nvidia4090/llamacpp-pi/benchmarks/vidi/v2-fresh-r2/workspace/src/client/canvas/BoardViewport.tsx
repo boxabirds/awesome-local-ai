@@ -21,8 +21,11 @@ export interface BoardViewportProps {
   controls: CameraControls;
   /** Called when the user double-clicks empty board space. */
   onDblClickEmpty?(point: { x: number; y: number }): void;
-  /** Called when the user clicks empty board space (without dragging). */
-  onClickEmpty?(): void;
+  /**
+   * Called when the user clicks empty board space (without dragging), with
+   * the local screen point (story 10: connector tolerance hit test).
+   */
+  onClickEmpty?(point: { x: number; y: number }): void;
   /**
    * The marquee (story 7, sel.marquee). Shift+pointerdown on empty space
    * drives begin/move/end; pointercancel and Escape drive cancel.
@@ -142,7 +145,7 @@ export function BoardViewport({
       suppressClickRef.current = false;
       return;
     }
-    onClickEmpty?.();
+    onClickEmpty?.(localPoint(e.clientX, e.clientY));
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {

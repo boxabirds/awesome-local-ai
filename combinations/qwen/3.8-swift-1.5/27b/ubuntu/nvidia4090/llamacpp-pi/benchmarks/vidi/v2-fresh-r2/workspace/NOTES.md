@@ -182,3 +182,64 @@ is exactly one undo step regardless of the number of rAF frames.
 The editor's `onKeyDown` handler intercepts Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z
 before the browser's native textarea undo can act. This prevents the native
 undo from diverging from the Y.Text content managed by the UndoManager.
+
+---
+
+# Story 10 — Draw shapes and connect them with arrows that follow when moved
+
+## Design decisions / deviations
+
+### useTool extended in place
+The shape and connector tools extend the existing `useTool` hook (tool id
+union, `TOOL_SHORTCUTS`, `TOOL_MODES`, `shapeKind`, `toolCreated`) rather than
+adding a new hook. `toolCreated(id)` selects the just-created object and
+returns the tool to Select.
+
+### "Left toolbar" → existing top-center toolbar
+The design's "left toolbar" is implemented as buttons on the existing
+top-center toolbar: a Shape button (with a kind menu: rect/ellipse/diamond)
+and a Connector button. Keyboard shortcuts S (shape, kind menu) and L
+(connector) match the existing V/T/N pattern.
+
+### Connector selection is a tolerance hit test, not CSS pointer events
+The connector line is non-interactive (`pointerEvents: none`) so it never
+blocks board interaction. Selecting a connector is a 6px-tolerance
+(`CONNECTOR_HIT_TOLERANCE_PX`) hit test performed on an empty-board click
+(BoardPage `handleClickEmpty`), which also clears the selection when nothing
+is near a line.
+
+### Connector endpoints re-resolve on every render
+Attached endpoints store no side; `resolveEndpoints` recomputes the side
+anchor from the current object bounds on every render, so arrows follow
+moves by anyone with no extra writes. `fallback` is the anchor at attach
+time, used only when the target vanished concurrently (delete race, TC-27).
+
+### Two-pass `objects()` derivation
+`board-model.objects()` derives connector bounds in a second pass (first pass
+skips connectors) so endpoint resolution never depends on a connector's own
+stored (zero) bounds.
+
+### Single freely-resizable shapes show all eight handles
+Story 7/9 only showed handles for multi-selections and single text objects
+(horizontal only). Story 10 shapes are freely resizable (not aspect-locked),
+so a single selected shape now shows all eight handles
+(`SelectionOverlay.showHandles`).
+
+### Test-only: jsdom pointer events
+`setPointerCapture` is not implemented in jsdom; all new pointer-capture
+calls use optional invocation (`?.`) so component tests can drive the tools.
+Component tests fire pointerdown/move/up in separate `act()` blocks —
+batching them in one `act()` defers the down-state update and the move/up
+handlers read stale state.
+
+### Pre-existing E2E failures (not story 10 regressions)
+Two older specs fail intermittently in the full parallel suite and are
+unrelated to story 10:
+- `undo.spec.ts TC-22` (per-user history isolation) fails deterministically on
+  this machine — verified to fail identically on the pre-story-10 commit
+  (`4902768`), so it is pre-existing, not a regression.
+- `live-collab.spec.ts TC-27` (flaky wifi) and `sticky-notes.spec.ts TC-30`
+  pass in isolation on both the pre-story-10 and story-10 code; they only
+  fail under full-suite parallel load (timing/resource contention).
+
+All 10 story-10 e2e tests (TC-23 to TC-27 × chromium + firefox) pass.

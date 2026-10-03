@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import * as Y from 'yjs';
-import { canZoomIn, canZoomOut, zoomPercent, screenToWorld } from '../canvas/camera';
+import { canZoomIn, canZoomOut, zoomPercent, screenToWorld, worldToScreen } from '../canvas/camera';
 import type { Size } from '../canvas/camera';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { NavigationHint } from '../canvas/NavigationHint';
@@ -39,9 +39,17 @@ import {
   setStickyColor,
 } from '../../shared/board-model';
 import { createText, setTextSize, setTextWidthFixed } from '../../shared/objects/text';
+import { createShape, setShapeStyle } from '../../shared/objects/shape';
+import { createConnector } from '../../shared/objects/connector';
+import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import type { Endpoint } from '../../shared/objects/connector';
 import type { Rect, Handle } from '../../shared/geometry';
 import type { StickySnapshot } from '../../shared/board-model';
-import type { StickyColor, TextSize } from '../../shared/config';
+import { CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
+import type { StickyColor, TextSize, ShapeFillColor, ShapeStrokeColor } from '../../shared/config';
 import { sessionIdentity } from '../identity';
 import { isValidBoardId } from '../../shared/board-id';
 import { checkBoard } from '../api';
@@ -160,8 +168,8 @@ export function BoardView({
   const isLoadFailed = connectionState === 'load-failed';
   const canEdit = !isLoadFailed;
 
-  // Story 9: board tool (select / text).
-  const tool = useTool(canEdit);
+  // Story 9: board tool (select / text); story 10: shape / connector.
+  const tool = useTool({ canEdit, selection });
 
   // Story 8: per-user undo controller (one per board doc, destroyed on unmount).
   const undoRef = useRef<ReturnType<typeof createUndo> | null>(null);
@@ -264,10 +272,28 @@ export function BoardView({
     [handleCreateAtScreenPoint, isLoadFailed],
   );
 
-  // Click on empty board space → clear selection
-  const handleClickEmpty = useCallback(() => {
-    selection.clear();
-  }, [selection]);
+  // Click on empty board space → select a connector under the point (6px
+  // tolerance, story 10 connector.hit) or clear the selection.
+  const handleClickEmpty = useCallback(
+    (point: { x: number; y: number }) => {
+      for (const o of objects) {
+        if (o.type !== 'connector') continue;
+        const conn = o as unknown as { id: string; from: Endpoint; to: Endpoint };
+        const rects = new Map(objects.map((x) => [x.id, objectBounds(x)]));
+        const ends = resolveEndpoints({ from: conn.from, to: conn.to }, rects);
+        const seg = [
+          worldToScreen(controls.camera, ends.from),
+          worldToScreen(controls.camera, ends.to),
+        ];
+        if (distanceToPolyline(seg, point) <= CONNECTOR_HIT_TOLERANCE_PX) {
+          selection.click(o.id);
+          return;
+        }
+      }
+      selection.clear();
+    },
+    [objects, controls.camera, selection],
+  );
 
   // Delete the current selection (bar button / Delete key).
   const handleDeleteSelection = useCallback(() => {
@@ -282,6 +308,25 @@ export function BoardView({
       if (selection.ids.size !== 1) return;
       const [id] = [...selection.ids];
       setStickyColor(doc, id, c);
+    },
+    [doc, selection],
+  );
+
+  // Restyle the single selected shape (story 10, shape.toolbar).
+  const handleShapeFill = useCallback(
+    (c: ShapeFillColor) => {
+      if (selection.ids.size !== 1) return;
+      const [id] = [...selection.ids];
+      setShapeStyle(doc, id, { fill: c });
+    },
+    [doc, selection],
+  );
+
+  const handleShapeStroke = useCallback(
+    (c: ShapeStrokeColor) => {
+      if (selection.ids.size !== 1) return;
+      const [id] = [...selection.ids];
+      setShapeStyle(doc, id, { stroke: c });
     },
     [doc, selection],
   );
@@ -398,6 +443,8 @@ export function BoardView({
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
               undo={undoController}
+              objects={objects}
+              camera={controls.camera}
             />
           );
         })}
@@ -410,12 +457,31 @@ export function BoardView({
         />
         <MarqueeRect rect={marquee.rect} camera={controls.camera} />
       </BoardViewport>
+      {/* Story 10: drawing tools (full-screen capture layers). */}
+      {tool.tool === 'shape' && canEdit && (
+        <ShapeTool
+          camera={controls.camera}
+          kind={tool.shapeKind}
+          onCreate={(a) => createShape(doc, a, sessionIdentity())}
+          onCreated={tool.toolCreated}
+        />
+      )}
+      {tool.tool === 'connector' && canEdit && (
+        <ConnectorTool
+          camera={controls.camera}
+          objects={objects}
+          onCreate={(from, to) => createConnector(doc, from, to, sessionIdentity())}
+          onCreated={tool.toolCreated}
+        />
+      )}
       <SelectionBar
         count={selection.ids.size}
         single={singleSelected}
         anchor={singleAnchor}
         onColor={handleColor}
         onTextSize={handleTextSize}
+        onShapeFill={handleShapeFill}
+        onShapeStroke={handleShapeStroke}
         onDelete={handleDeleteSelection}
       />
       <Toolbar
@@ -424,6 +490,8 @@ export function BoardView({
         canEdit={canEdit}
         onCreateSticky={handleCreateSticky}
         undo={undoState}
+        shapeKind={tool.shapeKind}
+        setShapeKind={tool.setShapeKind}
       />
       <ZoomControls
         zoomPercent={zoomPercent(controls.camera)}

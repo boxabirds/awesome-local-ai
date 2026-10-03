@@ -84,8 +84,14 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
 export interface Selection {
   ids: ReadonlySet<string>;
   editingId: string | null;
-  /** Select only this object. */
+  /** Select only this object (ignored when the id is not on the board). */
   click(id: string): void;
+  /**
+   * Select only this object without a presence check (tools.return_to_select:
+   * a just-created object is not in the snapshot yet; the prune effect
+   * cleans up ids that never appear).
+   */
+  select(id: string): void;
   /** Add or remove this object (Shift-click). */
   toggle(id: string): void;
   /** Add (additive) or replace with the given ids (marquee, select all). */
@@ -135,6 +141,10 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
     [presentIds],
   );
 
+  const select = useCallback((id: string) => {
+    dispatch({ type: 'click', id });
+  }, []);
+
   const clear = useCallback(() => {
     dispatch({ type: 'clear' });
   }, []);
@@ -151,5 +161,5 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
     if (next === 'unselected') dispatch({ type: 'clear' });
   }, []);
 
-  return { ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit };
+  return { ids: state.ids, editingId: state.editingId, click, select, toggle, setMany, clear, startEdit, endEdit };
 }

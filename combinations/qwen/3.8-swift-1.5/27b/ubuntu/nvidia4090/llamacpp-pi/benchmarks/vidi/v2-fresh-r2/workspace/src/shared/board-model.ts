@@ -16,6 +16,8 @@ import {
 } from './config';
 import { isRegisteredObjectType } from './object-types';
 import { rectContains, type Rect } from './geometry';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import { detachConnectorsTo, type Endpoint } from './objects/connector';
 
 /** Unique origin symbol for local (this-client) transactions. */
 export const LOCAL_ORIGIN: unique symbol = Symbol('LOCAL_ORIGIN');
@@ -203,6 +205,8 @@ export function objects(doc: Y.Doc): readonly ObjectSnapshot[] {
 
   objectsMap.forEach((obj, id) => {
     const type = obj.get('type') as string;
+    // Connectors are derived in a second pass (bbox from resolved endpoints).
+    if (type === 'connector') return;
     const x = obj.get('x') as number;
     const y = obj.get('y') as number;
     if (!isFiniteCoord(x) || !isFiniteCoord(y)) return;
@@ -225,6 +229,18 @@ export function objects(doc: Y.Doc): readonly ObjectSnapshot[] {
       (entry as StickySnapshot).color = (obj.get('color') as StickyColor) ?? DEFAULT_STICKY_COLOR;
       (entry as StickySnapshot).text = text ? (text as Y.Text).toString() : '';
     }
+    if (type === 'shape') {
+      const label = obj.get('label');
+      (entry as { kind?: string; fill?: string; stroke?: string; label?: string }).kind =
+        (obj.get('kind') as string) ?? 'rect';
+      (entry as { kind?: string; fill?: string; stroke?: string; label?: string }).fill =
+        (obj.get('fill') as string) ?? 'white';
+      (entry as { kind?: string; fill?: string; stroke?: string; label?: string }).stroke =
+        (obj.get('stroke') as string) ?? 'dark';
+      (entry as { kind?: string; fill?: string; stroke?: string; label?: string }).label = label
+        ? (label as Y.Text).toString()
+        : '';
+    }
     result.push(entry);
   });
 
@@ -233,7 +249,70 @@ export function objects(doc: Y.Doc): readonly ObjectSnapshot[] {
     return a.id.localeCompare(b.id);
   });
 
+  // Connectors (story 10): x/y/width/height are stored 0 and derived from
+  // the resolved endpoints. Non-connector rects are known after the first
+  // pass; connectors resolve against them (a connector attached to a
+  // connector resolves against the fallback when the other is not derived
+  // yet — deterministic, and the fallback is the attach-time anchor).
+  const rects = new Map<string, Rect>();
+  for (const e of result) rects.set(e.id, objectBounds(e));
+
+  const connectors: ObjectSnapshot[] = [];
+  objectsMap.forEach((obj, id) => {
+    if (obj.get('type') !== 'connector') return;
+    const from = readEndpointField(obj.get('from'));
+    const to = readEndpointField(obj.get('to'));
+    if (!from || !to) return;
+    const ends = resolveEndpoints({ from, to }, rects);
+    const bbox = connectorBBox(ends.from, ends.to);
+    const entry: ObjectSnapshot & { from: Endpoint; to: Endpoint } = {
+      id,
+      type: 'connector',
+      x: bbox.x,
+      y: bbox.y,
+      z: (obj.get('z') as number) ?? 0,
+      createdAt: (obj.get('createdAt') as number) ?? 0,
+      width: bbox.width,
+      height: bbox.height,
+      from,
+      to,
+    };
+    connectors.push(entry);
+    rects.set(id, bbox);
+  });
+
+  if (connectors.length > 0) {
+    result.push(...connectors);
+    result.sort((a, b) => {
+      if (a.z !== b.z) return a.z - b.z;
+      return a.id.localeCompare(b.id);
+    });
+  }
+
   return result;
+}
+
+/**
+ * Read a connector endpoint from its Y.Map storage form (shared with the
+ * connector model; kept local to avoid a deeper import cycle).
+ */
+function readEndpointField(m: unknown): Endpoint | undefined {
+  if (!(m instanceof Y.Map)) return undefined;
+  const kind = m.get('kind') as string;
+  if (kind === 'attached') {
+    const objectId = m.get('objectId');
+    const fx = m.get('fx') as number;
+    const fy = m.get('fy') as number;
+    if (typeof objectId !== 'string' || !Number.isFinite(fx) || !Number.isFinite(fy)) return undefined;
+    return { kind: 'attached', objectId, fallback: { x: fx, y: fy } };
+  }
+  if (kind === 'free') {
+    const x = m.get('x') as number;
+    const y = m.get('y') as number;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined;
+    return { kind: 'free', x, y };
+  }
+  return undefined;
 }
 
 /**
@@ -437,6 +516,9 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (toDelete.length === 0) return 0;
 
   doc.transact(() => {
+    // Story 10: ends attached to deleted objects become free at their
+    // current anchor in the SAME transaction (one update, one undo step).
+    detachConnectorsTo(doc, toDelete);
     for (const id of toDelete) objectsMap.delete(id);
   }, LOCAL_ORIGIN);
 

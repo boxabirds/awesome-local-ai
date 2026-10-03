@@ -40,7 +40,8 @@ describe('sel.registry', () => {
   // TC-12: unknown type → undefined.
   it('TC-12: getObjectType("unknown") is undefined', () => {
     expect(getObjectType('unknown')).toBeUndefined();
-    expect(getObjectType('shape')).toBeUndefined();
+    // 'freehand' remains unregistered (shape/connector were added in story 10).
+    expect(getObjectType('freehand')).toBeUndefined();
   });
 
   // Duplicate registration throws (programming error path).

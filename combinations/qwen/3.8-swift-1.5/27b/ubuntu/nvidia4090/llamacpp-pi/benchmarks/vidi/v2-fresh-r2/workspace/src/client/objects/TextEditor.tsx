@@ -25,6 +25,10 @@ interface TextEditorProps {
   fontPx: number;
   /** Text box width in world units, or 'auto' to fill the parent. */
   width: number | 'auto';
+  /** Text alignment (shape labels are centred; default left). */
+  textAlign?: 'left' | 'center';
+  /** Vertical alignment inside the box (shape labels are centred). */
+  verticalAlign?: 'top' | 'center';
   /** Padding inside the parent (world units). */
   padding?: number;
   /** Accessible label for the textarea. */
@@ -47,6 +51,8 @@ export function TextEditor({
   maxChars,
   fontPx,
   width,
+  textAlign = 'left',
+  verticalAlign = 'top',
   padding = 0,
   ariaLabel = 'Text',
   testId = 'text-editor-textarea',
@@ -191,6 +197,7 @@ export function TextEditor({
         inset: 0,
         display: 'flex',
         flexDirection: 'column',
+        justifyContent: verticalAlign === 'center' ? 'center' : 'flex-start',
         padding,
       }}
     >
@@ -217,6 +224,7 @@ export function TextEditor({
           whiteSpace: 'pre-wrap',
           overflowWrap: 'break-word',
           color: '#333',
+          textAlign,
         }}
       />
       {footer?.(length) ?? null}

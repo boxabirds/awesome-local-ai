@@ -40,7 +40,8 @@ function countUpdates(doc: Y.Doc, fn: () => void): number {
 /** Insert an object of an arbitrary (unregistered) type directly. */
 function insertUnknown(doc: Y.Doc, id: string): void {
   const obj = new Y.Map();
-  obj.set('type', 'shape');
+  // 'freehand' is not a registered type (story 10 registers shape/connector).
+  obj.set('type', 'freehand');
   obj.set('x', 0);
   obj.set('y', 0);
   obj.set('z', 1);
