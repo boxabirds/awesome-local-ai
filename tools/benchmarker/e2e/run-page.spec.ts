@@ -286,6 +286,14 @@ test.describe("one panel: each story's held-out result and where its time went",
     await expect(section(page, "time").locator(".rp-empty")).toHaveText("No stories in scope are known for this run.");
   });
 
+  test("the story name column is wide enough for long titles: up to 390 px, half as wide again as before", async ({ page }) => {
+    await page.setViewportSize({ width: 1500, height: 900 });
+    await open(page, SWIFT, "v2-r5");
+    const w = (await rows(page).nth(0).locator(".rp-bar-label").boundingBox())!.width;
+    expect(w).toBeGreaterThanOrEqual(385);
+    expect(w).toBeLessThanOrEqual(391);
+  });
+
   test("the heading names both: held-out, and where the time went", async ({ page }) => {
     await open(page, SWIFT, "v2-r5");
     await expect(section(page, "time").locator("h2")).toHaveText("Held-out and where the time went");
