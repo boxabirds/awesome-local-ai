@@ -1,19 +1,26 @@
 /**
- * React hook: owns the Y.Doc and exposes an immutable snapshot via
- * useSyncExternalStore. Story 3 will add the network provider here.
+ * React hook: owns the Y.Doc, attaches the network provider for the board,
+ * and exposes an immutable snapshot via useSyncExternalStore.
+ *
+ * Remote updates arrive through the provider as doc updates; the existing
+ * observeDeep re-render path applies them exactly like local changes.
+ * The provider is destroyed on unmount or when the board id changes.
  */
 
-import { useSyncExternalStore, useMemo, useRef, useCallback } from 'react';
+import { useSyncExternalStore, useEffect, useRef, useState, useCallback } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot } from '../../shared/board-model';
 import type { StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
+import { setDisconnectHook } from '../canvas/testHooks';
 
 export interface BoardDoc {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  connectionState: ConnectionState;
 }
 
-export function useBoardDoc(): BoardDoc {
+export function useBoardDoc(boardId: string): BoardDoc {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     const doc = new Y.Doc();
@@ -21,6 +28,16 @@ export function useBoardDoc(): BoardDoc {
     docRef.current = doc;
   }
   const doc = docRef.current;
+
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  useEffect(() => {
+    const connection = connectBoard(doc, boardId, setConnectionState);
+    setDisconnectHook(() => connection.disconnect(), () => connection.debug());
+    return () => {
+      setDisconnectHook(undefined);
+      connection.destroy();
+    };
+  }, [doc, boardId]);
 
   // Cached snapshot that is updated on changes
   const cacheRef = useRef<{ version: number; notes: readonly StickySnapshot[] }>({
@@ -52,5 +69,5 @@ export function useBoardDoc(): BoardDoc {
 
   const notes = useSyncExternalStore(subscribe, getSnapshot);
 
-  return { doc, notes };
+  return { doc, notes, connectionState };
 }

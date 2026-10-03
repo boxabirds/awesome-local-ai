@@ -8,6 +8,27 @@ import { useCamera } from './canvas/useCamera';
 import { ZoomControls } from './canvas/ZoomControls';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { newBoardId, BOARD_ID_PATTERN } from '../shared/board-id';
+
+/**
+ * Read the board id from `/b/:boardId`. Returns null for `/` (which
+ * redirects to a fresh board id for now — server-side creation arrives in
+ * story 5) and for malformed ids (which are redirected to a fresh board).
+ */
+function boardIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/b\/([^/]+)\/?$/);
+  if (!match) return null;
+  return BOARD_ID_PATTERN.test(match[1]) ? match[1] : null;
+}
+
+function resolveBoardId(): string {
+  const id = boardIdFromPath(window.location.pathname);
+  if (id) return id;
+  const fresh = newBoardId();
+  window.history.replaceState(null, '', `/b/${fresh}`);
+  return fresh;
+}
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject } from '../shared/board-model';
@@ -30,8 +51,22 @@ export function App(): JSX.Element {
   }, []);
 
   const controls = useCamera(size);
-  const { doc, notes } = useBoardDoc();
+  const boardId = useRef<string>(resolveBoardId()).current;
+  const { doc, notes, connectionState } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+
+  // Publish the mapped connection state to the test hook (test builds only).
+  useEffect(() => {
+    window.__vidi6?.setConnectionState(connectionState);
+  }, [connectionState]);
+
+  // Delete during edit: when a selected/being-edited note disappears (e.g.
+  // deleted by someone else), end the selection and editing without error.
+  useEffect(() => {
+    if (selectedId && !notes.some((n) => n.id === selectedId)) {
+      select(null);
+    }
+  }, [notes, selectedId, select]);
 
   // Create a sticky note at a screen point
   const handleCreateAtScreenPoint = useCallback(
@@ -115,6 +150,7 @@ export function App(): JSX.Element {
         onReset={controls.reset}
       />
       <NavigationHint visible={!controls.hasNavigated} />
+      <ConnectionStatus state={connectionState} />
     </div>
   );
 }

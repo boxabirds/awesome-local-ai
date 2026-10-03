@@ -1,0 +1,59 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 4.8,
+      "tail": "\nadded 172 packages, and audited 173 packages in 5s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n5 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.2,
+      "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v8.3.2 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 75 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                  0.31 kB \u2502 gzip:   0.22 kB\ndist/client/assets/index-CbOQQYhF.js  325.54 kB \u2502 gzip: 101.53 kB\n\n\u001b[32m\u2713 built in 93ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 0.3,
+      "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.9,
+      "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.w/459d04f169/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 16\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 114\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m56 passed\u001b[39m\u001b[22m\u001b[90m (56)\u001b[39m\n\u001b[2m   Start at \u001b[22m 10:45:06\n\u001b[2m   Duration \u001b[22m 214ms\u001b[2m (transform 74ms, setup 0ms, import 158ms, tests 153ms, environment 0ms)\u001b[22m\n\n",
+      "passed": 56,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.3,
+      "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.w/459d04f169/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 43\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 40\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 52\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 114\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 78\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 123\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m1 test\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 134\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m7 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m37 passed\u001b[39m\u001b[22m\u001b[90m (37)\u001b[39m\n\u001b[2m   Start at \u001b[22m 10:45:07\n\u001b[2m   Duration \u001b[22m 619ms\u001b[2m (transform 120ms, setup 362ms, import 226ms, tests 583ms, environment 2.04s)\u001b[22m\n\n",
+      "passed": 37,
+      "failed": 0
+    },
+    "test:integration": {
+      "cmd": "npm run test:integration",
+      "exit": 0,
+      "seconds": 3.6,
+      "tail": "\n> vidi6@0.1.0 test:integration\n> vite build && vitest run --project integration\n\n\u001b[36mvite v8.3.2 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 75 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                  0.31 kB \u2502 gzip:   0.22 kB\ndist/client/assets/index-CbOQQYhF.js  325.54 kB \u2502 gzip: 101.53 kB\n\n\u001b[32m\u2713 built in 85ms\u001b[39m\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.w/459d04f169/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/worker.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n\u001b[90mstdout\u001b[2m | tests/integration/ws-room.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardRoom live relay (integration)\u001b[2m > \u001b[22m\u001b[2mTC-12: 5 clients x 200 seeded random ops converge\n\u001b[22m\u001b[39mTC-12 seed: 12648430\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/ws-room.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1904\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (2)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m19 passed\u001b[39m\u001b[22m\u001b[90m (19)\u001b[39m\n\u001b[2m   Start at \u001b[22m 10:45:08\n\u001b[2m   Duration \u001b[22m 2.74s\u001b[2m (transform 316ms, setup 0ms, import 709ms, tests 1.91s, environment 0ms)\u001b[22m\n\n",
+      "passed": 19,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 46.4,
+      "tail": "\n> vidi6@0.1.0 test:e2e\n> vite build --mode test && E2E_BROWSERS=chromium,firefox playwright test --grep-invert @nightly --project=chromium\n\n\u001b[36mvite v8.3.2 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 75 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                  0.31 kB \u2502 gzip:   0.22 kB\ndist/client/assets/index-CDw4qP0V.js  326.00 kB \u2502 gzip: 101.68 kB\n\n\u001b[32m\u2713 built in 91ms\u001b[39m\n\nRunning 20 tests using 3 workers\n\u00b7\u00b7[latency] Sam sees Alex's note: 13ms (budget 1000ms)\n[latency] Sam sees the text: 3ms (budget 1000ms)\n\u00b7\u00b7[latency] Sam's note follows the move: 140ms (budget 1000ms)\n\u00b7[latency] Sam's note follows the recolour: 16ms (budget 1000ms)\n[latency] Sam sees the deletion: 104ms (budget 1000ms)\n\u00b7\u00b7\u00b7[latency] Sam sees the note: 12ms (budget 1000ms)\n[latency] both notes read \"Hello World\": 4ms (budget 1000ms)\n\u00b7\u00b7\u00b7[latency] Sam sees the note: 10ms (budget 1000ms)\n[latency] converge after Alex drag: 16ms (budget 1000ms)\n[latency] converge after Sam drag: 18ms (budget 1000ms)\n\u00b7[latency] Sam sees the note: 11ms (budget 1000ms)\n[latency] Sam's note disappears: 2ms (budget 1000ms)\n\u00b7\u00b7\u00b7\u00b7\u00b7[latency] P0 sees 25 notes: 2ms (budget 1000ms)\n[latency] P1 sees 25 notes: 2ms (budget 1000ms)\n[latency] P2 sees 25 notes: 1ms (budget 1000ms)\n[latency] P3 sees 25 notes: 1ms (budget 1000ms)\n[latency] P4 sees 25 notes: 1ms (budget 1000ms)\n[latency] P0 final snapshot matches: 104ms (budget 1000ms)\n[latency] P1 final snapshot matches: 113ms (budget 1000ms)\n[latency] P2 final snapshot matches: 116ms (budget 1000ms)\n[latency] P3 final snapshot matches: 102ms (budget 1000ms)\n[latency] P4 final snapshot matches: 71ms (budget 1000ms)\n\u00b7[latency] Alex badge shows Reconnecting: 2ms (budget 1000ms)\n[latency] Alex is connected again: 4871ms (budget 1000ms \u2014 EXCEEDED, reported only)\n[latency] Alex sees 6 notes: 2ms (budget 1000ms)\n[latency] Sam sees 6 notes: 2ms (budget 1000ms)\n\u00b7[latency] Sam sees the note: 11ms (budget 1000ms)\n\u00b7\n  20 passed (45.9s)\n[WebServer] \u2718 [ERROR] Uncaught Error: Network connection lost. \n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] Uncaught Error: Network connection lost. \n[WebServer] \n[WebServer] \n",
+      "passed": 20,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}

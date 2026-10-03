@@ -40,6 +40,25 @@ export const STICKY_FONT_MAX_PX = 24;
 export const STICKY_FONT_MIN_PX = 10;
 /** Pointer movement (screen px) before a press becomes a drag. */
 export const DRAG_THRESHOLD_PX = 3;
+/**
+ * Story 3: live collaboration settings.
+ */
+/**
+ * Simultaneous-editor capacity (soft). Design and test target only — never
+ * enforced; a 6th or later participant is never refused.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** 1 second change-delivery budget (PRD live.propagate). */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Passed to WebsocketProvider maxBackoffTime. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** Green "Connected" badge duration after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** PRD live.catch_up verification outage. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/** Functional wait in e2e (all stories); latency is logged, not asserted. */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
 /** Available sticky note colours. */
 export const STICKY_COLORS = {
   yellow: '#FFF59D',
