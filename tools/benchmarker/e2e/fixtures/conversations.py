@@ -6,6 +6,7 @@ Dimensions, and the cell each story run covers (MECE: every cell once, nothing t
   format         pi, thinking visible (SWIFT v2-r5 s2) | claude, thinking withheld (OPUS run-9 s1)
   event kinds    all nine in SWIFT v2-r5 s2; a few in the others
   text           inline (every call) | cut head/tail/chars (SWIFT s2 call 2's thinking, tool 1's result)
+                 | more than five lines (SWIFT s2 call 4's text: folded behind the + button) | search hits ("harness" in call 3)
   tools          ended, ok (t0) | ended, error with test counts (t1) | started, never ended (t2) | subagent (OPUS t0, sub 1)
   calls          tokens known | tokens null (SWIFT s2 call 4) | stop reason null (OPUS call 1)
   requests       matched to a call (r0) | late-placed: earlier time, later ord (r1) | condition with gpu null (c1)
@@ -31,6 +32,7 @@ def inline(text):
 
 LONG = ("Let me think about the harness and whether a retry is needed. " * 90)  # > 4000 chars, with fault words
 RESULT_LONG = ("line of output with attempt 2 noted\n" * 200)
+SEVEN_LINES = "Story 2 is done.\nPan works.\nZoom works.\nTests pass.\nLint passes.\nBuild passes.\nCommitted."  # more than five lines: folded behind +
 
 def swift_s2():
     ev = []
@@ -51,7 +53,7 @@ def swift_s2():
          sentMs=T0 + 19500, firstMs=T0 + 20000, thinking=inline(""), textBody=inline("Fixing the failing test; the harness said attempt 2 was invalid, then everything is complete."))
     push(T0 + 21500, "tool_start", 2, idx=2, callIdx=2, name="bash", toolKind="bash", arg="npm run dev &", argChars=18, sub=0, argFlags=[])
     push(T0 + 30000, "call", 3, idx=3, think=50, text=20, nTools=0, outTok=None, inTok=None, cacheTok=None, stop="endTurn", sub=0, thinkFlags=[], textFlags=[],
-         sentMs=T0 + 29000, firstMs=T0 + 29500, thinking=inline("Done."), textBody=inline("Story 2 is done."))
+         sentMs=T0 + 29000, firstMs=T0 + 29500, thinking=inline("Done."), textBody=inline(SEVEN_LINES))
     push(T0 + 31000, "request", 0, idx=0, callIdx=2, promptTok=900, prefillTok=900, generatedTok=120, cachedTok=0, prefillS=0.4, decodeS=1.2, ttftS=None, prefillTokS=2250.0, decodeTokS=100.0, draftAccepted=40, draftProposed=60, meanLen=2.7)
     push(T0 + 32000, "condition", 0, ac=1, lowPower=0, thermal="nominal", swapGb=0.0, freePct=41.5, footprintGb=58.2, gpu={"busyPct": 97.0, "sclkMhz": 2500, "memGb": 22.1, "tempC": 71.0, "powerW": 310.0, "throttle": None})
     push(T0 + 33000, "condition", 1, ac=1, lowPower=0, thermal="nominal", swapGb=0.1, freePct=40.0, footprintGb=58.4, gpu=None)
@@ -67,7 +69,7 @@ def swift_s2():
               "tools": [{"idx": 1, "callIdx": 1, "id": "t1", "name": "bash", "kind": "unit", "arg": "npm test", "argChars": 20, "start": T0 / 1000 + 9, "end": T0 / 1000 + 15, "error": 1, "resChars": 800, "sub": 0, "argFlags": "", "resFlags": "tests_failed,tests_passed", "nEdits": 0, "oldChars": 0, "newChars": 0, "passed": 9, "failed": 1, "flaky": 0, "skipped": None, "args": {"command": "npm test"}, "result": "Tests: 1 failed, 9 passed\nattempt 2 of the suite"}]},
         "2": {"idx": 2, "rx": T0 / 1000 + 21, "think": 0, "text": 60, "nTools": 1, "outTok": 120, "inTok": 900, "cacheTok": 0, "stop": "toolUse", "sub": 0, "thinkFlags": "", "textFlags": "claims_done", "thinking": "", "text": "Fixing the failing test; the harness said attempt 2 was invalid, then everything is complete.", "sent": T0 / 1000 + 19.5, "first": T0 / 1000 + 20, "tools": [
             {"idx": 2, "callIdx": 2, "id": "t2", "name": "bash", "kind": "bash", "arg": "npm run dev &", "argChars": 18, "start": T0 / 1000 + 21.5, "end": None, "error": None, "resChars": None, "sub": 0, "argFlags": "", "resFlags": "", "nEdits": 0, "oldChars": 0, "newChars": 0, "passed": None, "failed": None, "flaky": None, "skipped": None, "args": {"command": "npm run dev &"}, "result": None}]},
-        "3": {"idx": 3, "rx": T0 / 1000 + 30, "think": 50, "text": 20, "nTools": 0, "outTok": None, "inTok": None, "cacheTok": None, "stop": "endTurn", "sub": 0, "thinkFlags": "", "textFlags": "", "thinking": "Done.", "text": "Story 2 is done.", "sent": T0 / 1000 + 29, "first": T0 / 1000 + 29.5, "tools": []},
+        "3": {"idx": 3, "rx": T0 / 1000 + 30, "think": 50, "text": 20, "nTools": 0, "outTok": None, "inTok": None, "cacheTok": None, "stop": "endTurn", "sub": 0, "thinkFlags": "", "textFlags": "", "thinking": "Done.", "text": SEVEN_LINES, "sent": T0 / 1000 + 29, "first": T0 / 1000 + 29.5, "tools": []},
     }
     tools = {str(t["idx"]): t for c in calls.values() for t in c["tools"]}
     return {"fmt": "pi", "complete": True, "node": "node-a", "events": ev, "calls": calls, "tools": tools}

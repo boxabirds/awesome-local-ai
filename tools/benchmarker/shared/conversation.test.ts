@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cutText, EventStore, SEGMENT_ANCHOR, storyRunId, timeline, type ConversationEvent } from "./conversation.ts";
+import { cutText, eventText, EventStore, matchesQuery, needsClamp, SEGMENT_ANCHOR, splitHighlights, storyRunId, timeline, type ConversationEvent } from "./conversation.ts";
 import { SEGMENTS } from "./runView.ts";
 
 const ev = (ord: number, tMs: number, kind = "call", refIdx = ord): ConversationEvent => ({ ord, tMs, kind, refIdx, cursor: `${tMs}:${ord}` });
@@ -44,5 +44,32 @@ describe("cut text", () => {
     expect(cutText({ text: "all" })).toBe("all");
     expect(cutText({ head: "a", tail: "z", chars: 9000 })).toBe("a … z");
     expect(cutText(null)).toBe("");
+  });
+});
+
+describe("searching the conversation", () => {
+  const call = (thinking: string, text: string) => ({ ord: 0, tMs: 0, kind: "call", refIdx: 0, cursor: "0:0", thinking: { text: thinking }, textBody: { text } });
+  it("an event's text is what the page shows of it, cut texts included", () => {
+    expect(eventText(call("I think", "I say"))).toBe("I think\nI say");
+    expect(eventText({ ord: 1, tMs: 0, kind: "tool_end", refIdx: 0, cursor: "0:1", result: { head: "a", tail: "z", chars: 9000 } })).toBe("a\n…\nz");
+    expect(eventText({ ord: 2, tMs: 0, kind: "tool_start", refIdx: 0, cursor: "0:2", arg: "npm test" })).toBe("npm test");
+    expect(eventText({ ord: 3, tMs: 0, kind: "condition", refIdx: 0, cursor: "0:3" })).toBe("");
+  });
+  it("matches case-insensitively, and everything on an empty query", () => {
+    expect(matchesQuery(call("The Harness said", ""), "harness")).toBe(true);
+    expect(matchesQuery(call("nothing", "here"), "harness")).toBe(false);
+    expect(matchesQuery(call("nothing", "here"), "  ")).toBe(true);
+  });
+  it("splits a text into runs with the hits marked", () => {
+    expect(splitHighlights("a Harness and a harness", "harness")).toEqual([
+      { text: "a ", hit: false }, { text: "Harness", hit: true }, { text: " and a ", hit: false }, { text: "harness", hit: true },
+    ]);
+    expect(splitHighlights("plain", "")).toEqual([{ text: "plain", hit: false }]);
+    expect(splitHighlights("", "x")).toEqual([{ text: "", hit: false }]);
+  });
+  it("folds a cell past five lines or a long text", () => {
+    expect(needsClamp("1\n2\n3\n4\n5")).toBe(false);
+    expect(needsClamp("1\n2\n3\n4\n5\n6")).toBe(true);
+    expect(needsClamp("x".repeat(401))).toBe(true);
   });
 });

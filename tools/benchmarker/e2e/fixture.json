@@ -2113,7 +2113,7 @@
       "text": "Done."
      },
      "textBody": {
-      "text": "Story 2 is done."
+      "text": "Story 2 is done.\nPan works.\nZoom works.\nTests pass.\nLint passes.\nBuild passes.\nCommitted."
      },
      "ord": 12
     },
@@ -2334,7 +2334,7 @@
      "idx": 3,
      "rx": 1790000030.0,
      "think": 50,
-     "text": "Story 2 is done.",
+     "text": "Story 2 is done.\nPan works.\nZoom works.\nTests pass.\nLint passes.\nBuild passes.\nCommitted.",
      "nTools": 0,
      "outTok": null,
      "inTok": null,

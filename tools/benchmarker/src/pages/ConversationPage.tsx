@@ -1,9 +1,9 @@
 // A story run's conversation, happening by happening (plan section 4.4, as the time-range cursor API gives it).
 // The page backfills the span and then follows along after its latest cursor; the story's status plays no part.
 // Verbatim agent text is marked data-quoted="agent": it is a result, never the app's own words.
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Row, State, Story } from "../../shared/types.ts";
-import { cutText, timeline, type ConversationAnchor, type ConversationEvent, type CutText } from "../../shared/conversation.ts";
+import { cutText, matchesQuery, needsClamp, splitHighlights, timeline, type ConversationAnchor, type ConversationEvent, type CutText } from "../../shared/conversation.ts";
 import { callHref, conversationHref } from "../../shared/routes.ts";
 import { storyRunState, storyTitle } from "../../shared/runView.ts";
 import { GLOSSARY, type TermId } from "../../shared/glossary.ts";
@@ -36,14 +36,47 @@ const n = (v: unknown) => (typeof v === "number" ? full(v) : null);
 const num = (v: unknown, why: string) => (typeof v === "number" ? full(v) : <Missing why={why} />);
 const isNum = (v: unknown): v is number => typeof v === "number";
 
-/** Verbatim text from the agent's conversation: a result, marked as such. */
-const Quoted = ({ text, className }: { text: string; className?: string }) => <span className={`quoted ${className ?? ""}`} data-quoted="agent">{text}</span>;
+/** Verbatim text from the agent's conversation: a result, marked as such; what matches the search is marked too. */
+function Quoted({ text, className, query }: { text: string; className?: string; query?: string }) {
+  const runs = splitHighlights(text, query ?? "");
+  return <span className={`quoted ${className ?? ""}`} data-quoted="agent">{runs.map((r, i) => (r.hit ? <mark key={i}>{r.text}</mark> : r.text))}</span>;
+}
+
+/** A cell of conversation text: five lines, then a + button for the whole of what the page holds. */
+function Clamped({ text, query, mono }: { text: string; query: string; mono?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const fold = needsClamp(text);
+  return (
+    <div className="clamp-cell">
+      <div className={`clamp${mono ? " mono" : ""}`} data-expanded={fold && open ? "true" : "false"} data-folded={fold && !open ? "true" : undefined}>
+        <Quoted text={text} query={query} />
+      </div>
+      {fold ? <button type="button" className="clamp-more" aria-expanded={open} aria-label={open ? "Show less" : "Show all"} onClick={() => setOpen((o) => !o)}>{open ? "−" : "+"}</button> : null}
+    </div>
+  );
+}
+
+/** What a call's Said cell shows: its text, else its thinking; and its thinking when that is what the search found. */
+function said(e: ConversationEvent, withheld: boolean, query: string): string {
+  const text = cutText(e.textBody as CutText).trim();
+  const thinking = withheld ? "" : cutText(e.thinking as CutText | null).trim();
+  const q = query.trim().toLowerCase();
+  if (q && thinking && !text.toLowerCase().includes(q) && thinking.toLowerCase().includes(q)) return thinking;
+  return text || thinking;
+}
+
+/** Rows that hold the query; all of them for none. */
+const matching = (events: ConversationEvent[], query: string) => events.filter((e) => matchesQuery(e, query));
+
+/** "154", or "3 of 154" while a search narrows the rows. */
+const countText = (shown: number, total: number, query: string) => (query.trim() ? `${full(shown)} of ${full(total)}` : full(total));
 
 export function ConversationPage({ run, story, storyId, state, params }: { run: Row; story: Story | null; storyId: string; state: State; params?: Record<string, string> }) {
   const st = storyRunState(run, storyId);
   const title = storyTitle(run, state.rows, storyId);
   const id = story?.storyRunId ?? null;
   const conv = useConversation(id && story?.hasConversation ? id : null);
+  const [query, setQuery] = useState("");
   const at = params?.at;
   useEffect(() => {
     if (at && conv.backfilled) document.getElementById(`sec-${at}`)?.scrollIntoView({ block: "start" });
@@ -77,6 +110,10 @@ export function ConversationPage({ run, story, storyId, state, params }: { run: 
       <Breadcrumb trail={crumbs} />
       <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
       <Section term="conversationPage" id="conversation" aside={s ? <span className="small" data-fact="range">{utc(from / MS_PER_S)} · {duration((toMs - from) / MS_PER_S)} · <span data-fact="events">{full(conv.events.length)}</span> events{s.complete ? "" : " so far"}</span> : null}>
+        <div className="conv-search">
+          <input type="search" role="searchbox" aria-label="Search the conversation" placeholder="Search the conversation (as you type)" value={query} onChange={(ev) => setQuery(ev.target.value)} />
+          {query.trim() ? <span className="small" data-fact="matches">{full(matching(conv.events.filter((e) => ["call", "tool_start", "tool_end", "msg"].includes(e.kind)), query).length)} matching events</span> : null}
+        </div>
         <nav className="conv-sections" aria-label="Sections of the conversation">
           {SECTIONS.map((sec) => <a key={sec.id} href={conversationHref(run.pack, run.stack, run.runId, storyId, sec.id)} data-anchor={sec.id} aria-current={at === sec.id ? "true" : undefined}>{GLOSSARY[sec.term].name} <span className="num">{of(sec.kinds).length}</span></a>)}
         </nav>
@@ -88,33 +125,34 @@ export function ConversationPage({ run, story, storyId, state, params }: { run: 
           ))}
         </figure>
       </Section>
-      <Calls events={of(["call"])} from={from} fmt={s?.fmt ?? null} link={link} />
-      <Tools events={of(["tool_start", "tool_end"])} from={from} link={link} />
+      <Calls events={of(["call"])} from={from} fmt={s?.fmt ?? null} link={link} query={query} />
+      <Tools events={of(["tool_start", "tool_end"])} from={from} link={link} query={query} />
       <Compactions events={of(["compaction_start", "compaction_end"])} from={from} />
       <Sessions events={of(["between_sessions"])} from={from} />
-      <Messages events={of(["msg"])} from={from} />
+      <Messages events={of(["msg"])} from={from} query={query} />
       <Requests events={of(["request"])} from={from} link={link} />
       <Conditions events={of(["condition"])} from={from} />
     </div>
   );
 }
 
-function Sec({ id, term, count, children }: { id: ConversationAnchor; term: TermId; count: number; children: ReactNode }) {
+function Sec({ id, term, count, shown, children }: { id: ConversationAnchor; term: TermId; count: number; shown?: string; children: ReactNode }) {
   return <section className="rp-section conv-section" id={`sec-${id}`} data-section={id} aria-labelledby={`h-${id}`}>
-    <div className="rp-head"><h2 id={`h-${id}`}><Term id={term} /></h2><div className="rp-aside"><span className="num">{full(count)}</span></div></div>
+    <div className="rp-head"><h2 id={`h-${id}`}><Term id={term} /></h2><div className="rp-aside"><span className="num" data-fact="count">{shown ?? full(count)}</span></div></div>
     <div className="rp-body">{count ? children : <p className="rp-empty small">None.</p>}</div>
   </section>;
 }
 
-function Calls({ events, from, fmt, link }: { events: ConversationEvent[]; from: number; fmt: string | null; link: (i: number | string) => string }) {
+function Calls({ events, from, fmt, link, query }: { events: ConversationEvent[]; from: number; fmt: string | null; link: (i: number | string) => string; query: string }) {
   const withheld = fmt === "claude";
+  const rows = matching(events, query);
   return (
-    <Sec id="calls" term="modelCall" count={events.length}>
+    <Sec id="calls" term="modelCall" count={events.length} shown={countText(rows.length, events.length, query)}>
       <div className="table-scroll">
         <table className="rp-table conv-table calls" aria-label={GLOSSARY.modelCall.name}>
-          <thead><tr><th>Call</th><th className="n">At</th><th className="n">Thinking</th><th className="n">Text</th><th className="n">Tools</th><th className="n">Read</th><th className="n">Wrote</th><th>Stop</th><th>Said</th></tr></thead>
+          <thead><tr><th>Call</th><th className="n">At</th><th className="n">Thinking</th><th className="n">Text</th><th className="n">Tools</th><th className="n">Read</th><th className="n">Wrote</th><th>Stop</th><th className="said">Said</th></tr></thead>
           <tbody>
-            {events.map((e) => {
+            {rows.map((e) => {
               const think = e.thinking as CutText | null | undefined;
               const idx = isNum(e.refIdx) ? e.refIdx : 0;
               return (
@@ -127,7 +165,7 @@ function Calls({ events, from, fmt, link }: { events: ConversationEvent[]; from:
                   <td className="n">{isNum(e.inTok) ? full(e.inTok + (isNum(e.cacheTok) ? e.cacheTok : 0)) : <Missing why="The client didn't report this call's tokens." />}</td>
                   <td className="n">{num(e.outTok, "The client didn't report this call's tokens.")}</td>
                   <td>{typeof e.stop === "string" ? e.stop : <Missing why="The client didn't report why the call stopped." />}</td>
-                  <td className="said"><Quoted text={cutText(e.textBody as CutText).trim() || (think && !withheld ? cutText(think).trim() : "")} className="gist" /></td>
+                  <td className="said"><Clamped text={said(e, withheld, query)} query={query} /></td>
                 </tr>
               );
             })}
@@ -138,16 +176,18 @@ function Calls({ events, from, fmt, link }: { events: ConversationEvent[]; from:
   );
 }
 
-function Tools({ events, from, link }: { events: ConversationEvent[]; from: number; link: (i: number | string) => string }) {
+function Tools({ events, from, link, query }: { events: ConversationEvent[]; from: number; link: (i: number | string) => string; query: string }) {
   const starts = events.filter((e) => e.kind === "tool_start");
   const ends = new Map(events.filter((e) => e.kind === "tool_end").map((e) => [e.refIdx, e]));
+  // A tool call matches on its argument or its result.
+  const rows = starts.filter((e) => { const end = ends.get(e.refIdx); return matchesQuery(e, query) || (end !== undefined && matchesQuery(end, query)); });
   return (
-    <Sec id="tools" term="toolCall" count={starts.length}>
+    <Sec id="tools" term="toolCall" count={starts.length} shown={countText(rows.length, starts.length, query)}>
       <div className="table-scroll">
         <table className="rp-table conv-table tools" aria-label={GLOSSARY.toolCall.name}>
-          <thead><tr><th>Tool</th><th>Kind</th><th className="n">At</th><th className="n">Seconds</th><th>Outcome</th><th>Argument</th><th>Call</th></tr></thead>
+          <thead><tr><th>Tool</th><th>Kind</th><th className="n">At</th><th className="n">Seconds</th><th>Outcome</th><th className="said">Argument</th><th className="said">Result</th><th>Call</th></tr></thead>
           <tbody>
-            {starts.map((e) => {
+            {rows.map((e) => {
               const end = ends.get(e.refIdx);
               const counts = end && isNum(end.passed) ? `${end.passed} passed${isNum(end.failed) ? `, ${end.failed} failed` : ""}` : "";
               const callIdx = isNum(e.callIdx) ? e.callIdx : 0;
@@ -158,7 +198,8 @@ function Tools({ events, from, link }: { events: ConversationEvent[]; from: numb
                   <td className="n">{secs(e.tMs, from)}</td>
                   <td className="n">{end ? n(end.seconds) : <Missing why="This tool call has no end yet." />}</td>
                   <td>{end ? (end.error === 1 ? "failed" : "ok") : <Missing why="This tool call has no end yet." />}{counts ? <span className="small"> · {counts}</span> : null}</td>
-                  <td className="said"><Quoted text={String(e.arg ?? "")} className="mono gist" /></td>
+                  <td className="said"><Clamped text={String(e.arg ?? "")} query={query} mono /></td>
+                  <td className="said">{end ? <Clamped text={cutText(end.result as CutText)} query={query} mono /> : <Missing why="This tool call has no result yet." />}</td>
                   <td><a className="entity call-link" href={link(callIdx)}>call {callIdx + 1}</a></td>
                 </tr>
               );
@@ -190,10 +231,11 @@ function Sessions({ events, from }: { events: ConversationEvent[]; from: number 
   );
 }
 
-function Messages({ events, from }: { events: ConversationEvent[]; from: number }) {
+function Messages({ events, from, query }: { events: ConversationEvent[]; from: number; query: string }) {
+  const rows = matching(events, query);
   return (
-    <Sec id="messages" term="harnessMessage" count={events.length}>
-      <ul className="conv-list messages">{events.map((e) => <li key={e.ord} data-msg={isNum(e.refIdx) ? e.refIdx : undefined}><span className="num">{secs(e.tMs, from)}</span> <Quoted text={cutText(e.textBody as CutText)} /></li>)}</ul>
+    <Sec id="messages" term="harnessMessage" count={events.length} shown={countText(rows.length, events.length, query)}>
+      <ul className="conv-list messages">{rows.map((e) => <li key={e.ord} data-msg={isNum(e.refIdx) ? e.refIdx : undefined}><span className="num">{secs(e.tMs, from)}</span> <Clamped text={cutText(e.textBody as CutText)} query={query} /></li>)}</ul>
     </Sec>
   );
 }
