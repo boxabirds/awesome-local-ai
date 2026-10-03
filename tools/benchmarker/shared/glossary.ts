@@ -72,6 +72,7 @@ export const GLOSSARY = {
   conversation: { name: "Conversation profile", what: "What the agent's conversation on this story looked like." },
   conversationPage: { name: "Conversation", what: "The story run's conversation, happening by happening: every model call, tool call, message, compaction and wait, with the model server's requests and the machine's readings placed in it by time." },
   callTimeline: { name: "Timeline", what: "The story's span, in ticks: how many model calls fell in each, and where the conversation was compacted. A tick goes to the calls at that time." },
+  inOrder: { name: "Everything, in order", what: "Every happening of the conversation in the order it happened: each model call with what it said, each tool call as it started and as it ended with its result, each message, compaction and wait, and the engine's requests and the machine's readings placed by time." },
   modelCall: { name: "Model calls", what: "Each call to the model: when it ended, how much it thought and wrote, which tools it called, the tokens it read and wrote, and why it stopped." },
   toolCall: { name: "Tool calls", what: "Each tool the agent ran: what it was given, how long it took, whether it failed, and the test counts its result printed." },
   compactionEvent: { name: "Compactions", what: "Each time the conversation was summarised to make room in the context: when, why, and how long it took." },

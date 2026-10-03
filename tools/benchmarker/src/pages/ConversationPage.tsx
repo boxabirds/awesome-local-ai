@@ -3,7 +3,7 @@
 // Verbatim agent text is marked data-quoted="agent": it is a result, never the app's own words.
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { Row, State, Story } from "../../shared/types.ts";
-import { cutText, matchesQuery, needsClamp, splitHighlights, timeline, type ConversationAnchor, type ConversationEvent, type CutText } from "../../shared/conversation.ts";
+import { CONVERSATION_VIEWS, cutText, matchesQuery, needsClamp, splitHighlights, timeline, type ConversationAnchor, type ConversationEvent, type ConversationView, type CutText } from "../../shared/conversation.ts";
 import { callHref, conversationHref } from "../../shared/routes.ts";
 import { storyRunState, storyTitle } from "../../shared/runView.ts";
 import { GLOSSARY, type TermId } from "../../shared/glossary.ts";
@@ -20,6 +20,12 @@ const MS_PER_S = 1000;
 const PERCENT = 100;
 const MIN_TICK_PERCENT = 2;
 export const NOT_AVAILABLE = "Not available.";
+
+const VIEW_KEY = "benchmarker:conv-view:v1";
+const DEFAULT_VIEW: ConversationView = "time";
+const loadView = (): ConversationView => { try { return localStorage.getItem(VIEW_KEY) === "type" ? "type" : DEFAULT_VIEW; } catch { return DEFAULT_VIEW; } };
+const saveView = (v: ConversationView) => { try { localStorage.setItem(VIEW_KEY, v); } catch { /* not remembered */ } };
+const callRowId = (idx: number) => `call-${idx}`;
 
 const SECTIONS: { id: ConversationAnchor; term: TermId; kinds: string[] }[] = [
   { id: "calls", term: "modelCall", kinds: ["call"] },
@@ -77,9 +83,18 @@ export function ConversationPage({ run, story, storyId, state, params }: { run: 
   const id = story?.storyRunId ?? null;
   const conv = useConversation(id && story?.hasConversation ? id : null);
   const at = params?.at;
+  // A bar's part names a section, so the page opens by type then; otherwise the view last chosen (in order at first).
+  const [view, setView] = useState<ConversationView>(() => (at ? "type" : loadView()));
+  const chooseView = (v: ConversationView) => { setView(v); saveView(v); };
+  const [jumped, setJumped] = useState<number | null>(null);
   useEffect(() => {
     if (at && conv.backfilled) document.getElementById(`sec-${at}`)?.scrollIntoView({ block: "start" });
   }, [at, conv.backfilled]);
+  /** A timeline tick: to that call's row, marked, in whichever view is shown. */
+  const jumpTo = (idx: number) => {
+    setJumped(idx);
+    document.getElementById(callRowId(idx))?.scrollIntoView({ block: "center" });
+  };
   const crumbs = [
     { label: <CombinationLink pack={run.pack} stack={run.stack} label={run.label} /> },
     { label: <RunLink pack={run.pack} stack={run.stack} runId={run.runId} /> },
@@ -108,25 +123,34 @@ export function ConversationPage({ run, story, storyId, state, params }: { run: 
     <div className="page conversation-page run-page" data-page="conversation" data-available="true" data-backfilled={conv.backfilled ? "true" : "false"} data-polls={conv.polls}>
       <Breadcrumb trail={crumbs} />
       <StoryRunHeader run={run} st={st} storyId={storyId} title={title} />
-      <Section term="conversationPage" id="conversation" aside={s ? <span className="small" data-fact="range">{utc(from / MS_PER_S)} · {duration((toMs - from) / MS_PER_S)} · <span data-fact="events">{full(conv.events.length)}</span> events{s.complete ? "" : " so far"}</span> : null}>
+      <Section term="conversationPage" id="conversation" aside={<>
+        <span className="view-switch" role="group" aria-label="Layout">
+          {CONVERSATION_VIEWS.map((v) => <button key={v.id} type="button" aria-pressed={view === v.id} data-view={v.id} onClick={() => chooseView(v.id)}>{v.name}</button>)}
+        </span>
+        {s ? <span className="small" data-fact="range">{utc(from / MS_PER_S)} · {duration((toMs - from) / MS_PER_S)} · <span data-fact="events">{full(conv.events.length)}</span> events{s.complete ? "" : " so far"}</span> : null}
+      </>}>
         <nav className="conv-sections" aria-label="Sections of the conversation">
-          {SECTIONS.map((sec) => <a key={sec.id} href={conversationHref(run.pack, run.stack, run.runId, storyId, sec.id)} data-anchor={sec.id} aria-current={at === sec.id ? "true" : undefined}>{GLOSSARY[sec.term].name} <span className="num">{of(sec.kinds).length}</span></a>)}
+          {SECTIONS.map((sec) => view === "type"
+            ? <a key={sec.id} href={conversationHref(run.pack, run.stack, run.runId, storyId, sec.id)} data-anchor={sec.id} aria-current={at === sec.id ? "true" : undefined}>{GLOSSARY[sec.term].name} <span className="num">{of(sec.kinds).length}</span></a>
+            : <span key={sec.id} data-anchor={sec.id}>{GLOSSARY[sec.term].name} <span className="num">{of(sec.kinds).length}</span></span>)}
         </nav>
         <figure className="conv-timeline" aria-label={GLOSSARY.callTimeline.name} data-tip={GLOSSARY.callTimeline.what}>
           {bins.map((b, i) => (
             b.firstCallIdx !== null
-              ? <a key={i} className={`tick${b.compaction ? " compaction" : ""}`} href={link(b.firstCallIdx)} style={{ height: `${Math.max(MIN_TICK_PERCENT, (b.calls / maxCalls) * PERCENT)}%` }} data-tip={`${secs(b.fromMs, from)}: ${b.calls} call${b.calls === 1 ? "" : "s"}${b.compaction ? ", compacted" : ""}`} aria-label={`${b.calls} calls at ${secs(b.fromMs, from)}`} />
+              ? <button key={i} type="button" className={`tick${b.compaction ? " compaction" : ""}`} onClick={() => jumpTo(b.firstCallIdx!)} style={{ height: `${Math.max(MIN_TICK_PERCENT, (b.calls / maxCalls) * PERCENT)}%` }} data-tip={`${secs(b.fromMs, from)}: ${b.calls} call${b.calls === 1 ? "" : "s"}${b.compaction ? ", compacted" : ""}. Click: to call ${b.firstCallIdx + 1} below`} aria-label={`${b.calls} calls at ${secs(b.fromMs, from)}: to call ${b.firstCallIdx + 1}`} />
               : <span key={i} className={`tick empty${b.compaction ? " compaction" : ""}`} style={{ height: `${MIN_TICK_PERCENT}%` }} data-tip={`${secs(b.fromMs, from)}: no call${b.compaction ? ", compacted" : ""}`} />
           ))}
         </figure>
       </Section>
-      <Calls events={of(["call"])} from={from} fmt={s?.fmt ?? null} link={link} />
-      <Tools events={of(["tool_start", "tool_end"])} from={from} link={link} />
-      <Compactions events={of(["compaction_start", "compaction_end"])} from={from} />
-      <Sessions events={of(["between_sessions"])} from={from} />
-      <Messages events={of(["msg"])} from={from} />
-      <Requests events={of(["request"])} from={from} link={link} />
-      <Conditions events={of(["condition"])} from={from} />
+      {view === "time" ? <InOrder events={conv.events} from={from} fmt={s?.fmt ?? null} link={link} jumped={jumped} /> : <>
+        <Calls events={of(["call"])} from={from} fmt={s?.fmt ?? null} link={link} jumped={jumped} />
+        <Tools events={of(["tool_start", "tool_end"])} from={from} link={link} />
+        <Compactions events={of(["compaction_start", "compaction_end"])} from={from} />
+        <Sessions events={of(["between_sessions"])} from={from} />
+        <Messages events={of(["msg"])} from={from} />
+        <Requests events={of(["request"])} from={from} link={link} />
+        <Conditions events={of(["condition"])} from={from} />
+      </>}
     </div>
   );
 }
@@ -175,7 +199,56 @@ function Sec({ id, term, count, search, children }: { id: ConversationAnchor; te
   </section>;
 }
 
-function Calls({ events, from, fmt, link }: { events: ConversationEvent[]; from: number; fmt: string | null; link: (i: number | string) => string }) {
+const KIND_NAME: Record<string, string> = { call: "model call", tool_start: "tool", tool_end: "tool done", msg: "message", compaction_start: "compaction", compaction_end: "compacted", between_sessions: "wait", request: "engine request", condition: "reading" };
+
+/** One event's figures, briefly, for the in-order list. */
+function figures(e: ConversationEvent, withheld: boolean): string {
+  const n = (v: unknown) => (isNum(v) ? full(v) : "");
+  switch (e.kind) {
+    case "call": return [withheld ? "" : `${n(e.think)} thinking`, `${n(e.text)} text`, `${n(e.nTools)} tools`, isNum(e.inTok) ? `read ${full(e.inTok + (isNum(e.cacheTok) ? e.cacheTok : 0))}` : "", isNum(e.outTok) ? `wrote ${n(e.outTok)}` : "", typeof e.stop === "string" ? e.stop : ""].filter(Boolean).join(" · ");
+    case "tool_start": return `${String(e.name ?? "")} (${String(e.toolKind ?? "")})`;
+    case "tool_end": return [`${String(e.name ?? "")}`, e.error === 1 ? "failed" : "ok", isNum(e.seconds) ? `${e.seconds} s` : "", isNum(e.passed) ? `${e.passed} passed` : "", isNum(e.failed) ? `${e.failed} failed` : ""].filter(Boolean).join(" · ");
+    case "compaction_start": return String(e.reason ?? "");
+    case "compaction_end": return [String(e.reason ?? ""), isNum(e.seconds) ? `${e.seconds} s` : "", isNum(e.summaryChars) ? `summary ${full(e.summaryChars)} chars` : ""].filter(Boolean).join(" · ");
+    case "between_sessions": return isNum(e.seconds) ? `waited ${e.seconds} s` : "";
+    case "request": return [isNum(e.promptTok) ? `prompt ${full(e.promptTok)}` : "", isNum(e.generatedTok) ? `generated ${full(e.generatedTok)}` : "", isNum(e.decodeTokS) ? `${full(e.decodeTokS)} tok/s` : "", isNum(e.draftAccepted) && isNum(e.draftProposed) ? `drafts ${e.draftAccepted}/${e.draftProposed}` : ""].filter(Boolean).join(" · ");
+    case "condition": return [typeof e.thermal === "string" ? e.thermal : "", isNum(e.freePct) ? `free ${e.freePct.toFixed(0)}%` : "", isNum(e.swapGb) ? `swap ${e.swapGb.toFixed(1)} GB` : ""].filter(Boolean).join(" · ");
+    default: return "";
+  }
+}
+
+/** Everything in time order: one row per happening, the text of each as the page holds it. */
+function InOrder({ events, from, fmt, link, jumped }: { events: ConversationEvent[]; from: number; fmt: string | null; link: (i: number | string) => string; jumped: number | null }) {
+  const withheld = fmt === "claude";
+  const [query, setQuery] = useState("");
+  const rows = matching(events, query);
+  return (
+    <Sec id="all" term="inOrder" count={events.length} search={{ query, onChange: setQuery, shown: rows.length, total: events.length, label: "Search the conversation" }}>
+      <div className="table-scroll">
+        <table className="rp-table conv-table in-order" aria-label={GLOSSARY.inOrder.name}>
+          <thead><tr><th className="n">At</th><th>What</th><th>Figures</th><th className="said">Text</th></tr></thead>
+          <tbody>
+            {rows.map((e) => {
+              const call = e.kind === "call" && isNum(e.refIdx) ? e.refIdx : null;
+              const text = e.kind === "call" ? said(e, withheld, query) : e.kind === "tool_start" ? String(e.arg ?? "") : e.kind === "tool_end" ? cutText(e.result as CutText) : e.kind === "msg" ? cutText(e.textBody as CutText) : "";
+              const toCall = e.kind !== "call" && isNum(e.callIdx) ? e.callIdx : null;
+              return (
+                <tr key={e.ord} id={call !== null ? callRowId(call) : undefined} data-kind={e.kind} data-call={call ?? undefined} data-jumped={call !== null && call === jumped ? "true" : undefined}>
+                  <td className="n">{secs(e.tMs, from)}</td>
+                  <td className="what"><span className={`kind kind-${e.kind}`}>{KIND_NAME[e.kind] ?? e.kind}</span>{call !== null ? <> <a className="entity call-link" href={link(call)}>call {call + 1}</a></> : toCall !== null ? <> <a className="entity call-link" href={link(toCall)}>call {toCall + 1}</a></> : null}</td>
+                  <td className="figures small">{figures(e, withheld)}</td>
+                  <td className="said">{text ? <Clamped text={text} query={query} mono={e.kind === "tool_start" || e.kind === "tool_end"} /> : null}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Sec>
+  );
+}
+
+function Calls({ events, from, fmt, link, jumped }: { events: ConversationEvent[]; from: number; fmt: string | null; link: (i: number | string) => string; jumped: number | null }) {
   const withheld = fmt === "claude";
   const [query, setQuery] = useState("");
   const rows = matching(events, query);
@@ -189,7 +262,7 @@ function Calls({ events, from, fmt, link }: { events: ConversationEvent[]; from:
               const think = e.thinking as CutText | null | undefined;
               const idx = isNum(e.refIdx) ? e.refIdx : 0;
               return (
-                <tr key={e.ord} data-call={idx} data-sub={e.sub === 1 ? "true" : undefined}>
+                <tr key={e.ord} id={callRowId(idx)} data-call={idx} data-sub={e.sub === 1 ? "true" : undefined} data-jumped={idx === jumped ? "true" : undefined}>
                   <td><a className="entity call-link" href={link(idx)}>call {idx + 1}</a>{e.sub === 1 ? <span className="small"> subagent</span> : null}</td>
                   <td className="n">{secs(e.tMs, from)}</td>
                   <td className="n">{withheld ? <NotApplicable why="This client withholds its thinking: the count isn't known." /> : num(e.think, "Not counted.")}</td>

@@ -21,7 +21,7 @@
 .clamp-more:hover { color: var(--ink); }
 /* A section's twisty, and its own search behind a magnifier where its count was. */
 .conv-section .rp-head h2 { display: flex; align-items: center; gap: 6px; }
-.twisty { font: inherit; font-size: 12px; line-height: 1; width: 18px; height: 18px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; }
+.twisty { font: inherit; font-size: 20px; line-height: 1; width: 26px; height: 26px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; }
 .twisty:hover { color: var(--ink); }
 .sec-search { display: inline-flex; align-items: center; gap: 8px; }
 .sec-search input { width: 28ch; font: inherit; font-size: 13px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
@@ -44,3 +44,19 @@ pre.quoted { max-height: 60vh; overflow: auto; background: var(--panel, #f6f6f6)
 .seg-link { display: block; height: 100%; }
 .seg-link:hover .seg { filter: brightness(1.25); }
 .conversation-link { font-size: 12px; }
+
+/* The layout switch, the in-order list, and the row a timeline tick jumped to. */
+.view-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-right: 12px; }
+.view-switch button { font: inherit; font-size: 12px; padding: 3px 10px; border: 0; background: var(--panel); color: var(--muted); cursor: pointer; }
+.view-switch button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.conv-timeline button.tick { border: 0; padding: 0; cursor: pointer; }
+.in-order .what { white-space: nowrap; }
+.kind { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--panel-2); color: var(--muted); }
+.kind-call { background: var(--seg-decode); color: #fff; }
+.kind-tool_start, .kind-tool_end { background: var(--seg-tools); color: #fff; }
+.kind-compaction_start, .kind-compaction_end { background: var(--seg-compaction); color: #fff; }
+.kind-between_sessions { background: var(--seg-between); color: #fff; }
+.in-order .figures { white-space: normal; max-width: 28ch; }
+tr[data-jumped="true"] td { background: var(--chip); }
+.call-nav .back { font-weight: 600; }
+.call-nav .call-of { color: var(--muted); }
