@@ -54,6 +54,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [llama.cpp Metal on the M5 Max](llamacpp-metal-m5-max.md) | parked | M5 Max | paused after canvas-metal-01 story 1 |
 | [Fable 5.1 reference](fable-5.1-reference.md) | parked | this Mac | a second frontier reference next to Opus 5.5; after the Opus v2 runs |
 | [DwarfStar (ds4)](dwarfstar.md) | gated | M5 Max | native engine incl. Qwen3.8 Flash Next on Metal (Q4 69.7 GiB resident); not for the 4090 by its docs; tool-call and cache checks first |
+| [K2 Horizon (MBZUAI IFM)](k2-horizon.md) | gated | any machine (new model family) | six open models, 0.9B to 375B; vLLM and SGLang support real, Ollama not, llama.cpp pull request approved but unmerged; gate: the merge |
 | [LightRSI / TokenPilot](lightrsi.md) | parked | pi and OpenCode (a client extension) | context manager for long sessions; fixes dollar and cache-miss costs we do not have; assessed on paper, never run |
 | [pi 1.0](pi-1.0.md) | candidate | every machine | client update, 0.87.1 to 1.0.0; no landmine release; fixes a llama.cpp tool-call bug |
 | [pi 0.99](pi-0.99.md) | parked | every machine | superseded by pi 1.0; kept as why v2 pinned 0.87.1 |
