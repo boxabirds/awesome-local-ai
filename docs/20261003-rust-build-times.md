@@ -112,3 +112,30 @@ for a full build against 25.5 s without, was under contention and inconclusive);
 `cargo build --timings` in `tools/dbench` for the clean picture; the one-change release rebuild (`touch
 src/collect.rs; time cargo build --release`) for the day-to-day figure; on a node, the sandbox build time printed
 by `sandbox.py` after the next change to its directory.
+
+## As built (the same evening)
+
+Approved and done: 1, 2 and 3; 4 left. One change to 3 on the way: **power-collector is not in the workspace.**
+Its `tapo` dependency enables reqwest's aws-lc-rs TLS backend, so a workspace-wide build would have compiled
+dbench's TLS a second time with it, plus aws-lc's cmake build; a dbench-only build was unaffected (0 aws-lc
+packages) but `cargo test --workspace` would not have been. The workspace is dbench and vidi-gallery
+(`tools/Cargo.toml`, which holds the profiles, the shared lock and the toolchain pin); agent-sandbox and
+power-collector are excluded, each with its reason in that file, and keep their own locks and checks.
+dbench's 187 dependency versions are exactly what they were before the move.
+
+Measured after the change (load 5 to 17 on 8 cores, the other session still building):
+
+| | Before | After |
+|---|---|---|
+| dbench release rebuild after one change | 30 to 71 s | **2.5 s, 1.7 s** |
+| dbench full release build, fresh target | 67 to 114 s | 48.4 s |
+| dbench `dist` build (what a node gets: thin LTO, stripped) | | 107.3 s, 9.3 MB |
+| agent-sandbox clean release, as a node builds it | 35.6 s | 18.7 s |
+| `cargo test --workspace` (dbench and vidi-gallery, one target) | | 41.6 s |
+| Linux cross-build via zig, `dist` profile | | 93.3 s, stripped ELF |
+
+The three old target directories (dbench 7.9 GB, vidi-gallery 1.1 GB) are deleted; the workspace builds into
+`tools/target/`. `build-linux.sh` and the README name the `dist` profile and the new paths; the release check list
+has one "rust tests (tools workspace)" entry in place of two, and dbench's own tests assert that name and the
+pin's new location. The nodes rebuild the sandbox once (its `Cargo.toml` is in the source hash) at the next
+harness release that carries it.

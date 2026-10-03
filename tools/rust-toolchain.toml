@@ -1,6 +1,6 @@
 # The one place the Rust version is set.
 #
-# rustup reads this file for every cargo command run in tools/dbench and installs the toolchain on
+# rustup reads this file for every cargo command run under tools/ (the workspace) and installs the toolchain on
 # first use, so a new stable release (with new clippy lints) can't fail a commit that passed before.
 # To move to a newer Rust: change `channel`, run the checks, commit.
 [toolchain]
