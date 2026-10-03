@@ -199,6 +199,62 @@ export const NUDGE_STEP_WORLD = 1;
 /** Shift + an arrow key moves it this many. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
 
+/* Free text (story 9) --------------------------------------------------------*/
+
+/**
+ * How wide a text box grows on its own before it wraps, in world units.
+ * A line longer than this is broken into wrapped lines (`text.auto_width`).
+ */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** The narrowest a text box may be dragged to, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Longest text; characters beyond this are dropped (`text.limit`). */
+export const TEXT_MAX_CHARS = 5000;
+
+/** The four size presets, in board units of font size (`text.size`). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** The size of newly created text. */
+/**
+ * How a text box decides how wide it is (`text.auto_width`, `text.resize_width`).
+ *
+ * `auto` is the measured width — as wide as the words need, up to the maximum before
+ * they wrap; `fixed` is a width a person gave it by dragging, which the text then wraps
+ * inside.
+ */
+export type TextWidthMode = 'auto' | 'fixed';
+
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Line height as a multiple of the font size; height always follows content. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** The board's standard sans-serif, so text is crisp at every zoom. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/**
+ * How much wider a text box is than its longest line, in world units.
+ *
+ * A box exactly as wide as its text leaves no room for the caret after the last
+ * character, and a browser that is a rounding step wider than the measurement
+ * would wrap a line that has not finished growing (`text.auto_width`). It is
+ * never added past `TEXT_MAX_AUTO_WIDTH_WORLD`, so a wrapped box is exactly that
+ * wide.
+ */
+export const TEXT_BOX_SLACK_WORLD = 2;
+
+/**
+ * The average glyph width, as a fraction of the font size, used to size a text
+ * box when there is no canvas to measure with. Chosen to be close to the board's
+ * font so a fallback box is roughly the right shape; it is never what a person
+ * with a working browser sees.
+ */
+export const TEXT_FALLBACK_GLYPH_RATIO = 0.5;
+
 /* Undo and redo (story 8) ---------------------------------------------------*/
 
 /**

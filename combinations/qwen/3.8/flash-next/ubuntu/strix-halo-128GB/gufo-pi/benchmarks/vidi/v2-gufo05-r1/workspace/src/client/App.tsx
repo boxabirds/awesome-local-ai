@@ -27,6 +27,7 @@ import {
   objectBounds,
   type ObjectSnapshot,
 } from '../shared/board-model';
+import { createText } from '../shared/objects/text';
 import { unionRects } from '../shared/geometry';
 import { MarqueeRect } from './board/Marquee';
 import { SelectionBar } from './board/SelectionBar';
@@ -36,7 +37,9 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useMarquee } from './board/useMarquee';
 import { useSelection } from './board/useSelection';
+import { useTool } from './board/useTool';
 import { useUndo, useUndoController } from './board/useUndo';
+import { SELF } from './identity';
 import { useTransformGesture } from './board/useTransformGesture';
 import { BoardViewport } from './canvas/BoardViewport';
 import { CameraProvider, useCameraContext } from './canvas/CameraContext';
@@ -139,6 +142,8 @@ function BoardLayout({ doc, boardId }: AppProps) {
 
   const selection = useSelection(objects);
   const canEdit = connectionAllowsEditing(board.connectionState);
+  // Which tool a click on the board is in: Select, or Text (`text.tool_ui`).
+  const tools = useTool(canEdit);
 
   // One undo history per board document, for this person alone (story 8). It watches the
   // document rather than being told about the changes, so nothing here has to remember to
@@ -190,6 +195,8 @@ function BoardLayout({ doc, boardId }: AppProps) {
     canEdit,
     marqueeActive: () => marquee.active,
     undo: undoController,
+    tool: tools,
+    onCreateSticky: () => createAtCentre(),
   });
 
   /** Put a note on the board centred on a world point and start typing it. */
@@ -214,12 +221,42 @@ function BoardLayout({ doc, boardId }: AppProps) {
     createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }));
   }, [camera, createAt, viewport.height, viewport.width]);
 
+  /**
+   * Put text at a world point and start writing it (`text.create`).
+   *
+   * Unlike a note, the point is the text's top-left rather than its centre: a person
+   * clicking with the Text tool is saying where the first character goes, and centring
+   * an empty box on the cursor would put the words somewhere they did not click.
+   */
+  const createTextAt = useCallback(
+    (point: Point) => {
+      if (!connectionAllowsEditing(latestRef.current.connectionState)) return;
+      // Placing the text is one step, and what gets typed into it is the next.
+      stepBoundary();
+      const id = createText(latestRef.current.doc, point, SELF.id);
+      stepBoundary();
+      if (!id) return;
+      selection.add(id);
+      selection.startEdit(id);
+      // A tool that stayed armed after its one click would take the click that was
+      // meant for selecting, or for moving the text that is now being typed.
+      tools.setTool('select');
+    },
+    [selection, stepBoundary, tools],
+  );
+
   const anchor = selectionAnchor(camera, objects, selection.ids);
 
   return (
     <div className={`app${gesture.isTransforming ? ' transform--active' : ''}`}>
       <ConnectionStatus state={board.connectionState} />
-      <Toolbar onCreateSticky={createAtCentre} undo={undo} />
+      <Toolbar
+        onCreateSticky={createAtCentre}
+        tool={tools.tool}
+        canEdit={canEdit}
+        onTool={tools.setTool}
+        undo={undo}
+      />
       <BoardViewport
         onEmptyDoubleClick={(point) => {
           createAt(screenToWorld(camera, point));
@@ -230,6 +267,10 @@ function BoardLayout({ doc, boardId }: AppProps) {
           selection.clear();
         }}
         marquee={marquee}
+        textMode={tools.tool === 'text'}
+        onTextPointClick={(point) => {
+          createTextAt(screenToWorld(camera, point));
+        }}
       >
         {objects.map((object) => {
           const spec = getObjectType(object.type);

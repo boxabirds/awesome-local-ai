@@ -1,105 +1,33 @@
 /**
- * The text logic of a sticky note: everything that turns a textarea value into
- * a minimal, bounded change on a `Y.Text`, plus the auto-fit measurement.
+ * The text logic of a sticky note: the auto-fit measurement, and the shared
+ * text rules re-exported with the note's own limit.
  *
- * Two rules matter beyond the obvious one (text must fit):
- *
- * - **Minimal edits.** `applyTextDiff` writes the smallest change that turns the
- *   current text into the next one (common prefix + common suffix). A full
- *   replace would destroy text a teammate is typing at the same moment once
- *   story 3 syncs this document.
- * - **Surrogate pairs stay whole.** A diff boundary never falls between the two
- *   halves of an emoji, which would leave a lone half behind.
+ * `clampToLimit`, `shiftCaret` and `applyTextDiff` moved to
+ * `src/shared/text-edit.ts` in story 9, because a text object needs the same
+ * minimal-diff and character-limit rules and two copies of them would drift
+ * apart. They come back out of here with `STICKY_TEXT_MAX_CHARS` defaulted in,
+ * so every caller and every test from story 2 reads and behaves exactly as it
+ * did before the move.
  *
  * No React and no layout here except `fitFontSize`, which measures an element.
  */
-import type * as Y from 'yjs';
-
 import {
   STICKY_COUNTER_THRESHOLD_CHARS,
   STICKY_FONT_MAX_PX,
   STICKY_FONT_MIN_PX,
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
+import {
+  applyTextDiff as applyTextDiffShared,
+  clampToLimit as clampToLimitShared,
+  shiftCaret,
+} from '../../shared/text-edit';
+
+export { applyTextDiffShared as applyTextDiff, shiftCaret };
 
 /** Keep at most `max` characters; anything longer is cut off. */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  return next.length <= max ? next : next.slice(0, max);
-}
-
-/** True for the first half of a UTF-16 surrogate pair. */
-function isHighSurrogate(code: number): boolean {
-  return code >= 0xd800 && code <= 0xdbff;
-}
-
-/** True for the second half of a UTF-16 surrogate pair. */
-function isLowSurrogate(code: number): boolean {
-  return code >= 0xdc00 && code <= 0xdfff;
-}
-
-/** The edit region `[start, end)` of turning `current` into `next`. */
-function diffRange(current: string, next: string): { start: number; endCurrent: number; endNext: number } {
-  let start = 0;
-  const shared = Math.min(current.length, next.length);
-  while (start < shared && current[start] === next[start]) start += 1;
-
-  let endCurrent = current.length;
-  let endNext = next.length;
-  while (endCurrent > start && endNext > start && current[endCurrent - 1] === next[endNext - 1]) {
-    endCurrent -= 1;
-    endNext -= 1;
-  }
-
-  // Never cut a surrogate pair in half: pull the start back before a high
-  // surrogate and push the end past a low one, so the change covers whole
-  // characters only.
-  if (start > 0 && (isHighSurrogate(current.charCodeAt(start - 1)) || isHighSurrogate(next.charCodeAt(start - 1)))) {
-    start -= 1;
-  }
-  if (endCurrent < current.length && isLowSurrogate(current.charCodeAt(endCurrent))) endCurrent += 1;
-  if (endNext < next.length && isLowSurrogate(next.charCodeAt(endNext))) endNext += 1;
-
-  return { start, endCurrent, endNext };
-}
-
-/**
- * Where a caret at `caret` in `previous` belongs in `next`.
- *
- * Used when somebody else's typing arrives while this note is being edited: the
- * text in the field has to change, and the caret has to come with it rather than
- * jump to the start. The change is treated as one region (the same shape
- * `diffRange` describes): a caret before it does not move, and a caret at or after
- * it moves by what the change grew or shrank by, never landing before the start of
- * the change.
- */
-export function shiftCaret(caret: number, previous: string, next: string): number {
-  const { start, endCurrent, endNext } = diffRange(previous, next);
-  if (caret <= start) return caret;
-  const deleted = endCurrent - start;
-  const inserted = endNext - start;
-  return Math.max(start, caret - deleted + inserted);
-}
-
-/**
- * Write `next` into `ytext` with the fewest operations possible: at most one
- * delete and one insert, inside a single transaction.
- */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return; // no change, so no transaction and no sync traffic
-
-  const { start, endCurrent, endNext } = diffRange(current, next);
-  const deleteLength = endCurrent - start;
-  const insertion = next.slice(start, endNext);
-
-  const write = () => {
-    if (deleteLength > 0) ytext.delete(start, deleteLength);
-    if (insertion.length > 0) ytext.insert(start, insertion);
-  };
-
-  const doc = ytext.doc;
-  if (doc) doc.transact(write, origin);
-  else write();
+  return clampToLimitShared(next, max);
 }
 
 /** True when the remaining characters are within the counter threshold. */

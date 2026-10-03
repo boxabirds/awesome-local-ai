@@ -22,10 +22,11 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
-import { HANDLE_LABELS, HANDLES, type HandleId } from '../../shared/geometry';
+import { HANDLE_LABELS, type HandleId } from '../../shared/geometry';
 import { HANDLE_SIZE_PX } from '../../shared/config';
 import type { Camera } from '../canvas/camera';
 import { worldToScreen } from '../canvas/camera';
+import { handlesFor } from '../objects/registry';
 
 export interface SelectionOverlayProps {
   /** The selected ids, in any order. */
@@ -79,6 +80,9 @@ export function SelectionOverlay(props: SelectionOverlayProps) {
   const objects = snapshot.filter((object) => selection.includes(object.id));
   if (objects.length === 0) return null;
 
+  // Only the handles every object in the selection agrees to: free text is resized
+  // sideways, so as soon as it is part of the selection the top and bottom ones go away.
+  const handles = handlesFor(objects);
   const boxes = objects.map((object) => screenRect(camera, objectBounds(object)));
   const left = Math.min(...boxes.map((box) => box.left));
   const top = Math.min(...boxes.map((box) => box.top));
@@ -105,7 +109,7 @@ export function SelectionOverlay(props: SelectionOverlayProps) {
         data-testid="selection-box"
         style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
       />
-      {HANDLES.map((handle) => {
+      {handles.map((handle) => {
           const place = HANDLE_PLACEMENT[handle];
           return (
             <button

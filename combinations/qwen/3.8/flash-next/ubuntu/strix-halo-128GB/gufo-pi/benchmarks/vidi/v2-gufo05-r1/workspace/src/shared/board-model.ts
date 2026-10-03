@@ -25,6 +25,7 @@
 import * as Y from 'yjs';
 
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
+import { snapshotFrom as readText, TEXT_TYPE } from './objects/text';
 import { rectContains, isFiniteRect, type Point, type Rect } from './geometry';
 
 /**
@@ -150,6 +151,8 @@ function readObject(id: string, map: Y.Map<unknown>): ObjectSnapshot | null {
   const y = map.get('y');
   const z = map.get('z');
   if (typeof x !== 'number' || typeof y !== 'number' || typeof z !== 'number') return null;
+  // Text carries its own box and font size, so it reads itself (`text.model`).
+  if (type === TEXT_TYPE) return readText(id, map);
   if (type === STICKY_TYPE) return readSticky(id, map);
 
   const createdAt = map.get('createdAt');

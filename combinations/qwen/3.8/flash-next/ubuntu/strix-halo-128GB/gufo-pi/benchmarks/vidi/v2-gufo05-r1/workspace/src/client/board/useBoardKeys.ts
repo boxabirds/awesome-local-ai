@@ -19,6 +19,10 @@
  * the rectangle — put it away, leave the selection exactly as it was. That is what
  * `marqueeActive` is for; without it the two listeners would fight over the same key and
  * a cancelled marquee would silently throw away the selection the person already had.
+ *
+ * Story 9 adds the tool keys — `V` Select, `T` Text, `N` a sticky note — which follow
+ * the same rule as everything above: they are the board's keys only when nothing that
+ * takes its own keys has them, so a `t` typed into a note stays a `t`.
  */
 import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
@@ -30,6 +34,7 @@ import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import { undoGesture, type UndoController } from './undo';
 import type { SelectionHandle } from './useSelection';
+import type { ToolHandle } from './useTool';
 
 export interface BoardKeyParams {
   doc: Y.Doc;
@@ -47,6 +52,20 @@ export interface BoardKeyParams {
    * that has no history of its own to offer.
    */
   undo?: UndoController;
+  /**
+   * The board's tool mode (`text.tool_ui`).
+   *
+   * `V` and `T` choose it and Escape leaves it. Without it those keys do nothing,
+   * which is the right answer on a board with one kind of pointer.
+   */
+  tool?: ToolHandle;
+  /**
+   * Put a sticky note in the middle of the view (`sticky.create`).
+   *
+   * `N` is the keyboard's way of pressing the toolbar's Sticky note button, and it
+   * is the same button's action rather than a second implementation of it.
+   */
+  onCreateSticky?(): void;
 }
 
 /**
@@ -107,18 +126,46 @@ export function useBoardKeys(params: BoardKeyParams): void {
       }
 
       if (takesItsOwnKeys(event.target)) return;
-      const { doc, selection, snapshot, canEdit, marqueeActive } = latest.current;
-      // Somebody is typing into an object: the keys are theirs.
+      const { doc, selection, snapshot, canEdit, marqueeActive, tool, onCreateSticky } = latest.current;
+      // Somebody is typing into an object: the keys are theirs. `T` typed into a note
+      // is the letter t, and `N` is a word with an n in it (`text.tool_ui`).
       if (selection.editingId !== null) return;
 
       const ids = [...selection.ids];
 
       if (event.key === 'Escape') {
+        // An armed tool is what Escape means while one is armed: put the pointer back
+        // to Select, and leave the selection alone — the person did not ask twice.
+        if (tool && tool.tool !== 'select') {
+          tool.setTool('select');
+          return;
+        }
         // A rectangle in progress is cancelled by the marquee's own listener; this
         // must not also clear the selection it is about to leave in place.
         if (marqueeActive?.()) return;
         selection.clear();
         return;
+      }
+
+      // The tool keys are plain letters, so a Ctrl, Meta or Alt chord is not one of
+      // them: Ctrl+V stays the browser's paste, Cmd+T stays a new tab.
+      if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (event.key === 'v' || event.key === 'V') {
+          tool?.setTool('select');
+          return;
+        }
+        if (event.key === 't' || event.key === 'T') {
+          // A board that cannot be written has no Text tool to arm (`text.tool_ui`).
+          if (canEdit) tool?.setTool('text');
+          return;
+        }
+        if (event.key === 'n' || event.key === 'N') {
+          if (!canEdit) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onCreateSticky?.();
+          return;
+        }
       }
 
       if ((event.ctrlKey || event.metaKey) && (event.key === 'a' || event.key === 'A')) {

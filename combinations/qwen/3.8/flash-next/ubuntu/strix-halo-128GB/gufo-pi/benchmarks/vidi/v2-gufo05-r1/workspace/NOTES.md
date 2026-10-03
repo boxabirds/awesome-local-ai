@@ -799,3 +799,158 @@ real doc, real controller for the buttons and a recorded fake for the key table;
 because a boundary is only real if the app is the one calling it. e2e:
 `tests/e2e/undo.spec.ts` TC-22, TC-23, TC-24, plus the toolbar buttons doing what the
 shortcuts do.
+
+## Story 9 — write free text anywhere on the board
+
+### `board-model.ts` and `objects/text.ts` import each other, on purpose
+
+A text object has to appear in `objectSnapshots` like anything else, which means the model
+module needs `readTextSnapshot`; and the text module needs `highestZ`, `LOCAL_ORIGIN` and the
+objects key to create one. The cycle is fine in ESM as long as neither side touches the other's
+bindings while the modules are still evaluating, and neither does: every use is inside a
+function body. Breaking it would have meant a third module that only passes names around.
+
+### An auto box that wraps is as wide as the maximum, not as wide as its longest line
+
+`textLayout` measures the words unwrapped first, and if they do not fit in
+`TEXT_MAX_AUTO_WIDTH_WORLD` it stores that maximum as the width — not the width of the widest
+wrapped line, which the same measurement also knows. The reason is that the *browser* is the
+one that will wrap, and it wraps inside the stored width: a box narrowed to a line width
+computed by a measurer that disagrees with the font by a hair re-wraps into a different number
+of lines, and the last line then has a word alone on it. The maximum is the width that produces
+the layout the measurement predicted.
+
+### What a box may remember, and when it is allowed to forget
+
+The box sync listens for local transactions and re-measures when the *things it measures*
+change: the words, the size, and the width — but the width only in fixed mode, because in auto
+mode the stored width is a *result*, and writing a box changes it. Putting width in the key
+unconditionally makes a write loop: measure, write width, see the change, measure again.
+The hook adopts the current key when the object mounts, so opening a board never writes a box,
+which is what makes "a remote client writes nothing" true for the client that loads a board
+rather than edits it (`text.box_local`).
+
+Measurements that happen *outside* the object — a size button, a width drag — call
+`remeasureTextBox` explicitly. Their transaction is indistinguishable from any other, and a
+hook that only reacts to key changes would be waiting for a width the gesture has already
+written.
+
+### The Text tool places on the click, not on the press
+
+Placing on pointerdown looked simpler and is wrong: the browser's own default for mousedown is
+to move focus, and it does that *after* React has rendered the new editor, so the freshly
+mounted `contentEditable` is blurred the moment it appears and the caret is never in it. The
+capture-phase pointerdown now only *claims* the press — it stops the press reaching the objects
+underneath and records the point — and the click, which the browser fires after its focus
+default has run, is what creates the text and opens the editor.
+
+The double-click guard that keeps a Text-tool double-click from also dropping a sticky note is
+time *and* distance. Time alone made two deliberate clicks at different places into one gesture,
+which is a person writing two headings in a row and being given one.
+
+### Handles are a union, and what a handle does is per type
+
+`handlesFor` was an intersection before this story — with one object selected the two are the
+same thing, which is why nobody noticed. Text asks for the question "which handles may this
+selection be offered at all", and the answer for text + a note is all eight (`text.consistent`),
+with the text repositioned and its width scaled while the note scales both ways. Whether a type
+takes part in that axis is its own `scalesHeight`, read by the gesture through `PressItem`.
+
+### A resize ends with a measurement, not with a rectangle
+
+Two separate bugs lived here, and both showed up only against a real browser.
+
+`onWidthResize` pins the box to the width somebody dragged *and re-measures it*. The measure
+cannot be left to the box's own listener: the last frame of a drag writes the same width as the
+frame before it, so the key does not change, so nothing re-measures, so the height the gesture
+left behind — the height from before the words had to wrap — is the height that survives. The
+gesture now has the last word and the measurement has the last word after it.
+
+And `clampScale` is asked per axis. `minSize` is one number, a minimum side; for text it is a
+minimum *width*, and a type whose height is its content's business has no minimum height at all.
+Asked together, a 40-unit width minimum became a vertical scale of 1.54 on a 26-unit-tall box,
+which grew the box to 40 and — because a mid-right handle anchors on the right, so the box
+re-centres vertically — moved its top edge 7 units up. Nothing had been dragged vertically.
+Now the vertical limit is asked of the objects that can actually move vertically, and a
+selection of nothing but text keeps its height and its top.
+
+### One editor, two fields
+
+The sticky note's `textarea` and the text object's `contentEditable` share `useSharedTextEdit`
+through a `FieldDom<T>` adapter: read, write, caret, set caret. The flag that is not about DOM
+shape is `ownNewlines`. A textarea produces a `\n` from Enter by itself; a `contentEditable`
+produces a `<div>` or a `<br>` and would put HTML-shaped things into a `Y.Text`, so the text
+editor handles Enter itself and inserts a `'\n'` text node at the caret through a Range. The
+fallback for "no usable caret inside the field" appends at the end — jsdom gets there; a browser
+rarely does, and a newline that lands at the end is a newline.
+
+`textContent` is used for both reading and writing rather than `innerHTML`, which is what keeps
+control characters and pasted markup out of the shared string.
+
+### The box is not clipped
+
+`.text-object` has no `overflow: hidden`, deliberately, and the CSS says so. Canvas measurement
+and CSS layout agree to within a hundredth of a pixel in the browser, but they are two
+implementations, and on the odd line that lands a fraction over the border the choice is between
+a word cut in half and a word painted 1 pixel below the outline. The word wins.
+
+### Who wrote this text
+
+`createdBy` is a random id generated once per tab (`src/client/identity.ts`). Story 6 owns who
+a person is; until then this is the honest version of "the client that made it", and the field
+is where the real identity will go without touching the model again.
+
+### Things the tests, not the product, had to learn
+
+- The component harness's `release()` now fires a `click` after `pointerup`, because placement
+  happens on the click and a harness that stopped at pointerup was testing a gesture nobody
+  makes. All 182 component tests still pass, which is the evidence that this is what the browser
+  does anyway.
+- `paintedLineCount` in the e2e helper counts *distinct vertical positions* inside the element
+  that holds the words. The wrapper contributes one rectangle the size of itself, Chromium
+  contributes an extra rectangle for a trailing space, and a naive `getClientRects().length`
+  reported a three-line box for a two-line one.
+- jsdom stubs `getContext('2d')` to null (`tests/component/setup.ts`), which is what forces the
+  estimate path in component tests. The consequence is that every width in the component suite
+  is the board's *estimate*, and only the browser suite can say whether the stored box is the box
+  the font needed — which is the division the story's TC table draws, and now the reason it is
+  drawn there.
+
+### Deviations, stated
+
+- `text.get_text` is `getText` and returns the `Y.Text`, not a string: callers either insert
+  into it or take `toString()`, and a name that promised a string hid the thing being shared.
+- Remote delete during an edit (TC-24) needed no new machinery: story 7's `useSelection` already
+  prunes ids that are no longer in the document, and the editor unmounts with the object. The
+  test asserts the behaviour rather than adding it.
+- The sticky button's label is "Sticky note (N)" as design.md asks, which changed an existing
+  story 5 assertion that matched the old label exactly; it now matches `/Sticky note/`.
+- Nudging (`text.nudge`) is not in this story's task list and is not implemented for text any
+  more than it is for notes: arrow keys belong to the editor while a text is being written into,
+  and story 7's nudge is a selection-level feature that any registered object inherits.
+
+### What was tested where
+
+Unit: `tests/unit/text-model.test.ts` TC-01 to TC-06 (model, limits, empty rule, width modes)
+against throwing stubs first, and `tests/unit/text-layout.test.ts` TC-07 to TC-11 plus TC-32
+against a fake measurer with fixed pixel widths, so the wrapping arithmetic is pinned without a
+font anywhere near it. ui-component: `tests/component/TextBoxSync.test.tsx` TC-12, TC-13 (who is
+allowed to write a box, and how often); `tests/component/Tool.test.tsx` TC-14 to TC-18 (arming,
+shortcuts, Escape priorities, placing, placing over objects);
+`tests/component/TextObject.test.tsx` TC-19 to TC-25 (editing, empty abandonment, sizes, handles,
+mixed selection, remote delete during an edit, one-step undo);
+`tests/component/transform.test.tsx` gained the story-9 case of a sideways resize, which is where
+story 5's resize rules and this story's heights meet. e2e: `tests/e2e/text.spec.ts` TC-26 to TC-31
+— real font, real drag, five people typing at once.
+
+Firefox and WebKit are still skipped on this host for the same reason as every previous story:
+the browsers are installed, the system libraries are not, and there is no root.
+
+### One thing the next story should know before it runs the browser suite
+
+`npx playwright test` must be preceded by `npm run build:test`, not `npm run build`.
+`IS_TEST_MODE` is `import.meta.env.MODE === 'test'`, and it is what puts `window.__vidi6` — the
+camera hooks and `connectionState` — into the bundle. A production build leaves the object
+absent, every `waitForConnection` then waits fifteen seconds for a property that will never
+exist, and the multi-participant tests fail with what looks exactly like a broken sync server.
+The full command is `npm run test:e2e`.

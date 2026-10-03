@@ -4,7 +4,13 @@
  * Two or more objects selected: "N selected" and one Delete button for all of them.
  * Exactly one sticky note: story 2's note toolbar instead — colours and a bin — because
  * that is what a person reaching for one note's tools expects, and the design says so.
+ * Exactly one piece of text: its own toolbar — four sizes, the width toggle, a bin
+ * (`text.size`, `text.autosize`, `text.resize_width`).
  * Anything else (one object of another type, nothing at all): no bar.
+ *
+ * The bar writes through the model, the way the note's colour does: one undo capture
+ * window per click, and the box a size change implies is measured in the same breath, so
+ * a person never sees text at one size inside a box measured for another.
  *
  * The *count* is what gets announced. `aria-live="polite"` on the text means a screen
  * reader hears "6 selected" when a marquee finishes or Ctrl+A runs, which is the only
@@ -19,8 +25,16 @@ import type * as Y from 'yjs';
 
 import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
 import { setStickyColor } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize, TextWidthMode } from '../../shared/config';
+import {
+  setTextSize,
+  setTextWidthAuto,
+  setTextWidthFixed,
+  type TextSnapshot,
+} from '../../shared/objects/text';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
 
 export interface SelectionBarProps {
   /** The selected ids. */
@@ -51,9 +65,53 @@ function singleSticky(
   return object && object.type === 'sticky' ? (object as StickySnapshot) : null;
 }
 
+/** The one selected object, when a single piece of text is all there is. */
+function singleText(
+  ids: ReadonlySet<string>,
+  snapshot: readonly ObjectSnapshot[],
+): TextSnapshot | null {
+  if (ids.size !== 1) return null;
+  const id = [...ids][0];
+  const object = snapshot.find((candidate) => candidate.id === id);
+  return object && object.type === 'text' ? (object as TextSnapshot) : null;
+}
+
 export function SelectionBar(props: SelectionBarProps) {
   const { ids, snapshot, doc, onDelete } = props;
   if (ids.size === 0) return null;
+
+  const text = singleText(ids, snapshot);
+  if (text) {
+    return (
+      <div className="selection-bar selection-bar--text" data-testid="selection-bar">
+        <TextToolbar
+          size={text.size}
+          widthMode={text.widthMode}
+          onSize={(size: TextSize) => {
+            props.boundary?.();
+            setTextSize(doc, text.id, size);
+            // Bigger words need a taller box, and the person should not have to type
+            // something to find out.
+            remeasureTextBox(doc, text.id);
+            props.boundary?.();
+          }}
+          onWidthMode={(mode: TextWidthMode) => {
+            props.boundary?.();
+            if (mode === 'fixed') {
+              // Keep the width it has and hold it there: the box the person is looking
+              // at is the box they asked to keep (`text.resize_width`).
+              setTextWidthFixed(doc, text.id, text.width);
+            } else {
+              setTextWidthAuto(doc, text.id);
+            }
+            remeasureTextBox(doc, text.id);
+            props.boundary?.();
+          }}
+          onDelete={onDelete}
+        />
+      </div>
+    );
+  }
 
   const note = singleSticky(ids, snapshot);
   if (note) {

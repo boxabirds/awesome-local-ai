@@ -24,6 +24,31 @@ import { useCameraContext } from './CameraContext';
 import type { Camera } from './camera';
 import { IS_TEST_MODE, installTestHooks, isValidCamera } from './testHooks';
 
+/** How long a second press counts as the same double-click, in milliseconds. */
+const DOUBLE_PRESS_GUARD_MS = 500;
+/** How close two presses have to be to be the same place, in CSS pixels. */
+const DOUBLE_PRESS_SLOP_PX = 8;
+
+/**
+ * Is this the second press of one double-click?
+ *
+ * Close in time *and* close on the board. Time alone would make two deliberate clicks at
+ * different places into one gesture, which is a person writing two headings in a row and
+ * getting one.
+ */
+function isSecondTextPress(
+  placed: { x: number; y: number; at: number } | null,
+  timeStamp: number,
+  point: { x: number; y: number },
+): boolean {
+  return (
+    placed !== null &&
+    timeStamp - placed.at < DOUBLE_PRESS_GUARD_MS &&
+    Math.abs(point.x - placed.x) <= DOUBLE_PRESS_SLOP_PX &&
+    Math.abs(point.y - placed.y) <= DOUBLE_PRESS_SLOP_PX
+  );
+}
+
 /** `WheelEvent.deltaMode` values. */
 const DELTA_MODE_LINE = 1;
 const DELTA_MODE_PAGE = 2;
@@ -131,6 +156,17 @@ export interface BoardViewportProps {
    * (`sel.marquee`). Without it, Shift+drag pans, as it did before story 7.
    */
   marquee?: BoardViewportMarquee;
+  /**
+   * The Text tool is armed (`text.tool_ui`).
+   *
+   * While it is, the next press anywhere on the board — empty space or on top of an
+   * object — places text there instead of panning, marquee-ing or dragging: the
+   * person said where they wanted to write. `onTextPointClick` is what happens, and
+   * the viewport only says where.
+   */
+  textMode?: boolean;
+  /** A press with the Text tool armed, at a point relative to the viewport. */
+  onTextPointClick?(point: { x: number; y: number }): void;
 }
 
 export function BoardViewport({
@@ -138,6 +174,8 @@ export function BoardViewport({
   onEmptyDoubleClick,
   onEmptyClick,
   marquee,
+  textMode,
+  onTextPointClick,
 }: BoardViewportProps) {
   const nav = useCameraContext();
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -152,6 +190,33 @@ export function BoardViewport({
   /** Latest marquee behaviour, for the same reason. */
   const marqueeRef = useRef(marquee);
   marqueeRef.current = marquee;
+  /** Latest Text-tool state, for the same reason: one listener, never stale. */
+  const textModeRef = useRef(textMode);
+  textModeRef.current = textMode;
+  const textPointRef = useRef(onTextPointClick);
+  textPointRef.current = onTextPointClick;
+  /**
+   * When the last Text-tool press happened, in the same clock as `event.timeStamp`.
+   *
+   * A double-click is two presses and a `dblclick`, and the tool is only armed for the
+   * first of them. Without this, a person who double-clicks while Text is armed gets a
+   * second box of text on top of the first, and — because the second press can arrive
+   * before the tool has been put away — an empty double-click could still fall through
+   * to the board's own "double-click makes a note" behaviour.
+   */
+  const placedTextRef = useRef<{ x: number; y: number; at: number } | null>(null);
+  /**
+   * The press the Text tool has claimed, and where it started; `null` when this press is
+   * not the Text tool's.
+   *
+   * The claim is made on pointerdown — that is the moment the object under the pointer
+   * would otherwise start dragging — but the text is placed on the `click` that follows.
+   * Not on pointerdown: a browser moves focus as the default action of a mousedown, which
+   * happens after the React state update, so an editor opened on pointerdown is blurred
+   * again before a person could type into it (`text.create`). The point of the press is
+   * what is remembered, because that is where the person said "here".
+   */
+  const claimedPressRef = useRef<{ x: number; y: number } | null>(null);
   /**
    * Where the current press on empty space started, whether it moved, and what it is
    * doing: panning the board, or drawing a selection rectangle. A press is one or the
@@ -165,6 +230,48 @@ export function BoardViewport({
   const localPoint = useCallback((clientX: number, clientY: number) => {
     const rect = viewportRef.current?.getBoundingClientRect();
     return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
+  }, []);
+
+  // --- The Text tool: the next press writes, and does nothing else ------
+  //
+  // Capture phase, on the viewport itself: an object's own pointerdown is what would
+  // start dragging it, and that is exactly what must not happen when the person has
+  // said "write here" (`text.tool_ui`). Stopping propagation also keeps the pan and the
+  // marquee out of it, so one press means one thing.
+  useEffect(() => {
+    const element = viewportRef.current;
+    if (!element) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!textModeRef.current || event.button !== 0) return;
+      const rect = element.getBoundingClientRect();
+      const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      // The second press of a double-click is not a placement: it is the same gesture, and
+      // what it belongs to is the editor the first press opened.
+      if (isSecondTextPress(placedTextRef.current, event.timeStamp, point)) {
+        claimedPressRef.current = null;
+        return;
+      }
+      claimedPressRef.current = point;
+      event.stopPropagation();
+    };
+
+    // Placed on the click, not the press — see `claimedPressRef`.
+    const onClick = (event: MouseEvent) => {
+      const press = claimedPressRef.current;
+      claimedPressRef.current = null;
+      if (press === null || !textModeRef.current || event.button !== 0) return;
+      if (isSecondTextPress(placedTextRef.current, event.timeStamp, press)) return;
+      placedTextRef.current = { x: press.x, y: press.y, at: event.timeStamp };
+      textPointRef.current?.(press);
+    };
+
+    element.addEventListener('pointerdown', onPointerDown, true);
+    element.addEventListener('click', onClick, true);
+    return () => {
+      element.removeEventListener('pointerdown', onPointerDown, true);
+      element.removeEventListener('click', onClick, true);
+    };
   }, []);
 
   // --- Drag to pan, or Shift+drag to select ------------------------------
@@ -339,7 +446,9 @@ export function BoardViewport({
       data-camera-y={camera.y}
       data-camera-zoom={camera.zoom}
       data-grid-spacing={GRID_SPACING_WORLD * camera.zoom}
-      className={`board-viewport${nav.isPanning ? ' board-viewport--panning' : ''}`}
+      className={`board-viewport${nav.isPanning ? ' board-viewport--panning' : ''}${
+        textMode ? ' board-viewport--text' : ''
+      }`}
       style={gridBackgroundStyle(camera)}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -351,6 +460,15 @@ export function BoardViewport({
       onDoubleClick={(event) => {
         // Only empty board space: an object stops the event before it gets here.
         if (event.target !== viewportRef.current) return;
+        // The second press of a Text-tool double-click: the text is already there, and
+        // making a note as well would be two things from one gesture.
+        const placed = placedTextRef.current;
+        if (
+          placed !== null &&
+          isSecondTextPress(placed, event.timeStamp, localPoint(event.clientX, event.clientY))
+        ) {
+          return;
+        }
         onEmptyDoubleClick?.(localPoint(event.clientX, event.clientY));
       }}
     >

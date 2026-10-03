@@ -51,6 +51,16 @@ body {
   cursor: grabbing;
 }
 
+/*
+ * The Text tool is armed: the pointer is a caret, and it stays one even over the
+ * objects it would otherwise grab (`text.tool_ui`). A hand over a note would promise
+ * a drag that this click is not going to do.
+ */
+.board-viewport--text,
+.board-viewport--text .sticky-note {
+  cursor: text;
+}
+
 .board-world {
   position: absolute;
   top: 0;
@@ -414,7 +424,8 @@ button:focus-visible {
 }
 
 /* Exactly one sticky note selected: story 2's toolbar, in the same place. */
-.selection-bar--note {
+.selection-bar--note,
+.selection-bar--text {
   padding: 0;
   border: 0;
   background: none;
@@ -696,4 +707,104 @@ button:focus-visible {
   margin: 0;
   color: #7a4c05;
   font-size: 12px;
+}
+
+/* Free text --------------------------------------------------------------- */
+
+/*
+ * The box is the one the board measured, so the browser has to lay the words out
+ * inside exactly that width (`text.box`): `pre-wrap` makes the wrapping match the
+ * wrapping the measurement asked for, keeps the newlines a person typed, and
+ * `overflow-wrap` breaks a word that is longer than the column rather than letting it
+ * run off the side of the board.
+ *
+ * It is `position: absolute` with a stored left, top, width and height like every other
+ * object, and it takes part in gestures like them: the world layer turns pointer events
+ * off, and an object turns them back on for itself.
+ */
+.text-object {
+  position: absolute;
+  box-sizing: border-box;
+  /* No background and no border: text on a board is words, not a card around them.
+     The outline when selected is the only thing drawn. */
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  white-space: pre-wrap;
+  /* Deliberately not clipped. The board measures a line with a canvas and the browser
+     breaks it with the same font a few rounding steps away; on the odd occasion where the
+     browser needs one more line than the stored box holds, the words should spill out
+     where they can still be read rather than be cut off by the box (`text.box`). */
+  overflow-wrap: break-word;
+  pointer-events: auto;
+  cursor: default;
+  touch-action: none;
+  user-select: none;
+  border-radius: 2px;
+}
+
+.text-object--selected {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/*
+ * The editor is the same box, with the caret in it. `min-height` gives an empty one
+ * somewhere to put a cursor — a box with no content and no height would be a text
+ * object that cannot be typed into (`text.create`).
+ */
+.text-object__editor {
+  min-height: 1em;
+  min-width: 1px;
+  outline: none;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  caret-color: var(--focus-ring);
+}
+
+/* The toolbar of the selected text, built out of the same panel as the note's. */
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  white-space: nowrap;
+}
+
+.text-toolbar__size,
+.text-toolbar__width {
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.text-toolbar__size--active,
+.text-toolbar__width--active {
+  background: rgba(47, 111, 237, 0.16);
+  outline: 1px solid var(--focus-ring);
+}
+
+.text-toolbar__delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
 }

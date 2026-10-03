@@ -5,6 +5,7 @@
  * TC-24 resize a type whose proportions are not locked, and force them with Shift
  * TC-25 a board that failed to load refuses every gesture that would write
  * TC-26 one gesture is announced as beginning once, and as ending once
+ * TC-27 (story 9) a resize of a type whose height its content decides
  * plus the two things the browser suite proves at scale, checked here in miniature: a
  * group moves as one arrangement, and a group resize scales the gaps with the objects.
  *
@@ -16,6 +17,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 
 import { STICKY_SIZE_WORLD } from '../../src/shared/config';
+import { LOCAL_ORIGIN, objectSnapshots } from '../../src/shared/board-model';
+import { createText, getText, type TextSnapshot } from '../../src/shared/objects/text';
 import { worldToScreen, type Point } from '../../src/client/canvas/camera';
 import {
   createTestBox,
@@ -27,6 +30,13 @@ import { advanceFrames, renderStickyApp, type StickyAppHandle } from './stickyHa
 
 /** Screen point for a world point, with the camera the board opens with. */
 const at = (board: StickyAppHandle, world: Point) => worldToScreen(board.camera(), world);
+
+/** What the document says about one piece of text. */
+const textOf = (doc: Y.Doc, id: string): TextSnapshot => {
+  const found = objectSnapshots(doc).find((object) => object.id === id);
+  if (!found) throw new Error('the text is not in the document');
+  return found as TextSnapshot;
+};
 
 /** Drag an object by a screen delta, in three steps a real pointer makes. */
 async function dragBy(
@@ -173,6 +183,42 @@ describe('sel.transform: moving', () => {
 describe('sel.transform: resizing', () => {
   beforeEach(() => {
     registerTestBox();
+  });
+
+  it('TC-27 a piece of text dragged sideways keeps its top, and its lines set its height', async () => {
+    // Story 9 asks a question story 5 never had to answer: what does a resize do to a type
+    // whose height belongs to its content? The width is the person's, the height is the
+    // words', and neither of them is the number the drag multiplied.
+    const board = await renderStickyApp();
+    const id = createText(board.doc, { x: 0, y: 0 }, 'someone')!;
+    await advanceFrames();
+    await act(async () => {
+      board.doc.transact(() => {
+        getText(board.doc, id)?.insert(0, 'Ship the release notes before Friday standup');
+      }, LOCAL_ORIGIN);
+    });
+    await advanceFrames();
+    const before = textOf(board.doc, id);
+
+    const point = at(board, { x: 4, y: 4 });
+    await board.press(screen.getByTestId('text-object'), point.x, point.y);
+    await board.release(point.x, point.y);
+    // Only the two handles that can change a width — and nothing that changes a height.
+    expect(board.handles().map((handle) => handle.dataset.handle).sort()).toEqual(['e', 'w']);
+
+    // Narrow the column by half the width of the words: they have nowhere to go but down.
+    const grab = at(board, { x: before.width, y: before.height / 2 });
+    await dragBy(board, board.handle('e')!, grab, -160, 0);
+
+    const after = textOf(board.doc, id);
+    expect(after.widthMode).toBe('fixed');
+    expect(after.width).toBeCloseTo(before.width - 160, 5);
+    expect(after.height).toBeGreaterThan(before.height);
+    // A mid-right handle is anchored on its right edge, so the top edge is the one that
+    // must not move: a box that jumped upwards as it wrapped would take the words away
+    // from the place they were written at.
+    expect(after.x).toBeCloseTo(before.x, 5);
+    expect(after.y).toBeCloseTo(before.y, 5);
   });
 
   it('TC-24 an edge handle of a type with free proportions changes that dimension only', async () => {
@@ -322,7 +368,8 @@ describe('sel.transform: resizing', () => {
     // And the toolbar cannot put a new note on it.
     const before2 = board.notes().length;
     await act(async () => {
-      screen.getByRole('button', { name: 'Sticky note' }).click();
+      // The label carries its shortcut since story 9: "Sticky note (N)".
+      screen.getByRole('button', { name: /Sticky note/ }).click();
     });
     expect(board.notes()).toHaveLength(before2);
   });

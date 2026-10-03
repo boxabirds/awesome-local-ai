@@ -152,6 +152,9 @@ export async function renderStickyApp(
         isPrimary: true,
         pointerType: 'mouse',
       });
+      // A browser does not stop at pointerup: a click follows it, and a board that only
+      // ever saw pointerdown/pointerup here would be tested against a gesture nobody makes.
+      fireEvent.click(target, { clientX: x, clientY: y, pointerId: 1, button: 0, buttons: 0 });
     });
     await advanceFrames(1);
   };

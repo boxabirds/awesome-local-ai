@@ -91,6 +91,10 @@ interface PressItem {
   minSize: number;
   resizable: boolean;
   aspectLocked: boolean;
+  /** False → a resize keeps this object's own height (`text.box`). */
+  scalesHeight: boolean;
+  /** What a dragged width means to this type, once the rectangle has been written. */
+  onWidthResize(doc: Y.Doc, id: string, width: number): void;
 }
 
 /** A press, of either kind, and how far it has got. */
@@ -128,6 +132,8 @@ function pressItems(snapshot: readonly ObjectSnapshot[], ids: readonly string[])
       minSize: spec?.minSize ?? 1,
       resizable: spec?.resizable ?? false,
       aspectLocked: spec?.aspectLocked ?? false,
+      scalesHeight: spec?.scalesHeight ?? true,
+      onWidthResize: spec?.onWidthResize ?? (() => {}),
     });
   }
   return items;
@@ -196,23 +202,50 @@ export function useTransformGesture(params: TransformGestureParams): TransformGe
     const target = resizeRect(box, handle, { x: dx, y: dy }, aspect);
     // How far the box wants to grow, and then how far it may: the whole selection
     // stops at the scale where its first object hits a limit (`sel.size_limits`).
-    const scale = clampScale(
-      {
-        x: box.width === 0 ? 1 : target.width / box.width,
-        y: box.height === 0 ? 1 : target.height / box.height,
-      },
-      press.items.map((item) => item.rect),
-      press.items.map((item) => item.minSize),
-      MAX_OBJECT_SIZE_WORLD,
-    );
+    //
+    // Each axis asks the objects that can actually move it. A type whose height is its
+    // content's business has no minimum height — its minimum is a width — and letting it
+    // set the vertical limit would push the box taller than anything was dragged, taking
+    // the objects next to it with it.
+    const wanted = {
+      x: box.width === 0 ? 1 : target.width / box.width,
+      y: box.height === 0 ? 1 : target.height / box.height,
+    };
+    const scalesY = press.items.filter((item) => item.scalesHeight);
+    const scale = {
+      x: clampScale(
+        { x: wanted.x, y: 1 },
+        press.items.map((item) => item.rect),
+        press.items.map((item) => item.minSize),
+        MAX_OBJECT_SIZE_WORLD,
+      ).x,
+      y:
+        scalesY.length === 0
+          ? 1
+          : clampScale(
+              { x: 1, y: wanted.y },
+              scalesY.map((item) => item.rect),
+              scalesY.map((item) => item.minSize),
+              MAX_OBJECT_SIZE_WORLD,
+            ).y,
+    };
     const to = anchoredRect(box, handle, box.width * scale.x, box.height * scale.y);
     const rects = new Map<string, Rect>();
     for (const item of press.items) {
       // Where this object sits within the box, scaled with it: the gap between two
       // notes grows in the same proportion as the notes themselves.
-      rects.set(item.id, scaleWithin(item.rect, box, to));
+      const scaled = scaleWithin(item.rect, box, to);
+      // A type whose height is its content's business keeps the height it had; the lines
+      // decide the next one, and a number copied from a note would only be undone.
+      rects.set(item.id, item.scalesHeight ? scaled : { ...scaled, height: item.rect.height });
     }
     resizeObjects(doc, rects);
+    // Then the part of a resize that is not a rectangle: for text, the width a person
+    // dragged is a width they chose, which the box then wraps inside.
+    for (const item of press.items) {
+      const rect = rects.get(item.id);
+      if (rect) item.onWidthResize(doc, item.id, rect.width);
+    }
   }, []);
 
   /** Cross the threshold: announce the gesture, raise the objects, then follow. */

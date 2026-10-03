@@ -19,10 +19,14 @@ import type * as Y from 'yjs';
 
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { HANDLES, type HandleId } from '../../shared/geometry';
 import type { Point } from '../canvas/camera';
 import type { UndoController } from '../board/undo';
+import { setTextWidthFixed, TEXT_TYPE } from '../../shared/objects/text';
+import { remeasureTextBox } from './useTextBoxSync';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /** What the board gives any object component, whatever its type. */
 export interface ObjectProps {
@@ -68,6 +72,31 @@ export interface ObjectTypeSpec {
   minSize?: number;
   /** True → Enter and double-click open a text editor. Default false. */
   editableText?: boolean;
+  /**
+   * Which handles this type may be resized by. Default: all eight.
+   *
+   * A type whose box has only one meaningful axis says so here: free text is given its
+   * width by a drag and its height by its own lines, so it has an east and a west handle
+   * and nothing on the top or the bottom. A selection offers the handles of anything in it
+   * — see `handlesFor`.
+   */
+  handles?: readonly HandleId[];
+  /**
+   * Does a resize scale this type's height? Default true.
+   *
+   * False for a type whose height is whatever its content needs (`text.box`): dragging a
+   * selection's corner moves it and widens it, and the height comes back from the lines —
+   * stretching it would only be undone by the next measurement.
+   */
+  scalesHeight?: boolean;
+  /**
+   * A person dragged this type to a new width. Default: nothing beyond storing the number.
+   *
+   * For text this is the moment the box stops being measured and starts being chosen
+   * (`text.resize_width`), which is a fact about the type that the generic resize gesture
+   * has no business knowing.
+   */
+  onWidthResize?(doc: Y.Doc, id: string, width: number): void;
   /** Is this world point on the object? Default: is it inside its bounds. */
   hitTest?(obj: ObjectSnapshot, point: Point): boolean;
 }
@@ -78,6 +107,9 @@ export interface ResolvedObjectType extends ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  handles: readonly HandleId[];
+  scalesHeight: boolean;
+  onWidthResize(doc: Y.Doc, id: string, width: number): void;
   hitTest(obj: ObjectSnapshot, point: Point): boolean;
 }
 
@@ -128,6 +160,9 @@ export function registerObjectType(type: string, spec: ObjectTypeSpec): void {
     aspectLocked: spec.aspectLocked ?? false,
     minSize: spec.minSize ?? STICKY_MIN_SIZE_WORLD,
     editableText: spec.editableText ?? false,
+    handles: spec.handles ?? HANDLES,
+    scalesHeight: spec.scalesHeight ?? true,
+    onWidthResize: spec.onWidthResize ?? (() => {}),
     hitTest: spec.hitTest ?? pointInBounds,
   });
 }
@@ -142,6 +177,24 @@ export function isRenderable(type: string): boolean {
   return registry.has(type);
 }
 
+/**
+ * The handles a selection may show: the ones anything in it is resized by.
+ *
+ * One text on its own has two handles, because that is all the box it has. Put a sticky
+ * note next to it and the other six come back — the note is resized by them, and a person
+ * selecting both reasonably expects to resize both. What a handle then *does* to each
+ * object is that object's business (`scalesHeight`), not the handle's.
+ */
+export function handlesFor(objects: readonly ObjectSnapshot[]): readonly HandleId[] {
+  const offered: HandleId[] = [];
+  for (const handle of HANDLES) {
+    if (objects.some((object) => (registry.get(object.type)?.handles ?? HANDLES).includes(handle))) {
+      offered.push(handle);
+    }
+  }
+  return offered;
+}
+
 // The types the app ships with. Later stories add their own lines here, and the
 // selection, transform and delete code above needs no change for them.
 registerObjectType('sticky', {
@@ -149,5 +202,26 @@ registerObjectType('sticky', {
   // A note is a square piece of paper: resizing it may only ever produce a square.
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
+  editableText: true,
+});
+
+registerObjectType(TEXT_TYPE, {
+  Component: TextObject,
+  // Width only: the height is however tall the wrapped lines turned out (`text.box`), so
+  // there is nothing for a north or south handle to grab.
+  handles: ['w', 'e'],
+  scalesHeight: false,
+  // A width a person dragged is a width they chose (`text.resize_width`): the box stops
+  // measuring itself and wraps inside that number. The measure belongs in this callback
+  // rather than being left to the box's own listener, because the last frame of a drag
+  // writes the width the frame before it already wrote: nothing changes, so a listener that
+  // only reacts to change never fires, and the height left standing is the one from before
+  // the words had to wrap.
+  onWidthResize: (doc, id, width) => {
+    setTextWidthFixed(doc, id, width);
+    remeasureTextBox(doc, id);
+  },
+  // The narrowest a column of text can be before it is a single letter per line.
+  minSize: TEXT_MIN_WIDTH_WORLD,
   editableText: true,
 });
