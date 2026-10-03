@@ -127,7 +127,7 @@ function Calls({ events, from, fmt, link }: { events: ConversationEvent[]; from:
                   <td className="n">{isNum(e.inTok) ? full(e.inTok + (isNum(e.cacheTok) ? e.cacheTok : 0)) : <Missing why="The client didn't report this call's tokens." />}</td>
                   <td className="n">{num(e.outTok, "The client didn't report this call's tokens.")}</td>
                   <td>{typeof e.stop === "string" ? e.stop : <Missing why="The client didn't report why the call stopped." />}</td>
-                  <td className="said"><Quoted text={cutText(e.textBody as CutText) || (think && !withheld ? cutText(think) : "")} className="gist" /></td>
+                  <td className="said"><Quoted text={cutText(e.textBody as CutText).trim() || (think && !withheld ? cutText(think).trim() : "")} className="gist" /></td>
                 </tr>
               );
             })}
