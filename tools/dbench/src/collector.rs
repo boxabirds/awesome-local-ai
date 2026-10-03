@@ -6,7 +6,7 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -299,7 +299,28 @@ pub struct NodeSummary {
     pub problems: Vec<String>,
 }
 
-pub async fn collect_node(ctx: &Ctx, node: &str, store: &Path, only_runs: &[String], cadence: &Cadence, now: u64) -> NodeSummary {
+/// Whether a pass pulls this run: never an archived one, even when asked for by name; otherwise every run, or only the
+/// ones asked for.
+pub fn wanted(run: &str, only_runs: &[String], archived: &BTreeSet<String>) -> bool {
+    !archived.contains(run) && (only_runs.is_empty() || only_runs.iter().any(|r| r == run))
+}
+
+/// The archived runs, from the same published tree the ingest reads. None known (no repo, or it can't be read) means
+/// none skipped: the ingest still leaves them out, reading the tree itself.
+fn archived_runs(cfg: &Config) -> BTreeSet<String> {
+    let Some(repo) = cfg.repo.as_ref() else { return BTreeSet::new() };
+    let published: Box<dyn crate::ingest::inputs::Published> = if cfg.worktree {
+        Box::new(crate::ingest::inputs::TreeSource { root: repo.clone() })
+    } else {
+        Box::new(crate::ingest::inputs::GitSource::new(repo, "origin/main"))
+    };
+    published.archived().unwrap_or_else(|e| {
+        eprintln!("dbench collect: the archived runs can't be read: {e:#}");
+        BTreeSet::new()
+    })
+}
+
+pub async fn collect_node(ctx: &Ctx, node: &str, store: &Path, only_runs: &[String], archived: &BTreeSet<String>, cadence: &Cadence, now: u64) -> NodeSummary {
     let mut out = NodeSummary { node: node.to_string(), ..Default::default() };
     let api = match ctx.api(node) {
         Ok(a) => a,
@@ -317,7 +338,7 @@ pub async fn collect_node(ctx: &Ctx, node: &str, store: &Path, only_runs: &[Stri
     };
     out.reachable = true;
     for r in runs {
-        if !only_runs.is_empty() && !only_runs.contains(&r.run) {
+        if !wanted(&r.run, only_runs, archived) {
             continue;
         }
         match collect_run(&api, node, &r.run, store, cadence, now).await {
@@ -331,7 +352,8 @@ pub async fn collect_node(ctx: &Ctx, node: &str, store: &Path, only_runs: &[Stri
 /// One pass over the nodes, then the ingest of what changed.
 pub async fn pass(ctx: &Ctx, cfg: &Config, cadence: &Cadence, fetch: bool, now: u64) -> Result<Vec<NodeSummary>> {
     let names: Vec<String> = if cfg.nodes.is_empty() { ctx.nodes.keys().cloned().collect() } else { cfg.nodes.clone() };
-    let futs = names.iter().map(|n| collect_node(ctx, n, &cfg.store, &cfg.runs, cadence, now));
+    let archived = archived_runs(cfg);
+    let futs = names.iter().map(|n| collect_node(ctx, n, &cfg.store, &cfg.runs, &archived, cadence, now));
     let summaries = futures_util::future::join_all(futs).await;
     for s in &summaries {
         for p in &s.problems {
@@ -462,6 +484,18 @@ pub async fn cmd_collect(ctx: &Ctx, args: &CollectArgs) -> Result<()> {
 mod tests {
     use super::*;
     use crate::collect::{FileEntry, FileKind};
+
+    #[test]
+    fn an_archived_run_is_never_pulled_even_when_asked_for_and_only_runs_still_narrows() {
+        let old = "combinations/a/benchmarks/vidi/canvas-01";
+        let new = "combinations/a/benchmarks/vidi/v2-r1";
+        let archived = std::collections::BTreeSet::from([old.to_string()]);
+        assert!(!wanted(old, &[], &archived));
+        assert!(wanted(new, &[], &archived));
+        assert!(!wanted(old, &[old.to_string()], &archived));
+        assert!(wanted(new, &[new.to_string()], &archived));
+        assert!(!wanted(new, &["combinations/b/benchmarks/vidi/v2-r1".to_string()], &archived));
+    }
 
     fn manifest(files: &[(&str, FileKind, u64, f64)], state: Option<&str>, job_state: Option<&str>) -> Manifest {
         Manifest {

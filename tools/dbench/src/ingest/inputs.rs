@@ -29,12 +29,24 @@ const RENAMED_TO: &str = "-pi/";
 /// Where published records and compact logs are read from. Not `benchmarks/reference`: the reference models (Claude
 /// Opus, Sonnet) are the quality yardstick and their conversations are not kept in the warehouse.
 const PUBLISHED_ROOTS: [&str; 1] = ["combinations"];
+/// A run directory holding this file is archived (owner, 4 Oct 2026): superseded, its record removed from the published
+/// tree, and kept out of the lake, the warehouse and the analytics file. Only the marker stays, saying what it was.
+pub const ARCHIVED_MARKER: &str = "archived.json";
+/// Where archived runs are looked for: the published roots, and the reference models' runs, which are archived too.
+const ARCHIVE_ROOTS: [&str; 2] = ["combinations", "benchmarks/reference"];
+
+/// The run directories these paths mark as archived.
+fn marked<'a>(paths: impl Iterator<Item = &'a str>) -> BTreeSet<String> {
+    paths.filter_map(|p| p.strip_suffix(&format!("/{ARCHIVED_MARKER}"))).map(String::from).collect()
+}
 
 /// The published side: a path's bytes, and the blob id that names its content.
 pub trait Published {
     /// Every published path under the roots, with the id of its content.
     fn paths(&self) -> Result<BTreeMap<String, String>>;
     fn read(&self, path: &str) -> Result<Option<Vec<u8>>>;
+    /// Every archived run directory, reference models' included.
+    fn archived(&self) -> Result<BTreeSet<String>>;
     /// What this source is (for the database's meta).
     fn describe(&self) -> String;
 }
@@ -97,6 +109,14 @@ impl Published for GitSource {
         Ok(Some(self.git(&["cat-file", "blob", id])?))
     }
 
+    fn archived(&self) -> Result<BTreeSet<String>> {
+        let mut args = vec!["ls-tree", "-r", "-z", "--name-only", self.rev.as_str(), "--"];
+        args.extend(ARCHIVE_ROOTS);
+        let out = self.git(&args)?;
+        let names = out.split(|&b| b == 0).filter(|e| !e.is_empty()).map(|e| String::from_utf8_lossy(e).into_owned()).collect::<Vec<_>>();
+        Ok(marked(names.iter().map(String::as_str)))
+    }
+
     fn describe(&self) -> String {
         format!("git {} {}", self.repo.display(), self.rev)
     }
@@ -122,6 +142,14 @@ impl Published for TreeSource {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(e) => Err(e.into()),
         }
+    }
+
+    fn archived(&self) -> Result<BTreeSet<String>> {
+        let mut all = BTreeMap::new();
+        for root in ARCHIVE_ROOTS {
+            walk(&self.root, &self.root.join(root), &mut all)?;
+        }
+        Ok(marked(all.keys().map(String::as_str)))
     }
 
     fn describe(&self) -> String {
@@ -233,17 +261,19 @@ fn lake_story_log(lake: &LakeRun, story: i64) -> Option<PathBuf> {
 /// Every story run id with a log anywhere: published (the compact log in git) or in the lake (the
 /// full log), the lake's path mapped to its published name where the combination was renamed.
 pub fn candidates(published: &dyn Published, lake: &BTreeMap<String, LakeRun>) -> Result<BTreeSet<String>> {
+    let archived = published.archived()?;
+    let is_archived = |story: &str| super::split_story_rel(story).is_some_and(|(run, _)| archived.contains(run));
     let mut out = BTreeSet::new();
     for path in published.paths()?.keys() {
         if path.contains(RESCORE_DIR) {
             continue;
         }
-        if let Some(dir) = path.strip_suffix(&format!("/{COMPACT_LOG}")) {
+        if let Some(dir) = path.strip_suffix(&format!("/{COMPACT_LOG}")).filter(|d| !is_archived(d)) {
             out.insert(dir.to_string());
         }
     }
     for (run, lr) in lake {
-        if run.contains(RESCORE_DIR) {
+        if run.contains(RESCORE_DIR) || archived.contains(run) || archived.contains(&run.replace(RENAMED_FROM, RENAMED_TO)) {
             continue;
         }
         let Ok(stories) = std::fs::read_dir(lr.dir.join(STORIES_DIR)) else { continue };
@@ -383,6 +413,7 @@ pub struct Summary {
 pub fn run(db: &mut super::db::Db, published: &dyn Published, store: &Path, sel: &Selection, now: f64) -> Result<Summary> {
     let started = std::time::Instant::now();
     db.purge_reference()?;          // anything an earlier version ingested
+    db.purge_runs(&published.archived()?)?; // and any run archived since it was ingested
     let ids = published.paths()?;
     let lake = lake_runs(store)?;
     let mut by_run: BTreeMap<String, Vec<String>> = BTreeMap::new();

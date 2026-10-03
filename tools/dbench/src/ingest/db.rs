@@ -131,6 +131,24 @@ impl Db {
         Ok(n)
     }
 
+    /// Remove these runs (by their exact run id, the run directory) and everything held for them from every table.
+    /// Returns how many story runs were removed.
+    pub fn purge_runs(&mut self, run_ids: &std::collections::BTreeSet<String>) -> Result<usize> {
+        let tx = self.conn.transaction()?;
+        let mut n = 0;
+        for id in run_ids {
+            for t in ["calls", "tools", "msgs", "compactions", "attempts", "sessions", "collection", "events", "requests", "conditions"] {
+                tx.execute(&format!("delete from {t} where sk in (select sk from stories where run_id = ?1)"), params![id])?;
+            }
+            tx.execute("delete from requests where run_id = ?1", params![id])?;
+            tx.execute("delete from conditions where run_id = ?1", params![id])?;
+            n += tx.execute("delete from stories where run_id = ?1", params![id])?;
+            tx.execute("delete from runs where id = ?1", params![id])?;
+        }
+        tx.commit()?;
+        Ok(n)
+    }
+
     pub fn set_meta(&self, key: &str, value: &str) -> Result<()> {
         self.conn.execute("insert or replace into meta(key, value) values (?1, ?2)", params![key, value])?;
         Ok(())

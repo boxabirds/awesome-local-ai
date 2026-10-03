@@ -53,6 +53,14 @@ describe("finding runs", () => {
       `${dir}/rescore/vidi-v2.0-pre2/stories/12/accept-report.json`]);
     expect(runs[0].rescoreLast).toEqual({ "vidi-v2.0-pre2": "12" });
   });
+  it("an archived run is not a run, even with its run.json still beside the marker (owner, 4 Oct 2026)", () => {
+    const old = `combinations/${SWIFT}/benchmarks/vidi/canvas-pi-02`;
+    const ref = "benchmarks/reference/vidi/opus-5.5/run-2";
+    const runs = findRuns([...PATHS, `${old}/run.json`, `${old}/archived.json`, `${ref}/archived.json`]);
+    expect(runs.map((r) => r.runId)).toEqual(["v2-r1", "canvas-gufo-r3", "run-3"]);
+    // The marker alone (the record's usual state once archived) is no run either.
+    expect(findRuns([`${old}/archived.json`])).toEqual([]);
+  });
 });
 
 describe("versions", () => {
