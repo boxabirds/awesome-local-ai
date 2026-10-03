@@ -1,0 +1,73 @@
+{
+  "skipped": false,
+  "build_exit": 0,
+  "runner_exit": 1,
+  "passed": 70,
+  "total": 75,
+  "on_partial": {
+    "passed": 9,
+    "total": 10
+  },
+  "by_story": {
+    "01": {
+      "passed": 10,
+      "total": 10
+    },
+    "02": {
+      "passed": 8,
+      "total": 10
+    },
+    "03": {
+      "passed": 6,
+      "total": 7
+    },
+    "04": {
+      "passed": 4,
+      "total": 4
+    },
+    "05": {
+      "passed": 5,
+      "total": 5
+    },
+    "07": {
+      "passed": 8,
+      "total": 8
+    },
+    "08": {
+      "passed": 7,
+      "total": 7
+    },
+    "09": {
+      "passed": 6,
+      "total": 6
+    },
+    "10": {
+      "passed": 7,
+      "total": 8
+    },
+    "11": {
+      "passed": 4,
+      "total": 5
+    },
+    "12": {
+      "passed": 5,
+      "total": 5
+    }
+  },
+  "setup_fallbacks": {
+    "tests": 0,
+    "by_owner": {}
+  },
+  "harness_fault": null,
+  "install": {
+    "ok": true,
+    "command": "npm ci --no-audit --no-fund",
+    "fallback": false
+  },
+  "scores": [
+    70,
+    70,
+    70
+  ],
+  "flaky": 0
+}
