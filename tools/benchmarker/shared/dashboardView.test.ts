@@ -83,6 +83,12 @@ describe("a series of runs of one stack", () => {
     expect(s.runs[0].score).toBe(59);
     expect(s.runs[1].stories).toEqual({ done: 2, scope: 3 });
   });
+  it("a series' score is the median of its finished runs' scores of record, out of the suite's total; none finished: null", () => {
+    const rs = [finished("s-r1", HOUR, { score: 60 }), finished("s-r2", HOUR, { score: 70 }), finished("s-r3", HOUR, { score: 50 }), run({ id: "s-r4", status: "queued" })];
+    const [s] = seriesOf(rs);
+    expect(s.score).toEqual({ median: 60, min: 50, max: 70, total: 75, n: 3 });
+    expect(seriesOf([run({ id: "t-r1", status: "queued" })])[0].score).toBeNull();
+  });
   it("two series of one stack stay apart; the ones with work in hand come first", () => {
     const rs = [finished("v2-r1", HOUR), finished("v2-r2", HOUR), run({ id: "v2-fresh-r1", status: "running", storySecs: [] }), run({ id: "v2-fresh-r2", status: "queued" })];
     const all = seriesOf(rs);

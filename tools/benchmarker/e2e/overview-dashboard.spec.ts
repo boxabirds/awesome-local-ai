@@ -78,8 +78,24 @@ test.describe("series", () => {
     expect(states).toContain("finished");
     expect(states).toContain("queued");
     await expect(row.locator(".seg-finished").first()).toHaveText(/^\d+$/);
-    await expect(row.locator(".series-count")).toHaveText(/^\d+ of \d+ done$/);
+    await expect(row.locator(".series-count")).toHaveText(/^\d+\/\d+$/);
     await expect(row.locator(".seg-run").first()).toHaveAttribute("href", /#\/vidi\/r\//);
+  });
+
+  test("the scores are colour-coded from red (0) to green (the total), in the segments and in the series' own score column", async ({ page }) => {
+    const row = overview(page).locator(`.series-row[data-stack="${SWIFT}"][data-prefix="v2"]`);
+    await expect(row.locator(".series-score")).toHaveText(/^\d+(\.\d)?\/75$/);
+    const finished = row.locator(".seg-finished");
+    const colours = await finished.evaluateAll((els) => els.map((e) => [Number(e.textContent), getComputedStyle(e).color]));
+    const highest = colours.reduce((a, b) => (b[0] > a[0] ? b : a)), lowest = colours.reduce((a, b) => (b[0] < a[0] ? b : a));
+    expect(highest[0]).toBeGreaterThan(lowest[0]);
+    expect(highest[1]).not.toBe(lowest[1]);
+    const g = (c: string) => Number(c.match(/\d+/g)![1]), r = (c: string) => Number(c.match(/\d+/g)![0]);
+    expect(g(highest[1]) - r(highest[1])).toBeGreaterThan(g(lowest[1]) - r(lowest[1]));   // the higher score is greener, the lower redder
+  });
+
+  test("a series with nothing scored yet has a dash for its score", async ({ page }) => {
+    await expect(overview(page).locator(".series-row .series-score", { hasText: "—" }).first()).toBeVisible();
   });
 
   test("a series with work in hand comes first; a segment says what it is on hover and to a screen reader", async ({ page }) => {

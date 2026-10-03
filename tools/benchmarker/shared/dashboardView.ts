@@ -81,7 +81,10 @@ export interface SeriesRun {
   /** Stories recorded out of those in scope. */
   stories: { done: number; scope: number };
 }
-export interface Series { stack: string; label: string; machine: string; prefix: string; runs: SeriesRun[]; size: number; done: number; active: boolean }
+export interface SeriesScore { median: number; min: number; max: number; total: number | null; n: number }
+export interface Series { stack: string; label: string; machine: string; prefix: string; runs: SeriesRun[]; size: number; done: number; active: boolean;
+  /** The median, lowest and highest score of record over the finished runs; null while none is scored. */
+  score: SeriesScore | null }
 
 const SERIES_NUMBER = /-r(\d+)$/;
 const seriesPrefix = (runId: string) => runId.replace(SERIES_NUMBER, "");
@@ -102,7 +105,10 @@ export function seriesOf(rows: Row[]): Series[] {
       const s = r.status === "finished" ? scoreOfRecord(r) : null;
       return { runId: r.runId, state: states[r.status]!, score: s?.passed ?? null, total: s?.total ?? null, stories: { done: r.stories.length, scope: r.storiesWorking.scope } };
     });
-    return { stack: rs[0].stack, label: rs[0].label, machine: rs[0].machine, prefix: seriesPrefix(rs[0].runId), runs, size: runs.length, done: runs.filter((r) => r.state === "finished").length, active: runs.some((r) => r.state !== "finished") };
+    const scores = runs.map((r) => r.score).filter((x): x is number => x !== null);
+    const m = median(scores);
+    const score = m === null ? null : { median: m, min: Math.min(...scores), max: Math.max(...scores), total: runs.find((r) => r.total !== null)?.total ?? null, n: scores.length };
+    return { stack: rs[0].stack, label: rs[0].label, machine: rs[0].machine, prefix: seriesPrefix(rs[0].runId), runs, size: runs.length, done: runs.filter((r) => r.state === "finished").length, active: runs.some((r) => r.state !== "finished"), score };
   });
   return all.toSorted((a, b) => Number(b.active) - Number(a.active) || b.prefix.localeCompare(a.prefix, undefined, { numeric: true }));
 }
